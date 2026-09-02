@@ -42,13 +42,15 @@ pnpm 11's default one-day minimum release age remains active. The workspace cont
 
 CI installs the required exact versions through a commit-pinned installer action with checksum verification. The local bootstrap scripts use cargo-binstall when available and exact, locked Cargo installs otherwise; optional deep tools remain outside required PR CI.
 
-The manually triggered `.github/workflows/deep-quality.yml` job provides a reproducible Ubuntu 24.04 environment for the full advisory pass, including semdup and Hawk. Ubuntu 24.04 is intentional: semdup's bundled ONNX Runtime currently requires newer glibc C23 symbols than the Ubuntu 22.04 runner provides. It runs the same `just deep` interface used locally, but is deliberately not a required pull-request status check. Start it after broad refactors or when the Windows host cannot link semdup:
+The manually triggered `.github/workflows/deep-quality.yml` job provides a reproducible Ubuntu 24.04 environment for the full advisory pass, including semdup and Hawk. Ubuntu 24.04 is intentional: semdup's bundled ONNX Runtime currently requires newer glibc C23 symbols than the Ubuntu 22.04 runner provides. It runs the same `just deep` constituents as separate observable steps, but is deliberately not a required pull-request status check. Start it after broad refactors or when the Windows host cannot link semdup:
 
 ```bash
 gh workflow run deep-quality.yml --ref main
 ```
 
-The workflow log is review evidence, not an instruction to rewrite code. Hawk and semdup wrappers report findings without turning heuristic results into hard failures; deterministic checks inside `just audit` still block normally.
+The workflow caches semdup's versioned 149 MB model and its repository-local SQLite corpus. A source change restores the most recent compatible corpus and embeds only changed units; a configuration change starts a new corpus series. The first CPU-only index is allowed a longer cold-start budget, while later runs should be incremental.
+
+The workflow log is review evidence, not an instruction to rewrite code. Hawk and semdup findings remain advisory, but the hosted job requires both analyzers to execute successfully so a missing tool or broken runtime cannot masquerade as a clean report. Local `just deep` continues past unavailable optional tools, and deterministic checks inside `just audit` still block normally.
 
 ## Architecture gate
 
