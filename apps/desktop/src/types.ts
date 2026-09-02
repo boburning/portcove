@@ -100,11 +100,12 @@ export interface PortStatus {
 
 export type ActivityOperation = "check_update" | "backup" | "restore" | "delete_backup" | "install" | "update" | "reconcile" | "verify_install" | "activate" | "rollback" | "adopt" | "remove" | "register_source" | "verify_source";
 export type ActivityStatus = "running" | "succeeded" | "failed";
+export type ActivityTargetKind = "port" | "source" | "library";
 
 export interface ActivityRecord {
   id: string;
   operation: ActivityOperation;
-  target_kind: "port" | "source" | "library";
+  target_kind: ActivityTargetKind;
   target_id?: string;
   status: ActivityStatus;
   message?: string;
@@ -137,6 +138,19 @@ export interface DoctorReport {
   installed_port_count: number;
   registered_source_count: number;
   host_tools: HostToolStatus[];
+  repair: RepairPlan;
+}
+
+export interface RepairPlan {
+  generated_at: number;
+  items: Array<{
+    kind: "partial_operation" | "cleanup_pending" | "orphaned_final_directory" | "missing_registered_path";
+    operation_id?: string;
+    port_id?: string;
+    path?: string;
+    message: string;
+    proposed_action: string;
+  }>;
 }
 
 export interface BackupRecord {
@@ -239,15 +253,20 @@ export type UpdateCheckOutcome = BatchOutcome<UpdateCheck>;
 export type ReconcileOutcome = BatchOutcome<ReconcileResult>;
 
 export interface OperationEvent {
+  schema_version: 1;
+  operation_id: string;
+  parent_operation_id?: string;
+  sequence: number;
+  timestamp_ms: number;
+  operation: string;
+  target?: { kind: ActivityTargetKind; id: string };
   type: "started" | "progress" | "message" | "finished";
-  operation?: string;
-  port_id?: string;
   phase?: string;
   completed?: number;
   total?: number;
   level?: string;
   message?: string;
-  success?: boolean;
+  result?: "succeeded" | "failed";
 }
 
 export interface DesktopError {

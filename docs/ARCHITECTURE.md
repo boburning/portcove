@@ -33,13 +33,16 @@ library/
   portcove.sqlite3
   versions/<port-id>/<version>/
   staging/<operation-id>/
+  recovery/<operation-id>/
   user/<port-id>/
   downloads/
   toolchains/
   logs/
 ```
 
-SQLite stores source references, settings, install records, active/previous version pointers, successful launch history, timestamped successful update-check snapshots, and a typed operation activity ledger. WAL mode and explicit activation transactions keep version switches recoverable. The application version and mutable user data are separate so updates and removal do not erase saves, configuration, or mods. CLI and desktop launches update the same history only after a zero exit status; failed starts and unsuccessful exits do not feed Continue/recency UI. Management operations create a running activity before work and finish it as succeeded or failed without replacing the command's primary result, so external frontends and the desktop read the same durable history. Update snapshots likewise come from the core, allowing a CLI check to repopulate the desktop after restart; consumers validate the snapshot's installed version and channel before presenting it as current.
+SQLite stores source references, settings, install records, active/previous version pointers, successful launch history, timestamped successful update-check snapshots, a typed activity ledger, and the small set of incomplete cross-store lifecycle operations. Database opening takes a library-scoped operating-system migration lock before checking or changing the schema. Migrations are contiguous, individually transactional, postcondition-checked steps; a gap, a recorded partial step, or a schema newer than the running build fails with the affected versions instead of guessing. WAL and the busy timeout remain ordinary concurrency aids, not migration locks.
+
+Management operations create a running activity before work and finish it as succeeded or failed without replacing the command's primary result. Best-effort progress uses a versioned core event envelope containing that activity UUID, a per-operation sequence, millisecond timestamp, typed target, optional parent operation, and terminal result. Nested work receives its own ID and names the parent. SQLite activity is authoritative after disconnect or restart; event delivery is never treated as durable truth. Update snapshots likewise come from the core, allowing a CLI check to repopulate the desktop after restart; consumers validate the snapshot's installed version and channel before presenting it as current.
 
 Every filesystem-mutating operation takes an operating-system advisory lock keyed by library and port. The lock is shared across CLI and desktop processes, fails immediately with a structured conflict instead of waiting indefinitely, and is released automatically if a process exits. A launch retains its lock until the game exits and the exact launched version's mutable data has been collected, so another frontend cannot update, roll back, remove, verify, or launch that port during the save-critical interval. Different ports remain independently operable.
 
@@ -47,18 +50,21 @@ Each registered source keeps its original path, content identity, storage identi
 
 Before launch, catalog-declared persistent paths are synchronized from `user/<port-id>/` into the active version. They are collected from that exact launched version when the child exits and before update, staged activation, rollback, removal, or backup. Synchronization refuses symlink destinations and ancestors. A per-version marker prevents a fresh release's defaults from replacing established user data while still recovering changes after an abnormal exit. Adapters may also use an upstream storage contract: Libultraship receives `SHIP_HOME`, N64 recomp releases get their upstream-supported `portable.txt` marker, and a reviewed catalog entry can declare a portable marker beside its executable together with a narrowly validated source-import variable and fixed arguments. Mutable paths are resolved against the same working directory the adapter launches, including when a release archive contains a wrapper directory.
 
-Persistent-data backups use the same per-port lock and canonical user root. A backup is copied into a same-volume temporary directory, rejects symlinks or unsupported entries, writes and flushes its identity/count/size/tree-digest manifest, and is then renamed into `backups/<port-id>/<backup-id>`. Listing ignores private dot-directories and validates manifest identity against both the requested port and directory name. Restore stages and rehashes the selected tree before mutation, creates an automatic safety backup when current data is non-empty, and swaps the staged tree into place with immediate recovery of the previous root if publication fails. Confirmed deletion similarly renames one validated snapshot to a private recovery path before removing it and attempts to return it on failure. Backups are intentionally independent of install rollback: they preserve mutable data, while release rollback changes application versions.
+Persistent-data backups use the same per-port lock and canonical user root. A backup is copied into a same-volume temporary directory, rejects symlinks or unsupported entries, writes and flushes its identity/count/size/tree-digest manifest, and is then renamed into `backups/<port-id>/<backup-id>`. Listing ignores private dot-directories and validates manifest identity against both the requested port and directory name. Restore stages and rehashes the selected tree before mutation, creates an automatic safety backup when current data is non-empty, and records the staged/current/recovery paths before swapping them. Startup can finish either half of an unambiguous interrupted swap. Confirmed deletion similarly renames one validated snapshot to a private recovery path before removing it and attempts to return it on failure. Backups are intentionally independent of install rollback: they preserve mutable data, while release rollback changes application versions.
 
 ## Install transaction
 
 1. Validate catalog, channel, platform, and required source reference.
 2. Query the declared GitHub or GitLab game upstream, or a reviewed pinned direct manifest, and enforce its lifecycle policy.
 3. Select a platform asset and require a SHA-256 digest or checksum sidecar.
-4. Download into an operation-specific staging directory and journal progress.
+4. Create a durable SQLite intent tied to the activity UUID, then download into a same-volume operation-specific staging directory.
 5. Verify SHA-256 before extraction.
 6. Reject path traversal and archive links; extract to a payload directory.
-7. Hash the installed files into a manifest.
-8. Atomically move the version into the library and activate or stage it in SQLite. A pre-existing version directory is a conflict and is never trusted as downloaded content.
+7. Hash the installed files into a manifest, verify the private payload, and record the `prepared` postcondition.
+8. Atomically rename the version into the library, record `payload_published`, commit activation or staging metadata, and record `metadata_committed`.
+9. Remove only the operation-private staging tree. Failed cleanup remains `cleanup_pending` for retry; completed journals are removed because the activity ledger owns terminal history.
+
+Adoption uses the same publication state machine and never copies into a final version path directly. Removal runs it in reverse: every registered managed version is renamed under `recovery/<operation-id>/` before SQLite metadata is deleted, then quarantine cleanup is retried. Startup advances only recorded states whose payload, manifest, and path layout are unambiguous. It never deletes an untracked final directory. The read-only doctor repair plan reports incomplete journals, cleanup-pending trees, registered paths that are missing, and orphaned final directories with proposed review actions.
 
 Staged activation and rollback collect user data from the version being deactivated only when its per-version launch marker proves it has actually run, then change active/previous pointers transactionally. The same guard applies before install, update, removal, and retained-version reuse, so a verified but never-launched release cannot propagate absent files as user-requested deletions. Adoption copies files into a new managed version and leaves the source directory untouched.
 

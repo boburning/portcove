@@ -1,20 +1,23 @@
 use std::{
     fs::{self, File},
     path::Path,
+    sync::Arc,
 };
 
+use crate::{
+    InstallRecord, Library, OperationCoordinator, OperationEvent, PortcoveError,
+    PsxManagedPreparation, ResolvedRelease, Result,
+    adapter::{hash_file, walk_files},
+    operation::{
+        LifecycleFaultInjector, LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind,
+        LifecyclePhase, NoLifecycleFaults, OperationStore,
+    },
+};
 use flate2::read::GzDecoder;
 use futures_util::StreamExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
-use uuid::Uuid;
-
-use crate::{
-    InstallRecord, Library, OperationEvent, PortcoveError, PsxManagedPreparation, ResolvedRelease,
-    Result,
-    adapter::{hash_file, walk_files},
-};
 
 #[derive(Debug, Clone)]
 pub struct InstallRequest {
@@ -47,18 +50,18 @@ struct ManifestFile {
     sha256: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Installer {
     library: Library,
     client: reqwest::Client,
+    faults: Arc<dyn LifecycleFaultInjector>,
 }
 
-struct OperationRootGuard<'a>(&'a Path);
-
-impl Drop for OperationRootGuard<'_> {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(self.0);
-    }
+struct InstallLifecycle {
+    destination: std::path::PathBuf,
+    operation_root: std::path::PathBuf,
+    store: OperationStore,
+    record: LifecycleOperation,
 }
 
 impl Installer {
@@ -67,10 +70,28 @@ impl Installer {
             .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
             .build()
             .map_err(|error| PortcoveError::network(error.to_string()))?;
-        Ok(Self { library, client })
+        Ok(Self {
+            library,
+            client,
+            faults: Arc::new(NoLifecycleFaults),
+        })
     }
 
-    pub async fn install<F>(&self, request: InstallRequest, mut emit: F) -> Result<InstallRecord>
+    pub(crate) fn with_faults(
+        library: Library,
+        faults: Arc<dyn LifecycleFaultInjector>,
+    ) -> Result<Self> {
+        let mut installer = Self::new(library)?;
+        installer.faults = faults;
+        Ok(installer)
+    }
+
+    pub async fn install<F>(
+        &self,
+        request: InstallRequest,
+        operation: &OperationCoordinator,
+        mut emit: F,
+    ) -> Result<InstallRecord>
     where
         F: FnMut(OperationEvent),
     {
@@ -86,25 +107,54 @@ impl Installer {
                 request.release.version, request.port_id
             )));
         }
-        emit(OperationEvent::Started {
-            operation: "install".into(),
-            port_id: Some(request.port_id.clone()),
-        });
-        let operation_id = Uuid::new_v4().to_string();
-        let operation_root = self.library.staging_dir().join(&operation_id);
-        let payload_root = operation_root.join("payload");
-        fs::create_dir_all(&payload_root)?;
-        let _operation_guard = OperationRootGuard(&operation_root);
-        self.write_journal(&operation_root, "created", &request)?;
-        let download_path = operation_root.join(&request.release.asset.name);
-        if let Err(error) = self
-            .download(&request.release, &download_path, &mut emit)
-            .await
-        {
-            let _ = self.write_journal(&operation_root, "download_failed", &request);
-            return Err(error);
+        let operation_root = self.library.staging_dir().join(operation.operation_id());
+        let mut record = LifecycleOperation::new(
+            operation.operation_id(),
+            LifecycleOperationKind::Install,
+            &request.port_id,
+        );
+        record.paths.staging = Some(operation_root.clone());
+        record.paths.final_path = Some(destination.clone());
+        record.activate = request.activate;
+        let store = OperationStore::new(self.library.clone());
+        store.put(&mut record)?;
+        let mut lifecycle = InstallLifecycle {
+            destination,
+            operation_root,
+            store,
+            record,
+        };
+        let result = self
+            .install_inner(request, operation, &mut lifecycle, &mut emit)
+            .await;
+        if let Err(error) = &result {
+            if lifecycle.record.phase == LifecyclePhase::Preparing {
+                let _ = fs::remove_dir_all(&lifecycle.operation_root);
+                let _ = lifecycle.store.remove(&lifecycle.record.id);
+            } else {
+                lifecycle.record.last_error = Some(error.message.clone());
+                let _ = lifecycle.store.put(&mut lifecycle.record);
+            }
         }
-        self.write_journal(&operation_root, "downloaded", &request)?;
+        result
+    }
+
+    async fn install_inner<F>(
+        &self,
+        request: InstallRequest,
+        operation: &OperationCoordinator,
+        lifecycle: &mut InstallLifecycle,
+        emit: &mut F,
+    ) -> Result<InstallRecord>
+    where
+        F: FnMut(OperationEvent),
+    {
+        let operation_id = operation.operation_id().to_owned();
+        let payload_root = lifecycle.operation_root.join("payload");
+        fs::create_dir_all(&payload_root)?;
+        let download_path = lifecycle.operation_root.join(&request.release.asset.name);
+        self.download(&request.release, &download_path, operation, emit)
+            .await?;
         let (actual_hash, _) = hash_file(&download_path)?;
         if !actual_hash.eq_ignore_ascii_case(&request.release.asset.sha256) {
             return Err(PortcoveError::verification(
@@ -113,10 +163,7 @@ impl Installer {
             .detail("expected", request.release.asset.sha256.clone())
             .detail("actual", actual_hash));
         }
-        emit(OperationEvent::Message {
-            level: "info".into(),
-            message: "SHA-256 verified".into(),
-        });
+        emit(operation.message("info", "SHA-256 verified"));
         let asset_name = request.release.asset.name.clone();
         let extraction_path = download_path.clone();
         let extraction_root = payload_root.clone();
@@ -125,55 +172,63 @@ impl Installer {
         })
         .await
         .map_err(|error| PortcoveError::install(error.to_string()))??;
-        self.write_journal(&operation_root, "extracted", &request)?;
         if let Some(preparation) = request.managed.clone() {
-            emit(OperationEvent::Message {
-                level: "info".into(),
-                message: "Generating and compiling the verified PS1 source".into(),
-            });
+            emit(operation.message("info", "Generating and compiling the verified PS1 source"));
             let managed_root = payload_root.clone();
             tokio::task::spawn_blocking(move || {
                 crate::psx::prepare_install(&managed_root, &preparation)
             })
             .await
             .map_err(|error| PortcoveError::install(error.to_string()))??;
-            self.write_journal(&operation_root, "managed_prepared", &request)?;
         }
         let manifest = build_manifest(&request.port_id, &request.release.version, &payload_root)?;
         fs::write(
             payload_root.join(".portcove-manifest.json"),
             serde_json::to_vec_pretty(&manifest)?,
         )?;
-        fs::create_dir_all(
-            destination
-                .parent()
-                .expect("version directory has a parent"),
-        )?;
-        if destination.exists() {
-            fs::remove_dir_all(&operation_root)?;
-            return Err(PortcoveError::conflict(format!(
-                "version {} was installed by another operation",
-                request.release.version
-            )));
-        } else {
-            fs::rename(&payload_root, &destination)?;
-            fs::remove_dir_all(&operation_root)?;
-        }
         let install = InstallRecord {
             id: operation_id,
             port_id: request.port_id,
-            version: request.release.version,
-            path: destination,
+            version: request.release.version.clone(),
+            path: lifecycle.destination.clone(),
             channel: request.release.channel,
             installed_at: Library::now(),
             verified: true,
             staged: !request.activate,
         };
+        lifecycle.record.install = Some(install.clone());
+        lifecycle.record.phase = LifecyclePhase::Prepared;
+        lifecycle.store.put(&mut lifecycle.record)?;
+        self.faults.check(LifecycleFaultPoint::InstallPrepared)?;
+        fs::create_dir_all(
+            lifecycle
+                .destination
+                .parent()
+                .expect("version directory has a parent"),
+        )?;
+        if lifecycle.destination.exists() {
+            return Err(PortcoveError::conflict(format!(
+                "version {} was installed by another operation",
+                request.release.version
+            )));
+        } else {
+            fs::rename(&payload_root, &lifecycle.destination)?;
+        }
+        lifecycle.record.phase = LifecyclePhase::PayloadPublished;
+        lifecycle.store.put(&mut lifecycle.record)?;
+        self.faults.check(LifecycleFaultPoint::InstallPublished)?;
         self.library.register_install(&install, request.activate)?;
-        emit(OperationEvent::Finished {
-            operation: "install".into(),
-            success: true,
-        });
+        lifecycle.record.phase = LifecyclePhase::MetadataCommitted;
+        lifecycle.store.put(&mut lifecycle.record)?;
+        self.faults
+            .check(LifecycleFaultPoint::InstallMetadataCommitted)?;
+        if let Err(error) = fs::remove_dir_all(&lifecycle.operation_root) {
+            lifecycle.record.phase = LifecyclePhase::CleanupPending;
+            lifecycle.record.last_error = Some(error.to_string());
+            lifecycle.store.put(&mut lifecycle.record)?;
+            return Ok(install);
+        }
+        lifecycle.store.remove(&lifecycle.record.id)?;
         Ok(install)
     }
 
@@ -181,6 +236,7 @@ impl Installer {
         &self,
         release: &ResolvedRelease,
         destination: &Path,
+        operation: &OperationCoordinator,
         emit: &mut F,
     ) -> Result<()>
     where
@@ -209,37 +265,14 @@ impl Installer {
             if total.is_some_and(|total| completed == total)
                 || completed.saturating_sub(reported) >= 1024 * 1024
             {
-                emit(OperationEvent::Progress {
-                    phase: "download".into(),
-                    completed,
-                    total,
-                });
+                emit(operation.progress("download", completed, total));
                 reported = completed;
             }
         }
         if completed != reported {
-            emit(OperationEvent::Progress {
-                phase: "download".into(),
-                completed,
-                total,
-            });
+            emit(operation.progress("download", completed, total));
         }
         file.flush().await?;
-        Ok(())
-    }
-
-    fn write_journal(&self, root: &Path, phase: &str, request: &InstallRequest) -> Result<()> {
-        let value = serde_json::json!({
-            "schema_version": 1,
-            "phase": phase,
-            "port_id": request.port_id,
-            "version": request.release.version,
-            "updated_at": Library::now()
-        });
-        fs::write(
-            root.join("operation.json"),
-            serde_json::to_vec_pretty(&value)?,
-        )?;
         Ok(())
     }
 
@@ -409,7 +442,27 @@ fn safe_component(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    use sha2::{Digest, Sha256};
+
     use super::*;
+
+    struct FailOnce {
+        point: LifecycleFaultPoint,
+        fired: AtomicBool,
+    }
+
+    impl LifecycleFaultInjector for FailOnce {
+        fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+            if point == self.point && !self.fired.swap(true, Ordering::SeqCst) {
+                return Err(PortcoveError::state(format!(
+                    "injected lifecycle failure at {point:?}"
+                )));
+            }
+            Ok(())
+        }
+    }
 
     #[test]
     fn version_paths_are_sanitized() {
@@ -440,7 +493,11 @@ mod tests {
             managed: None,
         };
 
-        let error = installer.install(request, |_| {}).await.unwrap_err();
+        let operation = OperationCoordinator::new("install", None);
+        let error = installer
+            .install(request, &operation, |_| {})
+            .await
+            .unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Conflict);
     }
 
@@ -483,9 +540,93 @@ mod tests {
             managed: None,
         };
 
-        let error = installer.install(request, |_| {}).await.unwrap_err();
+        let operation = OperationCoordinator::new("install", None);
+        let error = installer
+            .install(request, &operation, |_| {})
+            .await
+            .unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Network);
         server.join().unwrap();
         assert_eq!(fs::read_dir(library.staging_dir()).unwrap().count(), 0);
+    }
+
+    #[tokio::test]
+    async fn install_recovers_after_every_publication_boundary() {
+        use std::{
+            io::{Read, Write},
+            net::TcpListener,
+            thread,
+        };
+
+        for point in [
+            LifecycleFaultPoint::InstallPrepared,
+            LifecycleFaultPoint::InstallPublished,
+            LifecycleFaultPoint::InstallMetadataCommitted,
+        ] {
+            let temporary = tempfile::tempdir().unwrap();
+            let archive_path = temporary.path().join("test.zip");
+            let archive = File::create(&archive_path).unwrap();
+            let mut writer = zip::ZipWriter::new(archive);
+            writer
+                .start_file("sample-game.exe", zip::write::SimpleFileOptions::default())
+                .unwrap();
+            writer.write_all(b"verified executable").unwrap();
+            writer.finish().unwrap();
+            let archive_bytes = fs::read(&archive_path).unwrap();
+            let sha256 = hex::encode(Sha256::digest(&archive_bytes));
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            let address = listener.local_addr().unwrap();
+            let response_bytes = archive_bytes.clone();
+            let server = thread::spawn(move || {
+                let (mut stream, _) = listener.accept().unwrap();
+                let mut request = [0_u8; 1024];
+                let _ = stream.read(&mut request);
+                write!(
+                    stream,
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    response_bytes.len()
+                )
+                .unwrap();
+                stream.write_all(&response_bytes).unwrap();
+            });
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let installer = Installer::with_faults(
+                library.clone(),
+                Arc::new(FailOnce {
+                    point,
+                    fired: AtomicBool::new(false),
+                }),
+            )
+            .unwrap();
+            let operation = OperationCoordinator::new("install", None);
+            let request = InstallRequest {
+                port_id: "sample".into(),
+                release: ResolvedRelease {
+                    version: "v1".into(),
+                    channel: crate::ReleaseChannel::Stable,
+                    published_at: None,
+                    asset: crate::ReleaseAsset {
+                        name: "test.zip".into(),
+                        url: format!("http://{address}/test.zip"),
+                        size: archive_bytes.len() as u64,
+                        sha256,
+                    },
+                },
+                activate: true,
+                managed: None,
+            };
+
+            let error = installer
+                .install(request, &operation, |_| {})
+                .await
+                .unwrap_err();
+            assert!(error.message.contains("injected lifecycle failure"));
+            server.join().unwrap();
+
+            crate::PortcoveService::new(library.clone()).unwrap();
+            let install = library.install_by_version("sample", "v1").unwrap().unwrap();
+            assert!(install.path.join("sample-game.exe").is_file());
+            assert!(OperationStore::new(library).all().unwrap().is_empty());
+        }
     }
 }

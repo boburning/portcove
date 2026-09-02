@@ -10,8 +10,8 @@ use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
 use crate::{
-    ChildProcessClass, ChildProcessPolicy, Library, OperationEvent, Platform, PortcoveError,
-    Result, SourceRecord,
+    ChildProcessClass, ChildProcessPolicy, Library, OperationCoordinator, OperationEvent,
+    OperationResult, Platform, PortcoveError, Result, SourceRecord,
     adapter::{hash_file, materialize_psx_chd},
 };
 
@@ -63,6 +63,27 @@ impl Drop for DirectoryGuard {
 pub(crate) async fn ensure_toolchain<F>(
     library: &Library,
     platform: Platform,
+    parent: &OperationCoordinator,
+    emit: &mut F,
+) -> Result<PathBuf>
+where
+    F: FnMut(OperationEvent),
+{
+    let operation = parent.child("psx_toolchain", None);
+    emit(operation.started());
+    let result = ensure_toolchain_inner(library, platform, &operation, emit).await;
+    emit(operation.finished(if result.is_ok() {
+        OperationResult::Succeeded
+    } else {
+        OperationResult::Failed
+    }));
+    result
+}
+
+async fn ensure_toolchain_inner<F>(
+    library: &Library,
+    platform: Platform,
+    operation: &OperationCoordinator,
     emit: &mut F,
 ) -> Result<PathBuf>
 where
@@ -77,10 +98,6 @@ where
         return Ok(destination);
     }
 
-    emit(OperationEvent::Started {
-        operation: "psx-toolchain".into(),
-        port_id: None,
-    });
     let operation_root = library
         .staging_dir()
         .join(format!("psx-toolchain-{}", Uuid::new_v4()));
@@ -112,20 +129,12 @@ where
         file.write_all(&chunk).await?;
         completed += chunk.len() as u64;
         if completed == artifact.size || completed.saturating_sub(reported) >= 1024 * 1024 {
-            emit(OperationEvent::Progress {
-                phase: "psx-toolchain-download".into(),
-                completed,
-                total: Some(artifact.size),
-            });
+            emit(operation.progress("psx-toolchain-download", completed, Some(artifact.size)));
             reported = completed;
         }
     }
     if completed != reported {
-        emit(OperationEvent::Progress {
-            phase: "psx-toolchain-download".into(),
-            completed,
-            total: Some(artifact.size),
-        });
+        emit(operation.progress("psx-toolchain-download", completed, Some(artifact.size)));
     }
     file.flush().await?;
     drop(file);
@@ -164,10 +173,6 @@ where
         ));
     }
     drop(guard);
-    emit(OperationEvent::Finished {
-        operation: "psx-toolchain".into(),
-        success: true,
-    });
     Ok(destination)
 }
 

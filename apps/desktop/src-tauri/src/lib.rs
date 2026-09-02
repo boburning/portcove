@@ -1,12 +1,13 @@
 use std::{path::PathBuf, process::Stdio};
 
 use portcove_core::{
-    ActivityRecord, AdoptionPreview, BackupRecord, CatalogDocument, ChildProcessClass,
-    ChildProcessPolicy, CompositeReleaseProvider, DoctorReport, GithubAuthStatus,
-    GithubDeviceLogin, GithubDeviceLoginResult, GithubReleaseProvider, InstallPlan, InstallRecord,
-    Library, OperationEvent, PortStatus, PortcoveError, PortcoveService, ReconcileResult,
-    ReleaseChannel, ReleaseProvider, RestoreResult, SourceRecord, SourceVerification, UpdateCheck,
-    UpdatePolicy, VerificationReport,
+    ActivityRecord, ActivityTargetKind, AdoptionPreview, BackupRecord, CatalogDocument,
+    ChildProcessClass, ChildProcessPolicy, CompositeReleaseProvider, DoctorReport,
+    GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, GithubReleaseProvider,
+    InstallPlan, InstallRecord, Library, OperationCoordinator, OperationEvent, OperationResult,
+    OperationTarget, PortStatus, PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel,
+    ReleaseProvider, RestoreResult, SourceRecord, SourceVerification, UpdateCheck, UpdatePolicy,
+    VerificationReport,
 };
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
@@ -210,13 +211,8 @@ async fn verify_sources(
     app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,
 ) -> DesktopResult<Vec<SourceBatchOutcome>> {
-    let _ = app.emit(
-        "portcove://operation",
-        OperationEvent::Started {
-            operation: "verify-sources".into(),
-            port_id: None,
-        },
-    );
+    let operation = OperationCoordinator::new("verify_sources", None);
+    let _ = app.emit("portcove://operation", operation.started());
     let state = state.inner().clone();
     let outcomes = tauri::async_runtime::spawn_blocking(move || {
         let service = service(&state)?;
@@ -248,34 +244,24 @@ async fn verify_sources(
     .map_err(|error| DesktopError::from(PortcoveError::state(error.to_string())))??;
     let _ = app.emit(
         "portcove://operation",
-        OperationEvent::Finished {
-            operation: "verify-sources".into(),
-            success: outcomes.iter().all(|outcome| outcome.ok),
-        },
+        operation.finished(if outcomes.iter().all(|outcome| outcome.ok) {
+            OperationResult::Succeeded
+        } else {
+            OperationResult::Failed
+        }),
     );
     Ok(outcomes)
 }
 
 #[tauri::command]
 async fn check_port(
-    app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,
     port_id: String,
 ) -> DesktopResult<UpdateCheck> {
-    let check = service(&state)?.check_update(&port_id).await?;
-    let message = if check.update_available {
-        format!("{} is available", check.release.version)
-    } else {
-        format!("{} is up to date", check.port_id)
-    };
-    let _ = app.emit(
-        "portcove://operation",
-        OperationEvent::Message {
-            level: "info".into(),
-            message,
-        },
-    );
-    Ok(check)
+    service(&state)?
+        .check_update(&port_id)
+        .await
+        .map_err(Into::into)
 }
 
 #[tauri::command]
@@ -290,13 +276,8 @@ async fn check_installed(
         .filter(|status| status.active.is_some())
         .collect::<Vec<_>>();
     let total = installed.len() as u64;
-    let _ = app.emit(
-        "portcove://operation",
-        OperationEvent::Started {
-            operation: "check-installed".into(),
-            port_id: None,
-        },
-    );
+    let operation = OperationCoordinator::new("check_installed", None);
+    let _ = app.emit("portcove://operation", operation.started());
     let mut outcomes = Vec::with_capacity(installed.len());
     for (index, status) in installed.into_iter().enumerate() {
         let port_id = status.port_id;
@@ -316,20 +297,17 @@ async fn check_installed(
         });
         let _ = app.emit(
             "portcove://operation",
-            OperationEvent::Progress {
-                phase: "Checking installed ports".into(),
-                completed: index as u64 + 1,
-                total: Some(total),
-            },
+            operation.progress("Checking installed ports", index as u64 + 1, Some(total)),
         );
     }
     let success = outcomes.iter().all(|outcome| outcome.ok);
     let _ = app.emit(
         "portcove://operation",
-        OperationEvent::Finished {
-            operation: "check-installed".into(),
-            success,
-        },
+        operation.finished(if success {
+            OperationResult::Succeeded
+        } else {
+            OperationResult::Failed
+        }),
     );
     Ok(outcomes)
 }
@@ -346,6 +324,8 @@ async fn reconcile_installed(
         .filter(|status| status.active.is_some())
         .collect::<Vec<_>>();
     let total = installed.len() as u64;
+    let operation = OperationCoordinator::new("reconcile_installed", None);
+    let _ = app.emit("portcove://operation", operation.started());
     let mut outcomes = Vec::with_capacity(installed.len());
     for (index, status) in installed.into_iter().enumerate() {
         let port_id = status.port_id;
@@ -370,13 +350,17 @@ async fn reconcile_installed(
         });
         let _ = app.emit(
             "portcove://operation",
-            OperationEvent::Progress {
-                phase: "Applying update policies".into(),
-                completed: index as u64 + 1,
-                total: Some(total),
-            },
+            operation.progress("Applying update policies", index as u64 + 1, Some(total)),
         );
     }
+    let _ = app.emit(
+        "portcove://operation",
+        operation.finished(if outcomes.iter().all(|outcome| outcome.ok) {
+            OperationResult::Succeeded
+        } else {
+            OperationResult::Failed
+        }),
+    );
     Ok(outcomes)
 }
 
@@ -582,44 +566,61 @@ async fn launch_port(
         .map_err(|error| DesktopError::from(PortcoveError::launch(error.to_string())))?;
     let process_id = child.id();
     let sync_port_id = port_id.clone();
+    let operation = OperationCoordinator::new(
+        "launch",
+        Some(OperationTarget {
+            kind: ActivityTargetKind::Port,
+            id: port_id,
+        }),
+    );
+    let _ = app.emit("portcove://operation", operation.started());
     std::thread::spawn(move || {
         let _launch_guard = launch_guard;
+        let mut succeeded = true;
         match child.wait() {
             Ok(status) if status.success() => {
                 if let Err(error) = library.record_successful_launch(&sync_port_id) {
+                    succeeded = false;
                     let _ = app.emit(
                         "portcove://operation",
-                        OperationEvent::Message {
-                            level: "error".into(),
-                            message: format!("could not record successful launch: {error}"),
-                        },
+                        operation.message(
+                            "error",
+                            format!("could not record successful launch: {error}"),
+                        ),
                     );
                 } else {
                     let _ = app.emit("portcove://library-changed", &sync_port_id);
                 }
             }
-            Ok(_) => {}
+            Ok(_) => succeeded = false,
             Err(error) => {
+                succeeded = false;
                 let _ = app.emit(
                     "portcove://operation",
-                    OperationEvent::Message {
-                        level: "error".into(),
-                        message: format!("could not observe the launched process: {error}"),
-                    },
+                    operation.message(
+                        "error",
+                        format!("could not observe the launched process: {error}"),
+                    ),
                 );
             }
         }
         if let Err(error) = PortcoveService::new(library).and_then(|service| {
             service.collect_user_data_from_install(&sync_port_id, &install_root)
         }) {
+            succeeded = false;
             let _ = app.emit(
                 "portcove://operation",
-                OperationEvent::Message {
-                    level: "error".into(),
-                    message: format!("could not preserve user data: {error}"),
-                },
+                operation.message("error", format!("could not preserve user data: {error}")),
             );
         }
+        let _ = app.emit(
+            "portcove://operation",
+            operation.finished(if succeeded {
+                OperationResult::Succeeded
+            } else {
+                OperationResult::Failed
+            }),
+        );
     });
     Ok(LaunchResult { process_id })
 }

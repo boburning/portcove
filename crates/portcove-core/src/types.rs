@@ -548,6 +548,32 @@ pub struct DoctorReport {
     pub installed_port_count: usize,
     pub registered_source_count: usize,
     pub host_tools: Vec<HostToolStatus>,
+    pub repair: RepairPlan,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RepairItemKind {
+    PartialOperation,
+    CleanupPending,
+    OrphanedFinalDirectory,
+    MissingRegisteredPath,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct RepairItem {
+    pub kind: RepairItemKind,
+    pub operation_id: Option<String>,
+    pub port_id: Option<String>,
+    pub path: Option<PathBuf>,
+    pub message: String,
+    pub proposed_action: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct RepairPlan {
+    pub generated_at: i64,
+    pub items: Vec<RepairItem>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -676,13 +702,38 @@ pub struct ReconcileResult {
     pub install: Option<InstallRecord>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct OperationTarget {
+    pub kind: ActivityTargetKind,
+    pub id: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum OperationResult {
+    Succeeded,
+    Failed,
+}
+
+/// Versioned best-effort progress envelope. Durable activity history remains
+/// authoritative after reconnect or restart.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct OperationEvent {
+    pub schema_version: u32,
+    pub operation_id: String,
+    pub parent_operation_id: Option<String>,
+    pub sequence: u64,
+    pub timestamp_ms: i64,
+    pub operation: String,
+    pub target: Option<OperationTarget>,
+    #[serde(flatten)]
+    pub event: OperationEventKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
-pub enum OperationEvent {
-    Started {
-        operation: String,
-        port_id: Option<String>,
-    },
+pub enum OperationEventKind {
+    Started,
     Progress {
         phase: String,
         completed: u64,
@@ -693,8 +744,7 @@ pub enum OperationEvent {
         message: String,
     },
     Finished {
-        operation: String,
-        success: bool,
+        result: OperationResult,
     },
 }
 

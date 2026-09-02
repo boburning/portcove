@@ -2,7 +2,7 @@ use std::{
     fs::{self, File, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use directories::ProjectDirs;
@@ -13,7 +13,7 @@ use sha2::{Digest, Sha256};
 use crate::{
     ActivityOperation, ActivityRecord, ActivityStatus, ActivityTargetKind, InstallRecord,
     PortStatus, PortcoveError, ReleaseChannel, Result, SourceRecord, StorageSummary, UpdateCheck,
-    UpdatePolicy, UpdateSnapshot,
+    UpdatePolicy, UpdateSnapshot, database,
 };
 
 #[derive(Debug, Clone)]
@@ -85,6 +85,9 @@ impl Library {
     pub fn logs_dir(&self) -> PathBuf {
         self.root.join("logs")
     }
+    pub(crate) fn recovery_dir(&self) -> PathBuf {
+        self.root.join("recovery")
+    }
     fn locks_dir(&self) -> PathBuf {
         self.root.join("locks")
     }
@@ -132,6 +135,7 @@ impl Library {
             self.toolchains_dir(),
             self.root.join("user"),
             self.logs_dir(),
+            self.recovery_dir(),
             self.locks_dir(),
         ] {
             fs::create_dir_all(directory)?;
@@ -140,127 +144,11 @@ impl Library {
     }
 
     fn connection(&self) -> Result<Connection> {
-        let connection = Connection::open(self.root.join("portcove.sqlite3"))?;
-        // Separate CLI and frontend processes can legitimately share a library.
-        // Give short-lived writers time to finish instead of surfacing SQLITE_BUSY.
-        connection.busy_timeout(Duration::from_secs(10))?;
-        connection.pragma_update(None, "foreign_keys", "ON")?;
-        connection.pragma_update(None, "journal_mode", "WAL")?;
-        Ok(connection)
+        database::connect(&self.root)
     }
 
     fn migrate(&self) -> Result<()> {
-        let connection = self.connection()?;
-        connection.execute_batch(
-            "BEGIN;
-             CREATE TABLE IF NOT EXISTS schema_migrations (
-               version INTEGER PRIMARY KEY,
-               applied_at INTEGER NOT NULL
-             );
-             CREATE TABLE IF NOT EXISTS sources (
-               profile_id TEXT PRIMARY KEY,
-               path TEXT NOT NULL,
-               sha256 TEXT NOT NULL,
-               size INTEGER NOT NULL,
-               storage_sha256 TEXT NOT NULL DEFAULT '',
-               storage_size INTEGER NOT NULL DEFAULT 0,
-               updated_at INTEGER NOT NULL
-             );
-             CREATE TABLE IF NOT EXISTS installs (
-               id TEXT PRIMARY KEY,
-               port_id TEXT NOT NULL,
-               version TEXT NOT NULL,
-               path TEXT NOT NULL,
-               channel TEXT NOT NULL,
-               installed_at INTEGER NOT NULL,
-               verified INTEGER NOT NULL,
-               staged INTEGER NOT NULL DEFAULT 0
-             );
-             CREATE INDEX IF NOT EXISTS installs_port_id ON installs(port_id);
-             CREATE TABLE IF NOT EXISTS port_settings (
-               port_id TEXT PRIMARY KEY,
-               channel TEXT NOT NULL,
-               update_policy TEXT NOT NULL,
-               active_install_id TEXT,
-               previous_install_id TEXT,
-               FOREIGN KEY(active_install_id) REFERENCES installs(id) ON DELETE SET NULL,
-               FOREIGN KEY(previous_install_id) REFERENCES installs(id) ON DELETE SET NULL
-             );
-             CREATE TABLE IF NOT EXISTS github_http_cache (
-               url TEXT PRIMARY KEY,
-               etag TEXT,
-               last_modified TEXT,
-               body TEXT NOT NULL,
-               updated_at INTEGER NOT NULL
-             );
-             CREATE TABLE IF NOT EXISTS launch_history (
-               port_id TEXT PRIMARY KEY,
-               last_launched_at INTEGER NOT NULL,
-               successful_launches INTEGER NOT NULL DEFAULT 1
-             );
-             CREATE TABLE IF NOT EXISTS activity_history (
-               id TEXT PRIMARY KEY,
-               operation TEXT NOT NULL,
-               target_kind TEXT NOT NULL,
-               target_id TEXT,
-               status TEXT NOT NULL,
-               message TEXT,
-               started_at INTEGER NOT NULL,
-               finished_at INTEGER
-             );
-             CREATE INDEX IF NOT EXISTS activity_history_started_at
-               ON activity_history(started_at DESC);
-             CREATE TABLE IF NOT EXISTS update_snapshots (
-               port_id TEXT PRIMARY KEY,
-               check_json TEXT NOT NULL,
-               checked_at INTEGER NOT NULL
-             );
-             INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (1, unixepoch());
-             INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (2, unixepoch());
-             COMMIT;",
-        )?;
-        let columns = {
-            let mut statement = connection.prepare("PRAGMA table_info(sources)")?;
-            let rows = statement.query_map([], |row| row.get::<_, String>(1))?;
-            rows.collect::<std::result::Result<Vec<_>, _>>()?
-        };
-        if !columns.iter().any(|column| column == "storage_sha256") {
-            connection.execute(
-                "ALTER TABLE sources ADD COLUMN storage_sha256 TEXT NOT NULL DEFAULT ''",
-                [],
-            )?;
-        }
-        if !columns.iter().any(|column| column == "storage_size") {
-            connection.execute(
-                "ALTER TABLE sources ADD COLUMN storage_size INTEGER NOT NULL DEFAULT 0",
-                [],
-            )?;
-        }
-        connection.execute(
-            "UPDATE sources SET storage_sha256=sha256 WHERE storage_sha256=''",
-            [],
-        )?;
-        connection.execute(
-            "UPDATE sources SET storage_size=size WHERE storage_size=0",
-            [],
-        )?;
-        connection.execute(
-            "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (3, unixepoch())",
-            [],
-        )?;
-        connection.execute(
-            "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (4, unixepoch())",
-            [],
-        )?;
-        connection.execute(
-            "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (5, unixepoch())",
-            [],
-        )?;
-        connection.execute(
-            "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (6, unixepoch())",
-            [],
-        )?;
-        Ok(())
+        database::migrate(&self.root)
     }
 
     pub(crate) fn begin_activity(
@@ -679,6 +567,31 @@ impl Library {
             )
             .optional()?;
         Self::install_by_id(&connection, id.as_deref())
+    }
+
+    pub(crate) fn all_installs(&self) -> Result<Vec<InstallRecord>> {
+        let connection = self.connection()?;
+        let ids = {
+            let mut statement = connection.prepare("SELECT id FROM installs ORDER BY rowid")?;
+            let rows = statement.query_map([], |row| row.get::<_, String>(0))?;
+            rows.collect::<std::result::Result<Vec<_>, _>>()?
+        };
+        ids.iter()
+            .map(|id| {
+                Self::install_by_id(&connection, Some(id))?.ok_or_else(|| {
+                    PortcoveError::state(format!("install {id} disappeared while reading"))
+                })
+            })
+            .collect()
+    }
+
+    pub(crate) fn port_install_paths(&self, port_id: &str) -> Result<Vec<PathBuf>> {
+        Ok(self
+            .all_installs()?
+            .into_iter()
+            .filter(|install| install.port_id == port_id)
+            .map(|install| install.path)
+            .collect())
     }
 
     pub fn rollback(&self, port_id: &str) -> Result<InstallRecord> {

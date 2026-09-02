@@ -9,9 +9,9 @@ use portcove_core::{
     API_SCHEMA_VERSION, ActivityRecord, BackupRecord, CapabilityDocument, CatalogDocument,
     ChildProcessPolicy, DoctorReport, ErrorCode, GithubAuthStatus, GithubDeviceLogin,
     GithubDeviceLoginResult, GithubDeviceLoginState, GithubReleaseProvider, InstallPlan,
-    InstallRecord, OperationEvent, PortDefinition, PortPaths, PortStatus, PortcoveError,
-    PortcoveService, ReconcileResult, ReleaseChannel, RestoreResult, Result, SourceRecord,
-    SourceVerification, StorageSummary, UpdateCheck, UpdatePolicy, UpdateSnapshot,
+    InstallRecord, OperationEvent, OperationEventKind, PortDefinition, PortPaths, PortStatus,
+    PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel, RestoreResult, Result,
+    SourceRecord, SourceVerification, StorageSummary, UpdateCheck, UpdatePolicy, UpdateSnapshot,
 };
 use schemars::{JsonSchema, schema_for};
 use serde::Serialize;
@@ -943,8 +943,8 @@ fn progress_renderer(mode: OutputMode) -> impl FnMut(OperationEvent) {
             "{}",
             serde_json::to_string(&event).expect("operation event is serializable")
         ),
-        OutputMode::Human => match event {
-            OperationEvent::Progress {
+        OutputMode::Human => match event.event {
+            OperationEventKind::Progress {
                 phase,
                 completed,
                 total,
@@ -953,10 +953,14 @@ fn progress_renderer(mode: OutputMode) -> impl FnMut(OperationEvent) {
                     eprint!("\r{phase}: {completed}/{total} bytes");
                 }
             }
-            OperationEvent::Message { message, .. } => eprintln!("{message}"),
-            OperationEvent::Finished { .. } => eprintln!(),
-            OperationEvent::Started { operation, port_id } => {
-                eprintln!("{operation} {}", port_id.unwrap_or_default())
+            OperationEventKind::Message { message, .. } => eprintln!("{message}"),
+            OperationEventKind::Finished { .. } => eprintln!(),
+            OperationEventKind::Started => {
+                eprintln!(
+                    "{} {}",
+                    event.operation,
+                    event.target.map(|target| target.id).unwrap_or_default()
+                )
             }
         },
         OutputMode::Json => {}

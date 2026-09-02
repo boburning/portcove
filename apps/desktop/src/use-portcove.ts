@@ -7,6 +7,7 @@ import type { ActivityRecord, BackupRecord, CatalogDocument, DoctorReport, Githu
 import type { DetailActions } from "./components/DetailPanel";
 import { errorText, type Filter, type View } from "./view-model";
 import { currentUpdateSnapshot } from "./view-model";
+import { applyOperationEvent, mostRecentOperation } from "./operation-state";
 
 export function usePortcoveData() {
   const [catalog, setCatalog] = useState<CatalogDocument>();
@@ -34,15 +35,18 @@ export function usePortcoveData() {
 export function useOperationState(refresh: () => Promise<void>) {
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState<string>();
-  const [operation, setOperation] = useState<OperationEvent>();
+  const [operationEvents, setOperationEvents] = useState<ReadonlyMap<string, OperationEvent>>(new Map());
+  const operation = mostRecentOperation(operationEvents);
   useEffect(() => {
-    const unlisten = listen<OperationEvent>("portcove://operation", event => setOperation(event.payload));
+    const unlisten = listen<OperationEvent>("portcove://operation", event => {
+      setOperationEvents(current => applyOperationEvent(current, event.payload));
+    });
     return () => { unlisten.then(dispose => dispose()); };
   }, []);
   const perform = useCallback(async <T,>(name: string, task: () => Promise<T>): Promise<T | undefined> => {
     setBusy(name);
     setError(undefined);
-    setOperation(undefined);
+    setOperationEvents(new Map());
     const runningRefresh = window.setTimeout(() => {
       void refresh().catch(value => setError(current => current ?? errorText(value)));
     }, 250);
