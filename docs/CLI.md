@@ -12,6 +12,8 @@ Errors use the same envelope with `ok: false`, `data: null`, and a stable error 
 
 Argument-parser failures also use the machine envelope when `--json` or `--jsonl` is present. Their stable command name is `cli`, their error code is `usage`, and they exit with code 2. Help and version output remain intentionally human-readable even when a machine-output flag is supplied.
 
+The compiled-binary machine contract is exercised on both Windows and Linux CI. These tests treat stdout line count, envelope fields, nested command names, JSONL completion, parser behavior, and exit codes as public integration behavior rather than implementation details.
+
 ## Discovery
 
 ```text
