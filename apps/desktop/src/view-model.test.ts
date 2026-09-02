@@ -5,8 +5,9 @@ import { currentUpdateSnapshot, errorText, filterOptions, filterPorts, indexStat
 const port = (id: string, channels: PortDefinition["channels"]): PortDefinition => ({
   id, name: id === "alpha" ? "Alpha Port" : "Beta Port", summary: `${id} summary`,
   project_url: `https://example.com/${id}`, support_tier: channels[0], channels,
-  platforms: ["windows-x86-64"], adapter: "direct-archive", persistent_paths: ["save"], upstream_status: "active",
+  platforms: ["windows-x86-64"], adapter: "staged-source-portable", persistent_paths: ["save"], upstream_status: "active",
   automated_tested_platforms: [], manually_validated_platforms: [],
+  release: {}, executable_hints: {},
 });
 const installRecord = (overrides: Partial<InstallRecord> = {}): InstallRecord => ({
   id: "1", port_id: "alpha", version: "1.0", path: "alpha/1.0", channel: "stable", installed_at: 1, verified: true, staged: false,
@@ -85,7 +86,7 @@ describe("catalog view model", () => {
       { id: "beta-source", label: "Beta cartridge", accepted_extensions: ["z64"] },
     ];
     const requirements = requiredSourceNeeds(configured, profiles, statuses, [{
-      profile_id: "beta-source", path: "D:/beta.z64", sha256: "a", size: 1, storage_sha256: "a", storage_size: 1,
+      profile_id: "beta-source", path: "D:/beta.z64", sha256: "a", size: 1, storage_sha256: "a", storage_size: 1, updated_at: 1,
     }]);
 
     expect(requirements).toHaveLength(1);

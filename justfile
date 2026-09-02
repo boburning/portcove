@@ -26,7 +26,11 @@ process-policy:
     node --test scripts/check-child-process-policy.test.mjs
     node scripts/check-child-process-policy.mjs
 
-check-rust: fmt rust-check clippy rust-test shear architecture process-policy
+transport-contract:
+    node --test scripts/check-transport-contract.test.mjs
+    node scripts/check-transport-contract.mjs
+
+check-rust: fmt rust-check clippy rust-test shear architecture process-policy transport-contract
 
 # Frontend fast loop
 ui-build:

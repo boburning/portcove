@@ -120,7 +120,7 @@ pub enum SupportTier {
     Rolling,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum AdapterKind {
     LibultrashipPortable,
@@ -130,6 +130,18 @@ pub enum AdapterKind {
     GeneratedCache,
     UpstreamManagedSetup,
     PsxRecompManaged,
+}
+
+impl AdapterKind {
+    pub const ALL: [Self; 7] = [
+        Self::LibultrashipPortable,
+        Self::N64RecompPortable,
+        Self::StagedSourcePortable,
+        Self::ReferencedDisc,
+        Self::GeneratedCache,
+        Self::UpstreamManagedSetup,
+        Self::PsxRecompManaged,
+    ];
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -332,6 +344,14 @@ pub struct SourceVerification {
     pub verified_at: i64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct SourceRemovalPreview {
+    pub source: SourceRecord,
+    pub confirmation_token: String,
+    pub dependent_port_ids: Vec<String>,
+    pub installed_dependent_port_ids: Vec<String>,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ArtifactIdentity {
     pub asset_name: String,
@@ -426,6 +446,7 @@ pub enum ActivityOperation {
     Rollback,
     Adopt,
     Remove,
+    RemoveSource,
     RegisterSource,
     VerifySource,
 }
@@ -446,6 +467,7 @@ impl std::fmt::Display for ActivityOperation {
             Self::Rollback => "rollback",
             Self::Adopt => "adopt",
             Self::Remove => "remove",
+            Self::RemoveSource => "remove_source",
             Self::RegisterSource => "register_source",
             Self::VerifySource => "verify_source",
         })
@@ -470,6 +492,7 @@ impl FromStr for ActivityOperation {
             "rollback" => Ok(Self::Rollback),
             "adopt" => Ok(Self::Adopt),
             "remove" => Ok(Self::Remove),
+            "remove_source" => Ok(Self::RemoveSource),
             "register_source" => Ok(Self::RegisterSource),
             "verify_source" => Ok(Self::VerifySource),
             _ => Err(PortcoveError::state(format!(
@@ -889,14 +912,7 @@ impl CapabilityDocument {
                 Platform::MacosX86_64,
                 Platform::MacosAarch64,
             ],
-            adapters: vec![
-                AdapterKind::LibultrashipPortable,
-                AdapterKind::N64RecompPortable,
-                AdapterKind::ReferencedDisc,
-                AdapterKind::GeneratedCache,
-                AdapterKind::UpstreamManagedSetup,
-                AdapterKind::PsxRecompManaged,
-            ],
+            adapters: AdapterKind::ALL.to_vec(),
             machine_formats: vec!["json".into(), "jsonl".into()],
             raw_stream_commands: vec!["exec".into()],
             failure_isolated_batches: vec![

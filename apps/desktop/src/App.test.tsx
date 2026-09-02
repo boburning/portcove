@@ -1,13 +1,25 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import App from "./App";
+import App, { BootstrapRecovery } from "./App";
 
 describe("Portcove app shell", () => {
-  it("renders a useful loading state before Tauri returns library data", () => {
+  it("renders a useful startup state before Tauri returns library data", () => {
     const html = renderToStaticMarkup(<App />);
     expect(html).toContain("Portcove");
-    expect(html).toContain("Your native library");
-    expect(html).toContain("Loading your port library");
-    expect(html).toContain("Open command palette");
+    expect(html).toContain("Opening your native library");
+    expect(html).toContain("recovery journal");
+  });
+
+  it("renders startup failures as a recovery surface without library actions", () => {
+    const html = renderToStaticMarkup(<BootstrapRecovery error={{
+      code: "state",
+      message: "The configured library cannot be opened.",
+      details: { path: "Z:\\Portcove" },
+    }} />);
+    expect(html).toContain("Your library was left untouched");
+    expect(html).toContain("The configured library cannot be opened.");
+    expect(html).toContain("Z:\\Portcove");
+    expect(html).toContain("Retry startup");
+    expect(html).not.toContain("Install");
   });
 });

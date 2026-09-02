@@ -12,16 +12,22 @@ use portcove_core::{
     GithubDeviceLogin, GithubDeviceLoginResult, GithubReleaseProvider, InstallPlan, InstallRecord,
     LaunchStdio, Library, OperationCoordinator, OperationEvent, OperationResult, PortStatus,
     PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel, ReleaseProvider,
-    RestoreResult, SourceRecord, SourceVerification, UpdateCheck, UpdatePolicy, VerificationReport,
+    RestoreResult, SourceRecord, SourceRemovalPreview, SourceVerification, UpdateCheck,
+    UpdatePolicy, VerificationReport,
 };
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
 
 #[derive(Clone)]
-struct DesktopState {
+struct ReadyDesktopState {
     library: Library,
     github: std::sync::Arc<GithubReleaseProvider>,
     releases: std::sync::Arc<CompositeReleaseProvider>,
+}
+
+#[derive(Clone)]
+struct DesktopState {
+    initialization: std::sync::Arc<DesktopResult<ReadyDesktopState>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -59,9 +65,41 @@ impl From<PortcoveError> for DesktopError {
 
 type DesktopResult<T> = std::result::Result<T, DesktopError>;
 
+fn ready(state: &DesktopState) -> DesktopResult<&ReadyDesktopState> {
+    state.initialization.as_ref().as_ref().map_err(Clone::clone)
+}
+
 fn service(state: &DesktopState) -> DesktopResult<PortcoveService> {
+    let state = ready(state)?;
     let releases: std::sync::Arc<dyn ReleaseProvider> = state.releases.clone();
     PortcoveService::with_provider(state.library.clone(), releases).map_err(Into::into)
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct BootstrapStatus {
+    ready: bool,
+    library_root: Option<PathBuf>,
+    error: Option<DesktopError>,
+}
+
+#[tauri::command]
+fn get_bootstrap_status(state: tauri::State<'_, DesktopState>) -> BootstrapStatus {
+    bootstrap_status(&state)
+}
+
+fn bootstrap_status(state: &DesktopState) -> BootstrapStatus {
+    match ready(state) {
+        Ok(state) => BootstrapStatus {
+            ready: true,
+            library_root: Some(state.library.root().to_path_buf()),
+            error: None,
+        },
+        Err(error) => BootstrapStatus {
+            ready: false,
+            library_root: None,
+            error: Some(error),
+        },
+    }
 }
 
 async fn blocking_service<T, F>(state: DesktopState, operation: F) -> DesktopResult<T>
@@ -78,7 +116,11 @@ where
 async fn get_github_auth_status(
     state: tauri::State<'_, DesktopState>,
 ) -> DesktopResult<GithubAuthStatus> {
-    state.github.auth_status().await.map_err(Into::into)
+    ready(&state)?
+        .github
+        .auth_status()
+        .await
+        .map_err(Into::into)
 }
 
 #[tauri::command]
@@ -98,7 +140,7 @@ async fn set_github_token(
     state: tauri::State<'_, DesktopState>,
     token: String,
 ) -> DesktopResult<GithubAuthStatus> {
-    state
+    ready(&state)?
         .github
         .store_personal_token(&token)
         .await
@@ -107,14 +149,18 @@ async fn set_github_token(
 
 #[tauri::command]
 async fn logout_github(state: tauri::State<'_, DesktopState>) -> DesktopResult<GithubAuthStatus> {
-    state.github.logout().await.map_err(Into::into)
+    ready(&state)?.github.logout().await.map_err(Into::into)
 }
 
 #[tauri::command]
 async fn begin_github_device_login(
     state: tauri::State<'_, DesktopState>,
 ) -> DesktopResult<GithubDeviceLogin> {
-    state.github.begin_device_login().await.map_err(Into::into)
+    ready(&state)?
+        .github
+        .begin_device_login()
+        .await
+        .map_err(Into::into)
 }
 
 #[tauri::command]
@@ -122,7 +168,7 @@ async fn poll_github_device_login(
     state: tauri::State<'_, DesktopState>,
     session_id: String,
 ) -> DesktopResult<GithubDeviceLoginResult> {
-    state
+    ready(&state)?
         .github
         .poll_device_login(&session_id)
         .await
@@ -141,12 +187,12 @@ fn get_statuses(state: tauri::State<'_, DesktopState>) -> DesktopResult<Vec<Port
 
 #[tauri::command]
 fn get_sources(state: tauri::State<'_, DesktopState>) -> DesktopResult<Vec<SourceRecord>> {
-    state.library.sources().map_err(Into::into)
+    ready(&state)?.library.sources().map_err(Into::into)
 }
 
 #[tauri::command]
 fn get_activities(state: tauri::State<'_, DesktopState>) -> DesktopResult<Vec<ActivityRecord>> {
-    state.library.activities(50).map_err(Into::into)
+    ready(&state)?.library.activities(50).map_err(Into::into)
 }
 
 #[tauri::command]
@@ -221,7 +267,10 @@ async fn verify_sources(
     let state = state.inner().clone();
     let outcomes = tauri::async_runtime::spawn_blocking(move || {
         let service = service(&state)?;
-        let sources = state.library.sources().map_err(DesktopError::from)?;
+        let sources = ready(&state)?
+            .library
+            .sources()
+            .map_err(DesktopError::from)?;
         Ok::<_, DesktopError>(
             sources
                 .into_iter()
@@ -379,6 +428,31 @@ async fn add_source(
     blocking_service(state, move |service| {
         service
             .register_source(&profile_id, &path)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+fn preview_source_removal(
+    state: tauri::State<'_, DesktopState>,
+    profile_id: String,
+) -> DesktopResult<SourceRemovalPreview> {
+    service(&state)?
+        .preview_source_removal(&profile_id)
+        .map_err(Into::into)
+}
+
+#[tauri::command]
+async fn remove_source(
+    state: tauri::State<'_, DesktopState>,
+    profile_id: String,
+    confirmation_token: String,
+) -> DesktopResult<SourceRemovalPreview> {
+    let state = state.inner().clone();
+    blocking_service(state, move |service| {
+        service
+            .remove_source(&profile_id, &confirmation_token)
             .map_err(Into::into)
     })
     .await
@@ -583,14 +657,14 @@ async fn launch_port(
     source: Option<PathBuf>,
     arguments: Vec<String>,
 ) -> DesktopResult<LaunchResult> {
-    let library = state.library.clone();
+    let library = ready(&state)?.library.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
         request_supervised_launch(&library, port_id, source, arguments)
     })
     .await
     .map_err(|error| DesktopError::from(PortcoveError::state(error.to_string())))??;
     let observed_session = result.session_id.clone();
-    let observed_library = state.library.clone();
+    let observed_library = ready(&state)?.library.clone();
     thread::spawn(move || {
         loop {
             match observed_library.launch_sessions() {
@@ -723,7 +797,10 @@ pub fn run_hidden_helper() -> Option<i32> {
             let session_id = arguments.next();
             Some(match (library, session_id) {
                 (Some(library), Some(session_id)) if arguments.next().is_none() => {
-                    run_recovery_helper(&library, &session_id.to_string_lossy())
+                    match session_id.to_str() {
+                        Some(session_id) => run_recovery_helper(&library, session_id),
+                        None => 2,
+                    }
                 }
                 _ => 2,
             })
@@ -757,14 +834,16 @@ fn run_supervisor_request(request_path: &Path) -> i32 {
                 &request.arguments,
                 LaunchStdio::Null,
                 |session| {
-                    response_written = publish_json(
-                        &response_path,
-                        &LaunchSupervisorResponse::success(LaunchResult {
-                            process_id: session.child_pid.expect("started session has a child PID"),
-                            session_id: session.id.clone(),
-                        }),
-                    )
-                    .is_ok();
+                    if let Some(process_id) = session.child_pid {
+                        response_written = publish_json(
+                            &response_path,
+                            &LaunchSupervisorResponse::success(LaunchResult {
+                                process_id,
+                                session_id: session.id.clone(),
+                            }),
+                        )
+                        .is_ok();
+                    }
                 },
             )
         });
@@ -857,26 +936,37 @@ fn open_directory(path: &std::path::Path) -> DesktopResult<()> {
     Ok(())
 }
 
-pub fn run() {
-    let library = std::env::var_os("PORTCOVE_LIBRARY")
+fn initialize_desktop() -> DesktopResult<ReadyDesktopState> {
+    let configured_root = std::env::var_os("PORTCOVE_LIBRARY")
         .filter(|path| !path.is_empty())
+        .map(PathBuf::from);
+    initialize_desktop_at(configured_root)
+}
+
+fn initialize_desktop_at(configured_root: Option<PathBuf>) -> DesktopResult<ReadyDesktopState> {
+    let library = configured_root
         .map(Library::open)
         .unwrap_or_else(Library::open_default)
-        .expect("Portcove library should initialize");
-    start_stale_launch_recovery(&library).expect("stale launch recovery should initialize");
+        .map_err(DesktopError::from)?;
+    start_stale_launch_recovery(&library).map_err(DesktopError::from)?;
     let releases = std::sync::Arc::new(
-        CompositeReleaseProvider::for_library(&library)
-            .expect("Portcove release provider should initialize"),
+        CompositeReleaseProvider::for_library(&library).map_err(DesktopError::from)?,
     );
     let github = releases.github();
+    Ok(ReadyDesktopState {
+        library,
+        github,
+        releases,
+    })
+}
+
+pub fn run() {
+    let initialization = std::sync::Arc::new(initialize_desktop());
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .manage(DesktopState {
-            library,
-            github,
-            releases,
-        })
+        .manage(DesktopState { initialization })
         .invoke_handler(tauri::generate_handler![
+            get_bootstrap_status,
             get_github_auth_status,
             plan_port,
             set_github_token,
@@ -897,6 +987,8 @@ pub fn run() {
             check_installed,
             reconcile_installed,
             add_source,
+            preview_source_removal,
+            remove_source,
             set_channel,
             set_policy,
             install_port,
@@ -912,12 +1004,41 @@ pub fn run() {
             open_user_data,
         ])
         .setup(|app| {
-            let window = app
-                .get_webview_window("main")
-                .expect("main window should exist");
-            window.set_focus()?;
+            if let Some(window) = app.get_webview_window("main") {
+                window.set_focus()?;
+            }
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("error while running Portcove");
+        .unwrap_or_else(|error| eprintln!("Portcove desktop stopped: {error}"));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn invalid_library_initialization_becomes_a_recoverable_desktop_state() {
+        let temporary = tempfile::tempdir().unwrap();
+        let blocked = temporary.path().join("not-a-directory");
+        fs::write(&blocked, b"file blocks the configured library directory").unwrap();
+        let error = match initialize_desktop_at(Some(blocked.clone())) {
+            Ok(_) => panic!("a file cannot be opened as a Portcove library"),
+            Err(error) => error,
+        };
+        let state = DesktopState {
+            initialization: std::sync::Arc::new(Err(error.clone())),
+        };
+
+        let status = bootstrap_status(&state);
+
+        assert!(!status.ready);
+        assert_eq!(status.error.unwrap().message, error.message);
+        assert!(status.library_root.is_none());
+        assert!(service(&state).is_err());
+        assert_eq!(
+            fs::read(blocked).unwrap(),
+            b"file blocks the configured library directory"
+        );
+    }
 }

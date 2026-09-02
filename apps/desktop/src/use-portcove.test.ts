@@ -22,6 +22,8 @@ const port: PortDefinition = {
   adapter: "libultraship-portable",
   persistent_paths: ["saves"],
   upstream_status: "active",
+  release: {},
+  executable_hints: {},
 };
 
 describe("detail removal action", () => {

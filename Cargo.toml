@@ -38,7 +38,7 @@ sha1 = "0.11.0"
 tar = "0.4.46"
 tempfile = "3.27.0"
 thiserror = "2.0.20"
-tokio = { version = "1.53.1", features = ["fs", "io-util", "macros", "process", "rt-multi-thread", "signal", "sync"] }
+tokio = { version = "1.53.1", features = ["fs", "io-util", "macros", "process", "rt-multi-thread", "signal", "sync", "time"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt"] }
 uuid = { version = "1.26.0", features = ["v4", "serde"] }

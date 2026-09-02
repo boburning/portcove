@@ -3,11 +3,31 @@ export type ReleaseChannel = "stable" | "beta" | "rolling";
 export type UpdatePolicy = "notify" | "stage" | "automatic";
 export type SupportTier = ReleaseChannel;
 export type UpstreamStatus = "active" | "retired" | "superseded" | "abandoned";
+export type AdapterKind = "libultraship-portable" | "n64-recomp-portable" | "staged-source-portable" | "referenced-disc" | "generated-cache" | "upstream-managed-setup" | "psx-recomp-managed";
+export type RuntimeSourceMaterialization = "n64-big-endian" | "copy" | "gamecube-iso" | "psx-bin-cue" | "psx-raw-set" | "ps2-iso";
+export type SourceKind = "file" | "file-set" | "gamecube-disc" | "psx-disc" | "upstream-validated-disc";
+export type ReleaseSource = "github" | "gitlab" | "direct-manifest";
+
+export interface DirectReleaseSpec {
+  version: string;
+  url: string;
+  size: number;
+  sha256: string;
+  published_at?: string;
+}
+
+export interface ReleaseSpec {
+  provider?: ReleaseSource;
+  repository?: string;
+  rolling_tag?: string;
+  asset_hints?: Partial<Record<Platform, string[]>>;
+  direct?: Partial<Record<Platform, DirectReleaseSpec>>;
+}
 
 export interface SourceProfile {
   id: string;
   label: string;
-  kind?: "file" | "file-set" | "gamecube-disc" | "psx-disc" | "upstream-validated-disc";
+  kind?: SourceKind;
   accepted_extensions: string[];
   accepted_sha1?: string[];
   accepted_sha256?: string[];
@@ -41,7 +61,7 @@ export interface PortDefinition {
   platforms: Platform[];
   automated_tested_platforms: Platform[];
   manually_validated_platforms: Platform[];
-  adapter: string;
+  adapter: AdapterKind;
   source_profile?: string;
   bios_source_profile?: string;
   persistent_paths: string[];
@@ -50,17 +70,19 @@ export interface PortDefinition {
   launch_arguments?: string[];
   runtime_subdirectory?: string;
   runtime_source_filename?: string;
-  runtime_source_materialization?: "n64-big-endian" | "copy" | "gamecube-iso" | "psx-bin-cue" | "psx-raw-set" | "ps2-iso";
+  runtime_source_materialization?: RuntimeSourceMaterialization;
   runtime_source_set?: Array<{
     source_filenames: string[];
     destination: string;
-    materialization: "n64-big-endian" | "copy" | "gamecube-iso" | "psx-bin-cue" | "psx-raw-set" | "ps2-iso";
+    materialization: RuntimeSourceMaterialization;
   }>;
   launch_from_install_root?: boolean;
   setup_executable_hints?: Partial<Record<Platform, string[]>>;
   setup_arguments?: string[];
   setup_marker?: string;
   upstream_status: UpstreamStatus;
+  release: ReleaseSpec;
+  executable_hints: Partial<Record<Platform, string[]>>;
 }
 
 export interface CatalogDocument {
@@ -107,7 +129,7 @@ export interface PortStatus {
   last_update_check?: UpdateSnapshot;
 }
 
-export type ActivityOperation = "check_update" | "backup" | "restore" | "delete_backup" | "install" | "update" | "reconcile" | "verify_install" | "activate" | "rollback" | "adopt" | "remove" | "register_source" | "verify_source";
+export type ActivityOperation = "launch" | "check_update" | "backup" | "restore" | "delete_backup" | "install" | "update" | "reconcile" | "verify_install" | "activate" | "rollback" | "adopt" | "remove" | "remove_source" | "register_source" | "verify_source";
 export type ActivityStatus = "running" | "succeeded" | "failed";
 export type ActivityTargetKind = "port" | "source" | "library";
 
@@ -184,6 +206,14 @@ export interface SourceRecord {
   size: number;
   storage_sha256: string;
   storage_size: number;
+  updated_at: number;
+}
+
+export interface SourceRemovalPreview {
+  source: SourceRecord;
+  confirmation_token: string;
+  dependent_port_ids: string[];
+  installed_dependent_port_ids: string[];
 }
 
 export interface SourceVerification {
@@ -270,19 +300,30 @@ export interface OperationEvent {
   timestamp_ms: number;
   operation: string;
   target?: { kind: ActivityTargetKind; id: string };
-  type: "started" | "progress" | "message" | "finished";
+  type: OperationEventType;
   phase?: string;
   completed?: number;
   total?: number;
   level?: string;
   message?: string;
-  result?: "succeeded" | "failed";
+  result?: OperationResult;
 }
 
+export type OperationEventType = "started" | "progress" | "message" | "finished";
+export type OperationResult = "succeeded" | "failed";
+
 export interface DesktopError {
-  code: string;
+  code: ErrorCode;
   message: string;
   details: Record<string, string>;
+}
+
+export type ErrorCode = "usage" | "unsupported" | "not_found" | "source_invalid" | "network" | "verification" | "install" | "state" | "launch" | "conflict";
+
+export interface BootstrapStatus {
+  ready: boolean;
+  library_root?: string;
+  error?: DesktopError;
 }
 
 export type GithubAuthSource = "anonymous" | "environment" | "credential_store";

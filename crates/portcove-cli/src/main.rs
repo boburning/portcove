@@ -11,8 +11,8 @@ use portcove_core::{
     GithubDeviceLoginState, GithubReleaseProvider, InstallPlan, InstallRecord, LaunchSignal,
     LaunchStdio, OperationEvent, OperationEventKind, PortDefinition, PortPaths, PortStatus,
     PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel, RestoreResult, Result,
-    SourceRecord, SourceVerification, StorageSummary, UpdateCheck, UpdatePolicy, UpdateSnapshot,
-    forward_launch_signal,
+    SourceRecord, SourceRemovalPreview, SourceVerification, StorageSummary, UpdateCheck,
+    UpdatePolicy, UpdateSnapshot, forward_launch_signal,
 };
 use schemars::{JsonSchema, schema_for};
 use serde::Serialize;
@@ -157,10 +157,17 @@ enum CatalogCommand {
 
 #[derive(Debug, Subcommand)]
 enum SourceCommand {
-    Add { profile_id: String, path: PathBuf },
+    Add {
+        profile_id: String,
+        path: PathBuf,
+    },
     List,
     Verify(SourceVerifyArgs),
-    Remove { profile_id: String },
+    Remove {
+        profile_id: String,
+        #[arg(long)]
+        yes: bool,
+    },
 }
 
 #[derive(Debug, Args)]
@@ -426,6 +433,15 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         render_about(mode)?;
         return Ok(ExitCode::SUCCESS);
     }
+    if matches!(
+        &cli.command,
+        Commands::Schema {
+            command: SchemaCommand::Export
+        }
+    ) {
+        render_success(mode, "schema.export", schema_document())?;
+        return Ok(ExitCode::SUCCESS);
+    }
     let library = match cli.library {
         Some(path) => portcove_core::Library::open(path)?,
         None => portcove_core::Library::open_default()?,
@@ -442,7 +458,17 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                     let login = github.begin_device_login().await?;
                     render_device_prompt(mode, &login)?;
                     loop {
-                        std::thread::sleep(std::time::Duration::from_secs(login.interval_seconds));
+                        if wait_for_device_login_poll(
+                            std::time::Duration::from_secs(login.interval_seconds),
+                            tokio::signal::ctrl_c(),
+                        )
+                        .await?
+                            == DeviceLoginWait::Cancelled
+                        {
+                            return Err(PortcoveError::conflict(
+                                "GitHub login was cancelled before authorization completed",
+                            ));
+                        }
                         let result = github.poll_device_login(&login.session_id).await?;
                         if result.state == GithubDeviceLoginState::Complete {
                             render_success(mode, "auth.login", result)?;
@@ -581,12 +607,30 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
             }
         }
         Commands::Source {
-            command: SourceCommand::Remove { profile_id },
+            command: SourceCommand::Remove { profile_id, yes },
         } => {
+            let preview = service.preview_source_removal(&profile_id)?;
+            if mode == OutputMode::Human {
+                println!("{}", serde_json::to_string_pretty(&preview)?);
+            }
+            let impact = if preview.installed_dependent_port_ids.is_empty() {
+                "No installed port currently depends on it.".to_owned()
+            } else {
+                format!(
+                    "Installed ports will lose this registered source dependency: {}.",
+                    preview.installed_dependent_port_ids.join(", ")
+                )
+            };
+            require_confirmation(
+                &format!("Remove registered source {profile_id}? {impact}"),
+                yes,
+                cli.non_interactive,
+            )?;
+            let removed = service.remove_source(&profile_id, &preview.confirmation_token)?;
             render_success(
                 mode,
                 "source.remove",
-                serde_json::json!({ "removed": service.library().remove_source(&profile_id)? }),
+                serde_json::json!({ "removed": true, "preview": removed }),
             )?;
         }
         Commands::Status { port_id } => {
@@ -813,38 +857,64 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         Commands::Schema {
             command: SchemaCommand::Export,
         } => {
-            let schemas = serde_json::json!({
-                "api_response_port_status": schema_for!(ApiResponse<PortStatus>),
-                "about": schema_for!(AboutDocument),
-                "catalog": schema_for!(CatalogDocument),
-                "port": schema_for!(PortDefinition),
-                "status": schema_for!(PortStatus),
-                "update_check": schema_for!(UpdateCheck),
-                "update_snapshot": schema_for!(UpdateSnapshot),
-                "check_batch_outcome": schema_for!(PortBatchOutcome<UpdateCheck>),
-                "reconcile_result": schema_for!(ReconcileResult),
-                "reconcile_batch_outcome": schema_for!(PortBatchOutcome<ReconcileResult>),
-                "update_batch_outcome": schema_for!(PortBatchOutcome<InstallRecord>),
-                "source": schema_for!(SourceRecord),
-                "source_verification": schema_for!(SourceVerification),
-                "source_batch_outcome": schema_for!(SourceBatchOutcome),
-                "activity": schema_for!(ActivityRecord),
-                "backup": schema_for!(BackupRecord),
-                "restore_result": schema_for!(RestoreResult),
-                "storage": schema_for!(StorageSummary),
-                "doctor": schema_for!(DoctorReport),
-                "install_plan": schema_for!(InstallPlan),
-                "port_paths": schema_for!(PortPaths),
-                "operation_event": schema_for!(OperationEvent),
-                "github_auth_status": schema_for!(GithubAuthStatus),
-                "github_device_login": schema_for!(GithubDeviceLogin),
-                "github_device_login_result": schema_for!(GithubDeviceLoginResult),
-                "capabilities": schema_for!(CapabilityDocument)
-            });
-            render_success(mode, "schema.export", schemas)?;
+            render_success(mode, "schema.export", schema_document())?;
         }
     }
     Ok(ExitCode::SUCCESS)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DeviceLoginWait {
+    Poll,
+    Cancelled,
+}
+
+async fn wait_for_device_login_poll<F>(
+    interval: std::time::Duration,
+    cancellation: F,
+) -> Result<DeviceLoginWait>
+where
+    F: std::future::Future<Output = std::io::Result<()>>,
+{
+    tokio::select! {
+        _ = tokio::time::sleep(interval) => Ok(DeviceLoginWait::Poll),
+        signal = cancellation => {
+            signal.map_err(PortcoveError::from)?;
+            Ok(DeviceLoginWait::Cancelled)
+        }
+    }
+}
+
+fn schema_document() -> serde_json::Value {
+    serde_json::json!({
+        "api_response_port_status": schema_for!(ApiResponse<PortStatus>),
+        "about": schema_for!(AboutDocument),
+        "catalog": schema_for!(CatalogDocument),
+        "port": schema_for!(PortDefinition),
+        "status": schema_for!(PortStatus),
+        "update_check": schema_for!(UpdateCheck),
+        "update_snapshot": schema_for!(UpdateSnapshot),
+        "check_batch_outcome": schema_for!(PortBatchOutcome<UpdateCheck>),
+        "reconcile_result": schema_for!(ReconcileResult),
+        "reconcile_batch_outcome": schema_for!(PortBatchOutcome<ReconcileResult>),
+        "update_batch_outcome": schema_for!(PortBatchOutcome<InstallRecord>),
+        "source": schema_for!(SourceRecord),
+        "source_removal_preview": schema_for!(SourceRemovalPreview),
+        "source_verification": schema_for!(SourceVerification),
+        "source_batch_outcome": schema_for!(SourceBatchOutcome),
+        "activity": schema_for!(ActivityRecord),
+        "backup": schema_for!(BackupRecord),
+        "restore_result": schema_for!(RestoreResult),
+        "storage": schema_for!(StorageSummary),
+        "doctor": schema_for!(DoctorReport),
+        "install_plan": schema_for!(InstallPlan),
+        "port_paths": schema_for!(PortPaths),
+        "operation_event": schema_for!(OperationEvent),
+        "github_auth_status": schema_for!(GithubAuthStatus),
+        "github_device_login": schema_for!(GithubDeviceLogin),
+        "github_device_login_result": schema_for!(GithubDeviceLoginResult),
+        "capabilities": schema_for!(CapabilityDocument)
+    })
 }
 
 fn read_token(stdin: bool, non_interactive: bool) -> Result<String> {
@@ -1399,5 +1469,25 @@ mod tests {
         assert!(capabilities.commands.contains(&"paths".to_owned()));
         assert_eq!(capabilities.raw_stream_commands, ["exec"]);
         assert_eq!(capabilities.product_version, env!("CARGO_PKG_VERSION"));
+    }
+
+    #[tokio::test]
+    async fn device_login_poll_wait_is_async_and_cancellable() {
+        let cancelled = tokio::time::timeout(
+            std::time::Duration::from_secs(1),
+            super::wait_for_device_login_poll(std::time::Duration::from_secs(60), async { Ok(()) }),
+        )
+        .await
+        .expect("cancellation should not wait for the polling interval")
+        .unwrap();
+        assert_eq!(cancelled, super::DeviceLoginWait::Cancelled);
+
+        let poll = super::wait_for_device_login_poll(
+            std::time::Duration::ZERO,
+            std::future::pending::<std::io::Result<()>>(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(poll, super::DeviceLoginWait::Poll);
     }
 }

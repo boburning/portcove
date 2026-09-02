@@ -156,6 +156,16 @@ impl OperationStore {
 
     pub fn put(&self, operation: &mut LifecycleOperation) -> Result<()> {
         operation.updated_at = Library::now();
+        for path in operation
+            .paths
+            .staging
+            .iter()
+            .chain(operation.paths.final_path.iter())
+            .chain(operation.paths.quarantine.iter())
+            .chain(operation.original_paths.iter())
+        {
+            crate::path::unicode(path, "lifecycle")?;
+        }
         let install_json = operation
             .install
             .as_ref()
@@ -184,9 +194,9 @@ impl OperationStore {
                 operation.kind.to_string(),
                 operation.port_id,
                 operation.phase.to_string(),
-                path_string(operation.paths.staging.as_ref()),
-                path_string(operation.paths.final_path.as_ref()),
-                path_string(operation.paths.quarantine.as_ref()),
+                path_string(operation.paths.staging.as_ref())?,
+                path_string(operation.paths.final_path.as_ref())?,
+                path_string(operation.paths.quarantine.as_ref())?,
                 install_json,
                 original_paths_json,
                 operation.activate as i64,
@@ -269,12 +279,14 @@ impl OperationStore {
     }
 }
 
-fn path_string(path: Option<&PathBuf>) -> Option<String> {
-    path.map(|path| path.to_string_lossy().into_owned())
+fn path_string(path: Option<&PathBuf>) -> Result<Option<String>> {
+    path.map(|path| crate::path::unicode(path, "lifecycle"))
+        .transpose()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LifecycleFaultPoint {
+    SourcePrepared,
     InstallPrepared,
     InstallPublished,
     InstallMetadataCommitted,

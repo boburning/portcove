@@ -407,6 +407,33 @@ kbd {
   white-space: nowrap;
 }
 
+.bootstrap-state {
+  width: min(42rem, calc(100% - 2 * var(--space-8)));
+  min-height: 100vh;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-4);
+}
+
+.bootstrap-state h1,
+.bootstrap-state p,
+.bootstrap-state dl { margin: 0; }
+.bootstrap-state > p:not(.eyebrow) { color: var(--color-text-muted); }
+.bootstrap-state button { align-self: flex-start; }
+.bootstrap-error dl {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+}
+.bootstrap-error dl div { display: grid; grid-template-columns: 9rem 1fr; gap: var(--space-3); }
+.bootstrap-error dt { color: var(--color-text-muted); }
+.bootstrap-error dd { margin: 0; overflow-wrap: anywhere; font-family: var(--font-mono); }
+
 .app-shell {
   display: grid;
   grid-template-columns: var(--layout-sidebar) minmax(0, 1fr);

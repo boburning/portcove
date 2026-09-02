@@ -42,7 +42,9 @@ pub(crate) struct HttpCacheEntry {
 
 impl Library {
     pub fn open(root: impl Into<PathBuf>) -> Result<Self> {
-        let library = Self { root: root.into() };
+        let root = root.into();
+        crate::path::unicode(&root, "library root")?;
+        let library = Self { root };
         library.create_layout()?;
         library.migrate()?;
         Ok(library)
@@ -338,6 +340,7 @@ impl Library {
     }
 
     pub(crate) fn create_launch_session(&self, session: &LaunchSessionRecord) -> Result<()> {
+        let install_root = crate::path::unicode(&session.install_root, "install")?;
         self.connection()?.execute(
             "INSERT INTO launch_sessions(
                id, port_id, install_id, install_root, supervisor_pid, child_pid, phase,
@@ -347,7 +350,7 @@ impl Library {
                 session.id,
                 session.port_id,
                 session.install_id,
-                session.install_root.to_string_lossy(),
+                install_root,
                 session.supervisor_pid,
                 session.child_pid,
                 session.phase.to_string(),
@@ -483,6 +486,7 @@ impl Library {
     }
 
     pub fn register_source(&self, source: &SourceRecord) -> Result<()> {
+        let path = crate::path::unicode(&source.path, "source")?;
         self.connection()?.execute(
             "INSERT INTO sources(profile_id, path, sha256, size, storage_sha256, storage_size, updated_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
@@ -491,7 +495,7 @@ impl Library {
                storage_size=excluded.storage_size, updated_at=excluded.updated_at",
             params![
                 source.profile_id,
-                source.path.to_string_lossy(),
+                path,
                 source.sha256,
                 source.size,
                 source.storage_sha256,
@@ -539,7 +543,7 @@ impl Library {
             .map_err(Into::into)
     }
 
-    pub fn remove_source(&self, profile_id: &str) -> Result<bool> {
+    pub(crate) fn remove_source(&self, profile_id: &str) -> Result<bool> {
         Ok(self
             .connection()?
             .execute("DELETE FROM sources WHERE profile_id=?1", [profile_id])?
@@ -564,8 +568,13 @@ impl Library {
         Ok(())
     }
 
-    pub fn set_update_policy(&self, port_id: &str, policy: UpdatePolicy) -> Result<()> {
-        self.ensure_settings(port_id, ReleaseChannel::Stable)?;
+    pub fn set_update_policy(
+        &self,
+        port_id: &str,
+        policy: UpdatePolicy,
+        default_channel: ReleaseChannel,
+    ) -> Result<()> {
+        self.ensure_settings(port_id, default_channel)?;
         self.connection()?.execute(
             "UPDATE port_settings SET update_policy=?2 WHERE port_id=?1",
             params![port_id, policy.to_string()],
@@ -574,6 +583,9 @@ impl Library {
     }
 
     pub fn register_install(&self, install: &InstallRecord, activate: bool) -> Result<()> {
+        let path = crate::path::unicode(&install.path, "install")?;
+        let selected_executable =
+            crate::path::unicode(&install.selected_executable, "selected executable")?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
         transaction.execute(
@@ -598,7 +610,7 @@ impl Library {
                 install.id,
                 install.port_id,
                 install.version,
-                install.path.to_string_lossy(),
+                path,
                 install.channel.to_string(),
                 install.installed_at,
                 install.verified as i64,
@@ -607,7 +619,7 @@ impl Library {
                 install.artifact.sha256,
                 install.artifact.size,
                 install.manifest_sha256,
-                install.selected_executable.to_string_lossy(),
+                selected_executable,
             ],
         )?;
         transaction.execute(
@@ -638,19 +650,23 @@ impl Library {
     }
 
     pub fn status(&self, port_id: &str, default_channel: ReleaseChannel) -> Result<PortStatus> {
-        self.ensure_settings(port_id, default_channel)?;
         let connection = self.connection()?;
-        let (channel_value, policy_value, active_id, previous_id): (
-            String,
-            String,
-            Option<String>,
-            Option<String>,
-        ) = connection.query_row(
-            "SELECT channel, update_policy, active_install_id, previous_install_id
-             FROM port_settings WHERE port_id=?1",
-            [port_id],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
-        )?;
+        let stored: Option<(String, String, Option<String>, Option<String>)> = connection
+            .query_row(
+                "SELECT channel, update_policy, active_install_id, previous_install_id
+                 FROM port_settings WHERE port_id=?1",
+                [port_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .optional()?;
+        let (channel_value, policy_value, active_id, previous_id) = stored.unwrap_or_else(|| {
+            (
+                default_channel.to_string(),
+                UpdatePolicy::Notify.to_string(),
+                None,
+                None,
+            )
+        });
         let staged_id: Option<String> = connection.query_row(
             "SELECT id FROM installs WHERE port_id=?1 AND staged=1 ORDER BY installed_at DESC LIMIT 1",
             [port_id], |row| row.get(0),
@@ -879,6 +895,20 @@ impl Library {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[cfg(unix)]
+    #[test]
+    fn opening_a_non_unicode_library_root_is_rejected_without_side_effects() {
+        use std::{ffi::OsString, os::unix::ffi::OsStringExt};
+
+        let temporary = tempdir().unwrap();
+        let root = temporary.path().join(OsString::from_vec(vec![b'l', 0xff]));
+
+        let error = Library::open(&root).unwrap_err();
+
+        assert_eq!(error.code, crate::ErrorCode::Unsupported);
+        assert!(!root.exists());
+    }
 
     #[test]
     fn storage_summary_reports_the_library_volume_capacity() {

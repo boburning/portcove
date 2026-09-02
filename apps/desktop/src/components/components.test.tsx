@@ -9,9 +9,10 @@ import { UpdateCenter } from "./UpdateCenter";
 
 const port: PortDefinition = {
   id: "sample", name: "Sample Port", summary: "A sample native port", project_url: "https://example.com",
-  support_tier: "stable", channels: ["stable", "beta"], platforms: ["windows-x86-64"], adapter: "direct-archive",
+  support_tier: "stable", channels: ["stable", "beta"], platforms: ["windows-x86-64"], adapter: "staged-source-portable",
   automated_tested_platforms: ["windows-x86-64"], manually_validated_platforms: [],
   source_profile: "sample-rom", persistent_paths: ["save"], upstream_status: "active",
+  release: {}, executable_hints: {},
 };
 const actions: DetailActions = {
   activate: vi.fn(), backup: vi.fn(), check: vi.fn(), close: vi.fn(), deleteBackup: vi.fn(), install: vi.fn(), launch: vi.fn(), openUserData: vi.fn(), reviewInstall: vi.fn(), remove: vi.fn(), restoreBackup: vi.fn(), rollback: vi.fn(), setChannel: vi.fn(), setPolicy: vi.fn(), update: vi.fn(), verify: vi.fn(),
@@ -115,7 +116,7 @@ describe("desktop components", () => {
   });
 
   it("shows read-only source integrity outcomes", () => {
-    const source = { profile_id: "sample-rom", path: "D:/ROMs/sample.z64", sha256: "a".repeat(64), size: 1024, storage_sha256: "a".repeat(64), storage_size: 1024 };
+    const source = { profile_id: "sample-rom", path: "D:/ROMs/sample.z64", sha256: "a".repeat(64), size: 1024, storage_sha256: "a".repeat(64), storage_size: 1024, updated_at: 1 };
     const verified = renderToStaticMarkup(<SettingsView libraryRoot="C:/Portcove" sources={[source]} sourceOutcomes={[{
       profile_id: source.profile_id, ok: true, result: { ...source, registered_at: 1, verified_at: 2 },
     }]} verifySources={vi.fn()} replaceSource={vi.fn()} />);

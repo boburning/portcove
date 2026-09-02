@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AdoptionModal } from "./components/AdoptionModal";
 import { PageHeader, SettingsView, Sidebar, StatusLayer } from "./components/Chrome";
 import { CommandPalette } from "./components/CommandPalette";
@@ -11,10 +11,46 @@ import { useWorkspaceScroll } from "./keyboard-shortcuts";
 import { useThemePreference } from "./theme";
 import { useCommandSurface } from "./use-command-surface";
 import { adoptInstall, detailActions, type Perform, useGithubAuth, useInstallPlanning, useOperationState, usePortBackups, usePortcoveData, usePortcoveUi, useSourceHealth, useUpdateCenter } from "./use-portcove";
-import type { SourceProfile, SourceRecord } from "./types";
+import type { BootstrapStatus, DesktopError, SourceProfile, SourceRecord } from "./types";
 import { currentUpdateSnapshot, errorText, filterPorts, indexStatuses, mostRecentPort, requiredSourceNeeds, summarizeLibrary } from "./view-model";
 
 export default function App() {
+  const [bootstrap, setBootstrap] = useState<BootstrapStatus>();
+  const [bootstrapError, setBootstrapError] = useState<DesktopError>();
+  useEffect(() => {
+    desktopApi.bootstrapStatus().then(setBootstrap).catch(value => {
+      setBootstrapError({ code: "state", message: errorText(value), details: {} });
+    });
+  }, []);
+  if (bootstrapError) return <BootstrapRecovery error={bootstrapError} />;
+  if (!bootstrap) return <BootstrapLoading />;
+  if (!bootstrap.ready) return <BootstrapRecovery error={bootstrap.error ?? { code: "state", message: "Portcove initialization failed without an error report.", details: {} }} />;
+  return <Workspace />;
+}
+
+function BootstrapLoading() {
+  return <main className="bootstrap-state" aria-live="polite">
+    <p className="eyebrow">Portcove</p>
+    <h1>Opening your native library</h1>
+    <p>Loading the catalog, recovery journal, and release providers.</p>
+  </main>;
+}
+
+export function BootstrapRecovery({ error }: { error: DesktopError }) {
+  return <main className="bootstrap-state bootstrap-error" role="alert">
+    <p className="eyebrow">Portcove could not start</p>
+    <h1>Your library was left untouched</h1>
+    <p>{error.message}</p>
+    <dl>
+      <div><dt>Error code</dt><dd>{error.code}</dd></div>
+      {Object.entries(error.details).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{value}</dd></div>)}
+    </dl>
+    <p>Check the configured library path, access permissions, and available space, then retry. Portcove will run recovery checks again before enabling library actions.</p>
+    <button type="button" onClick={() => window.location.reload()}>Retry startup</button>
+  </main>;
+}
+
+function Workspace() {
   const data = usePortcoveData();
   const operations = useOperationState(data.refresh);
   const github = useGithubAuth(operations.perform, operations.setError);

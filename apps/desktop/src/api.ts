@@ -1,7 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { ActivityRecord, BackupRecord, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, InstallPlan, InstallRecord, PortStatus, ReconcileOutcome, ReleaseChannel, RestoreResult, SourceRecord, SourceVerificationOutcome, UpdateCheck, UpdateCheckOutcome, UpdatePolicy } from "./types";
+import type { ActivityRecord, BackupRecord, BootstrapStatus, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, InstallPlan, InstallRecord, PortStatus, ReconcileOutcome, ReleaseChannel, RestoreResult, SourceRecord, SourceRemovalPreview, SourceVerificationOutcome, UpdateCheck, UpdateCheckOutcome, UpdatePolicy } from "./types";
 
 export const desktopApi = {
+  bootstrapStatus: () => invoke<BootstrapStatus>("get_bootstrap_status"),
   githubAuthStatus: () => invoke<GithubAuthStatus>("get_github_auth_status"),
   setGithubToken: (token: string) => invoke<GithubAuthStatus>("set_github_token", { token }),
   logoutGithub: () => invoke<GithubAuthStatus>("logout_github"),
@@ -16,6 +17,8 @@ export const desktopApi = {
   restoreBackup: (portId: string, backupId: string) => invoke<RestoreResult>("restore_backup", { portId, backupId }),
   deleteBackup: (portId: string, backupId: string) => invoke<BackupRecord>("delete_backup", { portId, backupId }),
   addSource: (profileId: string, path: string) => invoke<SourceRecord>("add_source", { profileId, path }),
+  previewSourceRemoval: (profileId: string) => invoke<SourceRemovalPreview>("preview_source_removal", { profileId }),
+  removeSource: (profileId: string, confirmationToken: string) => invoke<SourceRemovalPreview>("remove_source", { profileId, confirmationToken }),
   verifySources: () => invoke<SourceVerificationOutcome[]>("verify_sources"),
   check: (portId: string) => invoke<UpdateCheck>("check_port", { portId }),
   checkInstalled: () => invoke<UpdateCheckOutcome[]>("check_installed"),

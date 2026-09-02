@@ -191,6 +191,10 @@ where
 }
 
 pub(crate) fn prepare_install(root: &Path, preparation: &PsxManagedPreparation) -> Result<()> {
+    crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
+    if let Some(bios) = &preparation.bios {
+        crate::adapter::verify_source_storage_identity(bios, "PS1 BIOS")?;
+    }
     let cli = root.join("psxrecomp").join("psxrecomp_cli.py");
     let config = root.join("game.toml");
     if !cli.is_file() || !config.is_file() {
@@ -206,17 +210,23 @@ pub(crate) fn prepare_install(root: &Path, preparation: &PsxManagedPreparation) 
         PortcoveError::source("managed PS1 preparation has no verified disc source")
     })?;
     let cue = materialize_psx_chd(primary_source, temporary.path())?;
+    crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
+    let config_path = crate::path::unicode(&config, "managed build config")?;
+    let project_root = crate::path::unicode(root, "managed build root")?;
     let mut generate_arguments = vec![
         "generate".into(),
         "--config".into(),
-        config.to_string_lossy().into_owned(),
+        config_path.clone(),
         "--project-root".into(),
-        root.to_string_lossy().into_owned(),
+        project_root.clone(),
         "--disc".into(),
-        cue.to_string_lossy().into_owned(),
+        crate::path::unicode(&cue, "managed disc")?,
     ];
     if let Some(bios) = &preparation.bios {
-        generate_arguments.extend(["--bios".into(), bios.path.to_string_lossy().into_owned()]);
+        generate_arguments.extend([
+            "--bios".into(),
+            crate::path::unicode(&bios.path, "BIOS source")?,
+        ]);
     }
     generate_arguments.push("--json-progress".into());
     run_cli(
@@ -226,6 +236,9 @@ pub(crate) fn prepare_install(root: &Path, preparation: &PsxManagedPreparation) 
         &preparation.toolchain_root,
         generate_arguments,
     )?;
+    if let Some(bios) = &preparation.bios {
+        crate::adapter::verify_source_storage_identity(bios, "PS1 BIOS")?;
+    }
     rewrite_game_discs(&config, &preparation.source_paths)?;
     let build_dir = root.join("build-portcove");
     run_cli(
@@ -236,11 +249,11 @@ pub(crate) fn prepare_install(root: &Path, preparation: &PsxManagedPreparation) 
         [
             "rebuild".into(),
             "--config".into(),
-            config.to_string_lossy().into_owned(),
+            config_path,
             "--project-root".into(),
-            root.to_string_lossy().into_owned(),
+            project_root,
             "--build-dir".into(),
-            build_dir.to_string_lossy().into_owned(),
+            crate::path::unicode(&build_dir, "managed build directory")?,
             "--target".into(),
             "psx-runtime".into(),
             "--exe-basename".into(),
@@ -309,14 +322,14 @@ pub(crate) fn rewrite_game_discs(config: &Path, sources: &[PathBuf]) -> Result<(
             if sources.len() == 1 {
                 output.push(format!(
                     "disc = {}",
-                    serde_json::to_string(&sources[0].to_string_lossy())?
+                    serde_json::to_string(&crate::path::unicode(&sources[0], "PS1 source")?)?
                 ));
             } else {
                 output.push("discs = [".into());
                 for source in sources {
                     output.push(format!(
                         "    {},",
-                        serde_json::to_string(&source.to_string_lossy())?
+                        serde_json::to_string(&crate::path::unicode(source, "PS1 source")?)?
                     ));
                 }
                 output.push("]".into());

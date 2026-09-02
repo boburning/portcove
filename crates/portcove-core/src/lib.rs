@@ -9,6 +9,7 @@ mod install;
 mod launch;
 mod library;
 mod operation;
+mod path;
 mod process;
 mod providers;
 mod psx;

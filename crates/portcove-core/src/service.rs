@@ -20,8 +20,9 @@ use crate::{
     LaunchSessionRecord, LaunchStdio, Library, OperationCoordinator, OperationEvent,
     OperationResult, Platform, PortDefinition, PortPaths, PortStatus, PortcoveError,
     ReconcileAction, ReconcileResult, ReleaseChannel, ReleaseProvider, RepairItem, RepairItemKind,
-    RepairPlan, ResolvedRelease, RestoreResult, Result, SourceRecord, SourceRequirementRole,
-    SourceVerification, SupervisedLaunchOutcome, UpdateCheck, UpdatePolicy, VerificationReport,
+    RepairPlan, ResolvedRelease, RestoreResult, Result, SourceRecord, SourceRemovalPreview,
+    SourceRequirementRole, SourceVerification, SupervisedLaunchOutcome, UpdateCheck, UpdatePolicy,
+    VerificationReport,
     operation::{
         LifecycleFaultInjector, LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind,
         LifecyclePhase, NoLifecycleFaults, OperationStore,
@@ -468,14 +469,19 @@ impl PortcoveService {
         let mut backups = Vec::new();
         for entry in fs::read_dir(parent)? {
             let entry = entry?;
-            if !entry.file_type()?.is_dir() || entry.file_name().to_string_lossy().starts_with('.')
-            {
+            if !entry.file_type()?.is_dir() {
+                continue;
+            }
+            let directory_id = entry.file_name().into_string().map_err(|_| {
+                PortcoveError::unsupported("Portcove V1 requires backup paths to be valid Unicode")
+                    .detail("path_role", "backup")
+            })?;
+            if directory_id.starts_with('.') {
                 continue;
             }
             let path = entry.path();
             let manifest: BackupManifest =
                 serde_json::from_reader(fs::File::open(path.join("backup.json"))?)?;
-            let directory_id = entry.file_name().to_string_lossy().into_owned();
             if manifest.id != directory_id || manifest.port_id != port_id {
                 return Err(PortcoveError::state(format!(
                     "backup manifest identity does not match {}",
@@ -812,9 +818,10 @@ impl PortcoveService {
     }
 
     pub fn set_update_policy(&self, port_id: &str, policy: UpdatePolicy) -> Result<PortStatus> {
-        self.catalog.port(port_id)?;
+        let port = self.catalog.port(port_id)?;
         let _operation = self.library.try_lock_port(port_id, "set-policy")?;
-        self.library.set_update_policy(port_id, policy)?;
+        self.library
+            .set_update_policy(port_id, policy, default_channel(port))?;
         self.status(port_id)
     }
 
@@ -836,6 +843,87 @@ impl PortcoveService {
         self.finish_activity(activity, result)
     }
 
+    pub fn preview_source_removal(&self, profile_id: &str) -> Result<SourceRemovalPreview> {
+        self.catalog.source_profile(profile_id)?;
+        let source = self.library.source(profile_id)?.ok_or_else(|| {
+            PortcoveError::not_found(format!("source profile {profile_id} is not registered"))
+        })?;
+        let mut dependent_port_ids = self
+            .catalog
+            .ports()
+            .iter()
+            .filter(|port| {
+                port.source_profile.as_deref() == Some(profile_id)
+                    || port.bios_source_profile.as_deref() == Some(profile_id)
+            })
+            .map(|port| port.id.clone())
+            .collect::<Vec<_>>();
+        dependent_port_ids.sort();
+        let mut installed_dependent_port_ids = Vec::new();
+        for port_id in &dependent_port_ids {
+            if self.status(port_id)?.active.is_some() {
+                installed_dependent_port_ids.push(port_id.clone());
+            }
+        }
+        Ok(SourceRemovalPreview {
+            confirmation_token: source_removal_token(
+                &source,
+                &dependent_port_ids,
+                &installed_dependent_port_ids,
+            )?,
+            source,
+            dependent_port_ids,
+            installed_dependent_port_ids,
+        })
+    }
+
+    pub fn remove_source(
+        &self,
+        profile_id: &str,
+        confirmation_token: &str,
+    ) -> Result<SourceRemovalPreview> {
+        let activity = self.library.begin_activity(
+            ActivityOperation::RemoveSource,
+            ActivityTargetKind::Source,
+            Some(profile_id),
+        )?;
+        let result = (|| {
+            let preview = self.preview_source_removal(profile_id)?;
+            if preview.confirmation_token != confirmation_token {
+                return Err(PortcoveError::conflict(
+                    "the source or its installed dependents changed after the removal preview",
+                )
+                .detail("profile_id", profile_id));
+            }
+            let mut _guards = Vec::with_capacity(preview.dependent_port_ids.len());
+            for port_id in &preview.dependent_port_ids {
+                _guards.push(self.library.try_lock_port(port_id, "remove-source")?);
+            }
+            let locked_preview = self.preview_source_removal(profile_id).map_err(|error| {
+                if error.code == crate::ErrorCode::NotFound {
+                    PortcoveError::conflict("the registered source was removed after its preview")
+                        .detail("profile_id", profile_id)
+                } else {
+                    error
+                }
+            })?;
+            if locked_preview.confirmation_token != confirmation_token {
+                return Err(PortcoveError::conflict(
+                    "the source or its installed dependents changed after the removal preview",
+                )
+                .detail("profile_id", profile_id));
+            }
+            if !self.library.remove_source(profile_id)? {
+                return Err(PortcoveError::conflict(
+                    "the registered source was removed concurrently",
+                )
+                .detail("profile_id", profile_id));
+            }
+            Ok(locked_preview)
+        })();
+        self.finish_activity(activity, result)
+    }
+
     pub fn verify_source(&self, profile_id: &str) -> Result<SourceVerification> {
         let activity = self.library.begin_activity(
             ActivityOperation::VerifySource,
@@ -847,10 +935,25 @@ impl PortcoveService {
     }
 
     fn verify_source_untracked(&self, profile_id: &str) -> Result<SourceVerification> {
-        let profile = self.catalog.source_profile(profile_id)?;
         let registered = self.library.source(profile_id)?.ok_or_else(|| {
             PortcoveError::not_found(format!("source profile {profile_id} is not registered"))
         })?;
+        self.verify_source_record(&registered)?;
+        Ok(SourceVerification {
+            profile_id: registered.profile_id,
+            path: registered.path,
+            sha256: registered.sha256,
+            size: registered.size,
+            storage_sha256: registered.storage_sha256,
+            storage_size: registered.storage_size,
+            registered_at: registered.updated_at,
+            verified_at: Library::now(),
+        })
+    }
+
+    fn verify_source_record(&self, registered: &SourceRecord) -> Result<()> {
+        let profile_id = &registered.profile_id;
+        let profile = self.catalog.source_profile(profile_id)?;
         let actual = self
             .adapters
             .get(crate::AdapterKind::ReferencedDisc)
@@ -874,16 +977,7 @@ impl PortcoveService {
             .detail("recorded_storage_size", registered.storage_size.to_string())
             .detail("actual_storage_size", actual.storage_size.to_string()));
         }
-        Ok(SourceVerification {
-            profile_id: registered.profile_id,
-            path: registered.path,
-            sha256: registered.sha256,
-            size: registered.size,
-            storage_sha256: registered.storage_sha256,
-            storage_size: registered.storage_size,
-            registered_at: registered.updated_at,
-            verified_at: Library::now(),
-        })
+        Ok(())
     }
 
     fn verified_source_record(&self, profile_id: &str) -> Result<SourceRecord> {
@@ -1411,6 +1505,7 @@ impl PortcoveService {
         source: &Path,
         selected_port_id: Option<&str>,
     ) -> Result<AdoptionPreview> {
+        crate::path::unicode(source, "adoption source")?;
         if !source.is_dir() {
             return Err(PortcoveError::not_found(format!(
                 "adoption path is not a directory: {}",
@@ -1891,13 +1986,14 @@ impl PortcoveService {
                 PortcoveError::usage(format!("{} does not accept a source override", port.name))
             })?;
             let profile = self.catalog.source_profile(profile_id)?;
-            self.adapters
-                .get(port.adapter)
-                .validate_source(profile, path)?;
-            Some(path.to_path_buf())
+            Some(
+                self.adapters
+                    .get(port.adapter)
+                    .validate_source(profile, path)?,
+            )
         } else if let Some(profile) = &port.source_profile {
             if self.library.source(profile)?.is_some() {
-                Some(self.verified_source_record(profile)?.path)
+                Some(self.verified_source_record(profile)?)
             } else {
                 None
             }
@@ -1917,8 +2013,12 @@ impl PortcoveService {
                 Platform::current()?,
                 &active.path,
                 &selected_executable,
-                source.as_deref(),
+                source.as_ref().map(|record| record.path.as_path()),
             )?;
+        self.faults.check(LifecycleFaultPoint::SourcePrepared)?;
+        if let Some(source) = &source {
+            self.verify_source_record(source)?;
+        }
         Ok(spec)
     }
 
@@ -2113,10 +2213,8 @@ fn backup_relative_path(path: &Path) -> Result<String> {
     let mut components = Vec::new();
     for component in path.components() {
         let component = component.as_os_str().to_str().ok_or_else(|| {
-            PortcoveError::conflict(format!(
-                "backup source contains a non-Unicode path: {}",
-                path.display()
-            ))
+            PortcoveError::unsupported("Portcove V1 requires backup paths to be valid Unicode")
+                .detail("path_role", "backup")
         })?;
         components.push(component);
     }
@@ -2129,6 +2227,26 @@ fn default_channel(port: &PortDefinition) -> ReleaseChannel {
     } else {
         port.channels[0]
     }
+}
+
+fn source_removal_token(
+    source: &SourceRecord,
+    dependent_port_ids: &[String],
+    installed_dependent_port_ids: &[String],
+) -> Result<String> {
+    let path = crate::path::unicode(&source.path, "source")?;
+    let encoded = serde_json::to_vec(&(
+        source.profile_id.as_str(),
+        path,
+        source.sha256.as_str(),
+        source.size,
+        source.storage_sha256.as_str(),
+        source.storage_size,
+        source.updated_at,
+        dependent_port_ids,
+        installed_dependent_port_ids,
+    ))?;
+    Ok(hex::encode(Sha256::digest(encoded)))
 }
 
 pub(crate) fn copy_tree(source: &Path, destination: &Path) -> Result<()> {
@@ -2239,7 +2357,7 @@ mod tests {
         time::Duration,
     };
 
-    use crate::{ArtifactIdentity, ChildProcessClass};
+    use crate::{AdapterKind, ArtifactIdentity, ChildProcessClass};
 
     use super::*;
 
@@ -2407,6 +2525,22 @@ mod tests {
             }),
         )
         .unwrap()
+    }
+
+    struct ReplaceSourceAtFinalCheck {
+        path: PathBuf,
+        fired: AtomicBool,
+    }
+
+    impl LifecycleFaultInjector for ReplaceSourceAtFinalCheck {
+        fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+            if point == LifecycleFaultPoint::SourcePrepared
+                && !self.fired.swap(true, Ordering::SeqCst)
+            {
+                fs::write(&self.path, b"source replaced after initial verification")?;
+            }
+            Ok(())
+        }
     }
 
     #[test]
@@ -2732,6 +2866,77 @@ mod tests {
                 .collect::<Vec<_>>(),
             ["chdman", "dolphin_tool"]
         );
+    }
+
+    #[test]
+    fn status_and_doctor_do_not_initialize_catalog_settings() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let settings_count = || {
+            rusqlite::Connection::open(library.root().join("portcove.sqlite3"))
+                .unwrap()
+                .query_row("SELECT count(*) FROM port_settings", [], |row| {
+                    row.get::<_, i64>(0)
+                })
+                .unwrap()
+        };
+        assert_eq!(settings_count(), 0);
+
+        let statuses = service.statuses().unwrap();
+        service.doctor().unwrap();
+
+        assert_eq!(settings_count(), 0);
+        assert_eq!(
+            statuses
+                .iter()
+                .find(|status| status.port_id == "dkr-r")
+                .unwrap()
+                .channel,
+            ReleaseChannel::Beta
+        );
+        assert_eq!(
+            statuses
+                .iter()
+                .find(|status| status.port_id == "perfect-dark")
+                .unwrap()
+                .channel,
+            ReleaseChannel::Rolling
+        );
+    }
+
+    #[test]
+    fn policy_initialization_preserves_a_catalog_only_channel() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+
+        let status = service
+            .set_update_policy("dkr-r", UpdatePolicy::Stage)
+            .unwrap();
+
+        assert_eq!(status.channel, ReleaseChannel::Beta);
+        assert_eq!(status.update_policy, UpdatePolicy::Stage);
+        assert_eq!(
+            library
+                .status("dkr-r", ReleaseChannel::Stable)
+                .unwrap()
+                .channel,
+            ReleaseChannel::Beta
+        );
+    }
+
+    #[test]
+    fn capability_adapters_are_complete_and_catalog_backed() {
+        let catalog = Catalog::embedded().unwrap();
+        let capabilities = crate::CapabilityDocument::current();
+        assert_eq!(capabilities.adapters, AdapterKind::ALL);
+        let declared = catalog
+            .ports()
+            .iter()
+            .map(|port| port.adapter)
+            .collect::<HashSet<_>>();
+        assert_eq!(declared, AdapterKind::ALL.into_iter().collect());
     }
 
     fn write_host_test_executable(root: &Path, port_id: &str) -> PathBuf {
@@ -3347,6 +3552,74 @@ fn main() {
     }
 
     #[test]
+    fn source_removal_previews_shared_installed_dependents_and_rejects_stale_consent() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let source_path = temporary.path().join("banjo.z64");
+        fs::write(&source_path, b"registered source").unwrap();
+        let mut source = SourceRecord {
+            profile_id: "banjo-kazooie".into(),
+            path: source_path,
+            sha256: "1".repeat(64),
+            size: 17,
+            storage_sha256: "1".repeat(64),
+            storage_size: 17,
+            updated_at: Library::now(),
+        };
+        library.register_source(&source).unwrap();
+        let lighthouse = library
+            .versions_dir()
+            .join("lighthouse")
+            .join("a".repeat(64));
+        fs::create_dir_all(&lighthouse).unwrap();
+        write_host_test_executable(&lighthouse, "lighthouse");
+        register_existing_test_install(&library, "lighthouse", "v1", &lighthouse, true);
+        let service = PortcoveService::new(library.clone()).unwrap();
+
+        let preview = service.preview_source_removal("banjo-kazooie").unwrap();
+        assert_eq!(preview.dependent_port_ids, ["banjo-recomp", "lighthouse"]);
+        assert_eq!(preview.installed_dependent_port_ids, ["lighthouse"]);
+
+        let banjo_recomp = library
+            .versions_dir()
+            .join("banjo-recomp")
+            .join("b".repeat(64));
+        fs::create_dir_all(&banjo_recomp).unwrap();
+        write_host_test_executable(&banjo_recomp, "banjo-recomp");
+        register_existing_test_install(&library, "banjo-recomp", "v1", &banjo_recomp, true);
+        let error = service
+            .remove_source("banjo-kazooie", &preview.confirmation_token)
+            .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert!(error.message.contains("installed dependents"));
+
+        let impact_preview = service.preview_source_removal("banjo-kazooie").unwrap();
+        assert_eq!(
+            impact_preview.installed_dependent_port_ids,
+            ["banjo-recomp", "lighthouse"]
+        );
+
+        source.path = temporary.path().join("replacement.z64");
+        source.storage_sha256 = "2".repeat(64);
+        source.sha256 = "2".repeat(64);
+        source.updated_at += 1;
+        fs::write(&source.path, b"replacement source").unwrap();
+        library.register_source(&source).unwrap();
+        let error = service
+            .remove_source("banjo-kazooie", &impact_preview.confirmation_token)
+            .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert!(library.source("banjo-kazooie").unwrap().is_some());
+
+        let current = service.preview_source_removal("banjo-kazooie").unwrap();
+        let removed = service
+            .remove_source("banjo-kazooie", &current.confirmation_token)
+            .unwrap();
+        assert_eq!(removed.confirmation_token, current.confirmation_token);
+        assert!(library.source("banjo-kazooie").unwrap().is_none());
+    }
+
+    #[test]
     fn launch_rejects_a_changed_registered_source_until_it_is_replaced() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
@@ -3376,6 +3649,36 @@ fn main() {
             launch.environment.get("PORTCOVE_SOURCE"),
             Some(&source.to_string_lossy().into_owned())
         );
+        assert!(!install.join(LAUNCH_MARKER).exists());
+    }
+
+    #[test]
+    fn launch_rejects_a_source_replaced_during_adapter_preparation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = library.versions_dir().join("starship/v1");
+        fs::create_dir_all(&install).unwrap();
+        write_host_test_executable(&install, "starship");
+        register_existing_test_install(&library, "starship", "v1", &install, true);
+        let source = temporary.path().join("star-fox-64.z64");
+        fs::write(&source, b"initial verified source").unwrap();
+        let service = PortcoveService::with_provider_and_faults(
+            library.clone(),
+            Arc::new(StaticReleaseProvider {
+                version: "v2".into(),
+            }),
+            Arc::new(ReplaceSourceAtFinalCheck {
+                path: source.clone(),
+                fired: AtomicBool::new(false),
+            }),
+        )
+        .unwrap();
+        service.register_source("star-fox-64", &source).unwrap();
+
+        let error = service.launch_spec("starship", None).unwrap_err();
+
+        assert_eq!(error.code, crate::ErrorCode::SourceInvalid);
+        assert!(error.message.contains("changed since registration"));
         assert!(!install.join(LAUNCH_MARKER).exists());
     }
 
@@ -4225,7 +4528,11 @@ fn main() {
 
         register_zelda_install(&library, "v2", false);
         library
-            .set_update_policy("zelda64-recomp", UpdatePolicy::Automatic)
+            .set_update_policy(
+                "zelda64-recomp",
+                UpdatePolicy::Automatic,
+                ReleaseChannel::Stable,
+            )
             .unwrap();
         release_blocker_continue(&blocker.gate);
 

@@ -55,6 +55,7 @@ impl Adapter for StandardAdapter {
     }
 
     fn validate_source(&self, profile: &SourceProfile, path: &Path) -> Result<SourceRecord> {
+        crate::path::unicode(path, "source")?;
         if profile.kind == SourceKind::FileSet {
             return validate_file_set_source(profile, path);
         }
@@ -213,24 +214,18 @@ impl Adapter for StandardAdapter {
         let executable = selected_executable.to_path_buf();
         let user_data = library.user_dir(&port.id);
         std::fs::create_dir_all(&user_data)?;
+        let library_path = crate::path::unicode(library.root(), "library root")?;
+        let user_data_path = crate::path::unicode(&user_data, "user data")?;
         let mut environment = BTreeMap::from([
-            (
-                "PORTCOVE_LIBRARY".into(),
-                library.root().to_string_lossy().into_owned(),
-            ),
+            ("PORTCOVE_LIBRARY".into(), library_path),
             ("PORTCOVE_PORT_ID".into(), port.id.clone()),
-            (
-                "PORTCOVE_USER_DATA".into(),
-                user_data.to_string_lossy().into_owned(),
-            ),
+            ("PORTCOVE_USER_DATA".into(), user_data_path.clone()),
         ]);
         if let Some(source) = source {
-            environment.insert(
-                "PORTCOVE_SOURCE".into(),
-                source.to_string_lossy().into_owned(),
-            );
+            let source_path = crate::path::unicode(source, "source")?;
+            environment.insert("PORTCOVE_SOURCE".into(), source_path.clone());
             if let Some(variable) = &port.source_environment {
-                environment.insert(variable.clone(), source.to_string_lossy().into_owned());
+                environment.insert(variable.clone(), source_path);
             }
         }
         if self.0 == AdapterKind::GeneratedCache {
@@ -238,11 +233,11 @@ impl Adapter for StandardAdapter {
             std::fs::create_dir_all(&cache)?;
             environment.insert(
                 "PORTCOVE_CACHE".into(),
-                cache.to_string_lossy().into_owned(),
+                crate::path::unicode(&cache, "cache")?,
             );
         }
         if self.0 == AdapterKind::LibultrashipPortable {
-            environment.insert("SHIP_HOME".into(), user_data.to_string_lossy().into_owned());
+            environment.insert("SHIP_HOME".into(), user_data_path.clone());
         }
         let working_directory = if let Some(relative) = &port.runtime_subdirectory {
             let directory = install_root.join(relative);
@@ -262,7 +257,7 @@ impl Adapter for StandardAdapter {
             let descriptor = serde_json::json!({
                 "version": 1,
                 "mode": "custom",
-                "customPath": user_data.to_string_lossy(),
+                "customPath": user_data_path,
             });
             std::fs::write(
                 working_directory.join("data_location.json"),
@@ -326,22 +321,22 @@ impl Adapter for StandardAdapter {
                     })
             });
         let adapter_arguments = match self.0 {
-            AdapterKind::ReferencedDisc => source
-                .map(|path| {
-                    vec![
-                        "--user-dir".into(),
-                        user_data.to_string_lossy().into_owned(),
-                        "--dvd".into(),
-                        path.to_string_lossy().into_owned(),
-                    ]
-                })
-                .unwrap_or_default(),
+            AdapterKind::ReferencedDisc => match source {
+                Some(path) => vec![
+                    "--user-dir".into(),
+                    user_data_path,
+                    "--dvd".into(),
+                    crate::path::unicode(path, "source")?,
+                ],
+                None => Vec::new(),
+            },
             AdapterKind::LibultrashipPortable
                 if port.runtime_source_filename.is_none() && !has_generated_archive =>
             {
-                source
-                    .map(|path| vec![path.to_string_lossy().into_owned()])
-                    .unwrap_or_default()
+                match source {
+                    Some(path) => vec![crate::path::unicode(path, "source")?],
+                    None => Vec::new(),
+                }
             }
             _ => Vec::new(),
         };
@@ -415,7 +410,7 @@ fn runtime_source_marker(
         .map(|value| value.as_nanos());
     let canonical = std::fs::canonicalize(source).unwrap_or_else(|_| source.to_path_buf());
     Ok(RuntimeSourceMarker {
-        source: canonical.to_string_lossy().into_owned(),
+        source: crate::path::unicode(&canonical, "source")?,
         source_member,
         storage_size: metadata.len(),
         modified_unix_nanos,
@@ -1067,7 +1062,12 @@ fn source_set_member_path(root: &Path, accepted_filenames: &[String]) -> Result<
         if file_type.is_symlink() || !file_type.is_file() {
             continue;
         }
-        let name = entry.file_name().to_string_lossy().into_owned();
+        let name = entry.file_name().into_string().map_err(|_| {
+            PortcoveError::unsupported(
+                "Portcove V1 requires source member paths to be valid Unicode",
+            )
+            .detail("path_role", "source member")
+        })?;
         if accepted_filenames
             .iter()
             .any(|candidate| candidate.eq_ignore_ascii_case(&name))
@@ -1344,11 +1344,14 @@ pub(crate) fn psx_source_paths(path: &Path, expected_count: usize) -> Result<Vec
             path.display()
         )));
     };
+    for path in &paths {
+        crate::path::unicode(path, "source member")?;
+    }
     paths.sort_by_key(|candidate| {
         candidate
             .file_name()
+            .and_then(|name| name.to_str())
             .unwrap_or_default()
-            .to_string_lossy()
             .to_ascii_lowercase()
     });
     if paths.len() != expected_count {
@@ -1408,6 +1411,22 @@ pub(crate) fn source_storage_identity(path: &Path) -> Result<(String, u64)> {
         size = size.saturating_add(source_size);
     }
     Ok((aggregate_sha256(&hashes), size))
+}
+
+pub(crate) fn verify_source_storage_identity(source: &SourceRecord, role: &str) -> Result<()> {
+    let (actual_sha256, actual_size) = source_storage_identity(&source.path)?;
+    if actual_sha256 != source.storage_sha256 || actual_size != source.storage_size {
+        return Err(PortcoveError::source(format!(
+            "{role} changed after verification: {}",
+            source.path.display()
+        ))
+        .detail("profile_id", &source.profile_id)
+        .detail("recorded_storage_sha256", &source.storage_sha256)
+        .detail("actual_storage_sha256", actual_sha256)
+        .detail("recorded_storage_size", source.storage_size.to_string())
+        .detail("actual_storage_size", actual_size.to_string()));
+    }
+    Ok(())
 }
 
 fn aggregate_sha256(hashes: &[String]) -> String {
