@@ -1610,10 +1610,24 @@ mod tests {
         .unwrap()
     }
 
+    fn write_host_test_executable(root: &Path, port_id: &str) -> PathBuf {
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port(port_id).unwrap();
+        let platform = Platform::current().unwrap();
+        let executable_name = port
+            .executable_hints
+            .get(&platform)
+            .and_then(|hints| hints.first())
+            .unwrap();
+        let executable = root.join(executable_name);
+        fs::write(&executable, b"test").unwrap();
+        executable
+    }
+
     fn register_zelda_install(library: &Library, version: &str, active: bool) -> PathBuf {
         let path = library.versions_dir().join("zelda64-recomp").join(version);
         fs::create_dir_all(&path).unwrap();
-        fs::write(path.join("Zelda64Recompiled.exe"), b"test").unwrap();
+        write_host_test_executable(&path, "zelda64-recomp");
         library
             .register_install(
                 &InstallRecord {
@@ -1636,7 +1650,7 @@ mod tests {
         let path = library.versions_dir().join("gen1recomp").join(version);
         let executable_root = path.join("gen1recomp-win64");
         fs::create_dir_all(&executable_root).unwrap();
-        fs::write(executable_root.join("gen1recomp.exe"), b"test").unwrap();
+        write_host_test_executable(&executable_root, "gen1recomp");
         library
             .register_install(
                 &InstallRecord {
@@ -2083,7 +2097,7 @@ mod tests {
         let library = Library::open(temporary.path().join("library")).unwrap();
         let install = library.versions_dir().join("starship/v1");
         fs::create_dir_all(&install).unwrap();
-        fs::write(install.join("starship.exe"), b"test").unwrap();
+        let executable = write_host_test_executable(&install, "starship");
         library
             .register_install(
                 &InstallRecord {
@@ -2110,12 +2124,12 @@ mod tests {
         assert!(!install.join(LAUNCH_MARKER).exists());
 
         service.register_source("star-fox-64", &source).unwrap();
-        fs::remove_file(install.join("starship.exe")).unwrap();
+        fs::remove_file(&executable).unwrap();
         let error = service.launch_spec("starship", None).unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Launch);
         assert!(!install.join(LAUNCH_MARKER).exists());
 
-        fs::write(install.join("starship.exe"), b"test").unwrap();
+        fs::write(executable, b"test").unwrap();
         let launch = service.launch_spec("starship", None).unwrap();
         assert_eq!(
             launch.environment.get("PORTCOVE_SOURCE"),
