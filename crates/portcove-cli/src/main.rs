@@ -1,17 +1,18 @@
 use std::{
     io::{self, Read, Write},
     path::PathBuf,
-    process::{ExitCode, Stdio},
+    process::ExitCode,
 };
 
 use clap::{Args, Parser, Subcommand, ValueEnum, error::ErrorKind};
 use portcove_core::{
     API_SCHEMA_VERSION, ActivityRecord, BackupRecord, CapabilityDocument, CatalogDocument,
-    ChildProcessPolicy, DoctorReport, ErrorCode, GithubAuthStatus, GithubDeviceLogin,
-    GithubDeviceLoginResult, GithubDeviceLoginState, GithubReleaseProvider, InstallPlan,
-    InstallRecord, OperationEvent, OperationEventKind, PortDefinition, PortPaths, PortStatus,
+    DoctorReport, ErrorCode, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult,
+    GithubDeviceLoginState, GithubReleaseProvider, InstallPlan, InstallRecord, LaunchSignal,
+    LaunchStdio, OperationEvent, OperationEventKind, PortDefinition, PortPaths, PortStatus,
     PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel, RestoreResult, Result,
     SourceRecord, SourceVerification, StorageSummary, UpdateCheck, UpdatePolicy, UpdateSnapshot,
+    forward_launch_signal,
 };
 use schemars::{JsonSchema, schema_for};
 use serde::Serialize;
@@ -804,7 +805,7 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                     "exec inherits the game's streams and exit code; remove --json or --jsonl",
                 ));
             }
-            return exec_game(&service, args);
+            return exec_game(&service, args).await;
         }
         Commands::Capabilities => {
             render_success(mode, "capabilities", CapabilityDocument::current())?
@@ -906,27 +907,72 @@ fn render_about(mode: OutputMode) -> Result<()> {
     }
 }
 
-fn exec_game(service: &PortcoveService, args: ExecArgs) -> Result<ExitCode> {
-    let (spec, _launch_guard) = service.prepare_launch(&args.port_id, args.source.as_deref())?;
-    let install_root = spec.install_root.clone();
-    let status = ChildProcessPolicy::game_command(&spec.process_spec(), &args.game_args)?
-        .stdin(Stdio::inherit())
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .status()
-        .map_err(|error| {
-            PortcoveError::launch(format!(
-                "failed to start {}: {error}",
-                spec.executable.display()
-            ))
-        })?;
-    if status.success()
-        && let Err(error) = service.library().record_successful_launch(&args.port_id)
-    {
-        eprintln!("Portcove warning: could not record successful launch: {error}");
+async fn exec_game(service: &PortcoveService, args: ExecArgs) -> Result<ExitCode> {
+    let library = service.library().clone();
+    let (started_sender, started_receiver) = tokio::sync::oneshot::channel();
+    let mut supervision = tokio::task::spawn_blocking(move || {
+        PortcoveService::new(library)?.supervise_launch(
+            &args.port_id,
+            args.source.as_deref(),
+            &args.game_args,
+            LaunchStdio::Inherit,
+            |session| {
+                let _ = started_sender.send(session.child_pid.expect("started session has a PID"));
+            },
+        )
+    });
+    tokio::pin!(started_receiver);
+    let mut waiting_for_child = true;
+    let mut child_pid = None;
+    let mut pending_signal = None;
+    loop {
+        tokio::select! {
+            result = &mut supervision => {
+                let outcome = result
+                    .map_err(|error| PortcoveError::state(format!("launch supervisor task failed: {error}")))??;
+                return Ok(ExitCode::from(normalize_process_exit(outcome.exit_code)));
+            }
+            started = &mut started_receiver, if waiting_for_child => {
+                waiting_for_child = false;
+                if let Ok(pid) = started {
+                    child_pid = Some(pid);
+                    if let Some(signal) = pending_signal.take()
+                        && let Err(error) = forward_launch_signal(pid, signal)
+                    {
+                        eprintln!("Portcove warning: {error}");
+                    }
+                }
+            }
+            signal = next_launch_signal() => {
+                let signal = signal.map_err(PortcoveError::from)?;
+                if let Some(pid) = child_pid {
+                    if let Err(error) = forward_launch_signal(pid, signal) {
+                        eprintln!("Portcove warning: {error}");
+                    }
+                } else {
+                    pending_signal = Some(signal);
+                }
+            }
+        }
     }
-    service.collect_user_data_from_install(&args.port_id, &install_root)?;
-    Ok(ExitCode::from(normalize_process_exit(status.code())))
+}
+
+#[cfg(windows)]
+async fn next_launch_signal() -> std::io::Result<LaunchSignal> {
+    tokio::signal::ctrl_c().await?;
+    Ok(LaunchSignal::Interrupt)
+}
+
+#[cfg(unix)]
+async fn next_launch_signal() -> std::io::Result<LaunchSignal> {
+    use tokio::signal::unix::{SignalKind, signal};
+
+    let mut interrupt = signal(SignalKind::interrupt())?;
+    let mut terminate = signal(SignalKind::terminate())?;
+    tokio::select! {
+        _ = interrupt.recv() => Ok(LaunchSignal::Interrupt),
+        _ = terminate.recv() => Ok(LaunchSignal::Terminate),
+    }
 }
 
 fn normalize_process_exit(code: Option<i32>) -> u8 {

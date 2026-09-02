@@ -17,5 +17,6 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 portcove-core = { path = "../../../crates/portcove-core" }
 serde.workspace = true
+serde_json.workspace = true
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"

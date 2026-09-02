@@ -27,6 +27,7 @@ futures-util = "0.3.34"
 fs2 = "0.4.3"
 hex = "0.4.3"
 keyring = "4.2.0"
+libc = "0.2.189"
 reqwest = { version = "0.13.4", default-features = false, features = ["form", "json", "rustls", "stream"] }
 rusqlite = { version = "0.40.2", features = ["bundled", "fallible_uint"] }
 schemars = { version = "1.2.2", features = ["derive"] }
@@ -37,9 +38,10 @@ sha1 = "0.11.0"
 tar = "0.4.46"
 tempfile = "3.27.0"
 thiserror = "2.0.20"
-tokio = { version = "1.53.1", features = ["fs", "io-util", "macros", "process", "rt-multi-thread", "signal"] }
+tokio = { version = "1.53.1", features = ["fs", "io-util", "macros", "process", "rt-multi-thread", "signal", "sync"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt"] }
 uuid = { version = "1.26.0", features = ["v4", "serde"] }
 zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_System_Console", "Win32_System_Threading"] }
 rpassword = "7.5.4"

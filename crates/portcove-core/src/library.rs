@@ -12,8 +12,9 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     ActivityOperation, ActivityRecord, ActivityStatus, ActivityTargetKind, ArtifactIdentity,
-    InstallRecord, PortStatus, PortcoveError, ReleaseChannel, Result, SourceRecord, StorageSummary,
-    UpdateCheck, UpdatePolicy, UpdateSnapshot, database,
+    InstallRecord, LaunchSessionPhase, LaunchSessionRecord, PortStatus, PortcoveError,
+    ReleaseChannel, Result, SourceRecord, StorageSummary, UpdateCheck, UpdatePolicy,
+    UpdateSnapshot, database,
 };
 
 #[derive(Debug, Clone)]
@@ -93,6 +94,23 @@ impl Library {
     }
 
     pub fn try_lock_port(&self, port_id: &str, operation: &str) -> Result<PortOperationGuard> {
+        self.lock_port(port_id, operation, None)
+    }
+
+    pub(crate) fn try_lock_port_for_launch_recovery(
+        &self,
+        port_id: &str,
+        session_id: &str,
+    ) -> Result<PortOperationGuard> {
+        self.lock_port(port_id, "launch-recovery", Some(session_id))
+    }
+
+    fn lock_port(
+        &self,
+        port_id: &str,
+        operation: &str,
+        allowed_session_id: Option<&str>,
+    ) -> Result<PortOperationGuard> {
         let key = hex::encode(Sha256::digest(port_id.as_bytes()));
         let path = self.locks_dir().join(format!("{key}.lock"));
         let mut file = OpenOptions::new()
@@ -110,6 +128,17 @@ impl Library {
                 .detail("operation", operation));
             }
             return Err(error.into());
+        }
+        if let Some(session) = self.launch_session_for_port(port_id)?
+            && Some(session.id.as_str()) != allowed_session_id
+        {
+            return Err(PortcoveError::conflict(format!(
+                "{port_id} has an unfinished launch session"
+            ))
+            .detail("port_id", port_id)
+            .detail("operation", operation)
+            .detail("launch_session_id", session.id)
+            .detail("launch_phase", session.phase.to_string()));
         }
         file.set_len(0)?;
         serde_json::to_writer(
@@ -306,6 +335,114 @@ impl Library {
             params![port_id, Self::now()],
         )?;
         Ok(())
+    }
+
+    pub(crate) fn create_launch_session(&self, session: &LaunchSessionRecord) -> Result<()> {
+        self.connection()?.execute(
+            "INSERT INTO launch_sessions(
+               id, port_id, install_id, install_root, supervisor_pid, child_pid, phase,
+               started_at, updated_at
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                session.id,
+                session.port_id,
+                session.install_id,
+                session.install_root.to_string_lossy(),
+                session.supervisor_pid,
+                session.child_pid,
+                session.phase.to_string(),
+                session.started_at,
+                session.updated_at,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub(crate) fn update_launch_session(
+        &self,
+        id: &str,
+        child_pid: Option<u32>,
+        phase: LaunchSessionPhase,
+    ) -> Result<()> {
+        let changed = self.connection()?.execute(
+            "UPDATE launch_sessions
+             SET child_pid=COALESCE(?2, child_pid), phase=?3, updated_at=?4
+             WHERE id=?1",
+            params![id, child_pid, phase.to_string(), Self::now()],
+        )?;
+        if changed == 0 {
+            return Err(PortcoveError::state(format!(
+                "launch session {id} was not found"
+            )));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn remove_launch_session(&self, id: &str) -> Result<()> {
+        self.connection()?
+            .execute("DELETE FROM launch_sessions WHERE id=?1", [id])?;
+        Ok(())
+    }
+
+    pub fn launch_sessions(&self) -> Result<Vec<LaunchSessionRecord>> {
+        let connection = self.connection()?;
+        let mut statement = connection.prepare(
+            "SELECT id, port_id, install_id, install_root, supervisor_pid, child_pid, phase,
+                    started_at, updated_at
+             FROM launch_sessions ORDER BY started_at, id",
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, u32>(4)?,
+                row.get::<_, Option<u32>>(5)?,
+                row.get::<_, String>(6)?,
+                row.get::<_, i64>(7)?,
+                row.get::<_, i64>(8)?,
+            ))
+        })?;
+        rows.map(|row| {
+            let (
+                id,
+                port_id,
+                install_id,
+                install_root,
+                supervisor_pid,
+                child_pid,
+                phase,
+                started_at,
+                updated_at,
+            ) = row?;
+            Ok(LaunchSessionRecord {
+                id,
+                port_id,
+                install_id,
+                install_root: PathBuf::from(install_root),
+                supervisor_pid,
+                child_pid,
+                phase: phase.parse()?,
+                started_at,
+                updated_at,
+            })
+        })
+        .collect()
+    }
+
+    pub(crate) fn launch_session(&self, id: &str) -> Result<Option<LaunchSessionRecord>> {
+        Ok(self
+            .launch_sessions()?
+            .into_iter()
+            .find(|session| session.id == id))
+    }
+
+    fn launch_session_for_port(&self, port_id: &str) -> Result<Option<LaunchSessionRecord>> {
+        Ok(self
+            .launch_sessions()?
+            .into_iter()
+            .find(|session| session.port_id == port_id))
     }
 
     pub(crate) fn http_cache(&self, url: &str) -> Result<Option<HttpCacheEntry>> {

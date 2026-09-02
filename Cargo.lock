@@ -3160,6 +3160,7 @@ dependencies = [
  "futures-util",
  "hex",
  "keyring",
+ "libc",
  "reqwest",
  "rusqlite",
  "schemars 1.2.2",
@@ -3173,6 +3174,7 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
+ "windows-sys 0.61.2",
  "zip",
 ]
 
@@ -3182,6 +3184,7 @@ version = "0.1.0"
 dependencies = [
  "portcove-core",
  "serde",
+ "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",

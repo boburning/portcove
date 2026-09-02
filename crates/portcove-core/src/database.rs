@@ -10,7 +10,7 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior};
 
 use crate::{PortcoveError, Result};
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 8;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 9;
 
 struct Migration {
     version: i64,
@@ -67,6 +67,12 @@ const MIGRATIONS: &[Migration] = &[
         name: "immutable install identity",
         apply: migration_8,
         verify: verify_migration_8,
+    },
+    Migration {
+        version: 9,
+        name: "durable launch sessions",
+        apply: migration_9,
+        verify: verify_migration_9,
     },
 ];
 
@@ -506,6 +512,43 @@ fn verify_migration_8(connection: &Connection) -> Result<()> {
             "selected_executable",
         ],
     )
+}
+
+fn migration_9(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE IF NOT EXISTS launch_sessions (
+           id TEXT PRIMARY KEY,
+           port_id TEXT NOT NULL UNIQUE,
+           install_id TEXT NOT NULL,
+           install_root TEXT NOT NULL,
+           supervisor_pid INTEGER NOT NULL,
+           child_pid INTEGER,
+           phase TEXT NOT NULL,
+           started_at INTEGER NOT NULL,
+           updated_at INTEGER NOT NULL
+         );
+         CREATE INDEX IF NOT EXISTS launch_sessions_install_id ON launch_sessions(install_id);",
+    )?;
+    Ok(())
+}
+
+fn verify_migration_9(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "launch_sessions",
+        &[
+            "id",
+            "port_id",
+            "install_id",
+            "install_root",
+            "supervisor_pid",
+            "child_pid",
+            "phase",
+            "started_at",
+            "updated_at",
+        ],
+    )?;
+    require_index(connection, "launch_sessions_install_id")
 }
 
 fn table_columns(connection: &Connection, table: &str) -> Result<Vec<String>> {

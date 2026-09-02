@@ -3,6 +3,7 @@ use std::{
     fs,
     io::{Read, Write},
     path::{Path, PathBuf},
+    process::Stdio,
     sync::Arc,
 };
 
@@ -13,13 +14,14 @@ use uuid::Uuid;
 
 use crate::{
     ActivityOperation, ActivityRecord, ActivityStatus, ActivityTargetKind, AdapterRegistry,
-    BackupRecord, Catalog, CompositeReleaseProvider, DoctorReport, InstallPlan, InstallPlanAction,
-    InstallQualification, InstallRecord, InstallRequest, InstallSourceRequirement, Installer,
-    LaunchBlocker, LaunchReadiness, Library, OperationCoordinator, OperationEvent, OperationResult,
-    Platform, PortDefinition, PortOperationGuard, PortPaths, PortStatus, PortcoveError,
+    BackupRecord, Catalog, ChildProcessPolicy, CompositeReleaseProvider, DoctorReport, InstallPlan,
+    InstallPlanAction, InstallQualification, InstallRecord, InstallRequest,
+    InstallSourceRequirement, Installer, LaunchBlocker, LaunchReadiness, LaunchSessionPhase,
+    LaunchSessionRecord, LaunchStdio, Library, OperationCoordinator, OperationEvent,
+    OperationResult, Platform, PortDefinition, PortPaths, PortStatus, PortcoveError,
     ReconcileAction, ReconcileResult, ReleaseChannel, ReleaseProvider, RepairItem, RepairItemKind,
     RepairPlan, ResolvedRelease, RestoreResult, Result, SourceRecord, SourceRequirementRole,
-    SourceVerification, UpdateCheck, UpdatePolicy, VerificationReport,
+    SourceVerification, SupervisedLaunchOutcome, UpdateCheck, UpdatePolicy, VerificationReport,
     operation::{
         LifecycleFaultInjector, LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind,
         LifecyclePhase, NoLifecycleFaults, OperationStore,
@@ -1110,66 +1112,90 @@ impl PortcoveService {
         emit(operation.started());
         let result = async {
             let port = self.catalog.port(port_id)?;
-            let status = self.status(port_id)?;
-            if status.active.is_none() {
-                return Err(PortcoveError::not_found(format!(
-                    "{port_id} is not installed"
-                )));
-            }
-            let release = self
-                .releases
-                .resolve(port, status.channel, Platform::current()?)
-                .await?;
-            let check = self.record_update_check(port_id, &status, &release)?;
-            let update_available = check.update_available;
-            if !update_available {
+            for attempt in 0..2 {
+                let optimistic = self.status(port_id)?;
+                if optimistic.active.is_none() {
+                    return Err(PortcoveError::not_found(format!(
+                        "{port_id} is not installed"
+                    )));
+                }
+                let release = self
+                    .releases
+                    .resolve(port, optimistic.channel, Platform::current()?)
+                    .await?;
+                let _port_lock = self.library.try_lock_port(port_id, "reconcile")?;
+                let status = self.status(port_id)?;
+                if status.channel != optimistic.channel {
+                    if attempt == 0 {
+                        continue;
+                    }
+                    return Err(PortcoveError::conflict(
+                        "the update channel changed repeatedly while resolving a release",
+                    )
+                    .detail("port_id", port_id)
+                    .detail("resolved_channel", optimistic.channel.to_string())
+                    .detail("current_channel", status.channel.to_string()));
+                }
+                if status.active.is_none() {
+                    return Err(PortcoveError::conflict(
+                        "the active install changed while resolving an update",
+                    )
+                    .detail("port_id", port_id));
+                }
+                let check = self.record_update_check(port_id, &status, &release)?;
+                if !check.update_available {
+                    return Ok(ReconcileResult {
+                        port_id: port_id.into(),
+                        policy: status.update_policy,
+                        action: ReconcileAction::UpToDate,
+                        check,
+                        install: status.active,
+                    });
+                }
+                if status.update_policy == UpdatePolicy::Notify {
+                    return Ok(ReconcileResult {
+                        port_id: port_id.into(),
+                        policy: status.update_policy,
+                        action: ReconcileAction::Notify,
+                        check,
+                        install: None,
+                    });
+                }
+                let activate = status.update_policy == UpdatePolicy::Automatic;
+                let mut reporter = OperationReporter {
+                    operation: &operation,
+                    emit: &mut emit,
+                };
+                let install = self
+                    .apply_resolved_release(
+                        port,
+                        status,
+                        SourceOverrides {
+                            source: None,
+                            bios: None,
+                        },
+                        release,
+                        activate,
+                        &mut reporter,
+                    )
+                    .await?;
                 return Ok(ReconcileResult {
                     port_id: port_id.into(),
-                    policy: status.update_policy,
-                    action: ReconcileAction::UpToDate,
-                    check,
-                    install: status.active,
-                });
-            }
-            if status.update_policy == UpdatePolicy::Notify {
-                return Ok(ReconcileResult {
-                    port_id: port_id.into(),
-                    policy: status.update_policy,
-                    action: ReconcileAction::Notify,
-                    check,
-                    install: None,
-                });
-            }
-            let _operation = self.library.try_lock_port(port_id, "reconcile")?;
-            let activate = status.update_policy == UpdatePolicy::Automatic;
-            let mut reporter = OperationReporter {
-                operation: &operation,
-                emit: &mut emit,
-            };
-            let install = self
-                .apply_resolved_release(
-                    port,
-                    status.clone(),
-                    SourceOverrides {
-                        source: None,
-                        bios: None,
+                    policy: if activate {
+                        UpdatePolicy::Automatic
+                    } else {
+                        UpdatePolicy::Stage
                     },
-                    release,
-                    activate,
-                    &mut reporter,
-                )
-                .await?;
-            Ok(ReconcileResult {
-                port_id: port_id.into(),
-                policy: status.update_policy,
-                action: if activate {
-                    ReconcileAction::Activated
-                } else {
-                    ReconcileAction::Staged
-                },
-                check,
-                install: Some(install),
-            })
+                    action: if activate {
+                        ReconcileAction::Activated
+                    } else {
+                        ReconcileAction::Staged
+                    },
+                    check,
+                    install: Some(install),
+                });
+            }
+            unreachable!("bounded reconcile loop always returns")
         }
         .await;
         emit(operation.finished(if result.is_ok() {
@@ -1634,14 +1660,219 @@ impl PortcoveService {
         self.finish_activity(activity, result)
     }
 
-    pub fn prepare_launch(
+    /// Owns a launch from preparation through exact-install save collection.
+    ///
+    /// Callers may use `on_started` to report the durable session after the
+    /// child PID has been recorded. The callback is observational only: its
+    /// result cannot shorten the supervision lifetime or release the port lock.
+    pub fn supervise_launch<F>(
         &self,
         port_id: &str,
         source_override: Option<&Path>,
-    ) -> Result<(crate::LaunchSpec, PortOperationGuard)> {
-        let operation = self.library.try_lock_port(port_id, "launch")?;
-        let spec = self.launch_spec(port_id, source_override)?;
-        Ok((spec, operation))
+        arguments: &[String],
+        stdio: LaunchStdio,
+        on_started: F,
+    ) -> Result<SupervisedLaunchOutcome>
+    where
+        F: FnOnce(&LaunchSessionRecord),
+    {
+        let _operation = self.library.try_lock_port(port_id, "launch")?;
+        let activity = self.library.begin_activity(
+            ActivityOperation::Launch,
+            ActivityTargetKind::Port,
+            Some(port_id),
+        )?;
+        let mut session_created = false;
+        let result = (|| {
+            let spec = self.launch_spec(port_id, source_override)?;
+            let install = self
+                .library
+                .all_installs()?
+                .into_iter()
+                .find(|install| install.port_id == port_id && install.path == spec.install_root)
+                .ok_or_else(|| {
+                    PortcoveError::state(format!(
+                        "the prepared {port_id} launch is not bound to a registered install"
+                    ))
+                })?;
+            let now = Library::now();
+            let mut session = LaunchSessionRecord {
+                id: activity.id.clone(),
+                port_id: port_id.to_owned(),
+                install_id: install.id,
+                install_root: install.path,
+                supervisor_pid: std::process::id(),
+                child_pid: None,
+                phase: LaunchSessionPhase::Preparing,
+                started_at: now,
+                updated_at: now,
+            };
+            let mut command = ChildProcessPolicy::game_command(&spec.process_spec(), arguments)?;
+            match stdio {
+                LaunchStdio::Inherit => {
+                    command
+                        .stdin(Stdio::inherit())
+                        .stdout(Stdio::inherit())
+                        .stderr(Stdio::inherit());
+                }
+                LaunchStdio::Null => {
+                    command
+                        .stdin(Stdio::null())
+                        .stdout(Stdio::null())
+                        .stderr(Stdio::null());
+                }
+            }
+            crate::launch::configure_supervised_game(&mut command);
+            self.library.create_launch_session(&session)?;
+            session_created = true;
+            let mut child = match command.spawn() {
+                Ok(child) => child,
+                Err(error) => {
+                    self.library.remove_launch_session(&session.id)?;
+                    session_created = false;
+                    return Err(PortcoveError::launch(format!(
+                        "failed to start {}: {error}",
+                        spec.executable.display()
+                    )));
+                }
+            };
+            let child_pid = child.id();
+            if let Err(error) = self.library.update_launch_session(
+                &session.id,
+                Some(child_pid),
+                LaunchSessionPhase::Running,
+            ) {
+                let _ = child.kill();
+                let _ = child.wait();
+                let _ = self.library.remove_launch_session(&session.id);
+                session_created = false;
+                return Err(error);
+            }
+            session.child_pid = Some(child_pid);
+            session.phase = LaunchSessionPhase::Running;
+            session.updated_at = Library::now();
+
+            let mut first_error = fs::write(spec.install_root.join(LAUNCH_MARKER), b"1")
+                .err()
+                .map(PortcoveError::from);
+            on_started(&session);
+
+            let status = match child.wait() {
+                Ok(status) => status,
+                Err(error) => {
+                    return Err(PortcoveError::launch(format!(
+                        "could not observe launched process {child_pid}: {error}"
+                    )));
+                }
+            };
+            if let Err(error) = self.library.update_launch_session(
+                &session.id,
+                None,
+                LaunchSessionPhase::Collecting,
+            ) && first_error.is_none()
+            {
+                first_error = Some(error);
+            }
+            if status.success()
+                && let Err(error) = self.library.record_successful_launch(port_id)
+                && first_error.is_none()
+            {
+                first_error = Some(error);
+            }
+            let collected = self.collect_user_data_from_install(port_id, &session.install_root);
+            if let Err(error) = collected {
+                if first_error.is_none() {
+                    first_error = Some(error);
+                }
+            } else if let Err(error) = self.library.remove_launch_session(&session.id) {
+                if first_error.is_none() {
+                    first_error = Some(error);
+                }
+            } else {
+                session_created = false;
+            }
+
+            if let Some(error) = first_error {
+                Err(error)
+            } else {
+                Ok(SupervisedLaunchOutcome {
+                    session_id: session.id,
+                    child_pid,
+                    exit_code: status.code(),
+                    successful: status.success(),
+                })
+            }
+        })();
+        if session_created {
+            // An uncertain child or collection state must remain durable and
+            // keep the activity running for explicit stale-session recovery.
+            return result;
+        }
+        let status = if result.as_ref().is_ok_and(|outcome| outcome.successful) {
+            ActivityStatus::Succeeded
+        } else {
+            ActivityStatus::Failed
+        };
+        let message = result.as_ref().err().map(|error| error.message.as_str());
+        if let Err(error) = self.library.finish_activity(&activity.id, status, message) {
+            return result.and(Err(error));
+        }
+        result
+    }
+
+    pub fn stale_launch_sessions(&self) -> Result<Vec<LaunchSessionRecord>> {
+        Ok(self
+            .library
+            .launch_sessions()?
+            .into_iter()
+            .filter(|session| !crate::launch::process_alive(session.supervisor_pid))
+            .collect())
+    }
+
+    /// Recovers a launch whose supervisor no longer exists. The exact recorded
+    /// install remains locked until its child exits and collection completes.
+    pub fn recover_launch_session(&self, session_id: &str) -> Result<()> {
+        let session = self.library.launch_session(session_id)?.ok_or_else(|| {
+            PortcoveError::not_found(format!("launch session {session_id} was not found"))
+        })?;
+        if crate::launch::process_alive(session.supervisor_pid) {
+            return Err(PortcoveError::conflict(format!(
+                "launch session {session_id} still has a live supervisor"
+            ))
+            .detail("supervisor_pid", session.supervisor_pid.to_string()));
+        }
+        let _operation = self
+            .library
+            .try_lock_port_for_launch_recovery(&session.port_id, session_id)?;
+        let session = self.library.launch_session(session_id)?.ok_or_else(|| {
+            PortcoveError::not_found(format!(
+                "launch session {session_id} was recovered elsewhere"
+            ))
+        })?;
+        let install_is_exact = self.library.all_installs()?.into_iter().any(|install| {
+            install.id == session.install_id
+                && install.port_id == session.port_id
+                && install.path == session.install_root
+        });
+        if !install_is_exact {
+            return Err(PortcoveError::conflict(format!(
+                "launch session {session_id} no longer matches its registered install"
+            ))
+            .detail("install_id", &session.install_id)
+            .detail("install_root", session.install_root.display().to_string()));
+        }
+        self.library
+            .update_launch_session(session_id, None, LaunchSessionPhase::Recovering)?;
+        if let Some(child_pid) = session.child_pid {
+            crate::launch::wait_for_process_exit(child_pid);
+            self.collect_user_data_from_install(&session.port_id, &session.install_root)?;
+        }
+        self.library.remove_launch_session(session_id)?;
+        self.library.finish_activity(
+            session_id,
+            ActivityStatus::Failed,
+            Some("launch supervisor exited; the recorded session was recovered"),
+        )
     }
 
     fn launch_spec(
@@ -1673,8 +1904,7 @@ impl PortcoveService {
         } else {
             None
         };
-        let launch_marker = active.path.join(LAUNCH_MARKER);
-        if launch_marker.is_file() {
+        if active.path.join(LAUNCH_MARKER).is_file() {
             self.collect_user_data_from(port, &active.path)?;
         }
         self.restore_user_data_to(port, &active.path)?;
@@ -1689,7 +1919,6 @@ impl PortcoveService {
                 &selected_executable,
                 source.as_deref(),
             )?;
-        fs::write(&launch_marker, b"1")?;
         Ok(spec)
     }
 
@@ -2000,9 +2229,17 @@ fn remove_managed_entry(path: &Path) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::{
+        sync::{
+            Arc, Condvar, Mutex,
+            atomic::{AtomicBool, AtomicUsize, Ordering},
+            mpsc,
+        },
+        thread,
+        time::Duration,
+    };
 
-    use crate::ArtifactIdentity;
+    use crate::{ArtifactIdentity, ChildProcessClass};
 
     use super::*;
 
@@ -2037,6 +2274,77 @@ mod tests {
     struct RepublishedReleaseProvider {
         version: String,
         sha256: String,
+    }
+
+    #[derive(Clone)]
+    struct BlockingReleaseProvider {
+        version: String,
+        first_started: mpsc::Sender<ReleaseChannel>,
+        observed_channels: Arc<Mutex<Vec<ReleaseChannel>>>,
+        gate: Arc<(Mutex<bool>, Condvar)>,
+        calls: Arc<AtomicUsize>,
+    }
+
+    struct BlockingReleaseHarness {
+        provider: Arc<BlockingReleaseProvider>,
+        started: mpsc::Receiver<ReleaseChannel>,
+        gate: Arc<(Mutex<bool>, Condvar)>,
+        observed: Arc<Mutex<Vec<ReleaseChannel>>>,
+    }
+
+    #[async_trait::async_trait]
+    impl ReleaseProvider for BlockingReleaseProvider {
+        async fn resolve(
+            &self,
+            port: &PortDefinition,
+            channel: ReleaseChannel,
+            _platform: Platform,
+        ) -> Result<ResolvedRelease> {
+            self.observed_channels.lock().unwrap().push(channel);
+            if self.calls.fetch_add(1, Ordering::SeqCst) == 0 {
+                self.first_started.send(channel).unwrap();
+                let (lock, wake) = &*self.gate;
+                let mut released = lock.lock().unwrap();
+                while !*released {
+                    released = wake.wait(released).unwrap();
+                }
+            }
+            Ok(ResolvedRelease {
+                version: self.version.clone(),
+                channel,
+                published_at: None,
+                asset: crate::ReleaseAsset {
+                    name: format!("{}-{}.zip", port.id, self.version),
+                    url: "https://invalid.example/blocked.zip".into(),
+                    size: 4,
+                    sha256: hex::encode(Sha256::digest(format!("{}:{}", port.id, self.version))),
+                },
+            })
+        }
+    }
+
+    fn release_blocker(version: &str) -> BlockingReleaseHarness {
+        let (started, receiver) = mpsc::channel();
+        let gate = Arc::new((Mutex::new(false), Condvar::new()));
+        let observed = Arc::new(Mutex::new(Vec::new()));
+        BlockingReleaseHarness {
+            provider: Arc::new(BlockingReleaseProvider {
+                version: version.into(),
+                first_started: started,
+                observed_channels: observed.clone(),
+                gate: gate.clone(),
+                calls: Arc::new(AtomicUsize::new(0)),
+            }),
+            started: receiver,
+            gate,
+            observed,
+        }
+    }
+
+    fn release_blocker_continue(gate: &Arc<(Mutex<bool>, Condvar)>) {
+        let (lock, wake) = &**gate;
+        *lock.lock().unwrap() = true;
+        wake.notify_all();
     }
 
     #[async_trait::async_trait]
@@ -2535,6 +2843,54 @@ mod tests {
         path
     }
 
+    fn register_launch_probe(library: &Library, version: &str, active: bool) -> InstallRecord {
+        let artifact = ArtifactIdentity {
+            asset_name: format!("zelda64-recomp-{version}.zip"),
+            sha256: hex::encode(Sha256::digest(format!("launch-probe:{version}"))),
+            size: 4,
+        };
+        let path = library
+            .versions_dir()
+            .join("zelda64-recomp")
+            .join(&artifact.sha256);
+        fs::create_dir_all(&path).unwrap();
+        let executable = Catalog::embedded()
+            .unwrap()
+            .port("zelda64-recomp")
+            .unwrap()
+            .executable_hints
+            .get(&Platform::current().unwrap())
+            .unwrap()[0]
+            .clone();
+        let executable = path.join(executable);
+        fs::create_dir_all(executable.parent().unwrap()).unwrap();
+        let source = path.join("launch_probe.rs");
+        fs::write(
+            &source,
+            r#"use std::{env, fs, process, thread, time::Duration};
+fn main() {
+    let arguments = env::args().skip(1).collect::<Vec<_>>();
+    fs::write(&arguments[0], b"started").unwrap();
+    thread::sleep(Duration::from_millis(arguments[1].parse().unwrap()));
+    fs::write("general.json", arguments[2].as_bytes()).unwrap();
+    process::exit(arguments[3].parse().unwrap());
+}
+"#,
+        )
+        .unwrap();
+        let status = ChildProcessPolicy::native_command(ChildProcessClass::HostTool, "rustc")
+            .unwrap()
+            .arg(&source)
+            .arg("-o")
+            .arg(&executable)
+            .status()
+            .unwrap();
+        assert!(status.success());
+        fs::remove_file(source).unwrap();
+        fs::write(path.join("engine.dll"), b"critical library").unwrap();
+        register_existing_test_artifact(library, "zelda64-recomp", version, &path, artifact, active)
+    }
+
     fn register_gen1_install(library: &Library, version: &str, active: bool) -> PathBuf {
         let artifact = ArtifactIdentity {
             asset_name: format!("gen1recomp-{version}.zip"),
@@ -2847,6 +3203,7 @@ mod tests {
         );
 
         fs::write(second.join("general.json"), b"recovered-after-crash").unwrap();
+        fs::write(second.join(LAUNCH_MARKER), b"1").unwrap();
         service.launch_spec("zelda64-recomp", None).unwrap();
         assert_eq!(
             fs::read(library.user_dir("zelda64-recomp").join("general.json")).unwrap(),
@@ -3019,7 +3376,7 @@ mod tests {
             launch.environment.get("PORTCOVE_SOURCE"),
             Some(&source.to_string_lossy().into_owned())
         );
-        assert!(install.join(LAUNCH_MARKER).exists());
+        assert!(!install.join(LAUNCH_MARKER).exists());
     }
 
     #[test]
@@ -3234,7 +3591,7 @@ mod tests {
 
         assert!(report.valid, "{:?}", report.failures);
         assert!(spec.executable.starts_with(&path));
-        assert!(path.join(LAUNCH_MARKER).is_file());
+        assert!(!path.join(LAUNCH_MARKER).is_file());
     }
 
     #[test]
@@ -3299,23 +3656,269 @@ mod tests {
     }
 
     #[test]
-    fn a_launch_blocks_mutation_until_post_exit_collection_can_finish() {
+    fn supervised_launch_holds_the_port_and_collects_the_exact_install() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
-        register_zelda_install(&library, "v1", true);
-        let service = PortcoveService::new(library).unwrap();
-        let (_spec, launch_guard) = service.prepare_launch("zelda64-recomp", None).unwrap();
+        let install = register_launch_probe(&library, "v1", true);
+        let started = temporary.path().join("started");
+        let (sender, receiver) = mpsc::channel();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let arguments = vec![
+            started.display().to_string(),
+            "400".into(),
+            "saved-by-child".into(),
+            "0".into(),
+        ];
+        let handle = thread::spawn(move || {
+            service.supervise_launch(
+                "zelda64-recomp",
+                None,
+                &arguments,
+                LaunchStdio::Null,
+                |session| sender.send(session.clone()).unwrap(),
+            )
+        });
 
-        let settings_conflict = service
-            .set_update_policy("zelda64-recomp", UpdatePolicy::Automatic)
+        let session = receiver.recv_timeout(Duration::from_secs(10)).unwrap();
+        assert_eq!(session.install_id, install.id);
+        assert_eq!(session.install_root, install.path);
+        assert!(install.path.join(LAUNCH_MARKER).is_file());
+        let conflict = library
+            .try_lock_port("zelda64-recomp", "remove")
             .unwrap_err();
-        assert_eq!(settings_conflict.code, crate::ErrorCode::Conflict);
-        let conflict = service.remove("zelda64-recomp").unwrap_err();
         assert_eq!(conflict.code, crate::ErrorCode::Conflict);
-        assert_eq!(conflict.details["port_id"], "zelda64-recomp");
 
-        drop(launch_guard);
-        assert!(!service.remove("zelda64-recomp").unwrap().is_empty());
+        let outcome = handle.join().unwrap().unwrap();
+        assert!(outcome.successful);
+        assert!(library.launch_sessions().unwrap().is_empty());
+        assert_eq!(
+            fs::read(library.user_dir("zelda64-recomp").join("general.json")).unwrap(),
+            b"saved-by-child"
+        );
+        let status = library
+            .status("zelda64-recomp", ReleaseChannel::Stable)
+            .unwrap();
+        assert_eq!(status.successful_launches, 1);
+        let activity = library
+            .activities(10)
+            .unwrap()
+            .into_iter()
+            .find(|activity| activity.id == outcome.session_id)
+            .unwrap();
+        assert_eq!(activity.status, ActivityStatus::Succeeded);
+    }
+
+    #[test]
+    fn failed_spawn_creates_neither_marker_nor_unfinished_session() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = register_zelda_install(&library, "v1", true);
+        let service = PortcoveService::new(library.clone()).unwrap();
+
+        let error = service
+            .supervise_launch("zelda64-recomp", None, &[], LaunchStdio::Null, |_| {
+                panic!("an invalid executable must not report a child")
+            })
+            .unwrap_err();
+
+        assert_eq!(error.code, crate::ErrorCode::Launch);
+        assert!(!install.join(LAUNCH_MARKER).exists());
+        assert!(library.launch_sessions().unwrap().is_empty());
+        assert_eq!(
+            library.activities(1).unwrap()[0].status,
+            ActivityStatus::Failed
+        );
+    }
+
+    #[test]
+    fn nonzero_child_exit_is_recorded_as_failed_after_save_collection() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_launch_probe(&library, "v1", true);
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let arguments = vec![
+            temporary.path().join("started").display().to_string(),
+            "0".into(),
+            "saved-before-failure".into(),
+            "7".into(),
+        ];
+
+        let outcome = service
+            .supervise_launch(
+                "zelda64-recomp",
+                None,
+                &arguments,
+                LaunchStdio::Null,
+                |_| {},
+            )
+            .unwrap();
+
+        assert!(!outcome.successful);
+        assert_eq!(outcome.exit_code, Some(7));
+        assert!(library.launch_sessions().unwrap().is_empty());
+        assert_eq!(
+            fs::read(library.user_dir("zelda64-recomp").join("general.json")).unwrap(),
+            b"saved-before-failure"
+        );
+        assert_eq!(
+            library
+                .status("zelda64-recomp", ReleaseChannel::Stable)
+                .unwrap()
+                .successful_launches,
+            0
+        );
+        assert_eq!(
+            library.activities(1).unwrap()[0].status,
+            ActivityStatus::Failed
+        );
+    }
+
+    #[test]
+    fn forwarded_interrupt_still_finishes_supervision_and_clears_the_session() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_launch_probe(&library, "v1", true);
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let arguments = vec![
+            temporary
+                .path()
+                .join("interrupt-started")
+                .display()
+                .to_string(),
+            "10000".into(),
+            "should-not-be-written".into(),
+            "0".into(),
+        ];
+        let (sender, receiver) = mpsc::channel();
+        let handle = thread::spawn(move || {
+            service.supervise_launch(
+                "zelda64-recomp",
+                None,
+                &arguments,
+                LaunchStdio::Null,
+                |session| sender.send(session.child_pid.unwrap()).unwrap(),
+            )
+        });
+        let child_pid = receiver.recv_timeout(Duration::from_secs(10)).unwrap();
+
+        crate::forward_launch_signal(child_pid, crate::LaunchSignal::Interrupt).unwrap();
+        let outcome = handle.join().unwrap().unwrap();
+
+        assert!(!outcome.successful);
+        assert!(library.launch_sessions().unwrap().is_empty());
+        assert_eq!(
+            library.activities(1).unwrap()[0].status,
+            ActivityStatus::Failed
+        );
+    }
+
+    #[test]
+    fn stale_session_waits_for_its_recorded_child_and_collects_its_recorded_install() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let launched = register_launch_probe(&library, "v1", true);
+        register_zelda_install(&library, "v2", true);
+        let started = temporary.path().join("stale-started");
+        let mut command = ChildProcessPolicy::native_command(
+            ChildProcessClass::Game,
+            launched.path.join(&launched.selected_executable),
+        )
+        .unwrap();
+        command.current_dir(&launched.path).args([
+            started.display().to_string(),
+            "200".into(),
+            "recovered-v1-data".into(),
+            "0".into(),
+        ]);
+        crate::launch::configure_supervised_game(&mut command);
+        let mut child = command.spawn().unwrap();
+        for _ in 0..100 {
+            if started.is_file() {
+                break;
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+        assert!(started.is_file());
+        let activity = library
+            .begin_activity(
+                ActivityOperation::Launch,
+                ActivityTargetKind::Port,
+                Some("zelda64-recomp"),
+            )
+            .unwrap();
+        let now = Library::now();
+        library
+            .create_launch_session(&LaunchSessionRecord {
+                id: activity.id.clone(),
+                port_id: "zelda64-recomp".into(),
+                install_id: launched.id.clone(),
+                install_root: launched.path.clone(),
+                supervisor_pid: u32::MAX,
+                child_pid: Some(child.id()),
+                phase: LaunchSessionPhase::Running,
+                started_at: now,
+                updated_at: now,
+            })
+            .unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        assert_eq!(service.stale_launch_sessions().unwrap().len(), 1);
+        assert!(library.try_lock_port("zelda64-recomp", "update").is_err());
+
+        service.recover_launch_session(&activity.id).unwrap();
+        child.wait().unwrap();
+
+        assert!(library.launch_sessions().unwrap().is_empty());
+        assert_eq!(
+            fs::read(library.user_dir("zelda64-recomp").join("general.json")).unwrap(),
+            b"recovered-v1-data"
+        );
+        assert_eq!(
+            library.activities(1).unwrap()[0].status,
+            ActivityStatus::Failed
+        );
+    }
+
+    #[test]
+    fn stale_pre_spawn_session_recovers_without_marking_or_collecting() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = register_zelda_install(&library, "v1", true);
+        let activity = library
+            .begin_activity(
+                ActivityOperation::Launch,
+                ActivityTargetKind::Port,
+                Some("zelda64-recomp"),
+            )
+            .unwrap();
+        let now = Library::now();
+        library
+            .create_launch_session(&LaunchSessionRecord {
+                id: activity.id.clone(),
+                port_id: "zelda64-recomp".into(),
+                install_id: library
+                    .status("zelda64-recomp", ReleaseChannel::Stable)
+                    .unwrap()
+                    .active
+                    .unwrap()
+                    .id,
+                install_root: install.clone(),
+                supervisor_pid: u32::MAX,
+                child_pid: None,
+                phase: LaunchSessionPhase::Preparing,
+                started_at: now,
+                updated_at: now,
+            })
+            .unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+
+        service.recover_launch_session(&activity.id).unwrap();
+
+        assert!(!install.join(LAUNCH_MARKER).exists());
+        assert!(library.launch_sessions().unwrap().is_empty());
+        assert_eq!(
+            library.activities(1).unwrap()[0].status,
+            ActivityStatus::Failed
+        );
     }
 
     #[tokio::test]
@@ -3598,6 +4201,81 @@ mod tests {
                 .unwrap()
                 .version,
             "v2"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn reconcile_uses_post_lock_policy_and_staged_state() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_zelda_install(&library, "v1", true);
+        let blocker = release_blocker("v2");
+        let service =
+            Arc::new(PortcoveService::with_provider(library.clone(), blocker.provider).unwrap());
+        let task_service = service.clone();
+        let reconcile =
+            tokio::spawn(async move { task_service.reconcile("zelda64-recomp", |_| {}).await });
+        assert_eq!(
+            blocker
+                .started
+                .recv_timeout(Duration::from_secs(5))
+                .unwrap(),
+            ReleaseChannel::Stable
+        );
+
+        register_zelda_install(&library, "v2", false);
+        library
+            .set_update_policy("zelda64-recomp", UpdatePolicy::Automatic)
+            .unwrap();
+        release_blocker_continue(&blocker.gate);
+
+        let result = reconcile.await.unwrap().unwrap();
+        assert_eq!(result.policy, UpdatePolicy::Automatic);
+        assert_eq!(result.action, ReconcileAction::Activated);
+        assert_eq!(result.install.unwrap().version, "v2");
+        let status = service.status("zelda64-recomp").unwrap();
+        assert_eq!(status.active.unwrap().version, "v2");
+        assert!(status.staged.is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn reconcile_retries_a_changed_channel_before_acting() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let path = library
+            .versions_dir()
+            .join("g-diffuser")
+            .join("a".repeat(64));
+        fs::create_dir_all(&path).unwrap();
+        write_host_test_executable(&path, "g-diffuser");
+        register_existing_test_install(&library, "g-diffuser", "v1", &path, true);
+        let blocker = release_blocker("v2");
+        let service =
+            Arc::new(PortcoveService::with_provider(library.clone(), blocker.provider).unwrap());
+        let task_service = service.clone();
+        let reconcile =
+            tokio::spawn(async move { task_service.reconcile("g-diffuser", |_| {}).await });
+        assert_eq!(
+            blocker
+                .started
+                .recv_timeout(Duration::from_secs(5))
+                .unwrap(),
+            ReleaseChannel::Stable
+        );
+
+        library
+            .set_channel("g-diffuser", ReleaseChannel::Beta)
+            .unwrap();
+        release_blocker_continue(&blocker.gate);
+
+        let result = reconcile.await.unwrap().unwrap();
+        assert_eq!(result.policy, UpdatePolicy::Notify);
+        assert_eq!(result.action, ReconcileAction::Notify);
+        assert_eq!(result.check.channel, ReleaseChannel::Beta);
+        assert_eq!(result.check.release.channel, ReleaseChannel::Beta);
+        assert_eq!(
+            *blocker.observed.lock().unwrap(),
+            [ReleaseChannel::Stable, ReleaseChannel::Beta]
         );
     }
 }

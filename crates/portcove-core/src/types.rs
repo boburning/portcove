@@ -413,6 +413,7 @@ impl FromStr for ActivityTargetKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ActivityOperation {
+    Launch,
     CheckUpdate,
     Backup,
     Restore,
@@ -432,6 +433,7 @@ pub enum ActivityOperation {
 impl std::fmt::Display for ActivityOperation {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str(match self {
+            Self::Launch => "launch",
             Self::CheckUpdate => "check_update",
             Self::Backup => "backup",
             Self::Restore => "restore",
@@ -455,6 +457,7 @@ impl FromStr for ActivityOperation {
 
     fn from_str(value: &str) -> Result<Self> {
         match value {
+            "launch" => Ok(Self::Launch),
             "check_update" => Ok(Self::CheckUpdate),
             "backup" => Ok(Self::Backup),
             "restore" => Ok(Self::Restore),
@@ -474,6 +477,75 @@ impl FromStr for ActivityOperation {
             ))),
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum LaunchSessionPhase {
+    Preparing,
+    Running,
+    Collecting,
+    Recovering,
+}
+
+impl std::fmt::Display for LaunchSessionPhase {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(match self {
+            Self::Preparing => "preparing",
+            Self::Running => "running",
+            Self::Collecting => "collecting",
+            Self::Recovering => "recovering",
+        })
+    }
+}
+
+impl FromStr for LaunchSessionPhase {
+    type Err = PortcoveError;
+
+    fn from_str(value: &str) -> Result<Self> {
+        match value {
+            "preparing" => Ok(Self::Preparing),
+            "running" => Ok(Self::Running),
+            "collecting" => Ok(Self::Collecting),
+            "recovering" => Ok(Self::Recovering),
+            _ => Err(PortcoveError::state(format!(
+                "unknown launch session phase: {value}"
+            ))),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct LaunchSessionRecord {
+    pub id: String,
+    pub port_id: String,
+    pub install_id: String,
+    pub install_root: PathBuf,
+    pub supervisor_pid: u32,
+    pub child_pid: Option<u32>,
+    pub phase: LaunchSessionPhase,
+    pub started_at: i64,
+    pub updated_at: i64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LaunchStdio {
+    Inherit,
+    Null,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LaunchSignal {
+    Interrupt,
+    Terminate,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SupervisedLaunchOutcome {
+    pub session_id: String,
+    pub child_pid: u32,
+    pub exit_code: Option<i32>,
+    pub successful: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
