@@ -1351,6 +1351,7 @@ mod tests {
         assert!(capabilities.commands.contains(&"backup".to_owned()));
         assert!(capabilities.commands.contains(&"plan".to_owned()));
         assert!(capabilities.commands.contains(&"paths".to_owned()));
+        assert_eq!(capabilities.raw_stream_commands, ["exec"]);
         assert_eq!(capabilities.product_version, env!("CARGO_PKG_VERSION"));
     }
 }

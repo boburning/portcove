@@ -45,7 +45,7 @@ portcove --json auth logout
 
 Automated frontends normally provide `PORTCOVE_GITHUB_TOKEN` in the child-process environment and avoid interactive auth commands. `auth status` reports only the credential source, GitHub login, and rate-limit headers; it never returns the token.
 
-Call `capabilities` rather than assuming commands or platforms. It reports both the machine `schema_version` and the running `product_version`; integrations should branch on advertised capabilities instead of parsing either version string. Generate bindings from `schema export` when useful, and tolerate additive object fields within a schema version.
+Call `capabilities` rather than assuming commands or platforms. It reports both the machine `schema_version` and the running `product_version`; integrations should branch on advertised capabilities instead of parsing either version string. `raw_stream_commands` identifies commands such as `exec` that intentionally cannot use the advertised machine formats. Generate bindings from `schema export` when useful, and tolerate additive object fields within a schema version.
 
 `doctor` is a local, network-free, read-only host report. It returns the current platform, library capacity, catalog/installation/source counts, and one typed entry for each optional host tool Portcove can use. Tool state is `available`, `missing`, or `misconfigured`; an available tool includes its resolved path and whether it came from an environment override or normal discovery. Missing optional tools do not fail the command because callers may never select a port or source format that needs them. An explicit but invalid `PORTCOVE_CHDMAN` or `PORTCOVE_DOLPHIN_TOOL` remains `misconfigured` instead of silently falling back to another executable.
 

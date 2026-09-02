@@ -707,6 +707,7 @@ pub struct CapabilityDocument {
     pub platforms: Vec<Platform>,
     pub adapters: Vec<AdapterKind>,
     pub machine_formats: Vec<String>,
+    pub raw_stream_commands: Vec<String>,
     pub failure_isolated_batches: Vec<String>,
     pub port_operation_locking: String,
 }
@@ -760,6 +761,7 @@ impl CapabilityDocument {
                 AdapterKind::PsxRecompManaged,
             ],
             machine_formats: vec!["json".into(), "jsonl".into()],
+            raw_stream_commands: vec!["exec".into()],
             failure_isolated_batches: vec![
                 "check".into(),
                 "reconcile".into(),

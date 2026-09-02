@@ -31,6 +31,10 @@ fn capabilities_are_one_clean_versioned_json_document() {
     assert!(response["error"].is_null());
     assert_eq!(response["data"]["schema_version"], 2);
     assert_eq!(
+        response["data"]["raw_stream_commands"],
+        serde_json::json!(["exec"])
+    );
+    assert_eq!(
         response["data"]["product_version"],
         env!("CARGO_PKG_VERSION")
     );
