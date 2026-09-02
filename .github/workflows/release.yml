@@ -41,7 +41,7 @@ jobs:
         working-directory: apps/desktop
       - name: Verify release identity and required assets
         run: |
-          node --test scripts/check-release-metadata.test.mjs
+          node --test scripts/check-release-metadata.test.mjs scripts/write-release-checksums.test.mjs
           node scripts/check-release-metadata.mjs
       - name: Verify release tag matches metadata
         if: github.event_name == 'push'
@@ -116,19 +116,7 @@ jobs:
         run: pnpm tauri build
         working-directory: apps/desktop
       - name: Generate checksums
-        shell: pwsh
-        run: |
-          $cliArchive = Get-ChildItem release-assets/portcove-${{ matrix.label }}.* -File -ErrorAction Stop
-          $bundleArtifacts = Get-ChildItem target/release/bundle -Recurse -File -ErrorAction Stop |
-            Where-Object { $_.Extension -ne ".sig" }
-          $artifacts = @($cliArchive) + @($bundleArtifacts)
-          if ($artifacts.Count -lt 2) { throw "Expected a CLI archive and at least one desktop bundle" }
-          $duplicateNames = $artifacts | Group-Object Name | Where-Object Count -gt 1
-          if ($duplicateNames) { throw "Release artifacts contain duplicate filenames" }
-          $lines = $artifacts | Sort-Object Name | ForEach-Object {
-            "{0}  {1}" -f (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLowerInvariant(), $_.Name
-          }
-          $lines | Set-Content -Encoding utf8 release-assets/SHA256SUMS-${{ matrix.label }}.txt
+        run: node scripts/write-release-checksums.mjs --label "${{ matrix.label }}"
       - name: Upload CLI archive and checksums
         if: github.event_name == 'push'
         shell: pwsh

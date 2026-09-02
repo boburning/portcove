@@ -37,8 +37,13 @@ fallow:
 
 check-ui: ui-build ui-test fallow
 
+# Deterministic release metadata and artifact tooling
+release-tools:
+    node --test scripts/check-release-metadata.test.mjs scripts/write-release-checksums.test.mjs
+    node scripts/check-release-metadata.mjs
+
 # Standard repository check
-check: check-rust check-ui
+check: check-rust check-ui release-tools
 
 # Deeper deterministic and structural audit
 deny:

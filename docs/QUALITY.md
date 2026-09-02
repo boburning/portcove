@@ -18,7 +18,7 @@ Pass `-IncludeDeep` or `--include-deep` to also install semdup, cargo-mutants, a
 |---|---|---|
 | Rust change | `just check-rust` | format, compile, Clippy, tests, unused dependencies/files, and crate boundaries |
 | UI change | `just check-ui` | production build, tests, and the existing Fallow gate |
-| Cross-stack change | `just check` | both fast loops |
+| Cross-stack or release change | `just check` | both fast loops plus deterministic release metadata and checksum-tool tests |
 | Substantial completion | `just audit` | fast loop plus dependency policy, the current module-cycle report, and rscheck |
 | Large structural change | `just deep` | audit plus advisory Hawk and semdup analysis |
 | Critical core test review | `just mutants` | optional mutation analysis for `portcove-core` |
