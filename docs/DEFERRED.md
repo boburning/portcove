@@ -201,8 +201,9 @@ Resume checklist:
 
 - Status: `optional-tooling`
 - Evidence: semdup 0.2.0 builds through its Rust dependencies but fails while linking ONNX Runtime with the installed Visual Studio 2019 linker because required newer C++ standard-library symbols are unavailable. The pinned bootstrap now reports this optional failure without preventing required quality tools or cargo-mutants from being installed.
+- Host update attempt: on 2026-09-02 the pinned Visual Studio Build Tools 2022 version 17.14.39 bootstrapper was launched with only `Microsoft.VisualStudio.Component.VC.Tools.x86.x64`. Windows required administrator elevation; the non-administrator Codex process could not accept it, and setup exited with `0x80070642` without installing a Visual Studio 2022 instance.
 - Impact: none on the blocking `just check` or `just audit` definitions. Rust duplication remains visible through rscheck, and TypeScript duplication remains covered by Fallow. `just deep` still attempts semdup and reports its absence as advisory.
-- Resume condition: install a current supported Visual Studio/MSVC Build Tools toolchain and rerun `scripts/bootstrap-quality-tools.ps1 -IncludeDeep`, or run `just deep` from a supported Linux/macOS environment.
+- Resume condition: while present at the Windows desktop, rerun the focused Visual Studio Build Tools 2022 installer and approve its UAC elevation prompt, then rerun `scripts/bootstrap-quality-tools.ps1 -IncludeDeep`; alternatively, run `just deep` from a supported Linux/macOS environment.
 
 ## PCV-DEF-014 — Resolve the Tauri Linux GLib unsoundness advisory
 
