@@ -23,6 +23,7 @@ This repository is an early, working implementation. Catalog and state commands 
 - Source records referenced in place, never uploaded, and checked against their registered size and SHA-256 on demand and before reuse; when an upstream runtime requires its own validated local copy, that copy stays inside the local Portcove user-data tree.
 - Safe adoption by copying an existing installation without changing the original.
 - JSON, JSONL, JSON Schema, deterministic exit codes, and a network-free `exec` path for launchers such as Batocera, Playnite, LaunchBox, RetroBat, and EmuDeck.
+- A local, read-only `doctor` report for host platform, library capacity, catalog state, and optional `chdman`/DolphinTool discovery.
 - Cross-process per-port operation locks so multiple launchers cannot race installation state or mutate a port while its game process is running.
 - Tauri 2/React desktop UI with keyboard and controller navigation.
 - Successful-exit launch history shared by CLI and desktop, with a real Continue action that never promotes failed starts or crashes.
@@ -80,6 +81,7 @@ portcove source add banjo-kazooie D:\Sources\banjo.z64
 portcove --json source verify --all
 portcove --json activity --limit 25
 portcove --json storage
+portcove --json doctor
 portcove --json plan lighthouse
 portcove --json paths lighthouse
 portcove --json backup create lighthouse

@@ -1,5 +1,6 @@
 use std::{
     collections::BTreeMap,
+    ffi::OsString,
     fs::File,
     io::{Read, Seek, SeekFrom},
     path::{Path, PathBuf},
@@ -12,8 +13,9 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use crate::{
-    AdapterKind, DiscIdentityProfile, Library, Platform, PortDefinition, PortcoveError, Result,
-    RuntimeSourceMaterialization, SourceKind, SourceProfile, SourceRecord,
+    AdapterKind, DiscIdentityProfile, HostToolSource, HostToolState, HostToolStatus, Library,
+    Platform, PortDefinition, PortcoveError, Result, RuntimeSourceMaterialization, SourceKind,
+    SourceProfile, SourceRecord,
 };
 
 #[derive(Debug, Clone)]
@@ -1237,41 +1239,14 @@ fn materialize_gamecube_iso(source: &Path, destination: &Path) -> Result<()> {
 }
 
 fn resolve_dolphin_tool() -> Result<PathBuf> {
-    if let Some(configured) =
-        std::env::var_os("PORTCOVE_DOLPHIN_TOOL").filter(|value| !value.is_empty())
-    {
-        let path = PathBuf::from(configured);
-        if path.is_file() {
-            return Ok(path);
-        }
-        return Err(PortcoveError::source(format!(
-            "PORTCOVE_DOLPHIN_TOOL does not point to a file: {}",
-            path.display()
-        ))
-        .detail("dolphin_tool_path", path.display().to_string())
-        .detail(
-            "setup_hint",
-            "set PORTCOVE_DOLPHIN_TOOL to the full DolphinTool executable path",
-        ));
-    }
-
-    let candidates = dolphin_tool_candidates();
-    if let Some(path) = candidates.iter().find(|candidate| candidate.is_file()) {
-        return Ok(path.clone());
-    }
-    let searched = candidates
-        .iter()
-        .map(|candidate| candidate.display().to_string())
-        .collect::<Vec<_>>()
-        .join(";");
-    Err(PortcoveError::source(
+    resolve_host_tool(
+        "PORTCOVE_DOLPHIN_TOOL",
+        "dolphin_tool_path",
         "DolphinTool was not found; install Dolphin or set PORTCOVE_DOLPHIN_TOOL to its full path",
-    )
-    .detail("searched_paths", searched)
-    .detail(
-        "setup_hint",
+        "set PORTCOVE_DOLPHIN_TOOL to the full DolphinTool executable path",
         "Portcove checks PATH, its own directory, DOLPHIN_HOME, and launcher-provided RetroBat paths",
-    ))
+        dolphin_tool_candidates(),
+    )
 }
 
 fn dolphin_tool_candidates() -> Vec<PathBuf> {
@@ -1514,40 +1489,14 @@ pub(crate) fn materialize_psx_chd(source: &Path, destination: &Path) -> Result<P
 }
 
 fn resolve_chdman() -> Result<PathBuf> {
-    if let Some(configured) = std::env::var_os("PORTCOVE_CHDMAN").filter(|value| !value.is_empty())
-    {
-        let path = PathBuf::from(configured);
-        if path.is_file() {
-            return Ok(path);
-        }
-        return Err(PortcoveError::source(format!(
-            "PORTCOVE_CHDMAN does not point to a file: {}",
-            path.display()
-        ))
-        .detail("chdman_path", path.display().to_string())
-        .detail(
-            "setup_hint",
-            "set PORTCOVE_CHDMAN to the full chdman executable path",
-        ));
-    }
-
-    let candidates = chdman_candidates();
-    if let Some(path) = candidates.iter().find(|candidate| candidate.is_file()) {
-        return Ok(path.clone());
-    }
-    let searched = candidates
-        .iter()
-        .map(|candidate| candidate.display().to_string())
-        .collect::<Vec<_>>()
-        .join(";");
-    Err(PortcoveError::source(
+    resolve_host_tool(
+        "PORTCOVE_CHDMAN",
+        "chdman_path",
         "chdman was not found; install MAME or set PORTCOVE_CHDMAN to its full path",
-    )
-    .detail("searched_paths", searched)
-    .detail(
-        "setup_hint",
+        "set PORTCOVE_CHDMAN to the full chdman executable path",
         "Portcove checks PATH, its own directory, MAME_HOME, and known Batocera, EmuDeck, and RetroBat locations",
-    ))
+        chdman_candidates(),
+    )
 }
 
 fn chdman_candidates() -> Vec<PathBuf> {
@@ -1618,6 +1567,121 @@ fn push_unique_path(paths: &mut Vec<PathBuf>, candidate: PathBuf) {
     if !paths.iter().any(|path| path == &candidate) {
         paths.push(candidate);
     }
+}
+
+#[derive(Debug)]
+struct HostToolDiscovery {
+    state: HostToolState,
+    path: Option<PathBuf>,
+    source: Option<HostToolSource>,
+    searched_paths: Vec<PathBuf>,
+}
+
+fn discover_host_tool(configured: Option<OsString>, candidates: Vec<PathBuf>) -> HostToolDiscovery {
+    if let Some(configured) = configured {
+        let path = PathBuf::from(configured);
+        return HostToolDiscovery {
+            state: if path.is_file() {
+                HostToolState::Available
+            } else {
+                HostToolState::Misconfigured
+            },
+            path: Some(path),
+            source: Some(HostToolSource::Environment),
+            searched_paths: Vec::new(),
+        };
+    }
+    let path = candidates
+        .iter()
+        .find(|candidate| candidate.is_file())
+        .cloned();
+    let source = path.as_ref().map(|_| HostToolSource::Discovery);
+    HostToolDiscovery {
+        state: if path.is_some() {
+            HostToolState::Available
+        } else {
+            HostToolState::Missing
+        },
+        path,
+        source,
+        searched_paths: candidates,
+    }
+}
+
+fn resolve_host_tool(
+    configuration_variable: &str,
+    path_detail: &str,
+    missing_message: &str,
+    configured_setup_hint: &str,
+    missing_setup_hint: &str,
+    candidates: Vec<PathBuf>,
+) -> Result<PathBuf> {
+    let discovery = discover_host_tool(
+        std::env::var_os(configuration_variable).filter(|value| !value.is_empty()),
+        candidates,
+    );
+    match discovery.state {
+        HostToolState::Available => Ok(discovery.path.expect("available host tool has a path")),
+        HostToolState::Misconfigured => {
+            let path = discovery
+                .path
+                .expect("misconfigured host tool has a configured path");
+            Err(PortcoveError::source(format!(
+                "{configuration_variable} does not point to a file: {}",
+                path.display()
+            ))
+            .detail(path_detail, path.display().to_string())
+            .detail("setup_hint", configured_setup_hint))
+        }
+        HostToolState::Missing => {
+            let searched = discovery
+                .searched_paths
+                .iter()
+                .map(|candidate| candidate.display().to_string())
+                .collect::<Vec<_>>()
+                .join(";");
+            Err(PortcoveError::source(missing_message)
+                .detail("searched_paths", searched)
+                .detail("setup_hint", missing_setup_hint))
+        }
+    }
+}
+
+fn host_tool_status(
+    id: &str,
+    configuration_variable: &str,
+    purpose: &str,
+    candidates: Vec<PathBuf>,
+) -> HostToolStatus {
+    let discovery = discover_host_tool(
+        std::env::var_os(configuration_variable).filter(|value| !value.is_empty()),
+        candidates,
+    );
+    HostToolStatus {
+        id: id.into(),
+        state: discovery.state,
+        path: discovery.path,
+        source: discovery.source,
+        configuration_variable: configuration_variable.into(),
+        purpose: purpose.into(),
+    }
+}
+
+pub(crate) fn host_tool_statuses() -> Vec<HostToolStatus> {
+    vec![
+        host_tool_status(
+            "chdman",
+            "PORTCOVE_CHDMAN",
+            "CHD validation and disc-image materialization",
+            chdman_candidates(),
+        ),
+        host_tool_status(
+            "dolphin_tool",
+            "PORTCOVE_DOLPHIN_TOOL",
+            "compressed GameCube validation and ISO materialization",
+            dolphin_tool_candidates(),
+        ),
+    ]
 }
 
 fn inspect_psx_cue(cue: &Path) -> Result<(u32, PathBuf)> {
@@ -1891,12 +1955,26 @@ mod tests {
         let missing = temporary.path().join("missing-chdman");
         let available = temporary.path().join("available-chdman");
         std::fs::write(&available, b"test").unwrap();
-        let candidates = [missing, available.clone()];
+        let discovery = discover_host_tool(None, vec![missing, available.clone()]);
 
-        assert_eq!(
-            candidates.iter().find(|candidate| candidate.is_file()),
-            Some(&available)
-        );
+        assert_eq!(discovery.state, HostToolState::Available);
+        assert_eq!(discovery.path, Some(available));
+        assert_eq!(discovery.source, Some(HostToolSource::Discovery));
+    }
+
+    #[test]
+    fn explicit_missing_host_tool_is_reported_as_misconfigured() {
+        let temporary = tempfile::tempdir().unwrap();
+        let configured = temporary.path().join("missing-tool");
+        let fallback = temporary.path().join("available-tool");
+        std::fs::write(&fallback, b"test").unwrap();
+
+        let discovery =
+            discover_host_tool(Some(configured.clone().into_os_string()), vec![fallback]);
+
+        assert_eq!(discovery.state, HostToolState::Misconfigured);
+        assert_eq!(discovery.path, Some(configured));
+        assert_eq!(discovery.source, Some(HostToolSource::Environment));
     }
 
     #[test]

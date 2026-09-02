@@ -12,11 +12,11 @@ use uuid::Uuid;
 
 use crate::{
     ActivityOperation, ActivityRecord, ActivityStatus, ActivityTargetKind, AdapterRegistry,
-    BackupRecord, Catalog, CompositeReleaseProvider, InstallPlan, InstallPlanAction, InstallRecord,
-    InstallRequest, InstallSourceRequirement, Installer, LaunchBlocker, LaunchReadiness, Library,
-    OperationEvent, Platform, PortDefinition, PortOperationGuard, PortPaths, PortStatus,
-    PortcoveError, ReconcileAction, ReconcileResult, ReleaseChannel, ReleaseProvider,
-    ResolvedRelease, RestoreResult, Result, SourceRecord, SourceRequirementRole,
+    BackupRecord, Catalog, CompositeReleaseProvider, DoctorReport, InstallPlan, InstallPlanAction,
+    InstallRecord, InstallRequest, InstallSourceRequirement, Installer, LaunchBlocker,
+    LaunchReadiness, Library, OperationEvent, Platform, PortDefinition, PortOperationGuard,
+    PortPaths, PortStatus, PortcoveError, ReconcileAction, ReconcileResult, ReleaseChannel,
+    ReleaseProvider, ResolvedRelease, RestoreResult, Result, SourceRecord, SourceRequirementRole,
     SourceVerification, UpdateCheck, UpdatePolicy, VerificationReport,
 };
 
@@ -86,6 +86,21 @@ impl PortcoveService {
     }
     pub fn library(&self) -> &Library {
         &self.library
+    }
+
+    pub fn doctor(&self) -> Result<DoctorReport> {
+        let statuses = self.statuses()?;
+        Ok(DoctorReport {
+            platform: Platform::current()?,
+            library: self.library.storage_summary()?,
+            catalog_port_count: self.catalog.ports().len(),
+            installed_port_count: statuses
+                .iter()
+                .filter(|status| status.active.is_some())
+                .count(),
+            registered_source_count: self.library.sources()?.len(),
+            host_tools: crate::adapter::host_tool_statuses(),
+        })
     }
 
     fn finish_activity<T>(&self, activity: ActivityRecord, result: Result<T>) -> Result<T> {
@@ -1608,6 +1623,29 @@ mod tests {
             }),
         )
         .unwrap()
+    }
+
+    #[test]
+    fn doctor_reports_local_library_and_optional_host_tools() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let service = service_with_release(library, "1.0.0");
+
+        let report = service.doctor().unwrap();
+
+        assert_eq!(report.platform, Platform::current().unwrap());
+        assert_eq!(report.library.library_root, temporary.path());
+        assert_eq!(report.catalog_port_count, service.catalog().ports().len());
+        assert_eq!(report.installed_port_count, 0);
+        assert_eq!(report.registered_source_count, 0);
+        assert_eq!(
+            report
+                .host_tools
+                .iter()
+                .map(|tool| tool.id.as_str())
+                .collect::<Vec<_>>(),
+            ["chdman", "dolphin_tool"]
+        );
     }
 
     fn write_host_test_executable(root: &Path, port_id: &str) -> PathBuf {

@@ -7,7 +7,7 @@ use std::{
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use portcove_core::{
     API_SCHEMA_VERSION, ActivityRecord, BackupRecord, CapabilityDocument, CatalogDocument,
-    ErrorCode, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult,
+    DoctorReport, ErrorCode, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult,
     GithubDeviceLoginState, GithubReleaseProvider, InstallPlan, InstallRecord, OperationEvent,
     PortDefinition, PortPaths, PortStatus, PortcoveError, PortcoveService, ReconcileResult,
     ReleaseChannel, RestoreResult, Result, SourceRecord, SourceVerification, StorageSummary,
@@ -65,6 +65,7 @@ enum Commands {
         limit: u16,
     },
     Storage,
+    Doctor,
     About,
     Plan {
         port_id: String,
@@ -569,6 +570,9 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         Commands::Storage => {
             render_success(mode, "storage", service.library().storage_summary()?)?;
         }
+        Commands::Doctor => {
+            render_success(mode, "doctor", service.doctor()?)?;
+        }
         Commands::About => unreachable!("about exits before opening the library"),
         Commands::Plan { port_id, channel } => {
             render_success(
@@ -785,6 +789,7 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 "backup": schema_for!(BackupRecord),
                 "restore_result": schema_for!(RestoreResult),
                 "storage": schema_for!(StorageSummary),
+                "doctor": schema_for!(DoctorReport),
                 "install_plan": schema_for!(InstallPlan),
                 "port_paths": schema_for!(PortPaths),
                 "operation_event": schema_for!(OperationEvent),
@@ -1011,6 +1016,7 @@ fn command_name(command: &Commands) -> &'static str {
         Commands::Status { .. } => "status",
         Commands::Activity { .. } => "activity",
         Commands::Storage => "storage",
+        Commands::Doctor => "doctor",
         Commands::About => "about",
         Commands::Plan { .. } => "plan",
         Commands::Paths { .. } => "paths",
@@ -1151,6 +1157,13 @@ mod tests {
     }
 
     #[test]
+    fn doctor_is_a_read_only_top_level_command() {
+        let cli = Cli::try_parse_from(["portcove", "doctor"]).unwrap();
+        assert!(matches!(cli.command, Commands::Doctor));
+        assert_eq!(super::command_name(&cli.command), "doctor");
+    }
+
+    #[test]
     fn about_is_a_compact_top_level_identity_command() {
         let cli = Cli::try_parse_from(["portcove", "about"]).unwrap();
         assert!(matches!(cli.command, Commands::About));
@@ -1246,6 +1259,7 @@ mod tests {
         );
         assert_eq!(capabilities.port_operation_locking, "per_port_fail_fast");
         assert!(capabilities.commands.contains(&"storage".to_owned()));
+        assert!(capabilities.commands.contains(&"doctor".to_owned()));
         assert!(capabilities.commands.contains(&"backup".to_owned()));
         assert!(capabilities.commands.contains(&"plan".to_owned()));
         assert!(capabilities.commands.contains(&"paths".to_owned()));

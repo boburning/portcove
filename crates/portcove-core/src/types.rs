@@ -515,6 +515,41 @@ pub struct StorageSummary {
     pub volume_available_bytes: u64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum HostToolState {
+    Available,
+    Missing,
+    Misconfigured,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum HostToolSource {
+    Environment,
+    Discovery,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct HostToolStatus {
+    pub id: String,
+    pub state: HostToolState,
+    pub path: Option<PathBuf>,
+    pub source: Option<HostToolSource>,
+    pub configuration_variable: String,
+    pub purpose: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct DoctorReport {
+    pub platform: Platform,
+    pub library: StorageSummary,
+    pub catalog_port_count: usize,
+    pub installed_port_count: usize,
+    pub registered_source_count: usize,
+    pub host_tools: Vec<HostToolStatus>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct BackupRecord {
     pub id: String,
@@ -690,6 +725,7 @@ impl CapabilityDocument {
                 "status".into(),
                 "activity".into(),
                 "storage".into(),
+                "doctor".into(),
                 "about".into(),
                 "plan".into(),
                 "paths".into(),

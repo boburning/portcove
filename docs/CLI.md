@@ -19,6 +19,7 @@ portcove --json catalog export
 portcove --json catalog list
 portcove --json catalog show <port-id>
 portcove --json storage
+portcove --json doctor
 portcove --json plan <port-id>
 portcove --json paths <port-id>
 portcove --json backup list <port-id>
@@ -41,6 +42,8 @@ portcove --json auth logout
 Automated frontends normally provide `PORTCOVE_GITHUB_TOKEN` in the child-process environment and avoid interactive auth commands. `auth status` reports only the credential source, GitHub login, and rate-limit headers; it never returns the token.
 
 Call `capabilities` rather than assuming commands or platforms. It reports both the machine `schema_version` and the running `product_version`; integrations should branch on advertised capabilities instead of parsing either version string. Generate bindings from `schema export` when useful, and tolerate additive object fields within a schema version.
+
+`doctor` is a local, network-free, read-only host report. It returns the current platform, library capacity, catalog/installation/source counts, and one typed entry for each optional host tool Portcove can use. Tool state is `available`, `missing`, or `misconfigured`; an available tool includes its resolved path and whether it came from an environment override or normal discovery. Missing optional tools do not fail the command because callers may never select a port or source format that needs them. An explicit but invalid `PORTCOVE_CHDMAN` or `PORTCOVE_DOLPHIN_TOOL` remains `misconfigured` instead of silently falling back to another executable.
 
 `catalog list` is a concise port array and `catalog show PORT_ID` retrieves one port. `catalog export` returns the complete versioned `CatalogDocument`, including every source profile referenced by a port. External frontends should use that document when they need accepted source extensions, exact multi-file or disc requirements, or source labels instead of copying Portcove's embedded catalog.
 
