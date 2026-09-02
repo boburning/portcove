@@ -57,6 +57,34 @@ describe("desktop components", () => {
     expect(html).toContain("width:50%");
   });
 
+  it("shows the core host-readiness report with explicit tool states", () => {
+    const html = renderToStaticMarkup(<SettingsView doctor={{
+      platform: "windows-x86-64",
+      library: { library_root: "E:/Portcove", volume_total_bytes: 1024, volume_available_bytes: 512 },
+      catalog_port_count: 61,
+      installed_port_count: 10,
+      registered_source_count: 9,
+      host_tools: [{
+        id: "chdman", state: "available", path: "C:/Tools/chdman.exe", source: "discovery",
+        configuration_variable: "PORTCOVE_CHDMAN", purpose: "CHD validation and disc-image materialization",
+      }, {
+        id: "dolphin_tool", state: "misconfigured", path: "E:/Missing/DolphinTool.exe", source: "environment",
+        configuration_variable: "PORTCOVE_DOLPHIN_TOOL", purpose: "compressed GameCube validation and ISO materialization",
+      }, {
+        id: "future_tool", state: "missing", configuration_variable: "PORTCOVE_FUTURE_TOOL", purpose: "future source conversion",
+      }],
+    }} />);
+    expect(html).toContain("Source tools");
+    expect(html).toContain("windows-x86-64");
+    expect(html).toContain("61 ports · 10 installed · 9 sources");
+    expect(html).toContain("Ready");
+    expect(html).toContain("Check path");
+    expect(html).toContain("Not found");
+    expect(html).toContain("C:/Tools/chdman.exe");
+    expect(html).toContain("E:/Missing/DolphinTool.exe");
+    expect(html).toContain("Set PORTCOVE_FUTURE_TOOL");
+  });
+
   it("renders an accessible system, dark, and light appearance choice", () => {
     const html = renderToStaticMarkup(<SettingsView appearance={{
       preference: "system", resolvedTheme: "light", setPreference: vi.fn(),

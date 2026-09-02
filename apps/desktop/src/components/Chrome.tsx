@@ -1,9 +1,9 @@
 import { useState, type Dispatch, type SetStateAction } from "react";
-import { AlertTriangle, Boxes, Check, CheckCircle2, CircleUserRound, Command, Download, FolderInput, HardDrive, Library, LoaderCircle, Search, Settings, ShieldCheck, X } from "lucide-react";
+import { AlertTriangle, Boxes, Check, CheckCircle2, CircleMinus, CircleUserRound, Command, Download, FolderInput, HardDrive, Library, LoaderCircle, Search, Settings, ShieldCheck, Wrench, X } from "lucide-react";
 import desktopPackage from "../../package.json";
 import { copyText } from "../clipboard";
 import type { ThemeState, ThemePreference } from "../theme";
-import type { GithubAuthStatus, GithubDeviceLogin, OperationEvent, SourceProfile, SourceRecord, SourceVerificationOutcome, StorageSummary } from "../types";
+import type { DoctorReport, GithubAuthStatus, GithubDeviceLogin, HostToolStatus, OperationEvent, SourceProfile, SourceRecord, SourceVerificationOutcome, StorageSummary } from "../types";
 import { formatBytes, type SourceRequirement, type View } from "../view-model";
 import { BrandAvatar, BrandMascot, BrandWordmark } from "./Brand";
 import { Icon, Shortcut } from "./ui";
@@ -251,8 +251,8 @@ function ThemeOption({ option, selected, select }: { option: ThemePreference; se
   return <button data-focusable className={selected ? "active" : ""} aria-pressed={selected} onClick={() => select?.(option)}>{option[0].toUpperCase() + option.slice(1)}</button>;
 }
 
-export function SettingsView({ libraryRoot = "", storage, github, busy, sources = [], sourceNeeds = [], sourceOutcomes = [], verifySources, replaceSource, addSource, appearance }: {
-  libraryRoot?: string; storage?: StorageSummary; github?: GithubSettingsActions; busy?: string; sources?: SourceRecord[];
+export function SettingsView({ libraryRoot = "", doctor, storage, github, busy, sources = [], sourceNeeds = [], sourceOutcomes = [], verifySources, replaceSource, addSource, appearance }: {
+  libraryRoot?: string; doctor?: DoctorReport; storage?: StorageSummary; github?: GithubSettingsActions; busy?: string; sources?: SourceRecord[];
   sourceNeeds?: SourceRequirement[]; sourceOutcomes?: SourceVerificationOutcome[]; verifySources?: () => void; replaceSource?: (source: SourceRecord) => void;
   addSource?: (profile: SourceProfile, archive: boolean) => void; appearance?: ThemeState;
 }) {
@@ -261,10 +261,43 @@ export function SettingsView({ libraryRoot = "", storage, github, busy, sources 
     <SourceHealth sources={sources} requirements={sourceNeeds} outcomes={sourceOutcomes} busy={busy} verify={verifySources} replace={replaceSource} add={addSource} />
     <StorageCard libraryRoot={storage?.library_root ?? libraryRoot} storage={storage} />
     <AppearanceSettings appearance={appearance} />
+    <HostReadiness doctor={doctor} />
     <AboutCard />
     <article className="settings-card"><p className="eyebrow">UPDATES</p><h2>Safe by default</h2><p>Stable is the default channel. Beta and rolling releases are always an explicit per-port choice.</p></article>
     <article className="settings-card"><p className="eyebrow">PRIVACY</p><h2>Local and source-safe</h2><p>Portcove does not upload game sources or collect telemetry. Source files remain where you keep them.</p></article>
   </section>;
+}
+
+function HostReadiness({ doctor }: { doctor?: DoctorReport }) {
+  return <article className="settings-card host-readiness">
+    <p className="eyebrow">HOST</p><h2><Icon glyph={Wrench} />Source tools</h2>
+    {doctor
+      ? <><p className="host-summary"><code>{doctor.platform}</code><span>{doctor.catalog_port_count} ports · {doctor.installed_port_count} installed · {doctor.registered_source_count} sources</span></p>
+        <div className="host-tool-list">{doctor.host_tools.map(tool => <HostToolRow key={tool.id} tool={tool} />)}</div></>
+      : <p>Checking source-tool readiness…</p>}
+    <p>Optional tools are required only when a matching compressed disc format needs validation or materialization.</p>
+  </article>;
+}
+
+function HostToolRow({ tool }: { tool: HostToolStatus }) {
+  const states = {
+    available: { label: "Ready", icon: CheckCircle2 },
+    missing: { label: "Not found", icon: CircleMinus },
+    misconfigured: { label: "Check path", icon: AlertTriangle },
+  };
+  const state = states[tool.state];
+  const location = tool.path ?? `Set ${tool.configuration_variable}`;
+  return <div className="host-tool-row">
+    <div className="host-tool-heading"><strong>{hostToolName(tool.id)}</strong><span className={`host-tool-state ${tool.state}`}><Icon glyph={state.icon} size="sm" />{state.label}</span></div>
+    <small>{tool.purpose}</small>
+    <code title={location}>{location}</code>
+  </div>;
+}
+
+function hostToolName(id: string) {
+  if (id === "dolphin_tool") return "DolphinTool";
+  if (id === "chdman") return "chdman";
+  return id.replaceAll("_", " ");
 }
 
 function StorageCard({ libraryRoot, storage }: { libraryRoot: string; storage?: StorageSummary }) {

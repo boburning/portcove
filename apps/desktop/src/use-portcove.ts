@@ -3,7 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { desktopApi } from "./api";
 import { confirmBackupDeletion, confirmBackupRestore, confirmPortRemoval } from "./confirmation";
 import { useGamepadNavigation } from "./gamepad";
-import type { ActivityRecord, BackupRecord, CatalogDocument, GithubAuthStatus, GithubDeviceLogin, OperationEvent, PortDefinition, PortStatus, ReconcileAction, SourceRecord, SourceVerificationOutcome, UpdateCheckOutcome } from "./types";
+import type { ActivityRecord, BackupRecord, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, OperationEvent, PortDefinition, PortStatus, ReconcileAction, SourceRecord, SourceVerificationOutcome, UpdateCheckOutcome } from "./types";
 import type { DetailActions } from "./components/DetailPanel";
 import { errorText, type Filter, type View } from "./view-model";
 import { currentUpdateSnapshot } from "./view-model";
@@ -13,22 +13,22 @@ export function usePortcoveData() {
   const [statuses, setStatuses] = useState<PortStatus[]>([]);
   const [sources, setSources] = useState<SourceRecord[]>([]);
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
-  const [storage, setStorage] = useState<Awaited<ReturnType<typeof desktopApi.storage>>>();
+  const [doctor, setDoctor] = useState<DoctorReport>();
   const refresh = useCallback(async () => {
-    const [nextCatalog, nextStatuses, nextSources, nextActivities, nextStorage] = await Promise.all([
-      desktopApi.catalog(), desktopApi.statuses(), desktopApi.sources(), desktopApi.activities(), desktopApi.storage(),
+    const [nextCatalog, nextStatuses, nextSources, nextActivities, nextDoctor] = await Promise.all([
+      desktopApi.catalog(), desktopApi.statuses(), desktopApi.sources(), desktopApi.activities(), desktopApi.doctor(),
     ]);
     setCatalog(nextCatalog);
     setStatuses(nextStatuses);
     setSources(nextSources);
     setActivities(nextActivities);
-    setStorage(nextStorage);
+    setDoctor(nextDoctor);
   }, []);
   useEffect(() => {
     const unlisten = listen<string>("portcove://library-changed", () => { void refresh(); });
     return () => { unlisten.then(dispose => dispose()); };
   }, [refresh]);
-  return { catalog, statuses, sources, activities, storage, refresh };
+  return { catalog, statuses, sources, activities, doctor, storage: doctor?.library, refresh };
 }
 
 export function useOperationState(refresh: () => Promise<void>) {

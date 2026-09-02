@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { ActivityRecord, BackupRecord, CatalogDocument, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, InstallPlan, InstallRecord, PortStatus, ReconcileOutcome, ReleaseChannel, RestoreResult, SourceRecord, SourceVerificationOutcome, StorageSummary, UpdateCheck, UpdateCheckOutcome, UpdatePolicy } from "./types";
+import type { ActivityRecord, BackupRecord, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, InstallPlan, InstallRecord, PortStatus, ReconcileOutcome, ReleaseChannel, RestoreResult, SourceRecord, SourceVerificationOutcome, UpdateCheck, UpdateCheckOutcome, UpdatePolicy } from "./types";
 
 export const desktopApi = {
   githubAuthStatus: () => invoke<GithubAuthStatus>("get_github_auth_status"),
@@ -20,7 +20,7 @@ export const desktopApi = {
   check: (portId: string) => invoke<UpdateCheck>("check_port", { portId }),
   checkInstalled: () => invoke<UpdateCheckOutcome[]>("check_installed"),
   reconcileInstalled: () => invoke<ReconcileOutcome[]>("reconcile_installed"),
-  storage: () => invoke<StorageSummary>("get_storage"),
+  doctor: () => invoke<DoctorReport>("get_doctor_report"),
   plan: (portId: string, channel: ReleaseChannel) => invoke<InstallPlan>("plan_port", { portId, channel }),
   openUserData: (portId: string) => invoke<string>("open_user_data", { portId }),
   setChannel: (portId: string, channel: ReleaseChannel) => invoke<PortStatus>("set_channel", { portId, channel }),

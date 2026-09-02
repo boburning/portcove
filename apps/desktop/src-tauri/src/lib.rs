@@ -5,10 +5,10 @@ use std::{
 
 use portcove_core::{
     ActivityRecord, AdoptionPreview, BackupRecord, CatalogDocument, CompositeReleaseProvider,
-    GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, GithubReleaseProvider,
-    InstallPlan, InstallRecord, Library, OperationEvent, PortStatus, PortcoveError,
-    PortcoveService, ReconcileResult, ReleaseChannel, ReleaseProvider, RestoreResult, SourceRecord,
-    SourceVerification, StorageSummary, UpdateCheck, UpdatePolicy, VerificationReport,
+    DoctorReport, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult,
+    GithubReleaseProvider, InstallPlan, InstallRecord, Library, OperationEvent, PortStatus,
+    PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel, ReleaseProvider,
+    RestoreResult, SourceRecord, SourceVerification, UpdateCheck, UpdatePolicy, VerificationReport,
 };
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
@@ -630,8 +630,8 @@ async fn launch_port(
 }
 
 #[tauri::command]
-fn get_storage(state: tauri::State<'_, DesktopState>) -> DesktopResult<StorageSummary> {
-    state.library.storage_summary().map_err(Into::into)
+fn get_doctor_report(state: tauri::State<'_, DesktopState>) -> DesktopResult<DoctorReport> {
+    service(&state)?.doctor().map_err(Into::into)
 }
 
 #[tauri::command]
@@ -711,7 +711,7 @@ pub fn run() {
             adopt_port,
             remove_port,
             launch_port,
-            get_storage,
+            get_doctor_report,
             open_user_data,
         ])
         .setup(|app| {

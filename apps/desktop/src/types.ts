@@ -118,6 +118,27 @@ export interface StorageSummary {
   volume_available_bytes: number;
 }
 
+export type HostToolState = "available" | "missing" | "misconfigured";
+export type HostToolSource = "environment" | "discovery";
+
+export interface HostToolStatus {
+  id: string;
+  state: HostToolState;
+  path?: string;
+  source?: HostToolSource;
+  configuration_variable: string;
+  purpose: string;
+}
+
+export interface DoctorReport {
+  platform: Platform;
+  library: StorageSummary;
+  catalog_port_count: number;
+  installed_port_count: number;
+  registered_source_count: number;
+  host_tools: HostToolStatus[];
+}
+
 export interface BackupRecord {
   id: string;
   port_id: string;

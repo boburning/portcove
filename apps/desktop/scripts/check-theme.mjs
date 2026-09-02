@@ -158,6 +158,7 @@ const contrastPairs = [
   ["warning text on subtle surface", "--color-warning-text", "--color-warning-subtle", 4.5],
   ["danger text on subtle surface", "--color-danger-text", "--color-danger-subtle", 4.5],
   ["interactive text on subtle surface", "--color-interactive-text", "--color-interactive-subtle", 4.5],
+  ["selected interactive text on subtle surface", "--color-interactive-text-strong", "--color-interactive-subtle", 4.5],
   ["focus on app background", "--color-focus", "--color-bg", 3],
   ["focus on elevated surface", "--color-focus", "--color-bg-elevated", 3],
   ["focus on raised surface", "--color-focus", "--color-bg-raised", 3],

@@ -84,7 +84,7 @@ function CurrentView({ data, ui, model, operations, github, updates, sourceHealt
 }) {
   if (ui.view === "updates") return <UpdateCenter ports={data.catalog?.ports ?? []} statuses={model.statusMap} activities={data.activities} outcomes={updates.outcomes} actions={updates.actions} busy={operations.busy}
     checkAll={() => { void updates.checkAll(); }} applyPolicies={() => { void updates.applyPolicies(); }} onSelect={ui.setSelectedId} onOpenSources={() => ui.setView("settings")} />;
-  if (ui.view === "settings") return <SettingsView storage={data.storage} github={github} busy={operations.busy} sources={data.sources} appearance={appearance}
+  if (ui.view === "settings") return <SettingsView doctor={data.doctor} storage={data.storage} github={github} busy={operations.busy} sources={data.sources} appearance={appearance}
     sourceOutcomes={sourceHealth.outcomes} verifySources={() => { void sourceHealth.verifyAll(); }} replaceSource={source => {
       const profile = data.catalog?.source_profiles.find(candidate => candidate.id === source.profile_id);
       void replaceRegisteredSource(profile, source, operations.perform, operations.setError);
