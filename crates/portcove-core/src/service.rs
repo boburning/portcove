@@ -1363,20 +1363,16 @@ fn replace_user_data(user_root: &Path, staged_data: &Path) -> Result<()> {
         fs::rename(user_root, &previous)?;
     }
     if let Err(install_error) = fs::rename(staged_data, user_root) {
-        if had_previous {
-            if let Err(rollback_error) = fs::rename(&previous, user_root) {
-                return Err(PortcoveError::state(format!(
-                    "restore failed ({install_error}) and the previous data could not be returned ({rollback_error}); recovery data remains at {}",
-                    previous.display()
-                )));
-            }
+        if had_previous && let Err(rollback_error) = fs::rename(&previous, user_root) {
+            return Err(PortcoveError::state(format!(
+                "restore failed ({install_error}) and the previous data could not be returned ({rollback_error}); recovery data remains at {}",
+                previous.display()
+            )));
         }
         return Err(install_error.into());
     }
-    if had_previous {
-        if let Err(error) = fs::remove_dir_all(&previous) {
-            tracing::warn!(path = %previous.display(), "restored data but could not remove the temporary previous copy: {error}");
-        }
+    if had_previous && let Err(error) = fs::remove_dir_all(&previous) {
+        tracing::warn!(path = %previous.display(), "restored data but could not remove the temporary previous copy: {error}");
     }
     Ok(())
 }

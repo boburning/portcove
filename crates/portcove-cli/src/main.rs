@@ -877,10 +877,10 @@ fn exec_game(service: &PortcoveService, args: ExecArgs) -> Result<ExitCode> {
                 spec.executable.display()
             ))
         })?;
-    if status.success() {
-        if let Err(error) = service.library().record_successful_launch(&args.port_id) {
-            eprintln!("Portcove warning: could not record successful launch: {error}");
-        }
+    if status.success()
+        && let Err(error) = service.library().record_successful_launch(&args.port_id)
+    {
+        eprintln!("Portcove warning: could not record successful launch: {error}");
     }
     service.collect_user_data_from_install(&args.port_id, &install_root)?;
     Ok(ExitCode::from(normalize_process_exit(status.code())))

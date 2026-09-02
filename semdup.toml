@@ -1,0 +1,13 @@
+db = ".semdup/portcove.sqlite"
+
+[extract]
+roots = ["crates", "apps/desktop/src-tauri", "apps/desktop/src"]
+respect_gitignore = true
+granularity = ["function"]
+
+[scan]
+threshold = 0.85
+min_lines = 8
+skip_tests = true
+index = "exact"
+min_cluster = 3

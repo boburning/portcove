@@ -32,10 +32,10 @@ try {
     if ([System.IO.File]::Exists($temporaryArchive)) {
         [System.IO.File]::Delete($temporaryArchive)
     }
-    & tar -a -cf $temporaryArchive --exclude=./target --exclude=./work --exclude=./outputs --exclude=./apps/desktop/node_modules --exclude=./apps/desktop/dist --exclude=./apps/desktop/src-tauri/gen --exclude=./.git --exclude=./.fallow --exclude=./scripts/.fallow --exclude=./apps/desktop/.fallow --exclude=./.codex-remote-attachments .
+    & tar -a -cf $temporaryArchive --exclude=./target --exclude=./work --exclude=./outputs --exclude=./apps/desktop/node_modules --exclude=./apps/desktop/dist --exclude=./apps/desktop/src-tauri/gen --exclude=./.git --exclude=./.fallow --exclude=./.rscheck --exclude=./.semdup --exclude=./semdup.sqlite --exclude=./scripts/.fallow --exclude=./apps/desktop/.fallow --exclude=./.codex-remote-attachments .
     if ($LASTEXITCODE -ne 0) { throw "Source archive failed with exit code $LASTEXITCODE" }
     $forbiddenArchiveEntries = & tar -tf $temporaryArchive | Where-Object {
-        $_ -match '(^|/)(\.git|\.fallow|\.codex-remote-attachments)(/|$)' -or
+        $_ -match '(^|/)(\.git|\.fallow|\.rscheck|\.semdup|\.codex-remote-attachments)(/|$)' -or
         $_ -match '^\./(target|work|outputs|apps/desktop/node_modules|apps/desktop/dist|apps/desktop/src-tauri/gen)(/|$)'
     }
     if ($LASTEXITCODE -ne 0) { throw "Source archive inspection failed with exit code $LASTEXITCODE" }

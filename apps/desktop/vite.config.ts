@@ -6,5 +6,5 @@ export default defineConfig({
   clearScreen: false,
   server: { strictPort: true },
   envPrefix: ["VITE_", "TAURI_"],
-  build: { target: ["es2021", "chrome105", "safari13"], minify: "esbuild", sourcemap: true },
+  build: { target: ["es2021", "chrome105", "safari13"], sourcemap: true },
 });

@@ -3,6 +3,9 @@
 /apps/desktop/dist/
 /apps/desktop/src-tauri/gen/
 .fallow/
+.rscheck/
+.semdup/
+semdup.sqlite*
 /.codex-remote-attachments/
 /work/
 /outputs/

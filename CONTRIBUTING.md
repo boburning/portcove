@@ -4,18 +4,16 @@ Keep the core reusable, the catalog declarative, and the CLI stable for external
 
 Before submitting a change:
 
-```text
-cargo fmt --all -- --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
-cd apps/desktop
-pnpm install --frozen-lockfile
-pnpm build
-pnpm test
-pnpm exec fallow --format json --quiet --explain
+```powershell
+.\scripts\bootstrap-quality-tools.ps1
+pnpm --dir apps/desktop install --frozen-lockfile
+just check
+just audit
 ```
 
-Do not suppress Fallow findings without a short, reviewable reason. Prefer deleting dead code, shrinking responsibilities, or adding useful tests. Catalog changes must pass the live repository audit and must not add archived repositories.
+On Linux or macOS, use `./scripts/bootstrap-quality-tools.sh`. Pass `-IncludeDeep` or `--include-deep` when you also want the optional semantic-duplication, dead-public-API, and mutation tools.
+
+Do not suppress deterministic findings without a narrow, reviewable reason. Treat structural findings as evidence rather than instructions for speculative refactors. Follow [AGENTS.md](AGENTS.md) and [docs/QUALITY.md](docs/QUALITY.md). Catalog changes must pass the live repository audit and must not add archived repositories.
 
 Keep commits free of source game data, signing secrets, generated build output, local libraries, and Fallow caches.
 

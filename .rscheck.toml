@@ -1,0 +1,65 @@
+version = 3
+
+[engine]
+semantic = "auto"
+toolchain = "stable"
+
+[workspace]
+include = [
+  "crates/**/*.rs",
+  "apps/desktop/src-tauri/**/*.rs",
+]
+exclude = [
+  "target/**",
+  ".git/**",
+]
+
+[output]
+format = "text"
+
+[adapters.clippy]
+enabled = false
+
+[rules."architecture.qualified_module_paths"]
+level = "allow"
+
+[rules."shape.file_complexity"]
+level = "warn"
+mode = "cyclomatic"
+max_file = 300
+max_fn = 25
+
+[rules."shape.duplicate_logic"]
+level = "warn"
+
+[rules."shape.responsibility_split"]
+level = "warn"
+
+[rules."design.god_object"]
+level = "warn"
+
+[rules."portability.absolute_literal_paths"]
+level = "deny"
+allow_regex = [
+  '^/usr/bin/dolphin-tool$',
+  '^/usr/local/bin/dolphin-tool$',
+  '^/app/bin/dolphin-tool$',
+  '^/opt/homebrew/bin/dolphin-tool$',
+  '^/Applications/Dolphin\.app/Contents/MacOS/DolphinTool$',
+  '^/usr/bin/mame/chdman$',
+  '^/usr/bin/chdman$',
+  '^/usr/local/bin/chdman$',
+  '^/opt/homebrew/bin/chdman$',
+  '^/Applications/MAME/chdman$',
+  '^D:\\ROMs\\Example \(Disc [12]\)\.chd$',
+  '^D:\\ROMs\\Game\.chd$',
+]
+
+[rules."testing.external_test_modules"]
+level = "allow"
+
+[rules."design.naming_policy"]
+level = "allow"
+
+[rules."perf.hot_path_allocations"]
+level = "allow"

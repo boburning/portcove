@@ -1,0 +1,9 @@
+[[production]]
+package = "portcove-cli"
+bin = "portcove"
+reason = "shipped automation and launcher integration binary"
+
+[[production]]
+package = "portcove-desktop"
+bin = "portcove-desktop"
+reason = "shipped Tauri desktop application"

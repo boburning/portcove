@@ -59,9 +59,9 @@ function validateVersions(metadata, options) {
 }
 
 const metadataRules = [
-  metadata => metadata.desktopPackage.packageManager === "pnpm@11.19.0"
+  metadata => metadata.desktopPackage.packageManager === "pnpm@11.25.0"
     ? undefined
-    : "desktop package manager must remain pinned to pnpm@11.19.0",
+    : "desktop package manager must remain pinned to pnpm@11.25.0",
   metadata => metadata.cargo.license === "MIT OR Apache-2.0"
     ? undefined
     : "Cargo license must be MIT OR Apache-2.0",

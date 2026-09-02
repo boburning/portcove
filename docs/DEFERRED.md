@@ -7,6 +7,7 @@ Statuses:
 - `waiting`: progress requires a person, account, device, or external decision.
 - `ready`: it can be resumed without resolving another product decision.
 - `later`: deliberately outside the current functionality-first slice.
+- `optional-tooling`: an advisory capability is unavailable on one host but required release gates still run.
 
 ## PCV-DEF-001 — Register the public GitHub App
 
@@ -195,6 +196,13 @@ Resume checklist:
 - Already implemented: core/CLI/Tauri backup creation, listing, restore, and deletion; deterministic tree SHA-256; per-port locking; pre-copy active-data collection; fail-closed symlink handling; same-volume atomic publication; explicit CLI and native GUI confirmation; automatic safety backup; typed results and activity; tamper, empty-root, independence, replacement, and targeted-deletion regression tests.
 - Why deferred: automated filesystem tests cannot prove that an upstream port accepts the restored files or that the GUI's warning and snapshot history remain clear during a real save/load recovery.
 - Resume condition: choose one installed port with a disposable real save, create a backup, advance or alter the save, restore from CLI and then GUI, verify the game loads the restored state, verify the automatic safety backup can recover the newer state, and record visual/controller behavior under `PCV-DEF-011`/`PCV-DEF-005`.
+
+## PCV-DEF-013 — Enable semdup on the Windows development host
+
+- Status: `optional-tooling`
+- Evidence: semdup 0.2.0 builds through its Rust dependencies but fails while linking ONNX Runtime with the installed Visual Studio 2019 linker because required newer C++ standard-library symbols are unavailable. The pinned bootstrap now reports this optional failure without preventing required quality tools or cargo-mutants from being installed.
+- Impact: none on the blocking `just check` or `just audit` definitions. Rust duplication remains visible through rscheck, and TypeScript duplication remains covered by Fallow. `just deep` still attempts semdup and reports its absence as advisory.
+- Resume condition: install a current supported Visual Studio/MSVC Build Tools toolchain and rerun `scripts/bootstrap-quality-tools.ps1 -IncludeDeep`, or run `just deep` from a supported Linux/macOS environment.
 
 When another game cannot be completed, add it to this section even if it never enters `catalog.json`. Record the attempted upstream version/channel, platform, exact class of source mismatch or artifact failure, and the least ambiguous resume condition. Do not record or commit source game data.
 

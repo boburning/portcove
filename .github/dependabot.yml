@@ -5,25 +5,28 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
-    ignore:
-      - dependency-name: "*"
-        update-types:
-          - version-update:semver-major
+    groups:
+      github-actions:
+        patterns: ["*"]
   - package-ecosystem: cargo
     directory: /
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
-    ignore:
-      - dependency-name: "*"
-        update-types:
-          - version-update:semver-major
+    groups:
+      rust-crypto:
+        patterns: ["sha1", "sha2", "digest", "crypto-common", "block-buffer"]
+      tauri-rust:
+        patterns: ["tauri", "tauri-build", "tauri-plugin-*"]
   - package-ecosystem: npm
     directory: /apps/desktop
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
-    ignore:
-      - dependency-name: "*"
-        update-types:
-          - version-update:semver-major
+    groups:
+      frontend-toolchain:
+        patterns: ["typescript", "vite", "vitest", "@vitejs/plugin-react"]
+      react:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
+      tauri-javascript:
+        patterns: ["@tauri-apps/*"]

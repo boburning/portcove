@@ -37,7 +37,7 @@ This repository is an early, working implementation. Catalog and state commands 
 
 ## Build
 
-Requirements: Rust 1.85 or newer, Node 24, pnpm 11, and the [Tauri 2 platform prerequisites](https://v2.tauri.app/start/prerequisites/).
+Requirements: Rust 1.88 or newer, Node 24, pnpm 11, and the [Tauri 2 platform prerequisites](https://v2.tauri.app/start/prerequisites/).
 
 ```powershell
 fnm use
@@ -50,11 +50,12 @@ pnpm desktop:dev
 Build and test the Rust workspace from the repository root:
 
 ```powershell
-cargo fmt --all -- --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
+.\scripts\bootstrap-quality-tools.ps1
+just check
 cargo build -p portcove-cli --release
 ```
+
+Linux and macOS developers can use `./scripts/bootstrap-quality-tools.sh`. Use `just audit` before substantial work is considered complete and `just deep` for large structural changes. See the [quality and codebase-intelligence guide](docs/QUALITY.md) for the deterministic/advisory boundary and current ratchet baseline.
 
 After a Windows Tauri bundle build, its isolated unsigned install/launch/uninstall lifecycle can be repeated without touching an existing Portcove library:
 
