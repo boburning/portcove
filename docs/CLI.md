@@ -10,6 +10,8 @@ The CLI API schema version is independent of the Portcove release version. Every
 
 Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits operation events followed by one final `type: "result"` object. Diagnostics never contaminate JSON stdout.
 
+Argument-parser failures also use the machine envelope when `--json` or `--jsonl` is present. Their stable command name is `cli`, their error code is `usage`, and they exit with code 2. Help and version output remain intentionally human-readable even when a machine-output flag is supplied.
+
 ## Discovery
 
 ```text

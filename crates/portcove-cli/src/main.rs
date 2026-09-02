@@ -4,7 +4,7 @@ use std::{
     process::{Command, ExitCode, Stdio},
 };
 
-use clap::{Args, Parser, Subcommand, ValueEnum};
+use clap::{Args, Parser, Subcommand, ValueEnum, error::ErrorKind};
 use portcove_core::{
     API_SCHEMA_VERSION, ActivityRecord, BackupRecord, CapabilityDocument, CatalogDocument,
     DoctorReport, ErrorCode, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult,
@@ -358,7 +358,31 @@ struct SourceBatchOutcome {
 
 #[tokio::main]
 async fn main() -> ExitCode {
-    let cli = Cli::parse();
+    let raw_args = std::env::args_os().collect::<Vec<_>>();
+    let requested_mode = requested_output_mode(&raw_args);
+    let cli = match Cli::try_parse_from(raw_args) {
+        Ok(cli) => cli,
+        Err(error)
+            if matches!(
+                error.kind(),
+                ErrorKind::DisplayHelp | ErrorKind::DisplayVersion
+            ) =>
+        {
+            let exit_code = error.exit_code().try_into().unwrap_or(2);
+            let _ = error.print();
+            return ExitCode::from(exit_code);
+        }
+        Err(error) if requested_mode != OutputMode::Human => {
+            let error = PortcoveError::usage(error.to_string().trim());
+            render_error(requested_mode, "cli", &error);
+            return ExitCode::from(exit_code(&error));
+        }
+        Err(error) => {
+            let exit_code = error.exit_code().try_into().unwrap_or(2);
+            let _ = error.print();
+            return ExitCode::from(exit_code);
+        }
+    };
     let filter = match cli.verbose {
         0 => "warn",
         1 => "info",
@@ -383,6 +407,17 @@ async fn main() -> ExitCode {
             ExitCode::from(exit_code(&error))
         }
     }
+}
+
+fn requested_output_mode(args: &[std::ffi::OsString]) -> OutputMode {
+    args.iter()
+        .skip(1)
+        .find_map(|argument| match argument.to_str() {
+            Some("--json") => Some(OutputMode::Json),
+            Some("--jsonl") => Some(OutputMode::Jsonl),
+            _ => None,
+        })
+        .unwrap_or(OutputMode::Human)
 }
 
 async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
@@ -1009,10 +1044,29 @@ fn exit_code(error: &PortcoveError) -> u8 {
 
 fn command_name(command: &Commands) -> &'static str {
     match command {
-        Commands::Auth { .. } => "auth",
-        Commands::Backup { .. } => "backup",
-        Commands::Catalog { .. } => "catalog",
-        Commands::Source { .. } => "source",
+        Commands::Auth { command } => match command {
+            AuthCommand::Status => "auth.status",
+            AuthCommand::Login => "auth.login",
+            AuthCommand::SetToken { .. } => "auth.set-token",
+            AuthCommand::Logout => "auth.logout",
+        },
+        Commands::Backup { command } => match command {
+            BackupCommand::Create { .. } => "backup.create",
+            BackupCommand::List { .. } => "backup.list",
+            BackupCommand::Delete { .. } => "backup.delete",
+            BackupCommand::Restore { .. } => "backup.restore",
+        },
+        Commands::Catalog { command } => match command {
+            CatalogCommand::List => "catalog.list",
+            CatalogCommand::Export => "catalog.export",
+            CatalogCommand::Show { .. } => "catalog.show",
+        },
+        Commands::Source { command } => match command {
+            SourceCommand::Add { .. } => "source.add",
+            SourceCommand::List => "source.list",
+            SourceCommand::Verify(_) => "source.verify",
+            SourceCommand::Remove { .. } => "source.remove",
+        },
         Commands::Status { .. } => "status",
         Commands::Activity { .. } => "activity",
         Commands::Storage => "storage",
@@ -1030,11 +1084,11 @@ fn command_name(command: &Commands) -> &'static str {
         Commands::Activate { .. } => "activate",
         Commands::Rollback { .. } => "rollback",
         Commands::Remove { .. } => "remove",
-        Commands::Channel { .. } => "channel",
-        Commands::Policy { .. } => "policy",
+        Commands::Channel { .. } => "channel.set",
+        Commands::Policy { .. } => "policy.set",
         Commands::Exec(_) => "exec",
         Commands::Capabilities => "capabilities",
-        Commands::Schema { .. } => "schema",
+        Commands::Schema { .. } => "schema.export",
     }
 }
 
@@ -1247,6 +1301,33 @@ mod tests {
                 command: CatalogCommand::Export
             }
         ));
+    }
+
+    #[test]
+    fn nested_command_names_match_their_machine_response_names() {
+        let cases = [
+            (vec!["portcove", "auth", "status"], "auth.status"),
+            (
+                vec!["portcove", "backup", "list", "lighthouse"],
+                "backup.list",
+            ),
+            (vec!["portcove", "catalog", "list"], "catalog.list"),
+            (vec!["portcove", "source", "list"], "source.list"),
+            (
+                vec!["portcove", "channel", "set", "lighthouse", "beta"],
+                "channel.set",
+            ),
+            (
+                vec!["portcove", "policy", "set", "lighthouse", "stage"],
+                "policy.set",
+            ),
+            (vec!["portcove", "schema", "export"], "schema.export"),
+        ];
+
+        for (args, expected) in cases {
+            let cli = Cli::try_parse_from(args).unwrap();
+            assert_eq!(super::command_name(&cli.command), expected);
+        }
     }
 
     #[test]
