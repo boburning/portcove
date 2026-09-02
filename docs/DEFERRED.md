@@ -204,6 +204,13 @@ Resume checklist:
 - Impact: none on the blocking `just check` or `just audit` definitions. Rust duplication remains visible through rscheck, and TypeScript duplication remains covered by Fallow. `just deep` still attempts semdup and reports its absence as advisory.
 - Resume condition: install a current supported Visual Studio/MSVC Build Tools toolchain and rerun `scripts/bootstrap-quality-tools.ps1 -IncludeDeep`, or run `just deep` from a supported Linux/macOS environment.
 
+## PCV-DEF-014 — Resolve the Tauri Linux GLib unsoundness advisory
+
+- Status: `upstream-blocked`
+- Evidence: GitHub Dependabot alert 1 reports GHSA-wrw7-89jp-8q8g against Linux-only `glib 0.18.5`. `cargo tree --workspace --target x86_64-unknown-linux-gnu -i glib@0.18.5` traces it to Tauri 2.11.5's GTK3/webkit2gtk stack. Two security-update attempts confirmed that `0.18.5` is the latest resolvable version while the advisory marks `0.20.0` as the first fixed release. The current Portcove code does not directly use `glib` or `VariantStrIter`.
+- Impact: the alert remains open and visible. Windows and macOS do not compile this GTK dependency path; a Linux build inherits the upstream unsound iterator implementation if that API is reached. The normal cargo-deny gate does not classify this RustSec informational unsoundness record as a blocking vulnerability.
+- Resume condition: upgrade when Tauri's Linux runtime adopts a maintained GTK binding stack compatible with `glib >=0.20`, or evaluate a narrowly maintained and independently verified backport if Portcove must ship Linux before that upstream migration. Do not dismiss the alert or add a broad policy exception merely to obtain a green dashboard.
+
 When another game cannot be completed, add it to this section even if it never enters `catalog.json`. Record the attempted upstream version/channel, platform, exact class of source mismatch or artifact failure, and the least ambiguous resume condition. Do not record or commit source game data.
 
 ## Adding an item

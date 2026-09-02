@@ -799,12 +799,12 @@ fn prepare_n64_source(source: &Path, destination: &Path) -> Result<()> {
     match rom[..4] {
         [0x80, 0x37, 0x12, 0x40] => {}
         [0x37, 0x80, 0x40, 0x12] => {
-            for pair in rom.chunks_exact_mut(2) {
+            for pair in rom.as_chunks_mut::<2>().0 {
                 pair.swap(0, 1);
             }
         }
         [0x40, 0x12, 0x37, 0x80] => {
-            for word in rom.chunks_exact_mut(4) {
+            for word in rom.as_chunks_mut::<4>().0 {
                 word.reverse();
             }
         }
