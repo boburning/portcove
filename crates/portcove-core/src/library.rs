@@ -11,9 +11,9 @@ use rusqlite::{Connection, OptionalExtension, params};
 use sha2::{Digest, Sha256};
 
 use crate::{
-    ActivityOperation, ActivityRecord, ActivityStatus, ActivityTargetKind, InstallRecord,
-    PortStatus, PortcoveError, ReleaseChannel, Result, SourceRecord, StorageSummary, UpdateCheck,
-    UpdatePolicy, UpdateSnapshot, database,
+    ActivityOperation, ActivityRecord, ActivityStatus, ActivityTargetKind, ArtifactIdentity,
+    InstallRecord, PortStatus, PortcoveError, ReleaseChannel, Result, SourceRecord, StorageSummary,
+    UpdateCheck, UpdatePolicy, UpdateSnapshot, database,
 };
 
 #[derive(Debug, Clone)]
@@ -440,8 +440,10 @@ impl Library {
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
         transaction.execute(
-            "INSERT INTO installs(id, port_id, version, path, channel, installed_at, verified, staged)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+            "INSERT INTO installs(
+               id, port_id, version, path, channel, installed_at, verified, staged,
+               artifact_name, artifact_sha256, artifact_size, manifest_sha256, selected_executable
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
              ON CONFLICT(id) DO UPDATE SET
                port_id=excluded.port_id,
                version=excluded.version,
@@ -449,11 +451,26 @@ impl Library {
                channel=excluded.channel,
                installed_at=excluded.installed_at,
                verified=excluded.verified,
-               staged=excluded.staged",
+               staged=excluded.staged,
+               artifact_name=excluded.artifact_name,
+               artifact_sha256=excluded.artifact_sha256,
+               artifact_size=excluded.artifact_size,
+               manifest_sha256=excluded.manifest_sha256,
+               selected_executable=excluded.selected_executable",
             params![
-                install.id, install.port_id, install.version, install.path.to_string_lossy(),
-                install.channel.to_string(), install.installed_at, install.verified as i64,
+                install.id,
+                install.port_id,
+                install.version,
+                install.path.to_string_lossy(),
+                install.channel.to_string(),
+                install.installed_at,
+                install.verified as i64,
                 (!activate) as i64,
+                install.artifact.asset_name,
+                install.artifact.sha256,
+                install.artifact.size,
+                install.manifest_sha256,
+                install.selected_executable.to_string_lossy(),
             ],
         )?;
         transaction.execute(
@@ -525,17 +542,48 @@ impl Library {
 
     fn install_by_id(connection: &Connection, id: Option<&str>) -> Result<Option<InstallRecord>> {
         let Some(id) = id else { return Ok(None) };
-        let raw = connection.query_row(
-            "SELECT id, port_id, version, path, channel, installed_at, verified, staged FROM installs WHERE id=?1",
-            [id],
-            |row| Ok((
-                row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?,
-                row.get::<_, String>(3)?, row.get::<_, String>(4)?, row.get::<_, i64>(5)?,
-                row.get::<_, i64>(6)?, row.get::<_, i64>(7)?,
-            )),
-        ).optional()?;
+        let raw = connection
+            .query_row(
+                "SELECT id, port_id, version, path, channel, installed_at, verified, staged,
+                    artifact_name, artifact_sha256, artifact_size, manifest_sha256,
+                    selected_executable
+             FROM installs WHERE id=?1",
+                [id],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, String>(3)?,
+                        row.get::<_, String>(4)?,
+                        row.get::<_, i64>(5)?,
+                        row.get::<_, i64>(6)?,
+                        row.get::<_, i64>(7)?,
+                        row.get::<_, String>(8)?,
+                        row.get::<_, String>(9)?,
+                        row.get::<_, u64>(10)?,
+                        row.get::<_, String>(11)?,
+                        row.get::<_, String>(12)?,
+                    ))
+                },
+            )
+            .optional()?;
         raw.map(
-            |(id, port_id, version, path, channel, installed_at, verified, staged)| {
+            |(
+                id,
+                port_id,
+                version,
+                path,
+                channel,
+                installed_at,
+                verified,
+                staged,
+                artifact_name,
+                artifact_sha256,
+                artifact_size,
+                manifest_sha256,
+                selected_executable,
+            )| {
                 Ok(InstallRecord {
                     id,
                     port_id,
@@ -545,6 +593,13 @@ impl Library {
                     installed_at,
                     verified: verified != 0,
                     staged: staged != 0,
+                    artifact: ArtifactIdentity {
+                        asset_name: artifact_name,
+                        sha256: artifact_sha256,
+                        size: artifact_size,
+                    },
+                    manifest_sha256,
+                    selected_executable: PathBuf::from(selected_executable),
                 })
             },
         )
@@ -563,6 +618,24 @@ impl Library {
                  WHERE port_id=?1 AND version=?2
                  ORDER BY installed_at DESC LIMIT 1",
                 params![port_id, version],
+                |row| row.get(0),
+            )
+            .optional()?;
+        Self::install_by_id(&connection, id.as_deref())
+    }
+
+    pub fn install_by_artifact(
+        &self,
+        port_id: &str,
+        artifact_sha256: &str,
+    ) -> Result<Option<InstallRecord>> {
+        let connection = self.connection()?;
+        let id: Option<String> = connection
+            .query_row(
+                "SELECT id FROM installs
+                 WHERE port_id=?1 AND lower(artifact_sha256)=lower(?2)
+                 ORDER BY installed_at DESC LIMIT 1",
+                params![port_id, artifact_sha256],
                 |row| row.get(0),
             )
             .optional()?;
@@ -698,6 +771,9 @@ mod tests {
                         installed_at: Library::now(),
                         verified: true,
                         staged: false,
+                        artifact: ArtifactIdentity::default(),
+                        manifest_sha256: String::new(),
+                        selected_executable: PathBuf::new(),
                     },
                     true,
                 )
@@ -726,6 +802,9 @@ mod tests {
                         installed_at: Library::now(),
                         verified: true,
                         staged: !activate,
+                        artifact: ArtifactIdentity::default(),
+                        manifest_sha256: String::new(),
+                        selected_executable: PathBuf::new(),
                     },
                     activate,
                 )

@@ -14,11 +14,11 @@ use uuid::Uuid;
 use crate::{
     ActivityOperation, ActivityRecord, ActivityStatus, ActivityTargetKind, AdapterRegistry,
     BackupRecord, Catalog, CompositeReleaseProvider, DoctorReport, InstallPlan, InstallPlanAction,
-    InstallRecord, InstallRequest, InstallSourceRequirement, Installer, LaunchBlocker,
-    LaunchReadiness, Library, OperationCoordinator, OperationEvent, OperationResult, Platform,
-    PortDefinition, PortOperationGuard, PortPaths, PortStatus, PortcoveError, ReconcileAction,
-    ReconcileResult, ReleaseChannel, ReleaseProvider, RepairItem, RepairItemKind, RepairPlan,
-    ResolvedRelease, RestoreResult, Result, SourceRecord, SourceRequirementRole,
+    InstallQualification, InstallRecord, InstallRequest, InstallSourceRequirement, Installer,
+    LaunchBlocker, LaunchReadiness, Library, OperationCoordinator, OperationEvent, OperationResult,
+    Platform, PortDefinition, PortOperationGuard, PortPaths, PortStatus, PortcoveError,
+    ReconcileAction, ReconcileResult, ReleaseChannel, ReleaseProvider, RepairItem, RepairItemKind,
+    RepairPlan, ResolvedRelease, RestoreResult, Result, SourceRecord, SourceRequirementRole,
     SourceVerification, UpdateCheck, UpdatePolicy, VerificationReport,
     operation::{
         LifecycleFaultInjector, LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind,
@@ -49,6 +49,15 @@ pub struct PortcoveService {
 struct SourceOverrides<'a> {
     source: Option<&'a Path>,
     bios: Option<&'a Path>,
+}
+
+fn artifact_matches_release(install: &InstallRecord, release: &ResolvedRelease) -> bool {
+    install
+        .artifact
+        .sha256
+        .eq_ignore_ascii_case(&release.asset.sha256)
+        && install.artifact.asset_name == release.asset.name
+        && (release.asset.size == 0 || install.artifact.size == release.asset.size)
 }
 
 struct OperationReporter<'a, F> {
@@ -655,20 +664,20 @@ impl PortcoveService {
         if status
             .active
             .as_ref()
-            .is_some_and(|install| install.version == release.version)
+            .is_some_and(|install| artifact_matches_release(install, release))
         {
             return Ok(InstallPlanAction::AlreadyActive);
         }
         if status
             .staged
             .as_ref()
-            .is_some_and(|install| install.version == release.version)
+            .is_some_and(|install| artifact_matches_release(install, release))
         {
             return Ok(InstallPlanAction::UseStaged);
         }
         let Some(retained) = self
             .library
-            .install_by_version(&status.port_id, &release.version)?
+            .install_by_artifact(&status.port_id, &release.asset.sha256)?
         else {
             return Ok(InstallPlanAction::Download);
         };
@@ -767,13 +776,19 @@ impl PortcoveService {
             .active
             .as_ref()
             .map(|install| install.version.clone());
-        let update_available = installed_version
-            .as_deref()
-            .is_none_or(|version| version != release.version);
+        let installed_artifact = status
+            .active
+            .as_ref()
+            .map(|install| install.artifact.clone());
+        let update_available = status
+            .active
+            .as_ref()
+            .is_none_or(|install| !artifact_matches_release(install, release));
         let check = UpdateCheck {
             port_id: port_id.into(),
             channel: status.channel,
             installed_version,
+            installed_artifact,
             update_available,
             release: release.clone(),
         };
@@ -1027,13 +1042,15 @@ impl PortcoveService {
         F: FnMut(OperationEvent),
     {
         if let Some(active) = &status.active
-            && active.version == release.version
+            && artifact_matches_release(active, &release)
         {
+            Installer::new(self.library.clone())?.verify_critical(active)?;
             return Ok(active.clone());
         }
         if let Some(staged) = &status.staged
-            && staged.version == release.version
+            && artifact_matches_release(staged, &release)
         {
+            Installer::new(self.library.clone())?.verify_critical(staged)?;
             return if activate {
                 self.activate_staged_locked(&port.id, reporter.operation.operation_id())
             } else {
@@ -1042,14 +1059,9 @@ impl PortcoveService {
         }
         if let Some(mut existing) = self
             .library
-            .install_by_version(&port.id, &release.version)?
+            .install_by_artifact(&port.id, &release.asset.sha256)?
         {
-            if !existing.verified {
-                return Err(PortcoveError::verification(format!(
-                    "existing {} version {} is not verified",
-                    port.name, release.version
-                )));
-            }
+            Installer::new(self.library.clone())?.verify_critical(&existing)?;
             self.collect_active_user_data_if_launched(&port.id)?;
             self.library.register_install(&existing, activate)?;
             existing.staged = !activate;
@@ -1059,6 +1071,7 @@ impl PortcoveService {
         let source = self.validate_and_remember_source(port, overrides.source)?;
         let bios = self.validate_and_remember_bios(port, overrides.bios)?;
         let platform = Platform::current()?;
+        let qualification = InstallQualification::from_port(port, platform)?;
         let managed = self
             .managed_preparation(
                 port,
@@ -1076,6 +1089,7 @@ impl PortcoveService {
                     release,
                     activate,
                     managed,
+                    qualification,
                 },
                 reporter.operation,
                 &mut *reporter.emit,
@@ -1310,6 +1324,10 @@ impl PortcoveService {
         let result = (|| {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "rollback")?;
+            let previous = self.status(port_id)?.previous.ok_or_else(|| {
+                PortcoveError::not_found(format!("{port_id} has no rollback version"))
+            })?;
+            Installer::new(self.library.clone())?.verify_critical(&previous)?;
             self.collect_active_user_data_if_launched(port_id)?;
             self.library.rollback(port_id)
         })();
@@ -1335,6 +1353,7 @@ impl PortcoveService {
             .status(port_id)?
             .staged
             .ok_or_else(|| PortcoveError::not_found(format!("{port_id} has no staged version")))?;
+        Installer::new(self.library.clone())?.verify_critical(&staged)?;
         let store = OperationStore::new(self.library.clone());
         let mut lifecycle =
             LifecycleOperation::new(operation_id, LifecycleOperationKind::Activate, port_id);
@@ -1376,9 +1395,8 @@ impl PortcoveService {
         let mut detected = Vec::new();
         if let Some(id) = selected_port_id {
             let port = self.catalog.port(id)?;
-            self.adapters
-                .get(port.adapter)
-                .find_executable(port, platform, source)?;
+            let qualification = InstallQualification::from_port(port, platform)?;
+            crate::install::resolve_declared_executable(source, &qualification)?;
             detected.push(id.to_owned());
         } else {
             for port in self
@@ -1394,10 +1412,10 @@ impl PortcoveService {
                 {
                     continue;
                 }
-                if self
-                    .adapters
-                    .get(port.adapter)
-                    .find_executable(port, platform, source)
+                if InstallQualification::from_port(port, platform)
+                    .and_then(|qualification| {
+                        crate::install::resolve_declared_executable(source, &qualification)
+                    })
                     .is_ok()
                 {
                     detected.push(port.id.clone());
@@ -1443,24 +1461,21 @@ impl PortcoveService {
         let operation_root = self.library.staging_dir().join(&activity.id);
         let timestamp = Library::now();
         let version = format!("adopted-{timestamp}");
-        let destination = self.library.versions_dir().join(&port_id).join(&version);
         lifecycle.paths.staging = Some(operation_root.clone());
-        lifecycle.paths.final_path = Some(destination.clone());
         lifecycle.activate = true;
         store.put(&mut lifecycle)?;
         let result = (|| {
             let port = self.catalog.port(&port_id)?;
+            let platform = Platform::current()?;
+            let qualification = InstallQualification::from_port(port, platform)?;
             let _operation = self.library.try_lock_port(&port_id, "adopt")?;
-            if destination.exists() {
-                return Err(PortcoveError::conflict(
-                    "adoption destination already exists",
-                ));
-            }
             let payload_root = operation_root.join("payload");
             let staged_user = operation_root.join("user");
             fs::create_dir_all(&operation_root)?;
             copy_tree(source, &payload_root)?;
-            let persistent_root = self.persistence_root(port, source)?;
+            let source_executable =
+                crate::install::resolve_declared_executable(source, &qualification)?;
+            let persistent_root = qualification.persistence_root(source, &source_executable);
             for relative in &port.persistent_paths {
                 let candidate = persistent_root.join(relative);
                 if candidate.exists() {
@@ -1468,7 +1483,27 @@ impl PortcoveService {
                 }
             }
             let installer = Installer::new(self.library.clone())?;
-            installer.create_manifest(&port_id, &version, &payload_root)?;
+            let artifact = crate::install::local_artifact_identity(&payload_root, &qualification)?;
+            let destination = self
+                .library
+                .versions_dir()
+                .join(&port_id)
+                .join(&artifact.sha256);
+            if destination.exists() {
+                return Err(PortcoveError::conflict(
+                    "an identical adopted artifact already exists",
+                ));
+            }
+            lifecycle.paths.final_path = Some(destination.clone());
+            store.put(&mut lifecycle)?;
+            let (manifest_sha256, selected_executable) = installer.create_manifest(
+                &activity.id,
+                &port_id,
+                &version,
+                &artifact,
+                &qualification,
+                &payload_root,
+            )?;
             let install = InstallRecord {
                 id: activity.id.clone(),
                 port_id: port_id.clone(),
@@ -1478,6 +1513,9 @@ impl PortcoveService {
                 installed_at: timestamp,
                 verified: true,
                 staged: false,
+                artifact,
+                manifest_sha256,
+                selected_executable,
             };
             let staged_install = InstallRecord {
                 path: payload_root.clone(),
@@ -1616,6 +1654,7 @@ impl PortcoveService {
             .status(port_id)?
             .active
             .ok_or_else(|| PortcoveError::not_found(format!("{port_id} is not installed")))?;
+        let selected_executable = Installer::new(self.library.clone())?.verify_critical(&active)?;
         let source = if let Some(path) = source_override {
             let profile_id = port.source_profile.as_deref().ok_or_else(|| {
                 PortcoveError::usage(format!("{} does not accept a source override", port.name))
@@ -1639,13 +1678,17 @@ impl PortcoveService {
             self.collect_user_data_from(port, &active.path)?;
         }
         self.restore_user_data_to(port, &active.path)?;
-        let spec = self.adapters.get(port.adapter).launch_spec(
-            &self.library,
-            port,
-            Platform::current()?,
-            &active.path,
-            source.as_deref(),
-        )?;
+        let spec = self
+            .adapters
+            .get(port.adapter)
+            .launch_spec_with_executable(
+                &self.library,
+                port,
+                Platform::current()?,
+                &active.path,
+                &selected_executable,
+                source.as_deref(),
+            )?;
         fs::write(&launch_marker, b"1")?;
         Ok(spec)
     }
@@ -1723,15 +1766,9 @@ impl PortcoveService {
     }
 
     fn persistence_root(&self, port: &PortDefinition, install_root: &Path) -> Result<PathBuf> {
-        if port.adapter == crate::AdapterKind::N64RecompPortable {
-            return Ok(install_root.to_path_buf());
-        }
-        let executable = self.adapters.get(port.adapter).find_executable(
-            port,
-            Platform::current()?,
-            install_root,
-        )?;
-        Ok(executable.parent().unwrap_or(install_root).to_path_buf())
+        let qualification = InstallQualification::from_port(port, Platform::current()?)?;
+        let executable = crate::install::resolve_declared_executable(install_root, &qualification)?;
+        Ok(qualification.persistence_root(install_root, &executable))
     }
 }
 
@@ -1965,6 +2002,8 @@ fn remove_managed_entry(path: &Path) -> Result<()> {
 mod tests {
     use std::sync::atomic::{AtomicBool, Ordering};
 
+    use crate::ArtifactIdentity;
+
     use super::*;
 
     #[derive(Clone)]
@@ -1976,7 +2015,7 @@ mod tests {
     impl ReleaseProvider for StaticReleaseProvider {
         async fn resolve(
             &self,
-            _port: &PortDefinition,
+            port: &PortDefinition,
             channel: ReleaseChannel,
             _platform: Platform,
         ) -> Result<ResolvedRelease> {
@@ -1985,10 +2024,38 @@ mod tests {
                 channel,
                 published_at: None,
                 asset: crate::ReleaseAsset {
-                    name: "test.zip".into(),
+                    name: format!("{}-{}.zip", port.id, self.version),
                     url: "https://invalid.example/test.zip".into(),
-                    size: 1,
-                    sha256: "0".repeat(64),
+                    size: 4,
+                    sha256: hex::encode(Sha256::digest(format!("{}:{}", port.id, self.version))),
+                },
+            })
+        }
+    }
+
+    #[derive(Clone)]
+    struct RepublishedReleaseProvider {
+        version: String,
+        sha256: String,
+    }
+
+    #[async_trait::async_trait]
+    impl ReleaseProvider for RepublishedReleaseProvider {
+        async fn resolve(
+            &self,
+            port: &PortDefinition,
+            channel: ReleaseChannel,
+            _platform: Platform,
+        ) -> Result<ResolvedRelease> {
+            Ok(ResolvedRelease {
+                version: self.version.clone(),
+                channel,
+                published_at: None,
+                asset: crate::ReleaseAsset {
+                    name: format!("{}-{}.zip", port.id, self.version),
+                    url: "https://invalid.example/republished.zip".into(),
+                    size: 4,
+                    sha256: self.sha256.clone(),
                 },
             })
         }
@@ -2373,14 +2440,84 @@ mod tests {
         executable
     }
 
+    fn register_existing_test_install(
+        library: &Library,
+        port_id: &str,
+        version: &str,
+        path: &Path,
+        active: bool,
+    ) -> InstallRecord {
+        let artifact = ArtifactIdentity {
+            asset_name: format!("{port_id}-{version}.zip"),
+            sha256: hex::encode(Sha256::digest(format!("{port_id}:{version}"))),
+            size: 4,
+        };
+        register_existing_test_artifact(library, port_id, version, path, artifact, active)
+    }
+
+    fn register_existing_test_artifact(
+        library: &Library,
+        port_id: &str,
+        version: &str,
+        path: &Path,
+        artifact: ArtifactIdentity,
+        active: bool,
+    ) -> InstallRecord {
+        let id = Uuid::new_v4().to_string();
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port(port_id).unwrap();
+        let qualification =
+            InstallQualification::from_port(port, Platform::current().unwrap()).unwrap();
+        let (manifest_sha256, selected_executable) = Installer::new(library.clone())
+            .unwrap()
+            .create_manifest(&id, port_id, version, &artifact, &qualification, path)
+            .unwrap();
+        let install = InstallRecord {
+            id,
+            port_id: port_id.into(),
+            version: version.into(),
+            path: path.to_path_buf(),
+            channel: ReleaseChannel::Stable,
+            installed_at: Library::now(),
+            verified: true,
+            staged: !active,
+            artifact,
+            manifest_sha256,
+            selected_executable,
+        };
+        library.register_install(&install, active).unwrap();
+        install
+    }
+
     fn register_zelda_install(library: &Library, version: &str, active: bool) -> PathBuf {
-        let path = library.versions_dir().join("zelda64-recomp").join(version);
+        let artifact = ArtifactIdentity {
+            asset_name: format!("zelda64-recomp-{version}.zip"),
+            sha256: hex::encode(Sha256::digest(format!("zelda64-recomp:{version}"))),
+            size: 4,
+        };
+        let path = library
+            .versions_dir()
+            .join("zelda64-recomp")
+            .join(&artifact.sha256);
         fs::create_dir_all(&path).unwrap();
         write_host_test_executable(&path, "zelda64-recomp");
+        fs::write(path.join("engine.dll"), b"critical library").unwrap();
+        let id = Uuid::new_v4().to_string();
+        let port = Catalog::embedded()
+            .unwrap()
+            .port("zelda64-recomp")
+            .unwrap()
+            .clone();
+        let qualification =
+            InstallQualification::from_port(&port, Platform::current().unwrap()).unwrap();
+        let (manifest_sha256, selected_executable) = Installer::new(library.clone())
+            .unwrap()
+            .create_manifest(&id, &port.id, version, &artifact, &qualification, &path)
+            .unwrap();
         library
             .register_install(
                 &InstallRecord {
-                    id: Uuid::new_v4().to_string(),
+                    id,
                     port_id: "zelda64-recomp".into(),
                     version: version.into(),
                     path: path.clone(),
@@ -2388,6 +2525,9 @@ mod tests {
                     installed_at: Library::now(),
                     verified: true,
                     staged: !active,
+                    artifact,
+                    manifest_sha256,
+                    selected_executable,
                 },
                 active,
             )
@@ -2396,14 +2536,34 @@ mod tests {
     }
 
     fn register_gen1_install(library: &Library, version: &str, active: bool) -> PathBuf {
-        let path = library.versions_dir().join("gen1recomp").join(version);
+        let artifact = ArtifactIdentity {
+            asset_name: format!("gen1recomp-{version}.zip"),
+            sha256: hex::encode(Sha256::digest(format!("gen1recomp:{version}"))),
+            size: 4,
+        };
+        let path = library
+            .versions_dir()
+            .join("gen1recomp")
+            .join(&artifact.sha256);
         let executable_root = path.join("gen1recomp-win64");
         fs::create_dir_all(&executable_root).unwrap();
         write_host_test_executable(&executable_root, "gen1recomp");
+        let id = Uuid::new_v4().to_string();
+        let port = Catalog::embedded()
+            .unwrap()
+            .port("gen1recomp")
+            .unwrap()
+            .clone();
+        let qualification =
+            InstallQualification::from_port(&port, Platform::current().unwrap()).unwrap();
+        let (manifest_sha256, selected_executable) = Installer::new(library.clone())
+            .unwrap()
+            .create_manifest(&id, &port.id, version, &artifact, &qualification, &path)
+            .unwrap();
         library
             .register_install(
                 &InstallRecord {
-                    id: Uuid::new_v4().to_string(),
+                    id,
                     port_id: "gen1recomp".into(),
                     version: version.into(),
                     path: path.clone(),
@@ -2411,6 +2571,9 @@ mod tests {
                     installed_at: Library::now(),
                     verified: true,
                     staged: !active,
+                    artifact,
+                    manifest_sha256,
+                    selected_executable,
                 },
                 active,
             )
@@ -2769,21 +2932,7 @@ mod tests {
         let install = library.versions_dir().join("opengoal-jak1").join("v1");
         fs::create_dir_all(&install).unwrap();
         fs::write(install.join("gk.exe"), b"test").unwrap();
-        library
-            .register_install(
-                &InstallRecord {
-                    id: Uuid::new_v4().to_string(),
-                    port_id: "opengoal-jak1".into(),
-                    version: "v1".into(),
-                    path: install.clone(),
-                    channel: ReleaseChannel::Stable,
-                    installed_at: Library::now(),
-                    verified: true,
-                    staged: false,
-                },
-                true,
-            )
-            .unwrap();
+        register_existing_test_install(&library, "opengoal-jak1", "v1", &install, true);
         let service = PortcoveService::new(library.clone()).unwrap();
 
         let blocked = service.status("opengoal-jak1").unwrap().readiness.unwrap();
@@ -2847,21 +2996,7 @@ mod tests {
         let install = library.versions_dir().join("starship/v1");
         fs::create_dir_all(&install).unwrap();
         let executable = write_host_test_executable(&install, "starship");
-        library
-            .register_install(
-                &InstallRecord {
-                    id: Uuid::new_v4().to_string(),
-                    port_id: "starship".into(),
-                    version: "v1".into(),
-                    path: install.clone(),
-                    channel: ReleaseChannel::Stable,
-                    installed_at: Library::now(),
-                    verified: true,
-                    staged: false,
-                },
-                true,
-            )
-            .unwrap();
+        register_existing_test_install(&library, "starship", "v1", &install, true);
         let source = temporary.path().join("star-fox-64.z64");
         fs::write(&source, b"original source").unwrap();
         let service = PortcoveService::new(library).unwrap();
@@ -2875,7 +3010,7 @@ mod tests {
         service.register_source("star-fox-64", &source).unwrap();
         fs::remove_file(&executable).unwrap();
         let error = service.launch_spec("starship", None).unwrap_err();
-        assert_eq!(error.code, crate::ErrorCode::Launch);
+        assert_eq!(error.code, crate::ErrorCode::Verification);
         assert!(!install.join(LAUNCH_MARKER).exists());
 
         fs::write(executable, b"test").unwrap();
@@ -3010,21 +3145,7 @@ mod tests {
         let install = library.versions_dir().join("lighthouse/v1");
         fs::create_dir_all(&install).unwrap();
         fs::write(install.join("Lighthouse.exe"), b"test").unwrap();
-        library
-            .register_install(
-                &InstallRecord {
-                    id: Uuid::new_v4().to_string(),
-                    port_id: "lighthouse".into(),
-                    version: "v1".into(),
-                    path: install,
-                    channel: ReleaseChannel::Stable,
-                    installed_at: Library::now(),
-                    verified: true,
-                    staged: false,
-                },
-                true,
-            )
-            .unwrap();
+        register_existing_test_install(&library, "lighthouse", "v1", &install, true);
         let invalid = temporary.path().join("not-a-rom.txt");
         fs::write(&invalid, b"not a ROM").unwrap();
         let service = PortcoveService::new(library).unwrap();
@@ -3033,6 +3154,148 @@ mod tests {
             .launch_spec("lighthouse", Some(&invalid))
             .unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::SourceInvalid);
+    }
+
+    #[test]
+    fn launch_rehashes_executable_library_and_manifest_before_side_effects() {
+        for target in ["executable", "library", "manifest"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            register_zelda_install(&library, "v1", true);
+            let before = library
+                .status("zelda64-recomp", ReleaseChannel::Stable)
+                .unwrap();
+            let active = before.active.as_ref().unwrap();
+            match target {
+                "executable" => fs::write(
+                    active.path.join(&active.selected_executable),
+                    b"changed executable",
+                )
+                .unwrap(),
+                "library" => fs::write(active.path.join("engine.dll"), b"changed library").unwrap(),
+                "manifest" => fs::write(
+                    active.path.join(".portcove-manifest.json"),
+                    b"changed manifest",
+                )
+                .unwrap(),
+                _ => unreachable!(),
+            }
+            let service = PortcoveService::new(library.clone()).unwrap();
+
+            let error = service.launch_spec("zelda64-recomp", None).unwrap_err();
+
+            assert_eq!(error.code, crate::ErrorCode::Verification, "{target}");
+            assert!(
+                !active.path.join(LAUNCH_MARKER).exists(),
+                "{target} wrote a launch marker"
+            );
+            let after = library
+                .status("zelda64-recomp", ReleaseChannel::Stable)
+                .unwrap();
+            assert_eq!(
+                after.active.as_ref().map(|install| &install.id),
+                before.active.as_ref().map(|install| &install.id),
+                "{target}"
+            );
+        }
+    }
+
+    #[test]
+    fn launch_never_falls_back_to_an_unmanifested_executable() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_zelda_install(&library, "v1", true);
+        let active = library
+            .status("zelda64-recomp", ReleaseChannel::Stable)
+            .unwrap()
+            .active
+            .unwrap();
+        fs::remove_file(active.path.join(&active.selected_executable)).unwrap();
+        fs::write(active.path.join("plausible-fallback.exe"), b"untrusted").unwrap();
+        let service = PortcoveService::new(library).unwrap();
+
+        let error = service.launch_spec("zelda64-recomp", None).unwrap_err();
+
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert!(!active.path.join(LAUNCH_MARKER).exists());
+    }
+
+    #[test]
+    fn mutable_persistent_files_do_not_invalidate_the_immutable_install() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let path = register_zelda_install(&library, "v1", true);
+        fs::write(path.join("general.json"), b"first user settings").unwrap();
+        fs::write(path.join("general.json"), b"changed user settings").unwrap();
+        let service = PortcoveService::new(library).unwrap();
+
+        let report = service.verify("zelda64-recomp").unwrap();
+        let spec = service.launch_spec("zelda64-recomp", None).unwrap();
+
+        assert!(report.valid, "{:?}", report.failures);
+        assert!(spec.executable.starts_with(&path));
+        assert!(path.join(LAUNCH_MARKER).is_file());
+    }
+
+    #[test]
+    fn staged_and_rollback_tamper_leave_install_pointers_unchanged() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_zelda_install(&library, "v1", true);
+        register_zelda_install(&library, "v2", false);
+        let staged_before = library
+            .status("zelda64-recomp", ReleaseChannel::Stable)
+            .unwrap();
+        let staged = staged_before.staged.as_ref().unwrap();
+        fs::write(
+            staged.path.join(&staged.selected_executable),
+            b"changed staged executable",
+        )
+        .unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+
+        let error = service.activate_staged("zelda64-recomp").unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        let staged_after = library
+            .status("zelda64-recomp", ReleaseChannel::Stable)
+            .unwrap();
+        assert_eq!(
+            staged_after.active.as_ref().map(|install| &install.id),
+            staged_before.active.as_ref().map(|install| &install.id)
+        );
+        assert_eq!(
+            staged_after.staged.as_ref().map(|install| &install.id),
+            staged_before.staged.as_ref().map(|install| &install.id)
+        );
+
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_zelda_install(&library, "v1", true);
+        register_zelda_install(&library, "v2", true);
+        let rollback_before = library
+            .status("zelda64-recomp", ReleaseChannel::Stable)
+            .unwrap();
+        let previous = rollback_before.previous.as_ref().unwrap();
+        fs::write(
+            previous.path.join(&previous.selected_executable),
+            b"changed rollback executable",
+        )
+        .unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+
+        let error = service.rollback("zelda64-recomp").unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        let rollback_after = library
+            .status("zelda64-recomp", ReleaseChannel::Stable)
+            .unwrap();
+        assert_eq!(
+            rollback_after.active.as_ref().map(|install| &install.id),
+            rollback_before.active.as_ref().map(|install| &install.id)
+        );
+        assert_eq!(
+            rollback_after.previous.as_ref().map(|install| &install.id),
+            rollback_before.previous.as_ref().map(|install| &install.id)
+        );
     }
 
     #[test]
@@ -3094,6 +3357,146 @@ mod tests {
         assert!(installed.staged);
         assert_eq!(status.active.unwrap().version, "v1");
         assert_eq!(status.staged.unwrap().version, "v2");
+    }
+
+    #[tokio::test]
+    async fn retained_tamper_fails_before_reuse_or_pointer_change() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_zelda_install(&library, "v1", true);
+        register_zelda_install(&library, "v2", true);
+        library.rollback("zelda64-recomp").unwrap();
+        let before = library
+            .status("zelda64-recomp", ReleaseChannel::Stable)
+            .unwrap();
+        let retained = before.previous.as_ref().unwrap();
+        fs::write(
+            retained.path.join(&retained.selected_executable),
+            b"changed retained executable",
+        )
+        .unwrap();
+        let service = service_with_release(library.clone(), "v2");
+
+        let error = service
+            .install("zelda64-recomp", None, None, None, false, |_| {})
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        let after = library
+            .status("zelda64-recomp", ReleaseChannel::Stable)
+            .unwrap();
+        assert_eq!(
+            after.active.as_ref().map(|install| &install.id),
+            before.active.as_ref().map(|install| &install.id)
+        );
+        assert_eq!(
+            after.previous.as_ref().map(|install| &install.id),
+            before.previous.as_ref().map(|install| &install.id)
+        );
+        assert!(after.staged.is_none());
+    }
+
+    #[tokio::test]
+    async fn a_republished_tag_is_an_update_and_both_artifacts_can_roll_back() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let old_path = library
+            .versions_dir()
+            .join("lighthouse")
+            .join("a".repeat(64));
+        let new_path = library
+            .versions_dir()
+            .join("lighthouse")
+            .join("b".repeat(64));
+        fs::create_dir_all(&old_path).unwrap();
+        fs::create_dir_all(&new_path).unwrap();
+        write_host_test_executable(&old_path, "lighthouse");
+        write_host_test_executable(&new_path, "lighthouse");
+        let old = register_existing_test_artifact(
+            &library,
+            "lighthouse",
+            "v1",
+            &old_path,
+            ArtifactIdentity {
+                asset_name: "lighthouse-v1.zip".into(),
+                sha256: "a".repeat(64),
+                size: 4,
+            },
+            true,
+        );
+        let new = register_existing_test_artifact(
+            &library,
+            "lighthouse",
+            "v1",
+            &new_path,
+            ArtifactIdentity {
+                asset_name: "lighthouse-v1.zip".into(),
+                sha256: "b".repeat(64),
+                size: 4,
+            },
+            false,
+        );
+        let service = PortcoveService::with_provider(
+            library.clone(),
+            Arc::new(RepublishedReleaseProvider {
+                version: "v1".into(),
+                sha256: new.artifact.sha256.clone(),
+            }),
+        )
+        .unwrap();
+
+        let check = service.check_update("lighthouse").await.unwrap();
+        assert!(check.update_available);
+        assert_eq!(check.installed_version.as_deref(), Some("v1"));
+        assert_eq!(check.installed_artifact.as_ref(), Some(&old.artifact));
+        assert_eq!(check.release.version, "v1");
+        assert_eq!(check.release.asset.sha256, new.artifact.sha256);
+        assert_eq!(
+            service
+                .plan_install("lighthouse", None)
+                .await
+                .unwrap()
+                .action,
+            InstallPlanAction::UseStaged
+        );
+
+        let activated = service.activate_staged("lighthouse").unwrap();
+        assert_eq!(activated.version, "v1");
+        assert_eq!(activated.artifact.sha256, "b".repeat(64));
+        let rolled_back = service.rollback("lighthouse").unwrap();
+        assert_eq!(rolled_back.version, "v1");
+        assert_eq!(rolled_back.artifact.sha256, "a".repeat(64));
+        assert_ne!(old.path, new.path);
+    }
+
+    #[test]
+    fn database_artifact_identity_tamper_invalidates_the_manifest() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_zelda_install(&library, "v1", true);
+        rusqlite::Connection::open(library.root().join("portcove.sqlite3"))
+            .unwrap()
+            .execute(
+                "UPDATE installs SET artifact_sha256=?1 WHERE port_id=?2",
+                rusqlite::params!["f".repeat(64), "zelda64-recomp"],
+            )
+            .unwrap();
+        let before = library
+            .status("zelda64-recomp", ReleaseChannel::Stable)
+            .unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+
+        let error = service.launch_spec("zelda64-recomp", None).unwrap_err();
+
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        let after = library
+            .status("zelda64-recomp", ReleaseChannel::Stable)
+            .unwrap();
+        assert_eq!(
+            after.active.as_ref().map(|install| &install.id),
+            before.active.as_ref().map(|install| &install.id)
+        );
     }
 
     #[tokio::test]

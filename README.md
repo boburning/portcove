@@ -28,6 +28,7 @@ This repository is an early, working implementation. Catalog and state commands 
 - Tauri 2/React desktop UI with keyboard and controller navigation.
 - Successful-exit launch history shared by CLI and desktop, with a real Continue action that never promotes failed starts or crashes.
 - Durable operation activity and recoverable cross-store lifecycle journals shared by CLI and desktop, with stable sequenced progress identities for overlapping and nested work.
+- Content-addressed install identity, current-byte executable checks, and one bounded collision-aware archive policy shared by release and private-toolchain extraction.
 - Native file and folder pickers for source registration and safe adoption, while retaining pasteable paths.
 - Confirmed desktop removal of managed versions while preserving saves, configuration, mods, and original sources.
 - GUI Update Center with failure-isolated bulk checks, per-port policy reconciliation, and persistent update awareness shared with CLI checks across restarts.

@@ -1,4 +1,5 @@
 mod adapter;
+mod archive;
 mod auth;
 mod catalog;
 mod database;
@@ -23,7 +24,7 @@ pub use auth::{
 pub use catalog::Catalog;
 pub use error::{ErrorCode, PortcoveError, Result};
 pub use gitlab::GitlabReleaseProvider;
-pub use install::{InstallRequest, Installer, VerificationReport};
+pub use install::{InstallQualification, InstallRequest, Installer, VerificationReport};
 pub use library::{Library, PortOperationGuard};
 pub use operation::{OPERATION_EVENT_SCHEMA_VERSION, OperationCoordinator};
 pub use process::{ChildProcessClass, ChildProcessPolicy, GameProcessSpec, LaunchKind, LaunchSpec};
@@ -33,4 +34,4 @@ pub use release::{GithubReleaseProvider, ReleaseProvider};
 pub use service::{AdoptionPreview, PortcoveService};
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 2;
+pub const API_SCHEMA_VERSION: u32 = 3;

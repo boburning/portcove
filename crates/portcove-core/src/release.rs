@@ -556,12 +556,8 @@ impl ReleaseProvider for GithubReleaseProvider {
     }
 }
 
-fn release_version(tag: &str, channel: ReleaseChannel, sha256: &str) -> String {
-    if channel == ReleaseChannel::Rolling {
-        format!("{tag}.{}", &sha256[..12])
-    } else {
-        tag.to_string()
-    }
+fn release_version(tag: &str, _channel: ReleaseChannel, _sha256: &str) -> String {
+    tag.to_string()
 }
 
 fn same_origin(left: &str, right: &str) -> bool {
@@ -848,17 +844,17 @@ mod tests {
     }
 
     #[test]
-    fn rolling_versions_change_when_a_mutable_tag_republishes() {
+    fn display_versions_do_not_embed_artifact_identity() {
         let first = format!("{}{}", "a".repeat(12), "0".repeat(52));
         let second = format!("{}{}", "b".repeat(12), "0".repeat(52));
 
         assert_eq!(
             release_version("devbuild", ReleaseChannel::Rolling, &first),
-            "devbuild.aaaaaaaaaaaa"
+            "devbuild"
         );
         assert_eq!(
             release_version("devbuild", ReleaseChannel::Rolling, &second),
-            "devbuild.bbbbbbbbbbbb"
+            "devbuild"
         );
         assert_eq!(
             release_version("v1.2.3", ReleaseChannel::Stable, &first),

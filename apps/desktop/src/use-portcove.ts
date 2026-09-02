@@ -75,7 +75,7 @@ export function useUpdateCenter(perform: Perform, statuses: PortStatus[]) {
     const snapshot = currentUpdateSnapshot(status);
     return snapshot ? [{ port_id: status.port_id, ok: true, result: snapshot.check } satisfies UpdateCheckOutcome] : [];
   });
-  const snapshotBaseline = snapshots.map(outcome => `${outcome.port_id}:${outcome.result?.release.version}:${outcome.result?.installed_version}`).join("|");
+  const snapshotBaseline = snapshots.map(outcome => `${outcome.port_id}:${outcome.result?.release.asset.sha256}:${outcome.result?.installed_artifact?.sha256}`).join("|");
   useEffect(() => {
     setOutcomes(snapshots);
     setActions(new Map());

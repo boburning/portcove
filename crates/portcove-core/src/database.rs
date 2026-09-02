@@ -10,7 +10,7 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior};
 
 use crate::{PortcoveError, Result};
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 7;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 8;
 
 struct Migration {
     version: i64,
@@ -61,6 +61,12 @@ const MIGRATIONS: &[Migration] = &[
         name: "recoverable lifecycle operations",
         apply: migration_7,
         verify: verify_migration_7,
+    },
+    Migration {
+        version: 8,
+        name: "immutable install identity",
+        apply: migration_8,
+        verify: verify_migration_8,
     },
 ];
 
@@ -467,6 +473,39 @@ fn verify_migration_7(connection: &Connection) -> Result<()> {
         ],
     )?;
     require_index(connection, "lifecycle_operations_port_id")
+}
+
+fn migration_8(transaction: &Transaction<'_>) -> Result<()> {
+    let columns = table_columns(transaction, "installs")?;
+    for (column, declaration) in [
+        ("artifact_name", "TEXT NOT NULL DEFAULT ''"),
+        ("artifact_sha256", "TEXT NOT NULL DEFAULT ''"),
+        ("artifact_size", "INTEGER NOT NULL DEFAULT 0"),
+        ("manifest_sha256", "TEXT NOT NULL DEFAULT ''"),
+        ("selected_executable", "TEXT NOT NULL DEFAULT ''"),
+    ] {
+        if !columns.iter().any(|candidate| candidate == column) {
+            transaction.execute(
+                &format!("ALTER TABLE installs ADD COLUMN {column} {declaration}"),
+                [],
+            )?;
+        }
+    }
+    Ok(())
+}
+
+fn verify_migration_8(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "installs",
+        &[
+            "artifact_name",
+            "artifact_sha256",
+            "artifact_size",
+            "manifest_sha256",
+            "selected_executable",
+        ],
+    )
 }
 
 fn table_columns(connection: &Connection, table: &str) -> Result<Vec<String>> {

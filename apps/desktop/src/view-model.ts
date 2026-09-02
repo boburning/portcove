@@ -73,6 +73,7 @@ export function currentUpdateSnapshot(status: PortStatus | undefined): UpdateSna
   if (!status?.active || !snapshot) return undefined;
   if (snapshot.check.channel !== status.channel) return undefined;
   if (snapshot.check.installed_version !== status.active.version) return undefined;
+  if (snapshot.check.installed_artifact?.sha256 !== status.active.artifact.sha256) return undefined;
   return snapshot;
 }
 

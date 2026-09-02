@@ -5,7 +5,7 @@
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":2,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":3,"ok":true,"command":"status","data":{},"error":null}
 ```
 
 Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for both success and failure. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
@@ -51,7 +51,7 @@ Call `capabilities` rather than assuming commands or platforms. It reports both 
 
 `catalog list` is a concise port array and `catalog show PORT_ID` retrieves one port. `catalog export` returns the complete versioned `CatalogDocument`, including every source profile referenced by a port. External frontends should use that document when they need accepted source extensions, exact multi-file or disc requirements, or source labels instead of copying Portcove's embedded catalog.
 
-Schema version 2 changes the existing `update --all` result from an array of bare successful install records to failure-isolated outcome objects. Single-port `update`, other existing command shapes, and their stable error codes are unchanged. Consumers written for schema version 1 must branch on the envelope version before decoding an `update --all` result.
+Schema version 2 changed `update --all` from an array of bare successful install records to failure-isolated outcome objects. Schema version 3 adds immutable `artifact`, `manifest_sha256`, and `selected_executable` fields to install records, plus `installed_artifact` to update checks. The human-facing `version` remains the upstream display tag; integrations must use the artifact SHA-256 when deciding whether two releases are identical. Consumers written for an earlier schema must branch on the envelope version before decoding these results.
 
 `source add` validates the configured extension plus any exact SHA-1 and SHA-256 allowlists before recording the source reference. A source that matches the game name but not the required revision fails with `source_invalid` and exit code 5. An `upstream-validated-disc` profile is deliberately two-stage: registration records and later rechecks the local ISO/CHD container, while exact retail-revision admission is delegated during setup to a checksum-verified upstream extractor with fixed catalog arguments. Extractor rejection is returned as the same structured `source_invalid` failure before the game can launch.
 
@@ -125,7 +125,7 @@ Before presenting an install or update confirmation, a frontend can resolve Port
 portcove --library <path> --json plan <port-id> [--channel stable|beta|rolling]
 ```
 
-The plan reports the resolved release and asset size, current platform and channel, registered game-source and BIOS requirements, containing-volume capacity, and one typed action: `already_active`, `use_staged`, `reuse_retained`, `blocked_unverified`, or `download`. Planning may perform a normal conditional network lookup and update Portcove's HTTP response cache, but it does not download a release, change source registrations, switch versions, or create an activity record. `use_staged` does not imply activation: the following install's `--stage` choice still controls whether that verified release remains staged. Asset size is the upstream download size; callers must not present it as a guarantee of final extracted footprint.
+The plan reports the resolved release and asset size, current platform and channel, registered game-source and BIOS requirements, containing-volume capacity, and one typed action: `already_active`, `use_staged`, `reuse_retained`, `blocked_unverified`, or `download`. These actions compare immutable artifact identity, not display version, so an upstream republish under the same tag is still an update. Planning may perform a normal conditional network lookup and update Portcove's HTTP response cache, but it does not download a release, change source registrations, switch versions, or create an activity record. `use_staged` does not imply activation: the following install's `--stage` choice still controls whether that verified release remains staged. Asset size is the upstream download size; callers must not present it as a guarantee of final extracted footprint.
 
 Save managers and launcher integrations should ask Portcove for its canonical roots rather than constructing internal paths:
 
@@ -152,7 +152,7 @@ portcove --library <path> --json backup delete <port-id> <backup-id> --yes
 
 Mutating commands, verification, and `exec` use a cross-process lock for the selected port. A second frontend targeting that same port fails immediately with `error.code: "conflict"`, exit code 14, and `details.port_id`; it should retry later rather than run a competing operation. The launch lock remains held through game exit and post-exit mutable-data collection. Commands for other ports continue independently. `capabilities.port_operation_locking` is `per_port_fail_fast` when this contract is available.
 
-An update also reuses a matching verified version already retained as a rollback or inactive installation. `--stage` marks that local version for activation, while a normal update promotes it without another download.
+An update also reuses a matching artifact already retained as a rollback or inactive installation. Before reuse, activation, rollback, or launch, Portcove checks the registered manifest identity and current critical executable/library/bootstrap bytes. `--stage` marks the checked local artifact for activation, while a normal update promotes it without another download. An install migrated from an older schema without immutable identity must be replaced or re-adopted; Portcove never fabricates its provenance.
 
 `check --all`, `reconcile --all`, and `update --all` are failure-isolated and operate on installed ports. Every port produces an outcome with its own `port_id`, `ok`, `result`, and `error` fields. A metadata, source, verification, or download failure for one port does not suppress other results. Completing the batch returns exit code 0, so schedulers must inspect each outcome's `ok`; a command-level setup failure still uses the normal non-zero exit codes. `update --all --stage` stages successful updates without activation. Without `--stage`, each port's stored update policy is honored: a `stage` policy remains staged while `notify` and `automatic` ports activate the requested update. A source override is deliberately rejected with `--all` because one path cannot safely satisfy multiple source profiles.
 

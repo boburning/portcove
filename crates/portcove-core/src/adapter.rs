@@ -35,6 +35,15 @@ pub trait Adapter: Send + Sync {
         install_root: &Path,
         source: Option<&Path>,
     ) -> Result<LaunchSpec>;
+    fn launch_spec_with_executable(
+        &self,
+        library: &Library,
+        port: &PortDefinition,
+        platform: Platform,
+        install_root: &Path,
+        selected_executable: &Path,
+        source: Option<&Path>,
+    ) -> Result<LaunchSpec>;
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -184,6 +193,24 @@ impl Adapter for StandardAdapter {
         source: Option<&Path>,
     ) -> Result<LaunchSpec> {
         let executable = self.find_executable(port, platform, install_root)?;
+        self.launch_spec_with_executable(library, port, platform, install_root, &executable, source)
+    }
+
+    fn launch_spec_with_executable(
+        &self,
+        library: &Library,
+        port: &PortDefinition,
+        platform: Platform,
+        install_root: &Path,
+        selected_executable: &Path,
+        source: Option<&Path>,
+    ) -> Result<LaunchSpec> {
+        if !selected_executable.starts_with(install_root) || !selected_executable.is_file() {
+            return Err(PortcoveError::verification(
+                "selected executable is not a file in the registered install",
+            ));
+        }
+        let executable = selected_executable.to_path_buf();
         let user_data = library.user_dir(&port.id);
         std::fs::create_dir_all(&user_data)?;
         let mut environment = BTreeMap::from([

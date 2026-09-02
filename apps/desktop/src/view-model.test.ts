@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PortDefinition, PortStatus } from "./types";
+import type { InstallRecord, PortDefinition, PortStatus } from "./types";
 import { currentUpdateSnapshot, errorText, filterOptions, filterPorts, indexStatuses, mostRecentPort, portReadiness, requiredSourceNeeds, summarizeLibrary } from "./view-model";
 
 const port = (id: string, channels: PortDefinition["channels"]): PortDefinition => ({
@@ -8,12 +8,15 @@ const port = (id: string, channels: PortDefinition["channels"]): PortDefinition 
   platforms: ["windows-x86-64"], adapter: "direct-archive", persistent_paths: ["save"], upstream_status: "active",
   automated_tested_platforms: [], manually_validated_platforms: [],
 });
+const installRecord = (overrides: Partial<InstallRecord> = {}): InstallRecord => ({
+  id: "1", port_id: "alpha", version: "1.0", path: "alpha/1.0", channel: "stable", installed_at: 1, verified: true, staged: false,
+  artifact: { asset_name: "alpha.zip", sha256: "b".repeat(64), size: 1 }, manifest_sha256: "c".repeat(64), selected_executable: "alpha.exe",
+  ...overrides,
+});
 
 describe("catalog view model", () => {
   const ports = [port("alpha", ["stable"]), port("beta", ["beta", "rolling"])];
-  const status: PortStatus = { port_id: "alpha", channel: "stable", update_policy: "notify", active: {
-    id: "1", port_id: "alpha", version: "1.0", path: "alpha/1.0", channel: "stable", installed_at: 1, verified: true, staged: false,
-  } };
+  const status: PortStatus = { port_id: "alpha", channel: "stable", update_policy: "notify", active: installRecord() };
 
   it("indexes statuses and restricts the library to installed ports", () => {
     const statuses = indexStatuses([status]);
@@ -62,7 +65,7 @@ describe("catalog view model", () => {
     const snapshot = {
       checked_at: 10,
       check: {
-        port_id: "alpha", channel: "stable" as const, installed_version: "1.0", update_available: true,
+        port_id: "alpha", channel: "stable" as const, installed_version: "1.0", installed_artifact: status.active!.artifact, update_available: true,
         release: { version: "2.0", channel: "stable" as const, asset: { name: "alpha.zip", url: "https://example.com/alpha.zip", size: 1, sha256: "a".repeat(64) } },
       },
     };

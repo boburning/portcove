@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import type { PortDefinition, PortStatus } from "../types";
+import type { InstallRecord, PortDefinition, PortStatus } from "../types";
 import { PageHeader, SettingsView, Sidebar, StatusLayer } from "./Chrome";
 import { BackupHistory } from "./BackupHistory";
 import { DetailPanel, type DetailActions } from "./DetailPanel";
@@ -16,6 +16,11 @@ const port: PortDefinition = {
 const actions: DetailActions = {
   activate: vi.fn(), backup: vi.fn(), check: vi.fn(), close: vi.fn(), deleteBackup: vi.fn(), install: vi.fn(), launch: vi.fn(), openUserData: vi.fn(), reviewInstall: vi.fn(), remove: vi.fn(), restoreBackup: vi.fn(), rollback: vi.fn(), setChannel: vi.fn(), setPolicy: vi.fn(), update: vi.fn(), verify: vi.fn(),
 };
+const installRecord = (overrides: Partial<InstallRecord> = {}): InstallRecord => ({
+  id: "1", port_id: port.id, version: "1.0", path: "sample/1.0", channel: "stable", installed_at: 1, verified: true, staged: false,
+  artifact: { asset_name: "sample.zip", sha256: "b".repeat(64), size: 1 }, manifest_sha256: "c".repeat(64), selected_executable: "sample.exe",
+  ...overrides,
+});
 
 describe("desktop components", () => {
   it("keeps older backups reachable without expanding the detail panel by default", () => {
@@ -139,9 +144,7 @@ describe("desktop components", () => {
   it("renders installed and uninstalled detail actions", () => {
     const uninstalled = renderToStaticMarkup(<DetailPanel port={port} sourcePath="" setSourcePath={vi.fn()} pickSource={vi.fn()} actions={actions} />);
     const sourceFree = renderToStaticMarkup(<DetailPanel port={{ ...port, source_profile: undefined }} sourcePath="" setSourcePath={vi.fn()} actions={actions} />);
-    const status: PortStatus = { port_id: port.id, user_data_root: "C:/Portcove/user/sample", channel: "stable", update_policy: "notify", active: {
-      id: "1", port_id: port.id, version: "1.0", path: "sample/1.0", channel: "stable", installed_at: 1, verified: true, staged: false,
-    } };
+    const status: PortStatus = { port_id: port.id, user_data_root: "C:/Portcove/user/sample", channel: "stable", update_policy: "notify", active: installRecord() };
     const installed = renderToStaticMarkup(<DetailPanel port={port} status={status} sourcePath="source.z64" setSourcePath={vi.fn()} actions={actions} backups={[{
       id: "backup-1", port_id: port.id, path: "backups/sample/backup-1", created_at: 1,
       file_count: 2, size: 1024, sha256: "a".repeat(64),
@@ -205,7 +208,7 @@ describe("desktop components", () => {
   });
 
   it("offers activation when an update is staged", () => {
-    const install = { id: "1", port_id: port.id, version: "1.0", path: "sample/1.0", channel: "stable" as const, installed_at: 1, verified: true, staged: false };
+    const install = installRecord();
     const status: PortStatus = { port_id: port.id, channel: "stable", update_policy: "stage", active: install, staged: { ...install, id: "2", version: "2.0", staged: true } };
     const html = renderToStaticMarkup(<DetailPanel port={port} status={status} sourcePath="" setSourcePath={vi.fn()} actions={actions} />);
     expect(html).toContain("Activate staged");
@@ -228,13 +231,13 @@ describe("desktop components", () => {
   });
 
   it("summarizes an installed library around play readiness", () => {
-    const install = { id: "1", port_id: port.id, version: "1.0", path: "sample/1.0", channel: "stable" as const, installed_at: 1, verified: true, staged: false };
+    const install = installRecord();
     const status: PortStatus = {
       port_id: port.id, channel: "stable", update_policy: "notify", active: install,
       last_update_check: {
         checked_at: 2,
         check: {
-          port_id: port.id, channel: "stable", installed_version: "1.0", update_available: true,
+          port_id: port.id, channel: "stable", installed_version: "1.0", installed_artifact: install.artifact, update_available: true,
           release: { version: "2.0", channel: "stable", asset: { name: "sample.zip", url: "https://example.com/sample.zip", size: 1, sha256: "a".repeat(64) } },
         },
       },
@@ -247,7 +250,7 @@ describe("desktop components", () => {
   });
 
   it("offers Continue only from a recorded successful launch", () => {
-    const install = { id: "1", port_id: port.id, version: "1.0", path: "sample/1.0", channel: "stable" as const, installed_at: 1, verified: true, staged: false };
+    const install = installRecord();
     const recentStatus: PortStatus = { port_id: port.id, channel: "stable", update_policy: "notify", active: install, last_launched_at: 100, successful_launches: 1 };
     const html = renderToStaticMarkup(<PortBrowser view="library" ports={[port]} statuses={new Map([[port.id, recentStatus]])} registeredSources={new Set(["sample-rom"])}
       overview={{ installed: 1, ready: 1, needsSetup: 0, staged: 0 }} recent={{ port, status: recentStatus }} filter="all" setFilter={() => undefined} onSelect={() => undefined} onContinue={() => undefined} loading={false} />);
@@ -257,7 +260,7 @@ describe("desktop components", () => {
   });
 
   it("summarizes update checks and exposes policy reconciliation", () => {
-    const install = { id: "1", port_id: port.id, version: "1.0", path: "sample/1.0", channel: "stable" as const, installed_at: 1, verified: true, staged: false };
+    const install = installRecord();
     const status: PortStatus = { port_id: port.id, channel: "stable", update_policy: "notify", active: install };
     const html = renderToStaticMarkup(<UpdateCenter ports={[port]} statuses={new Map([[port.id, status]])} activities={[{
       id: "activity-1", operation: "update", target_kind: "port", target_id: port.id, status: "succeeded", started_at: 1, finished_at: 2,

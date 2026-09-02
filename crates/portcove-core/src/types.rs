@@ -332,6 +332,13 @@ pub struct SourceVerification {
     pub verified_at: i64,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ArtifactIdentity {
+    pub asset_name: String,
+    pub sha256: String,
+    pub size: u64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct InstallRecord {
     pub id: String,
@@ -342,6 +349,12 @@ pub struct InstallRecord {
     pub installed_at: i64,
     pub verified: bool,
     pub staged: bool,
+    #[serde(default)]
+    pub artifact: ArtifactIdentity,
+    #[serde(default)]
+    pub manifest_sha256: String,
+    #[serde(default)]
+    pub selected_executable: PathBuf,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -674,6 +687,8 @@ pub struct UpdateCheck {
     pub port_id: String,
     pub channel: ReleaseChannel,
     pub installed_version: Option<String>,
+    #[serde(default)]
+    pub installed_artifact: Option<ArtifactIdentity>,
     pub update_available: bool,
     pub release: ResolvedRelease,
 }

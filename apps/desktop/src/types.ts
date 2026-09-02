@@ -69,6 +69,12 @@ export interface CatalogDocument {
   ports: PortDefinition[];
 }
 
+export interface ArtifactIdentity {
+  asset_name: string;
+  sha256: string;
+  size: number;
+}
+
 export interface InstallRecord {
   id: string;
   port_id: string;
@@ -78,6 +84,9 @@ export interface InstallRecord {
   installed_at: number;
   verified: boolean;
   staged: boolean;
+  artifact: ArtifactIdentity;
+  manifest_sha256: string;
+  selected_executable: string;
 }
 
 export interface PortStatus {
@@ -199,6 +208,7 @@ export interface UpdateCheck {
   port_id: string;
   channel: ReleaseChannel;
   installed_version?: string;
+  installed_artifact?: ArtifactIdentity;
   update_available: boolean;
   release: ResolvedRelease;
 }
