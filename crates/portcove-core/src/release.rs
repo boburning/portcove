@@ -70,10 +70,6 @@ struct CachedRelease {
 const RELEASE_CACHE_TTL: Duration = Duration::from_secs(5 * 60);
 
 impl GithubReleaseProvider {
-    pub fn new() -> Result<Self> {
-        Self::build(None, "https://api.github.com", "https://github.com")
-    }
-
     pub fn for_library(library: &Library) -> Result<Self> {
         Self::build(
             Some(library.clone()),

@@ -38,10 +38,6 @@ struct CachedRelease {
 const RELEASE_CACHE_TTL: Duration = Duration::from_secs(5 * 60);
 
 impl GitlabReleaseProvider {
-    pub fn new() -> Result<Self> {
-        Self::build(None, "https://gitlab.com/api/v4")
-    }
-
     pub fn for_library(library: &Library) -> Result<Self> {
         Self::build(Some(library.clone()), "https://gitlab.com/api/v4")
     }

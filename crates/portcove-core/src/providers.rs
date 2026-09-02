@@ -14,13 +14,6 @@ pub struct CompositeReleaseProvider {
 }
 
 impl CompositeReleaseProvider {
-    pub fn new() -> Result<Self> {
-        Ok(Self {
-            github: Arc::new(GithubReleaseProvider::new()?),
-            gitlab: GitlabReleaseProvider::new()?,
-        })
-    }
-
     pub fn for_library(library: &Library) -> Result<Self> {
         Ok(Self {
             github: Arc::new(GithubReleaseProvider::for_library(library)?),
