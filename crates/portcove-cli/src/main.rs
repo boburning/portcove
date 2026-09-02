@@ -1,17 +1,17 @@
 use std::{
     io::{self, Read, Write},
     path::PathBuf,
-    process::{Command, ExitCode, Stdio},
+    process::{ExitCode, Stdio},
 };
 
 use clap::{Args, Parser, Subcommand, ValueEnum, error::ErrorKind};
 use portcove_core::{
     API_SCHEMA_VERSION, ActivityRecord, BackupRecord, CapabilityDocument, CatalogDocument,
-    DoctorReport, ErrorCode, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult,
-    GithubDeviceLoginState, GithubReleaseProvider, InstallPlan, InstallRecord, OperationEvent,
-    PortDefinition, PortPaths, PortStatus, PortcoveError, PortcoveService, ReconcileResult,
-    ReleaseChannel, RestoreResult, Result, SourceRecord, SourceVerification, StorageSummary,
-    UpdateCheck, UpdatePolicy, UpdateSnapshot,
+    ChildProcessPolicy, DoctorReport, ErrorCode, GithubAuthStatus, GithubDeviceLogin,
+    GithubDeviceLoginResult, GithubDeviceLoginState, GithubReleaseProvider, InstallPlan,
+    InstallRecord, OperationEvent, PortDefinition, PortPaths, PortStatus, PortcoveError,
+    PortcoveService, ReconcileResult, ReleaseChannel, RestoreResult, Result, SourceRecord,
+    SourceVerification, StorageSummary, UpdateCheck, UpdatePolicy, UpdateSnapshot,
 };
 use schemars::{JsonSchema, schema_for};
 use serde::Serialize;
@@ -909,11 +909,7 @@ fn render_about(mode: OutputMode) -> Result<()> {
 fn exec_game(service: &PortcoveService, args: ExecArgs) -> Result<ExitCode> {
     let (spec, _launch_guard) = service.prepare_launch(&args.port_id, args.source.as_deref())?;
     let install_root = spec.install_root.clone();
-    let status = Command::new(&spec.executable)
-        .args(&spec.arguments)
-        .args(args.game_args)
-        .current_dir(&spec.working_directory)
-        .envs(spec.environment)
+    let status = ChildProcessPolicy::game_command(&spec.process_spec(), &args.game_args)?
         .stdin(Stdio::inherit())
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())

@@ -22,7 +22,11 @@ architecture:
     node --test scripts/check-rust-architecture.test.mjs
     node scripts/check-rust-architecture.mjs
 
-check-rust: fmt rust-check clippy rust-test shear architecture
+process-policy:
+    node --test scripts/check-child-process-policy.test.mjs
+    node scripts/check-child-process-policy.mjs
+
+check-rust: fmt rust-check clippy rust-test shear architecture process-policy
 
 # Frontend fast loop
 ui-build:

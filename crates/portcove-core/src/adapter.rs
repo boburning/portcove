@@ -4,7 +4,7 @@ use std::{
     fs::File,
     io::{Read, Seek, SeekFrom},
     path::{Path, PathBuf},
-    process::{Command, Stdio},
+    process::Stdio,
 };
 
 use serde::{Deserialize, Serialize};
@@ -13,19 +13,10 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use crate::{
-    AdapterKind, DiscIdentityProfile, HostToolSource, HostToolState, HostToolStatus, Library,
-    Platform, PortDefinition, PortcoveError, Result, RuntimeSourceMaterialization, SourceKind,
-    SourceProfile, SourceRecord,
+    AdapterKind, ChildProcessClass, ChildProcessPolicy, DiscIdentityProfile, HostToolSource,
+    HostToolState, HostToolStatus, LaunchKind, LaunchSpec, Library, Platform, PortDefinition,
+    PortcoveError, Result, RuntimeSourceMaterialization, SourceKind, SourceProfile, SourceRecord,
 };
-
-#[derive(Debug, Clone)]
-pub struct LaunchSpec {
-    pub executable: PathBuf,
-    pub install_root: PathBuf,
-    pub working_directory: PathBuf,
-    pub environment: BTreeMap<String, String>,
-    pub arguments: Vec<String>,
-}
 
 pub trait Adapter: Send + Sync {
     fn kind(&self) -> AdapterKind;
@@ -330,6 +321,7 @@ impl Adapter for StandardAdapter {
         let mut arguments = port.launch_arguments.clone();
         arguments.extend(adapter_arguments);
         Ok(LaunchSpec {
+            launch_kind: LaunchKind::for_executable(&executable),
             executable,
             install_root: install_root.to_path_buf(),
             working_directory,
@@ -548,7 +540,7 @@ fn materialize_ps2_iso(source: &Path, destination: &Path) -> Result<()> {
     }
     let temporary = destination.with_extension(format!("tmp-{}.iso", Uuid::new_v4()));
     let program = resolve_chdman()?;
-    let output = Command::new(&program)
+    let output = ChildProcessPolicy::native_command(ChildProcessClass::HostTool, &program)?
         .arg("extractdvd")
         .arg("-i")
         .arg(source)
@@ -618,7 +610,7 @@ fn run_upstream_setup(
                 working_directory.display()
             ))
         })?;
-    let status = Command::new(setup)
+    let status = ChildProcessPolicy::native_command(ChildProcessClass::UpstreamSetup, setup)?
         .args(&port.setup_arguments)
         .arg(source)
         .current_dir(working_directory)
@@ -1203,7 +1195,7 @@ fn materialize_gamecube_iso(source: &Path, destination: &Path) -> Result<()> {
 
     let program = resolve_dolphin_tool()?;
     let temporary = destination.with_extension(format!("tmp-{}.iso", Uuid::new_v4()));
-    let output = Command::new(&program)
+    let output = ChildProcessPolicy::native_command(ChildProcessClass::HostTool, &program)?
         .arg("convert")
         .arg("-i")
         .arg(source)
@@ -1453,7 +1445,7 @@ pub(crate) fn materialize_psx_chd(source: &Path, destination: &Path) -> Result<P
     let cue = destination.join("disc.cue");
     let bins = destination.join("disc%t.bin");
     let program = resolve_chdman()?;
-    let output = Command::new(&program)
+    let output = ChildProcessPolicy::native_command(ChildProcessClass::HostTool, &program)?
         .arg("extractcd")
         .arg("-i")
         .arg(source)

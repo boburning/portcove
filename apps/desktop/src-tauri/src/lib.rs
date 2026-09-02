@@ -1,14 +1,12 @@
-use std::{
-    path::PathBuf,
-    process::{Command, Stdio},
-};
+use std::{path::PathBuf, process::Stdio};
 
 use portcove_core::{
-    ActivityRecord, AdoptionPreview, BackupRecord, CatalogDocument, CompositeReleaseProvider,
-    DoctorReport, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult,
-    GithubReleaseProvider, InstallPlan, InstallRecord, Library, OperationEvent, PortStatus,
-    PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel, ReleaseProvider,
-    RestoreResult, SourceRecord, SourceVerification, UpdateCheck, UpdatePolicy, VerificationReport,
+    ActivityRecord, AdoptionPreview, BackupRecord, CatalogDocument, ChildProcessClass,
+    ChildProcessPolicy, CompositeReleaseProvider, DoctorReport, GithubAuthStatus,
+    GithubDeviceLogin, GithubDeviceLoginResult, GithubReleaseProvider, InstallPlan, InstallRecord,
+    Library, OperationEvent, PortStatus, PortcoveError, PortcoveService, ReconcileResult,
+    ReleaseChannel, ReleaseProvider, RestoreResult, SourceRecord, SourceVerification, UpdateCheck,
+    UpdatePolicy, VerificationReport,
 };
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
@@ -575,11 +573,8 @@ async fn launch_port(
     })
     .await?;
     let install_root = spec.install_root.clone();
-    let mut child = Command::new(&spec.executable)
-        .args(&spec.arguments)
-        .args(arguments)
-        .current_dir(spec.working_directory)
-        .envs(spec.environment)
+    let mut child = ChildProcessPolicy::game_command(&spec.process_spec(), &arguments)
+        .map_err(DesktopError::from)?
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -652,12 +647,15 @@ fn open_directory(path: &std::path::Path) -> DesktopResult<()> {
     let program = "open";
     #[cfg(target_os = "linux")]
     let program = "xdg-open";
-    Command::new(program).arg(path).spawn().map_err(|error| {
-        PortcoveError::state(format!(
-            "could not open persistent data folder {}: {error}",
-            path.display()
-        ))
-    })?;
+    ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, program)?
+        .arg(path)
+        .spawn()
+        .map_err(|error| {
+            PortcoveError::state(format!(
+                "could not open persistent data folder {}: {error}",
+                path.display()
+            ))
+        })?;
     Ok(())
 }
 

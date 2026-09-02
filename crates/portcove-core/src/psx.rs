@@ -2,7 +2,6 @@ use std::{
     fs::{self, File},
     io::Read,
     path::{Path, PathBuf},
-    process::Command,
 };
 
 use futures_util::StreamExt;
@@ -11,7 +10,8 @@ use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
 use crate::{
-    Library, OperationEvent, Platform, PortcoveError, Result, SourceRecord,
+    ChildProcessClass, ChildProcessPolicy, Library, OperationEvent, Platform, PortcoveError,
+    Result, SourceRecord,
     adapter::{hash_file, materialize_psx_chd},
 };
 
@@ -322,7 +322,7 @@ fn run_cli(
     toolchain_root: &Path,
     arguments: impl IntoIterator<Item = String>,
 ) -> Result<()> {
-    let output = Command::new(python)
+    let output = ChildProcessPolicy::native_command(ChildProcessClass::ManagedBuilder, python)?
         .arg(cli)
         .args(arguments)
         .current_dir(project_root)
