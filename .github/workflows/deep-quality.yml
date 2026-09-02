@@ -12,7 +12,10 @@ concurrency:
 
 jobs:
   deep-quality:
-    runs-on: ubuntu-22.04
+    # semdup's bundled ONNX Runtime references glibc C23 symbols that are not
+    # available on Ubuntu 22.04. Noble remains a stable, explicitly pinned
+    # GitHub-hosted image and supplies the newer runtime required by semdup.
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
