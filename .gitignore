@@ -1,0 +1,11 @@
+/target/
+/apps/desktop/node_modules/
+/apps/desktop/dist/
+/apps/desktop/src-tauri/gen/
+.fallow/
+/.codex-remote-attachments/
+/work/
+/outputs/
+*.log
+.DS_Store
+Thumbs.db

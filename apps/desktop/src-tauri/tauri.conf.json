@@ -1,0 +1,36 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Portcove",
+  "version": "0.1.0",
+  "identifier": "io.github.portcove.portcove",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build",
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Portcove",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 960,
+        "minHeight": 640,
+        "resizable": true
+      }
+    ],
+    "security": { "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost data:; style-src 'self' 'unsafe-inline'" }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "createUpdaterArtifacts": false,
+    "publisher": "Portcove",
+    "homepage": "https://github.com/boburning/portcove",
+    "copyright": "Copyright © 2026 Portcove contributors",
+    "shortDescription": "Native ports, kept current.",
+    "longDescription": "A local-first manager for decompilations, recompilations, and native PC ports with verified releases, safe updates, rollback, and an automation-friendly CLI.",
+    "licenseFile": "../../../LICENSE-MIT"
+  }
+}

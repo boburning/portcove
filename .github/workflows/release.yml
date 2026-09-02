@@ -1,0 +1,134 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: apps/desktop/pnpm-lock.yaml
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Install Linux desktop prerequisites
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - run: pnpm install --frozen-lockfile
+        working-directory: apps/desktop
+      - run: pnpm audit --prod --audit-level high
+        working-directory: apps/desktop
+      - name: Verify release identity and required assets
+        run: |
+          node --test scripts/check-release-metadata.test.mjs
+          node scripts/check-release-metadata.mjs --tag "${{ github.ref_name }}"
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+      - run: pnpm build
+        working-directory: apps/desktop
+      - run: pnpm test
+        working-directory: apps/desktop
+      - name: Fallow quality gate
+        working-directory: apps/desktop
+        run: |
+          ./node_modules/.bin/fallow --format json --quiet --explain 2>/dev/null > "$RUNNER_TEMP/fallow.json" || true
+          node ../../scripts/check-fallow-report.mjs "$RUNNER_TEMP/fallow.json"
+      - name: Verify active catalog upstreams
+        run: node scripts/check-catalog-repositories.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify direct PS1 upstream ownership
+        run: node scripts/check-retcomm-upstreams.mjs
+
+  build:
+    needs: preflight
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            label: windows-x86_64
+          - os: ubuntu-22.04
+            label: linux-x86_64
+          - os: macos-13
+            label: macos-x86_64
+          - os: macos-14
+            label: macos-aarch64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: apps/desktop/pnpm-lock.yaml
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install Linux desktop prerequisites
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - run: pnpm install --frozen-lockfile
+        working-directory: apps/desktop
+      - run: cargo build --release -p portcove-cli
+      - name: Package CLI
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release-assets | Out-Null
+          if ($IsWindows) {
+            Copy-Item target/release/portcove.exe release-assets/portcove.exe
+            Compress-Archive release-assets/portcove.exe "release-assets/portcove-${{ matrix.label }}.zip"
+          } else {
+            Copy-Item target/release/portcove release-assets/portcove
+            tar -czf "release-assets/portcove-${{ matrix.label }}.tar.gz" -C release-assets portcove
+          }
+      - uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: apps/desktop
+          tagName: ${{ github.ref_name }}
+          releaseName: Portcove ${{ github.ref_name }}
+          releaseBody: Review the attached per-platform SHA-256 manifests before installing. Portcove does not include copyrighted game data.
+          generateReleaseNotes: true
+          releaseDraft: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          uploadUpdaterJson: false
+      - name: Generate checksums
+        shell: pwsh
+        run: |
+          $cliArchive = Get-ChildItem release-assets/portcove-${{ matrix.label }}.* -File -ErrorAction Stop
+          $bundleArtifacts = Get-ChildItem target/release/bundle -Recurse -File -ErrorAction Stop |
+            Where-Object { $_.Extension -ne ".sig" }
+          $artifacts = @($cliArchive) + @($bundleArtifacts)
+          if ($artifacts.Count -lt 2) { throw "Expected a CLI archive and at least one desktop bundle" }
+          $duplicateNames = $artifacts | Group-Object Name | Where-Object Count -gt 1
+          if ($duplicateNames) { throw "Release artifacts contain duplicate filenames" }
+          $lines = $artifacts | Sort-Object Name | ForEach-Object {
+            "{0}  {1}" -f (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLowerInvariant(), $_.Name
+          }
+          $lines | Set-Content -Encoding utf8 release-assets/SHA256SUMS-${{ matrix.label }}.txt
+      - name: Upload CLI archive and checksums
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.ref_name }}" release-assets/portcove-${{ matrix.label }}.* release-assets/SHA256SUMS-${{ matrix.label }}.txt --clobber
