@@ -17,8 +17,17 @@ const requiredProjectFiles = [
   "apps/desktop/public/brand/mascot/portcove-mascot-default.jpg",
   "apps/desktop/src-tauri/icons/32x32.png",
   "apps/desktop/src-tauri/icons/128x128.png",
+  "apps/desktop/src-tauri/icons/128x128@2x.png",
   "apps/desktop/src-tauri/icons/icon.ico",
   "apps/desktop/src-tauri/icons/icon.icns",
+];
+
+const requiredBundleIcons = [
+  "icons/32x32.png",
+  "icons/128x128.png",
+  "icons/128x128@2x.png",
+  "icons/icon.icns",
+  "icons/icon.ico",
 ];
 
 export function parseWorkspacePackage(toml) {
@@ -80,6 +89,9 @@ const metadataRules = [
   metadata => metadata.tauri.bundle?.active === true
     ? undefined
     : "Tauri bundle must be active for a release",
+  metadata => requiredBundleIcons.every(icon => metadata.tauri.bundle?.icon?.includes(icon))
+    ? undefined
+    : "Tauri bundle must explicitly configure the complete platform icon set",
   metadata => metadata.tauri.bundle?.shortDescription && metadata.tauri.bundle?.longDescription
     ? undefined
     : "Tauri bundle descriptions must be present",

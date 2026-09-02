@@ -18,6 +18,13 @@ function validMetadata() {
       app: { windows: [{ title: "Portcove" }] },
       bundle: {
         active: true,
+        icon: [
+          "icons/32x32.png",
+          "icons/128x128.png",
+          "icons/128x128@2x.png",
+          "icons/icon.icns",
+          "icons/icon.ico",
+        ],
         homepage: "https://github.com/boburning/portcove",
         shortDescription: "Native ports, kept current.",
         longDescription: "A local-first native port manager.",
@@ -76,6 +83,13 @@ test("rejects malformed versions before a tag can be accepted", () => {
   metadata.tauri.version = "01.2";
   const errors = validateReleaseMetadata(metadata, { tag: "v01.2" });
   assert.match(errors.join("\n"), /not valid SemVer/);
+});
+
+test("requires the complete platform icon set", () => {
+  const metadata = validMetadata();
+  metadata.tauri.bundle.icon = ["icons/icon.ico"];
+  const errors = validateReleaseMetadata(metadata);
+  assert.match(errors.join("\n"), /complete platform icon set/);
 });
 
 test("parses inline and positional release options", () => {
