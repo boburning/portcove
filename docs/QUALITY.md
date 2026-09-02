@@ -42,6 +42,14 @@ pnpm 11's default one-day minimum release age remains active. The workspace cont
 
 CI installs the required exact versions through a commit-pinned installer action with checksum verification. The local bootstrap scripts use cargo-binstall when available and exact, locked Cargo installs otherwise; optional deep tools remain outside required PR CI.
 
+The manually triggered `.github/workflows/deep-quality.yml` job provides a reproducible Ubuntu environment for the full advisory pass, including semdup and Hawk. It runs the same `just deep` interface used locally, but is deliberately not a required pull-request status check. Start it after broad refactors or when the Windows host cannot link semdup:
+
+```bash
+gh workflow run deep-quality.yml --ref main
+```
+
+The workflow log is review evidence, not an instruction to rewrite code. Hawk and semdup wrappers report findings without turning heuristic results into hard failures; deterministic checks inside `just audit` still block normally.
+
 ## Architecture gate
 
 `scripts/check-rust-architecture.mjs` reads `cargo metadata --format-version 1 --no-deps`; it never scrapes manifests. It requires both adapters to depend on `portcove-core`, prevents core from depending on CLI/Tauri/desktop concerns, and prevents either adapter from depending on its peer. Add future layer rules to the checker data rather than writing a second checker.
