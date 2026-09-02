@@ -12,6 +12,14 @@ Preserve the existing safety invariants around source identity, checksums, archi
 
 Read `docs/ARCHITECTURE.md` before a structural or cross-layer change.
 
+### Architecture evolution
+
+This is the current tested design, not a permanent crate map. Early development may expose a better boundary, a host concern that should remain in an adapter, or a domain that deserves its own focused crate. Change the contract deliberately when implementation evidence supports it.
+
+An intentional architecture change must preserve one clear owner for each piece of durable domain state and every safety invariant above. In the same change, document the new boundary and tradeoffs in `docs/ARCHITECTURE.md`, update the metadata architecture rules and tests, and migrate callers without leaving parallel authorities behind. Do not retain unpublished internal APIs solely for compatibility; do preserve documented CLI behavior and version machine-facing changes when external consumers can observe them.
+
+“Thin adapter” means no duplicated domain authority. It does not prohibit host integration, process lifecycle, secure credential access, file pickers, event translation, or presentation-oriented aggregation where those responsibilities naturally belong at the boundary.
+
 ## Quality workflow
 
 - Rust change: `just check-rust`
