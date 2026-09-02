@@ -798,7 +798,14 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 service.set_update_policy(&port_id, policy.into())?,
             )?;
         }
-        Commands::Exec(args) => return exec_game(&service, args),
+        Commands::Exec(args) => {
+            if mode != OutputMode::Human {
+                return Err(PortcoveError::usage(
+                    "exec inherits the game's streams and exit code; remove --json or --jsonl",
+                ));
+            }
+            return exec_game(&service, args);
+        }
         Commands::Capabilities => {
             render_success(mode, "capabilities", CapabilityDocument::current())?
         }

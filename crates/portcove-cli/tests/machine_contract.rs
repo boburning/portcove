@@ -91,6 +91,25 @@ fn jsonl_read_commands_end_with_one_result_event() {
 }
 
 #[test]
+fn exec_rejects_machine_output_before_starting_a_game() {
+    let root = tempfile::tempdir().unwrap();
+    let output = portcove(root.path(), &["--json", "exec", "lighthouse"]);
+
+    assert_eq!(output.status.code(), Some(2));
+    assert!(output.stderr.is_empty());
+    let response = json_stdout(&output);
+    assert_eq!(response["ok"], false);
+    assert_eq!(response["command"], "exec");
+    assert_eq!(response["error"]["code"], "usage");
+    assert!(
+        response["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("inherits the game's streams")
+    );
+}
+
+#[test]
 fn about_is_branded_for_people_and_structured_for_automation_without_opening_a_library() {
     let root = tempfile::tempdir().unwrap();
     let human_library = root.path().join("human-library");
