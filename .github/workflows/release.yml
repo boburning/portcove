@@ -3,6 +3,7 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -41,7 +42,10 @@ jobs:
       - name: Verify release identity and required assets
         run: |
           node --test scripts/check-release-metadata.test.mjs
-          node scripts/check-release-metadata.mjs --tag "${{ github.ref_name }}"
+          node scripts/check-release-metadata.mjs
+      - name: Verify release tag matches metadata
+        if: github.event_name == 'push'
+        run: node scripts/check-release-metadata.mjs --tag "${{ github.ref_name }}"
       - run: just audit
       - name: Verify active catalog upstreams
         run: node scripts/check-catalog-repositories.mjs
@@ -95,6 +99,7 @@ jobs:
             tar -czf "release-assets/portcove-${{ matrix.label }}.tar.gz" -C release-assets portcove
           }
       - uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # action-v1.0.0
+        if: github.event_name == 'push'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -106,6 +111,10 @@ jobs:
           releaseDraft: true
           prerelease: ${{ contains(github.ref_name, '-') }}
           uploadUpdaterJson: false
+      - name: Build desktop bundles for rehearsal
+        if: github.event_name == 'workflow_dispatch'
+        run: pnpm tauri build
+        working-directory: apps/desktop
       - name: Generate checksums
         shell: pwsh
         run: |
@@ -121,7 +130,19 @@ jobs:
           }
           $lines | Set-Content -Encoding utf8 release-assets/SHA256SUMS-${{ matrix.label }}.txt
       - name: Upload CLI archive and checksums
+        if: github.event_name == 'push'
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "${{ github.ref_name }}" release-assets/portcove-${{ matrix.label }}.* release-assets/SHA256SUMS-${{ matrix.label }}.txt --clobber
+      - name: Retain rehearsal artifacts
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-rehearsal-${{ matrix.label }}
+          path: |
+            release-assets/portcove-${{ matrix.label }}.*
+            release-assets/SHA256SUMS-${{ matrix.label }}.txt
+            target/release/bundle/**
+          if-no-files-found: error
+          retention-days: 7

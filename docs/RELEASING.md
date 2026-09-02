@@ -36,6 +36,19 @@ An explicit `-Version` is accepted only when it matches the central release meta
 
 Pushing `v*` starts `.github/workflows/release.yml`. Its preflight job repeats the identity, dependency, test, Fallow, and upstream gates before the Windows, Linux x64, Intel macOS, and Apple-silicon macOS matrix can build. Each platform publishes a separate CLI archive, native desktop bundles, and a SHA-256 manifest to one draft release. GitHub generates categorized notes from merged pull requests using `.github/release.yml`; tags containing a SemVer prerelease suffix are marked as prereleases automatically. Tauri updater metadata remains disabled until Portcove has an explicit signed desktop self-update contract.
 
+## Release rehearsal
+
+Run the **Release** workflow manually from GitHub Actions before the first v1 tag or after changing packaging. A manual run executes the same preflight and four-platform build matrix, but every GitHub Release mutation is disabled. Instead, each runner retains its CLI archive, native desktop bundles, and SHA-256 manifest as a workflow artifact for seven days. Review those artifacts from the completed run; a rehearsal never creates a tag, draft release, or published release.
+
+From an authenticated GitHub CLI, start and follow the rehearsal with:
+
+```powershell
+gh workflow run release.yml --ref main
+gh run list --workflow release.yml --event workflow_dispatch --limit 1
+```
+
+The rehearsal proves that the current commit can produce packages on hosted builders. It does not replace signing, installation, gameplay, controller, or other hands-on validation tracked in `docs/DEFERRED.md`.
+
 Before publishing the draft:
 
 1. confirm every expected platform job completed and every checksum manifest covers its CLI archive and desktop bundle;
