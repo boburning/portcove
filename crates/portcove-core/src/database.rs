@@ -10,7 +10,7 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior};
 
 use crate::{PortcoveError, Result};
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 10;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 11;
 
 struct Migration {
     version: i64,
@@ -79,6 +79,12 @@ const MIGRATIONS: &[Migration] = &[
         name: "phase-aware cancellation",
         apply: migration_10,
         verify: verify_migration_10,
+    },
+    Migration {
+        version: 11,
+        name: "signed catalog trust and selection",
+        apply: crate::catalog_store::migrate,
+        verify: verify_migration_11,
     },
 ];
 
@@ -574,6 +580,22 @@ fn verify_migration_10(connection: &Connection) -> Result<()> {
             "cancellation_phase",
             "cancel_requested",
             "cancellation_owner",
+        ],
+    )
+}
+
+fn verify_migration_11(connection: &Connection) -> Result<()> {
+    require_columns(connection, "catalog_trust", &["key_id", "public_key"])?;
+    require_columns(
+        connection,
+        "catalog_state",
+        &[
+            "singleton",
+            "revision",
+            "highest_sequence",
+            "enabled",
+            "active",
+            "previous",
         ],
     )
 }

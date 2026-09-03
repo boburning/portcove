@@ -104,6 +104,7 @@ pub struct PortcoveService {
     pub(crate) cancellation_owner: String,
     pub(crate) cancellation_requested: std::sync::atomic::AtomicBool,
     catalog: Catalog,
+    catalog_provenance: crate::CatalogProvenance,
     pub(crate) library: Library,
     releases: Arc<dyn ReleaseProvider>,
     adapters: AdapterRegistry,
@@ -150,10 +151,12 @@ struct BackupStats {
 impl PortcoveService {
     pub fn new(library: Library) -> Result<Self> {
         let releases = Arc::new(CompositeReleaseProvider::for_library(&library)?);
+        let (catalog, catalog_provenance) = library.load_catalog()?;
         let service = Self {
             cancellation_owner: Uuid::new_v4().to_string(),
             cancellation_requested: std::sync::atomic::AtomicBool::new(false),
-            catalog: Catalog::embedded()?,
+            catalog,
+            catalog_provenance,
             library,
             releases,
             adapters: AdapterRegistry,
@@ -165,10 +168,12 @@ impl PortcoveService {
     }
 
     pub fn with_provider(library: Library, releases: Arc<dyn ReleaseProvider>) -> Result<Self> {
+        let (catalog, catalog_provenance) = library.load_catalog()?;
         let service = Self {
             cancellation_owner: Uuid::new_v4().to_string(),
             cancellation_requested: std::sync::atomic::AtomicBool::new(false),
-            catalog: Catalog::embedded()?,
+            catalog,
+            catalog_provenance,
             library,
             releases,
             adapters: AdapterRegistry,
@@ -185,10 +190,12 @@ impl PortcoveService {
         releases: Arc<dyn ReleaseProvider>,
         faults: Arc<dyn LifecycleFaultInjector>,
     ) -> Result<Self> {
+        let (catalog, catalog_provenance) = library.load_catalog()?;
         Ok(Self {
             cancellation_owner: Uuid::new_v4().to_string(),
             cancellation_requested: std::sync::atomic::AtomicBool::new(false),
-            catalog: Catalog::embedded()?,
+            catalog,
+            catalog_provenance,
             library,
             releases,
             adapters: AdapterRegistry,
@@ -209,6 +216,7 @@ impl PortcoveService {
             platform: Platform::current()?,
             library: self.library.storage_summary()?,
             catalog_port_count: self.catalog.ports().len(),
+            catalog_provenance: self.catalog_provenance.clone(),
             installed_port_count: statuses
                 .iter()
                 .filter(|status| status.active.is_some())

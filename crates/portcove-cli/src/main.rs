@@ -20,6 +20,8 @@ use serde::Serialize;
 use tracing_subscriber::EnvFilter;
 
 mod cancellation;
+mod catalog;
+use catalog::CatalogCommand;
 mod human;
 
 #[derive(Debug, Parser)]
@@ -157,13 +159,6 @@ enum BackupCommand {
         #[arg(long)]
         yes: bool,
     },
-}
-
-#[derive(Debug, Subcommand)]
-enum CatalogCommand {
-    List,
-    Export,
-    Show { port_id: String },
 }
 
 #[derive(Debug, Subcommand)]
@@ -551,6 +546,9 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
             | Commands::Ensure(_)
             | Commands::Reconcile(_)
             | Commands::Check(_)
+            | Commands::Catalog {
+                command: CatalogCommand::Update { apply: true, .. }
+            }
             | Commands::Source {
                 command: SourceCommand::Discover(_)
             }
@@ -610,15 +608,8 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 }
             }
         }
-        Commands::Catalog {
-            command: CatalogCommand::List,
-        } => {
-            render_read_success(
-                mode,
-                "catalog.list",
-                service.catalog().ports().to_vec(),
-                |ports| human::catalog_list(ports),
-            )?;
+        Commands::Catalog { command } => {
+            catalog::execute(command, &service, mode, cli.non_interactive).await?;
         }
         Commands::Backup {
             command: BackupCommand::Create { port_id },
@@ -691,21 +682,7 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 service.restore_backup(&port_id, &backup_id, &authorization.token)?,
             )?;
         }
-        Commands::Catalog {
-            command: CatalogCommand::Export,
-        } => {
-            render_success(mode, "catalog.export", service.catalog().document().clone())?;
-        }
-        Commands::Catalog {
-            command: CatalogCommand::Show { port_id },
-        } => {
-            render_read_success(
-                mode,
-                "catalog.show",
-                service.catalog().port(&port_id)?.clone(),
-                human::catalog_show,
-            )?;
-        }
+
         Commands::Source {
             command: SourceCommand::Discover(args),
         } => {
@@ -1220,6 +1197,34 @@ fn schema_document() -> serde_json::Value {
             ),
             ("about", serde_json::json!(schema_for!(AboutDocument))),
             ("catalog", serde_json::json!(schema_for!(CatalogDocument))),
+            (
+                "catalog_status",
+                serde_json::json!(schema_for!(portcove_core::CatalogStatus)),
+            ),
+            (
+                "catalog_provenance",
+                serde_json::json!(schema_for!(portcove_core::CatalogProvenance)),
+            ),
+            (
+                "catalog_trust_key",
+                serde_json::json!(schema_for!(portcove_core::CatalogTrustKey)),
+            ),
+            (
+                "catalog_update_plan",
+                serde_json::json!(schema_for!(portcove_core::CatalogUpdatePlan)),
+            ),
+            (
+                "catalog_update_source",
+                serde_json::json!(schema_for!(portcove_core::CatalogUpdateSource)),
+            ),
+            (
+                "signed_catalog_envelope",
+                serde_json::json!(schema_for!(portcove_core::SignedCatalogEnvelope)),
+            ),
+            (
+                "signed_catalog_payload",
+                serde_json::json!(schema_for!(portcove_core::SignedCatalogPayload)),
+            ),
             ("port", serde_json::json!(schema_for!(PortDefinition))),
             ("status", serde_json::json!(schema_for!(PortStatus))),
             ("update_check", serde_json::json!(schema_for!(UpdateCheck))),
@@ -1640,11 +1645,7 @@ fn command_name(command: &Commands) -> &'static str {
             BackupCommand::Delete { .. } => "backup.delete",
             BackupCommand::Restore { .. } => "backup.restore",
         },
-        Commands::Catalog { command } => match command {
-            CatalogCommand::List => "catalog.list",
-            CatalogCommand::Export => "catalog.export",
-            CatalogCommand::Show { .. } => "catalog.show",
-        },
+        Commands::Catalog { command } => command.name(),
         Commands::Source { command } => match command {
             SourceCommand::Add { .. } => "source.add",
             SourceCommand::Discover(_) => "source.discover",
@@ -1921,7 +1922,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 6);
+        assert_eq!(capabilities.schema_version, 7);
         assert_eq!(
             capabilities.failure_isolated_batches,
             ["check", "reconcile", "update", "source.verify"]

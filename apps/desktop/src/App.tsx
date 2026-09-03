@@ -143,7 +143,7 @@ function CurrentView({ data, ui, model, operations, github, updates, sourceHealt
   if (ui.view === "updates") return <UpdateCenter ports={data.catalog?.ports ?? []} statuses={model.statusMap} activities={data.activities} outcomes={updates.outcomes} actions={updates.actions} busy={operations.busy}
     checkAll={() => { void updates.checkAll(); }} applyPolicies={() => { void updates.applyPolicies(); }} onSelect={ui.setSelectedId} onOpenSources={() => ui.setView("settings")} />;
   if (ui.view === "settings") return <SettingsView doctor={data.doctor} storage={data.storage} github={github} busy={operations.busy} sources={data.sources} appearance={appearance}
-    sourceProfiles={data.catalog?.source_profiles ?? []} onSourceAdded={data.refresh}
+    sourceProfiles={data.catalog?.source_profiles ?? []} onSourceAdded={data.refresh} onCatalogChanged={data.refresh}
     createSupportBundle={() => operations.perform("support bundle", desktopApi.createSupportBundle)}
     exportMetadata={() => operations.perform("export library metadata", async () => {
       const path = await pickMetadataExportPath();

@@ -321,12 +321,20 @@ impl Library {
         status: ActivityStatus,
         message: Option<&str>,
     ) -> Result<()> {
+        Self::finish_activity_on(&self.connection()?, id, status, message)
+    }
+
+    pub(crate) fn finish_activity_on(
+        connection: &Connection,
+        id: &str,
+        status: ActivityStatus,
+        message: Option<&str>,
+    ) -> Result<()> {
         if status == ActivityStatus::Running {
             return Err(PortcoveError::usage(
                 "an activity cannot be finished with running status",
             ));
         }
-        let connection = self.connection()?;
         let changed = connection.execute(
             "UPDATE activity_history
              SET status=?2, message=?3, finished_at=?4, cancellation_phase=NULL, cancellation_owner=NULL

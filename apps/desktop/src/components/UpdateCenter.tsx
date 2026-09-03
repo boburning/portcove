@@ -139,6 +139,7 @@ function operationLabel(operation: ActivityOperation) {
     move_library: "Moved library",
     import_library: "Imported library",
     discover_sources: "Searched for sources",
+    update_catalog: "Updated catalog",
   };
   return labels[operation];
 }

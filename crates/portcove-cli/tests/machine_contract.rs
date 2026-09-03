@@ -3,6 +3,67 @@ use std::process::{Command, Output};
 use serde_json::Value;
 
 struct RunningCli(std::process::Child);
+
+#[test]
+fn catalog_trust_commands_require_review_and_preserve_embedded_offline_use() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    let original = json_stdout(&portcove(&library, &["--json", "catalog", "status"]));
+    assert_eq!(original["data"]["provenance"]["origin"], "embedded");
+    assert_eq!(original["data"]["highest_sequence"], 0);
+    // RFC 8032 test-vector public key, never a production signing identity.
+    let public_key = "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a";
+    let no_consent = portcove(
+        &library,
+        &[
+            "--json",
+            "--non-interactive",
+            "catalog",
+            "trust-key",
+            public_key,
+        ],
+    );
+    assert!(!no_consent.status.success());
+    let trust = portcove(
+        &library,
+        &["--json", "catalog", "trust-key", public_key, "--yes"],
+    );
+    assert!(trust.status.success());
+    let data = json_stdout(&trust)["data"].clone();
+    assert_eq!(data["provenance"]["origin"], "embedded");
+    assert_eq!(data["trusted_keys"][0]["public_key"], public_key);
+    let id = data["trusted_keys"][0]["key_id"].as_str().unwrap();
+    let stale = portcove(
+        &library,
+        &[
+            "--json",
+            "catalog",
+            "revoke-key",
+            id,
+            "--expected-state",
+            original["data"]["state_sha256"].as_str().unwrap(),
+        ],
+    );
+    assert_eq!(json_stdout(&stale)["error"]["code"], "conflict");
+    let revoke = portcove(
+        &library,
+        &[
+            "--json",
+            "catalog",
+            "revoke-key",
+            id,
+            "--expected-state",
+            data["state_sha256"].as_str().unwrap(),
+        ],
+    );
+    assert!(revoke.status.success());
+    assert_eq!(
+        json_stdout(&revoke)["data"]["trusted_keys"],
+        serde_json::json!([])
+    );
+    let doctor = json_stdout(&portcove(&library, &["--json", "doctor"]));
+    assert_eq!(doctor["data"]["catalog_provenance"]["origin"], "embedded");
+}
 impl Drop for RunningCli {
     fn drop(&mut self) {
         let _ = self.0.kill();
@@ -411,7 +472,7 @@ fn default_read_commands_have_human_output_snapshots() {
 
     let capabilities = human_stdout(&portcove(root.path(), &["capabilities"])).to_owned();
     assert!(capabilities.starts_with("Portcove "));
-    assert!(capabilities.contains(" capabilities\nSchema: 6"));
+    assert!(capabilities.contains(" capabilities\nSchema: 7"));
 }
 
 #[test]
@@ -422,11 +483,11 @@ fn capabilities_are_one_clean_versioned_json_document() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 6);
+    assert_eq!(response["schema_version"], 7);
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");
     assert!(response["error"].is_null());
-    assert_eq!(response["data"]["schema_version"], 6);
+    assert_eq!(response["data"]["schema_version"], 7);
     assert_eq!(
         response["data"]["raw_stream_commands"],
         serde_json::json!(["exec"])
@@ -448,7 +509,7 @@ fn command_errors_keep_the_machine_envelope_and_stable_exit_code() {
     assert_eq!(output.status.code(), Some(4));
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 6);
+    assert_eq!(response["schema_version"], 7);
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "catalog.show");
     assert!(response["data"].is_null());
@@ -465,7 +526,7 @@ fn parser_errors_are_structured_for_machine_callers() {
     assert!(output.stderr.is_empty());
     assert!(!library.exists());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 6);
+    assert_eq!(response["schema_version"], 7);
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "cli");
     assert_eq!(response["error"]["code"], "usage");
@@ -485,7 +546,7 @@ fn jsonl_read_commands_end_with_one_result_event() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 6);
+    assert_eq!(response["schema_version"], 7);
     assert_eq!(response["type"], "result");
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");

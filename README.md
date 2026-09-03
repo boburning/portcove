@@ -115,3 +115,5 @@ The architecture and trust boundaries are documented in [docs/ARCHITECTURE.md](d
 Interactive, physical, and external-infrastructure follow-ups are tracked in [docs/DEFERRED.md](docs/DEFERRED.md). Treat that file as the authority for intentionally postponed work rather than inferring completion from automated tests.
 
 Licensed under MIT or Apache-2.0, at your option.
+
+Signed catalog updates are optional. Settings -> Catalog updates (or `catalog status` / `catalog update`) supports explicit publisher trust, review, activation, rollback, and offline fallback. Startup uses local verified metadata and never requires an account or server. [Signing format and publisher tooling](docs/SIGNED-CATALOG.md) describe the contract; no production publisher key or hosting origin is configured by default.

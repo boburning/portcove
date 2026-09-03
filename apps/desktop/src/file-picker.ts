@@ -35,3 +35,7 @@ export function pickMetadataExportPath() {
 export function pickMetadataImportPath() {
   return open({ title: "Choose library metadata", multiple: false, directory: false, filters: [{ name: "Portcove library metadata", extensions: ["json"] }] });
 }
+
+export function pickSignedCatalogPath() {
+  return open({ title: "Choose signed catalog", multiple: false, directory: false, filters: [{ name: "Signed Portcove catalog", extensions: ["json"] }] });
+}

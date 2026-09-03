@@ -54,6 +54,11 @@ const aliases = new Map(
 const failures = [];
 const interfaceSchemas = new Map([
   ["catalog", "CatalogDocument"],
+  ["catalog_status", "CatalogStatus"],
+  ["catalog_provenance", "CatalogProvenance"],
+  ["catalog_trust_key", "CatalogTrustKey"],
+  ["catalog_update_plan", "CatalogUpdatePlan"],
+
   ["port", "PortDefinition"],
   ["status", "PortStatus"],
   ["update_check", "UpdateCheck"],

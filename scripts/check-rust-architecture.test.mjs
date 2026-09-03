@@ -42,3 +42,12 @@ test("fails closed when a governed workspace package disappears", () => {
   assert.equal(violations.length, 1);
   assert.match(formatViolations(violations), /was not found/);
 });
+
+test("keeps catalog signature authority out of presentation adapters", () => {
+  const violations = validateArchitecture(metadata({
+    "portcove-cli": ["clap", "portcove-core", "ed25519-dalek"],
+    "portcove-desktop": ["portcove-core", "tauri", "ed25519-dalek"],
+  }));
+  assert.equal(violations.length, 2);
+  assert.ok(violations.every(item => item.dependencyName === "ed25519-dalek"));
+});

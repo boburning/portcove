@@ -97,6 +97,7 @@ describe("desktop components", () => {
       platform: "windows-x86-64",
       library: { library_root: "E:/Portcove", volume_total_bytes: 1024, volume_available_bytes: 512 },
       catalog_port_count: 61,
+      catalog_provenance: { origin: "embedded", catalog_sha256: "a".repeat(64), sequence: null, key_id: null, expires_at: null, fallback_reasons: [] },
       installed_port_count: 10,
       registered_source_count: 9,
       repair: { generated_at: 1, items: [] },

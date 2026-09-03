@@ -433,6 +433,7 @@ impl FromStr for ActivityTargetKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ActivityOperation {
+    UpdateCatalog,
     DiscoverSources,
     ImportLibrary,
     MoveLibrary,
@@ -457,6 +458,7 @@ pub enum ActivityOperation {
 impl std::fmt::Display for ActivityOperation {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str(match self {
+            Self::UpdateCatalog => "update_catalog",
             Self::ImportLibrary => "import_library",
             Self::DiscoverSources => "discover_sources",
             Self::MoveLibrary => "move_library",
@@ -485,6 +487,7 @@ impl FromStr for ActivityOperation {
 
     fn from_str(value: &str) -> Result<Self> {
         match value {
+            "update_catalog" => Ok(Self::UpdateCatalog),
             "import_library" => Ok(Self::ImportLibrary),
             "discover_sources" => Ok(Self::DiscoverSources),
             "move_library" => Ok(Self::MoveLibrary),
@@ -666,6 +669,7 @@ pub struct DoctorReport {
     pub platform: Platform,
     pub library: StorageSummary,
     pub catalog_port_count: usize,
+    pub catalog_provenance: crate::CatalogProvenance,
     pub installed_port_count: usize,
     pub registered_source_count: usize,
     pub host_tools: Vec<HostToolStatus>,

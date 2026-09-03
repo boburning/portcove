@@ -129,7 +129,7 @@ export interface PortStatus {
   last_update_check?: UpdateSnapshot;
 }
 
-export type ActivityOperation = "discover_sources" | "import_library" | "move_library" | "launch" | "check_update" | "backup" | "restore" | "delete_backup" | "install" | "update" | "reconcile" | "verify_install" | "activate" | "rollback" | "adopt" | "remove" | "remove_source" | "register_source" | "verify_source";
+export type ActivityOperation = "update_catalog" | "discover_sources" | "import_library" | "move_library" | "launch" | "check_update" | "backup" | "restore" | "delete_backup" | "install" | "update" | "reconcile" | "verify_install" | "activate" | "rollback" | "adopt" | "remove" | "remove_source" | "register_source" | "verify_source";
 export type ActivityStatus = "running" | "succeeded" | "failed" | "cancelled";
 export type CancellationPhase = "preparing" | "finishing";
 export interface CancellationState {
@@ -172,6 +172,7 @@ export interface DoctorReport {
   platform: Platform;
   library: StorageSummary;
   catalog_port_count: number;
+  catalog_provenance: CatalogProvenance;
   installed_port_count: number;
   registered_source_count: number;
   host_tools: HostToolStatus[];
@@ -480,4 +481,43 @@ export interface GithubDeviceLogin {
 export interface GithubDeviceLoginResult {
   state: "pending" | "complete";
   status?: GithubAuthStatus;
+}
+
+export type CatalogOrigin = "embedded" | "signed_active" | "signed_previous";
+export type CatalogUpdateSource = { kind: "file" | "https"; value: string };
+
+export interface CatalogTrustKey {
+  key_id: string;
+  public_key: string;
+}
+
+export interface CatalogProvenance {
+  origin: CatalogOrigin;
+  catalog_sha256: string;
+  sequence: number | null;
+  key_id: string | null;
+  expires_at: number | null;
+  fallback_reasons: string[];
+}
+
+export interface CatalogStatus {
+  provenance: CatalogProvenance;
+  trusted_keys: CatalogTrustKey[];
+  highest_sequence: number;
+  updates_enabled: boolean;
+  can_rollback: boolean;
+  can_use_cached: boolean;
+  state_sha256: string;
+}
+
+export interface CatalogUpdatePlan {
+  source: CatalogUpdateSource;
+  envelope_sha256: string;
+  key_id: string;
+  sequence: number;
+  issued_at: number;
+  expires_at: number;
+  changed_port_ids: string[];
+  current: CatalogProvenance;
+  plan_sha256: string;
 }

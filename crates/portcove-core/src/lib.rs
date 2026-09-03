@@ -4,6 +4,8 @@ mod auth;
 mod authorization;
 mod cancellation;
 mod catalog;
+mod catalog_store;
+mod catalog_update;
 mod database;
 mod durability;
 mod error;
@@ -27,6 +29,7 @@ mod psx;
 mod recovery;
 mod release;
 mod service;
+mod signed_catalog;
 mod source;
 mod source_discovery;
 mod source_file;
@@ -42,6 +45,8 @@ pub use auth::{
 pub use authorization::DestructiveAuthorization;
 pub use cancellation::{CancellationPhase, CancellationState};
 pub use catalog::Catalog;
+pub use catalog_store::CatalogStatus;
+pub use catalog_update::{CatalogUpdatePlan, CatalogUpdateSource};
 pub use error::{ErrorCode, PortcoveError, Result};
 pub use gitlab::GitlabReleaseProvider;
 pub use import_execution::LibraryImportResult;
@@ -64,6 +69,9 @@ pub use service::{
     AdoptionCopyFile, AdoptionCopyPlan, AdoptionPreview, AdoptionSkippedEntry, BackupAction,
     BackupActionPreview, PortRemovalPreview, PortcoveService,
 };
+pub use signed_catalog::{
+    CatalogOrigin, CatalogProvenance, CatalogTrustKey, SignedCatalogEnvelope, SignedCatalogPayload,
+};
 pub use source::SourceRelinkPlan;
 pub use source_discovery::{
     SourceDiscoveryIssue, SourceDiscoveryLimit, SourceDiscoveryLimits, SourceDiscoveryReport,
@@ -71,4 +79,4 @@ pub use source_discovery::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 6;
+pub const API_SCHEMA_VERSION: u32 = 7;

@@ -1,3 +1,4 @@
+import type { CatalogStatus, CatalogUpdatePlan, CatalogUpdateSource } from "./types";
 import { Channel, invoke } from "@tauri-apps/api/core";
 import type { CancellationState, OperationEvent } from "./types";
 import type { LibraryImportPlan, LibraryImportResult, LibraryMovePlan, LibraryMoveResult } from "./types";
@@ -5,6 +6,19 @@ import type { SourceDiscoveryRequest, SourceDiscoveryReport } from "./types";
 import type { ActivityRecord, AdoptionPreview, BackupRecord, BootstrapStatus, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, InstallPlan, InstallRecord, LibraryMetadataFile, PortStatus, ReconcileOutcome, ReleaseChannel, RestoreResult, SourceRecord, SourceRelinkPlan, SourceRemovalPreview, SourceVerificationOutcome, UpdateCheck, UpdateCheckOutcome, UpdatePolicy } from "./types";
 
 export const desktopApi = {
+  catalogStatus: () => invoke<CatalogStatus>("get_catalog_status"),
+  trustCatalogKey: (publicKey: string) => invoke<CatalogStatus | null>("trust_catalog_key", { publicKey }),
+  revokeCatalogKey: (keyId: string, expectedState: string) => invoke<CatalogStatus>("revoke_catalog_key", { keyId, expectedState }),
+  planCatalogUpdate: (source: CatalogUpdateSource) => invoke<CatalogUpdatePlan>("plan_catalog_update", { source }),
+  applyCatalogUpdate: (source: CatalogUpdateSource, expectedPlan: string, onEvent: (event: OperationEvent) => void) => {
+    const channel = new Channel<OperationEvent>();
+    channel.onmessage = onEvent;
+    return invoke<CatalogStatus>("apply_catalog_update", { source, expectedPlan, onEvent: channel });
+  },
+  rollbackCatalog: (expectedState: string) => invoke<CatalogStatus>("rollback_catalog", { expectedState }),
+  useCachedCatalog: (expectedState: string) => invoke<CatalogStatus>("use_cached_catalog", { expectedState }),
+  useEmbeddedCatalog: (expectedState: string) => invoke<CatalogStatus>("use_embedded_catalog", { expectedState }),
+
   bootstrapStatus: () => invoke<BootstrapStatus>("get_bootstrap_status"),
   githubAuthStatus: () => invoke<GithubAuthStatus>("get_github_auth_status"),
   setGithubToken: (token: string) => invoke<GithubAuthStatus>("set_github_token", { token }),

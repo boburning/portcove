@@ -9,7 +9,7 @@ Statuses:
 - `later`: deliberately outside the current functionality-first slice.
 - `optional-tooling`: an advisory capability is unavailable on one host but required release gates still run.
 
-Completed campaign items, including `PCV-DEF-001` public GitHub App registration and live CLI/GUI device login, have evidence in [DEFERRED-CAMPAIGN.md](DEFERRED-CAMPAIGN.md).
+Completed campaign items, including `PCV-DEF-001` public GitHub App registration and live CLI/GUI device login, have evidence in [DEFERRED-CAMPAIGN.md](DEFERRED-CAMPAIGN.md). The four reopened audit Phase 5 capabilities are implemented: verified library portability/relinking, bounded opt-in source discovery, phase-aware cancellation, and signed catalog delivery with embedded fallback. Platform and human qualification remain separate.
 
 ## PCV-DEF-002 — Decide and deploy an optional update relay
 
@@ -18,6 +18,7 @@ Completed campaign items, including `PCV-DEF-001` public GitHub App registration
 - Purpose: reduce redundant client polling and shorten update discovery latency.
 - Boundary: GitHub authentication alone cannot subscribe Portcove to webhooks from arbitrary upstream repositories.
 - Proposed shape: cooperative upstream webhooks plus one centralized conditional poller, producing signed advisory catalog events. The local GitHub resolver remains authoritative and anonymous/offline-friendly operation remains supported.
+- Campaign progress: explicit signed catalog delivery, public-key trust, replay/expiry protection, rollback and embedded fallback are now implemented independently. This does not deploy a relay or define an advisory-event feed. Reuse the core trust/verification boundary when a hosting/custody decision and versioned event contract exist.
 
 Resume checklist:
 

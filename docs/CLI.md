@@ -7,7 +7,7 @@ Without a machine-output flag, Portcove renders concise human output. Catalog, s
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":6,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":7,"ok":true,"command":"status","data":{},"error":null}
 ```
 
 Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for success, failure, or cancellation. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
@@ -278,3 +278,18 @@ Adapters and reviewed catalog entries may additionally set an upstream-native va
 Environment tokens take precedence over a credential saved by Portcove. Tokens are sent only as bearer authorization to the configured GitHub API origin. Release assets, checksum URLs, redirects to other origins, operation journals, structured output, SQLite state, cached response bodies, and child-game environments never receive the token.
 
 There is no prompt unless an operation needs confirmation. Pass `--non-interactive` from frontends and services.
+
+## Signed catalog delivery
+
+API schema 7 adds catalog provenance to `doctor`, public-key trust and selection state, signed-envelope/payload schemas, reviewed catalog updates, and the `update_catalog` activity operation. Operation event schema stays at 2.
+
+- `catalog status`: current effective provenance, trusted public keys, highest accepted sequence, valid rollback/cache availability, and `state_sha256`.
+- `catalog trust-key <64-character-public-key-hex> [--yes]`: explicitly trust a publisher. Non-interactive callers need `--yes`; verify its fingerprint independently first.
+- `catalog revoke-key <key-id> --expected-state <state_sha256>`: remove trust and immediately recompute fallback.
+- `catalog update --file <signed.json>` or `--url <https-address>`: verify and return a read-only plan, including changed port IDs, validity, publisher fingerprint, and `plan_sha256`.
+- The same command with `--apply --expected-plan <plan_sha256>`: reread, reverify, and atomically publish only the reviewed candidate against unchanged trust/selection state.
+- `catalog rollback --expected-state <state_sha256>`: select the still-trusted, unexpired previous catalog. The replay floor never decreases, and the rejected newer version is not retained as fallback.
+- `catalog use-embedded --expected-state <state_sha256>`: choose the built-in catalog without discarding trust, cached versions, or replay history.
+- `catalog use-cached --expected-state <state_sha256>`: reverify and select the cached signed catalog without downloading or admitting an older external candidate.
+
+Local-file review does not write library domain state. Explicit HTTPS delivery is anonymous, bounded to 4 MiB and 20 seconds, and rejects redirects, userinfo, fragments, and non-HTTPS URLs. Catalog application supports cross-process cancellation and CLI Ctrl-C/SIGTERM until publication admission; SQLite activation, replay advancement, and the terminal activity outcome commit together. A service command uses the catalog snapshot it opened with; subsequent commands see the new selection. See [SIGNED-CATALOG.md](SIGNED-CATALOG.md) for the exact signing contract and offline publisher utility.

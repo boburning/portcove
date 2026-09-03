@@ -70,3 +70,5 @@ The high-value second wave deliberately reused existing contracts. Mega Man X6 R
 8. If implementation or qualification stops, add or update the per-game row in `docs/DEFERRED.md`, including missing or mismatched source revisions, absent checksums/releases, runtime failures, and researched candidates that were not admitted to the catalog.
 
 Never add copyrighted source hashes casually. Accepted SHA-1, SHA-256, or CRC32 values must come from documented upstream requirements and identify only the user-supplied source variant; Portcove never distributes that source. A runtime-managed local copy remains user-supplied data and must be included in persistence and removal boundaries.
+
+Signed delivery format 1 can refresh existing V1 metadata and release resolution, but cannot expand membership or change embedded source, execution, setup, or persistent-data contracts. Those changes still ship through reviewed application/catalog commits. Every signed candidate passes this document's existing core catalog validation and release-integrity rules. See [SIGNED-CATALOG.md](SIGNED-CATALOG.md) for publisher format, trust, versioning, expiry, and rollback.

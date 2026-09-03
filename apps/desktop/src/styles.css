@@ -2260,3 +2260,5 @@ select:disabled {
   .detail-hero { min-height: 8.125rem; }
   .detail-body { padding-top: var(--space-5); }
 }
+
+.catalog-update-dialog code { white-space: normal; overflow-wrap: anywhere; }

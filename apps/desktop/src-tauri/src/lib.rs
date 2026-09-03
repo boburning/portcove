@@ -1,3 +1,4 @@
+mod catalog;
 mod diagnostics;
 mod library_transfer;
 
@@ -1390,6 +1391,14 @@ pub fn run() {
             begin_github_device_login,
             poll_github_device_login,
             get_catalog,
+            catalog::get_catalog_status,
+            catalog::trust_catalog_key,
+            catalog::revoke_catalog_key,
+            catalog::plan_catalog_update,
+            catalog::apply_catalog_update,
+            catalog::rollback_catalog,
+            catalog::use_embedded_catalog,
+            catalog::use_cached_catalog,
             get_statuses,
             get_sources,
             get_activities,
