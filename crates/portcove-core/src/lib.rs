@@ -18,6 +18,7 @@ mod psx;
 mod recovery;
 mod release;
 mod service;
+mod source;
 mod types;
 
 pub use adapter::{Adapter, AdapterRegistry};
@@ -41,6 +42,7 @@ pub use service::{
     AdoptionCopyFile, AdoptionCopyPlan, AdoptionPreview, AdoptionSkippedEntry, BackupAction,
     BackupActionPreview, PortRemovalPreview, PortcoveService,
 };
+pub use source::SourceRelinkPlan;
 pub use types::*;
 
 pub const API_SCHEMA_VERSION: u32 = 4;

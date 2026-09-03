@@ -15,8 +15,8 @@ use portcove_core::{
     GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, GithubReleaseProvider,
     InstallPlan, InstallRecord, LaunchStdio, Library, OperationCoordinator, OperationEvent,
     OperationResult, PortStatus, PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel,
-    ReleaseProvider, RestoreResult, SourceRecord, SourceRemovalPreview, SourceVerification,
-    UpdateCheck, UpdatePolicy, VerificationReport,
+    ReleaseProvider, RestoreResult, SourceRecord, SourceRelinkPlan, SourceRemovalPreview,
+    SourceVerification, UpdateCheck, UpdatePolicy, VerificationReport,
 };
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
@@ -386,6 +386,37 @@ async fn verify_source(
     let state = state.inner().clone();
     blocking_service(state, move |service| {
         service.verify_source(&profile_id).map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn plan_source_relink(
+    state: tauri::State<'_, DesktopState>,
+    profile_id: String,
+    path: PathBuf,
+) -> DesktopResult<SourceRelinkPlan> {
+    let state = state.inner().clone();
+    blocking_service(state, move |service| {
+        service
+            .plan_source_relink(&profile_id, &path)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn relink_source(
+    state: tauri::State<'_, DesktopState>,
+    profile_id: String,
+    path: PathBuf,
+    preview_sha256: String,
+) -> DesktopResult<SourceRecord> {
+    let state = state.inner().clone();
+    blocking_service(state, move |service| {
+        service
+            .relink_source(&profile_id, &path, &preview_sha256)
+            .map_err(Into::into)
     })
     .await
 }
@@ -1281,6 +1312,8 @@ pub fn run() {
             restore_backup,
             delete_backup,
             verify_source,
+            plan_source_relink,
+            relink_source,
             verify_sources,
             check_port,
             check_installed,

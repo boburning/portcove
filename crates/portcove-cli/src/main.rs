@@ -11,9 +11,9 @@ use portcove_core::{
     GithubDeviceLogin, GithubDeviceLoginResult, GithubDeviceLoginState, GithubReleaseProvider,
     InstallPlan, InstallRecord, LaunchSignal, LaunchStdio, OperationEvent, OperationEventKind,
     PortDefinition, PortPaths, PortRemovalPreview, PortStatus, PortcoveError, PortcoveService,
-    ReconcileResult, ReleaseChannel, RestoreResult, Result, SourceRecord, SourceRemovalPreview,
-    SourceVerification, StorageSummary, UpdateCheck, UpdatePolicy, UpdateSnapshot,
-    forward_launch_signal,
+    ReconcileResult, ReleaseChannel, RestoreResult, Result, SourceRecord, SourceRelinkPlan,
+    SourceRemovalPreview, SourceVerification, StorageSummary, UpdateCheck, UpdatePolicy,
+    UpdateSnapshot, forward_launch_signal,
 };
 use schemars::{JsonSchema, schema_for};
 use serde::Serialize;
@@ -163,6 +163,15 @@ enum SourceCommand {
     Add {
         profile_id: String,
         path: PathBuf,
+    },
+    /// Validate a replacement path; apply only the exact reviewed plan.
+    Relink {
+        profile_id: String,
+        path: PathBuf,
+        #[arg(long, requires = "expected_plan")]
+        apply: bool,
+        #[arg(long, requires = "apply")]
+        expected_plan: Option<String>,
     },
     List,
     Verify(SourceVerifyArgs),
@@ -613,6 +622,35 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
             )?;
         }
         Commands::Source {
+            command:
+                SourceCommand::Relink {
+                    profile_id,
+                    path,
+                    apply,
+                    expected_plan,
+                },
+        } => {
+            if apply {
+                render_success(
+                    mode,
+                    "source.relink",
+                    service.relink_source(
+                        &profile_id,
+                        &path,
+                        expected_plan.as_deref().ok_or_else(|| {
+                            PortcoveError::usage("--apply requires --expected-plan")
+                        })?,
+                    )?,
+                )?;
+            } else {
+                render_success(
+                    mode,
+                    "source.relink",
+                    service.plan_source_relink(&profile_id, &path)?,
+                )?;
+            }
+        }
+        Commands::Source {
             command: SourceCommand::Verify(args),
         } => {
             if args.all {
@@ -966,6 +1004,7 @@ fn schema_document() -> serde_json::Value {
         "reconcile_batch_outcome": schema_for!(PortBatchOutcome<ReconcileResult>),
         "update_batch_outcome": schema_for!(PortBatchOutcome<InstallRecord>),
         "source": schema_for!(SourceRecord),
+        "source_relink_plan": schema_for!(SourceRelinkPlan),
         "source_removal_preview": schema_for!(SourceRemovalPreview),
         "source_verification": schema_for!(SourceVerification),
         "source_batch_outcome": schema_for!(SourceBatchOutcome),
@@ -1272,6 +1311,7 @@ fn command_name(command: &Commands) -> &'static str {
         },
         Commands::Source { command } => match command {
             SourceCommand::Add { .. } => "source.add",
+            SourceCommand::Relink { .. } => "source.relink",
             SourceCommand::List => "source.list",
             SourceCommand::Verify(_) => "source.verify",
             SourceCommand::Remove { .. } => "source.remove",

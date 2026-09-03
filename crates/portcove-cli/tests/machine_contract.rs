@@ -24,6 +24,62 @@ fn human_stdout(output: &Output) -> &str {
 }
 
 #[test]
+fn source_relink_requires_a_current_plan_and_preserves_registered_content() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    let original = temporary.path().join("original.z64");
+    let relocated = temporary.path().join("relocated.z64");
+    std::fs::write(&original, b"synthetic source fixture").unwrap();
+    std::fs::copy(&original, &relocated).unwrap();
+    assert!(
+        portcove(
+            &library,
+            &[
+                "--json",
+                "source",
+                "add",
+                "star-fox-64",
+                original.to_str().unwrap()
+            ]
+        )
+        .status
+        .success()
+    );
+    let args = [
+        "--json",
+        "source",
+        "relink",
+        "star-fox-64",
+        relocated.to_str().unwrap(),
+    ];
+    let plan = json_stdout(&portcove(&library, &args));
+    assert_eq!(plan["command"], "source.relink");
+    assert_eq!(plan["data"]["original"]["path"], original.to_str().unwrap());
+    let fingerprint = plan["data"]["preview_sha256"].as_str().unwrap();
+    assert_eq!(fingerprint.len(), 64);
+    let mut apply = args.to_vec();
+    apply.push("--apply");
+    let missing_plan = portcove(&library, &apply);
+    assert_eq!(missing_plan.status.code(), Some(2));
+    assert_eq!(json_stdout(&missing_plan)["error"]["code"], "usage");
+    apply.extend(["--expected-plan", fingerprint]);
+    std::fs::write(&relocated, b"changed synthetic bytes").unwrap();
+    let rejected = portcove(&library, &apply);
+    assert!(!rejected.status.success());
+    assert_eq!(json_stdout(&rejected)["error"]["code"], "source_invalid");
+    let unchanged = json_stdout(&portcove(&library, &["--json", "source", "list"]));
+    assert_eq!(unchanged["data"][0]["path"], original.to_str().unwrap());
+    std::fs::copy(&original, &relocated).unwrap();
+    std::fs::remove_file(original).unwrap();
+    let applied = portcove(&library, &apply);
+    assert!(applied.status.success(), "{:?}", applied);
+    let result = json_stdout(&applied);
+    assert_eq!(result["command"], "source.relink");
+    assert_eq!(result["data"]["path"], relocated.to_str().unwrap());
+    assert_eq!(result["data"]["sha256"], plan["data"]["original"]["sha256"]);
+}
+
+#[test]
 fn default_read_commands_have_human_output_snapshots() {
     let root = tempfile::tempdir().unwrap();
 

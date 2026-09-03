@@ -135,6 +135,15 @@ impl Library {
         self.lock_port(port_id, operation, None)
     }
 
+    pub(crate) fn try_lock_source(&self, profile_id: &str) -> Result<PortOperationGuard> {
+        let key = format!(
+            "source-{}",
+            hex::encode(Sha256::digest(profile_id.as_bytes()))
+        );
+        let file = self.acquire_lock(&key, profile_id, "change-source-reference")?;
+        Ok(PortOperationGuard { file })
+    }
+
     pub(crate) fn try_lock_port_for_launch_recovery(
         &self,
         port_id: &str,
@@ -150,23 +159,9 @@ impl Library {
         allowed_session_id: Option<&str>,
     ) -> Result<PortOperationGuard> {
         let key = hex::encode(Sha256::digest(port_id.as_bytes()));
-        let path = self.locks_dir().join(format!("{key}.lock"));
-        let mut file = OpenOptions::new()
-            .create(true)
-            .truncate(false)
-            .read(true)
-            .write(true)
-            .open(path)?;
-        if let Err(error) = file.try_lock_exclusive() {
-            if error.kind() == fs2::lock_contended_error().kind() {
-                return Err(PortcoveError::conflict(format!(
-                    "{port_id} is busy in another Portcove process"
-                ))
-                .detail("port_id", port_id)
-                .detail("operation", operation));
-            }
-            return Err(error.into());
-        }
+        let mut file = self
+            .acquire_lock(&key, port_id, operation)
+            .map_err(|error| error.detail("port_id", port_id))?;
         if let Some(session) = self.launch_session_for_port(port_id)?
             && Some(session.id.as_str()) != allowed_session_id
         {
@@ -191,6 +186,26 @@ impl Library {
         file.write_all(b"\n")?;
         file.sync_data()?;
         Ok(PortOperationGuard { file })
+    }
+
+    fn acquire_lock(&self, key: &str, target: &str, operation: &str) -> Result<File> {
+        let file = OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .read(true)
+            .write(true)
+            .open(self.locks_dir().join(format!("{key}.lock")))?;
+        if let Err(error) = file.try_lock_exclusive() {
+            if error.kind() == fs2::lock_contended_error().kind() {
+                return Err(PortcoveError::conflict(format!(
+                    "{target} is busy in another Portcove process"
+                ))
+                .detail("resource_id", target)
+                .detail("operation", operation));
+            }
+            return Err(error.into());
+        }
+        Ok(file)
     }
 
     fn create_layout(&self) -> Result<()> {
@@ -521,7 +536,7 @@ impl Library {
         Ok(())
     }
 
-    pub fn register_source(&self, source: &SourceRecord) -> Result<()> {
+    pub(crate) fn register_source(&self, source: &SourceRecord) -> Result<()> {
         let path = crate::path::unicode(&source.path, "source")?;
         self.connection()?.execute(
             "INSERT INTO sources(profile_id, path, sha256, size, storage_sha256, storage_size, updated_at)

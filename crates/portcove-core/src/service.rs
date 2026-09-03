@@ -368,7 +368,11 @@ impl PortcoveService {
         crate::recovery::recover_activation(self, store, operation)
     }
 
-    fn finish_activity<T>(&self, activity: ActivityRecord, result: Result<T>) -> Result<T> {
+    pub(crate) fn finish_activity<T>(
+        &self,
+        activity: ActivityRecord,
+        result: Result<T>,
+    ) -> Result<T> {
         let (status, message) = match &result {
             Ok(_) => (ActivityStatus::Succeeded, None),
             Err(error) => (ActivityStatus::Failed, Some(error.message.as_str())),
@@ -1044,6 +1048,7 @@ impl PortcoveService {
             Some(profile_id),
         )?;
         let result = (|| {
+            let _guards = self.lock_source_dependents(profile_id, None)?;
             let profile = self.catalog.source_profile(profile_id)?;
             let source = self
                 .adapters
@@ -1053,6 +1058,33 @@ impl PortcoveService {
             Ok(source)
         })();
         self.finish_activity(activity, result)
+    }
+
+    pub(crate) fn lock_source_dependents(
+        &self,
+        profile_id: &str,
+        already_locked: Option<&str>,
+    ) -> Result<Vec<crate::PortOperationGuard>> {
+        let mut guards = vec![self.library.try_lock_source(profile_id)?];
+        let mut ports: Vec<_> = self
+            .catalog
+            .ports()
+            .iter()
+            .filter(|port| {
+                port.source_profile.as_deref() == Some(profile_id)
+                    || port.bios_source_profile.as_deref() == Some(profile_id)
+            })
+            .map(|port| port.id.as_str())
+            .collect();
+        ports.sort_unstable();
+        guards.extend(
+            ports
+                .into_iter()
+                .filter(|id| Some(*id) != already_locked)
+                .map(|id| self.library.try_lock_port(id, "change-source-reference"))
+                .collect::<Result<Vec<_>>>()?,
+        );
+        Ok(guards)
     }
 
     pub fn preview_source_removal(&self, profile_id: &str) -> Result<SourceRemovalPreview> {
@@ -1116,11 +1148,7 @@ impl PortcoveService {
             Some(profile_id),
         )?;
         let result = (|| {
-            let preview = self.preview_source_removal(profile_id)?;
-            let mut _guards = Vec::with_capacity(preview.dependent_port_ids.len());
-            for port_id in &preview.dependent_port_ids {
-                _guards.push(self.library.try_lock_port(port_id, "remove-source")?);
-            }
+            let _guards = self.lock_source_dependents(profile_id, None)?;
             let locked_preview = self.preview_source_removal(profile_id).map_err(|error| {
                 if error.code == crate::ErrorCode::NotFound {
                     PortcoveError::conflict("the registered source was removed after its preview")
@@ -1533,6 +1561,7 @@ impl PortcoveService {
         let profile = self.catalog.source_profile(profile_id)?;
         let adapter = self.adapters.get(port.adapter);
         if let Some(path) = source_override {
+            let _guards = self.lock_source_dependents(profile_id, Some(&port.id))?;
             let source = adapter.validate_source(profile, path)?;
             self.library.register_source(&source)?;
             return Ok(Some(source));
@@ -1562,6 +1591,7 @@ impl PortcoveService {
         let profile = self.catalog.source_profile(profile_id)?;
         let adapter = self.adapters.get(port.adapter);
         if let Some(path) = bios_override {
+            let _guards = self.lock_source_dependents(profile_id, Some(&port.id))?;
             let source = adapter.validate_source(profile, path)?;
             self.library.register_source(&source)?;
             return Ok(Some(source));

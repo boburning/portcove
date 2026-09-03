@@ -244,6 +244,12 @@ export interface SourceRemovalPreview {
   installed_dependent_port_ids: string[];
 }
 
+export interface SourceRelinkPlan {
+  original: SourceRecord;
+  replacement: SourceRecord;
+  preview_sha256: string;
+}
+
 export interface SourceVerification {
   profile_id: string;
   path: string;

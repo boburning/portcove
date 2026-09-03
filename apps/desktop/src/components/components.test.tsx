@@ -154,7 +154,7 @@ describe("desktop components", () => {
     }]} verifySources={vi.fn()} />);
     expect(verified).toContain("Verified");
     expect(verified).toContain("D:/ROMs/sample.z64");
-    expect(verified).toContain("Replace file");
+    expect(verified).toContain("Relink source");
     expect(failed).toContain("Needs attention");
     expect(failed).toContain("source changed since registration");
   });

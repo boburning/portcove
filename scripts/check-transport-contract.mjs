@@ -60,6 +60,7 @@ const interfaceSchemas = new Map([
   ["update_snapshot", "UpdateSnapshot"],
   ["reconcile_result", "ReconcileResult"],
   ["source", "SourceRecord"],
+  ["source_relink_plan", "SourceRelinkPlan"],
   ["source_removal_preview", "SourceRemovalPreview"],
   ["source_verification", "SourceVerification"],
   ["activity", "ActivityRecord"],

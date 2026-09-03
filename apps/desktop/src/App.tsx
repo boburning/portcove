@@ -186,7 +186,10 @@ async function replaceRegisteredSource(profile: SourceProfile | undefined, sourc
   }
   try {
     const path = await pickSourcePath(profile, source.path);
-    if (path) await perform("replace source", () => desktopApi.addSource(profile.id, path));
+    if (path) await perform("relink source", async () => {
+      const plan = await desktopApi.planSourceRelink(profile.id, path);
+      return desktopApi.relinkSource(profile.id, path, plan.preview_sha256);
+    });
   } catch (value) {
     setError(errorText(value));
   }

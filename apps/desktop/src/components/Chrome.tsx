@@ -190,14 +190,14 @@ function SourceHealth({ sources, requirements, outcomes, busy, verify, replace, 
   replace?: (source: SourceRecord) => void; requirements: SourceRequirement[]; add?: (profile: SourceProfile, archive: boolean) => void;
 }) {
   const byProfile = new Map(outcomes.map(outcome => [outcome.profile_id, outcome]));
-  return <article className="settings-card source-health">
+  return <article className="settings-card source-health" data-focus-group>
     <p className="eyebrow">SOURCES</p>
     <div className="settings-title"><h2>Integrity</h2><button data-focusable className="small-control" disabled={!!busy || sources.length === 0} onClick={verify}>Verify sources</button></div>
     <SourceRequirements requirements={requirements} busy={busy} add={add} />
     {sources.length === 0
       ? <p>No source files are registered yet.</p>
       : <div className="source-health-list">{sources.map(source => <SourceHealthRow key={source.profile_id} source={source} outcome={byProfile.get(source.profile_id)} busy={busy} replace={replace} />)}</div>}
-    <p>Verification is local and read-only. Replace file validates a new path before updating only Portcove's reference; neither operation changes the source itself.</p>
+    <p>Verification is local and read-only. Relink source checks the current source profile and confirms identical content at the new location before updating Portcove's reference. Your source files stay untouched.</p>
   </article>;
 }
 
@@ -205,7 +205,7 @@ function SourceHealthRow({ source, outcome, busy, replace }: { source: SourceRec
   return <div className="source-health-row">
     <div><strong>{source.profile_id}</strong><code>{source.path}</code></div>
     <div className="source-health-actions"><SourceState outcome={outcome} />
-      <button data-focusable className="small-control" disabled={Boolean(busy)} onClick={() => replace?.(source)}>Replace file</button></div>
+      <button data-focusable className="small-control" disabled={Boolean(busy)} onClick={() => replace?.(source)}>Relink source</button></div>
     {outcome?.error && <small>{outcome.error.message}</small>}
   </div>;
 }

@@ -84,6 +84,15 @@ Verification reruns the source profile validation and compares the current file'
 
 `source remove <profile-id>` first returns or prints a preview containing the exact registered source, every catalog port that shares it, the currently installed dependents, and a confirmation token. Removal requires interactive confirmation or `--yes`; core rejects the token if the source identity or installed-dependent set changes before deletion. Only the reference is removed. Original source bytes and managed installs are never deleted.
 
+After moving a source yourself, preview and apply its new location without resetting its content identity:
+
+```text
+portcove --library <path> --json source relink <profile-id> <new-path>
+portcove --library <path> --json source relink <profile-id> <new-path> --apply --expected-plan <preview_sha256>
+```
+
+The preview validates the new path against the current catalog profile and the registered content hash and size; the old path may be offline. It returns the original record, validated replacement, and `preview_sha256` without changing either file or the registry. Apply takes the profile and dependent-port locks, revalidates the replacement, and rejects a stale plan if registration, catalog rules, location, or validated bytes changed. A different container is allowed only when its normalized content is identical. Settings → Sources → Relink source uses the same core operation. Registration, relinking, and removal fail with a conflict while a dependent port is running or another source writer holds the profile lock.
+
 ## Idempotent automation
 
 ```text
