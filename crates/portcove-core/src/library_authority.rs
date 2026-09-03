@@ -47,6 +47,7 @@ pub(crate) fn authority(root: &Path) -> Result<Option<LibraryAuthority>> {
 }
 
 pub(crate) fn open_target(root: &Path) -> Result<Option<PathBuf>> {
+    crate::import_journal::check_open(root)?;
     let Some(marker) = authority(root)? else {
         return Ok(None);
     };
@@ -139,5 +140,7 @@ fn read_marker<T: serde::de::DeserializeOwned>(path: &Path) -> Result<Option<T>>
             "library authority marker is not a bounded regular file",
         ));
     }
-    Ok(Some(serde_json::from_slice(&fs::read(path)?)?))
+    Ok(Some(serde_json::from_slice(
+        &crate::path::read_bounded_regular(path, 16 * 1024)?,
+    )?))
 }

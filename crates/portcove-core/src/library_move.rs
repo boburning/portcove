@@ -108,6 +108,7 @@ fn start_move(
             "this library already has a relocation or recovery marker",
         ));
     }
+    crate::import_journal::check_open(&source)?;
     let service = PortcoveService::new(library.clone())?;
     let plan = service.plan_library_move(destination)?;
     if plan.plan_sha256 != expected_plan {
@@ -209,10 +210,18 @@ fn continue_move(
     require_pending(destination, journal)?;
     checkpoint(TransferPhase::Copying)?;
     crate::library_transfer::verify_source_plan(source, &journal.plan)?;
-    crate::transfer_copy::copy_content(&journal.plan)?;
+    crate::transfer_copy::copy_content(
+        &journal.plan.source_root,
+        &journal.plan.destination_root,
+        &journal.plan.content,
+    )?;
     crate::transfer_copy::copy_database(source, &journal.plan)?;
     let target = Library::initialize(destination.clone(), lease)?;
-    crate::transfer_copy::verify_destination(&target, &journal.plan)?;
+    crate::transfer_copy::verify_destination(
+        &target,
+        &journal.plan.metadata,
+        &journal.plan.content,
+    )?;
     // Reject out-of-band edits to the retained source as well as destination corruption.
     crate::library_transfer::verify_source_plan(source, &journal.plan)?;
     if library_authority::verify_receipt(destination, &journal.transfer_id).is_err() {
@@ -252,19 +261,7 @@ fn finish_move_activity(
     status: ActivityStatus,
     message: &str,
 ) -> Result<()> {
-    let state: String = library.connection()?.query_row(
-        "SELECT status FROM activity_history WHERE id=?1",
-        [id],
-        |row| row.get(0),
-    )?;
-    if state == "running" {
-        library.finish_activity(id, status, Some(message))?;
-    } else if state != status.to_string() {
-        return Err(PortcoveError::conflict(
-            "library move activity has a conflicting terminal outcome",
-        ));
-    }
-    Ok(())
+    library.finish_activity_once(id, status, message)
 }
 
 fn ensure_move_activity(library: &Library, journal: &TransferJournal) -> Result<()> {

@@ -1518,6 +1518,10 @@ select { width: 100%; padding: 11px; }
 
 .modal {
   width: min(500px, 90vw);
+  max-height: calc(100dvh - var(--space-8));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block: var(--space-4);
   align-self: center;
   position: relative;
   margin: auto;
@@ -1527,6 +1531,8 @@ select { width: 100%; padding: 11px; }
   background: var(--color-bg-elevated);
   box-shadow: var(--shadow-floating);
 }
+
+.library-import-modal { width: min(640px, 90vw); }
 
 .modal-icon {
   width: 2.75rem;

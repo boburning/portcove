@@ -14,6 +14,18 @@ export function useDialogFocus(close: () => void, active = true) {
     const focusables = () => focusableControls(dialog);
     const initialFocus = () => focusAndReveal(focusables().find(item => item.hasAttribute("data-autofocus")) ?? focusables()[0] ?? dialog);
     const frame = window.requestAnimationFrame(() => { if (navigationScope() === dialog) initialFocus(); });
+    let revealFrame = 0;
+    // Async previews can move the still-focused action below a dialog's scroll boundary.
+    const contentChanges = new MutationObserver(() => {
+      window.cancelAnimationFrame(revealFrame);
+      revealFrame = window.requestAnimationFrame(() => {
+        const focused = document.activeElement;
+        if (navigationScope() === dialog && focused instanceof HTMLElement && dialog.contains(focused) && visibleControl(focused)) {
+          focusAndReveal(focused);
+        }
+      });
+    });
+    contentChanges.observe(dialog, { childList: true, subtree: true, characterData: true });
     const containFocus = () => {
       if (navigationScope() === dialog && !dialog.contains(document.activeElement)) initialFocus();
     };
@@ -40,6 +52,8 @@ export function useDialogFocus(close: () => void, active = true) {
     document.addEventListener("focusin", containFocus);
     return () => {
       window.cancelAnimationFrame(frame);
+      window.cancelAnimationFrame(revealFrame);
+      contentChanges.disconnect();
       dialog.removeEventListener("keydown", keydown);
       document.removeEventListener("focusin", containFocus);
       if (previous?.isConnected && visibleControl(previous)) focusAndReveal(previous);

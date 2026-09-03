@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdoptionModal } from "./components/AdoptionModal";
 import { LibraryMoveRecovery, transferRecoveryRoot } from "./components/LibraryMove";
+import { LibraryImportRecovery } from "./components/LibraryImport";
 import { PageHeader, SettingsView, Sidebar, StatusLayer } from "./components/Chrome";
 import { CommandPalette } from "./components/CommandPalette";
 import { DetailPanel } from "./components/DetailPanel";
@@ -43,6 +44,7 @@ function BootstrapLoading() {
 export function BootstrapRecovery({ error }: { error: DesktopError }) {
   useGamepadNavigation(() => {});
   const recoveryRoot = transferRecoveryRoot(error);
+  const importRoot = transferRecoveryRoot(error, "import_destination");
   return <main className="bootstrap-state bootstrap-error" role="alert">
     <p className="eyebrow">Portcove could not start</p>
     <h1>Your library needs attention</h1>
@@ -54,6 +56,7 @@ export function BootstrapRecovery({ error }: { error: DesktopError }) {
     <p>Check the configured library path, access permissions, and available space, then retry. Portcove will run recovery checks again before enabling library actions.</p>
     <button type="button" onClick={() => window.location.reload()}>Retry startup</button>
     {recoveryRoot && <LibraryMoveRecovery source={recoveryRoot} />}
+    {importRoot && <LibraryImportRecovery destination={importRoot} />}
   </main>;
 }
 

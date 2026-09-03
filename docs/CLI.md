@@ -104,6 +104,21 @@ Export reads one consistent SQLite snapshot. The versioned metadata document con
 
 Without `--output`, the document appears in the normal CLI response. With `--output`, core writes a raw metadata document to a new file and returns its path, byte size, and SHA-256. Publication does not replace an existing file. Settings → Library → Export metadata invokes the same operation through a native save dialog.
 
+## Library imports and recovery
+
+Import a trusted metadata export together with a separate backup folder containing its `versions`, `user`, `backups`, and `toolchains` trees:
+
+```text
+portcove --library <new-or-empty-root> --json library import <metadata.json> <copied-library-folder>
+portcove --library <new-or-empty-root> --json library import <metadata.json> <copied-library-folder> --apply --expected-plan <plan-sha256>
+portcove --library <destination> --json library resume-import
+portcove --library <destination> --json library abort-import
+```
+
+Review reads only the explicitly selected metadata and content, checks capacity and portable paths, and rejects existing application/source/settings/history state. Apply requires both flags, recomputes the plan, acquires exclusive library access, copies without replacing existing files, restores metadata transactionally, and verifies the copied manifests against current platform executable and persistence rules. Active, previous, and staged identity and source references survive the round trip. Import does not copy input SQLite, credentials, HTTP caches, or logs; metadata JSON is limited to 16 MiB and the recoverable inventory to 64 MiB. Source references remain subject to normal validation and relinking.
+
+An interrupted import reports `details.import_destination` and `recovery_action: resume_library_import`. Unpublished copies remain closed until recovery succeeds. Resume after publication preserves new destination saves and works with the old backup offline. Abort retains every copied file and keeps the incomplete destination closed; choose a different empty destination for another import. Settings → Library → Import library exposes review, native confirmation, and recovery for the currently configured empty library. This is a trusted local-backup restore, not a merge operation or proof of third-party backup authenticity.
+
 ## Library moves and recovery
 
 ```text

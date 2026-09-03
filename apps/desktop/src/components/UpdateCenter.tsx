@@ -135,6 +135,7 @@ function operationLabel(operation: ActivityOperation) {
     register_source: "Registered source",
     verify_source: "Verified source",
     move_library: "Moved library",
+    import_library: "Imported library",
   };
   return labels[operation];
 }

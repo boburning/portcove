@@ -35,7 +35,7 @@ pub struct LibraryMovePlan {
 impl PortcoveService {
     pub fn plan_library_move(&self, destination: &Path) -> Result<LibraryMovePlan> {
         let source_root = fs::canonicalize(self.library().root())?;
-        let destination_root = move_destination(&source_root, destination)?;
+        let destination_root = transfer_destination(&source_root, destination)?;
         ensure_idle(self.library())?;
         let metadata = self.export_library_metadata()?;
         let content = metadata
@@ -93,7 +93,7 @@ impl PortcoveService {
     }
 }
 
-fn move_destination(source: &Path, destination: &Path) -> Result<PathBuf> {
+pub(crate) fn transfer_destination(source: &Path, destination: &Path) -> Result<PathBuf> {
     crate::path::unicode(destination, "library destination")?;
     let absolute = std::path::absolute(destination)?;
     let parent = absolute

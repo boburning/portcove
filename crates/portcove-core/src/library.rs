@@ -344,6 +344,27 @@ impl Library {
         Ok(())
     }
 
+    pub(crate) fn finish_activity_once(
+        &self,
+        id: &str,
+        status: ActivityStatus,
+        message: &str,
+    ) -> Result<()> {
+        let recorded: String = self.connection()?.query_row(
+            "SELECT status FROM activity_history WHERE id=?1",
+            [id],
+            |row| row.get(0),
+        )?;
+        if recorded == "running" {
+            self.finish_activity(id, status, Some(message))?;
+        } else if recorded != status.to_string() {
+            return Err(PortcoveError::conflict(
+                "activity has a conflicting terminal outcome",
+            ));
+        }
+        Ok(())
+    }
+
     pub fn activities(&self, limit: usize) -> Result<Vec<ActivityRecord>> {
         let connection = self.connection()?;
         let mut statement = connection.prepare(
@@ -579,8 +600,12 @@ impl Library {
     }
 
     pub(crate) fn register_source(&self, source: &SourceRecord) -> Result<()> {
+        Self::write_source(&self.connection()?, source)
+    }
+
+    pub(crate) fn write_source(connection: &Connection, source: &SourceRecord) -> Result<()> {
         let path = crate::path::unicode(&source.path, "source")?;
-        self.connection()?.execute(
+        connection.execute(
             "INSERT INTO sources(profile_id, path, sha256, size, storage_sha256, storage_size, updated_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
              ON CONFLICT(profile_id) DO UPDATE SET path=excluded.path, sha256=excluded.sha256,
@@ -687,13 +712,15 @@ impl Library {
         Ok(())
     }
 
-    pub fn register_install(&self, install: &InstallRecord, activate: bool) -> Result<()> {
+    pub(crate) fn write_install(
+        connection: &Connection,
+        install: &InstallRecord,
+        staged: bool,
+    ) -> Result<()> {
         let path = crate::path::unicode(&install.path, "install")?;
         let selected_executable =
             crate::path::unicode(&install.selected_executable, "selected executable")?;
-        let mut connection = self.connection()?;
-        let transaction = connection.transaction()?;
-        transaction.execute(
+        connection.execute(
             "INSERT INTO installs(
                id, port_id, version, path, channel, installed_at, verified, staged,
                artifact_name, artifact_sha256, artifact_size, manifest_sha256, selected_executable
@@ -719,7 +746,7 @@ impl Library {
                 install.channel.to_string(),
                 install.installed_at,
                 install.verified as i64,
-                (!activate) as i64,
+                staged as i64,
                 install.artifact.asset_name,
                 install.artifact.sha256,
                 install.artifact.size,
@@ -727,6 +754,13 @@ impl Library {
                 selected_executable,
             ],
         )?;
+        Ok(())
+    }
+
+    pub fn register_install(&self, install: &InstallRecord, activate: bool) -> Result<()> {
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction()?;
+        Self::write_install(&transaction, install, !activate)?;
         transaction.execute(
             "INSERT OR IGNORE INTO port_settings(port_id, channel, update_policy) VALUES (?1, ?2, 'notify')",
             params![install.port_id, install.channel.to_string()],

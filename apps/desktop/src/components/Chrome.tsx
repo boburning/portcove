@@ -8,6 +8,7 @@ import { formatBytes, type SourceRequirement, type View } from "../view-model";
 import { BrandAvatar, BrandMascot, BrandWordmark } from "./Brand";
 import { ExternalLink } from "./ExternalLink";
 import { LibraryMoveButton } from "./LibraryMove";
+import { LibraryImportButton } from "./LibraryImport";
 import { Icon, NavigationHints, Shortcut } from "./ui";
 
 export function Sidebar({ view, setView, installedCount, updateCount, onAdopt, controller }: {
@@ -335,5 +336,6 @@ function StorageCard({ libraryRoot, storage, busy, exportMetadata }: { libraryRo
     <p>Export source references and version settings. Game files, saves, backups, toolchains, and credentials are not included.</p>
     {exported && <p role="status">Exported to <code>{exported.path}</code></p>}
     <LibraryMoveButton disabled={Boolean(busy)} />
+    <LibraryImportButton disabled={Boolean(busy) || !libraryRoot} libraryRoot={libraryRoot} />
   </article>;
 }

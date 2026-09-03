@@ -31,3 +31,7 @@ export function pickInstallFolder(currentPath: string) {
 export function pickMetadataExportPath() {
   return save({ title: "Export library metadata", defaultPath: "portcove-library.json", filters: [{ name: "Portcove library metadata", extensions: ["json"] }] });
 }
+
+export function pickMetadataImportPath() {
+  return open({ title: "Choose library metadata", multiple: false, directory: false, filters: [{ name: "Portcove library metadata", extensions: ["json"] }] });
+}

@@ -7,6 +7,84 @@ use portcove_core::{PortcoveError, PortcoveService};
 use std::path::{Path, PathBuf};
 
 #[tauri::command]
+pub(crate) async fn plan_library_import(
+    state: tauri::State<'_, DesktopState>,
+    metadata: PathBuf,
+    content_root: PathBuf,
+) -> DesktopResult<portcove_core::LibraryImportPlan> {
+    blocking_service(state.inner().clone(), move |service| {
+        PortcoveService::plan_library_import(&metadata, &content_root, service.library().root())
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn import_library(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, DesktopState>,
+    metadata: PathBuf,
+    content_root: PathBuf,
+    expected_plan: String,
+) -> DesktopResult<portcove_core::LibraryImportResult> {
+    let plan = plan_library_import(state.clone(), metadata.clone(), content_root.clone()).await?;
+    if plan.plan_sha256 != expected_plan {
+        return Err(PortcoveError::conflict("import plan changed; review it again").into());
+    }
+    let message = format!(
+        "Restore {} application versions and their local data from {} into {}? Only import a backup you trust. The input files will be retained.",
+        plan.metadata.application_versions.len(),
+        plan.content_root.display(),
+        plan.destination_root.display()
+    );
+    if !crate::confirm_destructive(&app, "Confirm library import", message, "Import library").await
+    {
+        return Err(PortcoveError::conflict("library import was not confirmed").into());
+    }
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        transfer_desktop_library(
+            &state,
+            None,
+            |destination| {
+                PortcoveService::import_library(
+                    &metadata,
+                    &content_root,
+                    destination,
+                    &expected_plan,
+                )
+            },
+            |result| result.destination_root.clone(),
+        )
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn recover_library_import(
+    state: tauri::State<'_, DesktopState>,
+    destination: PathBuf,
+    abort: bool,
+) -> DesktopResult<portcove_core::LibraryImportResult> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        transfer_desktop_library(
+            &state,
+            Some(destination),
+            |destination| {
+                if abort {
+                    PortcoveService::abort_library_import(destination)
+                } else {
+                    PortcoveService::resume_library_import(destination)
+                }
+            },
+            |result| result.destination_root.clone(),
+        )
+    })
+    .await
+}
+
+#[tauri::command]
 pub(crate) async fn plan_library_move(
     state: tauri::State<'_, DesktopState>,
     destination: PathBuf,
@@ -25,9 +103,12 @@ pub(crate) async fn move_library(
 ) -> DesktopResult<portcove_core::LibraryMoveResult> {
     let state = state.inner().clone();
     blocking_worker(move || {
-        transfer_desktop_library(&state, None, |source| {
-            PortcoveService::move_library(source, &destination, &expected_plan)
-        })
+        transfer_desktop_library(
+            &state,
+            None,
+            |source| PortcoveService::move_library(source, &destination, &expected_plan),
+            |result| result.active_root.clone(),
+        )
     })
     .await
 }
@@ -40,24 +121,30 @@ pub(crate) async fn recover_library_move(
 ) -> DesktopResult<portcove_core::LibraryMoveResult> {
     let state = state.inner().clone();
     blocking_worker(move || {
-        transfer_desktop_library(&state, Some(source), |source| {
-            if abort {
-                PortcoveService::abort_library_move(source)
-            } else {
-                PortcoveService::resume_library_move(source)
-            }
-        })
+        transfer_desktop_library(
+            &state,
+            Some(source),
+            |source| {
+                if abort {
+                    PortcoveService::abort_library_move(source)
+                } else {
+                    PortcoveService::resume_library_move(source)
+                }
+            },
+            |result| result.active_root.clone(),
+        )
     })
     .await
 }
 
-fn transfer_desktop_library<F>(
+fn transfer_desktop_library<T, F>(
     state: &DesktopState,
     recovery_root: Option<PathBuf>,
     operation: F,
-) -> DesktopResult<portcove_core::LibraryMoveResult>
+    active_root: impl FnOnce(&T) -> PathBuf,
+) -> DesktopResult<T>
 where
-    F: FnOnce(&Path) -> portcove_core::Result<portcove_core::LibraryMoveResult>,
+    F: FnOnce(&Path) -> portcove_core::Result<T>,
 {
     let root = {
         let mut initialization = state.initialization.lock().map_err(|_| {
@@ -91,13 +178,13 @@ where
         root
     };
     let result = operation(&root).map_err(DesktopError::from);
-    let active_root = result
-        .as_ref()
-        .map_or_else(|_| root.clone(), |result| result.active_root.clone());
+    let active_root = result.as_ref().map_or_else(|_| root.clone(), active_root);
     let reopened = initialize_desktop_at(Some(active_root)).map_err(|mut error| {
-        error
-            .details
-            .insert("retained_source".into(), root.display().to_string());
+        if !error.details.contains_key("import_destination") {
+            error
+                .details
+                .insert("retained_source".into(), root.display().to_string());
+        }
         error
     });
     *state.initialization.lock().map_err(|_| {
@@ -127,15 +214,21 @@ mod tests {
             .unwrap();
         // Previously dispatched work must finish before a move can acquire its lease.
         let pending = service(&state).unwrap();
-        let blocked = transfer_desktop_library(&state, None, |root| {
-            PortcoveService::move_library(root, &destination, &plan.plan_sha256)
-        });
+        let blocked = transfer_desktop_library(
+            &state,
+            None,
+            |root| PortcoveService::move_library(root, &destination, &plan.plan_sha256),
+            |result| result.active_root.clone(),
+        );
         assert!(blocked.is_err());
         assert!(bootstrap_status(&state).ready);
         drop(pending);
-        let moved = transfer_desktop_library(&state, None, |root| {
-            PortcoveService::move_library(root, &destination, &plan.plan_sha256)
-        })
+        let moved = transfer_desktop_library(
+            &state,
+            None,
+            |root| PortcoveService::move_library(root, &destination, &plan.plan_sha256),
+            |result| result.active_root.clone(),
+        )
         .unwrap();
         assert!(moved.completed);
         assert_eq!(

@@ -37,12 +37,7 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
       <input data-autofocus data-focusable id="library-destination" value={destination} disabled={Boolean(busy) || Boolean(recoveryRoot)} onChange={event => { setDestination(event.target.value); setPlan(undefined); }} placeholder="Full path to a new folder" />
       <button data-focusable disabled={Boolean(busy) || Boolean(recoveryRoot)} onClick={() => { void browse(); }}>Choose parent folder</button>
     </div>
-    {plan && <section className="adoption-plan" aria-label="Library move plan">
-      <p>From <code>{plan.source_root}</code><br />To <code>{plan.destination_root}</code></p>
-      <ul>{plan.content.map(tree => <li key={tree.kind}>{tree.kind.replaceAll("_", " ")}: {tree.copy.files.length.toLocaleString()} files, {formatBytes(tree.copy.total_bytes)}</li>)}</ul>
-      <p>{formatBytes(plan.required_bytes)} required, including working space. {formatBytes(plan.available_bytes)} available.</p>
-      <p>Active, previous, and staged versions will keep their identities. {plan.metadata.source_references.length} source references will keep their existing paths.</p>
-    </section>}
+    {plan && <LibraryCopySummary plan={plan} source={plan.source_root} label="Library move plan" />}
     {busy && <p role="status">{busy} Keep Portcove open until this finishes.</p>}
     {error != null && <p role="alert">{errorText(error)}</p>}
     {recoveryRoot && <LibraryMoveRecovery source={recoveryRoot} onBusyChange={active => setBusy(active ? "Recovering your library…" : "")} />}
@@ -70,8 +65,17 @@ export function LibraryMoveRecovery({ source, onBusyChange }: { source: string; 
   </section>;
 }
 
-export function transferRecoveryRoot(error: unknown): string | undefined {
+export function transferRecoveryRoot(error: unknown, key: "retained_source" | "import_destination" = "retained_source"): string | undefined {
   if (typeof error !== "object" || !error || !("details" in error) || typeof error.details !== "object" || !error.details) return undefined;
   const details = error.details as Record<string, unknown>;
-  return (details.transfer_id || details.recovery_action) && typeof details.retained_source === "string" ? details.retained_source : undefined;
+  return (details.transfer_id || details.recovery_action) && typeof details[key] === "string" ? details[key] : undefined;
+}
+
+export function LibraryCopySummary({ plan, source, label }: { plan: Pick<LibraryMovePlan, "content" | "metadata" | "destination_root" | "required_bytes" | "available_bytes">; source: string; label: string }) {
+  return <section className="adoption-plan" aria-label={label}>
+    <p>From <code>{source}</code><br />To <code>{plan.destination_root}</code></p>
+    <ul>{plan.content.map(tree => <li key={tree.kind}>{tree.kind.replaceAll("_", " ")}: {tree.copy.files.length.toLocaleString()} files, {formatBytes(tree.copy.total_bytes)}</li>)}</ul>
+    <p>{formatBytes(plan.required_bytes)} required, including working space. {formatBytes(plan.available_bytes)} available.</p>
+    <p>Active, previous, and staged versions keep their identities. {plan.metadata.source_references.length} source references keep their existing paths.</p>
+  </section>;
 }

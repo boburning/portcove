@@ -76,6 +76,61 @@ fn library_move_requires_review_and_redirects_later_cli_processes() {
 }
 
 #[test]
+fn library_import_is_read_only_until_reviewed_and_usable_by_a_fresh_cli() {
+    let temporary = tempfile::tempdir().unwrap();
+    let source = temporary.path().join("source");
+    let metadata = temporary.path().join("metadata.json");
+    let content = temporary.path().join("copied-content");
+    let destination = temporary.path().join("restored");
+    let exported = portcove(
+        &source,
+        &[
+            "--json",
+            "library",
+            "export",
+            "--output",
+            metadata.to_str().unwrap(),
+        ],
+    );
+    assert!(exported.status.success());
+    std::fs::create_dir_all(content.join("user/example")).unwrap();
+    std::fs::write(content.join("user/example/save.bin"), b"synthetic save").unwrap();
+    let mut args = vec![
+        "--json",
+        "library",
+        "import",
+        metadata.to_str().unwrap(),
+        content.to_str().unwrap(),
+    ];
+    let planned = portcove(&destination, &args);
+    assert!(planned.status.success(), "{planned:?}");
+    assert!(!destination.exists());
+    assert!(!content.join("portcove.sqlite3").exists());
+    let document = json_stdout(&planned);
+    let hash = document["data"]["plan_sha256"].as_str().unwrap();
+    args.push("--apply");
+    assert_eq!(portcove(&destination, &args).status.code(), Some(2));
+    args.extend(["--expected-plan", hash]);
+    let restored = portcove(&destination, &args);
+    assert!(restored.status.success(), "{restored:?}");
+    assert_eq!(json_stdout(&restored)["data"]["completed"], true);
+    assert_eq!(
+        std::fs::read(destination.join("user/example/save.bin")).unwrap(),
+        b"synthetic save"
+    );
+    let fresh = portcove(&destination, &["--json", "library", "export"]);
+    assert!(fresh.status.success());
+    let resumed = portcove(&destination, &["--json", "library", "resume-import"]);
+    assert!(resumed.status.success(), "{resumed:?}");
+    assert_eq!(json_stdout(&resumed)["command"], "library.resume_import");
+    assert!(
+        !portcove(&destination, &["--json", "library", "abort-import"])
+            .status
+            .success()
+    );
+}
+
+#[test]
 fn library_metadata_export_is_versioned_and_does_not_replace_an_existing_file() {
     let temporary = tempfile::tempdir().unwrap();
     let library = temporary.path().join("library");

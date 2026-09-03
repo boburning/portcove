@@ -42,7 +42,10 @@ impl TransferJournal {
                 "library move journal is not a bounded regular file",
             ));
         }
-        let journal: Self = serde_json::from_slice(&fs::read(path)?)?;
+        let journal: Self = serde_json::from_slice(&crate::path::read_bounded_regular(
+            &path,
+            MAX_JOURNAL_BYTES as u64,
+        )?)?;
         journal.validate(source)?;
         Ok(journal)
     }

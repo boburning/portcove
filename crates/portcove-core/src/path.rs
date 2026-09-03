@@ -2,6 +2,28 @@ use std::path::Path;
 
 use crate::{PortcoveError, Result};
 
+/// Bound the read itself as well as the initial stat, including concurrent file growth.
+pub(crate) fn read_bounded_regular(path: &Path, limit: u64) -> Result<Vec<u8>> {
+    use std::io::Read;
+    let metadata = std::fs::symlink_metadata(path)?;
+    if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.len() > limit {
+        return Err(
+            PortcoveError::verification("metadata must be a bounded regular file")
+                .detail("path", path.display().to_string()),
+        );
+    }
+    let mut bytes = Vec::new();
+    std::fs::File::open(path)?
+        .take(limit.saturating_add(1))
+        .read_to_end(&mut bytes)?;
+    if bytes.len() as u64 > limit {
+        return Err(PortcoveError::verification(
+            "metadata grew beyond its read limit",
+        ));
+    }
+    Ok(bytes)
+}
+
 /// Resolve aliases in the existing part while preserving missing descendants.
 /// Missing install directories must remain exportable as recovery metadata.
 pub(crate) fn resolve_existing_ancestor(path: &Path) -> Result<std::path::PathBuf> {

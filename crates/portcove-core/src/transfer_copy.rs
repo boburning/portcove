@@ -6,14 +6,18 @@ use std::{
 
 use sha2::{Digest, Sha256};
 
-use crate::{Library, LibraryMovePlan, PortcoveError, Result};
+use crate::{Library, LibraryMetadata, LibraryMovePlan, LibraryTreePlan, PortcoveError, Result};
 
-pub(crate) fn copy_content(plan: &LibraryMovePlan) -> Result<()> {
-    let work = plan.destination_root.join(".portcove-transfer-work");
+pub(crate) fn copy_content(
+    source_root: &Path,
+    destination_root: &Path,
+    content: &[LibraryTreePlan],
+) -> Result<()> {
+    let work = destination_root.join(".portcove-transfer-work");
     ensure_directory(&work)?;
-    for tree in &plan.content {
-        let source = plan.source_root.join(&tree.relative_path);
-        let destination = plan.destination_root.join(&tree.relative_path);
+    for tree in content {
+        let source = source_root.join(&tree.relative_path);
+        let destination = destination_root.join(&tree.relative_path);
         ensure_directory(&destination)?;
         for relative in &tree.copy.directories {
             ensure_directory(&destination.join(relative))?;
@@ -111,28 +115,23 @@ pub(crate) fn copy_database(library: &Library, plan: &LibraryMovePlan) -> Result
     crate::durability::sync_publication(&plan.destination_root)
 }
 
-pub(crate) fn verify_destination(library: &Library, plan: &LibraryMovePlan) -> Result<()> {
-    for tree in &plan.content {
-        let copy = crate::library_transfer::reviewed_tree(
-            &plan.destination_root.join(&tree.relative_path),
-        )?;
+pub(crate) fn verify_destination(
+    library: &Library,
+    expected_metadata: &LibraryMetadata,
+    content: &[LibraryTreePlan],
+) -> Result<()> {
+    let destination_root = library.root();
+    for tree in content {
+        let copy =
+            crate::library_transfer::reviewed_tree(&destination_root.join(&tree.relative_path))?;
         if serde_json::to_value(&copy)? != serde_json::to_value(&tree.copy)? {
             return Err(PortcoveError::verification(
-                "destination contents differ from the reviewed library move",
+                "destination contents differ from the reviewed library copy",
             )
             .detail("content_root", &tree.relative_path));
         }
     }
-    let mut metadata = library.metadata_for_root(&plan.destination_root)?;
-    let mut expected = plan.metadata.clone();
-    metadata.original_root = expected.original_root.clone();
-    metadata.exported_at = 0;
-    expected.exported_at = 0;
-    if serde_json::to_value(metadata)? != serde_json::to_value(expected)? {
-        return Err(PortcoveError::verification(
-            "destination metadata differs from the reviewed library move",
-        ));
-    }
+    verify_metadata(library, expected_metadata)?;
     let database = library.connection()?;
     let integrity: String = database.query_row("PRAGMA integrity_check", [], |row| row.get(0))?;
     let foreign_keys: u64 =
@@ -145,17 +144,34 @@ pub(crate) fn verify_destination(library: &Library, plan: &LibraryMovePlan) -> R
         ));
     }
     let installer = crate::install::Installer::new(library.clone())?;
-    for relative in &plan.metadata.application_versions {
+    for relative in &expected_metadata.application_versions {
         let mut install = relative.clone();
-        install.path = plan.destination_root.join(&install.path);
+        install.path = destination_root.join(&install.path);
         let report = installer.verify(&install)?;
         if !report.valid {
             return Err(PortcoveError::verification(
-                "moved application failed immutable manifest verification",
+                "copied application failed immutable manifest verification",
             )
             .detail("install_id", install.id)
             .detail("failures", report.failures.join(", ")));
         }
+    }
+    Ok(())
+}
+
+pub(crate) fn verify_metadata(
+    library: &Library,
+    expected_metadata: &LibraryMetadata,
+) -> Result<()> {
+    let mut metadata = library.metadata_for_root(&fs::canonicalize(library.root())?)?;
+    let mut expected = expected_metadata.clone();
+    metadata.original_root = expected.original_root.clone();
+    metadata.exported_at = 0;
+    expected.exported_at = 0;
+    if serde_json::to_value(metadata)? != serde_json::to_value(expected)? {
+        return Err(PortcoveError::verification(
+            "destination metadata differs from the reviewed library copy",
+        ));
     }
     Ok(())
 }

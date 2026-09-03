@@ -426,6 +426,26 @@ impl Installer {
         Ok(executable)
     }
 
+    /// A restored local manifest cannot choose its own executable or mutable/critical policy.
+    pub(crate) fn verify_import_contract(
+        &self,
+        install: &InstallRecord,
+        qualification: &InstallQualification,
+    ) -> Result<()> {
+        let manifest = verified_manifest(install)?;
+        let selected = resolve_declared_executable(&install.path, qualification)?;
+        let (files, mutable_paths) = manifest_files(&install.path, qualification, &selected)?;
+        if manifest_relative(&install.path, &selected)? != manifest.selected_executable
+            || mutable_paths != manifest.mutable_paths
+            || serde_json::to_value(files)? != serde_json::to_value(manifest.files)?
+        {
+            return Err(PortcoveError::verification(
+                "imported application does not match the current platform executable and persistence contract",
+            ).detail("install_id", &install.id));
+        }
+        Ok(())
+    }
+
     pub(crate) fn create_manifest(
         &self,
         install_id: &str,

@@ -129,7 +129,7 @@ export interface PortStatus {
   last_update_check?: UpdateSnapshot;
 }
 
-export type ActivityOperation = "move_library" | "launch" | "check_update" | "backup" | "restore" | "delete_backup" | "install" | "update" | "reconcile" | "verify_install" | "activate" | "rollback" | "adopt" | "remove" | "remove_source" | "register_source" | "verify_source";
+export type ActivityOperation = "import_library" | "move_library" | "launch" | "check_update" | "backup" | "restore" | "delete_backup" | "install" | "update" | "reconcile" | "verify_install" | "activate" | "rollback" | "adopt" | "remove" | "remove_source" | "register_source" | "verify_source";
 export type ActivityStatus = "running" | "succeeded" | "failed";
 export type ActivityTargetKind = "port" | "source" | "library";
 
@@ -397,6 +397,25 @@ export interface LibraryMoveResult {
   active_root: string;
   source_retained: boolean;
   completed: boolean;
+}
+
+export interface LibraryImportPlan {
+  metadata_file: LibraryMetadataFile;
+  content_root: string;
+  destination_root: string;
+  destination_exists: boolean;
+  metadata: LibraryMetadata;
+  content: { kind: LibraryContentKind; relative_path: string; copy: AdoptionCopyPlan }[];
+  required_bytes: number;
+  available_bytes: number;
+  plan_sha256: string;
+}
+
+export interface LibraryImportResult {
+  transfer_id: string;
+  destination_root: string;
+  completed: boolean;
+  input_retained: boolean;
 }
 
 export type GithubAuthSource = "anonymous" | "environment" | "credential_store";

@@ -65,6 +65,8 @@ const interfaceSchemas = new Map([
   ["library_metadata", "LibraryMetadata"],
   ["library_move_plan", "LibraryMovePlan"],
   ["library_move_result", "LibraryMoveResult"],
+  ["library_import_plan", "LibraryImportPlan"],
+  ["library_import_result", "LibraryImportResult"],
   ["source_removal_preview", "SourceRemovalPreview"],
   ["source_verification", "SourceVerification"],
   ["activity", "ActivityRecord"],

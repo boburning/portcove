@@ -164,6 +164,19 @@ enum CatalogCommand {
 
 #[derive(Debug, Subcommand)]
 enum LibraryCommand {
+    /// Review restoring metadata and copied content into --library's new or empty root.
+    Import {
+        metadata: PathBuf,
+        content_root: PathBuf,
+        #[arg(long, requires = "expected_plan")]
+        apply: bool,
+        #[arg(long, requires = "apply")]
+        expected_plan: Option<String>,
+    },
+    /// Resume an interrupted import at --library without modifying its input backup.
+    ResumeImport,
+    /// Retain and gate an incomplete import; no original or copied files are deleted.
+    AbortImport,
     /// Export metadata without application files, saves, or original sources.
     Export {
         #[arg(long)]
@@ -1024,6 +1037,9 @@ where
 
 fn library_command_name(command: &LibraryCommand) -> &'static str {
     match command {
+        LibraryCommand::Import { .. } => "library.import",
+        LibraryCommand::ResumeImport => "library.resume_import",
+        LibraryCommand::AbortImport => "library.abort_import",
         LibraryCommand::Export { .. } => "library.export",
         LibraryCommand::Move { .. } => "library.move",
         LibraryCommand::ResumeMove => "library.resume_move",
@@ -1042,6 +1058,42 @@ fn execute_library(
         .unwrap_or_else(portcove_core::Library::default_root)?;
     let name = library_command_name(command);
     match command {
+        LibraryCommand::Import {
+            metadata,
+            content_root,
+            apply: true,
+            expected_plan,
+        } => {
+            render_success(
+                mode,
+                name,
+                PortcoveService::import_library(
+                    metadata,
+                    content_root,
+                    &root,
+                    expected_plan.as_deref().ok_or_else(|| {
+                        PortcoveError::usage("applying an import requires --expected-plan")
+                    })?,
+                )?,
+            )?;
+        }
+        LibraryCommand::Import {
+            metadata,
+            content_root,
+            ..
+        } => {
+            render_success(
+                mode,
+                name,
+                PortcoveService::plan_library_import(metadata, content_root, &root)?,
+            )?;
+        }
+        LibraryCommand::ResumeImport => {
+            render_success(mode, name, PortcoveService::resume_library_import(&root)?)?
+        }
+        LibraryCommand::AbortImport => {
+            render_success(mode, name, PortcoveService::abort_library_import(&root)?)?
+        }
         LibraryCommand::ResumeMove => {
             render_success(mode, name, PortcoveService::resume_library_move(&root)?)?
         }
@@ -1101,6 +1153,8 @@ fn schema_document() -> serde_json::Value {
         "library_metadata_file": schema_for!(LibraryMetadataFile),
         "library_move_plan": schema_for!(portcove_core::LibraryMovePlan),
         "library_move_result": schema_for!(portcove_core::LibraryMoveResult),
+        "library_import_plan": schema_for!(portcove_core::LibraryImportPlan),
+        "library_import_result": schema_for!(portcove_core::LibraryImportResult),
         "source_removal_preview": schema_for!(SourceRemovalPreview),
         "source_verification": schema_for!(SourceVerification),
         "source_batch_outcome": schema_for!(SourceBatchOutcome),
