@@ -6,6 +6,9 @@ on:
 permissions:
   contents: read
 
+env:
+  pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
+
 concurrency:
   group: deep-quality-${{ github.ref }}
   cancel-in-progress: true

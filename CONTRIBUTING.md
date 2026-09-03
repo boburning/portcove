@@ -6,12 +6,13 @@ Before submitting a change:
 
 ```powershell
 .\scripts\bootstrap-quality-tools.ps1
-pnpm --dir apps/desktop install --frozen-lockfile
+node scripts/dev-storage.mjs preflight
+node scripts/dev-storage.mjs run -- pnpm --dir apps/desktop install --frozen-lockfile
 just check
 just audit
 ```
 
-On Linux or macOS, use `./scripts/bootstrap-quality-tools.sh`. Pass `-IncludeDeep` or `--include-deep` when you also want the optional semantic-duplication, dead-public-API, and mutation tools.
+On Linux or macOS, use `./scripts/bootstrap-quality-tools.sh`. Pass `-IncludeDeep` or `--include-deep` when you also want the optional semantic-duplication, dead-public-API, and mutation tools. The non-system-volume workflow, cleanup command, and recovery procedure are documented in [docs/DEVELOPMENT-STORAGE.md](docs/DEVELOPMENT-STORAGE.md).
 
 Do not suppress deterministic findings without a narrow, reviewable reason. Treat structural findings as evidence rather than instructions for speculative refactors. Follow [AGENTS.md](AGENTS.md) and [docs/QUALITY.md](docs/QUALITY.md). Catalog changes must pass the live repository audit and must not add archived repositories.
 

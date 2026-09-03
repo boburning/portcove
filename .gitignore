@@ -10,5 +10,8 @@ semdup.sqlite*
 /work/
 /outputs/
 *.log
+*.blend1
+*.py[cod]
+__pycache__/
 .DS_Store
 Thumbs.db

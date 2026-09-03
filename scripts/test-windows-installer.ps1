@@ -3,10 +3,17 @@ param(
     [string]$InstallerPath,
     [string]$UpgradeFromInstallerPath,
     [string]$ExpectedExecutablePath,
-    [string]$TestBase = (Join-Path ([System.IO.Path]::GetTempPath()) "Portcove-Installer-Qualification")
+    [string]$TestBase
 )
 
 $ErrorActionPreference = "Stop"
+
+if ([string]::IsNullOrWhiteSpace($TestBase)) {
+    $storageJson = & node (Join-Path $PSScriptRoot "dev-storage.mjs") preflight --json
+    if ($LASTEXITCODE -ne 0) { throw "Development storage preflight failed with exit code $LASTEXITCODE" }
+    $storage = $storageJson | ConvertFrom-Json
+    $TestBase = Join-Path $storage.temporary_directory "installer-qualification"
+}
 
 function Get-UninstallEntries([string]$InstallLocation) {
     $roots = @(
@@ -121,7 +128,12 @@ if (-not $runRoot.StartsWith($expectedPrefix, [System.StringComparison]::Ordinal
 
 $completed = $false
 $previousLibrary = [System.Environment]::GetEnvironmentVariable("PORTCOVE_LIBRARY", "Process")
+$previousTemp = @{}
 try {
+    foreach ($name in @("TEMP", "TMP", "TMPDIR")) {
+        $previousTemp[$name] = [System.Environment]::GetEnvironmentVariable($name, "Process")
+        [System.Environment]::SetEnvironmentVariable($name, $runRoot, "Process")
+    }
     $signature = Get-AuthenticodeSignature -LiteralPath $installer
     $installerHash = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
     $application = Join-Path $installRoot "portcove-desktop.exe"
@@ -216,6 +228,10 @@ try {
     } | ConvertTo-Json -Depth 5 -Compress
 }
 finally {
+    foreach ($name in $previousTemp.Keys) {
+        if ($null -eq $previousTemp[$name]) { Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue }
+        else { [System.Environment]::SetEnvironmentVariable($name, $previousTemp[$name], "Process") }
+    }
     [System.Environment]::SetEnvironmentVariable("PORTCOVE_LIBRARY", $previousLibrary, "Process")
     if ($completed -and [System.IO.Directory]::Exists($runRoot)) {
         $resolvedRunRoot = (Resolve-Path -LiteralPath $runRoot).Path
