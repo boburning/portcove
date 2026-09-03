@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="apps/desktop/assets/brand/masters/portcove-logo-master.jpg" alt="Portcove" width="720">
+  <img src="apps/desktop/assets/brand/generated/v2/portcove-logo-v2-transparent.png" alt="Portcove" width="720">
 </p>
 
 <h1 align="center">Portcove</h1>

@@ -2,5 +2,7 @@
 
 *.icns binary
 *.ico binary
+*.blend binary
+*.glb binary
 *.jpg binary
 *.png binary

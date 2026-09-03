@@ -1,7 +1,7 @@
 const BRAND_ASSETS = {
   icon: "/brand/icons/portcove-mascot-head-256.png",
-  mascot: "/brand/mascot/portcove-mascot-default.jpg",
-  wordmark: "/brand/logo/portcove-logo-horizontal.jpg",
+  mascot: "/brand/mascot/portcove-mascot-v2-front.png",
+  wordmark: "/brand/logo/portcove-logo-v2-transparent.png",
 } as const;
 
 export function BrandAvatar({ className = "" }: { className?: string }) {
