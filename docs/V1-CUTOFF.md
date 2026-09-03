@@ -14,14 +14,14 @@ The following entries are the only post-baseline games Portcove will attempt for
 
 | Wave | Game or upstream project | Intended route | Current state |
 |---|---|---|---|
-| Immediate | Space Station Silicon Valley: Recompiled | N64 recomp portable | Cataloged; install and process smoke complete; first-run source picker deferred |
+| Immediate | Space Station Silicon Valley: Recompiled | N64 recomp portable | Windows automation passed with explicit Vulkan, including v0.1.4/v0.2.0 lifecycle, clean animated launches and exact seven-file persistence through remove/reinstall. The tested host's Auto/D3D12 driver failure remains documented; hands-on qualification remains |
 | Immediate | Animal Crossing PC Port | normalized GameCube ISO staging | Cataloged; Windows install, RVZ conversion, source staging, and process smoke complete |
 | Immediate | Project Picori / The Minish Cap | exact GBA copy staging | Cataloged; Windows install, source staging, and process smoke complete |
 | Immediate | BattleShip / Super Smash Bros. 64 | Libultraship portable | Cataloged; Windows install, cache generation, persistence, and process smoke complete |
 | Shared-source adapters | ProjectR: San Francisco Rush: The Rock | reviewed multi-file source set plus fixed launch target | Direct upstream and v0.7.1 reviewed; release integrity, arcade source availability, and interactive setup deferred |
 | Shared-source adapters | ProjectR: San Francisco Rush 2049 | reviewed multi-file source set plus fixed launch target | Direct upstream and v0.7.1 reviewed; release integrity, arcade source availability, and interactive setup deferred |
 | Shared-source adapters | R.E.L.I.V.E. / Oddworld: Abe's Oddysee and Abe's Exoddus | reviewed game-data directory | Active direct upstream and v1.0.9 reviewed; release integrity and original PC data deferred per game |
-| Shared-source adapters | Severed Chains / The Legend of Dragoon | reviewed multi-disc data set | Cataloged; rolling Windows release and exact local four-disc CHD set qualified; install verified; first launch deferred on its unverified JDK bootstrap |
+| Shared-source adapters | Severed Chains / The Legend of Dragoon | reviewed multi-disc data set | Automated Windows qualification complete with a verified bundled Corretto runtime, real release-pair lifecycle, title-screen launch, clean exit, immutable verification and preserved settings; gameplay/audio/controller/save qualification remains manual |
 | Shared-source adapters | OpenPete / Spyro the Dragon | reviewed source set | Cataloged from the official direct manifest; application artifact qualified; local Redump CHD is not the exact disc image OpenPete accepts, so managed install/boot is deferred |
 | Shared-source adapters | WipeOut Phantom Edition | reviewed PS1 disc extraction contract | CHD-to-9-track staging implemented and locally proven; upstream artifact/source integrity publication deferred |
 | Shared-source adapters | Cannonball / OutRun | reviewed ROM set | ZIP/folder CRC32 validation and staging implemented; exact local Revision B set qualified; upstream release integrity deferred |
@@ -32,15 +32,16 @@ The following entries are the only post-baseline games Portcove will attempt for
 | Reviewed ReXGlue | Destroy All Humans! Path of the Furon recompilation | reviewed deterministic generator contract | Active direct `new` artifact qualified; source identity, local source, and deterministic first-run path contract are deferred |
 | Reviewed ReXGlue | WWE SmackDown vs. Raw 2007 recompilation | reviewed deterministic generator contract | Active direct v1.0 artifact qualified; source identity and local source are deferred |
 | Direct portable | Sonic Unleashed Recompiled | reviewed installed-data contract | Exact local Xbox 360 ISO found; active v1.0.3 artifacts lack published SHA-256 integrity and are deferred |
-| High-value beta | Paper Mario ReCut | opt-in beta Windows release | Cataloged; exact local US ROM, checksum-qualified v0.1.2 install, first boot, persistence collection, remove/reinstall restoration, isolated adoption, and responsive launch passed |
+| High-value beta | Paper Mario ReCut | opt-in beta Windows release | Cataloged; Windows automated qualification passed, including v0.1.1 adoption to v0.1.2 staged update, activation, rollback, retained reuse, verified library move, post-move collection recovery, clean launch/exit, and unchanged original source; hands-on play/save validation remains |
 | High-value candidate | Chameleon Twist recompilation | direct stable Windows release | Active v0.1 artifact lacks a digest and the local Japanese ROM is translated rather than the required clean revision; deferred |
 | High-value candidate | Star Fox Enhanced | opt-in beta portable releases | v0.0.3 artifacts and exact local USA 1.0 ROM qualified; global Documents/SDL save and settings paths have no Portcove override, so safe update ownership is deferred |
-| High-value stable | Mega Man X6 recompilation | stable Windows release with opt-in beta support | Cataloged; exact local Rev 1 CHD, v1.0.9 install, CHD staging, persistence collection, remove/reinstall restoration, isolated adoption, and responsive launch passed |
+| High-value stable | Mega Man X6 recompilation | stable Windows release with opt-in beta support | Cataloged; Windows automated qualification passed, including v1.0.7 adoption to v1.0.9 staged update/activation/rollback/retained reuse, exact Rev 1 CHD staging, direct boot, and managed memory-card preservation through remove/reinstall/launch; hands-on play/save validation remains |
 
 Stable, beta, and rolling are user-selected release channels and never substitutes for qualification evidence.
 
 ## Explicitly outside the cutoff
 
+- Mod recommendations and installation integration, including Dinomod Enhanced, were explicitly postponed to post-V1 by the user on 2026-09-03. The isolated Dinomod startup experiment does not change the V1 product scope.
 - Additional projects discovered after 2026-09-01, including unnamed PS1 recompilation repositories.
 - Toolchains, launchers, decompilation databases, and browser-only builds that do not install a native game.
 - Incomplete projects that do not yet run the game.
