@@ -6,6 +6,7 @@ import type { ThemeState, ThemePreference } from "../theme";
 import type { DoctorReport, GithubAuthStatus, GithubDeviceLogin, HostToolStatus, OperationEvent, SourceProfile, SourceRecord, SourceVerificationOutcome, StorageSummary } from "../types";
 import { formatBytes, type SourceRequirement, type View } from "../view-model";
 import { BrandAvatar, BrandMascot, BrandWordmark } from "./Brand";
+import { ExternalLink } from "./ExternalLink";
 import { Icon, NavigationHints, Shortcut } from "./ui";
 
 export function Sidebar({ view, setView, installedCount, updateCount, onAdopt, controller }: {
@@ -40,7 +41,7 @@ export function PageHeader({ view, query, setQuery, portCount, onOpenCommands }:
   const copy = pageCopy(view, portCount ?? 0);
   return <header>
     <div><p className="eyebrow">{copy.eyebrow}</p><h1>{copy.title}</h1><p className="page-description">{copy.description}</p></div>
-    <div className="header-tools">
+    <div className="header-tools" data-focus-group>
       {(view === "library" || view === "catalog") && <label className="search" htmlFor="port-search"><Icon glyph={Search} /><span className="sr-only">Search ports</span><input id="port-search" data-focusable value={query} onChange={event => setQuery(event.target.value)} placeholder="Search ports" /><Shortcut>/</Shortcut></label>}
       <button data-focusable className="command-trigger button-with-icon" onClick={onOpenCommands} aria-label="Open command palette"><Icon glyph={Command} /><span>Commands</span><Shortcut>Ctrl K</Shortcut></button>
     </div>
@@ -139,7 +140,7 @@ function githubQuota(status?: GithubAuthStatus) {
 
 function DeviceLogin({ login }: { login?: GithubDeviceLogin }) {
   if (!login) return null;
-  return <div className="device-login"><strong>Enter {login.user_code}</strong><span>at <a data-focusable href={login.verification_uri} target="_blank" rel="noreferrer">{login.verification_uri}</a></span><small>Portcove is waiting for GitHub.</small></div>;
+  return <div className="device-login"><strong>Enter {login.user_code}</strong><span>at <ExternalLink href={login.verification_uri}>{login.verification_uri}</ExternalLink></span><small>Portcove is waiting for GitHub.</small></div>;
 }
 
 function TokenEntry({ github, busy }: { github?: GithubSettingsActions; busy: boolean }) {
@@ -163,7 +164,7 @@ function GithubNotes({ status }: { status?: GithubAuthStatus }) {
 }
 
 function GithubSettings({ github, busy }: { github?: GithubSettingsActions; busy?: string }) {
-  return <article className="settings-card github-auth">
+  return <article className="settings-card github-auth" data-focus-group>
     <p className="eyebrow">GITHUB</p>
     <GithubConnection status={github?.status} />
     <DeviceLogin login={github?.deviceLogin} />
@@ -222,17 +223,17 @@ function AppearanceSettings({ appearance }: { appearance?: ThemeState }) {
   const options: ThemePreference[] = ["system", "dark", "light"];
   const resolvedLabel = resolvedTheme === "light" ? "Light" : "Dark";
   const status = preference === "system" ? `Following system · currently ${resolvedLabel}` : `Always ${resolvedLabel}`;
-  return <article className="settings-card appearance-card">
-    <p className="eyebrow">APPEARANCE</p><h2>Hardware light, software color</h2>
+  return <article className="settings-card appearance-card" data-focus-group>
+    <p className="eyebrow">APPEARANCE</p><h2>Color theme</h2>
     <div className="segmented appearance-options" role="group" aria-label="Color theme">
       {options.map(option => <ThemeOption key={option} option={option} selected={preference === option} select={appearance?.setPreference} />)}
     </div>
-    <p>{status}. Portcove keeps the N64-inspired interaction hierarchy in either theme.</p>
+    <p>{status}.</p>
   </article>;
 }
 
 function AboutCard() {
-  return <article className="settings-card about-card">
+  return <article className="settings-card about-card" data-focus-group>
     <div className="about-art"><BrandWordmark /><BrandMascot decorative /></div>
     <div className="about-copy">
       <p className="eyebrow">ABOUT &amp; CREDITS</p>
@@ -243,7 +244,7 @@ function AboutCard() {
         <div><dt>Built with</dt><dd>Tauri 2 · Rust · React</dd></div>
         <div><dt>License</dt><dd>MIT or Apache-2.0</dd></div>
       </dl>
-      <a data-focusable className="small-control button-link" href="https://github.com/boburning/portcove" target="_blank" rel="noreferrer">Open project repository</a>
+      <ExternalLink className="small-control button-link" href="https://github.com/boburning/portcove">Open project repository</ExternalLink>
     </div>
   </article>;
 }
@@ -254,7 +255,7 @@ function DiagnosticsCard({ busy, createSupportBundle }: { busy?: string; createS
     const path = await createSupportBundle?.();
     if (path) setBundlePath(path);
   };
-  return <article className="settings-card diagnostics-card">
+  return <article className="settings-card diagnostics-card" data-focus-group>
     <p className="eyebrow">DIAGNOSTICS</p><h2><Icon glyph={ShieldCheck} />Redacted support bundle</h2>
     <p>Collect rotated desktop logs, recent operation records, and host readiness without game sources or stored credentials.</p>
     <button data-focusable className="small-control" disabled={Boolean(busy) || !createSupportBundle} onClick={() => { void create(); }}>Create support bundle</button>

@@ -23,7 +23,7 @@ export function UpdateCenter({ ports, statuses, activities, outcomes, actions, b
   const failed = outcomes.filter(outcome => !outcome.ok).length;
   const staged = installed.filter(port => statuses.get(port.id)?.staged).length;
   return <section className="update-center">
-    <div className="update-toolbar">
+    <div className="update-toolbar" data-focus-group>
       <div className="update-stats">
         <UpdateStat label="Installed" value={installed.length} icon={PackageCheck} />
         <UpdateStat label="Available" value={available} icon={Download} accent={available > 0} />
@@ -37,7 +37,7 @@ export function UpdateCenter({ ports, statuses, activities, outcomes, actions, b
     </div>
     <p className="update-explainer">Notify reports an update, Stage downloads it for later activation, and Automatic switches to the verified release while retaining rollback.</p>
     {installed.length === 0 ? <EmptyState icon={RefreshCw} eyebrow="UPDATE CENTER" title="No installed ports to check" description="Install or adopt a port first. Portcove will then track its channel, update policy, verified releases, and rollback state here." /> :
-      <div className="update-list">{installed.map(port => {
+      <div className="update-list" data-focus-group>{installed.map(port => {
         const status = statuses.get(port.id)!;
         const outcome = byPort.get(port.id);
         const action = actions.get(port.id);
@@ -83,7 +83,7 @@ function ActivityRow({ activity, names, onSelect, onOpenSources }: {
   const target = activityTarget(activity, names);
   const presentation = activityPresentation(activity);
   const title = activity.message ?? (presentation.state === "unfinished" ? "No completion was recorded. Review the source or port before retrying." : undefined);
-  return <div className={`activity-row ${presentation.state}`} title={title}>
+  return <div className={`activity-row ${presentation.state}`} title={title} data-focus-group>
     <span className="activity-indicator" aria-hidden="true"><Icon glyph={presentation.icon} size="sm" /></span>
     <div className="activity-main"><strong>{operationLabel(activity.operation)}</strong>
       <ActivityTargetLink activity={activity} target={target} onSelect={onSelect} onOpenSources={onOpenSources} />

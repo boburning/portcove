@@ -7,6 +7,7 @@ import type { BackupRecord, InstallPlan, PortDefinition, PortStatus, ReleaseChan
 import { formatBytes, platformLabels } from "../view-model";
 import { BackupHistory } from "./BackupHistory";
 import { ChoiceMenu } from "./ChoiceMenu";
+import { ExternalLink as ProjectLink } from "./ExternalLink";
 import { Icon, NavigationHints, Shortcut } from "./ui";
 
 export interface DetailActions {
@@ -158,7 +159,7 @@ function AdvancedControls({ port, status, selectedChannel, policy, installed, ba
         options={[{ value: "notify", label: "Notify me" }, { value: "stage", label: "Download and stage" }, { value: "automatic", label: "Install automatically" }]} /></div>
       <SourceFields mode="registered" controls={sources} />
       <div className="metadata"><span><small>Platforms</small>{port.platforms.map(value => platformLabels[value]).join(" · ")}</span><span><small>Automated evidence</small>{port.automated_tested_platforms.length ? port.automated_tested_platforms.map(value => platformLabels[value]).join(" · ") : "Qualification pending"}</span><span><small>Physical validation</small>{port.manually_validated_platforms.length ? port.manually_validated_platforms.map(value => platformLabels[value]).join(" · ") : "Deferred / not completed"}</span><span title={port.persistent_paths.join(" · ")}><small>Persistent data root</small>{status?.user_data_root ?? "Created inside the selected library"}</span></div>
-      <div className="upstream-link"><a data-focusable href={port.project_url} target="_blank" rel="noreferrer">Open upstream project <Icon glyph={ExternalLink} size="sm" /></a><span>Portcove resolves releases from this reviewed upstream.</span></div>
+      <div className="upstream-link"><ProjectLink href={port.project_url}>Open upstream project <Icon glyph={ExternalLink} size="sm" /></ProjectLink><span>Portcove resolves releases from this reviewed upstream.</span></div>
       <CliContinuity port={port} status={status} channel={selectedChannel} sourcePath={sources.sourcePath} biosPath={sources.biosPath} />
       {installed && <><BackupHistory backups={backups} busy={busy} restore={actions.restoreBackup} remove={actions.deleteBackup} /><MaintenanceActions canRollback={Boolean(status?.previous)} busy={busy} actions={actions} /></>}
     </div>

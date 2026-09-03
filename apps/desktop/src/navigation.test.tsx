@@ -3,6 +3,8 @@ import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ChoiceMenu } from "./components/ChoiceMenu";
+import { ExternalLink } from "./components/ExternalLink";
+import { desktopApi } from "./api";
 import { useDialogFocus } from "./dialog";
 import { focusRegion } from "./focus";
 import { useGamepadNavigation } from "./gamepad";
@@ -76,6 +78,17 @@ afterEach(async () => {
 });
 
 describe("controller and modal integration", () => {
+  it("opens external links through the desktop bridge and exposes launch errors", async () => {
+    const open = vi.spyOn(desktopApi, "openExternalUrl").mockResolvedValue(undefined);
+    await act(async () => root.render(<><NavigationFixture /><ExternalLink href="https://github.com/boburning/portcove">Repository</ExternalLink></>));
+    const link = document.querySelector<HTMLAnchorElement>("a")!;
+    link.focus(); await frame([0]);
+    expect(open).toHaveBeenCalledWith(link.href);
+    open.mockRejectedValue({ message: "No browser configured" });
+    await act(async () => link.click());
+    expect(document.querySelector("[role=alert]")?.textContent).toContain("No browser configured");
+  });
+
   it("ignores background game input without replaying a held button on return", async () => {
     control("Game card").focus();
     const focused = vi.spyOn(document, "hasFocus").mockReturnValue(false);

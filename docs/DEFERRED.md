@@ -90,14 +90,18 @@ The embedded catalog's `automated_tested_platforms` and `manually_validated_plat
 - Needs: completion of `PCV-DEF-001` and a person at the Windows desktop.
 - Purpose: verify the newly added Settings card, device code presentation, browser handoff, connected-account state, rate-limit display, restart persistence, error recovery, and logout with real GitHub responses.
 - Automated component and backend tests already pass; that is not a substitute for this interaction check.
+- Live 2026-09-03 evidence: the user confirms Settings displays the connected account/rate limit and, after the native browser bridge fix, "opening links also works." The full GUI logout, device-code sign-in, restart, and error-recovery sequence remains to be recorded.
 
 ## PCV-DEF-005 — Controller-navigation polish
 
 - Status: `waiting`
 - Purpose: improve discoverability and consistency of controller controls in the desktop UI.
 - Revalidated 2026-09-03: the user tested an Xbox controller and reported invisible focus, unreliable actions, no dependable return to the sidebar, and confusing A-button hints. This is a failed current qualification, irrespective of the historical baseline smoke.
+- Second Xbox observation: improved, but vertical navigation skipped filter rows, the first catalog card, and GitHub actions; search focus covered only the input, the header controls differed in height, and project links did nothing. These reports reopened concrete engineering fixes; they are not a manual pass.
 - Engineering: one shared control inventory; explicit controller focus outlines; button-edge state survives dialog renders; modal-local navigation and nested Back; focus restoration; selected-item scrolling; sidebar/content boundaries; B to menu; LB/RB section navigation; consistent A-to-select choice lists; context-specific hints. Keyboard editing remains native.
 - Evidence: integration fixtures cover held A/B across modal renders, sidebar return, bumper edges, Tab including summaries, native field arrows, and nested choice cancellation. Browser interaction verified visible gold focus, choice visibility, and one-level Escape/return focus. These checks do not establish controller feel.
+- Follow-up engineering and evidence: nearest-row navigation with explicit control groups; a full-field search outline and matching 42-pixel header heights; plain "Color theme" copy; and a reviewed-URL native browser bridge shared by all external links. Browser fixtures verified Library/Catalog filters, Ship of Harkinian first, GitHub Log out/Refresh status, and Updates actions before its first port. Regression tests exercise skipped rows and controller link activation.
+- Third Xbox observation, on desktop SHA-256 `5eac1238fefbcf8a36648891452050d5bdf8eadd86be58369b4313c7c55b1366`: the user reports "The controller feels much better" and then "opening links also works." This confirms improved physical controller behavior and functioning browser handoff. It does not yet individually certify every nested-dialog/minimum-size case or the complete authentication checks under `PCV-DEF-004`.
 - Resume: repeat Catalog → game → Advanced controls → Update policy with the Xbox controller; verify visible selection, one action per press, B cancelling just the choice, B closing details to the same card, B returning to the sidebar, LB/RB sections, and selected-card visibility at the 960-pixel minimum window size. Record the user's actual result before closing this item.
 
 ## PCV-DEF-006 — Broader operating-system qualification

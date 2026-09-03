@@ -13,7 +13,7 @@ export function PortBrowser({ view, ports, statuses, registeredSources, overview
   return <>
     {view === "library" && recent && onContinue && <ContinueCard recent={recent} launch={onContinue} details={onSelect} />}
     {view === "library" && <LibrarySummary overview={overview} />}
-    <div className="filter-row" aria-label={view === "library" ? "Library filters" : "Release channel filters"}>{filterOptions(view).map(item =>
+    <div className="filter-row" data-focus-group aria-label={view === "library" ? "Library filters" : "Release channel filters"}>{filterOptions(view).map(item =>
       <button data-focusable aria-pressed={filter === item} key={item} className={filter === item ? "filter active" : "filter"} onClick={() => setFilter(item)}>{filterLabel(item)}</button>)}
       <span>{ports.length} {ports.length === 1 ? "port" : "ports"}</span>
     </div>
@@ -27,7 +27,7 @@ function BrowserResults({ view, ports, statuses, registeredSources, onSelect, on
 }) {
   if (loading) return <LoadingState />;
   if (ports.length === 0) return <BrowserEmptyState view={view} clearFilters={clearFilters} onBrowseCatalog={onBrowseCatalog} />;
-  return <section className="port-grid">{ports.map(port => <PortCard key={port.id} port={port} status={statuses.get(port.id)} readiness={portReadiness(port, statuses.get(port.id), registeredSources)} onSelect={onSelect} />)}</section>;
+  return <section className="port-grid" data-focus-group>{ports.map(port => <PortCard key={port.id} port={port} status={statuses.get(port.id)} readiness={portReadiness(port, statuses.get(port.id), registeredSources)} onSelect={onSelect} />)}</section>;
 }
 
 function LoadingState() {
@@ -43,7 +43,7 @@ function BrowserEmptyState({ view, clearFilters, onBrowseCatalog }: { view: View
 
 function ContinueCard({ recent, launch, details }: { recent: RecentPort; launch: (portId: string) => void; details: (portId: string) => void }) {
   const { port, status } = recent;
-  return <section className="continue-card" aria-label={`Continue ${port.name}`}>
+  return <section className="continue-card" data-focus-group aria-label={`Continue ${port.name}`}>
     <div className={`continue-art art-${port.support_tier}`}>{port.name.slice(0, 2).toUpperCase()}</div>
     <div><p className="eyebrow">CONTINUE</p><h2>{port.name}</h2><p className="continue-meta">Last successful session · {status.active?.version}</p></div>
     <div className="continue-actions"><button data-focusable onClick={() => details(port.id)}>View details</button><button data-focusable className="primary button-with-icon" onClick={() => launch(port.id)}><Icon glyph={Gamepad2} />Play again</button></div>

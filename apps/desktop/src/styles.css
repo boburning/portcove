@@ -633,11 +633,12 @@ h2 { letter-spacing: -0.025em; line-height: var(--leading-tight); }
 }
 
 .search:focus-within {
-  border-color: var(--color-interactive-border);
-  box-shadow: 0 0 0 1px var(--color-interactive);
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
 }
 
-.search input { min-height: var(--control-height-lg); }
+.search,
+.command-trigger { height: var(--control-height-lg); min-height: var(--control-height-lg); }
 .search kbd { margin-left: auto; }
 
 .command-trigger {
@@ -659,6 +660,10 @@ h2 { letter-spacing: -0.025em; line-height: var(--leading-tight); }
   color: var(--color-text);
   background: var(--color-transparent);
 }
+
+.search input { height: 100%; min-height: 0; padding-block: 0; }
+.search input:focus-visible,
+:root[data-input-mode="controller"] .search input:focus { outline: none; }
 
 .continue-card {
   min-height: 92px;

@@ -1220,6 +1220,33 @@ async fn open_user_data(
 }
 
 #[tauri::command]
+async fn open_external_url(
+    state: tauri::State<'_, DesktopState>,
+    url: String,
+) -> DesktopResult<()> {
+    let state = state.inner().clone();
+    blocking_service(state, move |service| {
+        validate_external_url(service.catalog().document(), &url)?;
+        open_host_target(std::ffi::OsStr::new(&url))
+    })
+    .await
+}
+
+fn validate_external_url(catalog: &CatalogDocument, url: &str) -> DesktopResult<()> {
+    let known = matches!(
+        url,
+        "https://github.com/boburning/portcove" | "https://github.com/login/device"
+    ) || catalog.ports.iter().any(|port| port.project_url == url);
+    if !url.starts_with("https://") || !known {
+        return Err(PortcoveError::usage(
+            "only reviewed project and GitHub sign-in links may be opened",
+        )
+        .into());
+    }
+    Ok(())
+}
+
+#[tauri::command]
 async fn create_support_bundle(state: tauri::State<'_, DesktopState>) -> DesktopResult<PathBuf> {
     let state = state.inner().clone();
     blocking_service(state, |service| {
@@ -1240,6 +1267,10 @@ fn report_frontend_error(message: String, component_stack: String) -> DesktopRes
 }
 
 fn open_directory(path: &std::path::Path) -> DesktopResult<()> {
+    open_host_target(path.as_os_str())
+}
+
+fn open_host_target(target: &std::ffi::OsStr) -> DesktopResult<()> {
     #[cfg(target_os = "windows")]
     let program = "explorer.exe";
     #[cfg(target_os = "macos")]
@@ -1247,12 +1278,12 @@ fn open_directory(path: &std::path::Path) -> DesktopResult<()> {
     #[cfg(target_os = "linux")]
     let program = "xdg-open";
     ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, program)?
-        .arg(path)
+        .arg(target)
         .spawn()
         .map_err(|error| {
             PortcoveError::state(format!(
-                "could not open persistent data folder {}: {error}",
-                path.display()
+                "could not open {} with the system application: {error}",
+                target.to_string_lossy()
             ))
         })?;
     Ok(())
@@ -1334,6 +1365,7 @@ pub fn run() {
             launch_port,
             get_doctor_report,
             open_user_data,
+            open_external_url,
             create_support_bundle,
             report_frontend_error,
         ])
@@ -1350,6 +1382,30 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn external_links_are_limited_to_reviewed_https_destinations() {
+        let catalog = portcove_core::Catalog::embedded().unwrap();
+        for url in [
+            "https://github.com/boburning/portcove",
+            "https://github.com/login/device",
+            &catalog.document().ports[0].project_url,
+        ] {
+            validate_external_url(catalog.document(), url).unwrap();
+        }
+        for url in [
+            "file:///C:/Windows",
+            "javascript:alert(1)",
+            "https://example.com",
+            "https://github.com/login/device?redirect=elsewhere",
+            "https://github.com/boburning/portcove.evil",
+        ] {
+            assert!(
+                validate_external_url(catalog.document(), url).is_err(),
+                "{url}"
+            );
+        }
+    }
 
     #[test]
     fn invalid_library_initialization_becomes_a_recoverable_desktop_state() {

@@ -30,6 +30,7 @@ export const desktopApi = {
   reportFrontendError: (message: string, componentStack: string) => invoke<void>("report_frontend_error", { message, componentStack }),
   plan: (portId: string, channel: ReleaseChannel) => invoke<InstallPlan>("plan_port", { portId, channel }),
   openUserData: (portId: string) => invoke<string>("open_user_data", { portId }),
+  openExternalUrl: (url: string) => invoke<void>("open_external_url", { url }),
   setChannel: (portId: string, channel: ReleaseChannel) => invoke<PortStatus>("set_channel", { portId, channel }),
   setPolicy: (portId: string, policy: UpdatePolicy) => invoke<PortStatus>("set_policy", { portId, policy }),
   install: (portId: string, channel: ReleaseChannel, source: string, bios: string, stage: boolean) =>

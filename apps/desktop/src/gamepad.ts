@@ -24,27 +24,33 @@ export function keyboardNavigationAction(key: string): NavigationDirection | "ba
   return directions[key];
 }
 
-export function spatialTargetIndex(rects: FocusRect[], current: number, direction: NavigationDirection) {
+export function spatialTargetIndex(rects: FocusRect[], current: number, direction: NavigationDirection, groups: readonly unknown[] = []) {
   if (rects.length === 0) return -1;
   if (current < 0 || current >= rects.length) return 0;
-  const origin = center(rects[current]);
-  let best = -1;
-  let bestScore = Number.POSITIVE_INFINITY;
-  rects.forEach((rect, index) => {
-    if (index === current) return;
-    const candidate = center(rect);
-    const dx = candidate.x - origin.x;
-    const dy = candidate.y - origin.y;
-    const primary = direction === "left" ? -dx : direction === "right" ? dx : direction === "up" ? -dy : dy;
-    if (primary <= 2) return;
-    const secondary = direction === "left" || direction === "right" ? Math.abs(dy) : Math.abs(dx);
-    const score = primary + secondary * 2.5 + Math.hypot(dx, dy) * 0.05;
-    if (score < bestScore) {
-      best = index;
-      bestScore = score;
-    }
-  });
-  return best;
+  const origin = rects[current];
+  const vertical = direction === "up" || direction === "down";
+  const candidates = rects.map((rect, index) => ({ index, rect, distance: directionalGap(origin, rect, direction) }))
+    .filter(item => item.index !== current && item.distance >= -1 && (vertical || overlapsRow(origin, item.rect)));
+  if (candidates.length === 0) return -1;
+  const nearest = Math.min(...candidates.map(item => item.distance));
+  // Visit the nearest visual row/column before considering alignment. A short
+  // filter row must never lose to a large card farther down the page.
+  const band = candidates.filter(item => item.distance <= nearest + 3);
+  const enteringGroup = vertical && groups.length > 0 && band.every(item => groups[item.index] !== groups[current]);
+  const crossDistance = (rect: FocusRect) => vertical ? Math.abs(center(rect).x - center(origin).x) : Math.abs(center(rect).y - center(origin).y);
+  band.sort((a, b) => enteringGroup ? a.rect.left - b.rect.left : crossDistance(a.rect) - crossDistance(b.rect));
+  return band[0].index;
+}
+
+function overlapsRow(origin: FocusRect, candidate: FocusRect) {
+  return candidate.top < origin.top + origin.height && candidate.top + candidate.height > origin.top;
+}
+
+function directionalGap(origin: FocusRect, candidate: FocusRect, direction: NavigationDirection) {
+  if (direction === "down") return candidate.top - (origin.top + origin.height);
+  if (direction === "up") return origin.top - (candidate.top + candidate.height);
+  if (direction === "right") return candidate.left - (origin.left + origin.width);
+  return origin.left - (candidate.left + candidate.width);
 }
 
 /** Button edges and repeat timing belong to the controller session, not a render. */
@@ -136,13 +142,8 @@ function moveFocus(items: HTMLElement[], current: number, direction: NavigationD
   const origin = items[current];
   const region = origin?.closest<HTMLElement>("[data-focus-region]");
   const horizontal = direction === "left" || direction === "right";
-  const rect = origin?.getBoundingClientRect();
-  const candidates = region ? items.filter(item => {
-    if (item.closest("[data-focus-region]") !== region) return false;
-    const candidate = item.getBoundingClientRect();
-    return !horizontal || !rect || (candidate.top < rect.bottom && candidate.bottom > rect.top);
-  }) : items;
-  const target = spatialTargetIndex(candidates.map(item => item.getBoundingClientRect()), candidates.indexOf(origin), direction);
+  const candidates = region ? items.filter(item => item.closest("[data-focus-region]") === region) : items;
+  const target = spatialTargetIndex(candidates.map(item => item.getBoundingClientRect()), candidates.indexOf(origin), direction, candidates.map(item => item.closest("[data-focus-group]")));
   if (target < 0 && horizontal && region) {
     if (direction === "left" && region.dataset.focusRegion === "workspace") return focusRegion("sidebar");
     if (direction === "right" && region.dataset.focusRegion === "sidebar") return focusRegion("workspace");
