@@ -9,7 +9,7 @@ Statuses:
 - `later`: deliberately outside the current functionality-first slice.
 - `optional-tooling`: an advisory capability is unavailable on one host but required release gates still run.
 
-Completed campaign items, including `PCV-DEF-001` public GitHub App registration and live CLI/GUI device login, have evidence in [DEFERRED-CAMPAIGN.md](DEFERRED-CAMPAIGN.md). The four reopened audit Phase 5 capabilities are implemented: verified library portability/relinking, bounded opt-in source discovery, phase-aware cancellation, and signed catalog delivery with embedded fallback. Platform and human qualification remain separate.
+Completed campaign items, including `PCV-DEF-001` public GitHub App registration/live device login and `PCV-DEF-012` real-save CLI/GUI restore with safety-backup recovery, have evidence in [DEFERRED-CAMPAIGN.md](DEFERRED-CAMPAIGN.md). The four reopened audit Phase 5 capabilities are implemented: verified library portability/relinking, bounded opt-in source discovery, phase-aware cancellation, and signed catalog delivery with embedded fallback. Platform and human qualification remain separate.
 
 ## PCV-DEF-002 — Decide and deploy an optional update relay
 
@@ -183,15 +183,6 @@ Resume checklist:
 7. From an installed port's advanced controls, confirm Open data folder creates or opens only the displayed persistent-data root in the OS file manager.
 8. Create a persistent-data backup, confirm the successful activity appears, and compare the reported snapshot with the displayed data root without editing either copy. Restore it after making a disposable change, confirm the native warning clearly promises a safety backup, and verify both restored content and the new safety snapshot.
 9. Repeat the relevant paths with a controller and record any focus-order or selected-row visibility issues under `PCV-DEF-005`.
-
-## PCV-DEF-012 — Validate transactional persistent-data restore with a real save
-
-- Status: `waiting`
-- Already implemented: core/CLI/Tauri backup creation, listing, restore, and deletion; deterministic tree SHA-256; per-port locking; pre-copy active-data collection; fail-closed symlink handling; same-volume process-atomic publication; file/manifest flushing plus supported Linux directory syncing without a false cross-platform power-loss guarantee; explicit CLI and native GUI confirmation; automatic safety backup; typed results and activity; tamper, empty-root, independence, replacement, and targeted-deletion regression tests.
-- Why deferred: automated filesystem tests cannot prove that an upstream port accepts the restored files or that the GUI's warning and snapshot history remain clear during a real save/load recovery.
-- Campaign tooling: the qualification report records existing backup identities and activity alongside the exact tested CLI. Real library moves exposed and fixed generated-metadata verification and canonical-path collection failures; regression tests and an actual interrupted Paper Mario collection recovery preserve this boundary. A labeled test marker remains filesystem evidence, never a real-save qualification.
-- Real-save progress, 2026-09-03: CLI restore loaded the original one-slot BOB save in Picori, then recovered and loaded the two-slot safety snapshot. The corrected production GUI restored the original save hash and created full safety snapshot `d059070a-1147-4c04-a7ec-509321f1a67a`. Windows automation could not focus the launched Picori window; the user was asked to bring it forward. The exact artifacts, save identities and completed steps are recorded in `DEFERRED-CAMPAIGN.md`. Picori still aborts on quit, so successful collection does not imply a clean upstream exit.
-- Resume condition: observe the GUI-restored one-slot save loading, then restore the GUI safety snapshot and observe both BOB slots and the loaded game return. Record compact/controller acceptance separately under `PCV-DEF-011`/`PCV-DEF-005`.
 
 ## PCV-DEF-013 — Enable semdup on the Windows development host
 

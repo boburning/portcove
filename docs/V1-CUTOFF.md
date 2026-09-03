@@ -16,7 +16,7 @@ The following entries are the only post-baseline games Portcove will attempt for
 |---|---|---|---|
 | Immediate | Space Station Silicon Valley: Recompiled | N64 recomp portable | Windows automation passed with explicit Vulkan, including v0.1.4/v0.2.0 lifecycle, clean animated launches and exact seven-file persistence through remove/reinstall. The tested host's Auto/D3D12 driver failure remains documented; hands-on qualification remains |
 | Immediate | Animal Crossing PC Port | normalized GameCube ISO staging | Cataloged; Windows install, RVZ conversion, source staging, and process smoke complete |
-| Immediate | Project Picori / The Minish Cap | exact GBA copy staging | Cataloged; Windows install, source staging, and process smoke complete |
+| Immediate | Project Picori / The Minish Cap | exact GBA copy staging | Windows source/install automation and real CLI/GUI save restore with safety recovery passed; abnormal upstream exit remains documented, and physical gameplay/audio/controller qualification remains |
 | Immediate | BattleShip / Super Smash Bros. 64 | Libultraship portable | Cataloged; Windows install, cache generation, persistence, and process smoke complete |
 | Shared-source adapters | ProjectR: San Francisco Rush: The Rock | reviewed multi-file source set plus fixed launch target | Direct upstream and v0.7.1 reviewed; release integrity, arcade source availability, and interactive setup deferred |
 | Shared-source adapters | ProjectR: San Francisco Rush 2049 | reviewed multi-file source set plus fixed launch target | Direct upstream and v0.7.1 reviewed; release integrity, arcade source availability, and interactive setup deferred |
