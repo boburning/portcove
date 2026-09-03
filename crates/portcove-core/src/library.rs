@@ -176,6 +176,13 @@ impl Library {
         Ok(PortOperationGuard { file })
     }
 
+    pub(crate) fn try_lock_activity(&self, id: &str) -> Result<PortOperationGuard> {
+        let key = format!("activity-{}", hex::encode(Sha256::digest(id.as_bytes())));
+        Ok(PortOperationGuard {
+            file: self.acquire_lock(&key, id, "activity-owner")?,
+        })
+    }
+
     pub(crate) fn try_lock_port_for_launch_recovery(
         &self,
         port_id: &str,
@@ -290,6 +297,7 @@ impl Library {
             message: None,
             started_at: Self::now(),
             finished_at: None,
+            cancellation: None,
         };
         self.connection()?.execute(
             "INSERT INTO activity_history(
@@ -321,7 +329,7 @@ impl Library {
         let connection = self.connection()?;
         let changed = connection.execute(
             "UPDATE activity_history
-             SET status=?2, message=?3, finished_at=?4
+             SET status=?2, message=?3, finished_at=?4, cancellation_phase=NULL, cancellation_owner=NULL
              WHERE id=?1 AND status='running'",
             params![id, status.to_string(), message, Self::now()],
         )?;
@@ -368,7 +376,7 @@ impl Library {
     pub fn activities(&self, limit: usize) -> Result<Vec<ActivityRecord>> {
         let connection = self.connection()?;
         let mut statement = connection.prepare(
-            "SELECT id, operation, target_kind, target_id, status, message, started_at, finished_at
+            "SELECT id, operation, target_kind, target_id, status, message, started_at, finished_at, cancellation_phase, cancel_requested
              FROM activity_history
              ORDER BY started_at DESC, rowid DESC
              LIMIT ?1",
@@ -383,11 +391,23 @@ impl Library {
                 row.get::<_, Option<String>>(5)?,
                 row.get::<_, i64>(6)?,
                 row.get::<_, Option<i64>>(7)?,
+                row.get::<_, Option<String>>(8)?,
+                row.get::<_, bool>(9)?,
             ))
         })?;
         rows.map(|row| {
-            let (id, operation, target_kind, target_id, status, message, started_at, finished_at) =
-                row?;
+            let (
+                id,
+                operation,
+                target_kind,
+                target_id,
+                status,
+                message,
+                started_at,
+                finished_at,
+                phase,
+                requested,
+            ) = row?;
             Ok(ActivityRecord {
                 id,
                 operation: operation.parse()?,
@@ -397,6 +417,7 @@ impl Library {
                 message,
                 started_at,
                 finished_at,
+                cancellation: crate::CancellationState::from_columns(phase, requested)?,
             })
         })
         .collect()

@@ -19,6 +19,7 @@ pub enum ErrorCode {
     State,
     Launch,
     Conflict,
+    Cancelled,
 }
 
 #[derive(Debug, Error)]

@@ -3,7 +3,8 @@ import { desktopApi } from "../api";
 import { useDialogFocus } from "../dialog";
 import { pickInstallFolder } from "../file-picker";
 import type { SourceDiscoveryReport, SourceProfile, SourceRecord } from "../types";
-import { errorText, formatBytes } from "../view-model";
+import { errorText, formatBytes, isCancellation } from "../view-model";
+import { OperationCancellation } from "./OperationCancellation";
 import { ChoiceMenu } from "./ChoiceMenu";
 import { NavigationHints } from "./ui";
 
@@ -20,12 +21,14 @@ function SourceDiscoveryDialog({ profiles, onAdded, close }: { profiles: SourceP
   const [busy, setBusy] = useState("");
   const [error, setError] = useState<string>();
   const [registered, setRegistered] = useState<string>();
+  const [searchId, setSearchId] = useState<string>();
+  const [notice, setNotice] = useState<string>();
   const dismiss = () => { if (!busy) close(); };
   const dialog = useDialogFocus(dismiss);
-  const clear = () => { setReport(undefined); setRegistered(undefined); setError(undefined); };
+  const clear = () => { setReport(undefined); setRegistered(undefined); setError(undefined); setNotice(undefined); };
   const run = async (label: string, task: () => Promise<void>) => {
     setBusy(label); setError(undefined);
-    try { await task(); } catch (value) { setError(errorText(value)); } finally { setBusy(""); }
+    try { await task(); } catch (value) { if (isCancellation(value)) setNotice("Search cancelled. No sources were registered."); else setError(errorText(value)); } finally { setBusy(""); setSearchId(undefined); }
   };
   const accept = (candidate: SourceRecord) => run("Validating the selected source…", async () => {
     await desktopApi.addSource(candidate.profile_id, candidate.path, candidate.sha256);
@@ -43,6 +46,8 @@ function SourceDiscoveryDialog({ profiles, onAdded, close }: { profiles: SourceP
       <button data-focusable disabled={Boolean(busy)} onClick={() => { void run("Choosing a folder…", async () => { const selected = await pickInstallFolder(root); if (selected) { setRoot(selected); clear(); } }); }}>Choose folder</button>
     </div>
     {busy && <p role="status">{busy}</p>}
+    {notice && <p role="status">{notice}</p>}
+    {searchId && <OperationCancellation key={searchId} operationId={searchId} label="Cancel search" />}
     {report && <section className="source-discovery-results" aria-label="Source search results">
       <p>{report.candidates.length} validated {report.candidates.length === 1 ? "match" : "matches"}. Checked {report.entries_examined.toLocaleString()} entries and hashed {formatBytes(report.hash_bytes)}.</p>
       {report.limits_reached.length > 0 && <p>Search limits reached ({report.limits_reached.map(limit => limit.replaceAll("_", " ")).join(", ")}). Choose a more specific folder to search further. You can also select a source file directly from the game’s details.</p>}
@@ -56,7 +61,7 @@ function SourceDiscoveryDialog({ profiles, onAdded, close }: { profiles: SourceP
     {registered && <p role="status">Source registered: <code>{registered}</code></p>}
     {error && <p role="alert">{error}</p>}
     <div className="actions"><button data-focusable disabled={Boolean(busy)} onClick={dismiss}>Close</button>
-      <button data-focusable className="primary" disabled={Boolean(busy) || !profile || !root.trim()} onClick={() => { clear(); void run("Searching your selected folder…", async () => setReport(await desktopApi.discoverSources({ roots: [root], profile_ids: [profile] }))); }}>Search this folder</button>
+      <button data-focusable className="primary" disabled={Boolean(busy) || !profile || !root.trim()} onClick={() => { clear(); void run("Searching your selected folder…", async () => setReport(await desktopApi.discoverSources({ roots: [root], profile_ids: [profile] }, event => { if (event.type === "started") setSearchId(event.operation_id); }))); }}>Search this folder</button>
     </div>
   </section></div>;
 }

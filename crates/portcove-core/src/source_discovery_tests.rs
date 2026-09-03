@@ -1,4 +1,12 @@
 use super::*;
+
+fn scan(catalog: &Catalog, request: &SourceDiscoveryRequest) -> Result<SourceDiscoveryReport> {
+    super::scan(
+        catalog,
+        request,
+        &crate::OperationCoordinator::new("test-source-discovery", None),
+    )
+}
 use sha2::{Digest, Sha256};
 use std::io::Write;
 

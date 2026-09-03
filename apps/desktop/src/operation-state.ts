@@ -6,7 +6,7 @@ export function applyOperationEvent(
   current: OperationEventState,
   event: OperationEvent,
 ): OperationEventState {
-  if (event.schema_version !== 1) return current;
+  if (event.schema_version !== 2) return current;
   const existing = current.get(event.operation_id);
   if (existing && existing.sequence >= event.sequence) return current;
   const next = new Map(current);

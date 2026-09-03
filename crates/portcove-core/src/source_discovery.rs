@@ -83,13 +83,24 @@ impl PortcoveService {
         &self,
         request: &SourceDiscoveryRequest,
     ) -> Result<SourceDiscoveryReport> {
+        self.discover_sources_with_progress(request, |_| {})
+    }
+
+    pub fn discover_sources_with_progress(
+        &self,
+        request: &SourceDiscoveryRequest,
+        mut emit: impl FnMut(crate::OperationEvent),
+    ) -> Result<SourceDiscoveryReport> {
         validate_request(request)?;
-        let activity = self.library().begin_activity(
+        let (activity, operation) = self.begin_cancellable_activity(
             ActivityOperation::DiscoverSources,
             ActivityTargetKind::Library,
             None,
         )?;
-        self.finish_activity(activity, scan(self.catalog(), request))
+        emit(operation.started());
+        let result = self.finish_activity(activity, scan(self.catalog(), request, &operation));
+        emit(operation.finished(crate::OperationResult::from_result(&result)));
+        result
     }
 }
 
@@ -124,10 +135,15 @@ struct Discovery<'a> {
     budget: HashBudget,
 }
 
-fn scan(catalog: &Catalog, request: &SourceDiscoveryRequest) -> Result<SourceDiscoveryReport> {
+fn scan(
+    catalog: &Catalog,
+    request: &SourceDiscoveryRequest,
+    operation: &crate::OperationCoordinator,
+) -> Result<SourceDiscoveryReport> {
     validate_request(request)?;
     let mut roots = Vec::new();
     for root in &request.roots {
+        operation.checkpoint()?;
         crate::path::unicode(root, "source discovery root")?;
         let root = fs::canonicalize(root)?;
         if !root.is_dir() {
@@ -162,6 +178,7 @@ fn scan(catalog: &Catalog, request: &SourceDiscoveryRequest) -> Result<SourceDis
         limits: &request.limits,
         reached: BTreeSet::new(),
         budget: HashBudget {
+            operation: Some(operation.clone()),
             limit: request.limits.max_hash_bytes,
             hashed: 0,
             max_zip_entries: 4096,
@@ -218,6 +235,9 @@ impl Discovery<'_> {
                 }
             };
             for entry in entries {
+                if let Some(operation) = &self.budget.operation {
+                    operation.checkpoint()?;
+                }
                 if self.report.entries_examined >= self.limits.max_entries {
                     self.reached.insert(SourceDiscoveryLimit::Entries);
                     return Ok(());
@@ -270,6 +290,9 @@ impl Discovery<'_> {
                     }
                 } else if kind.is_file() {
                     if let Err(error) = self.file(&canonical) {
+                        if error.code == crate::ErrorCode::Cancelled {
+                            return Err(error);
+                        }
                         self.issue(Some(canonical), None, error.message);
                     }
                     if self.report.candidates.len() >= self.limits.max_candidates as usize {
@@ -335,6 +358,7 @@ impl Discovery<'_> {
                         }
                     }
                 }
+                Err(error) if error.code == crate::ErrorCode::Cancelled => return Err(error),
                 Err(error) if error.details.contains_key("scan_limit") => {
                     self.reached
                         .insert(if error.details["scan_limit"] == "file_size" {

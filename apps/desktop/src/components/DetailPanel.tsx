@@ -3,7 +3,8 @@ import { AlertTriangle, ArchiveX, CheckCircle2, ChevronDown, Clipboard, Clipboar
 import { primaryCliCommand } from "../cli-command";
 import { copyText } from "../clipboard";
 import { useDialogFocus } from "../dialog";
-import type { BackupRecord, InstallPlan, PortDefinition, PortStatus, ReleaseChannel, SourceProfile, SourceRecord, UpdatePolicy } from "../types";
+import type { ActivityRecord, BackupRecord, InstallPlan, PortDefinition, PortStatus, ReleaseChannel, SourceProfile, SourceRecord, UpdatePolicy } from "../types";
+import { OperationCancellation } from "./OperationCancellation";
 import { formatBytes, platformLabels } from "../view-model";
 import { BackupHistory } from "./BackupHistory";
 import { ChoiceMenu } from "./ChoiceMenu";
@@ -30,6 +31,7 @@ export interface DetailActions {
 }
 
 interface DetailPanelProps {
+  cancellableActivities?: ActivityRecord[];
   port: PortDefinition;
   status?: PortStatus;
   installPlan?: InstallPlan;
@@ -68,6 +70,7 @@ function DetailDialog({ props, dialog }: { props: DetailPanelProps; dialog: Retu
     <section ref={dialog} className="detail-panel" role="dialog" aria-modal="true" aria-labelledby="port-detail-title">
       <button data-focusable className="close icon-button" aria-label="Close port details" onClick={actions.close}><Icon glyph={X} /></button>
       <DetailHero port={port} state={state} />
+      {props.cancellableActivities?.map(activity => <OperationCancellation key={activity.id} operationId={activity.id} state={activity.cancellation} />)}
       <DetailBody port={port} status={status} state={state} sources={sources} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} installPlan={installPlan} selectedChannel={selectedChannel} policy={policy} backups={backups} busy={busy} actions={actions} />
     </section>
   </div>;

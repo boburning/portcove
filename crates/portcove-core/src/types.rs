@@ -586,6 +586,7 @@ pub enum ActivityStatus {
     Running,
     Succeeded,
     Failed,
+    Cancelled,
 }
 
 impl std::fmt::Display for ActivityStatus {
@@ -594,6 +595,7 @@ impl std::fmt::Display for ActivityStatus {
             Self::Running => "running",
             Self::Succeeded => "succeeded",
             Self::Failed => "failed",
+            Self::Cancelled => "cancelled",
         })
     }
 }
@@ -606,6 +608,7 @@ impl FromStr for ActivityStatus {
             "running" => Ok(Self::Running),
             "succeeded" => Ok(Self::Succeeded),
             "failed" => Ok(Self::Failed),
+            "cancelled" => Ok(Self::Cancelled),
             _ => Err(PortcoveError::state(format!(
                 "unknown activity status: {value}"
             ))),
@@ -623,6 +626,7 @@ pub struct ActivityRecord {
     pub message: Option<String>,
     pub started_at: i64,
     pub finished_at: Option<i64>,
+    pub cancellation: Option<crate::CancellationState>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -832,6 +836,17 @@ pub struct OperationTarget {
 pub enum OperationResult {
     Succeeded,
     Failed,
+    Cancelled,
+}
+
+impl OperationResult {
+    pub fn from_result<T>(result: &crate::Result<T>) -> Self {
+        match result {
+            Ok(_) => Self::Succeeded,
+            Err(error) if error.code == crate::ErrorCode::Cancelled => Self::Cancelled,
+            Err(_) => Self::Failed,
+        }
+    }
 }
 
 /// Versioned best-effort progress envelope. Durable activity history remains

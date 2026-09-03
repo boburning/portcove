@@ -68,6 +68,7 @@ impl Adapter for StandardAdapter {
             return validate_gamecube_disc_source(profile, path);
         }
         let mut budget = crate::source_file::HashBudget {
+            operation: None,
             limit: u64::MAX,
             hashed: 0,
             max_zip_entries: usize::MAX,
@@ -787,11 +788,19 @@ impl AdapterRegistry {
 }
 
 pub(crate) fn hash_file(path: &Path) -> Result<(String, u64)> {
+    hash_file_with_checkpoint(path, || Ok(()))
+}
+
+pub(crate) fn hash_file_with_checkpoint(
+    path: &Path,
+    mut checkpoint: impl FnMut() -> Result<()>,
+) -> Result<(String, u64)> {
     let mut file = File::open(path)?;
     let mut digest = Sha256::new();
     let mut buffer = [0_u8; 128 * 1024];
     let mut size = 0_u64;
     loop {
+        checkpoint()?;
         let read = file.read(&mut buffer)?;
         if read == 0 {
             break;

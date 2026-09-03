@@ -3,7 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { desktopApi } from "./api";
 import type { ActivityRecord, BackupRecord, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, OperationEvent, PortDefinition, PortStatus, ReconcileAction, SourceRecord, SourceVerificationOutcome, UpdateCheckOutcome } from "./types";
 import type { DetailActions } from "./components/DetailPanel";
-import { errorText, type Filter, type View } from "./view-model";
+import { errorText, isCancellation, type Filter, type View } from "./view-model";
 import { currentUpdateSnapshot } from "./view-model";
 import { applyOperationEvent, mostRecentOperation } from "./operation-state";
 import { addPendingOperation, LatestRequestGeneration, mostRecentPendingOperation, removePendingOperation } from "./concurrency-state";
@@ -15,8 +15,10 @@ export function usePortcoveData() {
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
   const [doctor, setDoctor] = useState<DoctorReport>();
   const refreshGeneration = useRef(new LatestRequestGeneration());
+  const activityGeneration = useRef(new LatestRequestGeneration());
   const refresh = useCallback(async () => {
     const generation = refreshGeneration.current.begin();
+    const activityRequest = activityGeneration.current.begin();
     const [nextCatalog, nextStatuses, nextSources, nextActivities, nextDoctor] = await Promise.all([
       desktopApi.catalog(), desktopApi.statuses(), desktopApi.sources(), desktopApi.activities(), desktopApi.doctor(),
     ]);
@@ -24,13 +26,27 @@ export function usePortcoveData() {
     setCatalog(nextCatalog);
     setStatuses(nextStatuses);
     setSources(nextSources);
-    setActivities(nextActivities);
+    if (activityGeneration.current.isCurrent(activityRequest)) setActivities(nextActivities);
     setDoctor(nextDoctor);
   }, []);
   useEffect(() => {
     const unlisten = listen<string>("portcove://library-changed", () => { void refresh(); });
     return () => { unlisten.then(dispose => dispose()); };
   }, [refresh]);
+  useEffect(() => {
+    let closed = false;
+    let timer = 0;
+    const poll = async () => {
+      const generation = activityGeneration.current.begin();
+      try {
+        const next = await desktopApi.activities();
+        if (!closed && activityGeneration.current.isCurrent(generation)) setActivities(next);
+      } catch { /* Full refresh reports IPC failures; keep the last known ledger while polling. */ }
+      if (!closed) timer = window.setTimeout(() => { void poll(); }, 1000);
+    };
+    timer = window.setTimeout(() => { void poll(); }, 1000);
+    return () => { closed = true; window.clearTimeout(timer); };
+  }, []);
   return { catalog, statuses, sources, activities, doctor, storage: doctor?.library, refresh };
 }
 
@@ -58,7 +74,7 @@ export function useOperationState(refresh: () => Promise<void>) {
       const result = await task();
       return result;
     } catch (value) {
-      setError(errorText(value));
+      if (!isCancellation(value)) setError(errorText(value));
     } finally {
       window.clearTimeout(runningRefresh);
       try {

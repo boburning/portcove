@@ -78,6 +78,25 @@ afterEach(async () => {
 });
 
 describe("controller and modal integration", () => {
+  it("keeps focus in a dialog when async work removes or disables the focused control", async () => {
+    let transition!: (phase: string) => void;
+    function ChangingDialog() {
+      const [phase, setPhase] = useState("running"); transition = setPhase;
+      const dialog = useDialogFocus(() => undefined);
+      return <section role="dialog" aria-modal="true" ref={dialog}>
+        <button disabled={phase === "waiting"}>Search again</button>
+        {phase === "running" && <button>Cancel preparation</button>}
+        <p>{phase}</p>
+      </section>;
+    }
+    await act(async () => root.render(<ChangingDialog />)); await frame();
+    control("Cancel preparation").focus();
+    await act(async () => transition("waiting")); await frame();
+    expect(document.activeElement).toBe(document.querySelector('[role="dialog"]'));
+    await act(async () => transition("complete")); await frame();
+    expect(document.activeElement).toBe(control("Search again"));
+  });
+
   it("opens external links through the desktop bridge and exposes launch errors", async () => {
     const open = vi.spyOn(desktopApi, "openExternalUrl").mockResolvedValue(undefined);
     await act(async () => root.render(<><NavigationFixture /><ExternalLink href="https://github.com/boburning/portcove">Repository</ExternalLink></>));

@@ -270,6 +270,19 @@ async fn get_activities(
 }
 
 #[tauri::command]
+async fn cancel_operation(
+    state: tauri::State<'_, DesktopState>,
+    operation_id: String,
+) -> DesktopResult<portcove_core::CancellationState> {
+    blocking_service(state.inner().clone(), move |service| {
+        service
+            .request_cancellation(&operation_id)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
 async fn get_backups(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
@@ -625,9 +638,14 @@ async fn add_source(
 async fn discover_sources(
     state: tauri::State<'_, DesktopState>,
     request: portcove_core::SourceDiscoveryRequest,
+    on_event: tauri::ipc::Channel<OperationEvent>,
 ) -> DesktopResult<portcove_core::SourceDiscoveryReport> {
     blocking_service(state.inner().clone(), move |service| {
-        service.discover_sources(&request).map_err(Into::into)
+        service
+            .discover_sources_with_progress(&request, |event| {
+                let _ = on_event.send(event);
+            })
+            .map_err(Into::into)
     })
     .await
 }
@@ -1375,6 +1393,7 @@ pub fn run() {
             get_statuses,
             get_sources,
             get_activities,
+            cancel_operation,
             get_backups,
             create_backup,
             restore_backup,

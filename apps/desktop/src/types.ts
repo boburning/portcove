@@ -130,7 +130,12 @@ export interface PortStatus {
 }
 
 export type ActivityOperation = "discover_sources" | "import_library" | "move_library" | "launch" | "check_update" | "backup" | "restore" | "delete_backup" | "install" | "update" | "reconcile" | "verify_install" | "activate" | "rollback" | "adopt" | "remove" | "remove_source" | "register_source" | "verify_source";
-export type ActivityStatus = "running" | "succeeded" | "failed";
+export type ActivityStatus = "running" | "succeeded" | "failed" | "cancelled";
+export type CancellationPhase = "preparing" | "finishing";
+export interface CancellationState {
+  phase: CancellationPhase;
+  requested: boolean;
+}
 export type ActivityTargetKind = "port" | "source" | "library";
 
 export interface ActivityRecord {
@@ -142,6 +147,7 @@ export interface ActivityRecord {
   message?: string;
   started_at: number;
   finished_at?: number;
+  cancellation?: CancellationState;
 }
 
 export interface StorageSummary {
@@ -327,7 +333,7 @@ export type UpdateCheckOutcome = BatchOutcome<UpdateCheck>;
 export type ReconcileOutcome = BatchOutcome<ReconcileResult>;
 
 export interface OperationEvent {
-  schema_version: 1;
+  schema_version: 2;
   operation_id: string;
   parent_operation_id?: string;
   sequence: number;
@@ -344,7 +350,7 @@ export interface OperationEvent {
 }
 
 export type OperationEventType = "started" | "progress" | "message" | "finished";
-export type OperationResult = "succeeded" | "failed";
+export type OperationResult = "succeeded" | "failed" | "cancelled";
 
 export interface DesktopError {
   code: ErrorCode;
@@ -352,7 +358,7 @@ export interface DesktopError {
   details: Record<string, string>;
 }
 
-export type ErrorCode = "usage" | "unsupported" | "not_found" | "source_invalid" | "network" | "verification" | "install" | "state" | "launch" | "conflict";
+export type ErrorCode = "usage" | "unsupported" | "not_found" | "source_invalid" | "network" | "verification" | "install" | "state" | "launch" | "conflict" | "cancelled";
 
 export interface BootstrapStatus {
   ready: boolean;

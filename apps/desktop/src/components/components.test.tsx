@@ -68,7 +68,7 @@ describe("desktop components", () => {
     const html = [
       renderToStaticMarkup(<Sidebar view="library" setView={vi.fn()} installedCount={2} updateCount={1} onAdopt={vi.fn()} />),
       renderToStaticMarkup(<PageHeader view="catalog" query="sample" setQuery={vi.fn()} />),
-      renderToStaticMarkup(<StatusLayer error="Problem" clearError={vi.fn()} operation={{ schema_version: 1, operation_id: "install-1", sequence: 1, timestamp_ms: 1, operation: "install", type: "progress", phase: "install", completed: 1, total: 2 }} busy="install" />),
+      renderToStaticMarkup(<StatusLayer error="Problem" clearError={vi.fn()} operation={{ schema_version: 2, operation_id: "install-1", sequence: 1, timestamp_ms: 1, operation: "install", type: "progress", phase: "install", completed: 1, total: 2 }} busy="install" />),
       renderToStaticMarkup(<SettingsView libraryRoot="C:/Portcove" />),
     ].join(" ");
     expect(html).toContain("Adopt an install");

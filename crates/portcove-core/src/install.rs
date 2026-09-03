@@ -187,6 +187,17 @@ impl Installer {
             .await;
         if let Err(error) = &result {
             if lifecycle.record.phase == LifecyclePhase::Preparing {
+                if error.code == crate::ErrorCode::Cancelled {
+                    if let Err(cleanup) = crate::cancellation::discard_private_install(
+                        &self.library,
+                        &lifecycle.record,
+                    ) {
+                        return Err(PortcoveError::new(crate::ErrorCode::Cancelled,
+                            "Publication was cancelled; private preparation cleanup requires review")
+                            .detail("operation_id", lifecycle.record.id).detail("cleanup_error", cleanup.message));
+                    }
+                    return result;
+                }
                 let _ = fs::remove_dir_all(&lifecycle.operation_root);
                 let _ = lifecycle.store.remove(&lifecycle.record.id);
             } else {
@@ -213,7 +224,8 @@ impl Installer {
         let download_path = lifecycle.operation_root.join("artifact.download");
         self.download(&request.release, &download_path, operation, emit)
             .await?;
-        let (actual_hash, actual_size) = hash_file(&download_path)?;
+        let (actual_hash, actual_size) =
+            crate::adapter::hash_file_with_checkpoint(&download_path, || operation.checkpoint())?;
         if !actual_hash.eq_ignore_ascii_case(&request.release.asset.sha256) {
             return Err(PortcoveError::verification(
                 "downloaded asset failed SHA-256 verification",
@@ -236,6 +248,7 @@ impl Installer {
         })
         .await
         .map_err(|error| PortcoveError::install(error.to_string()))??;
+        operation.checkpoint()?;
         if let Some(preparation) = request.managed.clone() {
             emit(operation.message("info", "Generating and compiling the verified PS1 source"));
             let managed_root = payload_root.clone();
@@ -244,6 +257,7 @@ impl Installer {
             })
             .await
             .map_err(|error| PortcoveError::install(error.to_string()))??;
+            operation.checkpoint()?;
         }
         let artifact = ArtifactIdentity {
             asset_name: request.release.asset.name.clone(),
@@ -272,6 +286,9 @@ impl Installer {
             selected_executable,
         };
         lifecycle.record.install = Some(install.clone());
+        self.faults
+            .check(LifecycleFaultPoint::InstallReadyToPublish)?;
+        operation.begin_publication()?;
         lifecycle.record.phase = LifecyclePhase::Prepared;
         lifecycle.store.put(&mut lifecycle.record)?;
         self.faults.check(LifecycleFaultPoint::InstallPrepared)?;
@@ -318,14 +335,17 @@ impl Installer {
         F: FnMut(OperationEvent),
     {
         validate_download_progress(0, release.asset.size)?;
-        let response = self
-            .client
-            .get(&release.asset.url)
-            .send()
-            .await
-            .map_err(|error| PortcoveError::network(error.to_string()))?
-            .error_for_status()
-            .map_err(|error| PortcoveError::network(error.to_string()))?;
+        let response = operation
+            .interruptible(async {
+                self.client
+                    .get(&release.asset.url)
+                    .send()
+                    .await
+                    .map_err(|error| PortcoveError::network(error.to_string()))?
+                    .error_for_status()
+                    .map_err(|error| PortcoveError::network(error.to_string()))
+            })
+            .await?;
         let total = response
             .content_length()
             .or(Some(release.asset.size))
@@ -334,7 +354,10 @@ impl Installer {
         let mut file = tokio::fs::File::create(destination).await?;
         let mut completed = 0_u64;
         let mut reported = 0_u64;
-        while let Some(chunk) = stream.next().await {
+        while let Some(chunk) = operation
+            .interruptible(async { Ok(stream.next().await) })
+            .await?
+        {
             let chunk = chunk.map_err(|error| PortcoveError::network(error.to_string()))?;
             file.write_all(&chunk).await?;
             completed += chunk.len() as u64;

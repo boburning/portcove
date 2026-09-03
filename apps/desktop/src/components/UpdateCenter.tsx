@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { OperationCancellation } from "./OperationCancellation";
 import type { LucideIcon } from "lucide-react";
 import { AlertTriangle, Check, Clipboard, ClipboardCheck, Download, History, LoaderCircle, PackageCheck, RefreshCw, ShieldCheck } from "lucide-react";
 import { copyText } from "../clipboard";
@@ -90,6 +91,7 @@ function ActivityRow({ activity, names, onSelect, onOpenSources }: {
     </div>
     <span className="activity-time">{presentation.time}</span>
     <span className="activity-status">{presentation.label}</span>
+    {activity.cancellation && <OperationCancellation operationId={activity.id} state={activity.cancellation} />}
     {activity.message && <ActivityDetails message={activity.message} />}
   </div>;
 }

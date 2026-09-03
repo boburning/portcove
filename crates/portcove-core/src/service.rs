@@ -101,6 +101,8 @@ pub struct PortRemovalPreview {
 }
 
 pub struct PortcoveService {
+    pub(crate) cancellation_owner: String,
+    pub(crate) cancellation_requested: std::sync::atomic::AtomicBool,
     catalog: Catalog,
     pub(crate) library: Library,
     releases: Arc<dyn ReleaseProvider>,
@@ -149,24 +151,30 @@ impl PortcoveService {
     pub fn new(library: Library) -> Result<Self> {
         let releases = Arc::new(CompositeReleaseProvider::for_library(&library)?);
         let service = Self {
+            cancellation_owner: Uuid::new_v4().to_string(),
+            cancellation_requested: std::sync::atomic::AtomicBool::new(false),
             catalog: Catalog::embedded()?,
             library,
             releases,
             adapters: AdapterRegistry,
             faults: Arc::new(NoLifecycleFaults),
         };
+        service.recover_cancellations()?;
         service.recover_lifecycle_operations()?;
         Ok(service)
     }
 
     pub fn with_provider(library: Library, releases: Arc<dyn ReleaseProvider>) -> Result<Self> {
         let service = Self {
+            cancellation_owner: Uuid::new_v4().to_string(),
+            cancellation_requested: std::sync::atomic::AtomicBool::new(false),
             catalog: Catalog::embedded()?,
             library,
             releases,
             adapters: AdapterRegistry,
             faults: Arc::new(NoLifecycleFaults),
         };
+        service.recover_cancellations()?;
         service.recover_lifecycle_operations()?;
         Ok(service)
     }
@@ -178,6 +186,8 @@ impl PortcoveService {
         faults: Arc<dyn LifecycleFaultInjector>,
     ) -> Result<Self> {
         Ok(Self {
+            cancellation_owner: Uuid::new_v4().to_string(),
+            cancellation_requested: std::sync::atomic::AtomicBool::new(false),
             catalog: Catalog::embedded()?,
             library,
             releases,
@@ -371,13 +381,29 @@ impl PortcoveService {
     pub(crate) fn finish_activity<T>(
         &self,
         activity: ActivityRecord,
-        result: Result<T>,
+        mut result: Result<T>,
     ) -> Result<T> {
+        if result.is_ok() {
+            if let Err(error) = crate::cancellation::close_preparation(&self.library, &activity.id)
+            {
+                result = Err(error);
+            }
+        }
         let (status, message) = match &result {
             Ok(_) => (ActivityStatus::Succeeded, None),
+            Err(error) if error.code == crate::ErrorCode::Cancelled => {
+                (ActivityStatus::Cancelled, Some(error.message.as_str()))
+            }
             Err(error) => (ActivityStatus::Failed, Some(error.message.as_str())),
         };
         if let Err(error) = self.library.finish_activity(&activity.id, status, message) {
+            if status == ActivityStatus::Cancelled {
+                return Err(
+                    PortcoveError::state("Cancellation could not be recorded durably")
+                        .detail("operation_id", activity.id)
+                        .detail("cause", error.message),
+                );
+            }
             tracing::warn!(
                 activity_id = activity.id,
                 operation = %activity.operation,
@@ -943,7 +969,7 @@ impl PortcoveService {
         port_id: &str,
         status: Option<PortStatus>,
     ) -> Result<UpdateCheck> {
-        let activity = self.library.begin_activity(
+        let (activity, operation) = self.begin_cancellable_activity(
             ActivityOperation::CheckUpdate,
             ActivityTargetKind::Port,
             Some(port_id),
@@ -954,9 +980,11 @@ impl PortcoveService {
                 Some(status) => status,
                 None => self.status(port_id)?,
             };
-            let release = self
-                .releases
-                .resolve(port, status.channel, Platform::current()?)
+            let release = operation
+                .interruptible(
+                    self.releases
+                        .resolve(port, status.channel, Platform::current()?),
+                )
                 .await?;
             self.record_update_check(port_id, &status, &release)
         }
@@ -1286,12 +1314,11 @@ impl PortcoveService {
     where
         F: FnMut(OperationEvent),
     {
-        let activity = self.library.begin_activity(
+        let (activity, operation) = self.begin_cancellable_activity(
             ActivityOperation::Install,
             ActivityTargetKind::Port,
             Some(port_id),
         )?;
-        let operation = OperationCoordinator::from_activity(&activity);
         emit(operation.started());
         let result = async {
             let port = self.catalog.port(port_id)?;
@@ -1305,9 +1332,8 @@ impl PortcoveService {
                 )));
             }
             let platform = Platform::current()?;
-            let release = self
-                .releases
-                .resolve(port, selected_channel, platform)
+            let release = operation
+                .interruptible(self.releases.resolve(port, selected_channel, platform))
                 .await?;
             let mut reporter = OperationReporter {
                 operation: &operation,
@@ -1327,12 +1353,9 @@ impl PortcoveService {
             .await
         }
         .await;
-        emit(operation.finished(if result.is_ok() {
-            OperationResult::Succeeded
-        } else {
-            OperationResult::Failed
-        }));
-        self.finish_activity(activity, result)
+        let result = self.finish_activity(activity, result);
+        emit(operation.finished(OperationResult::from_result(&result)));
+        result
     }
 
     pub async fn ensure<F>(
@@ -1364,20 +1387,21 @@ impl PortcoveService {
     where
         F: FnMut(OperationEvent),
     {
-        let activity = self.library.begin_activity(
+        let (activity, operation) = self.begin_cancellable_activity(
             ActivityOperation::Update,
             ActivityTargetKind::Port,
             Some(port_id),
         )?;
-        let operation = OperationCoordinator::from_activity(&activity);
         emit(operation.started());
         let result = async {
             let _operation = self.library.try_lock_port(port_id, "update")?;
             let status = self.status(port_id)?;
             let port = self.catalog.port(port_id)?;
-            let release = self
-                .releases
-                .resolve(port, status.channel, Platform::current()?)
+            let release = operation
+                .interruptible(
+                    self.releases
+                        .resolve(port, status.channel, Platform::current()?),
+                )
                 .await?;
             self.record_update_check(port_id, &status, &release)?;
             let mut reporter = OperationReporter {
@@ -1398,12 +1422,9 @@ impl PortcoveService {
             .await
         }
         .await;
-        emit(operation.finished(if result.is_ok() {
-            OperationResult::Succeeded
-        } else {
-            OperationResult::Failed
-        }));
-        self.finish_activity(activity, result)
+        let result = self.finish_activity(activity, result);
+        emit(operation.finished(OperationResult::from_result(&result)));
+        result
     }
 
     async fn apply_resolved_release<F>(
@@ -1428,6 +1449,7 @@ impl PortcoveService {
             && artifact_matches_release(staged, &release)
         {
             Installer::new(self.library.clone())?.verify_critical(staged)?;
+            reporter.operation.begin_publication()?;
             return if activate {
                 self.activate_staged_locked(&port.id, reporter.operation.operation_id())
             } else {
@@ -1439,6 +1461,7 @@ impl PortcoveService {
             .install_by_artifact(&port.id, &release.asset.sha256)?
         {
             Installer::new(self.library.clone())?.verify_critical(&existing)?;
+            reporter.operation.begin_publication()?;
             self.collect_active_user_data_if_launched(&port.id)?;
             self.library.register_install(&existing, activate)?;
             existing.staged = !activate;
@@ -1446,7 +1469,9 @@ impl PortcoveService {
         }
         self.collect_active_user_data_if_launched(&port.id)?;
         let source = self.validate_and_remember_source(port, overrides.source)?;
+        reporter.operation.checkpoint()?;
         let bios = self.validate_and_remember_bios(port, overrides.bios)?;
+        reporter.operation.checkpoint()?;
         let platform = Platform::current()?;
         let qualification = InstallQualification::from_port(port, platform)?;
         let managed = self
@@ -1478,12 +1503,11 @@ impl PortcoveService {
     where
         F: FnMut(OperationEvent),
     {
-        let activity = self.library.begin_activity(
+        let (activity, operation) = self.begin_cancellable_activity(
             ActivityOperation::Reconcile,
             ActivityTargetKind::Port,
             Some(port_id),
         )?;
-        let operation = OperationCoordinator::from_activity(&activity);
         emit(operation.started());
         let result = async {
             let port = self.catalog.port(port_id)?;
@@ -1494,9 +1518,12 @@ impl PortcoveService {
                         "{port_id} is not installed"
                     )));
                 }
-                let release = self
-                    .releases
-                    .resolve(port, optimistic.channel, Platform::current()?)
+                let release = operation
+                    .interruptible(self.releases.resolve(
+                        port,
+                        optimistic.channel,
+                        Platform::current()?,
+                    ))
                     .await?;
                 let _port_lock = self.library.try_lock_port(port_id, "reconcile")?;
                 let status = self.status(port_id)?;
@@ -1573,12 +1600,9 @@ impl PortcoveService {
             unreachable!("bounded reconcile loop always returns")
         }
         .await;
-        emit(operation.finished(if result.is_ok() {
-            OperationResult::Succeeded
-        } else {
-            OperationResult::Failed
-        }));
-        self.finish_activity(activity, result)
+        let result = self.finish_activity(activity, result);
+        emit(operation.finished(OperationResult::from_result(&result)));
+        result
     }
 
     fn validate_and_remember_source(

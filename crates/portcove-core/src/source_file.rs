@@ -5,6 +5,7 @@ use sha2::{Digest, Sha256};
 use std::{fs::File, io::Read, path::Path};
 
 pub(crate) struct HashBudget {
+    pub operation: Option<crate::OperationCoordinator>,
     pub limit: u64,
     pub hashed: u64,
     pub max_zip_entries: usize,
@@ -154,6 +155,9 @@ fn hash_reader(
     let mut size = 0_u64;
     let mut buffer = [0_u8; 128 * 1024];
     while size < expected {
+        if let Some(operation) = &budget.operation {
+            operation.checkpoint()?;
+        }
         let wanted = (expected - size).min(buffer.len() as u64) as usize;
         let read = reader.read(&mut buffer[..wanted])?;
         if read == 0 {

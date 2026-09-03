@@ -1,4 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
+import type { CancellationState, OperationEvent } from "./types";
 import type { LibraryImportPlan, LibraryImportResult, LibraryMovePlan, LibraryMoveResult } from "./types";
 import type { SourceDiscoveryRequest, SourceDiscoveryReport } from "./types";
 import type { ActivityRecord, AdoptionPreview, BackupRecord, BootstrapStatus, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, InstallPlan, InstallRecord, LibraryMetadataFile, PortStatus, ReconcileOutcome, ReleaseChannel, RestoreResult, SourceRecord, SourceRelinkPlan, SourceRemovalPreview, SourceVerificationOutcome, UpdateCheck, UpdateCheckOutcome, UpdatePolicy } from "./types";
@@ -14,12 +15,17 @@ export const desktopApi = {
   statuses: () => invoke<PortStatus[]>("get_statuses"),
   sources: () => invoke<SourceRecord[]>("get_sources"),
   activities: () => invoke<ActivityRecord[]>("get_activities"),
+  cancelOperation: (operationId: string) => invoke<CancellationState>("cancel_operation", { operationId }),
   backups: (portId: string) => invoke<BackupRecord[]>("get_backups", { portId }),
   backup: (portId: string) => invoke<BackupRecord>("create_backup", { portId }),
   restoreBackup: (portId: string, backupId: string) => invoke<RestoreResult | null>("restore_backup", { portId, backupId }),
   deleteBackup: (portId: string, backupId: string) => invoke<BackupRecord | null>("delete_backup", { portId, backupId }),
   addSource: (profileId: string, path: string, expectedSha256?: string) => invoke<SourceRecord>("add_source", { profileId, path, expectedSha256 }),
-  discoverSources: (request: SourceDiscoveryRequest) => invoke<SourceDiscoveryReport>("discover_sources", { request }),
+  discoverSources: (request: SourceDiscoveryRequest, onEvent?: (event: OperationEvent) => void) => {
+    const channel = new Channel<OperationEvent>();
+    channel.onmessage = event => onEvent?.(event);
+    return invoke<SourceDiscoveryReport>("discover_sources", { request, onEvent: channel });
+  },
   planSourceRelink: (profileId: string, path: string) => invoke<SourceRelinkPlan>("plan_source_relink", { profileId, path }),
   relinkSource: (profileId: string, path: string, previewSha256: string) => invoke<SourceRecord>("relink_source", { profileId, path, previewSha256 }),
   previewSourceRemoval: (profileId: string) => invoke<SourceRemovalPreview>("preview_source_removal", { profileId }),

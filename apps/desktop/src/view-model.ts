@@ -125,6 +125,10 @@ export function errorText(error: unknown) {
   return String(error);
 }
 
+export function isCancellation(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "cancelled";
+}
+
 export function formatBytes(bytes: number) {
   if (bytes === 0) return "0 B";
   const units = ["B", "KiB", "MiB", "GiB", "TiB", "PiB"];

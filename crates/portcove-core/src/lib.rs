@@ -2,6 +2,7 @@ mod adapter;
 mod archive;
 mod auth;
 mod authorization;
+mod cancellation;
 mod catalog;
 mod database;
 mod durability;
@@ -39,6 +40,7 @@ pub use auth::{
     GithubDeviceLoginState, GithubRateLimit,
 };
 pub use authorization::DestructiveAuthorization;
+pub use cancellation::{CancellationPhase, CancellationState};
 pub use catalog::Catalog;
 pub use error::{ErrorCode, PortcoveError, Result};
 pub use gitlab::GitlabReleaseProvider;
@@ -69,4 +71,4 @@ pub use source_discovery::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 5;
+pub const API_SCHEMA_VERSION: u32 = 6;

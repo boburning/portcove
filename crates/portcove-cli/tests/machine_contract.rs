@@ -2,6 +2,73 @@ use std::process::{Command, Output};
 
 use serde_json::Value;
 
+struct RunningCli(std::process::Child);
+impl Drop for RunningCli {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
+}
+
+#[test]
+fn cancellation_from_another_cli_stops_discovery_with_a_durable_cancelled_result() {
+    use std::io::{BufRead, Read};
+    let temporary = tempfile::tempdir().unwrap();
+    let sources = temporary.path().join("sources");
+    std::fs::create_dir(&sources).unwrap();
+    let source = sources.join("synthetic.z64");
+    std::fs::File::create(&source)
+        .unwrap()
+        .set_len(256 * 1024 * 1024)
+        .unwrap();
+    let library = temporary.path().join("library");
+    let mut child = RunningCli(
+        Command::new(env!("CARGO_BIN_EXE_portcove"))
+            .arg("--library")
+            .arg(&library)
+            .args(["--jsonl", "source", "discover", "--root"])
+            .arg(&sources)
+            .args(["--profile", "mario-kart-64"])
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .unwrap(),
+    );
+    let mut output = std::io::BufReader::new(child.0.stdout.take().unwrap());
+    let mut started = String::new();
+    output.read_line(&mut started).unwrap();
+    let started: Value = serde_json::from_str(&started).unwrap();
+    assert_eq!(started["schema_version"], 2);
+    assert_eq!(started["type"], "started");
+    let id = started["operation_id"].as_str().unwrap();
+    let cancelled = portcove(&library, &["--json", "cancel", id]);
+    assert!(
+        cancelled.status.success(),
+        "{}",
+        String::from_utf8_lossy(&cancelled.stdout)
+    );
+    assert_eq!(json_stdout(&cancelled)["data"]["requested"], true);
+    let mut rest = String::new();
+    output.read_to_string(&mut rest).unwrap();
+    assert_eq!(child.0.wait().unwrap().code(), Some(130));
+    let lines = rest
+        .lines()
+        .map(|line| serde_json::from_str::<Value>(line).unwrap())
+        .collect::<Vec<_>>();
+    assert!(lines.iter().any(|line| line["operation_id"] == id
+        && line["type"] == "finished"
+        && line["result"] == "cancelled"));
+    assert_eq!(lines.last().unwrap()["error"]["code"], "cancelled");
+    let ledger = json_stdout(&portcove(&library, &["--json", "activity"]));
+    assert_eq!(ledger["data"][0]["id"], id);
+    assert_eq!(ledger["data"][0]["status"], "cancelled");
+    assert_eq!(
+        json_stdout(&portcove(&library, &["--json", "source", "list"]))["data"],
+        serde_json::json!([])
+    );
+    assert_eq!(std::fs::metadata(source).unwrap().len(), 256 * 1024 * 1024);
+}
+
 fn portcove(library: &std::path::Path, args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_portcove"))
         .arg("--library")
@@ -344,7 +411,7 @@ fn default_read_commands_have_human_output_snapshots() {
 
     let capabilities = human_stdout(&portcove(root.path(), &["capabilities"])).to_owned();
     assert!(capabilities.starts_with("Portcove "));
-    assert!(capabilities.contains(" capabilities\nSchema: 5"));
+    assert!(capabilities.contains(" capabilities\nSchema: 6"));
 }
 
 #[test]
@@ -355,11 +422,11 @@ fn capabilities_are_one_clean_versioned_json_document() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 5);
+    assert_eq!(response["schema_version"], 6);
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");
     assert!(response["error"].is_null());
-    assert_eq!(response["data"]["schema_version"], 5);
+    assert_eq!(response["data"]["schema_version"], 6);
     assert_eq!(
         response["data"]["raw_stream_commands"],
         serde_json::json!(["exec"])
@@ -381,7 +448,7 @@ fn command_errors_keep_the_machine_envelope_and_stable_exit_code() {
     assert_eq!(output.status.code(), Some(4));
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 5);
+    assert_eq!(response["schema_version"], 6);
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "catalog.show");
     assert!(response["data"].is_null());
@@ -398,7 +465,7 @@ fn parser_errors_are_structured_for_machine_callers() {
     assert!(output.stderr.is_empty());
     assert!(!library.exists());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 5);
+    assert_eq!(response["schema_version"], 6);
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "cli");
     assert_eq!(response["error"]["code"], "usage");
@@ -418,7 +485,7 @@ fn jsonl_read_commands_end_with_one_result_event() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 5);
+    assert_eq!(response["schema_version"], 6);
     assert_eq!(response["type"], "result");
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");

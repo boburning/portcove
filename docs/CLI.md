@@ -7,10 +7,10 @@ Without a machine-output flag, Portcove renders concise human output. Catalog, s
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":5,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":6,"ok":true,"command":"status","data":{},"error":null}
 ```
 
-Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for both success and failure. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
+Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for success, failure, or cancellation. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
 
 Argument-parser failures also use the machine envelope when `--json` or `--jsonl` is present. Their stable command name is `cli`, their error code is `usage`, and they exit with code 2. Help and version output remain intentionally human-readable even when a machine-output flag is supplied.
 
@@ -102,7 +102,18 @@ portcove --json source add <profile-id> <candidate-path> --expected-sha256 <cand
 
 Discovery requires explicit roots and source profiles. It never registers a match automatically. Defaults are 10,000 examined entries, six nested directory levels, 512 MiB per file, 8 GiB of cumulative hashing, and 64 matches. The corresponding `--max-entries`, `--max-depth`, `--max-file-bytes`, `--max-hash-bytes`, and `--max-candidates` flags can narrow these limits; core also enforces hard ceilings. The report identifies searched scope, validated candidates, hashed bytes, reached limits, and bounded per-path issues. A partial search is not evidence that every file was considered.
 
-Only exact-hash original-file and cartridge-ZIP profiles participate automatically. Other source contracts report that manual selection is required. Symlinks and entries outside the selected canonical roots are skipped. Equal profile contracts share hashing; both normalized ZIP payload and original container bytes count toward the budget. Accepting a candidate with `--expected-sha256` checks the current profile and reviewed content under the normal source locks before registration. Settings → Sources → Find source files exposes the same search and explicit acceptance. Cancellation is the next implementation step; this checkpoint completes a bounded search before returning.
+Only exact-hash original-file and cartridge-ZIP profiles participate automatically. Other source contracts report that manual selection is required. Symlinks and entries outside the selected canonical roots are skipped. Equal profile contracts share hashing; both normalized ZIP payload and original container bytes count toward the budget. Accepting a candidate with `--expected-sha256` checks the current profile and reviewed content under the normal source locks before registration. Settings → Sources → Find source files exposes the same search, cancellation, and explicit acceptance.
+
+## Cancellation
+
+```text
+portcove --json activity
+portcove --json cancel <activity-uuid>
+```
+
+An active cancellable activity reports `cancellation.phase` (`preparing` or `finishing`) and `cancellation.requested`. `cancel` accepts only a running preparation and returns request acknowledgement. Wait for the operation or ledger to report its terminal outcome. A completed cancellation has status/error code `cancelled`, a schema-2 finished event with `result: cancelled`, and exit code 130 for the cancelled command. A late request returns `conflict`; it cannot interrupt publication. Existing failure-isolated batch commands still return per-port outcomes, which must be inspected individually.
+
+Ctrl-C requests cancellation of this CLI command's current and queued source discovery, release checks, install, update, ensure, or reconciliation work, then keeps waiting. Unix SIGTERM uses the same path. Another client's operations are unaffected. Downloads and hashing stop cooperatively; extraction, conversion, or compilation may need to finish their current preparation step. Repeated signals do not force an unsafe publication interruption. Restore, library transfer, migration, and game supervision retain their existing recovery/lifetime behavior. Desktop game details and activity history offer the same core cancellation request; source search also keeps its own Cancel search control inside its dialog.
 
 ## Library metadata
 
@@ -145,7 +156,7 @@ Apply recomputes the reviewed fingerprint, copies with no overwrite, verifies fi
 
 An interrupted move blocks normal use until `resume-move` finishes or `abort-move` reactivates an unpublished original. Pass the original directory, including when normal opening is blocked. Abort never deletes copied files, and it refuses once authority publication has begun. An unmarked destination with ambiguous database state is retained for inspection. Startup and the move dialog expose these same recovery actions. Recovery after activation preserves any new destination saves. Do not manually remove authority markers to bypass these checks.
 
-Machine schema version 5 adds `move_library` to the activity operation enum and exports library metadata, move-plan, and move-result schemas. Move result fields identify the retained source, destination, active root, and terminal completion state. A transfer awaiting recovery has a durable journal and running activity; a resumed or aborted transfer records its explicit terminal outcome.
+Machine schema version 5 introduced `move_library` to the activity operation enum and exports library metadata, move-plan, and move-result schemas. Move result fields identify the retained source, destination, active root, and terminal completion state. A transfer awaiting recovery has a durable journal and running activity; a resumed or aborted transfer records its explicit terminal outcome.
 
 ## Idempotent automation
 

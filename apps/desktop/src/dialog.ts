@@ -15,17 +15,18 @@ export function useDialogFocus(close: () => void, active = true) {
     const initialFocus = () => focusAndReveal(focusables().find(item => item.hasAttribute("data-autofocus")) ?? focusables()[0] ?? dialog);
     const frame = window.requestAnimationFrame(() => { if (navigationScope() === dialog) initialFocus(); });
     let revealFrame = 0;
-    // Async previews can move the still-focused action below a dialog's scroll boundary.
+    // Async content can move, disable, or remove the currently focused control.
     const contentChanges = new MutationObserver(() => {
       window.cancelAnimationFrame(revealFrame);
       revealFrame = window.requestAnimationFrame(() => {
         const focused = document.activeElement;
-        if (navigationScope() === dialog && focused instanceof HTMLElement && dialog.contains(focused) && visibleControl(focused)) {
-          focusAndReveal(focused);
+        if (navigationScope() === dialog) {
+          if (focused instanceof HTMLElement && dialog.contains(focused) && visibleControl(focused)) focusAndReveal(focused);
+          else initialFocus();
         }
       });
     });
-    contentChanges.observe(dialog, { childList: true, subtree: true, characterData: true });
+    contentChanges.observe(dialog, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["disabled", "aria-disabled", "hidden", "aria-hidden", "inert", "tabindex"] });
     const containFocus = () => {
       if (navigationScope() === dialog && !dialog.contains(document.activeElement)) initialFocus();
     };

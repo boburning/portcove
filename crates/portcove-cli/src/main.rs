@@ -19,6 +19,7 @@ use schemars::{JsonSchema, schema_for};
 use serde::Serialize;
 use tracing_subscriber::EnvFilter;
 
+mod cancellation;
 mod human;
 
 #[derive(Debug, Parser)]
@@ -71,6 +72,9 @@ enum Commands {
     Activity {
         #[arg(long, default_value_t = 50, value_parser = clap::value_parser!(u16).range(1..=200))]
         limit: u16,
+    },
+    Cancel {
+        operation_id: String,
     },
     Storage,
     Doctor,
@@ -539,8 +543,24 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         Some(path) => portcove_core::Library::open(path)?,
         None => portcove_core::Library::open_default()?,
     };
-    let service = PortcoveService::new(library)?;
+    let service = std::sync::Arc::new(PortcoveService::new(library)?);
+    let _cancellation_signals = matches!(
+        &cli.command,
+        Commands::Install(_)
+            | Commands::Update(_)
+            | Commands::Ensure(_)
+            | Commands::Reconcile(_)
+            | Commands::Check(_)
+            | Commands::Source {
+                command: SourceCommand::Discover(_)
+            }
+    )
+    .then(|| cancellation::CancellationSignals::start(service.clone()))
+    .transpose()?;
     match cli.command {
+        Commands::Cancel { operation_id } => {
+            render_success(mode, "cancel", service.request_cancellation(&operation_id)?)?;
+        }
         Commands::Library { .. } => {
             unreachable!("library commands handle exclusive access before opening a service")
         }
@@ -692,7 +712,7 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
             render_success(
                 mode,
                 "source.discover",
-                service.discover_sources(&args.request())?,
+                service.discover_sources_with_progress(&args.request(), progress_renderer(mode))?,
             )?;
         }
         Commands::Source {
@@ -1285,6 +1305,14 @@ fn schema_document() -> serde_json::Value {
                 serde_json::json!(schema_for!(SourceBatchOutcome)),
             ),
             ("activity", serde_json::json!(schema_for!(ActivityRecord))),
+            (
+                "cancellation_state",
+                serde_json::json!(schema_for!(portcove_core::CancellationState)),
+            ),
+            (
+                "cancellation_phase",
+                serde_json::json!(schema_for!(portcove_core::CancellationPhase)),
+            ),
             ("backup", serde_json::json!(schema_for!(BackupRecord))),
             (
                 "backup_action_preview",
@@ -1594,6 +1622,7 @@ fn exit_code(error: &PortcoveError) -> u8 {
         ErrorCode::State => 13,
         ErrorCode::Conflict => 14,
         ErrorCode::Launch => 125,
+        ErrorCode::Cancelled => 130,
     }
 }
 
@@ -1626,6 +1655,7 @@ fn command_name(command: &Commands) -> &'static str {
         },
         Commands::Status { .. } => "status",
         Commands::Activity { .. } => "activity",
+        Commands::Cancel { .. } => "cancel",
         Commands::Storage => "storage",
         Commands::Library { command } => library_command_name(command),
         Commands::Doctor => "doctor",
@@ -1891,7 +1921,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 5);
+        assert_eq!(capabilities.schema_version, 6);
         assert_eq!(
             capabilities.failure_isolated_batches,
             ["check", "reconcile", "update", "source.verify"]
