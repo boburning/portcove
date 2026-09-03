@@ -14,12 +14,15 @@ use crate::{
     ActivityOperation, ActivityRecord, ActivityStatus, ActivityTargetKind, ArtifactIdentity,
     InstallRecord, LaunchSessionPhase, LaunchSessionRecord, PortStatus, PortcoveError,
     ReleaseChannel, Result, SourceRecord, StorageSummary, UpdateCheck, UpdatePolicy,
-    UpdateSnapshot, database,
+    UpdateSnapshot,
+    authorization::{AuthorizationStore, DestructiveAuthorization},
+    database,
 };
 
 #[derive(Debug, Clone)]
 pub struct Library {
     root: PathBuf,
+    authorizations: AuthorizationStore,
 }
 
 #[derive(Debug)]
@@ -44,7 +47,10 @@ impl Library {
     pub fn open(root: impl Into<PathBuf>) -> Result<Self> {
         let root = root.into();
         crate::path::unicode(&root, "library root")?;
-        let library = Self { root };
+        let library = Self {
+            root,
+            authorizations: AuthorizationStore::default(),
+        };
         library.create_layout()?;
         library.migrate()?;
         Ok(library)
@@ -59,6 +65,24 @@ impl Library {
 
     pub fn root(&self) -> &Path {
         &self.root
+    }
+    pub(crate) fn issue_authorization(
+        &self,
+        action: &str,
+        target: &str,
+        fingerprint: &str,
+    ) -> Result<DestructiveAuthorization> {
+        self.authorizations.issue(action, target, fingerprint)
+    }
+    pub(crate) fn consume_authorization(
+        &self,
+        token: &str,
+        action: &str,
+        target: &str,
+        fingerprint: &str,
+    ) -> Result<()> {
+        self.authorizations
+            .consume(token, action, target, fingerprint)
     }
     pub fn storage_summary(&self) -> Result<StorageSummary> {
         Ok(StorageSummary {

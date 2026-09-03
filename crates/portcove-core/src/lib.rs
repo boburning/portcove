@@ -1,6 +1,7 @@
 mod adapter;
 mod archive;
 mod auth;
+mod authorization;
 mod catalog;
 mod database;
 mod error;
@@ -23,6 +24,7 @@ pub use auth::{
     GithubAuthSource, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult,
     GithubDeviceLoginState, GithubRateLimit,
 };
+pub use authorization::DestructiveAuthorization;
 pub use catalog::Catalog;
 pub use error::{ErrorCode, PortcoveError, Result};
 pub use gitlab::GitlabReleaseProvider;
@@ -34,7 +36,10 @@ pub use process::{ChildProcessClass, ChildProcessPolicy, GameProcessSpec, Launch
 pub use providers::CompositeReleaseProvider;
 pub use psx::PsxManagedPreparation;
 pub use release::{GithubReleaseProvider, ReleaseProvider};
-pub use service::{AdoptionPreview, PortcoveService};
+pub use service::{
+    AdoptionCopyFile, AdoptionCopyPlan, AdoptionPreview, AdoptionSkippedEntry, BackupAction,
+    BackupActionPreview, PortRemovalPreview, PortcoveService,
+};
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 3;
+pub const API_SCHEMA_VERSION: u32 = 4;

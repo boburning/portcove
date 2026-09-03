@@ -347,7 +347,7 @@ pub struct SourceVerification {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SourceRemovalPreview {
     pub source: SourceRecord,
-    pub confirmation_token: String,
+    pub preview_sha256: String,
     pub dependent_port_ids: Vec<String>,
     pub installed_dependent_port_ids: Vec<String>,
 }

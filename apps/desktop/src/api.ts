@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { ActivityRecord, BackupRecord, BootstrapStatus, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, InstallPlan, InstallRecord, PortStatus, ReconcileOutcome, ReleaseChannel, RestoreResult, SourceRecord, SourceRemovalPreview, SourceVerificationOutcome, UpdateCheck, UpdateCheckOutcome, UpdatePolicy } from "./types";
+import type { ActivityRecord, AdoptionPreview, BackupRecord, BootstrapStatus, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, InstallPlan, InstallRecord, PortStatus, ReconcileOutcome, ReleaseChannel, RestoreResult, SourceRecord, SourceRemovalPreview, SourceVerificationOutcome, UpdateCheck, UpdateCheckOutcome, UpdatePolicy } from "./types";
 
 export const desktopApi = {
   bootstrapStatus: () => invoke<BootstrapStatus>("get_bootstrap_status"),
@@ -14,16 +14,18 @@ export const desktopApi = {
   activities: () => invoke<ActivityRecord[]>("get_activities"),
   backups: (portId: string) => invoke<BackupRecord[]>("get_backups", { portId }),
   backup: (portId: string) => invoke<BackupRecord>("create_backup", { portId }),
-  restoreBackup: (portId: string, backupId: string) => invoke<RestoreResult>("restore_backup", { portId, backupId }),
-  deleteBackup: (portId: string, backupId: string) => invoke<BackupRecord>("delete_backup", { portId, backupId }),
+  restoreBackup: (portId: string, backupId: string) => invoke<RestoreResult | null>("restore_backup", { portId, backupId }),
+  deleteBackup: (portId: string, backupId: string) => invoke<BackupRecord | null>("delete_backup", { portId, backupId }),
   addSource: (profileId: string, path: string) => invoke<SourceRecord>("add_source", { profileId, path }),
   previewSourceRemoval: (profileId: string) => invoke<SourceRemovalPreview>("preview_source_removal", { profileId }),
-  removeSource: (profileId: string, confirmationToken: string) => invoke<SourceRemovalPreview>("remove_source", { profileId, confirmationToken }),
+  removeSource: (profileId: string, previewSha256: string) => invoke<SourceRemovalPreview | null>("remove_source", { profileId, previewSha256 }),
   verifySources: () => invoke<SourceVerificationOutcome[]>("verify_sources"),
   check: (portId: string) => invoke<UpdateCheck>("check_port", { portId }),
   checkInstalled: () => invoke<UpdateCheckOutcome[]>("check_installed"),
   reconcileInstalled: () => invoke<ReconcileOutcome[]>("reconcile_installed"),
   doctor: () => invoke<DoctorReport>("get_doctor_report"),
+  createSupportBundle: () => invoke<string>("create_support_bundle"),
+  reportFrontendError: (message: string, componentStack: string) => invoke<void>("report_frontend_error", { message, componentStack }),
   plan: (portId: string, channel: ReleaseChannel) => invoke<InstallPlan>("plan_port", { portId, channel }),
   openUserData: (portId: string) => invoke<string>("open_user_data", { portId }),
   setChannel: (portId: string, channel: ReleaseChannel) => invoke<PortStatus>("set_channel", { portId, channel }),
@@ -35,8 +37,8 @@ export const desktopApi = {
   verify: (portId: string) => invoke("verify_port", { portId }),
   activate: (portId: string) => invoke("activate_port", { portId }),
   rollback: (portId: string) => invoke("rollback_port", { portId }),
-  remove: (portId: string) => invoke<string[]>("remove_port", { portId }),
+  remove: (portId: string) => invoke<string[] | null>("remove_port", { portId }),
   launch: (portId: string, source: string) => invoke("launch_port", { portId, source: source || null, arguments: [] }),
-  previewAdoption: (path: string, portId?: string) => invoke("preview_adoption", { path, portId: portId ?? null }),
-  adopt: (path: string, portId?: string) => invoke("adopt_port", { path, portId: portId ?? null }),
+  previewAdoption: (path: string, portId?: string) => invoke<AdoptionPreview>("preview_adoption", { path, portId: portId ?? null }),
+  adopt: (path: string, planSha256: string, portId?: string) => invoke<InstallRecord | null>("adopt_port", { path, portId: portId ?? null, planSha256 }),
 };

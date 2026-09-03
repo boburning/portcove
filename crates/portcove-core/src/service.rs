@@ -31,6 +31,27 @@ use crate::{
 
 const LAUNCH_MARKER: &str = ".portcove-launched";
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct AdoptionCopyFile {
+    pub relative_path: PathBuf,
+    pub size: u64,
+    pub sha256: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct AdoptionSkippedEntry {
+    pub relative_path: PathBuf,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct AdoptionCopyPlan {
+    pub directories: Vec<PathBuf>,
+    pub files: Vec<AdoptionCopyFile>,
+    pub skipped_entries: Vec<AdoptionSkippedEntry>,
+    pub total_bytes: u64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AdoptionPreview {
     pub source: PathBuf,
@@ -38,6 +59,42 @@ pub struct AdoptionPreview {
     pub selected_port_id: Option<String>,
     pub application_files_will_be_copied: bool,
     pub original_will_be_modified: bool,
+    pub copy_plan: AdoptionCopyPlan,
+    pub plan_sha256: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BackupAction {
+    Restore,
+    Delete,
+}
+
+impl BackupAction {
+    fn authorization_action(self) -> &'static str {
+        match self {
+            Self::Restore => "restore_backup",
+            Self::Delete => "delete_backup",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct BackupActionPreview {
+    pub action: BackupAction,
+    pub backup: BackupRecord,
+    pub current_user_data_exists: bool,
+    pub safety_backup_will_be_created: bool,
+    pub preview_sha256: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct PortRemovalPreview {
+    pub port_id: String,
+    pub managed_paths: Vec<PathBuf>,
+    pub persistent_data_path: PathBuf,
+    pub persistent_data_will_be_preserved: bool,
+    pub preview_sha256: String,
 }
 
 pub struct PortcoveService {
@@ -499,7 +556,68 @@ impl PortcoveService {
         Ok(backups)
     }
 
-    pub fn restore_backup(&self, port_id: &str, backup_id: &str) -> Result<RestoreResult> {
+    pub fn preview_backup_action(
+        &self,
+        port_id: &str,
+        backup_id: &str,
+        action: BackupAction,
+    ) -> Result<BackupActionPreview> {
+        self.catalog.port(port_id)?;
+        let backup = self.load_backup(port_id, backup_id)?;
+        let backup_plan = adoption_copy_plan(&backup.path.join("data"))?;
+        let user_root = self.library.user_dir(port_id);
+        let current_user_data_exists = user_root.exists();
+        if current_user_data_exists && !user_root.is_dir() {
+            return Err(PortcoveError::conflict(format!(
+                "persistent data root is not a directory: {}",
+                user_root.display()
+            )));
+        }
+        let user_plan = if action == BackupAction::Restore && current_user_data_exists {
+            Some(adoption_copy_plan(&user_root)?)
+        } else {
+            None
+        };
+        let preview_sha256 =
+            backup_action_fingerprint(action, &backup, &backup_plan, user_plan.as_ref())?;
+        Ok(BackupActionPreview {
+            action,
+            backup,
+            current_user_data_exists,
+            safety_backup_will_be_created: action == BackupAction::Restore
+                && user_plan
+                    .as_ref()
+                    .is_some_and(|plan| !plan.files.is_empty()),
+            preview_sha256,
+        })
+    }
+
+    pub fn authorize_backup_action(
+        &self,
+        port_id: &str,
+        backup_id: &str,
+        action: BackupAction,
+        expected_preview_sha256: &str,
+    ) -> Result<crate::DestructiveAuthorization> {
+        let preview = self.preview_backup_action(port_id, backup_id, action)?;
+        if preview.preview_sha256 != expected_preview_sha256 {
+            return Err(PortcoveError::conflict(
+                "backup or persistent data changed after preview; review the operation again",
+            ));
+        }
+        self.library.issue_authorization(
+            action.authorization_action(),
+            &backup_authorization_target(port_id, backup_id),
+            &preview.preview_sha256,
+        )
+    }
+
+    pub fn restore_backup(
+        &self,
+        port_id: &str,
+        backup_id: &str,
+        authorization_token: &str,
+    ) -> Result<RestoreResult> {
         let activity = self.library.begin_activity(
             ActivityOperation::Restore,
             ActivityTargetKind::Port,
@@ -520,6 +638,14 @@ impl PortcoveService {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "restore-backup")?;
             self.collect_active_user_data_if_launched(port_id)?;
+            let locked_preview =
+                self.preview_backup_action(port_id, backup_id, BackupAction::Restore)?;
+            self.library.consume_authorization(
+                authorization_token,
+                BackupAction::Restore.authorization_action(),
+                &backup_authorization_target(port_id, backup_id),
+                &locked_preview.preview_sha256,
+            )?;
             let restored_backup = self.load_backup(port_id, backup_id)?;
 
             if user_root.exists() && !user_root.is_dir() {
@@ -591,7 +717,12 @@ impl PortcoveService {
         self.finish_activity(activity, result)
     }
 
-    pub fn delete_backup(&self, port_id: &str, backup_id: &str) -> Result<BackupRecord> {
+    pub fn delete_backup(
+        &self,
+        port_id: &str,
+        backup_id: &str,
+        authorization_token: &str,
+    ) -> Result<BackupRecord> {
         let activity = self.library.begin_activity(
             ActivityOperation::DeleteBackup,
             ActivityTargetKind::Port,
@@ -600,6 +731,14 @@ impl PortcoveService {
         let result = (|| {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "delete-backup")?;
+            let locked_preview =
+                self.preview_backup_action(port_id, backup_id, BackupAction::Delete)?;
+            self.library.consume_authorization(
+                authorization_token,
+                BackupAction::Delete.authorization_action(),
+                &backup_authorization_target(port_id, backup_id),
+                &locked_preview.preview_sha256,
+            )?;
             let backup = self.load_backup(port_id, backup_id)?;
             let parent = backup.path.parent().ok_or_else(|| {
                 PortcoveError::state(format!(
@@ -866,7 +1005,7 @@ impl PortcoveService {
             }
         }
         Ok(SourceRemovalPreview {
-            confirmation_token: source_removal_token(
+            preview_sha256: source_removal_fingerprint(
                 &source,
                 &dependent_port_ids,
                 &installed_dependent_port_ids,
@@ -877,10 +1016,26 @@ impl PortcoveService {
         })
     }
 
+    pub fn authorize_source_removal(
+        &self,
+        profile_id: &str,
+        expected_preview_sha256: &str,
+    ) -> Result<crate::DestructiveAuthorization> {
+        let preview = self.preview_source_removal(profile_id)?;
+        if preview.preview_sha256 != expected_preview_sha256 {
+            return Err(PortcoveError::conflict(
+                "the source or its installed dependents changed after the removal preview",
+            )
+            .detail("profile_id", profile_id));
+        }
+        self.library
+            .issue_authorization("remove_source", profile_id, &preview.preview_sha256)
+    }
+
     pub fn remove_source(
         &self,
         profile_id: &str,
-        confirmation_token: &str,
+        authorization_token: &str,
     ) -> Result<SourceRemovalPreview> {
         let activity = self.library.begin_activity(
             ActivityOperation::RemoveSource,
@@ -889,12 +1044,6 @@ impl PortcoveService {
         )?;
         let result = (|| {
             let preview = self.preview_source_removal(profile_id)?;
-            if preview.confirmation_token != confirmation_token {
-                return Err(PortcoveError::conflict(
-                    "the source or its installed dependents changed after the removal preview",
-                )
-                .detail("profile_id", profile_id));
-            }
             let mut _guards = Vec::with_capacity(preview.dependent_port_ids.len());
             for port_id in &preview.dependent_port_ids {
                 _guards.push(self.library.try_lock_port(port_id, "remove-source")?);
@@ -907,12 +1056,12 @@ impl PortcoveService {
                     error
                 }
             })?;
-            if locked_preview.confirmation_token != confirmation_token {
-                return Err(PortcoveError::conflict(
-                    "the source or its installed dependents changed after the removal preview",
-                )
-                .detail("profile_id", profile_id));
-            }
+            self.library.consume_authorization(
+                authorization_token,
+                "remove_source",
+                profile_id,
+                &locked_preview.preview_sha256,
+            )?;
             if !self.library.remove_source(profile_id)? {
                 return Err(PortcoveError::conflict(
                     "the registered source was removed concurrently",
@@ -1548,16 +1697,43 @@ impl PortcoveService {
             [] => None,
             _ => None,
         };
+        let copy_plan = adoption_copy_plan(source)?;
+        let plan_sha256 =
+            adoption_plan_fingerprint(source, &detected, selected.as_deref(), &copy_plan)?;
         Ok(AdoptionPreview {
             source: source.to_path_buf(),
             detected_port_ids: detected,
             selected_port_id: selected,
             application_files_will_be_copied: true,
             original_will_be_modified: false,
+            copy_plan,
+            plan_sha256,
         })
     }
 
-    pub fn adopt(&self, source: &Path, selected_port_id: Option<&str>) -> Result<InstallRecord> {
+    pub fn authorize_adoption(
+        &self,
+        source: &Path,
+        selected_port_id: Option<&str>,
+        expected_plan_sha256: &str,
+    ) -> Result<crate::DestructiveAuthorization> {
+        let preview = self.preview_adoption(source, selected_port_id)?;
+        if preview.plan_sha256 != expected_plan_sha256 {
+            return Err(PortcoveError::conflict(
+                "adoption contents changed after preview; review the copy plan again",
+            ));
+        }
+        let target = adoption_authorization_target(source, selected_port_id)?;
+        self.library
+            .issue_authorization("adopt", &target, &preview.plan_sha256)
+    }
+
+    pub fn adopt(
+        &self,
+        source: &Path,
+        selected_port_id: Option<&str>,
+        authorization_token: &str,
+    ) -> Result<InstallRecord> {
         let preview = self.preview_adoption(source, selected_port_id)?;
         let port_id = preview.selected_port_id.ok_or_else(|| {
             if preview.detected_port_ids.is_empty() {
@@ -1590,13 +1766,30 @@ impl PortcoveService {
             let platform = Platform::current()?;
             let qualification = InstallQualification::from_port(port, platform)?;
             let _operation = self.library.try_lock_port(&port_id, "adopt")?;
+            let locked_preview = self.preview_adoption(source, selected_port_id)?;
+            let target = adoption_authorization_target(source, selected_port_id)?;
+            self.library.consume_authorization(
+                authorization_token,
+                "adopt",
+                &target,
+                &locked_preview.plan_sha256,
+            )?;
             let payload_root = operation_root.join("payload");
             let staged_user = operation_root.join("user");
             fs::create_dir_all(&operation_root)?;
-            copy_tree(source, &payload_root)?;
-            let source_executable =
-                crate::install::resolve_declared_executable(source, &qualification)?;
-            let persistent_root = qualification.persistence_root(source, &source_executable);
+            copy_adoption_plan(source, &payload_root, &locked_preview.copy_plan)?;
+            let copied_plan = adoption_copy_plan(&payload_root)?;
+            if copied_plan.directories != locked_preview.copy_plan.directories
+                || copied_plan.files != locked_preview.copy_plan.files
+                || !copied_plan.skipped_entries.is_empty()
+            {
+                return Err(PortcoveError::conflict(
+                    "adoption source changed while it was being copied; no install was activated",
+                ));
+            }
+            let copied_executable =
+                crate::install::resolve_declared_executable(&payload_root, &qualification)?;
+            let persistent_root = qualification.persistence_root(&payload_root, &copied_executable);
             for relative in &port.persistent_paths {
                 let candidate = persistent_root.join(relative);
                 if candidate.exists() {
@@ -1689,7 +1882,50 @@ impl PortcoveService {
         self.finish_activity(activity, result)
     }
 
-    pub fn remove(&self, port_id: &str) -> Result<Vec<PathBuf>> {
+    pub fn preview_removal(&self, port_id: &str) -> Result<PortRemovalPreview> {
+        self.catalog.port(port_id)?;
+        let mut installs = self
+            .library
+            .all_installs()?
+            .into_iter()
+            .filter(|install| install.port_id == port_id)
+            .collect::<Vec<_>>();
+        installs.sort_by(|left, right| left.id.cmp(&right.id));
+        if installs.is_empty() {
+            return Err(PortcoveError::not_found(format!(
+                "{port_id} is not installed"
+            )));
+        }
+        let managed_paths = installs
+            .iter()
+            .map(|install| install.path.clone())
+            .collect();
+        let preview_sha256 = hex::encode(Sha256::digest(serde_json::to_vec(&installs)?));
+        Ok(PortRemovalPreview {
+            port_id: port_id.to_owned(),
+            managed_paths,
+            persistent_data_path: self.library.user_dir(port_id),
+            persistent_data_will_be_preserved: true,
+            preview_sha256,
+        })
+    }
+
+    pub fn authorize_removal(
+        &self,
+        port_id: &str,
+        expected_preview_sha256: &str,
+    ) -> Result<crate::DestructiveAuthorization> {
+        let preview = self.preview_removal(port_id)?;
+        if preview.preview_sha256 != expected_preview_sha256 {
+            return Err(PortcoveError::conflict(
+                "managed installs changed after preview; review removal again",
+            ));
+        }
+        self.library
+            .issue_authorization("remove", port_id, &preview.preview_sha256)
+    }
+
+    pub fn remove(&self, port_id: &str, authorization_token: &str) -> Result<Vec<PathBuf>> {
         let activity = self.library.begin_activity(
             ActivityOperation::Remove,
             ActivityTargetKind::Port,
@@ -1705,6 +1941,13 @@ impl PortcoveService {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "remove")?;
             self.collect_active_user_data_if_launched(port_id)?;
+            let locked_preview = self.preview_removal(port_id)?;
+            self.library.consume_authorization(
+                authorization_token,
+                "remove",
+                port_id,
+                &locked_preview.preview_sha256,
+            )?;
             let paths = self.library.port_install_paths(port_id)?;
             for path in &paths {
                 if !path.starts_with(self.library.versions_dir()) || !path.is_dir() {
@@ -2229,7 +2472,7 @@ fn default_channel(port: &PortDefinition) -> ReleaseChannel {
     }
 }
 
-fn source_removal_token(
+fn source_removal_fingerprint(
     source: &SourceRecord,
     dependent_port_ids: &[String],
     installed_dependent_port_ids: &[String],
@@ -2247,6 +2490,134 @@ fn source_removal_token(
         installed_dependent_port_ids,
     ))?;
     Ok(hex::encode(Sha256::digest(encoded)))
+}
+
+fn backup_authorization_target(port_id: &str, backup_id: &str) -> String {
+    format!("{port_id}\n{backup_id}")
+}
+
+fn backup_action_fingerprint(
+    action: BackupAction,
+    backup: &BackupRecord,
+    backup_plan: &AdoptionCopyPlan,
+    user_plan: Option<&AdoptionCopyPlan>,
+) -> Result<String> {
+    let encoded = serde_json::to_vec(&(action, backup, backup_plan, user_plan))?;
+    Ok(hex::encode(Sha256::digest(encoded)))
+}
+
+fn adoption_authorization_target(source: &Path, selected_port_id: Option<&str>) -> Result<String> {
+    Ok(format!(
+        "{}\n{}",
+        crate::path::unicode(source, "adoption source")?,
+        selected_port_id.unwrap_or_default()
+    ))
+}
+
+fn adoption_plan_fingerprint(
+    source: &Path,
+    detected_port_ids: &[String],
+    selected_port_id: Option<&str>,
+    plan: &AdoptionCopyPlan,
+) -> Result<String> {
+    let encoded = serde_json::to_vec(&(
+        crate::path::unicode(source, "adoption source")?,
+        detected_port_ids,
+        selected_port_id,
+        plan,
+    ))?;
+    Ok(hex::encode(Sha256::digest(encoded)))
+}
+
+fn adoption_copy_plan(source: &Path) -> Result<AdoptionCopyPlan> {
+    let mut plan = AdoptionCopyPlan {
+        directories: Vec::new(),
+        files: Vec::new(),
+        skipped_entries: Vec::new(),
+        total_bytes: 0,
+    };
+    collect_adoption_entries(source, source, &mut plan)?;
+    plan.directories.sort();
+    plan.files
+        .sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
+    plan.skipped_entries
+        .sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
+    Ok(plan)
+}
+
+fn collect_adoption_entries(
+    root: &Path,
+    directory: &Path,
+    plan: &mut AdoptionCopyPlan,
+) -> Result<()> {
+    let mut entries = fs::read_dir(directory)?.collect::<std::io::Result<Vec<_>>>()?;
+    entries.sort_by_key(std::fs::DirEntry::file_name);
+    for entry in entries {
+        let path = entry.path();
+        let relative = path
+            .strip_prefix(root)
+            .map_err(|_| PortcoveError::state("adoption entry escaped its source root"))?
+            .to_path_buf();
+        crate::path::unicode(&relative, "adoption entry")?;
+        let file_type = entry.file_type()?;
+        if file_type.is_symlink() {
+            plan.skipped_entries.push(AdoptionSkippedEntry {
+                relative_path: relative,
+                reason: "symbolic links are not copied".to_owned(),
+            });
+        } else if file_type.is_dir() {
+            plan.directories.push(relative);
+            collect_adoption_entries(root, &path, plan)?;
+        } else if file_type.is_file() {
+            let size = entry.metadata()?.len();
+            let sha256 = sha256_file(&path)?;
+            plan.total_bytes = plan
+                .total_bytes
+                .checked_add(size)
+                .ok_or_else(|| PortcoveError::state("adoption copy plan byte count overflowed"))?;
+            plan.files.push(AdoptionCopyFile {
+                relative_path: relative,
+                size,
+                sha256,
+            });
+        } else {
+            plan.skipped_entries.push(AdoptionSkippedEntry {
+                relative_path: relative,
+                reason: "special filesystem entries are not copied".to_owned(),
+            });
+        }
+    }
+    Ok(())
+}
+
+fn copy_adoption_plan(source: &Path, destination: &Path, plan: &AdoptionCopyPlan) -> Result<()> {
+    fs::create_dir_all(destination)?;
+    for relative in &plan.directories {
+        fs::create_dir_all(destination.join(relative))?;
+    }
+    for file in &plan.files {
+        let source_file = source.join(&file.relative_path);
+        let destination_file = destination.join(&file.relative_path);
+        if let Some(parent) = destination_file.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::copy(source_file, destination_file)?;
+    }
+    Ok(())
+}
+
+fn sha256_file(path: &Path) -> Result<String> {
+    let mut file = fs::File::open(path)?;
+    let mut digest = Sha256::new();
+    let mut buffer = [0_u8; 64 * 1024];
+    loop {
+        let read = file.read(&mut buffer)?;
+        if read == 0 {
+            break;
+        }
+        digest.update(&buffer[..read]);
+    }
+    Ok(hex::encode(digest.finalize()))
 }
 
 pub(crate) fn copy_tree(source: &Path, destination: &Path) -> Result<()> {
@@ -2497,6 +2868,49 @@ mod tests {
         .unwrap()
     }
 
+    fn backup_authorization(
+        service: &PortcoveService,
+        port_id: &str,
+        backup_id: &str,
+        action: BackupAction,
+    ) -> crate::DestructiveAuthorization {
+        let preview = service
+            .preview_backup_action(port_id, backup_id, action)
+            .unwrap();
+        service
+            .authorize_backup_action(port_id, backup_id, action, &preview.preview_sha256)
+            .unwrap()
+    }
+
+    fn restore_authorized(
+        service: &PortcoveService,
+        port_id: &str,
+        backup_id: &str,
+    ) -> Result<RestoreResult> {
+        let authorization =
+            backup_authorization(service, port_id, backup_id, BackupAction::Restore);
+        service.restore_backup(port_id, backup_id, &authorization.token)
+    }
+
+    fn delete_backup_authorized(
+        service: &PortcoveService,
+        port_id: &str,
+        backup_id: &str,
+    ) -> Result<BackupRecord> {
+        let authorization = backup_authorization(service, port_id, backup_id, BackupAction::Delete);
+        service.delete_backup(port_id, backup_id, &authorization.token)
+    }
+
+    fn removal_authorization(
+        service: &PortcoveService,
+        port_id: &str,
+    ) -> crate::DestructiveAuthorization {
+        let preview = service.preview_removal(port_id).unwrap();
+        service
+            .authorize_removal(port_id, &preview.preview_sha256)
+            .unwrap()
+    }
+
     struct FailOnce {
         point: LifecycleFaultPoint,
         fired: AtomicBool,
@@ -2557,8 +2971,15 @@ mod tests {
             write_host_test_executable(&source, "zelda64-recomp");
             fs::write(source.join("general.json"), b"adopted settings").unwrap();
 
-            let error = service_with_fault(library.clone(), point)
-                .adopt(&source, Some("zelda64-recomp"))
+            let service = service_with_fault(library.clone(), point);
+            let preview = service
+                .preview_adoption(&source, Some("zelda64-recomp"))
+                .unwrap();
+            let authorization = service
+                .authorize_adoption(&source, Some("zelda64-recomp"), &preview.plan_sha256)
+                .unwrap();
+            let error = service
+                .adopt(&source, Some("zelda64-recomp"), &authorization.token)
                 .unwrap_err();
             assert!(error.message.contains("injected lifecycle failure"));
 
@@ -2579,6 +3000,84 @@ mod tests {
     }
 
     #[test]
+    fn adoption_preview_is_content_bound_and_rejects_changes_after_review() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let source = temporary.path().join("existing-install");
+        fs::create_dir_all(source.join("settings")).unwrap();
+        write_host_test_executable(&source, "zelda64-recomp");
+        fs::write(source.join("settings/general.json"), b"reviewed").unwrap();
+        let service = service_with_release(library.clone(), "v2");
+
+        let preview = service
+            .preview_adoption(&source, Some("zelda64-recomp"))
+            .unwrap();
+        assert!(preview.copy_plan.files.iter().any(|file| {
+            file.relative_path == Path::new("settings/general.json")
+                && file.size == b"reviewed".len() as u64
+        }));
+        assert_eq!(
+            preview.copy_plan.total_bytes,
+            preview
+                .copy_plan
+                .files
+                .iter()
+                .map(|file| file.size)
+                .sum::<u64>()
+        );
+        let authorization = service
+            .authorize_adoption(&source, Some("zelda64-recomp"), &preview.plan_sha256)
+            .unwrap();
+
+        fs::write(
+            source.join("settings/general.json"),
+            b"changed after review",
+        )
+        .unwrap();
+        let error = service
+            .adopt(&source, Some("zelda64-recomp"), &authorization.token)
+            .unwrap_err();
+
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert!(error.message.contains("state changed"));
+        assert!(service.status("zelda64-recomp").unwrap().active.is_none());
+        assert_eq!(
+            fs::read(source.join("settings/general.json")).unwrap(),
+            b"changed after review"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn adoption_preview_reports_symlinks_as_skipped_entries() {
+        use std::os::unix::fs::symlink;
+
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let source = temporary.path().join("existing-install");
+        fs::create_dir_all(&source).unwrap();
+        write_host_test_executable(&source, "zelda64-recomp");
+        fs::write(source.join("target.txt"), b"target").unwrap();
+        symlink(source.join("target.txt"), source.join("linked.txt")).unwrap();
+        let service = service_with_release(library, "v2");
+
+        let preview = service
+            .preview_adoption(&source, Some("zelda64-recomp"))
+            .unwrap();
+
+        assert_eq!(preview.copy_plan.skipped_entries.len(), 1);
+        assert_eq!(
+            preview.copy_plan.skipped_entries[0].relative_path,
+            PathBuf::from("linked.txt")
+        );
+        assert!(
+            preview.copy_plan.skipped_entries[0]
+                .reason
+                .contains("symbolic links")
+        );
+    }
+
+    #[test]
     fn removal_recovers_after_quarantine_metadata_and_cleanup_boundaries() {
         for point in [
             LifecycleFaultPoint::RemovalQuarantined,
@@ -2589,8 +3088,10 @@ mod tests {
             let library = Library::open(temporary.path().join("library")).unwrap();
             let install = register_zelda_install(&library, "v1", true);
 
-            let error = service_with_fault(library.clone(), point)
-                .remove("zelda64-recomp")
+            let service = service_with_fault(library.clone(), point);
+            let authorization = removal_authorization(&service, "zelda64-recomp");
+            let error = service
+                .remove("zelda64-recomp", &authorization.token)
                 .unwrap_err();
             assert!(error.message.contains("injected lifecycle failure"));
 
@@ -2599,6 +3100,28 @@ mod tests {
             assert!(!install.exists());
             assert!(recovered.repair_plan().unwrap().items.is_empty());
         }
+    }
+
+    #[test]
+    fn removal_authorization_rejects_new_managed_versions() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let first = register_zelda_install(&library, "v1", true);
+        let service = service_with_release(library.clone(), "v2");
+        let preview = service.preview_removal("zelda64-recomp").unwrap();
+        let authorization = service
+            .authorize_removal("zelda64-recomp", &preview.preview_sha256)
+            .unwrap();
+        let second = register_zelda_install(&library, "v2", false);
+
+        let error = service
+            .remove("zelda64-recomp", &authorization.token)
+            .unwrap_err();
+
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert!(error.message.contains("state changed"));
+        assert!(first.is_dir());
+        assert!(second.is_dir());
     }
 
     #[test]
@@ -2707,8 +3230,15 @@ mod tests {
             let backup = original.create_backup("zelda64-recomp").unwrap();
             fs::write(&user_file, b"changed").unwrap();
 
-            let error = service_with_fault(library.clone(), point)
-                .restore_backup("zelda64-recomp", &backup.id)
+            let service = service_with_fault(library.clone(), point);
+            let authorization = backup_authorization(
+                &service,
+                "zelda64-recomp",
+                &backup.id,
+                BackupAction::Restore,
+            );
+            let error = service
+                .restore_backup("zelda64-recomp", &backup.id, &authorization.token)
                 .unwrap_err();
             assert!(error.message.contains("injected lifecycle failure"));
 
@@ -3200,9 +3730,7 @@ fn main() {
         fs::write(user_root.join("save.dat"), b"current").unwrap();
         fs::write(user_root.join("new.cfg"), b"setting").unwrap();
 
-        let restored = service
-            .restore_backup("zelda64-recomp", &wanted.id)
-            .unwrap();
+        let restored = restore_authorized(&service, "zelda64-recomp", &wanted.id).unwrap();
 
         assert_eq!(restored.restored_backup, wanted);
         let safety = restored
@@ -3223,6 +3751,41 @@ fn main() {
     }
 
     #[test]
+    fn restore_authorization_rejects_live_data_changes_after_review() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let user_root = library.user_dir("zelda64-recomp");
+        fs::create_dir_all(&user_root).unwrap();
+        fs::write(user_root.join("save.dat"), b"backup contents").unwrap();
+        let service = service_with_release(library, "v1");
+        let backup = service.create_backup("zelda64-recomp").unwrap();
+        fs::write(user_root.join("save.dat"), b"reviewed live data").unwrap();
+        let preview = service
+            .preview_backup_action("zelda64-recomp", &backup.id, BackupAction::Restore)
+            .unwrap();
+        let authorization = service
+            .authorize_backup_action(
+                "zelda64-recomp",
+                &backup.id,
+                BackupAction::Restore,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        fs::write(user_root.join("save.dat"), b"new live data").unwrap();
+
+        let error = service
+            .restore_backup("zelda64-recomp", &backup.id, &authorization.token)
+            .unwrap_err();
+
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert!(error.message.contains("state changed"));
+        assert_eq!(
+            fs::read(user_root.join("save.dat")).unwrap(),
+            b"new live data"
+        );
+    }
+
+    #[test]
     fn restore_rejects_tampered_backup_before_snapshot_or_live_data_changes() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
@@ -3234,9 +3797,7 @@ fn main() {
         fs::write(backup.path.join("data/save.dat"), b"damage").unwrap();
         fs::write(user_root.join("save.dat"), b"live").unwrap();
 
-        let error = service
-            .restore_backup("zelda64-recomp", &backup.id)
-            .unwrap_err();
+        let error = restore_authorized(&service, "zelda64-recomp", &backup.id).unwrap_err();
 
         assert_eq!(error.code, crate::ErrorCode::Verification);
         assert_eq!(fs::read(user_root.join("save.dat")).unwrap(), b"live");
@@ -3258,9 +3819,7 @@ fn main() {
         let backup = service.create_backup("zelda64-recomp").unwrap();
         fs::remove_dir_all(&user_root).unwrap();
 
-        let restored = service
-            .restore_backup("zelda64-recomp", &backup.id)
-            .unwrap();
+        let restored = restore_authorized(&service, "zelda64-recomp", &backup.id).unwrap();
 
         assert!(restored.safety_backup.is_none());
         assert_eq!(fs::read(user_root.join("save.dat")).unwrap(), b"backup");
@@ -3276,7 +3835,7 @@ fn main() {
         let service = service_with_release(library.clone(), "v1");
         let backup = service.create_backup("zelda64-recomp").unwrap();
 
-        let deleted = service.delete_backup("zelda64-recomp", &backup.id).unwrap();
+        let deleted = delete_backup_authorized(&service, "zelda64-recomp", &backup.id).unwrap();
 
         assert_eq!(deleted, backup);
         assert!(!backup.path.exists());
@@ -3579,6 +4138,9 @@ fn main() {
         let preview = service.preview_source_removal("banjo-kazooie").unwrap();
         assert_eq!(preview.dependent_port_ids, ["banjo-recomp", "lighthouse"]);
         assert_eq!(preview.installed_dependent_port_ids, ["lighthouse"]);
+        let authorization = service
+            .authorize_source_removal("banjo-kazooie", &preview.preview_sha256)
+            .unwrap();
 
         let banjo_recomp = library
             .versions_dir()
@@ -3588,16 +4150,19 @@ fn main() {
         write_host_test_executable(&banjo_recomp, "banjo-recomp");
         register_existing_test_install(&library, "banjo-recomp", "v1", &banjo_recomp, true);
         let error = service
-            .remove_source("banjo-kazooie", &preview.confirmation_token)
+            .remove_source("banjo-kazooie", &authorization.token)
             .unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Conflict);
-        assert!(error.message.contains("installed dependents"));
+        assert!(error.message.contains("state changed"));
 
         let impact_preview = service.preview_source_removal("banjo-kazooie").unwrap();
         assert_eq!(
             impact_preview.installed_dependent_port_ids,
             ["banjo-recomp", "lighthouse"]
         );
+        let impact_authorization = service
+            .authorize_source_removal("banjo-kazooie", &impact_preview.preview_sha256)
+            .unwrap();
 
         source.path = temporary.path().join("replacement.z64");
         source.storage_sha256 = "2".repeat(64);
@@ -3606,16 +4171,19 @@ fn main() {
         fs::write(&source.path, b"replacement source").unwrap();
         library.register_source(&source).unwrap();
         let error = service
-            .remove_source("banjo-kazooie", &impact_preview.confirmation_token)
+            .remove_source("banjo-kazooie", &impact_authorization.token)
             .unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Conflict);
         assert!(library.source("banjo-kazooie").unwrap().is_some());
 
         let current = service.preview_source_removal("banjo-kazooie").unwrap();
-        let removed = service
-            .remove_source("banjo-kazooie", &current.confirmation_token)
+        let current_authorization = service
+            .authorize_source_removal("banjo-kazooie", &current.preview_sha256)
             .unwrap();
-        assert_eq!(removed.confirmation_token, current.confirmation_token);
+        let removed = service
+            .remove_source("banjo-kazooie", &current_authorization.token)
+            .unwrap();
+        assert_eq!(removed.preview_sha256, current.preview_sha256);
         assert!(library.source("banjo-kazooie").unwrap().is_none());
     }
 

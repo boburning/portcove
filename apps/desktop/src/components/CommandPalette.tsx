@@ -43,7 +43,7 @@ export function CommandPalette({ open, commands, close }: { open: boolean; comma
       <h2 className="sr-only" id="command-palette-title">Portcove commands</h2>
       <label className="palette-search">
         <Icon glyph={Search} />
-        <input ref={input} data-autofocus data-focusable role="combobox" aria-expanded="true" aria-autocomplete="list" value={query} onChange={event => setQuery(event.target.value)}
+        <input ref={input} data-autofocus data-focusable role="combobox" aria-expanded="true" aria-autocomplete="list" aria-label="Search commands" value={query} onChange={event => setQuery(event.target.value)}
           onKeyDown={event => {
             if (event.key === "Escape") close();
             else if (event.key === "ArrowDown") { event.preventDefault(); setActiveIndex(index => Math.min(index + 1, filtered.length - 1)); }

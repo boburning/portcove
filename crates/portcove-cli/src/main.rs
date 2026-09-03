@@ -6,13 +6,14 @@ use std::{
 
 use clap::{Args, Parser, Subcommand, ValueEnum, error::ErrorKind};
 use portcove_core::{
-    API_SCHEMA_VERSION, ActivityRecord, BackupRecord, CapabilityDocument, CatalogDocument,
-    DoctorReport, ErrorCode, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult,
-    GithubDeviceLoginState, GithubReleaseProvider, InstallPlan, InstallRecord, LaunchSignal,
-    LaunchStdio, OperationEvent, OperationEventKind, PortDefinition, PortPaths, PortStatus,
-    PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel, RestoreResult, Result,
-    SourceRecord, SourceRemovalPreview, SourceVerification, StorageSummary, UpdateCheck,
-    UpdatePolicy, UpdateSnapshot, forward_launch_signal,
+    API_SCHEMA_VERSION, ActivityRecord, AdoptionPreview, BackupAction, BackupActionPreview,
+    BackupRecord, CapabilityDocument, CatalogDocument, DoctorReport, ErrorCode, GithubAuthStatus,
+    GithubDeviceLogin, GithubDeviceLoginResult, GithubDeviceLoginState, GithubReleaseProvider,
+    InstallPlan, InstallRecord, LaunchSignal, LaunchStdio, OperationEvent, OperationEventKind,
+    PortDefinition, PortPaths, PortRemovalPreview, PortStatus, PortcoveError, PortcoveService,
+    ReconcileResult, ReleaseChannel, RestoreResult, Result, SourceRecord, SourceRemovalPreview,
+    SourceVerification, StorageSummary, UpdateCheck, UpdatePolicy, UpdateSnapshot,
+    forward_launch_signal,
 };
 use schemars::{JsonSchema, schema_for};
 use serde::Serialize;
@@ -512,15 +513,23 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                     yes,
                 },
         } => {
+            let preview =
+                service.preview_backup_action(&port_id, &backup_id, BackupAction::Delete)?;
             require_confirmation(
                 &format!("Permanently delete backup {backup_id} for {port_id}?"),
                 yes,
                 cli.non_interactive,
             )?;
+            let authorization = service.authorize_backup_action(
+                &port_id,
+                &backup_id,
+                BackupAction::Delete,
+                &preview.preview_sha256,
+            )?;
             render_success(
                 mode,
                 "backup.delete",
-                service.delete_backup(&port_id, &backup_id)?,
+                service.delete_backup(&port_id, &backup_id, &authorization.token)?,
             )?;
         }
         Commands::Backup {
@@ -531,6 +540,8 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                     yes,
                 },
         } => {
+            let preview =
+                service.preview_backup_action(&port_id, &backup_id, BackupAction::Restore)?;
             require_confirmation(
                 &format!(
                     "Restore backup {backup_id} for {port_id}? Current persistent data will be backed up first."
@@ -538,10 +549,16 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 yes,
                 cli.non_interactive,
             )?;
+            let authorization = service.authorize_backup_action(
+                &port_id,
+                &backup_id,
+                BackupAction::Restore,
+                &preview.preview_sha256,
+            )?;
             render_success(
                 mode,
                 "backup.restore",
-                service.restore_backup(&port_id, &backup_id)?,
+                service.restore_backup(&port_id, &backup_id, &authorization.token)?,
             )?;
         }
         Commands::Catalog {
@@ -626,7 +643,9 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 yes,
                 cli.non_interactive,
             )?;
-            let removed = service.remove_source(&profile_id, &preview.confirmation_token)?;
+            let authorization =
+                service.authorize_source_removal(&profile_id, &preview.preview_sha256)?;
+            let removed = service.remove_source(&profile_id, &authorization.token)?;
             render_success(
                 mode,
                 "source.remove",
@@ -798,15 +817,20 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
             render_success(mode, "rollback", service.rollback(&port_id)?)?
         }
         Commands::Remove { port_id, yes } => {
+            let preview = service.preview_removal(&port_id)?;
+            if mode == OutputMode::Human {
+                println!("{}", serde_json::to_string_pretty(&preview)?);
+            }
             require_confirmation(
                 &format!("Remove managed versions for {port_id}? Persistent data will be kept."),
                 yes,
                 cli.non_interactive,
             )?;
+            let authorization = service.authorize_removal(&port_id, &preview.preview_sha256)?;
             render_success(
                 mode,
                 "remove",
-                serde_json::json!({ "removed": service.remove(&port_id)? }),
+                serde_json::json!({ "removed": service.remove(&port_id, &authorization.token)? }),
             )?;
         }
         Commands::Adopt(args) => {
@@ -819,10 +843,15 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 args.yes,
                 cli.non_interactive,
             )?;
+            let authorization = service.authorize_adoption(
+                &args.path,
+                args.port.as_deref(),
+                &preview.plan_sha256,
+            )?;
             render_success(
                 mode,
                 "adopt",
-                service.adopt(&args.path, args.port.as_deref())?,
+                service.adopt(&args.path, args.port.as_deref(), &authorization.token)?,
             )?;
         }
         Commands::Channel {
@@ -904,7 +933,10 @@ fn schema_document() -> serde_json::Value {
         "source_batch_outcome": schema_for!(SourceBatchOutcome),
         "activity": schema_for!(ActivityRecord),
         "backup": schema_for!(BackupRecord),
+        "backup_action_preview": schema_for!(BackupActionPreview),
         "restore_result": schema_for!(RestoreResult),
+        "adoption_preview": schema_for!(AdoptionPreview),
+        "port_removal_preview": schema_for!(PortRemovalPreview),
         "storage": schema_for!(StorageSummary),
         "doctor": schema_for!(DoctorReport),
         "install_plan": schema_for!(InstallPlan),
@@ -1456,7 +1488,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 3);
+        assert_eq!(capabilities.schema_version, 4);
         assert_eq!(
             capabilities.failure_isolated_batches,
             ["check", "reconcile", "update", "source.verify"]

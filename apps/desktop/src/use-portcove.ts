@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { desktopApi } from "./api";
-import { confirmBackupDeletion, confirmBackupRestore, confirmPortRemoval } from "./confirmation";
-import { useGamepadNavigation } from "./gamepad";
 import type { ActivityRecord, BackupRecord, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, OperationEvent, PortDefinition, PortStatus, ReconcileAction, SourceRecord, SourceVerificationOutcome, UpdateCheckOutcome } from "./types";
 import type { DetailActions } from "./components/DetailPanel";
 import { errorText, type Filter, type View } from "./view-model";
 import { currentUpdateSnapshot } from "./view-model";
 import { applyOperationEvent, mostRecentOperation } from "./operation-state";
+import { addPendingOperation, LatestRequestGeneration, mostRecentPendingOperation, removePendingOperation } from "./concurrency-state";
 
 export function usePortcoveData() {
   const [catalog, setCatalog] = useState<CatalogDocument>();
@@ -15,10 +14,13 @@ export function usePortcoveData() {
   const [sources, setSources] = useState<SourceRecord[]>([]);
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
   const [doctor, setDoctor] = useState<DoctorReport>();
+  const refreshGeneration = useRef(new LatestRequestGeneration());
   const refresh = useCallback(async () => {
+    const generation = refreshGeneration.current.begin();
     const [nextCatalog, nextStatuses, nextSources, nextActivities, nextDoctor] = await Promise.all([
       desktopApi.catalog(), desktopApi.statuses(), desktopApi.sources(), desktopApi.activities(), desktopApi.doctor(),
     ]);
+    if (!refreshGeneration.current.isCurrent(generation)) return;
     setCatalog(nextCatalog);
     setStatuses(nextStatuses);
     setSources(nextSources);
@@ -33,7 +35,9 @@ export function usePortcoveData() {
 }
 
 export function useOperationState(refresh: () => Promise<void>) {
-  const [busy, setBusy] = useState<string>();
+  const [pendingOperations, setPendingOperations] = useState<ReadonlyMap<number, string>>(new Map());
+  const nextPendingId = useRef(0);
+  const busy = mostRecentPendingOperation(pendingOperations);
   const [error, setError] = useState<string>();
   const [operationEvents, setOperationEvents] = useState<ReadonlyMap<string, OperationEvent>>(new Map());
   const operation = mostRecentOperation(operationEvents);
@@ -44,9 +48,9 @@ export function useOperationState(refresh: () => Promise<void>) {
     return () => { unlisten.then(dispose => dispose()); };
   }, []);
   const perform = useCallback(async <T,>(name: string, task: () => Promise<T>): Promise<T | undefined> => {
-    setBusy(name);
+    const pendingId = ++nextPendingId.current;
+    setPendingOperations(current => addPendingOperation(current, pendingId, name));
     setError(undefined);
-    setOperationEvents(new Map());
     const runningRefresh = window.setTimeout(() => {
       void refresh().catch(value => setError(current => current ?? errorText(value)));
     }, 250);
@@ -62,10 +66,10 @@ export function useOperationState(refresh: () => Promise<void>) {
       } catch (value) {
         setError(current => current ?? errorText(value));
       }
-      setBusy(undefined);
+      setPendingOperations(current => removePendingOperation(current, pendingId));
     }
   }, [refresh]);
-  return { busy, error, operation, perform, setError };
+  return { busy, error, operation, pendingOperations, perform, setError };
 }
 
 export function useUpdateCenter(perform: Perform, statuses: PortStatus[]) {
@@ -214,11 +218,6 @@ export function usePortcoveUi() {
   const [adoptOpen, setAdoptOpen] = useState(false);
   const [adoptPath, setAdoptPath] = useState("");
   useEffect(() => setFilter("all"), [view]);
-  const closeOverlay = useCallback(() => {
-    if (adoptOpen) setAdoptOpen(false);
-    else setSelectedId(undefined);
-  }, [adoptOpen]);
-  useGamepadNavigation(closeOverlay);
   return { view, setView, filter, setFilter, query, setQuery, selectedId, setSelectedId, sourcePath, setSourcePath, biosPath, setBiosPath, adoptOpen, setAdoptOpen, adoptPath, setAdoptPath };
 }
 
@@ -237,17 +236,14 @@ export function detailActions(port: PortDefinition, status: PortStatus | undefin
     openUserData: () => perform("open data folder", () => desktopApi.openUserData(port.id)),
     reviewInstall,
     remove: async () => {
-      if (!await confirmPortRemoval(port.name)) return;
       const removed = await perform("remove", () => desktopApi.remove(port.id));
-      if (removed !== undefined) close();
+      if (removed) close();
     },
     deleteBackup: async backup => {
-      if (!await confirmBackupDeletion(port.name, backup.created_at)) return;
       if (await perform("delete backup", () => desktopApi.deleteBackup(port.id, backup.id))) await backupsChanged();
     },
     rollback: () => perform("rollback", () => desktopApi.rollback(port.id)),
     restoreBackup: async backup => {
-      if (!await confirmBackupRestore(port.name, backup.created_at)) return;
       if (await perform("restore backup", () => desktopApi.restoreBackup(port.id, backup.id))) await backupsChanged();
     },
     setChannel: channel => perform("channel", () => desktopApi.setChannel(port.id, channel)),
@@ -257,10 +253,7 @@ export function detailActions(port: PortDefinition, status: PortStatus | undefin
   };
 }
 
-export function adoptInstall(path: string, portId: string | undefined, perform: Perform, done: () => void) {
-  return perform("adopt", async () => {
-    await desktopApi.previewAdoption(path, portId);
-    await desktopApi.adopt(path, portId);
-    done();
-  });
+export async function adoptInstall(path: string, portId: string | undefined, planSha256: string, perform: Perform, done: () => void) {
+  const adopted = await perform("adopt", () => desktopApi.adopt(path, planSha256, portId));
+  if (adopted) done();
 }

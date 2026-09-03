@@ -1,3 +1,5 @@
+mod diagnostics;
+
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -7,16 +9,17 @@ use std::{
 };
 
 use portcove_core::{
-    ActivityRecord, AdoptionPreview, BackupRecord, CatalogDocument, ChildProcessClass,
-    ChildProcessPolicy, CompositeReleaseProvider, DoctorReport, GithubAuthStatus,
-    GithubDeviceLogin, GithubDeviceLoginResult, GithubReleaseProvider, InstallPlan, InstallRecord,
-    LaunchStdio, Library, OperationCoordinator, OperationEvent, OperationResult, PortStatus,
-    PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel, ReleaseProvider,
-    RestoreResult, SourceRecord, SourceRemovalPreview, SourceVerification, UpdateCheck,
-    UpdatePolicy, VerificationReport,
+    ActivityRecord, AdoptionPreview, BackupAction, BackupRecord, CatalogDocument,
+    ChildProcessClass, ChildProcessPolicy, CompositeReleaseProvider, DoctorReport,
+    GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, GithubReleaseProvider,
+    InstallPlan, InstallRecord, LaunchStdio, Library, OperationCoordinator, OperationEvent,
+    OperationResult, PortStatus, PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel,
+    ReleaseProvider, RestoreResult, SourceRecord, SourceRemovalPreview, SourceVerification,
+    UpdateCheck, UpdatePolicy, VerificationReport,
 };
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
 #[derive(Clone)]
 struct ReadyDesktopState {
@@ -110,6 +113,40 @@ where
     tauri::async_runtime::spawn_blocking(move || operation(service(&state)?))
         .await
         .map_err(|error| DesktopError::from(PortcoveError::state(error.to_string())))?
+}
+
+async fn confirm_destructive(
+    app: &tauri::AppHandle,
+    title: &str,
+    message: String,
+    confirm_label: &str,
+) -> bool {
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    app.dialog()
+        .message(message)
+        .title(title)
+        .kind(MessageDialogKind::Warning)
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            confirm_label.to_owned(),
+            "Cancel".to_owned(),
+        ))
+        .show(move |confirmed| {
+            let _ = sender.send(confirmed);
+        });
+    receiver.await.unwrap_or(false)
+}
+
+fn emit_operation(app: &tauri::AppHandle, event: OperationEvent) {
+    tracing::info!(
+        operation_id = %event.operation_id,
+        parent_operation_id = ?event.parent_operation_id,
+        sequence = event.sequence,
+        operation = %event.operation,
+        target = ?event.target,
+        event = ?event.event,
+        "operation event"
+    );
+    let _ = app.emit("portcove://operation", event);
 }
 
 #[tauri::command]
@@ -217,14 +254,35 @@ async fn create_backup(
 
 #[tauri::command]
 async fn restore_backup(
+    app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,
     port_id: String,
     backup_id: String,
-) -> DesktopResult<RestoreResult> {
+) -> DesktopResult<Option<RestoreResult>> {
+    let preview =
+        service(&state)?.preview_backup_action(&port_id, &backup_id, BackupAction::Restore)?;
+    let message = if preview.safety_backup_will_be_created {
+        format!(
+            "Restore backup {} for {}?\n\nPortcove will preserve the current persistent data as a safety backup first.",
+            backup_id, port_id
+        )
+    } else {
+        format!("Restore backup {} for {}?", backup_id, port_id)
+    };
+    if !confirm_destructive(&app, "Confirm backup restore", message, "Restore backup").await {
+        return Ok(None);
+    }
     let state = state.inner().clone();
     blocking_service(state, move |service| {
+        let authorization = service.authorize_backup_action(
+            &port_id,
+            &backup_id,
+            BackupAction::Restore,
+            &preview.preview_sha256,
+        )?;
         service
-            .restore_backup(&port_id, &backup_id)
+            .restore_backup(&port_id, &backup_id, &authorization.token)
+            .map(Some)
             .map_err(Into::into)
     })
     .await
@@ -232,14 +290,37 @@ async fn restore_backup(
 
 #[tauri::command]
 async fn delete_backup(
+    app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,
     port_id: String,
     backup_id: String,
-) -> DesktopResult<BackupRecord> {
+) -> DesktopResult<Option<BackupRecord>> {
+    let preview =
+        service(&state)?.preview_backup_action(&port_id, &backup_id, BackupAction::Delete)?;
+    if !confirm_destructive(
+        &app,
+        "Confirm backup deletion",
+        format!(
+            "Permanently delete backup {} for {}?\n\nThis backup cannot be recovered after deletion.",
+            backup_id, port_id
+        ),
+        "Delete backup",
+    )
+    .await
+    {
+        return Ok(None);
+    }
     let state = state.inner().clone();
     blocking_service(state, move |service| {
+        let authorization = service.authorize_backup_action(
+            &port_id,
+            &backup_id,
+            BackupAction::Delete,
+            &preview.preview_sha256,
+        )?;
         service
-            .delete_backup(&port_id, &backup_id)
+            .delete_backup(&port_id, &backup_id, &authorization.token)
+            .map(Some)
             .map_err(Into::into)
     })
     .await
@@ -263,7 +344,7 @@ async fn verify_sources(
     state: tauri::State<'_, DesktopState>,
 ) -> DesktopResult<Vec<SourceBatchOutcome>> {
     let operation = OperationCoordinator::new("verify_sources", None);
-    let _ = app.emit("portcove://operation", operation.started());
+    emit_operation(&app, operation.started());
     let state = state.inner().clone();
     let outcomes = tauri::async_runtime::spawn_blocking(move || {
         let service = service(&state)?;
@@ -296,8 +377,8 @@ async fn verify_sources(
     })
     .await
     .map_err(|error| DesktopError::from(PortcoveError::state(error.to_string())))??;
-    let _ = app.emit(
-        "portcove://operation",
+    emit_operation(
+        &app,
         operation.finished(if outcomes.iter().all(|outcome| outcome.ok) {
             OperationResult::Succeeded
         } else {
@@ -331,7 +412,7 @@ async fn check_installed(
         .collect::<Vec<_>>();
     let total = installed.len() as u64;
     let operation = OperationCoordinator::new("check_installed", None);
-    let _ = app.emit("portcove://operation", operation.started());
+    emit_operation(&app, operation.started());
     let mut outcomes = Vec::with_capacity(installed.len());
     for (index, status) in installed.into_iter().enumerate() {
         let port_id = status.port_id;
@@ -349,14 +430,14 @@ async fn check_installed(
                 error: Some(error.into()),
             },
         });
-        let _ = app.emit(
-            "portcove://operation",
+        emit_operation(
+            &app,
             operation.progress("Checking installed ports", index as u64 + 1, Some(total)),
         );
     }
     let success = outcomes.iter().all(|outcome| outcome.ok);
-    let _ = app.emit(
-        "portcove://operation",
+    emit_operation(
+        &app,
         operation.finished(if success {
             OperationResult::Succeeded
         } else {
@@ -379,13 +460,13 @@ async fn reconcile_installed(
         .collect::<Vec<_>>();
     let total = installed.len() as u64;
     let operation = OperationCoordinator::new("reconcile_installed", None);
-    let _ = app.emit("portcove://operation", operation.started());
+    emit_operation(&app, operation.started());
     let mut outcomes = Vec::with_capacity(installed.len());
     for (index, status) in installed.into_iter().enumerate() {
         let port_id = status.port_id;
         let result = service
             .reconcile(&port_id, |event| {
-                let _ = app.emit("portcove://operation", event);
+                emit_operation(&app, event);
             })
             .await;
         outcomes.push(match result {
@@ -402,13 +483,13 @@ async fn reconcile_installed(
                 error: Some(error.into()),
             },
         });
-        let _ = app.emit(
-            "portcove://operation",
+        emit_operation(
+            &app,
             operation.progress("Applying update policies", index as u64 + 1, Some(total)),
         );
     }
-    let _ = app.emit(
-        "portcove://operation",
+    emit_operation(
+        &app,
         operation.finished(if outcomes.iter().all(|outcome| outcome.ok) {
             OperationResult::Succeeded
         } else {
@@ -445,14 +526,45 @@ fn preview_source_removal(
 
 #[tauri::command]
 async fn remove_source(
+    app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,
     profile_id: String,
-    confirmation_token: String,
-) -> DesktopResult<SourceRemovalPreview> {
+    preview_sha256: String,
+) -> DesktopResult<Option<SourceRemovalPreview>> {
+    let preview = service(&state)?.preview_source_removal(&profile_id)?;
+    if preview.preview_sha256 != preview_sha256 {
+        return Err(PortcoveError::conflict(
+            "the source or its installed dependents changed after the removal preview",
+        )
+        .into());
+    }
+    let impact = if preview.installed_dependent_port_ids.is_empty() {
+        "No installed port currently depends on it.".to_owned()
+    } else {
+        format!(
+            "Installed ports will lose this source dependency: {}.",
+            preview.installed_dependent_port_ids.join(", ")
+        )
+    };
+    if !confirm_destructive(
+        &app,
+        "Confirm source removal",
+        format!(
+            "Remove registered source {}?\n\n{} The source file itself will not be deleted.",
+            profile_id, impact
+        ),
+        "Remove source reference",
+    )
+    .await
+    {
+        return Ok(None);
+    }
     let state = state.inner().clone();
     blocking_service(state, move |service| {
+        let authorization = service.authorize_source_removal(&profile_id, &preview_sha256)?;
         service
-            .remove_source(&profile_id, &confirmation_token)
+            .remove_source(&profile_id, &authorization.token)
+            .map(Some)
             .map_err(Into::into)
     })
     .await
@@ -505,7 +617,7 @@ async fn install_port(
             input.bios.as_deref(),
             !input.stage,
             |event: OperationEvent| {
-                let _ = app.emit("portcove://operation", event);
+                emit_operation(&app, event);
             },
         )
         .await
@@ -529,7 +641,7 @@ async fn update_port(
             bios.as_deref(),
             !stage,
             |event: OperationEvent| {
-                let _ = app.emit("portcove://operation", event);
+                emit_operation(&app, event);
             },
         )
         .await
@@ -589,25 +701,76 @@ async fn preview_adoption(
 
 #[tauri::command]
 async fn adopt_port(
+    app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,
     path: PathBuf,
     port_id: Option<String>,
-) -> DesktopResult<InstallRecord> {
+    plan_sha256: String,
+) -> DesktopResult<Option<InstallRecord>> {
+    let preview = service(&state)?.preview_adoption(&path, port_id.as_deref())?;
+    if preview.plan_sha256 != plan_sha256 {
+        return Err(PortcoveError::conflict(
+            "adoption contents changed after preview; review the copy plan again",
+        )
+        .into());
+    }
+    let skipped = preview.copy_plan.skipped_entries.len();
+    let message = format!(
+        "Copy {} files ({} bytes) into Portcove?\n\n{} skipped entr{} will remain only in the original folder. The original folder will not be modified.",
+        preview.copy_plan.files.len(),
+        preview.copy_plan.total_bytes,
+        skipped,
+        if skipped == 1 { "y" } else { "ies" },
+    );
+    if !confirm_destructive(&app, "Confirm adoption", message, "Copy into Portcove").await {
+        return Ok(None);
+    }
     let state = state.inner().clone();
     blocking_service(state, move |service| {
-        service.adopt(&path, port_id.as_deref()).map_err(Into::into)
+        let authorization = service.authorize_adoption(&path, port_id.as_deref(), &plan_sha256)?;
+        service
+            .adopt(&path, port_id.as_deref(), &authorization.token)
+            .map(Some)
+            .map_err(Into::into)
     })
     .await
 }
 
 #[tauri::command]
 async fn remove_port(
+    app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,
     port_id: String,
-) -> DesktopResult<Vec<PathBuf>> {
+) -> DesktopResult<Option<Vec<PathBuf>>> {
+    let preview = service(&state)?.preview_removal(&port_id)?;
+    let message = format!(
+        "Remove {} managed version director{} for {}?\n\nPersistent data at {} will be preserved.",
+        preview.managed_paths.len(),
+        if preview.managed_paths.len() == 1 {
+            "y"
+        } else {
+            "ies"
+        },
+        port_id,
+        preview.persistent_data_path.display(),
+    );
+    if !confirm_destructive(
+        &app,
+        "Confirm port removal",
+        message,
+        "Remove managed versions",
+    )
+    .await
+    {
+        return Ok(None);
+    }
     let state = state.inner().clone();
     blocking_service(state, move |service| {
-        service.remove(&port_id).map_err(Into::into)
+        let authorization = service.authorize_removal(&port_id, &preview.preview_sha256)?;
+        service
+            .remove(&port_id, &authorization.token)
+            .map(Some)
+            .map_err(Into::into)
     })
     .await
 }
@@ -917,6 +1080,26 @@ fn open_user_data(
     Ok(path)
 }
 
+#[tauri::command]
+async fn create_support_bundle(state: tauri::State<'_, DesktopState>) -> DesktopResult<PathBuf> {
+    let state = state.inner().clone();
+    blocking_service(state, |service| {
+        diagnostics::create_support_bundle(&service).map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+fn report_frontend_error(message: String, component_stack: String) -> DesktopResult<()> {
+    tracing::error!(
+        operation_id = "frontend-render",
+        %message,
+        %component_stack,
+        "frontend render failed"
+    );
+    Ok(())
+}
+
 fn open_directory(path: &std::path::Path) -> DesktopResult<()> {
     #[cfg(target_os = "windows")]
     let program = "explorer.exe";
@@ -961,7 +1144,15 @@ fn initialize_desktop_at(configured_root: Option<PathBuf>) -> DesktopResult<Read
 }
 
 pub fn run() {
-    let initialization = std::sync::Arc::new(initialize_desktop());
+    let initialization = std::sync::Arc::new(initialize_desktop().and_then(|state| {
+        diagnostics::initialize(&state.library.logs_dir()).map_err(DesktopError::from)?;
+        tracing::info!(
+            operation_id = "desktop-startup",
+            library_root = %state.library.root().display(),
+            "desktop diagnostics initialized"
+        );
+        Ok(state)
+    }));
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(DesktopState { initialization })
@@ -1002,6 +1193,8 @@ pub fn run() {
             launch_port,
             get_doctor_report,
             open_user_data,
+            create_support_bundle,
+            report_frontend_error,
         ])
         .setup(|app| {
             if let Some(window) = app.get_webview_window("main") {

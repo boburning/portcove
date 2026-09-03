@@ -64,6 +64,7 @@ const interfaceSchemas = new Map([
   ["source_verification", "SourceVerification"],
   ["activity", "ActivityRecord"],
   ["backup", "BackupRecord"],
+  ["adoption_preview", "AdoptionPreview"],
   ["restore_result", "RestoreResult"],
   ["storage", "StorageSummary"],
   ["doctor", "DoctorReport"],

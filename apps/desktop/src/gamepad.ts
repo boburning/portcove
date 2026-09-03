@@ -3,7 +3,12 @@ import { useEffect } from "react";
 export type NavigationDirection = "up" | "down" | "left" | "right";
 export interface FocusRect { left: number; top: number; width: number; height: number }
 
-const focusables = () => Array.from(document.querySelectorAll<HTMLElement>("[data-focusable]:not([disabled])"))
+const navigationScope = () => {
+  const dialogs = document.querySelectorAll<HTMLElement>("[role='dialog'][aria-modal='true']");
+  return dialogs.item(dialogs.length - 1) ?? document;
+};
+
+const focusables = () => Array.from(navigationScope().querySelectorAll<HTMLElement>("[data-focusable]:not([disabled])"))
   .filter(item => item.getClientRects().length > 0);
 
 export function pressedButtons(buttons: readonly GamepadButton[]) {

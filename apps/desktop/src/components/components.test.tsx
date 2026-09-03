@@ -6,6 +6,7 @@ import { BackupHistory } from "./BackupHistory";
 import { DetailPanel, type DetailActions } from "./DetailPanel";
 import { PortBrowser } from "./PortBrowser";
 import { UpdateCenter } from "./UpdateCenter";
+import { AdoptionModal } from "./AdoptionModal";
 
 const port: PortDefinition = {
   id: "sample", name: "Sample Port", summary: "A sample native port", project_url: "https://example.com",
@@ -24,6 +25,34 @@ const installRecord = (overrides: Partial<InstallRecord> = {}): InstallRecord =>
 });
 
 describe("desktop components", () => {
+  it("shows the reviewed adoption copy plan and skipped entries before copying", () => {
+    const html = renderToStaticMarkup(<AdoptionModal
+      path="D:/Existing"
+      setPath={vi.fn()}
+      close={vi.fn()}
+      review={vi.fn()}
+      adopt={vi.fn()}
+      preview={{
+        source: "D:/Existing",
+        detected_port_ids: ["sample"],
+        selected_port_id: "sample",
+        application_files_will_be_copied: true,
+        original_will_be_modified: false,
+        copy_plan: {
+          directories: ["data"],
+          files: [{ relative_path: "sample.exe", size: 2048, sha256: "a".repeat(64) }],
+          skipped_entries: [{ relative_path: "linked-save", reason: "symbolic links are not copied" }],
+          total_bytes: 2048,
+        },
+        plan_sha256: "b".repeat(64),
+      }}
+    />);
+    expect(html).toContain("1 file · 2.0 KiB");
+    expect(html).toContain("1 skipped entry");
+    expect(html).toContain("linked-save");
+    expect(html).toContain("Copy into Portcove");
+  });
+
   it("keeps older backups reachable without expanding the detail panel by default", () => {
     const backups = Array.from({ length: 4 }, (_, index) => ({
       id: `backup-${index}`, port_id: port.id, path: `backups/sample/${index}`,

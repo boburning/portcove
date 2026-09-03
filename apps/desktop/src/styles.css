@@ -1535,6 +1535,20 @@ select { width: 100%; padding: 11px; }
 }
 .modal-description { color: var(--color-text-muted); line-height: var(--leading-relaxed); }
 .inline-assurance { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-5); color: var(--color-success-text); font-size: var(--text-xs); }
+.adoption-plan {
+  max-height: 15rem;
+  overflow: auto;
+  margin: var(--space-4) 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-inset);
+}
+.adoption-plan p { margin: 0 0 var(--space-2); color: var(--color-text-secondary); }
+.adoption-plan p:last-child { margin-bottom: 0; }
+.adoption-plan summary { color: var(--color-warning-text); cursor: pointer; }
+.adoption-plan ul { padding-left: var(--space-5); }
+.adoption-plan code { overflow-wrap: anywhere; }
 
 .settings-grid {
   display: grid;

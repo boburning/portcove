@@ -199,6 +199,34 @@ export interface RestoreResult {
   safety_backup?: BackupRecord;
 }
 
+export interface AdoptionCopyFile {
+  relative_path: string;
+  size: number;
+  sha256: string;
+}
+
+export interface AdoptionSkippedEntry {
+  relative_path: string;
+  reason: string;
+}
+
+export interface AdoptionCopyPlan {
+  directories: string[];
+  files: AdoptionCopyFile[];
+  skipped_entries: AdoptionSkippedEntry[];
+  total_bytes: number;
+}
+
+export interface AdoptionPreview {
+  source: string;
+  detected_port_ids: string[];
+  selected_port_id?: string;
+  application_files_will_be_copied: boolean;
+  original_will_be_modified: boolean;
+  copy_plan: AdoptionCopyPlan;
+  plan_sha256: string;
+}
+
 export interface SourceRecord {
   profile_id: string;
   path: string;
@@ -211,7 +239,7 @@ export interface SourceRecord {
 
 export interface SourceRemovalPreview {
   source: SourceRecord;
-  confirmation_token: string;
+  preview_sha256: string;
   dependent_port_ids: string[];
   installed_dependent_port_ids: string[];
 }
