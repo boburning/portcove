@@ -123,6 +123,106 @@
       "sha256": "946b048af22e7d1c1fd0e6c537190a949a55b5bb0a7f36c86a2d36fe9aeea849"
     },
     {
+      "id": "mascot-v2-model-front",
+      "path": "apps/desktop/assets/brand/generated/v2/model/portcove-mascot-v2-model-front.png",
+      "category": "model_turnaround_render",
+      "role": "Transparent front render of the editable Mascot V2 geometry",
+      "width": 1254,
+      "height": 1254,
+      "color_mode": "RGBA",
+      "sha256": "6057e2272678c24e17ad23a1a866ca70bb82a300f8578ee60986290224568a01"
+    },
+    {
+      "id": "mascot-v2-model-front-left-three-quarter",
+      "path": "apps/desktop/assets/brand/generated/v2/model/portcove-mascot-v2-model-front-left-three-quarter.png",
+      "category": "model_turnaround_render",
+      "role": "Transparent front-left three-quarter render of the editable Mascot V2 geometry",
+      "width": 1254,
+      "height": 1254,
+      "color_mode": "RGBA",
+      "sha256": "34ff9ee6e826016a51a397d3ff91b28f18caa6b5c6b6b5fc2af80ae3c95fbf13"
+    },
+    {
+      "id": "mascot-v2-model-front-right-three-quarter",
+      "path": "apps/desktop/assets/brand/generated/v2/model/portcove-mascot-v2-model-front-right-three-quarter.png",
+      "category": "model_turnaround_render",
+      "role": "Transparent front-right three-quarter render of the editable Mascot V2 geometry",
+      "width": 1254,
+      "height": 1254,
+      "color_mode": "RGBA",
+      "sha256": "a689bc8f5cee07f676698176af1c2b1e737ab23f3626da613c839d913920580e"
+    },
+    {
+      "id": "mascot-v2-model-left-side",
+      "path": "apps/desktop/assets/brand/generated/v2/model/portcove-mascot-v2-model-left-side.png",
+      "category": "model_turnaround_render",
+      "role": "Transparent strict left-side render of the editable Mascot V2 geometry",
+      "width": 1254,
+      "height": 1254,
+      "color_mode": "RGBA",
+      "sha256": "d9f6a850c03f3cdb984618040914849f59268dee89699bd3935522a96d88355a"
+    },
+    {
+      "id": "mascot-v2-model-back",
+      "path": "apps/desktop/assets/brand/generated/v2/model/portcove-mascot-v2-model-back.png",
+      "category": "model_turnaround_render",
+      "role": "Transparent strict back render of the editable Mascot V2 geometry",
+      "width": 1254,
+      "height": 1254,
+      "color_mode": "RGBA",
+      "sha256": "c67c1333f36f89ee34a027ce109bc7fdfe1198ef771e2048d7abc570bfa57d46"
+    },
+    {
+      "id": "mascot-v2-model-graphite-proof",
+      "path": "apps/desktop/assets/brand/generated/v2/model/proofs/portcove-mascot-v2-model-front-graphite-proof.png",
+      "category": "model_qa_proof",
+      "role": "Front model render composited on the approved graphite stage",
+      "width": 1254,
+      "height": 1254,
+      "color_mode": "RGB",
+      "sha256": "c02754128b3da3cc9a4b0da7540318ff9f88caba00b4c4b841f69b2f3f7292db"
+    },
+    {
+      "id": "mascot-v2-model-light-proof",
+      "path": "apps/desktop/assets/brand/generated/v2/model/proofs/portcove-mascot-v2-model-front-light-proof.png",
+      "category": "model_qa_proof",
+      "role": "Front model render composited on a warm-light stage",
+      "width": 1254,
+      "height": 1254,
+      "color_mode": "RGB",
+      "sha256": "fec5d3127b757f45ac6b4a5426828bc0eb4e71da25f66a9368ca0f43646017e7"
+    },
+    {
+      "id": "mascot-v2-model-512-proof",
+      "path": "apps/desktop/assets/brand/generated/v2/model/proofs/portcove-mascot-v2-model-front-512px-proof.png",
+      "category": "model_qa_proof",
+      "role": "Graphite-stage model legibility proof at 512 pixels",
+      "width": 512,
+      "height": 512,
+      "color_mode": "RGB",
+      "sha256": "46758015b90899ae31820876c66e97eeff9676d58ed86ea8cc1f6c3c1511cf93"
+    },
+    {
+      "id": "mascot-v2-model-256-proof",
+      "path": "apps/desktop/assets/brand/generated/v2/model/proofs/portcove-mascot-v2-model-front-256px-proof.png",
+      "category": "model_qa_proof",
+      "role": "Graphite-stage model legibility proof at 256 pixels",
+      "width": 256,
+      "height": 256,
+      "color_mode": "RGB",
+      "sha256": "659a34a8c67c25e42a1868864f5dc6898ec29a5a2333f7f2e9468f0eb9fae9f7"
+    },
+    {
+      "id": "mascot-v2-model-128-proof",
+      "path": "apps/desktop/assets/brand/generated/v2/model/proofs/portcove-mascot-v2-model-front-128px-proof.png",
+      "category": "model_qa_proof",
+      "role": "Graphite-stage model legibility proof at 128 pixels",
+      "width": 128,
+      "height": 128,
+      "color_mode": "RGB",
+      "sha256": "06c3d585c13364827d3aafc76ab66ec1d04a7a86bc33130394d4dc792597fba0"
+    },
+    {
       "id": "runtime-mascot-head-256",
       "path": "apps/desktop/public/brand/icons/portcove-mascot-head-256.png",
       "category": "runtime_derivative",

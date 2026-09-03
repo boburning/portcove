@@ -6,12 +6,14 @@ import { fileURLToPath } from "node:url";
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(path.dirname(scriptPath), "..");
 const brandManifestRelativePath = "apps/desktop/assets/brand/manifest.json";
+const modelManifestRelativePath = "apps/desktop/assets/brand/models/v2/model-manifest.json";
 const semverPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 
 const requiredProjectFiles = [
   "LICENSE-MIT",
   "LICENSE-APACHE",
   brandManifestRelativePath,
+  modelManifestRelativePath,
   "apps/desktop/assets/brand/masters/portcove-logo-master.jpg",
   "apps/desktop/assets/brand/masters/portcove-mascot-master.jpg",
   "apps/desktop/assets/brand/generated/portcove-mascot-head-icon-master.png",
@@ -26,6 +28,11 @@ const requiredProjectFiles = [
   "apps/desktop/assets/brand/generated/v2/portcove-logo-v2-tight-transparent.png",
   "apps/desktop/assets/brand/generated/v2/portcove-logo-v2-monochrome-white.png",
   "apps/desktop/assets/brand/generated/v2/portcove-logo-v2-monochrome-graphite.png",
+  "apps/desktop/assets/brand/models/v2/build_portcove_mascot_v2.py",
+  "apps/desktop/assets/brand/models/v2/create_portcove_mascot_v2_proofs.py",
+  "apps/desktop/assets/brand/models/v2/portcove-mascot-v2.blend",
+  "apps/desktop/assets/brand/models/v2/portcove-mascot-v2.glb",
+  "apps/desktop/assets/brand/models/v2/validate_portcove_mascot_v2.py",
   "apps/desktop/public/brand/icons/portcove-mascot-head-256.png",
   "apps/desktop/public/brand/logo/portcove-logo-v2-transparent.png",
   "apps/desktop/public/brand/mascot/portcove-mascot-v2-front.png",
@@ -164,6 +171,108 @@ async function collectBrandManifest(root) {
   return { assetCount: manifest.assets.length, errors: errors.sort() };
 }
 
+const requiredModelFileIds = new Set([
+  "mascot-v2-blender-source",
+  "mascot-v2-glb-exchange",
+  "mascot-v2-model-builder",
+  "mascot-v2-model-validator",
+  "mascot-v2-proof-builder",
+]);
+
+export function validateModelManifestDefinition(manifest) {
+  const errors = [];
+  if (manifest?.schema_version !== 1) errors.push("model manifest schema_version must be 1");
+  if (manifest?.brand_version !== 2) errors.push("model manifest brand_version must be 2");
+  if (manifest?.model_version !== 1) errors.push("model manifest model_version must be 1");
+  if (!manifest?.blender_version) errors.push("model manifest must name its Blender version");
+  const geometry = manifest?.geometry ?? {};
+  for (const [name, expected] of Object.entries({
+    eyes: 2,
+    claws: 2,
+    walking_legs: 4,
+    side_spikes: 4,
+    fixed_cameras: 5,
+    lid_hinges: 2,
+  })) {
+    if (geometry[name] !== expected) errors.push(`model manifest geometry ${name} must be ${expected}`);
+  }
+  if (!Number.isInteger(geometry.triangles) || geometry.triangles <= 0 || geometry.triangles >= 5000) {
+    errors.push("model manifest must record a positive low-poly triangle count below 5000");
+  }
+  const requiredMaterials = [
+    "MAT_SignatureRed",
+    "MAT_CobaltBlue",
+    "MAT_GoldenYellow",
+    "MAT_EmeraldGreen",
+    "MAT_WarmWhite",
+    "MAT_Graphite",
+  ];
+  if (JSON.stringify(manifest?.materials) !== JSON.stringify(requiredMaterials)) {
+    errors.push("model manifest canonical material set drifted");
+  }
+  if (!Array.isArray(manifest?.files) || manifest.files.length === 0) {
+    errors.push("model manifest files must be a non-empty array");
+    return errors;
+  }
+  const ids = new Set();
+  const paths = new Set();
+  for (const [index, file] of manifest.files.entries()) {
+    const label = file?.id || `entry ${index + 1}`;
+    if (!file?.id || ids.has(file.id)) errors.push(`model manifest has missing or duplicate id: ${label}`);
+    if (file?.id) ids.add(file.id);
+    const filePath = file?.path;
+    const normalizedPath = typeof filePath === "string" ? path.posix.normalize(filePath) : "";
+    const extension = path.posix.extname(normalizedPath);
+    const validPath = normalizedPath.startsWith("apps/desktop/assets/brand/models/v2/")
+      && [".blend", ".glb", ".py"].includes(extension);
+    if (!filePath || filePath !== normalizedPath || path.posix.isAbsolute(normalizedPath)
+        || normalizedPath.includes("..") || !validPath) {
+      errors.push(`model manifest ${label} has an invalid model path`);
+    } else if (paths.has(filePath)) {
+      errors.push(`model manifest has duplicate path: ${filePath}`);
+    } else {
+      paths.add(filePath);
+    }
+    if (!file?.role) errors.push(`model manifest ${label} must name a role`);
+    if (!Number.isInteger(file?.bytes) || file.bytes <= 0) {
+      errors.push(`model manifest ${label} must record a positive byte size`);
+    }
+    if (!/^[0-9a-f]{64}$/.test(file?.sha256 ?? "")) {
+      errors.push(`model manifest ${label} must have a lowercase SHA-256`);
+    }
+  }
+  for (const requiredId of requiredModelFileIds) {
+    if (!ids.has(requiredId)) errors.push(`model manifest is missing required file id: ${requiredId}`);
+  }
+  return errors;
+}
+
+async function collectModelManifest(root) {
+  let manifest;
+  try {
+    manifest = JSON.parse(await readFile(path.join(root, modelManifestRelativePath), "utf8"));
+  } catch (error) {
+    return { fileCount: 0, errors: [`model manifest could not be read: ${error.message}`] };
+  }
+  const errors = validateModelManifestDefinition(manifest);
+  if (errors.length) return { fileCount: manifest.files?.length ?? 0, errors };
+  await Promise.all(manifest.files.map(async file => {
+    try {
+      const buffer = await readFile(path.join(root, ...file.path.split("/")));
+      const hash = createHash("sha256").update(buffer).digest("hex");
+      if (hash !== file.sha256) {
+        errors.push(`model file ${file.id} SHA-256 ${hash} does not match manifest ${file.sha256}`);
+      }
+      if (buffer.length !== file.bytes) {
+        errors.push(`model file ${file.id} byte size ${buffer.length} does not match manifest ${file.bytes}`);
+      }
+    } catch (error) {
+      errors.push(`model file ${file.id} could not be read: ${error.message}`);
+    }
+  }));
+  return { fileCount: manifest.files.length, errors: errors.sort() };
+}
+
 const versionRules = [
   ({ cargo }) => semverPattern.test(cargo.version ?? "")
     ? undefined
@@ -225,6 +334,7 @@ export function validateReleaseMetadata(metadata, options = {}) {
     ...present(metadataRules.map(rule => rule(metadata))),
     ...(metadata.missingFiles ?? []).map(missingPath => `required release file is missing: ${missingPath}`),
     ...(metadata.brandManifestErrors ?? []),
+    ...(metadata.modelManifestErrors ?? []),
   ];
 }
 
@@ -232,11 +342,12 @@ async function collectReleaseMetadata(root = projectRoot) {
   const cargoPath = path.join(root, "Cargo.toml");
   const desktopPackagePath = path.join(root, "apps", "desktop", "package.json");
   const tauriPath = path.join(root, "apps", "desktop", "src-tauri", "tauri.conf.json");
-  const [cargoToml, desktopPackageText, tauriText, brandManifest] = await Promise.all([
+  const [cargoToml, desktopPackageText, tauriText, brandManifest, modelManifest] = await Promise.all([
     readFile(cargoPath, "utf8"),
     readFile(desktopPackagePath, "utf8"),
     readFile(tauriPath, "utf8"),
     collectBrandManifest(root),
+    collectModelManifest(root),
   ]);
   const missingFiles = [];
   await Promise.all(requiredProjectFiles.map(async relativePath => {
@@ -253,6 +364,8 @@ async function collectReleaseMetadata(root = projectRoot) {
     missingFiles: missingFiles.sort(),
     brandAssetCount: brandManifest.assetCount,
     brandManifestErrors: brandManifest.errors,
+    modelFileCount: modelManifest.fileCount,
+    modelManifestErrors: modelManifest.errors,
   };
 }
 
@@ -298,7 +411,7 @@ async function main() {
     return;
   }
   const tagSuffix = options.tag ? ` for ${options.tag}` : "";
-  console.log(`Release metadata check passed: Portcove ${metadata.cargo.version}${tagSuffix}; ${requiredProjectFiles.length} required files present; ${metadata.brandAssetCount} brand assets verified.`);
+  console.log(`Release metadata check passed: Portcove ${metadata.cargo.version}${tagSuffix}; ${requiredProjectFiles.length} required files present; ${metadata.brandAssetCount} brand assets and ${metadata.modelFileCount} model files verified.`);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {

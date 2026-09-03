@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "brand_version": 2,
+  "model_version": 1,
+  "blender_version": "5.2.1 LTS",
+  "geometry": {
+    "objects": 57,
+    "meshes": 46,
+    "triangles": 1564,
+    "eyes": 2,
+    "claws": 2,
+    "walking_legs": 4,
+    "side_spikes": 4,
+    "fixed_cameras": 5,
+    "lid_hinges": 2
+  },
+  "materials": [
+    "MAT_SignatureRed",
+    "MAT_CobaltBlue",
+    "MAT_GoldenYellow",
+    "MAT_EmeraldGreen",
+    "MAT_WarmWhite",
+    "MAT_Graphite"
+  ],
+  "files": [
+    {
+      "id": "mascot-v2-blender-source",
+      "path": "apps/desktop/assets/brand/models/v2/portcove-mascot-v2.blend",
+      "role": "Editable canonical Mascot V2 geometry source",
+      "bytes": 132563,
+      "sha256": "9fe5ba626161392cdcec0fe646595229c46d537d7e8e73a00e0b15d84d574de4"
+    },
+    {
+      "id": "mascot-v2-glb-exchange",
+      "path": "apps/desktop/assets/brand/models/v2/portcove-mascot-v2.glb",
+      "role": "Portable Mascot V2 geometry and camera exchange asset",
+      "bytes": 162252,
+      "sha256": "334111132fb405ba494d57bdd001b9625eec9bfade1c43c9eba3a664df36d3ca"
+    },
+    {
+      "id": "mascot-v2-model-builder",
+      "path": "apps/desktop/assets/brand/models/v2/build_portcove_mascot_v2.py",
+      "role": "Reproducible Blender geometry and turnaround builder",
+      "bytes": 23025,
+      "sha256": "85ba79b578907b68f3297e1018664a4ae65a539d2a942096838b625ac6e040b8"
+    },
+    {
+      "id": "mascot-v2-model-validator",
+      "path": "apps/desktop/assets/brand/models/v2/validate_portcove_mascot_v2.py",
+      "role": "Blender and GLB structural validator",
+      "bytes": 7382,
+      "sha256": "3b1e2cf3847ccd20fdbc66bc320a0c9ab61151d964105fd3cea828b062c117f0"
+    },
+    {
+      "id": "mascot-v2-proof-builder",
+      "path": "apps/desktop/assets/brand/models/v2/create_portcove_mascot_v2_proofs.py",
+      "role": "Alpha, stage, and runtime-size proof builder",
+      "bytes": 4296,
+      "sha256": "92b8fdc29d6f71c4a22ce8ed9615eea196938970b514f99a795cfdae833a5d86"
+    }
+  ]
+}

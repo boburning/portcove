@@ -6,6 +6,7 @@ import {
   parseArguments,
   parseWorkspacePackage,
   validateBrandManifestDefinition,
+  validateModelManifestDefinition,
   validateReleaseMetadata,
 } from "./check-release-metadata.mjs";
 
@@ -67,6 +68,45 @@ function validBrandManifest() {
       color_mode: "RGBA",
       sha256: "a".repeat(64),
     }],
+  };
+}
+
+function validModelManifest() {
+  return {
+    schema_version: 1,
+    brand_version: 2,
+    model_version: 1,
+    blender_version: "5.2.1 LTS",
+    geometry: {
+      triangles: 1564,
+      eyes: 2,
+      claws: 2,
+      walking_legs: 4,
+      side_spikes: 4,
+      fixed_cameras: 5,
+      lid_hinges: 2,
+    },
+    materials: [
+      "MAT_SignatureRed",
+      "MAT_CobaltBlue",
+      "MAT_GoldenYellow",
+      "MAT_EmeraldGreen",
+      "MAT_WarmWhite",
+      "MAT_Graphite",
+    ],
+    files: [
+      ["mascot-v2-blender-source", "source.blend"],
+      ["mascot-v2-glb-exchange", "exchange.glb"],
+      ["mascot-v2-model-builder", "build.py"],
+      ["mascot-v2-model-validator", "validate.py"],
+      ["mascot-v2-proof-builder", "proofs.py"],
+    ].map(([id, name]) => ({
+      id,
+      path: `apps/desktop/assets/brand/models/v2/${name}`,
+      role: "Model file",
+      bytes: 1,
+      sha256: "a".repeat(64),
+    })),
   };
 }
 
@@ -146,10 +186,28 @@ test("rejects ambiguous or unsafe brand manifest entries", () => {
   assert.match(errors.join("\n"), /invalid PNG path/);
 });
 
+test("locks model anatomy, materials, and repository-contained files", () => {
+  assert.deepEqual(validateModelManifestDefinition(validModelManifest()), []);
+  const manifest = validModelManifest();
+  manifest.geometry.walking_legs = 6;
+  manifest.files[0].path = "../outside.blend";
+  manifest.files.pop();
+  const errors = validateModelManifestDefinition(manifest);
+  assert.match(errors.join("\n"), /walking_legs must be 4/);
+  assert.match(errors.join("\n"), /invalid model path/);
+  assert.match(errors.join("\n"), /missing required file id/);
+});
+
 test("reports brand asset integrity failures with release metadata", () => {
   const metadata = validMetadata();
   metadata.brandManifestErrors = ["brand asset logo-v2 SHA-256 does not match manifest"];
   assert.match(validateReleaseMetadata(metadata).join("\n"), /brand asset logo-v2 SHA-256/);
+});
+
+test("reports model integrity failures with release metadata", () => {
+  const metadata = validMetadata();
+  metadata.modelManifestErrors = ["model file mascot-v2-glb-exchange SHA-256 does not match manifest"];
+  assert.match(validateReleaseMetadata(metadata).join("\n"), /model file mascot-v2-glb-exchange SHA-256/);
 });
 
 test("parses inline and positional release options", () => {
