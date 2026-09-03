@@ -1,0 +1,68 @@
+name: New port / upstream candidate
+description: Capture a native port, decompilation, or recompilation for roadmap triage.
+title: "[Port] "
+projects:
+  - boburning/1
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Check the Portcove Roadmap first. Very early candidates can be captured
+        faster with `node scripts/roadmap.mjs capture-port`.
+  - type: input
+    id: upstream
+    attributes:
+      label: Direct upstream URL
+      description: Link to the maintainer-owned project or release authority.
+      placeholder: https://github.com/owner/project
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: User outcome and why this port matters
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Initial platform observation
+      multiple: true
+      options:
+        - Windows
+        - Linux
+        - Steam Deck
+        - macOS Intel
+        - macOS Apple Silicon
+        - Unknown
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Source contract observations
+      description: Required lawful game data, exact revisions/hashes, setup interface, and what is still unknown.
+  - type: textarea
+    id: integrity
+    attributes:
+      label: Release and artifact integrity
+      description: Release URL, runnable assets, published SHA-256/digest/sidecar, and channel stability.
+  - type: textarea
+    id: persistence
+    attributes:
+      label: Executable, persistence, and adapter observations
+      description: Entrypoint, setup, saves/config/mods, portable-root support, and reusable adapter fit.
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Current evidence and exact resume condition
+      description: Distinguish verified facts from assumptions and state what would make the candidate actionable.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety acknowledgement
+      options:
+        - label: I did not attach copyrighted game data, credentials, or signing secrets.
+          required: true

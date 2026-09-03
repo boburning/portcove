@@ -1,0 +1,69 @@
+name: Bug report
+description: Report reproducible incorrect, unsafe, or degraded Portcove behavior.
+title: "[Bug] "
+projects:
+  - boburning/1
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: User impact
+      description: What task failed, became unsafe, or produced a misleading result?
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Portcove version or commit
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Windows
+        - Linux
+        - Steam Deck
+        - macOS Intel
+        - macOS Apple Silicon
+        - Multiple platforms
+        - Not applicable
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs, screenshots, and diagnostic evidence
+      description: Remove credentials and private local source paths before posting.
+  - type: textarea
+    id: safety
+    attributes:
+      label: Data, trust, or recovery impact
+      description: Note source, install, save, backup, rollback, credential, or executable-trust implications.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria and regression tests
+    validations:
+      required: true

@@ -12,6 +12,24 @@ Preserve the existing safety invariants around source identity, checksums, archi
 
 Read `docs/ARCHITECTURE.md` before a structural or cross-layer change.
 
+## Planning and issue workflow
+
+GitHub Projects is the sole live authority for current work, priority, horizon,
+status, blockers, deferred work, target release, and the new-port pipeline.
+Before substantial work, read the linked issue, its dependencies, and its live
+Portcove Roadmap fields. If no durable issue exists for actionable work, create
+or promote one using the workflow in `docs/PROJECT-GOVERNANCE.md`.
+
+Move active work to In progress and evidence-ready work to Validating. Link the
+pull request to the issue and update Project state as implementation changes.
+Do not mark work Done until its acceptance criteria have matching test, CI, and
+required human or physical-platform evidence.
+
+Do not create or maintain TODO documents, JSON work ledgers, mutable status
+files, milestone mirrors, or another planning authority. Repository docs own
+stable contracts and dated release snapshots; `catalog.json` owns actual port
+support and qualification evidence.
+
 ### Architecture evolution
 
 This is the current tested design, not a permanent crate map. Early development may expose a better boundary, a host concern that should remain in an adapter, or a domain that deserves its own focused crate. Change the contract deliberately when implementation evidence supports it.

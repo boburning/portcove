@@ -1,0 +1,63 @@
+name: Qualification / manual validation
+description: Plan and record exact automated or hands-on platform and port evidence.
+title: "[Qualification] "
+projects:
+  - boburning/1
+body:
+  - type: input
+    id: subject
+    attributes:
+      label: Port, platform, installer, or workflow under test
+    validations:
+      required: true
+  - type: input
+    id: artifact
+    attributes:
+      label: Exact version, commit, or artifact identity
+      description: Include SHA-256 when validating a build or installer.
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Windows
+        - Linux
+        - Steam Deck
+        - macOS Intel
+        - macOS Apple Silicon
+        - Multi-platform
+    validations:
+      required: true
+  - type: textarea
+    id: setup
+    attributes:
+      label: Test setup and prerequisites
+      description: Source identity, isolated library, controller/hardware, packaging route, and starting state.
+    validations:
+      required: true
+  - type: textarea
+    id: automated
+    attributes:
+      label: Automated evidence
+      description: Exact commands, results, and links. Do not present these as human observations.
+  - type: textarea
+    id: manual
+    attributes:
+      label: Required human observations
+      description: Gameplay, graphics, audio, physical controls, save/load, installer UI, signing prompts, or device behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: State which catalog or release claim this evidence may support.
+    validations:
+      required: true
+  - type: textarea
+    id: results
+    attributes:
+      label: Results, limitations, and completion evidence
+      description: Fill before closure; retain failures and unassessed observations explicitly.

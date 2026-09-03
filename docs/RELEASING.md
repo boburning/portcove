@@ -48,6 +48,24 @@ node scripts/qualification-report.mjs --cli <portcove.exe> --library <qualificat
 
 The report captures versioned core diagnostics, catalog, sources, status, activity, capacity, and backup listings, plus the exact CLI hash. Its checklist leaves gameplay, audio, controller, and save/load observations unassessed. Keep these local reports private because source references contain local paths; they never contain source file contents or account credentials. The tool does not edit catalog qualification flags.
 
+## Roadmap readiness snapshot
+
+Before publishing a tagged release, review the live Portcove Roadmap view for
+the target stage, its open blockers and deferred items, and the catalog's actual
+qualification state. Then generate a new immutable snapshot under
+`docs/releases/`:
+
+```powershell
+node scripts/roadmap.mjs snapshot --release "Alpha 1" --output docs/releases/0.1.0-alpha.1-readiness.md
+```
+
+Review and complete its test, CI, rehearsal, signing, human-validation, and
+explicit-limitation sections before committing it. The file records generation
+time, commit, Project URL, completed and unfinished required items, blockers,
+conscious deferrals, evidence links, and a qualification summary derived from
+`catalog.json`. Never edit an older snapshot to reflect a priority change;
+generate a new dated/versioned snapshot. The live Project remains authoritative.
+
 ## Tagged build
 
 Pushing `v*` starts `.github/workflows/release.yml`. Its preflight job repeats the identity, dependency, test, Fallow, and upstream gates before the Windows, Linux x64, Intel macOS, and Apple-silicon macOS matrix can build. Matrix jobs have read-only repository permission and retain their separate CLI archive, native desktop bundles, and platform SHA-256 manifest as workflow artifacts. Only after every matrix job succeeds does one `publish` job receive `contents: write`, download all four artifacts, verify every declared hash and filename, reject missing or duplicate platform output, and create or reconcile one draft release. It refuses to change a published release. GitHub generates categorized notes from merged pull requests using `.github/release.yml`; tags containing a SemVer prerelease suffix are marked as prereleases automatically. Tauri updater metadata remains disabled until Portcove has an explicit signed desktop self-update contract.
@@ -63,15 +81,16 @@ gh workflow run release.yml --ref main
 gh run list --workflow release.yml --event workflow_dispatch --limit 1
 ```
 
-The rehearsal proves that the current commit can produce packages on hosted builders. It does not replace signing, installation, gameplay, controller, or other hands-on validation tracked in `docs/DEFERRED.md`.
+The rehearsal proves that the current commit can produce packages on hosted builders. It does not replace signing, installation, gameplay, controller, or other hands-on validation tracked in the live Portcove Roadmap.
 
 Before publishing the draft:
 
 1. confirm the aggregate `SHA256SUMS.txt` and four platform manifests cover every CLI archive and desktop bundle;
-2. compare the release notes with `docs/DEFERRED.md` so manual or signing work is not overstated;
-3. keep unsigned artifacts clearly identified until `PCV-DEF-009` is resolved;
-4. perform the target-shell and hands-on checks appropriate to the release; and
-5. publish only after the draft contents, version, and channel are correct.
+2. review and commit the generated readiness snapshot for the exact target;
+3. compare release notes with live Blocked & Deferred items so manual or signing work is not overstated;
+4. keep unsigned artifacts clearly identified until the signing issue has matching completion evidence;
+5. perform the target-shell and hands-on checks appropriate to the release; and
+6. publish only after the draft contents, version, channel, snapshot, and Project readiness are correct.
 
 Creating a tag does not authorize weakening catalog integrity, embedding game data, or marking deferred gameplay and operating-system observations as complete.
 

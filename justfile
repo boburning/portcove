@@ -60,8 +60,22 @@ release-tools:
     {{storage}} node scripts/quality-tools.mjs --validate
     {{storage}} node scripts/repository-settings.mjs --validate
 
+# Offline roadmap schema and governance checks. Live Project access is explicit.
+roadmap-check:
+    {{storage}} node --test scripts/roadmap.test.mjs
+    {{storage}} node scripts/roadmap.mjs check
+
+roadmap-doctor:
+    node scripts/roadmap.mjs doctor
+
+roadmap-next:
+    node scripts/roadmap.mjs next
+
+roadmap-bootstrap:
+    node scripts/roadmap.mjs bootstrap
+
 # Standard repository check
-check: check-rust check-ui release-tools
+check: check-rust check-ui release-tools roadmap-check
 
 # Deeper deterministic and structural audit
 deny:
