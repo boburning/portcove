@@ -164,13 +164,6 @@ Researched but not cataloged:
 - Already implemented: the Tauri 2 Windows production build emits an NSIS installer, the release workflow emits native desktop bundles plus separate CLI archives, and every platform job uploads a SHA-256 manifest covering both artifact families. On 2026-09-01 the current 61-port Windows bundle passed an automated isolated silent install, reached a responsive named `Portcove` window, exited cleanly, silently uninstalled, removed its HKCU uninstall registration and managed application files, and preserved its expected `NotSigned` status. The revised branded installer passed that isolated install, responsive-window, clean-exit, and uninstall lifecycle again after the compact crab silhouette, icon, and package-metadata integration. `scripts/test-windows-installer.ps1` makes that lifecycle repeatable. Local packaging now refreshes `outputs/SHA256SUMS.txt`, which is the authority for the current local artifact hashes, instead of leaving stale values in prose. The finalized compact crab portrait has also been visually checked at 32, 128, and 256 pixels, and Tauri regenerates the complete Windows, macOS, Linux, iOS, and Android icon set from its preserved production master.
 - Remaining boundary: choose certificate custody and CI secret handling, sign release artifacts, qualify in-place upgrade, then observe interactive installer choices, SmartScreen/Gatekeeper behavior, shortcuts/PATH integration, icon appearance in the Windows taskbar/Start menu and supported macOS/Linux shells, and clean uninstall on each target operating system. Do not represent image-level icon inspection or the current unsigned automated Windows smoke test as signed production installer and OS-shell validation.
 
-## PCV-DEF-010 — Remove the disposable Continue visual-QA library
-
-- Status: `ready`
-- Path: `work/gui-continue-qa-2a9ee9ef667546a48a41503bce52b4c9` (ignored by Git).
-- Purpose: an isolated copy of the qualification SQLite metadata used to render the Continue card with one synthetic successful-launch row. It contains no copied versions, source files, saves, or toolchains; the real `E:\Portcove-V1-Qualification` library was not modified.
-- Blocker: the current runtime policy rejected the verified, workspace-scoped recursive cleanup command. Remove this directory when filesystem cleanup is available; it is not an implementation or validation blocker.
-
 ## PCV-DEF-011 — Validate the shared activity, update-awareness, and source-readiness GUI
 
 - Status: `waiting`
