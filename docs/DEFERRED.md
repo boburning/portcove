@@ -9,22 +9,7 @@ Statuses:
 - `later`: deliberately outside the current functionality-first slice.
 - `optional-tooling`: an advisory capability is unavailable on one host but required release gates still run.
 
-## PCV-DEF-001 — Register the public GitHub App
-
-- Status: `waiting`
-- Needs: an authenticated GitHub browser session for the `boburning` account.
-- Purpose: enable the existing optional GitHub device-login flow without embedding a secret.
-- Already implemented: anonymous access, environment-token access, secure credential storage, CLI and GUI authentication controls, device-flow polling, rate-limit reporting, and conditional-request caching.
-- Current evidence: `PORTCOVE_GITHUB_TOKEN` was validated against GitHub as `boburning` with the authenticated 5,000-request allowance; device login itself is not yet end-to-end validated.
-
-Resume checklist:
-
-1. Sign in to GitHub as `boburning` and open the new GitHub App form.
-2. Create a public app named `Portcove` with homepage `https://github.com/boburning`, device flow enabled, webhook disabled, and no added repository or organization permissions. Public repository metadata uses GitHub's implicit public access.
-3. Do not generate or embed a client secret or private key for the desktop app.
-4. Record the public client ID through the build/runtime `PORTCOVE_GITHUB_CLIENT_ID` setting. Do not commit any token or secret.
-5. Validate `portcove auth login`, GUI sign-in, restart persistence in the operating-system credential store, and logout.
-6. Rebuild release artifacts with the public client ID and record their hashes.
+Completed campaign items, including `PCV-DEF-001` public GitHub App registration and live CLI/GUI device login, have evidence in [DEFERRED-CAMPAIGN.md](DEFERRED-CAMPAIGN.md).
 
 ## PCV-DEF-002 — Decide and deploy an optional update relay
 
@@ -87,10 +72,10 @@ The embedded catalog's `automated_tested_platforms` and `manually_validated_plat
 ## PCV-DEF-004 — Validate the new GitHub settings experience
 
 - Status: `waiting`
-- Needs: completion of `PCV-DEF-001` and a person at the Windows desktop.
+- Needs: a person at the Windows desktop for the remaining edge-case observations. Public App registration and live device login are complete.
 - Purpose: verify the newly added Settings card, device code presentation, browser handoff, connected-account state, rate-limit display, restart persistence, error recovery, and logout with real GitHub responses.
 - Automated component and backend tests already pass; that is not a substitute for this interaction check.
-- Live 2026-09-03 evidence: the user confirms Settings displays the connected account/rate limit and, after the native browser bridge fix, "opening links also works." The full GUI logout, device-code sign-in, restart, and error-recovery sequence remains to be recorded.
+- Live 2026-09-03 evidence: the user confirms Settings displays the connected account/rate limit, "opening links also works," and "Logging out and back in worked." A fresh CLI process afterward confirms the saved OS credential authenticates as `boburning`. Remaining: GUI restart presentation and a readable error/recovery observation for an interrupted, denied, or expired device flow.
 
 ## PCV-DEF-005 — Controller-navigation polish
 
