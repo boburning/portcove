@@ -4238,7 +4238,7 @@ fn main() {
         let library = Library::open(temporary.path().join("library")).unwrap();
         let install = library.versions_dir().join("opengoal-jak1").join("v1");
         fs::create_dir_all(&install).unwrap();
-        fs::write(install.join("gk.exe"), b"test").unwrap();
+        write_host_test_executable(&install, "opengoal-jak1");
         register_existing_test_install(&library, "opengoal-jak1", "v1", &install, true);
         let service = PortcoveService::new(library.clone()).unwrap();
 
@@ -4558,7 +4558,7 @@ fn main() {
         let library = Library::open(temporary.path().join("library")).unwrap();
         let install = library.versions_dir().join("lighthouse/v1");
         fs::create_dir_all(&install).unwrap();
-        fs::write(install.join("Lighthouse.exe"), b"test").unwrap();
+        write_host_test_executable(&install, "lighthouse");
         register_existing_test_install(&library, "lighthouse", "v1", &install, true);
         let invalid = temporary.path().join("not-a-rom.txt");
         fs::write(&invalid, b"not a ROM").unwrap();
@@ -4896,6 +4896,8 @@ fn main() {
             thread::sleep(Duration::from_millis(10));
         }
         assert!(started.is_file());
+        let child_pid = child.id();
+        let reaper = thread::spawn(move || child.wait().unwrap());
         let activity = library
             .begin_activity(
                 ActivityOperation::Launch,
@@ -4911,7 +4913,7 @@ fn main() {
                 install_id: launched.id.clone(),
                 install_root: launched.path.clone(),
                 supervisor_pid: u32::MAX,
-                child_pid: Some(child.id()),
+                child_pid: Some(child_pid),
                 phase: LaunchSessionPhase::Running,
                 started_at: now,
                 updated_at: now,
@@ -4922,7 +4924,7 @@ fn main() {
         assert!(library.try_lock_port("zelda64-recomp", "update").is_err());
 
         service.recover_launch_session(&activity.id).unwrap();
-        child.wait().unwrap();
+        reaper.join().unwrap();
 
         assert!(library.launch_sessions().unwrap().is_empty());
         assert_eq!(
