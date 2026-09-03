@@ -86,6 +86,7 @@ impl Library {
         root: PathBuf,
         lease: std::sync::Arc<crate::library_access::LibraryLease>,
     ) -> Result<Self> {
+        let root = std::path::absolute(root)?;
         let library = Self {
             root,
             authorizations: AuthorizationStore::default(),
@@ -1236,6 +1237,26 @@ impl Library {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn relative_library_roots_store_absolute_managed_paths() {
+        let temporary = tempfile::tempdir_in(std::env::current_dir().unwrap()).unwrap();
+        let relative = temporary.path().file_name().unwrap();
+        let library = Library::open(relative).unwrap();
+
+        assert_eq!(library.root(), temporary.path());
+        assert!(library.versions_dir().is_absolute());
+        assert!(library.user_dir("lighthouse").is_absolute());
+        assert!(
+            library
+                .storage_summary()
+                .unwrap()
+                .library_root
+                .is_absolute()
+        );
+        let reopened = Library::open(temporary.path()).unwrap();
+        assert_eq!(reopened.root(), library.root());
+    }
 
     #[cfg(unix)]
     #[test]

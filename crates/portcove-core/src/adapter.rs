@@ -58,6 +58,8 @@ impl Adapter for StandardAdapter {
 
     fn validate_source(&self, profile: &SourceProfile, path: &Path) -> Result<SourceRecord> {
         crate::path::unicode(path, "source")?;
+        let absolute = std::path::absolute(path)?;
+        let path = absolute.as_path();
         if profile.kind == SourceKind::FileSet {
             return validate_file_set_source(profile, path);
         }
@@ -1899,8 +1901,9 @@ mod tests {
 
     #[test]
     fn source_validation_supports_upstream_sha1_allowlists() {
-        let temporary = tempfile::tempdir().unwrap();
+        let temporary = tempfile::tempdir_in(std::env::current_dir().unwrap()).unwrap();
         let source = temporary.path().join("game.z64");
+        let relative = Path::new(temporary.path().file_name().unwrap()).join("game.z64");
         std::fs::write(&source, b"source").unwrap();
         let mut profile = SourceProfile {
             id: "sha1-test".into(),
@@ -1913,10 +1916,11 @@ mod tests {
             members: Vec::new(),
         };
 
-        AdapterRegistry
+        let validated = AdapterRegistry
             .get(AdapterKind::N64RecompPortable)
-            .validate_source(&profile, &source)
+            .validate_source(&profile, &relative)
             .unwrap();
+        assert_eq!(validated.path, source);
 
         profile.accepted_sha1 = vec!["0".repeat(40)];
         let error = AdapterRegistry

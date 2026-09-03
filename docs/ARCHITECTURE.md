@@ -26,6 +26,8 @@ In this document, “thin adapter” means that the CLI and desktop do not reimp
 
 ## Library model
 
+Core resolves newly opened library roots and validated source references to absolute paths before they produce durable records. Relative CLI arguments therefore do not tie a new installation or source to that process's working directory. Existing ambiguous relative records are not guessed or silently rebased; they require qualification from their original base and explicit reinstallation or source relinking.
+
 The default application-data directory contains:
 
 ```text
