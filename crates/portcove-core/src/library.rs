@@ -128,6 +128,17 @@ impl Library {
         self.authorizations
             .consume(token, action, target, fingerprint)
     }
+    pub(crate) fn consume_authorization_with_state(
+        &self,
+        token: &str,
+        action: &str,
+        target: &str,
+        current_fingerprint: impl FnOnce() -> Result<String>,
+    ) -> Result<()> {
+        self.authorizations
+            .consume_with_state(token, action, target, current_fingerprint)
+    }
+
     pub fn storage_summary(&self) -> Result<StorageSummary> {
         Ok(StorageSummary {
             library_root: self.root.clone(),

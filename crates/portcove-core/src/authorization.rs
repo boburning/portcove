@@ -83,6 +83,16 @@ impl AuthorizationStore {
         target: &str,
         fingerprint: &str,
     ) -> Result<()> {
+        self.consume_with_state(token, action, target, || Ok(fingerprint.to_owned()))
+    }
+
+    pub fn consume_with_state(
+        &self,
+        token: &str,
+        action: &str,
+        target: &str,
+        current_fingerprint: impl FnOnce() -> Result<String>,
+    ) -> Result<()> {
         let grant = self
             .grants
             .lock()
@@ -103,7 +113,7 @@ impl AuthorizationStore {
                 "destructive authorization does not match this operation",
             ));
         }
-        if grant.fingerprint != fingerprint {
+        if grant.fingerprint != current_fingerprint()? {
             return Err(PortcoveError::conflict(
                 "destructive operation state changed after authorization; review it again",
             ));
@@ -163,6 +173,42 @@ mod tests {
                 .unwrap_err()
                 .message
                 .contains("expired")
+        );
+        let authorization = store.issue("restore", "port-a", "state-a").unwrap();
+        let mut reviewed = false;
+        assert!(
+            store
+                .consume_with_state(&authorization.token, "restore", "port-a", || {
+                    reviewed = true;
+                    Ok("state-a".into())
+                })
+                .is_err()
+        );
+        assert!(
+            !reviewed,
+            "expired admission must not collect or hash live data"
+        );
+    }
+
+    #[test]
+    fn authorization_admits_once_before_expensive_state_validation() {
+        let store = AuthorizationStore::default();
+        let authorization = store.issue("restore", "port-a", "reviewed").unwrap();
+        let error = store
+            .consume_with_state(&authorization.token, "restore", "port-a", || {
+                assert!(
+                    store
+                        .consume(&authorization.token, "restore", "port-a", "reviewed")
+                        .is_err()
+                );
+                Ok("changed during review".into())
+            })
+            .unwrap_err();
+        assert!(error.message.contains("state changed"));
+        assert!(
+            store
+                .consume(&authorization.token, "restore", "port-a", "reviewed")
+                .is_err()
         );
     }
 }

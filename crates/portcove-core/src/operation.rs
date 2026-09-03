@@ -299,6 +299,7 @@ pub(crate) enum LifecycleFaultPoint {
     RemovalCleanup,
     RestorePrepared,
     RestorePublished,
+    RestoreVersionSynchronized,
     ActivationMetadataCommitted,
 }
 

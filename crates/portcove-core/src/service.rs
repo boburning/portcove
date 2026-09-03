@@ -395,7 +395,7 @@ impl PortcoveService {
         store: &OperationStore,
         operation: &mut LifecycleOperation,
     ) -> Result<()> {
-        crate::recovery::recover_restore(store, operation)
+        crate::recovery::recover_restore(self, store, operation)
     }
 
     fn recover_activation(
@@ -739,14 +739,17 @@ impl PortcoveService {
         let result = (|| {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "restore-backup")?;
-            self.collect_active_user_data_if_launched(port_id)?;
-            let locked_preview =
-                self.preview_backup_action(port_id, backup_id, BackupAction::Restore)?;
-            self.library.consume_authorization(
+            self.require_completed_restore(port_id)?;
+            self.library.consume_authorization_with_state(
                 authorization_token,
                 BackupAction::Restore.authorization_action(),
                 &backup_authorization_target(port_id, backup_id),
-                &locked_preview.preview_sha256,
+                || {
+                    self.collect_active_user_data_if_launched(port_id)?;
+                    Ok(self
+                        .preview_backup_action(port_id, backup_id, BackupAction::Restore)?
+                        .preview_sha256)
+                },
             )?;
             let restored_backup = self.load_backup(port_id, backup_id)?;
 
@@ -793,6 +796,7 @@ impl PortcoveService {
             lifecycle.phase = LifecyclePhase::PayloadPublished;
             store.put(&mut lifecycle)?;
             self.faults.check(LifecycleFaultPoint::RestorePublished)?;
+            self.synchronize_restored_user_data(port_id)?;
             lifecycle.phase = LifecyclePhase::MetadataCommitted;
             store.put(&mut lifecycle)?;
             if previous_data.exists() {
@@ -2441,6 +2445,7 @@ impl PortcoveService {
         port_id: &str,
         source_override: Option<&Path>,
     ) -> Result<crate::LaunchSpec> {
+        self.require_completed_restore(port_id)?;
         let port = self.catalog.port(port_id)?;
         let active = self
             .status(port_id)?
@@ -2519,15 +2524,73 @@ impl PortcoveService {
         install_root: &Path,
     ) -> Result<Vec<PathBuf>> {
         let port = self.catalog.port(port_id)?;
+        let install_root = self.managed_install_root(port_id, install_root)?;
+        self.collect_user_data_from(port, &install_root)
+    }
+
+    fn managed_install_root(&self, port_id: &str, install_root: &Path) -> Result<PathBuf> {
         refuse_symlink_ancestors(install_root)?;
         let install_root = fs::canonicalize(install_root)?;
         let expected_parent = fs::canonicalize(self.library.versions_dir().join(port_id))?;
         if install_root.parent() != Some(expected_parent.as_path()) {
             return Err(PortcoveError::conflict(format!(
-                "launch install path is outside the managed {port_id} versions directory"
+                "install path is outside the managed {port_id} versions directory"
             )));
         }
-        self.collect_user_data_from(port, &install_root)
+        Ok(install_root)
+    }
+
+    fn require_completed_restore(&self, port_id: &str) -> Result<()> {
+        if OperationStore::new(self.library.clone())
+            .all()?
+            .iter()
+            .any(|operation| {
+                operation.port_id == port_id
+                    && operation.kind == LifecycleOperationKind::Restore
+                    && operation.phase != LifecyclePhase::Preparing
+            })
+        {
+            return Err(PortcoveError::conflict(format!(
+                "{port_id} has an unfinished backup restore; complete recovery before launch or save collection"
+            )));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn synchronize_restored_user_data(&self, port_id: &str) -> Result<()> {
+        let port = self.catalog.port(port_id)?;
+        let user_root = self.library.user_dir(port_id);
+        for path in self.library.port_install_paths(port_id)? {
+            refuse_symlink_ancestors(&path)?;
+            match fs::symlink_metadata(&path) {
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                result => {
+                    result?;
+                }
+            }
+            let install_root = self.managed_install_root(port_id, &path)?;
+            let persistent_root = self.persistence_root(port, &install_root)?;
+            for relative in &port.persistent_paths {
+                let source = user_root.join(relative);
+                let destination = persistent_root.join(relative);
+                refuse_symlink_ancestors(&source)?;
+                refuse_symlink_ancestors(&destination)?;
+                if source.exists() {
+                    sync_entry(&source, &destination)?;
+                } else if destination.exists() {
+                    remove_managed_entry(&destination)?;
+                }
+            }
+            let marker = install_root.join(LAUNCH_MARKER);
+            refuse_symlink_ancestors(&marker)?;
+            match fs::remove_file(&marker) {
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                result => result?,
+            }
+            self.faults
+                .check(LifecycleFaultPoint::RestoreVersionSynchronized)?;
+        }
+        Ok(())
     }
 
     fn collect_user_data_from(
@@ -2535,6 +2598,7 @@ impl PortcoveService {
         port: &PortDefinition,
         install_root: &Path,
     ) -> Result<Vec<PathBuf>> {
+        self.require_completed_restore(&port.id)?;
         let user_root = self.library.user_dir(&port.id);
         let persistent_root = self.persistence_root(port, install_root)?;
         let mut copied = Vec::new();
@@ -3635,6 +3699,7 @@ mod tests {
         for point in [
             LifecycleFaultPoint::RestorePrepared,
             LifecycleFaultPoint::RestorePublished,
+            LifecycleFaultPoint::RestoreVersionSynchronized,
         ] {
             let temporary = tempfile::tempdir().unwrap();
             let library = Library::open(temporary.path().join("library")).unwrap();
@@ -3643,7 +3708,7 @@ mod tests {
             fs::write(&user_file, b"wanted").unwrap();
             let original = service_with_release(library.clone(), "v2");
             let backup = original.create_backup("zelda64-recomp").unwrap();
-            fs::write(&user_file, b"changed").unwrap();
+            let versions = stale_restore_versions(&library, &original);
 
             let service = service_with_fault(library.clone(), point);
             let authorization = backup_authorization(
@@ -3656,10 +3721,25 @@ mod tests {
                 .restore_backup("zelda64-recomp", &backup.id, &authorization.token)
                 .unwrap_err();
             assert!(error.message.contains("injected lifecycle failure"));
+            assert_eq!(
+                service
+                    .collect_user_data("zelda64-recomp")
+                    .unwrap_err()
+                    .code,
+                crate::ErrorCode::Conflict
+            );
+            assert_eq!(
+                service
+                    .launch_spec("zelda64-recomp", None)
+                    .unwrap_err()
+                    .code,
+                crate::ErrorCode::Conflict
+            );
 
             let recovered = service_with_release(library, "v2");
             assert_eq!(fs::read(&user_file).unwrap(), b"wanted");
             assert!(recovered.repair_plan().unwrap().items.is_empty());
+            assert_restored_versions(&recovered, &versions);
         }
     }
 
@@ -3673,6 +3753,7 @@ mod tests {
         ] {
             let temporary = tempfile::tempdir().unwrap();
             let library = Library::open(temporary.path().join("library")).unwrap();
+            let service = service_with_release(library.clone(), "v2");
             let store = OperationStore::new(library.clone());
             let recovery_root = library.recovery_dir().join(format!(
                 "restore-{activate}-{staged_exists}-{user_exists}-{previous_exists}"
@@ -3704,7 +3785,7 @@ mod tests {
             operation.paths.quarantine = Some(previous);
             store.put(&mut operation).unwrap();
 
-            crate::recovery::recover_restore(&store, &mut operation).unwrap();
+            crate::recovery::recover_restore(&service, &store, &mut operation).unwrap();
 
             assert_eq!(fs::read(user_root.join("general.json")).unwrap(), b"wanted");
             assert!(!recovery_root.exists());
@@ -4166,6 +4247,99 @@ fn main() {
         let activity = &library.activities(1).unwrap()[0];
         assert_eq!(activity.operation, ActivityOperation::Restore);
         assert_eq!(activity.status, ActivityStatus::Succeeded);
+    }
+
+    fn stale_restore_versions(library: &Library, service: &PortcoveService) -> Vec<PathBuf> {
+        let versions = vec![
+            register_zelda_install(library, "v1", true),
+            register_zelda_install(library, "v2", true),
+            register_zelda_install(library, "v3", false),
+        ];
+        for path in &versions {
+            fs::write(path.join("general.json"), b"changed").unwrap();
+            fs::create_dir_all(path.join("mods")).unwrap();
+            fs::write(path.join("mods/after-backup.rtz"), b"new mod").unwrap();
+            fs::write(path.join(LAUNCH_MARKER), b"1").unwrap();
+        }
+        service.collect_user_data("zelda64-recomp").unwrap();
+        versions
+    }
+
+    fn assert_restored_versions(service: &PortcoveService, versions: &[PathBuf]) {
+        for path in versions {
+            assert_eq!(fs::read(path.join("general.json")).unwrap(), b"wanted");
+            assert!(!path.join("mods").exists());
+            assert!(!path.join(LAUNCH_MARKER).exists());
+        }
+        service.launch_spec("zelda64-recomp", None).unwrap();
+        service.rollback("zelda64-recomp").unwrap();
+        service.launch_spec("zelda64-recomp", None).unwrap();
+        service.activate_staged("zelda64-recomp").unwrap();
+        service.launch_spec("zelda64-recomp", None).unwrap();
+        service.collect_user_data("zelda64-recomp").unwrap();
+        let user_root = service.library.user_dir("zelda64-recomp");
+        assert_eq!(fs::read(user_root.join("general.json")).unwrap(), b"wanted");
+        assert!(!user_root.join("mods").exists());
+    }
+
+    #[test]
+    fn restore_remains_authoritative_after_launch_rollback_and_staged_activation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let user_root = library.user_dir("zelda64-recomp");
+        fs::create_dir_all(&user_root).unwrap();
+        fs::write(user_root.join("general.json"), b"wanted").unwrap();
+        let service = service_with_release(library.clone(), "v2");
+        let backup = service.create_backup("zelda64-recomp").unwrap();
+        let versions = stale_restore_versions(&library, &service);
+
+        let result = restore_authorized(&service, "zelda64-recomp", &backup.id).unwrap();
+
+        let safety = result.safety_backup.unwrap();
+        assert_eq!(
+            fs::read(safety.path.join("data/general.json")).unwrap(),
+            b"changed"
+        );
+        assert_eq!(
+            fs::read(safety.path.join("data/mods/after-backup.rtz")).unwrap(),
+            b"new mod"
+        );
+        assert_restored_versions(&service, &versions);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn restore_preserves_its_journal_when_a_retained_save_path_is_a_symlink() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let user_root = library.user_dir("zelda64-recomp");
+        fs::create_dir_all(&user_root).unwrap();
+        fs::write(user_root.join("general.json"), b"wanted").unwrap();
+        let service = service_with_release(library.clone(), "v2");
+        let backup = service.create_backup("zelda64-recomp").unwrap();
+        let versions = stale_restore_versions(&library, &service);
+        let outside = temporary.path().join("outside.json");
+        fs::write(&outside, b"untouched").unwrap();
+        let linked = versions[0].join("general.json");
+        fs::remove_file(&linked).unwrap();
+        std::os::unix::fs::symlink(&outside, &linked).unwrap();
+
+        let error = restore_authorized(&service, "zelda64-recomp", &backup.id).unwrap_err();
+
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert_eq!(fs::read(&outside).unwrap(), b"untouched");
+        assert_eq!(
+            service
+                .collect_user_data("zelda64-recomp")
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Conflict
+        );
+        assert!(!service.repair_plan().unwrap().items.is_empty());
+        fs::remove_file(linked).unwrap();
+        let recovered = service_with_release(library, "v2");
+        assert!(recovered.repair_plan().unwrap().items.is_empty());
+        assert_restored_versions(&recovered, &versions);
     }
 
     #[test]

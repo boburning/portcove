@@ -159,6 +159,7 @@ pub(crate) fn recover_removal(
 }
 
 pub(crate) fn recover_restore(
+    service: &PortcoveService,
     store: &OperationStore,
     operation: &mut LifecycleOperation,
 ) -> Result<()> {
@@ -209,6 +210,14 @@ pub(crate) fn recover_restore(
         operation.phase = LifecyclePhase::PayloadPublished;
         operation.last_error = None;
         store.put(operation)?;
+    }
+    if matches!(
+        operation.phase,
+        LifecyclePhase::PayloadPublished
+            | LifecyclePhase::MetadataCommitted
+            | LifecyclePhase::CleanupPending
+    ) {
+        service.synchronize_restored_user_data(&operation.port_id)?;
     }
     if operation.phase == LifecyclePhase::PayloadPublished {
         operation.phase = LifecyclePhase::MetadataCommitted;
