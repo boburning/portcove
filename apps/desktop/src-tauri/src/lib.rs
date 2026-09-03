@@ -1,4 +1,6 @@
+mod catalog;
 mod diagnostics;
+mod library_transfer;
 
 use std::{
     fs,
@@ -13,10 +15,10 @@ use portcove_core::{
     ActivityRecord, AdoptionPreview, BackupAction, BackupRecord, CatalogDocument,
     ChildProcessClass, ChildProcessPolicy, CompositeReleaseProvider, DoctorReport,
     GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, GithubReleaseProvider,
-    InstallPlan, InstallRecord, LaunchStdio, Library, OperationCoordinator, OperationEvent,
-    OperationResult, PortStatus, PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel,
-    ReleaseProvider, RestoreResult, SourceRecord, SourceRemovalPreview, SourceVerification,
-    UpdateCheck, UpdatePolicy, VerificationReport,
+    InstallPlan, InstallRecord, LaunchStdio, Library, LibraryMetadataFile, OperationCoordinator,
+    OperationEvent, OperationResult, PortStatus, PortcoveError, PortcoveService, ReconcileResult,
+    ReleaseChannel, ReleaseProvider, RestoreResult, SourceRecord, SourceRelinkPlan,
+    SourceRemovalPreview, SourceVerification, UpdateCheck, UpdatePolicy, VerificationReport,
 };
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
@@ -31,7 +33,7 @@ struct ReadyDesktopState {
 
 #[derive(Clone)]
 struct DesktopState {
-    initialization: std::sync::Arc<DesktopResult<ReadyDesktopState>>,
+    initialization: std::sync::Arc<std::sync::Mutex<DesktopResult<ReadyDesktopState>>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,8 +71,12 @@ impl From<PortcoveError> for DesktopError {
 
 type DesktopResult<T> = std::result::Result<T, DesktopError>;
 
-fn ready(state: &DesktopState) -> DesktopResult<&ReadyDesktopState> {
-    state.initialization.as_ref().as_ref().map_err(Clone::clone)
+fn ready(state: &DesktopState) -> DesktopResult<ReadyDesktopState> {
+    state
+        .initialization
+        .lock()
+        .map_err(|_| DesktopError::from(PortcoveError::state("desktop state lock was poisoned")))?
+        .clone()
 }
 
 fn service(state: &DesktopState) -> DesktopResult<PortcoveService> {
@@ -265,6 +271,19 @@ async fn get_activities(
 }
 
 #[tauri::command]
+async fn cancel_operation(
+    state: tauri::State<'_, DesktopState>,
+    operation_id: String,
+) -> DesktopResult<portcove_core::CancellationState> {
+    blocking_service(state.inner().clone(), move |service| {
+        service
+            .request_cancellation(&operation_id)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
 async fn get_backups(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
@@ -386,6 +405,37 @@ async fn verify_source(
     let state = state.inner().clone();
     blocking_service(state, move |service| {
         service.verify_source(&profile_id).map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn plan_source_relink(
+    state: tauri::State<'_, DesktopState>,
+    profile_id: String,
+    path: PathBuf,
+) -> DesktopResult<SourceRelinkPlan> {
+    let state = state.inner().clone();
+    blocking_service(state, move |service| {
+        service
+            .plan_source_relink(&profile_id, &path)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn relink_source(
+    state: tauri::State<'_, DesktopState>,
+    profile_id: String,
+    path: PathBuf,
+    preview_sha256: String,
+) -> DesktopResult<SourceRecord> {
+    let state = state.inner().clone();
+    blocking_service(state, move |service| {
+        service
+            .relink_source(&profile_id, &path, &preview_sha256)
+            .map_err(Into::into)
     })
     .await
 }
@@ -568,11 +618,34 @@ async fn add_source(
     state: tauri::State<'_, DesktopState>,
     profile_id: String,
     path: PathBuf,
+    expected_sha256: Option<String>,
 ) -> DesktopResult<SourceRecord> {
     let state = state.inner().clone();
     blocking_service(state, move |service| {
+        if let Some(digest) = expected_sha256 {
+            service
+                .register_source_with_digest(&profile_id, &path, &digest)
+                .map_err(Into::into)
+        } else {
+            service
+                .register_source(&profile_id, &path)
+                .map_err(Into::into)
+        }
+    })
+    .await
+}
+
+#[tauri::command]
+async fn discover_sources(
+    state: tauri::State<'_, DesktopState>,
+    request: portcove_core::SourceDiscoveryRequest,
+    on_event: tauri::ipc::Channel<OperationEvent>,
+) -> DesktopResult<portcove_core::SourceDiscoveryReport> {
+    blocking_service(state.inner().clone(), move |service| {
         service
-            .register_source(&profile_id, &path)
+            .discover_sources_with_progress(&request, |event| {
+                let _ = on_event.send(event);
+            })
             .map_err(Into::into)
     })
     .await
@@ -1189,10 +1262,49 @@ async fn open_user_data(
 }
 
 #[tauri::command]
+async fn open_external_url(
+    state: tauri::State<'_, DesktopState>,
+    url: String,
+) -> DesktopResult<()> {
+    let state = state.inner().clone();
+    blocking_service(state, move |service| {
+        validate_external_url(service.catalog().document(), &url)?;
+        open_host_target(std::ffi::OsStr::new(&url))
+    })
+    .await
+}
+
+fn validate_external_url(catalog: &CatalogDocument, url: &str) -> DesktopResult<()> {
+    let known = matches!(
+        url,
+        "https://github.com/boburning/portcove" | "https://github.com/login/device"
+    ) || catalog.ports.iter().any(|port| port.project_url == url);
+    if !url.starts_with("https://") || !known {
+        return Err(PortcoveError::usage(
+            "only reviewed project and GitHub sign-in links may be opened",
+        )
+        .into());
+    }
+    Ok(())
+}
+
+#[tauri::command]
 async fn create_support_bundle(state: tauri::State<'_, DesktopState>) -> DesktopResult<PathBuf> {
     let state = state.inner().clone();
     blocking_service(state, |service| {
         diagnostics::create_support_bundle(&service).map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn export_library_metadata(
+    state: tauri::State<'_, DesktopState>,
+    path: PathBuf,
+) -> DesktopResult<LibraryMetadataFile> {
+    let state = state.inner().clone();
+    blocking_service(state, move |service| {
+        service.write_library_metadata(&path).map_err(Into::into)
     })
     .await
 }
@@ -1209,6 +1321,10 @@ fn report_frontend_error(message: String, component_stack: String) -> DesktopRes
 }
 
 fn open_directory(path: &std::path::Path) -> DesktopResult<()> {
+    open_host_target(path.as_os_str())
+}
+
+fn open_host_target(target: &std::ffi::OsStr) -> DesktopResult<()> {
     #[cfg(target_os = "windows")]
     let program = "explorer.exe";
     #[cfg(target_os = "macos")]
@@ -1216,12 +1332,12 @@ fn open_directory(path: &std::path::Path) -> DesktopResult<()> {
     #[cfg(target_os = "linux")]
     let program = "xdg-open";
     ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, program)?
-        .arg(path)
+        .arg(target)
         .spawn()
         .map_err(|error| {
             PortcoveError::state(format!(
-                "could not open persistent data folder {}: {error}",
-                path.display()
+                "could not open {} with the system application: {error}",
+                target.to_string_lossy()
             ))
         })?;
     Ok(())
@@ -1252,15 +1368,17 @@ fn initialize_desktop_at(configured_root: Option<PathBuf>) -> DesktopResult<Read
 }
 
 pub fn run() {
-    let initialization = std::sync::Arc::new(initialize_desktop().and_then(|state| {
-        diagnostics::initialize(&state.library.logs_dir()).map_err(DesktopError::from)?;
-        tracing::info!(
-            operation_id = "desktop-startup",
-            library_root = %state.library.root().display(),
-            "desktop diagnostics initialized"
-        );
-        Ok(state)
-    }));
+    let initialization = std::sync::Arc::new(std::sync::Mutex::new(initialize_desktop().and_then(
+        |state| {
+            diagnostics::initialize(&state.library.logs_dir()).map_err(DesktopError::from)?;
+            tracing::info!(
+                operation_id = "desktop-startup",
+                library_root = %state.library.root().display(),
+                "desktop diagnostics initialized"
+            );
+            Ok(state)
+        },
+    )));
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(DesktopState { initialization })
@@ -1273,19 +1391,31 @@ pub fn run() {
             begin_github_device_login,
             poll_github_device_login,
             get_catalog,
+            catalog::get_catalog_status,
+            catalog::trust_catalog_key,
+            catalog::revoke_catalog_key,
+            catalog::plan_catalog_update,
+            catalog::apply_catalog_update,
+            catalog::rollback_catalog,
+            catalog::use_embedded_catalog,
+            catalog::use_cached_catalog,
             get_statuses,
             get_sources,
             get_activities,
+            cancel_operation,
             get_backups,
             create_backup,
             restore_backup,
             delete_backup,
             verify_source,
+            plan_source_relink,
+            relink_source,
             verify_sources,
             check_port,
             check_installed,
             reconcile_installed,
             add_source,
+            discover_sources,
             preview_source_removal,
             remove_source,
             set_channel,
@@ -1301,7 +1431,15 @@ pub fn run() {
             launch_port,
             get_doctor_report,
             open_user_data,
+            open_external_url,
             create_support_bundle,
+            export_library_metadata,
+            library_transfer::plan_library_move,
+            library_transfer::plan_library_import,
+            library_transfer::import_library,
+            library_transfer::recover_library_import,
+            library_transfer::move_library,
+            library_transfer::recover_library_move,
             report_frontend_error,
         ])
         .setup(|app| {
@@ -1319,6 +1457,30 @@ mod tests {
     use super::*;
 
     #[test]
+    fn external_links_are_limited_to_reviewed_https_destinations() {
+        let catalog = portcove_core::Catalog::embedded().unwrap();
+        for url in [
+            "https://github.com/boburning/portcove",
+            "https://github.com/login/device",
+            &catalog.document().ports[0].project_url,
+        ] {
+            validate_external_url(catalog.document(), url).unwrap();
+        }
+        for url in [
+            "file:///C:/Windows",
+            "javascript:alert(1)",
+            "https://example.com",
+            "https://github.com/login/device?redirect=elsewhere",
+            "https://github.com/boburning/portcove.evil",
+        ] {
+            assert!(
+                validate_external_url(catalog.document(), url).is_err(),
+                "{url}"
+            );
+        }
+    }
+
+    #[test]
     fn invalid_library_initialization_becomes_a_recoverable_desktop_state() {
         let temporary = tempfile::tempdir().unwrap();
         let blocked = temporary.path().join("not-a-directory");
@@ -1328,7 +1490,7 @@ mod tests {
             Err(error) => error,
         };
         let state = DesktopState {
-            initialization: std::sync::Arc::new(Err(error.clone())),
+            initialization: std::sync::Arc::new(std::sync::Mutex::new(Err(error.clone()))),
         };
 
         let status = bootstrap_status(&state);

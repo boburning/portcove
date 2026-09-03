@@ -153,6 +153,7 @@ pub enum RuntimeSourceMaterialization {
     PsxBinCue,
     PsxRawSet,
     Ps2Iso,
+    StfsDirectory,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
@@ -265,6 +266,12 @@ pub struct ReleaseSpec {
     pub direct: BTreeMap<Platform, DirectReleaseSpec>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct PersistentFilePattern {
+    pub prefix: String,
+    pub suffix: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PortDefinition {
     pub id: String,
@@ -281,6 +288,8 @@ pub struct PortDefinition {
     pub adapter: AdapterKind,
     pub release: ReleaseSpec,
     #[serde(default)]
+    pub bundled_runtime: BTreeMap<Platform, BundledRuntime>,
+    #[serde(default)]
     pub source_profile: Option<String>,
     #[serde(default)]
     pub bios_source_profile: Option<String>,
@@ -289,9 +298,17 @@ pub struct PortDefinition {
     #[serde(default)]
     pub persistent_paths: Vec<String>,
     #[serde(default)]
+    pub persistent_file_patterns: Vec<PersistentFilePattern>,
+    #[serde(default)]
+    pub runtime_mutable_paths: Vec<String>,
+    #[serde(default)]
     pub portable_marker: bool,
     #[serde(default)]
     pub source_environment: Option<String>,
+    #[serde(default)]
+    pub user_data_environment: Option<String>,
+    #[serde(default)]
+    pub launch_environment: BTreeMap<String, String>,
     #[serde(default)]
     pub launch_arguments: Vec<String>,
     #[serde(default)]
@@ -300,6 +317,8 @@ pub struct PortDefinition {
     pub runtime_source_filename: Option<String>,
     #[serde(default)]
     pub runtime_source_materialization: Option<RuntimeSourceMaterialization>,
+    #[serde(default)]
+    pub runtime_source_hashes: BTreeMap<String, String>,
     #[serde(default)]
     pub runtime_source_set: Vec<RuntimeSourceTarget>,
     #[serde(default)]
@@ -359,6 +378,30 @@ pub struct ArtifactIdentity {
     pub size: u64,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct BundledRuntime {
+    pub asset: ReleaseAsset,
+    pub archive_root: String,
+    pub target_directory: String,
+    pub executable: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RuntimeOrigin {
+    VerifiedDownload,
+    AdoptedTree,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct RuntimeIdentity {
+    pub origin: RuntimeOrigin,
+    pub artifact: ArtifactIdentity,
+    pub archive_root: String,
+    pub target_directory: String,
+    pub executable: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct InstallRecord {
     pub id: String,
@@ -371,6 +414,8 @@ pub struct InstallRecord {
     pub staged: bool,
     #[serde(default)]
     pub artifact: ArtifactIdentity,
+    #[serde(default)]
+    pub runtime: Option<RuntimeIdentity>,
     #[serde(default)]
     pub manifest_sha256: String,
     #[serde(default)]
@@ -433,6 +478,10 @@ impl FromStr for ActivityTargetKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ActivityOperation {
+    UpdateCatalog,
+    DiscoverSources,
+    ImportLibrary,
+    MoveLibrary,
     Launch,
     CheckUpdate,
     Backup,
@@ -454,6 +503,10 @@ pub enum ActivityOperation {
 impl std::fmt::Display for ActivityOperation {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str(match self {
+            Self::UpdateCatalog => "update_catalog",
+            Self::ImportLibrary => "import_library",
+            Self::DiscoverSources => "discover_sources",
+            Self::MoveLibrary => "move_library",
             Self::Launch => "launch",
             Self::CheckUpdate => "check_update",
             Self::Backup => "backup",
@@ -479,6 +532,10 @@ impl FromStr for ActivityOperation {
 
     fn from_str(value: &str) -> Result<Self> {
         match value {
+            "update_catalog" => Ok(Self::UpdateCatalog),
+            "import_library" => Ok(Self::ImportLibrary),
+            "discover_sources" => Ok(Self::DiscoverSources),
+            "move_library" => Ok(Self::MoveLibrary),
             "launch" => Ok(Self::Launch),
             "check_update" => Ok(Self::CheckUpdate),
             "backup" => Ok(Self::Backup),
@@ -577,6 +634,7 @@ pub enum ActivityStatus {
     Running,
     Succeeded,
     Failed,
+    Cancelled,
 }
 
 impl std::fmt::Display for ActivityStatus {
@@ -585,6 +643,7 @@ impl std::fmt::Display for ActivityStatus {
             Self::Running => "running",
             Self::Succeeded => "succeeded",
             Self::Failed => "failed",
+            Self::Cancelled => "cancelled",
         })
     }
 }
@@ -597,6 +656,7 @@ impl FromStr for ActivityStatus {
             "running" => Ok(Self::Running),
             "succeeded" => Ok(Self::Succeeded),
             "failed" => Ok(Self::Failed),
+            "cancelled" => Ok(Self::Cancelled),
             _ => Err(PortcoveError::state(format!(
                 "unknown activity status: {value}"
             ))),
@@ -614,6 +674,7 @@ pub struct ActivityRecord {
     pub message: Option<String>,
     pub started_at: i64,
     pub finished_at: Option<i64>,
+    pub cancellation: Option<crate::CancellationState>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -653,6 +714,7 @@ pub struct DoctorReport {
     pub platform: Platform,
     pub library: StorageSummary,
     pub catalog_port_count: usize,
+    pub catalog_provenance: crate::CatalogProvenance,
     pub installed_port_count: usize,
     pub registered_source_count: usize,
     pub host_tools: Vec<HostToolStatus>,
@@ -732,6 +794,8 @@ pub struct InstallPlan {
     pub channel: ReleaseChannel,
     pub platform: Platform,
     pub release: ResolvedRelease,
+    pub bundled_runtime: Option<BundledRuntime>,
+    pub download_bytes: u64,
     pub action: InstallPlanAction,
     pub source_requirements: Vec<InstallSourceRequirement>,
     pub storage: StorageSummary,
@@ -759,9 +823,10 @@ pub struct LaunchReadiness {
 pub enum LaunchBlocker {
     MissingSource,
     MissingBios,
+    MissingRuntime,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ReleaseAsset {
     pub name: String,
     pub url: String,
@@ -784,6 +849,10 @@ pub struct UpdateCheck {
     pub installed_version: Option<String>,
     #[serde(default)]
     pub installed_artifact: Option<ArtifactIdentity>,
+    #[serde(default)]
+    pub installed_runtime: Option<RuntimeIdentity>,
+    #[serde(default)]
+    pub required_runtime: Option<RuntimeIdentity>,
     pub update_available: bool,
     pub release: ResolvedRelease,
 }
@@ -823,6 +892,17 @@ pub struct OperationTarget {
 pub enum OperationResult {
     Succeeded,
     Failed,
+    Cancelled,
+}
+
+impl OperationResult {
+    pub fn from_result<T>(result: &crate::Result<T>) -> Self {
+        match result {
+            Ok(_) => Self::Succeeded,
+            Err(error) if error.code == crate::ErrorCode::Cancelled => Self::Cancelled,
+            Err(_) => Self::Failed,
+        }
+    }
 }
 
 /// Versioned best-effort progress envelope. Durable activity history remains
@@ -886,6 +966,7 @@ impl CapabilityDocument {
                 "status".into(),
                 "activity".into(),
                 "storage".into(),
+                "library".into(),
                 "doctor".into(),
                 "about".into(),
                 "plan".into(),

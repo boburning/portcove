@@ -243,6 +243,15 @@ impl GithubReleaseProvider {
             .map_err(|error| PortcoveError::network(error.to_string()))?;
         let status = response.status();
         let rate_limit = rate_limit_from_headers(response.headers());
+        if status == StatusCode::UNAUTHORIZED && authenticated {
+            return Ok(GithubAuthStatus {
+                source,
+                authenticated: false,
+                login: None,
+                rate_limit,
+                device_login_available: github_client_id().is_some(),
+            });
+        }
         if !status.is_success() {
             return Err(github_http_error(status, response.headers()));
         }
@@ -657,7 +666,12 @@ fn rate_limit_from_headers(headers: &header::HeaderMap) -> Option<GithubRateLimi
 }
 
 fn github_http_error(status: StatusCode, headers: &header::HeaderMap) -> PortcoveError {
-    let mut error = PortcoveError::network(format!("GitHub API returned {status}"));
+    let message = if status == StatusCode::UNAUTHORIZED {
+        "GitHub rejected the sign-in (401). Sign in again, replace the configured token, or log out to use GitHub anonymously.".to_owned()
+    } else {
+        format!("GitHub API returned {status}")
+    };
+    let mut error = PortcoveError::network(message);
     if let Some(limit) = rate_limit_from_headers(headers) {
         error
             .details
@@ -932,6 +946,65 @@ mod tests {
         sync::mpsc,
         thread,
     };
+
+    #[tokio::test]
+    async fn rejected_credentials_leave_sign_in_recovery_available_without_hiding_network_failures()
+    {
+        for (source, response_code) in [
+            (GithubAuthSource::CredentialStore, 401),
+            (GithubAuthSource::Environment, 401),
+            (GithubAuthSource::CredentialStore, 500),
+        ] {
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            let address = listener.local_addr().unwrap();
+            let server = thread::spawn(move || {
+                let (mut stream, _) = listener.accept().unwrap();
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(2)))
+                    .unwrap();
+                {
+                    use std::io::BufRead;
+                    let mut reader = std::io::BufReader::new(&mut stream);
+                    loop {
+                        let mut line = String::new();
+                        assert!(reader.read_line(&mut line).unwrap() > 0);
+                        if line == "\r\n" {
+                            break;
+                        }
+                    }
+                }
+                write!(stream, "HTTP/1.1 {response_code} Test\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
+            });
+            let provider =
+                GithubReleaseProvider::with_api_root(format!("http://{address}")).unwrap();
+            provider.set_credential(Some("rejected-test-token".into()), source);
+            let result = provider.auth_status().await;
+            server.join().unwrap();
+            if response_code == 401 {
+                let status = result.unwrap();
+                assert_eq!(status.source, source);
+                assert!(!status.authenticated);
+                assert!(status.login.is_none());
+                assert!(status.device_login_available);
+                assert!(
+                    !serde_json::to_string(&status)
+                        .unwrap()
+                        .contains("rejected-test-token")
+                );
+                assert_eq!(
+                    provider.active_token().as_deref(),
+                    Some("rejected-test-token")
+                );
+            } else {
+                assert!(result.is_err());
+            }
+        }
+        assert!(
+            github_http_error(StatusCode::UNAUTHORIZED, &header::HeaderMap::new())
+                .message
+                .contains("Sign in again")
+        );
+    }
 
     #[tokio::test]
     async fn device_login_polling_handles_pending_slowdown_expiry_and_cancellation() {

@@ -24,6 +24,7 @@ use crate::{
 pub struct Library {
     root: PathBuf,
     authorizations: AuthorizationStore,
+    _lease: std::sync::Arc<crate::library_access::LibraryLease>,
 }
 
 #[derive(Debug)]
@@ -57,11 +58,39 @@ pub(crate) struct HttpCacheEntry {
 
 impl Library {
     pub fn open(root: impl Into<PathBuf>) -> Result<Self> {
-        let root = root.into();
-        crate::path::unicode(&root, "library root")?;
+        let mut root = root.into();
+        for _ in 0..8 {
+            crate::path::unicode(&root, "library root")?;
+            let lease = std::sync::Arc::new(crate::library_access::LibraryLease::acquire(&root)?);
+            if let Some(destination) = crate::library_authority::open_target(&root)? {
+                root = destination;
+            } else {
+                return Self::initialize(root, lease);
+            }
+        }
+        Err(PortcoveError::state(
+            "library relocation chain is cyclic or too long",
+        ))
+    }
+
+    pub(crate) fn open_exclusive(root: &Path) -> Result<Self> {
+        crate::path::unicode(root, "library root")?;
+        let lease = std::sync::Arc::new(crate::library_access::LibraryLease::with_access(
+            root,
+            crate::library_access::LibraryAccess::Exclusive,
+        )?);
+        Self::initialize(root.to_path_buf(), lease)
+    }
+
+    pub(crate) fn initialize(
+        root: PathBuf,
+        lease: std::sync::Arc<crate::library_access::LibraryLease>,
+    ) -> Result<Self> {
+        let root = std::path::absolute(root)?;
         let library = Self {
             root,
             authorizations: AuthorizationStore::default(),
+            _lease: lease,
         };
         library.create_layout()?;
         library.migrate()?;
@@ -69,10 +98,14 @@ impl Library {
     }
 
     pub fn open_default() -> Result<Self> {
+        Self::open(Self::default_root()?)
+    }
+
+    pub fn default_root() -> Result<PathBuf> {
         let project = ProjectDirs::from("io.github", "Portcove", "Portcove").ok_or_else(|| {
             PortcoveError::state("could not determine the default Portcove data directory")
         })?;
-        Self::open(project.data_local_dir().join("library"))
+        Ok(project.data_local_dir().join("library"))
     }
 
     pub fn root(&self) -> &Path {
@@ -96,6 +129,17 @@ impl Library {
         self.authorizations
             .consume(token, action, target, fingerprint)
     }
+    pub(crate) fn consume_authorization_with_state(
+        &self,
+        token: &str,
+        action: &str,
+        target: &str,
+        current_fingerprint: impl FnOnce() -> Result<String>,
+    ) -> Result<()> {
+        self.authorizations
+            .consume_with_state(token, action, target, current_fingerprint)
+    }
+
     pub fn storage_summary(&self) -> Result<StorageSummary> {
         Ok(StorageSummary {
             library_root: self.root.clone(),
@@ -135,6 +179,22 @@ impl Library {
         self.lock_port(port_id, operation, None)
     }
 
+    pub(crate) fn try_lock_source(&self, profile_id: &str) -> Result<PortOperationGuard> {
+        let key = format!(
+            "source-{}",
+            hex::encode(Sha256::digest(profile_id.as_bytes()))
+        );
+        let file = self.acquire_lock(&key, profile_id, "change-source-reference")?;
+        Ok(PortOperationGuard { file })
+    }
+
+    pub(crate) fn try_lock_activity(&self, id: &str) -> Result<PortOperationGuard> {
+        let key = format!("activity-{}", hex::encode(Sha256::digest(id.as_bytes())));
+        Ok(PortOperationGuard {
+            file: self.acquire_lock(&key, id, "activity-owner")?,
+        })
+    }
+
     pub(crate) fn try_lock_port_for_launch_recovery(
         &self,
         port_id: &str,
@@ -150,23 +210,9 @@ impl Library {
         allowed_session_id: Option<&str>,
     ) -> Result<PortOperationGuard> {
         let key = hex::encode(Sha256::digest(port_id.as_bytes()));
-        let path = self.locks_dir().join(format!("{key}.lock"));
-        let mut file = OpenOptions::new()
-            .create(true)
-            .truncate(false)
-            .read(true)
-            .write(true)
-            .open(path)?;
-        if let Err(error) = file.try_lock_exclusive() {
-            if error.kind() == fs2::lock_contended_error().kind() {
-                return Err(PortcoveError::conflict(format!(
-                    "{port_id} is busy in another Portcove process"
-                ))
-                .detail("port_id", port_id)
-                .detail("operation", operation));
-            }
-            return Err(error.into());
-        }
+        let mut file = self
+            .acquire_lock(&key, port_id, operation)
+            .map_err(|error| error.detail("port_id", port_id))?;
         if let Some(session) = self.launch_session_for_port(port_id)?
             && Some(session.id.as_str()) != allowed_session_id
         {
@@ -193,6 +239,26 @@ impl Library {
         Ok(PortOperationGuard { file })
     }
 
+    fn acquire_lock(&self, key: &str, target: &str, operation: &str) -> Result<File> {
+        let file = OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .read(true)
+            .write(true)
+            .open(self.locks_dir().join(format!("{key}.lock")))?;
+        if let Err(error) = file.try_lock_exclusive() {
+            if error.kind() == fs2::lock_contended_error().kind() {
+                return Err(PortcoveError::conflict(format!(
+                    "{target} is busy in another Portcove process"
+                ))
+                .detail("resource_id", target)
+                .detail("operation", operation));
+            }
+            return Err(error.into());
+        }
+        Ok(file)
+    }
+
     fn create_layout(&self) -> Result<()> {
         for directory in [
             self.versions_dir(),
@@ -210,7 +276,7 @@ impl Library {
         Ok(())
     }
 
-    fn connection(&self) -> Result<Connection> {
+    pub(crate) fn connection(&self) -> Result<Connection> {
         database::connect(&self.root)
     }
 
@@ -224,8 +290,18 @@ impl Library {
         target_kind: ActivityTargetKind,
         target_id: Option<&str>,
     ) -> Result<ActivityRecord> {
+        self.begin_identified_activity(uuid::Uuid::new_v4(), operation, target_kind, target_id)
+    }
+
+    pub(crate) fn begin_identified_activity(
+        &self,
+        id: uuid::Uuid,
+        operation: ActivityOperation,
+        target_kind: ActivityTargetKind,
+        target_id: Option<&str>,
+    ) -> Result<ActivityRecord> {
         let activity = ActivityRecord {
-            id: uuid::Uuid::new_v4().to_string(),
+            id: id.to_string(),
             operation,
             target_kind,
             target_id: target_id.map(str::to_owned),
@@ -233,6 +309,7 @@ impl Library {
             message: None,
             started_at: Self::now(),
             finished_at: None,
+            cancellation: None,
         };
         self.connection()?.execute(
             "INSERT INTO activity_history(
@@ -256,15 +333,23 @@ impl Library {
         status: ActivityStatus,
         message: Option<&str>,
     ) -> Result<()> {
+        Self::finish_activity_on(&self.connection()?, id, status, message)
+    }
+
+    pub(crate) fn finish_activity_on(
+        connection: &Connection,
+        id: &str,
+        status: ActivityStatus,
+        message: Option<&str>,
+    ) -> Result<()> {
         if status == ActivityStatus::Running {
             return Err(PortcoveError::usage(
                 "an activity cannot be finished with running status",
             ));
         }
-        let connection = self.connection()?;
         let changed = connection.execute(
             "UPDATE activity_history
-             SET status=?2, message=?3, finished_at=?4
+             SET status=?2, message=?3, finished_at=?4, cancellation_phase=NULL, cancellation_owner=NULL
              WHERE id=?1 AND status='running'",
             params![id, status.to_string(), message, Self::now()],
         )?;
@@ -287,10 +372,31 @@ impl Library {
         Ok(())
     }
 
+    pub(crate) fn finish_activity_once(
+        &self,
+        id: &str,
+        status: ActivityStatus,
+        message: &str,
+    ) -> Result<()> {
+        let recorded: String = self.connection()?.query_row(
+            "SELECT status FROM activity_history WHERE id=?1",
+            [id],
+            |row| row.get(0),
+        )?;
+        if recorded == "running" {
+            self.finish_activity(id, status, Some(message))?;
+        } else if recorded != status.to_string() {
+            return Err(PortcoveError::conflict(
+                "activity has a conflicting terminal outcome",
+            ));
+        }
+        Ok(())
+    }
+
     pub fn activities(&self, limit: usize) -> Result<Vec<ActivityRecord>> {
         let connection = self.connection()?;
         let mut statement = connection.prepare(
-            "SELECT id, operation, target_kind, target_id, status, message, started_at, finished_at
+            "SELECT id, operation, target_kind, target_id, status, message, started_at, finished_at, cancellation_phase, cancel_requested
              FROM activity_history
              ORDER BY started_at DESC, rowid DESC
              LIMIT ?1",
@@ -305,11 +411,23 @@ impl Library {
                 row.get::<_, Option<String>>(5)?,
                 row.get::<_, i64>(6)?,
                 row.get::<_, Option<i64>>(7)?,
+                row.get::<_, Option<String>>(8)?,
+                row.get::<_, bool>(9)?,
             ))
         })?;
         rows.map(|row| {
-            let (id, operation, target_kind, target_id, status, message, started_at, finished_at) =
-                row?;
+            let (
+                id,
+                operation,
+                target_kind,
+                target_id,
+                status,
+                message,
+                started_at,
+                finished_at,
+                phase,
+                requested,
+            ) = row?;
             Ok(ActivityRecord {
                 id,
                 operation: operation.parse()?,
@@ -319,6 +437,7 @@ impl Library {
                 message,
                 started_at,
                 finished_at,
+                cancellation: crate::CancellationState::from_columns(phase, requested)?,
             })
         })
         .collect()
@@ -521,9 +640,13 @@ impl Library {
         Ok(())
     }
 
-    pub fn register_source(&self, source: &SourceRecord) -> Result<()> {
+    pub(crate) fn register_source(&self, source: &SourceRecord) -> Result<()> {
+        Self::write_source(&self.connection()?, source)
+    }
+
+    pub(crate) fn write_source(connection: &Connection, source: &SourceRecord) -> Result<()> {
         let path = crate::path::unicode(&source.path, "source")?;
-        self.connection()?.execute(
+        connection.execute(
             "INSERT INTO sources(profile_id, path, sha256, size, storage_sha256, storage_size, updated_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
              ON CONFLICT(profile_id) DO UPDATE SET path=excluded.path, sha256=excluded.sha256,
@@ -561,6 +684,10 @@ impl Library {
 
     pub fn sources(&self) -> Result<Vec<SourceRecord>> {
         let connection = self.connection()?;
+        Self::sources_from(&connection)
+    }
+
+    pub(crate) fn sources_from(connection: &Connection) -> Result<Vec<SourceRecord>> {
         let mut statement = connection.prepare(
             "SELECT profile_id, path, sha256, size, storage_sha256, storage_size, updated_at FROM sources ORDER BY profile_id",
         )?;
@@ -626,17 +753,19 @@ impl Library {
         Ok(())
     }
 
-    pub fn register_install(&self, install: &InstallRecord, activate: bool) -> Result<()> {
+    pub(crate) fn write_install(
+        connection: &Connection,
+        install: &InstallRecord,
+        staged: bool,
+    ) -> Result<()> {
         let path = crate::path::unicode(&install.path, "install")?;
         let selected_executable =
             crate::path::unicode(&install.selected_executable, "selected executable")?;
-        let mut connection = self.connection()?;
-        let transaction = connection.transaction()?;
-        transaction.execute(
+        connection.execute(
             "INSERT INTO installs(
                id, port_id, version, path, channel, installed_at, verified, staged,
-               artifact_name, artifact_sha256, artifact_size, manifest_sha256, selected_executable
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+               artifact_name, artifact_sha256, artifact_size, manifest_sha256, selected_executable, runtime_json
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
              ON CONFLICT(id) DO UPDATE SET
                port_id=excluded.port_id,
                version=excluded.version,
@@ -649,7 +778,8 @@ impl Library {
                artifact_sha256=excluded.artifact_sha256,
                artifact_size=excluded.artifact_size,
                manifest_sha256=excluded.manifest_sha256,
-               selected_executable=excluded.selected_executable",
+               selected_executable=excluded.selected_executable,
+               runtime_json=excluded.runtime_json",
             params![
                 install.id,
                 install.port_id,
@@ -658,14 +788,22 @@ impl Library {
                 install.channel.to_string(),
                 install.installed_at,
                 install.verified as i64,
-                (!activate) as i64,
+                staged as i64,
                 install.artifact.asset_name,
                 install.artifact.sha256,
                 install.artifact.size,
                 install.manifest_sha256,
                 selected_executable,
+                install.runtime.as_ref().map(serde_json::to_string).transpose()?,
             ],
         )?;
+        Ok(())
+    }
+
+    pub fn register_install(&self, install: &InstallRecord, activate: bool) -> Result<()> {
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction()?;
+        Self::write_install(&transaction, install, !activate)?;
         transaction.execute(
             "INSERT OR IGNORE INTO port_settings(port_id, channel, update_policy) VALUES (?1, ?2, 'notify')",
             params![install.port_id, install.channel.to_string()],
@@ -690,6 +828,38 @@ impl Library {
             )?;
         }
         transaction.commit()?;
+        Ok(())
+    }
+
+    pub(crate) fn update_install_manifest(&self, install: &InstallRecord) -> Result<()> {
+        let path = crate::path::unicode(&install.path, "install")?;
+        let selected_executable =
+            crate::path::unicode(&install.selected_executable, "selected executable")?;
+        let changed = self.connection()?.execute(
+            "UPDATE installs SET
+               verified=?1, manifest_sha256=?2, selected_executable=?3, runtime_json=?4
+             WHERE id=?5 AND port_id=?6 AND path=?7 AND artifact_sha256=?8",
+            params![
+                install.verified as i64,
+                install.manifest_sha256,
+                selected_executable,
+                install
+                    .runtime
+                    .as_ref()
+                    .map(serde_json::to_string)
+                    .transpose()?,
+                install.id,
+                install.port_id,
+                path,
+                install.artifact.sha256,
+            ],
+        )?;
+        if changed != 1 {
+            return Err(PortcoveError::conflict(
+                "install changed while its setup manifest was being committed",
+            )
+            .detail("install_id", &install.id));
+        }
         Ok(())
     }
 
@@ -733,7 +903,7 @@ impl Library {
             let mut statement = connection.prepare(
                 "SELECT id, port_id, version, path, channel, installed_at, verified, staged,
                         artifact_name, artifact_sha256, artifact_size, manifest_sha256,
-                        selected_executable
+                        selected_executable, runtime_json
                  FROM installs
                  ORDER BY installed_at DESC, rowid DESC",
             )?;
@@ -752,6 +922,7 @@ impl Library {
                     row.get::<_, u64>(10)?,
                     row.get::<_, String>(11)?,
                     row.get::<_, String>(12)?,
+                    row.get::<_, Option<String>>(13)?,
                 ))
             })?;
             let mut installs = HashMap::new();
@@ -771,6 +942,7 @@ impl Library {
                     artifact_size,
                     manifest_sha256,
                     selected_executable,
+                    runtime_json,
                 ) = row?;
                 let install = InstallRecord {
                     id: id.clone(),
@@ -788,6 +960,10 @@ impl Library {
                     },
                     manifest_sha256,
                     selected_executable: PathBuf::from(selected_executable),
+                    runtime: runtime_json
+                        .as_deref()
+                        .map(serde_json::from_str)
+                        .transpose()?,
                 };
                 if install.staged {
                     staged.entry(port_id).or_insert_with(|| id.clone());
@@ -882,7 +1058,7 @@ impl Library {
             .query_row(
                 "SELECT id, port_id, version, path, channel, installed_at, verified, staged,
                     artifact_name, artifact_sha256, artifact_size, manifest_sha256,
-                    selected_executable
+                    selected_executable, runtime_json
              FROM installs WHERE id=?1",
                 [id],
                 |row| {
@@ -900,6 +1076,7 @@ impl Library {
                         row.get::<_, u64>(10)?,
                         row.get::<_, String>(11)?,
                         row.get::<_, String>(12)?,
+                        row.get::<_, Option<String>>(13)?,
                     ))
                 },
             )
@@ -919,6 +1096,7 @@ impl Library {
                 artifact_size,
                 manifest_sha256,
                 selected_executable,
+                runtime_json,
             )| {
                 Ok(InstallRecord {
                     id,
@@ -936,6 +1114,10 @@ impl Library {
                     },
                     manifest_sha256,
                     selected_executable: PathBuf::from(selected_executable),
+                    runtime: runtime_json
+                        .as_deref()
+                        .map(serde_json::from_str)
+                        .transpose()?,
                 })
             },
         )
@@ -964,14 +1146,19 @@ impl Library {
         &self,
         port_id: &str,
         artifact_sha256: &str,
+        runtime: Option<&crate::RuntimeIdentity>,
     ) -> Result<Option<InstallRecord>> {
         let connection = self.connection()?;
         let id: Option<String> = connection
             .query_row(
                 "SELECT id FROM installs
-                 WHERE port_id=?1 AND lower(artifact_sha256)=lower(?2)
+                 WHERE port_id=?1 AND lower(artifact_sha256)=lower(?2) AND runtime_json IS ?3
                  ORDER BY installed_at DESC LIMIT 1",
-                params![port_id, artifact_sha256],
+                params![
+                    port_id,
+                    artifact_sha256,
+                    runtime.map(serde_json::to_string).transpose()?
+                ],
                 |row| row.get(0),
             )
             .optional()?;
@@ -980,6 +1167,10 @@ impl Library {
 
     pub(crate) fn all_installs(&self) -> Result<Vec<InstallRecord>> {
         let connection = self.connection()?;
+        Self::installs_from(&connection)
+    }
+
+    pub(crate) fn installs_from(connection: &Connection) -> Result<Vec<InstallRecord>> {
         let ids = {
             let mut statement = connection.prepare("SELECT id FROM installs ORDER BY rowid")?;
             let rows = statement.query_map([], |row| row.get::<_, String>(0))?;
@@ -987,7 +1178,7 @@ impl Library {
         };
         ids.iter()
             .map(|id| {
-                Self::install_by_id(&connection, Some(id))?.ok_or_else(|| {
+                Self::install_by_id(connection, Some(id))?.ok_or_else(|| {
                     PortcoveError::state(format!("install {id} disappeared while reading"))
                 })
             })
@@ -1079,6 +1270,26 @@ mod tests {
     use super::*;
     use tempfile::tempdir;
 
+    #[test]
+    fn relative_library_roots_store_absolute_managed_paths() {
+        let temporary = tempfile::tempdir_in(std::env::current_dir().unwrap()).unwrap();
+        let relative = temporary.path().file_name().unwrap();
+        let library = Library::open(relative).unwrap();
+
+        assert_eq!(library.root(), temporary.path());
+        assert!(library.versions_dir().is_absolute());
+        assert!(library.user_dir("lighthouse").is_absolute());
+        assert!(
+            library
+                .storage_summary()
+                .unwrap()
+                .library_root
+                .is_absolute()
+        );
+        let reopened = Library::open(temporary.path()).unwrap();
+        assert_eq!(reopened.root(), library.root());
+    }
+
     #[cfg(unix)]
     #[test]
     fn opening_a_non_unicode_library_root_is_rejected_without_side_effects() {
@@ -1124,6 +1335,7 @@ mod tests {
                         artifact: ArtifactIdentity::default(),
                         manifest_sha256: String::new(),
                         selected_executable: PathBuf::new(),
+                        runtime: None,
                     },
                     true,
                 )
@@ -1155,6 +1367,7 @@ mod tests {
                         artifact: ArtifactIdentity::default(),
                         manifest_sha256: String::new(),
                         selected_executable: PathBuf::new(),
+                        runtime: None,
                     },
                     activate,
                 )
@@ -1169,6 +1382,44 @@ mod tests {
         assert_eq!(status.active.unwrap().id, "second");
         assert_eq!(status.previous.unwrap().id, "first");
         assert!(status.staged.is_none());
+    }
+
+    #[test]
+    fn manifest_refresh_preserves_active_previous_and_staged_pointers() {
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let make_install = |id: &str, version: &str| InstallRecord {
+            id: id.into(),
+            port_id: "lighthouse".into(),
+            version: version.into(),
+            path: temporary.path().join(version),
+            channel: ReleaseChannel::Stable,
+            installed_at: Library::now(),
+            verified: true,
+            staged: false,
+            artifact: ArtifactIdentity::default(),
+            manifest_sha256: String::new(),
+            selected_executable: PathBuf::new(),
+            runtime: None,
+        };
+        let previous = make_install("previous", "1.0.0");
+        let mut active = make_install("active", "2.0.0");
+        let staged = make_install("staged", "3.0.0");
+        library.register_install(&previous, true).unwrap();
+        library.register_install(&active, true).unwrap();
+        library.register_install(&staged, false).unwrap();
+        active.manifest_sha256 = "a".repeat(64);
+        active.selected_executable = PathBuf::from("Lighthouse.exe");
+
+        library.update_install_manifest(&active).unwrap();
+
+        let status = library
+            .status("lighthouse", ReleaseChannel::Stable)
+            .unwrap();
+        assert_eq!(status.active.as_ref().unwrap().id, "active");
+        assert_eq!(status.active.unwrap().manifest_sha256, "a".repeat(64));
+        assert_eq!(status.previous.unwrap().id, "previous");
+        assert_eq!(status.staged.unwrap().id, "staged");
     }
 
     #[test]

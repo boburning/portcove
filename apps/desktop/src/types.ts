@@ -4,7 +4,7 @@ export type UpdatePolicy = "notify" | "stage" | "automatic";
 export type SupportTier = ReleaseChannel;
 export type UpstreamStatus = "active" | "retired" | "superseded" | "abandoned";
 export type AdapterKind = "libultraship-portable" | "n64-recomp-portable" | "staged-source-portable" | "referenced-disc" | "generated-cache" | "upstream-managed-setup" | "psx-recomp-managed";
-export type RuntimeSourceMaterialization = "n64-big-endian" | "copy" | "gamecube-iso" | "psx-bin-cue" | "psx-raw-set" | "ps2-iso";
+export type RuntimeSourceMaterialization = "n64-big-endian" | "copy" | "gamecube-iso" | "psx-bin-cue" | "psx-raw-set" | "ps2-iso" | "stfs-directory";
 export type SourceKind = "file" | "file-set" | "gamecube-disc" | "psx-disc" | "upstream-validated-disc";
 export type ReleaseSource = "github" | "gitlab" | "direct-manifest";
 
@@ -65,12 +65,17 @@ export interface PortDefinition {
   source_profile?: string;
   bios_source_profile?: string;
   persistent_paths: string[];
+  persistent_file_patterns?: { prefix: string; suffix: string }[];
+  runtime_mutable_paths?: string[];
   portable_marker?: boolean;
   source_environment?: string;
+  user_data_environment?: string;
+  launch_environment?: Record<string, string>;
   launch_arguments?: string[];
   runtime_subdirectory?: string;
   runtime_source_filename?: string;
   runtime_source_materialization?: RuntimeSourceMaterialization;
+  runtime_source_hashes?: Record<string, string>;
   runtime_source_set?: Array<{
     source_filenames: string[];
     destination: string;
@@ -82,6 +87,7 @@ export interface PortDefinition {
   setup_marker?: string;
   upstream_status: UpstreamStatus;
   release: ReleaseSpec;
+  bundled_runtime?: Partial<Record<Platform, BundledRuntime>>;
   executable_hints: Partial<Record<Platform, string[]>>;
 }
 
@@ -97,6 +103,21 @@ export interface ArtifactIdentity {
   size: number;
 }
 
+export interface BundledRuntime {
+  asset: ResolvedRelease["asset"];
+  archive_root: string;
+  target_directory: string;
+  executable: string;
+}
+
+export interface RuntimeIdentity {
+  origin: "verified_download" | "adopted_tree";
+  artifact: ArtifactIdentity;
+  archive_root: string;
+  target_directory: string;
+  executable: string;
+}
+
 export interface InstallRecord {
   id: string;
   port_id: string;
@@ -107,6 +128,7 @@ export interface InstallRecord {
   verified: boolean;
   staged: boolean;
   artifact: ArtifactIdentity;
+  runtime?: RuntimeIdentity;
   manifest_sha256: string;
   selected_executable: string;
 }
@@ -123,14 +145,19 @@ export interface PortStatus {
   successful_launches?: number;
   readiness?: {
     launchable: boolean;
-    blockers: Array<"missing_source" | "missing_bios">;
+    blockers: Array<"missing_source" | "missing_bios" | "missing_runtime">;
     pending_setup: boolean;
   };
   last_update_check?: UpdateSnapshot;
 }
 
-export type ActivityOperation = "launch" | "check_update" | "backup" | "restore" | "delete_backup" | "install" | "update" | "reconcile" | "verify_install" | "activate" | "rollback" | "adopt" | "remove" | "remove_source" | "register_source" | "verify_source";
-export type ActivityStatus = "running" | "succeeded" | "failed";
+export type ActivityOperation = "update_catalog" | "discover_sources" | "import_library" | "move_library" | "launch" | "check_update" | "backup" | "restore" | "delete_backup" | "install" | "update" | "reconcile" | "verify_install" | "activate" | "rollback" | "adopt" | "remove" | "remove_source" | "register_source" | "verify_source";
+export type ActivityStatus = "running" | "succeeded" | "failed" | "cancelled";
+export type CancellationPhase = "preparing" | "finishing";
+export interface CancellationState {
+  phase: CancellationPhase;
+  requested: boolean;
+}
 export type ActivityTargetKind = "port" | "source" | "library";
 
 export interface ActivityRecord {
@@ -142,6 +169,7 @@ export interface ActivityRecord {
   message?: string;
   started_at: number;
   finished_at?: number;
+  cancellation?: CancellationState;
 }
 
 export interface StorageSummary {
@@ -166,6 +194,7 @@ export interface DoctorReport {
   platform: Platform;
   library: StorageSummary;
   catalog_port_count: number;
+  catalog_provenance: CatalogProvenance;
   installed_port_count: number;
   registered_source_count: number;
   host_tools: HostToolStatus[];
@@ -244,6 +273,12 @@ export interface SourceRemovalPreview {
   installed_dependent_port_ids: string[];
 }
 
+export interface SourceRelinkPlan {
+  original: SourceRecord;
+  replacement: SourceRecord;
+  preview_sha256: string;
+}
+
 export interface SourceVerification {
   profile_id: string;
   path: string;
@@ -267,6 +302,8 @@ export interface UpdateCheck {
   channel: ReleaseChannel;
   installed_version?: string;
   installed_artifact?: ArtifactIdentity;
+  installed_runtime?: RuntimeIdentity;
+  required_runtime?: RuntimeIdentity;
   update_available: boolean;
   release: ResolvedRelease;
 }
@@ -286,6 +323,8 @@ export interface InstallPlan {
   platform: Platform;
   release: ResolvedRelease;
   action: InstallPlanAction;
+  bundled_runtime?: BundledRuntime;
+  download_bytes: number;
   source_requirements: Array<{
     profile_id: string;
     label: string;
@@ -321,7 +360,7 @@ export type UpdateCheckOutcome = BatchOutcome<UpdateCheck>;
 export type ReconcileOutcome = BatchOutcome<ReconcileResult>;
 
 export interface OperationEvent {
-  schema_version: 1;
+  schema_version: 2;
   operation_id: string;
   parent_operation_id?: string;
   sequence: number;
@@ -338,7 +377,7 @@ export interface OperationEvent {
 }
 
 export type OperationEventType = "started" | "progress" | "message" | "finished";
-export type OperationResult = "succeeded" | "failed";
+export type OperationResult = "succeeded" | "failed" | "cancelled";
 
 export interface DesktopError {
   code: ErrorCode;
@@ -346,12 +385,105 @@ export interface DesktopError {
   details: Record<string, string>;
 }
 
-export type ErrorCode = "usage" | "unsupported" | "not_found" | "source_invalid" | "network" | "verification" | "install" | "state" | "launch" | "conflict";
+export type ErrorCode = "usage" | "unsupported" | "not_found" | "source_invalid" | "network" | "verification" | "install" | "state" | "launch" | "conflict" | "cancelled";
 
 export interface BootstrapStatus {
   ready: boolean;
   library_root?: string;
   error?: DesktopError;
+}
+
+export interface LibraryMetadataFile {
+  path: string;
+  sha256: string;
+  size: number;
+}
+
+export type LibraryContentKind = "application_versions" | "user_data" | "backups" | "toolchains";
+
+export interface LibraryMetadata {
+  schema_version: number;
+  exported_at: number;
+  original_root: string;
+  content_roots: { kind: LibraryContentKind; relative_path: string }[];
+  source_references: SourceRecord[];
+  application_versions: InstallRecord[];
+  port_settings: { port_id: string; channel: ReleaseChannel; update_policy: UpdatePolicy; active_install_id?: string | null; previous_install_id?: string | null }[];
+  launch_history: { port_id: string; last_launched_at: number; successful_launches: number }[];
+}
+
+export interface LibraryMovePlan {
+  source_root: string;
+  destination_root: string;
+  metadata: LibraryMetadata;
+  content: { kind: LibraryContentKind; relative_path: string; copy: AdoptionCopyPlan }[];
+  required_bytes: number;
+  available_bytes: number;
+  source_will_be_retained: boolean;
+  plan_sha256: string;
+}
+
+export interface LibraryMoveResult {
+  transfer_id: string;
+  source_root: string;
+  destination_root: string;
+  active_root: string;
+  source_retained: boolean;
+  completed: boolean;
+}
+
+export interface LibraryImportPlan {
+  metadata_file: LibraryMetadataFile;
+  content_root: string;
+  destination_root: string;
+  destination_exists: boolean;
+  metadata: LibraryMetadata;
+  content: { kind: LibraryContentKind; relative_path: string; copy: AdoptionCopyPlan }[];
+  required_bytes: number;
+  available_bytes: number;
+  plan_sha256: string;
+}
+
+export interface LibraryImportResult {
+  transfer_id: string;
+  destination_root: string;
+  completed: boolean;
+  input_retained: boolean;
+}
+
+export interface SourceDiscoveryLimits {
+  max_entries: number;
+  max_depth: number;
+  max_file_bytes: number;
+  max_hash_bytes: number;
+  max_candidates: number;
+}
+
+export interface SourceDiscoveryRequest {
+  roots: string[];
+  profile_ids: string[];
+  limits?: SourceDiscoveryLimits;
+}
+
+export interface SourceDiscoveryIssue {
+  path?: string | null;
+  profile_id?: string | null;
+  message: string;
+}
+
+export type SourceDiscoveryLimit = "entries" | "depth" | "file_size" | "hash_bytes" | "candidates";
+
+export interface SourceDiscoveryReport {
+  searched_roots: string[];
+  searched_profiles: string[];
+  candidates: SourceRecord[];
+  entries_examined: number;
+  files_hashed: number;
+  hash_bytes: number;
+  symlinks_skipped: number;
+  limits_reached: SourceDiscoveryLimit[];
+  issues: SourceDiscoveryIssue[];
+  issues_omitted: number;
 }
 
 export type GithubAuthSource = "anonymous" | "environment" | "credential_store";
@@ -375,4 +507,43 @@ export interface GithubDeviceLogin {
 export interface GithubDeviceLoginResult {
   state: "pending" | "complete";
   status?: GithubAuthStatus;
+}
+
+export type CatalogOrigin = "embedded" | "signed_active" | "signed_previous";
+export type CatalogUpdateSource = { kind: "file" | "https"; value: string };
+
+export interface CatalogTrustKey {
+  key_id: string;
+  public_key: string;
+}
+
+export interface CatalogProvenance {
+  origin: CatalogOrigin;
+  catalog_sha256: string;
+  sequence: number | null;
+  key_id: string | null;
+  expires_at: number | null;
+  fallback_reasons: string[];
+}
+
+export interface CatalogStatus {
+  provenance: CatalogProvenance;
+  trusted_keys: CatalogTrustKey[];
+  highest_sequence: number;
+  updates_enabled: boolean;
+  can_rollback: boolean;
+  can_use_cached: boolean;
+  state_sha256: string;
+}
+
+export interface CatalogUpdatePlan {
+  source: CatalogUpdateSource;
+  envelope_sha256: string;
+  key_id: string;
+  sequence: number;
+  issued_at: number;
+  expires_at: number;
+  changed_port_ids: string[];
+  current: CatalogProvenance;
+  plan_sha256: string;
 }

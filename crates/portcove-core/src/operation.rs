@@ -17,7 +17,7 @@ use crate::{
     OperationTarget, PortcoveError, Result, database,
 };
 
-pub const OPERATION_EVENT_SCHEMA_VERSION: u32 = 1;
+pub const OPERATION_EVENT_SCHEMA_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LifecycleOperationKind {
@@ -288,6 +288,7 @@ fn path_string(path: Option<&PathBuf>) -> Result<Option<String>> {
 pub(crate) enum LifecycleFaultPoint {
     SourcePrepared,
     InstallPrepared,
+    InstallReadyToPublish,
     InstallPublished,
     InstallMetadataCommitted,
     AdoptionPrepared,
@@ -298,6 +299,7 @@ pub(crate) enum LifecycleFaultPoint {
     RemovalCleanup,
     RestorePrepared,
     RestorePublished,
+    RestoreVersionSynchronized,
     ActivationMetadataCommitted,
 }
 
@@ -325,6 +327,7 @@ pub struct OperationCoordinator {
     operation: String,
     target: Option<OperationTarget>,
     next_sequence: Arc<AtomicU64>,
+    cancellation: Option<Arc<crate::cancellation::CancellationScope>>,
 }
 
 impl OperationCoordinator {
@@ -335,6 +338,7 @@ impl OperationCoordinator {
             operation: operation.into(),
             target,
             next_sequence: Arc::new(AtomicU64::new(0)),
+            cancellation: None,
         }
     }
 
@@ -348,6 +352,7 @@ impl OperationCoordinator {
                 id: id.clone(),
             }),
             next_sequence: Arc::new(AtomicU64::new(0)),
+            cancellation: None,
         }
     }
 
@@ -358,6 +363,41 @@ impl OperationCoordinator {
             operation: operation.into(),
             target,
             next_sequence: Arc::new(AtomicU64::new(0)),
+            cancellation: self.cancellation.clone(),
+        }
+    }
+
+    pub(crate) fn cancellable(
+        library: &Library,
+        activity: &ActivityRecord,
+        owner: &str,
+    ) -> Result<Self> {
+        let mut operation = Self::from_activity(activity);
+        operation.cancellation = Some(Arc::new(crate::cancellation::CancellationScope::begin(
+            library, activity, owner,
+        )?));
+        Ok(operation)
+    }
+
+    pub(crate) fn checkpoint(&self) -> Result<()> {
+        self.cancellation
+            .as_ref()
+            .map_or(Ok(()), |scope| scope.checkpoint())
+    }
+
+    pub(crate) fn begin_publication(&self) -> Result<()> {
+        self.cancellation
+            .as_ref()
+            .map_or(Ok(()), |scope| scope.begin_publication())
+    }
+
+    pub(crate) async fn interruptible<T>(
+        &self,
+        future: impl std::future::Future<Output = Result<T>>,
+    ) -> Result<T> {
+        match &self.cancellation {
+            Some(scope) => scope.interruptible(future).await,
+            None => future.await,
         }
     }
 
@@ -432,6 +472,7 @@ mod tests {
             message: None,
             started_at: 1,
             finished_at: None,
+            cancellation: None,
         }
     }
 

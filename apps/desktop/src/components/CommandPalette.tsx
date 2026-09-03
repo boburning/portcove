@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Search } from "lucide-react";
 import { useDialogFocus } from "../dialog";
-import { Icon, Shortcut } from "./ui";
+import { Icon, NavigationHints, Shortcut } from "./ui";
 
 export interface PaletteCommand {
   id: string;
@@ -18,7 +18,7 @@ export interface PaletteCommand {
 export function CommandPalette({ open, commands, close }: { open: boolean; commands: PaletteCommand[]; close: () => void }) {
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
-  const input = useRef<HTMLInputElement>(null);
+  const activeCommand = useRef<HTMLButtonElement>(null);
   const dialog = useDialogFocus(close, open);
   const filtered = useMemo(() => filterCommands(commands, query), [commands, query]);
 
@@ -26,10 +26,10 @@ export function CommandPalette({ open, commands, close }: { open: boolean; comma
     if (!open) return;
     setQuery("");
     setActiveIndex(0);
-    window.requestAnimationFrame(() => input.current?.focus());
   }, [open]);
 
   useEffect(() => setActiveIndex(index => Math.min(index, Math.max(0, filtered.length - 1))), [filtered.length]);
+  useEffect(() => { activeCommand.current?.scrollIntoView({ block: "nearest" }); }, [activeIndex, open]);
   if (!open) return null;
 
   const run = (command: PaletteCommand) => {
@@ -43,10 +43,9 @@ export function CommandPalette({ open, commands, close }: { open: boolean; comma
       <h2 className="sr-only" id="command-palette-title">Portcove commands</h2>
       <label className="palette-search">
         <Icon glyph={Search} />
-        <input ref={input} data-autofocus data-focusable role="combobox" aria-expanded="true" aria-autocomplete="list" aria-label="Search commands" value={query} onChange={event => setQuery(event.target.value)}
+        <input data-autofocus data-focusable role="combobox" aria-expanded="true" aria-autocomplete="list" aria-label="Search commands" value={query} onChange={event => setQuery(event.target.value)}
           onKeyDown={event => {
-            if (event.key === "Escape") close();
-            else if (event.key === "ArrowDown") { event.preventDefault(); setActiveIndex(index => Math.min(index + 1, filtered.length - 1)); }
+            if (event.key === "ArrowDown") { event.preventDefault(); setActiveIndex(index => Math.min(index + 1, filtered.length - 1)); }
             else if (event.key === "ArrowUp") { event.preventDefault(); setActiveIndex(index => Math.max(index - 1, 0)); }
             else if (event.key === "Enter" && filtered[activeIndex]) { event.preventDefault(); run(filtered[activeIndex]); }
           }}
@@ -57,6 +56,7 @@ export function CommandPalette({ open, commands, close }: { open: boolean; comma
       <div className="palette-results" id="command-palette-results" role="listbox" aria-label="Available commands">
         {filtered.length === 0 ? <p className="palette-empty">No command matches “{query}”.</p> : filtered.map((command, index) =>
           <button id={`command-${command.id}`} role="option" aria-selected={activeIndex === index} data-focusable key={command.id}
+            ref={activeIndex === index ? activeCommand : undefined} onFocus={() => setActiveIndex(index)}
             className={activeIndex === index ? "palette-command active" : "palette-command"} disabled={command.disabled}
             onMouseEnter={() => setActiveIndex(index)} onClick={() => run(command)}>
             <span className="palette-command-icon"><Icon glyph={command.icon} /></span>
@@ -64,7 +64,7 @@ export function CommandPalette({ open, commands, close }: { open: boolean; comma
             {command.shortcut && <Shortcut>{command.shortcut}</Shortcut>}
           </button>)}
       </div>
-      <footer className="palette-footer"><span><Shortcut>↑↓</Shortcut> Navigate</span><span><Shortcut>Enter</Shortcut> Run</span><span>CLI concepts, desktop speed.</span></footer>
+      <footer className="palette-footer"><NavigationHints /></footer>
     </section>
   </div>;
 }

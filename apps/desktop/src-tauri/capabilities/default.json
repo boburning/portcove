@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Portcove main window permissions",
   "windows": ["main"],
-  "permissions": ["core:default", "core:app:allow-set-app-theme", "dialog:allow-open", "dialog:allow-confirm"]
+  "permissions": ["core:default", "core:app:allow-set-app-theme", "dialog:allow-open", "dialog:allow-confirm", "dialog:allow-save"]
 }

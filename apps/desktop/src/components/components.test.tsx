@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import type { InstallRecord, PortDefinition, PortStatus } from "../types";
+import type { InstallRecord, OperationEvent, PortDefinition, PortStatus } from "../types";
 import { PageHeader, SettingsView, Sidebar, StatusLayer } from "./Chrome";
 import { BackupHistory } from "./BackupHistory";
 import { DetailPanel, type DetailActions } from "./DetailPanel";
@@ -25,6 +25,26 @@ const installRecord = (overrides: Partial<InstallRecord> = {}): InstallRecord =>
 });
 
 describe("desktop components", () => {
+  it("labels a new non-streaming task without reusing completed update progress", () => {
+    const finished: OperationEvent = { schema_version: 2, operation_id: "old-update", sequence: 4, timestamp_ms: 1,
+      operation: "update", type: "finished", message: "Old update completed", completed: 100, total: 100 };
+    for (const operation of [undefined, finished]) {
+      const html = renderToStaticMarkup(<StatusLayer clearError={vi.fn()} operation={operation} busy="backup" />);
+      expect(html).toContain("Backup");
+      expect(html).toContain("Working");
+      expect(html).not.toContain("Old update");
+      expect(html).not.toContain("width:100%");
+    }
+  });
+
+  it("routes a missing verified runtime to reviewed installation instead of Play", () => {
+    const html = renderToStaticMarkup(<DetailPanel port={{ ...port, source_profile: undefined }} sourcePath="" setSourcePath={vi.fn()} actions={actions}
+      status={{ port_id: port.id, channel: "stable", update_policy: "notify", active: installRecord(), readiness: { launchable: false, blockers: ["missing_runtime"], pending_setup: false } }} />);
+    expect(html).toContain("Verified runtime required");
+    expect(html).toContain("Review install");
+    expect(html).not.toContain("Play now");
+    expect(html).not.toContain("Choose required source");
+  });
   it("shows the reviewed adoption copy plan and skipped entries before copying", () => {
     const html = renderToStaticMarkup(<AdoptionModal
       path="D:/Existing"
@@ -68,7 +88,7 @@ describe("desktop components", () => {
     const html = [
       renderToStaticMarkup(<Sidebar view="library" setView={vi.fn()} installedCount={2} updateCount={1} onAdopt={vi.fn()} />),
       renderToStaticMarkup(<PageHeader view="catalog" query="sample" setQuery={vi.fn()} />),
-      renderToStaticMarkup(<StatusLayer error="Problem" clearError={vi.fn()} operation={{ schema_version: 1, operation_id: "install-1", sequence: 1, timestamp_ms: 1, operation: "install", type: "progress", phase: "install", completed: 1, total: 2 }} busy="install" />),
+      renderToStaticMarkup(<StatusLayer error="Problem" clearError={vi.fn()} operation={{ schema_version: 2, operation_id: "install-1", sequence: 1, timestamp_ms: 1, operation: "install", type: "progress", phase: "install", completed: 1, total: 2 }} busy="install" />),
       renderToStaticMarkup(<SettingsView libraryRoot="C:/Portcove" />),
     ].join(" ");
     expect(html).toContain("Adopt an install");
@@ -97,6 +117,7 @@ describe("desktop components", () => {
       platform: "windows-x86-64",
       library: { library_root: "E:/Portcove", volume_total_bytes: 1024, volume_available_bytes: 512 },
       catalog_port_count: 61,
+      catalog_provenance: { origin: "embedded", catalog_sha256: "a".repeat(64), sequence: null, key_id: null, expires_at: null, fallback_reasons: [] },
       installed_port_count: 10,
       registered_source_count: 9,
       repair: { generated_at: 1, items: [] },
@@ -133,6 +154,28 @@ describe("desktop components", () => {
     expect(html).toContain("Following system · currently Light");
   });
 
+  it("keeps recovery controls available for rejected saved sign-ins and explains environment overrides", () => {
+    for (const source of ["credential_store", "environment"] as const) {
+      const html = renderToStaticMarkup(<SettingsView github={{
+        status: { source, authenticated: false, device_login_available: true },
+        token: "", setToken: vi.fn(), saveToken: vi.fn(), logout: vi.fn(), beginDeviceLogin: vi.fn(), refresh: vi.fn(),
+      }} />);
+      if (source === "credential_store") {
+        expect(html).toContain("GitHub no longer accepts the saved sign-in");
+        const signIn = html.match(/<button\b([^>]*)>Sign in with GitHub<\/button>/);
+        const logout = html.match(/<button\b([^>]*)>Log out<\/button>/);
+        expect(signIn).not.toBeNull();
+        expect(logout).not.toBeNull();
+        expect(signIn?.[1]).not.toContain("disabled");
+        expect(logout?.[1]).not.toContain("disabled");
+      } else {
+        expect(html).toContain("Replace or remove it outside Portcove");
+        expect(html).not.toContain("Sign in with GitHub");
+        expect(html).not.toContain('type="password"');
+      }
+    }
+  });
+
   it("shows GitHub authentication source and rate allowance without exposing a token", () => {
     const html = renderToStaticMarkup(<SettingsView libraryRoot="C:/Portcove" github={{
       status: { source: "credential_store", authenticated: true, login: "port-user", rate_limit: { limit: 5000, remaining: 4998, resets_at: 1 }, device_login_available: true },
@@ -154,7 +197,7 @@ describe("desktop components", () => {
     }]} verifySources={vi.fn()} />);
     expect(verified).toContain("Verified");
     expect(verified).toContain("D:/ROMs/sample.z64");
-    expect(verified).toContain("Replace file");
+    expect(verified).toContain("Relink source");
     expect(failed).toContain("Needs attention");
     expect(failed).toContain("source changed since registration");
   });
@@ -203,7 +246,7 @@ describe("desktop components", () => {
 
   it("summarizes a resolved install before starting the download", () => {
     const html = renderToStaticMarkup(<DetailPanel port={{ ...port, source_profile: undefined }} sourcePath="" setSourcePath={vi.fn()} actions={actions} installPlan={{
-      port_id: port.id, channel: "stable", platform: "windows-x86-64", action: "download", source_requirements: [],
+      port_id: port.id, channel: "stable", platform: "windows-x86-64", action: "download", source_requirements: [], download_bytes: 64 * 1024 ** 2,
       release: { version: "2.0", channel: "stable", asset: { name: "sample.zip", url: "https://example.com/sample.zip", size: 64 * 1024 ** 2, sha256: "a".repeat(64) } },
       storage: { library_root: "E:/Portcove", volume_total_bytes: 1024 ** 4, volume_available_bytes: 512 * 1024 ** 3 },
     }} />);

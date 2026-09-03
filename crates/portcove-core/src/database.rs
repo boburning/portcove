@@ -10,7 +10,7 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior};
 
 use crate::{PortcoveError, Result};
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 9;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 12;
 
 struct Migration {
     version: i64,
@@ -73,6 +73,24 @@ const MIGRATIONS: &[Migration] = &[
         name: "durable launch sessions",
         apply: migration_9,
         verify: verify_migration_9,
+    },
+    Migration {
+        version: 10,
+        name: "phase-aware cancellation",
+        apply: migration_10,
+        verify: verify_migration_10,
+    },
+    Migration {
+        version: 11,
+        name: "signed catalog trust and selection",
+        apply: crate::catalog_store::migrate,
+        verify: verify_migration_11,
+    },
+    Migration {
+        version: 12,
+        name: "immutable bundled runtime identity",
+        apply: migration_12,
+        verify: verify_migration_12,
     },
 ];
 
@@ -549,6 +567,55 @@ fn verify_migration_9(connection: &Connection) -> Result<()> {
         ],
     )?;
     require_index(connection, "launch_sessions_install_id")
+}
+
+fn migration_10(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "ALTER TABLE activity_history ADD COLUMN cancellation_phase TEXT CHECK(cancellation_phase IN ('preparing', 'finishing'));
+         ALTER TABLE activity_history ADD COLUMN cancel_requested INTEGER NOT NULL DEFAULT 0 CHECK(cancel_requested IN (0,1));
+         ALTER TABLE activity_history ADD COLUMN cancellation_owner TEXT;",
+    )?;
+    Ok(())
+}
+
+fn verify_migration_10(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "activity_history",
+        &[
+            "cancellation_phase",
+            "cancel_requested",
+            "cancellation_owner",
+        ],
+    )
+}
+
+fn verify_migration_11(connection: &Connection) -> Result<()> {
+    require_columns(connection, "catalog_trust", &["key_id", "public_key"])?;
+    require_columns(
+        connection,
+        "catalog_state",
+        &[
+            "singleton",
+            "revision",
+            "highest_sequence",
+            "enabled",
+            "active",
+            "previous",
+        ],
+    )
+}
+
+fn migration_12(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "ALTER TABLE installs ADD COLUMN runtime_json TEXT;
+        DELETE FROM update_snapshots;",
+    )?;
+    Ok(())
+}
+
+fn verify_migration_12(connection: &Connection) -> Result<()> {
+    require_columns(connection, "installs", &["runtime_json"])
 }
 
 fn table_columns(connection: &Connection, table: &str) -> Result<Vec<String>> {

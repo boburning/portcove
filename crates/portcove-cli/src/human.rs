@@ -288,8 +288,18 @@ pub(crate) fn plan(plan: &InstallPlan) -> String {
             .collect::<Vec<_>>()
             .join("; ")
     };
+    let runtime = plan.bundled_runtime.as_ref().map_or_else(
+        || "none".to_owned(),
+        |runtime| {
+            format!(
+                "{} ({})",
+                clean(&runtime.asset.name),
+                format_bytes(runtime.asset.size)
+            )
+        },
+    );
     format!(
-        "Install plan for {}\nAction: {}\nChannel: {}\nPlatform: {}\nRelease: {}\nAsset: {} ({})\nSources: {}\nAvailable storage: {}",
+        "Install plan for {}\nAction: {}\nChannel: {}\nPlatform: {}\nRelease: {}\nAsset: {} ({})\nBundled runtime: {}\nTotal download: {}\nSources: {}\nAvailable storage: {}",
         clean(&plan.port_id),
         install_action(plan.action),
         plan.channel,
@@ -297,6 +307,8 @@ pub(crate) fn plan(plan: &InstallPlan) -> String {
         clean(&plan.release.version),
         clean(&plan.release.asset.name),
         format_bytes(plan.release.asset.size),
+        runtime,
+        format_bytes(plan.download_bytes),
         requirements,
         format_bytes(plan.storage.volume_available_bytes),
     )
@@ -471,6 +483,7 @@ fn readiness(status: &PortStatus) -> String {
         .map(|blocker| match blocker {
             LaunchBlocker::MissingSource => "missing source",
             LaunchBlocker::MissingBios => "missing BIOS",
+            LaunchBlocker::MissingRuntime => "needs verified runtime (update port)",
         })
         .collect::<Vec<_>>()
         .join(", ")

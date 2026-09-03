@@ -2,7 +2,7 @@ import type { DesktopError, PortDefinition, PortStatus, SourceProfile, SourceRec
 
 export type View = "library" | "catalog" | "updates" | "settings";
 export type Filter = "all" | "ready" | "setup" | "stable" | "beta" | "rolling";
-export type PortReadiness = "available" | "ready" | "source" | "bios" | "setup" | "staged";
+export type PortReadiness = "available" | "ready" | "source" | "bios" | "setup" | "staged" | "runtime";
 
 export interface LibraryOverview {
   installed: number;
@@ -43,6 +43,7 @@ export function portReadiness(port: PortDefinition, status: PortStatus | undefin
   if (sourceMissing && biosMissing) return "setup";
   if (sourceMissing) return "source";
   if (biosMissing) return "bios";
+  if (status.readiness?.blockers.includes("missing_runtime")) return "runtime";
   if (status.readiness?.pending_setup) return "setup";
   if (status.staged) return "staged";
   return "ready";
@@ -54,7 +55,7 @@ export function summarizeLibrary(ports: PortDefinition[], statuses: Map<string, 
   return {
     installed: installed.length,
     ready: states.filter(state => state === "ready" || state === "staged").length,
-    needsSetup: states.filter(state => state === "source" || state === "bios" || state === "setup").length,
+    needsSetup: states.filter(state => state === "source" || state === "bios" || (state === "setup" || state === "runtime")).length,
     staged: states.filter(state => state === "staged").length,
   };
 }
@@ -74,6 +75,7 @@ export function currentUpdateSnapshot(status: PortStatus | undefined): UpdateSna
   if (snapshot.check.channel !== status.channel) return undefined;
   if (snapshot.check.installed_version !== status.active.version) return undefined;
   if (snapshot.check.installed_artifact?.sha256 !== status.active.artifact.sha256) return undefined;
+  if (JSON.stringify(snapshot.check.installed_runtime ?? null) !== JSON.stringify(status.active.runtime ?? null)) return undefined;
   return snapshot;
 }
 
@@ -111,7 +113,7 @@ function visibleInView(port: PortDefinition, statuses: Map<string, PortStatus>, 
 function matchesFilter(port: PortDefinition, status: PortStatus | undefined, filter: Filter, registeredSources: ReadonlySet<string>) {
   const readiness = portReadiness(port, status, registeredSources);
   if (filter === "ready") return readiness === "ready" || readiness === "staged";
-  if (filter === "setup") return readiness === "source" || readiness === "bios" || readiness === "setup";
+  if (filter === "setup") return readiness === "source" || readiness === "bios" || readiness === "setup" || readiness === "runtime";
   if (filter === "stable" || filter === "beta" || filter === "rolling") return port.channels.includes(filter);
   return true;
 }
@@ -123,6 +125,10 @@ function searchableText(port: PortDefinition) {
 export function errorText(error: unknown) {
   if (typeof error === "object" && error && "message" in error) return String((error as DesktopError).message);
   return String(error);
+}
+
+export function isCancellation(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "cancelled";
 }
 
 export function formatBytes(bytes: number) {

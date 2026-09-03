@@ -3,10 +3,13 @@ import { AlertTriangle, ArchiveX, CheckCircle2, ChevronDown, Clipboard, Clipboar
 import { primaryCliCommand } from "../cli-command";
 import { copyText } from "../clipboard";
 import { useDialogFocus } from "../dialog";
-import type { BackupRecord, InstallPlan, PortDefinition, PortStatus, ReleaseChannel, SourceProfile, SourceRecord, UpdatePolicy } from "../types";
+import type { ActivityRecord, BackupRecord, InstallPlan, PortDefinition, PortStatus, ReleaseChannel, SourceProfile, SourceRecord, UpdatePolicy } from "../types";
+import { OperationCancellation } from "./OperationCancellation";
 import { formatBytes, platformLabels } from "../view-model";
 import { BackupHistory } from "./BackupHistory";
-import { Icon, Shortcut } from "./ui";
+import { ChoiceMenu } from "./ChoiceMenu";
+import { ExternalLink as ProjectLink } from "./ExternalLink";
+import { Icon, NavigationHints, Shortcut } from "./ui";
 
 export interface DetailActions {
   activate: () => void;
@@ -28,6 +31,7 @@ export interface DetailActions {
 }
 
 interface DetailPanelProps {
+  cancellableActivities?: ActivityRecord[];
   port: PortDefinition;
   status?: PortStatus;
   installPlan?: InstallPlan;
@@ -57,7 +61,7 @@ function DetailDialog({ props, dialog }: { props: DetailPanelProps; dialog: Retu
   const selectedChannel = status?.channel ?? port.channels[0];
   const policy = status?.update_policy ?? "notify";
   const { sourceReady, biosReady, launchReady, installed, pendingSetup } = detailReadiness(port, status, source, sourcePath, bios, biosPath);
-  const state = detailState(installed, launchReady, Boolean(status?.staged), pendingSetup);
+  const state = detailState(installed, launchReady, Boolean(status?.staged), pendingSetup, Boolean(status?.readiness?.blockers.includes("missing_runtime")));
   const sources: SourceControls = {
     port, source, sourceProfile, sourcePath, setSourcePath, pickSource, pickSourceArchive,
     bios, biosProfile, biosPath, setBiosPath, pickBios, sourceReady, biosReady,
@@ -66,6 +70,7 @@ function DetailDialog({ props, dialog }: { props: DetailPanelProps; dialog: Retu
     <section ref={dialog} className="detail-panel" role="dialog" aria-modal="true" aria-labelledby="port-detail-title">
       <button data-focusable className="close icon-button" aria-label="Close port details" onClick={actions.close}><Icon glyph={X} /></button>
       <DetailHero port={port} state={state} />
+      {props.cancellableActivities?.map(activity => <OperationCancellation key={activity.id} operationId={activity.id} state={activity.cancellation} />)}
       <DetailBody port={port} status={status} state={state} sources={sources} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} installPlan={installPlan} selectedChannel={selectedChannel} policy={policy} backups={backups} busy={busy} actions={actions} />
     </section>
   </div>;
@@ -82,10 +87,11 @@ function DetailBody({ port, status, state, sources, installed, launchReady, pend
   installPlan?: InstallPlan; selectedChannel: ReleaseChannel; policy: UpdatePolicy; backups: BackupRecord[]; busy?: string; actions: DetailActions;
 }) {
   return <div className="detail-body"><p className="summary">{port.summary}</p>
+    <NavigationHints />
     <RetiredNotice port={port} />
     <ReadinessCard state={state} />
     <SourceFields mode="missing" controls={sources} />
-    <PrimaryActions installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} hasStaged={Boolean(status?.staged)} plan={installPlan} busy={busy} actions={actions} />
+    <PrimaryActions runtimeNeeded={Boolean(status?.readiness?.blockers.includes("missing_runtime"))} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} hasStaged={Boolean(status?.staged)} plan={installPlan} busy={busy} actions={actions} />
     <TrustStrip />
     <AdvancedControls port={port} status={status} selectedChannel={selectedChannel} policy={policy} installed={installed} backups={backups} busy={busy} sources={sources} actions={actions} />
   </div>;
@@ -105,7 +111,7 @@ function detailReadiness(port: PortDefinition, status: PortStatus | undefined, s
   return {
     sourceReady,
     biosReady,
-    launchReady: sourceReady && biosReady,
+    launchReady: sourceReady && biosReady && !status?.readiness?.blockers.includes("missing_runtime"),
     installed: Boolean(status?.active),
     pendingSetup: Boolean(status?.readiness?.pending_setup),
   };
@@ -147,17 +153,17 @@ function closeFromScrim(event: React.MouseEvent<HTMLDivElement>, close: () => vo
 function AdvancedControls({ port, status, selectedChannel, policy, installed, backups, busy, sources, actions }: {
   port: PortDefinition; status?: PortStatus; selectedChannel: ReleaseChannel; policy: UpdatePolicy; installed: boolean; backups: BackupRecord[]; busy?: string; sources: SourceControls; actions: DetailActions;
 }) {
+  const persistentFiles = [...port.persistent_paths, ...(port.persistent_file_patterns ?? []).map(pattern => `${pattern.prefix}*${pattern.suffix}`)].join(" · ");
   return <details className="advanced-settings" open={!installed}>
     <summary data-focusable className="advanced-summary">Release, sources &amp; maintenance <span className="advanced-summary-meta">Advanced controls</span><Icon glyph={ChevronDown} /></summary>
     <div className="advanced-body">
       <div className="detail-section"><label>Release channel</label><div className="segmented">{port.channels.map(channel =>
         <button data-focusable disabled={Boolean(busy)} className={selectedChannel === channel ? "active" : ""} key={channel} onClick={() => actions.setChannel(channel)}>{channel}</button>)}</div></div>
-      <div className="detail-section"><label htmlFor="policy">Update policy</label><select data-focusable id="policy" value={policy} disabled={Boolean(busy)} onChange={event => actions.setPolicy(event.target.value as UpdatePolicy)}>
-        <option value="notify">Notify me</option><option value="stage">Download and stage</option><option value="automatic">Install automatically</option>
-      </select></div>
+      <div className="detail-section"><ChoiceMenu label="Update policy" value={policy} disabled={Boolean(busy)} onChange={actions.setPolicy}
+        options={[{ value: "notify", label: "Notify me" }, { value: "stage", label: "Download and stage" }, { value: "automatic", label: "Install automatically" }]} /></div>
       <SourceFields mode="registered" controls={sources} />
-      <div className="metadata"><span><small>Platforms</small>{port.platforms.map(value => platformLabels[value]).join(" · ")}</span><span><small>Automated evidence</small>{port.automated_tested_platforms.length ? port.automated_tested_platforms.map(value => platformLabels[value]).join(" · ") : "Qualification pending"}</span><span><small>Physical validation</small>{port.manually_validated_platforms.length ? port.manually_validated_platforms.map(value => platformLabels[value]).join(" · ") : "Deferred / not completed"}</span><span title={port.persistent_paths.join(" · ")}><small>Persistent data root</small>{status?.user_data_root ?? "Created inside the selected library"}</span></div>
-      <div className="upstream-link"><a data-focusable href={port.project_url} target="_blank" rel="noreferrer">Open upstream project <Icon glyph={ExternalLink} size="sm" /></a><span>Portcove resolves releases from this reviewed upstream.</span></div>
+      <div className="metadata"><span><small>Platforms</small>{port.platforms.map(value => platformLabels[value]).join(" · ")}</span><span><small>Automated evidence</small>{port.automated_tested_platforms.length ? port.automated_tested_platforms.map(value => platformLabels[value]).join(" · ") : "Qualification pending"}</span><span><small>Physical validation</small>{port.manually_validated_platforms.length ? port.manually_validated_platforms.map(value => platformLabels[value]).join(" · ") : "Deferred / not completed"}</span><span title={persistentFiles}><small>Persistent data root</small>{status?.user_data_root ?? "Created inside the selected library"}</span></div>
+      <div className="upstream-link"><ProjectLink href={port.project_url}>Open upstream project <Icon glyph={ExternalLink} size="sm" /></ProjectLink><span>Portcove resolves releases from this reviewed upstream.</span></div>
       <CliContinuity port={port} status={status} channel={selectedChannel} sourcePath={sources.sourcePath} biosPath={sources.biosPath} />
       {installed && <><BackupHistory backups={backups} busy={busy} restore={actions.restoreBackup} remove={actions.deleteBackup} /><MaintenanceActions canRollback={Boolean(status?.previous)} busy={busy} actions={actions} /></>}
     </div>
@@ -188,7 +194,8 @@ function sourceFieldCopy(profile?: SourceProfile) {
   return { placeholder: "Choose or paste the full source file path", note: "Referenced in place; never uploaded." };
 }
 
-function PrimaryActions({ installed, launchReady, pendingSetup, hasStaged, plan, busy, actions }: { installed: boolean; launchReady: boolean; pendingSetup: boolean; hasStaged: boolean; plan?: InstallPlan; busy?: string; actions: DetailActions }) {
+function PrimaryActions({ runtimeNeeded, installed, launchReady, pendingSetup, hasStaged, plan, busy, actions }: { runtimeNeeded: boolean; installed: boolean; launchReady: boolean; pendingSetup: boolean; hasStaged: boolean; plan?: InstallPlan; busy?: string; actions: DetailActions }) {
+  if (runtimeNeeded) return <InstallAction ready plan={plan} busy={busy} install={actions.update} review={actions.reviewInstall} />;
   if (!installed) return <InstallAction ready={launchReady} plan={plan} busy={busy} install={actions.install} review={actions.reviewInstall} />;
   return <div className="actions primary-actions">
     <button data-focusable className="primary wide button-with-icon" title={launchReady ? "Launch this port" : "Register every required source before launching"} disabled={!launchReady || Boolean(busy)} onClick={actions.launch}><Icon glyph={pendingSetup ? Wrench : Gamepad2} />{pendingSetup ? "Complete setup and play" : "Play now"}</button>
@@ -205,15 +212,15 @@ function InstallAction({ ready, plan, busy, install, review }: { ready: boolean;
 function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
   const download = plan.action === "download";
   return <div className="install-plan">
-    <div><p className="eyebrow">INSTALL PLAN</p><strong>{plan.release.version}</strong><span>{plan.channel} · {installPlanActionLabel(plan.action)}</span></div>
-    <div><strong>{download ? formatBytes(plan.release.asset.size) : "No download"}</strong><span>{download ? `${formatBytes(plan.storage.volume_available_bytes)} available` : "Verified local release"}</span></div>
+    <div><p className="eyebrow">INSTALL PLAN</p><strong>{plan.release.version}</strong><span>{plan.channel} · {installPlanActionLabel(plan.action)}</span>{plan.bundled_runtime && <span>Includes verified runtime · {formatBytes(plan.bundled_runtime.asset.size)}</span>}</div>
+    <div><strong>{download ? formatBytes(plan.download_bytes) : "No download"}</strong><span>{download ? `${formatBytes(plan.storage.volume_available_bytes)} available` : "Verified local release"}</span></div>
   </div>;
 }
 
 function PlannedInstallButton({ plan, busy, install }: { plan: InstallPlan; busy?: string; install: () => void }) {
   const blocked = plan.action === "blocked_unverified";
-  const insufficientSpace = plan.action === "download" && plan.release.asset.size > plan.storage.volume_available_bytes;
-  let label = plan.action === "download" ? `Install · ${formatBytes(plan.release.asset.size)}` : "Use verified release";
+  const insufficientSpace = plan.action === "download" && plan.download_bytes > plan.storage.volume_available_bytes;
+  let label = plan.action === "download" ? `Install · ${formatBytes(plan.download_bytes)}` : "Use verified release";
   if (blocked) label = "Unverified copy blocks install";
   else if (insufficientSpace) label = "Free space required";
   else if (busy === "install") label = "Installing…";
@@ -254,8 +261,9 @@ function CliContinuity({ port, status, channel, sourcePath, biosPath }: { port: 
   </div>;
 }
 
-function detailState(installed: boolean, launchReady: boolean, staged: boolean, pendingSetup: boolean) {
+function detailState(installed: boolean, launchReady: boolean, staged: boolean, pendingSetup: boolean, runtimeNeeded: boolean) {
   if (!installed) return { title: "Available to install", description: "Portcove will verify the release before it becomes active.", tone: "available", icon: Download };
+  if (runtimeNeeded) return { title: "Verified runtime required", description: "Review the update to install this port with its required runtime. Existing saves stay in your library.", tone: "setup", icon: Wrench };
   if (!launchReady) return { title: "Finish setup", description: "Register the required original source or BIOS to unlock Play.", tone: "setup", icon: Wrench };
   if (pendingSetup) return { title: "First launch setup", description: "The source is registered. Portcove will run and verify the upstream setup before play.", tone: "setup", icon: Wrench };
   if (staged) return { title: "Ready · update staged", description: "Play the current version or activate the verified staged release.", tone: "staged", icon: RefreshCw };

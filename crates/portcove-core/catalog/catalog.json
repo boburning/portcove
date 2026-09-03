@@ -10,8 +10,8 @@
     { "id": "twilight-princess", "label": "The Legend of Zelda: Twilight Princess GameCube disc", "accepted_extensions": ["iso", "gcm", "rvz"], "accepted_sha256": [] },
     { "id": "bomberman-64", "label": "Bomberman 64 (US 1.0) source", "accepted_extensions": ["z64"], "accepted_sha256": ["e6da7c26127788cd894b88b71cc055ff9dec0d0f4f8e10d9b15b40153af2b52a"] },
     { "id": "harvest-moon-64", "label": "Harvest Moon 64 (US) source", "accepted_extensions": ["z64"], "accepted_sha256": ["15c570120bfaa97b4580762f5ee5939a56ba054e696925ea81ccfa55a022d2a6"] },
-    { "id": "dinosaur-planet", "label": "Dinosaur Planet December 2000 prototype source", "accepted_extensions": ["z64", "n64", "v64"], "accepted_sha256": [] },
-    { "id": "diddy-kong-racing", "label": "Diddy Kong Racing US Rev 1 source", "accepted_extensions": ["z64", "n64", "v64"], "accepted_sha256": [] },
+    { "id": "dinosaur-planet", "label": "Dinosaur Planet December 2000 prototype source", "accepted_extensions": ["z64", "n64", "v64"], "accepted_sha256": ["22830780902f51aea442825c574b88d404ccf30d726219e4b000edc64bcc60a6"] },
+    { "id": "diddy-kong-racing", "label": "Diddy Kong Racing US Rev 1 source", "accepted_extensions": ["z64", "n64", "v64"], "accepted_sha1": ["6d96743d46f8c0cd0edb0ec5600b003c89b93755"], "accepted_sha256": [] },
     { "id": "donkey-kong-64", "label": "Donkey Kong 64 (US 1.0) source", "accepted_extensions": ["z64"], "accepted_sha256": ["b6347d9f1f75d38a88d829b4f80b1acf0d93344170a5fbe9546c484dae416ce3"] },
     { "id": "automobili-lamborghini", "label": "Automobili Lamborghini (US) source", "accepted_extensions": ["z64"], "accepted_sha256": ["cab2467684a58bc19c787423d704a961aa497629763367d9fe691172de58591c"] },
     { "id": "aerogauge", "label": "AeroGauge (US) source", "accepted_extensions": ["z64"], "accepted_sha256": ["2cc529109b11b00289d87f693a40591ef260d1dc7c1129113966ba6ddb1be4a5"] },
@@ -26,6 +26,10 @@
     { "id": "mega-man-64", "label": "Mega Man 64 (US) source", "accepted_extensions": ["z64"], "accepted_sha256": ["618d49bf62913b376e4858f1422a51a4352792b070fe6305860dd43e28353999"] },
     { "id": "dr-mario-64", "label": "Dr. Mario 64 source", "accepted_extensions": ["z64", "n64", "v64"], "accepted_sha256": [] },
     { "id": "pokemon-gen-1", "label": "Pokémon Red (US) source", "accepted_extensions": ["gb"], "accepted_sha256": ["5ca7ba01642a3b27b0cc0b5349b52792795b62d3ed977e98a09390659af96b7b"] },
+    { "id": "pokemon-gold", "label": "Pokémon Gold (US) source", "accepted_extensions": ["gbc"], "accepted_sha1": ["d8b8a3600a465308c9953dfa04f0081c05bdcb94"], "accepted_sha256": [] },
+    { "id": "pokemon-silver", "label": "Pokémon Silver (US) source", "accepted_extensions": ["gbc"], "accepted_sha1": ["49b163f7e57702bc939d642a18f591de55d92dae"], "accepted_sha256": [] },
+    { "id": "pokemon-crystal", "label": "Pokémon Crystal (US) source", "accepted_extensions": ["gbc"], "accepted_sha1": ["f2f52230b536214ef7c9924f483392993e226cfb", "f4cd194bdee0d04ca4eac29e09b8e4e9d818c133"], "accepted_sha256": [] },
+    { "id": "sotn-xbla", "label": "Castlevania: Symphony of the Night Xbox Live Arcade package", "accepted_extensions": [], "accepted_sha256": ["efb36098df070c0ddd9e1058ee0c0e1570748b62d0ef93fc691b4c52798bd17c"] },
     { "id": "blue-dragon", "label": "Blue Dragon source disc", "accepted_extensions": ["iso"], "accepted_sha256": [] },
     { "id": "bomberman-hero", "label": "Bomberman Hero (US) source", "accepted_extensions": ["z64"], "accepted_sha256": ["e021ec484a88c528256dbff80617e599768b074b0918dcec081ecbf365386542"] },
     { "id": "snowboard-kids-2", "label": "Snowboard Kids 2 (US) source", "accepted_extensions": ["z64"], "accepted_sha256": ["8af426d05af66033ab6ba8e643aaf3ea4eee329a642440600821f6faf6618ebd"] },
@@ -184,8 +188,11 @@
       "id": "dinosaur-planet", "name": "Dinosaur Planet: Recompiled", "summary": "Native recompilation of the December 2000 Dinosaur Planet prototype.",
       "project_url": "https://github.com/DinosaurPlanetRecomp/dino-recomp", "support_tier": "stable", "channels": ["stable"],
       "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "adapter": "n64-recomp-portable",
+      "automated_tested_platforms": ["windows-x86-64"],
       "release": { "repository": "DinosaurPlanetRecomp/dino-recomp" }, "source_profile": "dinosaur-planet",
-      "executable_hints": {}, "persistent_paths": ["mods", "saves", "config"]
+      "executable_hints": { "windows-x86-64": ["DinosaurPlanetRecompiled.exe"], "linux-x86-64": ["DinosaurPlanetRecompiled"] },
+      "persistent_paths": ["mods", "mod_config", "saves", "config", "mods.json", "mods.json.bak", "general.json", "general.json.bak", "graphics.json", "graphics.json.bak", "controls.json", "controls.json.bak", "sound.json", "sound.json.bak", "dino.z64"],
+      "runtime_source_filename": "dino.z64"
     },
     {
       "id": "dkr-r", "name": "DKR-R", "summary": "Opt-in alpha native Diddy Kong Racing recompilation.",
@@ -193,7 +200,8 @@
       "platforms": ["linux-x86-64", "macos-aarch64"], "adapter": "n64-recomp-portable",
       "release": { "repository": "cyscott/dkr-recomp" }, "source_profile": "diddy-kong-racing",
       "executable_hints": { "linux-x86-64": ["DiddyKongRacingRecompiled"], "macos-aarch64": ["Diddy Kong Racing Recompiled"] },
-      "persistent_paths": ["mods", "mod_config", "saves", "mods.json", "mods.json.bak", "general.json", "general.json.bak", "graphics.json", "graphics.json.bak", "controls.json", "controls.json.bak", "sound.json", "sound.json.bak", "dkr-us-v80.z64"]
+      "persistent_paths": ["mods", "mod_config", "saves", "mods.json", "mods.json.bak", "general.json", "general.json.bak", "graphics.json", "graphics.json.bak", "controls.json", "controls.json.bak", "sound.json", "sound.json.bak", "dkr-us-v80.z64"],
+      "runtime_source_filename": "dkr-us-v80.z64"
     },
     {
       "id": "donkey-kong-64-recompiled", "name": "Donkey Kong 64: Recompiled", "summary": "Native Donkey Kong 64 recompilation.",
@@ -392,6 +400,7 @@
       "id": "vpw64-recompiled", "name": "Virtual Pro Wrestling 64: Recompiled", "summary": "Opt-in beta native Virtual Pro Wrestling 64 recompilation.",
       "project_url": "https://github.com/jessetbh/VPW64Recomp", "support_tier": "beta", "channels": ["beta"],
       "platforms": ["windows-x86-64"], "adapter": "n64-recomp-portable",
+      "automated_tested_platforms": ["windows-x86-64"],
       "release": { "repository": "jessetbh/VPW64Recomp", "asset_hints": { "windows-x86-64": ["Vpw64Recompiled", "Windows"] } }, "source_profile": "vpw64",
       "executable_hints": { "windows-x86-64": ["Vpw64Recompiled.exe"] },
       "persistent_paths": ["mods", "mod_config", "saves", "mods.json", "mods.json.bak", "general.json", "general.json.bak", "graphics.json", "graphics.json.bak", "controls.json", "controls.json.bak", "sound.json", "sound.json.bak", "vpw.vpw64.jp.z64"],
@@ -411,6 +420,7 @@
       "id": "wwf-wrestlemania-2000-recompiled", "name": "WWF WrestleMania 2000: Recompiled", "summary": "Opt-in beta native WWF WrestleMania 2000 recompilation.",
       "project_url": "https://github.com/jessetbh/WWFWrestleMania2000Recomp", "support_tier": "beta", "channels": ["beta"],
       "platforms": ["windows-x86-64"], "adapter": "n64-recomp-portable",
+      "automated_tested_platforms": ["windows-x86-64"],
       "release": { "repository": "jessetbh/WWFWrestleMania2000Recomp", "asset_hints": { "windows-x86-64": ["Wm2kRecompiled", "Windows"] } }, "source_profile": "wwf-wrestlemania-2000",
       "executable_hints": { "windows-x86-64": ["Wm2kRecompiled.exe"] },
       "persistent_paths": ["mods", "mod_config", "saves", "mods.json", "mods.json.bak", "general.json", "general.json.bak", "graphics.json", "graphics.json.bak", "controls.json", "controls.json.bak", "sound.json", "sound.json.bak", "wwf.wm2k.us.z64"],
@@ -462,6 +472,42 @@
       "persistent_paths": ["assets/generated", "data/generated", "red", "mods", "imports", "exports", "screenshots", "save.lua", "save.lua.bak", "options.lua"]
     },
     {
+      "id": "gen2recomp-gold", "name": "Gen2Recomped: Pokémon Gold", "summary": "Opt-in Phase 2B native Lua/LÖVE recreation of Pokémon Gold.",
+      "project_url": "https://github.com/UNDERdecoded/Gen2Recomped", "support_tier": "beta", "channels": ["stable"],
+      "platforms": ["windows-x86-64"], "adapter": "generated-cache",
+      "release": { "repository": "UNDERdecoded/Gen2Recomped", "asset_hints": { "windows-x86-64": ["windows.zip"] } }, "source_profile": "pokemon-gold",
+      "executable_hints": { "windows-x86-64": ["Gen2Recomped.exe"] },
+      "portable_marker": true, "source_environment": "POKEPORT_IMPORT_ROM", "launch_environment": { "POKEPORT_VERSION": "gold" },
+      "persistent_paths": ["gold", "mods", "imports", "exports", "screenshots", "saves", "editor", "prints", "save_gold.lua", "save_gold.lua.bak", "save_gold.lua.tmp", "options.lua", "boot_trace.txt", "crash.txt"]
+    },
+    {
+      "id": "gen2recomp-silver", "name": "Gen2Recomped: Pokémon Silver", "summary": "Opt-in Phase 2B native Lua/LÖVE recreation of Pokémon Silver.",
+      "project_url": "https://github.com/UNDERdecoded/Gen2Recomped", "support_tier": "beta", "channels": ["stable"],
+      "platforms": ["windows-x86-64"], "adapter": "generated-cache",
+      "release": { "repository": "UNDERdecoded/Gen2Recomped", "asset_hints": { "windows-x86-64": ["windows.zip"] } }, "source_profile": "pokemon-silver",
+      "executable_hints": { "windows-x86-64": ["Gen2Recomped.exe"] },
+      "portable_marker": true, "source_environment": "POKEPORT_IMPORT_ROM", "launch_environment": { "POKEPORT_VERSION": "silver" },
+      "persistent_paths": ["silver", "mods", "imports", "exports", "screenshots", "saves", "editor", "prints", "save_silver.lua", "save_silver.lua.bak", "save_silver.lua.tmp", "options.lua", "boot_trace.txt", "crash.txt"]
+    },
+    {
+      "id": "gen2recomp-crystal", "name": "Gen2Recomped: Pokémon Crystal", "summary": "Opt-in beta native Lua/LÖVE recreation of Pokémon Crystal.",
+      "project_url": "https://github.com/UNDERdecoded/Gen2Recomped", "support_tier": "beta", "channels": ["stable"],
+      "platforms": ["windows-x86-64"], "adapter": "generated-cache",
+      "release": { "repository": "UNDERdecoded/Gen2Recomped", "asset_hints": { "windows-x86-64": ["windows.zip"] } }, "source_profile": "pokemon-crystal",
+      "executable_hints": { "windows-x86-64": ["Gen2Recomped.exe"] },
+      "portable_marker": true, "source_environment": "POKEPORT_IMPORT_ROM", "launch_environment": { "POKEPORT_VERSION": "crystal" },
+      "persistent_paths": ["crystal", "mods", "imports", "exports", "screenshots", "saves", "editor", "prints", "save_crystal.lua", "save_crystal.lua.bak", "save_crystal.lua.tmp", "options.lua", "boot_trace.txt", "crash.txt"]
+    },
+    {
+      "id": "nocturne-recomp", "name": "NocturneRecomp", "summary": "Native Windows recompilation of Castlevania: Symphony of the Night for Xbox Live Arcade.",
+      "project_url": "https://github.com/birabittoh/NocturneRecomp", "support_tier": "stable", "channels": ["stable"],
+      "platforms": ["windows-x86-64"], "adapter": "staged-source-portable", "automated_tested_platforms": ["windows-x86-64"],
+      "release": { "repository": "birabittoh/NocturneRecomp", "asset_hints": { "windows-x86-64": ["nocturnerecomp-v", "windows-x64.zip"] } }, "source_profile": "sotn-xbla",
+      "executable_hints": { "windows-x86-64": ["nocturnerecomp.exe"] },
+      "runtime_source_filename": "assets", "runtime_source_materialization": "stfs-directory", "runtime_source_hashes": { "default.xex": "26a58b074c5dd6185b77a8111a0012866d11cba674b4b0810d79dbf07ad68aa6" },
+      "runtime_mutable_paths": ["assets", "logs", "nocturnerecomp.toml"], "user_data_environment": "REX_USER_DATA_ROOT", "launch_environment": { "REX_AUTO_UPDATE_ENABLED": "false", "REX_GAME_DATA_ROOT": "assets" }
+    },
+    {
       "id": "re-blue", "name": "re:Blue", "summary": "Native recompilation of Blue Dragon.",
       "project_url": "https://github.com/zolaware/reblue", "support_tier": "stable", "channels": ["stable", "rolling"],
       "platforms": ["windows-x86-64"], "adapter": "generated-cache",
@@ -492,8 +538,12 @@
       "id": "trouble-makers-recomp", "name": "Trouble Makers Recompiled", "summary": "Opt-in beta native Mischief Makers recompilation.",
       "project_url": "https://github.com/ThiagoLira/trouble-makers-pc-recomp", "support_tier": "beta", "channels": ["beta"],
       "platforms": ["windows-x86-64", "linux-x86-64"], "adapter": "n64-recomp-portable",
+      "automated_tested_platforms": ["windows-x86-64"],
       "release": { "repository": "ThiagoLira/trouble-makers-pc-recomp" }, "source_profile": "trouble-makers",
-      "executable_hints": {}, "persistent_paths": ["mods", "saves", "config"]
+      "executable_hints": { "windows-x86-64": ["troublemakers.exe"], "linux-x86-64": ["troublemakers"] },
+      "persistent_paths": ["mods", "mod_config", "saves", "config", "logs", "display.cfg", "controls.json", "controls.json.bak", "troublemakers.n64.us.1.z64"],
+      "runtime_source_filename": "troublemakers.n64.us.1.z64",
+      "launch_arguments": ["troublemakers.n64.us.1.z64"]
     },
     {
       "id": "goemon64-recomp", "name": "Goemon 64 Recompiled", "summary": "Opt-in beta native Mystical Ninja recompilation.",
@@ -520,10 +570,12 @@
       "id": "sssv-recompiled", "name": "Space Station Silicon Valley: Recompiled", "summary": "Native recompilation of Space Station Silicon Valley with upstream portable storage.",
       "project_url": "https://github.com/Cellenseres/SSSV_Recomp", "support_tier": "stable", "channels": ["stable"],
       "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "adapter": "n64-recomp-portable",
+      "automated_tested_platforms": ["windows-x86-64"],
       "release": { "repository": "Cellenseres/SSSV_Recomp", "asset_hints": { "windows-x86-64": ["Windows.zip"], "linux-x86-64": ["Linux.tar.gz"], "macos-x86-64": ["macOS.zip"], "macos-aarch64": ["macOS.zip"] } },
-      "source_profile": "space-station-silicon-valley", "portable_marker": true,
+      "source_profile": "space-station-silicon-valley", "runtime_source_filename": "sssv.n64.us.1.0.z64",
+      "portable_marker": true,
       "executable_hints": { "windows-x86-64": ["SSSVRecompiled.exe"], "linux-x86-64": ["SSSVRecompiled"], "macos-x86-64": ["SSSVRecompiled"], "macos-aarch64": ["SSSVRecompiled"] },
-      "persistent_paths": ["mods", "mod_config", "saves", "mods.json", "mods.json.bak", "general.json", "general.json.bak", "graphics.json", "graphics.json.bak", "controls.json", "controls.json.bak", "sound.json", "sound.json.bak"]
+      "persistent_paths": ["sssv.n64.us.1.0.z64", "mods", "mod_config", "saves", "mods.json", "mods.json.bak", "general.json", "general.json.bak", "graphics.json", "graphics.json.bak", "controls.json", "controls.json.bak", "sound.json", "sound.json.bak"]
     },
     {
       "id": "animal-crossing-pc-port", "name": "Animal Crossing PC Port", "summary": "Opt-in playtest of the native Animal Crossing GameCube port.",
@@ -543,7 +595,8 @@
       "release": { "repository": "999sian/tmc", "asset_hints": { "windows-x86-64": ["windows-x86_64"], "linux-x86-64": ["linux-x86_64"], "macos-x86-64": ["macos-x86_64"], "macos-aarch64": ["macos-arm64"] } },
       "source_profile": "minish-cap-gba", "runtime_source_filename": "baserom.gba", "runtime_source_materialization": "copy",
       "executable_hints": { "windows-x86-64": ["tmc_pc.exe"], "linux-x86-64": ["tmc_pc"], "macos-x86-64": ["tmc_pc"], "macos-aarch64": ["tmc_pc"] },
-      "persistent_paths": ["tmc.sav", "tmc.sav.bak", "assets", "assets_src", "config.json", "mods"]
+      "persistent_paths": ["baserom.gba", "tmc.sav", "tmc.sav.bak", "tmc.randomizer", "assets", "assets_src", "rom_data", "config.json", "mods", "state_quick.bin", "state_1.bin", "state_2.bin", "state_3.bin", "state_4.bin", "state_auto_0.bin", "state_auto_1.bin", "state_auto_2.bin"],
+      "persistent_file_patterns": [{"prefix": "tmc_", "suffix": ".sav"}, {"prefix": "tmc_", "suffix": ".sav.bak"}, {"prefix": "tmc_", "suffix": ".randomizer"}]
     },
     {
       "id": "battleship", "name": "BattleShip", "summary": "Native Super Smash Bros. 64 port with a managed first-run asset cache.",
@@ -572,12 +625,59 @@
     {
       "id": "severed-chains", "name": "Severed Chains", "summary": "Opt-in rolling native port of The Legend of Dragoon with exact upstream disc-region validation.",
       "project_url": "https://github.com/Legend-of-Dragoon-Modding/Severed-Chains", "support_tier": "rolling", "channels": ["rolling"],
+      "automated_tested_platforms": ["windows-x86-64"],
       "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "adapter": "staged-source-portable",
       "release": { "repository": "Legend-of-Dragoon-Modding/Severed-Chains", "rolling_tag": "devbuild", "asset_hints": { "windows-x86-64": ["Severed_Chains_Windows.zip"], "linux-x86-64": ["Severed_Chains_Linux.tar.gz"], "macos-x86-64": ["Severed_Chains_MacOS_Intel.tar.gz"], "macos-aarch64": ["Severed_Chains_MacOS_M1.tar.gz"] } },
+      "bundled_runtime": {
+        "linux-x86-64": {
+          "asset": {
+            "name": "amazon-corretto-25.0.4.8.1-linux-x64.tar.gz",
+            "url": "https://corretto.aws/downloads/resources/25.0.4.8.1/amazon-corretto-25.0.4.8.1-linux-x64.tar.gz",
+            "size": 227557530,
+            "sha256": "b838e42c8e915019ed34e4cc54c7cda2e7e00d2a2a49be44578814735fc9accc"
+          },
+          "archive_root": "amazon-corretto-25.0.4.8.1-linux-x64",
+          "target_directory": "jdk25",
+          "executable": "bin/java"
+        },
+        "macos-aarch64": {
+          "asset": {
+            "name": "amazon-corretto-25.0.4.8.1-macosx-aarch64.tar.gz",
+            "url": "https://corretto.aws/downloads/resources/25.0.4.8.1/amazon-corretto-25.0.4.8.1-macosx-aarch64.tar.gz",
+            "size": 218316666,
+            "sha256": "b3040e5db181d09c79499728c86d250773f7f5018a3e4c124a0b08b96a75c42b"
+          },
+          "archive_root": "amazon-corretto-25.jdk",
+          "target_directory": "jdk25",
+          "executable": "Contents/Home/bin/java"
+        },
+        "macos-x86-64": {
+          "asset": {
+            "name": "amazon-corretto-25.0.4.8.1-macosx-x64.tar.gz",
+            "url": "https://corretto.aws/downloads/resources/25.0.4.8.1/amazon-corretto-25.0.4.8.1-macosx-x64.tar.gz",
+            "size": 220999407,
+            "sha256": "ae63ba7c8beb5a3669fcce4a2eb1261505a468fe7223e6c45df98c86eb52b5ee"
+          },
+          "archive_root": "amazon-corretto-25.jdk",
+          "target_directory": "jdk25",
+          "executable": "Contents/Home/bin/java"
+        },
+        "windows-x86-64": {
+          "asset": {
+            "name": "amazon-corretto-25.0.4.8.1-windows-x64-jdk.zip",
+            "url": "https://corretto.aws/downloads/resources/25.0.4.8.1/amazon-corretto-25.0.4.8.1-windows-x64-jdk.zip",
+            "size": 221967967,
+            "sha256": "fc38742d6991d20fcc731bd013468a0ddf4a6a9077b8bf15a68190950f470dce"
+          },
+          "archive_root": "jdk25.0.4_8",
+          "target_directory": "jdk25",
+          "executable": "bin/java.exe"
+        }
+      },
       "source_profile": "legend-of-dragoon-usa", "runtime_source_filename": "isos", "runtime_source_materialization": "psx-raw-set",
       "launch_from_install_root": true,
       "executable_hints": { "windows-x86-64": ["launch.bat"], "linux-x86-64": ["launch"], "macos-x86-64": ["launch"], "macos-aarch64": ["launch"] },
-      "persistent_paths": ["saves", "mods", "isos", "files", "jdk25", "config.dcnf", "launch.conf", "update_log.txt"]
+      "persistent_paths": ["saves", "mods", "isos", "files", "config.dcnf", "config.conf", "launch.conf", "update_log.txt", "debug.log", "debug-updater.log"]
     },
     {
       "id": "openpete", "name": "OpenPete", "summary": "Native Windows port of Spyro the Dragon with a checksum-pinned direct upstream release.",
@@ -593,52 +693,60 @@
       "id": "opengoal-jak1", "name": "OpenGOAL: Jak and Daxter", "summary": "Direct, portable OpenGOAL build of Jak and Daxter: The Precursor Legacy.",
       "project_url": "https://github.com/open-goal/jak-project", "support_tier": "stable", "channels": ["stable"],
       "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "adapter": "upstream-managed-setup",
+      "automated_tested_platforms": ["windows-x86-64"],
       "release": { "repository": "open-goal/jak-project", "asset_hints": { "windows-x86-64": ["opengoal-windows"], "linux-x86-64": ["opengoal-linux"], "macos-x86-64": ["opengoal-macos-intel"], "macos-aarch64": ["opengoal-macos-arm"] } },
       "source_profile": "opengoal-jak1-disc", "runtime_source_filename": "source.iso", "runtime_source_materialization": "ps2-iso",
       "setup_executable_hints": { "windows-x86-64": ["extractor.exe"], "linux-x86-64": ["extractor"], "macos-x86-64": ["extractor"], "macos-aarch64": ["extractor"] },
       "setup_arguments": ["--game", "jak1", "--extract", "--decompile", "--compile", "--validate", "--disable-ansi"], "setup_marker": "data/out/jak1/iso/0COMMON.TXT",
       "launch_arguments": ["--game", "jak1", "--portable"],
       "executable_hints": { "windows-x86-64": ["gk.exe"], "linux-x86-64": ["gk"], "macos-x86-64": ["gk"], "macos-aarch64": ["gk"] },
+      "runtime_mutable_paths": ["data/log", "data/imgui.ini"],
       "persistent_paths": ["OpenGOAL/jak1"]
     },
     {
       "id": "opengoal-jak2", "name": "OpenGOAL: Jak II", "summary": "Direct, portable OpenGOAL build of Jak II.",
       "project_url": "https://github.com/open-goal/jak-project", "support_tier": "beta", "channels": ["stable"],
       "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "adapter": "upstream-managed-setup",
+      "automated_tested_platforms": ["windows-x86-64"],
       "release": { "repository": "open-goal/jak-project", "asset_hints": { "windows-x86-64": ["opengoal-windows"], "linux-x86-64": ["opengoal-linux"], "macos-x86-64": ["opengoal-macos-intel"], "macos-aarch64": ["opengoal-macos-arm"] } },
       "source_profile": "opengoal-jak2-disc", "runtime_source_filename": "source.iso", "runtime_source_materialization": "ps2-iso",
       "setup_executable_hints": { "windows-x86-64": ["extractor.exe"], "linux-x86-64": ["extractor"], "macos-x86-64": ["extractor"], "macos-aarch64": ["extractor"] },
       "setup_arguments": ["--game", "jak2", "--extract", "--decompile", "--compile", "--validate", "--disable-ansi"], "setup_marker": "data/out/jak2/iso/0COMMON.TXT",
       "launch_arguments": ["--game", "jak2", "--portable"],
       "executable_hints": { "windows-x86-64": ["gk.exe"], "linux-x86-64": ["gk"], "macos-x86-64": ["gk"], "macos-aarch64": ["gk"] },
+      "runtime_mutable_paths": ["data/log", "data/imgui.ini"],
       "persistent_paths": ["OpenGOAL/jak2"]
     },
     {
       "id": "opengoal-jak3", "name": "OpenGOAL: Jak 3", "summary": "Direct, portable OpenGOAL build of Jak 3.",
       "project_url": "https://github.com/open-goal/jak-project", "support_tier": "beta", "channels": ["stable"],
       "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "adapter": "upstream-managed-setup",
+      "automated_tested_platforms": ["windows-x86-64"],
       "release": { "repository": "open-goal/jak-project", "asset_hints": { "windows-x86-64": ["opengoal-windows"], "linux-x86-64": ["opengoal-linux"], "macos-x86-64": ["opengoal-macos-intel"], "macos-aarch64": ["opengoal-macos-arm"] } },
       "source_profile": "opengoal-jak3-disc", "runtime_source_filename": "source.iso", "runtime_source_materialization": "ps2-iso",
       "setup_executable_hints": { "windows-x86-64": ["extractor.exe"], "linux-x86-64": ["extractor"], "macos-x86-64": ["extractor"], "macos-aarch64": ["extractor"] },
       "setup_arguments": ["--game", "jak3", "--extract", "--decompile", "--compile", "--validate", "--disable-ansi"], "setup_marker": "data/out/jak3/iso/0COMMON.TXT",
       "launch_arguments": ["--game", "jak3", "--portable"],
       "executable_hints": { "windows-x86-64": ["gk.exe"], "linux-x86-64": ["gk"], "macos-x86-64": ["gk"], "macos-aarch64": ["gk"] },
+      "runtime_mutable_paths": ["data/log", "data/imgui.ini"],
       "persistent_paths": ["OpenGOAL/jak3"]
     },
     {
       "id": "mega-man-x6-recompiled", "name": "Mega Man X6 Recompiled", "summary": "Native Windows recompilation of Mega Man X6 with a checksum-qualified direct upstream release.",
       "project_url": "https://github.com/mstan/MegaManX6Recomp", "support_tier": "stable", "channels": ["stable", "beta"],
       "platforms": ["windows-x86-64"], "adapter": "staged-source-portable",
+      "automated_tested_platforms": ["windows-x86-64"],
       "release": { "repository": "mstan/MegaManX6Recomp", "asset_hints": { "windows-x86-64": ["windows-x64.zip"] } },
       "source_profile": "mega-man-x6-psx", "runtime_source_filename": "disc", "runtime_source_materialization": "psx-bin-cue",
-      "launch_arguments": ["--game", "game.toml", "--bios", "bios/openbios.bin", "--disc", "disc/disc.cue"],
+      "launch_arguments": ["--no-launcher", "--memcard-dir", "saves", "--game", "game.toml", "--bios", "bios/openbios.bin", "--disc", "disc/disc.cue"],
       "executable_hints": { "windows-x86-64": ["MegaManX6Recomp.exe"] },
-      "persistent_paths": ["saves", "settings.toml", "disc.cfg", "bios.cfg", "input.ini", "game.toml", "cache", "overlay_captures.json", "mods"]
+      "persistent_paths": ["saves", "settings.toml", "disc.cfg", "bios.cfg", "input.ini", "game.toml", "cache", "overlay_captures.json", "mods", "disc", "keybinds.ini", "overlay_captures.json.d", "psx_freeze_heartbeat.json", "psx_last_run_report.json"]
     },
     {
       "id": "paper-mario-recut", "name": "Paper Mario ReCut", "summary": "Opt-in beta Windows recompilation of Paper Mario with a release-local user-data boundary.",
       "project_url": "https://github.com/SMCGames/Paper-Mario-ReCut", "support_tier": "beta", "channels": ["beta"],
-      "platforms": ["windows-x86-64"], "adapter": "n64-recomp-portable",
+      "platforms": ["windows-x86-64"],
+      "automated_tested_platforms": ["windows-x86-64"], "adapter": "n64-recomp-portable",
       "release": { "repository": "SMCGames/Paper-Mario-ReCut", "asset_hints": { "windows-x86-64": ["license-compliance.zip"] } },
       "source_profile": "paper-mario-us", "runtime_subdirectory": "Paper Mario ReCut", "runtime_source_filename": "user/pm.n64.us.z64", "runtime_source_materialization": "n64-big-endian",
       "executable_hints": { "windows-x86-64": ["PaperMarioReCut.exe"] },

@@ -9,16 +9,19 @@ use portcove_core::{
     API_SCHEMA_VERSION, ActivityRecord, AdoptionPreview, BackupAction, BackupActionPreview,
     BackupRecord, CapabilityDocument, CatalogDocument, DoctorReport, ErrorCode, GithubAuthStatus,
     GithubDeviceLogin, GithubDeviceLoginResult, GithubDeviceLoginState, GithubReleaseProvider,
-    InstallPlan, InstallRecord, LaunchSignal, LaunchStdio, OperationEvent, OperationEventKind,
-    PortDefinition, PortPaths, PortRemovalPreview, PortStatus, PortcoveError, PortcoveService,
-    ReconcileResult, ReleaseChannel, RestoreResult, Result, SourceRecord, SourceRemovalPreview,
-    SourceVerification, StorageSummary, UpdateCheck, UpdatePolicy, UpdateSnapshot,
-    forward_launch_signal,
+    InstallPlan, InstallRecord, LaunchSignal, LaunchStdio, LibraryMetadata, LibraryMetadataFile,
+    OperationEvent, OperationEventKind, PortDefinition, PortPaths, PortRemovalPreview, PortStatus,
+    PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel, RestoreResult, Result,
+    SourceRecord, SourceRelinkPlan, SourceRemovalPreview, SourceVerification, StorageSummary,
+    UpdateCheck, UpdatePolicy, UpdateSnapshot, forward_launch_signal,
 };
 use schemars::{JsonSchema, schema_for};
 use serde::Serialize;
 use tracing_subscriber::EnvFilter;
 
+mod cancellation;
+mod catalog;
+use catalog::CatalogCommand;
 mod human;
 
 #[derive(Debug, Parser)]
@@ -45,6 +48,10 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
+    Library {
+        #[command(subcommand)]
+        command: LibraryCommand,
+    },
     Auth {
         #[command(subcommand)]
         command: AuthCommand,
@@ -67,6 +74,9 @@ enum Commands {
     Activity {
         #[arg(long, default_value_t = 50, value_parser = clap::value_parser!(u16).range(1..=200))]
         limit: u16,
+    },
+    Cancel {
+        operation_id: String,
     },
     Storage,
     Doctor,
@@ -152,17 +162,57 @@ enum BackupCommand {
 }
 
 #[derive(Debug, Subcommand)]
-enum CatalogCommand {
-    List,
-    Export,
-    Show { port_id: String },
+enum LibraryCommand {
+    /// Review restoring metadata and copied content into --library's new or empty root.
+    Import {
+        metadata: PathBuf,
+        content_root: PathBuf,
+        #[arg(long, requires = "expected_plan")]
+        apply: bool,
+        #[arg(long, requires = "apply")]
+        expected_plan: Option<String>,
+    },
+    /// Resume an interrupted import at --library without modifying its input backup.
+    ResumeImport,
+    /// Retain and gate an incomplete import; no original or copied files are deleted.
+    AbortImport,
+    /// Export metadata without application files, saves, or original sources.
+    Export {
+        #[arg(long)]
+        output: Option<PathBuf>,
+    },
+    /// Review a verified copy; applying retains the old directory as a recovery copy.
+    Move {
+        destination: PathBuf,
+        #[arg(long, requires = "expected_plan")]
+        apply: bool,
+        #[arg(long, requires = "apply")]
+        expected_plan: Option<String>,
+    },
+    /// Resume an interrupted move using --library's retained original directory.
+    ResumeMove,
+    /// Reactivate an unpublished original while retaining all copied data.
+    AbortMove,
 }
 
 #[derive(Debug, Subcommand)]
 enum SourceCommand {
+    /// Search only explicitly selected folders and profiles; never registers a candidate.
+    Discover(SourceDiscoveryArgs),
     Add {
         profile_id: String,
         path: PathBuf,
+        #[arg(long)]
+        expected_sha256: Option<String>,
+    },
+    /// Validate a replacement path; apply only the exact reviewed plan.
+    Relink {
+        profile_id: String,
+        path: PathBuf,
+        #[arg(long, requires = "expected_plan")]
+        apply: bool,
+        #[arg(long, requires = "apply")]
+        expected_plan: Option<String>,
     },
     List,
     Verify(SourceVerifyArgs),
@@ -178,6 +228,41 @@ struct SourceVerifyArgs {
     profile_id: Option<String>,
     #[arg(long, conflicts_with = "profile_id")]
     all: bool,
+}
+
+#[derive(Debug, Args)]
+struct SourceDiscoveryArgs {
+    #[arg(long = "root", required = true)]
+    roots: Vec<PathBuf>,
+    #[arg(long = "profile", required = true)]
+    profiles: Vec<String>,
+    #[arg(long)]
+    max_entries: Option<u32>,
+    #[arg(long)]
+    max_depth: Option<u32>,
+    #[arg(long)]
+    max_file_bytes: Option<u64>,
+    #[arg(long)]
+    max_hash_bytes: Option<u64>,
+    #[arg(long)]
+    max_candidates: Option<u32>,
+}
+
+impl SourceDiscoveryArgs {
+    fn request(self) -> portcove_core::SourceDiscoveryRequest {
+        let defaults = portcove_core::SourceDiscoveryLimits::default();
+        portcove_core::SourceDiscoveryRequest {
+            roots: self.roots,
+            profile_ids: self.profiles,
+            limits: portcove_core::SourceDiscoveryLimits {
+                max_entries: self.max_entries.unwrap_or(defaults.max_entries),
+                max_depth: self.max_depth.unwrap_or(defaults.max_depth),
+                max_file_bytes: self.max_file_bytes.unwrap_or(defaults.max_file_bytes),
+                max_hash_bytes: self.max_hash_bytes.unwrap_or(defaults.max_hash_bytes),
+                max_candidates: self.max_candidates.unwrap_or(defaults.max_candidates),
+            },
+        }
+    }
 }
 
 #[derive(Debug, Args)]
@@ -445,12 +530,38 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         render_success(mode, "schema.export", schema_document())?;
         return Ok(ExitCode::SUCCESS);
     }
+    if let Commands::Library { command } = &cli.command {
+        execute_library(cli.library.as_deref(), command, mode)?;
+        return Ok(ExitCode::SUCCESS);
+    }
     let library = match cli.library {
         Some(path) => portcove_core::Library::open(path)?,
         None => portcove_core::Library::open_default()?,
     };
-    let service = PortcoveService::new(library)?;
+    let service = std::sync::Arc::new(PortcoveService::new(library)?);
+    let _cancellation_signals = matches!(
+        &cli.command,
+        Commands::Install(_)
+            | Commands::Update(_)
+            | Commands::Ensure(_)
+            | Commands::Reconcile(_)
+            | Commands::Check(_)
+            | Commands::Catalog {
+                command: CatalogCommand::Update { apply: true, .. }
+            }
+            | Commands::Source {
+                command: SourceCommand::Discover(_)
+            }
+    )
+    .then(|| cancellation::CancellationSignals::start(service.clone()))
+    .transpose()?;
     match cli.command {
+        Commands::Cancel { operation_id } => {
+            render_success(mode, "cancel", service.request_cancellation(&operation_id)?)?;
+        }
+        Commands::Library { .. } => {
+            unreachable!("library commands handle exclusive access before opening a service")
+        }
         Commands::Auth { command } => {
             let github = GithubReleaseProvider::for_library(service.library())?;
             match command {
@@ -497,15 +608,8 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 }
             }
         }
-        Commands::Catalog {
-            command: CatalogCommand::List,
-        } => {
-            render_read_success(
-                mode,
-                "catalog.list",
-                service.catalog().ports().to_vec(),
-                |ports| human::catalog_list(ports),
-            )?;
+        Commands::Catalog { command } => {
+            catalog::execute(command, &service, mode, cli.non_interactive).await?;
         }
         Commands::Backup {
             command: BackupCommand::Create { port_id },
@@ -578,28 +682,32 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 service.restore_backup(&port_id, &backup_id, &authorization.token)?,
             )?;
         }
-        Commands::Catalog {
-            command: CatalogCommand::Export,
+
+        Commands::Source {
+            command: SourceCommand::Discover(args),
         } => {
-            render_success(mode, "catalog.export", service.catalog().document().clone())?;
-        }
-        Commands::Catalog {
-            command: CatalogCommand::Show { port_id },
-        } => {
-            render_read_success(
+            render_success(
                 mode,
-                "catalog.show",
-                service.catalog().port(&port_id)?.clone(),
-                human::catalog_show,
+                "source.discover",
+                service.discover_sources_with_progress(&args.request(), progress_renderer(mode))?,
             )?;
         }
         Commands::Source {
-            command: SourceCommand::Add { profile_id, path },
+            command:
+                SourceCommand::Add {
+                    profile_id,
+                    path,
+                    expected_sha256,
+                },
         } => {
             render_success(
                 mode,
                 "source.add",
-                service.register_source(&profile_id, &path)?,
+                if let Some(digest) = expected_sha256 {
+                    service.register_source_with_digest(&profile_id, &path, &digest)?
+                } else {
+                    service.register_source(&profile_id, &path)?
+                },
             )?;
         }
         Commands::Source {
@@ -611,6 +719,35 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 service.library().sources()?,
                 |sources| human::source_list(sources),
             )?;
+        }
+        Commands::Source {
+            command:
+                SourceCommand::Relink {
+                    profile_id,
+                    path,
+                    apply,
+                    expected_plan,
+                },
+        } => {
+            if apply {
+                render_success(
+                    mode,
+                    "source.relink",
+                    service.relink_source(
+                        &profile_id,
+                        &path,
+                        expected_plan.as_deref().ok_or_else(|| {
+                            PortcoveError::usage("--apply requires --expected-plan")
+                        })?,
+                    )?,
+                )?;
+            } else {
+                render_success(
+                    mode,
+                    "source.relink",
+                    service.plan_source_relink(&profile_id, &path)?,
+                )?;
+            }
         }
         Commands::Source {
             command: SourceCommand::Verify(args),
@@ -952,39 +1089,281 @@ where
     }
 }
 
+fn library_command_name(command: &LibraryCommand) -> &'static str {
+    match command {
+        LibraryCommand::Import { .. } => "library.import",
+        LibraryCommand::ResumeImport => "library.resume_import",
+        LibraryCommand::AbortImport => "library.abort_import",
+        LibraryCommand::Export { .. } => "library.export",
+        LibraryCommand::Move { .. } => "library.move",
+        LibraryCommand::ResumeMove => "library.resume_move",
+        LibraryCommand::AbortMove => "library.abort_move",
+    }
+}
+
+fn execute_library(
+    root: Option<&std::path::Path>,
+    command: &LibraryCommand,
+    mode: OutputMode,
+) -> Result<()> {
+    let root = root
+        .map(std::path::Path::to_path_buf)
+        .map(Ok)
+        .unwrap_or_else(portcove_core::Library::default_root)?;
+    let name = library_command_name(command);
+    match command {
+        LibraryCommand::Import {
+            metadata,
+            content_root,
+            apply: true,
+            expected_plan,
+        } => {
+            render_success(
+                mode,
+                name,
+                PortcoveService::import_library(
+                    metadata,
+                    content_root,
+                    &root,
+                    expected_plan.as_deref().ok_or_else(|| {
+                        PortcoveError::usage("applying an import requires --expected-plan")
+                    })?,
+                )?,
+            )?;
+        }
+        LibraryCommand::Import {
+            metadata,
+            content_root,
+            ..
+        } => {
+            render_success(
+                mode,
+                name,
+                PortcoveService::plan_library_import(metadata, content_root, &root)?,
+            )?;
+        }
+        LibraryCommand::ResumeImport => {
+            render_success(mode, name, PortcoveService::resume_library_import(&root)?)?
+        }
+        LibraryCommand::AbortImport => {
+            render_success(mode, name, PortcoveService::abort_library_import(&root)?)?
+        }
+        LibraryCommand::ResumeMove => {
+            render_success(mode, name, PortcoveService::resume_library_move(&root)?)?
+        }
+        LibraryCommand::AbortMove => {
+            render_success(mode, name, PortcoveService::abort_library_move(&root)?)?
+        }
+        LibraryCommand::Move {
+            destination,
+            apply: true,
+            expected_plan,
+        } => {
+            let source = portcove_core::Library::open(&root)?.root().to_path_buf();
+            render_success(
+                mode,
+                name,
+                PortcoveService::move_library(
+                    &source,
+                    destination,
+                    expected_plan.as_deref().ok_or_else(|| {
+                        PortcoveError::usage("applying a move requires --expected-plan")
+                    })?,
+                )?,
+            )?;
+        }
+        LibraryCommand::Move { destination, .. } => {
+            let service = PortcoveService::new(portcove_core::Library::open(root)?)?;
+            render_success(mode, name, service.plan_library_move(destination)?)?;
+        }
+        LibraryCommand::Export { output } => {
+            let service = PortcoveService::new(portcove_core::Library::open(root)?)?;
+            if let Some(path) = output {
+                render_success(mode, name, service.write_library_metadata(path)?)?;
+            } else {
+                render_success(mode, name, service.export_library_metadata()?)?;
+            }
+        }
+    }
+    Ok(())
+}
+
 fn schema_document() -> serde_json::Value {
-    serde_json::json!({
-        "api_response_port_status": schema_for!(ApiResponse<PortStatus>),
-        "about": schema_for!(AboutDocument),
-        "catalog": schema_for!(CatalogDocument),
-        "port": schema_for!(PortDefinition),
-        "status": schema_for!(PortStatus),
-        "update_check": schema_for!(UpdateCheck),
-        "update_snapshot": schema_for!(UpdateSnapshot),
-        "check_batch_outcome": schema_for!(PortBatchOutcome<UpdateCheck>),
-        "reconcile_result": schema_for!(ReconcileResult),
-        "reconcile_batch_outcome": schema_for!(PortBatchOutcome<ReconcileResult>),
-        "update_batch_outcome": schema_for!(PortBatchOutcome<InstallRecord>),
-        "source": schema_for!(SourceRecord),
-        "source_removal_preview": schema_for!(SourceRemovalPreview),
-        "source_verification": schema_for!(SourceVerification),
-        "source_batch_outcome": schema_for!(SourceBatchOutcome),
-        "activity": schema_for!(ActivityRecord),
-        "backup": schema_for!(BackupRecord),
-        "backup_action_preview": schema_for!(BackupActionPreview),
-        "restore_result": schema_for!(RestoreResult),
-        "adoption_preview": schema_for!(AdoptionPreview),
-        "port_removal_preview": schema_for!(PortRemovalPreview),
-        "storage": schema_for!(StorageSummary),
-        "doctor": schema_for!(DoctorReport),
-        "install_plan": schema_for!(InstallPlan),
-        "port_paths": schema_for!(PortPaths),
-        "operation_event": schema_for!(OperationEvent),
-        "github_auth_status": schema_for!(GithubAuthStatus),
-        "github_device_login": schema_for!(GithubDeviceLogin),
-        "github_device_login_result": schema_for!(GithubDeviceLoginResult),
-        "capabilities": schema_for!(CapabilityDocument)
-    })
+    serde_json::Value::Object(
+        [
+            (
+                "api_response_port_status",
+                serde_json::json!(schema_for!(ApiResponse<PortStatus>)),
+            ),
+            ("about", serde_json::json!(schema_for!(AboutDocument))),
+            ("catalog", serde_json::json!(schema_for!(CatalogDocument))),
+            (
+                "catalog_status",
+                serde_json::json!(schema_for!(portcove_core::CatalogStatus)),
+            ),
+            (
+                "catalog_provenance",
+                serde_json::json!(schema_for!(portcove_core::CatalogProvenance)),
+            ),
+            (
+                "catalog_trust_key",
+                serde_json::json!(schema_for!(portcove_core::CatalogTrustKey)),
+            ),
+            (
+                "catalog_update_plan",
+                serde_json::json!(schema_for!(portcove_core::CatalogUpdatePlan)),
+            ),
+            (
+                "catalog_update_source",
+                serde_json::json!(schema_for!(portcove_core::CatalogUpdateSource)),
+            ),
+            (
+                "signed_catalog_envelope",
+                serde_json::json!(schema_for!(portcove_core::SignedCatalogEnvelope)),
+            ),
+            (
+                "signed_catalog_payload",
+                serde_json::json!(schema_for!(portcove_core::SignedCatalogPayload)),
+            ),
+            ("port", serde_json::json!(schema_for!(PortDefinition))),
+            ("status", serde_json::json!(schema_for!(PortStatus))),
+            ("update_check", serde_json::json!(schema_for!(UpdateCheck))),
+            (
+                "update_snapshot",
+                serde_json::json!(schema_for!(UpdateSnapshot)),
+            ),
+            (
+                "check_batch_outcome",
+                serde_json::json!(schema_for!(PortBatchOutcome<UpdateCheck>)),
+            ),
+            (
+                "reconcile_result",
+                serde_json::json!(schema_for!(ReconcileResult)),
+            ),
+            (
+                "reconcile_batch_outcome",
+                serde_json::json!(schema_for!(PortBatchOutcome<ReconcileResult>)),
+            ),
+            (
+                "update_batch_outcome",
+                serde_json::json!(schema_for!(PortBatchOutcome<InstallRecord>)),
+            ),
+            ("source", serde_json::json!(schema_for!(SourceRecord))),
+            (
+                "source_relink_plan",
+                serde_json::json!(schema_for!(SourceRelinkPlan)),
+            ),
+            (
+                "library_metadata",
+                serde_json::json!(schema_for!(LibraryMetadata)),
+            ),
+            (
+                "library_metadata_file",
+                serde_json::json!(schema_for!(LibraryMetadataFile)),
+            ),
+            (
+                "library_move_plan",
+                serde_json::json!(schema_for!(portcove_core::LibraryMovePlan)),
+            ),
+            (
+                "library_move_result",
+                serde_json::json!(schema_for!(portcove_core::LibraryMoveResult)),
+            ),
+            (
+                "library_import_plan",
+                serde_json::json!(schema_for!(portcove_core::LibraryImportPlan)),
+            ),
+            (
+                "library_import_result",
+                serde_json::json!(schema_for!(portcove_core::LibraryImportResult)),
+            ),
+            (
+                "source_discovery_request",
+                serde_json::json!(schema_for!(portcove_core::SourceDiscoveryRequest)),
+            ),
+            (
+                "source_discovery_limits",
+                serde_json::json!(schema_for!(portcove_core::SourceDiscoveryLimits)),
+            ),
+            (
+                "source_discovery_report",
+                serde_json::json!(schema_for!(portcove_core::SourceDiscoveryReport)),
+            ),
+            (
+                "source_discovery_issue",
+                serde_json::json!(schema_for!(portcove_core::SourceDiscoveryIssue)),
+            ),
+            (
+                "source_discovery_limit",
+                serde_json::json!(schema_for!(portcove_core::SourceDiscoveryLimit)),
+            ),
+            (
+                "source_removal_preview",
+                serde_json::json!(schema_for!(SourceRemovalPreview)),
+            ),
+            (
+                "source_verification",
+                serde_json::json!(schema_for!(SourceVerification)),
+            ),
+            (
+                "source_batch_outcome",
+                serde_json::json!(schema_for!(SourceBatchOutcome)),
+            ),
+            ("activity", serde_json::json!(schema_for!(ActivityRecord))),
+            (
+                "cancellation_state",
+                serde_json::json!(schema_for!(portcove_core::CancellationState)),
+            ),
+            (
+                "cancellation_phase",
+                serde_json::json!(schema_for!(portcove_core::CancellationPhase)),
+            ),
+            ("backup", serde_json::json!(schema_for!(BackupRecord))),
+            (
+                "backup_action_preview",
+                serde_json::json!(schema_for!(BackupActionPreview)),
+            ),
+            (
+                "restore_result",
+                serde_json::json!(schema_for!(RestoreResult)),
+            ),
+            (
+                "adoption_preview",
+                serde_json::json!(schema_for!(AdoptionPreview)),
+            ),
+            (
+                "port_removal_preview",
+                serde_json::json!(schema_for!(PortRemovalPreview)),
+            ),
+            ("storage", serde_json::json!(schema_for!(StorageSummary))),
+            ("doctor", serde_json::json!(schema_for!(DoctorReport))),
+            ("install_plan", serde_json::json!(schema_for!(InstallPlan))),
+            ("port_paths", serde_json::json!(schema_for!(PortPaths))),
+            (
+                "operation_event",
+                serde_json::json!(schema_for!(OperationEvent)),
+            ),
+            (
+                "github_auth_status",
+                serde_json::json!(schema_for!(GithubAuthStatus)),
+            ),
+            (
+                "github_device_login",
+                serde_json::json!(schema_for!(GithubDeviceLogin)),
+            ),
+            (
+                "github_device_login_result",
+                serde_json::json!(schema_for!(GithubDeviceLoginResult)),
+            ),
+            (
+                "capabilities",
+                serde_json::json!(schema_for!(CapabilityDocument)),
+            ),
+        ]
+        .into_iter()
+        .map(|(name, schema)| (name.to_owned(), schema))
+        .collect(),
+    )
 }
 
 fn read_token(stdin: bool, non_interactive: bool) -> Result<String> {
@@ -1248,6 +1627,7 @@ fn exit_code(error: &PortcoveError) -> u8 {
         ErrorCode::State => 13,
         ErrorCode::Conflict => 14,
         ErrorCode::Launch => 125,
+        ErrorCode::Cancelled => 130,
     }
 }
 
@@ -1265,20 +1645,20 @@ fn command_name(command: &Commands) -> &'static str {
             BackupCommand::Delete { .. } => "backup.delete",
             BackupCommand::Restore { .. } => "backup.restore",
         },
-        Commands::Catalog { command } => match command {
-            CatalogCommand::List => "catalog.list",
-            CatalogCommand::Export => "catalog.export",
-            CatalogCommand::Show { .. } => "catalog.show",
-        },
+        Commands::Catalog { command } => command.name(),
         Commands::Source { command } => match command {
             SourceCommand::Add { .. } => "source.add",
+            SourceCommand::Discover(_) => "source.discover",
+            SourceCommand::Relink { .. } => "source.relink",
             SourceCommand::List => "source.list",
             SourceCommand::Verify(_) => "source.verify",
             SourceCommand::Remove { .. } => "source.remove",
         },
         Commands::Status { .. } => "status",
         Commands::Activity { .. } => "activity",
+        Commands::Cancel { .. } => "cancel",
         Commands::Storage => "storage",
+        Commands::Library { command } => library_command_name(command),
         Commands::Doctor => "doctor",
         Commands::About => "about",
         Commands::Plan { .. } => "plan",
@@ -1542,7 +1922,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 4);
+        assert_eq!(capabilities.schema_version, 10);
         assert_eq!(
             capabilities.failure_isolated_batches,
             ["check", "reconcile", "update", "source.verify"]

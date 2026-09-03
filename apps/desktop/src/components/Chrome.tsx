@@ -3,13 +3,19 @@ import { AlertTriangle, Boxes, Check, CheckCircle2, CircleMinus, CircleUserRound
 import desktopPackage from "../../package.json";
 import { copyText } from "../clipboard";
 import type { ThemeState, ThemePreference } from "../theme";
-import type { DoctorReport, GithubAuthStatus, GithubDeviceLogin, HostToolStatus, OperationEvent, SourceProfile, SourceRecord, SourceVerificationOutcome, StorageSummary } from "../types";
+import type { DoctorReport, GithubAuthStatus, GithubDeviceLogin, HostToolStatus, LibraryMetadataFile, OperationEvent, SourceProfile, SourceRecord, SourceVerificationOutcome, StorageSummary } from "../types";
 import { formatBytes, type SourceRequirement, type View } from "../view-model";
 import { BrandAvatar, BrandMascot, BrandWordmark } from "./Brand";
-import { Icon, Shortcut } from "./ui";
+import { ExternalLink } from "./ExternalLink";
+import { LibraryMoveButton } from "./LibraryMove";
+import { LibraryImportButton } from "./LibraryImport";
+import { CatalogSettings } from "./CatalogUpdates";
+import { SourceDiscoveryButton } from "./SourceDiscovery";
+import { Icon, NavigationHints, Shortcut } from "./ui";
 
-export function Sidebar({ view, setView, installedCount, updateCount, onAdopt }: {
+export function Sidebar({ view, setView, installedCount, updateCount, onAdopt, controller }: {
   view: View; setView: Dispatch<SetStateAction<View>>; installedCount: number; updateCount: number; onAdopt: () => void;
+  controller?: string;
 }) {
   const items = [
     { view: "library", label: "Library", icon: Library, shortcut: "1" },
@@ -17,7 +23,7 @@ export function Sidebar({ view, setView, installedCount, updateCount, onAdopt }:
     { view: "updates", label: "Updates", icon: Download, shortcut: "3" },
     { view: "settings", label: "Settings", icon: Settings, shortcut: "4" },
   ] satisfies Array<{ view: View; label: string; icon: typeof Library; shortcut: string }>;
-  return <aside className="sidebar">
+  return <aside className="sidebar" data-focus-region="sidebar">
     <div className="brand"><BrandAvatar /><div><strong>Portcove</strong><small>Native ports, kept current</small></div></div>
     <nav aria-label="Primary navigation">{items.map(item =>
       <button data-focusable key={item.view} aria-current={view === item.view ? "page" : undefined} className={view === item.view ? "nav-item active" : "nav-item"} onClick={() => setView(item.view)}>
@@ -28,7 +34,7 @@ export function Sidebar({ view, setView, installedCount, updateCount, onAdopt }:
       </button>)}</nav>
     <div className="sidebar-footer">
       <button data-focusable className="secondary full button-with-icon" onClick={onAdopt}><Icon glyph={FolderInput} />Adopt an install</button>
-      <div className="controller-hint"><span>Ⓐ Select</span><span>Ⓑ Back</span></div>
+      <NavigationHints controller={controller} workspace />
     </div>
   </aside>;
 }
@@ -39,7 +45,7 @@ export function PageHeader({ view, query, setQuery, portCount, onOpenCommands }:
   const copy = pageCopy(view, portCount ?? 0);
   return <header>
     <div><p className="eyebrow">{copy.eyebrow}</p><h1>{copy.title}</h1><p className="page-description">{copy.description}</p></div>
-    <div className="header-tools">
+    <div className="header-tools" data-focus-group>
       {(view === "library" || view === "catalog") && <label className="search" htmlFor="port-search"><Icon glyph={Search} /><span className="sr-only">Search ports</span><input id="port-search" data-focusable value={query} onChange={event => setQuery(event.target.value)} placeholder="Search ports" /><Shortcut>/</Shortcut></label>}
       <button data-focusable className="command-trigger button-with-icon" onClick={onOpenCommands} aria-label="Open command palette"><Icon glyph={Command} /><span>Commands</span><Shortcut>Ctrl K</Shortcut></button>
     </div>
@@ -61,7 +67,7 @@ export function StatusLayer({ error, clearError, operation, busy }: {
 }) {
   return <>
     {error && <ErrorNotice error={error} clearError={clearError} />}
-    {operation && busy && <OperationProgress operation={operation} busy={busy} />}
+    {busy && <OperationProgress operation={operation?.type === "finished" ? undefined : operation} busy={busy} />}
   </>;
 }
 
@@ -82,9 +88,9 @@ function ErrorNotice({ error, clearError }: { error: string; clearError: () => v
     </section>;
 }
 
-function OperationProgress({ operation, busy }: { operation: OperationEvent; busy: string }) {
-  const label = operation.message ?? operation.phase ?? operation.operation ?? busy;
-  if (operation.total && operation.total > 0 && operation.completed !== undefined) {
+function OperationProgress({ operation, busy }: { operation?: OperationEvent; busy: string }) {
+  const label = operation?.message ?? operation?.phase ?? operation?.operation ?? busy;
+  if (operation?.total && operation.total > 0 && operation.completed !== undefined) {
     return <DeterminateProgress operation={operation} label={label} total={operation.total} completed={operation.completed} />;
   }
   return <div className="operation-bar" aria-live="polite">
@@ -138,31 +144,32 @@ function githubQuota(status?: GithubAuthStatus) {
 
 function DeviceLogin({ login }: { login?: GithubDeviceLogin }) {
   if (!login) return null;
-  return <div className="device-login"><strong>Enter {login.user_code}</strong><span>at <a data-focusable href={login.verification_uri} target="_blank" rel="noreferrer">{login.verification_uri}</a></span><small>Portcove is waiting for GitHub.</small></div>;
+  return <div className="device-login"><strong>Enter {login.user_code}</strong><span>at <ExternalLink href={login.verification_uri}>{login.verification_uri}</ExternalLink></span><small>Portcove is waiting for GitHub.</small></div>;
 }
 
 function TokenEntry({ github, busy }: { github?: GithubSettingsActions; busy: boolean }) {
-  if (github?.status?.authenticated) return null;
+  if (github?.status?.authenticated || github?.status?.source === "environment") return null;
   return <div className="token-entry"><input data-focusable type="password" autoComplete="off" aria-label="GitHub personal access token" placeholder="Personal access token" value={github?.token ?? ""} onChange={event => github?.setToken(event.target.value)} /><button data-focusable className="interactive-button" disabled={busy || !github?.token.trim()} onClick={() => { void github?.saveToken(); }}>Save token</button></div>;
 }
 
 function GithubActions({ github, busy }: { github?: GithubSettingsActions; busy: boolean }) {
   const status = github?.status;
   return <div className="actions compact">
-    {!status?.authenticated && <button data-focusable disabled={busy || !status?.device_login_available} onClick={() => { void github?.beginDeviceLogin(); }}>Sign in with GitHub</button>}
+    {!status?.authenticated && status?.source !== "environment" && <button data-focusable disabled={busy || !status?.device_login_available} onClick={() => { void github?.beginDeviceLogin(); }}>Sign in with GitHub</button>}
     {status?.source === "credential_store" && <button data-focusable disabled={busy} onClick={() => { void github?.logout(); }}>Log out</button>}
     <button data-focusable disabled={busy} onClick={() => { void github?.refresh(); }}>Refresh status</button>
   </div>;
 }
 
 function GithubNotes({ status }: { status?: GithubAuthStatus }) {
-  if (status?.source === "environment") return <small>The active token is managed outside Portcove through an environment variable.</small>;
+  if (status?.source === "environment") return <small>{status.authenticated ? "The active token is managed outside Portcove through an environment variable." : "GitHub rejected the environment token. Replace or remove it outside Portcove, then restart Portcove."}</small>;
+  if (status?.source === "credential_store" && !status.authenticated) return <small>GitHub no longer accepts the saved sign-in. Sign in again, or log out to continue anonymously.</small>;
   if (!status?.device_login_available && !status?.authenticated) return <small>Device login needs a Portcove GitHub App client ID in this build. Token and anonymous modes remain available.</small>;
   return null;
 }
 
 function GithubSettings({ github, busy }: { github?: GithubSettingsActions; busy?: string }) {
-  return <article className="settings-card github-auth">
+  return <article className="settings-card github-auth" data-focus-group>
     <p className="eyebrow">GITHUB</p>
     <GithubConnection status={github?.status} />
     <DeviceLogin login={github?.deviceLogin} />
@@ -184,19 +191,21 @@ function SourceRequirements({ requirements, busy, add }: { requirements: SourceR
   </div>;
 }
 
-function SourceHealth({ sources, requirements, outcomes, busy, verify, replace, add }: {
+function SourceHealth({ sources, requirements, outcomes, busy, verify, replace, add, profiles, onAdded }: {
   sources: SourceRecord[]; outcomes: SourceVerificationOutcome[]; busy?: string; verify?: () => void;
   replace?: (source: SourceRecord) => void; requirements: SourceRequirement[]; add?: (profile: SourceProfile, archive: boolean) => void;
+  profiles: SourceProfile[]; onAdded?: () => Promise<void>;
 }) {
   const byProfile = new Map(outcomes.map(outcome => [outcome.profile_id, outcome]));
-  return <article className="settings-card source-health">
+  return <article className="settings-card source-health" data-focus-group>
     <p className="eyebrow">SOURCES</p>
     <div className="settings-title"><h2>Integrity</h2><button data-focusable className="small-control" disabled={!!busy || sources.length === 0} onClick={verify}>Verify sources</button></div>
     <SourceRequirements requirements={requirements} busy={busy} add={add} />
+    <SourceDiscoveryButton profiles={profiles} disabled={Boolean(busy)} onAdded={onAdded} />
     {sources.length === 0
       ? <p>No source files are registered yet.</p>
       : <div className="source-health-list">{sources.map(source => <SourceHealthRow key={source.profile_id} source={source} outcome={byProfile.get(source.profile_id)} busy={busy} replace={replace} />)}</div>}
-    <p>Verification is local and read-only. Replace file validates a new path before updating only Portcove's reference; neither operation changes the source itself.</p>
+    <p>Verification is local and read-only. Relink source checks the current source profile and confirms identical content at the new location before updating Portcove's reference. Your source files stay untouched.</p>
   </article>;
 }
 
@@ -204,7 +213,7 @@ function SourceHealthRow({ source, outcome, busy, replace }: { source: SourceRec
   return <div className="source-health-row">
     <div><strong>{source.profile_id}</strong><code>{source.path}</code></div>
     <div className="source-health-actions"><SourceState outcome={outcome} />
-      <button data-focusable className="small-control" disabled={Boolean(busy)} onClick={() => replace?.(source)}>Replace file</button></div>
+      <button data-focusable className="small-control" disabled={Boolean(busy)} onClick={() => replace?.(source)}>Relink source</button></div>
     {outcome?.error && <small>{outcome.error.message}</small>}
   </div>;
 }
@@ -221,17 +230,17 @@ function AppearanceSettings({ appearance }: { appearance?: ThemeState }) {
   const options: ThemePreference[] = ["system", "dark", "light"];
   const resolvedLabel = resolvedTheme === "light" ? "Light" : "Dark";
   const status = preference === "system" ? `Following system · currently ${resolvedLabel}` : `Always ${resolvedLabel}`;
-  return <article className="settings-card appearance-card">
-    <p className="eyebrow">APPEARANCE</p><h2>Hardware light, software color</h2>
+  return <article className="settings-card appearance-card" data-focus-group>
+    <p className="eyebrow">APPEARANCE</p><h2>Color theme</h2>
     <div className="segmented appearance-options" role="group" aria-label="Color theme">
       {options.map(option => <ThemeOption key={option} option={option} selected={preference === option} select={appearance?.setPreference} />)}
     </div>
-    <p>{status}. Portcove keeps the N64-inspired interaction hierarchy in either theme.</p>
+    <p>{status}.</p>
   </article>;
 }
 
 function AboutCard() {
-  return <article className="settings-card about-card">
+  return <article className="settings-card about-card" data-focus-group>
     <div className="about-art"><BrandWordmark /><BrandMascot decorative /></div>
     <div className="about-copy">
       <p className="eyebrow">ABOUT &amp; CREDITS</p>
@@ -242,7 +251,7 @@ function AboutCard() {
         <div><dt>Built with</dt><dd>Tauri 2 · Rust · React</dd></div>
         <div><dt>License</dt><dd>MIT or Apache-2.0</dd></div>
       </dl>
-      <a data-focusable className="small-control button-link" href="https://github.com/boburning/portcove" target="_blank" rel="noreferrer">Open project repository</a>
+      <ExternalLink className="small-control button-link" href="https://github.com/boburning/portcove">Open project repository</ExternalLink>
     </div>
   </article>;
 }
@@ -253,7 +262,7 @@ function DiagnosticsCard({ busy, createSupportBundle }: { busy?: string; createS
     const path = await createSupportBundle?.();
     if (path) setBundlePath(path);
   };
-  return <article className="settings-card diagnostics-card">
+  return <article className="settings-card diagnostics-card" data-focus-group>
     <p className="eyebrow">DIAGNOSTICS</p><h2><Icon glyph={ShieldCheck} />Redacted support bundle</h2>
     <p>Collect rotated desktop logs, recent operation records, and host readiness without game sources or stored credentials.</p>
     <button data-focusable className="small-control" disabled={Boolean(busy) || !createSupportBundle} onClick={() => { void create(); }}>Create support bundle</button>
@@ -265,16 +274,19 @@ function ThemeOption({ option, selected, select }: { option: ThemePreference; se
   return <button data-focusable className={selected ? "active" : ""} aria-pressed={selected} onClick={() => select?.(option)}>{option[0].toUpperCase() + option.slice(1)}</button>;
 }
 
-export function SettingsView({ libraryRoot = "", doctor, storage, github, busy, sources = [], sourceNeeds = [], sourceOutcomes = [], verifySources, replaceSource, addSource, appearance, createSupportBundle }: {
+export function SettingsView({ libraryRoot = "", doctor, storage, github, busy, sources = [], sourceNeeds = [], sourceOutcomes = [], verifySources, replaceSource, addSource, appearance, createSupportBundle, exportMetadata, sourceProfiles = [], onSourceAdded, onCatalogChanged }: {
   libraryRoot?: string; doctor?: DoctorReport; storage?: StorageSummary; github?: GithubSettingsActions; busy?: string; sources?: SourceRecord[];
   sourceNeeds?: SourceRequirement[]; sourceOutcomes?: SourceVerificationOutcome[]; verifySources?: () => void; replaceSource?: (source: SourceRecord) => void;
   addSource?: (profile: SourceProfile, archive: boolean) => void; appearance?: ThemeState; createSupportBundle?: () => Promise<string | undefined>;
+  exportMetadata?: () => Promise<LibraryMetadataFile | undefined>;
+  sourceProfiles?: SourceProfile[]; onSourceAdded?: () => Promise<void>; onCatalogChanged?: () => Promise<void>;
 }) {
   return <section className="settings-grid">
     <GithubSettings github={github} busy={busy} />
-    <SourceHealth sources={sources} requirements={sourceNeeds} outcomes={sourceOutcomes} busy={busy} verify={verifySources} replace={replaceSource} add={addSource} />
-    <StorageCard libraryRoot={storage?.library_root ?? libraryRoot} storage={storage} />
+    <SourceHealth sources={sources} requirements={sourceNeeds} outcomes={sourceOutcomes} busy={busy} verify={verifySources} replace={replaceSource} add={addSource} profiles={sourceProfiles} onAdded={onSourceAdded} />
+    <StorageCard libraryRoot={storage?.library_root ?? libraryRoot} storage={storage} busy={busy} exportMetadata={exportMetadata} />
     <AppearanceSettings appearance={appearance} />
+    <CatalogSettings provenance={doctor?.catalog_provenance} disabled={Boolean(busy)} onChanged={onCatalogChanged} />
     <HostReadiness doctor={doctor} />
     <DiagnosticsCard busy={busy} createSupportBundle={createSupportBundle} />
     <AboutCard />
@@ -315,16 +327,22 @@ function hostToolName(id: string) {
   return id.replaceAll("_", " ");
 }
 
-function StorageCard({ libraryRoot, storage }: { libraryRoot: string; storage?: StorageSummary }) {
+function StorageCard({ libraryRoot, storage, busy, exportMetadata }: { libraryRoot: string; storage?: StorageSummary; busy?: string; exportMetadata?: () => Promise<LibraryMetadataFile | undefined> }) {
+  const [exported, setExported] = useState<LibraryMetadataFile>();
   const total = storage?.volume_total_bytes ?? 0;
   const available = storage?.volume_available_bytes ?? 0;
   const availablePercent = total > 0 ? Math.min(100, available / total * 100) : 0;
-  return <article className="settings-card storage-card">
+  return <article className="settings-card storage-card" data-focus-group>
     <p className="eyebrow">LIBRARY</p><h2><Icon glyph={HardDrive} />Managed files</h2><code>{libraryRoot || "Loading…"}</code>
     {storage && <div className="storage-capacity">
       <div><strong>{formatBytes(available)} available</strong><span>{formatBytes(total)} volume</span></div>
       <div className="storage-meter" role="meter" aria-label="Available library storage" aria-valuemin={0} aria-valuemax={total} aria-valuenow={available}><i style={{ width: `${availablePercent}%` }} /></div>
     </div>}
     <p><Icon glyph={ShieldCheck} size="sm" /> Application versions are isolated from saves, configuration, mods, and original sources.</p>
+    <button data-focusable className="small-control" disabled={Boolean(busy) || !exportMetadata} onClick={() => { void exportMetadata?.().then(setExported); }}>Export metadata</button>
+    <p>Export source references and version settings. Game files, saves, backups, toolchains, and credentials are not included.</p>
+    {exported && <p role="status">Exported to <code>{exported.path}</code></p>}
+    <LibraryMoveButton disabled={Boolean(busy)} />
+    <LibraryImportButton disabled={Boolean(busy) || !libraryRoot} libraryRoot={libraryRoot} />
   </article>;
 }

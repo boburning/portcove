@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { OperationCancellation } from "./OperationCancellation";
 import type { LucideIcon } from "lucide-react";
 import { AlertTriangle, Check, Clipboard, ClipboardCheck, Download, History, LoaderCircle, PackageCheck, RefreshCw, ShieldCheck } from "lucide-react";
 import { copyText } from "../clipboard";
-import type { ActivityOperation, ActivityRecord, PortDefinition, PortStatus, ReconcileAction, UpdateCheckOutcome } from "../types";
+import type { ActivityOperation, ActivityRecord, PortDefinition, PortStatus, ReconcileAction, UpdateCheck, UpdateCheckOutcome } from "../types";
 import { EmptyState, Icon } from "./ui";
 
 export function UpdateCenter({ ports, statuses, activities, outcomes, actions, busy, checkAll, applyPolicies, onSelect, onOpenSources }: {
@@ -23,7 +24,7 @@ export function UpdateCenter({ ports, statuses, activities, outcomes, actions, b
   const failed = outcomes.filter(outcome => !outcome.ok).length;
   const staged = installed.filter(port => statuses.get(port.id)?.staged).length;
   return <section className="update-center">
-    <div className="update-toolbar">
+    <div className="update-toolbar" data-focus-group>
       <div className="update-stats">
         <UpdateStat label="Installed" value={installed.length} icon={PackageCheck} />
         <UpdateStat label="Available" value={available} icon={Download} accent={available > 0} />
@@ -37,7 +38,7 @@ export function UpdateCenter({ ports, statuses, activities, outcomes, actions, b
     </div>
     <p className="update-explainer">Notify reports an update, Stage downloads it for later activation, and Automatic switches to the verified release while retaining rollback.</p>
     {installed.length === 0 ? <EmptyState icon={RefreshCw} eyebrow="UPDATE CENTER" title="No installed ports to check" description="Install or adopt a port first. Portcove will then track its channel, update policy, verified releases, and rollback state here." /> :
-      <div className="update-list">{installed.map(port => {
+      <div className="update-list" data-focus-group>{installed.map(port => {
         const status = statuses.get(port.id)!;
         const outcome = byPort.get(port.id);
         const action = actions.get(port.id);
@@ -46,13 +47,20 @@ export function UpdateCenter({ ports, statuses, activities, outcomes, actions, b
           <div className={`update-mark ${state.tone}`}>{port.name.slice(0, 2).toUpperCase()}</div>
           <div className="update-title"><strong>{port.name}</strong><small>{status.channel} · {policyLabel(status.update_policy)}</small></div>
           <div className="update-version"><small>Installed</small><span>{status.active?.version}</span></div>
-          <div className="update-version"><small>Latest</small><span>{outcome?.result?.release.version ?? "—"}</span></div>
+          <div className="update-version"><small>Latest</small><span>{releaseLabel(outcome?.result)}</span></div>
           <span className={`update-state ${state.tone}`}>{state.label}</span>
           {outcome?.error && <small className="update-error">{outcome.error.message}</small>}
         </button>;
       })}</div>}
     <ActivityHistory ports={ports} activities={activities} onSelect={onSelect} onOpenSources={onOpenSources} />
   </section>;
+}
+
+function releaseLabel(check?: UpdateCheck) {
+  if (!check) return "—";
+  const runtimeOnly = check.update_available && check.installed_artifact?.sha256 === check.release.asset.sha256
+    && JSON.stringify(check.installed_runtime ?? null) !== JSON.stringify(check.required_runtime ?? null);
+  return `${check.release.version}${runtimeOnly ? " · Runtime update" : ""}`;
 }
 
 function ActivityHistory({ ports, activities, onSelect, onOpenSources }: {
@@ -83,13 +91,14 @@ function ActivityRow({ activity, names, onSelect, onOpenSources }: {
   const target = activityTarget(activity, names);
   const presentation = activityPresentation(activity);
   const title = activity.message ?? (presentation.state === "unfinished" ? "No completion was recorded. Review the source or port before retrying." : undefined);
-  return <div className={`activity-row ${presentation.state}`} title={title}>
+  return <div className={`activity-row ${presentation.state}`} title={title} data-focus-group>
     <span className="activity-indicator" aria-hidden="true"><Icon glyph={presentation.icon} size="sm" /></span>
     <div className="activity-main"><strong>{operationLabel(activity.operation)}</strong>
       <ActivityTargetLink activity={activity} target={target} onSelect={onSelect} onOpenSources={onOpenSources} />
     </div>
-    <span className="activity-time">{presentation.time}</span>
+    <span className="activity-time" title={activity.finished_at ? `Finished ${formatActivityTime(activity.finished_at)}` : undefined}>{presentation.time}</span>
     <span className="activity-status">{presentation.label}</span>
+    {activity.cancellation && <OperationCancellation operationId={activity.id} state={activity.cancellation} />}
     {activity.message && <ActivityDetails message={activity.message} />}
   </div>;
 }
@@ -134,6 +143,10 @@ function operationLabel(operation: ActivityOperation) {
     remove_source: "Removed source reference",
     register_source: "Registered source",
     verify_source: "Verified source",
+    move_library: "Moved library",
+    import_library: "Imported library",
+    discover_sources: "Searched for sources",
+    update_catalog: "Updated catalog",
   };
   return labels[operation];
 }
@@ -153,7 +166,7 @@ function activityPresentation(activity: ActivityRecord) {
   if (activity.status !== "running") return {
     state: activity.status,
     label: activity.status,
-    time: formatActivityTime(activity.finished_at ?? activity.started_at),
+    time: `Started ${formatActivityTime(activity.started_at)}`,
     icon: activity.status === "succeeded" ? Check : AlertTriangle,
   };
   if (Date.now() / 1000 - activity.started_at >= unfinishedAfterSeconds) return {

@@ -159,6 +159,7 @@ pub(crate) fn recover_removal(
 }
 
 pub(crate) fn recover_restore(
+    service: &PortcoveService,
     store: &OperationStore,
     operation: &mut LifecycleOperation,
 ) -> Result<()> {
@@ -210,6 +211,14 @@ pub(crate) fn recover_restore(
         operation.last_error = None;
         store.put(operation)?;
     }
+    if matches!(
+        operation.phase,
+        LifecyclePhase::PayloadPublished
+            | LifecyclePhase::MetadataCommitted
+            | LifecyclePhase::CleanupPending
+    ) {
+        service.synchronize_restored_user_data(&operation.port_id)?;
+    }
     if operation.phase == LifecyclePhase::PayloadPublished {
         operation.phase = LifecyclePhase::MetadataCommitted;
         operation.last_error = None;
@@ -250,6 +259,8 @@ pub(crate) fn recover_activation(
                 ));
             }
             service.collect_active_user_data_if_launched(&operation.port_id)?;
+            service
+                .restore_user_data_to(service.catalog().port(&operation.port_id)?, &install.path)?;
             service.library.activate_staged(&operation.port_id)?;
         }
         operation.phase = LifecyclePhase::MetadataCommitted;

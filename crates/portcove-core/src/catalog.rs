@@ -248,23 +248,37 @@ impl Catalog {
                     port.id
                 )));
             }
-            if let Some(variable) = &port.source_environment {
-                let mut characters = variable.chars();
-                let valid_name = characters
-                    .next()
-                    .is_some_and(|character| character.is_ascii_uppercase() || character == '_')
-                    && characters.all(|character| {
-                        character.is_ascii_uppercase()
-                            || character.is_ascii_digit()
-                            || character == '_'
-                    });
-                if port.source_profile.is_none()
-                    || !valid_name
-                    || variable.starts_with("PORTCOVE_")
-                    || matches!(variable.as_str(), "GH_TOKEN" | "GITHUB_TOKEN")
+            let mut environment_names = HashSet::new();
+            if let Some(variable) = &port.source_environment
+                && (port.source_profile.is_none()
+                    || !is_safe_environment_name(variable)
+                    || !environment_names.insert(variable.as_str()))
+            {
+                return Err(PortcoveError::usage(format!(
+                    "{} has unsafe source environment variable: {variable}",
+                    port.id
+                )));
+            }
+            if let Some(variable) = &port.user_data_environment
+                && (!is_safe_environment_name(variable)
+                    || !environment_names.insert(variable.as_str()))
+            {
+                return Err(PortcoveError::usage(format!(
+                    "{} has unsafe user-data environment variable: {variable}",
+                    port.id
+                )));
+            }
+            for (variable, value) in &port.launch_environment {
+                if !is_safe_environment_name(variable)
+                    || !environment_names.insert(variable.as_str())
+                    || value.is_empty()
+                    || value.len() > 4096
+                    || value
+                        .chars()
+                        .any(|character| matches!(character, '\0' | '\r' | '\n'))
                 {
                     return Err(PortcoveError::usage(format!(
-                        "{} has unsafe source environment variable: {variable}",
+                        "{} has an unsafe built-in launch environment",
                         port.id
                     )));
                 }
@@ -375,6 +389,10 @@ impl Catalog {
                     )));
                 }
             }
+            crate::runtime::validate(port)?;
+            for pattern in &port.persistent_file_patterns {
+                pattern.validate()?;
+            }
             let mut persistent_paths = HashSet::new();
             for relative in &port.persistent_paths {
                 if relative.is_empty()
@@ -390,6 +408,55 @@ impl Catalog {
                 if !persistent_paths.insert(relative.as_str()) {
                     return Err(PortcoveError::conflict(format!(
                         "{} repeats persistent path: {relative}",
+                        port.id
+                    )));
+                }
+            }
+            let mut runtime_mutable_paths = HashSet::new();
+            for relative in &port.runtime_mutable_paths {
+                let staged_source_path = port.adapter == AdapterKind::StagedSourcePortable
+                    && port.runtime_source_filename.as_ref().is_some_and(|source| {
+                        relative == source || !crate::runtime::overlaps(relative, source)
+                    });
+                let upstream_setup_path = port.adapter == AdapterKind::UpstreamManagedSetup
+                    && port.runtime_subdirectory.is_none()
+                    && port
+                        .runtime_source_filename
+                        .as_ref()
+                        .is_none_or(|source| !crate::runtime::overlaps(relative, source))
+                    && port
+                        .setup_marker
+                        .as_ref()
+                        .is_none_or(|marker| !crate::runtime::overlaps(relative, marker));
+                let executable_overlap = port
+                    .executable_hints
+                    .values()
+                    .chain(port.setup_executable_hints.values())
+                    .flatten()
+                    .any(|executable| crate::runtime::overlaps(relative, executable));
+                let portcove_metadata = Path::new(relative).components().any(|component| {
+                    component.as_os_str().to_str().is_some_and(|name| {
+                        name.starts_with(".portcove-") || name.ends_with(".portcove-source.json")
+                    })
+                }) || (port.portable_marker
+                    && crate::runtime::overlaps(relative, "portable.txt"))
+                    || (port.adapter == AdapterKind::ReferencedDisc
+                        && crate::runtime::overlaps(relative, "data_location.json"));
+                if relative.is_empty()
+                    || Path::new(relative)
+                        .components()
+                        .any(|component| !matches!(component, Component::Normal(_)))
+                    || !runtime_mutable_paths.insert(relative.as_str())
+                    || (!staged_source_path && !upstream_setup_path)
+                    || executable_overlap
+                    || portcove_metadata
+                    || port
+                        .persistent_paths
+                        .iter()
+                        .any(|persistent| crate::runtime::overlaps(relative, persistent))
+                {
+                    return Err(PortcoveError::usage(format!(
+                        "{} has an invalid nonpersistent runtime path: {relative}",
                         port.id
                     )));
                 }
@@ -440,6 +507,12 @@ impl Catalog {
                     .map(Path::new)
                     .unwrap_or_else(|| Path::new(""))
                     .join(filename);
+                let source_is_persistent = port.persistent_paths.iter().any(|path| {
+                    let persistent = Path::new(path);
+                    persistent == expected
+                        || (persistent.components().next().is_some()
+                            && expected.starts_with(persistent))
+                });
                 let valid = match materialization {
                     RuntimeSourceMaterialization::N64BigEndian => {
                         matches!(
@@ -448,15 +521,10 @@ impl Catalog {
                                 | AdapterKind::LibultrashipPortable
                                 | AdapterKind::GeneratedCache
                         ) && filename.ends_with(".z64")
-                            && port.persistent_paths.iter().any(|path| {
-                                let persistent = Path::new(path);
-                                persistent == expected
-                                    || (persistent.components().next().is_some()
-                                        && expected.starts_with(persistent))
-                            })
+                            && source_is_persistent
                     }
                     RuntimeSourceMaterialization::Copy => {
-                        port.adapter == AdapterKind::StagedSourcePortable
+                        port.adapter == AdapterKind::StagedSourcePortable && source_is_persistent
                     }
                     RuntimeSourceMaterialization::GamecubeIso => {
                         port.adapter == AdapterKind::StagedSourcePortable
@@ -504,10 +572,49 @@ impl Catalog {
                                 })
                             })
                     }
+                    RuntimeSourceMaterialization::StfsDirectory => {
+                        port.adapter == AdapterKind::StagedSourcePortable
+                            && Path::new(filename).extension().is_none()
+                            && port
+                                .runtime_mutable_paths
+                                .iter()
+                                .any(|path| path == filename)
+                            && port.source_profile.as_ref().is_some_and(|profile_id| {
+                                self.document.source_profiles.iter().any(|profile| {
+                                    profile.id == *profile_id
+                                        && profile.kind == SourceKind::File
+                                        && !profile.accepted_sha256.is_empty()
+                                })
+                            })
+                    }
                 };
                 if port.source_profile.is_none() || !valid {
                     return Err(PortcoveError::usage(format!(
                         "{} has an invalid runtime source materialization contract",
+                        port.id
+                    )));
+                }
+            }
+            if port.runtime_source_hashes.is_empty()
+                != (port.runtime_source_materialization
+                    != Some(RuntimeSourceMaterialization::StfsDirectory))
+            {
+                return Err(PortcoveError::usage(format!(
+                    "{} has an incomplete STFS runtime identity",
+                    port.id
+                )));
+            }
+            let mut runtime_hash_paths = HashSet::new();
+            for (relative, digest) in &port.runtime_source_hashes {
+                let Ok((_, key)) = crate::archive::validate_relative_path(relative, false) else {
+                    return Err(PortcoveError::usage(format!(
+                        "{} has an unsafe runtime source identity path",
+                        port.id
+                    )));
+                };
+                if !runtime_hash_paths.insert(key) || !is_sha256(digest) {
+                    return Err(PortcoveError::usage(format!(
+                        "{} has an invalid runtime source identity",
                         port.id
                     )));
                 }
@@ -623,6 +730,19 @@ impl Catalog {
 fn valid_repository_path(value: &str) -> bool {
     let mut parts = value.split('/');
     matches!((parts.next(), parts.next(), parts.next()), (Some(owner), Some(project), None) if !owner.is_empty() && !project.is_empty())
+}
+
+fn is_safe_environment_name(value: &str) -> bool {
+    let mut characters = value.chars();
+    characters
+        .next()
+        .is_some_and(|character| character.is_ascii_uppercase() || character == '_')
+        && characters.all(|character| {
+            character.is_ascii_uppercase() || character.is_ascii_digit() || character == '_'
+        })
+        && !value.starts_with("PORTCOVE_")
+        && !crate::process::is_credential_name(value)
+        && !crate::process::is_reviewed_session_variable(value)
 }
 
 fn is_safe_basename(value: &str) -> bool {
@@ -762,6 +882,9 @@ mod tests {
             "wcw-world-tour-recompiled",
             "wcw-nwo-revenge-recompiled",
             "wwf-no-mercy-recompiled",
+            "opengoal-jak1",
+            "opengoal-jak2",
+            "opengoal-jak3",
         ] {
             let port = catalog.port(id).unwrap();
             assert_eq!(
@@ -868,6 +991,99 @@ mod tests {
     }
 
     #[test]
+    fn gen2_entries_bind_each_exact_rom_to_the_shared_importer() {
+        let catalog = Catalog::embedded().expect("catalog should load");
+        let contracts = [
+            (
+                "gen2recomp-gold",
+                "pokemon-gold",
+                "gold",
+                ["d8b8a3600a465308c9953dfa04f0081c05bdcb94"].as_slice(),
+            ),
+            (
+                "gen2recomp-silver",
+                "pokemon-silver",
+                "silver",
+                ["49b163f7e57702bc939d642a18f591de55d92dae"].as_slice(),
+            ),
+            (
+                "gen2recomp-crystal",
+                "pokemon-crystal",
+                "crystal",
+                [
+                    "f2f52230b536214ef7c9924f483392993e226cfb",
+                    "f4cd194bdee0d04ca4eac29e09b8e4e9d818c133",
+                ]
+                .as_slice(),
+            ),
+        ];
+
+        for (port_id, profile_id, version, sha1) in contracts {
+            let profile = catalog.source_profile(profile_id).unwrap();
+            assert_eq!(profile.accepted_extensions, ["gbc"]);
+            assert_eq!(profile.accepted_sha1, sha1);
+
+            let port = catalog.port(port_id).unwrap();
+            assert_eq!(port.source_profile.as_deref(), Some(profile_id));
+            assert_eq!(
+                port.source_environment.as_deref(),
+                Some("POKEPORT_IMPORT_ROM")
+            );
+            assert_eq!(
+                port.launch_environment
+                    .get("POKEPORT_VERSION")
+                    .map(String::as_str),
+                Some(version)
+            );
+            assert!(port.portable_marker);
+            assert_eq!(port.support_tier, crate::SupportTier::Beta);
+            assert!(port.automated_tested_platforms.is_empty());
+        }
+    }
+
+    #[test]
+    fn nocturne_uses_bounded_stfs_and_isolated_user_data() {
+        let catalog = Catalog::embedded().expect("catalog should load");
+        let profile = catalog.source_profile("sotn-xbla").unwrap();
+        assert!(profile.accepted_extensions.is_empty());
+        assert_eq!(
+            profile.accepted_sha256,
+            ["efb36098df070c0ddd9e1058ee0c0e1570748b62d0ef93fc691b4c52798bd17c"]
+        );
+
+        let port = catalog.port("nocturne-recomp").unwrap();
+        assert_eq!(
+            port.runtime_source_materialization,
+            Some(RuntimeSourceMaterialization::StfsDirectory)
+        );
+        assert_eq!(port.runtime_source_filename.as_deref(), Some("assets"));
+        assert_eq!(
+            port.runtime_source_hashes
+                .get("default.xex")
+                .map(String::as_str),
+            Some("26a58b074c5dd6185b77a8111a0012866d11cba674b4b0810d79dbf07ad68aa6")
+        );
+        assert_eq!(
+            port.runtime_mutable_paths,
+            ["assets", "logs", "nocturnerecomp.toml"]
+        );
+        assert_eq!(
+            port.user_data_environment.as_deref(),
+            Some("REX_USER_DATA_ROOT")
+        );
+        assert_eq!(
+            port.launch_environment
+                .get("REX_AUTO_UPDATE_ENABLED")
+                .map(String::as_str),
+            Some("false")
+        );
+        assert_eq!(
+            port.automated_tested_platforms,
+            [crate::Platform::WindowsX86_64]
+        );
+    }
+
+    #[test]
     fn catalog_rejects_reserved_source_environment_variables() {
         let mut document: serde_json::Value =
             serde_json::from_str(EMBEDDED_CATALOG).expect("embedded JSON should parse");
@@ -881,6 +1097,66 @@ mod tests {
 
         let error = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap_err();
         assert!(error.to_string().contains("unsafe source environment"));
+    }
+
+    #[test]
+    fn catalog_rejects_reserved_launch_and_user_data_environment_variables() {
+        for (field, value, message) in [
+            (
+                "user_data_environment",
+                "HOME",
+                "unsafe user-data environment",
+            ),
+            (
+                "launch_environment",
+                "GITHUB_TOKEN",
+                "unsafe built-in launch environment",
+            ),
+        ] {
+            let mut document: serde_json::Value =
+                serde_json::from_str(EMBEDDED_CATALOG).expect("embedded JSON should parse");
+            let port = document["ports"]
+                .as_array_mut()
+                .unwrap()
+                .iter_mut()
+                .find(|port| port["id"] == "gen1recomp")
+                .unwrap();
+            if field == "launch_environment" {
+                port[field] = serde_json::json!({});
+                port[field][value] = serde_json::json!("unsafe");
+            } else {
+                port[field] = serde_json::json!(value);
+            }
+
+            let error = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap_err();
+            assert!(error.to_string().contains(message));
+        }
+    }
+
+    #[test]
+    fn catalog_rejects_runtime_mutable_executables_and_portcove_metadata() {
+        for relative in [
+            "nocturnerecomp.exe",
+            ".portcove-launched",
+            "assets.portcove-source.json",
+        ] {
+            let mut document: serde_json::Value =
+                serde_json::from_str(EMBEDDED_CATALOG).expect("embedded JSON should parse");
+            let port = document["ports"]
+                .as_array_mut()
+                .unwrap()
+                .iter_mut()
+                .find(|port| port["id"] == "nocturne-recomp")
+                .unwrap();
+            port["runtime_mutable_paths"] = serde_json::json!(["assets", relative]);
+
+            let error = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap_err();
+            assert!(
+                error
+                    .to_string()
+                    .contains("invalid nonpersistent runtime path")
+            );
+        }
     }
 
     #[test]
@@ -1368,7 +1644,7 @@ mod tests {
                 "sssv-recompiled",
                 "space-station-silicon-valley",
                 None,
-                false,
+                true,
             ),
             (
                 "animal-crossing-pc-port",
@@ -1400,6 +1676,33 @@ mod tests {
                 .kind,
             SourceKind::GamecubeDisc
         );
+    }
+
+    #[test]
+    fn copied_runtime_sources_require_persistent_ownership() {
+        let mut catalog = Catalog::embedded().unwrap();
+        let index = catalog
+            .document
+            .ports
+            .iter()
+            .position(|port| port.id == "project-picori")
+            .unwrap();
+        catalog.document.ports[index]
+            .persistent_paths
+            .retain(|path| path != "baserom.gba");
+        assert!(catalog.validate().is_err());
+
+        // A declared parent directory owns the staged file, but a similarly
+        // named sibling does not.
+        catalog.document.ports[index].runtime_source_filename = Some("rom/baserom.gba".into());
+        catalog.document.ports[index]
+            .persistent_paths
+            .push("rom-other".into());
+        assert!(catalog.validate().is_err());
+        catalog.document.ports[index]
+            .persistent_paths
+            .push("rom".into());
+        catalog.validate().unwrap();
     }
 
     #[test]
@@ -1541,6 +1844,7 @@ mod tests {
             assert_eq!(port.setup_executable_hints.len(), 4);
             assert_eq!(port.setup_arguments[0..2], ["--game", game]);
             assert_eq!(port.launch_arguments, ["--game", game, "--portable"]);
+            assert_eq!(port.runtime_mutable_paths, ["data/log", "data/imgui.ini"]);
             assert!(
                 port.setup_marker
                     .as_deref()

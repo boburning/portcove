@@ -27,7 +27,7 @@ const typesPath = typesOption >= 0
 const sourceText = fs.readFileSync(typesPath, "utf8");
 
 function interfaceFields(name) {
-  const declaration = sourceText.indexOf(`export interface ${name}`);
+  const declaration = sourceText.search(new RegExp(`export\\s+interface\\s+${name}\\s*\\{`));
   if (declaration < 0) return undefined;
   const open = sourceText.indexOf("{", declaration);
   const fields = [];
@@ -54,15 +54,32 @@ const aliases = new Map(
 const failures = [];
 const interfaceSchemas = new Map([
   ["catalog", "CatalogDocument"],
+  ["catalog_status", "CatalogStatus"],
+  ["catalog_provenance", "CatalogProvenance"],
+  ["catalog_trust_key", "CatalogTrustKey"],
+  ["catalog_update_plan", "CatalogUpdatePlan"],
+
   ["port", "PortDefinition"],
   ["status", "PortStatus"],
   ["update_check", "UpdateCheck"],
   ["update_snapshot", "UpdateSnapshot"],
   ["reconcile_result", "ReconcileResult"],
   ["source", "SourceRecord"],
+  ["source_relink_plan", "SourceRelinkPlan"],
+  ["library_metadata_file", "LibraryMetadataFile"],
+  ["library_metadata", "LibraryMetadata"],
+  ["library_move_plan", "LibraryMovePlan"],
+  ["library_move_result", "LibraryMoveResult"],
+  ["library_import_plan", "LibraryImportPlan"],
+  ["library_import_result", "LibraryImportResult"],
+  ["source_discovery_request", "SourceDiscoveryRequest"],
+  ["source_discovery_limits", "SourceDiscoveryLimits"],
+  ["source_discovery_report", "SourceDiscoveryReport"],
+  ["source_discovery_issue", "SourceDiscoveryIssue"],
   ["source_removal_preview", "SourceRemovalPreview"],
   ["source_verification", "SourceVerification"],
   ["activity", "ActivityRecord"],
+  ["cancellation_state", "CancellationState"],
   ["backup", "BackupRecord"],
   ["adoption_preview", "AdoptionPreview"],
   ["restore_result", "RestoreResult"],
@@ -107,7 +124,9 @@ for (const schema of Object.values(schemas)) {
 
 const checkedEnums = [
   "ActivityOperation",
+  "SourceDiscoveryLimit",
   "ActivityStatus",
+  "CancellationPhase",
   "ActivityTargetKind",
   "AdapterKind",
   "ErrorCode",

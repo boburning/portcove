@@ -5,6 +5,8 @@ use crate::{PortcoveError, Result};
 
 const CREDENTIAL_SERVICE: &str = "io.github.portcove.Portcove";
 const CREDENTIAL_USER: &str = "github.com";
+// Public identity of github.com/apps/portcove. This is not a credential.
+const DEFAULT_GITHUB_CLIENT_ID: &str = "Iv23liakfuffw2l9zB48";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -90,6 +92,7 @@ pub(crate) fn github_client_id() -> Option<String> {
     std::env::var("PORTCOVE_GITHUB_CLIENT_ID")
         .ok()
         .or_else(|| option_env!("PORTCOVE_GITHUB_CLIENT_ID").map(str::to_owned))
+        .or_else(|| Some(DEFAULT_GITHUB_CLIENT_ID.to_owned()))
         .map(|value| value.trim().to_owned())
         .filter(|value| !value.is_empty())
 }

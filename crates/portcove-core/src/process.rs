@@ -145,7 +145,7 @@ impl ChildProcessPolicy {
     }
 }
 
-fn is_credential_name(name: &str) -> bool {
+pub(crate) fn is_credential_name(name: &str) -> bool {
     let normalized = name.to_ascii_uppercase();
     matches!(
         normalized.as_str(),
@@ -178,7 +178,7 @@ fn is_credential_name(name: &str) -> bool {
         || normalized.ends_with("_ACCESS_KEY")
 }
 
-fn is_reviewed_session_variable(name: &str) -> bool {
+pub(crate) fn is_reviewed_session_variable(name: &str) -> bool {
     let normalized = name.to_ascii_uppercase();
     matches!(
         normalized.as_str(),

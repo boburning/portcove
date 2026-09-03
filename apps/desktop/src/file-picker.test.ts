@@ -8,14 +8,22 @@ const openMock = vi.mocked(open);
 describe("native path pickers", () => {
   beforeEach(() => openMock.mockReset());
 
-  it("limits source selection to the profile extensions", async () => {
+  it("includes supported cartridge ZIPs alongside the profile extensions", async () => {
     openMock.mockResolvedValue("D:/Sources/game.z64");
     await expect(pickSourcePath({ id: "game", label: "Game", accepted_extensions: [".z64", "n64"] }, "D:/Sources/old.z64")).resolves.toBe("D:/Sources/game.z64");
     expect(openMock).toHaveBeenCalledWith({
       multiple: false,
       directory: false,
       defaultPath: "D:/Sources/old.z64",
-      filters: [{ name: "Original game source", extensions: ["z64", "n64"] }],
+      filters: [{ name: "Original game source", extensions: ["z64", "n64", "zip"] }],
+    });
+  });
+
+  it("keeps single-disc selection limited to the declared disc formats", async () => {
+    await pickSourcePath({ id: "disc", label: "Disc", kind: "psx-disc", accepted_extensions: ["CHD"] }, "");
+    expect(openMock).toHaveBeenCalledWith({
+      multiple: false, directory: false, defaultPath: undefined,
+      filters: [{ name: "Original game source", extensions: ["chd"] }],
     });
   });
 

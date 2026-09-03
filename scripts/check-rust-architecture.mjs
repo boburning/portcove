@@ -14,6 +14,7 @@ const RULES = {
   "portcove-cli": {
     required: ["portcove-core"],
     forbidden: {
+      "ed25519-dalek": "Catalog signature verification and trust policy belong to portcove-core.",
       tauri: "CLI behavior belongs behind portcove-core APIs, not Tauri.",
       "portcove-desktop": "The CLI and desktop are peer adapters and must not depend on each other.",
     },
@@ -21,6 +22,7 @@ const RULES = {
   "portcove-desktop": {
     required: ["portcove-core", "tauri"],
     forbidden: {
+      "ed25519-dalek": "Catalog signature verification and trust policy belong to portcove-core.",
       clap: "Desktop commands should call portcove-core directly rather than parse CLI arguments.",
       "portcove-cli": "The desktop and CLI are peer adapters and must not depend on each other.",
     },

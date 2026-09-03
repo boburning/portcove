@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { View } from "./view-model";
+import { navigationScope } from "./focus";
 
 export type KeyboardShortcutAction = "toggle-palette" | "close-palette" | "focus-search" | View;
 
@@ -10,9 +11,13 @@ export function keyboardShortcutAction(input: {
   altKey?: boolean;
   targetIsField?: boolean;
   paletteOpen?: boolean;
+  modalOpen?: boolean;
 }): KeyboardShortcutAction | undefined {
   if (input.paletteOpen && input.key === "Escape") return "close-palette";
   const commandKey = Boolean(input.ctrlKey || input.metaKey);
+  if (input.modalOpen || input.paletteOpen) {
+    return input.paletteOpen && commandKey && !input.altKey && input.key.toLowerCase() === "k" ? "toggle-palette" : undefined;
+  }
   if (commandKey && input.key.toLowerCase() === "k") return "toggle-palette";
   if (!input.targetIsField && !commandKey && !input.altKey && input.key === "/") return "focus-search";
   if (!commandKey || input.altKey) return undefined;
@@ -27,6 +32,7 @@ export function useGlobalShortcuts({ paletteOpen, setPaletteOpen, setView, focus
 }) {
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing) return;
       const target = event.target as HTMLElement | null;
       const action = keyboardShortcutAction({
         key: event.key,
@@ -35,6 +41,7 @@ export function useGlobalShortcuts({ paletteOpen, setPaletteOpen, setView, focus
         altKey: event.altKey,
         targetIsField: target?.matches("input, textarea, select, [contenteditable=true]"),
         paletteOpen,
+        modalOpen: navigationScope() !== document,
       });
       if (!action) return;
       event.preventDefault();

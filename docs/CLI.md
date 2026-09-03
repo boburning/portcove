@@ -7,10 +7,10 @@ Without a machine-output flag, Portcove renders concise human output. Catalog, s
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":4,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":10,"ok":true,"command":"status","data":{},"error":null}
 ```
 
-Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for both success and failure. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
+Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for success, failure, or cancellation. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
 
 Argument-parser failures also use the machine envelope when `--json` or `--jsonl` is present. Their stable command name is `cli`, their error code is `usage`, and they exit with code 2. Help and version output remain intentionally human-readable even when a machine-output flag is supplied.
 
@@ -43,7 +43,7 @@ Get-Content $tokenFile -Raw | portcove --non-interactive --json auth set-token -
 portcove --json auth logout
 ```
 
-`auth login` uses GitHub's device authorization flow when the build has a public `PORTCOVE_GITHUB_CLIENT_ID`. Its polling wait is asynchronous, follows GitHub's pending and slowdown intervals, reports expiry or denial as typed errors, and can be cancelled with Ctrl-C. `auth set-token` reads interactively with hidden input, or from standard input when `--stdin` is present. A token is deliberately never accepted as a positional option because command arguments can be exposed through process inspection and shell history. Tokens saved by either flow go to the operating-system credential store. `auth logout` removes that saved credential; it cannot remove an environment-provided token.
+`auth login` uses GitHub's device authorization flow with Portcove's public GitHub App client ID. `PORTCOVE_GITHUB_CLIENT_ID` can override it at runtime or build time; an explicitly empty override disables device login. Its polling wait is asynchronous, follows GitHub's pending and slowdown intervals, reports expiry or denial as typed errors, and can be cancelled with Ctrl-C. `auth set-token` reads interactively with hidden input, or from standard input when `--stdin` is present. A token is deliberately never accepted as a positional option because command arguments can be exposed through process inspection and shell history. Tokens saved by either flow go to the operating-system credential store. `auth logout` removes that saved credential; it cannot remove an environment-provided token.
 
 Automated frontends normally provide `PORTCOVE_GITHUB_TOKEN` in the child-process environment and avoid interactive auth commands. `auth status` reports only the credential source, GitHub login, and rate-limit headers; it never returns the token.
 
@@ -84,6 +84,80 @@ Verification reruns the source profile validation and compares the current file'
 
 `source remove <profile-id>` first returns or prints a preview containing the exact registered source, every catalog port that shares it, the currently installed dependents, and a confirmation token. Removal requires interactive confirmation or `--yes`; core rejects the token if the source identity or installed-dependent set changes before deletion. Only the reference is removed. Original source bytes and managed installs are never deleted.
 
+After moving a source yourself, preview and apply its new location without resetting its content identity:
+
+```text
+portcove --library <path> --json source relink <profile-id> <new-path>
+portcove --library <path> --json source relink <profile-id> <new-path> --apply --expected-plan <preview_sha256>
+```
+
+The preview validates the new path against the current catalog profile and the registered content hash and size; the old path may be offline. It returns the original record, validated replacement, and `preview_sha256` without changing either file or the registry. Apply takes the profile and dependent-port locks, revalidates the replacement, and rejects a stale plan if registration, catalog rules, location, or validated bytes changed. A different container is allowed only when its normalized content is identical. Settings → Sources → Relink source uses the same core operation. Registration, relinking, and removal fail with a conflict while a dependent port is running or another source writer holds the profile lock.
+
+## Opt-in source discovery
+
+```powershell
+portcove --json source discover --root D:\Sources --profile minish-cap-gba --profile super-smash-bros-64
+portcove --json source add <profile-id> <candidate-path> --expected-sha256 <candidate-sha256>
+```
+
+Discovery requires explicit roots and source profiles. It never registers a match automatically. Defaults are 10,000 examined entries, six nested directory levels, 512 MiB per file, 8 GiB of cumulative hashing, and 64 matches. The corresponding `--max-entries`, `--max-depth`, `--max-file-bytes`, `--max-hash-bytes`, and `--max-candidates` flags can narrow these limits; core also enforces hard ceilings. The report identifies searched scope, validated candidates, hashed bytes, reached limits, and bounded per-path issues. A partial search is not evidence that every file was considered.
+
+Only exact-hash original-file and cartridge-ZIP profiles participate automatically. Other source contracts report that manual selection is required. Symlinks and entries outside the selected canonical roots are skipped. Equal profile contracts share hashing; both normalized ZIP payload and original container bytes count toward the budget. Accepting a candidate with `--expected-sha256` checks the current profile and reviewed content under the normal source locks before registration. Settings → Sources → Find source files exposes the same search, cancellation, and explicit acceptance.
+
+## Cancellation
+
+```text
+portcove --json activity
+portcove --json cancel <activity-uuid>
+```
+
+An active cancellable activity reports `cancellation.phase` (`preparing` or `finishing`) and `cancellation.requested`. `cancel` accepts only a running preparation and returns request acknowledgement. Wait for the operation or ledger to report its terminal outcome. A completed cancellation has status/error code `cancelled`, a schema-2 finished event with `result: cancelled`, and exit code 130 for the cancelled command. A late request returns `conflict`; it cannot interrupt publication. Existing failure-isolated batch commands still return per-port outcomes, which must be inspected individually.
+
+Ctrl-C requests cancellation of this CLI command's current and queued source discovery, release checks, install, update, ensure, or reconciliation work, then keeps waiting. Unix SIGTERM uses the same path. Another client's operations are unaffected. Downloads and hashing stop cooperatively; extraction, conversion, or compilation may need to finish their current preparation step. Repeated signals do not force an unsafe publication interruption. Restore, library transfer, migration, and game supervision retain their existing recovery/lifetime behavior. Desktop game details and activity history offer the same core cancellation request; source search also keeps its own Cancel search control inside its dialog.
+
+## Library metadata
+
+```text
+portcove --library <path> --json library export
+portcove --library <path> --json library export --output <new-file.json>
+```
+
+Export reads one consistent SQLite snapshot. The versioned metadata document contains source references, managed version identities, active/previous/staged state, per-port preferences, and successful launch history. Application versions, user data, backups, and toolchains are identified as separate content roots; their contents and credentials are not embedded. Managed installation paths become relative to the original library root, while source references retain their original paths and identities.
+
+Without `--output`, the document appears in the normal CLI response. With `--output`, core writes a raw metadata document to a new file and returns its path, byte size, and SHA-256. Publication does not replace an existing file. Settings → Library → Export metadata invokes the same operation through a native save dialog.
+
+## Library imports and recovery
+
+Import a trusted metadata export together with a separate backup folder containing its `versions`, `user`, `backups`, and `toolchains` trees:
+
+```text
+portcove --library <new-or-empty-root> --json library import <metadata.json> <copied-library-folder>
+portcove --library <new-or-empty-root> --json library import <metadata.json> <copied-library-folder> --apply --expected-plan <plan-sha256>
+portcove --library <destination> --json library resume-import
+portcove --library <destination> --json library abort-import
+```
+
+Review reads only the explicitly selected metadata and content, checks capacity and portable paths, and rejects existing application/source/settings/history state. Apply requires both flags, recomputes the plan, acquires exclusive library access, copies without replacing existing files, restores metadata transactionally, and verifies the copied manifests against current platform executable and persistence rules. Active, previous, and staged identity and source references survive the round trip. Import does not copy input SQLite, credentials, HTTP caches, or logs; metadata JSON is limited to 16 MiB and the recoverable inventory to 64 MiB. Source references remain subject to normal validation and relinking.
+
+An interrupted import reports `details.import_destination` and `recovery_action: resume_library_import`. Unpublished copies remain closed until recovery succeeds. Resume after publication preserves new destination saves and works with the old backup offline. Abort retains every copied file and keeps the incomplete destination closed; choose a different empty destination for another import. Settings → Library → Import library exposes review, native confirmation, and recovery for the currently configured empty library. This is a trusted local-backup restore, not a merge operation or proof of third-party backup authenticity.
+
+## Library moves and recovery
+
+```text
+portcove --library <original> --json library move <new-directory>
+portcove --library <original> --json library move <new-directory> --apply --expected-plan <plan-sha256>
+portcove --library <original> --json library resume-move
+portcove --library <original> --json library abort-move
+```
+
+Review is read-only. The destination must be a new directory beneath an existing parent. The plan identifies the four managed content categories, source references, required working space, and available capacity. It rejects symlinks, special entries, case-insensitive collisions, and paths outside the conservative portable ASCII filename policy. Source references stay at their original paths. Complete all launch/lifecycle recovery and close other Portcove clients before applying; every open handle holds a library lease. Settings → Library → Move library uses the same plan and core operation while releasing its own cached handles.
+
+Apply recomputes the reviewed fingerprint, copies with no overwrite, verifies file inventories, metadata, SQLite integrity and immutable installation manifests, then switches authority. The original directory is retained as a recovery copy. Opening that old path subsequently follows the verified relocation, so configured paths survive an ordinary move. For disk removal or machine migration, configure the new root directly. Metadata export alone is not a payload backup or import.
+
+An interrupted move blocks normal use until `resume-move` finishes or `abort-move` reactivates an unpublished original. Pass the original directory, including when normal opening is blocked. Abort never deletes copied files, and it refuses once authority publication has begun. An unmarked destination with ambiguous database state is retained for inspection. Startup and the move dialog expose these same recovery actions. Recovery after activation preserves any new destination saves. Do not manually remove authority markers to bypass these checks.
+
+Machine schema version 5 introduced `move_library` to the activity operation enum and exports library metadata, move-plan, and move-result schemas. Move result fields identify the retained source, destination, active root, and terminal completion state. A transfer awaiting recovery has a durable journal and running activity; a resumed or aborted transfer records its explicit terminal outcome.
+
 ## Idempotent automation
 
 ```text
@@ -99,7 +173,7 @@ portcove --library <path> --json activate <port-id>
 portcove --library <path> exec <port-id> -- <game arguments...>
 ```
 
-`ensure` returns the active installation when one exists and installs otherwise. `check` is read-only and resolves the latest checksum-qualified release for the selected channel. Stable selection excludes prereleases; beta selects an eligible prerelease when present and otherwise falls back only to an eligible stable release; rolling selects only its exact configured tag. GitHub and GitLab use this same core rule. `check --all` uses the core batch path, runs at most four provider resolutions concurrently, preserves catalog order in its outcomes, and does not retry a rate-limited item implicitly. `reconcile` applies the stored policy: `notify` reports an available release without mutation, `stage` downloads it without switching versions, and `automatic` installs and activates it. Repeated runs reuse the matching staged version, and an automatic run promotes it transactionally. `activate` explicitly promotes the one staged version and preserves the deactivated version as the rollback target. Destructive or copying operations require `--yes` under `--non-interactive`; after confirmation, core issues a five-minute, one-use authorization bound to the action, target, and reviewed state and consumes it only under the operation lock. Adoption prints a content-hashed copy plan and every skipped symlink or special entry before confirmation. `exec` is intentionally network-free and GUI-free: it resolves the active executable, working directory, source reference, adapter arguments, and Portcove environment, then inherits standard input/output/error. Because the launched game owns those streams and its process exit code, `exec` rejects `--json` and `--jsonl` with a structured usage error before starting a child; external frontends should use machine mode for management and plain `exec` for launch. A registered source is rehashed against its stored baseline before install, update, or launch and receives one final identity check after adapter preparation before a child can start. Managed PS1 builds likewise recheck storage bytes around disc materialization and BIOS use. An unregistered source remains optional at launch for ports whose generated data is already complete. Adapter arguments are prepended to arguments after `--`; mutable catalog paths are restored before launch and collected from the exact launched version after the child exits. A port may transactionally materialize a catalog-declared runtime source through N64 normalization, bounded copy/ZIP extraction, GameCube ISO conversion, PS1 CHD expansion, or PS2 ISO/CHD normalization. A source marker prevents redundant work and forces restaging when registration changes.
+`ensure` returns the active installation when one exists and installs otherwise. `check` is read-only and resolves the latest checksum-qualified release for the selected channel. Stable selection excludes prereleases; beta selects an eligible prerelease when present and otherwise falls back only to an eligible stable release; rolling selects only its exact configured tag. GitHub and GitLab use this same core rule. `check --all` uses the core batch path, runs at most four provider resolutions concurrently, preserves catalog order in its outcomes, and does not retry a rate-limited item implicitly. `reconcile` applies the stored policy: `notify` reports an available release without mutation, `stage` downloads it without switching versions, and `automatic` installs and activates it. Repeated runs reuse the matching staged version, and an automatic run promotes it transactionally. `activate` explicitly promotes the one staged version and preserves the deactivated version as the rollback target. Destructive or copying operations require `--yes` under `--non-interactive`; after confirmation, core issues a five-minute, one-use authorization bound to the action, target, and reviewed state and consumes it only under the operation lock. Adoption prints a content-hashed copy plan and every skipped symlink or special entry before confirmation. `exec` is intentionally network-free and GUI-free: it resolves the active executable, working directory, source reference, adapter arguments, and Portcove environment, then inherits standard input/output/error. Because the launched game owns those streams and its process exit code, `exec` rejects `--json` and `--jsonl` with a structured usage error before starting a child; external frontends should use machine mode for management and plain `exec` for launch. A registered source is rehashed against its stored baseline before install, update, or launch and receives one final identity check after adapter preparation before a child can start. Managed PS1 builds likewise recheck storage bytes around disc materialization and BIOS use. Upstream-managed setup records the staged source identity and, after successful validation, replaces the install manifest with one that covers the generated application data before launch. A changed source reruns setup; a partial setup or manifest registration failure starts no child. An unregistered source remains optional at launch for ports whose generated data is already complete. Adapter arguments are prepended to arguments after `--`; persistent catalog paths are restored before launch and collected from the exact launched version after the child exits. Narrow `runtime_mutable_paths` remain disposable runtime output and are excluded from both immutable verification and backup collection. A port may transactionally materialize a catalog-declared runtime source through N64 normalization, bounded copy/ZIP extraction, GameCube ISO conversion, PS1 CHD expansion, or PS2 ISO/CHD normalization. A source marker prevents redundant work and forces restaging when registration changes.
 
 Portcove V1 requires every path that crosses a durable SQLite/JSON boundary or child-process argument/environment boundary to be valid Unicode. On Unix, a non-UTF-8 library, source, install, backup, lifecycle, executable, or generated runtime path fails with `unsupported` instead of being stored or launched through a lossy alias.
 
@@ -204,3 +278,25 @@ Adapters and reviewed catalog entries may additionally set an upstream-native va
 Environment tokens take precedence over a credential saved by Portcove. Tokens are sent only as bearer authorization to the configured GitHub API origin. Release assets, checksum URLs, redirects to other origins, operation journals, structured output, SQLite state, cached response bodies, and child-game environments never receive the token.
 
 There is no prompt unless an operation needs confirmation. Pass `--non-interactive` from frontends and services.
+
+## Signed catalog delivery
+
+API schema 7 adds catalog provenance to `doctor`, public-key trust and selection state, signed-envelope/payload schemas, reviewed catalog updates, and the `update_catalog` activity operation. Operation event schema stays at 2.
+
+- `catalog status`: current effective provenance, trusted public keys, highest accepted sequence, valid rollback/cache availability, and `state_sha256`.
+- `catalog trust-key <64-character-public-key-hex> [--yes]`: explicitly trust a publisher. Non-interactive callers need `--yes`; verify its fingerprint independently first.
+- `catalog revoke-key <key-id> --expected-state <state_sha256>`: remove trust and immediately recompute fallback.
+- `catalog update --file <signed.json>` or `--url <https-address>`: verify and return a read-only plan, including changed port IDs, validity, publisher fingerprint, and `plan_sha256`.
+- The same command with `--apply --expected-plan <plan_sha256>`: reread, reverify, and atomically publish only the reviewed candidate against unchanged trust/selection state.
+- `catalog rollback --expected-state <state_sha256>`: select the still-trusted, unexpired previous catalog. The replay floor never decreases, and the rejected newer version is not retained as fallback.
+- `catalog use-embedded --expected-state <state_sha256>`: choose the built-in catalog without discarding trust, cached versions, or replay history.
+- `catalog use-cached --expected-state <state_sha256>`: reverify and select the cached signed catalog without downloading or admitting an older external candidate.
+
+Local-file review does not write library domain state. Explicit HTTPS delivery is anonymous, bounded to 4 MiB and 20 seconds, and rejects redirects, userinfo, fragments, and non-HTTPS URLs. Catalog application supports cross-process cancellation and CLI Ctrl-C/SIGTERM until publication admission; SQLite activation, replay advancement, and the terminal activity outcome commit together. A service command uses the catalog snapshot it opened with; subsequent commands see the new selection. See [SIGNED-CATALOG.md](SIGNED-CATALOG.md) for the exact signing contract and offline publisher utility.
+
+
+API schema 8 adds optional `runtime` identity to install records, `installed_runtime` and `required_runtime` to update checks, `bundled_runtime` and `download_bytes` to install plans, and `missing_runtime` launch readiness. `catalog` exposes the platform runtime archive pins and layout. A runtime-only change is an update even if the game's release name and archive are unchanged. `update` supplies a missing runtime; `exec` fails before running an upstream downloader. Rollback retains the runtime recorded with that install. Operation event schema remains 2.
+
+API schema 9 adds `persistent_file_patterns` to catalog ports. Each rule has a literal filename `prefix` and `suffix`, with at least one character between them, and matches regular files only in the port's existing persistent working directory. Core uses these rules for named saves during adoption, collection, backup/restore, and version transitions. Manifest schema 4 binds these rules to immutable verification and import admission; older manifests do not acquire new persistence exclusions silently. The additive optional `runtime_mutable_paths` catalog field identifies reviewed disposable output from upstream-managed setup; current trusted catalog paths are honored during verification so a newly declared runtime log cannot strand an otherwise valid older manifest. Event schema remains 2.
+
+API schema 10 adds `user_data_environment`, `launch_environment`, `runtime_source_hashes`, and `stfs-directory` runtime materialization to catalog ports. Catalog validation keeps environment overlays away from credentials, Portcove/session variables, and multiline values. LIVE/STFS materialization is bounded, transactional, and requires exact source and extracted-file SHA-256 identities. Event schema remains 2.

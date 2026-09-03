@@ -9,7 +9,7 @@ function event(
   parentOperationId?: string,
 ): OperationEvent {
   return {
-    schema_version: 1,
+    schema_version: 2,
     operation_id: operationId,
     parent_operation_id: parentOperationId,
     sequence,

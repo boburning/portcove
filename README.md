@@ -18,12 +18,16 @@ This repository is an early, working implementation. Catalog and state commands 
 - GitHub release discovery with active-upstream checks and a checksum-pinned retired-project path.
 - Optional GitHub device login, secure token storage, rate-limit visibility, and persistent conditional-request caching.
 - Mandatory SHA-256 validation and safe ZIP/TAR extraction.
+- Catalog-pinned game runtimes install and roll back with each immutable game version, using the same download, archive, and verification rules.
 - Versioned installs, explicit staged-update activation, verification, rollback, and preserved user data.
 - Transactionally published, versioned persistent-data backups and confirmed restore through both CLI and desktop, with tree integrity checks and automatic pre-restore safety snapshots.
 - Source records referenced in place, never uploaded, and checked against their registered size and SHA-256 on demand and before reuse; when an upstream runtime requires its own validated local copy, that copy stays inside the local Portcove user-data tree.
 - Safe adoption by copying an existing installation without changing the original.
 - JSON, JSONL, JSON Schema, deterministic exit codes, and a network-free `exec` path for launchers such as Batocera, Playnite, LaunchBox, RetroBat, and EmuDeck.
 - A local, read-only `doctor` report for host platform, library capacity, catalog state, optional `chdman`/DolphinTool discovery, and explicit repair planning for incomplete or ambiguous library state.
+- Metadata export, verified library moves and imports, and validated source relinking preserve local libraries across storage and path changes. Transfers require review, retain input data, and expose interruption recovery through the CLI and Settings.
+- Opt-in source discovery searches explicitly chosen folders with bounded hashing and current source-profile validation. Accepting a result revalidates its content before registration.
+- Cooperative cancellation stops supported preparation work and records a distinct terminal result; publication and save-data switches finish under their existing recovery guarantees.
 - Cross-process per-port operation locks so multiple launchers cannot race installation state or mutate a port while its game process is running.
 - Parent-independent desktop launch supervision with durable crash recovery, exact-version save collection, and CLI signal forwarding.
 - Tauri 2/React desktop UI with keyboard and controller navigation.
@@ -114,3 +118,5 @@ The architecture and trust boundaries are documented in [docs/ARCHITECTURE.md](d
 Interactive, physical, and external-infrastructure follow-ups are tracked in [docs/DEFERRED.md](docs/DEFERRED.md). Treat that file as the authority for intentionally postponed work rather than inferring completion from automated tests.
 
 Licensed under MIT or Apache-2.0, at your option.
+
+Signed catalog updates are optional. Settings -> Catalog updates (or `catalog status` / `catalog update`) supports explicit publisher trust, review, activation, rollback, and offline fallback. Startup uses local verified metadata and never requires an account or server. [Signing format and publisher tooling](docs/SIGNED-CATALOG.md) describe the contract; no production publisher key or hosting origin is configured by default.
