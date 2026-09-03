@@ -139,7 +139,7 @@
   --color-bg-subtle: rgba(245, 243, 238, 0.04);
   --color-bg-subtle-hover: rgba(245, 243, 238, 0.08);
   --color-transparent: transparent;
-  --color-brand-stage: #000000;
+  --color-brand-stage: var(--n64-gray-950);
 
   --color-text: var(--n64-white);
   --color-text-secondary: var(--n64-gray-300);
@@ -1063,8 +1063,8 @@ h2 { letter-spacing: -0.025em; line-height: var(--leading-tight); }
 
 .loading-state { flex-direction: row; text-align: left; }
 .loading-state strong { display: block; color: var(--color-text); }
-.loading-brand { width: 10rem; display: grid; justify-items: center; gap: var(--space-1); flex: none; }
-.loading-brand .brand-wordmark { width: 10rem; height: 4.5rem; }
+.loading-brand { width: 12rem; display: grid; justify-items: center; gap: var(--space-1); flex: none; }
+.loading-brand .brand-wordmark { width: 12rem; height: 4.5rem; }
 .loading-mark .brand-motif { position: absolute; bottom: -0.35rem; }
 .loading-mark > .icon { animation: spin 900ms linear infinite; }
 

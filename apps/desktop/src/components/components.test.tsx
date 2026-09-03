@@ -78,7 +78,7 @@ describe("desktop components", () => {
     expect(html).toContain("width:50%");
     expect(html).toContain("/brand/icons/portcove-mascot-head-256.png");
     expect(html).toContain("ABOUT &amp; CREDITS");
-    expect(html).toContain("/brand/logo/portcove-logo-horizontal.jpg");
+    expect(html).toContain("/brand/logo/portcove-logo-v2-transparent.png");
   });
 
   it("shows the shared library path and volume capacity", () => {
@@ -254,9 +254,9 @@ describe("desktop components", () => {
     expect(cards).toContain("Available");
     expect(empty).toContain("No ports match these filters");
     expect(empty).toContain("Clear search and filters");
-    expect(emptyLibrary).toContain("/brand/mascot/portcove-mascot-default.jpg");
+    expect(emptyLibrary).toContain("/brand/mascot/portcove-mascot-v2-front.png");
     expect(emptyLibrary).toContain("aria-hidden=\"true\"");
-    expect(loading).toContain("/brand/logo/portcove-logo-horizontal.jpg");
+    expect(loading).toContain("/brand/logo/portcove-logo-v2-transparent.png");
     expect(loading).toContain("alt=\"Portcove\"");
   });
 

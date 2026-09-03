@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { parseArguments, parseWorkspacePackage, validateReleaseMetadata } from "./check-release-metadata.mjs";
+import {
+  inspectPng,
+  parseArguments,
+  parseWorkspacePackage,
+  validateBrandManifestDefinition,
+  validateReleaseMetadata,
+} from "./check-release-metadata.mjs";
 
 function validMetadata() {
   return {
@@ -32,6 +38,35 @@ function validMetadata() {
       },
     },
     missingFiles: [],
+  };
+}
+
+function pngHeader(width, height, colorType = 6, bitDepth = 8) {
+  const buffer = Buffer.alloc(29);
+  Buffer.from("89504e470d0a1a0a", "hex").copy(buffer);
+  buffer.writeUInt32BE(13, 8);
+  buffer.write("IHDR", 12, 4, "ascii");
+  buffer.writeUInt32BE(width, 16);
+  buffer.writeUInt32BE(height, 20);
+  buffer[24] = bitDepth;
+  buffer[25] = colorType;
+  return buffer;
+}
+
+function validBrandManifest() {
+  return {
+    schema_version: 1,
+    brand_version: 2,
+    assets: [{
+      id: "logo-v2",
+      path: "apps/desktop/assets/brand/generated/v2/logo.png",
+      category: "canonical_master",
+      role: "Canonical logo",
+      width: 1024,
+      height: 512,
+      color_mode: "RGBA",
+      sha256: "a".repeat(64),
+    }],
   };
 }
 
@@ -90,6 +125,31 @@ test("requires the complete platform icon set", () => {
   metadata.tauri.bundle.icon = ["icons/icon.ico"];
   const errors = validateReleaseMetadata(metadata);
   assert.match(errors.join("\n"), /complete platform icon set/);
+});
+
+test("reads dimensions and color mode from a PNG header", () => {
+  assert.deepEqual(inspectPng(pngHeader(1024, 512)), {
+    width: 1024,
+    height: 512,
+    bitDepth: 8,
+    colorMode: "RGBA",
+  });
+  assert.equal(inspectPng(pngHeader(1254, 962, 2)).colorMode, "RGB");
+  assert.throws(() => inspectPng(Buffer.from("not a png")), /not a valid PNG/);
+});
+
+test("rejects ambiguous or unsafe brand manifest entries", () => {
+  const manifest = validBrandManifest();
+  manifest.assets.push({ ...manifest.assets[0], path: "../outside.png" });
+  const errors = validateBrandManifestDefinition(manifest);
+  assert.match(errors.join("\n"), /duplicate id/);
+  assert.match(errors.join("\n"), /invalid PNG path/);
+});
+
+test("reports brand asset integrity failures with release metadata", () => {
+  const metadata = validMetadata();
+  metadata.brandManifestErrors = ["brand asset logo-v2 SHA-256 does not match manifest"];
+  assert.match(validateReleaseMetadata(metadata).join("\n"), /brand asset logo-v2 SHA-256/);
 });
 
 test("parses inline and positional release options", () => {
