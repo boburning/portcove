@@ -4,6 +4,7 @@ mod auth;
 mod authorization;
 mod catalog;
 mod database;
+mod durability;
 mod error;
 mod gitlab;
 mod install;

@@ -19,6 +19,8 @@ use schemars::{JsonSchema, schema_for};
 use serde::Serialize;
 use tracing_subscriber::EnvFilter;
 
+mod human;
+
 #[derive(Debug, Parser)]
 #[command(
     name = "portcove",
@@ -453,7 +455,12 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
             let github = GithubReleaseProvider::for_library(service.library())?;
             match command {
                 AuthCommand::Status => {
-                    render_success(mode, "auth.status", github.auth_status().await?)?;
+                    render_read_success(
+                        mode,
+                        "auth.status",
+                        github.auth_status().await?,
+                        human::auth_status,
+                    )?;
                 }
                 AuthCommand::Login => {
                     let login = github.begin_device_login().await?;
@@ -493,7 +500,12 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         Commands::Catalog {
             command: CatalogCommand::List,
         } => {
-            render_success(mode, "catalog.list", service.catalog().ports().to_vec())?;
+            render_read_success(
+                mode,
+                "catalog.list",
+                service.catalog().ports().to_vec(),
+                |ports| human::catalog_list(ports),
+            )?;
         }
         Commands::Backup {
             command: BackupCommand::Create { port_id },
@@ -503,7 +515,12 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         Commands::Backup {
             command: BackupCommand::List { port_id },
         } => {
-            render_success(mode, "backup.list", service.list_backups(&port_id)?)?;
+            render_read_success(
+                mode,
+                "backup.list",
+                service.list_backups(&port_id)?,
+                |backups| human::backup_list(&port_id, backups),
+            )?;
         }
         Commands::Backup {
             command:
@@ -569,10 +586,11 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         Commands::Catalog {
             command: CatalogCommand::Show { port_id },
         } => {
-            render_success(
+            render_read_success(
                 mode,
                 "catalog.show",
                 service.catalog().port(&port_id)?.clone(),
+                human::catalog_show,
             )?;
         }
         Commands::Source {
@@ -587,7 +605,12 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         Commands::Source {
             command: SourceCommand::List,
         } => {
-            render_success(mode, "source.list", service.library().sources()?)?;
+            render_read_success(
+                mode,
+                "source.list",
+                service.library().sources()?,
+                |sources| human::source_list(sources),
+            )?;
         }
         Commands::Source {
             command: SourceCommand::Verify(args),
@@ -628,7 +651,7 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         } => {
             let preview = service.preview_source_removal(&profile_id)?;
             if mode == OutputMode::Human {
-                println!("{}", serde_json::to_string_pretty(&preview)?);
+                println!("{}", human::document(&preview)?);
             }
             let impact = if preview.installed_dependent_port_ids.is_empty() {
                 "No installed port currently depends on it.".to_owned()
@@ -654,36 +677,45 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         }
         Commands::Status { port_id } => {
             if let Some(port_id) = port_id {
-                render_success(mode, "status", service.status(&port_id)?)?;
+                render_read_success(mode, "status", service.status(&port_id)?, human::status)?;
             } else {
-                render_success(mode, "status", service.statuses()?)?;
+                render_read_success(mode, "status", service.statuses()?, |statuses| {
+                    human::statuses(statuses)
+                })?;
             }
         }
         Commands::Activity { limit } => {
-            render_success(
+            render_read_success(
                 mode,
                 "activity",
                 service.library().activities(limit as usize)?,
+                |records| human::activities(records),
             )?;
         }
         Commands::Storage => {
-            render_success(mode, "storage", service.library().storage_summary()?)?;
+            render_read_success(
+                mode,
+                "storage",
+                service.library().storage_summary()?,
+                human::storage,
+            )?;
         }
         Commands::Doctor => {
-            render_success(mode, "doctor", service.doctor()?)?;
+            render_read_success(mode, "doctor", service.doctor()?, human::doctor)?;
         }
         Commands::About => unreachable!("about exits before opening the library"),
         Commands::Plan { port_id, channel } => {
-            render_success(
+            render_read_success(
                 mode,
                 "plan",
                 service
                     .plan_install(&port_id, channel.map(Into::into))
                     .await?,
+                human::plan,
             )?;
         }
         Commands::Paths { port_id } => {
-            render_success(mode, "paths", service.port_paths(&port_id)?)?;
+            render_read_success(mode, "paths", service.port_paths(&port_id)?, human::paths)?;
         }
         Commands::Check(args) => {
             if args.all {
@@ -822,7 +854,7 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         Commands::Remove { port_id, yes } => {
             let preview = service.preview_removal(&port_id)?;
             if mode == OutputMode::Human {
-                println!("{}", serde_json::to_string_pretty(&preview)?);
+                println!("{}", human::document(&preview)?);
             }
             require_confirmation(
                 &format!("Remove managed versions for {port_id}? Persistent data will be kept."),
@@ -839,7 +871,7 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         Commands::Adopt(args) => {
             let preview = service.preview_adoption(&args.path, args.port.as_deref())?;
             if mode == OutputMode::Human {
-                println!("{}", serde_json::to_string_pretty(&preview)?);
+                println!("{}", human::document(&preview)?);
             }
             require_confirmation(
                 "Copy this installation into Portcove? The original will be left untouched.",
@@ -883,9 +915,12 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
             }
             return exec_game(&service, args).await;
         }
-        Commands::Capabilities => {
-            render_success(mode, "capabilities", CapabilityDocument::current())?
-        }
+        Commands::Capabilities => render_read_success(
+            mode,
+            "capabilities",
+            CapabilityDocument::current(),
+            human::capabilities,
+        )?,
         Commands::Schema {
             command: SchemaCommand::Export,
         } => {
@@ -1122,8 +1157,24 @@ fn render_success<T>(mode: OutputMode, command: &str, data: T) -> Result<()>
 where
     T: Serialize + JsonSchema,
 {
+    render_success_with(mode, command, data, human::document)
+}
+
+fn render_read_success<T, F>(mode: OutputMode, command: &str, data: T, renderer: F) -> Result<()>
+where
+    T: Serialize + JsonSchema,
+    F: FnOnce(&T) -> String,
+{
+    render_success_with(mode, command, data, |data| Ok(renderer(data)))
+}
+
+fn render_success_with<T, F>(mode: OutputMode, command: &str, data: T, renderer: F) -> Result<()>
+where
+    T: Serialize + JsonSchema,
+    F: FnOnce(&T) -> serde_json::Result<String>,
+{
     match mode {
-        OutputMode::Human => println!("{}", serde_json::to_string_pretty(&data)?),
+        OutputMode::Human => println!("{}", renderer(&data)?),
         OutputMode::Json => println!(
             "{}",
             serde_json::to_string(&ApiResponse {

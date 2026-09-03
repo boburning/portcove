@@ -193,7 +193,7 @@ Resume checklist:
 ## PCV-DEF-012 — Validate transactional persistent-data restore with a real save
 
 - Status: `waiting`
-- Already implemented: core/CLI/Tauri backup creation, listing, restore, and deletion; deterministic tree SHA-256; per-port locking; pre-copy active-data collection; fail-closed symlink handling; same-volume atomic publication; explicit CLI and native GUI confirmation; automatic safety backup; typed results and activity; tamper, empty-root, independence, replacement, and targeted-deletion regression tests.
+- Already implemented: core/CLI/Tauri backup creation, listing, restore, and deletion; deterministic tree SHA-256; per-port locking; pre-copy active-data collection; fail-closed symlink handling; same-volume process-atomic publication; file/manifest flushing plus supported Linux directory syncing without a false cross-platform power-loss guarantee; explicit CLI and native GUI confirmation; automatic safety backup; typed results and activity; tamper, empty-root, independence, replacement, and targeted-deletion regression tests.
 - Why deferred: automated filesystem tests cannot prove that an upstream port accepts the restored files or that the GUI's warning and snapshot history remain clear during a real save/load recovery.
 - Resume condition: choose one installed port with a disposable real save, create a backup, advance or alter the save, restore from CLI and then GUI, verify the game loads the restored state, verify the automatic safety backup can recover the newer state, and record visual/controller behavior under `PCV-DEF-011`/`PCV-DEF-005`.
 

@@ -24,6 +24,7 @@ use crate::{
     RepairPlan, ResolvedRelease, RestoreResult, Result, SourceRecord, SourceRemovalPreview,
     SourceRequirementRole, SourceVerification, SupervisedLaunchOutcome, UpdateCheck, UpdatePolicy,
     VerificationReport,
+    durability::{prepare_backup_publication, publish_backup_directory},
     operation::{
         LifecycleFaultInjector, LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind,
         LifecyclePhase, NoLifecycleFaults, OperationStore,
@@ -541,11 +542,14 @@ impl PortcoveService {
         manifest_file.write_all(b"\n")?;
         manifest_file.sync_all()?;
         drop(manifest_file);
+        let directory_sync = prepare_backup_publication(
+            self.library.root(),
+            &self.library.backups_dir(),
+            &parent,
+            temporary.path(),
+        )?;
         let staging_path = temporary.keep();
-        if let Err(error) = fs::rename(&staging_path, &final_path) {
-            let _ = fs::remove_dir_all(&staging_path);
-            return Err(error.into());
-        }
+        publish_backup_directory(&staging_path, &final_path, &parent, directory_sync)?;
         Ok(backup_record(manifest, final_path))
     }
 
