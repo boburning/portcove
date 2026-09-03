@@ -67,7 +67,7 @@ export function StatusLayer({ error, clearError, operation, busy }: {
 }) {
   return <>
     {error && <ErrorNotice error={error} clearError={clearError} />}
-    {operation && busy && <OperationProgress operation={operation} busy={busy} />}
+    {busy && <OperationProgress operation={operation?.type === "finished" ? undefined : operation} busy={busy} />}
   </>;
 }
 
@@ -88,9 +88,9 @@ function ErrorNotice({ error, clearError }: { error: string; clearError: () => v
     </section>;
 }
 
-function OperationProgress({ operation, busy }: { operation: OperationEvent; busy: string }) {
-  const label = operation.message ?? operation.phase ?? operation.operation ?? busy;
-  if (operation.total && operation.total > 0 && operation.completed !== undefined) {
+function OperationProgress({ operation, busy }: { operation?: OperationEvent; busy: string }) {
+  const label = operation?.message ?? operation?.phase ?? operation?.operation ?? busy;
+  if (operation?.total && operation.total > 0 && operation.completed !== undefined) {
     return <DeterminateProgress operation={operation} label={label} total={operation.total} completed={operation.completed} />;
   }
   return <div className="operation-bar" aria-live="polite">

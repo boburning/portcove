@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import type { InstallRecord, PortDefinition, PortStatus } from "../types";
+import type { InstallRecord, OperationEvent, PortDefinition, PortStatus } from "../types";
 import { PageHeader, SettingsView, Sidebar, StatusLayer } from "./Chrome";
 import { BackupHistory } from "./BackupHistory";
 import { DetailPanel, type DetailActions } from "./DetailPanel";
@@ -25,6 +25,18 @@ const installRecord = (overrides: Partial<InstallRecord> = {}): InstallRecord =>
 });
 
 describe("desktop components", () => {
+  it("labels a new non-streaming task without reusing completed update progress", () => {
+    const finished: OperationEvent = { schema_version: 2, operation_id: "old-update", sequence: 4, timestamp_ms: 1,
+      operation: "update", type: "finished", message: "Old update completed", completed: 100, total: 100 };
+    for (const operation of [undefined, finished]) {
+      const html = renderToStaticMarkup(<StatusLayer clearError={vi.fn()} operation={operation} busy="backup" />);
+      expect(html).toContain("Backup");
+      expect(html).toContain("Working");
+      expect(html).not.toContain("Old update");
+      expect(html).not.toContain("width:100%");
+    }
+  });
+
   it("routes a missing verified runtime to reviewed installation instead of Play", () => {
     const html = renderToStaticMarkup(<DetailPanel port={{ ...port, source_profile: undefined }} sourcePath="" setSourcePath={vi.fn()} actions={actions}
       status={{ port_id: port.id, channel: "stable", update_policy: "notify", active: installRecord(), readiness: { launchable: false, blockers: ["missing_runtime"], pending_setup: false } }} />);

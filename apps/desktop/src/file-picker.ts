@@ -6,7 +6,8 @@ export async function pickSourcePath(profile: SourceProfile, currentPath: string
     return pickSourceArchivePath(currentPath);
   }
   const directory = profile.kind === "file-set" || (profile.kind === "psx-disc" && (profile.disc?.discs?.length ?? 0) > 1);
-  const extensions = profile.accepted_extensions.map(extension => extension.replace(/^\./, ""));
+  const extensions = profile.accepted_extensions.map(extension => extension.replace(/^\./, "").toLowerCase());
+  if ((!profile.kind || profile.kind === "file") && extensions.length && !extensions.includes("zip")) extensions.push("zip");
   return open({
     multiple: false,
     directory,
