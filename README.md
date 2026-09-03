@@ -42,12 +42,14 @@ This repository is an early, working implementation. Catalog and state commands 
 
 Requirements: Rust 1.88 or newer, Node 24, pnpm 11, and the [Tauri 2 platform prerequisites](https://v2.tauri.app/start/prerequisites/).
 
+On Windows, keep the development checkout on a non-system volume. The storage preflight prints the resolved Cargo, temporary, pnpm, and packaging paths and blocks heavy work that would write them to the Windows system drive. See the [development-storage workflow](docs/DEVELOPMENT-STORAGE.md) before the first build or when migrating an existing checkout.
+
 ```powershell
 fnm use
-cd apps/desktop
-pnpm install --frozen-lockfile
-pnpm build
-pnpm desktop:dev
+node scripts/dev-storage.mjs preflight
+node scripts/dev-storage.mjs run -- pnpm --dir apps/desktop install --frozen-lockfile
+node scripts/dev-storage.mjs run -- pnpm --dir apps/desktop build
+node scripts/dev-storage.mjs run -- pnpm --dir apps/desktop desktop:dev
 ```
 
 Build and test the Rust workspace from the repository root:
@@ -55,7 +57,7 @@ Build and test the Rust workspace from the repository root:
 ```powershell
 .\scripts\bootstrap-quality-tools.ps1
 just check
-cargo build -p portcove-cli --release
+node scripts/dev-storage.mjs run -- cargo build -p portcove-cli --release
 ```
 
 Linux and macOS developers can use `./scripts/bootstrap-quality-tools.sh`. Use `just audit` before substantial work is considered complete and `just deep` for large structural changes. See the [quality and codebase-intelligence guide](docs/QUALITY.md) for the deterministic/advisory boundary and current ratchet baseline.

@@ -1,81 +1,89 @@
 set windows-shell := ["pwsh.exe", "-NoLogo", "-NoProfile", "-Command"]
 
+storage := "node scripts/dev-storage.mjs run --"
+
 default: check
+
+preflight:
+    node scripts/dev-storage.mjs preflight
+
+clean-build:
+    node scripts/dev-storage.mjs clean
 
 # Rust fast loop
 fmt:
-    cargo fmt --all -- --check
+    {{storage}} cargo fmt --all -- --check
 
 rust-check:
-    cargo check --workspace --all-targets
+    {{storage}} cargo check --workspace --all-targets
 
 clippy:
-    cargo clippy --workspace --all-targets -- -D warnings
+    {{storage}} cargo clippy --workspace --all-targets -- -D warnings
 
 rust-test:
-    cargo test --workspace
+    {{storage}} cargo test --workspace
 
 shear:
-    cargo shear --deny-warnings
+    {{storage}} cargo shear --deny-warnings
 
 architecture:
-    node --test scripts/check-rust-architecture.test.mjs
-    node scripts/check-rust-architecture.mjs
+    {{storage}} node --test scripts/check-rust-architecture.test.mjs
+    {{storage}} node scripts/check-rust-architecture.mjs
 
 process-policy:
-    node --test scripts/check-child-process-policy.test.mjs
-    node scripts/check-child-process-policy.mjs
+    {{storage}} node --test scripts/check-child-process-policy.test.mjs
+    {{storage}} node scripts/check-child-process-policy.mjs
 
 transport-contract:
-    node --test scripts/check-transport-contract.test.mjs
-    node scripts/check-transport-contract.mjs
+    {{storage}} node --test scripts/check-transport-contract.test.mjs
+    {{storage}} node scripts/check-transport-contract.mjs
 
 check-rust: fmt rust-check clippy rust-test shear architecture process-policy transport-contract
 
 # Frontend fast loop
 ui-build:
-    pnpm --dir apps/desktop build
+    {{storage}} pnpm --dir apps/desktop build
 
 ui-test:
-    pnpm --dir apps/desktop test
+    {{storage}} pnpm --dir apps/desktop test
 
 fallow:
-    node --test scripts/check-fallow-report.test.mjs
-    node scripts/run-fallow.mjs
+    {{storage}} node --test scripts/check-fallow-report.test.mjs
+    {{storage}} node scripts/run-fallow.mjs
 
 check-ui: ui-build ui-test fallow
 
 # Deterministic release metadata and artifact tooling
 release-tools:
-    node --test scripts/check-release-metadata.test.mjs scripts/write-release-checksums.test.mjs scripts/reconcile-release-assets.test.mjs scripts/release-workflow.test.mjs scripts/quality-tools.test.mjs scripts/repository-settings.test.mjs
-    node scripts/check-release-metadata.mjs
-    node scripts/quality-tools.mjs --validate
-    node scripts/repository-settings.mjs --validate
+    {{storage}} node --test scripts/check-release-metadata.test.mjs scripts/write-release-checksums.test.mjs scripts/reconcile-release-assets.test.mjs scripts/release-workflow.test.mjs scripts/quality-tools.test.mjs scripts/repository-settings.test.mjs scripts/dev-storage.test.mjs
+    {{storage}} node scripts/check-release-metadata.mjs
+    {{storage}} node scripts/quality-tools.mjs --validate
+    {{storage}} node scripts/repository-settings.mjs --validate
 
 # Standard repository check
 check: check-rust check-ui release-tools
 
 # Deeper deterministic and structural audit
 deny:
-    cargo deny check --hide-inclusion-graph -W unmaintained
+    {{storage}} cargo deny check --hide-inclusion-graph -W unmaintained
 
 cycles:
-    -cargo modules dependencies -p portcove-core --lib --acyclic
+    -{{storage}} cargo modules dependencies -p portcove-core --lib --acyclic
 
 rscheck:
-    node --test scripts/run-rscheck.test.mjs
-    node scripts/run-rscheck.mjs
+    {{storage}} node --test scripts/run-rscheck.test.mjs
+    {{storage}} node scripts/run-rscheck.mjs
 
 audit: check deny cycles rscheck
 
 # Expensive or experimental intelligence. Failures remain diagnostic.
 hawk:
-    node scripts/run-hawk.mjs
+    {{storage}} node scripts/run-hawk.mjs
 
 duplicates:
-    node scripts/run-semdup.mjs
+    {{storage}} node scripts/run-semdup.mjs
 
 deep: audit hawk duplicates
 
 mutants:
-    cargo mutants --package portcove-core
+    {{storage}} cargo mutants --package portcove-core
