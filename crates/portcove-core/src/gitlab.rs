@@ -230,26 +230,15 @@ impl ReleaseProvider for GitlabReleaseProvider {
         let releases: Vec<GitlabRelease> = self
             .get_json(&format!("{project_url}/releases?per_page=30"))
             .await?;
-        let mut candidates: Vec<&GitlabRelease> = releases
-            .iter()
-            .filter(|release| !release.upcoming_release)
-            .filter(|release| match channel {
-                ReleaseChannel::Stable => !is_beta_tag(&release.tag_name),
-                ReleaseChannel::Beta => is_beta_tag(&release.tag_name),
-                ReleaseChannel::Rolling => port
-                    .release
-                    .rolling_tag
-                    .as_ref()
-                    .is_some_and(|tag| release.tag_name.eq_ignore_ascii_case(tag)),
-            })
-            .collect();
-        if channel == ReleaseChannel::Beta && candidates.is_empty() {
-            candidates = releases
-                .iter()
-                .filter(|release| !release.upcoming_release)
-                .collect();
-        }
-        let release = candidates.first().copied().ok_or_else(|| {
+        let release = crate::release::select_channel_candidate(
+            &releases,
+            channel,
+            port.release.rolling_tag.as_deref(),
+            |release| !release.upcoming_release,
+            |release| is_beta_tag(&release.tag_name),
+            |release| release.tag_name.as_str(),
+        )
+        .ok_or_else(|| {
             PortcoveError::not_found(format!(
                 "no published {channel} release exists for {}",
                 port.name

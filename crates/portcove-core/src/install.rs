@@ -1,20 +1,24 @@
 use std::{
-    fs::{self, File},
-    path::Path,
+    fs,
+    path::{Path, PathBuf},
+    sync::Arc,
 };
 
-use flate2::read::GzDecoder;
+use crate::{
+    AdapterKind, ArtifactIdentity, InstallRecord, Library, OperationCoordinator, OperationEvent,
+    Platform, PortDefinition, PortcoveError, PsxManagedPreparation, ResolvedRelease, Result,
+    adapter::{hash_file, walk_files},
+    archive::{extract_archive, validate_download_progress, validate_download_size},
+    operation::{
+        LifecycleFaultInjector, LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind,
+        LifecyclePhase, NoLifecycleFaults, OperationStore,
+    },
+};
 use futures_util::StreamExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use tokio::io::AsyncWriteExt;
-use uuid::Uuid;
-
-use crate::{
-    InstallRecord, Library, OperationEvent, PortcoveError, PsxManagedPreparation, ResolvedRelease,
-    Result,
-    adapter::{hash_file, walk_files},
-};
 
 #[derive(Debug, Clone)]
 pub struct InstallRequest {
@@ -22,6 +26,58 @@ pub struct InstallRequest {
     pub release: ResolvedRelease,
     pub activate: bool,
     pub managed: Option<PsxManagedPreparation>,
+    pub qualification: InstallQualification,
+}
+
+#[derive(Debug, Clone)]
+pub struct InstallQualification {
+    platform: Platform,
+    executable_hints: Vec<String>,
+    runtime_subdirectory: Option<String>,
+    persistent_paths: Vec<String>,
+    persistence_at_install_root: bool,
+}
+
+impl InstallQualification {
+    pub fn from_port(port: &PortDefinition, platform: Platform) -> Result<Self> {
+        let executable_hints = port
+            .executable_hints
+            .get(&platform)
+            .cloned()
+            .unwrap_or_default();
+        if executable_hints.is_empty() {
+            return Err(PortcoveError::verification(format!(
+                "{} has no declared executable for {platform:?}",
+                port.name
+            )));
+        }
+        Ok(Self {
+            platform,
+            executable_hints,
+            runtime_subdirectory: port.runtime_subdirectory.clone(),
+            persistent_paths: port.persistent_paths.clone(),
+            persistence_at_install_root: port.adapter == AdapterKind::N64RecompPortable,
+        })
+    }
+
+    pub(crate) fn persistence_root(&self, root: &Path, selected: &Path) -> PathBuf {
+        if self.persistence_at_install_root {
+            root.to_path_buf()
+        } else {
+            selected.parent().unwrap_or(root).to_path_buf()
+        }
+    }
+
+    #[cfg(test)]
+    fn test(executable: &str) -> Self {
+        Self {
+            platform: Platform::WindowsX86_64,
+            executable_hints: vec![executable.into()],
+            runtime_subdirectory: None,
+            persistent_paths: Vec::new(),
+            persistence_at_install_root: true,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -35,8 +91,12 @@ pub struct VerificationReport {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct InstallManifest {
     schema_version: u32,
+    install_id: String,
     port_id: String,
     version: String,
+    artifact: ArtifactIdentity,
+    selected_executable: String,
+    mutable_paths: Vec<String>,
     files: Vec<ManifestFile>,
 }
 
@@ -45,20 +105,21 @@ struct ManifestFile {
     path: String,
     size: u64,
     sha256: String,
+    critical: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Installer {
     library: Library,
     client: reqwest::Client,
+    faults: Arc<dyn LifecycleFaultInjector>,
 }
 
-struct OperationRootGuard<'a>(&'a Path);
-
-impl Drop for OperationRootGuard<'_> {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(self.0);
-    }
+struct InstallLifecycle {
+    destination: std::path::PathBuf,
+    operation_root: std::path::PathBuf,
+    store: OperationStore,
+    record: LifecycleOperation,
 }
 
 impl Installer {
@@ -67,45 +128,92 @@ impl Installer {
             .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
             .build()
             .map_err(|error| PortcoveError::network(error.to_string()))?;
-        Ok(Self { library, client })
+        Ok(Self {
+            library,
+            client,
+            faults: Arc::new(NoLifecycleFaults),
+        })
     }
 
-    pub async fn install<F>(&self, request: InstallRequest, mut emit: F) -> Result<InstallRecord>
+    pub(crate) fn with_faults(
+        library: Library,
+        faults: Arc<dyn LifecycleFaultInjector>,
+    ) -> Result<Self> {
+        let mut installer = Self::new(library)?;
+        installer.faults = faults;
+        Ok(installer)
+    }
+
+    pub async fn install<F>(
+        &self,
+        request: InstallRequest,
+        operation: &OperationCoordinator,
+        mut emit: F,
+    ) -> Result<InstallRecord>
     where
         F: FnMut(OperationEvent),
     {
-        let safe_version = safe_component(&request.release.version);
+        let storage_key = artifact_storage_key(&request.release.asset.sha256)?;
         let destination = self
             .library
             .versions_dir()
             .join(&request.port_id)
-            .join(&safe_version);
+            .join(&storage_key);
         if destination.exists() {
             return Err(PortcoveError::conflict(format!(
                 "version {} already exists for {}",
                 request.release.version, request.port_id
             )));
         }
-        emit(OperationEvent::Started {
-            operation: "install".into(),
-            port_id: Some(request.port_id.clone()),
-        });
-        let operation_id = Uuid::new_v4().to_string();
-        let operation_root = self.library.staging_dir().join(&operation_id);
-        let payload_root = operation_root.join("payload");
-        fs::create_dir_all(&payload_root)?;
-        let _operation_guard = OperationRootGuard(&operation_root);
-        self.write_journal(&operation_root, "created", &request)?;
-        let download_path = operation_root.join(&request.release.asset.name);
-        if let Err(error) = self
-            .download(&request.release, &download_path, &mut emit)
-            .await
-        {
-            let _ = self.write_journal(&operation_root, "download_failed", &request);
-            return Err(error);
+        let operation_root = self.library.staging_dir().join(operation.operation_id());
+        let mut record = LifecycleOperation::new(
+            operation.operation_id(),
+            LifecycleOperationKind::Install,
+            &request.port_id,
+        );
+        record.paths.staging = Some(operation_root.clone());
+        record.paths.final_path = Some(destination.clone());
+        record.activate = request.activate;
+        let store = OperationStore::new(self.library.clone());
+        store.put(&mut record)?;
+        let mut lifecycle = InstallLifecycle {
+            destination,
+            operation_root,
+            store,
+            record,
+        };
+        let result = self
+            .install_inner(request, operation, &mut lifecycle, &mut emit)
+            .await;
+        if let Err(error) = &result {
+            if lifecycle.record.phase == LifecyclePhase::Preparing {
+                let _ = fs::remove_dir_all(&lifecycle.operation_root);
+                let _ = lifecycle.store.remove(&lifecycle.record.id);
+            } else {
+                lifecycle.record.last_error = Some(error.message.clone());
+                let _ = lifecycle.store.put(&mut lifecycle.record);
+            }
         }
-        self.write_journal(&operation_root, "downloaded", &request)?;
-        let (actual_hash, _) = hash_file(&download_path)?;
+        result
+    }
+
+    async fn install_inner<F>(
+        &self,
+        request: InstallRequest,
+        operation: &OperationCoordinator,
+        lifecycle: &mut InstallLifecycle,
+        emit: &mut F,
+    ) -> Result<InstallRecord>
+    where
+        F: FnMut(OperationEvent),
+    {
+        let operation_id = operation.operation_id().to_owned();
+        let payload_root = lifecycle.operation_root.join("payload");
+        fs::create_dir_all(&payload_root)?;
+        let download_path = lifecycle.operation_root.join("artifact.download");
+        self.download(&request.release, &download_path, operation, emit)
+            .await?;
+        let (actual_hash, actual_size) = hash_file(&download_path)?;
         if !actual_hash.eq_ignore_ascii_case(&request.release.asset.sha256) {
             return Err(PortcoveError::verification(
                 "downloaded asset failed SHA-256 verification",
@@ -113,67 +221,89 @@ impl Installer {
             .detail("expected", request.release.asset.sha256.clone())
             .detail("actual", actual_hash));
         }
-        emit(OperationEvent::Message {
-            level: "info".into(),
-            message: "SHA-256 verified".into(),
-        });
+        emit(operation.message("info", "SHA-256 verified"));
         let asset_name = request.release.asset.name.clone();
         let extraction_path = download_path.clone();
         let extraction_root = payload_root.clone();
+        let expected_size = request.release.asset.size;
         tokio::task::spawn_blocking(move || {
-            extract_asset(&extraction_path, &extraction_root, &asset_name)
+            extract_asset(
+                &extraction_path,
+                &extraction_root,
+                &asset_name,
+                expected_size,
+            )
         })
         .await
         .map_err(|error| PortcoveError::install(error.to_string()))??;
-        self.write_journal(&operation_root, "extracted", &request)?;
         if let Some(preparation) = request.managed.clone() {
-            emit(OperationEvent::Message {
-                level: "info".into(),
-                message: "Generating and compiling the verified PS1 source".into(),
-            });
+            emit(operation.message("info", "Generating and compiling the verified PS1 source"));
             let managed_root = payload_root.clone();
             tokio::task::spawn_blocking(move || {
                 crate::psx::prepare_install(&managed_root, &preparation)
             })
             .await
             .map_err(|error| PortcoveError::install(error.to_string()))??;
-            self.write_journal(&operation_root, "managed_prepared", &request)?;
         }
-        let manifest = build_manifest(&request.port_id, &request.release.version, &payload_root)?;
-        fs::write(
-            payload_root.join(".portcove-manifest.json"),
-            serde_json::to_vec_pretty(&manifest)?,
+        let artifact = ArtifactIdentity {
+            asset_name: request.release.asset.name.clone(),
+            sha256: actual_hash.to_ascii_lowercase(),
+            size: actual_size,
+        };
+        let (manifest_sha256, selected_executable) = write_manifest(
+            &operation_id,
+            &request.port_id,
+            &request.release.version,
+            &artifact,
+            &request.qualification,
+            &payload_root,
         )?;
+        let install = InstallRecord {
+            id: operation_id,
+            port_id: request.port_id,
+            version: request.release.version.clone(),
+            path: lifecycle.destination.clone(),
+            channel: request.release.channel,
+            installed_at: Library::now(),
+            verified: true,
+            staged: !request.activate,
+            artifact,
+            manifest_sha256,
+            selected_executable,
+        };
+        lifecycle.record.install = Some(install.clone());
+        lifecycle.record.phase = LifecyclePhase::Prepared;
+        lifecycle.store.put(&mut lifecycle.record)?;
+        self.faults.check(LifecycleFaultPoint::InstallPrepared)?;
         fs::create_dir_all(
-            destination
+            lifecycle
+                .destination
                 .parent()
                 .expect("version directory has a parent"),
         )?;
-        if destination.exists() {
-            fs::remove_dir_all(&operation_root)?;
+        if lifecycle.destination.exists() {
             return Err(PortcoveError::conflict(format!(
                 "version {} was installed by another operation",
                 request.release.version
             )));
         } else {
-            fs::rename(&payload_root, &destination)?;
-            fs::remove_dir_all(&operation_root)?;
+            fs::rename(&payload_root, &lifecycle.destination)?;
         }
-        let install = InstallRecord {
-            id: operation_id,
-            port_id: request.port_id,
-            version: request.release.version,
-            path: destination,
-            channel: request.release.channel,
-            installed_at: Library::now(),
-            verified: true,
-            staged: !request.activate,
-        };
+        lifecycle.record.phase = LifecyclePhase::PayloadPublished;
+        lifecycle.store.put(&mut lifecycle.record)?;
+        self.faults.check(LifecycleFaultPoint::InstallPublished)?;
         self.library.register_install(&install, request.activate)?;
-        emit(OperationEvent::Finished {
-            operation: "install".into(),
-            success: true,
-        });
+        lifecycle.record.phase = LifecyclePhase::MetadataCommitted;
+        lifecycle.store.put(&mut lifecycle.record)?;
+        self.faults
+            .check(LifecycleFaultPoint::InstallMetadataCommitted)?;
+        if let Err(error) = fs::remove_dir_all(&lifecycle.operation_root) {
+            lifecycle.record.phase = LifecyclePhase::CleanupPending;
+            lifecycle.record.last_error = Some(error.to_string());
+            lifecycle.store.put(&mut lifecycle.record)?;
+            return Ok(install);
+        }
+        lifecycle.store.remove(&lifecycle.record.id)?;
         Ok(install)
     }
 
@@ -181,11 +311,13 @@ impl Installer {
         &self,
         release: &ResolvedRelease,
         destination: &Path,
+        operation: &OperationCoordinator,
         emit: &mut F,
     ) -> Result<()>
     where
         F: FnMut(OperationEvent),
     {
+        validate_download_progress(0, release.asset.size)?;
         let response = self
             .client
             .get(&release.asset.url)
@@ -206,59 +338,53 @@ impl Installer {
             let chunk = chunk.map_err(|error| PortcoveError::network(error.to_string()))?;
             file.write_all(&chunk).await?;
             completed += chunk.len() as u64;
+            validate_download_progress(completed, release.asset.size)?;
             if total.is_some_and(|total| completed == total)
                 || completed.saturating_sub(reported) >= 1024 * 1024
             {
-                emit(OperationEvent::Progress {
-                    phase: "download".into(),
-                    completed,
-                    total,
-                });
+                emit(operation.progress("download", completed, total));
                 reported = completed;
             }
         }
         if completed != reported {
-            emit(OperationEvent::Progress {
-                phase: "download".into(),
-                completed,
-                total,
-            });
+            emit(operation.progress("download", completed, total));
         }
         file.flush().await?;
-        Ok(())
-    }
-
-    fn write_journal(&self, root: &Path, phase: &str, request: &InstallRequest) -> Result<()> {
-        let value = serde_json::json!({
-            "schema_version": 1,
-            "phase": phase,
-            "port_id": request.port_id,
-            "version": request.release.version,
-            "updated_at": Library::now()
-        });
-        fs::write(
-            root.join("operation.json"),
-            serde_json::to_vec_pretty(&value)?,
-        )?;
+        validate_download_size(completed, release.asset.size)?;
         Ok(())
     }
 
     pub fn verify(&self, install: &InstallRecord) -> Result<VerificationReport> {
-        let manifest_path = install.path.join(".portcove-manifest.json");
-        let manifest: InstallManifest =
-            serde_json::from_slice(&fs::read(&manifest_path).map_err(|_| {
-                PortcoveError::verification(format!("manifest is missing for {}", install.port_id))
-            })?)?;
+        let manifest = verified_manifest(install)?;
         let mut failures = Vec::new();
         for file in &manifest.files {
-            let candidate = install.path.join(&file.path);
-            if !candidate.starts_with(&install.path) || !candidate.is_file() {
+            let candidate = manifest_member(&install.path, &file.path)?;
+            if !candidate.is_file() {
                 failures.push(format!("missing: {}", file.path));
                 continue;
             }
             let (sha256, size) = hash_file(&candidate)?;
             if size != file.size || sha256 != file.sha256 {
                 failures.push(format!("changed: {}", file.path));
+            }
+        }
+        let expected = manifest
+            .files
+            .iter()
+            .map(|file| file.path.as_str())
+            .collect::<std::collections::BTreeSet<_>>();
+        for candidate in walk_files(&install.path)? {
+            let relative = manifest_relative(&install.path, &candidate)?;
+            if relative == ".portcove-manifest.json"
+                || relative == ".portcove-launched"
+                || manifest.mutable_paths.iter().any(|mutable| {
+                    relative == *mutable || relative.starts_with(&format!("{mutable}/"))
+                })
+            {
+                continue;
+            }
+            if !expected.contains(relative.as_str()) {
+                failures.push(format!("unexpected: {relative}"));
             }
         }
         Ok(VerificationReport {
@@ -269,47 +395,322 @@ impl Installer {
         })
     }
 
-    pub fn create_manifest(&self, port_id: &str, version: &str, root: &Path) -> Result<()> {
-        let manifest = build_manifest(port_id, version, root)?;
-        fs::write(
-            root.join(".portcove-manifest.json"),
-            serde_json::to_vec_pretty(&manifest)?,
-        )?;
-        Ok(())
+    pub(crate) fn verify_critical(&self, install: &InstallRecord) -> Result<PathBuf> {
+        let manifest = verified_manifest(install)?;
+        let mut failures = Vec::new();
+        for file in manifest.files.iter().filter(|file| file.critical) {
+            let candidate = manifest_member(&install.path, &file.path)?;
+            if !candidate.is_file() {
+                failures.push(format!("missing: {}", file.path));
+                continue;
+            }
+            let (sha256, size) = hash_file(&candidate)?;
+            if size != file.size || sha256 != file.sha256 {
+                failures.push(format!("changed: {}", file.path));
+            }
+        }
+        if !failures.is_empty() {
+            return Err(PortcoveError::verification(format!(
+                "critical install integrity failed for {}",
+                install.port_id
+            ))
+            .detail("install_id", install.id.clone())
+            .detail("failures", failures.join(", ")));
+        }
+        let executable = install.path.join(&install.selected_executable);
+        if !executable.starts_with(&install.path) || !executable.is_file() {
+            return Err(PortcoveError::verification(
+                "selected executable escaped or disappeared from its install",
+            ));
+        }
+        Ok(executable)
+    }
+
+    pub(crate) fn create_manifest(
+        &self,
+        install_id: &str,
+        port_id: &str,
+        version: &str,
+        artifact: &ArtifactIdentity,
+        qualification: &InstallQualification,
+        root: &Path,
+    ) -> Result<(String, PathBuf)> {
+        write_manifest(install_id, port_id, version, artifact, qualification, root)
     }
 }
 
-fn build_manifest(port_id: &str, version: &str, root: &Path) -> Result<InstallManifest> {
+fn write_manifest(
+    install_id: &str,
+    port_id: &str,
+    version: &str,
+    artifact: &ArtifactIdentity,
+    qualification: &InstallQualification,
+    root: &Path,
+) -> Result<(String, PathBuf)> {
+    validate_artifact(artifact)?;
+    let selected = resolve_declared_executable(root, qualification)?;
+    let selected_relative = manifest_relative(root, &selected)?;
+    let (files, mutable_paths) = manifest_files(root, qualification, &selected)?;
+    if !files
+        .iter()
+        .any(|file| file.path == selected_relative && file.critical)
+    {
+        return Err(PortcoveError::verification(
+            "selected executable is not in the immutable critical manifest set",
+        ));
+    }
+    let manifest = InstallManifest {
+        schema_version: 2,
+        install_id: install_id.into(),
+        port_id: port_id.into(),
+        version: version.into(),
+        artifact: artifact.clone(),
+        selected_executable: selected_relative.clone(),
+        mutable_paths,
+        files,
+    };
+    let bytes = serde_json::to_vec_pretty(&manifest)?;
+    let manifest_sha256 = hex::encode(Sha256::digest(&bytes));
+    fs::write(root.join(".portcove-manifest.json"), bytes)?;
+    Ok((manifest_sha256, PathBuf::from(selected_relative)))
+}
+
+fn manifest_files(
+    root: &Path,
+    qualification: &InstallQualification,
+    selected: &Path,
+) -> Result<(Vec<ManifestFile>, Vec<String>)> {
+    let persistence_root = qualification.persistence_root(root, selected);
+    let mut mutable_roots = Vec::new();
+    for relative in &qualification.persistent_paths {
+        let path = persistence_root.join(relative);
+        if !path.starts_with(root) {
+            return Err(PortcoveError::verification(
+                "persistent path escaped the install root",
+            ));
+        }
+        mutable_roots.push(path);
+    }
+    let mut mutable_paths = mutable_roots
+        .iter()
+        .map(|path| manifest_relative(root, path))
+        .collect::<Result<Vec<_>>>()?;
+    mutable_paths.sort();
+    mutable_paths.dedup();
+
     let mut files = Vec::new();
     for path in walk_files(root)? {
-        if path.file_name().and_then(|value| value.to_str()) == Some(".portcove-manifest.json") {
+        if path.file_name().and_then(|value| value.to_str()) == Some(".portcove-manifest.json")
+            || path.file_name().and_then(|value| value.to_str()) == Some(".portcove-launched")
+            || mutable_roots
+                .iter()
+                .any(|mutable| path == *mutable || path.starts_with(mutable))
+        {
             continue;
         }
-        let relative = path
-            .strip_prefix(root)
-            .map_err(|_| PortcoveError::state("manifest path escaped install root"))?;
+        let relative = manifest_relative(root, &path)?;
         let (sha256, size) = hash_file(&path)?;
         files.push(ManifestFile {
-            path: relative.to_string_lossy().replace('\\', "/"),
+            critical: path == selected || is_critical_companion(&path, selected),
+            path: relative,
             size,
             sha256,
         });
     }
     files.sort_by(|left, right| left.path.cmp(&right.path));
-    Ok(InstallManifest {
-        schema_version: 1,
-        port_id: port_id.into(),
-        version: version.into(),
-        files,
+    Ok((files, mutable_paths))
+}
+
+fn verified_manifest(install: &InstallRecord) -> Result<InstallManifest> {
+    validate_artifact(&install.artifact)?;
+    if install.manifest_sha256.len() != 64
+        || !install
+            .manifest_sha256
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit())
+    {
+        return Err(PortcoveError::verification(
+            "install has no current immutable manifest identity",
+        ));
+    }
+    let manifest_path = install.path.join(".portcove-manifest.json");
+    let bytes = fs::read(&manifest_path).map_err(|_| {
+        PortcoveError::verification(format!("manifest is missing for {}", install.port_id))
+    })?;
+    let actual_manifest_sha256 = hex::encode(Sha256::digest(&bytes));
+    if actual_manifest_sha256 != install.manifest_sha256 {
+        return Err(PortcoveError::verification(
+            "install manifest bytes do not match the registered identity",
+        ));
+    }
+    let manifest: InstallManifest = serde_json::from_slice(&bytes)?;
+    let selected = manifest_relative(
+        &install.path,
+        &install.path.join(&install.selected_executable),
+    )?;
+    let mut manifest_paths = std::collections::BTreeSet::new();
+    for file in &manifest.files {
+        manifest_member(&install.path, &file.path)?;
+        if file.sha256.len() != 64
+            || !file.sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
+            || !manifest_paths.insert(file.path.as_str())
+        {
+            return Err(PortcoveError::verification(
+                "install manifest contains an invalid or duplicate file identity",
+            ));
+        }
+    }
+    for mutable in &manifest.mutable_paths {
+        manifest_member(&install.path, mutable)?;
+    }
+    if manifest.schema_version != 2
+        || manifest.install_id != install.id
+        || manifest.port_id != install.port_id
+        || manifest.version != install.version
+        || manifest.artifact != install.artifact
+        || manifest.selected_executable != selected
+        || !manifest
+            .files
+            .iter()
+            .any(|file| file.path == selected && file.critical)
+    {
+        return Err(PortcoveError::verification(
+            "install manifest identity does not match the registered install",
+        ));
+    }
+    Ok(manifest)
+}
+
+fn manifest_member(root: &Path, relative: &str) -> Result<PathBuf> {
+    use std::path::Component;
+
+    let path = Path::new(relative);
+    if relative.is_empty()
+        || relative.contains('\\')
+        || path
+            .components()
+            .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        return Err(PortcoveError::verification(
+            "install manifest contains an unsafe relative path",
+        ));
+    }
+    Ok(root.join(path))
+}
+
+fn validate_artifact(artifact: &ArtifactIdentity) -> Result<()> {
+    if artifact.asset_name.is_empty()
+        || artifact.sha256.len() != 64
+        || !artifact.sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
+    {
+        return Err(PortcoveError::verification(
+            "install has no valid immutable artifact identity",
+        ));
+    }
+    Ok(())
+}
+
+fn artifact_storage_key(sha256: &str) -> Result<String> {
+    let artifact = ArtifactIdentity {
+        asset_name: "storage-key".into(),
+        sha256: sha256.to_ascii_lowercase(),
+        size: 0,
+    };
+    validate_artifact(&artifact)?;
+    Ok(artifact.sha256)
+}
+
+pub(crate) fn local_artifact_identity(
+    root: &Path,
+    qualification: &InstallQualification,
+) -> Result<ArtifactIdentity> {
+    let selected = resolve_declared_executable(root, qualification)?;
+    let (files, _) = manifest_files(root, qualification, &selected)?;
+    let mut hasher = Sha256::new();
+    let mut size = 0_u64;
+    for file in files {
+        hasher.update(file.path.as_bytes());
+        hasher.update([0]);
+        hasher.update(file.size.to_le_bytes());
+        hasher.update(file.sha256.as_bytes());
+        size = size
+            .checked_add(file.size)
+            .ok_or_else(|| PortcoveError::verification("local artifact size overflowed"))?;
+    }
+    Ok(ArtifactIdentity {
+        asset_name: "local-adoption".into(),
+        sha256: hex::encode(hasher.finalize()),
+        size,
     })
 }
 
-fn extract_asset(source: &Path, destination: &Path, asset_name: &str) -> Result<()> {
+pub(crate) fn resolve_declared_executable(
+    root: &Path,
+    qualification: &InstallQualification,
+) -> Result<PathBuf> {
+    let search_root = qualification
+        .runtime_subdirectory
+        .as_deref()
+        .map(|relative| root.join(relative))
+        .unwrap_or_else(|| root.to_path_buf());
+    if !search_root.is_dir() || !search_root.starts_with(root) {
+        return Err(PortcoveError::verification(
+            "declared runtime directory is missing or escaped the install",
+        ));
+    }
+    let files = walk_files(&search_root)?;
+    for hint in &qualification.executable_hints {
+        if let Some(found) = files.iter().find(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.eq_ignore_ascii_case(hint))
+        }) {
+            return Ok(found.clone());
+        }
+    }
+    Err(PortcoveError::verification(format!(
+        "none of the declared executables for {:?} were found",
+        qualification.platform
+    )))
+}
+
+fn manifest_relative(root: &Path, path: &Path) -> Result<String> {
+    let relative = path
+        .strip_prefix(root)
+        .map_err(|_| PortcoveError::verification("manifest path escaped install root"))?;
+    let value = relative
+        .to_str()
+        .ok_or_else(|| PortcoveError::verification("manifest paths must be valid Unicode"))?;
+    if value.is_empty() || value.split(['/', '\\']).any(|component| component == "..") {
+        return Err(PortcoveError::verification(
+            "manifest contains an unsafe path",
+        ));
+    }
+    Ok(value.replace('\\', "/"))
+}
+
+fn is_critical_companion(path: &Path, selected: &Path) -> bool {
+    if path.parent() != selected.parent() {
+        return false;
+    }
+    matches!(
+        path.extension()
+            .and_then(|extension| extension.to_str())
+            .map(str::to_ascii_lowercase)
+            .as_deref(),
+        Some("dll" | "so" | "dylib" | "bat" | "cmd" | "sh" | "toml" | "ini" | "cfg")
+    )
+}
+
+fn extract_asset(
+    source: &Path,
+    destination: &Path,
+    asset_name: &str,
+    expected_size: u64,
+) -> Result<()> {
     let lower = asset_name.to_ascii_lowercase();
-    if lower.ends_with(".zip") {
-        extract_zip(source, destination)
-    } else if lower.ends_with(".tar.gz") || lower.ends_with(".tgz") {
-        extract_tar_gz(source, destination)
+    if lower.ends_with(".zip") || lower.ends_with(".tar.gz") || lower.ends_with(".tgz") {
+        extract_archive(source, destination, asset_name, expected_size)
     } else if lower.ends_with(".exe") || lower.ends_with(".appimage") {
         let target = destination.join(asset_name);
         fs::copy(source, &target)?;
@@ -328,100 +729,60 @@ fn extract_asset(source: &Path, destination: &Path, asset_name: &str) -> Result<
     }
 }
 
-fn extract_zip(source: &Path, destination: &Path) -> Result<()> {
-    let file = File::open(source)?;
-    let mut archive =
-        zip::ZipArchive::new(file).map_err(|error| PortcoveError::install(error.to_string()))?;
-    for index in 0..archive.len() {
-        let mut entry = archive
-            .by_index(index)
-            .map_err(|error| PortcoveError::install(error.to_string()))?;
-        let enclosed = entry
-            .enclosed_name()
-            .ok_or_else(|| PortcoveError::verification("ZIP contains an unsafe path"))?;
-        if entry
-            .unix_mode()
-            .is_some_and(|mode| mode & 0o170000 == 0o120000)
-        {
-            return Err(PortcoveError::verification(
-                "ZIP symbolic links are not allowed",
-            ));
-        }
-        let output = destination.join(enclosed);
-        if entry.is_dir() {
-            fs::create_dir_all(&output)?;
-        } else {
-            if let Some(parent) = output.parent() {
-                fs::create_dir_all(parent)?;
-            }
-            let mut target = File::create(&output)?;
-            std::io::copy(&mut entry, &mut target)?;
-            #[cfg(unix)]
-            if let Some(mode) = entry.unix_mode() {
-                use std::os::unix::fs::PermissionsExt;
-                fs::set_permissions(&output, fs::Permissions::from_mode(mode & 0o777))?;
-            }
-        }
-    }
-    Ok(())
-}
-
-fn extract_tar_gz(source: &Path, destination: &Path) -> Result<()> {
-    let decoder = GzDecoder::new(File::open(source)?);
-    let mut archive = tar::Archive::new(decoder);
-    for entry in archive
-        .entries()
-        .map_err(|error| PortcoveError::install(error.to_string()))?
-    {
-        let mut entry = entry.map_err(|error| PortcoveError::install(error.to_string()))?;
-        let kind = entry.header().entry_type();
-        if kind.is_symlink() || kind.is_hard_link() {
-            return Err(PortcoveError::verification("TAR links are not allowed"));
-        }
-        if !entry
-            .unpack_in(destination)
-            .map_err(|error| PortcoveError::install(error.to_string()))?
-        {
-            return Err(PortcoveError::verification("TAR contains an unsafe path"));
-        }
-    }
-    Ok(())
-}
-
-fn safe_component(value: &str) -> String {
-    let normalized: String = value
-        .chars()
-        .map(|character| {
-            if character.is_ascii_alphanumeric() || matches!(character, '.' | '_' | '-') {
-                character
-            } else {
-                '-'
-            }
-        })
-        .collect();
-    let trimmed = normalized.trim_matches(['.', '-', '_']);
-    if trimmed.is_empty() {
-        "release".into()
-    } else {
-        trimmed.chars().take(96).collect()
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use std::{
+        fs::File,
+        sync::atomic::{AtomicBool, Ordering},
+    };
+
+    use sha2::{Digest, Sha256};
+
     use super::*;
 
+    struct FailOnce {
+        point: LifecycleFaultPoint,
+        fired: AtomicBool,
+    }
+
+    impl LifecycleFaultInjector for FailOnce {
+        fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+            if point == self.point && !self.fired.swap(true, Ordering::SeqCst) {
+                return Err(PortcoveError::state(format!(
+                    "injected lifecycle failure at {point:?}"
+                )));
+            }
+            Ok(())
+        }
+    }
+
     #[test]
-    fn version_paths_are_sanitized() {
-        assert_eq!(safe_component("v1.2.3"), "v1.2.3");
-        assert_eq!(safe_component("../../bad tag"), "bad-tag");
+    fn artifact_digests_are_canonical_collision_free_storage_keys() {
+        let first = artifact_storage_key(&"A".repeat(64)).unwrap();
+        let second = artifact_storage_key(&"b".repeat(64)).unwrap();
+        assert_eq!(first, "a".repeat(64));
+        assert_eq!(second, "b".repeat(64));
+        assert_ne!(first, second);
+        for display_version in [
+            "release/path".to_string(),
+            "release\\path".to_string(),
+            "a".repeat(512),
+            "rélease-日本語".to_string(),
+        ] {
+            assert_eq!(
+                artifact_storage_key(&"A".repeat(64)).unwrap(),
+                first,
+                "{display_version}"
+            );
+        }
+        assert!(artifact_storage_key("../../bad tag").is_err());
     }
 
     #[tokio::test]
     async fn install_refuses_to_trust_a_preexisting_version_directory() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
-        fs::create_dir_all(library.versions_dir().join("sample/v1")).unwrap();
+        fs::create_dir_all(library.versions_dir().join("sample").join("0".repeat(64))).unwrap();
         let installer = Installer::new(library).unwrap();
         let request = InstallRequest {
             port_id: "sample".into(),
@@ -438,9 +799,14 @@ mod tests {
             },
             activate: true,
             managed: None,
+            qualification: InstallQualification::test("sample-game.exe"),
         };
 
-        let error = installer.install(request, |_| {}).await.unwrap_err();
+        let operation = OperationCoordinator::new("install", None);
+        let error = installer
+            .install(request, &operation, |_| {})
+            .await
+            .unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Conflict);
     }
 
@@ -481,11 +847,97 @@ mod tests {
             },
             activate: true,
             managed: None,
+            qualification: InstallQualification::test("sample-game.exe"),
         };
 
-        let error = installer.install(request, |_| {}).await.unwrap_err();
+        let operation = OperationCoordinator::new("install", None);
+        let error = installer
+            .install(request, &operation, |_| {})
+            .await
+            .unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Network);
         server.join().unwrap();
         assert_eq!(fs::read_dir(library.staging_dir()).unwrap().count(), 0);
+    }
+
+    #[tokio::test]
+    async fn install_recovers_after_every_publication_boundary() {
+        use std::{
+            io::{Read, Write},
+            net::TcpListener,
+            thread,
+        };
+
+        for point in [
+            LifecycleFaultPoint::InstallPrepared,
+            LifecycleFaultPoint::InstallPublished,
+            LifecycleFaultPoint::InstallMetadataCommitted,
+        ] {
+            let temporary = tempfile::tempdir().unwrap();
+            let archive_path = temporary.path().join("test.zip");
+            let archive = File::create(&archive_path).unwrap();
+            let mut writer = zip::ZipWriter::new(archive);
+            writer
+                .start_file("sample-game.exe", zip::write::SimpleFileOptions::default())
+                .unwrap();
+            writer.write_all(b"verified executable").unwrap();
+            writer.finish().unwrap();
+            let archive_bytes = fs::read(&archive_path).unwrap();
+            let sha256 = hex::encode(Sha256::digest(&archive_bytes));
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            let address = listener.local_addr().unwrap();
+            let response_bytes = archive_bytes.clone();
+            let server = thread::spawn(move || {
+                let (mut stream, _) = listener.accept().unwrap();
+                let mut request = [0_u8; 1024];
+                let _ = stream.read(&mut request);
+                write!(
+                    stream,
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    response_bytes.len()
+                )
+                .unwrap();
+                stream.write_all(&response_bytes).unwrap();
+            });
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let installer = Installer::with_faults(
+                library.clone(),
+                Arc::new(FailOnce {
+                    point,
+                    fired: AtomicBool::new(false),
+                }),
+            )
+            .unwrap();
+            let operation = OperationCoordinator::new("install", None);
+            let request = InstallRequest {
+                port_id: "sample".into(),
+                release: ResolvedRelease {
+                    version: "v1".into(),
+                    channel: crate::ReleaseChannel::Stable,
+                    published_at: None,
+                    asset: crate::ReleaseAsset {
+                        name: "test.zip".into(),
+                        url: format!("http://{address}/test.zip"),
+                        size: archive_bytes.len() as u64,
+                        sha256,
+                    },
+                },
+                activate: true,
+                managed: None,
+                qualification: InstallQualification::test("sample-game.exe"),
+            };
+
+            let error = installer
+                .install(request, &operation, |_| {})
+                .await
+                .unwrap_err();
+            assert!(error.message.contains("injected lifecycle failure"));
+            server.join().unwrap();
+
+            crate::PortcoveService::new(library.clone()).unwrap();
+            let install = library.install_by_version("sample", "v1").unwrap().unwrap();
+            assert!(install.path.join("sample-game.exe").is_file());
+            assert!(OperationStore::new(library).all().unwrap().is_empty());
+        }
     }
 }

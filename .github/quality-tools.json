@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "rust": {
+    "channel": "1.88.0",
+    "components": ["clippy", "rustfmt"]
+  },
+  "tools": [
+    {
+      "id": "just",
+      "crate": "just",
+      "version": "1.58.0",
+      "command": ["just", "--version"],
+      "tier": "required",
+      "ci_install": "prebuilt"
+    },
+    {
+      "id": "cargo-shear",
+      "crate": "cargo-shear",
+      "version": "1.13.4",
+      "command": ["cargo", "shear", "--version"],
+      "tier": "required",
+      "ci_install": "prebuilt"
+    },
+    {
+      "id": "cargo-deny",
+      "crate": "cargo-deny",
+      "version": "0.20.2",
+      "command": ["cargo", "deny", "--version"],
+      "tier": "required",
+      "ci_install": "prebuilt"
+    },
+    {
+      "id": "cargo-modules",
+      "crate": "cargo-modules",
+      "version": "0.27.0",
+      "command": ["cargo", "modules", "--version"],
+      "tier": "required",
+      "ci_install": "prebuilt"
+    },
+    {
+      "id": "rscheck-cli",
+      "crate": "rscheck-cli",
+      "version": "0.1.0",
+      "command": ["rscheck", "--version"],
+      "tier": "required",
+      "ci_install": "cached"
+    },
+    {
+      "id": "semdup",
+      "crate": "semdup",
+      "version": "0.2.0",
+      "command": ["semdup", "--version"],
+      "tier": "deep",
+      "ci_install": "cached"
+    },
+    {
+      "id": "cargo-mutants",
+      "crate": "cargo-mutants",
+      "version": "27.1.0",
+      "command": ["cargo", "mutants", "--version"],
+      "tier": "deep",
+      "ci_install": "local"
+    },
+    {
+      "id": "cargo-hawk",
+      "crate": "cargo-hawk",
+      "version": "0.1.13",
+      "command": ["cargo", "+1.98.0", "hawk", "--version"],
+      "tier": "deep",
+      "ci_install": "source",
+      "rust_toolchain": "1.98.0",
+      "unsupported_platforms": ["win32"]
+    }
+  ]
+}

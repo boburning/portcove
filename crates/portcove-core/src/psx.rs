@@ -1,8 +1,7 @@
 use std::{
-    fs::{self, File},
-    io::Read,
+    collections::BTreeSet,
+    fs,
     path::{Path, PathBuf},
-    process::Command,
 };
 
 use futures_util::StreamExt;
@@ -11,8 +10,10 @@ use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
 use crate::{
-    Library, OperationEvent, Platform, PortcoveError, Result, SourceRecord,
+    ChildProcessClass, ChildProcessPolicy, Library, OperationCoordinator, OperationEvent,
+    OperationResult, Platform, PortcoveError, Result, SourceRecord,
     adapter::{hash_file, materialize_psx_chd},
+    archive::{extract_archive, validate_download_progress, validate_download_size},
 };
 
 const TOOLCHAIN_VERSION: &str = "1.0.14";
@@ -40,6 +41,14 @@ struct ToolchainMarker {
     platform: Platform,
     asset_name: String,
     sha256: String,
+    critical_files: Vec<ToolchainFileIdentity>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ToolchainFileIdentity {
+    path: String,
+    size: u64,
+    sha256: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -63,6 +72,27 @@ impl Drop for DirectoryGuard {
 pub(crate) async fn ensure_toolchain<F>(
     library: &Library,
     platform: Platform,
+    parent: &OperationCoordinator,
+    emit: &mut F,
+) -> Result<PathBuf>
+where
+    F: FnMut(OperationEvent),
+{
+    let operation = parent.child("psx_toolchain", None);
+    emit(operation.started());
+    let result = ensure_toolchain_inner(library, platform, &operation, emit).await;
+    emit(operation.finished(if result.is_ok() {
+        OperationResult::Succeeded
+    } else {
+        OperationResult::Failed
+    }));
+    result
+}
+
+async fn ensure_toolchain_inner<F>(
+    library: &Library,
+    platform: Platform,
+    operation: &OperationCoordinator,
     emit: &mut F,
 ) -> Result<PathBuf>
 where
@@ -77,10 +107,6 @@ where
         return Ok(destination);
     }
 
-    emit(OperationEvent::Started {
-        operation: "psx-toolchain".into(),
-        port_id: None,
-    });
     let operation_root = library
         .staging_dir()
         .join(format!("psx-toolchain-{}", Uuid::new_v4()));
@@ -103,6 +129,7 @@ where
         .map_err(|error| PortcoveError::network(error.to_string()))?
         .error_for_status()
         .map_err(|error| PortcoveError::network(error.to_string()))?;
+    validate_download_progress(0, artifact.size)?;
     let mut stream = response.bytes_stream();
     let mut file = tokio::fs::File::create(&archive_path).await?;
     let mut completed = 0_u64;
@@ -111,24 +138,18 @@ where
         let chunk = chunk.map_err(|error| PortcoveError::network(error.to_string()))?;
         file.write_all(&chunk).await?;
         completed += chunk.len() as u64;
+        validate_download_progress(completed, artifact.size)?;
         if completed == artifact.size || completed.saturating_sub(reported) >= 1024 * 1024 {
-            emit(OperationEvent::Progress {
-                phase: "psx-toolchain-download".into(),
-                completed,
-                total: Some(artifact.size),
-            });
+            emit(operation.progress("psx-toolchain-download", completed, Some(artifact.size)));
             reported = completed;
         }
     }
     if completed != reported {
-        emit(OperationEvent::Progress {
-            phase: "psx-toolchain-download".into(),
-            completed,
-            total: Some(artifact.size),
-        });
+        emit(operation.progress("psx-toolchain-download", completed, Some(artifact.size)));
     }
     file.flush().await?;
     drop(file);
+    validate_download_size(completed, artifact.size)?;
     let (actual_sha256, actual_size) = hash_file(&archive_path)?;
     if actual_size != artifact.size || !actual_sha256.eq_ignore_ascii_case(artifact.sha256) {
         return Err(PortcoveError::verification(
@@ -140,14 +161,16 @@ where
         .detail("actual_size", actual_size.to_string()));
     }
 
-    extract_toolchain(&archive_path, &unpacked)?;
+    extract_archive(&archive_path, &unpacked, artifact.name, artifact.size)?;
     let pack_root = locate_pack_root(&unpacked)?;
+    let critical_files = toolchain_file_identities(&pack_root, platform)?;
     let marker = ToolchainMarker {
-        schema_version: 1,
+        schema_version: 2,
         version: TOOLCHAIN_VERSION.into(),
         platform,
         asset_name: artifact.name.into(),
         sha256: artifact.sha256.into(),
+        critical_files,
     };
     fs::write(
         pack_root.join(".portcove-toolchain.json"),
@@ -164,14 +187,14 @@ where
         ));
     }
     drop(guard);
-    emit(OperationEvent::Finished {
-        operation: "psx-toolchain".into(),
-        success: true,
-    });
     Ok(destination)
 }
 
 pub(crate) fn prepare_install(root: &Path, preparation: &PsxManagedPreparation) -> Result<()> {
+    crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
+    if let Some(bios) = &preparation.bios {
+        crate::adapter::verify_source_storage_identity(bios, "PS1 BIOS")?;
+    }
     let cli = root.join("psxrecomp").join("psxrecomp_cli.py");
     let config = root.join("game.toml");
     if !cli.is_file() || !config.is_file() {
@@ -187,17 +210,23 @@ pub(crate) fn prepare_install(root: &Path, preparation: &PsxManagedPreparation) 
         PortcoveError::source("managed PS1 preparation has no verified disc source")
     })?;
     let cue = materialize_psx_chd(primary_source, temporary.path())?;
+    crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
+    let config_path = crate::path::unicode(&config, "managed build config")?;
+    let project_root = crate::path::unicode(root, "managed build root")?;
     let mut generate_arguments = vec![
         "generate".into(),
         "--config".into(),
-        config.to_string_lossy().into_owned(),
+        config_path.clone(),
         "--project-root".into(),
-        root.to_string_lossy().into_owned(),
+        project_root.clone(),
         "--disc".into(),
-        cue.to_string_lossy().into_owned(),
+        crate::path::unicode(&cue, "managed disc")?,
     ];
     if let Some(bios) = &preparation.bios {
-        generate_arguments.extend(["--bios".into(), bios.path.to_string_lossy().into_owned()]);
+        generate_arguments.extend([
+            "--bios".into(),
+            crate::path::unicode(&bios.path, "BIOS source")?,
+        ]);
     }
     generate_arguments.push("--json-progress".into());
     run_cli(
@@ -207,6 +236,9 @@ pub(crate) fn prepare_install(root: &Path, preparation: &PsxManagedPreparation) 
         &preparation.toolchain_root,
         generate_arguments,
     )?;
+    if let Some(bios) = &preparation.bios {
+        crate::adapter::verify_source_storage_identity(bios, "PS1 BIOS")?;
+    }
     rewrite_game_discs(&config, &preparation.source_paths)?;
     let build_dir = root.join("build-portcove");
     run_cli(
@@ -217,11 +249,11 @@ pub(crate) fn prepare_install(root: &Path, preparation: &PsxManagedPreparation) 
         [
             "rebuild".into(),
             "--config".into(),
-            config.to_string_lossy().into_owned(),
+            config_path,
             "--project-root".into(),
-            root.to_string_lossy().into_owned(),
+            project_root,
             "--build-dir".into(),
-            build_dir.to_string_lossy().into_owned(),
+            crate::path::unicode(&build_dir, "managed build directory")?,
             "--target".into(),
             "psx-runtime".into(),
             "--exe-basename".into(),
@@ -290,14 +322,14 @@ pub(crate) fn rewrite_game_discs(config: &Path, sources: &[PathBuf]) -> Result<(
             if sources.len() == 1 {
                 output.push(format!(
                     "disc = {}",
-                    serde_json::to_string(&sources[0].to_string_lossy())?
+                    serde_json::to_string(&crate::path::unicode(&sources[0], "PS1 source")?)?
                 ));
             } else {
                 output.push("discs = [".into());
                 for source in sources {
                     output.push(format!(
                         "    {},",
-                        serde_json::to_string(&source.to_string_lossy())?
+                        serde_json::to_string(&crate::path::unicode(source, "PS1 source")?)?
                     ));
                 }
                 output.push("]".into());
@@ -322,7 +354,7 @@ fn run_cli(
     toolchain_root: &Path,
     arguments: impl IntoIterator<Item = String>,
 ) -> Result<()> {
-    let output = Command::new(python)
+    let output = ChildProcessPolicy::native_command(ChildProcessClass::ManagedBuilder, python)?
         .arg(cli)
         .args(arguments)
         .current_dir(project_root)
@@ -381,16 +413,65 @@ fn validate_toolchain(
         return Ok(false);
     }
     let marker: ToolchainMarker = serde_json::from_slice(&fs::read(marker_path)?)?;
-    if marker.version != TOOLCHAIN_VERSION
+    if marker.schema_version != 2
+        || marker.version != TOOLCHAIN_VERSION
         || marker.platform != platform
         || marker.asset_name != artifact.name
         || !marker.sha256.eq_ignore_ascii_case(artifact.sha256)
     {
         return Ok(false);
     }
-    Ok(toolchain_python(root).is_ok()
-        && platform_executable(&root.join("bin"), "cmake").is_file()
-        && platform_executable(&root.join("bin"), "ninja").is_file())
+    let Ok(expected) = toolchain_file_identities(root, platform) else {
+        return Ok(false);
+    };
+    if marker.critical_files.len() != expected.len() {
+        return Ok(false);
+    }
+    let recorded = marker
+        .critical_files
+        .into_iter()
+        .map(|file| (file.path, file.size, file.sha256))
+        .collect::<BTreeSet<_>>();
+    let actual = expected
+        .into_iter()
+        .map(|file| (file.path, file.size, file.sha256))
+        .collect::<BTreeSet<_>>();
+    Ok(recorded == actual)
+}
+
+fn toolchain_file_identities(
+    root: &Path,
+    _platform: Platform,
+) -> Result<Vec<ToolchainFileIdentity>> {
+    let paths = [
+        toolchain_python(root)?,
+        platform_executable(&root.join("bin"), "cmake"),
+        platform_executable(&root.join("bin"), "ninja"),
+        root.join("retcomm-toolchain.json"),
+    ];
+    let mut identities = Vec::with_capacity(paths.len());
+    for path in paths {
+        if !path.is_file() {
+            return Err(PortcoveError::verification(format!(
+                "PS1 toolchain is missing a critical file: {}",
+                path.display()
+            )));
+        }
+        let relative = path
+            .strip_prefix(root)
+            .map_err(|_| PortcoveError::verification("toolchain file escaped its root"))?
+            .to_str()
+            .ok_or_else(|| PortcoveError::verification("toolchain path is not Unicode"))?
+            .replace('\\', "/");
+        let (sha256, size) = hash_file(&path)?;
+        identities.push(ToolchainFileIdentity {
+            path: relative,
+            size,
+            sha256,
+        });
+    }
+    identities.sort_by(|left, right| left.path.cmp(&right.path));
+    Ok(identities)
 }
 
 fn toolchain_python(root: &Path) -> Result<PathBuf> {
@@ -418,57 +499,6 @@ fn platform_executable(root: &Path, basename: &str) -> PathBuf {
     }
 }
 
-fn extract_toolchain(source: &Path, destination: &Path) -> Result<()> {
-    let mut archive = zip::ZipArchive::new(File::open(source)?)
-        .map_err(|error| PortcoveError::verification(format!("invalid toolchain ZIP: {error}")))?;
-    if archive.len() > 100_000 {
-        return Err(PortcoveError::verification(
-            "toolchain ZIP contains too many entries",
-        ));
-    }
-    let total_size = (0..archive.len()).try_fold(0_u64, |total, index| {
-        let entry = archive.by_index(index).map_err(|error| {
-            PortcoveError::verification(format!("invalid toolchain ZIP entry: {error}"))
-        })?;
-        total
-            .checked_add(entry.size())
-            .ok_or_else(|| PortcoveError::verification("toolchain ZIP expanded size overflowed"))
-    })?;
-    if total_size > 4 * 1024 * 1024 * 1024 {
-        return Err(PortcoveError::verification(
-            "toolchain ZIP exceeds its expanded size limit",
-        ));
-    }
-    for index in 0..archive.len() {
-        let mut entry = archive.by_index(index).map_err(|error| {
-            PortcoveError::verification(format!("invalid toolchain ZIP entry: {error}"))
-        })?;
-        if entry
-            .unix_mode()
-            .is_some_and(|mode| mode & 0o170000 == 0o120000)
-        {
-            return Err(PortcoveError::verification(
-                "toolchain ZIP links are not allowed",
-            ));
-        }
-        let relative = entry
-            .enclosed_name()
-            .ok_or_else(|| PortcoveError::verification("toolchain ZIP contains an unsafe path"))?;
-        let output = destination.join(relative);
-        if entry.is_dir() {
-            fs::create_dir_all(&output)?;
-            continue;
-        }
-        if let Some(parent) = output.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        let mut file = File::create(&output)?;
-        let entry_size = entry.size();
-        std::io::copy(&mut entry.by_ref().take(entry_size), &mut file)?;
-    }
-    Ok(())
-}
-
 fn locate_pack_root(unpacked: &Path) -> Result<PathBuf> {
     if unpacked.join("retcomm-toolchain.json").is_file() {
         return Ok(unpacked.to_path_buf());
@@ -491,6 +521,48 @@ fn locate_pack_root(unpacked: &Path) -> Result<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn toolchain_marker_is_bound_to_current_critical_file_bytes() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        let platform = Platform::current().unwrap();
+        let artifact = toolchain_artifact(platform).unwrap();
+        let python = if cfg!(windows) {
+            root.join("python").join("python.exe")
+        } else {
+            root.join("python").join("bin").join("python3")
+        };
+        let cmake = platform_executable(&root.join("bin"), "cmake");
+        let ninja = platform_executable(&root.join("bin"), "ninja");
+        for (path, bytes) in [
+            (&python, b"python".as_slice()),
+            (&cmake, b"cmake".as_slice()),
+            (&ninja, b"ninja".as_slice()),
+            (&root.join("retcomm-toolchain.json"), b"metadata".as_slice()),
+        ] {
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, bytes).unwrap();
+        }
+        let marker = ToolchainMarker {
+            schema_version: 2,
+            version: TOOLCHAIN_VERSION.into(),
+            platform,
+            asset_name: artifact.name.into(),
+            sha256: artifact.sha256.into(),
+            critical_files: toolchain_file_identities(root, platform).unwrap(),
+        };
+        fs::write(
+            root.join(".portcove-toolchain.json"),
+            serde_json::to_vec_pretty(&marker).unwrap(),
+        )
+        .unwrap();
+        assert!(validate_toolchain(root, platform, artifact).unwrap());
+
+        fs::write(&cmake, b"tampered cmake").unwrap();
+
+        assert!(!validate_toolchain(root, platform, artifact).unwrap());
+    }
 
     #[test]
     fn pinned_toolchains_cover_every_platform() {

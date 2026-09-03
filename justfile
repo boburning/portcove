@@ -22,7 +22,15 @@ architecture:
     node --test scripts/check-rust-architecture.test.mjs
     node scripts/check-rust-architecture.mjs
 
-check-rust: fmt rust-check clippy rust-test shear architecture
+process-policy:
+    node --test scripts/check-child-process-policy.test.mjs
+    node scripts/check-child-process-policy.mjs
+
+transport-contract:
+    node --test scripts/check-transport-contract.test.mjs
+    node scripts/check-transport-contract.mjs
+
+check-rust: fmt rust-check clippy rust-test shear architecture process-policy transport-contract
 
 # Frontend fast loop
 ui-build:
@@ -39,8 +47,10 @@ check-ui: ui-build ui-test fallow
 
 # Deterministic release metadata and artifact tooling
 release-tools:
-    node --test scripts/check-release-metadata.test.mjs scripts/write-release-checksums.test.mjs
+    node --test scripts/check-release-metadata.test.mjs scripts/write-release-checksums.test.mjs scripts/reconcile-release-assets.test.mjs scripts/release-workflow.test.mjs scripts/quality-tools.test.mjs scripts/repository-settings.test.mjs
     node scripts/check-release-metadata.mjs
+    node scripts/quality-tools.mjs --validate
+    node scripts/repository-settings.mjs --validate
 
 # Standard repository check
 check: check-rust check-ui release-tools

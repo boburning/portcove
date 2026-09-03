@@ -120,7 +120,7 @@ pub enum SupportTier {
     Rolling,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum AdapterKind {
     LibultrashipPortable,
@@ -130,6 +130,18 @@ pub enum AdapterKind {
     GeneratedCache,
     UpstreamManagedSetup,
     PsxRecompManaged,
+}
+
+impl AdapterKind {
+    pub const ALL: [Self; 7] = [
+        Self::LibultrashipPortable,
+        Self::N64RecompPortable,
+        Self::StagedSourcePortable,
+        Self::ReferencedDisc,
+        Self::GeneratedCache,
+        Self::UpstreamManagedSetup,
+        Self::PsxRecompManaged,
+    ];
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -333,6 +345,21 @@ pub struct SourceVerification {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct SourceRemovalPreview {
+    pub source: SourceRecord,
+    pub preview_sha256: String,
+    pub dependent_port_ids: Vec<String>,
+    pub installed_dependent_port_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ArtifactIdentity {
+    pub asset_name: String,
+    pub sha256: String,
+    pub size: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct InstallRecord {
     pub id: String,
     pub port_id: String,
@@ -342,6 +369,12 @@ pub struct InstallRecord {
     pub installed_at: i64,
     pub verified: bool,
     pub staged: bool,
+    #[serde(default)]
+    pub artifact: ArtifactIdentity,
+    #[serde(default)]
+    pub manifest_sha256: String,
+    #[serde(default)]
+    pub selected_executable: PathBuf,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -400,6 +433,7 @@ impl FromStr for ActivityTargetKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ActivityOperation {
+    Launch,
     CheckUpdate,
     Backup,
     Restore,
@@ -412,6 +446,7 @@ pub enum ActivityOperation {
     Rollback,
     Adopt,
     Remove,
+    RemoveSource,
     RegisterSource,
     VerifySource,
 }
@@ -419,6 +454,7 @@ pub enum ActivityOperation {
 impl std::fmt::Display for ActivityOperation {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str(match self {
+            Self::Launch => "launch",
             Self::CheckUpdate => "check_update",
             Self::Backup => "backup",
             Self::Restore => "restore",
@@ -431,6 +467,7 @@ impl std::fmt::Display for ActivityOperation {
             Self::Rollback => "rollback",
             Self::Adopt => "adopt",
             Self::Remove => "remove",
+            Self::RemoveSource => "remove_source",
             Self::RegisterSource => "register_source",
             Self::VerifySource => "verify_source",
         })
@@ -442,6 +479,7 @@ impl FromStr for ActivityOperation {
 
     fn from_str(value: &str) -> Result<Self> {
         match value {
+            "launch" => Ok(Self::Launch),
             "check_update" => Ok(Self::CheckUpdate),
             "backup" => Ok(Self::Backup),
             "restore" => Ok(Self::Restore),
@@ -454,6 +492,7 @@ impl FromStr for ActivityOperation {
             "rollback" => Ok(Self::Rollback),
             "adopt" => Ok(Self::Adopt),
             "remove" => Ok(Self::Remove),
+            "remove_source" => Ok(Self::RemoveSource),
             "register_source" => Ok(Self::RegisterSource),
             "verify_source" => Ok(Self::VerifySource),
             _ => Err(PortcoveError::state(format!(
@@ -461,6 +500,75 @@ impl FromStr for ActivityOperation {
             ))),
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum LaunchSessionPhase {
+    Preparing,
+    Running,
+    Collecting,
+    Recovering,
+}
+
+impl std::fmt::Display for LaunchSessionPhase {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(match self {
+            Self::Preparing => "preparing",
+            Self::Running => "running",
+            Self::Collecting => "collecting",
+            Self::Recovering => "recovering",
+        })
+    }
+}
+
+impl FromStr for LaunchSessionPhase {
+    type Err = PortcoveError;
+
+    fn from_str(value: &str) -> Result<Self> {
+        match value {
+            "preparing" => Ok(Self::Preparing),
+            "running" => Ok(Self::Running),
+            "collecting" => Ok(Self::Collecting),
+            "recovering" => Ok(Self::Recovering),
+            _ => Err(PortcoveError::state(format!(
+                "unknown launch session phase: {value}"
+            ))),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct LaunchSessionRecord {
+    pub id: String,
+    pub port_id: String,
+    pub install_id: String,
+    pub install_root: PathBuf,
+    pub supervisor_pid: u32,
+    pub child_pid: Option<u32>,
+    pub phase: LaunchSessionPhase,
+    pub started_at: i64,
+    pub updated_at: i64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LaunchStdio {
+    Inherit,
+    Null,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LaunchSignal {
+    Interrupt,
+    Terminate,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SupervisedLaunchOutcome {
+    pub session_id: String,
+    pub child_pid: u32,
+    pub exit_code: Option<i32>,
+    pub successful: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -548,6 +656,32 @@ pub struct DoctorReport {
     pub installed_port_count: usize,
     pub registered_source_count: usize,
     pub host_tools: Vec<HostToolStatus>,
+    pub repair: RepairPlan,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RepairItemKind {
+    PartialOperation,
+    CleanupPending,
+    OrphanedFinalDirectory,
+    MissingRegisteredPath,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct RepairItem {
+    pub kind: RepairItemKind,
+    pub operation_id: Option<String>,
+    pub port_id: Option<String>,
+    pub path: Option<PathBuf>,
+    pub message: String,
+    pub proposed_action: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct RepairPlan {
+    pub generated_at: i64,
+    pub items: Vec<RepairItem>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -648,6 +782,8 @@ pub struct UpdateCheck {
     pub port_id: String,
     pub channel: ReleaseChannel,
     pub installed_version: Option<String>,
+    #[serde(default)]
+    pub installed_artifact: Option<ArtifactIdentity>,
     pub update_available: bool,
     pub release: ResolvedRelease,
 }
@@ -676,13 +812,38 @@ pub struct ReconcileResult {
     pub install: Option<InstallRecord>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct OperationTarget {
+    pub kind: ActivityTargetKind,
+    pub id: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum OperationResult {
+    Succeeded,
+    Failed,
+}
+
+/// Versioned best-effort progress envelope. Durable activity history remains
+/// authoritative after reconnect or restart.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct OperationEvent {
+    pub schema_version: u32,
+    pub operation_id: String,
+    pub parent_operation_id: Option<String>,
+    pub sequence: u64,
+    pub timestamp_ms: i64,
+    pub operation: String,
+    pub target: Option<OperationTarget>,
+    #[serde(flatten)]
+    pub event: OperationEventKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
-pub enum OperationEvent {
-    Started {
-        operation: String,
-        port_id: Option<String>,
-    },
+pub enum OperationEventKind {
+    Started,
     Progress {
         phase: String,
         completed: u64,
@@ -693,8 +854,7 @@ pub enum OperationEvent {
         message: String,
     },
     Finished {
-        operation: String,
-        success: bool,
+        result: OperationResult,
     },
 }
 
@@ -752,14 +912,7 @@ impl CapabilityDocument {
                 Platform::MacosX86_64,
                 Platform::MacosAarch64,
             ],
-            adapters: vec![
-                AdapterKind::LibultrashipPortable,
-                AdapterKind::N64RecompPortable,
-                AdapterKind::ReferencedDisc,
-                AdapterKind::GeneratedCache,
-                AdapterKind::UpstreamManagedSetup,
-                AdapterKind::PsxRecompManaged,
-            ],
+            adapters: AdapterKind::ALL.to_vec(),
             machine_formats: vec!["json".into(), "jsonl".into()],
             raw_stream_commands: vec!["exec".into()],
             failure_isolated_batches: vec![

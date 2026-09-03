@@ -5,8 +5,9 @@ import type { PortDefinition, PortStatus } from "./types";
 const port: PortDefinition = {
   id: "sample-port", name: "Sample", summary: "Sample", project_url: "https://example.com",
   support_tier: "stable", channels: ["stable", "beta"], platforms: ["windows-x86-64"],
-  automated_tested_platforms: [], manually_validated_platforms: [], adapter: "direct-archive",
+  automated_tested_platforms: [], manually_validated_platforms: [], adapter: "staged-source-portable",
   source_profile: "sample-source", bios_source_profile: "sample-bios", persistent_paths: [], upstream_status: "active",
+  release: {}, executable_hints: {},
 };
 
 describe("GUI to CLI continuity", () => {
@@ -17,7 +18,10 @@ describe("GUI to CLI continuity", () => {
   });
 
   it("renders the canonical launch command for an active port", () => {
-    const status = { port_id: port.id, channel: "stable", update_policy: "notify", active: { id: "1", port_id: port.id, version: "1", path: "sample", channel: "stable", installed_at: 1, verified: true, staged: false } } satisfies PortStatus;
+    const status = { port_id: port.id, channel: "stable", update_policy: "notify", active: {
+      id: "1", port_id: port.id, version: "1", path: "sample", channel: "stable", installed_at: 1, verified: true, staged: false,
+      artifact: { asset_name: "sample.zip", sha256: "a".repeat(64), size: 1 }, manifest_sha256: "b".repeat(64), selected_executable: "sample.exe",
+    } } satisfies PortStatus;
     expect(primaryCliCommand(port, status, "stable")).toBe("portcove exec sample-port --");
   });
 

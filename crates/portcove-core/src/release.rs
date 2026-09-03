@@ -504,23 +504,15 @@ impl ReleaseProvider for GithubReleaseProvider {
         }
         let releases_url = format!("{repository_url}/releases?per_page=30");
         let releases: Vec<GithubRelease> = self.get_json(&releases_url).await?;
-        let mut candidates: Vec<&GithubRelease> = releases
-            .iter()
-            .filter(|release| !release.draft)
-            .filter(|release| match channel {
-                ReleaseChannel::Stable => !is_beta_release(release),
-                ReleaseChannel::Beta => is_beta_release(release),
-                ReleaseChannel::Rolling => port
-                    .release
-                    .rolling_tag
-                    .as_ref()
-                    .is_some_and(|tag| release.tag_name.eq_ignore_ascii_case(tag)),
-            })
-            .collect();
-        if channel == ReleaseChannel::Beta && candidates.is_empty() {
-            candidates = releases.iter().filter(|release| !release.draft).collect();
-        }
-        let release = candidates.first().copied().ok_or_else(|| {
+        let release = select_channel_candidate(
+            &releases,
+            channel,
+            port.release.rolling_tag.as_deref(),
+            |release| !release.draft,
+            is_beta_release,
+            |release| release.tag_name.as_str(),
+        )
+        .ok_or_else(|| {
             PortcoveError::not_found(format!(
                 "no published {channel} release exists for {}",
                 port.name
@@ -556,12 +548,37 @@ impl ReleaseProvider for GithubReleaseProvider {
     }
 }
 
-fn release_version(tag: &str, channel: ReleaseChannel, sha256: &str) -> String {
-    if channel == ReleaseChannel::Rolling {
-        format!("{tag}.{}", &sha256[..12])
-    } else {
-        tag.to_string()
+pub(crate) fn select_channel_candidate<'a, T>(
+    releases: &'a [T],
+    channel: ReleaseChannel,
+    rolling_tag: Option<&str>,
+    selectable: impl Fn(&T) -> bool,
+    beta: impl Fn(&T) -> bool,
+    tag: impl Fn(&T) -> &str,
+) -> Option<&'a T> {
+    let is_rolling =
+        |release: &T| rolling_tag.is_some_and(|rolling| tag(release).eq_ignore_ascii_case(rolling));
+    let exact = releases.iter().find(|release| {
+        selectable(release)
+            && match channel {
+                ReleaseChannel::Stable => !beta(release) && !is_rolling(release),
+                ReleaseChannel::Beta => beta(release) && !is_rolling(release),
+                ReleaseChannel::Rolling => is_rolling(release),
+            }
+    });
+    if exact.is_some() || channel != ReleaseChannel::Beta {
+        return exact;
     }
+    // Beta means "newest prerelease, otherwise newest stable" for every
+    // hosted provider. It never falls through to drafts, upcoming releases,
+    // or an unrelated rolling-only tag.
+    releases
+        .iter()
+        .find(|release| selectable(release) && !beta(release) && !is_rolling(release))
+}
+
+fn release_version(tag: &str, _channel: ReleaseChannel, _sha256: &str) -> String {
+    tag.to_string()
 }
 
 fn same_origin(left: &str, right: &str) -> bool {
@@ -833,12 +850,197 @@ fn is_sha256(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn beta_selection_falls_back_only_to_a_selectable_stable_release() {
+        #[derive(Debug)]
+        struct Candidate(&'static str, bool, bool);
+        let candidates = [
+            Candidate("draft-beta", true, false),
+            Candidate("v3-beta", true, true),
+            Candidate("v2", false, true),
+            Candidate("nightly", true, true),
+        ];
+        let beta = select_channel_candidate(
+            &candidates,
+            ReleaseChannel::Beta,
+            Some("nightly"),
+            |candidate| candidate.2,
+            |candidate| candidate.1,
+            |candidate| candidate.0,
+        )
+        .unwrap();
+        assert_eq!(beta.0, "v3-beta");
+
+        let fallback_candidates = [&candidates[0], &candidates[2], &candidates[3]];
+        let fallback = select_channel_candidate(
+            &fallback_candidates,
+            ReleaseChannel::Beta,
+            Some("nightly"),
+            |candidate| candidate.2,
+            |candidate| candidate.1,
+            |candidate| candidate.0,
+        )
+        .unwrap();
+        assert_eq!(fallback.0, "v2");
+        let stable = select_channel_candidate(
+            &candidates,
+            ReleaseChannel::Stable,
+            Some("nightly"),
+            |candidate| candidate.2,
+            |candidate| candidate.1,
+            |candidate| candidate.0,
+        )
+        .unwrap();
+        assert_eq!(stable.0, "v2");
+        let rolling = select_channel_candidate(
+            &candidates,
+            ReleaseChannel::Rolling,
+            Some("NIGHTLY"),
+            |candidate| candidate.2,
+            |candidate| candidate.1,
+            |candidate| candidate.0,
+        )
+        .unwrap();
+        assert_eq!(rolling.0, "nightly");
+        assert!(
+            select_channel_candidate(
+                &candidates,
+                ReleaseChannel::Rolling,
+                Some("missing"),
+                |candidate| candidate.2,
+                |candidate| candidate.1,
+                |candidate| candidate.0,
+            )
+            .is_none()
+        );
+        assert!(
+            select_channel_candidate(
+                &candidates[..1],
+                ReleaseChannel::Beta,
+                Some("nightly"),
+                |candidate| candidate.2,
+                |candidate| candidate.1,
+                |candidate| candidate.0,
+            )
+            .is_none()
+        );
+    }
     use std::{
         io::{Read, Write},
         net::TcpListener,
         sync::mpsc,
         thread,
     };
+
+    #[tokio::test]
+    async fn device_login_polling_handles_pending_slowdown_expiry_and_cancellation() {
+        enum Expected {
+            Pending,
+            SlowDown,
+            Expired,
+            Cancelled,
+        }
+        for (body, expected) in [
+            (r#"{"error":"authorization_pending"}"#, Expected::Pending),
+            (r#"{"error":"slow_down"}"#, Expected::SlowDown),
+            (r#"{"error":"expired_token"}"#, Expected::Expired),
+            (r#"{"error":"access_denied"}"#, Expected::Cancelled),
+        ] {
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            let address = listener.local_addr().unwrap();
+            let body = body.to_owned();
+            let server = thread::spawn(move || {
+                let (mut stream, _) = listener.accept().unwrap();
+                let mut request = [0_u8; 4096];
+                let _ = stream.read(&mut request).unwrap();
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    body.len(),
+                    body
+                );
+                stream.write_all(response.as_bytes()).unwrap();
+            });
+            let provider =
+                GithubReleaseProvider::with_api_root(format!("http://{address}")).unwrap();
+            let session_id = Uuid::new_v4().to_string();
+            provider.device_sessions.lock().await.insert(
+                session_id.clone(),
+                DeviceSession {
+                    client_id: "client".into(),
+                    device_code: "device".into(),
+                    expires_at: Instant::now() + Duration::from_secs(60),
+                    next_poll_at: Instant::now() - Duration::from_secs(1),
+                    interval: Duration::from_secs(1),
+                },
+            );
+
+            let result = provider.poll_device_login(&session_id).await;
+            server.join().unwrap();
+
+            match expected {
+                Expected::Pending => {
+                    assert_eq!(result.unwrap().state, GithubDeviceLoginState::Pending);
+                    assert!(
+                        provider
+                            .device_sessions
+                            .lock()
+                            .await
+                            .contains_key(&session_id)
+                    );
+                }
+                Expected::SlowDown => {
+                    assert_eq!(result.unwrap().state, GithubDeviceLoginState::Pending);
+                    assert_eq!(
+                        provider.device_sessions.lock().await[&session_id].interval,
+                        Duration::from_secs(6)
+                    );
+                }
+                Expected::Expired => {
+                    assert_eq!(result.unwrap_err().code, crate::ErrorCode::Network);
+                    assert!(
+                        !provider
+                            .device_sessions
+                            .lock()
+                            .await
+                            .contains_key(&session_id)
+                    );
+                }
+                Expected::Cancelled => {
+                    assert_eq!(result.unwrap_err().code, crate::ErrorCode::Conflict);
+                    assert!(
+                        !provider
+                            .device_sessions
+                            .lock()
+                            .await
+                            .contains_key(&session_id)
+                    );
+                }
+            }
+        }
+
+        let provider = GithubReleaseProvider::with_api_root("https://example.invalid").unwrap();
+        let session_id = Uuid::new_v4().to_string();
+        provider.device_sessions.lock().await.insert(
+            session_id.clone(),
+            DeviceSession {
+                client_id: "client".into(),
+                device_code: "device".into(),
+                expires_at: Instant::now() - Duration::from_secs(1),
+                next_poll_at: Instant::now(),
+                interval: Duration::from_secs(1),
+            },
+        );
+        let expired = provider.poll_device_login(&session_id).await.unwrap_err();
+        assert_eq!(expired.code, crate::ErrorCode::Network);
+        assert!(
+            !provider
+                .device_sessions
+                .lock()
+                .await
+                .contains_key(&session_id)
+        );
+    }
 
     #[test]
     fn parses_github_digest() {
@@ -848,17 +1050,17 @@ mod tests {
     }
 
     #[test]
-    fn rolling_versions_change_when_a_mutable_tag_republishes() {
+    fn display_versions_do_not_embed_artifact_identity() {
         let first = format!("{}{}", "a".repeat(12), "0".repeat(52));
         let second = format!("{}{}", "b".repeat(12), "0".repeat(52));
 
         assert_eq!(
             release_version("devbuild", ReleaseChannel::Rolling, &first),
-            "devbuild.aaaaaaaaaaaa"
+            "devbuild"
         );
         assert_eq!(
             release_version("devbuild", ReleaseChannel::Rolling, &second),
-            "devbuild.bbbbbbbbbbbb"
+            "devbuild"
         );
         assert_eq!(
             release_version("v1.2.3", ReleaseChannel::Stable, &first),

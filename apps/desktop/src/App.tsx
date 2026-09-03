@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdoptionModal } from "./components/AdoptionModal";
 import { PageHeader, SettingsView, Sidebar, StatusLayer } from "./components/Chrome";
 import { CommandPalette } from "./components/CommandPalette";
@@ -9,12 +9,50 @@ import { pickInstallFolder, pickSourceArchivePath, pickSourcePath } from "./file
 import { desktopApi } from "./api";
 import { useWorkspaceScroll } from "./keyboard-shortcuts";
 import { useThemePreference } from "./theme";
+import { useGamepadNavigation } from "./gamepad";
+import { overlayBackAction } from "./overlay-stack";
 import { useCommandSurface } from "./use-command-surface";
 import { adoptInstall, detailActions, type Perform, useGithubAuth, useInstallPlanning, useOperationState, usePortBackups, usePortcoveData, usePortcoveUi, useSourceHealth, useUpdateCenter } from "./use-portcove";
-import type { SourceProfile, SourceRecord } from "./types";
+import type { AdoptionPreview, BootstrapStatus, DesktopError, SourceProfile, SourceRecord } from "./types";
 import { currentUpdateSnapshot, errorText, filterPorts, indexStatuses, mostRecentPort, requiredSourceNeeds, summarizeLibrary } from "./view-model";
 
 export default function App() {
+  const [bootstrap, setBootstrap] = useState<BootstrapStatus>();
+  const [bootstrapError, setBootstrapError] = useState<DesktopError>();
+  useEffect(() => {
+    desktopApi.bootstrapStatus().then(setBootstrap).catch(value => {
+      setBootstrapError({ code: "state", message: errorText(value), details: {} });
+    });
+  }, []);
+  if (bootstrapError) return <BootstrapRecovery error={bootstrapError} />;
+  if (!bootstrap) return <BootstrapLoading />;
+  if (!bootstrap.ready) return <BootstrapRecovery error={bootstrap.error ?? { code: "state", message: "Portcove initialization failed without an error report.", details: {} }} />;
+  return <Workspace />;
+}
+
+function BootstrapLoading() {
+  return <main className="bootstrap-state" aria-live="polite">
+    <p className="eyebrow">Portcove</p>
+    <h1>Opening your native library</h1>
+    <p>Loading the catalog, recovery journal, and release providers.</p>
+  </main>;
+}
+
+export function BootstrapRecovery({ error }: { error: DesktopError }) {
+  return <main className="bootstrap-state bootstrap-error" role="alert">
+    <p className="eyebrow">Portcove could not start</p>
+    <h1>Your library was left untouched</h1>
+    <p>{error.message}</p>
+    <dl>
+      <div><dt>Error code</dt><dd>{error.code}</dd></div>
+      {Object.entries(error.details).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{value}</dd></div>)}
+    </dl>
+    <p>Check the configured library path, access permissions, and available space, then retry. Portcove will run recovery checks again before enabling library actions.</p>
+    <button type="button" onClick={() => window.location.reload()}>Retry startup</button>
+  </main>;
+}
+
+function Workspace() {
   const data = usePortcoveData();
   const operations = useOperationState(data.refresh);
   const github = useGithubAuth(operations.perform, operations.setError);
@@ -27,6 +65,17 @@ export default function App() {
   const backups = usePortBackups(model.port?.id, operations.setError);
   const workspace = useWorkspaceScroll(ui.view);
   const commandSurface = useCommandSurface({ recent: model.recent, installedCount: model.overview.installed, busy: Boolean(operations.busy), setView: ui.setView, setAdoptOpen: ui.setAdoptOpen, setSelectedId: ui.setSelectedId, checkAll: updates.checkAll });
+  const handleBack = useCallback(() => {
+    const action = overlayBackAction({
+      paletteOpen: commandSurface.open,
+      adoptionOpen: ui.adoptOpen,
+      detailOpen: Boolean(ui.selectedId),
+    });
+    if (action === "close-palette") commandSurface.setOpen(false);
+    else if (action === "close-adoption") ui.setAdoptOpen(false);
+    else if (action === "close-detail") ui.setSelectedId(undefined);
+  }, [commandSurface.open, commandSurface.setOpen, ui.adoptOpen, ui.selectedId, ui.setAdoptOpen, ui.setSelectedId]);
+  useGamepadNavigation(handleBack);
 
   return <div className="app-shell">
     <Sidebar view={ui.view} setView={ui.setView} installedCount={data.statuses.filter(status => status.active).length}
@@ -85,6 +134,7 @@ function CurrentView({ data, ui, model, operations, github, updates, sourceHealt
   if (ui.view === "updates") return <UpdateCenter ports={data.catalog?.ports ?? []} statuses={model.statusMap} activities={data.activities} outcomes={updates.outcomes} actions={updates.actions} busy={operations.busy}
     checkAll={() => { void updates.checkAll(); }} applyPolicies={() => { void updates.applyPolicies(); }} onSelect={ui.setSelectedId} onOpenSources={() => ui.setView("settings")} />;
   if (ui.view === "settings") return <SettingsView doctor={data.doctor} storage={data.storage} github={github} busy={operations.busy} sources={data.sources} appearance={appearance}
+    createSupportBundle={() => operations.perform("support bundle", desktopApi.createSupportBundle)}
     sourceOutcomes={sourceHealth.outcomes} verifySources={() => { void sourceHealth.verifyAll(); }} replaceSource={source => {
       const profile = data.catalog?.source_profiles.find(candidate => candidate.id === source.profile_id);
       void replaceRegisteredSource(profile, source, operations.perform, operations.setError);
@@ -107,11 +157,14 @@ function SelectedPortPanel({ model, ui, operations, installPlanning, backups }: 
 }
 
 function AdoptionOverlay({ ui, operations }: { ui: UiState; operations: OperationState }) {
+  const [preview, setPreview] = useState<AdoptionPreview>();
+  useEffect(() => setPreview(undefined), [ui.adoptPath, ui.selectedId, ui.adoptOpen]);
   if (!ui.adoptOpen) return null;
   const finish = () => { ui.setAdoptOpen(false); ui.setAdoptPath(""); };
-  return <AdoptionModal path={ui.adoptPath} setPath={ui.setAdoptPath} busy={operations.busy} close={() => ui.setAdoptOpen(false)}
+  return <AdoptionModal path={ui.adoptPath} setPath={ui.setAdoptPath} preview={preview} busy={operations.busy} close={() => ui.setAdoptOpen(false)}
     pickFolder={() => { void applyPathChoice(pickInstallFolder(ui.adoptPath), ui.setAdoptPath, operations.setError); }}
-    adopt={() => { void adoptInstall(ui.adoptPath, ui.selectedId, operations.perform, finish); }} />;
+    review={() => { void operations.perform("preview adoption", () => desktopApi.previewAdoption(ui.adoptPath, ui.selectedId)).then(result => { if (result) setPreview(result); }); }}
+    adopt={() => { if (preview) void adoptInstall(ui.adoptPath, ui.selectedId, preview.plan_sha256, operations.perform, finish); }} />;
 }
 
 async function applyPathChoice(choice: Promise<string | null>, setPath: (path: string) => void, setError: (error?: string) => void) {

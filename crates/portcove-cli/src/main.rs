@@ -1,21 +1,25 @@
 use std::{
     io::{self, Read, Write},
     path::PathBuf,
-    process::{Command, ExitCode, Stdio},
+    process::ExitCode,
 };
 
 use clap::{Args, Parser, Subcommand, ValueEnum, error::ErrorKind};
 use portcove_core::{
-    API_SCHEMA_VERSION, ActivityRecord, BackupRecord, CapabilityDocument, CatalogDocument,
-    DoctorReport, ErrorCode, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult,
-    GithubDeviceLoginState, GithubReleaseProvider, InstallPlan, InstallRecord, OperationEvent,
-    PortDefinition, PortPaths, PortStatus, PortcoveError, PortcoveService, ReconcileResult,
-    ReleaseChannel, RestoreResult, Result, SourceRecord, SourceVerification, StorageSummary,
-    UpdateCheck, UpdatePolicy, UpdateSnapshot,
+    API_SCHEMA_VERSION, ActivityRecord, AdoptionPreview, BackupAction, BackupActionPreview,
+    BackupRecord, CapabilityDocument, CatalogDocument, DoctorReport, ErrorCode, GithubAuthStatus,
+    GithubDeviceLogin, GithubDeviceLoginResult, GithubDeviceLoginState, GithubReleaseProvider,
+    InstallPlan, InstallRecord, LaunchSignal, LaunchStdio, OperationEvent, OperationEventKind,
+    PortDefinition, PortPaths, PortRemovalPreview, PortStatus, PortcoveError, PortcoveService,
+    ReconcileResult, ReleaseChannel, RestoreResult, Result, SourceRecord, SourceRemovalPreview,
+    SourceVerification, StorageSummary, UpdateCheck, UpdatePolicy, UpdateSnapshot,
+    forward_launch_signal,
 };
 use schemars::{JsonSchema, schema_for};
 use serde::Serialize;
 use tracing_subscriber::EnvFilter;
+
+mod human;
 
 #[derive(Debug, Parser)]
 #[command(
@@ -156,10 +160,17 @@ enum CatalogCommand {
 
 #[derive(Debug, Subcommand)]
 enum SourceCommand {
-    Add { profile_id: String, path: PathBuf },
+    Add {
+        profile_id: String,
+        path: PathBuf,
+    },
     List,
     Verify(SourceVerifyArgs),
-    Remove { profile_id: String },
+    Remove {
+        profile_id: String,
+        #[arg(long)]
+        yes: bool,
+    },
 }
 
 #[derive(Debug, Args)]
@@ -425,6 +436,15 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         render_about(mode)?;
         return Ok(ExitCode::SUCCESS);
     }
+    if matches!(
+        &cli.command,
+        Commands::Schema {
+            command: SchemaCommand::Export
+        }
+    ) {
+        render_success(mode, "schema.export", schema_document())?;
+        return Ok(ExitCode::SUCCESS);
+    }
     let library = match cli.library {
         Some(path) => portcove_core::Library::open(path)?,
         None => portcove_core::Library::open_default()?,
@@ -435,13 +455,28 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
             let github = GithubReleaseProvider::for_library(service.library())?;
             match command {
                 AuthCommand::Status => {
-                    render_success(mode, "auth.status", github.auth_status().await?)?;
+                    render_read_success(
+                        mode,
+                        "auth.status",
+                        github.auth_status().await?,
+                        human::auth_status,
+                    )?;
                 }
                 AuthCommand::Login => {
                     let login = github.begin_device_login().await?;
                     render_device_prompt(mode, &login)?;
                     loop {
-                        std::thread::sleep(std::time::Duration::from_secs(login.interval_seconds));
+                        if wait_for_device_login_poll(
+                            std::time::Duration::from_secs(login.interval_seconds),
+                            tokio::signal::ctrl_c(),
+                        )
+                        .await?
+                            == DeviceLoginWait::Cancelled
+                        {
+                            return Err(PortcoveError::conflict(
+                                "GitHub login was cancelled before authorization completed",
+                            ));
+                        }
                         let result = github.poll_device_login(&login.session_id).await?;
                         if result.state == GithubDeviceLoginState::Complete {
                             render_success(mode, "auth.login", result)?;
@@ -465,7 +500,12 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         Commands::Catalog {
             command: CatalogCommand::List,
         } => {
-            render_success(mode, "catalog.list", service.catalog().ports().to_vec())?;
+            render_read_success(
+                mode,
+                "catalog.list",
+                service.catalog().ports().to_vec(),
+                |ports| human::catalog_list(ports),
+            )?;
         }
         Commands::Backup {
             command: BackupCommand::Create { port_id },
@@ -475,7 +515,12 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         Commands::Backup {
             command: BackupCommand::List { port_id },
         } => {
-            render_success(mode, "backup.list", service.list_backups(&port_id)?)?;
+            render_read_success(
+                mode,
+                "backup.list",
+                service.list_backups(&port_id)?,
+                |backups| human::backup_list(&port_id, backups),
+            )?;
         }
         Commands::Backup {
             command:
@@ -485,15 +530,23 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                     yes,
                 },
         } => {
+            let preview =
+                service.preview_backup_action(&port_id, &backup_id, BackupAction::Delete)?;
             require_confirmation(
                 &format!("Permanently delete backup {backup_id} for {port_id}?"),
                 yes,
                 cli.non_interactive,
             )?;
+            let authorization = service.authorize_backup_action(
+                &port_id,
+                &backup_id,
+                BackupAction::Delete,
+                &preview.preview_sha256,
+            )?;
             render_success(
                 mode,
                 "backup.delete",
-                service.delete_backup(&port_id, &backup_id)?,
+                service.delete_backup(&port_id, &backup_id, &authorization.token)?,
             )?;
         }
         Commands::Backup {
@@ -504,6 +557,8 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                     yes,
                 },
         } => {
+            let preview =
+                service.preview_backup_action(&port_id, &backup_id, BackupAction::Restore)?;
             require_confirmation(
                 &format!(
                     "Restore backup {backup_id} for {port_id}? Current persistent data will be backed up first."
@@ -511,10 +566,16 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 yes,
                 cli.non_interactive,
             )?;
+            let authorization = service.authorize_backup_action(
+                &port_id,
+                &backup_id,
+                BackupAction::Restore,
+                &preview.preview_sha256,
+            )?;
             render_success(
                 mode,
                 "backup.restore",
-                service.restore_backup(&port_id, &backup_id)?,
+                service.restore_backup(&port_id, &backup_id, &authorization.token)?,
             )?;
         }
         Commands::Catalog {
@@ -525,10 +586,11 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         Commands::Catalog {
             command: CatalogCommand::Show { port_id },
         } => {
-            render_success(
+            render_read_success(
                 mode,
                 "catalog.show",
                 service.catalog().port(&port_id)?.clone(),
+                human::catalog_show,
             )?;
         }
         Commands::Source {
@@ -543,7 +605,12 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         Commands::Source {
             command: SourceCommand::List,
         } => {
-            render_success(mode, "source.list", service.library().sources()?)?;
+            render_read_success(
+                mode,
+                "source.list",
+                service.library().sources()?,
+                |sources| human::source_list(sources),
+            )?;
         }
         Commands::Source {
             command: SourceCommand::Verify(args),
@@ -580,61 +647,93 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
             }
         }
         Commands::Source {
-            command: SourceCommand::Remove { profile_id },
+            command: SourceCommand::Remove { profile_id, yes },
         } => {
+            let preview = service.preview_source_removal(&profile_id)?;
+            if mode == OutputMode::Human {
+                println!("{}", human::document(&preview)?);
+            }
+            let impact = if preview.installed_dependent_port_ids.is_empty() {
+                "No installed port currently depends on it.".to_owned()
+            } else {
+                format!(
+                    "Installed ports will lose this registered source dependency: {}.",
+                    preview.installed_dependent_port_ids.join(", ")
+                )
+            };
+            require_confirmation(
+                &format!("Remove registered source {profile_id}? {impact}"),
+                yes,
+                cli.non_interactive,
+            )?;
+            let authorization =
+                service.authorize_source_removal(&profile_id, &preview.preview_sha256)?;
+            let removed = service.remove_source(&profile_id, &authorization.token)?;
             render_success(
                 mode,
                 "source.remove",
-                serde_json::json!({ "removed": service.library().remove_source(&profile_id)? }),
+                serde_json::json!({ "removed": true, "preview": removed }),
             )?;
         }
         Commands::Status { port_id } => {
             if let Some(port_id) = port_id {
-                render_success(mode, "status", service.status(&port_id)?)?;
+                render_read_success(mode, "status", service.status(&port_id)?, human::status)?;
             } else {
-                render_success(mode, "status", service.statuses()?)?;
+                render_read_success(mode, "status", service.statuses()?, |statuses| {
+                    human::statuses(statuses)
+                })?;
             }
         }
         Commands::Activity { limit } => {
-            render_success(
+            render_read_success(
                 mode,
                 "activity",
                 service.library().activities(limit as usize)?,
+                |records| human::activities(records),
             )?;
         }
         Commands::Storage => {
-            render_success(mode, "storage", service.library().storage_summary()?)?;
+            render_read_success(
+                mode,
+                "storage",
+                service.library().storage_summary()?,
+                human::storage,
+            )?;
         }
         Commands::Doctor => {
-            render_success(mode, "doctor", service.doctor()?)?;
+            render_read_success(mode, "doctor", service.doctor()?, human::doctor)?;
         }
         Commands::About => unreachable!("about exits before opening the library"),
         Commands::Plan { port_id, channel } => {
-            render_success(
+            render_read_success(
                 mode,
                 "plan",
                 service
                     .plan_install(&port_id, channel.map(Into::into))
                     .await?,
+                human::plan,
             )?;
         }
         Commands::Paths { port_id } => {
-            render_success(mode, "paths", service.port_paths(&port_id)?)?;
+            render_read_success(mode, "paths", service.port_paths(&port_id)?, human::paths)?;
         }
         Commands::Check(args) => {
             if args.all {
-                let mut checked = Vec::new();
-                for status in service
+                let installed = service
                     .statuses()?
                     .into_iter()
                     .filter(|status| status.active.is_some())
-                {
-                    let port_id = status.port_id;
-                    checked.push(match service.check_update(&port_id).await {
+                    .map(|status| status.port_id)
+                    .collect::<Vec<_>>();
+                let checked = service
+                    .check_updates(installed)
+                    .await?
+                    .into_iter()
+                    .map(|(port_id, result)| match result {
                         Ok(result) => PortBatchOutcome::success(port_id, result),
                         Err(error) => PortBatchOutcome::failure(port_id, &error),
-                    });
-                }
+                    })
+                    .collect::<Vec<_>>();
                 render_success(mode, "check", checked)?;
             } else {
                 let port_id = args
@@ -753,31 +852,41 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
             render_success(mode, "rollback", service.rollback(&port_id)?)?
         }
         Commands::Remove { port_id, yes } => {
+            let preview = service.preview_removal(&port_id)?;
+            if mode == OutputMode::Human {
+                println!("{}", human::document(&preview)?);
+            }
             require_confirmation(
                 &format!("Remove managed versions for {port_id}? Persistent data will be kept."),
                 yes,
                 cli.non_interactive,
             )?;
+            let authorization = service.authorize_removal(&port_id, &preview.preview_sha256)?;
             render_success(
                 mode,
                 "remove",
-                serde_json::json!({ "removed": service.remove(&port_id)? }),
+                serde_json::json!({ "removed": service.remove(&port_id, &authorization.token)? }),
             )?;
         }
         Commands::Adopt(args) => {
             let preview = service.preview_adoption(&args.path, args.port.as_deref())?;
             if mode == OutputMode::Human {
-                println!("{}", serde_json::to_string_pretty(&preview)?);
+                println!("{}", human::document(&preview)?);
             }
             require_confirmation(
                 "Copy this installation into Portcove? The original will be left untouched.",
                 args.yes,
                 cli.non_interactive,
             )?;
+            let authorization = service.authorize_adoption(
+                &args.path,
+                args.port.as_deref(),
+                &preview.plan_sha256,
+            )?;
             render_success(
                 mode,
                 "adopt",
-                service.adopt(&args.path, args.port.as_deref())?,
+                service.adopt(&args.path, args.port.as_deref(), &authorization.token)?,
             )?;
         }
         Commands::Channel {
@@ -804,46 +913,78 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                     "exec inherits the game's streams and exit code; remove --json or --jsonl",
                 ));
             }
-            return exec_game(&service, args);
+            return exec_game(&service, args).await;
         }
-        Commands::Capabilities => {
-            render_success(mode, "capabilities", CapabilityDocument::current())?
-        }
+        Commands::Capabilities => render_read_success(
+            mode,
+            "capabilities",
+            CapabilityDocument::current(),
+            human::capabilities,
+        )?,
         Commands::Schema {
             command: SchemaCommand::Export,
         } => {
-            let schemas = serde_json::json!({
-                "api_response_port_status": schema_for!(ApiResponse<PortStatus>),
-                "about": schema_for!(AboutDocument),
-                "catalog": schema_for!(CatalogDocument),
-                "port": schema_for!(PortDefinition),
-                "status": schema_for!(PortStatus),
-                "update_check": schema_for!(UpdateCheck),
-                "update_snapshot": schema_for!(UpdateSnapshot),
-                "check_batch_outcome": schema_for!(PortBatchOutcome<UpdateCheck>),
-                "reconcile_result": schema_for!(ReconcileResult),
-                "reconcile_batch_outcome": schema_for!(PortBatchOutcome<ReconcileResult>),
-                "update_batch_outcome": schema_for!(PortBatchOutcome<InstallRecord>),
-                "source": schema_for!(SourceRecord),
-                "source_verification": schema_for!(SourceVerification),
-                "source_batch_outcome": schema_for!(SourceBatchOutcome),
-                "activity": schema_for!(ActivityRecord),
-                "backup": schema_for!(BackupRecord),
-                "restore_result": schema_for!(RestoreResult),
-                "storage": schema_for!(StorageSummary),
-                "doctor": schema_for!(DoctorReport),
-                "install_plan": schema_for!(InstallPlan),
-                "port_paths": schema_for!(PortPaths),
-                "operation_event": schema_for!(OperationEvent),
-                "github_auth_status": schema_for!(GithubAuthStatus),
-                "github_device_login": schema_for!(GithubDeviceLogin),
-                "github_device_login_result": schema_for!(GithubDeviceLoginResult),
-                "capabilities": schema_for!(CapabilityDocument)
-            });
-            render_success(mode, "schema.export", schemas)?;
+            render_success(mode, "schema.export", schema_document())?;
         }
     }
     Ok(ExitCode::SUCCESS)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DeviceLoginWait {
+    Poll,
+    Cancelled,
+}
+
+async fn wait_for_device_login_poll<F>(
+    interval: std::time::Duration,
+    cancellation: F,
+) -> Result<DeviceLoginWait>
+where
+    F: std::future::Future<Output = std::io::Result<()>>,
+{
+    tokio::select! {
+        _ = tokio::time::sleep(interval) => Ok(DeviceLoginWait::Poll),
+        signal = cancellation => {
+            signal.map_err(PortcoveError::from)?;
+            Ok(DeviceLoginWait::Cancelled)
+        }
+    }
+}
+
+fn schema_document() -> serde_json::Value {
+    serde_json::json!({
+        "api_response_port_status": schema_for!(ApiResponse<PortStatus>),
+        "about": schema_for!(AboutDocument),
+        "catalog": schema_for!(CatalogDocument),
+        "port": schema_for!(PortDefinition),
+        "status": schema_for!(PortStatus),
+        "update_check": schema_for!(UpdateCheck),
+        "update_snapshot": schema_for!(UpdateSnapshot),
+        "check_batch_outcome": schema_for!(PortBatchOutcome<UpdateCheck>),
+        "reconcile_result": schema_for!(ReconcileResult),
+        "reconcile_batch_outcome": schema_for!(PortBatchOutcome<ReconcileResult>),
+        "update_batch_outcome": schema_for!(PortBatchOutcome<InstallRecord>),
+        "source": schema_for!(SourceRecord),
+        "source_removal_preview": schema_for!(SourceRemovalPreview),
+        "source_verification": schema_for!(SourceVerification),
+        "source_batch_outcome": schema_for!(SourceBatchOutcome),
+        "activity": schema_for!(ActivityRecord),
+        "backup": schema_for!(BackupRecord),
+        "backup_action_preview": schema_for!(BackupActionPreview),
+        "restore_result": schema_for!(RestoreResult),
+        "adoption_preview": schema_for!(AdoptionPreview),
+        "port_removal_preview": schema_for!(PortRemovalPreview),
+        "storage": schema_for!(StorageSummary),
+        "doctor": schema_for!(DoctorReport),
+        "install_plan": schema_for!(InstallPlan),
+        "port_paths": schema_for!(PortPaths),
+        "operation_event": schema_for!(OperationEvent),
+        "github_auth_status": schema_for!(GithubAuthStatus),
+        "github_device_login": schema_for!(GithubDeviceLogin),
+        "github_device_login_result": schema_for!(GithubDeviceLoginResult),
+        "capabilities": schema_for!(CapabilityDocument)
+    })
 }
 
 fn read_token(stdin: bool, non_interactive: bool) -> Result<String> {
@@ -906,31 +1047,72 @@ fn render_about(mode: OutputMode) -> Result<()> {
     }
 }
 
-fn exec_game(service: &PortcoveService, args: ExecArgs) -> Result<ExitCode> {
-    let (spec, _launch_guard) = service.prepare_launch(&args.port_id, args.source.as_deref())?;
-    let install_root = spec.install_root.clone();
-    let status = Command::new(&spec.executable)
-        .args(&spec.arguments)
-        .args(args.game_args)
-        .current_dir(&spec.working_directory)
-        .envs(spec.environment)
-        .stdin(Stdio::inherit())
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .status()
-        .map_err(|error| {
-            PortcoveError::launch(format!(
-                "failed to start {}: {error}",
-                spec.executable.display()
-            ))
-        })?;
-    if status.success()
-        && let Err(error) = service.library().record_successful_launch(&args.port_id)
-    {
-        eprintln!("Portcove warning: could not record successful launch: {error}");
+async fn exec_game(service: &PortcoveService, args: ExecArgs) -> Result<ExitCode> {
+    let library = service.library().clone();
+    let (started_sender, started_receiver) = tokio::sync::oneshot::channel();
+    let mut supervision = tokio::task::spawn_blocking(move || {
+        PortcoveService::new(library)?.supervise_launch(
+            &args.port_id,
+            args.source.as_deref(),
+            &args.game_args,
+            LaunchStdio::Inherit,
+            |session| {
+                let _ = started_sender.send(session.child_pid.expect("started session has a PID"));
+            },
+        )
+    });
+    tokio::pin!(started_receiver);
+    let mut waiting_for_child = true;
+    let mut child_pid = None;
+    let mut pending_signal = None;
+    loop {
+        tokio::select! {
+            result = &mut supervision => {
+                let outcome = result
+                    .map_err(|error| PortcoveError::state(format!("launch supervisor task failed: {error}")))??;
+                return Ok(ExitCode::from(normalize_process_exit(outcome.exit_code)));
+            }
+            started = &mut started_receiver, if waiting_for_child => {
+                waiting_for_child = false;
+                if let Ok(pid) = started {
+                    child_pid = Some(pid);
+                    if let Some(signal) = pending_signal.take()
+                        && let Err(error) = forward_launch_signal(pid, signal)
+                    {
+                        eprintln!("Portcove warning: {error}");
+                    }
+                }
+            }
+            signal = next_launch_signal() => {
+                let signal = signal.map_err(PortcoveError::from)?;
+                if let Some(pid) = child_pid {
+                    if let Err(error) = forward_launch_signal(pid, signal) {
+                        eprintln!("Portcove warning: {error}");
+                    }
+                } else {
+                    pending_signal = Some(signal);
+                }
+            }
+        }
     }
-    service.collect_user_data_from_install(&args.port_id, &install_root)?;
-    Ok(ExitCode::from(normalize_process_exit(status.code())))
+}
+
+#[cfg(windows)]
+async fn next_launch_signal() -> std::io::Result<LaunchSignal> {
+    tokio::signal::ctrl_c().await?;
+    Ok(LaunchSignal::Interrupt)
+}
+
+#[cfg(unix)]
+async fn next_launch_signal() -> std::io::Result<LaunchSignal> {
+    use tokio::signal::unix::{SignalKind, signal};
+
+    let mut interrupt = signal(SignalKind::interrupt())?;
+    let mut terminate = signal(SignalKind::terminate())?;
+    tokio::select! {
+        _ = interrupt.recv() => Ok(LaunchSignal::Interrupt),
+        _ = terminate.recv() => Ok(LaunchSignal::Terminate),
+    }
 }
 
 fn normalize_process_exit(code: Option<i32>) -> u8 {
@@ -947,8 +1129,8 @@ fn progress_renderer(mode: OutputMode) -> impl FnMut(OperationEvent) {
             "{}",
             serde_json::to_string(&event).expect("operation event is serializable")
         ),
-        OutputMode::Human => match event {
-            OperationEvent::Progress {
+        OutputMode::Human => match event.event {
+            OperationEventKind::Progress {
                 phase,
                 completed,
                 total,
@@ -957,10 +1139,14 @@ fn progress_renderer(mode: OutputMode) -> impl FnMut(OperationEvent) {
                     eprint!("\r{phase}: {completed}/{total} bytes");
                 }
             }
-            OperationEvent::Message { message, .. } => eprintln!("{message}"),
-            OperationEvent::Finished { .. } => eprintln!(),
-            OperationEvent::Started { operation, port_id } => {
-                eprintln!("{operation} {}", port_id.unwrap_or_default())
+            OperationEventKind::Message { message, .. } => eprintln!("{message}"),
+            OperationEventKind::Finished { .. } => eprintln!(),
+            OperationEventKind::Started => {
+                eprintln!(
+                    "{} {}",
+                    event.operation,
+                    event.target.map(|target| target.id).unwrap_or_default()
+                )
             }
         },
         OutputMode::Json => {}
@@ -971,8 +1157,24 @@ fn render_success<T>(mode: OutputMode, command: &str, data: T) -> Result<()>
 where
     T: Serialize + JsonSchema,
 {
+    render_success_with(mode, command, data, human::document)
+}
+
+fn render_read_success<T, F>(mode: OutputMode, command: &str, data: T, renderer: F) -> Result<()>
+where
+    T: Serialize + JsonSchema,
+    F: FnOnce(&T) -> String,
+{
+    render_success_with(mode, command, data, |data| Ok(renderer(data)))
+}
+
+fn render_success_with<T, F>(mode: OutputMode, command: &str, data: T, renderer: F) -> Result<()>
+where
+    T: Serialize + JsonSchema,
+    F: FnOnce(&T) -> serde_json::Result<String>,
+{
     match mode {
-        OutputMode::Human => println!("{}", serde_json::to_string_pretty(&data)?),
+        OutputMode::Human => println!("{}", renderer(&data)?),
         OutputMode::Json => println!(
             "{}",
             serde_json::to_string(&ApiResponse {
@@ -1340,7 +1542,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 2);
+        assert_eq!(capabilities.schema_version, 4);
         assert_eq!(
             capabilities.failure_isolated_batches,
             ["check", "reconcile", "update", "source.verify"]
@@ -1353,5 +1555,25 @@ mod tests {
         assert!(capabilities.commands.contains(&"paths".to_owned()));
         assert_eq!(capabilities.raw_stream_commands, ["exec"]);
         assert_eq!(capabilities.product_version, env!("CARGO_PKG_VERSION"));
+    }
+
+    #[tokio::test]
+    async fn device_login_poll_wait_is_async_and_cancellable() {
+        let cancelled = tokio::time::timeout(
+            std::time::Duration::from_secs(1),
+            super::wait_for_device_login_poll(std::time::Duration::from_secs(60), async { Ok(()) }),
+        )
+        .await
+        .expect("cancellation should not wait for the polling interval")
+        .unwrap();
+        assert_eq!(cancelled, super::DeviceLoginWait::Cancelled);
+
+        let poll = super::wait_for_device_login_poll(
+            std::time::Duration::ZERO,
+            std::future::pending::<std::io::Result<()>>(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(poll, super::DeviceLoginWait::Poll);
     }
 }

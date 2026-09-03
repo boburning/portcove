@@ -1,8 +1,11 @@
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const requireExecution = process.env.PORTCOVE_REQUIRE_DEEP_TOOLS === "1";
+const manifest = JSON.parse(readFileSync(new URL("../.github/quality-tools.json", import.meta.url)));
+const hawk = manifest.tools.find(tool => tool.id === "cargo-hawk");
 
 function reportExecutionFailure(message) {
   console.warn(message);
@@ -12,11 +15,11 @@ function reportExecutionFailure(message) {
 }
 
 if (process.platform === "win32") {
-  reportExecutionFailure("Hawk advisory skipped: cargo-hawk 0.1.13 does not support Windows.");
+  reportExecutionFailure(`Hawk advisory skipped: cargo-hawk ${hawk.version} does not support Windows.`);
 } else {
   const result = spawnSync(
-    "cargo",
-    ["+1.98.0", "hawk", "check", "--only", "dead-public"],
+    hawk.command[0],
+    [...hawk.command.slice(1, -1), "check", "--only", "dead-public"],
     { cwd: repositoryRoot, encoding: "utf8", stdio: "inherit" },
   );
   if (result.error) {

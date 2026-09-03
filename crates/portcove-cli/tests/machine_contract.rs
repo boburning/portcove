@@ -17,6 +17,62 @@ fn json_stdout(output: &Output) -> Value {
     serde_json::from_str(stdout).expect("stdout should contain one JSON document")
 }
 
+fn human_stdout(output: &Output) -> &str {
+    assert!(output.status.success());
+    assert!(output.stderr.is_empty());
+    std::str::from_utf8(&output.stdout).expect("stdout should be UTF-8")
+}
+
+#[test]
+fn default_read_commands_have_human_output_snapshots() {
+    let root = tempfile::tempdir().unwrap();
+
+    let catalog = human_stdout(&portcove(root.path(), &["catalog", "list"])).to_owned();
+    assert!(catalog.starts_with("Ports ("));
+    assert!(catalog.contains("ID"));
+    assert!(catalog.contains("lighthouse"));
+    assert!(!catalog.trim_start().starts_with('['));
+
+    let status = human_stdout(&portcove(root.path(), &["status", "lighthouse"])).to_owned();
+    assert!(status.starts_with("Status (1)\nPORT"));
+    assert!(status.contains("lighthouse"));
+    assert!(status.contains("stable"));
+    assert!(!status.trim_start().starts_with('{'));
+
+    assert_eq!(
+        human_stdout(&portcove(root.path(), &["source", "list"])),
+        "No registered sources.\n",
+    );
+    assert_eq!(
+        human_stdout(&portcove(root.path(), &["backup", "list", "lighthouse"])),
+        "No backups for lighthouse.\n",
+    );
+    assert_eq!(
+        human_stdout(&portcove(root.path(), &["activity"])),
+        "No activity records.\n",
+    );
+
+    let paths = human_stdout(&portcove(root.path(), &["paths", "lighthouse"])).to_owned();
+    assert!(paths.starts_with("Paths for lighthouse\nLibrary:"));
+    assert!(paths.contains("\nPersistent data:"));
+
+    let storage = human_stdout(&portcove(root.path(), &["storage"])).to_owned();
+    assert!(storage.starts_with("Library storage\nRoot:"));
+    assert!(storage.contains("\nAvailable:"));
+
+    let doctor = human_stdout(&portcove(root.path(), &["doctor"])).to_owned();
+    assert!(doctor.starts_with("Portcove doctor\nPlatform:"));
+    assert!(doctor.contains("\nRepair review: no items"));
+
+    let port = human_stdout(&portcove(root.path(), &["catalog", "show", "lighthouse"])).to_owned();
+    assert!(port.starts_with("Lighthouse (lighthouse)\nSupport:"));
+    assert!(port.contains("\nProject: https://"));
+
+    let capabilities = human_stdout(&portcove(root.path(), &["capabilities"])).to_owned();
+    assert!(capabilities.starts_with("Portcove "));
+    assert!(capabilities.contains(" capabilities\nSchema: 4"));
+}
+
 #[test]
 fn capabilities_are_one_clean_versioned_json_document() {
     let root = tempfile::tempdir().unwrap();
@@ -25,11 +81,11 @@ fn capabilities_are_one_clean_versioned_json_document() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 2);
+    assert_eq!(response["schema_version"], 4);
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");
     assert!(response["error"].is_null());
-    assert_eq!(response["data"]["schema_version"], 2);
+    assert_eq!(response["data"]["schema_version"], 4);
     assert_eq!(
         response["data"]["raw_stream_commands"],
         serde_json::json!(["exec"])
@@ -51,7 +107,7 @@ fn command_errors_keep_the_machine_envelope_and_stable_exit_code() {
     assert_eq!(output.status.code(), Some(4));
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 2);
+    assert_eq!(response["schema_version"], 4);
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "catalog.show");
     assert!(response["data"].is_null());
@@ -68,7 +124,7 @@ fn parser_errors_are_structured_for_machine_callers() {
     assert!(output.stderr.is_empty());
     assert!(!library.exists());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 2);
+    assert_eq!(response["schema_version"], 4);
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "cli");
     assert_eq!(response["error"]["code"], "usage");
@@ -88,7 +144,7 @@ fn jsonl_read_commands_end_with_one_result_event() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 2);
+    assert_eq!(response["schema_version"], 4);
     assert_eq!(response["type"], "result");
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");

@@ -9,18 +9,10 @@ elif [[ $# -gt 0 ]]; then
   exit 2
 fi
 
-required_tools=(
-  'just|1.58.0|just --version'
-  'cargo-shear|1.13.4|cargo shear --version'
-  'cargo-deny|0.20.2|cargo deny --version'
-  'cargo-modules|0.27.0|cargo modules --version'
-  'rscheck-cli|0.1.0|rscheck --version'
-)
-
-optional_tools=(
-  'semdup|0.2.0|semdup --version'
-  'cargo-mutants|27.1.0|cargo mutants --version'
-)
+required_tools=()
+while IFS= read -r tool; do required_tools+=("$tool"); done < <(node scripts/quality-tools.mjs --specs required)
+optional_tools=()
+while IFS= read -r tool; do optional_tools+=("$tool"); done < <(node scripts/quality-tools.mjs --specs deep)
 
 reported_version() {
   local command_line="$1"
@@ -72,13 +64,15 @@ if $include_deep; then
     fi
   done
 
-  if ! rustup toolchain install 1.98.0 --component rustc-dev; then
+  hawk_version="$(node scripts/quality-tools.mjs --version cargo-hawk)"
+  hawk_rust="$(node scripts/quality-tools.mjs --rust-toolchain cargo-hawk)"
+  if ! rustup toolchain install "$hawk_rust" --component rustc-dev; then
     optional_failures+=("cargo-hawk")
-  elif has_exact_version '0.1.13' 'cargo +1.98.0 hawk --version'; then
-    printf 'cargo-hawk already pinned: %s\n' "$(reported_version 'cargo +1.98.0 hawk --version')"
-  elif ! RUSTC_BOOTSTRAP=1 cargo +1.98.0 install --locked --version 0.1.13 cargo-hawk; then
+  elif has_exact_version "$hawk_version" "cargo +$hawk_rust hawk --version"; then
+    printf 'cargo-hawk already pinned: %s\n' "$(reported_version "cargo +$hawk_rust hawk --version")"
+  elif ! RUSTC_BOOTSTRAP=1 cargo "+$hawk_rust" install --locked --version "$hawk_version" cargo-hawk; then
     optional_failures+=("cargo-hawk")
-  elif ! cargo +1.98.0 hawk --version; then
+  elif ! cargo "+$hawk_rust" hawk --version; then
     optional_failures+=("cargo-hawk")
   fi
 fi

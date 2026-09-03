@@ -118,6 +118,7 @@ function activityTarget(activity: ActivityRecord, names: ReadonlyMap<string, str
 
 function operationLabel(operation: ActivityOperation) {
   const labels: Record<ActivityOperation, string> = {
+    launch: "Launched port",
     check_update: "Checked for update",
     backup: "Backed up data",
     restore: "Restored data backup",
@@ -130,6 +131,7 @@ function operationLabel(operation: ActivityOperation) {
     rollback: "Rolled back release",
     adopt: "Adopted installation",
     remove: "Removed managed files",
+    remove_source: "Removed source reference",
     register_source: "Registered source",
     verify_source: "Verified source",
   };

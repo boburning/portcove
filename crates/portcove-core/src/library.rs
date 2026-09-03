@@ -1,8 +1,9 @@
 use std::{
+    collections::HashMap,
     fs::{self, File, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use directories::ProjectDirs;
@@ -11,19 +12,34 @@ use rusqlite::{Connection, OptionalExtension, params};
 use sha2::{Digest, Sha256};
 
 use crate::{
-    ActivityOperation, ActivityRecord, ActivityStatus, ActivityTargetKind, InstallRecord,
-    PortStatus, PortcoveError, ReleaseChannel, Result, SourceRecord, StorageSummary, UpdateCheck,
-    UpdatePolicy, UpdateSnapshot,
+    ActivityOperation, ActivityRecord, ActivityStatus, ActivityTargetKind, ArtifactIdentity,
+    InstallRecord, LaunchSessionPhase, LaunchSessionRecord, PortStatus, PortcoveError,
+    ReleaseChannel, Result, SourceRecord, StorageSummary, UpdateCheck, UpdatePolicy,
+    UpdateSnapshot,
+    authorization::{AuthorizationStore, DestructiveAuthorization},
+    database,
 };
 
 #[derive(Debug, Clone)]
 pub struct Library {
     root: PathBuf,
+    authorizations: AuthorizationStore,
 }
 
 #[derive(Debug)]
 pub struct PortOperationGuard {
     file: File,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct StatusReadMetrics {
+    pub sqlite_query_count: usize,
+}
+
+impl StatusReadMetrics {
+    fn record_query(&mut self) {
+        self.sqlite_query_count += 1;
+    }
 }
 
 impl Drop for PortOperationGuard {
@@ -41,7 +57,12 @@ pub(crate) struct HttpCacheEntry {
 
 impl Library {
     pub fn open(root: impl Into<PathBuf>) -> Result<Self> {
-        let library = Self { root: root.into() };
+        let root = root.into();
+        crate::path::unicode(&root, "library root")?;
+        let library = Self {
+            root,
+            authorizations: AuthorizationStore::default(),
+        };
         library.create_layout()?;
         library.migrate()?;
         Ok(library)
@@ -56,6 +77,24 @@ impl Library {
 
     pub fn root(&self) -> &Path {
         &self.root
+    }
+    pub(crate) fn issue_authorization(
+        &self,
+        action: &str,
+        target: &str,
+        fingerprint: &str,
+    ) -> Result<DestructiveAuthorization> {
+        self.authorizations.issue(action, target, fingerprint)
+    }
+    pub(crate) fn consume_authorization(
+        &self,
+        token: &str,
+        action: &str,
+        target: &str,
+        fingerprint: &str,
+    ) -> Result<()> {
+        self.authorizations
+            .consume(token, action, target, fingerprint)
     }
     pub fn storage_summary(&self) -> Result<StorageSummary> {
         Ok(StorageSummary {
@@ -85,11 +124,31 @@ impl Library {
     pub fn logs_dir(&self) -> PathBuf {
         self.root.join("logs")
     }
+    pub(crate) fn recovery_dir(&self) -> PathBuf {
+        self.root.join("recovery")
+    }
     fn locks_dir(&self) -> PathBuf {
         self.root.join("locks")
     }
 
     pub fn try_lock_port(&self, port_id: &str, operation: &str) -> Result<PortOperationGuard> {
+        self.lock_port(port_id, operation, None)
+    }
+
+    pub(crate) fn try_lock_port_for_launch_recovery(
+        &self,
+        port_id: &str,
+        session_id: &str,
+    ) -> Result<PortOperationGuard> {
+        self.lock_port(port_id, "launch-recovery", Some(session_id))
+    }
+
+    fn lock_port(
+        &self,
+        port_id: &str,
+        operation: &str,
+        allowed_session_id: Option<&str>,
+    ) -> Result<PortOperationGuard> {
         let key = hex::encode(Sha256::digest(port_id.as_bytes()));
         let path = self.locks_dir().join(format!("{key}.lock"));
         let mut file = OpenOptions::new()
@@ -107,6 +166,17 @@ impl Library {
                 .detail("operation", operation));
             }
             return Err(error.into());
+        }
+        if let Some(session) = self.launch_session_for_port(port_id)?
+            && Some(session.id.as_str()) != allowed_session_id
+        {
+            return Err(PortcoveError::conflict(format!(
+                "{port_id} has an unfinished launch session"
+            ))
+            .detail("port_id", port_id)
+            .detail("operation", operation)
+            .detail("launch_session_id", session.id)
+            .detail("launch_phase", session.phase.to_string()));
         }
         file.set_len(0)?;
         serde_json::to_writer(
@@ -132,6 +202,7 @@ impl Library {
             self.toolchains_dir(),
             self.root.join("user"),
             self.logs_dir(),
+            self.recovery_dir(),
             self.locks_dir(),
         ] {
             fs::create_dir_all(directory)?;
@@ -140,127 +211,11 @@ impl Library {
     }
 
     fn connection(&self) -> Result<Connection> {
-        let connection = Connection::open(self.root.join("portcove.sqlite3"))?;
-        // Separate CLI and frontend processes can legitimately share a library.
-        // Give short-lived writers time to finish instead of surfacing SQLITE_BUSY.
-        connection.busy_timeout(Duration::from_secs(10))?;
-        connection.pragma_update(None, "foreign_keys", "ON")?;
-        connection.pragma_update(None, "journal_mode", "WAL")?;
-        Ok(connection)
+        database::connect(&self.root)
     }
 
     fn migrate(&self) -> Result<()> {
-        let connection = self.connection()?;
-        connection.execute_batch(
-            "BEGIN;
-             CREATE TABLE IF NOT EXISTS schema_migrations (
-               version INTEGER PRIMARY KEY,
-               applied_at INTEGER NOT NULL
-             );
-             CREATE TABLE IF NOT EXISTS sources (
-               profile_id TEXT PRIMARY KEY,
-               path TEXT NOT NULL,
-               sha256 TEXT NOT NULL,
-               size INTEGER NOT NULL,
-               storage_sha256 TEXT NOT NULL DEFAULT '',
-               storage_size INTEGER NOT NULL DEFAULT 0,
-               updated_at INTEGER NOT NULL
-             );
-             CREATE TABLE IF NOT EXISTS installs (
-               id TEXT PRIMARY KEY,
-               port_id TEXT NOT NULL,
-               version TEXT NOT NULL,
-               path TEXT NOT NULL,
-               channel TEXT NOT NULL,
-               installed_at INTEGER NOT NULL,
-               verified INTEGER NOT NULL,
-               staged INTEGER NOT NULL DEFAULT 0
-             );
-             CREATE INDEX IF NOT EXISTS installs_port_id ON installs(port_id);
-             CREATE TABLE IF NOT EXISTS port_settings (
-               port_id TEXT PRIMARY KEY,
-               channel TEXT NOT NULL,
-               update_policy TEXT NOT NULL,
-               active_install_id TEXT,
-               previous_install_id TEXT,
-               FOREIGN KEY(active_install_id) REFERENCES installs(id) ON DELETE SET NULL,
-               FOREIGN KEY(previous_install_id) REFERENCES installs(id) ON DELETE SET NULL
-             );
-             CREATE TABLE IF NOT EXISTS github_http_cache (
-               url TEXT PRIMARY KEY,
-               etag TEXT,
-               last_modified TEXT,
-               body TEXT NOT NULL,
-               updated_at INTEGER NOT NULL
-             );
-             CREATE TABLE IF NOT EXISTS launch_history (
-               port_id TEXT PRIMARY KEY,
-               last_launched_at INTEGER NOT NULL,
-               successful_launches INTEGER NOT NULL DEFAULT 1
-             );
-             CREATE TABLE IF NOT EXISTS activity_history (
-               id TEXT PRIMARY KEY,
-               operation TEXT NOT NULL,
-               target_kind TEXT NOT NULL,
-               target_id TEXT,
-               status TEXT NOT NULL,
-               message TEXT,
-               started_at INTEGER NOT NULL,
-               finished_at INTEGER
-             );
-             CREATE INDEX IF NOT EXISTS activity_history_started_at
-               ON activity_history(started_at DESC);
-             CREATE TABLE IF NOT EXISTS update_snapshots (
-               port_id TEXT PRIMARY KEY,
-               check_json TEXT NOT NULL,
-               checked_at INTEGER NOT NULL
-             );
-             INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (1, unixepoch());
-             INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (2, unixepoch());
-             COMMIT;",
-        )?;
-        let columns = {
-            let mut statement = connection.prepare("PRAGMA table_info(sources)")?;
-            let rows = statement.query_map([], |row| row.get::<_, String>(1))?;
-            rows.collect::<std::result::Result<Vec<_>, _>>()?
-        };
-        if !columns.iter().any(|column| column == "storage_sha256") {
-            connection.execute(
-                "ALTER TABLE sources ADD COLUMN storage_sha256 TEXT NOT NULL DEFAULT ''",
-                [],
-            )?;
-        }
-        if !columns.iter().any(|column| column == "storage_size") {
-            connection.execute(
-                "ALTER TABLE sources ADD COLUMN storage_size INTEGER NOT NULL DEFAULT 0",
-                [],
-            )?;
-        }
-        connection.execute(
-            "UPDATE sources SET storage_sha256=sha256 WHERE storage_sha256=''",
-            [],
-        )?;
-        connection.execute(
-            "UPDATE sources SET storage_size=size WHERE storage_size=0",
-            [],
-        )?;
-        connection.execute(
-            "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (3, unixepoch())",
-            [],
-        )?;
-        connection.execute(
-            "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (4, unixepoch())",
-            [],
-        )?;
-        connection.execute(
-            "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (5, unixepoch())",
-            [],
-        )?;
-        connection.execute(
-            "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (6, unixepoch())",
-            [],
-        )?;
-        Ok(())
+        database::migrate(&self.root)
     }
 
     pub(crate) fn begin_activity(
@@ -420,6 +375,115 @@ impl Library {
         Ok(())
     }
 
+    pub(crate) fn create_launch_session(&self, session: &LaunchSessionRecord) -> Result<()> {
+        let install_root = crate::path::unicode(&session.install_root, "install")?;
+        self.connection()?.execute(
+            "INSERT INTO launch_sessions(
+               id, port_id, install_id, install_root, supervisor_pid, child_pid, phase,
+               started_at, updated_at
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                session.id,
+                session.port_id,
+                session.install_id,
+                install_root,
+                session.supervisor_pid,
+                session.child_pid,
+                session.phase.to_string(),
+                session.started_at,
+                session.updated_at,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub(crate) fn update_launch_session(
+        &self,
+        id: &str,
+        child_pid: Option<u32>,
+        phase: LaunchSessionPhase,
+    ) -> Result<()> {
+        let changed = self.connection()?.execute(
+            "UPDATE launch_sessions
+             SET child_pid=COALESCE(?2, child_pid), phase=?3, updated_at=?4
+             WHERE id=?1",
+            params![id, child_pid, phase.to_string(), Self::now()],
+        )?;
+        if changed == 0 {
+            return Err(PortcoveError::state(format!(
+                "launch session {id} was not found"
+            )));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn remove_launch_session(&self, id: &str) -> Result<()> {
+        self.connection()?
+            .execute("DELETE FROM launch_sessions WHERE id=?1", [id])?;
+        Ok(())
+    }
+
+    pub fn launch_sessions(&self) -> Result<Vec<LaunchSessionRecord>> {
+        let connection = self.connection()?;
+        let mut statement = connection.prepare(
+            "SELECT id, port_id, install_id, install_root, supervisor_pid, child_pid, phase,
+                    started_at, updated_at
+             FROM launch_sessions ORDER BY started_at, id",
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, u32>(4)?,
+                row.get::<_, Option<u32>>(5)?,
+                row.get::<_, String>(6)?,
+                row.get::<_, i64>(7)?,
+                row.get::<_, i64>(8)?,
+            ))
+        })?;
+        rows.map(|row| {
+            let (
+                id,
+                port_id,
+                install_id,
+                install_root,
+                supervisor_pid,
+                child_pid,
+                phase,
+                started_at,
+                updated_at,
+            ) = row?;
+            Ok(LaunchSessionRecord {
+                id,
+                port_id,
+                install_id,
+                install_root: PathBuf::from(install_root),
+                supervisor_pid,
+                child_pid,
+                phase: phase.parse()?,
+                started_at,
+                updated_at,
+            })
+        })
+        .collect()
+    }
+
+    pub(crate) fn launch_session(&self, id: &str) -> Result<Option<LaunchSessionRecord>> {
+        Ok(self
+            .launch_sessions()?
+            .into_iter()
+            .find(|session| session.id == id))
+    }
+
+    fn launch_session_for_port(&self, port_id: &str) -> Result<Option<LaunchSessionRecord>> {
+        Ok(self
+            .launch_sessions()?
+            .into_iter()
+            .find(|session| session.port_id == port_id))
+    }
+
     pub(crate) fn http_cache(&self, url: &str) -> Result<Option<HttpCacheEntry>> {
         self.connection()?
             .query_row(
@@ -458,6 +522,7 @@ impl Library {
     }
 
     pub fn register_source(&self, source: &SourceRecord) -> Result<()> {
+        let path = crate::path::unicode(&source.path, "source")?;
         self.connection()?.execute(
             "INSERT INTO sources(profile_id, path, sha256, size, storage_sha256, storage_size, updated_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
@@ -466,7 +531,7 @@ impl Library {
                storage_size=excluded.storage_size, updated_at=excluded.updated_at",
             params![
                 source.profile_id,
-                source.path.to_string_lossy(),
+                path,
                 source.sha256,
                 source.size,
                 source.storage_sha256,
@@ -514,7 +579,15 @@ impl Library {
             .map_err(Into::into)
     }
 
-    pub fn remove_source(&self, profile_id: &str) -> Result<bool> {
+    pub(crate) fn source_profile_ids(&self) -> Result<Vec<String>> {
+        let connection = self.connection()?;
+        let mut statement = connection.prepare("SELECT profile_id FROM sources")?;
+        let rows = statement.query_map([], |row| row.get(0))?;
+        rows.collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(Into::into)
+    }
+
+    pub(crate) fn remove_source(&self, profile_id: &str) -> Result<bool> {
         Ok(self
             .connection()?
             .execute("DELETE FROM sources WHERE profile_id=?1", [profile_id])?
@@ -539,8 +612,13 @@ impl Library {
         Ok(())
     }
 
-    pub fn set_update_policy(&self, port_id: &str, policy: UpdatePolicy) -> Result<()> {
-        self.ensure_settings(port_id, ReleaseChannel::Stable)?;
+    pub fn set_update_policy(
+        &self,
+        port_id: &str,
+        policy: UpdatePolicy,
+        default_channel: ReleaseChannel,
+    ) -> Result<()> {
+        self.ensure_settings(port_id, default_channel)?;
         self.connection()?.execute(
             "UPDATE port_settings SET update_policy=?2 WHERE port_id=?1",
             params![port_id, policy.to_string()],
@@ -549,11 +627,16 @@ impl Library {
     }
 
     pub fn register_install(&self, install: &InstallRecord, activate: bool) -> Result<()> {
+        let path = crate::path::unicode(&install.path, "install")?;
+        let selected_executable =
+            crate::path::unicode(&install.selected_executable, "selected executable")?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
         transaction.execute(
-            "INSERT INTO installs(id, port_id, version, path, channel, installed_at, verified, staged)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+            "INSERT INTO installs(
+               id, port_id, version, path, channel, installed_at, verified, staged,
+               artifact_name, artifact_sha256, artifact_size, manifest_sha256, selected_executable
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
              ON CONFLICT(id) DO UPDATE SET
                port_id=excluded.port_id,
                version=excluded.version,
@@ -561,11 +644,26 @@ impl Library {
                channel=excluded.channel,
                installed_at=excluded.installed_at,
                verified=excluded.verified,
-               staged=excluded.staged",
+               staged=excluded.staged,
+               artifact_name=excluded.artifact_name,
+               artifact_sha256=excluded.artifact_sha256,
+               artifact_size=excluded.artifact_size,
+               manifest_sha256=excluded.manifest_sha256,
+               selected_executable=excluded.selected_executable",
             params![
-                install.id, install.port_id, install.version, install.path.to_string_lossy(),
-                install.channel.to_string(), install.installed_at, install.verified as i64,
+                install.id,
+                install.port_id,
+                install.version,
+                path,
+                install.channel.to_string(),
+                install.installed_at,
+                install.verified as i64,
                 (!activate) as i64,
+                install.artifact.asset_name,
+                install.artifact.sha256,
+                install.artifact.size,
+                install.manifest_sha256,
+                selected_executable,
             ],
         )?;
         transaction.execute(
@@ -596,58 +694,232 @@ impl Library {
     }
 
     pub fn status(&self, port_id: &str, default_channel: ReleaseChannel) -> Result<PortStatus> {
-        self.ensure_settings(port_id, default_channel)?;
+        self.statuses_with_metrics(&[(port_id.to_owned(), default_channel)])?
+            .0
+            .into_iter()
+            .next()
+            .ok_or_else(|| PortcoveError::state("status read model returned no row"))
+    }
+
+    pub(crate) fn statuses_with_metrics(
+        &self,
+        ports: &[(String, ReleaseChannel)],
+    ) -> Result<(Vec<PortStatus>, StatusReadMetrics)> {
         let connection = self.connection()?;
-        let (channel_value, policy_value, active_id, previous_id): (
-            String,
-            String,
-            Option<String>,
-            Option<String>,
-        ) = connection.query_row(
-            "SELECT channel, update_policy, active_install_id, previous_install_id
-             FROM port_settings WHERE port_id=?1",
-            [port_id],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
-        )?;
-        let staged_id: Option<String> = connection.query_row(
-            "SELECT id FROM installs WHERE port_id=?1 AND staged=1 ORDER BY installed_at DESC LIMIT 1",
-            [port_id], |row| row.get(0),
-        ).optional()?;
-        let launch_history: Option<(i64, i64)> = connection
-            .query_row(
-                "SELECT last_launched_at, successful_launches FROM launch_history WHERE port_id=?1",
-                [port_id],
-                |row| Ok((row.get(0)?, row.get(1)?)),
-            )
-            .optional()?;
-        Ok(PortStatus {
-            port_id: port_id.to_owned(),
-            user_data_root: Some(self.user_dir(port_id)),
-            channel: channel_value.parse()?,
-            update_policy: policy_value.parse()?,
-            active: Self::install_by_id(&connection, active_id.as_deref())?,
-            previous: Self::install_by_id(&connection, previous_id.as_deref())?,
-            staged: Self::install_by_id(&connection, staged_id.as_deref())?,
-            last_launched_at: launch_history.map(|value| value.0),
-            successful_launches: launch_history.map_or(0, |value| value.1.max(0) as u64),
-            readiness: None,
-            last_update_check: None,
-        })
+        let mut metrics = StatusReadMetrics::default();
+
+        metrics.record_query();
+        let settings = {
+            let mut statement = connection.prepare(
+                "SELECT port_id, channel, update_policy, active_install_id, previous_install_id
+                 FROM port_settings",
+            )?;
+            let rows = statement.query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    (
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, Option<String>>(3)?,
+                        row.get::<_, Option<String>>(4)?,
+                    ),
+                ))
+            })?;
+            rows.collect::<std::result::Result<HashMap<_, _>, _>>()?
+        };
+
+        metrics.record_query();
+        let (installs, staged) = {
+            let mut statement = connection.prepare(
+                "SELECT id, port_id, version, path, channel, installed_at, verified, staged,
+                        artifact_name, artifact_sha256, artifact_size, manifest_sha256,
+                        selected_executable
+                 FROM installs
+                 ORDER BY installed_at DESC, rowid DESC",
+            )?;
+            let rows = statement.query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                    row.get::<_, i64>(5)?,
+                    row.get::<_, i64>(6)?,
+                    row.get::<_, i64>(7)?,
+                    row.get::<_, String>(8)?,
+                    row.get::<_, String>(9)?,
+                    row.get::<_, u64>(10)?,
+                    row.get::<_, String>(11)?,
+                    row.get::<_, String>(12)?,
+                ))
+            })?;
+            let mut installs = HashMap::new();
+            let mut staged = HashMap::new();
+            for row in rows {
+                let (
+                    id,
+                    port_id,
+                    version,
+                    path,
+                    channel,
+                    installed_at,
+                    verified,
+                    is_staged,
+                    artifact_name,
+                    artifact_sha256,
+                    artifact_size,
+                    manifest_sha256,
+                    selected_executable,
+                ) = row?;
+                let install = InstallRecord {
+                    id: id.clone(),
+                    port_id: port_id.clone(),
+                    version,
+                    path: PathBuf::from(path),
+                    channel: channel.parse()?,
+                    installed_at,
+                    verified: verified != 0,
+                    staged: is_staged != 0,
+                    artifact: ArtifactIdentity {
+                        asset_name: artifact_name,
+                        sha256: artifact_sha256,
+                        size: artifact_size,
+                    },
+                    manifest_sha256,
+                    selected_executable: PathBuf::from(selected_executable),
+                };
+                if install.staged {
+                    staged.entry(port_id).or_insert_with(|| id.clone());
+                }
+                installs.insert(id, install);
+            }
+            (installs, staged)
+        };
+
+        metrics.record_query();
+        let launch_history = {
+            let mut statement = connection.prepare(
+                "SELECT port_id, last_launched_at, successful_launches FROM launch_history",
+            )?;
+            let rows = statement.query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    (row.get::<_, i64>(1)?, row.get::<_, i64>(2)?),
+                ))
+            })?;
+            rows.collect::<std::result::Result<HashMap<_, _>, _>>()?
+        };
+
+        metrics.record_query();
+        let update_snapshots = {
+            let mut statement = connection
+                .prepare("SELECT port_id, check_json, checked_at FROM update_snapshots")?;
+            let rows = statement.query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, i64>(2)?,
+                ))
+            })?;
+            let mut snapshots = HashMap::new();
+            for row in rows {
+                let (port_id, json, checked_at) = row?;
+                snapshots.insert(
+                    port_id,
+                    UpdateSnapshot {
+                        checked_at,
+                        check: serde_json::from_str(&json)?,
+                    },
+                );
+            }
+            snapshots
+        };
+
+        let statuses = ports
+            .iter()
+            .map(|(port_id, default_channel)| {
+                let stored = settings.get(port_id);
+                let channel = stored
+                    .map(|value| value.0.parse())
+                    .transpose()?
+                    .unwrap_or(*default_channel);
+                let update_policy = stored
+                    .map(|value| value.1.parse())
+                    .transpose()?
+                    .unwrap_or(UpdatePolicy::Notify);
+                let active = stored
+                    .and_then(|value| value.2.as_ref())
+                    .and_then(|id| installs.get(id))
+                    .cloned();
+                let previous = stored
+                    .and_then(|value| value.3.as_ref())
+                    .and_then(|id| installs.get(id))
+                    .cloned();
+                let staged = staged.get(port_id).and_then(|id| installs.get(id)).cloned();
+                let history = launch_history.get(port_id).copied();
+                Ok(PortStatus {
+                    port_id: port_id.clone(),
+                    user_data_root: Some(self.user_dir(port_id)),
+                    channel,
+                    update_policy,
+                    active,
+                    previous,
+                    staged,
+                    last_launched_at: history.map(|value| value.0),
+                    successful_launches: history.map_or(0, |value| value.1.max(0) as u64),
+                    readiness: None,
+                    last_update_check: update_snapshots.get(port_id).cloned(),
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        Ok((statuses, metrics))
     }
 
     fn install_by_id(connection: &Connection, id: Option<&str>) -> Result<Option<InstallRecord>> {
         let Some(id) = id else { return Ok(None) };
-        let raw = connection.query_row(
-            "SELECT id, port_id, version, path, channel, installed_at, verified, staged FROM installs WHERE id=?1",
-            [id],
-            |row| Ok((
-                row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?,
-                row.get::<_, String>(3)?, row.get::<_, String>(4)?, row.get::<_, i64>(5)?,
-                row.get::<_, i64>(6)?, row.get::<_, i64>(7)?,
-            )),
-        ).optional()?;
+        let raw = connection
+            .query_row(
+                "SELECT id, port_id, version, path, channel, installed_at, verified, staged,
+                    artifact_name, artifact_sha256, artifact_size, manifest_sha256,
+                    selected_executable
+             FROM installs WHERE id=?1",
+                [id],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, String>(3)?,
+                        row.get::<_, String>(4)?,
+                        row.get::<_, i64>(5)?,
+                        row.get::<_, i64>(6)?,
+                        row.get::<_, i64>(7)?,
+                        row.get::<_, String>(8)?,
+                        row.get::<_, String>(9)?,
+                        row.get::<_, u64>(10)?,
+                        row.get::<_, String>(11)?,
+                        row.get::<_, String>(12)?,
+                    ))
+                },
+            )
+            .optional()?;
         raw.map(
-            |(id, port_id, version, path, channel, installed_at, verified, staged)| {
+            |(
+                id,
+                port_id,
+                version,
+                path,
+                channel,
+                installed_at,
+                verified,
+                staged,
+                artifact_name,
+                artifact_sha256,
+                artifact_size,
+                manifest_sha256,
+                selected_executable,
+            )| {
                 Ok(InstallRecord {
                     id,
                     port_id,
@@ -657,6 +929,13 @@ impl Library {
                     installed_at,
                     verified: verified != 0,
                     staged: staged != 0,
+                    artifact: ArtifactIdentity {
+                        asset_name: artifact_name,
+                        sha256: artifact_sha256,
+                        size: artifact_size,
+                    },
+                    manifest_sha256,
+                    selected_executable: PathBuf::from(selected_executable),
                 })
             },
         )
@@ -679,6 +958,49 @@ impl Library {
             )
             .optional()?;
         Self::install_by_id(&connection, id.as_deref())
+    }
+
+    pub fn install_by_artifact(
+        &self,
+        port_id: &str,
+        artifact_sha256: &str,
+    ) -> Result<Option<InstallRecord>> {
+        let connection = self.connection()?;
+        let id: Option<String> = connection
+            .query_row(
+                "SELECT id FROM installs
+                 WHERE port_id=?1 AND lower(artifact_sha256)=lower(?2)
+                 ORDER BY installed_at DESC LIMIT 1",
+                params![port_id, artifact_sha256],
+                |row| row.get(0),
+            )
+            .optional()?;
+        Self::install_by_id(&connection, id.as_deref())
+    }
+
+    pub(crate) fn all_installs(&self) -> Result<Vec<InstallRecord>> {
+        let connection = self.connection()?;
+        let ids = {
+            let mut statement = connection.prepare("SELECT id FROM installs ORDER BY rowid")?;
+            let rows = statement.query_map([], |row| row.get::<_, String>(0))?;
+            rows.collect::<std::result::Result<Vec<_>, _>>()?
+        };
+        ids.iter()
+            .map(|id| {
+                Self::install_by_id(&connection, Some(id))?.ok_or_else(|| {
+                    PortcoveError::state(format!("install {id} disappeared while reading"))
+                })
+            })
+            .collect()
+    }
+
+    pub(crate) fn port_install_paths(&self, port_id: &str) -> Result<Vec<PathBuf>> {
+        Ok(self
+            .all_installs()?
+            .into_iter()
+            .filter(|install| install.port_id == port_id)
+            .map(|install| install.path)
+            .collect())
     }
 
     pub fn rollback(&self, port_id: &str) -> Result<InstallRecord> {
@@ -757,6 +1079,20 @@ mod tests {
     use super::*;
     use tempfile::tempdir;
 
+    #[cfg(unix)]
+    #[test]
+    fn opening_a_non_unicode_library_root_is_rejected_without_side_effects() {
+        use std::{ffi::OsString, os::unix::ffi::OsStringExt};
+
+        let temporary = tempdir().unwrap();
+        let root = temporary.path().join(OsString::from_vec(vec![b'l', 0xff]));
+
+        let error = Library::open(&root).unwrap_err();
+
+        assert_eq!(error.code, crate::ErrorCode::Unsupported);
+        assert!(!root.exists());
+    }
+
     #[test]
     fn storage_summary_reports_the_library_volume_capacity() {
         let temporary = tempdir().unwrap();
@@ -785,6 +1121,9 @@ mod tests {
                         installed_at: Library::now(),
                         verified: true,
                         staged: false,
+                        artifact: ArtifactIdentity::default(),
+                        manifest_sha256: String::new(),
+                        selected_executable: PathBuf::new(),
                     },
                     true,
                 )
@@ -813,6 +1152,9 @@ mod tests {
                         installed_at: Library::now(),
                         verified: true,
                         staged: !activate,
+                        artifact: ArtifactIdentity::default(),
+                        manifest_sha256: String::new(),
+                        selected_executable: PathBuf::new(),
                     },
                     activate,
                 )
@@ -827,6 +1169,47 @@ mod tests {
         assert_eq!(status.active.unwrap().id, "second");
         assert_eq!(status.previous.unwrap().id, "first");
         assert!(status.staged.is_none());
+    }
+
+    #[test]
+    fn bulk_status_read_query_count_is_constant_at_scale() {
+        for record_count in [250, 500, 1_000] {
+            let temporary = tempdir().unwrap();
+            let library = Library::open(temporary.path()).unwrap();
+            let mut connection = library.connection().unwrap();
+            let transaction = connection.transaction().unwrap();
+            for index in 0..record_count {
+                let port_id = format!("port-{index:04}");
+                transaction
+                    .execute(
+                        "INSERT INTO port_settings(port_id, channel, update_policy)
+                         VALUES (?1, 'stable', 'notify')",
+                        [&port_id],
+                    )
+                    .unwrap();
+                transaction
+                    .execute(
+                        "INSERT INTO launch_history(port_id, last_launched_at, successful_launches)
+                         VALUES (?1, ?2, ?3)",
+                        params![port_id, index as i64, index as i64],
+                    )
+                    .unwrap();
+            }
+            transaction.commit().unwrap();
+            let ports = (0..record_count)
+                .map(|index| (format!("port-{index:04}"), ReleaseChannel::Stable))
+                .collect::<Vec<_>>();
+
+            let (statuses, metrics) = library.statuses_with_metrics(&ports).unwrap();
+
+            assert_eq!(statuses.len(), record_count);
+            assert_eq!(metrics.sqlite_query_count, 4);
+            assert_eq!(statuses.first().unwrap().port_id, "port-0000");
+            assert_eq!(
+                statuses.last().unwrap().successful_launches,
+                (record_count - 1) as u64
+            );
+        }
     }
 
     #[test]

@@ -2,19 +2,21 @@ param([switch]$IncludeDeep)
 
 $ErrorActionPreference = "Stop"
 $runningOnWindows = $env:OS -eq "Windows_NT"
+$manifestPath = Join-Path (Resolve-Path (Join-Path $PSScriptRoot "..")) ".github\quality-tools.json"
+$qualityManifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 
-$requiredTools = @(
-    @{ Crate = "just"; Version = "1.58.0"; Command = "just"; Arguments = @("--version") },
-    @{ Crate = "cargo-shear"; Version = "1.13.4"; Command = "cargo"; Arguments = @("shear", "--version") },
-    @{ Crate = "cargo-deny"; Version = "0.20.2"; Command = "cargo"; Arguments = @("deny", "--version") },
-    @{ Crate = "cargo-modules"; Version = "0.27.0"; Command = "cargo"; Arguments = @("modules", "--version") },
-    @{ Crate = "rscheck-cli"; Version = "0.1.0"; Command = "rscheck"; Arguments = @("--version") }
-)
+function ConvertTo-QualityTool([object]$Definition) {
+    return @{
+        Crate = $Definition.crate
+        Version = $Definition.version
+        Command = $Definition.command[0]
+        Arguments = @($Definition.command | Select-Object -Skip 1)
+    }
+}
 
-$optionalTools = @(
-    @{ Crate = "semdup"; Version = "0.2.0"; Command = "semdup"; Arguments = @("--version") },
-    @{ Crate = "cargo-mutants"; Version = "27.1.0"; Command = "cargo"; Arguments = @("mutants", "--version") }
-)
+$requiredTools = @($qualityManifest.tools | Where-Object { $_.tier -eq "required" } | ForEach-Object { ConvertTo-QualityTool $_ })
+$optionalTools = @($qualityManifest.tools | Where-Object { $_.tier -eq "deep" -and $_.id -ne "cargo-hawk" } | ForEach-Object { ConvertTo-QualityTool $_ })
+$hawkDefinition = $qualityManifest.tools | Where-Object { $_.id -eq "cargo-hawk" }
 
 function Get-QualityToolVersion([hashtable]$Tool) {
     try {
@@ -77,21 +79,21 @@ if ($IncludeDeep) {
     }
     else {
         try {
-            & rustup toolchain install 1.98.0 --component rustc-dev
-            if ($LASTEXITCODE -ne 0) { throw "could not install Rust 1.98.0 with rustc-dev" }
-            $hawkTool = @{ Crate = "cargo-hawk"; Version = "0.1.13"; Command = "cargo"; Arguments = @("+1.98.0", "hawk", "--version") }
+            & rustup toolchain install $hawkDefinition.rust_toolchain --component rustc-dev
+            if ($LASTEXITCODE -ne 0) { throw "could not install Hawk's pinned Rust toolchain with rustc-dev" }
+            $hawkTool = ConvertTo-QualityTool $hawkDefinition
             if (-not (Test-QualityToolVersion $hawkTool)) {
                 $previousBootstrap = $env:RUSTC_BOOTSTRAP
                 try {
                     $env:RUSTC_BOOTSTRAP = "1"
-                    & cargo +1.98.0 install --locked --version 0.1.13 cargo-hawk
-                    if ($LASTEXITCODE -ne 0) { throw "could not install cargo-hawk 0.1.13" }
+                    & cargo "+$($hawkDefinition.rust_toolchain)" install --locked --version $hawkDefinition.version $hawkDefinition.crate
+                    if ($LASTEXITCODE -ne 0) { throw "could not install the pinned cargo-hawk release" }
                 }
                 finally {
                     $env:RUSTC_BOOTSTRAP = $previousBootstrap
                 }
             }
-            if (-not (Test-QualityToolVersion $hawkTool)) { throw "cargo-hawk did not report version 0.1.13" }
+            if (-not (Test-QualityToolVersion $hawkTool)) { throw "cargo-hawk did not report its pinned version" }
             Write-Output "cargo-hawk ready: $(Get-QualityToolVersion $hawkTool)"
         }
         catch {

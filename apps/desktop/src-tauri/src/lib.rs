@@ -1,26 +1,40 @@
+mod diagnostics;
+
 use std::{
-    path::PathBuf,
-    process::{Command, Stdio},
+    fs,
+    future::Future,
+    path::{Path, PathBuf},
+    process::Stdio,
+    thread,
+    time::{Duration, Instant},
 };
 
 use portcove_core::{
-    ActivityRecord, AdoptionPreview, BackupRecord, CatalogDocument, CompositeReleaseProvider,
-    DoctorReport, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult,
-    GithubReleaseProvider, InstallPlan, InstallRecord, Library, OperationEvent, PortStatus,
-    PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel, ReleaseProvider,
-    RestoreResult, SourceRecord, SourceVerification, UpdateCheck, UpdatePolicy, VerificationReport,
+    ActivityRecord, AdoptionPreview, BackupAction, BackupRecord, CatalogDocument,
+    ChildProcessClass, ChildProcessPolicy, CompositeReleaseProvider, DoctorReport,
+    GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, GithubReleaseProvider,
+    InstallPlan, InstallRecord, LaunchStdio, Library, OperationCoordinator, OperationEvent,
+    OperationResult, PortStatus, PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel,
+    ReleaseProvider, RestoreResult, SourceRecord, SourceRemovalPreview, SourceVerification,
+    UpdateCheck, UpdatePolicy, VerificationReport,
 };
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
 #[derive(Clone)]
-struct DesktopState {
+struct ReadyDesktopState {
     library: Library,
     github: std::sync::Arc<GithubReleaseProvider>,
     releases: std::sync::Arc<CompositeReleaseProvider>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone)]
+struct DesktopState {
+    initialization: std::sync::Arc<DesktopResult<ReadyDesktopState>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct DesktopError {
     code: portcove_core::ErrorCode,
     message: String,
@@ -55,9 +69,41 @@ impl From<PortcoveError> for DesktopError {
 
 type DesktopResult<T> = std::result::Result<T, DesktopError>;
 
+fn ready(state: &DesktopState) -> DesktopResult<&ReadyDesktopState> {
+    state.initialization.as_ref().as_ref().map_err(Clone::clone)
+}
+
 fn service(state: &DesktopState) -> DesktopResult<PortcoveService> {
+    let state = ready(state)?;
     let releases: std::sync::Arc<dyn ReleaseProvider> = state.releases.clone();
     PortcoveService::with_provider(state.library.clone(), releases).map_err(Into::into)
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct BootstrapStatus {
+    ready: bool,
+    library_root: Option<PathBuf>,
+    error: Option<DesktopError>,
+}
+
+#[tauri::command]
+fn get_bootstrap_status(state: tauri::State<'_, DesktopState>) -> BootstrapStatus {
+    bootstrap_status(&state)
+}
+
+fn bootstrap_status(state: &DesktopState) -> BootstrapStatus {
+    match ready(state) {
+        Ok(state) => BootstrapStatus {
+            ready: true,
+            library_root: Some(state.library.root().to_path_buf()),
+            error: None,
+        },
+        Err(error) => BootstrapStatus {
+            ready: false,
+            library_root: None,
+            error: Some(error),
+        },
+    }
 }
 
 async fn blocking_service<T, F>(state: DesktopState, operation: F) -> DesktopResult<T>
@@ -65,16 +111,75 @@ where
     T: Send + 'static,
     F: FnOnce(PortcoveService) -> DesktopResult<T> + Send + 'static,
 {
-    tauri::async_runtime::spawn_blocking(move || operation(service(&state)?))
+    blocking_worker(move || operation(service(&state)?)).await
+}
+
+async fn blocking_async_service<T, F, Fut>(state: DesktopState, operation: F) -> DesktopResult<T>
+where
+    T: Send + 'static,
+    F: FnOnce(PortcoveService) -> Fut + Send + 'static,
+    Fut: Future<Output = DesktopResult<T>> + Send + 'static,
+{
+    blocking_worker(move || {
+        let service = service(&state)?;
+        tokio::runtime::Handle::current().block_on(operation(service))
+    })
+    .await
+}
+
+async fn blocking_worker<T, F>(operation: F) -> DesktopResult<T>
+where
+    T: Send + 'static,
+    F: FnOnce() -> DesktopResult<T> + Send + 'static,
+{
+    tauri::async_runtime::spawn_blocking(operation)
         .await
         .map_err(|error| DesktopError::from(PortcoveError::state(error.to_string())))?
+}
+
+async fn confirm_destructive(
+    app: &tauri::AppHandle,
+    title: &str,
+    message: String,
+    confirm_label: &str,
+) -> bool {
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    app.dialog()
+        .message(message)
+        .title(title)
+        .kind(MessageDialogKind::Warning)
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            confirm_label.to_owned(),
+            "Cancel".to_owned(),
+        ))
+        .show(move |confirmed| {
+            let _ = sender.send(confirmed);
+        });
+    receiver.await.unwrap_or(false)
+}
+
+fn emit_operation(app: &tauri::AppHandle, event: OperationEvent) {
+    tracing::info!(
+        operation_id = %event.operation_id,
+        parent_operation_id = ?event.parent_operation_id,
+        sequence = event.sequence,
+        operation = %event.operation,
+        target = ?event.target,
+        event = ?event.event,
+        "operation event"
+    );
+    let _ = app.emit("portcove://operation", event);
 }
 
 #[tauri::command]
 async fn get_github_auth_status(
     state: tauri::State<'_, DesktopState>,
 ) -> DesktopResult<GithubAuthStatus> {
-    state.github.auth_status().await.map_err(Into::into)
+    ready(&state)?
+        .github
+        .auth_status()
+        .await
+        .map_err(Into::into)
 }
 
 #[tauri::command]
@@ -83,10 +188,14 @@ async fn plan_port(
     port_id: String,
     channel: ReleaseChannel,
 ) -> DesktopResult<InstallPlan> {
-    service(&state)?
-        .plan_install(&port_id, Some(channel))
-        .await
-        .map_err(Into::into)
+    let state = state.inner().clone();
+    blocking_async_service(state, move |service| async move {
+        service
+            .plan_install(&port_id, Some(channel))
+            .await
+            .map_err(Into::into)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -94,7 +203,7 @@ async fn set_github_token(
     state: tauri::State<'_, DesktopState>,
     token: String,
 ) -> DesktopResult<GithubAuthStatus> {
-    state
+    ready(&state)?
         .github
         .store_personal_token(&token)
         .await
@@ -103,14 +212,18 @@ async fn set_github_token(
 
 #[tauri::command]
 async fn logout_github(state: tauri::State<'_, DesktopState>) -> DesktopResult<GithubAuthStatus> {
-    state.github.logout().await.map_err(Into::into)
+    ready(&state)?.github.logout().await.map_err(Into::into)
 }
 
 #[tauri::command]
 async fn begin_github_device_login(
     state: tauri::State<'_, DesktopState>,
 ) -> DesktopResult<GithubDeviceLogin> {
-    state.github.begin_device_login().await.map_err(Into::into)
+    ready(&state)?
+        .github
+        .begin_device_login()
+        .await
+        .map_err(Into::into)
 }
 
 #[tauri::command]
@@ -118,7 +231,7 @@ async fn poll_github_device_login(
     state: tauri::State<'_, DesktopState>,
     session_id: String,
 ) -> DesktopResult<GithubDeviceLoginResult> {
-    state
+    ready(&state)?
         .github
         .poll_device_login(&session_id)
         .await
@@ -126,31 +239,41 @@ async fn poll_github_device_login(
 }
 
 #[tauri::command]
-fn get_catalog(state: tauri::State<'_, DesktopState>) -> DesktopResult<CatalogDocument> {
-    Ok(service(&state)?.catalog().document().clone())
+async fn get_catalog(state: tauri::State<'_, DesktopState>) -> DesktopResult<CatalogDocument> {
+    let state = state.inner().clone();
+    blocking_service(state, |service| Ok(service.catalog().document().clone())).await
 }
 
 #[tauri::command]
-fn get_statuses(state: tauri::State<'_, DesktopState>) -> DesktopResult<Vec<PortStatus>> {
-    service(&state)?.statuses().map_err(Into::into)
+async fn get_statuses(state: tauri::State<'_, DesktopState>) -> DesktopResult<Vec<PortStatus>> {
+    let state = state.inner().clone();
+    blocking_service(state, |service| service.statuses().map_err(Into::into)).await
 }
 
 #[tauri::command]
-fn get_sources(state: tauri::State<'_, DesktopState>) -> DesktopResult<Vec<SourceRecord>> {
-    state.library.sources().map_err(Into::into)
+async fn get_sources(state: tauri::State<'_, DesktopState>) -> DesktopResult<Vec<SourceRecord>> {
+    let state = state.inner().clone();
+    blocking_worker(move || ready(&state)?.library.sources().map_err(Into::into)).await
 }
 
 #[tauri::command]
-fn get_activities(state: tauri::State<'_, DesktopState>) -> DesktopResult<Vec<ActivityRecord>> {
-    state.library.activities(50).map_err(Into::into)
+async fn get_activities(
+    state: tauri::State<'_, DesktopState>,
+) -> DesktopResult<Vec<ActivityRecord>> {
+    let state = state.inner().clone();
+    blocking_worker(move || ready(&state)?.library.activities(50).map_err(Into::into)).await
 }
 
 #[tauri::command]
-fn get_backups(
+async fn get_backups(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
 ) -> DesktopResult<Vec<BackupRecord>> {
-    service(&state)?.list_backups(&port_id).map_err(Into::into)
+    let state = state.inner().clone();
+    blocking_service(state, move |service| {
+        service.list_backups(&port_id).map_err(Into::into)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -167,14 +290,43 @@ async fn create_backup(
 
 #[tauri::command]
 async fn restore_backup(
+    app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,
     port_id: String,
     backup_id: String,
-) -> DesktopResult<RestoreResult> {
+) -> DesktopResult<Option<RestoreResult>> {
+    let worker_state = state.inner().clone();
+    let preview = blocking_service(worker_state, {
+        let port_id = port_id.clone();
+        let backup_id = backup_id.clone();
+        move |service| {
+            service
+                .preview_backup_action(&port_id, &backup_id, BackupAction::Restore)
+                .map_err(Into::into)
+        }
+    })
+    .await?;
+    let message = if preview.safety_backup_will_be_created {
+        format!(
+            "Restore backup {backup_id} for {port_id}?\n\nPortcove will preserve the current persistent data as a safety backup first."
+        )
+    } else {
+        format!("Restore backup {backup_id} for {port_id}?")
+    };
+    if !confirm_destructive(&app, "Confirm backup restore", message, "Restore backup").await {
+        return Ok(None);
+    }
     let state = state.inner().clone();
     blocking_service(state, move |service| {
+        let authorization = service.authorize_backup_action(
+            &port_id,
+            &backup_id,
+            BackupAction::Restore,
+            &preview.preview_sha256,
+        )?;
         service
-            .restore_backup(&port_id, &backup_id)
+            .restore_backup(&port_id, &backup_id, &authorization.token)
+            .map(Some)
             .map_err(Into::into)
     })
     .await
@@ -182,14 +334,45 @@ async fn restore_backup(
 
 #[tauri::command]
 async fn delete_backup(
+    app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,
     port_id: String,
     backup_id: String,
-) -> DesktopResult<BackupRecord> {
+) -> DesktopResult<Option<BackupRecord>> {
+    let worker_state = state.inner().clone();
+    let preview = blocking_service(worker_state, {
+        let port_id = port_id.clone();
+        let backup_id = backup_id.clone();
+        move |service| {
+            service
+                .preview_backup_action(&port_id, &backup_id, BackupAction::Delete)
+                .map_err(Into::into)
+        }
+    })
+    .await?;
+    if !confirm_destructive(
+        &app,
+        "Confirm backup deletion",
+        format!(
+            "Permanently delete backup {backup_id} for {port_id}?\n\nThis backup cannot be recovered after deletion."
+        ),
+        "Delete backup",
+    )
+    .await
+    {
+        return Ok(None);
+    }
     let state = state.inner().clone();
     blocking_service(state, move |service| {
+        let authorization = service.authorize_backup_action(
+            &port_id,
+            &backup_id,
+            BackupAction::Delete,
+            &preview.preview_sha256,
+        )?;
         service
-            .delete_backup(&port_id, &backup_id)
+            .delete_backup(&port_id, &backup_id, &authorization.token)
+            .map(Some)
             .map_err(Into::into)
     })
     .await
@@ -212,17 +395,15 @@ async fn verify_sources(
     app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,
 ) -> DesktopResult<Vec<SourceBatchOutcome>> {
-    let _ = app.emit(
-        "portcove://operation",
-        OperationEvent::Started {
-            operation: "verify-sources".into(),
-            port_id: None,
-        },
-    );
+    let operation = OperationCoordinator::new("verify_sources", None);
+    emit_operation(&app, operation.started());
     let state = state.inner().clone();
     let outcomes = tauri::async_runtime::spawn_blocking(move || {
         let service = service(&state)?;
-        let sources = state.library.sources().map_err(DesktopError::from)?;
+        let sources = ready(&state)?
+            .library
+            .sources()
+            .map_err(DesktopError::from)?;
         Ok::<_, DesktopError>(
             sources
                 .into_iter()
@@ -248,36 +429,27 @@ async fn verify_sources(
     })
     .await
     .map_err(|error| DesktopError::from(PortcoveError::state(error.to_string())))??;
-    let _ = app.emit(
-        "portcove://operation",
-        OperationEvent::Finished {
-            operation: "verify-sources".into(),
-            success: outcomes.iter().all(|outcome| outcome.ok),
-        },
+    emit_operation(
+        &app,
+        operation.finished(if outcomes.iter().all(|outcome| outcome.ok) {
+            OperationResult::Succeeded
+        } else {
+            OperationResult::Failed
+        }),
     );
     Ok(outcomes)
 }
 
 #[tauri::command]
 async fn check_port(
-    app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,
     port_id: String,
 ) -> DesktopResult<UpdateCheck> {
-    let check = service(&state)?.check_update(&port_id).await?;
-    let message = if check.update_available {
-        format!("{} is available", check.release.version)
-    } else {
-        format!("{} is up to date", check.port_id)
-    };
-    let _ = app.emit(
-        "portcove://operation",
-        OperationEvent::Message {
-            level: "info".into(),
-            message,
-        },
-    );
-    Ok(check)
+    let state = state.inner().clone();
+    blocking_async_service(state, move |service| async move {
+        service.check_update(&port_id).await.map_err(Into::into)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -285,55 +457,55 @@ async fn check_installed(
     app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,
 ) -> DesktopResult<Vec<BatchOutcome<UpdateCheck>>> {
-    let service = service(&state)?;
-    let installed = service
-        .statuses()?
-        .into_iter()
-        .filter(|status| status.active.is_some())
-        .collect::<Vec<_>>();
-    let total = installed.len() as u64;
-    let _ = app.emit(
-        "portcove://operation",
-        OperationEvent::Started {
-            operation: "check-installed".into(),
-            port_id: None,
-        },
-    );
-    let mut outcomes = Vec::with_capacity(installed.len());
-    for (index, status) in installed.into_iter().enumerate() {
-        let port_id = status.port_id;
-        outcomes.push(match service.check_update(&port_id).await {
-            Ok(result) => BatchOutcome {
-                port_id,
-                ok: true,
-                result: Some(result),
-                error: None,
-            },
-            Err(error) => BatchOutcome {
-                port_id,
-                ok: false,
-                result: None,
-                error: Some(error.into()),
-            },
-        });
-        let _ = app.emit(
-            "portcove://operation",
-            OperationEvent::Progress {
-                phase: "Checking installed ports".into(),
-                completed: index as u64 + 1,
-                total: Some(total),
-            },
+    let state = state.inner().clone();
+    blocking_async_service(state, move |service| async move {
+        let installed = service
+            .statuses()?
+            .into_iter()
+            .filter(|status| status.active.is_some())
+            .map(|status| status.port_id)
+            .collect::<Vec<_>>();
+        let total = installed.len() as u64;
+        let operation = OperationCoordinator::new("check_installed", None);
+        emit_operation(&app, operation.started());
+        let mut outcomes = Vec::with_capacity(installed.len());
+        for (index, (port_id, result)) in service
+            .check_updates(installed)
+            .await?
+            .into_iter()
+            .enumerate()
+        {
+            outcomes.push(match result {
+                Ok(result) => BatchOutcome {
+                    port_id,
+                    ok: true,
+                    result: Some(result),
+                    error: None,
+                },
+                Err(error) => BatchOutcome {
+                    port_id,
+                    ok: false,
+                    result: None,
+                    error: Some(error.into()),
+                },
+            });
+            emit_operation(
+                &app,
+                operation.progress("Checking installed ports", index as u64 + 1, Some(total)),
+            );
+        }
+        let success = outcomes.iter().all(|outcome| outcome.ok);
+        emit_operation(
+            &app,
+            operation.finished(if success {
+                OperationResult::Succeeded
+            } else {
+                OperationResult::Failed
+            }),
         );
-    }
-    let success = outcomes.iter().all(|outcome| outcome.ok);
-    let _ = app.emit(
-        "portcove://operation",
-        OperationEvent::Finished {
-            operation: "check-installed".into(),
-            success,
-        },
-    );
-    Ok(outcomes)
+        Ok(outcomes)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -341,45 +513,54 @@ async fn reconcile_installed(
     app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,
 ) -> DesktopResult<Vec<BatchOutcome<ReconcileResult>>> {
-    let service = service(&state)?;
-    let installed = service
-        .statuses()?
-        .into_iter()
-        .filter(|status| status.active.is_some())
-        .collect::<Vec<_>>();
-    let total = installed.len() as u64;
-    let mut outcomes = Vec::with_capacity(installed.len());
-    for (index, status) in installed.into_iter().enumerate() {
-        let port_id = status.port_id;
-        let result = service
-            .reconcile(&port_id, |event| {
-                let _ = app.emit("portcove://operation", event);
-            })
-            .await;
-        outcomes.push(match result {
-            Ok(result) => BatchOutcome {
-                port_id,
-                ok: true,
-                result: Some(result),
-                error: None,
-            },
-            Err(error) => BatchOutcome {
-                port_id,
-                ok: false,
-                result: None,
-                error: Some(error.into()),
-            },
-        });
-        let _ = app.emit(
-            "portcove://operation",
-            OperationEvent::Progress {
-                phase: "Applying update policies".into(),
-                completed: index as u64 + 1,
-                total: Some(total),
-            },
+    let state = state.inner().clone();
+    blocking_async_service(state, move |service| async move {
+        let installed = service
+            .statuses()?
+            .into_iter()
+            .filter(|status| status.active.is_some())
+            .collect::<Vec<_>>();
+        let total = installed.len() as u64;
+        let operation = OperationCoordinator::new("reconcile_installed", None);
+        emit_operation(&app, operation.started());
+        let mut outcomes = Vec::with_capacity(installed.len());
+        for (index, status) in installed.into_iter().enumerate() {
+            let port_id = status.port_id;
+            let result = service
+                .reconcile(&port_id, |event| {
+                    emit_operation(&app, event);
+                })
+                .await;
+            outcomes.push(match result {
+                Ok(result) => BatchOutcome {
+                    port_id,
+                    ok: true,
+                    result: Some(result),
+                    error: None,
+                },
+                Err(error) => BatchOutcome {
+                    port_id,
+                    ok: false,
+                    result: None,
+                    error: Some(error.into()),
+                },
+            });
+            emit_operation(
+                &app,
+                operation.progress("Applying update policies", index as u64 + 1, Some(total)),
+            );
+        }
+        emit_operation(
+            &app,
+            operation.finished(if outcomes.iter().all(|outcome| outcome.ok) {
+                OperationResult::Succeeded
+            } else {
+                OperationResult::Failed
+            }),
         );
-    }
-    Ok(outcomes)
+        Ok(outcomes)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -398,25 +579,99 @@ async fn add_source(
 }
 
 #[tauri::command]
-fn set_channel(
+async fn preview_source_removal(
+    state: tauri::State<'_, DesktopState>,
+    profile_id: String,
+) -> DesktopResult<SourceRemovalPreview> {
+    let state = state.inner().clone();
+    blocking_service(state, move |service| {
+        service
+            .preview_source_removal(&profile_id)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn remove_source(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, DesktopState>,
+    profile_id: String,
+    preview_sha256: String,
+) -> DesktopResult<Option<SourceRemovalPreview>> {
+    let worker_state = state.inner().clone();
+    let preview = blocking_service(worker_state, {
+        let profile_id = profile_id.clone();
+        move |service| {
+            service
+                .preview_source_removal(&profile_id)
+                .map_err(Into::into)
+        }
+    })
+    .await?;
+    if preview.preview_sha256 != preview_sha256 {
+        return Err(PortcoveError::conflict(
+            "the source or its installed dependents changed after the removal preview",
+        )
+        .into());
+    }
+    let impact = if preview.installed_dependent_port_ids.is_empty() {
+        "No installed port currently depends on it.".to_owned()
+    } else {
+        format!(
+            "Installed ports will lose this source dependency: {}.",
+            preview.installed_dependent_port_ids.join(", ")
+        )
+    };
+    if !confirm_destructive(
+        &app,
+        "Confirm source removal",
+        format!(
+            "Remove registered source {profile_id}?\n\n{impact} The source file itself will not be deleted."
+        ),
+        "Remove source reference",
+    )
+    .await
+    {
+        return Ok(None);
+    }
+    let state = state.inner().clone();
+    blocking_service(state, move |service| {
+        let authorization = service.authorize_source_removal(&profile_id, &preview_sha256)?;
+        service
+            .remove_source(&profile_id, &authorization.token)
+            .map(Some)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn set_channel(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
     channel: ReleaseChannel,
 ) -> DesktopResult<PortStatus> {
-    service(&state)?
-        .set_channel(&port_id, channel)
-        .map_err(Into::into)
+    let state = state.inner().clone();
+    blocking_service(state, move |service| {
+        service.set_channel(&port_id, channel).map_err(Into::into)
+    })
+    .await
 }
 
 #[tauri::command]
-fn set_policy(
+async fn set_policy(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
     policy: UpdatePolicy,
 ) -> DesktopResult<PortStatus> {
-    service(&state)?
-        .set_update_policy(&port_id, policy)
-        .map_err(Into::into)
+    let state = state.inner().clone();
+    blocking_service(state, move |service| {
+        service
+            .set_update_policy(&port_id, policy)
+            .map_err(Into::into)
+    })
+    .await
 }
 
 #[derive(Debug, Deserialize)]
@@ -435,20 +690,23 @@ async fn install_port(
     state: tauri::State<'_, DesktopState>,
     input: InstallInput,
 ) -> DesktopResult<InstallRecord> {
-    let service = service(&state)?;
-    service
-        .install(
-            &input.port_id,
-            input.channel,
-            input.source.as_deref(),
-            input.bios.as_deref(),
-            !input.stage,
-            |event: OperationEvent| {
-                let _ = app.emit("portcove://operation", event);
-            },
-        )
-        .await
-        .map_err(Into::into)
+    let state = state.inner().clone();
+    blocking_async_service(state, move |service| async move {
+        service
+            .install(
+                &input.port_id,
+                input.channel,
+                input.source.as_deref(),
+                input.bios.as_deref(),
+                !input.stage,
+                |event: OperationEvent| {
+                    emit_operation(&app, event);
+                },
+            )
+            .await
+            .map_err(Into::into)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -460,19 +718,22 @@ async fn update_port(
     bios: Option<PathBuf>,
     stage: bool,
 ) -> DesktopResult<InstallRecord> {
-    let service = service(&state)?;
-    service
-        .update(
-            &port_id,
-            source.as_deref(),
-            bios.as_deref(),
-            !stage,
-            |event: OperationEvent| {
-                let _ = app.emit("portcove://operation", event);
-            },
-        )
-        .await
-        .map_err(Into::into)
+    let state = state.inner().clone();
+    blocking_async_service(state, move |service| async move {
+        service
+            .update(
+                &port_id,
+                source.as_deref(),
+                bios.as_deref(),
+                !stage,
+                |event: OperationEvent| {
+                    emit_operation(&app, event);
+                },
+            )
+            .await
+            .map_err(Into::into)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -528,33 +789,130 @@ async fn preview_adoption(
 
 #[tauri::command]
 async fn adopt_port(
+    app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,
     path: PathBuf,
     port_id: Option<String>,
-) -> DesktopResult<InstallRecord> {
+    plan_sha256: String,
+) -> DesktopResult<Option<InstallRecord>> {
+    let worker_state = state.inner().clone();
+    let preview = blocking_service(worker_state, {
+        let path = path.clone();
+        let port_id = port_id.clone();
+        move |service| {
+            service
+                .preview_adoption(&path, port_id.as_deref())
+                .map_err(Into::into)
+        }
+    })
+    .await?;
+    if preview.plan_sha256 != plan_sha256 {
+        return Err(PortcoveError::conflict(
+            "adoption contents changed after preview; review the copy plan again",
+        )
+        .into());
+    }
+    let skipped = preview.copy_plan.skipped_entries.len();
+    let message = format!(
+        "Copy {} files ({} bytes) into Portcove?\n\n{} skipped entr{} will remain only in the original folder. The original folder will not be modified.",
+        preview.copy_plan.files.len(),
+        preview.copy_plan.total_bytes,
+        skipped,
+        if skipped == 1 { "y" } else { "ies" },
+    );
+    if !confirm_destructive(&app, "Confirm adoption", message, "Copy into Portcove").await {
+        return Ok(None);
+    }
     let state = state.inner().clone();
     blocking_service(state, move |service| {
-        service.adopt(&path, port_id.as_deref()).map_err(Into::into)
+        let authorization = service.authorize_adoption(&path, port_id.as_deref(), &plan_sha256)?;
+        service
+            .adopt(&path, port_id.as_deref(), &authorization.token)
+            .map(Some)
+            .map_err(Into::into)
     })
     .await
 }
 
 #[tauri::command]
 async fn remove_port(
+    app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,
     port_id: String,
-) -> DesktopResult<Vec<PathBuf>> {
+) -> DesktopResult<Option<Vec<PathBuf>>> {
+    let worker_state = state.inner().clone();
+    let preview = blocking_service(worker_state, {
+        let port_id = port_id.clone();
+        move |service| service.preview_removal(&port_id).map_err(Into::into)
+    })
+    .await?;
+    let message = format!(
+        "Remove {} managed version director{} for {}?\n\nPersistent data at {} will be preserved.",
+        preview.managed_paths.len(),
+        if preview.managed_paths.len() == 1 {
+            "y"
+        } else {
+            "ies"
+        },
+        port_id,
+        preview.persistent_data_path.display(),
+    );
+    if !confirm_destructive(
+        &app,
+        "Confirm port removal",
+        message,
+        "Remove managed versions",
+    )
+    .await
+    {
+        return Ok(None);
+    }
     let state = state.inner().clone();
     blocking_service(state, move |service| {
-        service.remove(&port_id).map_err(Into::into)
+        let authorization = service.authorize_removal(&port_id, &preview.preview_sha256)?;
+        service
+            .remove(&port_id, &authorization.token)
+            .map(Some)
+            .map_err(Into::into)
     })
     .await
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct LaunchResult {
     process_id: u32,
+    session_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct LaunchSupervisorRequest {
+    library_root: PathBuf,
+    port_id: String,
+    source: Option<PathBuf>,
+    arguments: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct LaunchSupervisorResponse {
+    result: Option<LaunchResult>,
+    error: Option<DesktopError>,
+}
+
+impl LaunchSupervisorResponse {
+    fn success(result: LaunchResult) -> Self {
+        Self {
+            result: Some(result),
+            error: None,
+        }
+    }
+
+    fn failure(error: impl Into<DesktopError>) -> Self {
+        Self {
+            result: None,
+            error: Some(error.into()),
+        }
+    }
 }
 
 #[tauri::command]
@@ -565,84 +923,289 @@ async fn launch_port(
     source: Option<PathBuf>,
     arguments: Vec<String>,
 ) -> DesktopResult<LaunchResult> {
-    let library = state.library.clone();
-    let state = state.inner().clone();
-    let spec_port_id = port_id.clone();
-    let (spec, launch_guard) = blocking_service(state, move |service| {
-        service
-            .prepare_launch(&spec_port_id, source.as_deref())
-            .map_err(Into::into)
+    let library = ready(&state)?.library.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        request_supervised_launch(&library, port_id, source, arguments)
     })
-    .await?;
-    let install_root = spec.install_root.clone();
-    let mut child = Command::new(&spec.executable)
-        .args(&spec.arguments)
-        .args(arguments)
-        .current_dir(spec.working_directory)
-        .envs(spec.environment)
+    .await
+    .map_err(|error| DesktopError::from(PortcoveError::state(error.to_string())))??;
+    let observed_session = result.session_id.clone();
+    let observed_library = ready(&state)?.library.clone();
+    thread::spawn(move || {
+        loop {
+            match observed_library.launch_sessions() {
+                Ok(sessions)
+                    if sessions
+                        .iter()
+                        .any(|session| session.id == observed_session) =>
+                {
+                    thread::sleep(Duration::from_millis(250));
+                }
+                _ => break,
+            }
+        }
+        let _ = app.emit("portcove://library-changed", ());
+    });
+    Ok(result)
+}
+
+fn request_supervised_launch(
+    library: &Library,
+    port_id: String,
+    source: Option<PathBuf>,
+    arguments: Vec<String>,
+) -> DesktopResult<LaunchResult> {
+    let request_id = OperationCoordinator::new("launch-supervisor-request", None)
+        .operation_id()
+        .to_owned();
+    let directory = library.root().join("launch-requests");
+    fs::create_dir_all(&directory).map_err(PortcoveError::from)?;
+    let request_path = directory.join(format!("{request_id}.json"));
+    let response_path = directory.join(format!("{request_id}.response.json"));
+    publish_json(
+        &request_path,
+        &LaunchSupervisorRequest {
+            library_root: library.root().to_path_buf(),
+            port_id,
+            source,
+            arguments,
+        },
+    )?;
+    let executable = std::env::current_exe().map_err(PortcoveError::from)?;
+    let mut command =
+        ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, &executable)?;
+    command
+        .arg("--portcove-supervise")
+        .arg(&request_path)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|error| DesktopError::from(PortcoveError::launch(error.to_string())))?;
-    let process_id = child.id();
-    let sync_port_id = port_id.clone();
-    std::thread::spawn(move || {
-        let _launch_guard = launch_guard;
-        match child.wait() {
-            Ok(status) if status.success() => {
-                if let Err(error) = library.record_successful_launch(&sync_port_id) {
-                    let _ = app.emit(
-                        "portcove://operation",
-                        OperationEvent::Message {
-                            level: "error".into(),
-                            message: format!("could not record successful launch: {error}"),
-                        },
-                    );
-                } else {
-                    let _ = app.emit("portcove://library-changed", &sync_port_id);
+        .stderr(Stdio::null());
+    configure_independent_process(&mut command);
+    let mut supervisor = command.spawn().map_err(|error| {
+        let _ = fs::remove_file(&request_path);
+        PortcoveError::launch(format!("could not start the launch supervisor: {error}"))
+    })?;
+    let deadline = Instant::now() + Duration::from_secs(300);
+    loop {
+        if response_path.is_file() {
+            let response: LaunchSupervisorResponse =
+                serde_json::from_slice(&fs::read(&response_path).map_err(PortcoveError::from)?)
+                    .map_err(PortcoveError::from)?;
+            let _ = fs::remove_file(&response_path);
+            return match (response.result, response.error) {
+                (Some(result), None) => Ok(result),
+                (None, Some(error)) => Err(error),
+                _ => Err(
+                    PortcoveError::state("launch supervisor returned an invalid response").into(),
+                ),
+            };
+        }
+        if let Some(status) = supervisor.try_wait().map_err(PortcoveError::from)? {
+            let _ = fs::remove_file(&request_path);
+            return Err(PortcoveError::launch(format!(
+                "launch supervisor exited before starting the game ({status})"
+            ))
+            .into());
+        }
+        if Instant::now() >= deadline {
+            return Err(PortcoveError::launch(
+                "launch supervisor did not report a child process within five minutes",
+            )
+            .into());
+        }
+        thread::sleep(Duration::from_millis(25));
+    }
+}
+
+fn response_path_for(request_path: &Path) -> PathBuf {
+    request_path.with_extension("response.json")
+}
+
+fn publish_json(path: &Path, value: &impl Serialize) -> DesktopResult<()> {
+    let temporary = path.with_extension(format!("tmp-{}", std::process::id()));
+    fs::write(
+        &temporary,
+        serde_json::to_vec(value).map_err(PortcoveError::from)?,
+    )
+    .map_err(PortcoveError::from)?;
+    fs::rename(&temporary, path).map_err(PortcoveError::from)?;
+    Ok(())
+}
+
+fn configure_independent_process(command: &mut std::process::Command) {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+        const DETACHED_PROCESS: u32 = 0x0000_0008;
+        command.creation_flags(CREATE_NEW_PROCESS_GROUP | DETACHED_PROCESS);
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        command.process_group(0);
+    }
+}
+
+pub fn run_hidden_helper() -> Option<i32> {
+    let mut arguments = std::env::args_os();
+    let _program = arguments.next();
+    match arguments.next().as_deref() {
+        Some(mode) if mode == "--portcove-supervise" => {
+            let request = arguments.next().map(PathBuf::from);
+            Some(match request {
+                Some(request) if arguments.next().is_none() => run_supervisor_request(&request),
+                _ => 2,
+            })
+        }
+        Some(mode) if mode == "--portcove-recover" => {
+            let library = arguments.next().map(PathBuf::from);
+            let session_id = arguments.next();
+            Some(match (library, session_id) {
+                (Some(library), Some(session_id)) if arguments.next().is_none() => {
+                    match session_id.to_str() {
+                        Some(session_id) => run_recovery_helper(&library, session_id),
+                        None => 2,
+                    }
                 }
-            }
-            Ok(_) => {}
-            Err(error) => {
-                let _ = app.emit(
-                    "portcove://operation",
-                    OperationEvent::Message {
-                        level: "error".into(),
-                        message: format!("could not observe the launched process: {error}"),
-                    },
-                );
-            }
+                _ => 2,
+            })
         }
-        if let Err(error) = PortcoveService::new(library).and_then(|service| {
-            service.collect_user_data_from_install(&sync_port_id, &install_root)
-        }) {
-            let _ = app.emit(
-                "portcove://operation",
-                OperationEvent::Message {
-                    level: "error".into(),
-                    message: format!("could not preserve user data: {error}"),
+        _ => None,
+    }
+}
+
+fn run_supervisor_request(request_path: &Path) -> i32 {
+    let response_path = response_path_for(request_path);
+    let request = fs::read(request_path)
+        .map_err(PortcoveError::from)
+        .and_then(|bytes| {
+            serde_json::from_slice::<LaunchSupervisorRequest>(&bytes).map_err(Into::into)
+        });
+    let _ = fs::remove_file(request_path);
+    let request = match request {
+        Ok(request) => request,
+        Err(error) => {
+            let _ = publish_json(&response_path, &LaunchSupervisorResponse::failure(error));
+            return 1;
+        }
+    };
+    let mut response_written = false;
+    let result = Library::open(&request.library_root)
+        .and_then(PortcoveService::new)
+        .and_then(|service| {
+            service.supervise_launch(
+                &request.port_id,
+                request.source.as_deref(),
+                &request.arguments,
+                LaunchStdio::Null,
+                |session| {
+                    if let Some(process_id) = session.child_pid {
+                        response_written = publish_json(
+                            &response_path,
+                            &LaunchSupervisorResponse::success(LaunchResult {
+                                process_id,
+                                session_id: session.id.clone(),
+                            }),
+                        )
+                        .is_ok();
+                    }
                 },
-            );
+            )
+        });
+    if !response_written {
+        let succeeded = result.is_ok();
+        let response = match result {
+            Ok(outcome) => LaunchSupervisorResponse::success(LaunchResult {
+                process_id: outcome.child_pid,
+                session_id: outcome.session_id,
+            }),
+            Err(error) => LaunchSupervisorResponse::failure(error),
+        };
+        if publish_json(&response_path, &response).is_err() {
+            return 1;
         }
-    });
-    Ok(LaunchResult { process_id })
+        return if succeeded { 0 } else { 1 };
+    }
+    if result.is_ok() { 0 } else { 1 }
+}
+
+fn run_recovery_helper(library_root: &Path, session_id: &str) -> i32 {
+    match Library::open(library_root)
+        .and_then(PortcoveService::new)
+        .and_then(|service| service.recover_launch_session(session_id))
+    {
+        Ok(()) => 0,
+        Err(_) => 1,
+    }
+}
+
+fn start_stale_launch_recovery(library: &Library) -> portcove_core::Result<()> {
+    let sessions = PortcoveService::new(library.clone())?.stale_launch_sessions()?;
+    if sessions.is_empty() {
+        return Ok(());
+    }
+    let executable = std::env::current_exe()?;
+    for session in sessions {
+        let mut command =
+            ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, &executable)?;
+        command
+            .arg("--portcove-recover")
+            .arg(library.root())
+            .arg(&session.id)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        configure_independent_process(&mut command);
+        command.spawn().map_err(|error| {
+            PortcoveError::state(format!(
+                "could not start recovery for launch session {}: {error}",
+                session.id
+            ))
+        })?;
+    }
+    Ok(())
 }
 
 #[tauri::command]
-fn get_doctor_report(state: tauri::State<'_, DesktopState>) -> DesktopResult<DoctorReport> {
-    service(&state)?.doctor().map_err(Into::into)
+async fn get_doctor_report(state: tauri::State<'_, DesktopState>) -> DesktopResult<DoctorReport> {
+    let state = state.inner().clone();
+    blocking_service(state, |service| service.doctor().map_err(Into::into)).await
 }
 
 #[tauri::command]
-fn open_user_data(
+async fn open_user_data(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
 ) -> DesktopResult<PathBuf> {
-    let path = service(&state)?.port_paths(&port_id)?.user_data_root;
-    std::fs::create_dir_all(&path).map_err(PortcoveError::from)?;
-    open_directory(&path)?;
-    Ok(path)
+    let state = state.inner().clone();
+    blocking_service(state, move |service| {
+        let path = service.port_paths(&port_id)?.user_data_root;
+        std::fs::create_dir_all(&path).map_err(PortcoveError::from)?;
+        open_directory(&path)?;
+        Ok(path)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn create_support_bundle(state: tauri::State<'_, DesktopState>) -> DesktopResult<PathBuf> {
+    let state = state.inner().clone();
+    blocking_service(state, |service| {
+        diagnostics::create_support_bundle(&service).map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+fn report_frontend_error(message: String, component_stack: String) -> DesktopResult<()> {
+    tracing::error!(
+        operation_id = "frontend-render",
+        %message,
+        %component_stack,
+        "frontend render failed"
+    );
+    Ok(())
 }
 
 fn open_directory(path: &std::path::Path) -> DesktopResult<()> {
@@ -652,34 +1215,57 @@ fn open_directory(path: &std::path::Path) -> DesktopResult<()> {
     let program = "open";
     #[cfg(target_os = "linux")]
     let program = "xdg-open";
-    Command::new(program).arg(path).spawn().map_err(|error| {
-        PortcoveError::state(format!(
-            "could not open persistent data folder {}: {error}",
-            path.display()
-        ))
-    })?;
+    ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, program)?
+        .arg(path)
+        .spawn()
+        .map_err(|error| {
+            PortcoveError::state(format!(
+                "could not open persistent data folder {}: {error}",
+                path.display()
+            ))
+        })?;
     Ok(())
 }
 
-pub fn run() {
-    let library = std::env::var_os("PORTCOVE_LIBRARY")
+fn initialize_desktop() -> DesktopResult<ReadyDesktopState> {
+    let configured_root = std::env::var_os("PORTCOVE_LIBRARY")
         .filter(|path| !path.is_empty())
+        .map(PathBuf::from);
+    initialize_desktop_at(configured_root)
+}
+
+fn initialize_desktop_at(configured_root: Option<PathBuf>) -> DesktopResult<ReadyDesktopState> {
+    let library = configured_root
         .map(Library::open)
         .unwrap_or_else(Library::open_default)
-        .expect("Portcove library should initialize");
+        .map_err(DesktopError::from)?;
+    start_stale_launch_recovery(&library).map_err(DesktopError::from)?;
     let releases = std::sync::Arc::new(
-        CompositeReleaseProvider::for_library(&library)
-            .expect("Portcove release provider should initialize"),
+        CompositeReleaseProvider::for_library(&library).map_err(DesktopError::from)?,
     );
     let github = releases.github();
+    Ok(ReadyDesktopState {
+        library,
+        github,
+        releases,
+    })
+}
+
+pub fn run() {
+    let initialization = std::sync::Arc::new(initialize_desktop().and_then(|state| {
+        diagnostics::initialize(&state.library.logs_dir()).map_err(DesktopError::from)?;
+        tracing::info!(
+            operation_id = "desktop-startup",
+            library_root = %state.library.root().display(),
+            "desktop diagnostics initialized"
+        );
+        Ok(state)
+    }));
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .manage(DesktopState {
-            library,
-            github,
-            releases,
-        })
+        .manage(DesktopState { initialization })
         .invoke_handler(tauri::generate_handler![
+            get_bootstrap_status,
             get_github_auth_status,
             plan_port,
             set_github_token,
@@ -700,6 +1286,8 @@ pub fn run() {
             check_installed,
             reconcile_installed,
             add_source,
+            preview_source_removal,
+            remove_source,
             set_channel,
             set_policy,
             install_port,
@@ -713,14 +1301,84 @@ pub fn run() {
             launch_port,
             get_doctor_report,
             open_user_data,
+            create_support_bundle,
+            report_frontend_error,
         ])
         .setup(|app| {
-            let window = app
-                .get_webview_window("main")
-                .expect("main window should exist");
-            window.set_focus()?;
+            if let Some(window) = app.get_webview_window("main") {
+                window.set_focus()?;
+            }
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("error while running Portcove");
+        .unwrap_or_else(|error| eprintln!("Portcove desktop stopped: {error}"));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn invalid_library_initialization_becomes_a_recoverable_desktop_state() {
+        let temporary = tempfile::tempdir().unwrap();
+        let blocked = temporary.path().join("not-a-directory");
+        fs::write(&blocked, b"file blocks the configured library directory").unwrap();
+        let error = match initialize_desktop_at(Some(blocked.clone())) {
+            Ok(_) => panic!("a file cannot be opened as a Portcove library"),
+            Err(error) => error,
+        };
+        let state = DesktopState {
+            initialization: std::sync::Arc::new(Err(error.clone())),
+        };
+
+        let status = bootstrap_status(&state);
+
+        assert!(!status.ready);
+        assert_eq!(status.error.unwrap().message, error.message);
+        assert!(status.library_root.is_none());
+        assert!(service(&state).is_err());
+        assert_eq!(
+            fs::read(blocked).unwrap(),
+            b"file blocks the configured library directory"
+        );
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn blocking_worker_keeps_the_ipc_runtime_responsive() {
+        let (started, observed_start) = tokio::sync::oneshot::channel();
+        let worker = tokio::spawn(blocking_worker(move || {
+            let _ = started.send(());
+            thread::sleep(Duration::from_millis(75));
+            Ok(7_u8)
+        }));
+        observed_start.await.unwrap();
+
+        tokio::time::timeout(
+            Duration::from_millis(30),
+            tokio::time::sleep(Duration::from_millis(5)),
+        )
+        .await
+        .expect("a blocking filesystem phase must not occupy the IPC runtime");
+        assert!(!worker.is_finished());
+        assert_eq!(worker.await.unwrap().unwrap(), 7);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn cancelling_an_ipc_waiter_does_not_interrupt_inflight_worker_mutation() {
+        let (started, observed_start) = tokio::sync::oneshot::channel();
+        let (finished, observed_finish) = std::sync::mpsc::channel();
+        let waiter = tokio::spawn(blocking_worker(move || {
+            let _ = started.send(());
+            thread::sleep(Duration::from_millis(40));
+            finished.send(()).unwrap();
+            Ok(())
+        }));
+        observed_start.await.unwrap();
+
+        waiter.abort();
+        assert!(waiter.await.unwrap_err().is_cancelled());
+        observed_finish
+            .recv_timeout(Duration::from_secs(1))
+            .expect("the lifecycle worker must finish after its IPC waiter is cancelled");
+    }
 }

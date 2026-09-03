@@ -247,14 +247,28 @@ function AboutCard() {
   </article>;
 }
 
+function DiagnosticsCard({ busy, createSupportBundle }: { busy?: string; createSupportBundle?: () => Promise<string | undefined> }) {
+  const [bundlePath, setBundlePath] = useState<string>();
+  const create = async () => {
+    const path = await createSupportBundle?.();
+    if (path) setBundlePath(path);
+  };
+  return <article className="settings-card diagnostics-card">
+    <p className="eyebrow">DIAGNOSTICS</p><h2><Icon glyph={ShieldCheck} />Redacted support bundle</h2>
+    <p>Collect rotated desktop logs, recent operation records, and host readiness without game sources or stored credentials.</p>
+    <button data-focusable className="small-control" disabled={Boolean(busy) || !createSupportBundle} onClick={() => { void create(); }}>Create support bundle</button>
+    {bundlePath && <p role="status">Saved to <code>{bundlePath}</code></p>}
+  </article>;
+}
+
 function ThemeOption({ option, selected, select }: { option: ThemePreference; selected: boolean; select?: (preference: ThemePreference) => void }) {
   return <button data-focusable className={selected ? "active" : ""} aria-pressed={selected} onClick={() => select?.(option)}>{option[0].toUpperCase() + option.slice(1)}</button>;
 }
 
-export function SettingsView({ libraryRoot = "", doctor, storage, github, busy, sources = [], sourceNeeds = [], sourceOutcomes = [], verifySources, replaceSource, addSource, appearance }: {
+export function SettingsView({ libraryRoot = "", doctor, storage, github, busy, sources = [], sourceNeeds = [], sourceOutcomes = [], verifySources, replaceSource, addSource, appearance, createSupportBundle }: {
   libraryRoot?: string; doctor?: DoctorReport; storage?: StorageSummary; github?: GithubSettingsActions; busy?: string; sources?: SourceRecord[];
   sourceNeeds?: SourceRequirement[]; sourceOutcomes?: SourceVerificationOutcome[]; verifySources?: () => void; replaceSource?: (source: SourceRecord) => void;
-  addSource?: (profile: SourceProfile, archive: boolean) => void; appearance?: ThemeState;
+  addSource?: (profile: SourceProfile, archive: boolean) => void; appearance?: ThemeState; createSupportBundle?: () => Promise<string | undefined>;
 }) {
   return <section className="settings-grid">
     <GithubSettings github={github} busy={busy} />
@@ -262,6 +276,7 @@ export function SettingsView({ libraryRoot = "", doctor, storage, github, busy, 
     <StorageCard libraryRoot={storage?.library_root ?? libraryRoot} storage={storage} />
     <AppearanceSettings appearance={appearance} />
     <HostReadiness doctor={doctor} />
+    <DiagnosticsCard busy={busy} createSupportBundle={createSupportBundle} />
     <AboutCard />
     <article className="settings-card"><p className="eyebrow">UPDATES</p><h2>Safe by default</h2><p>Stable is the default channel. Beta and rolling releases are always an explicit per-port choice.</p></article>
     <article className="settings-card"><p className="eyebrow">PRIVACY</p><h2>Local and source-safe</h2><p>Portcove does not upload game sources or collect telemetry. Source files remain where you keep them.</p></article>

@@ -10,7 +10,7 @@ Portcove uses one local quality interface for humans, CI, and coding agents. The
 ./scripts/bootstrap-quality-tools.sh
 ```
 
-Pass `-IncludeDeep` or `--include-deep` to also install semdup, cargo-mutants, and Hawk where supported. Both scripts are idempotent, verify and print exact installed versions, and never silently upgrade tools. Deep tools remain optional: Hawk requires exactly Rust 1.98 and does not support Windows, while semdup 0.2.0 requires a current native C++ linker for its ONNX runtime.
+Pass `-IncludeDeep` or `--include-deep` to also install semdup, cargo-mutants, and Hawk where supported. Both scripts are idempotent, verify and print exact installed versions, and never silently upgrade tools. Deep tools remain optional: Hawk uses its own manifest-pinned Rust toolchain and does not support Windows, while semdup requires a current native C++ linker for its ONNX runtime.
 
 ## Canonical commands
 
@@ -29,26 +29,25 @@ Structural heuristics advise: dependency duplication, unmaintained transitive de
 
 pnpm 11's default one-day minimum release age remains active. The workspace contains exact-version-only exceptions for the Fallow 3.22.0 platform set and Lucide 1.39.0 used during this reviewed modernization pass; future versions are not exempt. Do not replace these with package-wide patterns or disable lockfile verification.
 
-## Pinned tool versions
+## Tool and Rust version authority
 
-- just 1.58.0
-- cargo-shear 1.13.4
-- cargo-deny 0.20.2
-- cargo-modules 0.27.0
-- rscheck-cli 0.1.0
-- cargo-hawk 0.1.13 with Rust 1.98.0, optional
-- semdup 0.2.0, optional
-- cargo-mutants 27.1.0, optional
+`.github/quality-tools.json` is the sole quality-tool pin manifest. It records every required and deep tool, exact version, install tier, version command, and any tool-private Rust requirement. The bootstrap scripts and all required, release, and deep workflows consume that manifest. `scripts/quality-tools.mjs --validate` rejects copied tool pins in those consumers.
 
-CI installs the required exact versions through a commit-pinned installer action with checksum verification. The local bootstrap scripts use cargo-binstall when available and exact, locked Cargo installs otherwise; optional deep tools remain outside required PR CI.
+`rust-toolchain.toml` pins normal development and CI to the workspace MSRV recorded in `Cargo.toml`; the manifest validator requires those two declarations and the quality contract to agree. An MSRV increase therefore requires one reviewed update across the workspace metadata, pinned toolchain, and machine contract instead of an implicit move with the latest stable compiler.
 
-The manually triggered `.github/workflows/deep-quality.yml` job provides a reproducible Ubuntu 24.04 environment for the full advisory pass, including semdup and Hawk. Ubuntu 24.04 is intentional: semdup's bundled ONNX Runtime currently requires newer glibc C23 symbols than the Ubuntu 22.04 runner provides. It runs the same `just deep` constituents as separate observable steps, but is deliberately not a required pull-request status check. Start it after broad refactors or when the Windows host cannot link semdup:
+The committed Cargo lockfile is part of that MSRV contract across every supported host. Tauri's Linux credential-store graph currently resolves `aes 0.9.2`, the newest release in that line compatible with Rust 1.88; `aes 0.9.3` raises its compiler floor to 1.89. Required Ubuntu CI compiles and tests the locked Linux graph with the pinned toolchain, so a future transitive update that exceeds Portcove's declared MSRV fails before merge.
+
+CI installs the small prebuilt tool set through the commit-pinned installer action, restores source-built rscheck from an exact-version cache when available, and verifies every exact version before running a gate. An rscheck cache miss falls back to the same pinned installer. The local bootstrap scripts use cargo-binstall when available and exact, locked Cargo installs otherwise; optional deep tools remain outside required PR CI.
+
+Required CI cancels an older in-progress run when a newer commit reaches the same branch or pull request. This keeps obsolete Windows builds from occupying the queue while preserving a complete run for the newest commit.
+
+The manually triggered `.github/workflows/deep-quality.yml` workflow provides a reproducible Ubuntu 24.04 environment for the full advisory pass, including semdup and Hawk. Ubuntu 24.04 is intentional: semdup's bundled ONNX Runtime currently requires newer glibc C23 symbols than the Ubuntu 22.04 runner provides. It runs the same `just deep` constituents as independent audit, Hawk, and semantic-duplication jobs so they execute in parallel, but is deliberately not a required pull-request status check. Start it after broad refactors or when the Windows host cannot link semdup:
 
 ```bash
 gh workflow run deep-quality.yml --ref main
 ```
 
-The workflow caches semdup's versioned 149 MB model and its repository-local SQLite corpus. A source change restores the most recent compatible corpus and embeds only changed units; a configuration change starts a new corpus series. The first CPU-only index is allowed a longer cold-start budget, while later runs should be incremental.
+The workflow caches semdup's exact-version executable, versioned 149 MB model, and repository-local SQLite corpus. A source change restores the most recent compatible corpus and embeds only changed units; a configuration change starts a new corpus series. The first CPU-only index is allowed a longer cold-start budget, while later runs should be incremental. The deterministic audit and Hawk lanes reuse the former combined job's Rust cache so the split does not discard the established warm path.
 
 The workflow log is review evidence, not an instruction to rewrite code. Hawk and semdup findings remain advisory, but the hosted job requires both analyzers to execute successfully so a missing tool or broken runtime cannot masquerade as a clean report. Local `just deep` continues past unavailable optional tools, and deterministic checks inside `just audit` still block normally.
 
@@ -79,6 +78,8 @@ The 2026-09-02 baseline is classified as follows:
 The first complete hosted deep baseline is [run 33651741470](https://github.com/boburning/portcove/actions/runs/33651741470) at commit `b8486d4`. Hawk reported zero dead public APIs after the reviewed cleanup. semdup indexed 638 units, scanned the 236 functions meeting the eight-line floor with the exact index, and reported zero qualifying pairs in zero three-member clusters at 0.85; six smaller clusters were hidden by the intentional rule-of-three threshold. The cold semdup stage took 37 minutes, after which Actions saved a 141.4 MB model cache and 2.0 MB corpus cache. This is a clean advisory baseline, not proof that no smaller or conceptual duplication exists.
 
 The incremental path is proven by [run 33657080917](https://github.com/boburning/portcove/actions/runs/33657080917) at commit `a856d22`. It restored the model by its primary key and the compatible `b8486d4` corpus by prefix, indexed 648 current units, embedded only 15 changed texts in 30 seconds, and reproduced the same zero-pair report. Hawk again reported zero findings. The complete warm job took about 10.5 minutes instead of the cold run's roughly 50 minutes.
+
+The completed audit-remediation implementation was revalidated by [run 33705777418](https://github.com/boburning/portcove/actions/runs/33705777418) at commit `df9de02`. All three lanes passed: semantic duplication in 5m49s, Hawk in 7m01s, and the full deterministic audit in 9m37s. This run is the final-head structural evidence; its analyzer reports remain advisory under the policy above.
 
 Do not expand exceptions casually. Newly introduced absolute path literals still fail. Promote cargo-modules to a hard gate once its baseline represents actual module edges cleanly.
 

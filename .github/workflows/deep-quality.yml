@@ -11,14 +11,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deep-quality:
+  audit:
     # semdup's bundled ONNX Runtime references glibc C23 symbols that are not
-    # available on Ubuntu 22.04. Noble remains a stable, explicitly pinned
-    # GitHub-hosted image and supplies the newer runtime required by semdup.
+    # available on Ubuntu 22.04. Keep every deep lane on the same pinned image.
     runs-on: ubuntu-24.04
-    # A cold CPU-only semdup index takes roughly an hour on the stock runner.
-    # Warm runs reuse both the model and prior corpus embeddings below.
-    timeout-minutes: 90
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
@@ -29,28 +26,145 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
           cache-dependency-path: apps/desktop/pnpm-lock.yaml
-      - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
+      - name: Read quality tool pins
+        id: quality-pins
+        run: node scripts/quality-tools.mjs --github-output >> "$GITHUB_OUTPUT"
+      - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          # Reuse the cache created by the former single deep-quality job.
+          shared-key: deep-quality
       - name: Install Linux desktop prerequisites
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-      - name: Install pinned repository and semantic-analysis tools
+      - name: Restore pinned rscheck binaries
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.cargo/bin/cargo-rscheck
+            ~/.cargo/bin/rscheck
+          key: quality-rscheck-binaries-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/quality-tools.json') }}
+      - name: Install pinned prebuilt audit tools
         uses: taiki-e/install-action@e67fa11c4b9316fa714ddf0abed07a0c3143b95b # v2
         with:
-          tool: just@1.58.0,cargo-shear@1.13.4,cargo-deny@0.20.2,cargo-modules@0.27.0,rscheck-cli@0.1.0,semdup@0.2.0
-      - name: Install pinned Hawk toolchain
+          tool: ${{ steps.quality-pins.outputs.required_prebuilt }}
+      - name: Check cached pinned rscheck version
+        id: rscheck-tool
+        shell: bash
         run: |
-          rustup toolchain install 1.98.0 --component rustc-dev
-          RUSTC_BOOTSTRAP=1 cargo +1.98.0 install --locked --version 0.1.13 cargo-hawk
-          cargo +1.98.0 hawk --version
+          if node scripts/quality-tools.mjs --verify rscheck-cli; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install pinned rscheck
+        if: steps.rscheck-tool.outputs.ready != 'true'
+        uses: taiki-e/install-action@e67fa11c4b9316fa714ddf0abed07a0c3143b95b # v2
+        with:
+          tool: ${{ steps.quality-pins.outputs.rscheck_spec }}
+      - name: Verify exact audit-tool versions
+        run: ./scripts/bootstrap-quality-tools.sh
       - run: pnpm install --frozen-lockfile
         working-directory: apps/desktop
+      - name: Run deterministic gates and structural audit
+        run: just audit
+
+  hawk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: Read quality tool pins
+        id: quality-pins
+        run: node scripts/quality-tools.mjs --github-output >> "$GITHUB_OUTPUT"
+      - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          # This also restores the already-built pinned Hawk binary.
+          shared-key: deep-quality
+          save-if: false
+      - name: Restore pinned Hawk binary
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cargo/bin/cargo-hawk
+          key: quality-hawk-binary-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/quality-tools.json') }}
+      - name: Install Linux desktop prerequisites
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - name: Install pinned Hawk toolchain
+        run: rustup toolchain install ${{ steps.quality-pins.outputs.hawk_rust }} --component rustc-dev
+      - name: Check cached pinned Hawk
+        id: hawk-tool
+        shell: bash
+        run: |
+          if node scripts/quality-tools.mjs --verify cargo-hawk; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install pinned Hawk
+        if: steps.hawk-tool.outputs.ready != 'true'
+        env:
+          RUSTC_BOOTSTRAP: "1"
+        run: cargo +${{ steps.quality-pins.outputs.hawk_rust }} install --locked --version ${{ steps.quality-pins.outputs.hawk_version }} cargo-hawk
+      - name: Verify exact Hawk version
+        run: node scripts/quality-tools.mjs --verify cargo-hawk
+      - name: Analyze dead public APIs with Hawk
+        env:
+          PORTCOVE_REQUIRE_DEEP_TOOLS: "1"
+        run: node scripts/run-hawk.mjs
+
+  duplicates:
+    runs-on: ubuntu-24.04
+    # A cold CPU-only semdup index takes roughly an hour on the stock runner.
+    # Warm runs reuse the binary, model, and prior corpus embeddings below.
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: Read quality tool pins
+        id: quality-pins
+        run: node scripts/quality-tools.mjs --github-output >> "$GITHUB_OUTPUT"
+      - name: Restore pinned semdup binary
+        id: semdup-binary
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cargo/bin/semdup
+          key: semdup-binary-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/quality-tools.json') }}
+      - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c
+        if: steps.semdup-binary.outputs.cache-hit != 'true'
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        if: steps.semdup-binary.outputs.cache-hit != 'true'
+        with:
+          # Seed the dedicated binary cache from the former combined job.
+          shared-key: deep-quality
+          save-if: false
+      - name: Check cached pinned semdup version
+        id: semdup-tool
+        shell: bash
+        run: |
+          if node scripts/quality-tools.mjs --verify semdup; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install pinned semdup
+        if: steps.semdup-tool.outputs.ready != 'true'
+        uses: taiki-e/install-action@e67fa11c4b9316fa714ddf0abed07a0c3143b95b # v2
+        with:
+          tool: ${{ steps.quality-pins.outputs.semdup_spec }}
+      - name: Verify exact semdup version
+        run: node scripts/quality-tools.mjs --verify semdup
       - name: Restore semdup model cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.cache/semdup
-          key: semdup-model-v1-${{ runner.os }}-${{ runner.arch }}-0.2.0
+          key: semdup-model-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/quality-tools.json') }}
       - name: Restore semdup corpus cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
@@ -61,14 +175,8 @@ jobs:
           key: semdup-corpus-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('semdup.toml') }}-${{ github.sha }}
           restore-keys: |
             semdup-corpus-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('semdup.toml') }}-
-      - name: Run deterministic gates and structural audit
-        run: just audit
-      - name: Analyze dead public APIs with Hawk
-        env:
-          PORTCOVE_REQUIRE_DEEP_TOOLS: "1"
-        run: just hawk
       - name: Analyze semantic duplication with semdup
         timeout-minutes: 70
         env:
           PORTCOVE_REQUIRE_DEEP_TOOLS: "1"
-        run: just duplicates
+        run: node scripts/run-semdup.mjs

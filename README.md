@@ -23,11 +23,13 @@ This repository is an early, working implementation. Catalog and state commands 
 - Source records referenced in place, never uploaded, and checked against their registered size and SHA-256 on demand and before reuse; when an upstream runtime requires its own validated local copy, that copy stays inside the local Portcove user-data tree.
 - Safe adoption by copying an existing installation without changing the original.
 - JSON, JSONL, JSON Schema, deterministic exit codes, and a network-free `exec` path for launchers such as Batocera, Playnite, LaunchBox, RetroBat, and EmuDeck.
-- A local, read-only `doctor` report for host platform, library capacity, catalog state, and optional `chdman`/DolphinTool discovery.
+- A local, read-only `doctor` report for host platform, library capacity, catalog state, optional `chdman`/DolphinTool discovery, and explicit repair planning for incomplete or ambiguous library state.
 - Cross-process per-port operation locks so multiple launchers cannot race installation state or mutate a port while its game process is running.
+- Parent-independent desktop launch supervision with durable crash recovery, exact-version save collection, and CLI signal forwarding.
 - Tauri 2/React desktop UI with keyboard and controller navigation.
 - Successful-exit launch history shared by CLI and desktop, with a real Continue action that never promotes failed starts or crashes.
-- Durable operation activity shared by CLI and desktop for update checks, installs, updates, policy reconciliation, verification, activation, rollback, backup/restore, adoption, removal, source registration, and failures.
+- Durable operation activity and recoverable cross-store lifecycle journals shared by CLI and desktop, with stable sequenced progress identities for overlapping and nested work.
+- Content-addressed install identity, current-byte executable checks, and one bounded collision-aware archive policy shared by release and private-toolchain extraction.
 - Native file and folder pickers for source registration and safe adoption, while retaining pasteable paths.
 - Confirmed desktop removal of managed versions while preserving saves, configuration, mods, and original sources.
 - GUI Update Center with failure-isolated bulk checks, per-port policy reconciliation, and persistent update awareness shared with CLI checks across restarts.
