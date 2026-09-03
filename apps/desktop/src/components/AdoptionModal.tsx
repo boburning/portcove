@@ -1,6 +1,6 @@
 import { FolderInput, FolderOpen, ShieldCheck, X } from "lucide-react";
 import { useDialogFocus } from "../dialog";
-import { Icon } from "./ui";
+import { Icon, NavigationHints } from "./ui";
 import type { AdoptionPreview } from "../types";
 
 export function AdoptionModal({ path, setPath, preview, busy, close, review, adopt, pickFolder }: {
@@ -12,6 +12,7 @@ export function AdoptionModal({ path, setPath, preview, busy, close, review, ado
     <span className="modal-icon"><Icon glyph={FolderInput} size="lg" /></span><p className="eyebrow">SAFE ADOPTION</p><h2 id="adopt-title">Bring an existing install into Portcove</h2>
     <p className="modal-description" id="adopt-description">Portcove previews the folder, identifies the port, and copies application files into its managed library. The original folder is never changed or deleted.</p>
     <p className="inline-assurance"><Icon glyph={ShieldCheck} /> Nothing is copied until the preview succeeds.</p>
+    <NavigationHints />
     <label htmlFor="adopt-path">Existing installation folder</label><div className="path-entry"><input data-autofocus data-focusable id="adopt-path" value={path} onChange={event => setPath(event.target.value)} placeholder="Choose or paste the full folder path" />
       {pickFolder && <button data-focusable className="button-with-icon" type="button" onClick={pickFolder}><Icon glyph={FolderOpen} />Browse</button>}</div>
     {preview && <section className="adoption-plan" aria-label="Adoption copy plan">

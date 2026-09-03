@@ -10,6 +10,7 @@ import { desktopApi } from "./api";
 import { useWorkspaceScroll } from "./keyboard-shortcuts";
 import { useThemePreference } from "./theme";
 import { useGamepadNavigation } from "./gamepad";
+import { focusRegion } from "./focus";
 import { overlayBackAction } from "./overlay-stack";
 import { useCommandSurface } from "./use-command-surface";
 import { adoptInstall, detailActions, type Perform, useGithubAuth, useInstallPlanning, useOperationState, usePortBackups, usePortcoveData, usePortcoveUi, useSourceHealth, useUpdateCenter } from "./use-portcove";
@@ -39,6 +40,7 @@ function BootstrapLoading() {
 }
 
 export function BootstrapRecovery({ error }: { error: DesktopError }) {
+  useGamepadNavigation(() => {});
   return <main className="bootstrap-state bootstrap-error" role="alert">
     <p className="eyebrow">Portcove could not start</p>
     <h1>Your library was left untouched</h1>
@@ -74,13 +76,14 @@ function Workspace() {
     if (action === "close-palette") commandSurface.setOpen(false);
     else if (action === "close-adoption") ui.setAdoptOpen(false);
     else if (action === "close-detail") ui.setSelectedId(undefined);
+    else focusRegion("sidebar");
   }, [commandSurface.open, commandSurface.setOpen, ui.adoptOpen, ui.selectedId, ui.setAdoptOpen, ui.setSelectedId]);
-  useGamepadNavigation(handleBack);
+  const controller = useGamepadNavigation(handleBack);
 
   return <div className="app-shell">
-    <Sidebar view={ui.view} setView={ui.setView} installedCount={data.statuses.filter(status => status.active).length}
+    <Sidebar view={ui.view} setView={ui.setView} controller={controller} installedCount={data.statuses.filter(status => status.active).length}
       updateCount={data.statuses.filter(status => currentUpdateSnapshot(status)?.check.update_available).length} onAdopt={() => ui.setAdoptOpen(true)} />
-    <main ref={workspace}>
+    <main ref={workspace} data-focus-region="workspace">
       <PageHeader view={ui.view} query={ui.query} setQuery={ui.setQuery} portCount={data.catalog?.ports.length ?? 0} onOpenCommands={() => commandSurface.setOpen(true)} />
       <StatusLayer error={operations.error} clearError={() => operations.setError(undefined)} operation={operations.operation} busy={operations.busy} />
       <CurrentView data={data} ui={ui} model={model} operations={operations} github={github} updates={updates} sourceHealth={sourceHealth} appearance={appearance} />

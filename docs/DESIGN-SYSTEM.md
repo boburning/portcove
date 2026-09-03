@@ -41,7 +41,11 @@ GUI labels should match the CLI concepts. A GUI action that external tools may a
 
 ## Shell and navigation
 
-The stable desktop shell consists of primary port navigation, a scrollable workspace, contextual port details, and a predictable operation/error layer. Pages do not invent unrelated chrome. `Ctrl/Cmd+1–4` changes primary views, `/` focuses port search, and `Ctrl/Cmd+K` opens the command palette. Arrow keys and gamepad direction follow visual position; Enter, Space, and controller A activate; Escape and controller B move back.
+The stable desktop shell consists of primary port navigation, a scrollable workspace, contextual port details, and a predictable operation/error layer. Pages do not invent unrelated chrome. `Ctrl/Cmd+1–4` changes primary views, `/` focuses port search, and `Ctrl/Cmd+K` opens the command palette. Workspace shortcuts stay inactive behind a dialog.
+
+Keyboard, controller, and dialog focus share one inventory of visible, enabled controls, including summaries and links. Arrow keys, the D-pad, and the left stick follow visual position within the current region. Left from the content edge returns to the sidebar; Right returns to the remembered content control. LB/RB selects the previous/next primary section when no dialog is open. A, Enter, and Space select. B/Escape closes only the top dialog and restores its initiating control; from the workspace it returns focus to the sidebar. A held button counts once even when opening a dialog rerenders the app. Directional repeat starts after 350 ms, then repeats every 140 ms.
+
+Controller input explicitly enables the gold focus outline; browser keyboard heuristics alone cannot identify controller focus. Focused controls and selected commands scroll into view. Text fields retain native keyboard editing. Choice controls open a focused list where A selects and B cancels, without cycling values implicitly. Hints reflect the current surface: section shortcuts appear only in the workspace.
 
 Portcove targets dense desktop use and a minimum 960-pixel-wide Tauri window. At narrower supported widths, the shell reduces nonessential labels and column count before hiding technical data. Reduced-motion preference removes nonessential transitions and progress animation.
 

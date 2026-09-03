@@ -39,3 +39,7 @@ function EmptyVisual({ icon, visual }: { icon?: LucideIcon; visual?: ReactNode }
 export function Shortcut({ children }: { children: ReactNode }) {
   return <kbd>{children}</kbd>;
 }
+
+export function NavigationHints({ controller, workspace = false }: { controller?: string; workspace?: boolean }) {
+  return <div className="controller-hint" aria-label="Navigation help">{controller && <strong>{controller}</strong>}<span>D-pad / stick / arrows: move</span><span>A / Enter: select</span><span>B / Esc: {workspace ? "menu" : "back"}</span>{workspace && <span>LB / RB: switch section</span>}</div>;
+}

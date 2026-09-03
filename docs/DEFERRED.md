@@ -93,10 +93,12 @@ The embedded catalog's `automated_tested_platforms` and `manually_validated_plat
 
 ## PCV-DEF-005 — Controller-navigation polish
 
-- Status: `later`
+- Status: `waiting`
 - Purpose: improve discoverability and consistency of controller controls in the desktop UI.
-- Current evidence: the controls work and the baseline manual smoke passed, but the user reported that they are not especially intuitive.
-- Product decision: prioritize functionality first. Revisit focus order, button hints, cancel/back behavior, modal trapping, and selected-card visibility as one cohesive UX pass rather than isolated tweaks.
+- Revalidated 2026-09-03: the user tested an Xbox controller and reported invisible focus, unreliable actions, no dependable return to the sidebar, and confusing A-button hints. This is a failed current qualification, irrespective of the historical baseline smoke.
+- Engineering: one shared control inventory; explicit controller focus outlines; button-edge state survives dialog renders; modal-local navigation and nested Back; focus restoration; selected-item scrolling; sidebar/content boundaries; B to menu; LB/RB section navigation; consistent A-to-select choice lists; context-specific hints. Keyboard editing remains native.
+- Evidence: integration fixtures cover held A/B across modal renders, sidebar return, bumper edges, Tab including summaries, native field arrows, and nested choice cancellation. Browser interaction verified visible gold focus, choice visibility, and one-level Escape/return focus. These checks do not establish controller feel.
+- Resume: repeat Catalog → game → Advanced controls → Update policy with the Xbox controller; verify visible selection, one action per press, B cancelling just the choice, B closing details to the same card, B returning to the sidebar, LB/RB sections, and selected-card visibility at the 960-pixel minimum window size. Record the user's actual result before closing this item.
 
 ## PCV-DEF-006 — Broader operating-system qualification
 

@@ -15,4 +15,14 @@ describe("global keyboard shortcuts", () => {
     expect(keyboardShortcutAction({ key: "/", altKey: true })).toBeUndefined();
     expect(keyboardShortcutAction({ key: "1" })).toBeUndefined();
   });
+
+  it("keeps workspace shortcuts behind the top modal inactive", () => {
+    for (const key of ["1", "2", "3", "4", "k"]) {
+      expect(keyboardShortcutAction({ key, ctrlKey: true, modalOpen: true })).toBeUndefined();
+    }
+    expect(keyboardShortcutAction({ key: "/", modalOpen: true })).toBeUndefined();
+    expect(keyboardShortcutAction({ key: "Escape", modalOpen: true, paletteOpen: true })).toBe("close-palette");
+    expect(keyboardShortcutAction({ key: "4", ctrlKey: true, modalOpen: true, paletteOpen: true })).toBeUndefined();
+    expect(keyboardShortcutAction({ key: "k", ctrlKey: true, modalOpen: true, paletteOpen: true })).toBe("toggle-palette");
+  });
 });

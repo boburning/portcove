@@ -6,10 +6,11 @@ import type { ThemeState, ThemePreference } from "../theme";
 import type { DoctorReport, GithubAuthStatus, GithubDeviceLogin, HostToolStatus, OperationEvent, SourceProfile, SourceRecord, SourceVerificationOutcome, StorageSummary } from "../types";
 import { formatBytes, type SourceRequirement, type View } from "../view-model";
 import { BrandAvatar, BrandMascot, BrandWordmark } from "./Brand";
-import { Icon, Shortcut } from "./ui";
+import { Icon, NavigationHints, Shortcut } from "./ui";
 
-export function Sidebar({ view, setView, installedCount, updateCount, onAdopt }: {
+export function Sidebar({ view, setView, installedCount, updateCount, onAdopt, controller }: {
   view: View; setView: Dispatch<SetStateAction<View>>; installedCount: number; updateCount: number; onAdopt: () => void;
+  controller?: string;
 }) {
   const items = [
     { view: "library", label: "Library", icon: Library, shortcut: "1" },
@@ -17,7 +18,7 @@ export function Sidebar({ view, setView, installedCount, updateCount, onAdopt }:
     { view: "updates", label: "Updates", icon: Download, shortcut: "3" },
     { view: "settings", label: "Settings", icon: Settings, shortcut: "4" },
   ] satisfies Array<{ view: View; label: string; icon: typeof Library; shortcut: string }>;
-  return <aside className="sidebar">
+  return <aside className="sidebar" data-focus-region="sidebar">
     <div className="brand"><BrandAvatar /><div><strong>Portcove</strong><small>Native ports, kept current</small></div></div>
     <nav aria-label="Primary navigation">{items.map(item =>
       <button data-focusable key={item.view} aria-current={view === item.view ? "page" : undefined} className={view === item.view ? "nav-item active" : "nav-item"} onClick={() => setView(item.view)}>
@@ -28,7 +29,7 @@ export function Sidebar({ view, setView, installedCount, updateCount, onAdopt }:
       </button>)}</nav>
     <div className="sidebar-footer">
       <button data-focusable className="secondary full button-with-icon" onClick={onAdopt}><Icon glyph={FolderInput} />Adopt an install</button>
-      <div className="controller-hint"><span>Ⓐ Select</span><span>Ⓑ Back</span></div>
+      <NavigationHints controller={controller} workspace />
     </div>
   </aside>;
 }
