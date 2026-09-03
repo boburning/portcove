@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   rust:
     runs-on: windows-latest
@@ -30,10 +34,34 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Test machine CLI contract on Linux
         run: cargo test -p portcove-cli --test machine_contract
-      - name: Install pinned Rust quality tools
+      - name: Restore pinned rscheck binaries
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.cargo/bin/cargo-rscheck
+            ~/.cargo/bin/rscheck
+          key: quality-rscheck-binaries-v1-${{ runner.os }}-${{ runner.arch }}-0.1.0
+      - name: Install pinned prebuilt Rust quality tools
         uses: taiki-e/install-action@e67fa11c4b9316fa714ddf0abed07a0c3143b95b # v2
         with:
-          tool: cargo-shear@1.13.4,cargo-deny@0.20.2,cargo-modules@0.27.0,rscheck-cli@0.1.0
+          tool: just@1.58.0,cargo-shear@1.13.4,cargo-deny@0.20.2,cargo-modules@0.27.0
+      - name: Check cached pinned rscheck version
+        id: rscheck-tool
+        shell: bash
+        run: |
+          output="$(rscheck --version 2>&1)" || true
+          if grep -Eq '(^|[^0-9])0\.1\.0([^0-9]|$)' <<<"$output"; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install pinned rscheck
+        if: steps.rscheck-tool.outputs.ready != 'true'
+        uses: taiki-e/install-action@e67fa11c4b9316fa714ddf0abed07a0c3143b95b # v2
+        with:
+          tool: rscheck-cli@0.1.0
+      - name: Verify exact Rust quality-tool versions
+        run: ./scripts/bootstrap-quality-tools.sh
       - run: cargo shear --deny-warnings
       - run: cargo deny check --hide-inclusion-graph -W unmaintained
       - run: node --test scripts/check-rust-architecture.test.mjs
