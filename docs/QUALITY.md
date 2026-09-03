@@ -79,6 +79,8 @@ The first complete hosted deep baseline is [run 33651741470](https://github.com/
 
 The incremental path is proven by [run 33657080917](https://github.com/boburning/portcove/actions/runs/33657080917) at commit `a856d22`. It restored the model by its primary key and the compatible `b8486d4` corpus by prefix, indexed 648 current units, embedded only 15 changed texts in 30 seconds, and reproduced the same zero-pair report. Hawk again reported zero findings. The complete warm job took about 10.5 minutes instead of the cold run's roughly 50 minutes.
 
+The completed audit-remediation implementation was revalidated by [run 33705777418](https://github.com/boburning/portcove/actions/runs/33705777418) at commit `df9de02`. All three lanes passed: semantic duplication in 5m49s, Hawk in 7m01s, and the full deterministic audit in 9m37s. This run is the final-head structural evidence; its analyzer reports remain advisory under the policy above.
+
 Do not expand exceptions casually. Newly introduced absolute path literals still fail. Promote cargo-modules to a hard gate once its baseline represents actual module edges cleanly.
 
 On the current Windows development host, semdup 0.2.0 reaches its ONNX Runtime link step but the installed Visual Studio 2019 linker cannot resolve symbols required by that dependency. Run `just deep` on Linux/macOS or install a current supported MSVC toolchain for semdup coverage; this does not weaken the required `just audit` path.
