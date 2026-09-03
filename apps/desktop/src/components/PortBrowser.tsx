@@ -46,7 +46,7 @@ function ContinueCard({ recent, launch, details }: { recent: RecentPort; launch:
   return <section className="continue-card" data-focus-group aria-label={`Continue ${port.name}`}>
     <div className={`continue-art art-${port.support_tier}`}>{port.name.slice(0, 2).toUpperCase()}</div>
     <div><p className="eyebrow">CONTINUE</p><h2>{port.name}</h2><p className="continue-meta">Last successful session · {status.active?.version}</p></div>
-    <div className="continue-actions"><button data-focusable onClick={() => details(port.id)}>View details</button><button data-focusable className="primary button-with-icon" onClick={() => launch(port.id)}><Icon glyph={Gamepad2} />Play again</button></div>
+    <div className="continue-actions"><button data-focusable onClick={() => details(port.id)}>View details</button><button data-focusable className="primary button-with-icon" onClick={() => status.readiness?.launchable === false ? details(port.id) : launch(port.id)}><Icon glyph={Gamepad2} />{status.readiness?.launchable === false ? "Finish setup" : "Play again"}</button></div>
   </section>;
 }
 
@@ -86,6 +86,7 @@ function readinessPresentation(readiness: PortReadiness) {
     available: { label: "Available", action: "View details", tone: "available" },
     ready: { label: "Launch ready", action: "Play options", tone: "ready" },
     source: { label: "Source required", action: "Finish setup", tone: "setup" },
+    runtime: { label: "Runtime required", action: "Finish setup", tone: "setup" },
     bios: { label: "BIOS required", action: "Finish setup", tone: "setup" },
     setup: { label: "Setup required", action: "Finish setup", tone: "setup" },
     staged: { label: "Update staged", action: "Review update", tone: "staged" },

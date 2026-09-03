@@ -144,10 +144,14 @@ pub(crate) fn verify_destination(
         ));
     }
     let installer = crate::install::Installer::new(library.clone())?;
+    let catalog = crate::Catalog::embedded()?;
+    let platform = crate::Platform::current()?;
     for relative in &expected_metadata.application_versions {
         let mut install = relative.clone();
         install.path = destination_root.join(&install.path);
-        let report = installer.verify(&install)?;
+        let qualification =
+            crate::InstallQualification::from_port(catalog.port(&install.port_id)?, platform)?;
+        let report = installer.verify_managed(&install, &qualification)?;
         if !report.valid {
             return Err(PortcoveError::verification(
                 "copied application failed immutable manifest verification",

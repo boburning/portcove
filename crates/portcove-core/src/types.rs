@@ -281,6 +281,8 @@ pub struct PortDefinition {
     pub adapter: AdapterKind,
     pub release: ReleaseSpec,
     #[serde(default)]
+    pub bundled_runtime: BTreeMap<Platform, BundledRuntime>,
+    #[serde(default)]
     pub source_profile: Option<String>,
     #[serde(default)]
     pub bios_source_profile: Option<String>,
@@ -359,6 +361,30 @@ pub struct ArtifactIdentity {
     pub size: u64,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct BundledRuntime {
+    pub asset: ReleaseAsset,
+    pub archive_root: String,
+    pub target_directory: String,
+    pub executable: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RuntimeOrigin {
+    VerifiedDownload,
+    AdoptedTree,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct RuntimeIdentity {
+    pub origin: RuntimeOrigin,
+    pub artifact: ArtifactIdentity,
+    pub archive_root: String,
+    pub target_directory: String,
+    pub executable: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct InstallRecord {
     pub id: String,
@@ -371,6 +397,8 @@ pub struct InstallRecord {
     pub staged: bool,
     #[serde(default)]
     pub artifact: ArtifactIdentity,
+    #[serde(default)]
+    pub runtime: Option<RuntimeIdentity>,
     #[serde(default)]
     pub manifest_sha256: String,
     #[serde(default)]
@@ -749,6 +777,8 @@ pub struct InstallPlan {
     pub channel: ReleaseChannel,
     pub platform: Platform,
     pub release: ResolvedRelease,
+    pub bundled_runtime: Option<BundledRuntime>,
+    pub download_bytes: u64,
     pub action: InstallPlanAction,
     pub source_requirements: Vec<InstallSourceRequirement>,
     pub storage: StorageSummary,
@@ -776,9 +806,10 @@ pub struct LaunchReadiness {
 pub enum LaunchBlocker {
     MissingSource,
     MissingBios,
+    MissingRuntime,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ReleaseAsset {
     pub name: String,
     pub url: String,
@@ -801,6 +832,10 @@ pub struct UpdateCheck {
     pub installed_version: Option<String>,
     #[serde(default)]
     pub installed_artifact: Option<ArtifactIdentity>,
+    #[serde(default)]
+    pub installed_runtime: Option<RuntimeIdentity>,
+    #[serde(default)]
+    pub required_runtime: Option<RuntimeIdentity>,
     pub update_available: bool,
     pub release: ResolvedRelease,
 }

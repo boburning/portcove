@@ -61,7 +61,7 @@ function DetailDialog({ props, dialog }: { props: DetailPanelProps; dialog: Retu
   const selectedChannel = status?.channel ?? port.channels[0];
   const policy = status?.update_policy ?? "notify";
   const { sourceReady, biosReady, launchReady, installed, pendingSetup } = detailReadiness(port, status, source, sourcePath, bios, biosPath);
-  const state = detailState(installed, launchReady, Boolean(status?.staged), pendingSetup);
+  const state = detailState(installed, launchReady, Boolean(status?.staged), pendingSetup, Boolean(status?.readiness?.blockers.includes("missing_runtime")));
   const sources: SourceControls = {
     port, source, sourceProfile, sourcePath, setSourcePath, pickSource, pickSourceArchive,
     bios, biosProfile, biosPath, setBiosPath, pickBios, sourceReady, biosReady,
@@ -91,7 +91,7 @@ function DetailBody({ port, status, state, sources, installed, launchReady, pend
     <RetiredNotice port={port} />
     <ReadinessCard state={state} />
     <SourceFields mode="missing" controls={sources} />
-    <PrimaryActions installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} hasStaged={Boolean(status?.staged)} plan={installPlan} busy={busy} actions={actions} />
+    <PrimaryActions runtimeNeeded={Boolean(status?.readiness?.blockers.includes("missing_runtime"))} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} hasStaged={Boolean(status?.staged)} plan={installPlan} busy={busy} actions={actions} />
     <TrustStrip />
     <AdvancedControls port={port} status={status} selectedChannel={selectedChannel} policy={policy} installed={installed} backups={backups} busy={busy} sources={sources} actions={actions} />
   </div>;
@@ -111,7 +111,7 @@ function detailReadiness(port: PortDefinition, status: PortStatus | undefined, s
   return {
     sourceReady,
     biosReady,
-    launchReady: sourceReady && biosReady,
+    launchReady: sourceReady && biosReady && !status?.readiness?.blockers.includes("missing_runtime"),
     installed: Boolean(status?.active),
     pendingSetup: Boolean(status?.readiness?.pending_setup),
   };
@@ -193,7 +193,8 @@ function sourceFieldCopy(profile?: SourceProfile) {
   return { placeholder: "Choose or paste the full source file path", note: "Referenced in place; never uploaded." };
 }
 
-function PrimaryActions({ installed, launchReady, pendingSetup, hasStaged, plan, busy, actions }: { installed: boolean; launchReady: boolean; pendingSetup: boolean; hasStaged: boolean; plan?: InstallPlan; busy?: string; actions: DetailActions }) {
+function PrimaryActions({ runtimeNeeded, installed, launchReady, pendingSetup, hasStaged, plan, busy, actions }: { runtimeNeeded: boolean; installed: boolean; launchReady: boolean; pendingSetup: boolean; hasStaged: boolean; plan?: InstallPlan; busy?: string; actions: DetailActions }) {
+  if (runtimeNeeded) return <InstallAction ready plan={plan} busy={busy} install={actions.update} review={actions.reviewInstall} />;
   if (!installed) return <InstallAction ready={launchReady} plan={plan} busy={busy} install={actions.install} review={actions.reviewInstall} />;
   return <div className="actions primary-actions">
     <button data-focusable className="primary wide button-with-icon" title={launchReady ? "Launch this port" : "Register every required source before launching"} disabled={!launchReady || Boolean(busy)} onClick={actions.launch}><Icon glyph={pendingSetup ? Wrench : Gamepad2} />{pendingSetup ? "Complete setup and play" : "Play now"}</button>
@@ -210,15 +211,15 @@ function InstallAction({ ready, plan, busy, install, review }: { ready: boolean;
 function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
   const download = plan.action === "download";
   return <div className="install-plan">
-    <div><p className="eyebrow">INSTALL PLAN</p><strong>{plan.release.version}</strong><span>{plan.channel} · {installPlanActionLabel(plan.action)}</span></div>
-    <div><strong>{download ? formatBytes(plan.release.asset.size) : "No download"}</strong><span>{download ? `${formatBytes(plan.storage.volume_available_bytes)} available` : "Verified local release"}</span></div>
+    <div><p className="eyebrow">INSTALL PLAN</p><strong>{plan.release.version}</strong><span>{plan.channel} · {installPlanActionLabel(plan.action)}</span>{plan.bundled_runtime && <span>Includes verified runtime · {formatBytes(plan.bundled_runtime.asset.size)}</span>}</div>
+    <div><strong>{download ? formatBytes(plan.download_bytes) : "No download"}</strong><span>{download ? `${formatBytes(plan.storage.volume_available_bytes)} available` : "Verified local release"}</span></div>
   </div>;
 }
 
 function PlannedInstallButton({ plan, busy, install }: { plan: InstallPlan; busy?: string; install: () => void }) {
   const blocked = plan.action === "blocked_unverified";
-  const insufficientSpace = plan.action === "download" && plan.release.asset.size > plan.storage.volume_available_bytes;
-  let label = plan.action === "download" ? `Install · ${formatBytes(plan.release.asset.size)}` : "Use verified release";
+  const insufficientSpace = plan.action === "download" && plan.download_bytes > plan.storage.volume_available_bytes;
+  let label = plan.action === "download" ? `Install · ${formatBytes(plan.download_bytes)}` : "Use verified release";
   if (blocked) label = "Unverified copy blocks install";
   else if (insufficientSpace) label = "Free space required";
   else if (busy === "install") label = "Installing…";
@@ -259,8 +260,9 @@ function CliContinuity({ port, status, channel, sourcePath, biosPath }: { port: 
   </div>;
 }
 
-function detailState(installed: boolean, launchReady: boolean, staged: boolean, pendingSetup: boolean) {
+function detailState(installed: boolean, launchReady: boolean, staged: boolean, pendingSetup: boolean, runtimeNeeded: boolean) {
   if (!installed) return { title: "Available to install", description: "Portcove will verify the release before it becomes active.", tone: "available", icon: Download };
+  if (runtimeNeeded) return { title: "Verified runtime required", description: "Review the update to install this port with its required runtime. Existing saves stay in your library.", tone: "setup", icon: Wrench };
   if (!launchReady) return { title: "Finish setup", description: "Register the required original source or BIOS to unlock Play.", tone: "setup", icon: Wrench };
   if (pendingSetup) return { title: "First launch setup", description: "The source is registered. Portcove will run and verify the upstream setup before play.", tone: "setup", icon: Wrench };
   if (staged) return { title: "Ready · update staged", description: "Play the current version or activate the verified staged release.", tone: "staged", icon: RefreshCw };

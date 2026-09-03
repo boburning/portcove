@@ -34,6 +34,10 @@ use crate::{
 const LAUNCH_MARKER: &str = ".portcove-launched";
 const BULK_PROVIDER_CONCURRENCY: usize = 4;
 
+#[cfg(test)]
+#[path = "runtime_tests.rs"]
+mod runtime_tests;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct AdoptionCopyFile {
     pub relative_path: PathBuf,
@@ -117,11 +121,16 @@ struct SourceOverrides<'a> {
     bios: Option<&'a Path>,
 }
 
-fn artifact_matches_release(install: &InstallRecord, release: &ResolvedRelease) -> bool {
+fn artifact_matches_release(
+    install: &InstallRecord,
+    release: &ResolvedRelease,
+    runtime: Option<&crate::RuntimeIdentity>,
+) -> bool {
     install
         .artifact
         .sha256
         .eq_ignore_ascii_case(&release.asset.sha256)
+        && install.runtime.as_ref() == runtime
         && install.artifact.asset_name == release.asset.name
         && (release.asset.size == 0 || install.artifact.size == release.asset.size)
 }
@@ -320,6 +329,9 @@ impl PortcoveService {
                 Err(error) if error.code == crate::ErrorCode::Conflict => continue,
                 Err(error) => return Err(error),
             };
+            let unstarted_removal = operation.kind == LifecycleOperationKind::Remove
+                && operation.phase == LifecyclePhase::Preparing
+                && operation.original_paths.is_empty();
             if let Err(error) = self.recover_lifecycle_operation(&store, &mut operation) {
                 operation.last_error = Some(error.message.clone());
                 store.put(&mut operation)?;
@@ -331,8 +343,16 @@ impl PortcoveService {
             } else {
                 let _ = self.library.finish_activity(
                     &operation.id,
-                    ActivityStatus::Succeeded,
-                    Some("completed during startup recovery"),
+                    if unstarted_removal {
+                        ActivityStatus::Failed
+                    } else {
+                        ActivityStatus::Succeeded
+                    },
+                    Some(if unstarted_removal {
+                        "removal ended before managed-file publication; no versions were removed"
+                    } else {
+                        "completed during startup recovery"
+                    }),
                 );
             }
         }
@@ -494,6 +514,12 @@ impl PortcoveService {
             .resolve(port, selected_channel, platform)
             .await?;
         let action = self.install_plan_action(&status, &release)?;
+        let bundled_runtime = port.bundled_runtime.get(&platform).cloned();
+        let download_bytes = release.asset.size.saturating_add(
+            bundled_runtime
+                .as_ref()
+                .map_or(0, |runtime| runtime.asset.size),
+        );
         let source_requirements = self.install_source_requirements(port)?;
         Ok(InstallPlan {
             port_id: port_id.into(),
@@ -502,6 +528,8 @@ impl PortcoveService {
             release,
             action,
             source_requirements,
+            bundled_runtime,
+            download_bytes,
             storage: self.library.storage_summary()?,
         })
     }
@@ -882,23 +910,27 @@ impl PortcoveService {
         status: &PortStatus,
         release: &ResolvedRelease,
     ) -> Result<InstallPlanAction> {
+        let runtime =
+            crate::runtime::required(self.catalog.port(&status.port_id)?, Platform::current()?);
         if status
             .active
             .as_ref()
-            .is_some_and(|install| artifact_matches_release(install, release))
+            .is_some_and(|install| artifact_matches_release(install, release, runtime.as_ref()))
         {
             return Ok(InstallPlanAction::AlreadyActive);
         }
         if status
             .staged
             .as_ref()
-            .is_some_and(|install| artifact_matches_release(install, release))
+            .is_some_and(|install| artifact_matches_release(install, release, runtime.as_ref()))
         {
             return Ok(InstallPlanAction::UseStaged);
         }
-        let Some(retained) = self
-            .library
-            .install_by_artifact(&status.port_id, &release.asset.sha256)?
+        let Some(retained) = self.library.install_by_artifact(
+            &status.port_id,
+            &release.asset.sha256,
+            runtime.as_ref(),
+        )?
         else {
             return Ok(InstallPlanAction::Download);
         };
@@ -954,6 +986,11 @@ impl PortcoveService {
             && !registered_sources.contains(profile_id)
         {
             blockers.push(LaunchBlocker::MissingBios);
+        }
+        if status.active.as_ref().is_some_and(|active| {
+            Platform::current().is_ok_and(|platform| !crate::runtime::ready(port, platform, active))
+        }) {
+            blockers.push(LaunchBlocker::MissingRuntime);
         }
         let pending_setup = status.active.as_ref().is_some_and(|active| {
             port.setup_marker
@@ -1032,6 +1069,11 @@ impl PortcoveService {
         status: &PortStatus,
         release: &ResolvedRelease,
     ) -> Result<UpdateCheck> {
+        let runtime = crate::runtime::required(self.catalog.port(port_id)?, Platform::current()?);
+        let installed_runtime = status
+            .active
+            .as_ref()
+            .and_then(|install| install.runtime.clone());
         let installed_version = status
             .active
             .as_ref()
@@ -1043,12 +1085,14 @@ impl PortcoveService {
         let update_available = status
             .active
             .as_ref()
-            .is_none_or(|install| !artifact_matches_release(install, release));
+            .is_none_or(|install| !artifact_matches_release(install, release, runtime.as_ref()));
         let check = UpdateCheck {
             port_id: port_id.into(),
             channel: status.channel,
             installed_version,
             installed_artifact,
+            installed_runtime,
+            required_runtime: runtime,
             update_available,
             release: release.clone(),
         };
@@ -1377,7 +1421,9 @@ impl PortcoveService {
     where
         F: FnMut(OperationEvent),
     {
-        if let Some(active) = self.status(port_id)?.active {
+        if let Some(active) = self.status(port_id)?.active
+            && crate::runtime::ready(self.catalog.port(port_id)?, Platform::current()?, &active)
+        {
             return Ok(active);
         }
         self.install(port_id, channel, source_override, bios_override, true, emit)
@@ -1447,14 +1493,15 @@ impl PortcoveService {
     where
         F: FnMut(OperationEvent),
     {
+        let runtime = crate::runtime::required(port, Platform::current()?);
         if let Some(active) = &status.active
-            && artifact_matches_release(active, &release)
+            && artifact_matches_release(active, &release, runtime.as_ref())
         {
             Installer::new(self.library.clone())?.verify_critical(active)?;
             return Ok(active.clone());
         }
         if let Some(staged) = &status.staged
-            && artifact_matches_release(staged, &release)
+            && artifact_matches_release(staged, &release, runtime.as_ref())
         {
             Installer::new(self.library.clone())?.verify_critical(staged)?;
             reporter.operation.begin_publication()?;
@@ -1464,9 +1511,9 @@ impl PortcoveService {
                 Ok(staged.clone())
             };
         }
-        if let Some(mut existing) = self
-            .library
-            .install_by_artifact(&port.id, &release.asset.sha256)?
+        if let Some(mut existing) =
+            self.library
+                .install_by_artifact(&port.id, &release.asset.sha256, runtime.as_ref())?
         {
             Installer::new(self.library.clone())?.verify_critical(&existing)?;
             reporter.operation.begin_publication()?;
@@ -1745,7 +1792,9 @@ impl PortcoveService {
                 .status(port_id)?
                 .active
                 .ok_or_else(|| PortcoveError::not_found(format!("{port_id} is not installed")))?;
-            Installer::new(self.library.clone())?.verify(&active)
+            let qualification =
+                InstallQualification::from_port(self.catalog.port(port_id)?, Platform::current()?)?;
+            Installer::new(self.library.clone())?.verify_managed(&active, &qualification)
         })();
         self.finish_activity(activity, result)
     }
@@ -1762,6 +1811,11 @@ impl PortcoveService {
             let previous = self.status(port_id)?.previous.ok_or_else(|| {
                 PortcoveError::not_found(format!("{port_id} has no rollback version"))
             })?;
+            crate::runtime::require_ready(
+                self.catalog.port(port_id)?,
+                Platform::current()?,
+                &previous,
+            )?;
             Installer::new(self.library.clone())?.verify_critical(&previous)?;
             self.collect_active_user_data_if_launched(port_id)?;
             self.library.rollback(port_id)
@@ -1788,6 +1842,7 @@ impl PortcoveService {
             .status(port_id)?
             .staged
             .ok_or_else(|| PortcoveError::not_found(format!("{port_id} has no staged version")))?;
+        crate::runtime::require_ready(self.catalog.port(port_id)?, Platform::current()?, &staged)?;
         Installer::new(self.library.clone())?.verify_critical(&staged)?;
         let store = OperationStore::new(self.library.clone());
         let mut lifecycle =
@@ -1976,7 +2031,7 @@ impl PortcoveService {
             }
             lifecycle.paths.final_path = Some(destination.clone());
             store.put(&mut lifecycle)?;
-            let (manifest_sha256, selected_executable) = installer.create_manifest(
+            let (manifest_sha256, selected_executable, runtime) = installer.create_manifest(
                 &activity.id,
                 &port_id,
                 &version,
@@ -1996,6 +2051,7 @@ impl PortcoveService {
                 artifact,
                 manifest_sha256,
                 selected_executable,
+                runtime,
             };
             let staged_install = InstallRecord {
                 path: payload_root.clone(),
@@ -2102,11 +2158,9 @@ impl PortcoveService {
             LifecycleOperation::new(&activity.id, LifecycleOperationKind::Remove, port_id);
         let quarantine = self.library.recovery_dir().join(&activity.id);
         lifecycle.paths.quarantine = Some(quarantine.clone());
-        store.put(&mut lifecycle)?;
         let result = (|| {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "remove")?;
-            self.collect_active_user_data_if_launched(port_id)?;
             let locked_preview = self.preview_removal(port_id)?;
             self.library.consume_authorization(
                 authorization_token,
@@ -2114,6 +2168,7 @@ impl PortcoveService {
                 port_id,
                 &locked_preview.preview_sha256,
             )?;
+            self.collect_active_user_data_if_launched(port_id)?;
             let paths = self.library.port_install_paths(port_id)?;
             for path in &paths {
                 if !path.starts_with(self.library.versions_dir()) || !path.is_dir() {
@@ -2157,7 +2212,9 @@ impl PortcoveService {
             store.remove(&lifecycle.id)?;
             Ok(paths)
         })();
-        if let Err(error) = &result {
+        if let Err(error) = &result
+            && !lifecycle.original_paths.is_empty()
+        {
             lifecycle.last_error = Some(error.message.clone());
             let _ = store.put(&mut lifecycle);
         }
@@ -2389,6 +2446,7 @@ impl PortcoveService {
             .status(port_id)?
             .active
             .ok_or_else(|| PortcoveError::not_found(format!("{port_id} is not installed")))?;
+        crate::runtime::require_ready(port, Platform::current()?, &active)?;
         let selected_executable = Installer::new(self.library.clone())?.verify_critical(&active)?;
         let source = if let Some(path) = source_override {
             let profile_id = port.source_profile.as_deref().ok_or_else(|| {
@@ -2461,13 +2519,15 @@ impl PortcoveService {
         install_root: &Path,
     ) -> Result<Vec<PathBuf>> {
         let port = self.catalog.port(port_id)?;
-        let expected_parent = self.library.versions_dir().join(port_id);
+        refuse_symlink_ancestors(install_root)?;
+        let install_root = fs::canonicalize(install_root)?;
+        let expected_parent = fs::canonicalize(self.library.versions_dir().join(port_id))?;
         if install_root.parent() != Some(expected_parent.as_path()) {
             return Err(PortcoveError::conflict(format!(
                 "launch install path is outside the managed {port_id} versions directory"
             )));
         }
-        self.collect_user_data_from(port, install_root)
+        self.collect_user_data_from(port, &install_root)
     }
 
     fn collect_user_data_from(
@@ -2823,6 +2883,12 @@ fn sync_entry(source: &Path, destination: &Path) -> Result<()> {
     if source.is_file() {
         if destination.exists() && !destination.is_file() {
             remove_managed_entry(destination)?;
+        }
+        if destination.is_file()
+            && fs::metadata(source)?.len() == fs::metadata(destination)?.len()
+            && sha256_file(source)? == sha256_file(destination)?
+        {
+            return Ok(());
         }
         if let Some(parent) = destination.parent() {
             fs::create_dir_all(parent)?;
@@ -3408,6 +3474,35 @@ mod tests {
     }
 
     #[test]
+    fn rejected_removal_does_not_collect_live_data_before_authorization() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = register_zelda_install(&library, "v1", true);
+        let user = library.user_dir("zelda64-recomp");
+        fs::create_dir_all(&user).unwrap();
+        fs::write(user.join("general.json"), b"canonical settings").unwrap();
+        fs::write(install.join("general.json"), b"latest live settings").unwrap();
+        fs::write(install.join(LAUNCH_MARKER), b"launched").unwrap();
+        let service = service_with_release(library, "v2");
+
+        let error = service
+            .remove("zelda64-recomp", "invalid-token")
+            .unwrap_err();
+
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert_eq!(
+            fs::read(user.join("general.json")).unwrap(),
+            b"canonical settings"
+        );
+        assert_eq!(
+            fs::read(install.join("general.json")).unwrap(),
+            b"latest live settings"
+        );
+        assert!(install.is_dir());
+        assert!(service.repair_plan().unwrap().items.is_empty());
+    }
+
+    #[test]
     fn removal_recovery_resumes_a_preparing_quarantine() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
@@ -3427,6 +3522,43 @@ mod tests {
         assert!(!install.exists());
         assert!(recovered.status("zelda64-recomp").unwrap().active.is_none());
         assert!(recovered.repair_plan().unwrap().items.is_empty());
+    }
+
+    #[test]
+    fn removal_recovery_does_not_promote_an_unstarted_legacy_intent() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = register_zelda_install(&library, "v1", true);
+        let activity = library
+            .begin_activity(
+                ActivityOperation::Remove,
+                ActivityTargetKind::Port,
+                Some("zelda64-recomp"),
+            )
+            .unwrap();
+        let store = OperationStore::new(library.clone());
+        let mut operation = LifecycleOperation::new(
+            &activity.id,
+            LifecycleOperationKind::Remove,
+            "zelda64-recomp",
+        );
+        operation.paths.quarantine = Some(library.recovery_dir().join(&activity.id));
+        store.put(&mut operation).unwrap();
+
+        let recovered = service_with_release(library.clone(), "v2");
+
+        assert!(install.is_dir());
+        assert!(recovered.status("zelda64-recomp").unwrap().active.is_some());
+        assert!(recovered.repair_plan().unwrap().items.is_empty());
+        let activities = library.activities(1).unwrap();
+        assert_eq!(activities[0].status, ActivityStatus::Failed);
+        assert!(
+            activities[0]
+                .message
+                .as_deref()
+                .unwrap()
+                .contains("no versions were removed")
+        );
     }
 
     #[test]
@@ -3794,7 +3926,7 @@ mod tests {
         let port = catalog.port(port_id).unwrap();
         let qualification =
             InstallQualification::from_port(port, Platform::current().unwrap()).unwrap();
-        let (manifest_sha256, selected_executable) = Installer::new(library.clone())
+        let (manifest_sha256, selected_executable, runtime) = Installer::new(library.clone())
             .unwrap()
             .create_manifest(&id, port_id, version, &artifact, &qualification, path)
             .unwrap();
@@ -3810,6 +3942,7 @@ mod tests {
             artifact,
             manifest_sha256,
             selected_executable,
+            runtime,
         };
         library.register_install(&install, active).unwrap();
         install
@@ -3836,7 +3969,7 @@ mod tests {
             .clone();
         let qualification =
             InstallQualification::from_port(&port, Platform::current().unwrap()).unwrap();
-        let (manifest_sha256, selected_executable) = Installer::new(library.clone())
+        let (manifest_sha256, selected_executable, runtime) = Installer::new(library.clone())
             .unwrap()
             .create_manifest(&id, &port.id, version, &artifact, &qualification, &path)
             .unwrap();
@@ -3854,6 +3987,7 @@ mod tests {
                     artifact,
                     manifest_sha256,
                     selected_executable,
+                    runtime,
                 },
                 active,
             )
@@ -3930,7 +4064,7 @@ fn main() {
             .clone();
         let qualification =
             InstallQualification::from_port(&port, Platform::current().unwrap()).unwrap();
-        let (manifest_sha256, selected_executable) = Installer::new(library.clone())
+        let (manifest_sha256, selected_executable, runtime) = Installer::new(library.clone())
             .unwrap()
             .create_manifest(&id, &port.id, version, &artifact, &qualification, &path)
             .unwrap();
@@ -3948,6 +4082,7 @@ fn main() {
                     artifact,
                     manifest_sha256,
                     selected_executable,
+                    runtime,
                 },
                 active,
             )
@@ -4569,6 +4704,51 @@ fn main() {
     }
 
     #[test]
+    fn post_exit_sync_accepts_the_canonical_path_of_a_relative_library() {
+        let current = std::env::current_dir().unwrap();
+        let temporary = tempfile::tempdir_in(&current).unwrap();
+        let root = temporary.path().join("library");
+        let library = Library::open(root.strip_prefix(&current).unwrap()).unwrap();
+        let install = register_zelda_install(&library, "v1", true);
+        fs::write(install.join("general.json"), b"collected settings").unwrap();
+        let canonical_install = fs::canonicalize(&install).unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        service
+            .collect_user_data_from_install("zelda64-recomp", &canonical_install)
+            .unwrap();
+        assert_eq!(
+            fs::read(library.user_dir("zelda64-recomp").join("general.json")).unwrap(),
+            b"collected settings"
+        );
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn post_exit_sync_rejects_an_install_symlink_before_canonical_comparison() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let outside = temporary.path().join("outside");
+        fs::create_dir(&outside).unwrap();
+        fs::write(outside.join("general.json"), b"outside").unwrap();
+        let parent = library.versions_dir().join("zelda64-recomp");
+        fs::create_dir_all(&parent).unwrap();
+        let alias = parent.join("alias");
+        std::os::unix::fs::symlink(&outside, &alias).unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        assert!(
+            service
+                .collect_user_data_from_install("zelda64-recomp", &alias)
+                .is_err()
+        );
+        assert!(
+            !library
+                .user_dir("zelda64-recomp")
+                .join("general.json")
+                .exists()
+        );
+    }
+
+    #[test]
     fn post_exit_sync_rejects_unmanaged_paths() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
@@ -4581,6 +4761,38 @@ fn main() {
                 .collect_user_data_from_install("zelda64-recomp", &outside)
                 .is_err()
         );
+    }
+
+    #[test]
+    fn post_exit_sync_reuses_identical_bytes_but_detects_same_size_and_time_changes() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        let destination = temporary.path().join("destination");
+        fs::write(&source, b"save-one").unwrap();
+        fs::write(&destination, b"save-one").unwrap();
+        let stamp = std::time::UNIX_EPOCH + Duration::from_secs(86400);
+        let times = fs::FileTimes::new().set_modified(stamp);
+        fs::File::options()
+            .write(true)
+            .open(&destination)
+            .unwrap()
+            .set_times(times)
+            .unwrap();
+        sync_entry(&source, &destination).unwrap();
+        assert_eq!(
+            fs::metadata(&destination).unwrap().modified().unwrap(),
+            stamp
+        );
+
+        fs::write(&source, b"save-two").unwrap();
+        fs::File::options()
+            .write(true)
+            .open(&source)
+            .unwrap()
+            .set_times(times)
+            .unwrap();
+        sync_entry(&source, &destination).unwrap();
+        assert_eq!(fs::read(&destination).unwrap(), b"save-two");
     }
 
     #[test]

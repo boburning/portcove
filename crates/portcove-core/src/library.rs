@@ -752,8 +752,8 @@ impl Library {
         connection.execute(
             "INSERT INTO installs(
                id, port_id, version, path, channel, installed_at, verified, staged,
-               artifact_name, artifact_sha256, artifact_size, manifest_sha256, selected_executable
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+               artifact_name, artifact_sha256, artifact_size, manifest_sha256, selected_executable, runtime_json
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
              ON CONFLICT(id) DO UPDATE SET
                port_id=excluded.port_id,
                version=excluded.version,
@@ -766,7 +766,8 @@ impl Library {
                artifact_sha256=excluded.artifact_sha256,
                artifact_size=excluded.artifact_size,
                manifest_sha256=excluded.manifest_sha256,
-               selected_executable=excluded.selected_executable",
+               selected_executable=excluded.selected_executable,
+               runtime_json=excluded.runtime_json",
             params![
                 install.id,
                 install.port_id,
@@ -781,6 +782,7 @@ impl Library {
                 install.artifact.size,
                 install.manifest_sha256,
                 selected_executable,
+                install.runtime.as_ref().map(serde_json::to_string).transpose()?,
             ],
         )?;
         Ok(())
@@ -857,7 +859,7 @@ impl Library {
             let mut statement = connection.prepare(
                 "SELECT id, port_id, version, path, channel, installed_at, verified, staged,
                         artifact_name, artifact_sha256, artifact_size, manifest_sha256,
-                        selected_executable
+                        selected_executable, runtime_json
                  FROM installs
                  ORDER BY installed_at DESC, rowid DESC",
             )?;
@@ -876,6 +878,7 @@ impl Library {
                     row.get::<_, u64>(10)?,
                     row.get::<_, String>(11)?,
                     row.get::<_, String>(12)?,
+                    row.get::<_, Option<String>>(13)?,
                 ))
             })?;
             let mut installs = HashMap::new();
@@ -895,6 +898,7 @@ impl Library {
                     artifact_size,
                     manifest_sha256,
                     selected_executable,
+                    runtime_json,
                 ) = row?;
                 let install = InstallRecord {
                     id: id.clone(),
@@ -912,6 +916,10 @@ impl Library {
                     },
                     manifest_sha256,
                     selected_executable: PathBuf::from(selected_executable),
+                    runtime: runtime_json
+                        .as_deref()
+                        .map(serde_json::from_str)
+                        .transpose()?,
                 };
                 if install.staged {
                     staged.entry(port_id).or_insert_with(|| id.clone());
@@ -1006,7 +1014,7 @@ impl Library {
             .query_row(
                 "SELECT id, port_id, version, path, channel, installed_at, verified, staged,
                     artifact_name, artifact_sha256, artifact_size, manifest_sha256,
-                    selected_executable
+                    selected_executable, runtime_json
              FROM installs WHERE id=?1",
                 [id],
                 |row| {
@@ -1024,6 +1032,7 @@ impl Library {
                         row.get::<_, u64>(10)?,
                         row.get::<_, String>(11)?,
                         row.get::<_, String>(12)?,
+                        row.get::<_, Option<String>>(13)?,
                     ))
                 },
             )
@@ -1043,6 +1052,7 @@ impl Library {
                 artifact_size,
                 manifest_sha256,
                 selected_executable,
+                runtime_json,
             )| {
                 Ok(InstallRecord {
                     id,
@@ -1060,6 +1070,10 @@ impl Library {
                     },
                     manifest_sha256,
                     selected_executable: PathBuf::from(selected_executable),
+                    runtime: runtime_json
+                        .as_deref()
+                        .map(serde_json::from_str)
+                        .transpose()?,
                 })
             },
         )
@@ -1088,14 +1102,19 @@ impl Library {
         &self,
         port_id: &str,
         artifact_sha256: &str,
+        runtime: Option<&crate::RuntimeIdentity>,
     ) -> Result<Option<InstallRecord>> {
         let connection = self.connection()?;
         let id: Option<String> = connection
             .query_row(
                 "SELECT id FROM installs
-                 WHERE port_id=?1 AND lower(artifact_sha256)=lower(?2)
+                 WHERE port_id=?1 AND lower(artifact_sha256)=lower(?2) AND runtime_json IS ?3
                  ORDER BY installed_at DESC LIMIT 1",
-                params![port_id, artifact_sha256],
+                params![
+                    port_id,
+                    artifact_sha256,
+                    runtime.map(serde_json::to_string).transpose()?
+                ],
                 |row| row.get(0),
             )
             .optional()?;
@@ -1252,6 +1271,7 @@ mod tests {
                         artifact: ArtifactIdentity::default(),
                         manifest_sha256: String::new(),
                         selected_executable: PathBuf::new(),
+                        runtime: None,
                     },
                     true,
                 )
@@ -1283,6 +1303,7 @@ mod tests {
                         artifact: ArtifactIdentity::default(),
                         manifest_sha256: String::new(),
                         selected_executable: PathBuf::new(),
+                        runtime: None,
                     },
                     activate,
                 )

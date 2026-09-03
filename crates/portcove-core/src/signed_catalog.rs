@@ -188,6 +188,18 @@ fn validate_update_contract(candidate: &Catalog, baseline: &Catalog) -> Result<(
                 .expect("port is an object")
                 .remove(field);
         }
+        for value in [&mut contract, &mut original_contract] {
+            if let Some(runtimes) = value
+                .get_mut("bundled_runtime")
+                .and_then(serde_json::Value::as_object_mut)
+            {
+                for runtime in runtimes.values_mut() {
+                    let runtime = runtime.as_object_mut().expect("runtime is an object");
+                    runtime.remove("asset");
+                    runtime.remove("archive_root");
+                }
+            }
+        }
         if contract != original_contract {
             return Err(PortcoveError::verification(format!(
                 "{} changes an installed-code source, execution, or persistent-data contract; update Portcove first",

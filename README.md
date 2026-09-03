@@ -18,6 +18,7 @@ This repository is an early, working implementation. Catalog and state commands 
 - GitHub release discovery with active-upstream checks and a checksum-pinned retired-project path.
 - Optional GitHub device login, secure token storage, rate-limit visibility, and persistent conditional-request caching.
 - Mandatory SHA-256 validation and safe ZIP/TAR extraction.
+- Catalog-pinned game runtimes install and roll back with each immutable game version, using the same download, archive, and verification rules.
 - Versioned installs, explicit staged-update activation, verification, rollback, and preserved user data.
 - Transactionally published, versioned persistent-data backups and confirmed restore through both CLI and desktop, with tree integrity checks and automatic pre-restore safety snapshots.
 - Source records referenced in place, never uploaded, and checked against their registered size and SHA-256 on demand and before reuse; when an upstream runtime requires its own validated local copy, that copy stays inside the local Portcove user-data tree.

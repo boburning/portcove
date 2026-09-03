@@ -368,7 +368,7 @@ mod tests {
                 size: 123,
             };
             let qualification = InstallQualification::test("game.exe");
-            let (manifest_sha256, selected_executable) = Installer::new(library.clone())
+            let (manifest_sha256, selected_executable, runtime) = Installer::new(library.clone())
                 .unwrap()
                 .create_manifest(id, "starship", id, &artifact, &qualification, &path)
                 .unwrap();
@@ -386,6 +386,7 @@ mod tests {
                         artifact,
                         manifest_sha256,
                         selected_executable,
+                        runtime,
                     },
                     !staged,
                 )

@@ -25,6 +25,14 @@ const installRecord = (overrides: Partial<InstallRecord> = {}): InstallRecord =>
 });
 
 describe("desktop components", () => {
+  it("routes a missing verified runtime to reviewed installation instead of Play", () => {
+    const html = renderToStaticMarkup(<DetailPanel port={{ ...port, source_profile: undefined }} sourcePath="" setSourcePath={vi.fn()} actions={actions}
+      status={{ port_id: port.id, channel: "stable", update_policy: "notify", active: installRecord(), readiness: { launchable: false, blockers: ["missing_runtime"], pending_setup: false } }} />);
+    expect(html).toContain("Verified runtime required");
+    expect(html).toContain("Review install");
+    expect(html).not.toContain("Play now");
+    expect(html).not.toContain("Choose required source");
+  });
   it("shows the reviewed adoption copy plan and skipped entries before copying", () => {
     const html = renderToStaticMarkup(<AdoptionModal
       path="D:/Existing"
@@ -204,7 +212,7 @@ describe("desktop components", () => {
 
   it("summarizes a resolved install before starting the download", () => {
     const html = renderToStaticMarkup(<DetailPanel port={{ ...port, source_profile: undefined }} sourcePath="" setSourcePath={vi.fn()} actions={actions} installPlan={{
-      port_id: port.id, channel: "stable", platform: "windows-x86-64", action: "download", source_requirements: [],
+      port_id: port.id, channel: "stable", platform: "windows-x86-64", action: "download", source_requirements: [], download_bytes: 64 * 1024 ** 2,
       release: { version: "2.0", channel: "stable", asset: { name: "sample.zip", url: "https://example.com/sample.zip", size: 64 * 1024 ** 2, sha256: "a".repeat(64) } },
       storage: { library_root: "E:/Portcove", volume_total_bytes: 1024 ** 4, volume_available_bytes: 512 * 1024 ** 3 },
     }} />);

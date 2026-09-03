@@ -375,6 +375,7 @@ impl Catalog {
                     )));
                 }
             }
+            crate::runtime::validate(port)?;
             let mut persistent_paths = HashSet::new();
             for relative in &port.persistent_paths {
                 if relative.is_empty()
@@ -1368,7 +1369,7 @@ mod tests {
                 "sssv-recompiled",
                 "space-station-silicon-valley",
                 None,
-                false,
+                true,
             ),
             (
                 "animal-crossing-pc-port",

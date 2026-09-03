@@ -82,6 +82,7 @@ export interface PortDefinition {
   setup_marker?: string;
   upstream_status: UpstreamStatus;
   release: ReleaseSpec;
+  bundled_runtime?: Partial<Record<Platform, BundledRuntime>>;
   executable_hints: Partial<Record<Platform, string[]>>;
 }
 
@@ -97,6 +98,21 @@ export interface ArtifactIdentity {
   size: number;
 }
 
+export interface BundledRuntime {
+  asset: ResolvedRelease["asset"];
+  archive_root: string;
+  target_directory: string;
+  executable: string;
+}
+
+export interface RuntimeIdentity {
+  origin: "verified_download" | "adopted_tree";
+  artifact: ArtifactIdentity;
+  archive_root: string;
+  target_directory: string;
+  executable: string;
+}
+
 export interface InstallRecord {
   id: string;
   port_id: string;
@@ -107,6 +123,7 @@ export interface InstallRecord {
   verified: boolean;
   staged: boolean;
   artifact: ArtifactIdentity;
+  runtime?: RuntimeIdentity;
   manifest_sha256: string;
   selected_executable: string;
 }
@@ -123,7 +140,7 @@ export interface PortStatus {
   successful_launches?: number;
   readiness?: {
     launchable: boolean;
-    blockers: Array<"missing_source" | "missing_bios">;
+    blockers: Array<"missing_source" | "missing_bios" | "missing_runtime">;
     pending_setup: boolean;
   };
   last_update_check?: UpdateSnapshot;
@@ -280,6 +297,8 @@ export interface UpdateCheck {
   channel: ReleaseChannel;
   installed_version?: string;
   installed_artifact?: ArtifactIdentity;
+  installed_runtime?: RuntimeIdentity;
+  required_runtime?: RuntimeIdentity;
   update_available: boolean;
   release: ResolvedRelease;
 }
@@ -299,6 +318,8 @@ export interface InstallPlan {
   platform: Platform;
   release: ResolvedRelease;
   action: InstallPlanAction;
+  bundled_runtime?: BundledRuntime;
+  download_bytes: number;
   source_requirements: Array<{
     profile_id: string;
     label: string;

@@ -420,6 +420,29 @@ fn prepare_runtime_source_set_member(
     atomic_write_json(&marker_path, &expected)
 }
 
+/// Exact core-generated metadata paths, relative to the game's working directory.
+/// These are mutable integrity metadata, not persistent user data or arbitrary exclusions.
+pub(crate) fn generated_metadata(port: &PortDefinition) -> Result<Vec<String>> {
+    let mut paths = Vec::new();
+    for destination in port.runtime_source_filename.iter().chain(
+        port.runtime_source_set
+            .iter()
+            .map(|source| &source.destination),
+    ) {
+        let marker = runtime_source_marker_path(Path::new(destination))?;
+        let path = crate::path::unicode(&marker, "source marker")?.replace('\\', "/");
+        crate::archive::validate_relative_path(&path, false)?;
+        paths.push(path);
+    }
+    if port.portable_marker || port.adapter == crate::AdapterKind::N64RecompPortable {
+        paths.push("portable.txt".into());
+    }
+    if port.adapter == crate::AdapterKind::ReferencedDisc {
+        paths.push("data_location.json".into());
+    }
+    Ok(paths)
+}
+
 fn runtime_source_marker_path(destination: &Path) -> Result<PathBuf> {
     let name = destination
         .file_name()

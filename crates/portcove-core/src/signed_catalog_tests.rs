@@ -152,6 +152,51 @@ fn concurrent_reviewed_updates_have_one_atomic_winner() {
     assert_eq!(status.provenance.sequence, Some(status.highest_sequence));
 }
 
+#[test]
+fn signed_runtime_updates_can_change_artifacts_but_not_execution_or_mutable_ownership() {
+    let now = 1_800_000_000;
+    let key = crate::CatalogTrustKey::from_public_key(&hex::encode(
+        signing_key().verifying_key().as_bytes(),
+    ))
+    .unwrap();
+    let mut payload = fixture(1, now);
+    let index = payload
+        .catalog
+        .ports
+        .iter()
+        .position(|port| port.id == "severed-chains")
+        .unwrap();
+    for runtime in payload.catalog.ports[index].bundled_runtime.values_mut() {
+        runtime.asset.sha256 = "a".repeat(64);
+        runtime.asset.url = "https://example.invalid/next-runtime.zip".into();
+        runtime.archive_root = "next-runtime".into();
+    }
+    assert!(signed_catalog::verify(&sign(&payload), std::slice::from_ref(&key), now).is_ok());
+    for case in 0..4 {
+        let mut changed = payload.clone();
+        let port = &mut changed.catalog.ports[index];
+        match case {
+            0 => {
+                port.bundled_runtime
+                    .values_mut()
+                    .next()
+                    .unwrap()
+                    .target_directory = "different-root".into()
+            }
+            1 => {
+                port.bundled_runtime.values_mut().next().unwrap().executable =
+                    "different-executable".into()
+            }
+            2 => port.persistent_paths.push("jdk25".into()),
+            _ => port.bundled_runtime.clear(),
+        }
+        assert!(
+            signed_catalog::verify(&sign(&changed), std::slice::from_ref(&key), now).is_err(),
+            "case {case}"
+        );
+    }
+}
+
 #[tokio::test]
 async fn publication_is_offline_replay_protected_and_rollback_keeps_the_floor() {
     let root = tempfile::tempdir().unwrap();

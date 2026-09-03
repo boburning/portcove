@@ -230,6 +230,7 @@ mod tests {
                 },
                 manifest_sha256: digest.to_string().repeat(64),
                 selected_executable: PathBuf::from("bin/game.exe"),
+                runtime: None,
             };
             service
                 .library()

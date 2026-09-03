@@ -10,7 +10,7 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior};
 
 use crate::{PortcoveError, Result};
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 11;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 12;
 
 struct Migration {
     version: i64,
@@ -85,6 +85,12 @@ const MIGRATIONS: &[Migration] = &[
         name: "signed catalog trust and selection",
         apply: crate::catalog_store::migrate,
         verify: verify_migration_11,
+    },
+    Migration {
+        version: 12,
+        name: "immutable bundled runtime identity",
+        apply: migration_12,
+        verify: verify_migration_12,
     },
 ];
 
@@ -598,6 +604,18 @@ fn verify_migration_11(connection: &Connection) -> Result<()> {
             "previous",
         ],
     )
+}
+
+fn migration_12(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "ALTER TABLE installs ADD COLUMN runtime_json TEXT;
+        DELETE FROM update_snapshots;",
+    )?;
+    Ok(())
+}
+
+fn verify_migration_12(connection: &Connection) -> Result<()> {
+    require_columns(connection, "installs", &["runtime_json"])
 }
 
 fn table_columns(connection: &Connection, table: &str) -> Result<Vec<String>> {

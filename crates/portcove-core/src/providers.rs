@@ -120,6 +120,7 @@ mod tests {
                 asset_hints: BTreeMap::new(),
                 direct,
             },
+            bundled_runtime: BTreeMap::new(),
             source_profile: None,
             bios_source_profile: None,
             executable_hints: BTreeMap::new(),

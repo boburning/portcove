@@ -7,7 +7,7 @@ Without a machine-output flag, Portcove renders concise human output. Catalog, s
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":7,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":8,"ok":true,"command":"status","data":{},"error":null}
 ```
 
 Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for success, failure, or cancellation. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
@@ -293,3 +293,6 @@ API schema 7 adds catalog provenance to `doctor`, public-key trust and selection
 - `catalog use-cached --expected-state <state_sha256>`: reverify and select the cached signed catalog without downloading or admitting an older external candidate.
 
 Local-file review does not write library domain state. Explicit HTTPS delivery is anonymous, bounded to 4 MiB and 20 seconds, and rejects redirects, userinfo, fragments, and non-HTTPS URLs. Catalog application supports cross-process cancellation and CLI Ctrl-C/SIGTERM until publication admission; SQLite activation, replay advancement, and the terminal activity outcome commit together. A service command uses the catalog snapshot it opened with; subsequent commands see the new selection. See [SIGNED-CATALOG.md](SIGNED-CATALOG.md) for the exact signing contract and offline publisher utility.
+
+
+API schema 8 adds optional `runtime` identity to install records, `installed_runtime` and `required_runtime` to update checks, `bundled_runtime` and `download_bytes` to install plans, and `missing_runtime` launch readiness. `catalog` exposes the platform runtime archive pins and layout. A runtime-only change is an update even if the game's release name and archive are unchanged. `update` supplies a missing runtime; `exec` fails before running an upstream downloader. Rollback retains the runtime recorded with that install. Operation event schema remains 2.

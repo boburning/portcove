@@ -73,6 +73,10 @@ describe("catalog view model", () => {
     expect(currentUpdateSnapshot({ ...status, last_update_check: snapshot })).toEqual(snapshot);
     expect(currentUpdateSnapshot({ ...status, active: { ...status.active!, version: "2.0" }, last_update_check: snapshot })).toBeUndefined();
     expect(currentUpdateSnapshot({ ...status, channel: "beta", last_update_check: snapshot })).toBeUndefined();
+    expect(currentUpdateSnapshot({ ...status, active: { ...status.active!, runtime: {
+      origin: "verified_download", artifact: { asset_name: "runtime.zip", sha256: "d".repeat(64), size: 10 },
+      archive_root: "vendor", target_directory: "runtime", executable: "bin/java",
+    } }, last_update_check: snapshot })).toBeUndefined();
   });
 
   it("groups missing source and BIOS requirements for installed ports only", () => {

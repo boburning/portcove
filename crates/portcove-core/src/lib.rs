@@ -28,6 +28,7 @@ mod providers;
 mod psx;
 mod recovery;
 mod release;
+mod runtime;
 mod service;
 mod signed_catalog;
 mod source;
@@ -79,4 +80,4 @@ pub use source_discovery::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 7;
+pub const API_SCHEMA_VERSION: u32 = 8;

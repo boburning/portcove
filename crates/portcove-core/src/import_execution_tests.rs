@@ -20,7 +20,7 @@ fn fixture(root: &Path, export: &Path) -> LibraryMetadata {
             sha256: "a".repeat(64),
             size: 42,
         };
-        let (manifest_sha256, selected_executable) = Installer::new(library.clone())
+        let (manifest_sha256, selected_executable, runtime) = Installer::new(library.clone())
             .unwrap()
             .create_manifest(id, "starship", id, &artifact, &qualification, &path)
             .unwrap();
@@ -38,6 +38,7 @@ fn fixture(root: &Path, export: &Path) -> LibraryMetadata {
                     artifact,
                     manifest_sha256,
                     selected_executable,
+                    runtime,
                 },
                 !staged,
             )
@@ -276,7 +277,7 @@ fn a_self_consistent_manifest_cannot_select_an_undeclared_executable_on_import()
     let install = &mut metadata.application_versions[0];
     let path = source.join(&install.path);
     fs::write(path.join("undeclared.exe"), b"not a declared application").unwrap();
-    let (hash, executable) = Installer::new(library)
+    let (hash, executable, runtime) = Installer::new(library)
         .unwrap()
         .create_manifest(
             &install.id,
@@ -289,6 +290,7 @@ fn a_self_consistent_manifest_cannot_select_an_undeclared_executable_on_import()
         .unwrap();
     install.manifest_sha256 = hash;
     install.selected_executable = executable;
+    install.runtime = runtime;
     fs::write(&export, serde_json::to_vec_pretty(&metadata).unwrap()).unwrap();
     let plan = PortcoveService::plan_library_import(&export, &source, &destination).unwrap();
     let error = PortcoveService::import_library(&export, &source, &destination, &plan.plan_sha256)
