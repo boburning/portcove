@@ -40,6 +40,8 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Test machine CLI contract on Linux
         run: cargo test -p portcove-cli --test machine_contract
+      - name: Test backup durability contract on Linux
+        run: cargo test -p portcove-core durability::tests::backup_directory_durability_support_is_explicit_for_the_host -- --exact
       - name: Restore pinned rscheck binaries
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
