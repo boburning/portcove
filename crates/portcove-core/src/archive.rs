@@ -256,7 +256,11 @@ fn extract_zip(source: &Path, destination: &Path, compressed_size: u64) -> Resul
                 ));
             }
         }
-        let (relative, key) = validate_relative_path(entry.name(), entry.is_dir())?;
+        // Some Windows ZIP producers write DOS separators. Resolve that spelling once,
+        // before portable validation and collision detection, on every host platform.
+        // Catalog paths and TAR entries retain their stricter forward-slash contract.
+        let portable_name = entry.name().replace('\\', "/");
+        let (relative, key) = validate_relative_path(&portable_name, entry.is_dir())?;
         collisions.insert(key, entry.is_dir())?;
         plans.push(EntryPlan {
             relative,
@@ -456,6 +460,64 @@ mod tests {
                 "{name}"
             );
             assert_eq!(fs::read_dir(destination).unwrap().count(), 0, "{name}");
+        }
+    }
+
+    #[test]
+    fn zip_dos_separators_are_validated_and_collide_in_one_portable_namespace() {
+        let temporary = tempdir().unwrap();
+        let source = temporary.path().join("windows.zip");
+        let destination = temporary.path().join("windows");
+        fs::create_dir(&destination).unwrap();
+        write_zip(&source, &[("assets\\nested\\game.dat", b"game", None)]);
+        extract_archive(
+            &source,
+            &destination,
+            "windows.zip",
+            fs::metadata(&source).unwrap().len(),
+        )
+        .unwrap();
+        assert_eq!(
+            fs::read(destination.join("assets/nested/game.dat")).unwrap(),
+            b"game"
+        );
+
+        for (index, names) in [
+            vec!["..\\escape"],
+            vec!["folder\\..\\escape"],
+            vec!["\\rooted"],
+            vec!["\\\\server\\share\\file"],
+            vec!["C:\\drive"],
+            vec!["folder\\NUL.txt"],
+            vec!["folder\\file:stream"],
+            vec!["folder\\trailing.\\file"],
+            vec!["assets/file", "assets\\file"],
+            vec!["Assets\\File", "assets/file"],
+            vec!["assets", "assets\\file"],
+            vec!["assets\\file", "assets"],
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let source = temporary.path().join(format!("rejected-{index}.zip"));
+            let destination = temporary.path().join(format!("rejected-{index}"));
+            fs::create_dir(&destination).unwrap();
+            let entries = names
+                .iter()
+                .map(|name| (*name, b"x".as_slice(), None))
+                .collect::<Vec<_>>();
+            write_zip(&source, &entries);
+            assert!(
+                extract_archive(
+                    &source,
+                    &destination,
+                    "fixture.zip",
+                    fs::metadata(&source).unwrap().len()
+                )
+                .is_err(),
+                "{names:?}"
+            );
+            assert_eq!(fs::read_dir(destination).unwrap().count(), 0, "{names:?}");
         }
     }
 
