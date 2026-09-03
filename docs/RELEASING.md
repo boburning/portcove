@@ -32,6 +32,22 @@ After it passes, refresh the shareable local artifacts and checksum manifest:
 
 An explicit `-Version` is accepted only when it matches the central release metadata.
 
+To qualify replacement of an earlier local build, retain its installer before rebuilding and run:
+
+```powershell
+.\scripts\test-windows-installer.ps1 -InstallerPath <new-setup.exe> -UpgradeFromInstallerPath <earlier-setup.exe> -ExpectedExecutablePath <new-portcove-desktop.exe>
+```
+
+The test refuses to replace an existing registered Portcove installation. In a new isolated directory it installs and cleanly closes the predecessor, replaces it with the candidate, checks the candidate executable hash and responsive window, then uninstalls. Expected executable hashing reproduces Tauri's single fixed bundle-type marker substitution from `UNK` to `NSS` in memory; it compares the entire resulting file, and reports both raw and bundled hashes. The library database and a clearly labeled test data marker must survive replacement and uninstall. Forced termination is a failed smoke result. Same-version build replacement is recorded separately from a future version-number upgrade, signed production validation, and interactive shell observations.
+
+Prepare a reproducible hands-on session for an existing qualification library with:
+
+```text
+node scripts/qualification-report.mjs --cli <portcove.exe> --library <qualification-library> --output <new-report-directory>
+```
+
+The report captures versioned core diagnostics, catalog, sources, status, activity, capacity, and backup listings, plus the exact CLI hash. Its checklist leaves gameplay, audio, controller, and save/load observations unassessed. Keep these local reports private because source references contain local paths; they never contain source file contents or account credentials. The tool does not edit catalog qualification flags.
+
 ## Tagged build
 
 Pushing `v*` starts `.github/workflows/release.yml`. Its preflight job repeats the identity, dependency, test, Fallow, and upstream gates before the Windows, Linux x64, Intel macOS, and Apple-silicon macOS matrix can build. Matrix jobs have read-only repository permission and retain their separate CLI archive, native desktop bundles, and platform SHA-256 manifest as workflow artifacts. Only after every matrix job succeeds does one `publish` job receive `contents: write`, download all four artifacts, verify every declared hash and filename, reject missing or duplicate platform output, and create or reconcile one draft release. It refuses to change a published release. GitHub generates categorized notes from merged pull requests using `.github/release.yml`; tags containing a SemVer prerelease suffix are marked as prereleases automatically. Tauri updater metadata remains disabled until Portcove has an explicit signed desktop self-update contract.
