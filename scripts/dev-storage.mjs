@@ -173,8 +173,11 @@ export function childEnvironment(paths) {
     TMPDIR: paths.temporary_directory,
   };
   const overriddenKeys = new Set(Object.keys(overrides).map(key => key.toLowerCase()));
+  // pnpm normalizes configuration variable names on every platform, even
+  // where the operating system permits differently cased names to coexist.
   const inherited = Object.fromEntries(Object.entries(process.env).filter(([key]) =>
-    process.platform !== "win32" || !overriddenKeys.has(key.toLowerCase())));
+    key.toLowerCase() !== "pnpm_config_store_dir"
+    && (process.platform !== "win32" || !overriddenKeys.has(key.toLowerCase()))));
   return { ...inherited, ...overrides };
 }
 
