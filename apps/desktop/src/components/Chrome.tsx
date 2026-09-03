@@ -148,21 +148,22 @@ function DeviceLogin({ login }: { login?: GithubDeviceLogin }) {
 }
 
 function TokenEntry({ github, busy }: { github?: GithubSettingsActions; busy: boolean }) {
-  if (github?.status?.authenticated) return null;
+  if (github?.status?.authenticated || github?.status?.source === "environment") return null;
   return <div className="token-entry"><input data-focusable type="password" autoComplete="off" aria-label="GitHub personal access token" placeholder="Personal access token" value={github?.token ?? ""} onChange={event => github?.setToken(event.target.value)} /><button data-focusable className="interactive-button" disabled={busy || !github?.token.trim()} onClick={() => { void github?.saveToken(); }}>Save token</button></div>;
 }
 
 function GithubActions({ github, busy }: { github?: GithubSettingsActions; busy: boolean }) {
   const status = github?.status;
   return <div className="actions compact">
-    {!status?.authenticated && <button data-focusable disabled={busy || !status?.device_login_available} onClick={() => { void github?.beginDeviceLogin(); }}>Sign in with GitHub</button>}
+    {!status?.authenticated && status?.source !== "environment" && <button data-focusable disabled={busy || !status?.device_login_available} onClick={() => { void github?.beginDeviceLogin(); }}>Sign in with GitHub</button>}
     {status?.source === "credential_store" && <button data-focusable disabled={busy} onClick={() => { void github?.logout(); }}>Log out</button>}
     <button data-focusable disabled={busy} onClick={() => { void github?.refresh(); }}>Refresh status</button>
   </div>;
 }
 
 function GithubNotes({ status }: { status?: GithubAuthStatus }) {
-  if (status?.source === "environment") return <small>The active token is managed outside Portcove through an environment variable.</small>;
+  if (status?.source === "environment") return <small>{status.authenticated ? "The active token is managed outside Portcove through an environment variable." : "GitHub rejected the environment token. Replace or remove it outside Portcove, then restart Portcove."}</small>;
+  if (status?.source === "credential_store" && !status.authenticated) return <small>GitHub no longer accepts the saved sign-in. Sign in again, or log out to continue anonymously.</small>;
   if (!status?.device_login_available && !status?.authenticated) return <small>Device login needs a Portcove GitHub App client ID in this build. Token and anonymous modes remain available.</small>;
   return null;
 }

@@ -124,6 +124,8 @@ Portcove works anonymously, with a token supplied by the host process, or with a
 
 Device authorization uses a public GitHub App client ID and stores the resulting user token only after GitHub validates it. A personal token follows the same validation and storage path. The GUI and CLI expose authentication status and rate-limit metadata without exposing credential material.
 
+A 401 response when checking an existing credential returns an unauthenticated status with its original credential source and device-login availability. The credential is not deleted or silently replaced. This keeps reconnect/logout available after a saved sign-in expires or is revoked; environment-managed credentials instead explain their external replacement boundary. Other network failures remain errors, and authenticated release requests that receive 401 provide an actionable sign-in message.
+
 Authentication does not grant webhook access to arbitrary upstream repositories. A future optional Portcove update relay may combine webhooks from cooperative upstreams with one centralized conditional poller and publish signed advisory catalog events. Local polling remains authoritative and available without an account or relay; every event must still pass normal repository, channel, asset, and checksum validation before installation.
 
 RetComM is not a Portcove release provider. Its title catalog is used only by a CI audit to confirm that PS1 entries still name the same direct per-game repositories. The RetComM launcher cannot satisfy a game release request and is explicitly rejected by catalog validation. `retcomm-toolchains` is a separate checksum-pinned build dependency used by the shared PS1 adapter.

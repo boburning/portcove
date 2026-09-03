@@ -154,6 +154,28 @@ describe("desktop components", () => {
     expect(html).toContain("Following system · currently Light");
   });
 
+  it("keeps recovery controls available for rejected saved sign-ins and explains environment overrides", () => {
+    for (const source of ["credential_store", "environment"] as const) {
+      const html = renderToStaticMarkup(<SettingsView github={{
+        status: { source, authenticated: false, device_login_available: true },
+        token: "", setToken: vi.fn(), saveToken: vi.fn(), logout: vi.fn(), beginDeviceLogin: vi.fn(), refresh: vi.fn(),
+      }} />);
+      if (source === "credential_store") {
+        expect(html).toContain("GitHub no longer accepts the saved sign-in");
+        const signIn = html.match(/<button\b([^>]*)>Sign in with GitHub<\/button>/);
+        const logout = html.match(/<button\b([^>]*)>Log out<\/button>/);
+        expect(signIn).not.toBeNull();
+        expect(logout).not.toBeNull();
+        expect(signIn?.[1]).not.toContain("disabled");
+        expect(logout?.[1]).not.toContain("disabled");
+      } else {
+        expect(html).toContain("Replace or remove it outside Portcove");
+        expect(html).not.toContain("Sign in with GitHub");
+        expect(html).not.toContain('type="password"');
+      }
+    }
+  });
+
   it("shows GitHub authentication source and rate allowance without exposing a token", () => {
     const html = renderToStaticMarkup(<SettingsView libraryRoot="C:/Portcove" github={{
       status: { source: "credential_store", authenticated: true, login: "port-user", rate_limit: { limit: 5000, remaining: 4998, resets_at: 1 }, device_login_available: true },
