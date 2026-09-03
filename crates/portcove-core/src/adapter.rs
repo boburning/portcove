@@ -166,6 +166,10 @@ impl Adapter for StandardAdapter {
             ("PORTCOVE_PORT_ID".into(), port.id.clone()),
             ("PORTCOVE_USER_DATA".into(), user_data_path.clone()),
         ]);
+        environment.extend(port.launch_environment.clone());
+        if let Some(variable) = &port.user_data_environment {
+            environment.insert(variable.clone(), user_data_path.clone());
+        }
         if let Some(source) = source {
             let source_path = crate::path::unicode(source, "source")?;
             environment.insert("PORTCOVE_SOURCE".into(), source_path.clone());
@@ -228,6 +232,7 @@ impl Adapter for StandardAdapter {
                 &stored_source,
                 port.runtime_source_materialization
                     .unwrap_or(RuntimeSourceMaterialization::N64BigEndian),
+                &port.runtime_source_hashes,
             )?;
         }
         if self.0 == AdapterKind::UpstreamManagedSetup {
@@ -312,13 +317,14 @@ fn prepare_runtime_source(
     source: &Path,
     destination: &Path,
     materialization: RuntimeSourceMaterialization,
+    required_hashes: &BTreeMap<String, String>,
 ) -> Result<()> {
     let marker_path = runtime_source_marker_path(destination)?;
     let expected = runtime_source_marker(source, None, materialization)?;
     let destination_ready = match materialization {
-        RuntimeSourceMaterialization::PsxBinCue | RuntimeSourceMaterialization::PsxRawSet => {
-            destination.is_dir()
-        }
+        RuntimeSourceMaterialization::PsxBinCue
+        | RuntimeSourceMaterialization::PsxRawSet
+        | RuntimeSourceMaterialization::StfsDirectory => destination.is_dir(),
         _ => destination.is_file(),
     };
     let reusable = destination_ready
@@ -328,7 +334,7 @@ fn prepare_runtime_source(
             .as_ref()
             == Some(&expected);
     if reusable {
-        return Ok(());
+        return verify_runtime_source_hashes(destination, required_hashes);
     }
 
     match materialization {
@@ -338,7 +344,11 @@ fn prepare_runtime_source(
         RuntimeSourceMaterialization::PsxBinCue => materialize_psx_bin_cue(source, destination)?,
         RuntimeSourceMaterialization::PsxRawSet => materialize_psx_raw_set(source, destination)?,
         RuntimeSourceMaterialization::Ps2Iso => materialize_ps2_iso(source, destination)?,
+        RuntimeSourceMaterialization::StfsDirectory => {
+            materialize_stfs_directory(source, destination, required_hashes)?
+        }
     }
+    verify_runtime_source_hashes(destination, required_hashes)?;
     atomic_write_json(&marker_path, &expected)
 }
 
@@ -371,7 +381,7 @@ fn prepare_runtime_source_set_member(
 ) -> Result<()> {
     if source_root.is_dir() {
         let member = source_set_member_path(source_root, accepted_filenames)?;
-        return prepare_runtime_source(&member, destination, materialization);
+        return prepare_runtime_source(&member, destination, materialization, &BTreeMap::new());
     }
     if materialization != RuntimeSourceMaterialization::Copy
         || source_root
@@ -422,6 +432,48 @@ fn prepare_runtime_source_set_member(
     output.sync_all()?;
     replace_atomic(&temporary, destination)?;
     atomic_write_json(&marker_path, &expected)
+}
+
+fn materialize_stfs_directory(
+    source: &Path,
+    destination: &Path,
+    required_hashes: &BTreeMap<String, String>,
+) -> Result<()> {
+    let parent = destination
+        .parent()
+        .ok_or_else(|| PortcoveError::state("STFS destination has no parent directory"))?;
+    std::fs::create_dir_all(parent)?;
+    let temporary = parent.join(format!(".portcove-stfs-{}", Uuid::new_v4()));
+    if let Err(error) = crate::stfs::extract(source, &temporary)
+        .and_then(|()| verify_runtime_source_hashes(&temporary, required_hashes))
+    {
+        let _ = std::fs::remove_dir_all(&temporary);
+        return Err(error);
+    }
+    replace_directory_transactional(&temporary, destination)
+}
+
+fn verify_runtime_source_hashes(
+    destination: &Path,
+    required_hashes: &BTreeMap<String, String>,
+) -> Result<()> {
+    for (relative, expected) in required_hashes {
+        let path = destination.join(relative);
+        if !path.is_file() {
+            return Err(PortcoveError::verification(format!(
+                "materialized runtime source is missing {relative}"
+            )));
+        }
+        let (actual, _) = hash_file(&path)?;
+        if !actual.eq_ignore_ascii_case(expected) {
+            return Err(PortcoveError::verification(format!(
+                "materialized runtime source has an unexpected {relative}"
+            ))
+            .detail("expected_sha256", expected)
+            .detail("actual_sha256", actual));
+        }
+    }
+    Ok(())
 }
 
 /// Exact core-generated metadata paths, relative to the game's working directory.
@@ -1938,6 +1990,59 @@ mod tests {
     use super::*;
     use crate::Catalog;
 
+    fn write_stfs_fixture(path: &Path) {
+        let mut package = vec![0_u8; 0xe000];
+        package[..4].copy_from_slice(b"LIVE");
+        package[0x340..0x344].copy_from_slice(&0xad0e_u32.to_be_bytes());
+        package[0x37b] = 1;
+        package[0x37c..0x37e].copy_from_slice(&1_u16.to_le_bytes());
+        package[0x395..0x399].copy_from_slice(&2_u32.to_be_bytes());
+        package[0xb014..0xb018].copy_from_slice(&0x00ff_ffff_u32.to_be_bytes());
+        package[0xb02c..0xb030].copy_from_slice(&0x00ff_ffff_u32.to_be_bytes());
+        let entry = &mut package[0xc000..0xc040];
+        entry[..11].copy_from_slice(b"default.xex");
+        entry[0x28] = 11;
+        entry[0x29] = 1;
+        entry[0x2f] = 1;
+        entry[0x32..0x34].copy_from_slice(&u16::MAX.to_be_bytes());
+        entry[0x34..0x38].copy_from_slice(&4_u32.to_be_bytes());
+        package[0xd000..0xd004].copy_from_slice(b"XEX2");
+        std::fs::write(path, package).unwrap();
+    }
+
+    #[test]
+    fn stfs_identity_failure_preserves_the_previous_runtime_directory() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        write_stfs_fixture(&source);
+        let destination = temporary.path().join("assets");
+        std::fs::create_dir(&destination).unwrap();
+        std::fs::write(destination.join("previous.bin"), b"previous").unwrap();
+        let required = BTreeMap::from([("default.xex".into(), "0".repeat(64))]);
+
+        let error = prepare_runtime_source(
+            &source,
+            &destination,
+            RuntimeSourceMaterialization::StfsDirectory,
+            &required,
+        )
+        .unwrap_err();
+
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert_eq!(
+            std::fs::read(destination.join("previous.bin")).unwrap(),
+            b"previous"
+        );
+        assert!(!destination.join("default.xex").exists());
+        assert!(std::fs::read_dir(temporary.path()).unwrap().all(|entry| {
+            !entry
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .starts_with(".portcove-stfs-")
+        }));
+    }
+
     #[test]
     fn upstream_setup_metadata_binds_the_generated_tree_to_its_manifest() {
         let temporary = tempfile::tempdir().unwrap();
@@ -2239,10 +2344,22 @@ mod tests {
         std::fs::write(&first, b"first source").unwrap();
         std::fs::write(&second, b"replacement source").unwrap();
 
-        prepare_runtime_source(&first, &destination, RuntimeSourceMaterialization::Copy).unwrap();
+        prepare_runtime_source(
+            &first,
+            &destination,
+            RuntimeSourceMaterialization::Copy,
+            &BTreeMap::new(),
+        )
+        .unwrap();
         assert_eq!(std::fs::read(&destination).unwrap(), b"first source");
 
-        prepare_runtime_source(&second, &destination, RuntimeSourceMaterialization::Copy).unwrap();
+        prepare_runtime_source(
+            &second,
+            &destination,
+            RuntimeSourceMaterialization::Copy,
+            &BTreeMap::new(),
+        )
+        .unwrap();
         assert_eq!(std::fs::read(&destination).unwrap(), b"replacement source");
         let marker = std::fs::read(runtime_source_marker_path(&destination).unwrap()).unwrap();
         let marker: RuntimeSourceMarker = serde_json::from_slice(&marker).unwrap();
@@ -2263,8 +2380,13 @@ mod tests {
         std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
         std::fs::write(&source, b"direct ps2 iso").unwrap();
 
-        prepare_runtime_source(&source, &destination, RuntimeSourceMaterialization::Ps2Iso)
-            .unwrap();
+        prepare_runtime_source(
+            &source,
+            &destination,
+            RuntimeSourceMaterialization::Ps2Iso,
+            &BTreeMap::new(),
+        )
+        .unwrap();
 
         assert_eq!(std::fs::read(&destination).unwrap(), b"direct ps2 iso");
         assert!(runtime_source_marker_path(&destination).unwrap().is_file());
@@ -2588,6 +2710,39 @@ mod tests {
             Some(&source.to_string_lossy().into_owned())
         );
         assert!(install.join("portable.txt").is_file());
+    }
+
+    #[test]
+    fn generated_cache_injects_the_selected_gen2_version() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = temporary.path().join("install");
+        std::fs::create_dir_all(&install).unwrap();
+        std::fs::write(install.join("Gen2Recomped.exe"), b"test").unwrap();
+        let source = temporary.path().join("pokemon-crystal.gbc");
+        std::fs::write(&source, b"source").unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("gen2recomp-crystal").unwrap();
+
+        let spec = AdapterRegistry
+            .get(AdapterKind::GeneratedCache)
+            .launch_spec(
+                &library,
+                port,
+                Platform::WindowsX86_64,
+                &install,
+                Some(&source),
+            )
+            .unwrap();
+
+        assert_eq!(
+            spec.environment.get("POKEPORT_VERSION").map(String::as_str),
+            Some("crystal")
+        );
+        assert_eq!(
+            spec.environment.get("POKEPORT_IMPORT_ROM"),
+            Some(&source.to_string_lossy().into_owned())
+        );
     }
 
     #[test]

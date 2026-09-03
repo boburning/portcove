@@ -4,7 +4,7 @@ export type UpdatePolicy = "notify" | "stage" | "automatic";
 export type SupportTier = ReleaseChannel;
 export type UpstreamStatus = "active" | "retired" | "superseded" | "abandoned";
 export type AdapterKind = "libultraship-portable" | "n64-recomp-portable" | "staged-source-portable" | "referenced-disc" | "generated-cache" | "upstream-managed-setup" | "psx-recomp-managed";
-export type RuntimeSourceMaterialization = "n64-big-endian" | "copy" | "gamecube-iso" | "psx-bin-cue" | "psx-raw-set" | "ps2-iso";
+export type RuntimeSourceMaterialization = "n64-big-endian" | "copy" | "gamecube-iso" | "psx-bin-cue" | "psx-raw-set" | "ps2-iso" | "stfs-directory";
 export type SourceKind = "file" | "file-set" | "gamecube-disc" | "psx-disc" | "upstream-validated-disc";
 export type ReleaseSource = "github" | "gitlab" | "direct-manifest";
 
@@ -69,10 +69,13 @@ export interface PortDefinition {
   runtime_mutable_paths?: string[];
   portable_marker?: boolean;
   source_environment?: string;
+  user_data_environment?: string;
+  launch_environment?: Record<string, string>;
   launch_arguments?: string[];
   runtime_subdirectory?: string;
   runtime_source_filename?: string;
   runtime_source_materialization?: RuntimeSourceMaterialization;
+  runtime_source_hashes?: Record<string, string>;
   runtime_source_set?: Array<{
     source_filenames: string[];
     destination: string;

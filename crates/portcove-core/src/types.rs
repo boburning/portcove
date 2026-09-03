@@ -153,6 +153,7 @@ pub enum RuntimeSourceMaterialization {
     PsxBinCue,
     PsxRawSet,
     Ps2Iso,
+    StfsDirectory,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
@@ -305,6 +306,10 @@ pub struct PortDefinition {
     #[serde(default)]
     pub source_environment: Option<String>,
     #[serde(default)]
+    pub user_data_environment: Option<String>,
+    #[serde(default)]
+    pub launch_environment: BTreeMap<String, String>,
+    #[serde(default)]
     pub launch_arguments: Vec<String>,
     #[serde(default)]
     pub runtime_subdirectory: Option<String>,
@@ -312,6 +317,8 @@ pub struct PortDefinition {
     pub runtime_source_filename: Option<String>,
     #[serde(default)]
     pub runtime_source_materialization: Option<RuntimeSourceMaterialization>,
+    #[serde(default)]
+    pub runtime_source_hashes: BTreeMap<String, String>,
     #[serde(default)]
     pub runtime_source_set: Vec<RuntimeSourceTarget>,
     #[serde(default)]

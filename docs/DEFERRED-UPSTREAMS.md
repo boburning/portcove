@@ -1,6 +1,6 @@
 # Direct upstream review — 2026-09-03
 
-The campaign fetched repository metadata and the eight most recent release records from each of these 67 direct GitHub repositories. All requests succeeded; all repositories were active (not archived). This is release inventory evidence, not a grant of artifact, source, platform, or gameplay qualification. Catalog channels remain authoritative: a most-recent prerelease does not replace a stable selection. The digest column counts assets with GitHub-provided SHA-256 values; sidecars are named separately and still require the normal resolver checks. Game-specific decisions and exact resume actions remain in [DEFERRED.md](DEFERRED.md).
+The campaign fetched repository metadata and the eight most recent release records from each of these 70 direct GitHub repositories. All requests succeeded; all repositories were active (not archived). This is release inventory evidence, not a grant of artifact, source, platform, or gameplay qualification. Catalog channels remain authoritative: a most-recent prerelease does not replace a stable selection. The digest column counts assets with GitHub-provided SHA-256 values; sidecars are named separately and still require the normal resolver checks. Game-specific decisions and exact resume actions remain in [DEFERRED.md](DEFERRED.md).
 
 | Direct repository | Most recent listed release | Published | GitHub SHA-256 / all assets | Checksum sidecars |
 |---|---|---|---|---|
@@ -14,7 +14,7 @@ The campaign fetched repository metadata and the eight most recent release recor
 | [birabittoh/KameoRePowered](https://github.com/birabittoh/KameoRePowered) | [v0.2.1](https://github.com/birabittoh/KameoRePowered/releases/tag/v0.2.1) | 2026-06-23 | 4 / 4 | None |
 | [birabittoh/NocturneRecomp](https://github.com/birabittoh/NocturneRecomp) | [v1.4.5](https://github.com/birabittoh/NocturneRecomp/releases/tag/v1.4.5) | 2026-08-27 | 6 / 6 | None |
 | [bryankruman/BeetleRecomp](https://github.com/bryankruman/BeetleRecomp) | [Continuous (prerelease)](https://github.com/bryankruman/BeetleRecomp/releases/tag/Continuous) | 2026-07-18 | 2 / 2 | None |
-| [bryanthaboi/gen1recomp](https://github.com/bryanthaboi/gen1recomp) | [v0.2.53](https://github.com/bryanthaboi/gen1recomp/releases/tag/v0.2.53) | 2026-09-03 | 13 / 13 | sha256sums.txt |
+| [bryanthaboi/gen1recomp](https://github.com/bryanthaboi/gen1recomp) | [v0.2.54](https://github.com/bryanthaboi/gen1recomp/releases/tag/v0.2.54) | 2026-09-03 | 13 / 13 | sha256sums.txt |
 | [cdlewis/snowboardkids2-recomp](https://github.com/cdlewis/snowboardkids2-recomp) | [v2.0.0+alpha3 (prerelease)](https://github.com/cdlewis/snowboardkids2-recomp/releases/tag/v2.0.0%2Balpha3) | 2026-08-19 | 6 / 6 | None |
 | [Cellenseres/SSSV_Recomp](https://github.com/Cellenseres/SSSV_Recomp) | [v0.2.0](https://github.com/Cellenseres/SSSV_Recomp/releases/tag/v0.2.0) | 2026-03-13 | 3 / 3 | None |
 | [cyscott/dkr-recomp](https://github.com/cyscott/dkr-recomp) | [v0.1.18-alpha (prerelease)](https://github.com/cyscott/dkr-recomp/releases/tag/v0.1.18-alpha) | 2026-07-24 | 3 / 3 | SHA256SUMS |
@@ -51,7 +51,9 @@ The campaign fetched repository metadata and the eight most recent release recor
 | [Rainchus/Quest64-Recomp](https://github.com/Rainchus/Quest64-Recomp) | [v0.1](https://github.com/Rainchus/Quest64-Recomp/releases/tag/v0.1) | 2026-01-11 | 1 / 1 | None |
 | [RevoSucks/BM64Recomp](https://github.com/RevoSucks/BM64Recomp) | [v1.0.0](https://github.com/RevoSucks/BM64Recomp/releases/tag/v1.0.0) | 2026-03-22 | 8 / 8 | None |
 | [RevoSucks/BMHeroRecomp](https://github.com/RevoSucks/BMHeroRecomp) | [v0.7.1 (prerelease)](https://github.com/RevoSucks/BMHeroRecomp/releases/tag/v0.7.1) | 2026-05-03 | 8 / 8 | None |
+| [ryancheung/Zelda-LA-DX-HD](https://github.com/ryancheung/Zelda-LA-DX-HD) | [v2.0.0](https://github.com/ryancheung/Zelda-LA-DX-HD/releases/tag/v2.0.0) | 2026-03-14 | 1 / 1 | None |
 | [SMCGames/Paper-Mario-ReCut](https://github.com/SMCGames/Paper-Mario-ReCut) | [v0.1.2 (prerelease)](https://github.com/SMCGames/Paper-Mario-ReCut/releases/tag/v0.1.2) | 2026-06-01 | 1 / 1 | None |
+| [snesrev/zelda3](https://github.com/snesrev/zelda3) | [v0.3](https://github.com/snesrev/zelda3/releases/tag/v0.3) | 2023-08-17 | 0 / 1 | None |
 | [TechnicallyComputers/Bomberman-Fantasy-Race-Recomp](https://github.com/TechnicallyComputers/Bomberman-Fantasy-Race-Recomp) | [v0.1.2](https://github.com/TechnicallyComputers/Bomberman-Fantasy-Race-Recomp/releases/tag/v0.1.2) | 2026-08-26 | 4 / 4 | None |
 | [TechnicallyComputers/Bomberman-World-Recomp](https://github.com/TechnicallyComputers/Bomberman-World-Recomp) | [v0.1.20](https://github.com/TechnicallyComputers/Bomberman-World-Recomp/releases/tag/v0.1.20) | 2026-08-26 | 4 / 4 | None |
 | [TechnicallyComputers/BombermanPartyEditionRecomp](https://github.com/TechnicallyComputers/BombermanPartyEditionRecomp) | [v0.3.17](https://github.com/TechnicallyComputers/BombermanPartyEditionRecomp/releases/tag/v0.3.17) | 2026-08-26 | 4 / 4 | None |
@@ -67,6 +69,7 @@ The campaign fetched repository metadata and the eight most recent release recor
 | [TechnicallyComputers/TwistedMetal4Recomp](https://github.com/TechnicallyComputers/TwistedMetal4Recomp) | [v0.3.29](https://github.com/TechnicallyComputers/TwistedMetal4Recomp/releases/tag/v0.3.29) | 2026-08-26 | 4 / 4 | None |
 | [ThiagoLira/trouble-makers-pc-recomp](https://github.com/ThiagoLira/trouble-makers-pc-recomp) | [v0.8.1 (prerelease)](https://github.com/ThiagoLira/trouble-makers-pc-recomp/releases/tag/v0.8.1) | 2026-08-22 | 3 / 3 | None |
 | [TwilitRealm/dusklight](https://github.com/TwilitRealm/dusklight) | [v1.4.1](https://github.com/TwilitRealm/dusklight/releases/tag/v1.4.1) | 2026-06-16 | 8 / 8 | None |
+| [UNDERdecoded/Gen2Recomped](https://github.com/UNDERdecoded/Gen2Recomped) | [v0.7.35](https://github.com/UNDERdecoded/Gen2Recomped/releases/tag/v0.7.35) | 2026-08-29 | 14 / 14 | sha256sums.txt |
 | [wipeout-phantom-edition/wipeout-phantom-edition](https://github.com/wipeout-phantom-edition/wipeout-phantom-edition) | [v1.2.256](https://github.com/wipeout-phantom-edition/wipeout-phantom-edition/releases/tag/v1.2.256) | 2024-02-17 | 0 / 1 | None |
 | [Zelda64Recomp/Zelda64Recomp](https://github.com/Zelda64Recomp/Zelda64Recomp) | [v1.2.2](https://github.com/Zelda64Recomp/Zelda64Recomp/releases/tag/v1.2.2) | 2025-08-27 | 5 / 5 | None |
 | [zolaware/reblue](https://github.com/zolaware/reblue) | [nightly-v1.0.0-dae92aa3d-s4c135084 (prerelease)](https://github.com/zolaware/reblue/releases/tag/nightly-v1.0.0-dae92aa3d-s4c135084) | 2026-09-03 | 4 / 4 | None |

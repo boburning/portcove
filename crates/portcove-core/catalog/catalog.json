@@ -26,6 +26,10 @@
     { "id": "mega-man-64", "label": "Mega Man 64 (US) source", "accepted_extensions": ["z64"], "accepted_sha256": ["618d49bf62913b376e4858f1422a51a4352792b070fe6305860dd43e28353999"] },
     { "id": "dr-mario-64", "label": "Dr. Mario 64 source", "accepted_extensions": ["z64", "n64", "v64"], "accepted_sha256": [] },
     { "id": "pokemon-gen-1", "label": "Pokémon Red (US) source", "accepted_extensions": ["gb"], "accepted_sha256": ["5ca7ba01642a3b27b0cc0b5349b52792795b62d3ed977e98a09390659af96b7b"] },
+    { "id": "pokemon-gold", "label": "Pokémon Gold (US) source", "accepted_extensions": ["gbc"], "accepted_sha1": ["d8b8a3600a465308c9953dfa04f0081c05bdcb94"], "accepted_sha256": [] },
+    { "id": "pokemon-silver", "label": "Pokémon Silver (US) source", "accepted_extensions": ["gbc"], "accepted_sha1": ["49b163f7e57702bc939d642a18f591de55d92dae"], "accepted_sha256": [] },
+    { "id": "pokemon-crystal", "label": "Pokémon Crystal (US) source", "accepted_extensions": ["gbc"], "accepted_sha1": ["f2f52230b536214ef7c9924f483392993e226cfb", "f4cd194bdee0d04ca4eac29e09b8e4e9d818c133"], "accepted_sha256": [] },
+    { "id": "sotn-xbla", "label": "Castlevania: Symphony of the Night Xbox Live Arcade package", "accepted_extensions": [], "accepted_sha256": ["efb36098df070c0ddd9e1058ee0c0e1570748b62d0ef93fc691b4c52798bd17c"] },
     { "id": "blue-dragon", "label": "Blue Dragon source disc", "accepted_extensions": ["iso"], "accepted_sha256": [] },
     { "id": "bomberman-hero", "label": "Bomberman Hero (US) source", "accepted_extensions": ["z64"], "accepted_sha256": ["e021ec484a88c528256dbff80617e599768b074b0918dcec081ecbf365386542"] },
     { "id": "snowboard-kids-2", "label": "Snowboard Kids 2 (US) source", "accepted_extensions": ["z64"], "accepted_sha256": ["8af426d05af66033ab6ba8e643aaf3ea4eee329a642440600821f6faf6618ebd"] },
@@ -466,6 +470,42 @@
       "executable_hints": { "windows-x86-64": ["gen1recomp.exe"], "linux-x86-64": ["gen1recomp", "gen1recomp.appimage"], "macos-x86-64": ["gen1recomp"], "macos-aarch64": ["gen1recomp"] },
       "portable_marker": true, "source_environment": "POKEPORT_IMPORT_ROM", "launch_arguments": ["--game=red"],
       "persistent_paths": ["assets/generated", "data/generated", "red", "mods", "imports", "exports", "screenshots", "save.lua", "save.lua.bak", "options.lua"]
+    },
+    {
+      "id": "gen2recomp-gold", "name": "Gen2Recomped: Pokémon Gold", "summary": "Opt-in Phase 2B native Lua/LÖVE recreation of Pokémon Gold.",
+      "project_url": "https://github.com/UNDERdecoded/Gen2Recomped", "support_tier": "beta", "channels": ["stable"],
+      "platforms": ["windows-x86-64"], "adapter": "generated-cache",
+      "release": { "repository": "UNDERdecoded/Gen2Recomped", "asset_hints": { "windows-x86-64": ["windows.zip"] } }, "source_profile": "pokemon-gold",
+      "executable_hints": { "windows-x86-64": ["Gen2Recomped.exe"] },
+      "portable_marker": true, "source_environment": "POKEPORT_IMPORT_ROM", "launch_environment": { "POKEPORT_VERSION": "gold" },
+      "persistent_paths": ["gold", "mods", "imports", "exports", "screenshots", "saves", "editor", "prints", "save_gold.lua", "save_gold.lua.bak", "save_gold.lua.tmp", "options.lua", "boot_trace.txt", "crash.txt"]
+    },
+    {
+      "id": "gen2recomp-silver", "name": "Gen2Recomped: Pokémon Silver", "summary": "Opt-in Phase 2B native Lua/LÖVE recreation of Pokémon Silver.",
+      "project_url": "https://github.com/UNDERdecoded/Gen2Recomped", "support_tier": "beta", "channels": ["stable"],
+      "platforms": ["windows-x86-64"], "adapter": "generated-cache",
+      "release": { "repository": "UNDERdecoded/Gen2Recomped", "asset_hints": { "windows-x86-64": ["windows.zip"] } }, "source_profile": "pokemon-silver",
+      "executable_hints": { "windows-x86-64": ["Gen2Recomped.exe"] },
+      "portable_marker": true, "source_environment": "POKEPORT_IMPORT_ROM", "launch_environment": { "POKEPORT_VERSION": "silver" },
+      "persistent_paths": ["silver", "mods", "imports", "exports", "screenshots", "saves", "editor", "prints", "save_silver.lua", "save_silver.lua.bak", "save_silver.lua.tmp", "options.lua", "boot_trace.txt", "crash.txt"]
+    },
+    {
+      "id": "gen2recomp-crystal", "name": "Gen2Recomped: Pokémon Crystal", "summary": "Opt-in beta native Lua/LÖVE recreation of Pokémon Crystal.",
+      "project_url": "https://github.com/UNDERdecoded/Gen2Recomped", "support_tier": "beta", "channels": ["stable"],
+      "platforms": ["windows-x86-64"], "adapter": "generated-cache",
+      "release": { "repository": "UNDERdecoded/Gen2Recomped", "asset_hints": { "windows-x86-64": ["windows.zip"] } }, "source_profile": "pokemon-crystal",
+      "executable_hints": { "windows-x86-64": ["Gen2Recomped.exe"] },
+      "portable_marker": true, "source_environment": "POKEPORT_IMPORT_ROM", "launch_environment": { "POKEPORT_VERSION": "crystal" },
+      "persistent_paths": ["crystal", "mods", "imports", "exports", "screenshots", "saves", "editor", "prints", "save_crystal.lua", "save_crystal.lua.bak", "save_crystal.lua.tmp", "options.lua", "boot_trace.txt", "crash.txt"]
+    },
+    {
+      "id": "nocturne-recomp", "name": "NocturneRecomp", "summary": "Native Windows recompilation of Castlevania: Symphony of the Night for Xbox Live Arcade.",
+      "project_url": "https://github.com/birabittoh/NocturneRecomp", "support_tier": "stable", "channels": ["stable"],
+      "platforms": ["windows-x86-64"], "adapter": "staged-source-portable", "automated_tested_platforms": ["windows-x86-64"],
+      "release": { "repository": "birabittoh/NocturneRecomp", "asset_hints": { "windows-x86-64": ["nocturnerecomp-v", "windows-x64.zip"] } }, "source_profile": "sotn-xbla",
+      "executable_hints": { "windows-x86-64": ["nocturnerecomp.exe"] },
+      "runtime_source_filename": "assets", "runtime_source_materialization": "stfs-directory", "runtime_source_hashes": { "default.xex": "26a58b074c5dd6185b77a8111a0012866d11cba674b4b0810d79dbf07ad68aa6" },
+      "runtime_mutable_paths": ["assets", "logs", "nocturnerecomp.toml"], "user_data_environment": "REX_USER_DATA_ROOT", "launch_environment": { "REX_AUTO_UPDATE_ENABLED": "false", "REX_GAME_DATA_ROOT": "assets" }
     },
     {
       "id": "re-blue", "name": "re:Blue", "summary": "Native recompilation of Blue Dragon.",

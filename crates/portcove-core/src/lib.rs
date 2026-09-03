@@ -35,6 +35,7 @@ mod signed_catalog;
 mod source;
 mod source_discovery;
 mod source_file;
+mod stfs;
 mod transfer_copy;
 mod transfer_journal;
 mod types;
@@ -81,4 +82,4 @@ pub use source_discovery::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 9;
+pub const API_SCHEMA_VERSION: u32 = 10;
