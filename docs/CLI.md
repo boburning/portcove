@@ -7,7 +7,7 @@ Without a machine-output flag, Portcove renders concise human output. Catalog, s
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":4,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":5,"ok":true,"command":"status","data":{},"error":null}
 ```
 
 Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for both success and failure. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
@@ -103,6 +103,23 @@ portcove --library <path> --json library export --output <new-file.json>
 Export reads one consistent SQLite snapshot. The versioned metadata document contains source references, managed version identities, active/previous/staged state, per-port preferences, and successful launch history. Application versions, user data, backups, and toolchains are identified as separate content roots; their contents and credentials are not embedded. Managed installation paths become relative to the original library root, while source references retain their original paths and identities.
 
 Without `--output`, the document appears in the normal CLI response. With `--output`, core writes a raw metadata document to a new file and returns its path, byte size, and SHA-256. Publication does not replace an existing file. Settings → Library → Export metadata invokes the same operation through a native save dialog.
+
+## Library moves and recovery
+
+```text
+portcove --library <original> --json library move <new-directory>
+portcove --library <original> --json library move <new-directory> --apply --expected-plan <plan-sha256>
+portcove --library <original> --json library resume-move
+portcove --library <original> --json library abort-move
+```
+
+Review is read-only. The destination must be a new directory beneath an existing parent. The plan identifies the four managed content categories, source references, required working space, and available capacity. It rejects symlinks, special entries, case-insensitive collisions, and paths outside the conservative portable ASCII filename policy. Source references stay at their original paths. Complete all launch/lifecycle recovery and close other Portcove clients before applying; every open handle holds a library lease. Settings → Library → Move library uses the same plan and core operation while releasing its own cached handles.
+
+Apply recomputes the reviewed fingerprint, copies with no overwrite, verifies file inventories, metadata, SQLite integrity and immutable installation manifests, then switches authority. The original directory is retained as a recovery copy. Opening that old path subsequently follows the verified relocation, so configured paths survive an ordinary move. For disk removal or machine migration, configure the new root directly. Metadata export alone is not a payload backup or import.
+
+An interrupted move blocks normal use until `resume-move` finishes or `abort-move` reactivates an unpublished original. Pass the original directory, including when normal opening is blocked. Abort never deletes copied files, and it refuses once authority publication has begun. An unmarked destination with ambiguous database state is retained for inspection. Startup and the move dialog expose these same recovery actions. Recovery after activation preserves any new destination saves. Do not manually remove authority markers to bypass these checks.
+
+Machine schema version 5 adds `move_library` to the activity operation enum and exports library metadata, move-plan, and move-result schemas. Move result fields identify the retained source, destination, active root, and terminal completion state. A transfer awaiting recovery has a durable journal and running activity; a resumed or aborted transfer records its explicit terminal outcome.
 
 ## Idempotent automation
 

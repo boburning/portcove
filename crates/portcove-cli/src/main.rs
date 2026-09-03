@@ -169,6 +169,18 @@ enum LibraryCommand {
         #[arg(long)]
         output: Option<PathBuf>,
     },
+    /// Review a verified copy; applying retains the old directory as a recovery copy.
+    Move {
+        destination: PathBuf,
+        #[arg(long, requires = "expected_plan")]
+        apply: bool,
+        #[arg(long, requires = "apply")]
+        expected_plan: Option<String>,
+    },
+    /// Resume an interrupted move using --library's retained original directory.
+    ResumeMove,
+    /// Reactivate an unpublished original while retaining all copied data.
+    AbortMove,
 }
 
 #[derive(Debug, Subcommand)]
@@ -467,24 +479,18 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         render_success(mode, "schema.export", schema_document())?;
         return Ok(ExitCode::SUCCESS);
     }
+    if let Commands::Library { command } = &cli.command {
+        execute_library(cli.library.as_deref(), command, mode)?;
+        return Ok(ExitCode::SUCCESS);
+    }
     let library = match cli.library {
         Some(path) => portcove_core::Library::open(path)?,
         None => portcove_core::Library::open_default()?,
     };
     let service = PortcoveService::new(library)?;
     match cli.command {
-        Commands::Library {
-            command: LibraryCommand::Export { output },
-        } => {
-            if let Some(path) = output {
-                render_success(
-                    mode,
-                    "library.export",
-                    service.write_library_metadata(&path)?,
-                )?;
-            } else {
-                render_success(mode, "library.export", service.export_library_metadata()?)?;
-            }
+        Commands::Library { .. } => {
+            unreachable!("library commands handle exclusive access before opening a service")
         }
         Commands::Auth { command } => {
             let github = GithubReleaseProvider::for_library(service.library())?;
@@ -1016,6 +1022,66 @@ where
     }
 }
 
+fn library_command_name(command: &LibraryCommand) -> &'static str {
+    match command {
+        LibraryCommand::Export { .. } => "library.export",
+        LibraryCommand::Move { .. } => "library.move",
+        LibraryCommand::ResumeMove => "library.resume_move",
+        LibraryCommand::AbortMove => "library.abort_move",
+    }
+}
+
+fn execute_library(
+    root: Option<&std::path::Path>,
+    command: &LibraryCommand,
+    mode: OutputMode,
+) -> Result<()> {
+    let root = root
+        .map(std::path::Path::to_path_buf)
+        .map(Ok)
+        .unwrap_or_else(portcove_core::Library::default_root)?;
+    let name = library_command_name(command);
+    match command {
+        LibraryCommand::ResumeMove => {
+            render_success(mode, name, PortcoveService::resume_library_move(&root)?)?
+        }
+        LibraryCommand::AbortMove => {
+            render_success(mode, name, PortcoveService::abort_library_move(&root)?)?
+        }
+        LibraryCommand::Move {
+            destination,
+            apply: true,
+            expected_plan,
+        } => {
+            let source = portcove_core::Library::open(&root)?.root().to_path_buf();
+            render_success(
+                mode,
+                name,
+                PortcoveService::move_library(
+                    &source,
+                    destination,
+                    expected_plan.as_deref().ok_or_else(|| {
+                        PortcoveError::usage("applying a move requires --expected-plan")
+                    })?,
+                )?,
+            )?;
+        }
+        LibraryCommand::Move { destination, .. } => {
+            let service = PortcoveService::new(portcove_core::Library::open(root)?)?;
+            render_success(mode, name, service.plan_library_move(destination)?)?;
+        }
+        LibraryCommand::Export { output } => {
+            let service = PortcoveService::new(portcove_core::Library::open(root)?)?;
+            if let Some(path) = output {
+                render_success(mode, name, service.write_library_metadata(path)?)?;
+            } else {
+                render_success(mode, name, service.export_library_metadata()?)?;
+            }
+        }
+    }
+    Ok(())
+}
+
 fn schema_document() -> serde_json::Value {
     serde_json::json!({
         "api_response_port_status": schema_for!(ApiResponse<PortStatus>),
@@ -1033,6 +1099,8 @@ fn schema_document() -> serde_json::Value {
         "source_relink_plan": schema_for!(SourceRelinkPlan),
         "library_metadata": schema_for!(LibraryMetadata),
         "library_metadata_file": schema_for!(LibraryMetadataFile),
+        "library_move_plan": schema_for!(portcove_core::LibraryMovePlan),
+        "library_move_result": schema_for!(portcove_core::LibraryMoveResult),
         "source_removal_preview": schema_for!(SourceRemovalPreview),
         "source_verification": schema_for!(SourceVerification),
         "source_batch_outcome": schema_for!(SourceBatchOutcome),
@@ -1347,7 +1415,7 @@ fn command_name(command: &Commands) -> &'static str {
         Commands::Status { .. } => "status",
         Commands::Activity { .. } => "activity",
         Commands::Storage => "storage",
-        Commands::Library { .. } => "library.export",
+        Commands::Library { command } => library_command_name(command),
         Commands::Doctor => "doctor",
         Commands::About => "about",
         Commands::Plan { .. } => "plan",
@@ -1611,7 +1679,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 4);
+        assert_eq!(capabilities.schema_version, 5);
         assert_eq!(
             capabilities.failure_isolated_batches,
             ["check", "reconcile", "update", "source.verify"]

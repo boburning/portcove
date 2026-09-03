@@ -134,6 +134,7 @@ function operationLabel(operation: ActivityOperation) {
     remove_source: "Removed source reference",
     register_source: "Registered source",
     verify_source: "Verified source",
+    move_library: "Moved library",
   };
   return labels[operation];
 }

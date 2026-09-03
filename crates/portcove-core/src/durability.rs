@@ -2,6 +2,34 @@ use std::{fs, path::Path};
 
 use crate::{PortcoveError, Result};
 
+/// Flush a private sibling file before an atomic namespace publication.
+/// Replacement is only for core-owned journals, never user export files.
+pub(crate) fn write_json_atomically<T: serde::Serialize>(
+    destination: &Path,
+    value: &T,
+    replace: bool,
+) -> Result<()> {
+    use std::io::Write;
+    let parent = destination
+        .parent()
+        .ok_or_else(|| PortcoveError::usage("publication path has no parent"))?;
+    let mut temporary = tempfile::NamedTempFile::new_in(parent)?;
+    temporary.write_all(&serde_json::to_vec_pretty(value)?)?;
+    temporary.as_file().sync_all()?;
+    let result = if replace {
+        temporary.persist(destination)
+    } else {
+        temporary.persist_noclobber(destination)
+    };
+    result.map_err(|error| PortcoveError::from(error.error))?;
+    sync_directory(parent)?;
+    Ok(())
+}
+
+pub(crate) fn sync_publication(directory: &Path) -> Result<()> {
+    sync_directory(directory).map_err(Into::into)
+}
+
 /// Flush the directory entries that make a staged backup reachable.
 ///
 /// Linux is the only V1 host where Portcove makes this durability claim. A

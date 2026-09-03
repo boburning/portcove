@@ -16,7 +16,7 @@ describe("Portcove app shell", () => {
       message: "The configured library cannot be opened.",
       details: { path: "Z:\\Portcove" },
     }} />);
-    expect(html).toContain("Your library was left untouched");
+    expect(html).toContain("Your library needs attention");
     expect(html).toContain("The configured library cannot be opened.");
     expect(html).toContain("Z:\\Portcove");
     expect(html).toContain("Retry startup");

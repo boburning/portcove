@@ -24,6 +24,58 @@ fn human_stdout(output: &Output) -> &str {
 }
 
 #[test]
+fn library_move_requires_review_and_redirects_later_cli_processes() {
+    let temporary = tempfile::tempdir().unwrap();
+    let source = temporary.path().join("source");
+    let destination = temporary.path().join("destination");
+    let reviewed = portcove(
+        &source,
+        &["--json", "library", "move", destination.to_str().unwrap()],
+    );
+    assert!(reviewed.status.success());
+    let plan = json_stdout(&reviewed);
+    let digest = plan["data"]["plan_sha256"].as_str().unwrap();
+    assert!(!destination.exists());
+    let missing = portcove(
+        &source,
+        &[
+            "--json",
+            "library",
+            "move",
+            destination.to_str().unwrap(),
+            "--apply",
+        ],
+    );
+    assert_eq!(missing.status.code(), Some(2));
+    let moved = portcove(
+        &source,
+        &[
+            "--json",
+            "library",
+            "move",
+            destination.to_str().unwrap(),
+            "--apply",
+            "--expected-plan",
+            digest,
+        ],
+    );
+    assert!(moved.status.success(), "{moved:?}");
+    assert_eq!(json_stdout(&moved)["data"]["completed"], true);
+    let exported = portcove(&source, &["--json", "library", "export"]);
+    assert!(exported.status.success());
+    assert_eq!(
+        json_stdout(&exported)["data"]["original_root"],
+        std::fs::canonicalize(destination)
+            .unwrap()
+            .to_str()
+            .unwrap()
+    );
+    let resumed = portcove(&source, &["--json", "library", "resume-move"]);
+    assert!(resumed.status.success());
+    assert_eq!(json_stdout(&resumed)["command"], "library.resume_move");
+}
+
+#[test]
 fn library_metadata_export_is_versioned_and_does_not_replace_an_existing_file() {
     let temporary = tempfile::tempdir().unwrap();
     let library = temporary.path().join("library");
@@ -171,7 +223,7 @@ fn default_read_commands_have_human_output_snapshots() {
 
     let capabilities = human_stdout(&portcove(root.path(), &["capabilities"])).to_owned();
     assert!(capabilities.starts_with("Portcove "));
-    assert!(capabilities.contains(" capabilities\nSchema: 4"));
+    assert!(capabilities.contains(" capabilities\nSchema: 5"));
 }
 
 #[test]
@@ -182,11 +234,11 @@ fn capabilities_are_one_clean_versioned_json_document() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 4);
+    assert_eq!(response["schema_version"], 5);
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");
     assert!(response["error"].is_null());
-    assert_eq!(response["data"]["schema_version"], 4);
+    assert_eq!(response["data"]["schema_version"], 5);
     assert_eq!(
         response["data"]["raw_stream_commands"],
         serde_json::json!(["exec"])
@@ -208,7 +260,7 @@ fn command_errors_keep_the_machine_envelope_and_stable_exit_code() {
     assert_eq!(output.status.code(), Some(4));
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 4);
+    assert_eq!(response["schema_version"], 5);
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "catalog.show");
     assert!(response["data"].is_null());
@@ -225,7 +277,7 @@ fn parser_errors_are_structured_for_machine_callers() {
     assert!(output.stderr.is_empty());
     assert!(!library.exists());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 4);
+    assert_eq!(response["schema_version"], 5);
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "cli");
     assert_eq!(response["error"]["code"], "usage");
@@ -245,7 +297,7 @@ fn jsonl_read_commands_end_with_one_result_event() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 4);
+    assert_eq!(response["schema_version"], 5);
     assert_eq!(response["type"], "result");
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");

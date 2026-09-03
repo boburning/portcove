@@ -91,13 +91,18 @@ impl PortcoveService {
 
 impl Library {
     fn metadata_snapshot(&self) -> Result<LibraryMetadata> {
+        self.metadata_for_root(&std::fs::canonicalize(self.root())?)
+    }
+
+    pub(crate) fn metadata_for_root(&self, managed_root: &Path) -> Result<LibraryMetadata> {
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
         let source_references = Self::sources_from(&transaction)?;
         let mut application_versions = Self::installs_from(&transaction)?;
-        let original_root = std::path::absolute(self.root())?;
+        let original_root = managed_root.to_path_buf();
+        application_versions.sort_by(|left, right| left.id.cmp(&right.id));
         for install in &mut application_versions {
-            let absolute = std::path::absolute(&install.path)?;
+            let absolute = crate::path::resolve_existing_ancestor(&install.path)?;
             let relative = absolute.strip_prefix(&original_root).map_err(|_| {
                 PortcoveError::state(
                     "registered installation is outside the library being exported",
@@ -171,7 +176,7 @@ fn read_launch_history(connection: &rusqlite::Connection) -> Result<Vec<LibraryL
         .map_err(Into::into)
 }
 
-fn portable_relative(path: &Path) -> Result<String> {
+pub(crate) fn portable_relative(path: &Path) -> Result<String> {
     let parts = path
         .components()
         .map(|component| match component {

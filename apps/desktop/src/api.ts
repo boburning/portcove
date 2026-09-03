@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { LibraryMovePlan, LibraryMoveResult } from "./types";
 import type { ActivityRecord, AdoptionPreview, BackupRecord, BootstrapStatus, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, InstallPlan, InstallRecord, LibraryMetadataFile, PortStatus, ReconcileOutcome, ReleaseChannel, RestoreResult, SourceRecord, SourceRelinkPlan, SourceRemovalPreview, SourceVerificationOutcome, UpdateCheck, UpdateCheckOutcome, UpdatePolicy } from "./types";
 
 export const desktopApi = {
@@ -28,6 +29,9 @@ export const desktopApi = {
   doctor: () => invoke<DoctorReport>("get_doctor_report"),
   createSupportBundle: () => invoke<string>("create_support_bundle"),
   exportLibraryMetadata: (path: string) => invoke<LibraryMetadataFile>("export_library_metadata", { path }),
+  planLibraryMove: (destination: string) => invoke<LibraryMovePlan>("plan_library_move", { destination }),
+  moveLibrary: (destination: string, expectedPlan: string) => invoke<LibraryMoveResult>("move_library", { destination, expectedPlan }),
+  recoverLibraryMove: (source: string, abort: boolean) => invoke<LibraryMoveResult>("recover_library_move", { source, abort }),
   reportFrontendError: (message: string, componentStack: string) => invoke<void>("report_frontend_error", { message, componentStack }),
   plan: (portId: string, channel: ReleaseChannel) => invoke<InstallPlan>("plan_port", { portId, channel }),
   openUserData: (portId: string) => invoke<string>("open_user_data", { portId }),

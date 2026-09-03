@@ -2632,7 +2632,7 @@ fn adoption_plan_fingerprint(
     Ok(hex::encode(Sha256::digest(encoded)))
 }
 
-fn adoption_copy_plan(source: &Path) -> Result<AdoptionCopyPlan> {
+pub(crate) fn adoption_copy_plan(source: &Path) -> Result<AdoptionCopyPlan> {
     let mut plan = AdoptionCopyPlan {
         directories: Vec::new(),
         files: Vec::new(),
@@ -2709,7 +2709,7 @@ fn copy_adoption_plan(source: &Path, destination: &Path, plan: &AdoptionCopyPlan
     Ok(())
 }
 
-fn sha256_file(path: &Path) -> Result<String> {
+pub(crate) fn sha256_file(path: &Path) -> Result<String> {
     let mut file = fs::File::open(path)?;
     let mut digest = Sha256::new();
     let mut buffer = [0_u8; 64 * 1024];

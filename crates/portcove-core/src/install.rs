@@ -69,7 +69,7 @@ impl InstallQualification {
     }
 
     #[cfg(test)]
-    fn test(executable: &str) -> Self {
+    pub(crate) fn test(executable: &str) -> Self {
         Self {
             platform: Platform::WindowsX86_64,
             executable_hints: vec![executable.into()],

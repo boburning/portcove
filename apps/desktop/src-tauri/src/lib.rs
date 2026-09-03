@@ -1,4 +1,5 @@
 mod diagnostics;
+mod library_transfer;
 
 use std::{
     fs,
@@ -31,7 +32,7 @@ struct ReadyDesktopState {
 
 #[derive(Clone)]
 struct DesktopState {
-    initialization: std::sync::Arc<DesktopResult<ReadyDesktopState>>,
+    initialization: std::sync::Arc<std::sync::Mutex<DesktopResult<ReadyDesktopState>>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,8 +70,12 @@ impl From<PortcoveError> for DesktopError {
 
 type DesktopResult<T> = std::result::Result<T, DesktopError>;
 
-fn ready(state: &DesktopState) -> DesktopResult<&ReadyDesktopState> {
-    state.initialization.as_ref().as_ref().map_err(Clone::clone)
+fn ready(state: &DesktopState) -> DesktopResult<ReadyDesktopState> {
+    state
+        .initialization
+        .lock()
+        .map_err(|_| DesktopError::from(PortcoveError::state("desktop state lock was poisoned")))?
+        .clone()
 }
 
 fn service(state: &DesktopState) -> DesktopResult<PortcoveService> {
@@ -1326,15 +1331,17 @@ fn initialize_desktop_at(configured_root: Option<PathBuf>) -> DesktopResult<Read
 }
 
 pub fn run() {
-    let initialization = std::sync::Arc::new(initialize_desktop().and_then(|state| {
-        diagnostics::initialize(&state.library.logs_dir()).map_err(DesktopError::from)?;
-        tracing::info!(
-            operation_id = "desktop-startup",
-            library_root = %state.library.root().display(),
-            "desktop diagnostics initialized"
-        );
-        Ok(state)
-    }));
+    let initialization = std::sync::Arc::new(std::sync::Mutex::new(initialize_desktop().and_then(
+        |state| {
+            diagnostics::initialize(&state.library.logs_dir()).map_err(DesktopError::from)?;
+            tracing::info!(
+                operation_id = "desktop-startup",
+                library_root = %state.library.root().display(),
+                "desktop diagnostics initialized"
+            );
+            Ok(state)
+        },
+    )));
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(DesktopState { initialization })
@@ -1380,6 +1387,9 @@ pub fn run() {
             open_external_url,
             create_support_bundle,
             export_library_metadata,
+            library_transfer::plan_library_move,
+            library_transfer::move_library,
+            library_transfer::recover_library_move,
             report_frontend_error,
         ])
         .setup(|app| {
@@ -1430,7 +1440,7 @@ mod tests {
             Err(error) => error,
         };
         let state = DesktopState {
-            initialization: std::sync::Arc::new(Err(error.clone())),
+            initialization: std::sync::Arc::new(std::sync::Mutex::new(Err(error.clone()))),
         };
 
         let status = bootstrap_status(&state);

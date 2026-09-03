@@ -58,9 +58,34 @@ pub(crate) struct HttpCacheEntry {
 
 impl Library {
     pub fn open(root: impl Into<PathBuf>) -> Result<Self> {
-        let root = root.into();
-        crate::path::unicode(&root, "library root")?;
-        let lease = std::sync::Arc::new(crate::library_access::LibraryLease::acquire(&root)?);
+        let mut root = root.into();
+        for _ in 0..8 {
+            crate::path::unicode(&root, "library root")?;
+            let lease = std::sync::Arc::new(crate::library_access::LibraryLease::acquire(&root)?);
+            if let Some(destination) = crate::library_authority::open_target(&root)? {
+                root = destination;
+            } else {
+                return Self::initialize(root, lease);
+            }
+        }
+        Err(PortcoveError::state(
+            "library relocation chain is cyclic or too long",
+        ))
+    }
+
+    pub(crate) fn open_exclusive(root: &Path) -> Result<Self> {
+        crate::path::unicode(root, "library root")?;
+        let lease = std::sync::Arc::new(crate::library_access::LibraryLease::with_access(
+            root,
+            crate::library_access::LibraryAccess::Exclusive,
+        )?);
+        Self::initialize(root.to_path_buf(), lease)
+    }
+
+    pub(crate) fn initialize(
+        root: PathBuf,
+        lease: std::sync::Arc<crate::library_access::LibraryLease>,
+    ) -> Result<Self> {
         let library = Self {
             root,
             authorizations: AuthorizationStore::default(),
@@ -72,10 +97,14 @@ impl Library {
     }
 
     pub fn open_default() -> Result<Self> {
+        Self::open(Self::default_root()?)
+    }
+
+    pub fn default_root() -> Result<PathBuf> {
         let project = ProjectDirs::from("io.github", "Portcove", "Portcove").ok_or_else(|| {
             PortcoveError::state("could not determine the default Portcove data directory")
         })?;
-        Self::open(project.data_local_dir().join("library"))
+        Ok(project.data_local_dir().join("library"))
     }
 
     pub fn root(&self) -> &Path {
@@ -242,8 +271,18 @@ impl Library {
         target_kind: ActivityTargetKind,
         target_id: Option<&str>,
     ) -> Result<ActivityRecord> {
+        self.begin_identified_activity(uuid::Uuid::new_v4(), operation, target_kind, target_id)
+    }
+
+    pub(crate) fn begin_identified_activity(
+        &self,
+        id: uuid::Uuid,
+        operation: ActivityOperation,
+        target_kind: ActivityTargetKind,
+        target_id: Option<&str>,
+    ) -> Result<ActivityRecord> {
         let activity = ActivityRecord {
-            id: uuid::Uuid::new_v4().to_string(),
+            id: id.to_string(),
             operation,
             target_kind,
             target_id: target_id.map(str::to_owned),

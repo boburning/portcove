@@ -161,7 +161,7 @@ fn validate_plan(destination: &Path, plans: &[EntryPlan], compressed_size: u64) 
     Ok(())
 }
 
-fn validate_relative_path(name: &str, directory: bool) -> Result<(PathBuf, String)> {
+pub(crate) fn validate_relative_path(name: &str, directory: bool) -> Result<(PathBuf, String)> {
     if !name.is_ascii() {
         return Err(PortcoveError::verification(
             "archive paths must be ASCII to avoid cross-platform Unicode aliases",

@@ -27,7 +27,7 @@ const typesPath = typesOption >= 0
 const sourceText = fs.readFileSync(typesPath, "utf8");
 
 function interfaceFields(name) {
-  const declaration = sourceText.indexOf(`export interface ${name}`);
+  const declaration = sourceText.search(new RegExp(`export\\s+interface\\s+${name}\\s*\\{`));
   if (declaration < 0) return undefined;
   const open = sourceText.indexOf("{", declaration);
   const fields = [];
@@ -62,6 +62,9 @@ const interfaceSchemas = new Map([
   ["source", "SourceRecord"],
   ["source_relink_plan", "SourceRelinkPlan"],
   ["library_metadata_file", "LibraryMetadataFile"],
+  ["library_metadata", "LibraryMetadata"],
+  ["library_move_plan", "LibraryMovePlan"],
+  ["library_move_result", "LibraryMoveResult"],
   ["source_removal_preview", "SourceRemovalPreview"],
   ["source_verification", "SourceVerification"],
   ["activity", "ActivityRecord"],

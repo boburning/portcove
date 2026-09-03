@@ -129,7 +129,7 @@ export interface PortStatus {
   last_update_check?: UpdateSnapshot;
 }
 
-export type ActivityOperation = "launch" | "check_update" | "backup" | "restore" | "delete_backup" | "install" | "update" | "reconcile" | "verify_install" | "activate" | "rollback" | "adopt" | "remove" | "remove_source" | "register_source" | "verify_source";
+export type ActivityOperation = "move_library" | "launch" | "check_update" | "backup" | "restore" | "delete_backup" | "install" | "update" | "reconcile" | "verify_install" | "activate" | "rollback" | "adopt" | "remove" | "remove_source" | "register_source" | "verify_source";
 export type ActivityStatus = "running" | "succeeded" | "failed";
 export type ActivityTargetKind = "port" | "source" | "library";
 
@@ -364,6 +364,39 @@ export interface LibraryMetadataFile {
   path: string;
   sha256: string;
   size: number;
+}
+
+export type LibraryContentKind = "application_versions" | "user_data" | "backups" | "toolchains";
+
+export interface LibraryMetadata {
+  schema_version: number;
+  exported_at: number;
+  original_root: string;
+  content_roots: { kind: LibraryContentKind; relative_path: string }[];
+  source_references: SourceRecord[];
+  application_versions: InstallRecord[];
+  port_settings: { port_id: string; channel: ReleaseChannel; update_policy: UpdatePolicy; active_install_id?: string | null; previous_install_id?: string | null }[];
+  launch_history: { port_id: string; last_launched_at: number; successful_launches: number }[];
+}
+
+export interface LibraryMovePlan {
+  source_root: string;
+  destination_root: string;
+  metadata: LibraryMetadata;
+  content: { kind: LibraryContentKind; relative_path: string; copy: AdoptionCopyPlan }[];
+  required_bytes: number;
+  available_bytes: number;
+  source_will_be_retained: boolean;
+  plan_sha256: string;
+}
+
+export interface LibraryMoveResult {
+  transfer_id: string;
+  source_root: string;
+  destination_root: string;
+  active_root: string;
+  source_retained: boolean;
+  completed: boolean;
 }
 
 export type GithubAuthSource = "anonymous" | "environment" | "credential_store";
