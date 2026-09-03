@@ -28,6 +28,10 @@ In this document, “thin adapter” means that the CLI and desktop do not reimp
 
 Core resolves newly opened library roots and validated source references to absolute paths before they produce durable records. Relative CLI arguments therefore do not tie a new installation or source to that process's working directory. Existing ambiguous relative records are not guessed or silently rebased; they require qualification from their original base and explicit reinstallation or source relinking.
 
+Catalog `persistent_file_patterns` extends the same core-owned persistence boundary to named save files. Rules are literal nonempty filename prefixes/suffixes in one working directory, with no recursive traversal or general glob syntax. A scan admits at most 4,096 directory entries and 1,024 matching regular files; links, directories, special entries and unsafe filenames fail closed. Collection and restore consider both source and destination names so deleted/restored-away profiles cannot reappear. Manifest schema 4 stores the rules with their resolved directory, preserves immutable executable/bootstrap/runtime checks, and rejects changed rules during import. Signed catalog delivery keeps them frozen like literal persistence paths. This adds no adapter authority or crate dependency; the existing architecture metadata rules remain unchanged.
+
+Before rollback, retained reuse, or staged activation switches the active pointer, core collects the current launched version and synchronizes its target. A previously launched target also loses persistent entries deleted from canonical data; a never-launched version keeps upstream defaults absent from canonical data. Synchronization failure leaves the old pointer authoritative, and activation recovery repeats the same order. This prevents a stale launch marker from collecting older saves over current progress after a version switch.
+
 The default application-data directory contains:
 
 ```text

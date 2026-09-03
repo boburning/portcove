@@ -544,7 +544,8 @@
       "release": { "repository": "999sian/tmc", "asset_hints": { "windows-x86-64": ["windows-x86_64"], "linux-x86-64": ["linux-x86_64"], "macos-x86-64": ["macos-x86_64"], "macos-aarch64": ["macos-arm64"] } },
       "source_profile": "minish-cap-gba", "runtime_source_filename": "baserom.gba", "runtime_source_materialization": "copy",
       "executable_hints": { "windows-x86-64": ["tmc_pc.exe"], "linux-x86-64": ["tmc_pc"], "macos-x86-64": ["tmc_pc"], "macos-aarch64": ["tmc_pc"] },
-      "persistent_paths": ["tmc.sav", "tmc.sav.bak", "assets", "assets_src", "config.json", "mods"]
+      "persistent_paths": ["tmc.sav", "tmc.sav.bak", "tmc.randomizer", "assets", "assets_src", "rom_data", "config.json", "mods", "state_quick.bin", "state_1.bin", "state_2.bin", "state_3.bin", "state_4.bin", "state_auto_0.bin", "state_auto_1.bin", "state_auto_2.bin"],
+      "persistent_file_patterns": [{"prefix": "tmc_", "suffix": ".sav"}, {"prefix": "tmc_", "suffix": ".sav.bak"}, {"prefix": "tmc_", "suffix": ".randomizer"}]
     },
     {
       "id": "battleship", "name": "BattleShip", "summary": "Native Super Smash Bros. 64 port with a managed first-run asset cache.",

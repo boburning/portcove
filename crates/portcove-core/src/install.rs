@@ -36,6 +36,7 @@ pub struct InstallQualification {
     executable_hints: Vec<String>,
     runtime_subdirectory: Option<String>,
     persistent_paths: Vec<String>,
+    persistent_file_patterns: Vec<crate::PersistentFilePattern>,
     persistence_at_install_root: bool,
     runtime: Option<BundledRuntime>,
     runtime_origin: RuntimeOrigin,
@@ -45,6 +46,9 @@ pub struct InstallQualification {
 impl InstallQualification {
     pub fn from_port(port: &PortDefinition, platform: Platform) -> Result<Self> {
         crate::runtime::validate(port)?;
+        for pattern in &port.persistent_file_patterns {
+            pattern.validate()?;
+        }
         let executable_hints = port
             .executable_hints
             .get(&platform)
@@ -61,6 +65,7 @@ impl InstallQualification {
             executable_hints,
             runtime_subdirectory: port.runtime_subdirectory.clone(),
             persistent_paths: port.persistent_paths.clone(),
+            persistent_file_patterns: port.persistent_file_patterns.clone(),
             persistence_at_install_root: port.adapter == AdapterKind::N64RecompPortable
                 || port.launch_from_install_root,
             runtime: port.bundled_runtime.get(&platform).cloned(),
@@ -95,6 +100,23 @@ impl InstallQualification {
             .collect()
     }
 
+    fn file_patterns(&self, root: &Path, selected: &Path) -> Result<Vec<ManifestFilePattern>> {
+        let working = self.persistence_root(root, selected);
+        let directory = if working == root {
+            None
+        } else {
+            Some(manifest_relative(root, &working)?)
+        };
+        Ok(self
+            .persistent_file_patterns
+            .iter()
+            .map(|pattern| ManifestFilePattern {
+                directory: directory.clone(),
+                pattern: pattern.clone(),
+            })
+            .collect())
+    }
+
     #[cfg(test)]
     pub(crate) fn with_test_runtime_url(mut self, url: String) -> Self {
         self.runtime.as_mut().expect("test runtime").asset.url = url;
@@ -108,6 +130,7 @@ impl InstallQualification {
             executable_hints: vec![executable.into()],
             runtime_subdirectory: None,
             persistent_paths: Vec::new(),
+            persistent_file_patterns: Vec::new(),
             persistence_at_install_root: true,
             runtime: None,
             runtime_origin: RuntimeOrigin::VerifiedDownload,
@@ -137,7 +160,26 @@ struct InstallManifest {
     runtime_root: Option<String>,
     selected_executable: String,
     mutable_paths: Vec<String>,
+    #[serde(default)]
+    mutable_file_patterns: Vec<ManifestFilePattern>,
     files: Vec<ManifestFile>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct ManifestFilePattern {
+    directory: Option<String>,
+    pattern: crate::PersistentFilePattern,
+}
+
+impl ManifestFilePattern {
+    fn matches(&self, relative: &str) -> bool {
+        let (directory, name) = relative
+            .rsplit_once('/')
+            .map_or((None, relative), |(directory, name)| {
+                (Some(directory), name)
+            });
+        directory == self.directory.as_deref() && self.pattern.matches(name)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -511,6 +553,10 @@ impl Installer {
             if relative == ".portcove-manifest.json"
                 || relative == ".portcove-launched"
                 || generated_metadata.contains(&relative)
+                || manifest
+                    .mutable_file_patterns
+                    .iter()
+                    .any(|pattern| pattern.matches(&relative))
                 || manifest.mutable_paths.iter().any(|mutable| {
                     relative == *mutable || relative.starts_with(&format!("{mutable}/"))
                 })
@@ -614,6 +660,8 @@ impl Installer {
         }
         if manifest_relative(&install.path, &selected)? != manifest.selected_executable
             || mutable_paths != expected_mutable
+            || qualification.file_patterns(&install.path, &selected)?
+                != manifest.mutable_file_patterns
             || serde_json::to_value(files)? != serde_json::to_value(original_files)?
         {
             return Err(PortcoveError::verification(
@@ -685,7 +733,7 @@ fn write_manifest(
         }
     }
     let manifest = InstallManifest {
-        schema_version: 3,
+        schema_version: 4,
         runtime: runtime.clone(),
         runtime_root,
         install_id: install_id.into(),
@@ -694,6 +742,7 @@ fn write_manifest(
         artifact: artifact.clone(),
         selected_executable: selected_relative.clone(),
         mutable_paths,
+        mutable_file_patterns: qualification.file_patterns(root, &selected)?,
         files,
     };
     let bytes = serde_json::to_vec_pretty(&manifest)?;
@@ -754,16 +803,32 @@ fn manifest_files(
     mutable_paths.dedup();
 
     let mut files = Vec::new();
+    let file_patterns = qualification.file_patterns(root, selected)?;
     for path in walk_files(root)? {
+        let relative = manifest_relative(root, &path)?;
+        let matched_file = file_patterns
+            .iter()
+            .any(|pattern| pattern.matches(&relative));
+        if matched_file
+            && (path == selected
+                || is_critical_companion(&path, selected)
+                || runtime_root
+                    .as_ref()
+                    .is_some_and(|runtime| path.starts_with(runtime)))
+        {
+            return Err(PortcoveError::verification(
+                "persistent file pattern matched executable or bootstrap content",
+            ));
+        }
         if path.file_name().and_then(|value| value.to_str()) == Some(".portcove-manifest.json")
             || path.file_name().and_then(|value| value.to_str()) == Some(".portcove-launched")
             || mutable_roots
                 .iter()
                 .any(|mutable| path == *mutable || path.starts_with(mutable))
+            || matched_file
         {
             continue;
         }
-        let relative = manifest_relative(root, &path)?;
         let (sha256, size) = hash_file(&path)?;
         files.push(ManifestFile {
             critical: qualification.runtime.is_some()
@@ -823,7 +888,25 @@ fn verified_manifest(install: &InstallRecord) -> Result<InstallManifest> {
     for mutable in &manifest.mutable_paths {
         manifest_member(&install.path, mutable)?;
     }
-    if !matches!(manifest.schema_version, 2 | 3)
+    for pattern in &manifest.mutable_file_patterns {
+        pattern.pattern.validate()?;
+        if let Some(directory) = &pattern.directory {
+            manifest_member(&install.path, directory)?;
+        }
+        if pattern.matches(&selected)
+            || manifest.runtime_root.as_ref().is_some_and(|runtime| {
+                pattern.directory.as_ref().is_some_and(|directory| {
+                    directory == runtime || directory.starts_with(&format!("{runtime}/"))
+                })
+            })
+        {
+            return Err(PortcoveError::verification(
+                "persistent file pattern overlaps the executable or immutable runtime",
+            ));
+        }
+    }
+    if !matches!(manifest.schema_version, 2..=4)
+        || (manifest.schema_version < 4 && !manifest.mutable_file_patterns.is_empty())
         || (manifest.schema_version == 2 && manifest.runtime.is_some())
         || manifest.runtime != install.runtime
         || manifest.install_id != install.id

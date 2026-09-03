@@ -125,6 +125,7 @@ mod tests {
             bios_source_profile: None,
             executable_hints: BTreeMap::new(),
             persistent_paths: vec![],
+            persistent_file_patterns: vec![],
             portable_marker: false,
             source_environment: None,
             launch_arguments: vec![],

@@ -83,6 +83,10 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
             .chain(port.setup_marker.iter())
             .any(|mutable| overlaps(mutable, &runtime.target_directory))
             || port
+                .persistent_file_patterns
+                .iter()
+                .any(|pattern| pattern.matches(&runtime.target_directory))
+            || port
                 .runtime_source_set
                 .iter()
                 .any(|source| overlaps(&source.destination, &runtime.target_directory))

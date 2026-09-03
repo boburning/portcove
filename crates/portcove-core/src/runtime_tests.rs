@@ -199,6 +199,125 @@ impl ReleaseProvider for FixedRelease {
 }
 
 #[tokio::test]
+async fn named_saves_survive_backup_restore_version_changes_and_reinstallation() {
+    let root = tempfile::tempdir().unwrap();
+    let library = Library::open(root.path()).unwrap();
+    let patterns = vec![crate::PersistentFilePattern {
+        prefix: "profile_".into(),
+        suffix: ".sav".into(),
+    }];
+    let mut first = Fixture::new(b"runtime one", false);
+    first.port.persistent_file_patterns = patterns.clone();
+    let old = first.install(&library, true).await;
+    let mut second = Fixture::new(b"runtime two", false);
+    second.port.persistent_file_patterns = patterns;
+    let staged = second.install(&library, false).await;
+    let service = second.service(library.clone());
+    fs::write(old.path.join("profile_bob.sav"), b"older synthetic save").unwrap();
+    fs::write(old.path.join(LAUNCH_MARKER), b"1").unwrap();
+    let backup = service.create_backup(PORT).unwrap();
+    fs::write(staged.path.join("profile_default.sav"), b"upstream default").unwrap();
+    service.activate_staged(PORT).unwrap();
+    assert!(staged.path.join("profile_default.sav").is_file());
+    assert_eq!(
+        fs::read(staged.path.join("profile_bob.sav")).unwrap(),
+        b"older synthetic save"
+    );
+    fs::write(staged.path.join("profile_bob.sav"), b"newer fixture").unwrap();
+    fs::write(staged.path.join("profile_extra.sav"), b"second slot").unwrap();
+    fs::write(staged.path.join(LAUNCH_MARKER), b"1").unwrap();
+    service.create_backup(PORT).unwrap();
+    service.rollback(PORT).unwrap();
+    assert_eq!(
+        fs::read(old.path.join("profile_bob.sav")).unwrap(),
+        b"newer fixture"
+    );
+    assert!(old.path.join("profile_extra.sav").is_file());
+    fs::remove_file(old.path.join("profile_extra.sav")).unwrap();
+    service.rollback(PORT).unwrap();
+    assert!(!staged.path.join("profile_extra.sav").exists());
+    assert!(!library.user_dir(PORT).join("profile_extra.sav").exists());
+    fs::write(staged.path.join("profile_extra.sav"), b"second slot").unwrap();
+    service.create_backup(PORT).unwrap();
+    let preview = service
+        .preview_backup_action(PORT, &backup.id, BackupAction::Restore)
+        .unwrap();
+    let authorization = service
+        .authorize_backup_action(
+            PORT,
+            &backup.id,
+            BackupAction::Restore,
+            &preview.preview_sha256,
+        )
+        .unwrap();
+    let restored = service
+        .restore_backup(PORT, &backup.id, &authorization.token)
+        .unwrap();
+    assert_eq!(
+        fs::read(
+            restored
+                .safety_backup
+                .unwrap()
+                .path
+                .join("data/profile_extra.sav")
+        )
+        .unwrap(),
+        b"second slot"
+    );
+    for install in [&old, &staged] {
+        assert_eq!(
+            fs::read(install.path.join("profile_bob.sav")).unwrap(),
+            b"older synthetic save"
+        );
+        assert!(!install.path.join("profile_extra.sav").exists());
+        let installer = Installer::new(library.clone()).unwrap();
+        assert!(installer.verify(install).unwrap().valid);
+        installer
+            .verify_import_contract(install, &second.request(true).qualification)
+            .unwrap();
+        let mut changed = second.port.clone();
+        changed.persistent_file_patterns.clear();
+        assert!(
+            installer
+                .verify_import_contract(
+                    install,
+                    &InstallQualification::from_port(&changed, Platform::current().unwrap())
+                        .unwrap()
+                )
+                .is_err()
+        );
+    }
+    service.rollback(PORT).unwrap();
+    service.collect_user_data(PORT).unwrap();
+    let removal = service.preview_removal(PORT).unwrap();
+    let authorization = service
+        .authorize_removal(PORT, &removal.preview_sha256)
+        .unwrap();
+    service.remove(PORT, &authorization.token).unwrap();
+    let installed = second.install(&library, true).await;
+    service
+        .restore_user_data_to(&second.port, &installed.path)
+        .unwrap();
+    assert_eq!(
+        fs::read(installed.path.join("profile_bob.sav")).unwrap(),
+        b"older synthetic save"
+    );
+    let installer = Installer::new(library).unwrap();
+    fs::write(
+        installed.path.join("profile_bob.sav.exe"),
+        b"unexpected code",
+    )
+    .unwrap();
+    assert!(!installer.verify(&installed).unwrap().valid);
+    fs::write(
+        installed.path.join(&installed.selected_executable),
+        b"changed executable",
+    )
+    .unwrap();
+    assert!(installer.verify_critical(&installed).is_err());
+}
+
+#[tokio::test]
 async fn runtime_only_updates_stage_reuse_and_rollback_with_their_exact_bytes() {
     let root = tempfile::tempdir().unwrap();
     let library = Library::open(root.path()).unwrap();

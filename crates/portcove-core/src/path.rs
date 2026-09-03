@@ -2,6 +2,20 @@ use std::path::Path;
 
 use crate::{PortcoveError, Result};
 
+pub(crate) fn refuse_symlink_ancestors(path: &Path) -> Result<()> {
+    for candidate in path.ancestors() {
+        if std::fs::symlink_metadata(candidate)
+            .is_ok_and(|metadata| metadata.file_type().is_symlink())
+        {
+            return Err(PortcoveError::conflict(format!(
+                "refusing to synchronize through a symlink: {}",
+                candidate.display()
+            )));
+        }
+    }
+    Ok(())
+}
+
 /// Bound the read itself as well as the initial stat, including concurrent file growth.
 pub(crate) fn read_bounded_regular(path: &Path, limit: u64) -> Result<Vec<u8>> {
     use std::io::Read;

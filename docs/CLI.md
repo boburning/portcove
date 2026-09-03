@@ -7,7 +7,7 @@ Without a machine-output flag, Portcove renders concise human output. Catalog, s
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":8,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":9,"ok":true,"command":"status","data":{},"error":null}
 ```
 
 Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for success, failure, or cancellation. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
@@ -296,3 +296,5 @@ Local-file review does not write library domain state. Explicit HTTPS delivery i
 
 
 API schema 8 adds optional `runtime` identity to install records, `installed_runtime` and `required_runtime` to update checks, `bundled_runtime` and `download_bytes` to install plans, and `missing_runtime` launch readiness. `catalog` exposes the platform runtime archive pins and layout. A runtime-only change is an update even if the game's release name and archive are unchanged. `update` supplies a missing runtime; `exec` fails before running an upstream downloader. Rollback retains the runtime recorded with that install. Operation event schema remains 2.
+
+API schema 9 adds `persistent_file_patterns` to catalog ports. Each rule has a literal filename `prefix` and `suffix`, with at least one character between them, and matches regular files only in the port's existing persistent working directory. Core uses these rules for named saves during adoption, collection, backup/restore, and version transitions. Manifest schema 4 binds these rules to immutable verification and import admission; older manifests do not acquire new exclusions silently. Event schema remains 2.

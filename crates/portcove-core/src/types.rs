@@ -265,6 +265,12 @@ pub struct ReleaseSpec {
     pub direct: BTreeMap<Platform, DirectReleaseSpec>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct PersistentFilePattern {
+    pub prefix: String,
+    pub suffix: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PortDefinition {
     pub id: String,
@@ -290,6 +296,8 @@ pub struct PortDefinition {
     pub executable_hints: BTreeMap<Platform, Vec<String>>,
     #[serde(default)]
     pub persistent_paths: Vec<String>,
+    #[serde(default)]
+    pub persistent_file_patterns: Vec<PersistentFilePattern>,
     #[serde(default)]
     pub portable_marker: bool,
     #[serde(default)]

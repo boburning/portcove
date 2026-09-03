@@ -2,6 +2,8 @@
 
 The embedded catalog is curated, versioned data. It is not a directory of every decompilation project.
 
+Project Picori v0.8.3's [pinned upstream save-state implementation](https://github.com/999sian/tmc/blob/15808ba60621578bc03c417d64caa8fd9c7958ea/port/port_quicksave.c), [profile implementation](https://github.com/999sian/tmc/blob/15808ba60621578bc03c417d64caa8fd9c7958ea/port/port_save.c), and [randomizer sidecar](https://github.com/999sian/tmc/blob/15808ba60621578bc03c417d64caa8fd9c7958ea/port/rando/rando_save.c) define additional mutable files. The catalog preserves the default save, sidecar, quicksave, four manual save states, three autosaves, generated asset/page caches and named save profiles. `persistent_file_patterns` admits only anchored prefix/suffix matches for regular files in the existing persistent working directory. Pattern admission rejects executable/script suffixes; manifest creation also rejects matches against the selected executable, bootstrap companions or bundled runtime. A save-state may be incompatible with a different upstream build; preserve it without promising game-format compatibility.
+
 ## Admission rules
 
 A V1 candidate must be in the approved `V1-CUTOFF.md` queue and:

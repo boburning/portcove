@@ -376,6 +376,9 @@ impl Catalog {
                 }
             }
             crate::runtime::validate(port)?;
+            for pattern in &port.persistent_file_patterns {
+                pattern.validate()?;
+            }
             let mut persistent_paths = HashSet::new();
             for relative in &port.persistent_paths {
                 if relative.is_empty()

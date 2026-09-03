@@ -22,6 +22,7 @@ mod library_move;
 mod library_transfer;
 mod operation;
 mod path;
+mod persistence;
 mod portability;
 mod process;
 mod providers;
@@ -80,4 +81,4 @@ pub use source_discovery::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 8;
+pub const API_SCHEMA_VERSION: u32 = 9;

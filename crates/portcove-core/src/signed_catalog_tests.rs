@@ -172,7 +172,7 @@ fn signed_runtime_updates_can_change_artifacts_but_not_execution_or_mutable_owne
         runtime.archive_root = "next-runtime".into();
     }
     assert!(signed_catalog::verify(&sign(&payload), std::slice::from_ref(&key), now).is_ok());
-    for case in 0..4 {
+    for case in 0..5 {
         let mut changed = payload.clone();
         let port = &mut changed.catalog.ports[index];
         match case {
@@ -188,6 +188,12 @@ fn signed_runtime_updates_can_change_artifacts_but_not_execution_or_mutable_owne
                     "different-executable".into()
             }
             2 => port.persistent_paths.push("jdk25".into()),
+            3 => port
+                .persistent_file_patterns
+                .push(crate::PersistentFilePattern {
+                    prefix: "profile_".into(),
+                    suffix: ".sav".into(),
+                }),
             _ => port.bundled_runtime.clear(),
         }
         assert!(

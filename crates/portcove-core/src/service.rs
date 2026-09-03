@@ -29,6 +29,7 @@ use crate::{
         LifecycleFaultInjector, LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind,
         LifecyclePhase, NoLifecycleFaults, OperationStore,
     },
+    path::refuse_symlink_ancestors,
 };
 
 const LAUNCH_MARKER: &str = ".portcove-launched";
@@ -1522,6 +1523,7 @@ impl PortcoveService {
             Installer::new(self.library.clone())?.verify_critical(&existing)?;
             reporter.operation.begin_publication()?;
             self.collect_active_user_data_if_launched(&port.id)?;
+            self.restore_user_data_to(port, &existing.path)?;
             self.library.register_install(&existing, activate)?;
             existing.staged = !activate;
             return Ok(existing);
@@ -1822,6 +1824,7 @@ impl PortcoveService {
             )?;
             Installer::new(self.library.clone())?.verify_critical(&previous)?;
             self.collect_active_user_data_if_launched(port_id)?;
+            self.restore_user_data_to(self.catalog.port(port_id)?, &previous.path)?;
             self.library.rollback(port_id)
         })();
         self.finish_activity(activity, result)
@@ -1851,10 +1854,11 @@ impl PortcoveService {
         let store = OperationStore::new(self.library.clone());
         let mut lifecycle =
             LifecycleOperation::new(operation_id, LifecycleOperationKind::Activate, port_id);
-        lifecycle.install = Some(staged);
+        lifecycle.install = Some(staged.clone());
         store.put(&mut lifecycle)?;
         let result: Result<InstallRecord> = (|| {
             self.collect_active_user_data_if_launched(port_id)?;
+            self.restore_user_data_to(self.catalog.port(port_id)?, &staged.path)?;
             let activated = self.library.activate_staged(port_id)?;
             lifecycle.phase = LifecyclePhase::MetadataCommitted;
             store.put(&mut lifecycle)?;
@@ -2015,8 +2019,8 @@ impl PortcoveService {
             let copied_executable =
                 crate::install::resolve_declared_executable(&payload_root, &qualification)?;
             let persistent_root = qualification.persistence_root(&payload_root, &copied_executable);
-            for relative in &port.persistent_paths {
-                let candidate = persistent_root.join(relative);
+            for relative in crate::persistence::entries(port, &[&persistent_root])? {
+                let candidate = persistent_root.join(&relative);
                 if candidate.exists() {
                     copy_entry(&candidate, &staged_user.join(relative))?;
                 }
@@ -2570,9 +2574,9 @@ impl PortcoveService {
             }
             let install_root = self.managed_install_root(port_id, &path)?;
             let persistent_root = self.persistence_root(port, &install_root)?;
-            for relative in &port.persistent_paths {
-                let source = user_root.join(relative);
-                let destination = persistent_root.join(relative);
+            for relative in crate::persistence::entries(port, &[&user_root, &persistent_root])? {
+                let source = user_root.join(&relative);
+                let destination = persistent_root.join(&relative);
                 refuse_symlink_ancestors(&source)?;
                 refuse_symlink_ancestors(&destination)?;
                 if source.exists() {
@@ -2602,9 +2606,9 @@ impl PortcoveService {
         let user_root = self.library.user_dir(&port.id);
         let persistent_root = self.persistence_root(port, install_root)?;
         let mut copied = Vec::new();
-        for relative in &port.persistent_paths {
-            let source = persistent_root.join(relative);
-            let destination = user_root.join(relative);
+        for relative in crate::persistence::entries(port, &[&persistent_root, &user_root])? {
+            let source = persistent_root.join(&relative);
+            let destination = user_root.join(&relative);
             if source.exists() {
                 sync_entry(&source, &destination)?;
                 copied.push(destination);
@@ -2615,13 +2619,25 @@ impl PortcoveService {
         Ok(copied)
     }
 
-    fn restore_user_data_to(&self, port: &PortDefinition, install_root: &Path) -> Result<()> {
+    pub(crate) fn restore_user_data_to(
+        &self,
+        port: &PortDefinition,
+        install_root: &Path,
+    ) -> Result<()> {
         let user_root = self.library.user_dir(&port.id);
         let persistent_root = self.persistence_root(port, install_root)?;
-        for relative in &port.persistent_paths {
-            let source = user_root.join(relative);
+        let marker = install_root.join(LAUNCH_MARKER);
+        refuse_symlink_ancestors(&marker)?;
+        let previously_launched = marker.is_file();
+        for relative in crate::persistence::entries(port, &[&user_root, &persistent_root])? {
+            let source = user_root.join(&relative);
+            let destination = persistent_root.join(&relative);
+            refuse_symlink_ancestors(&source)?;
+            refuse_symlink_ancestors(&destination)?;
             if source.exists() {
-                sync_entry(&source, &persistent_root.join(relative))?;
+                sync_entry(&source, &destination)?;
+            } else if previously_launched && destination.exists() {
+                remove_managed_entry(&destination)?;
             }
         }
         Ok(())
@@ -2979,18 +2995,6 @@ fn sync_entry(source: &Path, destination: &Path) -> Result<()> {
         let source_entry = source.join(entry.file_name());
         if !source_entry.exists() {
             remove_managed_entry(&entry.path())?;
-        }
-    }
-    Ok(())
-}
-
-fn refuse_symlink_ancestors(path: &Path) -> Result<()> {
-    for candidate in path.ancestors() {
-        if fs::symlink_metadata(candidate).is_ok_and(|metadata| metadata.file_type().is_symlink()) {
-            return Err(PortcoveError::conflict(format!(
-                "refusing to synchronize through a symlink: {}",
-                candidate.display()
-            )));
         }
     }
     Ok(())

@@ -259,6 +259,8 @@ pub(crate) fn recover_activation(
                 ));
             }
             service.collect_active_user_data_if_launched(&operation.port_id)?;
+            service
+                .restore_user_data_to(service.catalog().port(&operation.port_id)?, &install.path)?;
             service.library.activate_staged(&operation.port_id)?;
         }
         operation.phase = LifecyclePhase::MetadataCommitted;
