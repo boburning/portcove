@@ -444,6 +444,12 @@ impl Catalog {
                     .map(Path::new)
                     .unwrap_or_else(|| Path::new(""))
                     .join(filename);
+                let source_is_persistent = port.persistent_paths.iter().any(|path| {
+                    let persistent = Path::new(path);
+                    persistent == expected
+                        || (persistent.components().next().is_some()
+                            && expected.starts_with(persistent))
+                });
                 let valid = match materialization {
                     RuntimeSourceMaterialization::N64BigEndian => {
                         matches!(
@@ -452,15 +458,10 @@ impl Catalog {
                                 | AdapterKind::LibultrashipPortable
                                 | AdapterKind::GeneratedCache
                         ) && filename.ends_with(".z64")
-                            && port.persistent_paths.iter().any(|path| {
-                                let persistent = Path::new(path);
-                                persistent == expected
-                                    || (persistent.components().next().is_some()
-                                        && expected.starts_with(persistent))
-                            })
+                            && source_is_persistent
                     }
                     RuntimeSourceMaterialization::Copy => {
-                        port.adapter == AdapterKind::StagedSourcePortable
+                        port.adapter == AdapterKind::StagedSourcePortable && source_is_persistent
                     }
                     RuntimeSourceMaterialization::GamecubeIso => {
                         port.adapter == AdapterKind::StagedSourcePortable
@@ -1404,6 +1405,33 @@ mod tests {
                 .kind,
             SourceKind::GamecubeDisc
         );
+    }
+
+    #[test]
+    fn copied_runtime_sources_require_persistent_ownership() {
+        let mut catalog = Catalog::embedded().unwrap();
+        let index = catalog
+            .document
+            .ports
+            .iter()
+            .position(|port| port.id == "project-picori")
+            .unwrap();
+        catalog.document.ports[index]
+            .persistent_paths
+            .retain(|path| path != "baserom.gba");
+        assert!(catalog.validate().is_err());
+
+        // A declared parent directory owns the staged file, but a similarly
+        // named sibling does not.
+        catalog.document.ports[index].runtime_source_filename = Some("rom/baserom.gba".into());
+        catalog.document.ports[index]
+            .persistent_paths
+            .push("rom-other".into());
+        assert!(catalog.validate().is_err());
+        catalog.document.ports[index]
+            .persistent_paths
+            .push("rom".into());
+        catalog.validate().unwrap();
     }
 
     #[test]

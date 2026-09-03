@@ -10,8 +10,8 @@
     { "id": "twilight-princess", "label": "The Legend of Zelda: Twilight Princess GameCube disc", "accepted_extensions": ["iso", "gcm", "rvz"], "accepted_sha256": [] },
     { "id": "bomberman-64", "label": "Bomberman 64 (US 1.0) source", "accepted_extensions": ["z64"], "accepted_sha256": ["e6da7c26127788cd894b88b71cc055ff9dec0d0f4f8e10d9b15b40153af2b52a"] },
     { "id": "harvest-moon-64", "label": "Harvest Moon 64 (US) source", "accepted_extensions": ["z64"], "accepted_sha256": ["15c570120bfaa97b4580762f5ee5939a56ba054e696925ea81ccfa55a022d2a6"] },
-    { "id": "dinosaur-planet", "label": "Dinosaur Planet December 2000 prototype source", "accepted_extensions": ["z64", "n64", "v64"], "accepted_sha256": [] },
-    { "id": "diddy-kong-racing", "label": "Diddy Kong Racing US Rev 1 source", "accepted_extensions": ["z64", "n64", "v64"], "accepted_sha256": [] },
+    { "id": "dinosaur-planet", "label": "Dinosaur Planet December 2000 prototype source", "accepted_extensions": ["z64", "n64", "v64"], "accepted_sha256": ["22830780902f51aea442825c574b88d404ccf30d726219e4b000edc64bcc60a6"] },
+    { "id": "diddy-kong-racing", "label": "Diddy Kong Racing US Rev 1 source", "accepted_extensions": ["z64", "n64", "v64"], "accepted_sha1": ["6d96743d46f8c0cd0edb0ec5600b003c89b93755"], "accepted_sha256": [] },
     { "id": "donkey-kong-64", "label": "Donkey Kong 64 (US 1.0) source", "accepted_extensions": ["z64"], "accepted_sha256": ["b6347d9f1f75d38a88d829b4f80b1acf0d93344170a5fbe9546c484dae416ce3"] },
     { "id": "automobili-lamborghini", "label": "Automobili Lamborghini (US) source", "accepted_extensions": ["z64"], "accepted_sha256": ["cab2467684a58bc19c787423d704a961aa497629763367d9fe691172de58591c"] },
     { "id": "aerogauge", "label": "AeroGauge (US) source", "accepted_extensions": ["z64"], "accepted_sha256": ["2cc529109b11b00289d87f693a40591ef260d1dc7c1129113966ba6ddb1be4a5"] },
@@ -184,8 +184,11 @@
       "id": "dinosaur-planet", "name": "Dinosaur Planet: Recompiled", "summary": "Native recompilation of the December 2000 Dinosaur Planet prototype.",
       "project_url": "https://github.com/DinosaurPlanetRecomp/dino-recomp", "support_tier": "stable", "channels": ["stable"],
       "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "adapter": "n64-recomp-portable",
+      "automated_tested_platforms": ["windows-x86-64"],
       "release": { "repository": "DinosaurPlanetRecomp/dino-recomp" }, "source_profile": "dinosaur-planet",
-      "executable_hints": {}, "persistent_paths": ["mods", "saves", "config"]
+      "executable_hints": { "windows-x86-64": ["DinosaurPlanetRecompiled.exe"], "linux-x86-64": ["DinosaurPlanetRecompiled"] },
+      "persistent_paths": ["mods", "mod_config", "saves", "config", "mods.json", "mods.json.bak", "general.json", "general.json.bak", "graphics.json", "graphics.json.bak", "controls.json", "controls.json.bak", "sound.json", "sound.json.bak", "dino.z64"],
+      "runtime_source_filename": "dino.z64"
     },
     {
       "id": "dkr-r", "name": "DKR-R", "summary": "Opt-in alpha native Diddy Kong Racing recompilation.",
@@ -193,7 +196,8 @@
       "platforms": ["linux-x86-64", "macos-aarch64"], "adapter": "n64-recomp-portable",
       "release": { "repository": "cyscott/dkr-recomp" }, "source_profile": "diddy-kong-racing",
       "executable_hints": { "linux-x86-64": ["DiddyKongRacingRecompiled"], "macos-aarch64": ["Diddy Kong Racing Recompiled"] },
-      "persistent_paths": ["mods", "mod_config", "saves", "mods.json", "mods.json.bak", "general.json", "general.json.bak", "graphics.json", "graphics.json.bak", "controls.json", "controls.json.bak", "sound.json", "sound.json.bak", "dkr-us-v80.z64"]
+      "persistent_paths": ["mods", "mod_config", "saves", "mods.json", "mods.json.bak", "general.json", "general.json.bak", "graphics.json", "graphics.json.bak", "controls.json", "controls.json.bak", "sound.json", "sound.json.bak", "dkr-us-v80.z64"],
+      "runtime_source_filename": "dkr-us-v80.z64"
     },
     {
       "id": "donkey-kong-64-recompiled", "name": "Donkey Kong 64: Recompiled", "summary": "Native Donkey Kong 64 recompilation.",
@@ -392,6 +396,7 @@
       "id": "vpw64-recompiled", "name": "Virtual Pro Wrestling 64: Recompiled", "summary": "Opt-in beta native Virtual Pro Wrestling 64 recompilation.",
       "project_url": "https://github.com/jessetbh/VPW64Recomp", "support_tier": "beta", "channels": ["beta"],
       "platforms": ["windows-x86-64"], "adapter": "n64-recomp-portable",
+      "automated_tested_platforms": ["windows-x86-64"],
       "release": { "repository": "jessetbh/VPW64Recomp", "asset_hints": { "windows-x86-64": ["Vpw64Recompiled", "Windows"] } }, "source_profile": "vpw64",
       "executable_hints": { "windows-x86-64": ["Vpw64Recompiled.exe"] },
       "persistent_paths": ["mods", "mod_config", "saves", "mods.json", "mods.json.bak", "general.json", "general.json.bak", "graphics.json", "graphics.json.bak", "controls.json", "controls.json.bak", "sound.json", "sound.json.bak", "vpw.vpw64.jp.z64"],
@@ -411,6 +416,7 @@
       "id": "wwf-wrestlemania-2000-recompiled", "name": "WWF WrestleMania 2000: Recompiled", "summary": "Opt-in beta native WWF WrestleMania 2000 recompilation.",
       "project_url": "https://github.com/jessetbh/WWFWrestleMania2000Recomp", "support_tier": "beta", "channels": ["beta"],
       "platforms": ["windows-x86-64"], "adapter": "n64-recomp-portable",
+      "automated_tested_platforms": ["windows-x86-64"],
       "release": { "repository": "jessetbh/WWFWrestleMania2000Recomp", "asset_hints": { "windows-x86-64": ["Wm2kRecompiled", "Windows"] } }, "source_profile": "wwf-wrestlemania-2000",
       "executable_hints": { "windows-x86-64": ["Wm2kRecompiled.exe"] },
       "persistent_paths": ["mods", "mod_config", "saves", "mods.json", "mods.json.bak", "general.json", "general.json.bak", "graphics.json", "graphics.json.bak", "controls.json", "controls.json.bak", "sound.json", "sound.json.bak", "wwf.wm2k.us.z64"],
@@ -492,8 +498,12 @@
       "id": "trouble-makers-recomp", "name": "Trouble Makers Recompiled", "summary": "Opt-in beta native Mischief Makers recompilation.",
       "project_url": "https://github.com/ThiagoLira/trouble-makers-pc-recomp", "support_tier": "beta", "channels": ["beta"],
       "platforms": ["windows-x86-64", "linux-x86-64"], "adapter": "n64-recomp-portable",
+      "automated_tested_platforms": ["windows-x86-64"],
       "release": { "repository": "ThiagoLira/trouble-makers-pc-recomp" }, "source_profile": "trouble-makers",
-      "executable_hints": {}, "persistent_paths": ["mods", "saves", "config"]
+      "executable_hints": { "windows-x86-64": ["troublemakers.exe"], "linux-x86-64": ["troublemakers"] },
+      "persistent_paths": ["mods", "mod_config", "saves", "config", "logs", "display.cfg", "controls.json", "controls.json.bak", "troublemakers.n64.us.1.z64"],
+      "runtime_source_filename": "troublemakers.n64.us.1.z64",
+      "launch_arguments": ["troublemakers.n64.us.1.z64"]
     },
     {
       "id": "goemon64-recomp", "name": "Goemon 64 Recompiled", "summary": "Opt-in beta native Mystical Ninja recompilation.",
@@ -520,6 +530,7 @@
       "id": "sssv-recompiled", "name": "Space Station Silicon Valley: Recompiled", "summary": "Native recompilation of Space Station Silicon Valley with upstream portable storage.",
       "project_url": "https://github.com/Cellenseres/SSSV_Recomp", "support_tier": "stable", "channels": ["stable"],
       "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "adapter": "n64-recomp-portable",
+      "automated_tested_platforms": ["windows-x86-64"],
       "release": { "repository": "Cellenseres/SSSV_Recomp", "asset_hints": { "windows-x86-64": ["Windows.zip"], "linux-x86-64": ["Linux.tar.gz"], "macos-x86-64": ["macOS.zip"], "macos-aarch64": ["macOS.zip"] } },
       "source_profile": "space-station-silicon-valley", "runtime_source_filename": "sssv.n64.us.1.0.z64",
       "portable_marker": true,
@@ -544,7 +555,7 @@
       "release": { "repository": "999sian/tmc", "asset_hints": { "windows-x86-64": ["windows-x86_64"], "linux-x86-64": ["linux-x86_64"], "macos-x86-64": ["macos-x86_64"], "macos-aarch64": ["macos-arm64"] } },
       "source_profile": "minish-cap-gba", "runtime_source_filename": "baserom.gba", "runtime_source_materialization": "copy",
       "executable_hints": { "windows-x86-64": ["tmc_pc.exe"], "linux-x86-64": ["tmc_pc"], "macos-x86-64": ["tmc_pc"], "macos-aarch64": ["tmc_pc"] },
-      "persistent_paths": ["tmc.sav", "tmc.sav.bak", "tmc.randomizer", "assets", "assets_src", "rom_data", "config.json", "mods", "state_quick.bin", "state_1.bin", "state_2.bin", "state_3.bin", "state_4.bin", "state_auto_0.bin", "state_auto_1.bin", "state_auto_2.bin"],
+      "persistent_paths": ["baserom.gba", "tmc.sav", "tmc.sav.bak", "tmc.randomizer", "assets", "assets_src", "rom_data", "config.json", "mods", "state_quick.bin", "state_1.bin", "state_2.bin", "state_3.bin", "state_4.bin", "state_auto_0.bin", "state_auto_1.bin", "state_auto_2.bin"],
       "persistent_file_patterns": [{"prefix": "tmc_", "suffix": ".sav"}, {"prefix": "tmc_", "suffix": ".sav.bak"}, {"prefix": "tmc_", "suffix": ".randomizer"}]
     },
     {
@@ -574,6 +585,7 @@
     {
       "id": "severed-chains", "name": "Severed Chains", "summary": "Opt-in rolling native port of The Legend of Dragoon with exact upstream disc-region validation.",
       "project_url": "https://github.com/Legend-of-Dragoon-Modding/Severed-Chains", "support_tier": "rolling", "channels": ["rolling"],
+      "automated_tested_platforms": ["windows-x86-64"],
       "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "adapter": "staged-source-portable",
       "release": { "repository": "Legend-of-Dragoon-Modding/Severed-Chains", "rolling_tag": "devbuild", "asset_hints": { "windows-x86-64": ["Severed_Chains_Windows.zip"], "linux-x86-64": ["Severed_Chains_Linux.tar.gz"], "macos-x86-64": ["Severed_Chains_MacOS_Intel.tar.gz"], "macos-aarch64": ["Severed_Chains_MacOS_M1.tar.gz"] } },
       "bundled_runtime": {

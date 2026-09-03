@@ -103,6 +103,10 @@ impl Fixture {
         let platform = Platform::current().unwrap();
         let mut port = Catalog::embedded().unwrap().port(PORT).unwrap().clone();
         port.platforms = vec![platform];
+        port.automated_tested_platforms
+            .retain(|key| *key == platform);
+        port.manually_validated_platforms
+            .retain(|key| *key == platform);
         port.bundled_runtime.retain(|key, _| *key == platform);
         let runtime = port.bundled_runtime.get_mut(&platform).unwrap();
         runtime.archive_root = "vendor-root".into();
