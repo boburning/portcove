@@ -9,6 +9,11 @@ const projectRoot = fileURLToPath(new URL("..", import.meta.url));
 const rulesetPath = path.join(projectRoot, ".github", "repository-ruleset.json");
 const securityPath = path.join(projectRoot, ".github", "repository-security.json");
 const expectedChecks = ["catalog", "dependency-review", "frontend", "rust", "rust-quality"];
+const expectedBypassActors = [{
+  actor_id: 5,
+  actor_type: "RepositoryRole",
+  bypass_mode: "pull_request",
+}];
 
 function requiredRule(ruleset, type) {
   const matches = ruleset.rules.filter(rule => rule.type === type);
@@ -28,7 +33,9 @@ export function validateRepositorySettings(ruleset, security) {
     throw new Error("ruleset must target branches under the stable Protect main name");
   }
   if (ruleset.enforcement !== "active") throw new Error("ruleset enforcement must be active");
-  if (ruleset.bypass_actors?.length) throw new Error("main protection must not define bypass actors");
+  if (JSON.stringify(ruleset.bypass_actors) !== JSON.stringify(expectedBypassActors)) {
+    throw new Error("main protection must define only the pull-request repository-admin bypass");
+  }
   const refs = ruleset.conditions?.ref_name;
   if (JSON.stringify(refs?.include) !== JSON.stringify(["refs/heads/main"]) || refs?.exclude?.length) {
     throw new Error("ruleset must include only refs/heads/main");

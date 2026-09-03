@@ -32,6 +32,20 @@ test("validation rejects weakened review or status requirements", () => {
     () => validateRepositorySettings(missingCheck, security),
     /required status checks/,
   );
+
+  const missingAdminBypass = structuredClone(ruleset);
+  missingAdminBypass.bypass_actors = [];
+  assert.throws(
+    () => validateRepositorySettings(missingAdminBypass, security),
+    /repository-admin bypass/,
+  );
+
+  const widenedAdminBypass = structuredClone(ruleset);
+  widenedAdminBypass.bypass_actors[0].bypass_mode = "always";
+  assert.throws(
+    () => validateRepositorySettings(widenedAdminBypass, security),
+    /repository-admin bypass/,
+  );
 });
 
 test("application plan updates by stable identity and enables private reporting", () => {

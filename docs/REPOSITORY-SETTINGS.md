@@ -2,7 +2,7 @@
 
 Portcove keeps its review and private-reporting expectations in version control even though GitHub stores the effective settings outside Git. `.github/repository-ruleset.json` protects exactly `refs/heads/main`; `.github/repository-security.json` names the repository and requires private vulnerability reporting.
 
-The `Protect main` ruleset blocks deletion and force-pushes, requires a pull request with one fresh approval and resolved review threads, and requires the `catalog`, `dependency-review`, `frontend`, `rust`, and `rust-quality` checks from `.github/workflows/ci.yml` against the latest main revision. It defines no bypass actors.
+The `Protect main` ruleset blocks deletion and force-pushes, requires a pull request with one fresh approval and resolved review threads, and requires the `catalog`, `dependency-review`, `frontend`, `rust`, and `rust-quality` checks from `.github/workflows/ci.yml` against the latest main revision. Its only bypass actor is the built-in repository-admin role, and that bypass is restricted to pull requests. This prevents a solo-maintainer approval deadlock while retaining a visible PR and merge audit trail; it does not permit bypass by direct push. Use the bypass only for an explicitly authorized merge after the required checks pass.
 
 Validate the local artifacts without GitHub access:
 
