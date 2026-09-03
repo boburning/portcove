@@ -308,11 +308,10 @@ async fn restore_backup(
     .await?;
     let message = if preview.safety_backup_will_be_created {
         format!(
-            "Restore backup {} for {}?\n\nPortcove will preserve the current persistent data as a safety backup first.",
-            backup_id, port_id
+            "Restore backup {backup_id} for {port_id}?\n\nPortcove will preserve the current persistent data as a safety backup first."
         )
     } else {
-        format!("Restore backup {} for {}?", backup_id, port_id)
+        format!("Restore backup {backup_id} for {port_id}?")
     };
     if !confirm_destructive(&app, "Confirm backup restore", message, "Restore backup").await {
         return Ok(None);
@@ -355,8 +354,7 @@ async fn delete_backup(
         &app,
         "Confirm backup deletion",
         format!(
-            "Permanently delete backup {} for {}?\n\nThis backup cannot be recovered after deletion.",
-            backup_id, port_id
+            "Permanently delete backup {backup_id} for {port_id}?\n\nThis backup cannot be recovered after deletion."
         ),
         "Delete backup",
     )
@@ -629,8 +627,7 @@ async fn remove_source(
         &app,
         "Confirm source removal",
         format!(
-            "Remove registered source {}?\n\n{} The source file itself will not be deleted.",
-            profile_id, impact
+            "Remove registered source {profile_id}?\n\n{impact} The source file itself will not be deleted."
         ),
         "Remove source reference",
     )

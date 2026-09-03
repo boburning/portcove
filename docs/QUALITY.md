@@ -10,7 +10,7 @@ Portcove uses one local quality interface for humans, CI, and coding agents. The
 ./scripts/bootstrap-quality-tools.sh
 ```
 
-Pass `-IncludeDeep` or `--include-deep` to also install semdup, cargo-mutants, and Hawk where supported. Both scripts are idempotent, verify and print exact installed versions, and never silently upgrade tools. Deep tools remain optional: Hawk requires exactly Rust 1.98 and does not support Windows, while semdup 0.2.0 requires a current native C++ linker for its ONNX runtime.
+Pass `-IncludeDeep` or `--include-deep` to also install semdup, cargo-mutants, and Hawk where supported. Both scripts are idempotent, verify and print exact installed versions, and never silently upgrade tools. Deep tools remain optional: Hawk uses its own manifest-pinned Rust toolchain and does not support Windows, while semdup requires a current native C++ linker for its ONNX runtime.
 
 ## Canonical commands
 
@@ -29,16 +29,11 @@ Structural heuristics advise: dependency duplication, unmaintained transitive de
 
 pnpm 11's default one-day minimum release age remains active. The workspace contains exact-version-only exceptions for the Fallow 3.22.0 platform set and Lucide 1.39.0 used during this reviewed modernization pass; future versions are not exempt. Do not replace these with package-wide patterns or disable lockfile verification.
 
-## Pinned tool versions
+## Tool and Rust version authority
 
-- just 1.58.0
-- cargo-shear 1.13.4
-- cargo-deny 0.20.2
-- cargo-modules 0.27.0
-- rscheck-cli 0.1.0
-- cargo-hawk 0.1.13 with Rust 1.98.0, optional
-- semdup 0.2.0, optional
-- cargo-mutants 27.1.0, optional
+`.github/quality-tools.json` is the sole quality-tool pin manifest. It records every required and deep tool, exact version, install tier, version command, and any tool-private Rust requirement. The bootstrap scripts and all required, release, and deep workflows consume that manifest. `scripts/quality-tools.mjs --validate` rejects copied tool pins in those consumers.
+
+`rust-toolchain.toml` pins normal development and CI to the workspace MSRV recorded in `Cargo.toml`; the manifest validator requires those two declarations and the quality contract to agree. An MSRV increase therefore requires one reviewed update across the workspace metadata, pinned toolchain, and machine contract instead of an implicit move with the latest stable compiler.
 
 CI installs the small prebuilt tool set through the commit-pinned installer action, restores source-built rscheck from an exact-version cache when available, and verifies every exact version before running a gate. An rscheck cache miss falls back to the same pinned installer. The local bootstrap scripts use cargo-binstall when available and exact, locked Cargo installs otherwise; optional deep tools remain outside required PR CI.
 

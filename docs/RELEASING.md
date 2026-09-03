@@ -34,11 +34,11 @@ An explicit `-Version` is accepted only when it matches the central release meta
 
 ## Tagged build
 
-Pushing `v*` starts `.github/workflows/release.yml`. Its preflight job repeats the identity, dependency, test, Fallow, and upstream gates before the Windows, Linux x64, Intel macOS, and Apple-silicon macOS matrix can build. Each platform publishes a separate CLI archive, native desktop bundles, and a SHA-256 manifest to one draft release. GitHub generates categorized notes from merged pull requests using `.github/release.yml`; tags containing a SemVer prerelease suffix are marked as prereleases automatically. Tauri updater metadata remains disabled until Portcove has an explicit signed desktop self-update contract.
+Pushing `v*` starts `.github/workflows/release.yml`. Its preflight job repeats the identity, dependency, test, Fallow, and upstream gates before the Windows, Linux x64, Intel macOS, and Apple-silicon macOS matrix can build. Matrix jobs have read-only repository permission and retain their separate CLI archive, native desktop bundles, and platform SHA-256 manifest as workflow artifacts. Only after every matrix job succeeds does one `publish` job receive `contents: write`, download all four artifacts, verify every declared hash and filename, reject missing or duplicate platform output, and create or reconcile one draft release. It refuses to change a published release. GitHub generates categorized notes from merged pull requests using `.github/release.yml`; tags containing a SemVer prerelease suffix are marked as prereleases automatically. Tauri updater metadata remains disabled until Portcove has an explicit signed desktop self-update contract.
 
 ## Release rehearsal
 
-Run the **Release** workflow manually from GitHub Actions before the first v1 tag or after changing packaging. A manual run executes the same preflight and four-platform build matrix, but every GitHub Release mutation is disabled. Instead, each runner retains its CLI archive, native desktop bundles, and SHA-256 manifest as a workflow artifact for seven days. Review those artifacts from the completed run; a rehearsal never creates a tag, draft release, or published release.
+Run the **Release** workflow manually from GitHub Actions before the first v1 tag or after changing packaging. A manual run executes the same preflight and four-platform build matrix, but the publisher is skipped and every GitHub Release mutation remains disabled. Each runner retains the exact input that a tagged publisher would consume for seven days. Download the four `release-build-*` artifacts together and run `scripts/reconcile-release-assets.mjs` against their containing directory to rehearse the same complete-matrix and checksum contract locally; a rehearsal never creates a tag, draft release, or published release.
 
 From an authenticated GitHub CLI, start and follow the rehearsal with:
 
@@ -51,7 +51,7 @@ The rehearsal proves that the current commit can produce packages on hosted buil
 
 Before publishing the draft:
 
-1. confirm every expected platform job completed and every checksum manifest covers its CLI archive and desktop bundle;
+1. confirm the aggregate `SHA256SUMS.txt` and four platform manifests cover every CLI archive and desktop bundle;
 2. compare the release notes with `docs/DEFERRED.md` so manual or signing work is not overstated;
 3. keep unsigned artifacts clearly identified until `PCV-DEF-009` is resolved;
 4. perform the target-shell and hands-on checks appropriate to the release; and
