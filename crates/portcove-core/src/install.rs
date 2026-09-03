@@ -37,6 +37,7 @@ pub struct InstallQualification {
     runtime_subdirectory: Option<String>,
     persistent_paths: Vec<String>,
     persistent_file_patterns: Vec<crate::PersistentFilePattern>,
+    runtime_mutable_paths: Vec<String>,
     persistence_at_install_root: bool,
     runtime: Option<BundledRuntime>,
     runtime_origin: RuntimeOrigin,
@@ -66,6 +67,7 @@ impl InstallQualification {
             runtime_subdirectory: port.runtime_subdirectory.clone(),
             persistent_paths: port.persistent_paths.clone(),
             persistent_file_patterns: port.persistent_file_patterns.clone(),
+            runtime_mutable_paths: port.runtime_mutable_paths.clone(),
             persistence_at_install_root: port.adapter == AdapterKind::N64RecompPortable
                 || port.launch_from_install_root,
             runtime: port.bundled_runtime.get(&platform).cloned(),
@@ -95,6 +97,17 @@ impl InstallQualification {
             &install.path.join(&install.selected_executable),
         );
         self.generated_metadata
+            .iter()
+            .map(|relative| manifest_relative(&install.path, &working.join(relative)))
+            .collect()
+    }
+
+    fn runtime_mutable_paths(&self, install: &InstallRecord) -> Result<Vec<String>> {
+        let working = self.runtime_root(
+            &install.path,
+            &install.path.join(&install.selected_executable),
+        );
+        self.runtime_mutable_paths
             .iter()
             .map(|relative| manifest_relative(&install.path, &working.join(relative)))
             .collect()
@@ -131,6 +144,7 @@ impl InstallQualification {
             runtime_subdirectory: None,
             persistent_paths: Vec::new(),
             persistent_file_patterns: Vec::new(),
+            runtime_mutable_paths: Vec::new(),
             persistence_at_install_root: true,
             runtime: None,
             runtime_origin: RuntimeOrigin::VerifiedDownload,
@@ -514,7 +528,7 @@ impl Installer {
     }
 
     pub fn verify(&self, install: &InstallRecord) -> Result<VerificationReport> {
-        self.verify_with_metadata(install, &[])
+        self.verify_with_metadata(install, &[], &[])
     }
 
     pub(crate) fn verify_managed(
@@ -522,13 +536,18 @@ impl Installer {
         install: &InstallRecord,
         qualification: &InstallQualification,
     ) -> Result<VerificationReport> {
-        self.verify_with_metadata(install, &qualification.generated_metadata_paths(install)?)
+        self.verify_with_metadata(
+            install,
+            &qualification.generated_metadata_paths(install)?,
+            &qualification.runtime_mutable_paths(install)?,
+        )
     }
 
     fn verify_with_metadata(
         &self,
         install: &InstallRecord,
         generated_metadata: &[String],
+        current_runtime_mutable_paths: &[String],
     ) -> Result<VerificationReport> {
         let manifest = verified_manifest(install)?;
         let mut failures = Vec::new();
@@ -553,6 +572,9 @@ impl Installer {
             if relative == ".portcove-manifest.json"
                 || relative == ".portcove-launched"
                 || generated_metadata.contains(&relative)
+                || current_runtime_mutable_paths.iter().any(|mutable| {
+                    relative == *mutable || relative.starts_with(&format!("{mutable}/"))
+                })
                 || manifest
                     .mutable_file_patterns
                     .iter()
@@ -630,6 +652,7 @@ impl Installer {
         let generated_metadata = qualification.generated_metadata_paths(install)?;
         let mut expected_mutable = manifest.mutable_paths.clone();
         expected_mutable.extend(generated_metadata.iter().cloned());
+        expected_mutable.extend(qualification.runtime_mutable_paths(install)?);
         expected_mutable.sort();
         expected_mutable.dedup();
         let original_files: Vec<_> = manifest
@@ -683,6 +706,26 @@ impl Installer {
         let mut adopted = qualification.clone();
         adopted.runtime_origin = RuntimeOrigin::AdoptedTree;
         write_manifest(install_id, port_id, version, artifact, &adopted, root)
+    }
+
+    pub(crate) fn refresh_verified_manifest(
+        &self,
+        install: &InstallRecord,
+        qualification: &InstallQualification,
+    ) -> Result<InstallRecord> {
+        let (manifest_sha256, selected_executable, runtime) = write_manifest(
+            &install.id,
+            &install.port_id,
+            &install.version,
+            &install.artifact,
+            qualification,
+            &install.path,
+        )?;
+        let mut refreshed = install.clone();
+        refreshed.manifest_sha256 = manifest_sha256;
+        refreshed.selected_executable = selected_executable;
+        refreshed.runtime = runtime;
+        Ok(refreshed)
     }
 }
 
@@ -747,8 +790,12 @@ fn write_manifest(
     };
     let bytes = serde_json::to_vec_pretty(&manifest)?;
     let manifest_sha256 = hex::encode(Sha256::digest(&bytes));
-    fs::write(root.join(".portcove-manifest.json"), bytes)?;
+    replace_manifest(root, &bytes)?;
     Ok((manifest_sha256, PathBuf::from(selected_relative), runtime))
+}
+
+fn replace_manifest(root: &Path, bytes: &[u8]) -> Result<()> {
+    crate::durability::write_bytes_atomically(&root.join(".portcove-manifest.json"), bytes, true)
 }
 
 fn manifest_files(
@@ -770,6 +817,12 @@ fn manifest_files(
         .persistent_paths
         .iter()
         .map(|relative| persistence_root.join(relative))
+        .chain(
+            qualification
+                .runtime_mutable_paths
+                .iter()
+                .map(|relative| working_root.join(relative)),
+        )
         .chain(
             qualification
                 .generated_metadata
@@ -1270,6 +1323,90 @@ mod tests {
             installer
                 .verify_import_contract(&install, &qualification)
                 .is_err()
+        );
+    }
+
+    #[test]
+    fn upstream_setup_refresh_adds_generated_game_data_to_immutable_manifest() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let root = temporary.path().join("payload");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("gk.exe"), b"verified game executable").unwrap();
+        fs::write(root.join("extractor.exe"), b"verified setup executable").unwrap();
+        let artifact = ArtifactIdentity {
+            asset_name: "opengoal.zip".into(),
+            sha256: "1".repeat(64),
+            size: 32,
+        };
+        let qualification = InstallQualification::from_port(
+            crate::Catalog::embedded()
+                .unwrap()
+                .port("opengoal-jak1")
+                .unwrap(),
+            Platform::WindowsX86_64,
+        )
+        .unwrap();
+        let mut initial_qualification = qualification.clone();
+        initial_qualification.runtime_mutable_paths = vec!["data/log".into()];
+        let (manifest_sha256, selected_executable, runtime) = write_manifest(
+            "setup-install",
+            "opengoal-jak1",
+            "v1",
+            &artifact,
+            &initial_qualification,
+            &root,
+        )
+        .unwrap();
+        let install = InstallRecord {
+            id: "setup-install".into(),
+            port_id: "opengoal-jak1".into(),
+            version: "v1".into(),
+            path: root.clone(),
+            channel: crate::ReleaseChannel::Stable,
+            installed_at: 1,
+            verified: true,
+            staged: false,
+            artifact,
+            manifest_sha256,
+            selected_executable,
+            runtime,
+        };
+        fs::write(root.join("source.iso"), b"verified retail disc").unwrap();
+        let generated = root.join("data/out/jak1/iso");
+        fs::create_dir_all(&generated).unwrap();
+        fs::write(generated.join("0COMMON.TXT"), b"generated game data").unwrap();
+        fs::write(root.join("data/imgui.ini"), b"runtime UI layout").unwrap();
+        fs::write(
+            root.join(".portcove-upstream-setup.json"),
+            br#"{"schema_version":1}"#,
+        )
+        .unwrap();
+        let installer = Installer::new(library).unwrap();
+        let initial_report = installer.verify_managed(&install, &qualification).unwrap();
+        assert!(!initial_report.valid);
+        assert!(
+            !initial_report
+                .failures
+                .iter()
+                .any(|failure| failure.contains("data/imgui.ini"))
+        );
+
+        let refreshed = installer
+            .refresh_verified_manifest(&install, &qualification)
+            .unwrap();
+        let report = installer
+            .verify_managed(&refreshed, &qualification)
+            .unwrap();
+
+        assert!(report.valid, "{:?}", report.failures);
+        assert!(report.checked_files > 2);
+        fs::write(generated.join("0COMMON.TXT"), b"tampered game data").unwrap();
+        assert!(
+            !installer
+                .verify_managed(&refreshed, &qualification)
+                .unwrap()
+                .valid
         );
     }
 

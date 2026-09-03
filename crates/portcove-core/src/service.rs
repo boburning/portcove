@@ -35,6 +35,23 @@ use crate::{
 const LAUNCH_MARKER: &str = ".portcove-launched";
 const BULK_PROVIDER_CONCURRENCY: usize = 4;
 
+fn restore_setup_manifest(
+    manifest_path: &Path,
+    previous_manifest: &[u8],
+    install: &InstallRecord,
+    refresh_error: PortcoveError,
+) -> Result<()> {
+    match crate::durability::write_bytes_atomically(manifest_path, previous_manifest, true) {
+        Ok(()) => Err(refresh_error),
+        Err(restore_error) => Err(PortcoveError::state(
+            "setup manifest refresh failed and its prior bytes could not be restored",
+        )
+        .detail("install_id", &install.id)
+        .detail("refresh_error", refresh_error.message)
+        .detail("restore_error", restore_error.to_string())),
+    }
+}
+
 #[cfg(test)]
 #[path = "runtime_tests.rs"]
 mod runtime_tests;
@@ -2495,7 +2512,40 @@ impl PortcoveService {
         if let Some(source) = &source {
             self.verify_source_record(source)?;
         }
+        self.refresh_upstream_setup_manifest(port, &active, &spec.working_directory)?;
         Ok(spec)
+    }
+
+    fn refresh_upstream_setup_manifest(
+        &self,
+        port: &PortDefinition,
+        active: &InstallRecord,
+        working_directory: &Path,
+    ) -> Result<()> {
+        if port.adapter != crate::AdapterKind::UpstreamManagedSetup
+            || !crate::adapter::upstream_setup_manifest_needs_refresh(
+                working_directory,
+                &active.manifest_sha256,
+            )?
+        {
+            return Ok(());
+        }
+        let manifest_path = active.path.join(".portcove-manifest.json");
+        let previous_manifest = fs::read(&manifest_path)?;
+        let qualification = InstallQualification::from_port(port, Platform::current()?)?;
+        let installer = Installer::new(self.library.clone())?;
+        let refreshed = installer.refresh_verified_manifest(active, &qualification)?;
+        if let Err(error) = installer.verify_critical(&refreshed) {
+            return restore_setup_manifest(&manifest_path, &previous_manifest, active, error);
+        }
+        if let Err(error) = self.library.update_install_manifest(&refreshed) {
+            return restore_setup_manifest(&manifest_path, &previous_manifest, active, error);
+        }
+        crate::adapter::bind_upstream_setup_manifest(
+            working_directory,
+            &refreshed.manifest_sha256,
+        )?;
+        Ok(())
     }
 
     pub fn collect_user_data(&self, port_id: &str) -> Result<Vec<PathBuf>> {

@@ -126,6 +126,7 @@ mod tests {
             executable_hints: BTreeMap::new(),
             persistent_paths: vec![],
             persistent_file_patterns: vec![],
+            runtime_mutable_paths: vec![],
             portable_marker: false,
             source_environment: None,
             launch_arguments: vec![],

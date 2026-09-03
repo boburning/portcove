@@ -831,6 +831,38 @@ impl Library {
         Ok(())
     }
 
+    pub(crate) fn update_install_manifest(&self, install: &InstallRecord) -> Result<()> {
+        let path = crate::path::unicode(&install.path, "install")?;
+        let selected_executable =
+            crate::path::unicode(&install.selected_executable, "selected executable")?;
+        let changed = self.connection()?.execute(
+            "UPDATE installs SET
+               verified=?1, manifest_sha256=?2, selected_executable=?3, runtime_json=?4
+             WHERE id=?5 AND port_id=?6 AND path=?7 AND artifact_sha256=?8",
+            params![
+                install.verified as i64,
+                install.manifest_sha256,
+                selected_executable,
+                install
+                    .runtime
+                    .as_ref()
+                    .map(serde_json::to_string)
+                    .transpose()?,
+                install.id,
+                install.port_id,
+                path,
+                install.artifact.sha256,
+            ],
+        )?;
+        if changed != 1 {
+            return Err(PortcoveError::conflict(
+                "install changed while its setup manifest was being committed",
+            )
+            .detail("install_id", &install.id));
+        }
+        Ok(())
+    }
+
     pub fn status(&self, port_id: &str, default_channel: ReleaseChannel) -> Result<PortStatus> {
         self.statuses_with_metrics(&[(port_id.to_owned(), default_channel)])?
             .0
@@ -1350,6 +1382,44 @@ mod tests {
         assert_eq!(status.active.unwrap().id, "second");
         assert_eq!(status.previous.unwrap().id, "first");
         assert!(status.staged.is_none());
+    }
+
+    #[test]
+    fn manifest_refresh_preserves_active_previous_and_staged_pointers() {
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let make_install = |id: &str, version: &str| InstallRecord {
+            id: id.into(),
+            port_id: "lighthouse".into(),
+            version: version.into(),
+            path: temporary.path().join(version),
+            channel: ReleaseChannel::Stable,
+            installed_at: Library::now(),
+            verified: true,
+            staged: false,
+            artifact: ArtifactIdentity::default(),
+            manifest_sha256: String::new(),
+            selected_executable: PathBuf::new(),
+            runtime: None,
+        };
+        let previous = make_install("previous", "1.0.0");
+        let mut active = make_install("active", "2.0.0");
+        let staged = make_install("staged", "3.0.0");
+        library.register_install(&previous, true).unwrap();
+        library.register_install(&active, true).unwrap();
+        library.register_install(&staged, false).unwrap();
+        active.manifest_sha256 = "a".repeat(64);
+        active.selected_executable = PathBuf::from("Lighthouse.exe");
+
+        library.update_install_manifest(&active).unwrap();
+
+        let status = library
+            .status("lighthouse", ReleaseChannel::Stable)
+            .unwrap();
+        assert_eq!(status.active.as_ref().unwrap().id, "active");
+        assert_eq!(status.active.unwrap().manifest_sha256, "a".repeat(64));
+        assert_eq!(status.previous.unwrap().id, "previous");
+        assert_eq!(status.staged.unwrap().id, "staged");
     }
 
     #[test]

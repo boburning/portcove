@@ -20,6 +20,8 @@ use crate::{
     PortcoveError, Result, RuntimeSourceMaterialization, SourceKind, SourceProfile, SourceRecord,
 };
 
+const UPSTREAM_SETUP_METADATA: &str = ".portcove-upstream-setup.json";
+
 pub trait Adapter: Send + Sync {
     fn kind(&self) -> AdapterKind;
     fn validate_source(&self, profile: &SourceProfile, path: &Path) -> Result<SourceRecord>;
@@ -442,6 +444,9 @@ pub(crate) fn generated_metadata(port: &PortDefinition) -> Result<Vec<String>> {
     if port.adapter == crate::AdapterKind::ReferencedDisc {
         paths.push("data_location.json".into());
     }
+    if port.adapter == crate::AdapterKind::UpstreamManagedSetup {
+        paths.push(UPSTREAM_SETUP_METADATA.into());
+    }
     Ok(paths)
 }
 
@@ -559,6 +564,15 @@ fn materialize_ps2_iso(source: &Path, destination: &Path) -> Result<()> {
     replace_atomic(&temporary, destination)
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct UpstreamSetupMetadata {
+    schema_version: u32,
+    source_sha256: String,
+    source_size: u64,
+    #[serde(default)]
+    manifest_sha256: String,
+}
+
 fn run_upstream_setup(
     port: &PortDefinition,
     platform: Platform,
@@ -572,12 +586,23 @@ fn run_upstream_setup(
         ))
     })?;
     let marker_path = working_directory.join(marker);
-    if marker_path.is_file() {
-        return Ok(());
-    }
     let source = source.ok_or_else(|| {
         PortcoveError::source(format!("{} setup requires a registered source", port.name))
     })?;
+    let (source_sha256, source_size) = hash_file(source)?;
+    let metadata_path = working_directory.join(UPSTREAM_SETUP_METADATA);
+    if marker_path.is_file()
+        && std::fs::read(&metadata_path)
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<UpstreamSetupMetadata>(&bytes).ok())
+            .is_some_and(|metadata| {
+                metadata.schema_version == 1
+                    && metadata.source_sha256 == source_sha256
+                    && metadata.source_size == source_size
+            })
+    {
+        return Ok(());
+    }
     let hints = port.setup_executable_hints.get(&platform).ok_or_else(|| {
         PortcoveError::unsupported(format!("{} has no setup tool for {platform:?}", port.name))
     })?;
@@ -619,7 +644,58 @@ fn run_upstream_setup(
             port.name, marker
         )));
     }
-    Ok(())
+    atomic_write_json(
+        &metadata_path,
+        &UpstreamSetupMetadata {
+            schema_version: 1,
+            source_sha256,
+            source_size,
+            manifest_sha256: String::new(),
+        },
+    )
+}
+
+pub(crate) fn upstream_setup_manifest_needs_refresh(
+    working_directory: &Path,
+    manifest_sha256: &str,
+) -> Result<bool> {
+    let path = working_directory.join(UPSTREAM_SETUP_METADATA);
+    let metadata: UpstreamSetupMetadata =
+        serde_json::from_slice(&std::fs::read(&path).map_err(|_| {
+            PortcoveError::state("upstream setup completed without Portcove integrity metadata")
+        })?)?;
+    if metadata.schema_version != 1
+        || metadata.source_sha256.len() != 64
+        || !metadata
+            .source_sha256
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit())
+        || metadata.source_size == 0
+    {
+        return Err(PortcoveError::verification(
+            "upstream setup integrity metadata is invalid",
+        ));
+    }
+    Ok(metadata.manifest_sha256 != manifest_sha256)
+}
+
+pub(crate) fn bind_upstream_setup_manifest(
+    working_directory: &Path,
+    manifest_sha256: &str,
+) -> Result<()> {
+    if manifest_sha256.len() != 64 || !manifest_sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
+    {
+        return Err(PortcoveError::verification(
+            "upstream setup manifest identity is invalid",
+        ));
+    }
+    let path = working_directory.join(UPSTREAM_SETUP_METADATA);
+    let mut metadata: UpstreamSetupMetadata =
+        serde_json::from_slice(&std::fs::read(&path).map_err(|_| {
+            PortcoveError::state("upstream setup completed without Portcove integrity metadata")
+        })?)?;
+    metadata.manifest_sha256 = manifest_sha256.into();
+    atomic_write_json(&path, &metadata)
 }
 
 fn atomic_write_json<T: Serialize>(destination: &Path, value: &T) -> Result<()> {
@@ -1861,6 +1937,27 @@ mod tests {
 
     use super::*;
     use crate::Catalog;
+
+    #[test]
+    fn upstream_setup_metadata_binds_the_generated_tree_to_its_manifest() {
+        let temporary = tempfile::tempdir().unwrap();
+        atomic_write_json(
+            &temporary.path().join(UPSTREAM_SETUP_METADATA),
+            &UpstreamSetupMetadata {
+                schema_version: 1,
+                source_sha256: "1".repeat(64),
+                source_size: 16,
+                manifest_sha256: String::new(),
+            },
+        )
+        .unwrap();
+        let manifest = "2".repeat(64);
+
+        assert!(upstream_setup_manifest_needs_refresh(temporary.path(), &manifest).unwrap());
+        bind_upstream_setup_manifest(temporary.path(), &manifest).unwrap();
+        assert!(!upstream_setup_manifest_needs_refresh(temporary.path(), &manifest).unwrap());
+        assert!(upstream_setup_manifest_needs_refresh(temporary.path(), &"3".repeat(64)).unwrap());
+    }
 
     #[test]
     fn chdman_candidate_selection_is_ordered_and_ignores_missing_files() {

@@ -398,6 +398,34 @@ impl Catalog {
                     )));
                 }
             }
+            let mut runtime_mutable_paths = HashSet::new();
+            for relative in &port.runtime_mutable_paths {
+                if relative.is_empty()
+                    || Path::new(relative)
+                        .components()
+                        .any(|component| !matches!(component, Component::Normal(_)))
+                    || !runtime_mutable_paths.insert(relative.as_str())
+                    || port.adapter != AdapterKind::UpstreamManagedSetup
+                    || port.runtime_subdirectory.is_some()
+                    || port
+                        .persistent_paths
+                        .iter()
+                        .any(|persistent| crate::runtime::overlaps(relative, persistent))
+                    || port
+                        .runtime_source_filename
+                        .as_ref()
+                        .is_some_and(|source| crate::runtime::overlaps(relative, source))
+                    || port
+                        .setup_marker
+                        .as_ref()
+                        .is_some_and(|marker| crate::runtime::overlaps(relative, marker))
+                {
+                    return Err(PortcoveError::usage(format!(
+                        "{} has an invalid nonpersistent runtime path: {relative}",
+                        port.id
+                    )));
+                }
+            }
             if let Some(directory) = &port.runtime_subdirectory
                 && (directory.is_empty()
                     || Path::new(directory)
@@ -767,6 +795,9 @@ mod tests {
             "wcw-world-tour-recompiled",
             "wcw-nwo-revenge-recompiled",
             "wwf-no-mercy-recompiled",
+            "opengoal-jak1",
+            "opengoal-jak2",
+            "opengoal-jak3",
         ] {
             let port = catalog.port(id).unwrap();
             assert_eq!(
@@ -1573,6 +1604,7 @@ mod tests {
             assert_eq!(port.setup_executable_hints.len(), 4);
             assert_eq!(port.setup_arguments[0..2], ["--game", game]);
             assert_eq!(port.launch_arguments, ["--game", game, "--portable"]);
+            assert_eq!(port.runtime_mutable_paths, ["data/log", "data/imgui.ini"]);
             assert!(
                 port.setup_marker
                     .as_deref()

@@ -66,6 +66,7 @@ export interface PortDefinition {
   bios_source_profile?: string;
   persistent_paths: string[];
   persistent_file_patterns?: { prefix: string; suffix: string }[];
+  runtime_mutable_paths?: string[];
   portable_marker?: boolean;
   source_environment?: string;
   launch_arguments?: string[];

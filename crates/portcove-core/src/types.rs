@@ -299,6 +299,8 @@ pub struct PortDefinition {
     #[serde(default)]
     pub persistent_file_patterns: Vec<PersistentFilePattern>,
     #[serde(default)]
+    pub runtime_mutable_paths: Vec<String>,
+    #[serde(default)]
     pub portable_marker: bool,
     #[serde(default)]
     pub source_environment: Option<String>,

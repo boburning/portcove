@@ -9,12 +9,20 @@ pub(crate) fn write_json_atomically<T: serde::Serialize>(
     value: &T,
     replace: bool,
 ) -> Result<()> {
+    write_bytes_atomically(destination, &serde_json::to_vec_pretty(value)?, replace)
+}
+
+pub(crate) fn write_bytes_atomically(
+    destination: &Path,
+    bytes: &[u8],
+    replace: bool,
+) -> Result<()> {
     use std::io::Write;
     let parent = destination
         .parent()
         .ok_or_else(|| PortcoveError::usage("publication path has no parent"))?;
     let mut temporary = tempfile::NamedTempFile::new_in(parent)?;
-    temporary.write_all(&serde_json::to_vec_pretty(value)?)?;
+    temporary.write_all(bytes)?;
     temporary.as_file().sync_all()?;
     let result = if replace {
         temporary.persist(destination)
@@ -150,5 +158,16 @@ mod tests {
             !supported,
             "unsupported hosts must not imply directory durability"
         );
+    }
+
+    #[test]
+    fn byte_publication_replaces_an_existing_file() {
+        let temporary = tempfile::tempdir().unwrap();
+        let destination = temporary.path().join("state.json");
+        fs::write(&destination, b"old").unwrap();
+
+        write_bytes_atomically(&destination, b"new", true).unwrap();
+
+        assert_eq!(fs::read(destination).unwrap(), b"new");
     }
 }
