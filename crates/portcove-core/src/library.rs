@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fs::{self, File, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
@@ -28,6 +29,17 @@ pub struct Library {
 #[derive(Debug)]
 pub struct PortOperationGuard {
     file: File,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct StatusReadMetrics {
+    pub sqlite_query_count: usize,
+}
+
+impl StatusReadMetrics {
+    fn record_query(&mut self) {
+        self.sqlite_query_count += 1;
+    }
 }
 
 impl Drop for PortOperationGuard {
@@ -567,6 +579,14 @@ impl Library {
             .map_err(Into::into)
     }
 
+    pub(crate) fn source_profile_ids(&self) -> Result<Vec<String>> {
+        let connection = self.connection()?;
+        let mut statement = connection.prepare("SELECT profile_id FROM sources")?;
+        let rows = statement.query_map([], |row| row.get(0))?;
+        rows.collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(Into::into)
+    }
+
     pub(crate) fn remove_source(&self, profile_id: &str) -> Result<bool> {
         Ok(self
             .connection()?
@@ -674,47 +694,186 @@ impl Library {
     }
 
     pub fn status(&self, port_id: &str, default_channel: ReleaseChannel) -> Result<PortStatus> {
+        self.statuses_with_metrics(&[(port_id.to_owned(), default_channel)])?
+            .0
+            .into_iter()
+            .next()
+            .ok_or_else(|| PortcoveError::state("status read model returned no row"))
+    }
+
+    pub(crate) fn statuses_with_metrics(
+        &self,
+        ports: &[(String, ReleaseChannel)],
+    ) -> Result<(Vec<PortStatus>, StatusReadMetrics)> {
         let connection = self.connection()?;
-        let stored: Option<(String, String, Option<String>, Option<String>)> = connection
-            .query_row(
-                "SELECT channel, update_policy, active_install_id, previous_install_id
-                 FROM port_settings WHERE port_id=?1",
-                [port_id],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
-            )
-            .optional()?;
-        let (channel_value, policy_value, active_id, previous_id) = stored.unwrap_or_else(|| {
-            (
-                default_channel.to_string(),
-                UpdatePolicy::Notify.to_string(),
-                None,
-                None,
-            )
-        });
-        let staged_id: Option<String> = connection.query_row(
-            "SELECT id FROM installs WHERE port_id=?1 AND staged=1 ORDER BY installed_at DESC LIMIT 1",
-            [port_id], |row| row.get(0),
-        ).optional()?;
-        let launch_history: Option<(i64, i64)> = connection
-            .query_row(
-                "SELECT last_launched_at, successful_launches FROM launch_history WHERE port_id=?1",
-                [port_id],
-                |row| Ok((row.get(0)?, row.get(1)?)),
-            )
-            .optional()?;
-        Ok(PortStatus {
-            port_id: port_id.to_owned(),
-            user_data_root: Some(self.user_dir(port_id)),
-            channel: channel_value.parse()?,
-            update_policy: policy_value.parse()?,
-            active: Self::install_by_id(&connection, active_id.as_deref())?,
-            previous: Self::install_by_id(&connection, previous_id.as_deref())?,
-            staged: Self::install_by_id(&connection, staged_id.as_deref())?,
-            last_launched_at: launch_history.map(|value| value.0),
-            successful_launches: launch_history.map_or(0, |value| value.1.max(0) as u64),
-            readiness: None,
-            last_update_check: None,
-        })
+        let mut metrics = StatusReadMetrics::default();
+
+        metrics.record_query();
+        let settings = {
+            let mut statement = connection.prepare(
+                "SELECT port_id, channel, update_policy, active_install_id, previous_install_id
+                 FROM port_settings",
+            )?;
+            let rows = statement.query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    (
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, Option<String>>(3)?,
+                        row.get::<_, Option<String>>(4)?,
+                    ),
+                ))
+            })?;
+            rows.collect::<std::result::Result<HashMap<_, _>, _>>()?
+        };
+
+        metrics.record_query();
+        let (installs, staged) = {
+            let mut statement = connection.prepare(
+                "SELECT id, port_id, version, path, channel, installed_at, verified, staged,
+                        artifact_name, artifact_sha256, artifact_size, manifest_sha256,
+                        selected_executable
+                 FROM installs
+                 ORDER BY installed_at DESC, rowid DESC",
+            )?;
+            let rows = statement.query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                    row.get::<_, i64>(5)?,
+                    row.get::<_, i64>(6)?,
+                    row.get::<_, i64>(7)?,
+                    row.get::<_, String>(8)?,
+                    row.get::<_, String>(9)?,
+                    row.get::<_, u64>(10)?,
+                    row.get::<_, String>(11)?,
+                    row.get::<_, String>(12)?,
+                ))
+            })?;
+            let mut installs = HashMap::new();
+            let mut staged = HashMap::new();
+            for row in rows {
+                let (
+                    id,
+                    port_id,
+                    version,
+                    path,
+                    channel,
+                    installed_at,
+                    verified,
+                    is_staged,
+                    artifact_name,
+                    artifact_sha256,
+                    artifact_size,
+                    manifest_sha256,
+                    selected_executable,
+                ) = row?;
+                let install = InstallRecord {
+                    id: id.clone(),
+                    port_id: port_id.clone(),
+                    version,
+                    path: PathBuf::from(path),
+                    channel: channel.parse()?,
+                    installed_at,
+                    verified: verified != 0,
+                    staged: is_staged != 0,
+                    artifact: ArtifactIdentity {
+                        asset_name: artifact_name,
+                        sha256: artifact_sha256,
+                        size: artifact_size,
+                    },
+                    manifest_sha256,
+                    selected_executable: PathBuf::from(selected_executable),
+                };
+                if install.staged {
+                    staged.entry(port_id).or_insert_with(|| id.clone());
+                }
+                installs.insert(id, install);
+            }
+            (installs, staged)
+        };
+
+        metrics.record_query();
+        let launch_history = {
+            let mut statement = connection.prepare(
+                "SELECT port_id, last_launched_at, successful_launches FROM launch_history",
+            )?;
+            let rows = statement.query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    (row.get::<_, i64>(1)?, row.get::<_, i64>(2)?),
+                ))
+            })?;
+            rows.collect::<std::result::Result<HashMap<_, _>, _>>()?
+        };
+
+        metrics.record_query();
+        let update_snapshots = {
+            let mut statement = connection
+                .prepare("SELECT port_id, check_json, checked_at FROM update_snapshots")?;
+            let rows = statement.query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, i64>(2)?,
+                ))
+            })?;
+            let mut snapshots = HashMap::new();
+            for row in rows {
+                let (port_id, json, checked_at) = row?;
+                snapshots.insert(
+                    port_id,
+                    UpdateSnapshot {
+                        checked_at,
+                        check: serde_json::from_str(&json)?,
+                    },
+                );
+            }
+            snapshots
+        };
+
+        let statuses = ports
+            .iter()
+            .map(|(port_id, default_channel)| {
+                let stored = settings.get(port_id);
+                let channel = stored
+                    .map(|value| value.0.parse())
+                    .transpose()?
+                    .unwrap_or(*default_channel);
+                let update_policy = stored
+                    .map(|value| value.1.parse())
+                    .transpose()?
+                    .unwrap_or(UpdatePolicy::Notify);
+                let active = stored
+                    .and_then(|value| value.2.as_ref())
+                    .and_then(|id| installs.get(id))
+                    .cloned();
+                let previous = stored
+                    .and_then(|value| value.3.as_ref())
+                    .and_then(|id| installs.get(id))
+                    .cloned();
+                let staged = staged.get(port_id).and_then(|id| installs.get(id)).cloned();
+                let history = launch_history.get(port_id).copied();
+                Ok(PortStatus {
+                    port_id: port_id.clone(),
+                    user_data_root: Some(self.user_dir(port_id)),
+                    channel,
+                    update_policy,
+                    active,
+                    previous,
+                    staged,
+                    last_launched_at: history.map(|value| value.0),
+                    successful_launches: history.map_or(0, |value| value.1.max(0) as u64),
+                    readiness: None,
+                    last_update_check: update_snapshots.get(port_id).cloned(),
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        Ok((statuses, metrics))
     }
 
     fn install_by_id(connection: &Connection, id: Option<&str>) -> Result<Option<InstallRecord>> {
@@ -1010,6 +1169,47 @@ mod tests {
         assert_eq!(status.active.unwrap().id, "second");
         assert_eq!(status.previous.unwrap().id, "first");
         assert!(status.staged.is_none());
+    }
+
+    #[test]
+    fn bulk_status_read_query_count_is_constant_at_scale() {
+        for record_count in [250, 500, 1_000] {
+            let temporary = tempdir().unwrap();
+            let library = Library::open(temporary.path()).unwrap();
+            let mut connection = library.connection().unwrap();
+            let transaction = connection.transaction().unwrap();
+            for index in 0..record_count {
+                let port_id = format!("port-{index:04}");
+                transaction
+                    .execute(
+                        "INSERT INTO port_settings(port_id, channel, update_policy)
+                         VALUES (?1, 'stable', 'notify')",
+                        [&port_id],
+                    )
+                    .unwrap();
+                transaction
+                    .execute(
+                        "INSERT INTO launch_history(port_id, last_launched_at, successful_launches)
+                         VALUES (?1, ?2, ?3)",
+                        params![port_id, index as i64, index as i64],
+                    )
+                    .unwrap();
+            }
+            transaction.commit().unwrap();
+            let ports = (0..record_count)
+                .map(|index| (format!("port-{index:04}"), ReleaseChannel::Stable))
+                .collect::<Vec<_>>();
+
+            let (statuses, metrics) = library.statuses_with_metrics(&ports).unwrap();
+
+            assert_eq!(statuses.len(), record_count);
+            assert_eq!(metrics.sqlite_query_count, 4);
+            assert_eq!(statuses.first().unwrap().port_id, "port-0000");
+            assert_eq!(
+                statuses.last().unwrap().successful_launches,
+                (record_count - 1) as u64
+            );
+        }
     }
 
     #[test]

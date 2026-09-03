@@ -7,6 +7,7 @@ use std::{
     sync::Arc,
 };
 
+use futures_util::{StreamExt, stream};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -30,6 +31,7 @@ use crate::{
 };
 
 const LAUNCH_MARKER: &str = ".portcove-launched";
+const BULK_PROVIDER_CONCURRENCY: usize = 4;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct AdoptionCopyFile {
@@ -382,18 +384,48 @@ impl PortcoveService {
 
     pub fn status(&self, port_id: &str) -> Result<PortStatus> {
         let port = self.catalog.port(port_id)?;
-        let status = self.library.status(port_id, default_channel(port))?;
-        self.with_launch_readiness(port, status)
+        let registered_sources = self
+            .library
+            .source_profile_ids()?
+            .into_iter()
+            .collect::<HashSet<_>>();
+        let (mut statuses, metrics) = self
+            .library
+            .statuses_with_metrics(&[(port_id.to_owned(), default_channel(port))])?;
+        tracing::debug!(
+            port_count = 1,
+            sqlite_query_count = metrics.sqlite_query_count + 1,
+            "loaded status read model"
+        );
+        let status = statuses
+            .pop()
+            .ok_or_else(|| PortcoveError::state("status read model returned no row"))?;
+        Ok(self.with_launch_readiness(port, status, &registered_sources))
     }
 
     pub fn statuses(&self) -> Result<Vec<PortStatus>> {
+        let ports = self
+            .catalog
+            .ports()
+            .iter()
+            .map(|port| (port.id.clone(), default_channel(port)))
+            .collect::<Vec<_>>();
+        let registered_sources = self
+            .library
+            .source_profile_ids()?
+            .into_iter()
+            .collect::<HashSet<_>>();
+        let (statuses, metrics) = self.library.statuses_with_metrics(&ports)?;
+        tracing::debug!(
+            port_count = statuses.len(),
+            sqlite_query_count = metrics.sqlite_query_count + 1,
+            "loaded status read model"
+        );
         self.catalog
             .ports()
             .iter()
-            .map(|port| {
-                let status = self.library.status(&port.id, default_channel(port))?;
-                self.with_launch_readiness(port, status)
-            })
+            .zip(statuses)
+            .map(|(port, status)| Ok(self.with_launch_readiness(port, status, &registered_sources)))
             .collect()
     }
 
@@ -868,15 +900,16 @@ impl PortcoveService {
         &self,
         port: &PortDefinition,
         mut status: PortStatus,
-    ) -> Result<PortStatus> {
+        registered_sources: &HashSet<String>,
+    ) -> PortStatus {
         let mut blockers = Vec::new();
         if let Some(profile_id) = &port.source_profile
-            && self.library.source(profile_id)?.is_none()
+            && !registered_sources.contains(profile_id)
         {
             blockers.push(LaunchBlocker::MissingSource);
         }
         if let Some(profile_id) = &port.bios_source_profile
-            && self.library.source(profile_id)?.is_none()
+            && !registered_sources.contains(profile_id)
         {
             blockers.push(LaunchBlocker::MissingBios);
         }
@@ -890,11 +923,18 @@ impl PortcoveService {
             blockers,
             pending_setup,
         });
-        status.last_update_check = self.library.update_snapshot(&port.id)?;
-        Ok(status)
+        status
     }
 
     pub async fn check_update(&self, port_id: &str) -> Result<UpdateCheck> {
+        self.check_update_with_status(port_id, None).await
+    }
+
+    async fn check_update_with_status(
+        &self,
+        port_id: &str,
+        status: Option<PortStatus>,
+    ) -> Result<UpdateCheck> {
         let activity = self.library.begin_activity(
             ActivityOperation::CheckUpdate,
             ActivityTargetKind::Port,
@@ -902,7 +942,10 @@ impl PortcoveService {
         )?;
         let result = async {
             let port = self.catalog.port(port_id)?;
-            let status = self.status(port_id)?;
+            let status = match status {
+                Some(status) => status,
+                None => self.status(port_id)?,
+            };
             let release = self
                 .releases
                 .resolve(port, status.channel, Platform::current()?)
@@ -911,6 +954,32 @@ impl PortcoveService {
         }
         .await;
         self.finish_activity(activity, result)
+    }
+
+    pub async fn check_updates(
+        &self,
+        port_ids: impl IntoIterator<Item = String>,
+    ) -> Result<Vec<(String, Result<UpdateCheck>)>> {
+        let statuses = self
+            .statuses()?
+            .into_iter()
+            .map(|status| (status.port_id.clone(), status))
+            .collect::<std::collections::HashMap<_, _>>();
+        let jobs = port_ids
+            .into_iter()
+            .map(|port_id| {
+                let status = statuses.get(&port_id).cloned();
+                (port_id, status)
+            })
+            .collect::<Vec<_>>();
+        Ok(stream::iter(jobs)
+            .map(|(port_id, status)| async move {
+                let result = self.check_update_with_status(&port_id, status).await;
+                (port_id, result)
+            })
+            .buffered(BULK_PROVIDER_CONCURRENCY)
+            .collect()
+            .await)
     }
 
     fn record_update_check(
@@ -2737,6 +2806,56 @@ mod tests {
         version: String,
     }
 
+    struct ConcurrentReleaseProvider {
+        active: AtomicUsize,
+        max_active: AtomicUsize,
+        calls: Mutex<Vec<String>>,
+        rate_limited_port: Option<String>,
+    }
+
+    impl ConcurrentReleaseProvider {
+        fn new(rate_limited_port: Option<String>) -> Self {
+            Self {
+                active: AtomicUsize::new(0),
+                max_active: AtomicUsize::new(0),
+                calls: Mutex::new(Vec::new()),
+                rate_limited_port,
+            }
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl ReleaseProvider for ConcurrentReleaseProvider {
+        async fn resolve(
+            &self,
+            port: &PortDefinition,
+            channel: ReleaseChannel,
+            _platform: Platform,
+        ) -> Result<ResolvedRelease> {
+            self.calls.lock().unwrap().push(port.id.clone());
+            let active = self.active.fetch_add(1, Ordering::SeqCst) + 1;
+            self.max_active.fetch_max(active, Ordering::SeqCst);
+            tokio::time::sleep(Duration::from_millis(15)).await;
+            self.active.fetch_sub(1, Ordering::SeqCst);
+            if self.rate_limited_port.as_deref() == Some(&port.id) {
+                return Err(PortcoveError::network("provider rate limit exhausted")
+                    .detail("rate_remaining", "0")
+                    .detail("retry_after", "60"));
+            }
+            Ok(ResolvedRelease {
+                version: "2.0.0".into(),
+                channel,
+                published_at: None,
+                asset: crate::ReleaseAsset {
+                    name: format!("{}-2.0.0.zip", port.id),
+                    url: "https://invalid.example/concurrent.zip".into(),
+                    size: 4,
+                    sha256: hex::encode(Sha256::digest(format!("{}:2.0.0", port.id))),
+                },
+            })
+        }
+    }
+
     #[async_trait::async_trait]
     impl ReleaseProvider for StaticReleaseProvider {
         async fn resolve(
@@ -2866,6 +2985,73 @@ mod tests {
             }),
         )
         .unwrap()
+    }
+
+    #[tokio::test]
+    async fn bulk_update_checks_are_bounded_and_preserve_input_order() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let provider = Arc::new(ConcurrentReleaseProvider::new(None));
+        let service = PortcoveService::with_provider(library, provider.clone()).unwrap();
+        let port_ids = service
+            .catalog()
+            .ports()
+            .iter()
+            .take(9)
+            .map(|port| port.id.clone())
+            .collect::<Vec<_>>();
+
+        let outcomes = service.check_updates(port_ids.clone()).await.unwrap();
+
+        assert_eq!(
+            outcomes
+                .iter()
+                .map(|(port_id, _)| port_id.clone())
+                .collect::<Vec<_>>(),
+            port_ids
+        );
+        assert!(outcomes.iter().all(|(_, result)| result.is_ok()));
+        assert_eq!(provider.max_active.load(Ordering::SeqCst), 4);
+        assert_eq!(provider.calls.lock().unwrap().len(), 9);
+    }
+
+    #[tokio::test]
+    async fn bulk_update_checks_isolate_rate_limits_without_retrying_items() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let port_ids = catalog
+            .ports()
+            .iter()
+            .take(6)
+            .map(|port| port.id.clone())
+            .collect::<Vec<_>>();
+        let rate_limited_port = port_ids[2].clone();
+        let provider = Arc::new(ConcurrentReleaseProvider::new(Some(
+            rate_limited_port.clone(),
+        )));
+        let service = PortcoveService::with_provider(library, provider.clone()).unwrap();
+
+        let outcomes = service.check_updates(port_ids.clone()).await.unwrap();
+
+        assert_eq!(outcomes.len(), port_ids.len());
+        for (port_id, result) in outcomes {
+            if port_id == rate_limited_port {
+                let error = result.unwrap_err();
+                assert_eq!(error.code, crate::ErrorCode::Network);
+                assert_eq!(error.details["rate_remaining"], "0");
+                assert_eq!(error.details["retry_after"], "60");
+            } else {
+                assert!(result.is_ok(), "{port_id} should remain isolated");
+            }
+        }
+        let calls = provider.calls.lock().unwrap();
+        assert_eq!(calls.len(), port_ids.len());
+        assert!(
+            port_ids
+                .iter()
+                .all(|port_id| calls.iter().filter(|called| *called == port_id).count() == 1)
+        );
     }
 
     fn backup_authorization(

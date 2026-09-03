@@ -2,6 +2,7 @@ mod diagnostics;
 
 use std::{
     fs,
+    future::Future,
     path::{Path, PathBuf},
     process::Stdio,
     thread,
@@ -110,7 +111,28 @@ where
     T: Send + 'static,
     F: FnOnce(PortcoveService) -> DesktopResult<T> + Send + 'static,
 {
-    tauri::async_runtime::spawn_blocking(move || operation(service(&state)?))
+    blocking_worker(move || operation(service(&state)?)).await
+}
+
+async fn blocking_async_service<T, F, Fut>(state: DesktopState, operation: F) -> DesktopResult<T>
+where
+    T: Send + 'static,
+    F: FnOnce(PortcoveService) -> Fut + Send + 'static,
+    Fut: Future<Output = DesktopResult<T>> + Send + 'static,
+{
+    blocking_worker(move || {
+        let service = service(&state)?;
+        tokio::runtime::Handle::current().block_on(operation(service))
+    })
+    .await
+}
+
+async fn blocking_worker<T, F>(operation: F) -> DesktopResult<T>
+where
+    T: Send + 'static,
+    F: FnOnce() -> DesktopResult<T> + Send + 'static,
+{
+    tauri::async_runtime::spawn_blocking(operation)
         .await
         .map_err(|error| DesktopError::from(PortcoveError::state(error.to_string())))?
 }
@@ -166,10 +188,14 @@ async fn plan_port(
     port_id: String,
     channel: ReleaseChannel,
 ) -> DesktopResult<InstallPlan> {
-    service(&state)?
-        .plan_install(&port_id, Some(channel))
-        .await
-        .map_err(Into::into)
+    let state = state.inner().clone();
+    blocking_async_service(state, move |service| async move {
+        service
+            .plan_install(&port_id, Some(channel))
+            .await
+            .map_err(Into::into)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -213,31 +239,41 @@ async fn poll_github_device_login(
 }
 
 #[tauri::command]
-fn get_catalog(state: tauri::State<'_, DesktopState>) -> DesktopResult<CatalogDocument> {
-    Ok(service(&state)?.catalog().document().clone())
+async fn get_catalog(state: tauri::State<'_, DesktopState>) -> DesktopResult<CatalogDocument> {
+    let state = state.inner().clone();
+    blocking_service(state, |service| Ok(service.catalog().document().clone())).await
 }
 
 #[tauri::command]
-fn get_statuses(state: tauri::State<'_, DesktopState>) -> DesktopResult<Vec<PortStatus>> {
-    service(&state)?.statuses().map_err(Into::into)
+async fn get_statuses(state: tauri::State<'_, DesktopState>) -> DesktopResult<Vec<PortStatus>> {
+    let state = state.inner().clone();
+    blocking_service(state, |service| service.statuses().map_err(Into::into)).await
 }
 
 #[tauri::command]
-fn get_sources(state: tauri::State<'_, DesktopState>) -> DesktopResult<Vec<SourceRecord>> {
-    ready(&state)?.library.sources().map_err(Into::into)
+async fn get_sources(state: tauri::State<'_, DesktopState>) -> DesktopResult<Vec<SourceRecord>> {
+    let state = state.inner().clone();
+    blocking_worker(move || ready(&state)?.library.sources().map_err(Into::into)).await
 }
 
 #[tauri::command]
-fn get_activities(state: tauri::State<'_, DesktopState>) -> DesktopResult<Vec<ActivityRecord>> {
-    ready(&state)?.library.activities(50).map_err(Into::into)
+async fn get_activities(
+    state: tauri::State<'_, DesktopState>,
+) -> DesktopResult<Vec<ActivityRecord>> {
+    let state = state.inner().clone();
+    blocking_worker(move || ready(&state)?.library.activities(50).map_err(Into::into)).await
 }
 
 #[tauri::command]
-fn get_backups(
+async fn get_backups(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
 ) -> DesktopResult<Vec<BackupRecord>> {
-    service(&state)?.list_backups(&port_id).map_err(Into::into)
+    let state = state.inner().clone();
+    blocking_service(state, move |service| {
+        service.list_backups(&port_id).map_err(Into::into)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -259,8 +295,17 @@ async fn restore_backup(
     port_id: String,
     backup_id: String,
 ) -> DesktopResult<Option<RestoreResult>> {
-    let preview =
-        service(&state)?.preview_backup_action(&port_id, &backup_id, BackupAction::Restore)?;
+    let worker_state = state.inner().clone();
+    let preview = blocking_service(worker_state, {
+        let port_id = port_id.clone();
+        let backup_id = backup_id.clone();
+        move |service| {
+            service
+                .preview_backup_action(&port_id, &backup_id, BackupAction::Restore)
+                .map_err(Into::into)
+        }
+    })
+    .await?;
     let message = if preview.safety_backup_will_be_created {
         format!(
             "Restore backup {} for {}?\n\nPortcove will preserve the current persistent data as a safety backup first.",
@@ -295,8 +340,17 @@ async fn delete_backup(
     port_id: String,
     backup_id: String,
 ) -> DesktopResult<Option<BackupRecord>> {
-    let preview =
-        service(&state)?.preview_backup_action(&port_id, &backup_id, BackupAction::Delete)?;
+    let worker_state = state.inner().clone();
+    let preview = blocking_service(worker_state, {
+        let port_id = port_id.clone();
+        let backup_id = backup_id.clone();
+        move |service| {
+            service
+                .preview_backup_action(&port_id, &backup_id, BackupAction::Delete)
+                .map_err(Into::into)
+        }
+    })
+    .await?;
     if !confirm_destructive(
         &app,
         "Confirm backup deletion",
@@ -393,10 +447,11 @@ async fn check_port(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
 ) -> DesktopResult<UpdateCheck> {
-    service(&state)?
-        .check_update(&port_id)
-        .await
-        .map_err(Into::into)
+    let state = state.inner().clone();
+    blocking_async_service(state, move |service| async move {
+        service.check_update(&port_id).await.map_err(Into::into)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -404,47 +459,55 @@ async fn check_installed(
     app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,
 ) -> DesktopResult<Vec<BatchOutcome<UpdateCheck>>> {
-    let service = service(&state)?;
-    let installed = service
-        .statuses()?
-        .into_iter()
-        .filter(|status| status.active.is_some())
-        .collect::<Vec<_>>();
-    let total = installed.len() as u64;
-    let operation = OperationCoordinator::new("check_installed", None);
-    emit_operation(&app, operation.started());
-    let mut outcomes = Vec::with_capacity(installed.len());
-    for (index, status) in installed.into_iter().enumerate() {
-        let port_id = status.port_id;
-        outcomes.push(match service.check_update(&port_id).await {
-            Ok(result) => BatchOutcome {
-                port_id,
-                ok: true,
-                result: Some(result),
-                error: None,
-            },
-            Err(error) => BatchOutcome {
-                port_id,
-                ok: false,
-                result: None,
-                error: Some(error.into()),
-            },
-        });
+    let state = state.inner().clone();
+    blocking_async_service(state, move |service| async move {
+        let installed = service
+            .statuses()?
+            .into_iter()
+            .filter(|status| status.active.is_some())
+            .map(|status| status.port_id)
+            .collect::<Vec<_>>();
+        let total = installed.len() as u64;
+        let operation = OperationCoordinator::new("check_installed", None);
+        emit_operation(&app, operation.started());
+        let mut outcomes = Vec::with_capacity(installed.len());
+        for (index, (port_id, result)) in service
+            .check_updates(installed)
+            .await?
+            .into_iter()
+            .enumerate()
+        {
+            outcomes.push(match result {
+                Ok(result) => BatchOutcome {
+                    port_id,
+                    ok: true,
+                    result: Some(result),
+                    error: None,
+                },
+                Err(error) => BatchOutcome {
+                    port_id,
+                    ok: false,
+                    result: None,
+                    error: Some(error.into()),
+                },
+            });
+            emit_operation(
+                &app,
+                operation.progress("Checking installed ports", index as u64 + 1, Some(total)),
+            );
+        }
+        let success = outcomes.iter().all(|outcome| outcome.ok);
         emit_operation(
             &app,
-            operation.progress("Checking installed ports", index as u64 + 1, Some(total)),
+            operation.finished(if success {
+                OperationResult::Succeeded
+            } else {
+                OperationResult::Failed
+            }),
         );
-    }
-    let success = outcomes.iter().all(|outcome| outcome.ok);
-    emit_operation(
-        &app,
-        operation.finished(if success {
-            OperationResult::Succeeded
-        } else {
-            OperationResult::Failed
-        }),
-    );
-    Ok(outcomes)
+        Ok(outcomes)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -452,51 +515,54 @@ async fn reconcile_installed(
     app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,
 ) -> DesktopResult<Vec<BatchOutcome<ReconcileResult>>> {
-    let service = service(&state)?;
-    let installed = service
-        .statuses()?
-        .into_iter()
-        .filter(|status| status.active.is_some())
-        .collect::<Vec<_>>();
-    let total = installed.len() as u64;
-    let operation = OperationCoordinator::new("reconcile_installed", None);
-    emit_operation(&app, operation.started());
-    let mut outcomes = Vec::with_capacity(installed.len());
-    for (index, status) in installed.into_iter().enumerate() {
-        let port_id = status.port_id;
-        let result = service
-            .reconcile(&port_id, |event| {
-                emit_operation(&app, event);
-            })
-            .await;
-        outcomes.push(match result {
-            Ok(result) => BatchOutcome {
-                port_id,
-                ok: true,
-                result: Some(result),
-                error: None,
-            },
-            Err(error) => BatchOutcome {
-                port_id,
-                ok: false,
-                result: None,
-                error: Some(error.into()),
-            },
-        });
+    let state = state.inner().clone();
+    blocking_async_service(state, move |service| async move {
+        let installed = service
+            .statuses()?
+            .into_iter()
+            .filter(|status| status.active.is_some())
+            .collect::<Vec<_>>();
+        let total = installed.len() as u64;
+        let operation = OperationCoordinator::new("reconcile_installed", None);
+        emit_operation(&app, operation.started());
+        let mut outcomes = Vec::with_capacity(installed.len());
+        for (index, status) in installed.into_iter().enumerate() {
+            let port_id = status.port_id;
+            let result = service
+                .reconcile(&port_id, |event| {
+                    emit_operation(&app, event);
+                })
+                .await;
+            outcomes.push(match result {
+                Ok(result) => BatchOutcome {
+                    port_id,
+                    ok: true,
+                    result: Some(result),
+                    error: None,
+                },
+                Err(error) => BatchOutcome {
+                    port_id,
+                    ok: false,
+                    result: None,
+                    error: Some(error.into()),
+                },
+            });
+            emit_operation(
+                &app,
+                operation.progress("Applying update policies", index as u64 + 1, Some(total)),
+            );
+        }
         emit_operation(
             &app,
-            operation.progress("Applying update policies", index as u64 + 1, Some(total)),
+            operation.finished(if outcomes.iter().all(|outcome| outcome.ok) {
+                OperationResult::Succeeded
+            } else {
+                OperationResult::Failed
+            }),
         );
-    }
-    emit_operation(
-        &app,
-        operation.finished(if outcomes.iter().all(|outcome| outcome.ok) {
-            OperationResult::Succeeded
-        } else {
-            OperationResult::Failed
-        }),
-    );
-    Ok(outcomes)
+        Ok(outcomes)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -515,13 +581,17 @@ async fn add_source(
 }
 
 #[tauri::command]
-fn preview_source_removal(
+async fn preview_source_removal(
     state: tauri::State<'_, DesktopState>,
     profile_id: String,
 ) -> DesktopResult<SourceRemovalPreview> {
-    service(&state)?
-        .preview_source_removal(&profile_id)
-        .map_err(Into::into)
+    let state = state.inner().clone();
+    blocking_service(state, move |service| {
+        service
+            .preview_source_removal(&profile_id)
+            .map_err(Into::into)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -531,7 +601,16 @@ async fn remove_source(
     profile_id: String,
     preview_sha256: String,
 ) -> DesktopResult<Option<SourceRemovalPreview>> {
-    let preview = service(&state)?.preview_source_removal(&profile_id)?;
+    let worker_state = state.inner().clone();
+    let preview = blocking_service(worker_state, {
+        let profile_id = profile_id.clone();
+        move |service| {
+            service
+                .preview_source_removal(&profile_id)
+                .map_err(Into::into)
+        }
+    })
+    .await?;
     if preview.preview_sha256 != preview_sha256 {
         return Err(PortcoveError::conflict(
             "the source or its installed dependents changed after the removal preview",
@@ -571,25 +650,31 @@ async fn remove_source(
 }
 
 #[tauri::command]
-fn set_channel(
+async fn set_channel(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
     channel: ReleaseChannel,
 ) -> DesktopResult<PortStatus> {
-    service(&state)?
-        .set_channel(&port_id, channel)
-        .map_err(Into::into)
+    let state = state.inner().clone();
+    blocking_service(state, move |service| {
+        service.set_channel(&port_id, channel).map_err(Into::into)
+    })
+    .await
 }
 
 #[tauri::command]
-fn set_policy(
+async fn set_policy(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
     policy: UpdatePolicy,
 ) -> DesktopResult<PortStatus> {
-    service(&state)?
-        .set_update_policy(&port_id, policy)
-        .map_err(Into::into)
+    let state = state.inner().clone();
+    blocking_service(state, move |service| {
+        service
+            .set_update_policy(&port_id, policy)
+            .map_err(Into::into)
+    })
+    .await
 }
 
 #[derive(Debug, Deserialize)]
@@ -608,20 +693,23 @@ async fn install_port(
     state: tauri::State<'_, DesktopState>,
     input: InstallInput,
 ) -> DesktopResult<InstallRecord> {
-    let service = service(&state)?;
-    service
-        .install(
-            &input.port_id,
-            input.channel,
-            input.source.as_deref(),
-            input.bios.as_deref(),
-            !input.stage,
-            |event: OperationEvent| {
-                emit_operation(&app, event);
-            },
-        )
-        .await
-        .map_err(Into::into)
+    let state = state.inner().clone();
+    blocking_async_service(state, move |service| async move {
+        service
+            .install(
+                &input.port_id,
+                input.channel,
+                input.source.as_deref(),
+                input.bios.as_deref(),
+                !input.stage,
+                |event: OperationEvent| {
+                    emit_operation(&app, event);
+                },
+            )
+            .await
+            .map_err(Into::into)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -633,19 +721,22 @@ async fn update_port(
     bios: Option<PathBuf>,
     stage: bool,
 ) -> DesktopResult<InstallRecord> {
-    let service = service(&state)?;
-    service
-        .update(
-            &port_id,
-            source.as_deref(),
-            bios.as_deref(),
-            !stage,
-            |event: OperationEvent| {
-                emit_operation(&app, event);
-            },
-        )
-        .await
-        .map_err(Into::into)
+    let state = state.inner().clone();
+    blocking_async_service(state, move |service| async move {
+        service
+            .update(
+                &port_id,
+                source.as_deref(),
+                bios.as_deref(),
+                !stage,
+                |event: OperationEvent| {
+                    emit_operation(&app, event);
+                },
+            )
+            .await
+            .map_err(Into::into)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -707,7 +798,17 @@ async fn adopt_port(
     port_id: Option<String>,
     plan_sha256: String,
 ) -> DesktopResult<Option<InstallRecord>> {
-    let preview = service(&state)?.preview_adoption(&path, port_id.as_deref())?;
+    let worker_state = state.inner().clone();
+    let preview = blocking_service(worker_state, {
+        let path = path.clone();
+        let port_id = port_id.clone();
+        move |service| {
+            service
+                .preview_adoption(&path, port_id.as_deref())
+                .map_err(Into::into)
+        }
+    })
+    .await?;
     if preview.plan_sha256 != plan_sha256 {
         return Err(PortcoveError::conflict(
             "adoption contents changed after preview; review the copy plan again",
@@ -742,7 +843,12 @@ async fn remove_port(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
 ) -> DesktopResult<Option<Vec<PathBuf>>> {
-    let preview = service(&state)?.preview_removal(&port_id)?;
+    let worker_state = state.inner().clone();
+    let preview = blocking_service(worker_state, {
+        let port_id = port_id.clone();
+        move |service| service.preview_removal(&port_id).map_err(Into::into)
+    })
+    .await?;
     let message = format!(
         "Remove {} managed version director{} for {}?\n\nPersistent data at {} will be preserved.",
         preview.managed_paths.len(),
@@ -1065,19 +1171,24 @@ fn start_stale_launch_recovery(library: &Library) -> portcove_core::Result<()> {
 }
 
 #[tauri::command]
-fn get_doctor_report(state: tauri::State<'_, DesktopState>) -> DesktopResult<DoctorReport> {
-    service(&state)?.doctor().map_err(Into::into)
+async fn get_doctor_report(state: tauri::State<'_, DesktopState>) -> DesktopResult<DoctorReport> {
+    let state = state.inner().clone();
+    blocking_service(state, |service| service.doctor().map_err(Into::into)).await
 }
 
 #[tauri::command]
-fn open_user_data(
+async fn open_user_data(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
 ) -> DesktopResult<PathBuf> {
-    let path = service(&state)?.port_paths(&port_id)?.user_data_root;
-    std::fs::create_dir_all(&path).map_err(PortcoveError::from)?;
-    open_directory(&path)?;
-    Ok(path)
+    let state = state.inner().clone();
+    blocking_service(state, move |service| {
+        let path = service.port_paths(&port_id)?.user_data_root;
+        std::fs::create_dir_all(&path).map_err(PortcoveError::from)?;
+        open_directory(&path)?;
+        Ok(path)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -1233,5 +1344,44 @@ mod tests {
             fs::read(blocked).unwrap(),
             b"file blocks the configured library directory"
         );
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn blocking_worker_keeps_the_ipc_runtime_responsive() {
+        let (started, observed_start) = tokio::sync::oneshot::channel();
+        let worker = tokio::spawn(blocking_worker(move || {
+            let _ = started.send(());
+            thread::sleep(Duration::from_millis(75));
+            Ok(7_u8)
+        }));
+        observed_start.await.unwrap();
+
+        tokio::time::timeout(
+            Duration::from_millis(30),
+            tokio::time::sleep(Duration::from_millis(5)),
+        )
+        .await
+        .expect("a blocking filesystem phase must not occupy the IPC runtime");
+        assert!(!worker.is_finished());
+        assert_eq!(worker.await.unwrap().unwrap(), 7);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn cancelling_an_ipc_waiter_does_not_interrupt_inflight_worker_mutation() {
+        let (started, observed_start) = tokio::sync::oneshot::channel();
+        let (finished, observed_finish) = std::sync::mpsc::channel();
+        let waiter = tokio::spawn(blocking_worker(move || {
+            let _ = started.send(());
+            thread::sleep(Duration::from_millis(40));
+            finished.send(()).unwrap();
+            Ok(())
+        }));
+        observed_start.await.unwrap();
+
+        waiter.abort();
+        assert!(waiter.await.unwrap_err().is_cancelled());
+        observed_finish
+            .recv_timeout(Duration::from_secs(1))
+            .expect("the lifecycle worker must finish after its IPC waiter is cancelled");
     }
 }

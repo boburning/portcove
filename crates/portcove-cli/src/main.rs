@@ -687,18 +687,21 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         }
         Commands::Check(args) => {
             if args.all {
-                let mut checked = Vec::new();
-                for status in service
+                let installed = service
                     .statuses()?
                     .into_iter()
                     .filter(|status| status.active.is_some())
-                {
-                    let port_id = status.port_id;
-                    checked.push(match service.check_update(&port_id).await {
+                    .map(|status| status.port_id)
+                    .collect::<Vec<_>>();
+                let checked = service
+                    .check_updates(installed)
+                    .await?
+                    .into_iter()
+                    .map(|(port_id, result)| match result {
                         Ok(result) => PortBatchOutcome::success(port_id, result),
                         Err(error) => PortBatchOutcome::failure(port_id, &error),
-                    });
-                }
+                    })
+                    .collect::<Vec<_>>();
                 render_success(mode, "check", checked)?;
             } else {
                 let port_id = args
