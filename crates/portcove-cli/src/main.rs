@@ -198,9 +198,13 @@ enum LibraryCommand {
 
 #[derive(Debug, Subcommand)]
 enum SourceCommand {
+    /// Search only explicitly selected folders and profiles; never registers a candidate.
+    Discover(SourceDiscoveryArgs),
     Add {
         profile_id: String,
         path: PathBuf,
+        #[arg(long)]
+        expected_sha256: Option<String>,
     },
     /// Validate a replacement path; apply only the exact reviewed plan.
     Relink {
@@ -225,6 +229,41 @@ struct SourceVerifyArgs {
     profile_id: Option<String>,
     #[arg(long, conflicts_with = "profile_id")]
     all: bool,
+}
+
+#[derive(Debug, Args)]
+struct SourceDiscoveryArgs {
+    #[arg(long = "root", required = true)]
+    roots: Vec<PathBuf>,
+    #[arg(long = "profile", required = true)]
+    profiles: Vec<String>,
+    #[arg(long)]
+    max_entries: Option<u32>,
+    #[arg(long)]
+    max_depth: Option<u32>,
+    #[arg(long)]
+    max_file_bytes: Option<u64>,
+    #[arg(long)]
+    max_hash_bytes: Option<u64>,
+    #[arg(long)]
+    max_candidates: Option<u32>,
+}
+
+impl SourceDiscoveryArgs {
+    fn request(self) -> portcove_core::SourceDiscoveryRequest {
+        let defaults = portcove_core::SourceDiscoveryLimits::default();
+        portcove_core::SourceDiscoveryRequest {
+            roots: self.roots,
+            profile_ids: self.profiles,
+            limits: portcove_core::SourceDiscoveryLimits {
+                max_entries: self.max_entries.unwrap_or(defaults.max_entries),
+                max_depth: self.max_depth.unwrap_or(defaults.max_depth),
+                max_file_bytes: self.max_file_bytes.unwrap_or(defaults.max_file_bytes),
+                max_hash_bytes: self.max_hash_bytes.unwrap_or(defaults.max_hash_bytes),
+                max_candidates: self.max_candidates.unwrap_or(defaults.max_candidates),
+            },
+        }
+    }
 }
 
 #[derive(Debug, Args)]
@@ -648,12 +687,30 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
             )?;
         }
         Commands::Source {
-            command: SourceCommand::Add { profile_id, path },
+            command: SourceCommand::Discover(args),
+        } => {
+            render_success(
+                mode,
+                "source.discover",
+                service.discover_sources(&args.request())?,
+            )?;
+        }
+        Commands::Source {
+            command:
+                SourceCommand::Add {
+                    profile_id,
+                    path,
+                    expected_sha256,
+                },
         } => {
             render_success(
                 mode,
                 "source.add",
-                service.register_source(&profile_id, &path)?,
+                if let Some(digest) = expected_sha256 {
+                    service.register_source_with_digest(&profile_id, &path, &digest)?
+                } else {
+                    service.register_source(&profile_id, &path)?
+                },
             )?;
         }
         Commands::Source {
@@ -1135,45 +1192,145 @@ fn execute_library(
 }
 
 fn schema_document() -> serde_json::Value {
-    serde_json::json!({
-        "api_response_port_status": schema_for!(ApiResponse<PortStatus>),
-        "about": schema_for!(AboutDocument),
-        "catalog": schema_for!(CatalogDocument),
-        "port": schema_for!(PortDefinition),
-        "status": schema_for!(PortStatus),
-        "update_check": schema_for!(UpdateCheck),
-        "update_snapshot": schema_for!(UpdateSnapshot),
-        "check_batch_outcome": schema_for!(PortBatchOutcome<UpdateCheck>),
-        "reconcile_result": schema_for!(ReconcileResult),
-        "reconcile_batch_outcome": schema_for!(PortBatchOutcome<ReconcileResult>),
-        "update_batch_outcome": schema_for!(PortBatchOutcome<InstallRecord>),
-        "source": schema_for!(SourceRecord),
-        "source_relink_plan": schema_for!(SourceRelinkPlan),
-        "library_metadata": schema_for!(LibraryMetadata),
-        "library_metadata_file": schema_for!(LibraryMetadataFile),
-        "library_move_plan": schema_for!(portcove_core::LibraryMovePlan),
-        "library_move_result": schema_for!(portcove_core::LibraryMoveResult),
-        "library_import_plan": schema_for!(portcove_core::LibraryImportPlan),
-        "library_import_result": schema_for!(portcove_core::LibraryImportResult),
-        "source_removal_preview": schema_for!(SourceRemovalPreview),
-        "source_verification": schema_for!(SourceVerification),
-        "source_batch_outcome": schema_for!(SourceBatchOutcome),
-        "activity": schema_for!(ActivityRecord),
-        "backup": schema_for!(BackupRecord),
-        "backup_action_preview": schema_for!(BackupActionPreview),
-        "restore_result": schema_for!(RestoreResult),
-        "adoption_preview": schema_for!(AdoptionPreview),
-        "port_removal_preview": schema_for!(PortRemovalPreview),
-        "storage": schema_for!(StorageSummary),
-        "doctor": schema_for!(DoctorReport),
-        "install_plan": schema_for!(InstallPlan),
-        "port_paths": schema_for!(PortPaths),
-        "operation_event": schema_for!(OperationEvent),
-        "github_auth_status": schema_for!(GithubAuthStatus),
-        "github_device_login": schema_for!(GithubDeviceLogin),
-        "github_device_login_result": schema_for!(GithubDeviceLoginResult),
-        "capabilities": schema_for!(CapabilityDocument)
-    })
+    serde_json::Value::Object(
+        [
+            (
+                "api_response_port_status",
+                serde_json::json!(schema_for!(ApiResponse<PortStatus>)),
+            ),
+            ("about", serde_json::json!(schema_for!(AboutDocument))),
+            ("catalog", serde_json::json!(schema_for!(CatalogDocument))),
+            ("port", serde_json::json!(schema_for!(PortDefinition))),
+            ("status", serde_json::json!(schema_for!(PortStatus))),
+            ("update_check", serde_json::json!(schema_for!(UpdateCheck))),
+            (
+                "update_snapshot",
+                serde_json::json!(schema_for!(UpdateSnapshot)),
+            ),
+            (
+                "check_batch_outcome",
+                serde_json::json!(schema_for!(PortBatchOutcome<UpdateCheck>)),
+            ),
+            (
+                "reconcile_result",
+                serde_json::json!(schema_for!(ReconcileResult)),
+            ),
+            (
+                "reconcile_batch_outcome",
+                serde_json::json!(schema_for!(PortBatchOutcome<ReconcileResult>)),
+            ),
+            (
+                "update_batch_outcome",
+                serde_json::json!(schema_for!(PortBatchOutcome<InstallRecord>)),
+            ),
+            ("source", serde_json::json!(schema_for!(SourceRecord))),
+            (
+                "source_relink_plan",
+                serde_json::json!(schema_for!(SourceRelinkPlan)),
+            ),
+            (
+                "library_metadata",
+                serde_json::json!(schema_for!(LibraryMetadata)),
+            ),
+            (
+                "library_metadata_file",
+                serde_json::json!(schema_for!(LibraryMetadataFile)),
+            ),
+            (
+                "library_move_plan",
+                serde_json::json!(schema_for!(portcove_core::LibraryMovePlan)),
+            ),
+            (
+                "library_move_result",
+                serde_json::json!(schema_for!(portcove_core::LibraryMoveResult)),
+            ),
+            (
+                "library_import_plan",
+                serde_json::json!(schema_for!(portcove_core::LibraryImportPlan)),
+            ),
+            (
+                "library_import_result",
+                serde_json::json!(schema_for!(portcove_core::LibraryImportResult)),
+            ),
+            (
+                "source_discovery_request",
+                serde_json::json!(schema_for!(portcove_core::SourceDiscoveryRequest)),
+            ),
+            (
+                "source_discovery_limits",
+                serde_json::json!(schema_for!(portcove_core::SourceDiscoveryLimits)),
+            ),
+            (
+                "source_discovery_report",
+                serde_json::json!(schema_for!(portcove_core::SourceDiscoveryReport)),
+            ),
+            (
+                "source_discovery_issue",
+                serde_json::json!(schema_for!(portcove_core::SourceDiscoveryIssue)),
+            ),
+            (
+                "source_discovery_limit",
+                serde_json::json!(schema_for!(portcove_core::SourceDiscoveryLimit)),
+            ),
+            (
+                "source_removal_preview",
+                serde_json::json!(schema_for!(SourceRemovalPreview)),
+            ),
+            (
+                "source_verification",
+                serde_json::json!(schema_for!(SourceVerification)),
+            ),
+            (
+                "source_batch_outcome",
+                serde_json::json!(schema_for!(SourceBatchOutcome)),
+            ),
+            ("activity", serde_json::json!(schema_for!(ActivityRecord))),
+            ("backup", serde_json::json!(schema_for!(BackupRecord))),
+            (
+                "backup_action_preview",
+                serde_json::json!(schema_for!(BackupActionPreview)),
+            ),
+            (
+                "restore_result",
+                serde_json::json!(schema_for!(RestoreResult)),
+            ),
+            (
+                "adoption_preview",
+                serde_json::json!(schema_for!(AdoptionPreview)),
+            ),
+            (
+                "port_removal_preview",
+                serde_json::json!(schema_for!(PortRemovalPreview)),
+            ),
+            ("storage", serde_json::json!(schema_for!(StorageSummary))),
+            ("doctor", serde_json::json!(schema_for!(DoctorReport))),
+            ("install_plan", serde_json::json!(schema_for!(InstallPlan))),
+            ("port_paths", serde_json::json!(schema_for!(PortPaths))),
+            (
+                "operation_event",
+                serde_json::json!(schema_for!(OperationEvent)),
+            ),
+            (
+                "github_auth_status",
+                serde_json::json!(schema_for!(GithubAuthStatus)),
+            ),
+            (
+                "github_device_login",
+                serde_json::json!(schema_for!(GithubDeviceLogin)),
+            ),
+            (
+                "github_device_login_result",
+                serde_json::json!(schema_for!(GithubDeviceLoginResult)),
+            ),
+            (
+                "capabilities",
+                serde_json::json!(schema_for!(CapabilityDocument)),
+            ),
+        ]
+        .into_iter()
+        .map(|(name, schema)| (name.to_owned(), schema))
+        .collect(),
+    )
 }
 
 fn read_token(stdin: bool, non_interactive: bool) -> Result<String> {
@@ -1461,6 +1618,7 @@ fn command_name(command: &Commands) -> &'static str {
         },
         Commands::Source { command } => match command {
             SourceCommand::Add { .. } => "source.add",
+            SourceCommand::Discover(_) => "source.discover",
             SourceCommand::Relink { .. } => "source.relink",
             SourceCommand::List => "source.list",
             SourceCommand::Verify(_) => "source.verify",

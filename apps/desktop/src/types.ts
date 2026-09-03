@@ -129,7 +129,7 @@ export interface PortStatus {
   last_update_check?: UpdateSnapshot;
 }
 
-export type ActivityOperation = "import_library" | "move_library" | "launch" | "check_update" | "backup" | "restore" | "delete_backup" | "install" | "update" | "reconcile" | "verify_install" | "activate" | "rollback" | "adopt" | "remove" | "remove_source" | "register_source" | "verify_source";
+export type ActivityOperation = "discover_sources" | "import_library" | "move_library" | "launch" | "check_update" | "backup" | "restore" | "delete_backup" | "install" | "update" | "reconcile" | "verify_install" | "activate" | "rollback" | "adopt" | "remove" | "remove_source" | "register_source" | "verify_source";
 export type ActivityStatus = "running" | "succeeded" | "failed";
 export type ActivityTargetKind = "port" | "source" | "library";
 
@@ -416,6 +416,41 @@ export interface LibraryImportResult {
   destination_root: string;
   completed: boolean;
   input_retained: boolean;
+}
+
+export interface SourceDiscoveryLimits {
+  max_entries: number;
+  max_depth: number;
+  max_file_bytes: number;
+  max_hash_bytes: number;
+  max_candidates: number;
+}
+
+export interface SourceDiscoveryRequest {
+  roots: string[];
+  profile_ids: string[];
+  limits?: SourceDiscoveryLimits;
+}
+
+export interface SourceDiscoveryIssue {
+  path?: string | null;
+  profile_id?: string | null;
+  message: string;
+}
+
+export type SourceDiscoveryLimit = "entries" | "depth" | "file_size" | "hash_bytes" | "candidates";
+
+export interface SourceDiscoveryReport {
+  searched_roots: string[];
+  searched_profiles: string[];
+  candidates: SourceRecord[];
+  entries_examined: number;
+  files_hashed: number;
+  hash_bytes: number;
+  symlinks_skipped: number;
+  limits_reached: SourceDiscoveryLimit[];
+  issues: SourceDiscoveryIssue[];
+  issues_omitted: number;
 }
 
 export type GithubAuthSource = "anonymous" | "environment" | "credential_store";

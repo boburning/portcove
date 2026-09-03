@@ -232,6 +232,72 @@ fn source_relink_requires_a_current_plan_and_preserves_registered_content() {
 }
 
 #[test]
+fn source_discovery_requires_explicit_scope_and_never_registers_implicitly() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    let source_root = temporary.path().join("sources");
+    std::fs::create_dir(&source_root).unwrap();
+    std::fs::write(source_root.join("candidate.z64"), b"synthetic source").unwrap();
+    let missing = portcove(
+        &library,
+        &[
+            "--json",
+            "source",
+            "discover",
+            "--root",
+            source_root.to_str().unwrap(),
+        ],
+    );
+    assert_eq!(missing.status.code(), Some(2));
+    let result = portcove(
+        &library,
+        &[
+            "--json",
+            "source",
+            "discover",
+            "--root",
+            source_root.to_str().unwrap(),
+            "--profile",
+            "mario-kart-64",
+            "--max-hash-bytes",
+            "1",
+        ],
+    );
+    assert!(result.status.success(), "{result:?}");
+    let data = json_stdout(&result);
+    assert_eq!(data["command"], "source.discover");
+    assert_eq!(data["data"]["hash_bytes"], 0);
+    assert_eq!(data["data"]["candidates"], serde_json::json!([]));
+    assert_eq!(
+        data["data"]["limits_reached"],
+        serde_json::json!(["hash_bytes"])
+    );
+    let sources = portcove(&library, &["--json", "source", "list"]);
+    assert_eq!(json_stdout(&sources)["data"], serde_json::json!([]));
+    assert_eq!(
+        std::fs::read(source_root.join("candidate.z64")).unwrap(),
+        b"synthetic source"
+    );
+    let refused = portcove(
+        &library,
+        &[
+            "--json",
+            "source",
+            "add",
+            "star-fox-64",
+            source_root.join("candidate.z64").to_str().unwrap(),
+            "--expected-sha256",
+            &"a".repeat(64),
+        ],
+    );
+    assert!(!refused.status.success());
+    assert_eq!(
+        json_stdout(&portcove(&library, &["--json", "source", "list"]))["data"],
+        serde_json::json!([])
+    );
+}
+
+#[test]
 fn default_read_commands_have_human_output_snapshots() {
     let root = tempfile::tempdir().unwrap();
 

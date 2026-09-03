@@ -67,6 +67,10 @@ const interfaceSchemas = new Map([
   ["library_move_result", "LibraryMoveResult"],
   ["library_import_plan", "LibraryImportPlan"],
   ["library_import_result", "LibraryImportResult"],
+  ["source_discovery_request", "SourceDiscoveryRequest"],
+  ["source_discovery_limits", "SourceDiscoveryLimits"],
+  ["source_discovery_report", "SourceDiscoveryReport"],
+  ["source_discovery_issue", "SourceDiscoveryIssue"],
   ["source_removal_preview", "SourceRemovalPreview"],
   ["source_verification", "SourceVerification"],
   ["activity", "ActivityRecord"],
@@ -114,6 +118,7 @@ for (const schema of Object.values(schemas)) {
 
 const checkedEnums = [
   "ActivityOperation",
+  "SourceDiscoveryLimit",
   "ActivityStatus",
   "ActivityTargetKind",
   "AdapterKind",

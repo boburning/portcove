@@ -25,6 +25,7 @@ This repository is an early, working implementation. Catalog and state commands 
 - JSON, JSONL, JSON Schema, deterministic exit codes, and a network-free `exec` path for launchers such as Batocera, Playnite, LaunchBox, RetroBat, and EmuDeck.
 - A local, read-only `doctor` report for host platform, library capacity, catalog state, optional `chdman`/DolphinTool discovery, and explicit repair planning for incomplete or ambiguous library state.
 - Metadata export, verified library moves and imports, and validated source relinking preserve local libraries across storage and path changes. Transfers require review, retain input data, and expose interruption recovery through the CLI and Settings.
+- Opt-in source discovery searches explicitly chosen folders with bounded hashing and current source-profile validation. Accepting a result revalidates its content before registration.
 - Cross-process per-port operation locks so multiple launchers cannot race installation state or mutate a port while its game process is running.
 - Parent-independent desktop launch supervision with durable crash recovery, exact-version save collection, and CLI signal forwarding.
 - Tauri 2/React desktop UI with keyboard and controller navigation.

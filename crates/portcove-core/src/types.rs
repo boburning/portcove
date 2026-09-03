@@ -433,6 +433,7 @@ impl FromStr for ActivityTargetKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ActivityOperation {
+    DiscoverSources,
     ImportLibrary,
     MoveLibrary,
     Launch,
@@ -457,6 +458,7 @@ impl std::fmt::Display for ActivityOperation {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str(match self {
             Self::ImportLibrary => "import_library",
+            Self::DiscoverSources => "discover_sources",
             Self::MoveLibrary => "move_library",
             Self::Launch => "launch",
             Self::CheckUpdate => "check_update",
@@ -484,6 +486,7 @@ impl FromStr for ActivityOperation {
     fn from_str(value: &str) -> Result<Self> {
         match value {
             "import_library" => Ok(Self::ImportLibrary),
+            "discover_sources" => Ok(Self::DiscoverSources),
             "move_library" => Ok(Self::MoveLibrary),
             "launch" => Ok(Self::Launch),
             "check_update" => Ok(Self::CheckUpdate),

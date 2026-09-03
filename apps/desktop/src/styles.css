@@ -1532,7 +1532,7 @@ select { width: 100%; padding: 11px; }
   box-shadow: var(--shadow-floating);
 }
 
-.library-import-modal { width: min(640px, 90vw); }
+.wide-modal { width: min(640px, 90vw); }
 
 .modal-icon {
   width: 2.75rem;
@@ -1783,6 +1783,7 @@ select { width: 100%; padding: 11px; }
 .source-health-row > div { min-width: 0; }
 
 .source-health-row code {
+  display: block;
   overflow: hidden;
   margin: 4px 0 0;
   padding: 0;
@@ -1793,6 +1794,7 @@ select { width: 100%; padding: 11px; }
 }
 
 .source-health-row small { grid-column: 1 / -1; color: var(--color-danger-text); }
+.source-discovery-results code { white-space: normal; overflow-wrap: anywhere; }
 .source-health-actions { display: flex; align-items: center; gap: 10px; }
 .source-state { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--color-text-muted); font-size: var(--text-xs); }
 .source-state.verified { color: var(--color-success-text); }

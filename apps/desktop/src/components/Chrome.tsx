@@ -9,6 +9,7 @@ import { BrandAvatar, BrandMascot, BrandWordmark } from "./Brand";
 import { ExternalLink } from "./ExternalLink";
 import { LibraryMoveButton } from "./LibraryMove";
 import { LibraryImportButton } from "./LibraryImport";
+import { SourceDiscoveryButton } from "./SourceDiscovery";
 import { Icon, NavigationHints, Shortcut } from "./ui";
 
 export function Sidebar({ view, setView, installedCount, updateCount, onAdopt, controller }: {
@@ -188,15 +189,17 @@ function SourceRequirements({ requirements, busy, add }: { requirements: SourceR
   </div>;
 }
 
-function SourceHealth({ sources, requirements, outcomes, busy, verify, replace, add }: {
+function SourceHealth({ sources, requirements, outcomes, busy, verify, replace, add, profiles, onAdded }: {
   sources: SourceRecord[]; outcomes: SourceVerificationOutcome[]; busy?: string; verify?: () => void;
   replace?: (source: SourceRecord) => void; requirements: SourceRequirement[]; add?: (profile: SourceProfile, archive: boolean) => void;
+  profiles: SourceProfile[]; onAdded?: () => Promise<void>;
 }) {
   const byProfile = new Map(outcomes.map(outcome => [outcome.profile_id, outcome]));
   return <article className="settings-card source-health" data-focus-group>
     <p className="eyebrow">SOURCES</p>
     <div className="settings-title"><h2>Integrity</h2><button data-focusable className="small-control" disabled={!!busy || sources.length === 0} onClick={verify}>Verify sources</button></div>
     <SourceRequirements requirements={requirements} busy={busy} add={add} />
+    <SourceDiscoveryButton profiles={profiles} disabled={Boolean(busy)} onAdded={onAdded} />
     {sources.length === 0
       ? <p>No source files are registered yet.</p>
       : <div className="source-health-list">{sources.map(source => <SourceHealthRow key={source.profile_id} source={source} outcome={byProfile.get(source.profile_id)} busy={busy} replace={replace} />)}</div>}
@@ -269,15 +272,16 @@ function ThemeOption({ option, selected, select }: { option: ThemePreference; se
   return <button data-focusable className={selected ? "active" : ""} aria-pressed={selected} onClick={() => select?.(option)}>{option[0].toUpperCase() + option.slice(1)}</button>;
 }
 
-export function SettingsView({ libraryRoot = "", doctor, storage, github, busy, sources = [], sourceNeeds = [], sourceOutcomes = [], verifySources, replaceSource, addSource, appearance, createSupportBundle, exportMetadata }: {
+export function SettingsView({ libraryRoot = "", doctor, storage, github, busy, sources = [], sourceNeeds = [], sourceOutcomes = [], verifySources, replaceSource, addSource, appearance, createSupportBundle, exportMetadata, sourceProfiles = [], onSourceAdded }: {
   libraryRoot?: string; doctor?: DoctorReport; storage?: StorageSummary; github?: GithubSettingsActions; busy?: string; sources?: SourceRecord[];
   sourceNeeds?: SourceRequirement[]; sourceOutcomes?: SourceVerificationOutcome[]; verifySources?: () => void; replaceSource?: (source: SourceRecord) => void;
   addSource?: (profile: SourceProfile, archive: boolean) => void; appearance?: ThemeState; createSupportBundle?: () => Promise<string | undefined>;
   exportMetadata?: () => Promise<LibraryMetadataFile | undefined>;
+  sourceProfiles?: SourceProfile[]; onSourceAdded?: () => Promise<void>;
 }) {
   return <section className="settings-grid">
     <GithubSettings github={github} busy={busy} />
-    <SourceHealth sources={sources} requirements={sourceNeeds} outcomes={sourceOutcomes} busy={busy} verify={verifySources} replace={replaceSource} add={addSource} />
+    <SourceHealth sources={sources} requirements={sourceNeeds} outcomes={sourceOutcomes} busy={busy} verify={verifySources} replace={replaceSource} add={addSource} profiles={sourceProfiles} onAdded={onSourceAdded} />
     <StorageCard libraryRoot={storage?.library_root ?? libraryRoot} storage={storage} busy={busy} exportMetadata={exportMetadata} />
     <AppearanceSettings appearance={appearance} />
     <HostReadiness doctor={doctor} />

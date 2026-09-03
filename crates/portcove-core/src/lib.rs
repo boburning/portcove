@@ -27,6 +27,8 @@ mod recovery;
 mod release;
 mod service;
 mod source;
+mod source_discovery;
+mod source_file;
 mod transfer_copy;
 mod transfer_journal;
 mod types;
@@ -61,6 +63,10 @@ pub use service::{
     BackupActionPreview, PortRemovalPreview, PortcoveService,
 };
 pub use source::SourceRelinkPlan;
+pub use source_discovery::{
+    SourceDiscoveryIssue, SourceDiscoveryLimit, SourceDiscoveryLimits, SourceDiscoveryReport,
+    SourceDiscoveryRequest,
+};
 pub use types::*;
 
 pub const API_SCHEMA_VERSION: u32 = 5;

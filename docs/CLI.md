@@ -93,6 +93,17 @@ portcove --library <path> --json source relink <profile-id> <new-path> --apply -
 
 The preview validates the new path against the current catalog profile and the registered content hash and size; the old path may be offline. It returns the original record, validated replacement, and `preview_sha256` without changing either file or the registry. Apply takes the profile and dependent-port locks, revalidates the replacement, and rejects a stale plan if registration, catalog rules, location, or validated bytes changed. A different container is allowed only when its normalized content is identical. Settings → Sources → Relink source uses the same core operation. Registration, relinking, and removal fail with a conflict while a dependent port is running or another source writer holds the profile lock.
 
+## Opt-in source discovery
+
+```powershell
+portcove --json source discover --root D:\Sources --profile minish-cap-gba --profile super-smash-bros-64
+portcove --json source add <profile-id> <candidate-path> --expected-sha256 <candidate-sha256>
+```
+
+Discovery requires explicit roots and source profiles. It never registers a match automatically. Defaults are 10,000 examined entries, six nested directory levels, 512 MiB per file, 8 GiB of cumulative hashing, and 64 matches. The corresponding `--max-entries`, `--max-depth`, `--max-file-bytes`, `--max-hash-bytes`, and `--max-candidates` flags can narrow these limits; core also enforces hard ceilings. The report identifies searched scope, validated candidates, hashed bytes, reached limits, and bounded per-path issues. A partial search is not evidence that every file was considered.
+
+Only exact-hash original-file and cartridge-ZIP profiles participate automatically. Other source contracts report that manual selection is required. Symlinks and entries outside the selected canonical roots are skipped. Equal profile contracts share hashing; both normalized ZIP payload and original container bytes count toward the budget. Accepting a candidate with `--expected-sha256` checks the current profile and reviewed content under the normal source locks before registration. Settings → Sources → Find source files exposes the same search and explicit acceptance. Cancellation is the next implementation step; this checkpoint completes a bounded search before returning.
+
 ## Library metadata
 
 ```text

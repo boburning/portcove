@@ -604,12 +604,30 @@ async fn add_source(
     state: tauri::State<'_, DesktopState>,
     profile_id: String,
     path: PathBuf,
+    expected_sha256: Option<String>,
 ) -> DesktopResult<SourceRecord> {
     let state = state.inner().clone();
     blocking_service(state, move |service| {
-        service
-            .register_source(&profile_id, &path)
-            .map_err(Into::into)
+        if let Some(digest) = expected_sha256 {
+            service
+                .register_source_with_digest(&profile_id, &path, &digest)
+                .map_err(Into::into)
+        } else {
+            service
+                .register_source(&profile_id, &path)
+                .map_err(Into::into)
+        }
+    })
+    .await
+}
+
+#[tauri::command]
+async fn discover_sources(
+    state: tauri::State<'_, DesktopState>,
+    request: portcove_core::SourceDiscoveryRequest,
+) -> DesktopResult<portcove_core::SourceDiscoveryReport> {
+    blocking_service(state.inner().clone(), move |service| {
+        service.discover_sources(&request).map_err(Into::into)
     })
     .await
 }
@@ -1369,6 +1387,7 @@ pub fn run() {
             check_installed,
             reconcile_installed,
             add_source,
+            discover_sources,
             preview_source_removal,
             remove_source,
             set_channel,

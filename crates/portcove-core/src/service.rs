@@ -1042,6 +1042,31 @@ impl PortcoveService {
     }
 
     pub fn register_source(&self, profile_id: &str, path: &Path) -> Result<SourceRecord> {
+        self.register_source_checked(profile_id, path, None)
+    }
+
+    pub fn register_source_with_digest(
+        &self,
+        profile_id: &str,
+        path: &Path,
+        expected_sha256: &str,
+    ) -> Result<SourceRecord> {
+        if expected_sha256.len() != 64
+            || !expected_sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
+        {
+            return Err(PortcoveError::usage(
+                "source acceptance requires the reviewed SHA-256",
+            ));
+        }
+        self.register_source_checked(profile_id, path, Some(expected_sha256))
+    }
+
+    fn register_source_checked(
+        &self,
+        profile_id: &str,
+        path: &Path,
+        expected_sha256: Option<&str>,
+    ) -> Result<SourceRecord> {
         let activity = self.library.begin_activity(
             ActivityOperation::RegisterSource,
             ActivityTargetKind::Source,
@@ -1054,6 +1079,12 @@ impl PortcoveService {
                 .adapters
                 .get(crate::AdapterKind::ReferencedDisc)
                 .validate_source(profile, path)?;
+            if expected_sha256.is_some_and(|expected| !source.sha256.eq_ignore_ascii_case(expected))
+            {
+                return Err(PortcoveError::conflict(
+                    "source changed after discovery; review it again",
+                ));
+            }
             self.library.register_source(&source)?;
             Ok(source)
         })();

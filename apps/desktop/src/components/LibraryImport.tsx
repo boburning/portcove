@@ -31,7 +31,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
     if (path) { (field === "metadata" ? setMetadata : setContent)(path); setPlan(undefined); }
   });
   const locked = Boolean(busy) || Boolean(recoveryRoot);
-  return <div className="scrim"><section ref={dialog} className="modal library-import-modal" role="dialog" aria-modal="true" aria-labelledby="import-library-title">
+  return <div className="scrim"><section ref={dialog} className="modal wide-modal" role="dialog" aria-modal="true" aria-labelledby="import-library-title">
     <p className="eyebrow">LIBRARY BACKUP</p><h2 id="import-library-title">Import your library</h2>
     <p className="modal-description">Restore a trusted metadata export and its copied application, save, backup, and toolchain folders into this empty library. Portcove verifies the copy before opening it and keeps the backup files unchanged.</p>
     <p>Destination: <code>{libraryRoot}</code></p><NavigationHints />

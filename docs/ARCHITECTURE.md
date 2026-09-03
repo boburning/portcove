@@ -70,6 +70,10 @@ Library import reads a metadata export and an explicitly selected copy of its fo
 
 Only a verified import changes its journal to published and becomes openable. Recovery after publication finalizes bookkeeping without reading offline input or replaying old saves. Terminal activity is idempotent, and an interrupted abort cannot later publish as success. Completed journals move under recovery so normal opens do not parse a full historical inventory. CLI abort preserves and gates an incomplete destination; a subsequent import uses another empty root. Desktop Settings restores into the currently configured empty library, releases cached handles for the core operation, obtains native confirmation of the trusted backup and destination, and reopens the same root. Original source references retain their locations and must pass current profile validation or explicit relinking before use. There is no new crate boundary or parallel library authority.
 
+## Source discovery
+
+Core owns opt-in discovery requests, traversal and hashing budgets, candidate validation, and explicit acceptance. Search requires selected roots and profiles; it does not infer personal folders. It skips symlinks and entries outside the canonical selected roots, filters extensions and size before hashing, bounds traversal and hashing, and shares original-file/cartridge-ZIP identity validation with manual registration. Equal source contracts share a hashing pass. Only profiles with exact published hash identities are automatically matched; disc conversion, folder sets, and upstream-validator handoffs continue through manual selection. Results are candidates, never registrations. Acceptance runs current validation under the existing source/dependent-port locks and compares the reviewed normalized digest before writing the registry. CLI and Tauri expose this core operation; React holds only the selected search scope and transient result list.
+
 ## Install transaction
 
 1. Validate catalog, channel, platform, and required source reference.

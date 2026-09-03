@@ -136,6 +136,7 @@ function operationLabel(operation: ActivityOperation) {
     verify_source: "Verified source",
     move_library: "Moved library",
     import_library: "Imported library",
+    discover_sources: "Searched for sources",
   };
   return labels[operation];
 }
