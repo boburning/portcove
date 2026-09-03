@@ -61,6 +61,7 @@ const interfaceSchemas = new Map([
   ["reconcile_result", "ReconcileResult"],
   ["source", "SourceRecord"],
   ["source_relink_plan", "SourceRelinkPlan"],
+  ["library_metadata_file", "LibraryMetadataFile"],
   ["source_removal_preview", "SourceRemovalPreview"],
   ["source_verification", "SourceVerification"],
   ["activity", "ActivityRecord"],

@@ -24,6 +24,7 @@ use crate::{
 pub struct Library {
     root: PathBuf,
     authorizations: AuthorizationStore,
+    _lease: std::sync::Arc<crate::library_access::LibraryLease>,
 }
 
 #[derive(Debug)]
@@ -59,9 +60,11 @@ impl Library {
     pub fn open(root: impl Into<PathBuf>) -> Result<Self> {
         let root = root.into();
         crate::path::unicode(&root, "library root")?;
+        let lease = std::sync::Arc::new(crate::library_access::LibraryLease::acquire(&root)?);
         let library = Self {
             root,
             authorizations: AuthorizationStore::default(),
+            _lease: lease,
         };
         library.create_layout()?;
         library.migrate()?;
@@ -225,7 +228,7 @@ impl Library {
         Ok(())
     }
 
-    fn connection(&self) -> Result<Connection> {
+    pub(crate) fn connection(&self) -> Result<Connection> {
         database::connect(&self.root)
     }
 
@@ -576,6 +579,10 @@ impl Library {
 
     pub fn sources(&self) -> Result<Vec<SourceRecord>> {
         let connection = self.connection()?;
+        Self::sources_from(&connection)
+    }
+
+    pub(crate) fn sources_from(connection: &Connection) -> Result<Vec<SourceRecord>> {
         let mut statement = connection.prepare(
             "SELECT profile_id, path, sha256, size, storage_sha256, storage_size, updated_at FROM sources ORDER BY profile_id",
         )?;
@@ -995,6 +1002,10 @@ impl Library {
 
     pub(crate) fn all_installs(&self) -> Result<Vec<InstallRecord>> {
         let connection = self.connection()?;
+        Self::installs_from(&connection)
+    }
+
+    pub(crate) fn installs_from(connection: &Connection) -> Result<Vec<InstallRecord>> {
         let ids = {
             let mut statement = connection.prepare("SELECT id FROM installs ORDER BY rowid")?;
             let rows = statement.query_map([], |row| row.get::<_, String>(0))?;
@@ -1002,7 +1013,7 @@ impl Library {
         };
         ids.iter()
             .map(|id| {
-                Self::install_by_id(&connection, Some(id))?.ok_or_else(|| {
+                Self::install_by_id(connection, Some(id))?.ok_or_else(|| {
                     PortcoveError::state(format!("install {id} disappeared while reading"))
                 })
             })

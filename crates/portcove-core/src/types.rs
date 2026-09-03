@@ -886,6 +886,7 @@ impl CapabilityDocument {
                 "status".into(),
                 "activity".into(),
                 "storage".into(),
+                "library".into(),
                 "doctor".into(),
                 "about".into(),
                 "plan".into(),

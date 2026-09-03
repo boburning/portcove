@@ -56,6 +56,10 @@ Elsewhere in this document, “atomic rename” describes namespace visibility a
 
 Source registration is a core-owned mutation. All source writers take a library/profile lock and the locks for every catalog port sharing that game source or BIOS, including registration through install overrides. These fail-fast locks prevent reference changes throughout a dependent launch or lifecycle operation without introducing a wait-order deadlock. Read-only relink planning validates the new location against the current profile and stored content identity; applying the content-bound plan repeats validation under those locks. The old source can be offline, but a changed registration or candidate invalidates the plan. Only SQLite's reference and validation baseline are replaced; source bytes remain untouched. CLI and desktop use this same service boundary.
 
+Every open `Library` also holds a shared operating-system lease on `locks/library.lock`, acquired before SQLite initialization and retained by every clone. Whole-library transfer must acquire that lock exclusively, so it cannot proceed while a current CLI, desktop, or launch supervisor owns the library. Per-port locks remain the normal concurrency boundary between independent games.
+
+`portability` owns the versioned metadata document and its export policy inside core. It uses the library's existing source/install readers inside one SQLite read transaction, with typed settings and history. It exports identities and references, not payloads or credentials; managed paths become relative and the four content categories remain explicit. A metadata file is published from a flushed private sibling file without replacing an existing destination. CLI and Tauri only translate output choices and native picker results.
+
 ## Install transaction
 
 1. Validate catalog, channel, platform, and required source reference.

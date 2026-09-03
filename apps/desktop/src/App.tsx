@@ -5,7 +5,7 @@ import { CommandPalette } from "./components/CommandPalette";
 import { DetailPanel } from "./components/DetailPanel";
 import { PortBrowser } from "./components/PortBrowser";
 import { UpdateCenter } from "./components/UpdateCenter";
-import { pickInstallFolder, pickSourceArchivePath, pickSourcePath } from "./file-picker";
+import { pickInstallFolder, pickMetadataExportPath, pickSourceArchivePath, pickSourcePath } from "./file-picker";
 import { desktopApi } from "./api";
 import { useWorkspaceScroll } from "./keyboard-shortcuts";
 import { useThemePreference } from "./theme";
@@ -138,6 +138,10 @@ function CurrentView({ data, ui, model, operations, github, updates, sourceHealt
     checkAll={() => { void updates.checkAll(); }} applyPolicies={() => { void updates.applyPolicies(); }} onSelect={ui.setSelectedId} onOpenSources={() => ui.setView("settings")} />;
   if (ui.view === "settings") return <SettingsView doctor={data.doctor} storage={data.storage} github={github} busy={operations.busy} sources={data.sources} appearance={appearance}
     createSupportBundle={() => operations.perform("support bundle", desktopApi.createSupportBundle)}
+    exportMetadata={() => operations.perform("export library metadata", async () => {
+      const path = await pickMetadataExportPath();
+      return path ? desktopApi.exportLibraryMetadata(path) : undefined;
+    })}
     sourceOutcomes={sourceHealth.outcomes} verifySources={() => { void sourceHealth.verifyAll(); }} replaceSource={source => {
       const profile = data.catalog?.source_profiles.find(candidate => candidate.id === source.profile_id);
       void replaceRegisteredSource(profile, source, operations.perform, operations.setError);

@@ -93,6 +93,17 @@ portcove --library <path> --json source relink <profile-id> <new-path> --apply -
 
 The preview validates the new path against the current catalog profile and the registered content hash and size; the old path may be offline. It returns the original record, validated replacement, and `preview_sha256` without changing either file or the registry. Apply takes the profile and dependent-port locks, revalidates the replacement, and rejects a stale plan if registration, catalog rules, location, or validated bytes changed. A different container is allowed only when its normalized content is identical. Settings → Sources → Relink source uses the same core operation. Registration, relinking, and removal fail with a conflict while a dependent port is running or another source writer holds the profile lock.
 
+## Library metadata
+
+```text
+portcove --library <path> --json library export
+portcove --library <path> --json library export --output <new-file.json>
+```
+
+Export reads one consistent SQLite snapshot. The versioned metadata document contains source references, managed version identities, active/previous/staged state, per-port preferences, and successful launch history. Application versions, user data, backups, and toolchains are identified as separate content roots; their contents and credentials are not embedded. Managed installation paths become relative to the original library root, while source references retain their original paths and identities.
+
+Without `--output`, the document appears in the normal CLI response. With `--output`, core writes a raw metadata document to a new file and returns its path, byte size, and SHA-256. Publication does not replace an existing file. Settings → Library → Export metadata invokes the same operation through a native save dialog.
+
 ## Idempotent automation
 
 ```text

@@ -360,6 +360,12 @@ export interface BootstrapStatus {
   error?: DesktopError;
 }
 
+export interface LibraryMetadataFile {
+  path: string;
+  sha256: string;
+  size: number;
+}
+
 export type GithubAuthSource = "anonymous" | "environment" | "credential_store";
 
 export interface GithubAuthStatus {

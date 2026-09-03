@@ -20,3 +20,9 @@ Commit `1268b6a` adds read-only relink planning and content-bound apply through 
 ## Controller and links: actual user observations
 
 The initial Xbox test failed: invisible focus, unreliable actions, and no dependable sidebar return. The next build improved input handling but skipped short rows and account actions. Commit `0744a12` fixes those reports with nearest-row navigation, explicit control groups, a full-field search outline, matching 42-pixel header controls, clearer appearance copy, and the native browser bridge. The user's subsequent observations were "The controller feels much better" and "opening links also works." Remaining detailed modal/minimum-size observations stay explicit in `PCV-DEF-005`.
+
+## Metadata export and library access lease
+
+Core now produces a versioned metadata snapshot in one SQLite transaction, including source references, version/artifact identities, active/previous/staged state, settings, and launch history. It identifies application versions, user data, backups, and toolchains as separate content roots without embedding their bytes or credentials. The CLI exposes `library export` and `--output`; Settings exposes the same no-overwrite file publication through a native save dialog. Tests verify source preservation, no-overwrite behavior, and active/previous/staged identity preservation. Every open library also retains a shared OS lease until its last clone is dropped, establishing the exclusion boundary required for transfer.
+
+`just check` and `just deep` passed at this checkpoint. Rscheck reported 14 advisory findings and zero blocking findings; cargo-modules reported the existing inherent-item cycle; Hawk 0.1.13 is unsupported on Windows and was skipped explicitly. Library move/import and their publication/recovery tests remain the next portability work; metadata export is not a completed transfer feature.

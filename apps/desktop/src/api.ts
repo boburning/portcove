@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { ActivityRecord, AdoptionPreview, BackupRecord, BootstrapStatus, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, InstallPlan, InstallRecord, PortStatus, ReconcileOutcome, ReleaseChannel, RestoreResult, SourceRecord, SourceRelinkPlan, SourceRemovalPreview, SourceVerificationOutcome, UpdateCheck, UpdateCheckOutcome, UpdatePolicy } from "./types";
+import type { ActivityRecord, AdoptionPreview, BackupRecord, BootstrapStatus, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, InstallPlan, InstallRecord, LibraryMetadataFile, PortStatus, ReconcileOutcome, ReleaseChannel, RestoreResult, SourceRecord, SourceRelinkPlan, SourceRemovalPreview, SourceVerificationOutcome, UpdateCheck, UpdateCheckOutcome, UpdatePolicy } from "./types";
 
 export const desktopApi = {
   bootstrapStatus: () => invoke<BootstrapStatus>("get_bootstrap_status"),
@@ -27,6 +27,7 @@ export const desktopApi = {
   reconcileInstalled: () => invoke<ReconcileOutcome[]>("reconcile_installed"),
   doctor: () => invoke<DoctorReport>("get_doctor_report"),
   createSupportBundle: () => invoke<string>("create_support_bundle"),
+  exportLibraryMetadata: (path: string) => invoke<LibraryMetadataFile>("export_library_metadata", { path }),
   reportFrontendError: (message: string, componentStack: string) => invoke<void>("report_frontend_error", { message, componentStack }),
   plan: (portId: string, channel: ReleaseChannel) => invoke<InstallPlan>("plan_port", { portId, channel }),
   openUserData: (portId: string) => invoke<string>("open_user_data", { portId }),

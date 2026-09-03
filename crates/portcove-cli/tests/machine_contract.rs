@@ -24,6 +24,51 @@ fn human_stdout(output: &Output) -> &str {
 }
 
 #[test]
+fn library_metadata_export_is_versioned_and_does_not_replace_an_existing_file() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    let output = portcove(&library, &["--json", "library", "export"]);
+    assert!(output.status.success());
+    let metadata = json_stdout(&output);
+    assert_eq!(metadata["command"], "library.export");
+    assert_eq!(metadata["data"]["schema_version"], 1);
+    assert_eq!(
+        metadata["data"]["content_roots"].as_array().unwrap().len(),
+        4
+    );
+    assert!(
+        metadata["data"]["source_references"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    let file = temporary.path().join("library.json");
+    let args = [
+        "--json",
+        "library",
+        "export",
+        "--output",
+        file.to_str().unwrap(),
+    ];
+    let written = portcove(&library, &args);
+    assert!(written.status.success());
+    assert_eq!(
+        json_stdout(&written)["data"]["sha256"]
+            .as_str()
+            .unwrap()
+            .len(),
+        64
+    );
+    let contents = std::fs::read(&file).unwrap();
+    assert_eq!(
+        serde_json::from_slice::<Value>(&contents).unwrap()["schema_version"],
+        1
+    );
+    assert!(!portcove(&library, &args).status.success());
+    assert_eq!(std::fs::read(file).unwrap(), contents);
+}
+
+#[test]
 fn source_relink_requires_a_current_plan_and_preserves_registered_content() {
     let temporary = tempfile::tempdir().unwrap();
     let library = temporary.path().join("library");
@@ -72,7 +117,7 @@ fn source_relink_requires_a_current_plan_and_preserves_registered_content() {
     std::fs::copy(&original, &relocated).unwrap();
     std::fs::remove_file(original).unwrap();
     let applied = portcove(&library, &apply);
-    assert!(applied.status.success(), "{:?}", applied);
+    assert!(applied.status.success(), "{applied:?}");
     let result = json_stdout(&applied);
     assert_eq!(result["command"], "source.relink");
     assert_eq!(result["data"]["path"], relocated.to_str().unwrap());

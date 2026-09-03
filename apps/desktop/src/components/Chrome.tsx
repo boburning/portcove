@@ -3,7 +3,7 @@ import { AlertTriangle, Boxes, Check, CheckCircle2, CircleMinus, CircleUserRound
 import desktopPackage from "../../package.json";
 import { copyText } from "../clipboard";
 import type { ThemeState, ThemePreference } from "../theme";
-import type { DoctorReport, GithubAuthStatus, GithubDeviceLogin, HostToolStatus, OperationEvent, SourceProfile, SourceRecord, SourceVerificationOutcome, StorageSummary } from "../types";
+import type { DoctorReport, GithubAuthStatus, GithubDeviceLogin, HostToolStatus, LibraryMetadataFile, OperationEvent, SourceProfile, SourceRecord, SourceVerificationOutcome, StorageSummary } from "../types";
 import { formatBytes, type SourceRequirement, type View } from "../view-model";
 import { BrandAvatar, BrandMascot, BrandWordmark } from "./Brand";
 import { ExternalLink } from "./ExternalLink";
@@ -267,15 +267,16 @@ function ThemeOption({ option, selected, select }: { option: ThemePreference; se
   return <button data-focusable className={selected ? "active" : ""} aria-pressed={selected} onClick={() => select?.(option)}>{option[0].toUpperCase() + option.slice(1)}</button>;
 }
 
-export function SettingsView({ libraryRoot = "", doctor, storage, github, busy, sources = [], sourceNeeds = [], sourceOutcomes = [], verifySources, replaceSource, addSource, appearance, createSupportBundle }: {
+export function SettingsView({ libraryRoot = "", doctor, storage, github, busy, sources = [], sourceNeeds = [], sourceOutcomes = [], verifySources, replaceSource, addSource, appearance, createSupportBundle, exportMetadata }: {
   libraryRoot?: string; doctor?: DoctorReport; storage?: StorageSummary; github?: GithubSettingsActions; busy?: string; sources?: SourceRecord[];
   sourceNeeds?: SourceRequirement[]; sourceOutcomes?: SourceVerificationOutcome[]; verifySources?: () => void; replaceSource?: (source: SourceRecord) => void;
   addSource?: (profile: SourceProfile, archive: boolean) => void; appearance?: ThemeState; createSupportBundle?: () => Promise<string | undefined>;
+  exportMetadata?: () => Promise<LibraryMetadataFile | undefined>;
 }) {
   return <section className="settings-grid">
     <GithubSettings github={github} busy={busy} />
     <SourceHealth sources={sources} requirements={sourceNeeds} outcomes={sourceOutcomes} busy={busy} verify={verifySources} replace={replaceSource} add={addSource} />
-    <StorageCard libraryRoot={storage?.library_root ?? libraryRoot} storage={storage} />
+    <StorageCard libraryRoot={storage?.library_root ?? libraryRoot} storage={storage} busy={busy} exportMetadata={exportMetadata} />
     <AppearanceSettings appearance={appearance} />
     <HostReadiness doctor={doctor} />
     <DiagnosticsCard busy={busy} createSupportBundle={createSupportBundle} />
@@ -317,16 +318,20 @@ function hostToolName(id: string) {
   return id.replaceAll("_", " ");
 }
 
-function StorageCard({ libraryRoot, storage }: { libraryRoot: string; storage?: StorageSummary }) {
+function StorageCard({ libraryRoot, storage, busy, exportMetadata }: { libraryRoot: string; storage?: StorageSummary; busy?: string; exportMetadata?: () => Promise<LibraryMetadataFile | undefined> }) {
+  const [exported, setExported] = useState<LibraryMetadataFile>();
   const total = storage?.volume_total_bytes ?? 0;
   const available = storage?.volume_available_bytes ?? 0;
   const availablePercent = total > 0 ? Math.min(100, available / total * 100) : 0;
-  return <article className="settings-card storage-card">
+  return <article className="settings-card storage-card" data-focus-group>
     <p className="eyebrow">LIBRARY</p><h2><Icon glyph={HardDrive} />Managed files</h2><code>{libraryRoot || "Loading…"}</code>
     {storage && <div className="storage-capacity">
       <div><strong>{formatBytes(available)} available</strong><span>{formatBytes(total)} volume</span></div>
       <div className="storage-meter" role="meter" aria-label="Available library storage" aria-valuemin={0} aria-valuemax={total} aria-valuenow={available}><i style={{ width: `${availablePercent}%` }} /></div>
     </div>}
     <p><Icon glyph={ShieldCheck} size="sm" /> Application versions are isolated from saves, configuration, mods, and original sources.</p>
+    <button data-focusable className="small-control" disabled={Boolean(busy) || !exportMetadata} onClick={() => { void exportMetadata?.().then(setExported); }}>Export metadata</button>
+    <p>Export source references and version settings. Game files, saves, backups, toolchains, and credentials are not included.</p>
+    {exported && <p role="status">Exported to <code>{exported.path}</code></p>}
   </article>;
 }

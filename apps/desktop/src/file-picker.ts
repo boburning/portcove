@@ -1,4 +1,4 @@
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import type { SourceProfile } from "./types";
 
 export async function pickSourcePath(profile: SourceProfile, currentPath: string) {
@@ -26,4 +26,8 @@ export function pickSourceArchivePath(currentPath: string) {
 
 export function pickInstallFolder(currentPath: string) {
   return open({ multiple: false, directory: true, defaultPath: currentPath || undefined });
+}
+
+export function pickMetadataExportPath() {
+  return save({ title: "Export library metadata", defaultPath: "portcove-library.json", filters: [{ name: "Portcove library metadata", extensions: ["json"] }] });
 }

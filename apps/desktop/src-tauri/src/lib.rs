@@ -13,10 +13,10 @@ use portcove_core::{
     ActivityRecord, AdoptionPreview, BackupAction, BackupRecord, CatalogDocument,
     ChildProcessClass, ChildProcessPolicy, CompositeReleaseProvider, DoctorReport,
     GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, GithubReleaseProvider,
-    InstallPlan, InstallRecord, LaunchStdio, Library, OperationCoordinator, OperationEvent,
-    OperationResult, PortStatus, PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel,
-    ReleaseProvider, RestoreResult, SourceRecord, SourceRelinkPlan, SourceRemovalPreview,
-    SourceVerification, UpdateCheck, UpdatePolicy, VerificationReport,
+    InstallPlan, InstallRecord, LaunchStdio, Library, LibraryMetadataFile, OperationCoordinator,
+    OperationEvent, OperationResult, PortStatus, PortcoveError, PortcoveService, ReconcileResult,
+    ReleaseChannel, ReleaseProvider, RestoreResult, SourceRecord, SourceRelinkPlan,
+    SourceRemovalPreview, SourceVerification, UpdateCheck, UpdatePolicy, VerificationReport,
 };
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
@@ -1256,6 +1256,18 @@ async fn create_support_bundle(state: tauri::State<'_, DesktopState>) -> Desktop
 }
 
 #[tauri::command]
+async fn export_library_metadata(
+    state: tauri::State<'_, DesktopState>,
+    path: PathBuf,
+) -> DesktopResult<LibraryMetadataFile> {
+    let state = state.inner().clone();
+    blocking_service(state, move |service| {
+        service.write_library_metadata(&path).map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
 fn report_frontend_error(message: String, component_stack: String) -> DesktopResult<()> {
     tracing::error!(
         operation_id = "frontend-render",
@@ -1367,6 +1379,7 @@ pub fn run() {
             open_user_data,
             open_external_url,
             create_support_bundle,
+            export_library_metadata,
             report_frontend_error,
         ])
         .setup(|app| {

@@ -9,11 +9,11 @@ use portcove_core::{
     API_SCHEMA_VERSION, ActivityRecord, AdoptionPreview, BackupAction, BackupActionPreview,
     BackupRecord, CapabilityDocument, CatalogDocument, DoctorReport, ErrorCode, GithubAuthStatus,
     GithubDeviceLogin, GithubDeviceLoginResult, GithubDeviceLoginState, GithubReleaseProvider,
-    InstallPlan, InstallRecord, LaunchSignal, LaunchStdio, OperationEvent, OperationEventKind,
-    PortDefinition, PortPaths, PortRemovalPreview, PortStatus, PortcoveError, PortcoveService,
-    ReconcileResult, ReleaseChannel, RestoreResult, Result, SourceRecord, SourceRelinkPlan,
-    SourceRemovalPreview, SourceVerification, StorageSummary, UpdateCheck, UpdatePolicy,
-    UpdateSnapshot, forward_launch_signal,
+    InstallPlan, InstallRecord, LaunchSignal, LaunchStdio, LibraryMetadata, LibraryMetadataFile,
+    OperationEvent, OperationEventKind, PortDefinition, PortPaths, PortRemovalPreview, PortStatus,
+    PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel, RestoreResult, Result,
+    SourceRecord, SourceRelinkPlan, SourceRemovalPreview, SourceVerification, StorageSummary,
+    UpdateCheck, UpdatePolicy, UpdateSnapshot, forward_launch_signal,
 };
 use schemars::{JsonSchema, schema_for};
 use serde::Serialize;
@@ -45,6 +45,10 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
+    Library {
+        #[command(subcommand)]
+        command: LibraryCommand,
+    },
     Auth {
         #[command(subcommand)]
         command: AuthCommand,
@@ -156,6 +160,15 @@ enum CatalogCommand {
     List,
     Export,
     Show { port_id: String },
+}
+
+#[derive(Debug, Subcommand)]
+enum LibraryCommand {
+    /// Export metadata without application files, saves, or original sources.
+    Export {
+        #[arg(long)]
+        output: Option<PathBuf>,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -460,6 +473,19 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
     };
     let service = PortcoveService::new(library)?;
     match cli.command {
+        Commands::Library {
+            command: LibraryCommand::Export { output },
+        } => {
+            if let Some(path) = output {
+                render_success(
+                    mode,
+                    "library.export",
+                    service.write_library_metadata(&path)?,
+                )?;
+            } else {
+                render_success(mode, "library.export", service.export_library_metadata()?)?;
+            }
+        }
         Commands::Auth { command } => {
             let github = GithubReleaseProvider::for_library(service.library())?;
             match command {
@@ -1005,6 +1031,8 @@ fn schema_document() -> serde_json::Value {
         "update_batch_outcome": schema_for!(PortBatchOutcome<InstallRecord>),
         "source": schema_for!(SourceRecord),
         "source_relink_plan": schema_for!(SourceRelinkPlan),
+        "library_metadata": schema_for!(LibraryMetadata),
+        "library_metadata_file": schema_for!(LibraryMetadataFile),
         "source_removal_preview": schema_for!(SourceRemovalPreview),
         "source_verification": schema_for!(SourceVerification),
         "source_batch_outcome": schema_for!(SourceBatchOutcome),
@@ -1319,6 +1347,7 @@ fn command_name(command: &Commands) -> &'static str {
         Commands::Status { .. } => "status",
         Commands::Activity { .. } => "activity",
         Commands::Storage => "storage",
+        Commands::Library { .. } => "library.export",
         Commands::Doctor => "doctor",
         Commands::About => "about",
         Commands::Plan { .. } => "plan",

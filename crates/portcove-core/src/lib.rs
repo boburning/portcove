@@ -10,8 +10,10 @@ mod gitlab;
 mod install;
 mod launch;
 mod library;
+mod library_access;
 mod operation;
 mod path;
+mod portability;
 mod process;
 mod providers;
 mod psx;
@@ -34,6 +36,10 @@ pub use install::{InstallQualification, InstallRequest, Installer, VerificationR
 pub use launch::forward_launch_signal;
 pub use library::{Library, PortOperationGuard};
 pub use operation::{OPERATION_EVENT_SCHEMA_VERSION, OperationCoordinator};
+pub use portability::{
+    LibraryContentKind, LibraryContentRoot, LibraryLaunchHistory, LibraryMetadata,
+    LibraryMetadataFile, LibraryPortSettings,
+};
 pub use process::{ChildProcessClass, ChildProcessPolicy, GameProcessSpec, LaunchKind, LaunchSpec};
 pub use providers::CompositeReleaseProvider;
 pub use psx::PsxManagedPreparation;
