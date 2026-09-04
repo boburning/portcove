@@ -9,6 +9,13 @@ const configPath = path.join(projectRoot, ".github", "roadmap.json");
 const catalogPath = path.join(projectRoot, "crates", "portcove-core", "catalog", "catalog.json");
 
 const layouts = new Set(["TABLE_LAYOUT", "BOARD_LAYOUT", "ROADMAP_LAYOUT"]);
+export const releaseSequence = ["Alpha 1", "Alpha 2", "Alpha 3", "Beta 1", "Beta 2", "RC", "V1"];
+const durableIssueHeadings = [
+  "User outcome", "Current behavior and evidence", "Scope", "Non-goals",
+  "Acceptance criteria", "Required tests", "Documentation impact",
+  "Dependencies and blockers", "Completion evidence",
+];
+const portMarker = "<!-- portcove-port -->";
 const volatileKeys = new Set([
   "items", "item", "issues", "drafts", "status_value", "priority_value",
   "horizon_value", "target_release_value", "position", "positions",
@@ -53,6 +60,9 @@ export function validateConfig(config, { requireProjectNumber = false } = {}) {
   ensureString(config.project?.title, "project title");
   ensureString(config.project?.description, "project description");
   ensureString(config.project?.readme, "project readme");
+  if (!releaseSequence.includes(config.active_release)) {
+    throw new Error(`active_release must be one of ${releaseSequence.join(", ")}`);
+  }
   if (config.project?.visibility !== "PUBLIC") throw new Error("roadmap project must be PUBLIC");
   if (!Number.isInteger(config.project?.number) || config.project.number < 0) {
     throw new Error("project number must be a non-negative integer");
@@ -87,10 +97,85 @@ export function validateConfig(config, { requireProjectNumber = false } = {}) {
     if (typeof view.filter !== "string" || !Array.isArray(view.fields) || view.fields.length === 0) {
       throw new Error(`view ${view.name} must define a filter and visible fields`);
     }
+    if ("group_by" in view || "sort_by" in view) {
+      throw new Error(`view ${view.name} must use manual_group_by/manual_sort_by for UI-only requirements`);
+    }
+    if (!(view.manual_group_by === null || typeof view.manual_group_by === "string")
+      || typeof view.manual_sort_by !== "string") {
+      throw new Error(`view ${view.name} must define manual grouping and sorting requirements`);
+    }
   }
   const volatile = findVolatileKey(config);
   if (volatile) throw new Error(`roadmap configuration contains volatile planning data at ${volatile}`);
   return config;
+}
+
+export function materializeViews(config) {
+  return config.views.map(view => ({
+    ...view,
+    filter: view.filter.replaceAll("${active_release}", config.active_release),
+  }));
+}
+
+export function validateDurableIssueBody(body) {
+  ensureString(body, "durable issue body");
+  const missing = durableIssueHeadings.filter(heading => {
+    const match = body.match(new RegExp(`^## ${heading.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}\\s*$`, "im"));
+    if (!match) return true;
+    const start = match.index + match[0].length;
+    const next = body.slice(start).search(/^##\s/m);
+    const content = body.slice(start, next < 0 ? undefined : start + next).trim();
+    return !content || /^(?:pending|tbd|todo)[.!]?$/i.test(content.replace(/^[-*]\s*/, ""));
+  });
+  if (missing.length) throw new Error(`durable issue specification is incomplete: ${missing.join(", ")}`);
+  return body;
+}
+
+function portCatalogMarkers(body) {
+  return [...String(body ?? "").matchAll(/<!--\s*portcove-catalog-id:\s*([^\s>]+)\s*-->/gi)]
+    .map(match => match[1]);
+}
+
+export function renderPortIssueBody({ title, upstream, catalogId, currentEvidence = "Initial intake; evidence pending triage.", blocker = "No current blocker has been established. Exact resume condition pending triage." }) {
+  const catalogLine = catalogId ?? "Not assigned (researched candidate)";
+  const catalogMarker = catalogId ? `\n<!-- portcove-catalog-id: ${catalogId} -->` : "";
+  return `## User outcome\n\n${title} can be researched, prioritized, qualified, advanced, blocked, and closed independently.\n\n## Current behavior and evidence\n\n${currentEvidence}\n\n## Scope\n\n- Direct upstream: ${upstream}\n- Game/title identity: ${title}\n- Catalog ID: ${catalogLine}\n- Supported and candidate platforms: Unknown until evidenced\n- Release assets and integrity: Pending\n- Source requirements and accepted revisions: Pending\n- Executable/setup boundary: Pending\n- Persistence and user-data boundary: Pending\n- Adapter fit and dependencies: Pending\n- Current Port stage: Watchlist\n- Current blocker and exact resume condition: ${blocker}\n- Automated qualification: Not yet recorded\n- Manual qualification: Not yet recorded\n\n## Non-goals\n\nThis issue does not grant support, expand V1 scope, weaken source or artifact validation, or replace shared engineering dependencies.\n\n## Acceptance criteria\n\n- [ ] Every owned port fact above is supported by explicit evidence.\n- [ ] The catalog and Project agree with the independently closable port state.\n- [ ] Completion evidence links the implementation and exact qualification results.\n\n## Required tests\n\nValidate catalog admission, source identity, release integrity, install/update/rollback, launch, persistence, automated qualification, and required hands-on behavior for each claimed platform.\n\n## Documentation impact\n\nUpdate catalog.json only when actual support or qualification changes; keep mutable priority and stage in the Project.\n\n## Dependencies and blockers\n\n${blocker}\n\n## Completion evidence\n\nNo completion evidence yet.\n\n${portMarker}\n<!-- portcove-upstream: ${upstream} -->${catalogMarker}`;
+}
+
+export function validatePortIssueCoverage(catalog, items, repository) {
+  const errors = [];
+  const catalogIds = new Set((catalog?.ports ?? []).map(port => port.id));
+  const issuesByCatalogId = new Map();
+  for (const item of items ?? []) {
+    if (fieldValue(item, "Work type") !== "Port") continue;
+    const content = item?.content;
+    const type = String(content?.type ?? content?.__typename ?? item?.type ?? "").toLowerCase();
+    const url = itemUrl(item) ?? itemTitle(item);
+    if (type.includes("draft") || !/^https:\/\/github\.com\/[^/]+\/[^/]+\/issues\/\d+/.test(itemUrl(item) ?? "")) {
+      errors.push(`Port Project item is not backed by a repository issue: ${url}`);
+      continue;
+    }
+    if (repository && !String(itemUrl(item)).toLowerCase().startsWith(`https://github.com/${repository.toLowerCase()}/issues/`)) {
+      errors.push(`Port issue is outside ${repository}: ${url}`);
+    }
+    const body = itemBody(item);
+    if (!body.includes(portMarker)) errors.push(`Port issue lacks the canonical port marker: ${url}`);
+    const ids = portCatalogMarkers(body);
+    if (ids.length > 1) errors.push(`One issue claims multiple catalog ports: ${url} (${ids.join(", ")})`);
+    if (ids.length === 1) {
+      const id = ids[0];
+      if (!catalogIds.has(id)) errors.push(`Port issue claims unknown catalog ID ${id}: ${url}`);
+      const matches = issuesByCatalogId.get(id) ?? [];
+      matches.push(url);
+      issuesByCatalogId.set(id, matches);
+    }
+  }
+  for (const id of catalogIds) {
+    const matches = issuesByCatalogId.get(id) ?? [];
+    if (matches.length === 0) errors.push(`Catalog port lacks a canonical Project issue: ${id}`);
+    if (matches.length > 1) errors.push(`Two live issues represent catalog ID ${id}: ${matches.join(", ")}`);
+  }
+  return errors;
 }
 
 export function parseArguments(argv) {
@@ -138,10 +223,13 @@ function itemBody(item) {
   return item?.content?.body ?? item?.body ?? "";
 }
 
-function itemClosed(item) {
+function itemDone(item) {
   const status = String(fieldValue(item, "Status") ?? "").toLowerCase();
-  const state = String(item?.content?.state ?? item?.state ?? "").toLowerCase();
-  return status === "done" || state === "closed" || state === "merged";
+  return status === "done";
+}
+
+function repositoryState(item) {
+  return String(item?.content?.state ?? item?.state ?? "").toLowerCase();
 }
 
 export function selectNextItems(items) {
@@ -149,7 +237,7 @@ export function selectNextItems(items) {
   const horizon = new Map([["Now", 0], ["Next", 1]]);
   return items
     .map((item, index) => ({ item, index }))
-    .filter(({ item }) => !itemClosed(item)
+    .filter(({ item }) => !itemDone(item)
       && horizon.has(fieldValue(item, "Horizon"))
       && fieldValue(item, "Work type") !== "Workstream")
     .sort((left, right) => {
@@ -197,28 +285,46 @@ function itemLine(item) {
   return `- ${markdownLink(item)}${details ? ` — ${details}` : ""}`;
 }
 
-function evidenceLinks(items) {
+export function completionEvidenceLinks(items) {
   const urls = new Set();
   for (const item of items) {
-    const contentUrl = itemUrl(item);
-    if (contentUrl) urls.add(contentUrl);
-    for (const match of itemBody(item).matchAll(/https:\/\/[^\s)>]+/g)) urls.add(match[0]);
+    const body = itemBody(item);
+    const heading = body.match(/^## Completion evidence\s*$/im);
+    const start = heading ? heading.index + heading[0].length : -1;
+    const following = start >= 0 ? body.slice(start) : "";
+    const nextHeading = following.search(/^##\s/m);
+    const section = start < 0 ? "" : following.slice(0, nextHeading < 0 ? undefined : nextHeading);
+    for (const match of section.matchAll(/https:\/\/[^\s)>]+/g)) urls.add(match[0]);
+    for (const match of body.matchAll(/https:\/\/[^\s)>]+/g)) {
+      const url = match[0].replace(/[.,;:]$/, "");
+      if (/\/pull\/\d+(?:[#?].*)?$/i.test(url)
+        || /\/(?:actions\/runs|checks?\/|qualification|rehearsal)(?:\/|\?|#|$)/i.test(url)) {
+        urls.add(url);
+      }
+    }
   }
   return [...urls].sort();
 }
 
 export function renderSnapshot({ release, generatedAt, commit, projectUrl, items, catalog }) {
-  const matching = items.filter(item => fieldValue(item, "Target release") === release);
-  const complete = matching.filter(itemClosed);
-  const unfinished = matching.filter(item => !itemClosed(item));
+  const releaseIndex = releaseSequence.indexOf(release);
+  const includedReleases = releaseIndex < 0 ? [release] : releaseSequence.slice(0, releaseIndex + 1);
+  const matching = items.filter(item => includedReleases.includes(fieldValue(item, "Target release")));
+  const complete = matching.filter(itemDone);
+  const unfinished = matching.filter(item => !itemDone(item));
   const blockers = unfinished.filter(item => fieldValue(item, "Status") === "Blocked");
+  const inconsistencies = matching.filter(item => {
+    const state = repositoryState(item);
+    return ((state === "closed" || state === "merged") && !itemDone(item))
+      || (state === "open" && itemDone(item));
+  });
   const deferred = items.filter(item => ["Deferred", "Post-V1"].includes(fieldValue(item, "Status"))
     || fieldValue(item, "Target release") === "Post-V1");
   const summary = catalogQualificationSummary(catalog);
   const tiers = Object.entries(summary.byTier).sort().map(([name, count]) => `  - ${name}: ${count}`).join("\n") || "  - none";
   const section = values => values.length ? values.map(itemLine).join("\n") : "- None recorded.";
-  const links = evidenceLinks(matching);
-  return `# ${release} release readiness\n\n> Immutable snapshot generated from the live Portcove Roadmap and catalog. The Project remains authoritative after ${generatedAt}.\n\n- Generated: ${generatedAt}\n- Commit: \`${commit}\`\n- Project: ${projectUrl}\n- Target release: ${release}\n\n## Open blockers\n\n${section(blockers)}\n\n## Completed required items\n\n${section(complete)}\n\n## Unfinished required items\n\n${section(unfinished)}\n\n## Consciously deferred or postponed\n\n${section(deferred)}\n\n## Catalog qualification summary\n\n- Catalog entries: ${summary.ports}\n- Declared port/platform pairs: ${summary.declaredPlatformPairs}\n- Automated port/platform pairs: ${summary.automatedPlatformPairs}\n- Manually validated port/platform pairs: ${summary.manuallyValidatedPlatformPairs}\n- Support tiers:\n${tiers}\n\n## Evidence links\n\n${links.length ? links.map(url => `- ${url}`).join("\n") : "- No evidence links were recorded on matching Project items."}\n\n## Test, CI, rehearsal, signing, and human validation\n\n- Record reviewed test commands and results here.\n- Record required CI runs here.\n- Record release rehearsal evidence here.\n- Record signing/notarization evidence or the explicit unsigned limitation here.\n- Record required human and physical-platform evidence here.\n\n## Explicit limitations\n\n- Review every unfinished and deferred item above before publication.\n- This snapshot does not grant qualification or replace catalog evidence.\n- Project fields may change after generation; regenerate rather than editing this snapshot in place.\n`;
+  const links = completionEvidenceLinks(matching);
+  return `# ${release} release readiness\n\n> Immutable snapshot generated from the live Portcove Roadmap and catalog. The Project Status field is completion authority after ${generatedAt}.\n\n- Generated: ${generatedAt}\n- Commit: \`${commit}\`\n- Project: ${projectUrl}\n- Target release: ${release}\n- Cumulative required stages: ${includedReleases.join(", ")}\n\n## Open blockers\n\n${section(blockers)}\n\n## Completed required items\n\n${section(complete)}\n\n## Unfinished required items\n\n${section(unfinished)}\n\n## Repository closure and Project Status inconsistencies\n\n${section(inconsistencies)}\n\nA closed or not-planned repository issue is not complete unless Project Status is Done. Resolve every inconsistency before release.\n\n## Consciously deferred or postponed\n\n${section(deferred)}\n\n## Catalog qualification summary\n\n- Catalog entries: ${summary.ports}\n- Declared port/platform pairs: ${summary.declaredPlatformPairs}\n- Automated port/platform pairs: ${summary.automatedPlatformPairs}\n- Manually validated port/platform pairs: ${summary.manuallyValidatedPlatformPairs}\n- Support tiers:\n${tiers}\n\n## Completion evidence links\n\n${links.length ? links.map(url => `- ${url}`).join("\n") : "- No explicit completion evidence links were recorded on matching Project items."}\n\n## Test, CI, rehearsal, signing, and human validation\n\n- Record reviewed test commands and results here.\n- Record required CI runs here.\n- Record release rehearsal evidence here.\n- Record signing/notarization evidence or the explicit unsigned limitation here.\n- Record required human and physical-platform evidence here.\n\n## Explicit limitations\n\n- Review every unfinished and deferred item above before publication.\n- This snapshot does not grant qualification or replace catalog evidence.\n- Project fields may change after generation; regenerate rather than editing this snapshot in place.\n`;
 }
 
 function unwrapCollection(value, key) {
@@ -254,11 +360,45 @@ export function planFieldReconciliation(desiredFields, actualResult, { freshProj
 
 export function planViewReconciliation(desiredViews, actualViews) {
   const byName = new Map(actualViews.map(view => [view.name, view]));
-  return desiredViews.map(view => ({
-    action: byName.has(view.name) ? "update" : "create",
-    desired: view,
-    actual: byName.get(view.name),
-  }));
+  return desiredViews.map(view => {
+    const actual = byName.get(view.name);
+    if (!actual) return { action: "create", desired: view, actual };
+    const drift = viewMachineDrift(view, actual);
+    return { action: drift.length ? "update" : "keep", desired: view, actual, drift };
+  });
+}
+
+function visibleFieldNames(view) {
+  return unwrapCollection(view?.fields, "fields").map(field => field.name).filter(Boolean);
+}
+
+export function viewMachineDrift(desired, actual) {
+  const drift = [];
+  if (actual?.layout !== desired.layout) drift.push(`layout ${actual?.layout ?? "missing"} != ${desired.layout}`);
+  if (String(actual?.filter ?? "") !== desired.filter) drift.push(`filter ${JSON.stringify(actual?.filter ?? "")} != ${JSON.stringify(desired.filter)}`);
+  const expectedFields = [...desired.fields].sort();
+  const actualFields = visibleFieldNames(actual).sort();
+  if (JSON.stringify(actualFields) !== JSON.stringify(expectedFields)) {
+    drift.push(`visible fields ${actualFields.join(", ")} != ${expectedFields.join(", ")}`);
+  }
+  return drift;
+}
+
+export function projectMachineDrift(config, { details, fields, views, repositories }) {
+  const drift = [];
+  if (details?.title !== config.project.title) drift.push(`project title is ${JSON.stringify(details?.title)}`);
+  if (Number(details?.number) !== config.project.number) drift.push(`project number is ${details?.number}`);
+  const isPublic = details?.public ?? details?.visibility === "PUBLIC";
+  if (!isPublic) drift.push("project visibility is not PUBLIC");
+  const linked = (repositories ?? []).some(repository => `${repository.owner?.login ?? repository.owner}/${repository.name}`.toLowerCase() === config.repository.toLowerCase());
+  if (!linked) drift.push(`repository ${config.repository} is not linked`);
+  for (const step of planFieldReconciliation(config.fields, { fields })) {
+    if (step.action !== "keep") drift.push(`field ${step.desired.name}: ${step.reason ?? step.action}`);
+  }
+  for (const step of planViewReconciliation(materializeViews(config), views)) {
+    if (step.action !== "keep") drift.push(`view ${step.desired.name}: ${step.action}${step.drift?.length ? ` (${step.drift.join("; ")})` : ""}`);
+  }
+  return drift;
 }
 
 function defaultRunner(args, input) {
@@ -350,9 +490,15 @@ export class RoadmapClient {
   ensureIssueItem(contentId) {
     const { details } = this.projectContext();
     const find = () => {
-      const query = `query($id: ID!) { node(id: $id) { ... on Issue { projectItems(first: 100) { nodes { id project { id } } } } } }`;
-      return this.graphql(query, { id: contentId })?.node?.projectItems?.nodes
-        ?.find(item => item.project?.id === details.id);
+      let after = null;
+      do {
+        const query = `query($id: ID!, $after: String) { node(id: $id) { ... on Issue { projectItems(first: 100, after: $after) { nodes { id project { id } } pageInfo { hasNextPage endCursor } } } } }`;
+        const page = this.graphql(query, { id: contentId, after })?.node?.projectItems;
+        const match = page?.nodes?.find(item => item.project?.id === details.id);
+        if (match) return match;
+        after = page?.pageInfo?.hasNextPage ? page.pageInfo.endCursor : null;
+      } while (after);
+      return null;
     };
     const existing = find();
     if (existing) return existing;
@@ -368,8 +514,20 @@ export class RoadmapClient {
   }
 
   viewList(projectId) {
-    const query = `query($id: ID!) { node(id: $id) { ... on ProjectV2 { views(first: 100) { nodes { id name number layout filter fields(first: 50) { nodes { ... on ProjectV2Field { id name } ... on ProjectV2SingleSelectField { id name } ... on ProjectV2IterationField { id name } ... on ProjectV2MultiSelectField { id name } } } groupByFields(first: 10) { nodes { ... on ProjectV2Field { id name } ... on ProjectV2SingleSelectField { id name } ... on ProjectV2IterationField { id name } ... on ProjectV2MultiSelectField { id name } } } sortByFields(first: 10) { nodes { direction field { ... on ProjectV2Field { id name } ... on ProjectV2SingleSelectField { id name } ... on ProjectV2IterationField { id name } ... on ProjectV2MultiSelectField { id name } } } } } } } } }`;
-    return this.graphql(query, { id: projectId })?.node?.views?.nodes ?? [];
+    const views = [];
+    let after = null;
+    do {
+      const query = `query($id: ID!, $after: String) { node(id: $id) { ... on ProjectV2 { views(first: 100, after: $after) { nodes { id name number layout filter fields(first: 50) { nodes { ... on ProjectV2Field { id name } ... on ProjectV2SingleSelectField { id name } ... on ProjectV2IterationField { id name } ... on ProjectV2MultiSelectField { id name } } } } pageInfo { hasNextPage endCursor } } } } }`;
+      const page = this.graphql(query, { id: projectId, after })?.node?.views;
+      views.push(...(page?.nodes ?? []));
+      after = page?.pageInfo?.hasNextPage ? page.pageInfo.endCursor : null;
+    } while (after);
+    return views;
+  }
+
+  projectAudit(projectId) {
+    const query = `query($id: ID!) { node(id: $id) { ... on ProjectV2 { id number title public repositories(first: 100) { nodes { name owner { login } } } } } }`;
+    return this.graphql(query, { id: projectId })?.node;
   }
 
   editProject(number) {
@@ -413,14 +571,16 @@ export class RoadmapClient {
   reconcileViews(projectId, fieldResult) {
     const fields = unwrapCollection(fieldResult, "fields");
     const fieldIds = new Map(fields.map(field => [field.name, field.id]));
-    const plan = planViewReconciliation(this.config.views, this.viewList(projectId));
+    const plan = planViewReconciliation(materializeViews(this.config), this.viewList(projectId));
     for (const step of plan) {
       const visibleFieldIds = step.desired.fields.map(name => {
         const id = fieldIds.get(name);
         if (!id) throw new Error(`view ${step.desired.name} references missing field ${name}`);
         return id;
       });
-      if (step.action === "create") {
+      if (step.action === "keep") {
+        continue;
+      } else if (step.action === "create") {
         const query = `mutation($input: CreateProjectV2ViewInput!) { createProjectV2View(input: $input) { projectV2View { id name } } }`;
         this.graphql(query, { input: {
           projectId,
@@ -501,16 +661,19 @@ export class RoadmapClient {
 
   setItemFields(itemId, values) {
     const { details, fields } = this.projectContext();
+    const inputs = [];
     for (const [fieldName, value] of Object.entries(values)) {
       const field = fields.find(candidate => candidate.name === fieldName);
       if (!field) throw new Error(`Project field not found: ${fieldName}`);
       const option = field.options?.find(candidate => candidate.name === value);
       if (!option) throw new Error(`Project option not found: ${fieldName}=${value}`);
-      this.gh([
-        "project", "item-edit", "--id", itemId, "--project-id", details.id,
-        "--field-id", field.id, "--single-select-option-id", option.id,
-      ]);
+      inputs.push({ projectId: details.id, itemId, fieldId: field.id, value: { singleSelectOptionId: option.id } });
     }
+    if (!inputs.length) return;
+    const variables = Object.fromEntries(inputs.map((input, index) => [`input${index}`, input]));
+    const declarations = inputs.map((_, index) => `$input${index}: UpdateProjectV2ItemFieldValueInput!`).join(", ");
+    const selections = inputs.map((_, index) => `f${index}: updateProjectV2ItemFieldValue(input: $input${index}) { projectV2Item { id } }`).join(" ");
+    this.graphql(`mutation(${declarations}) { ${selections} }`, variables);
   }
 
   capture({ title, body, fields }) {
@@ -520,15 +683,44 @@ export class RoadmapClient {
     return item;
   }
 
-  promote(itemId) {
+  createPortIssue({ title, upstream, catalogId }) {
+    const issueTitle = `[Port] ${title}`;
+    const catalogMarker = catalogId ? `<!-- portcove-catalog-id: ${catalogId} -->` : null;
+    const issues = unwrapCollection(this.json([
+      "issue", "list", "--repo", this.config.repository, "--state", "all", "--limit", "1000",
+      "--json", "number,title,body,url,state",
+    ]), "issues");
+    const existing = issues.filter(issue => issue.title === issueTitle || (catalogMarker && issue.body?.includes(catalogMarker)));
+    if (existing.length) {
+      throw new Error(`port already has a durable issue: ${existing.map(issue => issue.url).join(", ")}`);
+    }
+    const body = renderPortIssueBody({ title, upstream, catalogId });
+    const issue = this.json([
+      "api", `repos/${this.config.repository}/issues`, "--method", "POST", "--input", "-",
+    ], `${JSON.stringify({ title: issueTitle, body })}\n`);
+    if (!issue?.node_id || !issue?.html_url) throw new Error("GitHub did not return the created issue identity");
+    const item = this.ensureIssueItem(issue.node_id);
+    this.setItemFields(item.id, {
+      Status: "Inbox", Priority: "None", Horizon: "Someday", "Target release": "Unscheduled",
+      "Work type": "Port", Workstream: "Port catalog", Platform: "Unknown",
+      "Port stage": "Watchlist", Effort: "Unknown",
+    });
+    return { ...issue, itemId: item.id };
+  }
+
+  promote(itemId, durableBody) {
+    validateDurableIssueBody(durableBody);
     const repository = this.graphql(`query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { id } }`, {
       owner: this.config.repository.split("/")[0],
       name: this.config.repository.split("/")[1],
     })?.repository;
     if (!repository?.id) throw new Error("repository was not found");
     const query = `mutation($input: ConvertProjectV2DraftIssueItemToIssueInput!) { convertProjectV2DraftIssueItemToIssue(input: $input) { item { id content { ... on Issue { number title url } } } } }`;
-    return this.graphql(query, { input: { itemId, repositoryId: repository.id } })
+    const item = this.graphql(query, { input: { itemId, repositoryId: repository.id } })
       ?.convertProjectV2DraftIssueItemToIssue?.item;
+    if (!item?.content?.url) throw new Error("draft conversion did not return an issue URL");
+    this.gh(["issue", "edit", item.content.url, "--body-file", "-"], durableBody);
+    return item;
   }
 
   moveBefore(itemReference, beforeReference) {
@@ -536,8 +728,13 @@ export class RoadmapClient {
     const items = this.itemList(this.config.project.number);
     const matches = (item, reference) => item.id === reference || itemUrl(item) === reference
       || itemTitle(item) === reference || String(item?.content?.number ?? "") === reference.replace(/^#/, "");
-    const moving = items.find(item => matches(item, itemReference));
-    const before = items.find(item => matches(item, beforeReference));
+    const resolve = reference => {
+      const found = items.filter(item => matches(item, reference));
+      if (found.length > 1) throw new Error(`move reference is ambiguous: ${reference}`);
+      return found[0];
+    };
+    const moving = resolve(itemReference);
+    const before = resolve(beforeReference);
     if (!moving || !before) throw new Error("move could not resolve both items");
     const remaining = items.filter(item => item.id !== moving.id);
     const beforeIndex = remaining.findIndex(item => item.id === before.id);
@@ -573,6 +770,42 @@ async function offlineCheck() {
   console.log(`Roadmap configuration is valid for ${config.owner}/${config.project.number}; no volatile item data is stored.`);
 }
 
+export function manualUiChecklist(config) {
+  const lines = materializeViews(config).map((view, index) => `${index + 1}. ${view.name}: group by ${view.manual_group_by ?? "nothing"}; sort by ${view.manual_sort_by}.`);
+  lines.push(`${lines.length + 1}. Confirm the repository auto-add workflow targets ${config.repository}.`);
+  lines.push(`${lines.length + 1}. Confirm item-closed and pull-request-merged completion workflows are enabled with the intended Status behavior.`);
+  return lines;
+}
+
+function configuredValue(config, fieldName, value, flag) {
+  const field = config.fields.find(candidate => candidate.name === fieldName);
+  if (!field?.options.includes(value)) throw new Error(`${value} is not a valid ${fieldName} option for ${flag}`);
+  return value;
+}
+
+export function featureIntakeFields(config, options = {}) {
+  const fields = {
+    Status: "Inbox",
+    Priority: configuredValue(config, "Priority", options["--priority"] ?? "None", "--priority"),
+    Horizon: configuredValue(config, "Horizon", options["--horizon"] ?? "Someday", "--horizon"),
+    "Target release": configuredValue(config, "Target release", options["--release"] ?? "Unscheduled", "--release"),
+    "Work type": "Product feature",
+    Effort: "Unknown",
+  };
+  if (options["--workstream"]) fields.Workstream = configuredValue(config, "Workstream", options["--workstream"], "--workstream");
+  if (options["--platform"]) fields.Platform = configuredValue(config, "Platform", options["--platform"], "--platform");
+  return fields;
+}
+
+export function resolveSnapshotOutput(output) {
+  const outputPath = path.resolve(projectRoot, output);
+  const releasesRoot = path.join(projectRoot, "docs", "releases");
+  if (outputPath !== releasesRoot && !outputPath.startsWith(`${releasesRoot}${path.sep}`)) {
+    throw new Error("snapshot output must be under docs/releases");
+  }
+  return outputPath;
+}
+
 function requiredOption(options, name) {
   const value = options[name];
   if (!value) throw new Error(`${name} is required`);
@@ -593,13 +826,22 @@ async function main(argv) {
     const number = client.projectNumber(project);
     const details = client.projectDetails(number);
     const fields = unwrapCollection(client.fieldList(number), "fields");
-    const views = client.viewList(details.id ?? project.id);
-    const missingFields = planFieldReconciliation(config.fields, { fields }).filter(step => step.action !== "keep");
-    const missingViews = config.views.filter(view => !views.some(actual => actual.name === view.name));
-    if (missingFields.length || missingViews.length) {
-      throw new Error(`Project drift: ${missingFields.length} field definitions and ${missingViews.length} views require bootstrap`);
+    const projectId = details.id ?? project.id;
+    const views = client.viewList(projectId);
+    const audit = client.projectAudit(projectId);
+    const drift = projectMachineDrift(config, {
+      details: audit,
+      fields,
+      views,
+      repositories: audit?.repositories?.nodes ?? [],
+    });
+    const catalog = JSON.parse(await readFile(catalogPath, "utf8"));
+    const portErrors = validatePortIssueCoverage(catalog, client.itemList(number), config.repository);
+    if (drift.length || portErrors.length) {
+      throw new Error(`Project drift:\n${[...drift, ...portErrors].map(value => `- ${value}`).join("\n")}`);
     }
-    console.log(`Portcove Roadmap #${number} is reachable at ${details.url ?? project.url}; ${fields.length} fields and ${views.length} views found.`);
+    console.log(`Portcove Roadmap #${number} is reachable at ${details.url ?? project.url}; identity, PUBLIC visibility, repository linkage, ${fields.length} fields, ${views.length} view layouts/filters/visible-field sets, and ${catalog.ports.length} canonical catalog issues are verified.`);
+    console.log(`Manual confirmation required because GitHub does not expose a reliable readable configuration API:\n${manualUiChecklist(config).join("\n")}`);
     return;
   }
   if (parsed.command === "bootstrap") {
@@ -608,34 +850,37 @@ async function main(argv) {
     if (config.project.number !== result.number) {
       console.log(`Record project.number=${result.number} in .github/roadmap.json before using item commands.`);
     }
-    console.log("View filters and visible columns are reconciled. Confirm grouping, sorting, and built-in workflows in the GitHub UI.");
+    console.log(`Machine-readable view layouts, filters, and visible columns are reconciled. Manual UI confirmation required:\n${manualUiChecklist(config).join("\n")}`);
     return;
   }
   if (parsed.command === "capture-port") {
     const title = requiredOption(parsed.options, "--title");
     const url = requiredOption(parsed.options, "--url");
     if (!/^https:\/\//.test(url)) throw new Error("--url must be an https URL");
-    const item = client.capture({
-      title,
-      body: `Upstream: ${url}\n\nWhy it may matter:\n- Pending initial triage.\n\nTriage observations:\n- Platforms: pending\n- Source contract: pending\n- Artifact integrity: pending\n- Persistence: pending\n- Adapter fit: pending`,
-      fields: { Status: "Inbox", Priority: "None", Horizon: "Someday", "Target release": "Unscheduled", "Work type": "Port", Workstream: "Port catalog", Platform: "Multi-platform", "Port stage": "Watchlist", Effort: "Unknown" },
-    });
-    console.log(`Captured draft port ${itemTitle(item)} (${item.id}).`);
+    const item = client.createPortIssue({ title, upstream: url, catalogId: parsed.options["--catalog-id"] });
+    console.log(`Created durable port issue ${item.html_url} and added it to the Portcove Roadmap (${item.itemId}).`);
     return;
   }
   if (parsed.command === "capture-feature") {
     const title = requiredOption(parsed.options, "--title");
+    const fields = featureIntakeFields(config, parsed.options);
     const item = client.capture({
       title,
       body: "User outcome:\n- Pending triage.\n\nCurrent behavior/evidence:\n- Pending.\n\nScope:\n- Pending.\n\nNon-goals:\n- Pending.",
-      fields: { Status: "Inbox", Priority: "None", Horizon: "Someday", "Target release": "Unscheduled", "Work type": "Product feature", Workstream: "Documentation and governance", Platform: "All", Effort: "Unknown" },
+      fields,
     });
     console.log(`Captured draft feature ${itemTitle(item)} (${item.id}).`);
     return;
   }
   if (parsed.command === "promote") {
     if (parsed.positionals.length !== 1) throw new Error("usage: roadmap.mjs promote <draft-item-id>");
-    const item = client.promote(parsed.positionals[0]);
+    const draft = client.itemList(config.project.number).find(item => item.id === parsed.positionals[0]);
+    if (!draft) throw new Error(`draft item was not found: ${parsed.positionals[0]}`);
+    const durableBody = parsed.options["--spec-file"]
+      ? await readFile(path.resolve(projectRoot, parsed.options["--spec-file"]), "utf8")
+      : itemBody(draft);
+    validateDurableIssueBody(durableBody);
+    const item = client.promote(parsed.positionals[0], durableBody);
     console.log(`Promoted draft to ${item?.content?.url ?? item?.id}.`);
     return;
   }
@@ -673,11 +918,7 @@ async function main(argv) {
     const release = requiredOption(parsed.options, "--release");
     const output = requiredOption(parsed.options, "--output");
     if (!config.fields.find(field => field.name === "Target release").options.includes(release)) throw new Error(`unknown target release: ${release}`);
-    const outputPath = path.resolve(projectRoot, output);
-    const releasesRoot = path.join(projectRoot, "docs", "releases");
-    if (outputPath !== releasesRoot && !outputPath.startsWith(`${releasesRoot}${path.sep}`)) {
-      throw new Error("snapshot output must be under docs/releases");
-    }
+    const outputPath = resolveSnapshotOutput(output);
     const { writeFile } = await import("node:fs/promises");
     try {
       await access(outputPath);

@@ -59,6 +59,13 @@ qualification state. Then generate a new immutable snapshot under
 node scripts/roadmap.mjs snapshot --release "Alpha 1" --output docs/releases/0.1.0-alpha.1-readiness.md
 ```
 
+Snapshots are cumulative: an Alpha 2 snapshot includes Alpha 1 and Alpha 2,
+and every later stage includes all earlier required stages. Only Project
+`Status = Done` counts as complete. The generator reports closed/not-planned
+issues whose Project status disagrees, and accepts evidence links only from the
+explicit Completion evidence section, implementation pull requests/checks, or
+qualification and rehearsal records.
+
 Review and complete its test, CI, rehearsal, signing, human-validation, and
 explicit-limitation sections before committing it. The file records generation
 time, commit, Project URL, completed and unfinished required items, blockers,

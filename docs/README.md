@@ -16,6 +16,7 @@ machine-readable product state.
 - [Catalog admission and qualification](CATALOG.md)
 - [CLI machine contract](CLI.md)
 - [Project governance](PROJECT-GOVERNANCE.md)
+- [September 2 comprehensive independent re-audit (historical evidence)](archive/2026-09-02-comprehensive-independent-reaudit.md)
 - [Product roadmap and release stages](ROADMAP.md)
 - [Quality workflow](QUALITY.md)
 - [Release process](RELEASING.md)

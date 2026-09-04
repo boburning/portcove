@@ -26,7 +26,7 @@ The Project uses these single-select fields:
   and library, Installation and updates, Desktop UX, CLI and integrations,
   Platform support, Port catalog, Release engineering, Documentation and
   governance.
-- **Platform:** All, Multi-platform, Windows, Linux, Steam Deck, macOS Intel,
+- **Platform:** Unknown, All, Multi-platform, Windows, Linux, Steam Deck, macOS Intel,
   macOS Apple Silicon, Not applicable.
 - **Port stage:** Watchlist, Researching, Source contract known, Release
   integrity qualified, Cataloged, Automated qualification, Manual
@@ -43,19 +43,24 @@ into a free-text Project field.
 ## Lifecycle
 
 ```text
-Draft Project item -> Inbox -> Triage -> Ready -> In progress -> Validating -> Done
+Non-port draft -> Inbox -> Triage -> Ready -> In progress -> Validating -> Done
                                   \-> Blocked
                                   \-> Deferred
 ```
 
-A newly discovered port normally starts as a draft item with its direct
-upstream URL and why it may matter. Triage records initial platform,
-source-contract, artifact-integrity, persistence, and adapter observations.
-Promote it to a repository issue when it becomes Now, Next, Ready, In progress,
-materially blocked, high priority, or otherwise needs durable discussion or
-evidence.
+Every independently catalogable or independently prioritizable port has
+exactly one durable GitHub issue. Shared engineering and family issues may
+coordinate several ports but never replace their individual issues.
 
-An implementation issue must state:
+`capture-port` creates the repository issue immediately, adds it to the Project,
+and initializes neutral Watchlist fields. A port issue owns its direct upstream,
+title identity, catalog ID when assigned, platforms, release integrity, source
+contract, setup boundary, persistent data, adapter dependencies, stage, blocker
+and resume condition, automated and manual qualification, and completion
+evidence. The Continuous Port Pipeline is a parent workstream only. Project
+drafts remain available for fleeting non-port ideas.
+
+A promoted draft or port implementation issue must state:
 
 - user outcome;
 - current behavior and evidence;
@@ -66,7 +71,8 @@ An implementation issue must state:
 - dependencies and blockers; and
 - completion evidence.
 
-Preserve imported identifiers in one machine-searchable issue comment such as
+`promote` refuses an incomplete draft unless `--spec-file` supplies all of those
+sections. Preserve imported identifiers in one machine-searchable issue comment such as
 `<!-- portcove-origins: PCV-REAUD-001 -->`. Group findings with one root cause;
 create sub-issues only when they can be implemented and validated independently.
 
@@ -93,7 +99,15 @@ Use Priority Stack for ordered Now/Next execution, Now Board for active flow,
 Port Pipeline for continuous admission, Product Roadmap for non-port work,
 Current Release for the earliest active target, Blocked & Deferred for resume
 conditions, Inbox & Triage for intake, Steam Deck for that platform, and V1
-Readiness for cumulative required gates through V1.
+Readiness for cumulative required gates through V1. The checked-in view schema
+records machine-applied layout, filter, and visible fields separately from the
+`manual_group_by` and `manual_sort_by` UI requirements. `bootstrap` cannot claim
+those manual settings or the built-in workflows are configured.
+
+`.github/roadmap.json` names `active_release`. Advancing Current Release is a
+reviewed repository change: update that value, run `bootstrap`, confirm the view
+filter and all nine manual grouping/sorting rules in the UI, run `doctor`, and
+record the change in the release pull request.
 
 Within the same horizon, address release blockers and safety failures before
 optional scope. Manual order is the final tie-breaker. A dependency may move an
@@ -101,10 +115,13 @@ item earlier; record the reason in the issue rather than freezing it in docs.
 
 ## Tools and snapshots
 
-Use `node scripts/roadmap.mjs capture-port` for fast discovery,
+Use `node scripts/roadmap.mjs capture-port` for fast durable port discovery,
 `capture-feature` for feature intake, `promote` for draft-to-issue conversion,
 `set` and `move` for planning changes, and `next` for the ordered work queue.
-`doctor` and `bootstrap` inspect or reconcile the live Project; ordinary CI runs
+`doctor` verifies machine-readable identity, visibility, repository linkage,
+field types/options, view layout/filter/visible fields, and the one-port/one-issue
+coverage contract. Grouping, sorting, auto-add, and completion workflows remain
+explicit manual confirmations. `bootstrap` reconciles the live Project; ordinary CI runs
 only the offline `check` and tests.
 
 Before a tagged release, generate a dated readiness snapshot with
