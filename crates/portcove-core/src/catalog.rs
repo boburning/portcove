@@ -877,6 +877,10 @@ mod tests {
             "zelda64-recomp",
             "banjo-recomp",
             "bm64-recomp",
+            "gen2recomp-gold",
+            "gen2recomp-silver",
+            "gen2recomp-crystal",
+            "final-fantasy-vii-recompiled",
         ] {
             let port = catalog.port(id).unwrap();
             assert_eq!(
@@ -1080,6 +1084,10 @@ mod tests {
             assert_eq!(port.support_tier, crate::SupportTier::Beta);
             assert_eq!(
                 port.automated_tested_platforms,
+                [crate::Platform::WindowsX86_64]
+            );
+            assert_eq!(
+                port.manually_validated_platforms,
                 [crate::Platform::WindowsX86_64]
             );
         }
@@ -1841,6 +1849,7 @@ mod tests {
         );
         assert_eq!(port.launch_arguments, ["--no-launcher"]);
         assert_eq!(port.automated_tested_platforms, [Platform::WindowsX86_64]);
+        assert_eq!(port.manually_validated_platforms, [Platform::WindowsX86_64]);
         for path in ["input.ini", "keybinds.ini"] {
             assert!(port.persistent_paths.iter().any(|value| value == path));
         }
