@@ -9,7 +9,9 @@ function jobSection(name, nextName) {
   return workflow.match(new RegExp(`^  ${name}:\\r?\\n([\\s\\S]*?)${end}`, "m"))?.[1] ?? "";
 }
 
-const rustTests = jobSection("rust_tests", "windows_storage");
+const rustTests = jobSection("rust_tests", "rust_workspace_tests");
+const rustWorkspaceTests = jobSection("rust_workspace_tests", "rust_clippy");
+const rustClippy = jobSection("rust_clippy", "windows_storage");
 const windowsStorage = jobSection("windows_storage", "rust");
 const rust = jobSection("rust", "rust-quality");
 const rustQuality = jobSection("rust-quality", "frontend");
@@ -21,7 +23,7 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   assert.match(workflow, /^permissions:\r?\n  contents: read$/m);
   assert.match(workflow, /^concurrency:\r?\n  group: ci-\$\{\{ github\.event\.pull_request\.number \|\| github\.ref \}\}\r?\n  cancel-in-progress: true$/m);
   assert.doesNotMatch(workflow, /upload-artifact/);
-  for (const section of [rustTests, windowsStorage, rustQuality, frontend, catalog]) {
+  for (const section of [rustTests, rustWorkspaceTests, rustClippy, windowsStorage, rustQuality, frontend, catalog]) {
     assert.notEqual(section, "");
     assert.doesNotMatch(section, /^    if:/m);
   }
@@ -30,15 +32,23 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
 test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () => {
   assert.match(rustTests, /^    name: rust-test \(\$\{\{ matrix\.shard \}\}\)$/m);
   assert.match(rustTests, /runs-on: windows-latest/);
-  assert.match(rustTests, /shard: \[core-service, core-recovery, core-other, workspace-other\]/);
+  assert.match(rustTests, /shard: \[core-service, core-recovery, core-other\]/);
   for (const shard of ["service::", "cancellation::", "database::", "import_execution::", "library_move::"]) {
     assert.match(rustTests, new RegExp(`"${shard.replaceAll("::", "::")}"`));
   }
-  assert.match(rustTests, /"--workspace", "--exclude", "portcove-core"/);
   assert.match(rustTests, /"--skip", "service::", "--skip", "cancellation::", "--skip", "database::", "--skip", "import_execution::", "--skip", "library_move::"/);
-  assert.match(rustTests, /if: matrix\.shard == 'workspace-other'[\s\S]*cargo fmt --all -- --check/);
-  assert.match(rustTests, /if: matrix\.shard == 'workspace-other'[\s\S]*cargo clippy --workspace --all-targets -- -D warnings/);
-  assert.doesNotMatch(rustTests, /setup-node|pnpm|cargo check/);
+  assert.doesNotMatch(rustTests, /workspace-other|setup-node|pnpm|cargo check|cargo fmt|cargo clippy/);
+
+  assert.match(rustWorkspaceTests, /^    name: rust-test \(workspace-other\)$/m);
+  assert.match(rustWorkspaceTests, /runs-on: windows-latest/);
+  assert.match(rustWorkspaceTests, /cargo test --workspace --exclude portcove-core/);
+  assert.doesNotMatch(rustWorkspaceTests, /matrix|cargo fmt|cargo clippy/);
+
+  assert.match(rustClippy, /^    name: rust-clippy$/m);
+  assert.match(rustClippy, /runs-on: windows-latest/);
+  assert.match(rustClippy, /cargo fmt --all -- --check/);
+  assert.match(rustClippy, /cargo clippy --workspace --all-targets -- -D warnings/);
+  assert.doesNotMatch(rustClippy, /cargo test|matrix/);
 
   assert.match(windowsStorage, /^    name: windows-storage$/m);
   assert.match(windowsStorage, /runs-on: windows-latest/);
@@ -47,8 +57,10 @@ test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () 
   assert.doesNotMatch(windowsStorage, /rust-toolchain|rust-cache|cargo/);
 
   assert.match(rust, /^    if: always\(\)$/m);
-  assert.match(rust, /^    needs: \[rust_tests, windows_storage\]$/m);
+  assert.match(rust, /^    needs: \[rust_tests, rust_workspace_tests, rust_clippy, windows_storage\]$/m);
   assert.match(rust, /RUST_TEST_RESULT: \$\{\{ needs\.rust_tests\.result \}\}/);
+  assert.match(rust, /RUST_WORKSPACE_TEST_RESULT: \$\{\{ needs\.rust_workspace_tests\.result \}\}/);
+  assert.match(rust, /RUST_CLIPPY_RESULT: \$\{\{ needs\.rust_clippy\.result \}\}/);
   assert.match(rust, /WINDOWS_STORAGE_RESULT: \$\{\{ needs\.windows_storage\.result \}\}/);
   assert.match(rust, /exit 1/);
   assert.doesNotMatch(rust, /continue-on-error/);
