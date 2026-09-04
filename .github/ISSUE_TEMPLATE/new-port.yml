@@ -7,14 +7,26 @@ body:
   - type: markdown
     attributes:
       value: >-
-        Check the Portcove Roadmap first. Very early candidates can be captured
-        faster with `node scripts/roadmap.mjs capture-port`.
+        Search the Portcove Roadmap before submitting. An already cataloged port
+        must use its existing durable issue rather than opening a duplicate.
+        Submitting this form records a candidate; it does not grant support.
   - type: input
     id: upstream
     attributes:
       label: Direct upstream URL
       description: Link to the maintainer-owned project or release authority.
       placeholder: https://github.com/owner/project
+    validations:
+      required: true
+  - type: input
+    id: port_key
+    attributes:
+      label: Durable game or target key
+      description: >-
+        Use lowercase kebab-case for the independently prioritizable game or
+        target, not merely the repository owner/name. Distinct games in one
+        repository require distinct keys and distinct issues.
+      placeholder: dkr-r, kameo-repowered, or svr07-recomp-wwe-smackdown-vs-raw-2007
     validations:
       required: true
   - type: textarea

@@ -89,6 +89,13 @@ The completed audit-remediation implementation was revalidated by [run 337057774
 
 Do not expand exceptions casually. Newly introduced absolute path literals still fail. Promote cargo-modules to a hard gate once its baseline represents actual module edges cleanly.
 
+The three dated roadmap-reconciliation files named explicitly in
+`.gitattributes` are verbatim historical evidence. Their source documents use
+Markdown hard-break spaces and final blank lines, so only those exact paths
+disable the corresponding `git diff --check` whitespace diagnostics. The
+exception preserves source fidelity and does not apply to other archives,
+documentation, or code.
+
 On the current Windows development host, semdup 0.2.0 reaches its ONNX Runtime link step but the installed Visual Studio 2019 linker cannot resolve symbols required by that dependency. Run `just deep` on Linux/macOS or install a current supported MSVC toolchain for semdup coverage; this does not weaken the required `just audit` path.
 
 ## Ratcheting

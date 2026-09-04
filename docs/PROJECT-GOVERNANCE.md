@@ -40,6 +40,48 @@ options and is the field referred to as “Type” in historical planning materi
 Issue relationships and sub-issues express dependencies. Do not copy blockers
 into a free-text Project field.
 
+## Port-stage contract
+
+`Port stage` is a workflow and evidence summary, not a synonym for release
+channel, catalog maturity, or Project Status:
+
+- **Watchlist:** a durable non-catalog candidate with limited evidence. Project
+  presence does not grant catalog support.
+- **Researching:** active investigation of upstream identity, releases, source
+  requirements, platforms, persistence, or adapter fit.
+- **Source contract known:** required game/source identity and accepted
+  revisions are sufficiently documented for implementation planning. No
+  runnable release is implied.
+- **Release integrity qualified:** at least one useful runnable artifact has a
+  deterministic, reviewable integrity path for an intended platform. Portcove
+  installation or gameplay has not necessarily passed.
+- **Cataloged:** exactly one valid `catalog.json` ID exists, but no catalog-owned
+  automated platform qualification has been recorded.
+- **Automated qualification:** at least one declared platform has catalog-owned
+  automated evidence, but no supported platform scope has completed the
+  required hands-on evidence.
+- **Manual qualification:** automated evidence exists and hands-on
+  qualification is the active next or partially completed gate. This workflow
+  stage does not itself assert a recorded hands-on pass.
+- **Supported:** at least one declared platform is present in both
+  `automated_tested_platforms` and `manually_validated_platforms`. The support
+  claim is limited to that exact intersection, which must be visible. A port
+  can therefore be Supported on Windows while declared Linux or macOS pairs
+  remain unqualified.
+- **Blocked:** progress cannot continue until a named external, source,
+  hardware, upstream, or engineering condition is satisfied. The issue states
+  the usable blocker and exact resume condition.
+- **Rejected:** the candidate was reviewed and intentionally excluded. Its
+  issue preserves the reason and evidence; a Rejected issue cannot
+  simultaneously claim catalog support.
+
+Supported never follows merely from an upstream stable channel, catalog stable
+`support_tier`, successful download, catalog presence, or qualification of a
+different declared platform. These concepts remain independent: upstream
+release channel, catalog support tier or maturity, upstream project status,
+catalog admission, source-contract coverage, automated qualification,
+hands-on qualification, Project `Status`, and Project `Port stage`.
+
 ## Lifecycle
 
 ```text
@@ -53,11 +95,24 @@ exactly one durable GitHub issue. Shared engineering and family issues may
 coordinate several ports but never replace their individual issues.
 
 `capture-port` creates the repository issue immediately, adds it to the Project,
-and initializes neutral Watchlist fields. A port issue owns its direct upstream,
-title identity, catalog ID when assigned, platforms, release integrity, source
-contract, setup boundary, persistent data, adapter dependencies, stage, blocker
+attaches it beneath #16, and initializes neutral Watchlist fields. A public New
+Port form submission enters the same contract when a maintainer runs
+`normalize-port --issue <number>`. Normalization preserves contributor content,
+requires the canonical `[Port]` title plus direct-upstream and lowercase
+kebab-case game/target-key sections, rejects repository-wide duplicate catalog
+IDs, keys, punctuation-normalized titles, and upstream/target identities,
+reconciles one marker set, ensures one Project item, sets Work type to Port,
+fills neutral values only where fields are unset, and attaches the issue beneath
+#16. It is repeatable and never changes catalog support.
+
+A port issue owns its direct upstream,
+title identity, catalog ID when assigned, durable game/target key when it is a
+non-catalog candidate, platforms, release integrity, source
+contract, setup boundary, persistent data, adapter dependencies, stage evidence, blocker
 and resume condition, automated and manual qualification, and completion
-evidence. The Continuous Port Pipeline is a parent workstream only. Project
+evidence. The live Port stage remains only in the Project; generated issue text
+records its initial Watchlist state without copying mutable authority. The
+Continuous Port Pipeline is a parent workstream only. Project
 drafts remain available for fleeting non-port ideas.
 
 A promoted draft or port implementation issue must state:
@@ -75,6 +130,14 @@ A promoted draft or port implementation issue must state:
 sections. Preserve imported identifiers in one machine-searchable issue comment such as
 `<!-- portcove-origins: PCV-REAUD-001 -->`. Group findings with one root cause;
 create sub-issues only when they can be implemented and validated independently.
+
+Final audit and implementation-plan origins also remain machine-searchable.
+Every imported UX audit ID has exactly one canonical issue owner through a
+portcove-ux-audit-origins comment, and the supported-source plan has one parent
+owner, issue #36, through its portcove-origins comment. The roadmap doctor
+rejects missing,
+duplicate, malformed, unknown, or range-abbreviated UX IDs and rejects duplicate
+or misplaced supported-source plan ownership.
 
 ## Working rules
 
@@ -115,12 +178,21 @@ item earlier; record the reason in the issue rather than freezing it in docs.
 
 ## Tools and snapshots
 
-Use `node scripts/roadmap.mjs capture-port` for fast durable port discovery,
+Use `node scripts/roadmap.mjs capture-port` for direct maintainer port intake,
+`normalize-port --issue <number>` for a public New Port form submission,
 `capture-feature` for feature intake, `promote` for draft-to-issue conversion,
 `set` and `move` for planning changes, and `next` for the ordered work queue.
 `doctor` verifies machine-readable identity, visibility, repository linkage,
-field types/options, view layout/filter/visible fields, and the one-port/one-issue
-coverage contract. Grouping, sorting, auto-add, and completion workflows remain
+field types/options, view layout/filter/visible fields, the one-port/one-issue
+coverage contract across both repository issues and Project items, honest
+Port-stage evidence and exact Supported platform intersections, final UX
+origin ownership, and supported-source plan ownership. It requires every
+canonical issue and every open repository issue whose title begins `[Port]` to
+have exactly one Port item. It rejects missing markers, duplicate catalog IDs,
+candidate keys, normalized title identities, same-upstream/same-target
+identities, unsupported stage claims, Blocked entries without usable resume
+conditions, and Rejected entries that still claim catalog support. Distinct
+games or targets may share one upstream. Grouping, sorting, auto-add, and completion workflows remain
 explicit manual confirmations. `bootstrap` reconciles the live Project; ordinary CI runs
 only the offline `check` and tests.
 

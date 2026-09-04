@@ -5,7 +5,12 @@ Please report vulnerabilities through [GitHub's private vulnerability reporting 
 Portcove treats upstream release metadata, archive paths, filenames, and adopted directories as untrusted. Important security invariants include:
 
 - no install without a SHA-256 digest obtained independently from the payload;
-- no archived upstream repository at catalog or resolution time;
+- no uncached GitHub or GitLab release resolution when the hosting service
+  reports the repository as archived;
+- no hosted release provider for a catalog entry marked `Retired`; such an
+  entry can resolve only an exact stable per-platform direct manifest with a
+  nonzero size, HTTPS URL, version, and SHA-256 digest;
+- no catalog admission for an entry marked `Superseded` or `Abandoned`;
 - no archive path traversal, links, special files, platform path aliases, or unbounded extraction;
 - no execution during download or extraction;
 - no deletion of user-data directories during version removal;
@@ -15,6 +20,17 @@ Portcove treats upstream release metadata, archive paths, filenames, and adopted
 - no GitHub tokens in command arguments, SQLite, caches, logs, structured output, release downloads, or launched-game environments;
 - bearer authorization is limited to the configured GitHub API origin, including across redirects;
 - device authorization requires a public client ID and stores a token only after GitHub validates it.
+
+The host's archived flag and Portcove's `Retired` catalog status are separate
+facts. On an uncached lookup, hosted providers query GitHub or GitLab and fail
+when that host reports an archive. A successful hosted release selection can
+currently be reused from an in-memory cache for up to five minutes before the
+repository flag is refreshed; issue #212 owns the narrow fail-closed correction
+and its state-change tests. A manually reviewed `DirectManifest` does not query
+a host release API: it names one checksum-pinned artifact for every declared
+platform, and normal download, archive, executable, source, install, and
+rollback protections still apply. A roadmap proposal alone never grants
+catalog eligibility.
 
 Every production child process is created through the core-owned typed child-process policy. It starts from a reviewed operating-system/session allowlist, removes GitHub credentials plus credential-shaped token, secret, password, API-key, cloud-key, SSH-agent, and askpass variables, and then adds only the operation's checked Portcove/upstream variables. Native executables may receive literal caller arguments. Windows batch launchers receive only fixed, metacharacter-checked catalog arguments and reject caller-supplied arguments before process creation.
 
