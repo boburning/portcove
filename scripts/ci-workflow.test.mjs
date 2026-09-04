@@ -78,7 +78,7 @@ test("native Rust runs the full workspace on every supported Unix architecture",
     assert.match(nativeRust, new RegExp(`platform: ${platform}\\r?\\n\\s+runner: ${runner}`));
   }
   assert.match(nativeRust, /if: runner\.os == 'Linux'/);
-  assert.match(nativeRust, /TMPDIR: \$\{\{ runner\.temp \}\}/);
+  assert.match(nativeRust, /echo "TMPDIR=\$RUNNER_TEMP" >> "\$GITHUB_ENV"/);
   assert.match(nativeRust, /libwebkit2gtk-4\.1-dev libappindicator3-dev librsvg2-dev patchelf/);
   assert.match(nativeRust, /cargo test --workspace/);
   assert.doesNotMatch(nativeRust, /continue-on-error/);
