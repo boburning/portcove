@@ -88,6 +88,8 @@ jobs:
   native_rust:
     name: native-rust (${{ matrix.platform }})
     runs-on: ${{ matrix.runner }}
+    env:
+      TMPDIR: ${{ runner.temp }}
     strategy:
       fail-fast: false
       matrix:
