@@ -234,6 +234,12 @@ impl Adapter for StandardAdapter {
                     .unwrap_or(RuntimeSourceMaterialization::N64BigEndian),
                 &port.runtime_source_hashes,
             )?;
+            if let Some(variable) = &port.source_environment {
+                environment.insert(
+                    variable.clone(),
+                    crate::path::unicode(&stored_source, "materialized source")?,
+                );
+            }
         }
         if self.0 == AdapterKind::UpstreamManagedSetup {
             let source_path = port
@@ -2688,8 +2694,17 @@ mod tests {
         let install = temporary.path().join("install");
         std::fs::create_dir_all(&install).unwrap();
         std::fs::write(install.join("gen1recomp.exe"), b"test").unwrap();
-        let source = temporary.path().join("pokemon-red.gb");
-        std::fs::write(&source, b"source").unwrap();
+        let source = temporary.path().join("pokemon-red.zip");
+        let file = File::create(&source).unwrap();
+        let mut archive = zip::ZipWriter::new(file);
+        archive
+            .start_file(
+                "Pokemon Red (USA).gb",
+                zip::write::SimpleFileOptions::default(),
+            )
+            .unwrap();
+        archive.write_all(b"source").unwrap();
+        archive.finish().unwrap();
         let catalog = Catalog::embedded().unwrap();
         let port = catalog.port("gen1recomp").unwrap();
 
@@ -2705,10 +2720,12 @@ mod tests {
             .unwrap();
 
         assert_eq!(spec.arguments, vec!["--game=red"]);
+        let materialized = install.join("portcove-import.gb");
         assert_eq!(
             spec.environment.get("POKEPORT_IMPORT_ROM"),
-            Some(&source.to_string_lossy().into_owned())
+            Some(&materialized.to_string_lossy().into_owned())
         );
+        assert_eq!(std::fs::read(materialized).unwrap(), b"source");
         assert!(install.join("portable.txt").is_file());
     }
 
@@ -2741,7 +2758,16 @@ mod tests {
         );
         assert_eq!(
             spec.environment.get("POKEPORT_IMPORT_ROM"),
-            Some(&source.to_string_lossy().into_owned())
+            Some(
+                &install
+                    .join("portcove-import.gbc")
+                    .to_string_lossy()
+                    .into_owned()
+            )
+        );
+        assert_eq!(
+            std::fs::read(install.join("portcove-import.gbc")).unwrap(),
+            b"source"
         );
     }
 
