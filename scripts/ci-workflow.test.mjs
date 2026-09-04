@@ -9,6 +9,8 @@ function jobSection(name, nextName) {
   return workflow.match(new RegExp(`^  ${name}:\\r?\\n([\\s\\S]*?)${end}`, "m"))?.[1] ?? "";
 }
 
+const rustLint = jobSection("rust_lint", "rust_test");
+const rustTest = jobSection("rust_test", "rust");
 const rust = jobSection("rust", "rust-quality");
 const rustQuality = jobSection("rust-quality", "frontend");
 const frontend = jobSection("frontend", "catalog");
@@ -19,21 +21,32 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   assert.match(workflow, /^permissions:\r?\n  contents: read$/m);
   assert.match(workflow, /^concurrency:\r?\n  group: ci-\$\{\{ github\.event\.pull_request\.number \|\| github\.ref \}\}\r?\n  cancel-in-progress: true$/m);
   assert.doesNotMatch(workflow, /upload-artifact/);
-  for (const section of [rust, rustQuality, frontend, catalog]) {
+  for (const section of [rustLint, rustTest, rustQuality, frontend, catalog]) {
     assert.notEqual(section, "");
     assert.doesNotMatch(section, /^    if:/m);
   }
 });
 
-test("Windows Rust keeps complete gates without unused or duplicate setup", () => {
-  assert.match(rust, /runs-on: windows-latest/);
-  assert.match(rust, /cargo fmt --all -- --check/);
-  assert.match(rust, /cargo clippy --workspace --all-targets -- -D warnings/);
-  assert.match(rust, /cargo test --workspace/);
-  assert.match(rust, /scripts\/dev-storage\.test\.mjs/);
-  assert.match(rust, /--test-skip-pattern "pnpm uses\|direct just recipes"/);
-  assert.doesNotMatch(rust, /pnpm\/action-setup|quality-pins|Install pinned recipe runner/);
-  assert.doesNotMatch(rust, /cargo check/);
+test("Windows Rust keeps complete parallel gates without unused or duplicate setup", () => {
+  assert.match(rustLint, /^    name: rust-lint$/m);
+  assert.match(rustLint, /runs-on: windows-latest/);
+  assert.match(rustLint, /cargo fmt --all -- --check/);
+  assert.match(rustLint, /cargo clippy --workspace --all-targets -- -D warnings/);
+  assert.match(rustLint, /scripts\/dev-storage\.test\.mjs/);
+  assert.match(rustLint, /--test-skip-pattern "pnpm uses\|direct just recipes"/);
+  assert.doesNotMatch(rustLint, /pnpm\/action-setup|quality-pins|Install pinned recipe runner|cargo test|cargo check/);
+
+  assert.match(rustTest, /^    name: rust-test$/m);
+  assert.match(rustTest, /runs-on: windows-latest/);
+  assert.match(rustTest, /cargo test --workspace/);
+  assert.doesNotMatch(rustTest, /setup-node|pnpm|cargo fmt|cargo clippy|cargo check/);
+
+  assert.match(rust, /^    if: always\(\)$/m);
+  assert.match(rust, /^    needs: \[rust_lint, rust_test\]$/m);
+  assert.match(rust, /RUST_LINT_RESULT: \$\{\{ needs\.rust_lint\.result \}\}/);
+  assert.match(rust, /RUST_TEST_RESULT: \$\{\{ needs\.rust_test\.result \}\}/);
+  assert.match(rust, /exit 1/);
+  assert.doesNotMatch(rust, /continue-on-error/);
 });
 
 test("Linux Rust quality keeps its platform-specific and policy gates without pnpm", () => {
