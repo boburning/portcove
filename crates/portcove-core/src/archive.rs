@@ -22,6 +22,7 @@ const MAX_COMPRESSION_RATIO: u64 = 200;
 struct EntryPlan {
     relative: PathBuf,
     directory: bool,
+    executable: bool,
     size: u64,
 }
 
@@ -265,6 +266,7 @@ fn extract_zip(source: &Path, destination: &Path, compressed_size: u64) -> Resul
         plans.push(EntryPlan {
             relative,
             directory: entry.is_dir(),
+            executable: crate::permissions::archive_executable(entry.unix_mode()),
             size: entry.size(),
         });
     }
@@ -314,6 +316,11 @@ fn extract_tar_gz(source: &Path, destination: &Path, compressed_size: u64) -> Re
         plans.push(EntryPlan {
             relative,
             directory,
+            executable: crate::permissions::archive_executable(Some(
+                entry.header().mode().map_err(|error| {
+                    PortcoveError::verification(format!("invalid TAR mode: {error}"))
+                })?,
+            )),
             size: entry.size(),
         });
     }
@@ -340,11 +347,13 @@ fn write_entry(destination: &Path, plan: &EntryPlan, reader: &mut impl Read) -> 
         ));
     }
     if plan.directory {
-        fs::create_dir_all(output)?;
+        fs::create_dir_all(&output)?;
+        normalize_archive_directories(destination, &output)?;
         return Ok(());
     }
     if let Some(parent) = output.parent() {
         fs::create_dir_all(parent)?;
+        normalize_archive_directories(destination, parent)?;
     }
     let mut target = OpenOptions::new()
         .write(true)
@@ -358,6 +367,24 @@ fn write_entry(destination: &Path, plan: &EntryPlan, reader: &mut impl Read) -> 
         )));
     }
     target.flush()?;
+    drop(target);
+    crate::permissions::normalize_archive_entry(&output, false, plan.executable)?;
+    Ok(())
+}
+
+fn normalize_archive_directories(destination: &Path, deepest: &Path) -> Result<()> {
+    let mut directory = deepest;
+    while directory != destination {
+        if !directory.starts_with(destination) {
+            return Err(PortcoveError::verification(
+                "archive parent escaped its destination",
+            ));
+        }
+        crate::permissions::normalize_archive_entry(directory, true, false)?;
+        directory = directory
+            .parent()
+            .ok_or_else(|| PortcoveError::verification("archive parent escaped its destination"))?;
+    }
     Ok(())
 }
 
@@ -409,15 +436,132 @@ mod tests {
         writer.finish().unwrap();
     }
 
-    fn mark_first_zip_entry_as_symlink(path: &Path) {
+    fn mark_first_zip_entry_mode(path: &Path, mode: u32) {
         let mut bytes = fs::read(path).unwrap();
         let central = bytes
             .windows(4)
             .position(|window| window == b"PK\x01\x02")
             .expect("central directory entry");
         bytes[central + 4..central + 6].copy_from_slice(&0x0314_u16.to_le_bytes());
-        bytes[central + 38..central + 42].copy_from_slice(&(0o120777_u32 << 16).to_le_bytes());
+        bytes[central + 38..central + 42].copy_from_slice(&(mode << 16).to_le_bytes());
         fs::write(path, bytes).unwrap();
+    }
+
+    fn mark_first_zip_entry_as_symlink(path: &Path) {
+        mark_first_zip_entry_mode(path, 0o120777);
+    }
+
+    #[cfg(unix)]
+    fn mode(path: &Path) -> u32 {
+        use std::os::unix::fs::PermissionsExt;
+
+        fs::metadata(path).unwrap().permissions().mode() & 0o7777
+    }
+
+    #[cfg(unix)]
+    fn write_tar_gz(path: &Path, entries: &[(&str, &[u8], u32)]) {
+        let encoder = flate2::write::GzEncoder::new(
+            File::create(path).unwrap(),
+            flate2::Compression::default(),
+        );
+        let mut builder = tar::Builder::new(encoder);
+        for (name, bytes, mode) in entries {
+            let mut header = tar::Header::new_gnu();
+            header.set_entry_type(tar::EntryType::Regular);
+            header.set_size(bytes.len() as u64);
+            header.set_mode(*mode);
+            header.set_cksum();
+            builder
+                .append_data(&mut header, *name, Cursor::new(*bytes))
+                .unwrap();
+        }
+        builder.into_inner().unwrap().finish().unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn zip_and_tar_preserve_only_safe_executable_intent() {
+        let temporary = tempdir().unwrap();
+        let script = b"#!/bin/sh\nexit 0\n".as_slice();
+
+        let zip = temporary.path().join("permissions.zip");
+        write_zip(
+            &zip,
+            &[
+                ("bin/run.sh", script, Some(0o755)),
+                ("data.txt", b"data", Some(0o644)),
+                ("deep/nested/data.txt", b"nested", Some(0o644)),
+            ],
+        );
+        let zip_unsafe = temporary.path().join("permissions-unsafe.zip");
+        write_zip(&zip_unsafe, &[("unsafe.sh", script, Some(0o755))]);
+        mark_first_zip_entry_mode(&zip_unsafe, 0o104755);
+
+        let zip_output = temporary.path().join("zip-output");
+        fs::create_dir(&zip_output).unwrap();
+        extract_archive(
+            &zip,
+            &zip_output,
+            "permissions.zip",
+            fs::metadata(&zip).unwrap().len(),
+        )
+        .unwrap();
+        extract_archive(
+            &zip_unsafe,
+            &zip_output,
+            "permissions-unsafe.zip",
+            fs::metadata(&zip_unsafe).unwrap().len(),
+        )
+        .unwrap();
+        assert_eq!(mode(&zip_output.join("bin")), 0o755);
+        assert_eq!(mode(&zip_output.join("bin/run.sh")), 0o755);
+        assert_eq!(mode(&zip_output.join("data.txt")), 0o644);
+        assert_eq!(mode(&zip_output.join("deep")), 0o755);
+        assert_eq!(mode(&zip_output.join("deep/nested")), 0o755);
+        assert_eq!(mode(&zip_output.join("deep/nested/data.txt")), 0o644);
+        assert_eq!(mode(&zip_output.join("unsafe.sh")), 0o755);
+        assert!(
+            crate::ChildProcessPolicy::native_command(
+                crate::ChildProcessClass::HostTool,
+                zip_output.join("bin/run.sh"),
+            )
+            .unwrap()
+            .status()
+            .unwrap()
+            .success()
+        );
+
+        let tar = temporary.path().join("permissions.tar.gz");
+        write_tar_gz(
+            &tar,
+            &[
+                ("run.sh", script, 0o755),
+                ("data.txt", b"data", 0o644),
+                ("unsafe.sh", script, 0o7755),
+            ],
+        );
+        let tar_output = temporary.path().join("tar-output");
+        fs::create_dir(&tar_output).unwrap();
+        extract_archive(
+            &tar,
+            &tar_output,
+            "permissions.tar.gz",
+            fs::metadata(&tar).unwrap().len(),
+        )
+        .unwrap();
+        assert_eq!(mode(&tar_output.join("run.sh")), 0o755);
+        assert_eq!(mode(&tar_output.join("data.txt")), 0o644);
+        assert_eq!(mode(&tar_output.join("unsafe.sh")), 0o755);
+        assert!(
+            crate::ChildProcessPolicy::native_command(
+                crate::ChildProcessClass::HostTool,
+                tar_output.join("run.sh"),
+            )
+            .unwrap()
+            .status()
+            .unwrap()
+            .success()
+        );
     }
 
     #[test]
@@ -610,6 +754,7 @@ mod tests {
                 &[EntryPlan {
                     relative: "huge.bin".into(),
                     directory: false,
+                    executable: false,
                     size: MAX_ENTRY_BYTES + 1,
                 }],
                 1,
@@ -619,6 +764,7 @@ mod tests {
         let plan = EntryPlan {
             relative: "short.bin".into(),
             directory: false,
+            executable: false,
             size: 2,
         };
         assert!(write_entry(destination, &plan, &mut Cursor::new(vec![1])).is_err());

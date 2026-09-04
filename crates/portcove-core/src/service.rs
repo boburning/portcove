@@ -4025,6 +4025,14 @@ mod tests {
     }
 
     fn write_host_test_executable(root: &Path, port_id: &str) -> PathBuf {
+        write_host_test_executable_with_contents(root, port_id, b"test")
+    }
+
+    fn write_host_test_executable_with_contents(
+        root: &Path,
+        port_id: &str,
+        contents: &[u8],
+    ) -> PathBuf {
         let catalog = Catalog::embedded().unwrap();
         let port = catalog.port(port_id).unwrap();
         let platform = Platform::current().unwrap();
@@ -4034,8 +4042,21 @@ mod tests {
             .and_then(|hints| hints.first())
             .unwrap();
         let executable = root.join(executable_name);
-        fs::write(&executable, b"test").unwrap();
+        fs::write(&executable, contents).unwrap();
+        crate::permissions::normalize_archive_entry(&executable, false, true).unwrap();
         executable
+    }
+
+    fn tamper_host_test_executable(path: &Path, replacement: &[u8]) {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+
+            let _ = replacement;
+            fs::set_permissions(path, fs::Permissions::from_mode(0o644)).unwrap();
+        }
+        #[cfg(not(unix))]
+        fs::write(path, replacement).unwrap();
     }
 
     fn register_existing_test_install(
@@ -4089,6 +4110,15 @@ mod tests {
     }
 
     fn register_zelda_install(library: &Library, version: &str, active: bool) -> PathBuf {
+        register_zelda_install_with_executable(library, version, active, b"test")
+    }
+
+    fn register_zelda_install_with_executable(
+        library: &Library,
+        version: &str,
+        active: bool,
+        executable_contents: &[u8],
+    ) -> PathBuf {
         let artifact = ArtifactIdentity {
             asset_name: format!("zelda64-recomp-{version}.zip"),
             sha256: hex::encode(Sha256::digest(format!("zelda64-recomp:{version}"))),
@@ -4099,7 +4129,7 @@ mod tests {
             .join("zelda64-recomp")
             .join(&artifact.sha256);
         fs::create_dir_all(&path).unwrap();
-        write_host_test_executable(&path, "zelda64-recomp");
+        write_host_test_executable_with_contents(&path, "zelda64-recomp", executable_contents);
         fs::write(path.join("engine.dll"), b"critical library").unwrap();
         let id = Uuid::new_v4().to_string();
         let port = Catalog::embedded()
@@ -4862,7 +4892,7 @@ fn main() {
         assert_eq!(error.code, crate::ErrorCode::Verification);
         assert!(!install.join(LAUNCH_MARKER).exists());
 
-        fs::write(executable, b"test").unwrap();
+        assert_eq!(write_host_test_executable(&install, "starship"), executable);
         let launch = service.launch_spec("starship", None).unwrap();
         assert_eq!(
             launch.environment.get("PORTCOVE_SOURCE"),
@@ -5203,11 +5233,10 @@ fn main() {
             .status("zelda64-recomp", ReleaseChannel::Stable)
             .unwrap();
         let staged = staged_before.staged.as_ref().unwrap();
-        fs::write(
-            staged.path.join(&staged.selected_executable),
+        tamper_host_test_executable(
+            &staged.path.join(&staged.selected_executable),
             b"changed staged executable",
-        )
-        .unwrap();
+        );
         let service = PortcoveService::new(library.clone()).unwrap();
 
         let error = service.activate_staged("zelda64-recomp").unwrap_err();
@@ -5232,11 +5261,10 @@ fn main() {
             .status("zelda64-recomp", ReleaseChannel::Stable)
             .unwrap();
         let previous = rollback_before.previous.as_ref().unwrap();
-        fs::write(
-            previous.path.join(&previous.selected_executable),
+        tamper_host_test_executable(
+            &previous.path.join(&previous.selected_executable),
             b"changed rollback executable",
-        )
-        .unwrap();
+        );
         let service = PortcoveService::new(library.clone()).unwrap();
 
         let error = service.rollback("zelda64-recomp").unwrap_err();
@@ -5311,7 +5339,11 @@ fn main() {
     fn failed_spawn_creates_neither_marker_nor_unfinished_session() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
-        let install = register_zelda_install(&library, "v1", true);
+        #[cfg(unix)]
+        let unspawnable = b"#!/portcove-test-missing-interpreter\n".as_slice();
+        #[cfg(not(unix))]
+        let unspawnable = b"not a Windows executable".as_slice();
+        let install = register_zelda_install_with_executable(&library, "v1", true, unspawnable);
         let service = PortcoveService::new(library.clone()).unwrap();
 
         let error = service
@@ -5845,6 +5877,16 @@ fn main() {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn reconcile_retries_a_changed_channel_before_acting() {
+        let platform = Platform::current().unwrap();
+        if !Catalog::embedded()
+            .unwrap()
+            .port("g-diffuser")
+            .unwrap()
+            .platforms
+            .contains(&platform)
+        {
+            return;
+        }
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let path = library

@@ -10,11 +10,9 @@ fn fixture(root: &Path, export: &Path) -> LibraryMetadata {
     for (id, staged) in [("old", false), ("active", false), ("staged", true)] {
         let path = root.join("versions/starship").join(id);
         fs::create_dir_all(&path).unwrap();
-        fs::write(
-            path.join(&port.executable_hints[&platform][0]),
-            format!("synthetic {id}"),
-        )
-        .unwrap();
+        let executable = path.join(&port.executable_hints[&platform][0]);
+        fs::write(&executable, format!("synthetic {id}")).unwrap();
+        crate::permissions::normalize_archive_entry(&executable, false, true).unwrap();
         let artifact = ArtifactIdentity {
             asset_name: format!("{id}.zip"),
             sha256: "a".repeat(64),
