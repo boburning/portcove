@@ -23,6 +23,7 @@ pub struct PsxManagedPreparation {
     pub source: SourceRecord,
     pub bios: Option<SourceRecord>,
     pub source_paths: Vec<PathBuf>,
+    pub runtime_source_directory: Option<PathBuf>,
     pub toolchain_root: PathBuf,
     pub executable_basename: String,
 }
@@ -272,8 +273,14 @@ pub(crate) fn prepare_install(root: &Path, preparation: &PsxManagedPreparation) 
             executable.display()
         )));
     }
+    let runtime_sources = if let Some(relative) = &preparation.runtime_source_directory {
+        materialize_runtime_raw_set(&build_dir, relative, preparation)?
+    } else {
+        preparation.source_paths.clone()
+    };
     let runtime_config = build_dir.join("game.toml");
-    prepare_runtime_config(&config, &runtime_config, &preparation.source_paths)?;
+    prepare_runtime_config(&config, &runtime_config, &runtime_sources)?;
+    crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
     let prepared_disc = root.join("disc");
     if prepared_disc.is_dir() {
         fs::remove_dir_all(prepared_disc)?;
@@ -345,6 +352,54 @@ fn prepare_runtime_config(project: &Path, runtime: &Path, sources: &[PathBuf]) -
         fs::copy(project, runtime)?;
     }
     rewrite_game_discs(runtime, sources)
+}
+
+fn materialize_runtime_raw_set(
+    build_dir: &Path,
+    relative: &Path,
+    preparation: &PsxManagedPreparation,
+) -> Result<Vec<PathBuf>> {
+    let relative_text = crate::path::unicode(relative, "managed PS1 runtime source")?;
+    let normalized_relative = relative_text.replace('\\', "/");
+    crate::archive::validate_relative_path(&normalized_relative, false)?;
+    let destination = build_dir.join(relative);
+    crate::adapter::materialize_psx_cue_set(&preparation.source.path, &destination)?;
+
+    let mut runtime_sources = Vec::with_capacity(preparation.source_paths.len());
+    let mut hashes = Vec::with_capacity(preparation.source_paths.len());
+    let mut total_size = 0_u64;
+    for index in 0..preparation.source_paths.len() {
+        let bin_filename = format!("disc-{:02}.bin", index + 1);
+        let materialized = destination.join(&bin_filename);
+        if !materialized.is_file() {
+            return Err(PortcoveError::verification(format!(
+                "managed PS1 runtime source is missing {bin_filename}"
+            )));
+        }
+        let (sha256, size) = hash_file(&materialized)?;
+        hashes.push(sha256);
+        total_size = total_size.saturating_add(size);
+        let cue_filename = format!("disc-{:02}.cue", index + 1);
+        if !destination.join(&cue_filename).is_file() {
+            return Err(PortcoveError::verification(format!(
+                "managed PS1 runtime source is missing {cue_filename}"
+            )));
+        }
+        runtime_sources.push(PathBuf::from(format!(
+            "{normalized_relative}/{cue_filename}"
+        )));
+    }
+    let aggregate = crate::adapter::aggregate_sha256(&hashes);
+    if aggregate != preparation.source.sha256 || total_size != preparation.source.size {
+        return Err(PortcoveError::verification(
+            "managed PS1 runtime source does not match the verified disc set",
+        )
+        .detail("expected_sha256", &preparation.source.sha256)
+        .detail("actual_sha256", aggregate)
+        .detail("expected_size", preparation.source.size.to_string())
+        .detail("actual_size", total_size.to_string()));
+    }
+    Ok(runtime_sources)
 }
 
 fn run_cli(
@@ -616,5 +671,27 @@ mod tests {
         let body = fs::read_to_string(runtime).unwrap();
         assert!(body.contains(r#"disc = "D:\\ROMs\\Game.chd""#));
         assert!(!body.contains("maintainer.cue"));
+    }
+
+    #[test]
+    fn runtime_config_accepts_relative_immutable_cue_descriptors() {
+        let temporary = tempfile::tempdir().unwrap();
+        let config = temporary.path().join("game.toml");
+        fs::write(
+            &config,
+            "[game]\ndiscs = [\n  \"maintainer-1.cue\",\n  \"maintainer-2.cue\",\n]\n",
+        )
+        .unwrap();
+        let sources = [
+            PathBuf::from("runtime-discs/disc-01.cue"),
+            PathBuf::from("runtime-discs/disc-02.cue"),
+        ];
+
+        rewrite_game_discs(&config, &sources).unwrap();
+
+        let body = fs::read_to_string(config).unwrap();
+        assert!(body.contains(r#"    "runtime-discs/disc-01.cue","#));
+        assert!(body.contains(r#"    "runtime-discs/disc-02.cue","#));
+        assert!(!body.contains("maintainer"));
     }
 }
