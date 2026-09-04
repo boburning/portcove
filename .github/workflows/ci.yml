@@ -28,7 +28,7 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Test development storage on Windows
-        run: node scripts/dev-storage.mjs run -- node --test scripts/dev-storage.test.mjs
+        run: node scripts/dev-storage.mjs run -- node --test --test-skip-pattern "pnpm uses|direct just recipes" scripts/dev-storage.test.mjs
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
@@ -77,7 +77,7 @@ jobs:
       - name: Verify exact Rust quality-tool versions
         run: ./scripts/bootstrap-quality-tools.sh
       - name: Test development storage on Linux
-        run: node scripts/dev-storage.mjs run -- node --test scripts/dev-storage.test.mjs
+        run: node scripts/dev-storage.mjs run -- node --test --test-skip-pattern "pnpm uses|direct just recipes" scripts/dev-storage.test.mjs
       - run: cargo shear --deny-warnings
       - run: cargo deny check --hide-inclusion-graph -W unmaintained
       - run: node --test scripts/check-rust-architecture.test.mjs
@@ -90,6 +90,8 @@ jobs:
 
   frontend:
     runs-on: ubuntu-latest
+    env:
+      npm_config_audit: "false"
     defaults:
       run:
         working-directory: apps/desktop
@@ -103,7 +105,18 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
           cache-dependency-path: apps/desktop/pnpm-lock.yaml
+      - name: Read pinned recipe runner
+        id: quality-pins
+        working-directory: .
+        run: echo "just=just@$(node scripts/quality-tools.mjs --version just)" >> "$GITHUB_OUTPUT"
+      - name: Install pinned recipe runner
+        uses: taiki-e/install-action@e67fa11c4b9316fa714ddf0abed07a0c3143b95b # v2
+        with:
+          tool: ${{ steps.quality-pins.outputs.just }}
       - run: pnpm install --frozen-lockfile
+      - name: Test development storage tool integration
+        working-directory: .
+        run: node scripts/dev-storage.mjs run -- node --test --test-name-pattern "pnpm uses|direct just recipes" scripts/dev-storage.test.mjs
       - run: pnpm build
       - run: pnpm test
       - name: Fallow quality gate

@@ -31,7 +31,8 @@ test("Windows Rust keeps complete gates without unused or duplicate setup", () =
   assert.match(rust, /cargo clippy --workspace --all-targets -- -D warnings/);
   assert.match(rust, /cargo test --workspace/);
   assert.match(rust, /scripts\/dev-storage\.test\.mjs/);
-  assert.doesNotMatch(rust, /pnpm|quality-pins|Install pinned recipe runner/);
+  assert.match(rust, /--test-skip-pattern "pnpm uses\|direct just recipes"/);
+  assert.doesNotMatch(rust, /pnpm\/action-setup|quality-pins|Install pinned recipe runner/);
   assert.doesNotMatch(rust, /cargo check/);
 });
 
@@ -43,11 +44,15 @@ test("Linux Rust quality keeps its platform-specific and policy gates without pn
   assert.match(rustQuality, /cargo deny check/);
   assert.match(rustQuality, /check-rust-architecture\.mjs/);
   assert.match(rustQuality, /run-rscheck\.mjs/);
-  assert.doesNotMatch(rustQuality, /pnpm/);
+  assert.match(rustQuality, /--test-skip-pattern "pnpm uses\|direct just recipes"/);
+  assert.doesNotMatch(rustQuality, /pnpm\/action-setup|pnpm install/);
 });
 
 test("frontend keeps deterministic product gates and delegates vulnerability changes", () => {
+  assert.match(frontend, /^    env:\r?\n      npm_config_audit: "false"$/m);
   assert.match(frontend, /pnpm install --frozen-lockfile/);
+  assert.match(frontend, /Install pinned recipe runner/);
+  assert.match(frontend, /--test-name-pattern "pnpm uses\|direct just recipes" scripts\/dev-storage\.test\.mjs/);
   assert.match(frontend, /pnpm build/);
   assert.match(frontend, /pnpm test/);
   assert.match(frontend, /run-fallow\.mjs/);
