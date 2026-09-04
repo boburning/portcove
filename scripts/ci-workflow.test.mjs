@@ -9,8 +9,8 @@ function jobSection(name, nextName) {
   return workflow.match(new RegExp(`^  ${name}:\\r?\\n([\\s\\S]*?)${end}`, "m"))?.[1] ?? "";
 }
 
-const rustLint = jobSection("rust_lint", "rust_test");
-const rustTest = jobSection("rust_test", "rust");
+const rustTests = jobSection("rust_tests", "windows_storage");
+const windowsStorage = jobSection("windows_storage", "rust");
 const rust = jobSection("rust", "rust-quality");
 const rustQuality = jobSection("rust-quality", "frontend");
 const frontend = jobSection("frontend", "catalog");
@@ -21,30 +21,35 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   assert.match(workflow, /^permissions:\r?\n  contents: read$/m);
   assert.match(workflow, /^concurrency:\r?\n  group: ci-\$\{\{ github\.event\.pull_request\.number \|\| github\.ref \}\}\r?\n  cancel-in-progress: true$/m);
   assert.doesNotMatch(workflow, /upload-artifact/);
-  for (const section of [rustLint, rustTest, rustQuality, frontend, catalog]) {
+  for (const section of [rustTests, windowsStorage, rustQuality, frontend, catalog]) {
     assert.notEqual(section, "");
     assert.doesNotMatch(section, /^    if:/m);
   }
 });
 
-test("Windows Rust keeps complete parallel gates without unused or duplicate setup", () => {
-  assert.match(rustLint, /^    name: rust-lint$/m);
-  assert.match(rustLint, /runs-on: windows-latest/);
-  assert.match(rustLint, /cargo fmt --all -- --check/);
-  assert.match(rustLint, /cargo clippy --workspace --all-targets -- -D warnings/);
-  assert.match(rustLint, /scripts\/dev-storage\.test\.mjs/);
-  assert.match(rustLint, /--test-skip-pattern "pnpm uses\|direct just recipes"/);
-  assert.doesNotMatch(rustLint, /pnpm\/action-setup|quality-pins|Install pinned recipe runner|cargo test|cargo check/);
+test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () => {
+  assert.match(rustTests, /^    name: rust-test \(\$\{\{ matrix\.shard \}\}\)$/m);
+  assert.match(rustTests, /runs-on: windows-latest/);
+  assert.match(rustTests, /shard: \[core-service, core-recovery, core-other, workspace-other\]/);
+  for (const shard of ["service::", "cancellation::", "database::", "import_execution::", "library_move::"]) {
+    assert.match(rustTests, new RegExp(`"${shard.replaceAll("::", "::")}"`));
+  }
+  assert.match(rustTests, /"--workspace", "--exclude", "portcove-core"/);
+  assert.match(rustTests, /"--skip", "service::", "--skip", "cancellation::", "--skip", "database::", "--skip", "import_execution::", "--skip", "library_move::"/);
+  assert.match(rustTests, /if: matrix\.shard == 'workspace-other'[\s\S]*cargo fmt --all -- --check/);
+  assert.match(rustTests, /if: matrix\.shard == 'workspace-other'[\s\S]*cargo clippy --workspace --all-targets -- -D warnings/);
+  assert.doesNotMatch(rustTests, /setup-node|pnpm|cargo check/);
 
-  assert.match(rustTest, /^    name: rust-test$/m);
-  assert.match(rustTest, /runs-on: windows-latest/);
-  assert.match(rustTest, /cargo test --workspace/);
-  assert.doesNotMatch(rustTest, /setup-node|pnpm|cargo fmt|cargo clippy|cargo check/);
+  assert.match(windowsStorage, /^    name: windows-storage$/m);
+  assert.match(windowsStorage, /runs-on: windows-latest/);
+  assert.match(windowsStorage, /scripts\/dev-storage\.test\.mjs/);
+  assert.match(windowsStorage, /--test-skip-pattern "pnpm uses\|direct just recipes"/);
+  assert.doesNotMatch(windowsStorage, /rust-toolchain|rust-cache|cargo/);
 
   assert.match(rust, /^    if: always\(\)$/m);
-  assert.match(rust, /^    needs: \[rust_lint, rust_test\]$/m);
-  assert.match(rust, /RUST_LINT_RESULT: \$\{\{ needs\.rust_lint\.result \}\}/);
-  assert.match(rust, /RUST_TEST_RESULT: \$\{\{ needs\.rust_test\.result \}\}/);
+  assert.match(rust, /^    needs: \[rust_tests, windows_storage\]$/m);
+  assert.match(rust, /RUST_TEST_RESULT: \$\{\{ needs\.rust_tests\.result \}\}/);
+  assert.match(rust, /WINDOWS_STORAGE_RESULT: \$\{\{ needs\.windows_storage\.result \}\}/);
   assert.match(rust, /exit 1/);
   assert.doesNotMatch(rust, /continue-on-error/);
 });
