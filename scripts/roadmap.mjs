@@ -485,7 +485,23 @@ export class RoadmapClient {
   }
 
   itemList(number) {
-    return unwrapCollection(this.json(["project", "item-list", String(number), "--owner", this.config.owner, "--format", "json", "--limit", "1000"]), "items");
+    const details = this.projectDetails(number);
+    const items = [];
+    let after = null;
+    do {
+      const query = `query($id: ID!, $after: String) { node(id: $id) { ... on ProjectV2 { items(first: 50, after: $after) { nodes { id content { __typename ... on DraftIssue { title body } ... on Issue { number title body url state } ... on PullRequest { number title body url state merged } } fieldValues(first: 25) { nodes { ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2SingleSelectField { name } } } } } } pageInfo { hasNextPage endCursor } } } } }`;
+      const page = this.graphql(query, { id: details.id, after })?.node?.items;
+      for (const node of page?.nodes ?? []) {
+        const content = node.content ? { ...node.content, type: node.content.__typename } : null;
+        const fieldValues = (node.fieldValues?.nodes ?? []).map(value => ({
+          name: value.name,
+          field: { name: value.field?.name },
+        })).filter(value => value.name && value.field.name);
+        items.push({ ...node, title: content?.title, type: content?.type, content, fieldValues });
+      }
+      after = page?.pageInfo?.hasNextPage ? page.pageInfo.endCursor : null;
+    } while (after);
+    return items;
   }
 
   projectContext(number = this.config.project.number) {

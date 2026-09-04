@@ -6,6 +6,7 @@ import {
   RoadmapClient,
   catalogQualificationSummary,
   completionEvidenceLinks,
+  fieldValue,
   featureIntakeFields,
   materializeViews,
   manualUiChecklist,
@@ -285,11 +286,16 @@ test("promotion validation happens before any GitHub mutation", () => {
 test("move refuses ambiguous item references", () => {
   const mockedConfig = structuredClone(config);
   mockedConfig.project.number = 7;
-  const runner = args => {
+  const runner = (args, input) => {
     if (args[1] === "view") return JSON.stringify({ id: "PVT_project" });
-    if (args[1] === "item-list") return JSON.stringify({ items: [
-      { id: "A", title: "Same" }, { id: "B", title: "Same" }, { id: "C", title: "Before" },
-    ] });
+    if (args[1] === "graphql") return JSON.stringify({ data: { node: { items: {
+      nodes: [
+        { id: "A", content: { __typename: "DraftIssue", title: "Same" }, fieldValues: { nodes: [] } },
+        { id: "B", content: { __typename: "DraftIssue", title: "Same" }, fieldValues: { nodes: [] } },
+        { id: "C", content: { __typename: "DraftIssue", title: "Before" }, fieldValues: { nodes: [] } },
+      ],
+      pageInfo: { hasNextPage: false, endCursor: null },
+    } } } });
     return "";
   };
   assert.throws(() => new RoadmapClient(mockedConfig, runner).moveBefore("Same", "Before"), /ambiguous/);
@@ -328,4 +334,24 @@ test("GraphQL view pagination reads every page", () => {
   };
   assert.deepEqual(new RoadmapClient(config, runner).viewList("PVT" ).map(view => view.name), ["First", "Second"]);
   assert.equal(calls.length, 2);
+});
+
+test("GraphQL Project item pagination reads every item and field page", () => {
+  const calls = [];
+  const runner = (args, input) => {
+    calls.push({ args, input });
+    if (args[1] === "view") return JSON.stringify({ id: "PVT" });
+    const after = JSON.parse(input).variables.after;
+    const item = after
+      ? { id: "I2", content: { __typename: "DraftIssue", title: "Second", body: "Draft" }, fieldValues: { nodes: [{ name: "Inbox", field: { name: "Status" } }] } }
+      : { id: "I1", content: { __typename: "Issue", number: 1, title: "First", body: "Issue", url: "https://github.com/boburning/portcove/issues/1", state: "OPEN" }, fieldValues: { nodes: [{ name: "Port", field: { name: "Work type" } }] } };
+    return JSON.stringify({ data: { node: { items: { nodes: [item], pageInfo: after
+      ? { hasNextPage: false, endCursor: null }
+      : { hasNextPage: true, endCursor: "next" } } } } });
+  };
+  const items = new RoadmapClient(config, runner).itemList(1);
+  assert.deepEqual(items.map(item => [item.id, item.title, item.type]), [["I1", "First", "Issue"], ["I2", "Second", "DraftIssue"]]);
+  assert.equal(fieldValue(items[0], "Work type"), "Port");
+  assert.equal(fieldValue(items[1], "Status"), "Inbox");
+  assert.equal(calls.filter(call => call.args[1] === "graphql").length, 2);
 });
