@@ -5207,6 +5207,30 @@ fn main() {
     }
 
     #[test]
+    fn launch_rejects_a_new_loader_companion_before_child_preparation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_zelda_install(&library, "v1", true);
+        let active = library
+            .status("zelda64-recomp", ReleaseChannel::Stable)
+            .unwrap()
+            .active
+            .unwrap();
+        fs::write(
+            active.path.join("unmanifested.dll"),
+            b"untrusted loader input",
+        )
+        .unwrap();
+        let service = PortcoveService::new(library).unwrap();
+
+        let error = service.launch_spec("zelda64-recomp", None).unwrap_err();
+
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert!(error.details["failures"].contains("unmanifested.dll"));
+        assert!(!active.path.join(LAUNCH_MARKER).exists());
+    }
+
+    #[test]
     fn mutable_persistent_files_do_not_invalidate_the_immutable_install() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();

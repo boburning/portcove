@@ -190,7 +190,7 @@
     {
       "id": "dinosaur-planet", "name": "Dinosaur Planet: Recompiled", "summary": "Native recompilation of the December 2000 Dinosaur Planet prototype.",
       "project_url": "https://github.com/DinosaurPlanetRecomp/dino-recomp", "support_tier": "stable", "channels": ["stable"],
-      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "adapter": "n64-recomp-portable",
+      "platforms": ["windows-x86-64", "linux-x86-64"], "adapter": "n64-recomp-portable",
       "automated_tested_platforms": ["windows-x86-64"],
       "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "DinosaurPlanetRecomp/dino-recomp" }, "source_profile": "dinosaur-planet",
@@ -210,11 +210,11 @@
     {
       "id": "donkey-kong-64-recompiled", "name": "Donkey Kong 64: Recompiled", "summary": "Native Donkey Kong 64 recompilation.",
       "project_url": "https://github.com/Rainchus/Donkey-Kong-64-Recompiled", "support_tier": "stable", "channels": ["stable"],
-      "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"], "adapter": "n64-recomp-portable",
+      "platforms": ["windows-x86-64", "linux-x86-64"], "adapter": "n64-recomp-portable",
       "automated_tested_platforms": ["windows-x86-64"],
       "manually_validated_platforms": ["windows-x86-64"],
-      "release": { "repository": "Rainchus/Donkey-Kong-64-Recompiled", "asset_hints": { "windows-x86-64": ["DK64-Recompiled-Windows"], "linux-x86-64": ["DK64Recompiled-Linux-X64"], "macos-aarch64": ["DK64Recompiled-macOS"] } }, "source_profile": "donkey-kong-64",
-      "executable_hints": { "windows-x86-64": ["DK64Recompiled.exe"], "linux-x86-64": ["DK64Recompiled"], "macos-aarch64": ["DK64Recompiled.app"] },
+      "release": { "repository": "Rainchus/Donkey-Kong-64-Recompiled", "asset_hints": { "windows-x86-64": ["DK64-Recompiled-Windows"], "linux-x86-64": ["DK64Recompiled-Linux-X64"] } }, "source_profile": "donkey-kong-64",
+      "executable_hints": { "windows-x86-64": ["DK64Recompiled.exe"], "linux-x86-64": ["DK64Recompiled"] },
       "persistent_paths": ["mods", "mod_config", "saves", "mods.json", "mods.json.bak", "general.json", "general.json.bak", "graphics.json", "graphics.json.bak", "controls.json", "controls.json.bak", "sound.json", "sound.json.bak", "technical.json", "technical.json.bak", "DK64.z64"],
       "runtime_source_filename": "DK64.z64"
     },

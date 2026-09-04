@@ -21,6 +21,14 @@ the architecture or trust model. Admission requires:
   `portcove-core`; and
 - honest automated and manual qualification fields.
 
+Every declared platform must provide at least one executable hint. A hint is an
+ASCII safe relative path under the declared runtime root; a basename remains a
+legacy shorthand only when it identifies exactly one file. Ordered alternatives
+do not make an ambiguous basename acceptable. Catalog validation rejects
+missing platform entries, duplicate hints, traversal, cross-platform filename
+aliases, and macOS bundle directories in place of the executable inside the
+bundle.
+
 Hosted GitHub and GitLab providers inspect repository metadata before every
 resolution, including reuse of a five-minute in-memory release selection, and
 reject resolution when the host reports the repository as archived. A
