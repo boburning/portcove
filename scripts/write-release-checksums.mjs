@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { readdir, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -27,6 +27,27 @@ function validateLabel(label) {
   if (!label?.match(/^[a-z0-9][a-z0-9._-]*$/i)) {
     throw new Error(`invalid release platform label: ${label ?? "missing"}`);
   }
+}
+
+function contains(parent, child) {
+  const relative = path.relative(parent, child);
+  return relative === "" || (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative));
+}
+
+function validateStageRoot(projectRoot, stageRoot) {
+  const project = path.resolve(projectRoot);
+  const stage = path.resolve(stageRoot);
+  const sourceRoots = [
+    path.join(project, "release-assets"),
+    path.join(project, "target", "release", "bundle"),
+  ];
+  if (stage === path.parse(stage).root || stage === project || !contains(project, stage)) {
+    throw new Error("release staging path must be a child directory inside the project");
+  }
+  if (sourceRoots.some(source => contains(source, stage) || contains(stage, source))) {
+    throw new Error("release staging path must not overlap release inputs");
+  }
+  return stage;
 }
 
 export async function collectReleaseArtifacts(projectRoot, label) {
@@ -78,24 +99,39 @@ export async function writeReleaseChecksums(projectRoot, label) {
   return { artifacts, output };
 }
 
+export async function stageReleaseArtifacts(projectRoot, label, stageRoot) {
+  const stage = validateStageRoot(projectRoot, stageRoot);
+  const result = await writeReleaseChecksums(projectRoot, label);
+  await mkdir(stage);
+  const sources = [...result.artifacts, result.output];
+  for (const source of sources) await copyFile(source, path.join(stage, path.basename(source)));
+  return { ...result, staged: sources.map(source => path.join(stage, path.basename(source))) };
+}
+
 function parseArguments(argv) {
   const options = { projectRoot: defaultProjectRoot };
   for (let index = 0; index < argv.length; index += 1) {
     const name = argv[index];
-    if (name !== "--label" && name !== "--project-root") throw new Error(`unknown argument: ${name}`);
+    if (!["--label", "--project-root", "--stage-dir"].includes(name)) throw new Error(`unknown argument: ${name}`);
     const value = argv[index + 1];
     if (!value || value.startsWith("--")) throw new Error(`${name} requires a value`);
     if (name === "--label") options.label = value;
-    else options.projectRoot = path.resolve(value);
+    else if (name === "--project-root") options.projectRoot = path.resolve(value);
+    else options.stageRoot = path.resolve(value);
     index += 1;
   }
   return options;
 }
 
 async function main() {
-  const { projectRoot, label } = parseArguments(process.argv.slice(2));
-  const { artifacts, output } = await writeReleaseChecksums(projectRoot, label);
-  console.log(`Wrote ${path.basename(output)} for ${artifacts.length} release artifacts.`);
+  const { projectRoot, label, stageRoot } = parseArguments(process.argv.slice(2));
+  if (stageRoot) {
+    const { artifacts, output, staged } = await stageReleaseArtifacts(projectRoot, label, stageRoot);
+    console.log(`Wrote ${path.basename(output)} for ${artifacts.length} release artifacts and staged ${staged.length} files.`);
+  } else {
+    const { artifacts, output } = await writeReleaseChecksums(projectRoot, label);
+    console.log(`Wrote ${path.basename(output)} for ${artifacts.length} release artifacts.`);
+  }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {

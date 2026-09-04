@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { collectReleaseArtifacts, writeReleaseChecksums } from "./write-release-checksums.mjs";
+import {
+  collectReleaseArtifacts,
+  stageReleaseArtifacts,
+  writeReleaseChecksums,
+} from "./write-release-checksums.mjs";
 
 async function fixture(t, label = "macos-aarch64") {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-checksums-"));
@@ -29,6 +33,43 @@ test("hashes distributable packages and ignores internal application files", asy
   assert.match(manifest, /^[a-f0-9]{64}  portcove-macos-aarch64\.tar\.gz$/m);
   assert.match(manifest, /^[a-f0-9]{64}  Portcove_0\.1\.0_aarch64\.dmg$/m);
   assert.doesNotMatch(manifest, /icon\.icns/);
+});
+
+test("stages only manifest-covered release files", async t => {
+  const root = await fixture(t);
+  const stage = path.join(root, "release-upload");
+
+  const result = await stageReleaseArtifacts(root, "macos-aarch64", stage);
+  assert.deepEqual((await readdir(stage)).sort(), [
+    "Portcove_0.1.0_aarch64.dmg",
+    "SHA256SUMS-macos-aarch64.txt",
+    "portcove-macos-aarch64.tar.gz",
+  ]);
+  assert.equal(result.staged.length, 3);
+});
+
+test("refuses to overwrite an existing release staging directory", async t => {
+  const root = await fixture(t);
+  const stage = path.join(root, "release-upload");
+  await mkdir(stage);
+  await writeFile(path.join(stage, "existing.txt"), "preserve");
+  await assert.rejects(
+    stageReleaseArtifacts(root, "macos-aarch64", stage),
+    error => error.code === "EEXIST",
+  );
+  assert.equal(await readFile(path.join(stage, "existing.txt"), "utf8"), "preserve");
+});
+
+test("rejects unsafe or overlapping release staging paths", async t => {
+  const root = await fixture(t);
+  await assert.rejects(
+    stageReleaseArtifacts(root, "macos-aarch64", root),
+    /child directory inside the project/,
+  );
+  await assert.rejects(
+    stageReleaseArtifacts(root, "macos-aarch64", path.join(root, "target/release/bundle/upload")),
+    /must not overlap release inputs/,
+  );
 });
 
 test("rejects duplicate package filenames before publishing", async t => {
