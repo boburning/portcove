@@ -65,6 +65,8 @@
     { "id": "street-fighter-alpha-3-psx", "label": "Street Fighter Alpha 3 (USA) disc", "kind": "psx-disc", "accepted_extensions": ["chd"], "accepted_sha1": ["ec98188f53dbfa08a59d89c981e9ca68b7f1748e"], "accepted_sha256": ["2cae59cc5a048066a74f58a26c8f8852545872589ea16ea164e0a48c10a4a794"], "disc": { "track_counts": [2] } },
     { "id": "tomba-psx", "label": "Tomba! (USA) disc", "kind": "psx-disc", "accepted_extensions": ["chd"], "accepted_sha1": ["c259ec7ff6ef4163913991f4e4db2eff71702818"], "accepted_sha256": ["25ada3dd51e70eb9f9218cd83fb02d73139750229fb44b012d62d183ab32eb13"], "disc": { "track_counts": [1] } },
     { "id": "twisted-metal-4-psx", "label": "Twisted Metal 4 (USA Rev 1) disc", "kind": "psx-disc", "accepted_extensions": ["chd"], "accepted_sha1": ["64e226413b27ea12639589b3ca2806976c795c8b"], "accepted_sha256": ["1be99e1d98c5b5e2d7572f3b46aa63c43ddd6f19f1b5cf179ffd853261a139f1"], "disc": { "track_counts": [23] } },
+    { "id": "yu-gi-oh-forbidden-memories-psx", "label": "Yu-Gi-Oh! Forbidden Memories (USA) disc", "kind": "psx-disc", "accepted_extensions": ["chd"], "accepted_sha1": ["d5785a41900a10968d4a28a390666c4b9879b796"], "accepted_sha256": [], "disc": { "track_counts": [1] } },
+    { "id": "revelations-persona-psx", "label": "Revelations: Persona (USA) disc", "kind": "psx-disc", "accepted_extensions": ["chd"], "accepted_sha1": ["3e7d8019a3191a29a48bb9d574cf05b1bc998c06"], "accepted_sha256": [], "disc": { "track_counts": [1] } },
     { "id": "psx-scph-1001-bios", "label": "PlayStation SCPH-1001 BIOS", "accepted_extensions": ["bin", "rom"], "accepted_sha1": ["10155d8d6e6e832d6ea66db9bc098321fb5e8ebf"], "accepted_sha256": ["71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3"] },
     { "id": "spyro-dragon-openpete", "label": "Spyro the Dragon (NTSC-U SCUS-94228) OpenPete source", "kind": "psx-disc", "accepted_extensions": ["chd"], "accepted_sha1": ["1e08ae8df01acf7ee5d9cb6931b5f8c1bc905fcb"], "accepted_sha256": ["95f03abf97c9ff0b2a64888ed7dbbb4b59a7b4363cf188cd0a562b95cfd4809f"], "disc": { "track_counts": [1] } },
     { "id": "mega-man-x6-psx", "label": "Mega Man X6 (USA Rev 1) disc", "kind": "psx-disc", "accepted_extensions": ["chd"], "accepted_sha1": ["d4f7e08371027a87a3bf13311db5a4c56733f4ea"], "accepted_sha256": ["91ef53c12c3a3eb3362d51d524d3f83cd4ff8e68bf2d2ad6c5c8ea4e0310d318"], "disc": { "track_counts": [1] } },
@@ -374,6 +376,24 @@
       "executable_hints": { "windows-x86-64": ["TwistedMetal4_Recompiled.exe"], "linux-x86-64": ["TwistedMetal4_Recompiled"], "macos-x86-64": ["TwistedMetal4_Recompiled"], "macos-aarch64": ["TwistedMetal4_Recompiled"] },
       "persistent_paths": ["saves", "config", "game_options.json", "graphics.json", "input.json", "sound.json"],
       "runtime_subdirectory": "build-portcove"
+    },
+    {
+      "id": "yu-gi-oh-forbidden-memories-recompiled", "name": "Yu-Gi-Oh! Forbidden Memories: Recompiled", "summary": "PS1 static recompilation built locally from the verified original disc.",
+      "project_url": "https://github.com/Unchiga/YuGiOhForbiddenMemoriesRecomp", "support_tier": "beta", "channels": ["stable"],
+      "platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
+      "release": { "repository": "Unchiga/YuGiOhForbiddenMemoriesRecomp", "asset_hints": { "windows-x86-64": ["win-x64"] } }, "source_profile": "yu-gi-oh-forbidden-memories-psx",
+      "executable_hints": { "windows-x86-64": ["Yu_Gi_Oh_Forbidden_Memories_Recompiled.exe"] },
+      "persistent_paths": ["saves", "config", "mods", "settings.toml", "game_options.json", "graphics.json", "input.json", "sound.json", "input.ini", "keybinds.ini"],
+      "runtime_mutable_paths": ["psx_last_run_report.json"], "runtime_subdirectory": "build-portcove"
+    },
+    {
+      "id": "revelations-persona-recompiled", "name": "Revelations: Persona Recompiled", "summary": "PS1 static recompilation built locally from the verified original disc.",
+      "project_url": "https://github.com/NJH-1001/RevPRecompile", "support_tier": "beta", "channels": ["stable"],
+      "platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
+      "release": { "repository": "NJH-1001/RevPRecompile", "asset_hints": { "windows-x86-64": ["windows-x86_64-owned-input"] } }, "source_profile": "revelations-persona-psx",
+      "executable_hints": { "windows-x86-64": ["Revelations__Persona_Recompiled.exe"] },
+      "persistent_paths": ["saves", "config", "mods", "settings.toml", "game_options.json", "graphics.json", "input.json", "sound.json", "input.ini"],
+      "runtime_mutable_paths": ["psx_last_run_report.json"], "runtime_subdirectory": "build-portcove"
     },
     {
       "id": "beetle-recomp", "name": "Beetle Adventure Racing: Recompiled", "summary": "Native Beetle Adventure Racing recompilation with stable and opt-in continuous builds.",

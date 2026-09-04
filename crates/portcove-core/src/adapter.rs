@@ -1382,7 +1382,7 @@ fn validate_psx_disc_source(profile: &SourceProfile, path: &Path) -> Result<Sour
         } else {
             String::new()
         };
-        let volume_id = inspect_psx_volume_id(&data_track)?;
+        let volume_id = inspect_required_psx_volume_id(identity, &data_track)?;
         if let Some(identity) = identity {
             validate_disc_identity(identity, &sha1, &sha256, &volume_id)?;
         } else {
@@ -2045,6 +2045,17 @@ fn inspect_psx_volume_id(data_track: &Path) -> Result<String> {
         "PS1 data track has no readable ISO 9660 volume identity: {}",
         data_track.display()
     )))
+}
+
+fn inspect_required_psx_volume_id(
+    identity: Option<&DiscIdentityProfile>,
+    data_track: &Path,
+) -> Result<String> {
+    if identity.is_some_and(|entry| !entry.accepted_volume_ids.is_empty()) {
+        inspect_psx_volume_id(data_track)
+    } else {
+        Ok(String::new())
+    }
 }
 
 fn read_zip_source(
@@ -2840,6 +2851,24 @@ mod tests {
 
             assert_eq!(inspect_psx_volume_id(&path).unwrap(), "SCUS94491");
         }
+    }
+
+    #[test]
+    fn hash_only_psx_identity_does_not_require_an_iso_volume_label() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("hash-only.bin");
+        std::fs::write(&path, b"a data track without an ISO 9660 descriptor").unwrap();
+
+        assert_eq!(inspect_required_psx_volume_id(None, &path).unwrap(), "");
+
+        let volume_identity = DiscIdentityProfile {
+            label: "volume-qualified disc".into(),
+            accepted_sha1: Vec::new(),
+            accepted_sha256: Vec::new(),
+            accepted_volume_ids: vec!["SCUS94491".into()],
+            track_counts: vec![1],
+        };
+        assert!(inspect_required_psx_volume_id(Some(&volume_identity), &path).is_err());
     }
 
     #[test]

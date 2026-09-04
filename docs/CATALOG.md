@@ -82,6 +82,16 @@ entries with source, release, upstream, or native-platform blockers remain
 unqualified. This attestation does not imply qualification for any other
 declared platform.
 
+Yu-Gi-Oh! Forbidden Memories v0.5.3 and Revelations: Persona v0.1.1 have exact
+upstream Track 01 contracts and completed clean Windows managed builds,
+post-build manifest verification, registered-source rechecks, and responsive
+named-launcher checks from matching RomM CHDs. Removal and clean reinstallation
+also restored their generated input configuration byte-for-byte. Their
+`input.ini` files are persistent user configuration and
+`psx_last_run_report.json` is reviewed disposable runtime output. Neither entry
+claims automated or hands-on qualification until update, rollback, controls,
+gameplay, and real save/load evidence is complete.
+
 ## Adding or changing a port
 
 1. Capture or update the roadmap item and direct upstream evidence.

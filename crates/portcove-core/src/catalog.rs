@@ -434,12 +434,10 @@ impl Catalog {
                         .as_ref()
                         .is_none_or(|marker| !crate::runtime::overlaps(relative, marker));
                 let managed_psx_path = port.adapter == AdapterKind::PsxRecompManaged
-                    && port.runtime_source_materialization
-                        == Some(RuntimeSourceMaterialization::PsxRawSet)
                     && port
                         .runtime_source_filename
                         .as_ref()
-                        .is_some_and(|source| !crate::runtime::overlaps(relative, source));
+                        .is_none_or(|source| !crate::runtime::overlaps(relative, source));
                 let executable_overlap = port
                     .executable_hints
                     .values()
@@ -1378,6 +1376,46 @@ mod tests {
 
         assert_eq!(port.channels, vec![crate::ReleaseChannel::Beta]);
         assert_eq!(port.support_tier, crate::SupportTier::Beta);
+    }
+
+    #[test]
+    fn newly_qualified_psx_ports_use_exact_hash_only_disc_contracts() {
+        let catalog = Catalog::embedded().expect("catalog should load");
+        for (port_id, profile_id, sha1, executable) in [
+            (
+                "yu-gi-oh-forbidden-memories-recompiled",
+                "yu-gi-oh-forbidden-memories-psx",
+                "d5785a41900a10968d4a28a390666c4b9879b796",
+                "Yu_Gi_Oh_Forbidden_Memories_Recompiled.exe",
+            ),
+            (
+                "revelations-persona-recompiled",
+                "revelations-persona-psx",
+                "3e7d8019a3191a29a48bb9d574cf05b1bc998c06",
+                "Revelations__Persona_Recompiled.exe",
+            ),
+        ] {
+            let profile = catalog.source_profile(profile_id).unwrap();
+            assert_eq!(profile.accepted_sha1, vec![sha1]);
+            assert!(profile.accepted_sha256.is_empty());
+            assert_eq!(profile.disc.as_ref().unwrap().track_counts, vec![1]);
+
+            let port = catalog.port(port_id).unwrap();
+            assert_eq!(port.source_profile.as_deref(), Some(profile_id));
+            assert_eq!(port.platforms, vec![crate::Platform::WindowsX86_64]);
+            assert!(port.automated_tested_platforms.is_empty());
+            assert!(
+                port.executable_hints[&crate::Platform::WindowsX86_64]
+                    .iter()
+                    .any(|hint| hint == executable)
+            );
+            assert!(port.persistent_paths.iter().any(|path| path == "input.ini"));
+            assert!(
+                port.runtime_mutable_paths
+                    .iter()
+                    .any(|path| path == "psx_last_run_report.json")
+            );
+        }
     }
 
     #[test]
