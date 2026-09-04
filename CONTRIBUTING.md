@@ -6,7 +6,7 @@ Keep the core reusable, the catalog declarative, and the CLI stable for external
 
 Search the public [Portcove Roadmap](https://github.com/users/boburning/projects/1)
 before proposing work. For a newly discovered port, open the **New port /
-upstream candidate** form or capture a draft in seconds:
+upstream candidate** form or create its durable issue in seconds:
 
 ```powershell
 node scripts/roadmap.mjs capture-port --title "Project name" --url https://github.com/owner/project
@@ -14,8 +14,9 @@ node scripts/roadmap.mjs capture-port --title "Project name" --url https://githu
 
 Include the direct upstream, why it matters, initial platform and source
 observations, artifact integrity, persistence boundary, adapter fit, and exact
-resume condition. Very early candidates may stay drafts; actionable, high
-priority, or materially blocked work belongs in a repository issue.
+resume condition. Every independently catalogable or prioritizable port gets
+one durable issue immediately, initialized with neutral Inbox/Watchlist fields.
+Project drafts are only for fleeting non-port ideas.
 
 Use the **Product feature or engineering work** form for non-port changes. Its
 issue must state the user outcome, current evidence, scope, non-goals,

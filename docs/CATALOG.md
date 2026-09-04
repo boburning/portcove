@@ -21,17 +21,21 @@ the architecture or trust model. Admission requires:
   `portcove-core`; and
 - honest automated and manual qualification fields.
 
-Archived upstreams are not rejected solely for being archived. They must still
-have a useful immutable artifact, a stable direct manifest, and supportable
-source and user-data boundaries. Superseded, abandoned, non-runnable, or
-unverifiable projects remain ineligible.
+The currently enforced policy rejects archived upstream repositories. A
+dedicated Alpha 1 security issue owns the proposed narrower retired-project
+rule: no dynamic archived-upstream resolution, with support possible only after
+code, validation, and policy agree on a manually maintained direct manifest
+that pins every allowed artifact by SHA-256. Until that issue is complete,
+archived, superseded, abandoned, non-runnable, or unverifiable projects remain
+ineligible.
 
-Discovery starts as a draft item in the
-[Portcove Roadmap](https://github.com/users/boburning/projects/1), with the direct
-upstream URL and why it matters. Triage records platform, artifact-integrity,
-source, persistence, and adapter observations. Promote the item to an issue
-when it becomes actionable, high priority, materially blocked, or needs durable
-evidence. A newly cataloged port does not automatically become a global V1
+Discovery creates one durable issue immediately for every independently
+catalogable or independently prioritizable port, with the direct upstream URL,
+title identity, neutral Inbox/Watchlist fields, and an explicit statement that
+research intake does not grant support. Project drafts are only for fleeting
+non-port ideas. Triage records platform, artifact-integrity, source,
+persistence, adapter, blocker, and resume-condition evidence. A newly cataloged
+port does not automatically become a global V1
 blocker.
 
 ## Channels, support, and qualification

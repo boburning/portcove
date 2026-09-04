@@ -18,9 +18,13 @@ import {
   renderSnapshot,
   resolveSnapshotOutput,
   selectNextItems,
+  uxAuditOriginIds,
+  uxAuditOrigins,
   validateConfig,
   validateDurableIssueBody,
+  validatePlanOriginCoverage,
   validatePortIssueCoverage,
+  validateUxAuditOriginCoverage,
   viewMachineDrift,
 } from "./roadmap.mjs";
 
@@ -216,6 +220,65 @@ test("one-port-one-issue coverage rejects missing duplicate grouped and draft au
   assert.ok(validatePortIssueCoverage(catalog, [grouped], "boburning/portcove").some(value => value.includes("multiple catalog ports")));
   const draft = { title: "Draft only", "work type": "Port", content: { type: "DraftIssue", body: "<!-- portcove-port -->" } };
   assert.ok(validatePortIssueCoverage({ ports: [] }, [draft], "boburning/portcove").some(value => value.includes("not backed")));
+});
+
+test("one-port-one-issue coverage allows shared upstreams and rejects unsupported unlabeled research", () => {
+  const issue = (number, title, upstream, body) => ({
+    title,
+    "work type": "Port",
+    content: {
+      type: "Issue",
+      url: "https://github.com/boburning/portcove/issues/" + number,
+      body,
+    },
+  });
+  const first = issue(1, "[Port] One", "https://example.test/shared",
+    renderPortIssueBody({ title: "One", upstream: "https://example.test/shared" }));
+  const second = issue(2, "[Port] Two", "https://example.test/shared",
+    renderPortIssueBody({ title: "Two", upstream: "https://example.test/shared/" }));
+  assert.deepEqual(validatePortIssueCoverage({ ports: [] }, [first, second], "boburning/portcove"), []);
+  const unlabeled = issue(3, "[Port] Three", "https://example.test/three",
+    "<!-- portcove-port -->\n<!-- portcove-upstream: https://example.test/three -->");
+  assert.ok(validatePortIssueCoverage({ ports: [] }, [unlabeled], "boburning/portcove")
+    .some(value => value.includes("research/watchlist")));
+});
+
+test("final UX audit origins require complete unique enumerated canonical ownership", () => {
+  assert.equal(uxAuditOriginIds.length, 178);
+  const completeBody = "<!-- portcove-ux-audit-origins: " + uxAuditOriginIds.join(" ") + " -->";
+  const item = (number, body) => ({
+    title: "Owner " + number,
+    content: { type: "Issue", url: "https://github.com/boburning/portcove/issues/" + number, body },
+  });
+  assert.deepEqual(uxAuditOrigins(completeBody), uxAuditOriginIds);
+  assert.deepEqual(validateUxAuditOriginCoverage([item(1, completeBody)]), []);
+
+  const missing = "<!-- portcove-ux-audit-origins: " + uxAuditOriginIds.slice(1).join(" ") + " -->";
+  assert.ok(validateUxAuditOriginCoverage([item(1, missing)]).some(value => value.includes("lacks a canonical issue: SYS-01")));
+
+  const duplicate = "<!-- portcove-ux-audit-origins: SYS-01 -->";
+  assert.ok(validateUxAuditOriginCoverage([item(1, completeBody), item(2, duplicate)])
+    .some(value => value.includes("duplicate owners: SYS-01")));
+
+  for (const [body, expected] of [
+    ["<!-- portcove-ux-audit-origins: SYS-99 -->", "Unknown UX audit origin"],
+    ["<!-- portcove-ux-audit-origins: SYS-1 -->", "Malformed UX audit origin"],
+    ["<!-- portcove-ux-audit-origins: SYS-01..SYS-14 -->", "range must enumerate"],
+    ["<!-- portcove-wording-audit-origins: WORD-01 -->", "Superseded wording audit"],
+  ]) {
+    assert.ok(validateUxAuditOriginCoverage([item(1, body)]).some(value => value.includes(expected)));
+  }
+});
+
+test("supported-source plan origin has exactly one canonical owner", () => {
+  const marker = "<!-- portcove-origins: PCV-PLAN-SUPPORTED-SOURCE-PROVENANCE-2026-09-04 -->";
+  const item = (number, body) => ({
+    title: "Owner " + number,
+    content: { type: "Issue", url: "https://github.com/boburning/portcove/issues/" + number, body },
+  });
+  assert.deepEqual(validatePlanOriginCoverage([item(36, marker)]), []);
+  assert.ok(validatePlanOriginCoverage([])[0].includes("found 0"));
+  assert.ok(validatePlanOriginCoverage([item(36, marker), item(99, marker)])[0].includes("found 2"));
 });
 
 test("RoadmapClient capture uses mocked gh output and stores planning fields only in Project calls", () => {

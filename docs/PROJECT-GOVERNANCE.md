@@ -76,6 +76,13 @@ sections. Preserve imported identifiers in one machine-searchable issue comment 
 `<!-- portcove-origins: PCV-REAUD-001 -->`. Group findings with one root cause;
 create sub-issues only when they can be implemented and validated independently.
 
+Final audit and implementation-plan origins also remain machine-searchable.
+Every imported UX audit ID has exactly one canonical issue owner through a
+portcove-ux-audit-origins comment, and the supported-source plan has one parent
+owner through its portcove-origins comment. The roadmap doctor rejects missing,
+duplicate, malformed, unknown, or range-abbreviated UX IDs and rejects duplicate
+supported-source plan ownership.
+
 ## Working rules
 
 Before substantial work, read the linked issue, its dependencies, and the live
@@ -119,8 +126,9 @@ Use `node scripts/roadmap.mjs capture-port` for fast durable port discovery,
 `capture-feature` for feature intake, `promote` for draft-to-issue conversion,
 `set` and `move` for planning changes, and `next` for the ordered work queue.
 `doctor` verifies machine-readable identity, visibility, repository linkage,
-field types/options, view layout/filter/visible fields, and the one-port/one-issue
-coverage contract. Grouping, sorting, auto-add, and completion workflows remain
+field types/options, view layout/filter/visible fields, the one-port/one-issue
+coverage contract, final UX origin ownership, and supported-source plan
+ownership. Grouping, sorting, auto-add, and completion workflows remain
 explicit manual confirmations. `bootstrap` reconciles the live Project; ordinary CI runs
 only the offline `check` and tests.
 

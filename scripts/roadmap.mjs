@@ -16,6 +16,23 @@ const durableIssueHeadings = [
   "Dependencies and blockers", "Completion evidence",
 ];
 const portMarker = "<!-- portcove-port -->";
+const uxAuditNamespaces = {
+  SYS: 14,
+  UI: 47,
+  DLG: 7,
+  CLI: 24,
+  ERR: 20,
+  CAT: 19,
+  DOC: 29,
+  OPS: 18,
+};
+export const uxAuditOriginIds = Object.freeze(Object.entries(uxAuditNamespaces)
+  .flatMap(([namespace, count]) => Array.from(
+    { length: count },
+    (_, index) => namespace + "-" + String(index + 1).padStart(2, "0"),
+  )));
+const uxAuditOriginSet = new Set(uxAuditOriginIds);
+const supportedSourcePlanOrigin = "PCV-PLAN-SUPPORTED-SOURCE-PROVENANCE-2026-09-04";
 const volatileKeys = new Set([
   "items", "item", "issues", "drafts", "status_value", "priority_value",
   "horizon_value", "target_release_value", "position", "positions",
@@ -136,6 +153,58 @@ function portCatalogMarkers(body) {
     .map(match => match[1]);
 }
 
+function portUpstreamMarkers(body) {
+  return [...String(body ?? "").matchAll(/<!--\s*portcove-upstream:\s*([^\s>]+)\s*-->/gi)]
+    .map(match => match[1]);
+}
+
+export function uxAuditOrigins(body) {
+  const markers = [...String(body ?? "").matchAll(/<!--\s*portcove-ux-audit-origins:\s*([\s\S]*?)-->/gi)];
+  return markers.flatMap(match => match[1].trim().split(/[\s,]+/).filter(Boolean));
+}
+
+export function validateUxAuditOriginCoverage(items) {
+  const errors = [];
+  const owners = new Map();
+  for (const item of items ?? []) {
+    const body = itemBody(item);
+    const url = itemUrl(item) ?? itemTitle(item);
+    if (/portcove-wording-audit-origins/i.test(body)
+      || /earlier\s+Portcove\s+wording\s+audit\s+(?:is|as)\s+(?:the\s+)?current\s+authority/i.test(body)) {
+      errors.push("Superseded wording audit is referenced as current authority: " + url);
+    }
+    for (const origin of uxAuditOrigins(body)) {
+      if (/(?:\.\.|–|—|\bthrough\b)/i.test(origin)) {
+        errors.push("UX audit origin range must enumerate every ID: " + origin + " (" + url + ")");
+        continue;
+      }
+      if (!/^[A-Z]+-\d{2}$/.test(origin)) {
+        errors.push("Malformed UX audit origin " + origin + ": " + url);
+        continue;
+      }
+      if (!uxAuditOriginSet.has(origin)) {
+        errors.push("Unknown UX audit origin " + origin + ": " + url);
+        continue;
+      }
+      const matches = owners.get(origin) ?? [];
+      matches.push(url);
+      owners.set(origin, matches);
+    }
+  }
+  for (const origin of uxAuditOriginIds) {
+    const matches = owners.get(origin) ?? [];
+    if (matches.length === 0) errors.push("UX audit origin lacks a canonical issue: " + origin);
+    if (matches.length > 1) errors.push("UX audit origin has duplicate owners: " + origin + " (" + matches.join(", ") + ")");
+  }
+  return errors;
+}
+
+export function validatePlanOriginCoverage(items) {
+  const owners = (items ?? []).filter(item => itemBody(item).includes(supportedSourcePlanOrigin));
+  if (owners.length === 1) return [];
+  return ["Supported-source plan origin must have exactly one canonical issue owner; found " + owners.length];
+}
+
 export function renderPortIssueBody({ title, upstream, catalogId, currentEvidence = "Initial intake; evidence pending triage.", blocker = "No current blocker has been established. Exact resume condition pending triage." }) {
   const catalogLine = catalogId ?? "Not assigned (researched candidate)";
   const catalogMarker = catalogId ? `\n<!-- portcove-catalog-id: ${catalogId} -->` : "";
@@ -160,6 +229,10 @@ export function validatePortIssueCoverage(catalog, items, repository) {
     }
     const body = itemBody(item);
     if (!body.includes(portMarker)) errors.push(`Port issue lacks the canonical port marker: ${url}`);
+    const upstreams = portUpstreamMarkers(body);
+    if (upstreams.length !== 1) {
+      errors.push("Port issue must claim exactly one direct upstream: " + url + " (" + upstreams.length + ")");
+    }
     const ids = portCatalogMarkers(body);
     if (ids.length > 1) errors.push(`One issue claims multiple catalog ports: ${url} (${ids.join(", ")})`);
     if (ids.length === 1) {
@@ -168,6 +241,9 @@ export function validatePortIssueCoverage(catalog, items, repository) {
       const matches = issuesByCatalogId.get(id) ?? [];
       matches.push(url);
       issuesByCatalogId.set(id, matches);
+    } else if (!/Catalog ID:\s*Not assigned \(researched candidate\)/i.test(body)
+      || !/(?:does not grant support|not supported merely|does not change catalog\.json)/i.test(body)) {
+      errors.push("Non-catalog port issue must identify research/watchlist status and disclaim support: " + url);
     }
   }
   for (const id of catalogIds) {
@@ -783,6 +859,19 @@ async function offlineCheck() {
   } catch (error) {
     if (error.code !== "ENOENT") throw error;
   }
+  const archives = [
+    ["docs/archive/2026-09-04-supported-source-provenance-implementation-plan.md", /Appendix A supersedes Workstream 1/i],
+    ["docs/archive/2026-09-04-ux-copy-content-interaction-audit.md", /supersedes the earlier Portcove wording audit/i],
+    ["docs/archive/2026-09-03-prelaunch-feature-implementation-plan.md", /Appendix A supersedes (?:its |the )?Workstream 1/i],
+  ];
+  for (const [relative, requiredText] of archives) {
+    const archiveText = await readFile(path.join(projectRoot, relative), "utf8");
+    if (!/historical (?:implementation-planning|audit|planning) evidence/i.test(archiveText)
+      || !/not (?:a |the )?(?:live )?(?:roadmap|priority|status) authority/i.test(archiveText)
+      || !requiredText.test(archiveText)) {
+      throw new Error(relative + " lacks its required historical/supersession banner");
+    }
+  }
   const currentDocs = await Promise.all([
     "README.md", "AGENTS.md", "CONTRIBUTING.md", "docs/CATALOG.md", "docs/ROADMAP.md",
     "docs/PROJECT-GOVERNANCE.md", "docs/RELEASING.md",
@@ -861,11 +950,18 @@ async function main(argv) {
       repositories: audit?.repositories?.nodes ?? [],
     });
     const catalog = JSON.parse(await readFile(catalogPath, "utf8"));
-    const portErrors = validatePortIssueCoverage(catalog, client.itemList(number), config.repository);
-    if (drift.length || portErrors.length) {
-      throw new Error(`Project drift:\n${[...drift, ...portErrors].map(value => `- ${value}`).join("\n")}`);
+    const items = client.itemList(number);
+    const roadmapErrors = [
+      ...validatePortIssueCoverage(catalog, items, config.repository),
+      ...validateUxAuditOriginCoverage(items),
+      ...validatePlanOriginCoverage(items),
+    ];
+    if (drift.length || roadmapErrors.length) {
+      throw new Error(`Project drift:\n${[...drift, ...roadmapErrors].map(value => `- ${value}`).join("\n")}`);
     }
-    console.log(`Portcove Roadmap #${number} is reachable at ${details.url ?? project.url}; identity, PUBLIC visibility, repository linkage, ${fields.length} fields, ${views.length} view layouts/filters/visible-field sets, and ${catalog.ports.length} canonical catalog issues are verified.`);
+    console.log(`Portcove Roadmap #${number} is reachable at ${details.url ?? project.url}.`);
+    console.log(`Verified identity, PUBLIC visibility, repository linkage, ${fields.length} fields, and ${views.length} view layouts/filters/visible-field sets.`);
+    console.log(`Verified ${catalog.ports.length} canonical catalog issues, one supported-source plan owner, and all ${uxAuditOriginIds.length} final UX audit origins.`);
     console.log(`Manual confirmation required because GitHub does not expose a reliable readable configuration API:\n${manualUiChecklist(config).join("\n")}`);
     return;
   }
