@@ -433,6 +433,13 @@ impl Catalog {
                         .setup_marker
                         .as_ref()
                         .is_none_or(|marker| !crate::runtime::overlaps(relative, marker));
+                let managed_psx_path = port.adapter == AdapterKind::PsxRecompManaged
+                    && port.runtime_source_materialization
+                        == Some(RuntimeSourceMaterialization::PsxRawSet)
+                    && port
+                        .runtime_source_filename
+                        .as_ref()
+                        .is_some_and(|source| !crate::runtime::overlaps(relative, source));
                 let executable_overlap = port
                     .executable_hints
                     .values()
@@ -452,7 +459,10 @@ impl Catalog {
                         .components()
                         .any(|component| !matches!(component, Component::Normal(_)))
                     || !runtime_mutable_paths.insert(relative.as_str())
-                    || (!staged_source_path && !generated_cache_source_path && !upstream_setup_path)
+                    || (!staged_source_path
+                        && !generated_cache_source_path
+                        && !upstream_setup_path
+                        && !managed_psx_path)
                     || executable_overlap
                     || portcove_metadata
                     || port
@@ -557,17 +567,23 @@ impl Catalog {
                             })
                     }
                     RuntimeSourceMaterialization::PsxRawSet => {
-                        port.adapter == AdapterKind::StagedSourcePortable
-                            && port.source_profile.as_ref().is_some_and(|profile_id| {
-                                self.document.source_profiles.iter().any(|profile| {
-                                    profile.id == *profile_id
-                                        && profile.kind == SourceKind::PsxDisc
-                                        && profile
-                                            .disc
-                                            .as_ref()
-                                            .is_some_and(|disc| disc.discs.len() >= 2)
-                                })
+                        matches!(
+                            port.adapter,
+                            AdapterKind::StagedSourcePortable | AdapterKind::PsxRecompManaged
+                        ) && port.source_profile.as_ref().is_some_and(|profile_id| {
+                            self.document.source_profiles.iter().any(|profile| {
+                                profile.id == *profile_id
+                                    && profile.kind == SourceKind::PsxDisc
+                                    && profile.disc.as_ref().is_some_and(|disc| {
+                                        disc.discs.len() >= 2
+                                            && (port.adapter != AdapterKind::PsxRecompManaged
+                                                || disc
+                                                    .discs
+                                                    .iter()
+                                                    .all(|identity| identity.track_counts == [1]))
+                                    })
                             })
+                        })
                     }
                     RuntimeSourceMaterialization::Ps2Iso => {
                         port.adapter == AdapterKind::UpstreamManagedSetup
@@ -1803,6 +1819,38 @@ mod tests {
                 port.persistent_paths.iter().any(|value| value == path),
                 "Severed Chains persistence contract is missing {path}"
             );
+        }
+    }
+
+    #[test]
+    fn final_fantasy_vii_uses_an_immutable_three_disc_runtime_set() {
+        let catalog = Catalog::embedded().expect("catalog should load");
+        let profile = catalog.source_profile("final-fantasy-vii-psx").unwrap();
+        assert_eq!(profile.kind, SourceKind::PsxDisc);
+        assert_eq!(profile.disc.as_ref().unwrap().discs.len(), 3);
+
+        let port = catalog.port("final-fantasy-vii-recompiled").unwrap();
+        assert_eq!(port.adapter, AdapterKind::PsxRecompManaged);
+        assert_eq!(
+            port.runtime_source_materialization,
+            Some(RuntimeSourceMaterialization::PsxRawSet)
+        );
+        assert_eq!(
+            port.runtime_source_filename.as_deref(),
+            Some("runtime-discs")
+        );
+        assert_eq!(port.launch_arguments, ["--no-launcher"]);
+        assert_eq!(port.automated_tested_platforms, [Platform::WindowsX86_64]);
+        for path in ["input.ini", "keybinds.ini"] {
+            assert!(port.persistent_paths.iter().any(|value| value == path));
+        }
+        for path in [
+            "bios.cfg",
+            "disc.cfg",
+            "psx_freeze_heartbeat.json",
+            "psx_last_run_report.json",
+        ] {
+            assert!(port.runtime_mutable_paths.iter().any(|value| value == path));
         }
     }
 

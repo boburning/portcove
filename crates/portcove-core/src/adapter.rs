@@ -21,6 +21,7 @@ use crate::{
 };
 
 const UPSTREAM_SETUP_METADATA: &str = ".portcove-upstream-setup.json";
+const MANAGED_PSX_RUNTIME_CONFIG: &str = ".portcove-psx-runtime.toml";
 
 pub trait Adapter: Send + Sync {
     fn kind(&self) -> AdapterKind;
@@ -216,13 +217,18 @@ impl Adapter for StandardAdapter {
         if self.0 == AdapterKind::N64RecompPortable || port.portable_marker {
             std::fs::write(working_directory.join("portable.txt"), b"")?;
         }
+        let immutable_managed_psx_source = self.0 == AdapterKind::PsxRecompManaged
+            && port.runtime_source_materialization == Some(RuntimeSourceMaterialization::PsxRawSet);
         if self.0 == AdapterKind::PsxRecompManaged
+            && !immutable_managed_psx_source
             && let Some(source) = source
         {
             let sources = psx_runtime_source_paths(source)?;
             crate::psx::rewrite_game_discs(&working_directory.join("game.toml"), &sources)?;
         }
-        if let (Some(source), Some(filename)) = (source, &port.runtime_source_filename) {
+        if !immutable_managed_psx_source
+            && let (Some(source), Some(filename)) = (source, &port.runtime_source_filename)
+        {
             let stored_source = working_directory.join(filename);
             if let Some(parent) = stored_source.parent() {
                 std::fs::create_dir_all(parent)?;
@@ -241,6 +247,9 @@ impl Adapter for StandardAdapter {
                 );
             }
         }
+        let managed_psx_runtime_config = immutable_managed_psx_source
+            .then(|| prepare_managed_psx_runtime_config(port, &working_directory))
+            .transpose()?;
         if self.0 == AdapterKind::UpstreamManagedSetup {
             let source_path = port
                 .runtime_source_filename
@@ -292,6 +301,21 @@ impl Adapter for StandardAdapter {
                 match source {
                     Some(path) => vec![crate::path::unicode(path, "source")?],
                     None => Vec::new(),
+                }
+            }
+            AdapterKind::PsxRecompManaged => {
+                if let Some(path) = managed_psx_runtime_config {
+                    vec![
+                        "--game".into(),
+                        crate::path::unicode(&path, "managed PS1 runtime config")?,
+                        "--memcard-dir".into(),
+                        crate::path::unicode(
+                            &working_directory.join("saves"),
+                            "managed PS1 memory-card directory",
+                        )?,
+                    ]
+                } else {
+                    Vec::new()
                 }
             }
             _ => Vec::new(),
@@ -486,7 +510,12 @@ fn verify_runtime_source_hashes(
 /// These are mutable integrity metadata, not persistent user data or arbitrary exclusions.
 pub(crate) fn generated_metadata(port: &PortDefinition) -> Result<Vec<String>> {
     let mut paths = Vec::new();
-    for destination in port.runtime_source_filename.iter().chain(
+    let immutable_managed_psx_source = port.adapter == AdapterKind::PsxRecompManaged
+        && port.runtime_source_materialization == Some(RuntimeSourceMaterialization::PsxRawSet);
+    let single_destination = (!immutable_managed_psx_source)
+        .then_some(port.runtime_source_filename.as_ref())
+        .flatten();
+    for destination in single_destination.into_iter().chain(
         port.runtime_source_set
             .iter()
             .map(|source| &source.destination),
@@ -505,7 +534,86 @@ pub(crate) fn generated_metadata(port: &PortDefinition) -> Result<Vec<String>> {
     if port.adapter == crate::AdapterKind::UpstreamManagedSetup {
         paths.push(UPSTREAM_SETUP_METADATA.into());
     }
+    if immutable_managed_psx_source {
+        paths.push(MANAGED_PSX_RUNTIME_CONFIG.into());
+    }
     Ok(paths)
+}
+
+fn prepare_managed_psx_runtime_config(
+    port: &PortDefinition,
+    working_directory: &Path,
+) -> Result<PathBuf> {
+    let runtime_source = port
+        .runtime_source_filename
+        .as_ref()
+        .ok_or_else(|| PortcoveError::state("managed PS1 runtime source has no destination"))?;
+    let source_directory = working_directory.join(runtime_source);
+    let mut cues = std::fs::read_dir(&source_directory)
+        .map_err(|error| {
+            PortcoveError::launch(format!(
+                "managed PS1 runtime source was not found at {}: {error}",
+                source_directory.display()
+            ))
+        })?
+        .filter_map(std::result::Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(is_numbered_psx_cue)
+        })
+        .collect::<Vec<_>>();
+    cues.sort_by_key(|path| {
+        path.file_name()
+            .map(|name| name.to_string_lossy().to_ascii_lowercase())
+            .unwrap_or_default()
+    });
+    if cues.len() < 2 {
+        return Err(PortcoveError::launch(format!(
+            "managed PS1 runtime source requires at least two cue sheets under {}",
+            source_directory.display()
+        )));
+    }
+    for (index, cue) in cues.iter().enumerate() {
+        let expected = format!("disc-{:02}.cue", index + 1);
+        if cue
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_none_or(|name| !name.eq_ignore_ascii_case(&expected))
+            || !cue.with_extension("bin").is_file()
+        {
+            return Err(PortcoveError::launch(format!(
+                "managed PS1 runtime source is missing the sequential {expected} and BIN pair"
+            )));
+        }
+    }
+
+    let base_config = working_directory.join("game.toml");
+    if !base_config.is_file() {
+        return Err(PortcoveError::launch(format!(
+            "managed PS1 game config was not found at {}",
+            base_config.display()
+        )));
+    }
+    let runtime_config = working_directory.join(MANAGED_PSX_RUNTIME_CONFIG);
+    let temporary = working_directory.join(format!(".portcove-psx-runtime-{}.tmp", Uuid::new_v4()));
+    std::fs::copy(&base_config, &temporary)?;
+    if let Err(error) = crate::psx::rewrite_game_discs(&temporary, &cues) {
+        let _ = std::fs::remove_file(&temporary);
+        return Err(error);
+    }
+    replace_atomic(&temporary, &runtime_config)?;
+    Ok(runtime_config)
+}
+
+fn is_numbered_psx_cue(name: &str) -> bool {
+    let bytes = name.as_bytes();
+    bytes.len() == 11
+        && bytes[..5].eq_ignore_ascii_case(b"disc-")
+        && bytes[5].is_ascii_digit()
+        && bytes[6].is_ascii_digit()
+        && bytes[7..].eq_ignore_ascii_case(b".cue")
 }
 
 fn runtime_source_marker_path(destination: &Path) -> Result<PathBuf> {
@@ -809,6 +917,14 @@ fn materialize_psx_bin_cue(source: &Path, destination: &Path) -> Result<()> {
 }
 
 fn materialize_psx_raw_set(source: &Path, destination: &Path) -> Result<()> {
+    materialize_psx_set(source, destination, false)
+}
+
+pub(crate) fn materialize_psx_cue_set(source: &Path, destination: &Path) -> Result<()> {
+    materialize_psx_set(source, destination, true)
+}
+
+fn materialize_psx_set(source: &Path, destination: &Path, retain_cues: bool) -> Result<()> {
     if !source.is_dir() {
         return Err(PortcoveError::source(format!(
             "multi-disc PS1 runtime extraction requires a CHD directory: {}",
@@ -832,9 +948,42 @@ fn materialize_psx_raw_set(source: &Path, destination: &Path) -> Result<()> {
         for (index, source) in sources.iter().enumerate() {
             let extracted = temporary.join(format!(".disc-{:02}", index + 1));
             let cue = materialize_psx_chd(source, &extracted)?;
-            let (_, data_track) = inspect_psx_cue(&cue)?;
-            let destination = temporary.join(format!("disc-{:02}.bin", index + 1));
-            std::fs::rename(&data_track, &destination)?;
+            let (track_count, data_track) = inspect_psx_cue(&cue)?;
+            let bin_name = format!("disc-{:02}.bin", index + 1);
+            let bin_destination = temporary.join(&bin_name);
+            std::fs::rename(&data_track, &bin_destination)?;
+            if retain_cues {
+                if track_count != 1 {
+                    return Err(PortcoveError::source(format!(
+                        "managed PS1 runtime source requires one data track per disc; {} has {track_count}",
+                        source.display()
+                    )));
+                }
+                let cue_body = std::fs::read_to_string(&cue)?;
+                let mut file_lines = 0_u32;
+                let rewritten = cue_body
+                    .lines()
+                    .map(|line| {
+                        if line.trim_start().starts_with("FILE ") {
+                            file_lines += 1;
+                            format!("FILE \"{bin_name}\" BINARY")
+                        } else {
+                            line.to_string()
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                if file_lines != 1 {
+                    return Err(PortcoveError::source(format!(
+                        "managed PS1 cue sheet must contain exactly one FILE entry: {}",
+                        cue.display()
+                    )));
+                }
+                std::fs::write(
+                    temporary.join(format!("disc-{:02}.cue", index + 1)),
+                    format!("{rewritten}\n"),
+                )?;
+            }
             std::fs::remove_dir_all(&extracted)?;
         }
         Ok(())
@@ -1537,7 +1686,7 @@ pub(crate) fn verify_source_storage_identity(source: &SourceRecord, role: &str) 
     Ok(())
 }
 
-fn aggregate_sha256(hashes: &[String]) -> String {
+pub(crate) fn aggregate_sha256(hashes: &[String]) -> String {
     if let [only] = hashes {
         return only.clone();
     }
@@ -2256,6 +2405,66 @@ mod tests {
         assert_eq!(
             descriptor["customPath"],
             library.user_dir("dusklight").to_string_lossy().as_ref()
+        );
+    }
+
+    #[test]
+    fn managed_psx_raw_sets_remain_immutable_during_launch_preparation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = temporary.path().join("install");
+        let runtime = install.join("build-portcove");
+        let raw_set = runtime.join("runtime-discs");
+        let source = temporary.path().join("registered-chds");
+        std::fs::create_dir_all(&raw_set).unwrap();
+        std::fs::create_dir_all(&source).unwrap();
+        std::fs::write(runtime.join("Final_Fantasy_7.exe"), b"test").unwrap();
+        std::fs::write(raw_set.join("disc-01.bin"), b"disc one").unwrap();
+        std::fs::write(raw_set.join("disc-02.bin"), b"disc two").unwrap();
+        std::fs::write(raw_set.join("disc-03.bin"), b"disc three").unwrap();
+        for index in 1..=3 {
+            std::fs::write(
+                raw_set.join(format!("disc-{index:02}.cue")),
+                format!(
+                    "FILE \"disc-{index:02}.bin\" BINARY\n  TRACK 01 MODE2/2352\n    INDEX 01 00:00:00\n"
+                ),
+            )
+            .unwrap();
+        }
+        let config = runtime.join("game.toml");
+        let expected = "[game]\ndiscs = [\n  \"runtime-discs/disc-01.cue\",\n  \"runtime-discs/disc-02.cue\",\n  \"runtime-discs/disc-03.cue\",\n]\n";
+        std::fs::write(&config, expected).unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("final-fantasy-vii-recompiled").unwrap();
+
+        let spec = AdapterRegistry
+            .get(AdapterKind::PsxRecompManaged)
+            .launch_spec(
+                &library,
+                port,
+                Platform::WindowsX86_64,
+                &install,
+                Some(&source),
+            )
+            .unwrap();
+
+        assert_eq!(spec.working_directory, runtime);
+        assert_eq!(std::fs::read_to_string(config).unwrap(), expected);
+        assert_eq!(spec.arguments[0], "--no-launcher");
+        assert_eq!(spec.arguments[1], "--game");
+        let runtime_config = Path::new(&spec.arguments[2]);
+        assert_eq!(spec.arguments[3], "--memcard-dir");
+        assert_eq!(Path::new(&spec.arguments[4]), runtime.join("saves"));
+        let generated = std::fs::read_to_string(runtime_config).unwrap();
+        for index in 1..=3 {
+            let absolute = raw_set.join(format!("disc-{index:02}.cue"));
+            let quoted = serde_json::to_string(&absolute.to_string_lossy()).unwrap();
+            assert!(generated.contains(&quoted));
+        }
+        assert!(!runtime.join("runtime-discs.portcove-source.json").exists());
+        assert_eq!(
+            generated_metadata(port).unwrap(),
+            vec![MANAGED_PSX_RUNTIME_CONFIG.to_string()]
         );
     }
 
