@@ -1,6 +1,6 @@
 # Signed catalog delivery, format 1
 
-This optional local-first contract updates metadata for the existing V1 catalog. No publisher key, production private key, server, account, or scheduled fetch is configured by default. Local files work without a network; an explicitly requested HTTPS fetch carries no Portcove/GitHub credential and follows no redirects. The optional advisory relay and desktop self-updater are separate features.
+This optional local-first contract updates metadata for the embedded catalog. No publisher key, production private key, server, account, or scheduled fetch is configured by default. Local files work without a network; an explicitly requested HTTPS fetch carries no Portcove/GitHub credential and follows no redirects. The optional advisory relay and desktop self-updater are separate features.
 
 ## Publisher format
 
@@ -14,7 +14,7 @@ The signing message is the byte concatenation of:
 
 The payload object has exactly `sequence`, `issued_at`, `expires_at`, and `catalog`. Sequence is a positive integer at most `9007199254740991`; times are integer Unix seconds. Issuance cannot be in the future, expiry must be in the future and later than issuance, and validity cannot exceed 366 days. The embedded `catalog` is the ordinary schema-1 catalog document, not a CLI response envelope. Consumers use `ed25519-dalek` strict verification and reject weak keys. See the [verifier's primary documentation](https://docs.rs/ed25519-dalek/3.0.0/ed25519_dalek/struct.VerifyingKey.html) and [RFC 8032](https://www.rfc-editor.org/rfc/rfc8032).
 
-All normal core catalog validation runs before admission. Source profiles, V1 membership, executable/setup/source-materialization contracts, and persistent-data ownership must match the embedded application catalog. Changes to those contracts ship in an application update. Allowed metadata includes names, descriptions, project URLs, support/channel/platform declarations, qualification metadata, release resolution, and upstream status. A signed catalog cannot bypass release SHA-256 verification or execute an arbitrary adapter.
+All normal core catalog validation runs before admission. Source profiles, embedded entry identity, executable/setup/source-materialization contracts, and persistent-data ownership must match the embedded application catalog. Changes to those contracts ship in an application update. Allowed metadata includes names, descriptions, project URLs, support/channel/platform declarations, qualification metadata, release resolution, and upstream status. Product-level V1 scope remains a Project/release-gate decision, not catalog membership. A signed catalog cannot bypass release SHA-256 verification or execute an arbitrary adapter.
 
 ## Producing and reviewing an envelope
 

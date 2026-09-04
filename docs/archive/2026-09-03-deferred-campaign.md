@@ -1,6 +1,10 @@
-# Deferred campaign evidence
+# Deferred campaign evidence (historical)
 
-This record complements the live queue in [DEFERRED.md](DEFERRED.md). It distinguishes engineering checks from the user's physical observations. Local qualification libraries, owned sources, credentials, and generated artifacts are not repository fixtures. The sections record successive checkpoints; later completed capabilities supersede earlier next-step notes.
+> **Historical evidence — 2026-09-03.** This dated campaign log is preserved
+> for implementation and human-validation provenance. It is not current
+> planning authority; use the live Portcove Roadmap for active work.
+
+This record complemented the former live queue in [the archived deferred ledger](2026-09-03-deferred-ledger.md). It distinguishes engineering checks from the user's physical observations. Local qualification libraries, owned sources, credentials, and generated artifacts are not repository fixtures. The sections record successive checkpoints; later completed capabilities supersede earlier next-step notes.
 
 ## PCV-DEF-001 — Public GitHub App completed, 2026-09-03
 

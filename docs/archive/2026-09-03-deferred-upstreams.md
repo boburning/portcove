@@ -1,6 +1,10 @@
-# Direct upstream review — 2026-09-03
+# Direct upstream review — 2026-09-03 (historical)
 
-The campaign fetched repository metadata and the eight most recent release records from each of these 70 direct GitHub repositories. All requests succeeded; all repositories were active (not archived). This is release inventory evidence, not a grant of artifact, source, platform, or gameplay qualification. Catalog channels remain authoritative: a most-recent prerelease does not replace a stable selection. The digest column counts assets with GitHub-provided SHA-256 values; sidecars are named separately and still require the normal resolver checks. Game-specific decisions and exact resume actions remain in [DEFERRED.md](DEFERRED.md).
+> **Historical evidence.** This upstream inventory is a dated research
+> snapshot, not current planning or catalog authority. Recheck upstream state
+> before acting and use the live Portcove Roadmap for current work.
+
+The campaign fetched repository metadata and the eight most recent release records from each of these 70 direct GitHub repositories. All requests succeeded; all repositories were active (not archived). This is release inventory evidence, not a grant of artifact, source, platform, or gameplay qualification. Catalog channels remain authoritative: a most-recent prerelease does not replace a stable selection. The digest column counts assets with GitHub-provided SHA-256 values; sidecars are named separately and still require the normal resolver checks. Game-specific decisions and exact resume actions from that date remain in [the archived deferred ledger](2026-09-03-deferred-ledger.md).
 
 | Direct repository | Most recent listed release | Published | GitHub SHA-256 / all assets | Checksum sidecars |
 |---|---|---|---|---|

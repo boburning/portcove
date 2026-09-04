@@ -2,6 +2,27 @@
 
 Keep the core reusable, the catalog declarative, and the CLI stable for external frontends. Avoid game-specific branches in the CLI or React app; add catalog metadata or a family-level adapter instead.
 
+## Start with the roadmap
+
+Search the public [Portcove Roadmap](https://github.com/users/boburning/projects/1)
+before proposing work. For a newly discovered port, open the **New port /
+upstream candidate** form or capture a draft in seconds:
+
+```powershell
+node scripts/roadmap.mjs capture-port --title "Project name" --url https://github.com/owner/project
+```
+
+Include the direct upstream, why it matters, initial platform and source
+observations, artifact integrity, persistence boundary, adapter fit, and exact
+resume condition. Very early candidates may stay drafts; actionable, high
+priority, or materially blocked work belongs in a repository issue.
+
+Use the **Product feature or engineering work** form for non-port changes. Its
+issue must state the user outcome, current evidence, scope, non-goals,
+acceptance criteria, required tests, documentation impact, dependencies, and
+completion evidence. Priority, horizon, and target release belong only in the
+Project.
+
 Before submitting a change:
 
 ```powershell
@@ -20,4 +41,9 @@ Keep commits free of source game data, signing secrets, generated build output, 
 
 After a successful Windows Tauri build, `scripts/package-local.ps1` refreshes the local installer, CLI, source archive, and prints their SHA-256 hashes. It refuses an output path outside the workspace and excludes build, dependency, test-library, and generated-schema directories from the source archive.
 
-When a change deliberately postpones interactive, physical, or external work, add or update its stable entry in `docs/DEFERRED.md`. Automated evidence must not close an item that explicitly requires human observation.
+Link every pull request to its durable issue, describe the user outcome and
+non-goals, list exact validation commands, and move the Project item to In
+progress or Validating. Keep interactive, physical, or external work Blocked or
+Deferred with its exact resume condition. Automated evidence must not close an
+item that explicitly requires human observation. Do not create a second backlog
+in repository documentation; see [PROJECT-GOVERNANCE.md](docs/PROJECT-GOVERNANCE.md).

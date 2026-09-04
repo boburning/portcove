@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "owner": "boburning",
+  "repository": "boburning/portcove",
+  "active_release": "Alpha 1",
+  "project": {
+    "number": 1,
+    "title": "Portcove Roadmap",
+    "visibility": "PUBLIC",
+    "description": "One live planning surface for Portcove product work, qualification, and continuous port admission.",
+    "readme": "Project = volatile planning authority. Issues = executable specifications and evidence. Repository docs = stable contracts and dated snapshots. catalog.json = actual port-support authority. New ports do not automatically expand V1 scope. Priorities, horizons, and target releases may change at any time."
+  },
+  "fields": [
+    { "name": "Status", "options": ["Inbox", "Triage", "Ready", "In progress", "Blocked", "Validating", "Done", "Deferred"] },
+    { "name": "Priority", "options": ["Urgent", "High", "Medium", "Low", "None"] },
+    { "name": "Horizon", "options": ["Now", "Next", "Later", "Someday"] },
+    { "name": "Target release", "options": ["Alpha 1", "Alpha 2", "Alpha 3", "Beta 1", "Beta 2", "RC", "V1", "Post-V1", "Unscheduled"] },
+    { "name": "Work type", "options": ["Workstream", "Product feature", "Port", "Platform", "Bug", "Security", "Research", "Qualification", "Technical debt", "Documentation"] },
+    { "name": "Workstream", "options": ["Core trust and recovery", "Sources and ROM validation", "Storage and library", "Installation and updates", "Desktop UX", "CLI and integrations", "Platform support", "Port catalog", "Release engineering", "Documentation and governance"] },
+    { "name": "Platform", "options": ["Unknown", "All", "Multi-platform", "Windows", "Linux", "Steam Deck", "macOS Intel", "macOS Apple Silicon", "Not applicable"] },
+    { "name": "Port stage", "options": ["Watchlist", "Researching", "Source contract known", "Release integrity qualified", "Cataloged", "Automated qualification", "Manual qualification", "Supported", "Blocked", "Rejected"] },
+    { "name": "Effort", "options": ["XS", "S", "M", "L", "XL", "Unknown"] }
+  ],
+  "views": [
+    { "name": "Priority Stack", "layout": "TABLE_LAYOUT", "filter": "-status:Done horizon:Now,Next -work-type:Workstream", "fields": ["Title", "Priority", "Horizon", "Status", "Target release", "Work type", "Effort", "Assignees"], "manual_group_by": null, "manual_sort_by": "manual" },
+    { "name": "Now Board", "layout": "BOARD_LAYOUT", "filter": "horizon:Now", "fields": ["Title", "Priority", "Target release", "Work type", "Assignees"], "manual_group_by": "Status", "manual_sort_by": "manual" },
+    { "name": "Port Pipeline", "layout": "BOARD_LAYOUT", "filter": "work-type:Port", "fields": ["Title", "Priority", "Horizon", "Status", "Platform"], "manual_group_by": "Port stage", "manual_sort_by": "Priority,manual" },
+    { "name": "Product Roadmap", "layout": "TABLE_LAYOUT", "filter": "-work-type:Port", "fields": ["Title", "Priority", "Horizon", "Status", "Target release", "Work type"], "manual_group_by": "Target release", "manual_sort_by": "manual" },
+    { "name": "Current Release", "layout": "TABLE_LAYOUT", "filter": "-status:Done target-release:\"${active_release}\"", "fields": ["Title", "Priority", "Status", "Workstream", "Platform", "Assignees"], "manual_group_by": "Status", "manual_sort_by": "Priority,manual" },
+    { "name": "Blocked & Deferred", "layout": "TABLE_LAYOUT", "filter": "status:Blocked,Deferred", "fields": ["Title", "Status", "Priority", "Target release", "Workstream", "Platform", "Assignees"], "manual_group_by": "Status", "manual_sort_by": "Priority,manual" },
+    { "name": "Inbox & Triage", "layout": "TABLE_LAYOUT", "filter": "status:Inbox,Triage", "fields": ["Title", "Status", "Work type", "Priority", "Platform", "Assignees"], "manual_group_by": "Status", "manual_sort_by": "manual" },
+    { "name": "Steam Deck", "layout": "TABLE_LAYOUT", "filter": "platform:\"Steam Deck\"", "fields": ["Title", "Priority", "Horizon", "Status", "Target release", "Work type", "Port stage"], "manual_group_by": "Status", "manual_sort_by": "Priority,manual" },
+    { "name": "V1 Readiness", "layout": "TABLE_LAYOUT", "filter": "-status:Done target-release:\"Alpha 1\",\"Alpha 2\",\"Alpha 3\",\"Beta 1\",\"Beta 2\",RC,V1", "fields": ["Title", "Priority", "Status", "Target release", "Work type", "Workstream", "Platform", "Assignees"], "manual_group_by": "Target release", "manual_sort_by": "Priority,manual" }
+  ]
+}

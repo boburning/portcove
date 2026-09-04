@@ -8,6 +8,12 @@
 
 Portcove is a local-first manager for native PC ports, decompilation projects, and static recompilations. It combines a reusable Rust core, an automation-friendly CLI, and a controller-friendly Tauri 2 desktop app.
 
+Current work, priority, release targeting, blockers, and the continuous new-port
+pipeline live in the public
+[Portcove Roadmap](https://github.com/users/boburning/projects/1). The embedded
+catalog grows independently of the cumulative [product release stages](docs/ROADMAP.md);
+adding a port does not automatically make it a global V1 blocker.
+
 This repository is an early, working implementation. Catalog and state commands are usable; downloading a project is intentionally rejected unless its upstream release supplies a SHA-256 digest or checksum sidecar. Each catalog entry still needs an end-to-end release qualification on every declared platform before Portcove should be presented as production-ready.
 
 ## What is implemented
@@ -111,11 +117,11 @@ For unattended release checks, `PORTCOVE_GITHUB_TOKEN` avoids GitHub's low anony
 
 ## Design boundaries
 
-Portcove does not distribute copyrighted game data, bypass source ownership checks, or silently modify an adopted installation. Retired projects require immutable checksum-pinned direct manifests; superseded and abandoned projects fail closed. The embedded catalog is data rather than port-specific control flow; see [docs/CATALOG.md](docs/CATALOG.md) and the approved [V1 game cutoff](docs/V1-CUTOFF.md).
+Portcove does not distribute copyrighted game data, bypass source ownership checks, or silently modify an adopted installation. Retired projects require immutable checksum-pinned direct manifests; superseded and abandoned projects fail closed. The embedded catalog is data rather than port-specific control flow; see the [catalog policy](docs/CATALOG.md), [documentation map](docs/README.md), and [release-stage contract](docs/ROADMAP.md).
 
 The architecture and trust boundaries are documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). The desktop product direction and direct competitor baseline are recorded in [docs/GUI-COMPETITIVE-REVIEW.md](docs/GUI-COMPETITIVE-REVIEW.md), the N64-inspired semantic color contract is documented in [docs/THEME.md](docs/THEME.md), and artwork usage and derivative provenance live in the concise [brand guide](docs/BRAND-ASSETS.md). Security reports belong in the process described by [SECURITY.md](SECURITY.md).
 
-Interactive, physical, and external-infrastructure follow-ups are tracked in [docs/DEFERRED.md](docs/DEFERRED.md). Treat that file as the authority for intentionally postponed work rather than inferring completion from automated tests.
+Interactive, physical, and external-infrastructure follow-ups remain open in the [Portcove Roadmap](https://github.com/users/boburning/projects/1) until their issues contain matching completion evidence. The [project governance contract](docs/PROJECT-GOVERNANCE.md) defines intake, implementation, and validation; historical ledgers are evidence only.
 
 Licensed under MIT or Apache-2.0, at your option.
 

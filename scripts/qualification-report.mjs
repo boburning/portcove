@@ -78,7 +78,7 @@ Use the isolated library above. Record the exact install ID, platform, date, and
 - [ ] In Updates and Settings, compare activity order, failure/recovery copy, update badges after restart, source readiness, and native pickers with the captured core records.
 - [ ] Create a backup of a disposable real save, advance it, restore through CLI and GUI, and confirm the game loads the restored state. Confirm the automatic safety backup recovers the newer state.
 
-See docs/CATALOG.md for platform qualification rules and docs/DEFERRED.md for game-specific source or upstream blockers. Automated evidence and hands-on observations remain separate.
+See docs/CATALOG.md for platform qualification rules and the live Portcove Roadmap for current game-specific source or upstream blockers. Automated evidence and hands-on observations remain separate.
 `;
 await writeFile(join(output, "checklist.md"), checklist, { flag: "wx" });
 process.stdout.write(`${JSON.stringify({ output, installed_ports: observations.length, cli_sha256: report.cli_sha256 })}\n`);

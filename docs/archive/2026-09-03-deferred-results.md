@@ -1,6 +1,10 @@
-# Deferred campaign disposition — 2026-09-03
+# Deferred campaign disposition — 2026-09-03 (historical)
 
-This is the final-disposition index for the campaign, with detailed chronological evidence in [DEFERRED-CAMPAIGN.md](DEFERRED-CAMPAIGN.md), the remaining authoritative queue in [DEFERRED.md](DEFERRED.md), and the fresh direct-upstream inventory in [DEFERRED-UPSTREAMS.md](DEFERRED-UPSTREAMS.md). Qualification libraries, reports, owned sources, snapshots, crash diagnostics, and third-party binaries remain private local evidence under ignored `work/` or the user's original source locations. No release, tag, or production deployment is part of this campaign.
+> **Historical evidence.** This dated disposition is preserved as a release
+> and qualification record. It is not current planning authority; use the live
+> Portcove Roadmap for active work, priority, and blockers.
+
+This is the final-disposition index for the campaign, with detailed chronological evidence in [the campaign log](2026-09-03-deferred-campaign.md), the former queue in [the archived deferred ledger](2026-09-03-deferred-ledger.md), and the fresh [direct-upstream inventory](2026-09-03-deferred-upstreams.md). Qualification libraries, reports, owned sources, snapshots, crash diagnostics, and third-party binaries remain private local evidence under ignored `work/` or the user's original source locations. No release, tag, or production deployment is part of this campaign.
 
 ## Completed items and capabilities
 
@@ -52,7 +56,7 @@ Every row below has completed actionable engineering or has an explicit prerequi
 
 ## Deliberate future work
 
-Three reviewed product boundaries remain: a background queue requires persisted replayable intent, ordering, restart policy and reviewed authorization; mod recommendations and installation are explicitly postponed to post-V1 by the user (2026-09-03) and require provenance, ownership/conflicts and executable/update/rollback policy; desktop self-update requires signing custody and qualified staged replacement/rollback. Existing activity history, mutable mod folders, and signed catalog metadata do not supply those contracts. See the concrete prerequisite table in [DEFERRED.md](DEFERRED.md).
+Three reviewed product boundaries remain: a background queue requires persisted replayable intent, ordering, restart policy and reviewed authorization; mod recommendations and installation are explicitly postponed to post-V1 by the user (2026-09-03) and require provenance, ownership/conflicts and executable/update/rollback policy; desktop self-update requires signing custody and qualified staged replacement/rollback. Existing activity history, mutable mod folders, and signed catalog metadata do not supply those contracts. See the concrete prerequisite table in [the archived deferred ledger](2026-09-03-deferred-ledger.md).
 
 ## Human steps, in dependency order
 
