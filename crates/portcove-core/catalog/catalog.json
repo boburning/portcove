@@ -271,7 +271,7 @@
     {
       "id": "final-fantasy-vii-recompiled", "name": "Final Fantasy VII: Recompiled", "summary": "Three-disc PS1 static recompilation with managed CHD-set verification.",
       "project_url": "https://github.com/TechnicallyComputers/Final-Fantasy-VII", "support_tier": "beta", "channels": ["stable"],
-      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
+      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "manually_validated_platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
       "release": { "repository": "TechnicallyComputers/Final-Fantasy-VII", "asset_hints": { "windows-x86-64": ["windows-x64"], "linux-x86-64": ["linux-x64"], "macos-x86-64": ["macos-x64"], "macos-aarch64": ["macos-arm64"] } }, "source_profile": "final-fantasy-vii-psx",
       "executable_hints": { "windows-x86-64": ["Final_Fantasy_7.exe"], "linux-x86-64": ["Final_Fantasy_7"], "macos-x86-64": ["Final_Fantasy_7"], "macos-aarch64": ["Final_Fantasy_7"] },
       "persistent_paths": ["saves", "config", "mods", "settings.toml", "game_options.json", "graphics.json", "input.json", "sound.json", "input.ini", "keybinds.ini"],
@@ -478,7 +478,7 @@
     {
       "id": "gen2recomp-gold", "name": "Gen2Recomped: Pokémon Gold", "summary": "Opt-in Phase 2B native Lua/LÖVE recreation of Pokémon Gold.",
       "project_url": "https://github.com/UNDERdecoded/Gen2Recomped", "support_tier": "beta", "channels": ["stable"],
-      "platforms": ["windows-x86-64"], "adapter": "generated-cache", "automated_tested_platforms": ["windows-x86-64"],
+      "platforms": ["windows-x86-64"], "adapter": "generated-cache", "automated_tested_platforms": ["windows-x86-64"], "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "UNDERdecoded/Gen2Recomped", "asset_hints": { "windows-x86-64": ["windows.zip"] } }, "source_profile": "pokemon-gold",
       "executable_hints": { "windows-x86-64": ["Gen2Recomped.exe"] },
       "portable_marker": true, "source_environment": "POKEPORT_IMPORT_ROM", "launch_environment": { "POKEPORT_VERSION": "gold" },
@@ -489,7 +489,7 @@
     {
       "id": "gen2recomp-silver", "name": "Gen2Recomped: Pokémon Silver", "summary": "Opt-in Phase 2B native Lua/LÖVE recreation of Pokémon Silver.",
       "project_url": "https://github.com/UNDERdecoded/Gen2Recomped", "support_tier": "beta", "channels": ["stable"],
-      "platforms": ["windows-x86-64"], "adapter": "generated-cache", "automated_tested_platforms": ["windows-x86-64"],
+      "platforms": ["windows-x86-64"], "adapter": "generated-cache", "automated_tested_platforms": ["windows-x86-64"], "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "UNDERdecoded/Gen2Recomped", "asset_hints": { "windows-x86-64": ["windows.zip"] } }, "source_profile": "pokemon-silver",
       "executable_hints": { "windows-x86-64": ["Gen2Recomped.exe"] },
       "portable_marker": true, "source_environment": "POKEPORT_IMPORT_ROM", "launch_environment": { "POKEPORT_VERSION": "silver" },
@@ -500,7 +500,7 @@
     {
       "id": "gen2recomp-crystal", "name": "Gen2Recomped: Pokémon Crystal", "summary": "Opt-in beta native Lua/LÖVE recreation of Pokémon Crystal.",
       "project_url": "https://github.com/UNDERdecoded/Gen2Recomped", "support_tier": "beta", "channels": ["stable"],
-      "platforms": ["windows-x86-64"], "adapter": "generated-cache", "automated_tested_platforms": ["windows-x86-64"],
+      "platforms": ["windows-x86-64"], "adapter": "generated-cache", "automated_tested_platforms": ["windows-x86-64"], "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "UNDERdecoded/Gen2Recomped", "asset_hints": { "windows-x86-64": ["windows.zip"] } }, "source_profile": "pokemon-crystal",
       "executable_hints": { "windows-x86-64": ["Gen2Recomped.exe"] },
       "portable_marker": true, "source_environment": "POKEPORT_IMPORT_ROM", "launch_environment": { "POKEPORT_VERSION": "crystal" },
