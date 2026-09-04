@@ -4035,7 +4035,20 @@ mod tests {
             .unwrap();
         let executable = root.join(executable_name);
         fs::write(&executable, b"test").unwrap();
+        crate::permissions::normalize_archive_entry(&executable, false, true).unwrap();
         executable
+    }
+
+    fn tamper_host_test_executable(path: &Path, replacement: &[u8]) {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+
+            let _ = replacement;
+            fs::set_permissions(path, fs::Permissions::from_mode(0o644)).unwrap();
+        }
+        #[cfg(not(unix))]
+        fs::write(path, replacement).unwrap();
     }
 
     fn register_existing_test_install(
@@ -4862,7 +4875,7 @@ fn main() {
         assert_eq!(error.code, crate::ErrorCode::Verification);
         assert!(!install.join(LAUNCH_MARKER).exists());
 
-        fs::write(executable, b"test").unwrap();
+        assert_eq!(write_host_test_executable(&install, "starship"), executable);
         let launch = service.launch_spec("starship", None).unwrap();
         assert_eq!(
             launch.environment.get("PORTCOVE_SOURCE"),
@@ -5203,11 +5216,10 @@ fn main() {
             .status("zelda64-recomp", ReleaseChannel::Stable)
             .unwrap();
         let staged = staged_before.staged.as_ref().unwrap();
-        fs::write(
-            staged.path.join(&staged.selected_executable),
+        tamper_host_test_executable(
+            &staged.path.join(&staged.selected_executable),
             b"changed staged executable",
-        )
-        .unwrap();
+        );
         let service = PortcoveService::new(library.clone()).unwrap();
 
         let error = service.activate_staged("zelda64-recomp").unwrap_err();
@@ -5232,11 +5244,10 @@ fn main() {
             .status("zelda64-recomp", ReleaseChannel::Stable)
             .unwrap();
         let previous = rollback_before.previous.as_ref().unwrap();
-        fs::write(
-            previous.path.join(&previous.selected_executable),
+        tamper_host_test_executable(
+            &previous.path.join(&previous.selected_executable),
             b"changed rollback executable",
-        )
-        .unwrap();
+        );
         let service = PortcoveService::new(library.clone()).unwrap();
 
         let error = service.rollback("zelda64-recomp").unwrap_err();

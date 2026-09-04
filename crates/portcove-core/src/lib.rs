@@ -22,6 +22,7 @@ mod library_move;
 mod library_transfer;
 mod operation;
 mod path;
+mod permissions;
 mod persistence;
 mod portability;
 mod process;

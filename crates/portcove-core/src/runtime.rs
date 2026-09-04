@@ -147,11 +147,16 @@ pub(crate) fn ready(port: &PortDefinition, platform: Platform, install: &Install
         return install.runtime.is_none();
     };
     install.runtime.as_ref().is_some_and(|identity| {
+        let executable = working_root(port, install)
+            .join(&identity.target_directory)
+            .join(&identity.executable);
         required.same_layout(identity)
-            && working_root(port, install)
-                .join(&identity.target_directory)
-                .join(&identity.executable)
-                .is_file()
+            && crate::permissions::require_platform_executable(
+                &executable,
+                platform,
+                "bundled runtime executable",
+            )
+            .is_ok()
     })
 }
 
@@ -170,12 +175,20 @@ pub(crate) fn require_ready(
     Ok(())
 }
 
-pub(crate) fn require_executable(root: &Path, runtime: &BundledRuntime) -> Result<()> {
+pub(crate) fn require_executable(
+    root: &Path,
+    runtime: &BundledRuntime,
+    platform: Platform,
+) -> Result<()> {
     let executable = root.join(&runtime.executable);
-    if !root.is_dir() || !executable.is_file() {
+    if !root.is_dir() {
         return Err(PortcoveError::verification(
             "bundled runtime is missing its declared executable",
         ));
     }
-    Ok(())
+    crate::permissions::require_platform_executable(
+        &executable,
+        platform,
+        "bundled runtime executable",
+    )
 }

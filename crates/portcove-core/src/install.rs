@@ -173,6 +173,8 @@ pub struct VerificationReport {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct InstallManifest {
     schema_version: u32,
+    #[serde(default)]
+    platform: Option<Platform>,
     install_id: String,
     port_id: String,
     version: String,
@@ -211,6 +213,12 @@ struct ManifestFile {
     size: u64,
     sha256: String,
     critical: bool,
+    #[serde(default, skip_serializing_if = "is_false")]
+    executable: bool,
+}
+
+const fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 #[derive(Clone)]
@@ -354,7 +362,7 @@ impl Installer {
             )
             .await?;
             let source = unpacked.join(&runtime.archive_root);
-            crate::runtime::require_executable(&source, runtime)?;
+            crate::runtime::require_executable(&source, runtime, request.qualification.platform)?;
             let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
             let destination = request
                 .qualification
@@ -569,6 +577,10 @@ impl Installer {
             let (sha256, size) = hash_file(&candidate)?;
             if size != file.size || sha256 != file.sha256 {
                 failures.push(format!("changed: {}", file.path));
+            } else if manifest.schema_version >= 5
+                && crate::permissions::executable_intent(&candidate)? != file.executable
+            {
+                failures.push(format!("permissions changed: {}", file.path));
             }
         }
         let expected = manifest
@@ -630,6 +642,10 @@ impl Installer {
             let (sha256, size) = hash_file(&candidate)?;
             if size != file.size || sha256 != file.sha256 {
                 failures.push(format!("changed: {}", file.path));
+            } else if manifest.schema_version >= 5
+                && crate::permissions::executable_intent(&candidate)? != file.executable
+            {
+                failures.push(format!("permissions changed: {}", file.path));
             }
         }
         if !failures.is_empty() {
@@ -641,10 +657,17 @@ impl Installer {
             .detail("failures", failures.join(", ")));
         }
         let executable = install.path.join(&install.selected_executable);
-        if !executable.starts_with(&install.path) || !executable.is_file() {
+        if !executable.starts_with(&install.path) {
             return Err(PortcoveError::verification(
                 "selected executable escaped or disappeared from its install",
             ));
+        }
+        if let Some(platform) = manifest.platform {
+            crate::permissions::require_platform_executable(
+                &executable,
+                platform,
+                "selected executable",
+            )?;
         }
         Ok(executable)
     }
@@ -657,7 +680,12 @@ impl Installer {
     ) -> Result<()> {
         let manifest = verified_manifest(install)?;
         let selected = resolve_declared_executable(&install.path, qualification)?;
-        let (files, mutable_paths) = manifest_files(&install.path, qualification, &selected)?;
+        let (mut files, mutable_paths) = manifest_files(&install.path, qualification, &selected)?;
+        if manifest.schema_version < 5 {
+            for file in &mut files {
+                file.executable = false;
+            }
+        }
         let generated_metadata = qualification.generated_metadata_paths(install)?;
         let mut expected_mutable = manifest.mutable_paths.clone();
         expected_mutable.extend(generated_metadata.iter().cloned());
@@ -691,6 +719,8 @@ impl Installer {
             }
         }
         if manifest_relative(&install.path, &selected)? != manifest.selected_executable
+            || (manifest.schema_version >= 5
+                && manifest.platform.as_ref() != Some(&qualification.platform))
             || mutable_paths != expected_mutable
             || qualification.file_patterns(&install.path, &selected)?
                 != manifest.mutable_file_patterns
@@ -785,7 +815,8 @@ fn write_manifest(
         }
     }
     let manifest = InstallManifest {
-        schema_version: 4,
+        schema_version: 5,
+        platform: Some(qualification.platform),
         runtime: runtime.clone(),
         runtime_root,
         install_id: install_id.into(),
@@ -819,7 +850,11 @@ fn manifest_files(
             .join(&runtime.target_directory)
     });
     if let Some(runtime) = &qualification.runtime {
-        crate::runtime::require_executable(runtime_root.as_ref().expect("runtime root"), runtime)?;
+        crate::runtime::require_executable(
+            runtime_root.as_ref().expect("runtime root"),
+            runtime,
+            qualification.platform,
+        )?;
     }
     let working_root = qualification.runtime_root(root, selected);
     let critical_roots = qualification
@@ -915,6 +950,7 @@ fn manifest_files(
             path: relative,
             size,
             sha256,
+            executable: crate::permissions::executable_intent(&path)?,
         });
     }
     files.sort_by(|left, right| left.path.cmp(&right.path));
@@ -980,8 +1016,11 @@ fn verified_manifest(install: &InstallRecord) -> Result<InstallManifest> {
             ));
         }
     }
-    if !matches!(manifest.schema_version, 2..=4)
+    if !matches!(manifest.schema_version, 2..=5)
         || (manifest.schema_version < 4 && !manifest.mutable_file_patterns.is_empty())
+        || (manifest.schema_version < 5
+            && (manifest.platform.is_some() || manifest.files.iter().any(|file| file.executable)))
+        || (manifest.schema_version >= 5 && manifest.platform.is_none())
         || (manifest.schema_version == 2 && manifest.runtime.is_some())
         || manifest.runtime != install.runtime
         || manifest.install_id != install.id
@@ -989,10 +1028,14 @@ fn verified_manifest(install: &InstallRecord) -> Result<InstallManifest> {
         || manifest.version != install.version
         || manifest.artifact != install.artifact
         || manifest.selected_executable != selected
-        || !manifest
-            .files
-            .iter()
-            .any(|file| file.path == selected && file.critical)
+        || !manifest.files.iter().any(|file| {
+            file.path == selected
+                && file.critical
+                && (!manifest
+                    .platform
+                    .is_some_and(crate::permissions::platform_requires_executable)
+                    || file.executable)
+        })
     {
         return Err(PortcoveError::verification(
             "install manifest identity does not match the registered install",
@@ -1057,11 +1100,15 @@ fn validate_runtime_manifest(manifest: &InstallManifest) -> Result<()> {
         crate::archive::validate_relative_path(path, false)?;
     }
     let executable = format!("{root}/{}", identity.executable);
-    if !manifest
-        .files
-        .iter()
-        .any(|file| file.path == executable && file.critical)
-        || manifest.files.iter().any(|file| !file.critical)
+    if !manifest.files.iter().any(|file| {
+        file.path == executable
+            && file.critical
+            && (!manifest
+                .platform
+                .is_some_and(crate::permissions::platform_requires_executable)
+                || manifest.schema_version < 5
+                || file.executable)
+    }) || manifest.files.iter().any(|file| !file.critical)
         || manifest.mutable_paths.iter().any(|path| {
             root == path
                 || root.starts_with(&format!("{path}/"))
@@ -1134,6 +1181,9 @@ pub(crate) fn local_artifact_identity(
         hasher.update([0]);
         hasher.update(file.size.to_le_bytes());
         hasher.update(file.sha256.as_bytes());
+        if crate::permissions::platform_requires_executable(qualification.platform) {
+            hasher.update([u8::from(file.executable)]);
+        }
         size = size
             .checked_add(file.size)
             .ok_or_else(|| PortcoveError::verification("local artifact size overflowed"))?;
@@ -1166,6 +1216,11 @@ pub(crate) fn resolve_declared_executable(
                 .and_then(|name| name.to_str())
                 .is_some_and(|name| name.eq_ignore_ascii_case(hint))
         }) {
+            crate::permissions::require_platform_executable(
+                found,
+                qualification.platform,
+                "declared executable",
+            )?;
             return Ok(found.clone());
         }
     }
@@ -1215,13 +1270,7 @@ fn extract_asset(
     } else if lower.ends_with(".exe") || lower.ends_with(".appimage") {
         let target = destination.join(asset_name);
         fs::copy(source, &target)?;
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mut permissions = fs::metadata(&target)?.permissions();
-            permissions.set_mode(0o755);
-            fs::set_permissions(&target, permissions)?;
-        }
+        crate::permissions::normalize_archive_entry(&target, false, true)?;
         Ok(())
     } else {
         Err(PortcoveError::unsupported(format!(
@@ -1255,6 +1304,169 @@ mod tests {
             }
             Ok(())
         }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn unix_manifest_binds_executable_intent_for_adoption_and_verification() {
+        use std::os::unix::fs::PermissionsExt;
+
+        fn set_mode(path: &Path, mode: u32) {
+            fs::set_permissions(path, fs::Permissions::from_mode(mode)).unwrap();
+        }
+
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        fs::create_dir(&root).unwrap();
+        let executable = root.join("run.sh");
+        let data = root.join("data.txt");
+        fs::write(&executable, b"#!/bin/sh\nexit 0\n").unwrap();
+        fs::write(&data, b"immutable data").unwrap();
+        set_mode(&executable, 0o755);
+        set_mode(&data, 0o644);
+
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let installer = Installer::new(library).unwrap();
+        let mut qualification = InstallQualification::test("run.sh");
+        qualification.platform = Platform::current().unwrap();
+        let artifact = ArtifactIdentity {
+            asset_name: "local-adoption".into(),
+            sha256: "a".repeat(64),
+            size: 32,
+        };
+        let (manifest_sha256, selected_executable, runtime) = installer
+            .create_manifest(
+                "unix-install",
+                "sample",
+                "v1",
+                &artifact,
+                &qualification,
+                &root,
+            )
+            .unwrap();
+        let install = InstallRecord {
+            id: "unix-install".into(),
+            port_id: "sample".into(),
+            version: "v1".into(),
+            path: root.clone(),
+            channel: crate::ReleaseChannel::Stable,
+            installed_at: 1,
+            verified: true,
+            staged: false,
+            artifact,
+            runtime,
+            manifest_sha256,
+            selected_executable,
+        };
+
+        let manifest = verified_manifest(&install).unwrap();
+        assert_eq!(manifest.schema_version, 5);
+        assert_eq!(manifest.platform, Some(qualification.platform));
+        assert!(
+            manifest
+                .files
+                .iter()
+                .find(|file| file.path == "run.sh")
+                .unwrap()
+                .executable
+        );
+        assert!(
+            !manifest
+                .files
+                .iter()
+                .find(|file| file.path == "data.txt")
+                .unwrap()
+                .executable
+        );
+        assert!(
+            installer
+                .verify_managed(&install, &qualification)
+                .unwrap()
+                .valid
+        );
+        assert_eq!(installer.verify_critical(&install).unwrap(), executable);
+
+        set_mode(&executable, 0o644);
+        let lost_execute = installer.verify_managed(&install, &qualification).unwrap();
+        assert!(!lost_execute.valid);
+        assert!(
+            lost_execute
+                .failures
+                .contains(&"permissions changed: run.sh".into())
+        );
+        assert!(installer.verify_critical(&install).is_err());
+
+        set_mode(&executable, 0o755);
+        set_mode(&data, 0o755);
+        let broadened = installer.verify_managed(&install, &qualification).unwrap();
+        assert!(!broadened.valid);
+        assert!(
+            broadened
+                .failures
+                .contains(&"permissions changed: data.txt".into())
+        );
+        installer
+            .verify_import_contract(&install, &qualification)
+            .unwrap_err();
+    }
+
+    #[test]
+    fn legacy_manifest_without_platform_or_permission_metadata_remains_readable() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("game.exe"), b"verified fixture").unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let installer = Installer::new(library).unwrap();
+        let qualification = InstallQualification::test("game.exe");
+        let artifact = ArtifactIdentity {
+            asset_name: "legacy.zip".into(),
+            sha256: "b".repeat(64),
+            size: 16,
+        };
+        let (manifest_sha256, selected_executable, runtime) = write_manifest(
+            "legacy-install",
+            "sample",
+            "v1",
+            &artifact,
+            &qualification,
+            &root,
+        )
+        .unwrap();
+        let mut install = InstallRecord {
+            id: "legacy-install".into(),
+            port_id: "sample".into(),
+            version: "v1".into(),
+            path: root.clone(),
+            channel: crate::ReleaseChannel::Stable,
+            installed_at: 1,
+            verified: true,
+            staged: false,
+            artifact,
+            runtime,
+            manifest_sha256,
+            selected_executable,
+        };
+
+        let manifest_path = root.join(".portcove-manifest.json");
+        let mut value: serde_json::Value =
+            serde_json::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
+        let object = value.as_object_mut().unwrap();
+        object.insert("schema_version".into(), 4.into());
+        object.remove("platform");
+        for file in object.get_mut("files").unwrap().as_array_mut().unwrap() {
+            file.as_object_mut().unwrap().remove("executable");
+        }
+        let bytes = serde_json::to_vec_pretty(&value).unwrap();
+        fs::write(&manifest_path, &bytes).unwrap();
+        install.manifest_sha256 = hex::encode(Sha256::digest(&bytes));
+
+        assert_eq!(verified_manifest(&install).unwrap().schema_version, 4);
+        assert!(installer.verify(&install).unwrap().valid);
+        assert!(installer.verify_critical(&install).is_ok());
+        installer
+            .verify_import_contract(&install, &qualification)
+            .unwrap();
     }
 
     #[test]
