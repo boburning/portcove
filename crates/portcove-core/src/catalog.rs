@@ -869,20 +869,16 @@ mod tests {
     #[test]
     fn qualified_windows_ports_have_expected_evidence() {
         let catalog = Catalog::embedded().expect("catalog should load");
-        for id in [
-            "shipwright",
-            "2ship2harkinian",
-            "spaghetti-kart",
-            "lighthouse",
-            "zelda64-recomp",
-            "banjo-recomp",
-            "bm64-recomp",
-            "gen2recomp-gold",
-            "gen2recomp-silver",
-            "gen2recomp-crystal",
-            "final-fantasy-vii-recompiled",
-        ] {
-            let port = catalog.port(id).unwrap();
+        let windows_qualified = catalog
+            .ports()
+            .iter()
+            .filter(|port| {
+                port.automated_tested_platforms
+                    .contains(&crate::Platform::WindowsX86_64)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(windows_qualified.len(), 57);
+        for port in windows_qualified {
             assert_eq!(
                 port.automated_tested_platforms,
                 vec![crate::Platform::WindowsX86_64]
@@ -893,31 +889,17 @@ mod tests {
             );
         }
         for id in [
-            "dusklight",
-            "bomberman-hero-recomp",
-            "snowboard-kids-2-recomp",
-            "goemon64-recomp",
-            "harvest-moon-64-recomp",
-            "mega-man-64-recompiled",
-            "gen1recomp",
-            "perfect-dark",
-            "donkey-kong-64-recompiled",
-            "automobili-lamborghini-recompiled",
-            "aerogauge-recompiled",
-            "beetle-recomp",
-            "quest-64-recompiled",
-            "wcw-world-tour-recompiled",
-            "wcw-nwo-revenge-recompiled",
-            "wwf-no-mercy-recompiled",
-            "opengoal-jak1",
-            "opengoal-jak2",
-            "opengoal-jak3",
+            "ghostship",
+            "starship",
+            "dkr-r",
+            "vpw2-recompiled",
+            "dr-mario-64-recomp",
+            "re-blue",
+            "g-diffuser",
+            "openpete",
         ] {
             let port = catalog.port(id).unwrap();
-            assert_eq!(
-                port.automated_tested_platforms,
-                vec![crate::Platform::WindowsX86_64]
-            );
+            assert!(port.automated_tested_platforms.is_empty());
             assert!(port.manually_validated_platforms.is_empty());
         }
     }
