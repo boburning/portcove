@@ -231,6 +231,23 @@ impl Catalog {
                     port.id
                 )));
             }
+            let executable_contract_is_valid = port.executable_hints.len() == port.platforms.len()
+                && port.platforms.iter().all(|platform| {
+                    let mut hints = HashSet::new();
+                    port.executable_hints.get(platform).is_some_and(|values| {
+                        !values.is_empty()
+                            && values.iter().all(|value| {
+                                is_safe_executable_hint(value, *platform)
+                                    && hints.insert(value.to_ascii_lowercase())
+                            })
+                    })
+                });
+            if !executable_contract_is_valid {
+                return Err(PortcoveError::usage(format!(
+                    "{} has an incomplete or unsafe platform executable contract",
+                    port.id
+                )));
+            }
             if let Some(profile) = &port.source_profile
                 && !profile_ids.contains(profile.as_str())
             {
@@ -717,7 +734,10 @@ impl Catalog {
                     port.setup_executable_hints
                         .get(platform)
                         .is_some_and(|hints| {
-                            !hints.is_empty() && hints.iter().all(|hint| is_safe_basename(hint))
+                            !hints.is_empty()
+                                && hints
+                                    .iter()
+                                    .all(|hint| is_safe_executable_hint(hint, *platform))
                         })
                 });
                 let upstream_validated_source = port.source_profile.as_ref().is_some_and(|id| {
@@ -774,6 +794,14 @@ fn is_safe_basename(value: &str) -> bool {
             .all(|component| matches!(component, Component::Normal(_)))
 }
 
+fn is_safe_executable_hint(value: &str, platform: crate::Platform) -> bool {
+    crate::archive::validate_relative_path(value, false).is_ok()
+        && !(matches!(
+            platform,
+            crate::Platform::MacosX86_64 | crate::Platform::MacosAarch64
+        ) && value.to_ascii_lowercase().ends_with(".app"))
+}
+
 fn is_sha256(value: &str) -> bool {
     value.len() == 64 && value.chars().all(|character| character.is_ascii_hexdigit())
 }
@@ -789,6 +817,60 @@ fn is_crc32(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn catalog_with_executable_hint(port_id: &str, platform: &str, hint: &str) -> String {
+        let mut document: serde_json::Value =
+            serde_json::from_str(EMBEDDED_CATALOG).expect("embedded JSON should parse");
+        let port = document["ports"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|port| port["id"] == port_id)
+            .unwrap();
+        port["executable_hints"][platform] = serde_json::json!([hint]);
+        serde_json::to_string(&document).unwrap()
+    }
+
+    #[test]
+    fn catalog_accepts_safe_relative_executable_paths() {
+        let document = catalog_with_executable_hint(
+            "zelda64-recomp",
+            "windows-x86-64",
+            "bin/Zelda64Recompiled.exe",
+        );
+        Catalog::from_json(&document).unwrap();
+    }
+
+    #[test]
+    fn catalog_rejects_incomplete_or_unsafe_executable_contracts() {
+        for (port_id, platform, hint) in [
+            ("zelda64-recomp", "windows-x86-64", "../game.exe"),
+            ("zelda64-recomp", "windows-x86-64", "bin\\game.exe"),
+            ("zelda64-recomp", "windows-x86-64", "gáme.exe"),
+            ("dkr-r", "macos-aarch64", "DiddyKongRacingRecompiled.app"),
+        ] {
+            let document = catalog_with_executable_hint(port_id, platform, hint);
+            let error = Catalog::from_json(&document).unwrap_err();
+            assert!(
+                error.message.contains("platform executable contract"),
+                "{port_id} {platform} {hint}: {error}"
+            );
+        }
+
+        let mut document: serde_json::Value = serde_json::from_str(EMBEDDED_CATALOG).unwrap();
+        let port = document["ports"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|port| port["id"] == "zelda64-recomp")
+            .unwrap();
+        port["executable_hints"]
+            .as_object_mut()
+            .unwrap()
+            .remove("linux-x86-64");
+        let error = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap_err();
+        assert!(error.message.contains("platform executable contract"));
+    }
     use crate::Platform;
 
     #[test]

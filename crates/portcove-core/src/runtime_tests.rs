@@ -107,6 +107,7 @@ impl Fixture {
             .retain(|key| *key == platform);
         port.manually_validated_platforms
             .retain(|key| *key == platform);
+        port.executable_hints.retain(|key, _| *key == platform);
         port.bundled_runtime.retain(|key, _| *key == platform);
         let runtime = port.bundled_runtime.get_mut(&platform).unwrap();
         runtime.archive_root = "vendor-root".into();

@@ -93,42 +93,8 @@ impl Adapter for StandardAdapter {
         platform: Platform,
         root: &Path,
     ) -> Result<PathBuf> {
-        let search_root = port
-            .runtime_subdirectory
-            .as_deref()
-            .map(|relative| root.join(relative))
-            .unwrap_or_else(|| root.to_path_buf());
-        if !search_root.is_dir() || !search_root.starts_with(root) {
-            return Err(PortcoveError::launch(format!(
-                "runtime subdirectory was not found for {}",
-                port.name
-            )));
-        }
-        let files = walk_files(&search_root)?;
-        let hints = port
-            .executable_hints
-            .get(&platform)
-            .cloned()
-            .unwrap_or_default();
-        for hint in &hints {
-            if let Some(found) = files.iter().find(|path| {
-                path.file_name()
-                    .and_then(|name| name.to_str())
-                    .is_some_and(|name| name.eq_ignore_ascii_case(hint))
-            }) {
-                return Ok(found.clone());
-            }
-        }
-        let fallback = files
-            .into_iter()
-            .find(|path| is_probable_executable(path, platform));
-        fallback.ok_or_else(|| {
-            PortcoveError::launch(format!(
-                "no executable for {} was found under {}",
-                port.name,
-                root.display()
-            ))
-        })
+        let qualification = crate::install::InstallQualification::from_port(port, platform)?;
+        crate::install::resolve_declared_executable(root, &qualification)
     }
 
     fn launch_spec(
@@ -772,24 +738,13 @@ fn run_upstream_setup(
     let hints = port.setup_executable_hints.get(&platform).ok_or_else(|| {
         PortcoveError::unsupported(format!("{} has no setup tool for {platform:?}", port.name))
     })?;
-    let files = walk_files(working_directory)?;
-    let setup = hints
-        .iter()
-        .find_map(|hint| {
-            files.iter().find(|path| {
-                path.file_name()
-                    .and_then(|name| name.to_str())
-                    .is_some_and(|name| name.eq_ignore_ascii_case(hint))
-            })
-        })
-        .ok_or_else(|| {
-            PortcoveError::launch(format!(
-                "{} setup tool was not found under {}",
-                port.name,
-                working_directory.display()
-            ))
-        })?;
-    let status = ChildProcessPolicy::native_command(ChildProcessClass::UpstreamSetup, setup)?
+    let setup = crate::install::resolve_executable_hints(
+        working_directory,
+        platform,
+        hints,
+        "setup executable",
+    )?;
+    let status = ChildProcessPolicy::native_command(ChildProcessClass::UpstreamSetup, &setup)?
         .args(&port.setup_arguments)
         .arg(source)
         .current_dir(working_directory)
@@ -2114,41 +2069,6 @@ pub(crate) fn walk_files(root: &Path) -> Result<Vec<PathBuf>> {
     Ok(files)
 }
 
-fn is_probable_executable(path: &Path, platform: Platform) -> bool {
-    let name = path
-        .file_name()
-        .and_then(|value| value.to_str())
-        .unwrap_or_default()
-        .to_ascii_lowercase();
-    if ["uninstall", "updater", "crashpad"]
-        .iter()
-        .any(|value| name.contains(value))
-    {
-        return false;
-    }
-    match platform {
-        Platform::WindowsX86_64 => name.ends_with(".exe"),
-        Platform::LinuxX86_64 => {
-            if name.ends_with(".appimage") {
-                return true;
-            }
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                path.metadata()
-                    .is_ok_and(|metadata| metadata.permissions().mode() & 0o111 != 0)
-            }
-            #[cfg(not(unix))]
-            {
-                false
-            }
-        }
-        Platform::MacosX86_64 | Platform::MacosAarch64 => path
-            .components()
-            .any(|component| component.as_os_str() == "MacOS"),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::io::Write as _;
@@ -2878,7 +2798,9 @@ mod tests {
         let install = temporary.path().join("install");
         let executable_root = install.join("Zelda.app/Contents/MacOS");
         std::fs::create_dir_all(&executable_root).unwrap();
-        std::fs::write(executable_root.join("zelda64recompiled"), b"test").unwrap();
+        let executable = executable_root.join("zelda64recompiled");
+        std::fs::write(&executable, b"test").unwrap();
+        crate::permissions::normalize_archive_entry(&executable, false, true).unwrap();
         let catalog = Catalog::embedded().unwrap();
         let port = catalog.port("zelda64-recomp").unwrap();
 

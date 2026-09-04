@@ -570,7 +570,7 @@ impl Installer {
         let mut failures = Vec::new();
         for file in &manifest.files {
             let candidate = manifest_member(&install.path, &file.path)?;
-            if !candidate.is_file() {
+            if !is_regular_file_without_symlink(&candidate) {
                 failures.push(format!("missing: {}", file.path));
                 continue;
             }
@@ -633,9 +633,63 @@ impl Installer {
                 }
             }
         }
-        for file in manifest.files.iter().filter(|file| file.critical) {
+        let executable = install.path.join(&install.selected_executable);
+        if !executable.starts_with(&install.path) {
+            return Err(PortcoveError::verification(
+                "selected executable escaped or disappeared from its install",
+            ));
+        }
+        refuse_symlink_path_within(&install.path, &executable, "selected executable")?;
+        let platform = manifest.platform.unwrap_or(Platform::current()?);
+        let expected = manifest
+            .files
+            .iter()
+            .map(|file| file.path.as_str())
+            .collect::<std::collections::BTreeSet<_>>();
+        let executable_directory = executable.parent().ok_or_else(|| {
+            PortcoveError::verification("selected executable has no load-sensitive scope")
+        })?;
+        for entry in fs::read_dir(executable_directory)? {
+            let entry = entry?;
+            let candidate = entry.path();
+            let relative = manifest_relative(&install.path, &candidate)?;
+            if expected.contains(relative.as_str())
+                || manifest_path_is_mutable(&manifest, &relative)
+            {
+                continue;
+            }
+            let file_type = entry.file_type()?;
+            if file_type.is_symlink()
+                || (file_type.is_file()
+                    && is_critical_companion(&candidate, &executable, platform)?)
+            {
+                failures.push(format!("unexpected launch-sensitive file: {relative}"));
+            }
+        }
+        for file in &manifest.files {
             let candidate = manifest_member(&install.path, &file.path)?;
-            if !candidate.is_file() {
+            let adjacent_to_executable = candidate.parent() == executable.parent();
+            let current_file_type = fs::symlink_metadata(&candidate)
+                .ok()
+                .map(|metadata| metadata.file_type());
+            let recorded_or_current_companion = adjacent_to_executable
+                && (file.executable
+                    || current_file_type
+                        .as_ref()
+                        .is_some_and(std::fs::FileType::is_symlink)
+                    || is_critical_companion_name(&candidate, platform)
+                    || (current_file_type
+                        .as_ref()
+                        .is_some_and(std::fs::FileType::is_file)
+                        && matches!(
+                            platform,
+                            Platform::LinuxX86_64 | Platform::MacosX86_64 | Platform::MacosAarch64
+                        )
+                        && crate::permissions::executable_intent(&candidate)?));
+            if !file.critical && !recorded_or_current_companion {
+                continue;
+            }
+            if !is_regular_file_without_symlink(&candidate) {
                 failures.push(format!("missing: {}", file.path));
                 continue;
             }
@@ -655,12 +709,6 @@ impl Installer {
             ))
             .detail("install_id", install.id.clone())
             .detail("failures", failures.join(", ")));
-        }
-        let executable = install.path.join(&install.selected_executable);
-        if !executable.starts_with(&install.path) {
-            return Err(PortcoveError::verification(
-                "selected executable escaped or disappeared from its install",
-            ));
         }
         if let Some(platform) = manifest.platform {
             crate::permissions::require_platform_executable(
@@ -918,7 +966,7 @@ fn manifest_files(
             .any(|pattern| pattern.matches(&relative));
         if matched_file
             && (path == selected
-                || is_critical_companion(&path, selected)
+                || is_critical_companion(&path, selected, qualification.platform)?
                 || runtime_root
                     .as_ref()
                     .is_some_and(|runtime| path.starts_with(runtime)))
@@ -940,7 +988,7 @@ fn manifest_files(
         files.push(ManifestFile {
             critical: qualification.runtime.is_some()
                 || path == selected
-                || is_critical_companion(&path, selected)
+                || is_critical_companion(&path, selected, qualification.platform)?
                 || critical_roots
                     .iter()
                     .any(|critical| path == *critical || path.starts_with(critical))
@@ -1209,24 +1257,67 @@ pub(crate) fn resolve_declared_executable(
             "declared runtime directory is missing or escaped the install",
         ));
     }
-    let files = walk_files(&search_root)?;
-    for hint in &qualification.executable_hints {
-        if let Some(found) = files.iter().find(|path| {
-            path.file_name()
-                .and_then(|name| name.to_str())
-                .is_some_and(|name| name.eq_ignore_ascii_case(hint))
-        }) {
-            crate::permissions::require_platform_executable(
-                found,
-                qualification.platform,
-                "declared executable",
-            )?;
-            return Ok(found.clone());
+    refuse_symlink_path_within(root, &search_root, "declared runtime directory")?;
+    resolve_executable_hints(
+        &search_root,
+        qualification.platform,
+        &qualification.executable_hints,
+        "declared executable",
+    )
+}
+
+pub(crate) fn resolve_executable_hints(
+    search_root: &Path,
+    platform: Platform,
+    hints: &[String],
+    label: &str,
+) -> Result<PathBuf> {
+    if !search_root.is_dir() {
+        return Err(PortcoveError::verification(format!(
+            "{label} search root is missing"
+        )));
+    }
+    let mut files = walk_files(search_root)?;
+    files.sort();
+    for hint in hints {
+        crate::archive::validate_relative_path(hint, false).map_err(|_| {
+            PortcoveError::verification(format!("{label} hint is not a safe relative path"))
+                .detail("hint", hint)
+        })?;
+        let path_aware = hint.contains('/');
+        let mut matches = files
+            .iter()
+            .filter(|path| {
+                if path_aware {
+                    manifest_relative(search_root, path)
+                        .is_ok_and(|relative| relative.eq_ignore_ascii_case(hint))
+                } else {
+                    path.file_name()
+                        .and_then(|name| name.to_str())
+                        .is_some_and(|name| name.eq_ignore_ascii_case(hint))
+                }
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        if matches.len() > 1 {
+            matches.sort();
+            let candidates = matches
+                .iter()
+                .map(|path| manifest_relative(search_root, path))
+                .collect::<Result<Vec<_>>>()?;
+            return Err(
+                PortcoveError::conflict(format!("{label} hint is ambiguous"))
+                    .detail("hint", hint)
+                    .detail("candidates", candidates.join(", ")),
+            );
+        }
+        if let Some(found) = matches.pop() {
+            crate::permissions::require_platform_executable(&found, platform, label)?;
+            return Ok(found);
         }
     }
     Err(PortcoveError::verification(format!(
-        "none of the declared executables for {:?} were found",
-        qualification.platform
+        "none of the {label} hints for {platform:?} were found"
     )))
 }
 
@@ -1245,17 +1336,65 @@ fn manifest_relative(root: &Path, path: &Path) -> Result<String> {
     Ok(value.replace('\\', "/"))
 }
 
-fn is_critical_companion(path: &Path, selected: &Path) -> bool {
-    if path.parent() != selected.parent() {
-        return false;
+fn is_regular_file_without_symlink(path: &Path) -> bool {
+    fs::symlink_metadata(path)
+        .is_ok_and(|metadata| metadata.is_file() && !metadata.file_type().is_symlink())
+}
+
+fn refuse_symlink_path_within(root: &Path, path: &Path, label: &str) -> Result<()> {
+    for candidate in path
+        .ancestors()
+        .take_while(|candidate| candidate.starts_with(root))
+    {
+        if fs::symlink_metadata(candidate).is_ok_and(|metadata| metadata.file_type().is_symlink()) {
+            return Err(PortcoveError::verification(format!(
+                "{label} traverses a symlink inside the install"
+            ))
+            .detail("path", candidate.display().to_string()));
+        }
     }
+    Ok(())
+}
+
+fn manifest_path_is_mutable(manifest: &InstallManifest, relative: &str) -> bool {
+    manifest
+        .mutable_file_patterns
+        .iter()
+        .any(|pattern| pattern.matches(relative))
+        || manifest
+            .mutable_paths
+            .iter()
+            .any(|mutable| relative == mutable || relative.starts_with(&format!("{mutable}/")))
+}
+
+fn is_critical_companion(path: &Path, selected: &Path, platform: Platform) -> Result<bool> {
+    if path.parent() != selected.parent() {
+        return Ok(false);
+    }
+    if is_critical_companion_name(path, platform) {
+        return Ok(true);
+    }
+    Ok(matches!(
+        platform,
+        Platform::LinuxX86_64 | Platform::MacosX86_64 | Platform::MacosAarch64
+    ) && crate::permissions::executable_intent(path)?)
+}
+
+fn is_critical_companion_name(path: &Path, platform: Platform) -> bool {
+    let name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    let extension = path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(str::to_ascii_lowercase);
     matches!(
-        path.extension()
-            .and_then(|extension| extension.to_str())
-            .map(str::to_ascii_lowercase)
-            .as_deref(),
-        Some("dll" | "so" | "dylib" | "bat" | "cmd" | "sh" | "toml" | "ini" | "cfg")
-    )
+        extension.as_deref(),
+        Some("dll" | "so" | "dylib" | "bat" | "cmd" | "ps1" | "sh" | "toml" | "ini" | "cfg")
+    ) || name.contains(".so.")
+        || (platform == Platform::WindowsX86_64 && extension.as_deref() == Some("exe"))
 }
 
 fn extract_asset(
@@ -1290,6 +1429,45 @@ mod tests {
 
     use super::*;
 
+    fn create_test_install(
+        root: &Path,
+        qualification: &InstallQualification,
+    ) -> (Installer, InstallRecord) {
+        let library = Library::open(root.parent().unwrap().join("library")).unwrap();
+        let installer = Installer::new(library).unwrap();
+        let artifact = ArtifactIdentity {
+            asset_name: "fixture.zip".into(),
+            sha256: "a".repeat(64),
+            size: 32,
+        };
+        let (manifest_sha256, selected_executable, runtime) = write_manifest(
+            "test-install",
+            "sample",
+            "v1",
+            &artifact,
+            qualification,
+            root,
+        )
+        .unwrap();
+        (
+            installer,
+            InstallRecord {
+                id: "test-install".into(),
+                port_id: "sample".into(),
+                version: "v1".into(),
+                path: root.to_path_buf(),
+                channel: crate::ReleaseChannel::Stable,
+                installed_at: 1,
+                verified: true,
+                staged: false,
+                artifact,
+                runtime,
+                manifest_sha256,
+                selected_executable,
+            },
+        )
+    }
+
     struct FailOnce {
         point: LifecycleFaultPoint,
         fired: AtomicBool,
@@ -1304,6 +1482,193 @@ mod tests {
             }
             Ok(())
         }
+    }
+
+    #[test]
+    fn executable_resolution_rejects_ambiguous_basenames_and_accepts_exact_paths() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        fs::create_dir_all(root.join("primary")).unwrap();
+        fs::create_dir_all(root.join("secondary")).unwrap();
+        fs::write(root.join("primary/game.exe"), b"primary").unwrap();
+        fs::write(root.join("secondary/game.exe"), b"secondary").unwrap();
+        let mut qualification = InstallQualification::test("game.exe");
+
+        let ambiguous = resolve_declared_executable(root, &qualification).unwrap_err();
+        assert_eq!(ambiguous.code, crate::ErrorCode::Conflict);
+        assert_eq!(ambiguous.details["hint"], "game.exe");
+        assert!(ambiguous.details["candidates"].contains("primary/game.exe"));
+        assert!(ambiguous.details["candidates"].contains("secondary/game.exe"));
+
+        qualification.executable_hints = vec!["secondary/game.exe".into()];
+        assert_eq!(
+            resolve_declared_executable(root, &qualification).unwrap(),
+            root.join("secondary/game.exe")
+        );
+    }
+
+    #[test]
+    fn executable_resolution_rejects_unsafe_and_unicode_aliases() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        fs::write(root.join("game.exe"), b"trusted").unwrap();
+        let mut qualification = InstallQualification::test("../game.exe");
+        assert_eq!(
+            resolve_declared_executable(root, &qualification)
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Verification
+        );
+
+        qualification.executable_hints = vec!["game.exe".into()];
+        fs::remove_file(root.join("game.exe")).unwrap();
+        fs::write(root.join("gamé.exe"), b"lookalike").unwrap();
+        assert_eq!(
+            resolve_declared_executable(root, &qualification)
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Verification
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn executable_resolution_rejects_symlinks() {
+        use std::os::unix::fs::{PermissionsExt, symlink};
+
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        fs::create_dir(&root).unwrap();
+        let outside = temporary.path().join("outside");
+        fs::write(&outside, b"outside").unwrap();
+        fs::set_permissions(&outside, fs::Permissions::from_mode(0o755)).unwrap();
+        symlink(&outside, root.join("game")).unwrap();
+        let mut qualification = InstallQualification::test("game");
+        qualification.platform = Platform::LinuxX86_64;
+        assert!(resolve_declared_executable(&root, &qualification).is_err());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn executable_resolution_rejects_case_aliases() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        fs::create_dir(&root).unwrap();
+        for name in ["Game", "game"] {
+            let path = root.join(name);
+            fs::write(&path, b"executable").unwrap();
+            fs::set_permissions(path, fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        let mut qualification = InstallQualification::test("game");
+        qualification.platform = Platform::LinuxX86_64;
+        let error = resolve_declared_executable(&root, &qualification).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+    }
+
+    #[test]
+    fn critical_verification_rejects_new_launch_sensitive_companions() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        fs::create_dir(&root).unwrap();
+        fs::create_dir(root.join("saves")).unwrap();
+        fs::write(root.join("game.exe"), b"trusted executable").unwrap();
+        let mut qualification = InstallQualification::test("game.exe");
+        qualification.persistent_paths = vec!["saves".into()];
+        let (installer, install) = create_test_install(&root, &qualification);
+
+        for name in [
+            "engine.dll",
+            "libengine.so",
+            "libengine.so.1",
+            "engine.dylib",
+            "launcher.exe",
+            "launch.bat",
+            "launch.cmd",
+            "launch.ps1",
+            "launch.sh",
+            "loader.toml",
+            "loader.ini",
+            "loader.cfg",
+        ] {
+            let candidate = root.join(name);
+            fs::write(&candidate, b"unmanifested").unwrap();
+            let error = installer.verify_critical(&install).unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Verification, "{name}");
+            assert!(error.details["failures"].contains(name), "{name}");
+            fs::remove_file(candidate).unwrap();
+        }
+
+        fs::write(root.join("notes.txt"), b"benign untracked note").unwrap();
+        fs::write(root.join("saves/engine.dll"), b"explicit mutable data").unwrap();
+        assert_eq!(
+            installer.verify_critical(&install).unwrap(),
+            root.join("game.exe")
+        );
+    }
+
+    #[test]
+    fn critical_verification_upgrades_legacy_recorded_companion_coverage() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("game.exe"), b"trusted executable").unwrap();
+        fs::write(root.join("helper.exe"), b"trusted helper").unwrap();
+        let qualification = InstallQualification::test("game.exe");
+        let (installer, mut install) = create_test_install(&root, &qualification);
+
+        let manifest_path = root.join(".portcove-manifest.json");
+        let mut value: serde_json::Value =
+            serde_json::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
+        let helper = value["files"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|file| file["path"] == "helper.exe")
+            .unwrap();
+        helper["critical"] = false.into();
+        let bytes = serde_json::to_vec_pretty(&value).unwrap();
+        fs::write(&manifest_path, &bytes).unwrap();
+        install.manifest_sha256 = hex::encode(Sha256::digest(&bytes));
+
+        assert_eq!(
+            installer.verify_critical(&install).unwrap(),
+            root.join("game.exe")
+        );
+        fs::write(root.join("helper.exe"), b"tampered helper").unwrap();
+        let error = installer.verify_critical(&install).unwrap_err();
+        assert!(error.details["failures"].contains("changed: helper.exe"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn critical_verification_rejects_selected_and_companion_symlinks() {
+        use std::os::unix::fs::{PermissionsExt, symlink};
+
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        fs::create_dir(&root).unwrap();
+        let executable = root.join("game");
+        fs::write(&executable, b"trusted executable").unwrap();
+        fs::set_permissions(&executable, fs::Permissions::from_mode(0o755)).unwrap();
+        let mut qualification = InstallQualification::test("game");
+        qualification.platform = Platform::LinuxX86_64;
+        let (installer, install) = create_test_install(&root, &qualification);
+        let outside = temporary.path().join("outside");
+        fs::write(&outside, b"trusted executable").unwrap();
+        fs::set_permissions(&outside, fs::Permissions::from_mode(0o755)).unwrap();
+
+        fs::remove_file(&executable).unwrap();
+        symlink(&outside, &executable).unwrap();
+        assert!(installer.verify_critical(&install).is_err());
+
+        fs::remove_file(&executable).unwrap();
+        fs::write(&executable, b"trusted executable").unwrap();
+        fs::set_permissions(&executable, fs::Permissions::from_mode(0o755)).unwrap();
+        symlink(&outside, root.join("engine.so")).unwrap();
+        let error = installer.verify_critical(&install).unwrap_err();
+        assert!(error.details["failures"].contains("engine.so"));
     }
 
     #[cfg(unix)]
