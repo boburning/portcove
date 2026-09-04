@@ -21,12 +21,13 @@ the architecture or trust model. Admission requires:
   `portcove-core`; and
 - honest automated and manual qualification fields.
 
-On an uncached lookup, hosted GitHub and GitLab providers inspect repository
-metadata and reject resolution when the host reports the repository as
-archived. A successful hosted release selection can currently be reused from
-an in-memory cache for up to five minutes before that repository flag is
-refreshed. [Issue #212](https://github.com/boburning/portcove/issues/212) owns
-the narrow fail-closed correction and the cached-then-archived provider tests.
+Hosted GitHub and GitLab providers inspect repository metadata before every
+resolution, including reuse of a five-minute in-memory release selection, and
+reject resolution when the host reports the repository as archived. A
+conditional `304 Not Modified` reuses only the last semantically valid metadata
+body. If repository-state revalidation cannot reach the host, resolution fails
+with that network error instead of treating the cached release as either
+supported or withdrawn.
 
 The hosting service's archive flag is not the same as Portcove's catalog
 `Retired` status. A `Retired` entry cannot use a hosted provider; current

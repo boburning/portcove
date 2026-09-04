@@ -5,13 +5,16 @@ use std::{
 };
 
 use async_trait::async_trait;
+use futures_util::{StreamExt, stream};
 use reqwest::{StatusCode, header};
 use serde::{Deserialize, de::DeserializeOwned};
 use tokio::sync::RwLock;
 
 use crate::{
     Library, Platform, PortDefinition, PortcoveError, ReleaseAsset, ReleaseChannel,
-    ReleaseProvider, ReleaseSource, ResolvedRelease, Result, library::HttpCacheEntry,
+    ReleaseProvider, ReleaseSource, ResolvedRelease, Result,
+    library::HttpCacheEntry,
+    release::{PROVIDER_JSON_MAX_BYTES, bounded_response_bytes, paginated_url},
 };
 
 #[derive(Clone)]
@@ -36,6 +39,12 @@ struct CachedRelease {
 }
 
 const RELEASE_CACHE_TTL: Duration = Duration::from_secs(5 * 60);
+const PROVIDER_PAGE_SIZE: usize = 100;
+const GITLAB_MAX_RELEASE_PAGES: usize = 10;
+const GITLAB_MAX_PACKAGE_PAGES: usize = 10;
+const GITLAB_MAX_MATCHING_PACKAGES: usize = 16;
+const GITLAB_MAX_PACKAGE_FILE_PAGES: usize = 5;
+const GITLAB_PACKAGE_LOOKUP_CONCURRENCY: usize = 4;
 
 impl GitlabReleaseProvider {
     pub fn for_library(library: &Library) -> Result<Self> {
@@ -44,6 +53,7 @@ impl GitlabReleaseProvider {
 
     fn build(library: Option<Library>, api_root: &str) -> Result<Self> {
         let client = reqwest::Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
             .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
             .build()
             .map_err(|error| PortcoveError::network(error.to_string()))?;
@@ -58,6 +68,11 @@ impl GitlabReleaseProvider {
     #[cfg(test)]
     pub fn with_api_root(api_root: impl AsRef<str>) -> Result<Self> {
         Self::build(None, api_root.as_ref())
+    }
+
+    #[cfg(test)]
+    fn with_api_root_and_library(api_root: impl AsRef<str>, library: Library) -> Result<Self> {
+        Self::build(Some(library), api_root.as_ref())
     }
 
     fn project_url(&self, repository: &str) -> Result<String> {
@@ -80,6 +95,12 @@ impl GitlabReleaseProvider {
     }
 
     async fn get_json<T: DeserializeOwned>(&self, url: &str) -> Result<T> {
+        self.get_optional_json(url).await?.ok_or_else(|| {
+            PortcoveError::not_found(format!("GitLab resource was not found: {url}"))
+        })
+    }
+
+    async fn get_optional_json<T: DeserializeOwned>(&self, url: &str) -> Result<Option<T>> {
         let cached = self.cached_http_response(url);
         let mut request = self.client.get(url);
         if let Some(cached) = cached.as_ref() {
@@ -98,14 +119,20 @@ impl GitlabReleaseProvider {
             let body = cached
                 .ok_or_else(|| PortcoveError::state("GitLab returned 304 without cached data"))?
                 .body;
+            if body.len() > PROVIDER_JSON_MAX_BYTES {
+                return Err(PortcoveError::verification(
+                    "cached GitLab response exceeds the 4 MiB metadata limit",
+                ));
+            }
             return serde_json::from_str(&body)
+                .map(Some)
                 .map_err(|error| PortcoveError::network(error.to_string()));
         }
+        if response.status() == StatusCode::NOT_FOUND {
+            return Ok(None);
+        }
         if !response.status().is_success() {
-            return Err(PortcoveError::network(format!(
-                "GitLab API returned {}",
-                response.status()
-            )));
+            return Err(gitlab_http_error(response.status(), response.headers()));
         }
         let etag = response
             .headers()
@@ -117,17 +144,59 @@ impl GitlabReleaseProvider {
             .get(header::LAST_MODIFIED)
             .and_then(|value| value.to_str().ok())
             .map(str::to_owned);
-        let body = response
-            .text()
-            .await
+        let body =
+            bounded_response_bytes(response, PROVIDER_JSON_MAX_BYTES, "GitLab response").await?;
+        let parsed = serde_json::from_slice(&body)
+            .map_err(|error| PortcoveError::network(error.to_string()))?;
+        let body = std::str::from_utf8(&body)
             .map_err(|error| PortcoveError::network(error.to_string()))?;
         if let Some(library) = &self.library
             && let Err(error) =
-                library.store_http_cache(url, etag.as_deref(), last_modified.as_deref(), &body)
+                library.store_http_cache(url, etag.as_deref(), last_modified.as_deref(), body)
         {
             tracing::warn!(%error, %url, "could not persist HTTP cache");
         }
-        serde_json::from_str(&body).map_err(|error| PortcoveError::network(error.to_string()))
+        Ok(Some(parsed))
+    }
+
+    async fn releases(&self, project_url: &str) -> Result<Vec<GitlabRelease>> {
+        let mut releases = Vec::new();
+        for page in 1..=GITLAB_MAX_RELEASE_PAGES {
+            let url = paginated_url(project_url, "releases", page, PROVIDER_PAGE_SIZE)?;
+            let mut current: Vec<GitlabRelease> = self.get_json(&url).await?;
+            let has_more = current.len() == PROVIDER_PAGE_SIZE;
+            releases.append(&mut current);
+            if !has_more {
+                return Ok(releases);
+            }
+        }
+        Err(PortcoveError::verification(format!(
+            "GitLab release discovery exceeds the supported {}-release bound",
+            GITLAB_MAX_RELEASE_PAGES * PROVIDER_PAGE_SIZE
+        )))
+    }
+
+    async fn packages(&self, project_url: &str) -> Result<Vec<GitlabPackage>> {
+        let mut packages = Vec::new();
+        for page in 1..=GITLAB_MAX_PACKAGE_PAGES {
+            let url = paginated_url(project_url, "packages", page, PROVIDER_PAGE_SIZE)?;
+            let mut url = reqwest::Url::parse(&url)
+                .map_err(|error| PortcoveError::state(error.to_string()))?;
+            url.query_pairs_mut()
+                .append_pair("package_type", "generic")
+                .append_pair("order_by", "created_at")
+                .append_pair("sort", "desc");
+            let mut current: Vec<GitlabPackage> = self.get_json(url.as_str()).await?;
+            let has_more = current.len() == PROVIDER_PAGE_SIZE;
+            packages.append(&mut current);
+            if !has_more {
+                return Ok(packages);
+            }
+        }
+        Err(PortcoveError::verification(format!(
+            "GitLab package discovery exceeds the supported {}-package bound",
+            GITLAB_MAX_PACKAGE_PAGES * PROVIDER_PAGE_SIZE
+        )))
     }
 
     async fn package_file(
@@ -140,35 +209,72 @@ impl GitlabReleaseProvider {
         let Some(file_id) = package_file_id(&link.url) else {
             return Ok(None);
         };
-        let packages_url = format!(
-            "{project_url}/packages?package_type=generic&order_by=created_at&sort=desc&per_page=100"
-        );
-        let packages: Vec<GitlabPackage> = self.get_json(&packages_url).await?;
+        let packages = self.packages(project_url).await?;
         let normalized_tag = release.tag_name.trim_start_matches('v');
-        let mut package_ids: Vec<u64> = packages
-            .iter()
+        let package_ids: Vec<u64> = packages
+            .into_iter()
             .filter(|package| {
                 package.version == release.tag_name || package.version == normalized_tag
             })
             .map(|package| package.id)
             .collect();
-        let remaining: Vec<u64> = packages
-            .iter()
-            .filter(|package| !package_ids.contains(&package.id))
-            .map(|package| package.id)
-            .collect();
-        package_ids.extend(remaining);
-        for package_id in package_ids {
-            let url = format!(
-                "{}/projects/{project_id}/packages/{package_id}/package_files",
-                self.api_root
-            );
+        if package_ids.len() > GITLAB_MAX_MATCHING_PACKAGES {
+            return Err(PortcoveError::verification(format!(
+                "GitLab release {} maps to more than {} matching packages",
+                release.tag_name, GITLAB_MAX_MATCHING_PACKAGES
+            )));
+        }
+        let requests = package_ids.into_iter().map(|package_id| async move {
+            self.package_file_in_package(project_id, package_id, file_id)
+                .await
+        });
+        let results = stream::iter(requests)
+            .buffered(GITLAB_PACKAGE_LOOKUP_CONCURRENCY)
+            .collect::<Vec<_>>()
+            .await;
+        let mut matched = None;
+        for result in results {
+            let Some(file) = result? else { continue };
+            if file.id != file_id {
+                return Err(PortcoveError::verification(
+                    "GitLab package-file endpoint returned a mismatched identity",
+                ));
+            }
+            if matched.is_some() {
+                return Err(PortcoveError::conflict(
+                    "GitLab package-file identity is ambiguous across matching release packages",
+                ));
+            }
+            matched = Some(file);
+        }
+        Ok(matched)
+    }
+
+    async fn package_file_in_package(
+        &self,
+        project_id: u64,
+        package_id: u64,
+        file_id: u64,
+    ) -> Result<Option<GitlabPackageFile>> {
+        let package_url = format!(
+            "{}/projects/{project_id}/packages/{package_id}",
+            self.api_root
+        );
+        for page in 1..=GITLAB_MAX_PACKAGE_FILE_PAGES {
+            let url = paginated_url(&package_url, "package_files", page, PROVIDER_PAGE_SIZE)?;
             let files: Vec<GitlabPackageFile> = self.get_json(&url).await?;
+            let has_more = files.len() == PROVIDER_PAGE_SIZE;
             if let Some(file) = files.into_iter().find(|file| file.id == file_id) {
                 return Ok(Some(file));
             }
+            if !has_more {
+                return Ok(None);
+            }
         }
-        Ok(None)
+        Err(PortcoveError::verification(format!(
+            "GitLab package {package_id} exceeds the supported {}-file lookup bound",
+            GITLAB_MAX_PACKAGE_FILE_PAGES * PROVIDER_PAGE_SIZE
+        )))
     }
 
     async fn cached_release(&self, key: &CacheKey) -> Option<ResolvedRelease> {
@@ -211,14 +317,6 @@ impl ReleaseProvider for GitlabReleaseProvider {
                 port.name
             )));
         }
-        let key = CacheKey {
-            repository: port.release.repository.clone(),
-            channel,
-            platform,
-        };
-        if let Some(release) = self.cached_release(&key).await {
-            return Ok(release);
-        }
         let project_url = self.project_url(&port.release.repository)?;
         let project: GitlabProject = self.get_json(&project_url).await?;
         if project.archived.unwrap_or(false) {
@@ -227,9 +325,15 @@ impl ReleaseProvider for GitlabReleaseProvider {
                 port.name
             )));
         }
-        let releases: Vec<GitlabRelease> = self
-            .get_json(&format!("{project_url}/releases?per_page=30"))
-            .await?;
+        let key = CacheKey {
+            repository: port.release.repository.clone(),
+            channel,
+            platform,
+        };
+        if let Some(release) = self.cached_release(&key).await {
+            return Ok(release);
+        }
+        let releases = self.releases(&project_url).await?;
         let release = crate::release::select_channel_candidate(
             &releases,
             channel,
@@ -366,12 +470,37 @@ fn choose_link<'a>(
             .cmp(&left.0)
             .then_with(|| left.1.name.cmp(&right.1.name))
     });
-    scored.first().map(|(_, link)| *link).ok_or_else(|| {
-        PortcoveError::not_found(format!(
+    let Some((best_score, best_link)) = scored.first() else {
+        return Err(PortcoveError::not_found(format!(
             "{} has no supported GitLab package for {platform:?}",
             port.name
-        ))
-    })
+        )));
+    };
+    if scored.get(1).is_some_and(|(score, _)| score == best_score) {
+        return Err(PortcoveError::conflict(format!(
+            "{} publishes multiple equally qualified GitLab packages for {platform:?}; catalog metadata must select exactly one",
+            port.name
+        )));
+    }
+    Ok(*best_link)
+}
+
+fn gitlab_http_error(status: StatusCode, headers: &header::HeaderMap) -> PortcoveError {
+    let mut error = PortcoveError::network(format!("GitLab API returned {status}"));
+    for (header_name, detail_name) in [
+        ("ratelimit-limit", "rate_limit"),
+        ("ratelimit-remaining", "rate_remaining"),
+        ("ratelimit-reset", "rate_reset"),
+        ("retry-after", "retry_after"),
+    ] {
+        if let Some(value) = headers
+            .get(header_name)
+            .and_then(|value| value.to_str().ok())
+        {
+            error.details.insert(detail_name.into(), value.into());
+        }
+    }
+    error
 }
 
 fn conflicts_with_platform(name: &str, platform: Platform) -> bool {
@@ -427,6 +556,58 @@ fn is_beta_tag(tag: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::{
+        io::{Read, Write},
+        net::TcpListener,
+        sync::{
+            Arc,
+            atomic::{AtomicUsize, Ordering},
+            mpsc::{self, Receiver},
+        },
+        thread::{self, JoinHandle},
+    };
+
+    fn serve_http(responses: Vec<String>) -> (String, Receiver<String>, JoinHandle<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let (requests_tx, requests_rx) = mpsc::channel();
+        let server = thread::spawn(move || {
+            for response in responses {
+                let (mut stream, _) = listener.accept().unwrap();
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(2)))
+                    .unwrap();
+                let mut request = vec![0_u8; 16 * 1024];
+                let size = stream.read(&mut request).unwrap();
+                let _ = requests_tx.send(String::from_utf8_lossy(&request[..size]).to_string());
+                stream.write_all(response.as_bytes()).unwrap();
+            }
+        });
+        (format!("http://{address}"), requests_rx, server)
+    }
+
+    fn ok_json(body: &str, extra_headers: &str) -> String {
+        format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n{extra_headers}Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        )
+    }
+
+    fn gitlab_release(asset_url: &str) -> serde_json::Value {
+        let asset_name = "ExtremeG-Windows-RelWithDebInfo.zip";
+        serde_json::json!({
+            "tag_name": "v1.0.0",
+            "description": format!("{asset_name} SHA-256: {}", "a".repeat(64)),
+            "released_at": null,
+            "upcoming_release": false,
+            "assets": {"links": [{
+                "name": asset_name,
+                "url": asset_url,
+                "direct_asset_url": asset_url,
+                "link_type": "package"
+            }]}
+        })
+    }
 
     #[test]
     fn project_paths_are_percent_encoded() {
@@ -452,5 +633,327 @@ mod tests {
             ),
             Some(digest)
         );
+    }
+
+    #[tokio::test]
+    async fn malformed_success_never_replaces_a_valid_gitlab_cache_entry() {
+        let responses = vec![
+            ok_json(r#"{"id":1,"archived":false}"#, "ETag: \"good\"\r\n"),
+            ok_json("{malformed", "ETag: \"bad\"\r\n"),
+            "HTTP/1.1 304 Not Modified\r\nConnection: close\r\n\r\n".into(),
+        ];
+        let (server_root, requests, server) = serve_http(responses);
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let provider = GitlabReleaseProvider::with_api_root_and_library(
+            format!("{server_root}/api/v4"),
+            library,
+        )
+        .unwrap();
+        let url = provider.project_url("group/project").unwrap();
+
+        assert!(
+            !provider
+                .get_json::<GitlabProject>(&url)
+                .await
+                .unwrap()
+                .archived
+                .unwrap()
+        );
+        assert!(provider.get_json::<GitlabProject>(&url).await.is_err());
+        assert!(
+            !provider
+                .get_json::<GitlabProject>(&url)
+                .await
+                .unwrap()
+                .archived
+                .unwrap()
+        );
+        server.join().unwrap();
+
+        let first = requests.recv().unwrap();
+        let second = requests.recv().unwrap();
+        let third = requests.recv().unwrap();
+        assert!(!first.to_ascii_lowercase().contains("if-none-match"));
+        assert!(
+            second
+                .to_ascii_lowercase()
+                .contains("if-none-match: \"good\"")
+        );
+        assert!(
+            third
+                .to_ascii_lowercase()
+                .contains("if-none-match: \"good\"")
+        );
+        assert!(!third.contains("\"bad\""));
+    }
+
+    #[tokio::test]
+    async fn gitlab_metadata_bodies_are_bounded_and_rate_limits_remain_structured() {
+        let responses = vec![format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            PROVIDER_JSON_MAX_BYTES + 1
+        )];
+        let (server_root, _, server) = serve_http(responses);
+        let provider =
+            GitlabReleaseProvider::with_api_root(format!("{server_root}/api/v4")).unwrap();
+        let error = provider
+            .get_json::<serde_json::Value>(&format!("{server_root}/metadata"))
+            .await
+            .unwrap_err();
+        server.join().unwrap();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert!(error.message.contains("4194304 byte limit"));
+
+        let responses = vec!["HTTP/1.1 429 Too Many Requests\r\nRateLimit-Limit: 60\r\nRateLimit-Remaining: 0\r\nRateLimit-Reset: 1234\r\nRetry-After: 30\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".into()];
+        let (server_root, _, server) = serve_http(responses);
+        let provider =
+            GitlabReleaseProvider::with_api_root(format!("{server_root}/api/v4")).unwrap();
+        let error = provider
+            .get_json::<serde_json::Value>(&format!("{server_root}/metadata"))
+            .await
+            .unwrap_err();
+        server.join().unwrap();
+        assert_eq!(
+            error.details.get("rate_remaining").map(String::as_str),
+            Some("0")
+        );
+        assert_eq!(
+            error.details.get("retry_after").map(String::as_str),
+            Some("30")
+        );
+    }
+
+    #[test]
+    fn equally_scored_gitlab_links_are_ambiguous() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("extreme-g-recompiled").unwrap();
+        let links = [
+            GitlabReleaseLink {
+                name: "ExtremeG-Windows-RelWithDebInfo-one.zip".into(),
+                url: "https://example.invalid/one.zip".into(),
+                direct_asset_url: None,
+                link_type: "package".into(),
+            },
+            GitlabReleaseLink {
+                name: "ExtremeG-Windows-RelWithDebInfo-two.zip".into(),
+                url: "https://example.invalid/two.zip".into(),
+                direct_asset_url: None,
+                link_type: "package".into(),
+            },
+        ];
+        let error = choose_link(port, Platform::WindowsX86_64, &links).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert!(error.message.contains("equally qualified"));
+    }
+
+    #[tokio::test]
+    async fn gitlab_package_lookup_paginates_and_has_a_hard_candidate_bound() {
+        let first_page = (0..PROVIDER_PAGE_SIZE)
+            .map(|index| serde_json::json!({"id": index + 1, "version": "v0.9.0"}))
+            .collect::<Vec<_>>();
+        let second_page = serde_json::json!([{"id": 501, "version": "v1.0.0"}]);
+        let package_file = serde_json::json!({
+            "id": 77,
+            "file_name": "ExtremeG-Windows-RelWithDebInfo.zip",
+            "size": 42,
+            "file_sha256": "a".repeat(64)
+        });
+        let responses = vec![
+            ok_json(&serde_json::to_string(&first_page).unwrap(), ""),
+            ok_json(&second_page.to_string(), ""),
+            ok_json(&serde_json::to_string(&vec![package_file]).unwrap(), ""),
+        ];
+        let (server_root, requests, server) = serve_http(responses);
+        let provider =
+            GitlabReleaseProvider::with_api_root(format!("{server_root}/api/v4")).unwrap();
+        let project_url = provider.project_url("group/project").unwrap();
+        let release = GitlabRelease {
+            tag_name: "v1.0.0".into(),
+            description: String::new(),
+            released_at: None,
+            upcoming_release: false,
+            assets: GitlabReleaseAssets { links: vec![] },
+        };
+        let link = GitlabReleaseLink {
+            name: "ExtremeG-Windows-RelWithDebInfo.zip".into(),
+            url: format!("{server_root}/group/project/-/package_files/77/download"),
+            direct_asset_url: None,
+            link_type: "package".into(),
+        };
+        let file = provider
+            .package_file(&project_url, 9, &release, &link)
+            .await
+            .unwrap()
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(file.id, 77);
+        let requests = requests.try_iter().collect::<Vec<_>>();
+        assert_eq!(requests.len(), 3);
+        assert!(requests[0].contains("page=1"));
+        assert!(requests[1].contains("page=2"));
+        assert!(requests[2].contains("/packages/501/package_files?"));
+
+        let too_many = (0..=GITLAB_MAX_MATCHING_PACKAGES)
+            .map(|index| serde_json::json!({"id": index + 1, "version": "v1.0.0"}))
+            .collect::<Vec<_>>();
+        let responses = vec![ok_json(&serde_json::to_string(&too_many).unwrap(), "")];
+        let (server_root, requests, server) = serve_http(responses);
+        let provider =
+            GitlabReleaseProvider::with_api_root(format!("{server_root}/api/v4")).unwrap();
+        let project_url = provider.project_url("group/project").unwrap();
+        let error = provider
+            .package_file(&project_url, 9, &release, &link)
+            .await
+            .unwrap_err();
+        server.join().unwrap();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert!(error.message.contains("more than 16 matching packages"));
+        assert_eq!(requests.try_iter().count(), 1);
+    }
+
+    #[tokio::test]
+    async fn gitlab_package_pagination_stops_at_the_documented_request_bound() {
+        let full_page = (0..PROVIDER_PAGE_SIZE)
+            .map(|index| serde_json::json!({"id": index + 1, "version": "v0.9.0"}))
+            .collect::<Vec<_>>();
+        let body = serde_json::to_string(&full_page).unwrap();
+        let responses = (0..GITLAB_MAX_PACKAGE_PAGES)
+            .map(|_| ok_json(&body, ""))
+            .collect();
+        let (server_root, requests, server) = serve_http(responses);
+        let provider =
+            GitlabReleaseProvider::with_api_root(format!("{server_root}/api/v4")).unwrap();
+        let project_url = provider.project_url("group/project").unwrap();
+        let error = provider.packages(&project_url).await.unwrap_err();
+        server.join().unwrap();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert!(error.message.contains("1000-package bound"));
+        assert_eq!(requests.try_iter().count(), GITLAB_MAX_PACKAGE_PAGES);
+    }
+
+    #[tokio::test]
+    async fn gitlab_package_file_requests_use_the_documented_concurrency_bound() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let active = Arc::new(AtomicUsize::new(0));
+        let maximum = Arc::new(AtomicUsize::new(0));
+        let measured = maximum.clone();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0_u8; 16 * 1024];
+            let _ = stream.read(&mut request).unwrap();
+            let packages = (1..=8)
+                .map(|id| serde_json::json!({"id": id, "version": "v1.0.0"}))
+                .collect::<Vec<_>>();
+            stream
+                .write_all(ok_json(&serde_json::to_string(&packages).unwrap(), "").as_bytes())
+                .unwrap();
+
+            let mut workers = Vec::new();
+            for _ in 0..8 {
+                let (mut stream, _) = listener.accept().unwrap();
+                let active = active.clone();
+                let maximum = maximum.clone();
+                workers.push(thread::spawn(move || {
+                    let mut request = [0_u8; 16 * 1024];
+                    let _ = stream.read(&mut request).unwrap();
+                    let current = active.fetch_add(1, Ordering::SeqCst) + 1;
+                    maximum.fetch_max(current, Ordering::SeqCst);
+                    thread::sleep(Duration::from_millis(50));
+                    stream
+                        .write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n[]")
+                        .unwrap();
+                    active.fetch_sub(1, Ordering::SeqCst);
+                }));
+            }
+            for worker in workers {
+                worker.join().unwrap();
+            }
+        });
+        let server_root = format!("http://{address}");
+        let provider =
+            GitlabReleaseProvider::with_api_root(format!("{server_root}/api/v4")).unwrap();
+        let release = GitlabRelease {
+            tag_name: "v1.0.0".into(),
+            description: String::new(),
+            released_at: None,
+            upcoming_release: false,
+            assets: GitlabReleaseAssets { links: vec![] },
+        };
+        let link = GitlabReleaseLink {
+            name: "game.zip".into(),
+            url: format!("{server_root}/group/project/-/package_files/77/download"),
+            direct_asset_url: None,
+            link_type: "package".into(),
+        };
+        assert!(
+            provider
+                .package_file(
+                    &provider.project_url("group/project").unwrap(),
+                    9,
+                    &release,
+                    &link
+                )
+                .await
+                .unwrap()
+                .is_none()
+        );
+        server.join().unwrap();
+        assert_eq!(
+            measured.load(Ordering::SeqCst),
+            GITLAB_PACKAGE_LOOKUP_CONCURRENCY
+        );
+    }
+
+    #[tokio::test]
+    async fn gitlab_release_cache_revalidates_archive_state_and_fails_closed_offline() {
+        let release_body = serde_json::to_string(&vec![gitlab_release(
+            "https://downloads.example.invalid/extreme-g.zip",
+        )])
+        .unwrap();
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("extreme-g-recompiled").unwrap();
+        let responses = vec![
+            ok_json(r#"{"id":9,"archived":false}"#, ""),
+            ok_json(&release_body, ""),
+            ok_json(r#"{"id":9,"archived":true}"#, ""),
+        ];
+        let (server_root, requests, server) = serve_http(responses);
+        let provider =
+            GitlabReleaseProvider::with_api_root(format!("{server_root}/api/v4")).unwrap();
+        provider
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        let error = provider
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap_err();
+        server.join().unwrap();
+        assert_eq!(error.code, crate::ErrorCode::Unsupported);
+        assert!(error.message.contains("archived upstream"));
+        assert_eq!(requests.try_iter().count(), 3);
+
+        let responses = vec![
+            ok_json(r#"{"id":9,"archived":false}"#, ""),
+            ok_json(&release_body, ""),
+            "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                .into(),
+        ];
+        let (server_root, _, server) = serve_http(responses);
+        let provider =
+            GitlabReleaseProvider::with_api_root(format!("{server_root}/api/v4")).unwrap();
+        provider
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        let error = provider
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap_err();
+        server.join().unwrap();
+        assert_eq!(error.code, crate::ErrorCode::Network);
+        assert!(error.message.contains("503"));
     }
 }

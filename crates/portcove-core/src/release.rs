@@ -5,6 +5,7 @@ use std::{
 };
 
 use async_trait::async_trait;
+use futures_util::StreamExt;
 use reqwest::{StatusCode, header};
 use serde::{Deserialize, de::DeserializeOwned};
 use tokio::sync::{Mutex, RwLock};
@@ -33,6 +34,7 @@ pub trait ReleaseProvider: Send + Sync {
 #[derive(Clone)]
 pub struct GithubReleaseProvider {
     client: reqwest::Client,
+    download_client: reqwest::Client,
     api_root: String,
     web_root: String,
     library: Option<Library>,
@@ -68,6 +70,10 @@ struct CachedRelease {
 }
 
 const RELEASE_CACHE_TTL: Duration = Duration::from_secs(5 * 60);
+pub(crate) const PROVIDER_JSON_MAX_BYTES: usize = 4 * 1024 * 1024;
+const CHECKSUM_MAX_BYTES: usize = 1024 * 1024;
+const PROVIDER_PAGE_SIZE: usize = 100;
+const GITHUB_MAX_RELEASE_PAGES: usize = 10;
 
 impl GithubReleaseProvider {
     pub fn for_library(library: &Library) -> Result<Self> {
@@ -80,11 +86,18 @@ impl GithubReleaseProvider {
 
     fn build(library: Option<Library>, api_root: &str, web_root: &str) -> Result<Self> {
         let client = reqwest::Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
+            .build()
+            .map_err(|error| PortcoveError::network(error.to_string()))?;
+        let download_client = reqwest::Client::builder()
+            .redirect(reqwest::redirect::Policy::limited(5))
             .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
             .build()
             .map_err(|error| PortcoveError::network(error.to_string()))?;
         Ok(Self {
             client,
+            download_client,
             api_root: api_root.into(),
             web_root: web_root.into(),
             library,
@@ -187,6 +200,11 @@ impl GithubReleaseProvider {
             let body = cached
                 .ok_or_else(|| PortcoveError::state("GitHub returned 304 without cached data"))?
                 .body;
+            if body.len() > PROVIDER_JSON_MAX_BYTES {
+                return Err(PortcoveError::verification(
+                    "cached GitHub response exceeds the 4 MiB metadata limit",
+                ));
+            }
             return serde_json::from_str(&body)
                 .map_err(|error| PortcoveError::network(error.to_string()));
         }
@@ -196,17 +214,36 @@ impl GithubReleaseProvider {
         }
         let etag = header_text(response.headers(), header::ETAG);
         let last_modified = header_text(response.headers(), header::LAST_MODIFIED);
-        let body = response
-            .text()
-            .await
+        let body =
+            bounded_response_bytes(response, PROVIDER_JSON_MAX_BYTES, "GitHub response").await?;
+        let parsed = serde_json::from_slice(&body)
+            .map_err(|error| PortcoveError::network(error.to_string()))?;
+        let body = std::str::from_utf8(&body)
             .map_err(|error| PortcoveError::network(error.to_string()))?;
         if let Some(library) = &self.library
             && let Err(error) =
-                library.store_http_cache(url, etag.as_deref(), last_modified.as_deref(), &body)
+                library.store_http_cache(url, etag.as_deref(), last_modified.as_deref(), body)
         {
             tracing::warn!(%error, %url, "could not persist GitHub HTTP cache");
         }
-        serde_json::from_str(&body).map_err(|error| PortcoveError::network(error.to_string()))
+        Ok(parsed)
+    }
+
+    async fn releases(&self, repository_url: &str) -> Result<Vec<GithubRelease>> {
+        let mut releases = Vec::new();
+        for page in 1..=GITHUB_MAX_RELEASE_PAGES {
+            let url = paginated_url(repository_url, "releases", page, PROVIDER_PAGE_SIZE)?;
+            let mut current: Vec<GithubRelease> = self.get_json(&url).await?;
+            let has_more = current.len() == PROVIDER_PAGE_SIZE;
+            releases.append(&mut current);
+            if !has_more {
+                return Ok(releases);
+            }
+        }
+        Err(PortcoveError::verification(format!(
+            "GitHub release discovery exceeds the supported {}-release bound",
+            GITHUB_MAX_RELEASE_PAGES * PROVIDER_PAGE_SIZE
+        )))
     }
 
     async fn cached_release(&self, key: &ReleaseCacheKey) -> Option<ResolvedRelease> {
@@ -257,10 +294,8 @@ impl GithubReleaseProvider {
         }
         let login = if authenticated {
             Some(
-                response
-                    .json::<GithubUser>()
-                    .await
-                    .map_err(|error| PortcoveError::network(error.to_string()))?
+                parse_bounded_json::<GithubUser>(response, "GitHub user response")
+                    .await?
                     .login,
             )
         } else {
@@ -311,10 +346,8 @@ impl GithubReleaseProvider {
         if !status.is_success() {
             return Err(github_http_error(status, response.headers()));
         }
-        let authorization: DeviceCodeResponse = response
-            .json()
-            .await
-            .map_err(|error| PortcoveError::network(error.to_string()))?;
+        let authorization: DeviceCodeResponse =
+            parse_bounded_json(response, "GitHub device-code response").await?;
         let session_id = Uuid::new_v4().to_string();
         let interval = Duration::from_secs(authorization.interval.max(1));
         self.device_sessions.lock().await.insert(
@@ -371,10 +404,8 @@ impl GithubReleaseProvider {
         if !status.is_success() {
             return Err(github_http_error(status, response.headers()));
         }
-        let token: DeviceTokenResponse = response
-            .json()
-            .await
-            .map_err(|error| PortcoveError::network(error.to_string()))?;
+        let token: DeviceTokenResponse =
+            parse_bounded_json(response, "GitHub device-token response").await?;
         if let Some(access_token) = token.access_token {
             self.device_sessions.lock().await.remove(session_id);
             let status = self.store_personal_token(&access_token).await?;
@@ -443,7 +474,8 @@ impl GithubReleaseProvider {
             return Ok(None);
         };
         let response = self
-            .request(&sidecar.browser_download_url)
+            .download_client
+            .get(&sidecar.browser_download_url)
             .send()
             .await
             .map_err(|error| PortcoveError::network(error.to_string()))?;
@@ -453,15 +485,25 @@ impl GithubReleaseProvider {
                 response.status()
             )));
         }
-        let body = response
-            .text()
-            .await
+        let body =
+            bounded_response_bytes(response, CHECKSUM_MAX_BYTES, "checksum response").await?;
+        let body = std::str::from_utf8(&body)
             .map_err(|error| PortcoveError::network(error.to_string()))?;
+        let exact_sidecar = sidecar.name.eq_ignore_ascii_case(&exact_name);
         for line in body.lines() {
             let mut fields = line.split_whitespace();
             let Some(hash) = fields.next() else { continue };
-            let file = fields.next().unwrap_or_default().trim_start_matches('*');
-            if (file.is_empty() || file == target.name) && is_sha256(hash) {
+            let file = fields
+                .next()
+                .unwrap_or_default()
+                .trim_start_matches('*')
+                .trim_start_matches("./");
+            let identity_matches = if exact_sidecar {
+                file.is_empty() || file == target.name
+            } else {
+                !file.is_empty() && file == target.name
+            };
+            if identity_matches && is_sha256(hash) {
                 return Ok(Some(hash.to_ascii_lowercase()));
             }
         }
@@ -495,14 +537,6 @@ impl ReleaseProvider for GithubReleaseProvider {
                 port.name
             )));
         }
-        let cache_key = ReleaseCacheKey {
-            repository: port.release.repository.clone(),
-            channel,
-            platform,
-        };
-        if let Some(release) = self.cached_release(&cache_key).await {
-            return Ok(release);
-        }
         let repository_url = format!("{}/repos/{}", self.api_root, port.release.repository);
         let repository: GithubRepository = self.get_json(&repository_url).await?;
         if repository.archived {
@@ -511,8 +545,15 @@ impl ReleaseProvider for GithubReleaseProvider {
                 port.name
             )));
         }
-        let releases_url = format!("{repository_url}/releases?per_page=30");
-        let releases: Vec<GithubRelease> = self.get_json(&releases_url).await?;
+        let cache_key = ReleaseCacheKey {
+            repository: port.release.repository.clone(),
+            channel,
+            platform,
+        };
+        if let Some(release) = self.cached_release(&cache_key).await {
+            return Ok(release);
+        }
+        let releases = self.releases(&repository_url).await?;
         let release = select_channel_candidate(
             &releases,
             channel,
@@ -723,7 +764,7 @@ struct GithubRelease {
     assets: Vec<GithubAsset>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 struct GithubAsset {
     name: String,
     browser_download_url: String,
@@ -780,12 +821,71 @@ fn choose_asset<'a>(
             .cmp(&left.0)
             .then_with(|| left.1.name.cmp(&right.1.name))
     });
-    scored.first().map(|(_, asset)| *asset).ok_or_else(|| {
-        PortcoveError::not_found(format!(
+    let Some((best_score, best_asset)) = scored.first() else {
+        return Err(PortcoveError::not_found(format!(
             "{} has no supported release asset for {platform:?}",
             port.name
-        ))
-    })
+        )));
+    };
+    if scored.get(1).is_some_and(|(score, _)| score == best_score) {
+        return Err(PortcoveError::conflict(format!(
+            "{} publishes multiple equally qualified release assets for {platform:?}; catalog metadata must select exactly one",
+            port.name
+        )));
+    }
+    Ok(*best_asset)
+}
+
+pub(crate) async fn bounded_response_bytes(
+    response: reqwest::Response,
+    limit: usize,
+    label: &str,
+) -> Result<Vec<u8>> {
+    if response
+        .content_length()
+        .is_some_and(|length| length > limit as u64)
+    {
+        return Err(PortcoveError::verification(format!(
+            "{label} exceeds the {limit} byte limit"
+        )));
+    }
+    let mut body = Vec::new();
+    let mut stream = response.bytes_stream();
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|error| PortcoveError::network(error.to_string()))?;
+        if chunk.len() > limit.saturating_sub(body.len()) {
+            return Err(PortcoveError::verification(format!(
+                "{label} exceeds the {limit} byte limit"
+            )));
+        }
+        body.extend_from_slice(&chunk);
+    }
+    Ok(body)
+}
+
+async fn parse_bounded_json<T: DeserializeOwned>(
+    response: reqwest::Response,
+    label: &str,
+) -> Result<T> {
+    let body = bounded_response_bytes(response, PROVIDER_JSON_MAX_BYTES, label).await?;
+    serde_json::from_slice(&body).map_err(|error| PortcoveError::network(error.to_string()))
+}
+
+pub(crate) fn paginated_url(
+    base: &str,
+    collection: &str,
+    page: usize,
+    per_page: usize,
+) -> Result<String> {
+    let mut url =
+        reqwest::Url::parse(base).map_err(|error| PortcoveError::state(error.to_string()))?;
+    url.path_segments_mut()
+        .map_err(|_| PortcoveError::state("provider API root cannot accept path segments"))?
+        .push(collection);
+    url.query_pairs_mut()
+        .append_pair("per_page", &per_page.to_string())
+        .append_pair("page", &page.to_string());
+    Ok(url.into())
 }
 
 fn conflicts_with_platform(name: &str, platform: Platform) -> bool {
@@ -943,9 +1043,50 @@ mod tests {
     use std::{
         io::{Read, Write},
         net::TcpListener,
-        sync::mpsc,
-        thread,
+        sync::mpsc::{self, Receiver},
+        thread::{self, JoinHandle},
     };
+
+    fn serve_http(responses: Vec<String>) -> (String, Receiver<String>, JoinHandle<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let (requests_tx, requests_rx) = mpsc::channel();
+        let server = thread::spawn(move || {
+            for response in responses {
+                let (mut stream, _) = listener.accept().unwrap();
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(2)))
+                    .unwrap();
+                let mut request = vec![0_u8; 16 * 1024];
+                let size = stream.read(&mut request).unwrap();
+                let _ = requests_tx.send(String::from_utf8_lossy(&request[..size]).to_string());
+                stream.write_all(response.as_bytes()).unwrap();
+            }
+        });
+        (format!("http://{address}"), requests_rx, server)
+    }
+
+    fn ok_json(body: &str, extra_headers: &str) -> String {
+        format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n{extra_headers}Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        )
+    }
+
+    fn github_release(tag: &str, draft: bool, asset_name: &str) -> serde_json::Value {
+        serde_json::json!({
+            "tag_name": tag,
+            "draft": draft,
+            "prerelease": false,
+            "published_at": null,
+            "assets": [{
+                "name": asset_name,
+                "browser_download_url": "https://downloads.example.invalid/game.zip",
+                "size": 1,
+                "digest": format!("sha256:{}", "a".repeat(64))
+            }]
+        })
+    }
 
     #[tokio::test]
     async fn rejected_credentials_leave_sign_in_recovery_available_without_hiding_network_failures()
@@ -1383,6 +1524,339 @@ mod tests {
             second_request
                 .to_ascii_lowercase()
                 .contains("if-none-match: \"repository-v1\"")
+        );
+    }
+
+    #[tokio::test]
+    async fn malformed_success_never_replaces_a_valid_conditional_cache_entry() {
+        let valid = r#"{"archived":false}"#;
+        let responses = vec![
+            ok_json(valid, "ETag: \"good\"\r\n"),
+            ok_json("{malformed", "ETag: \"bad\"\r\n"),
+            "HTTP/1.1 304 Not Modified\r\nConnection: close\r\n\r\n".into(),
+        ];
+        let (api_root, requests, server) = serve_http(responses);
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let provider =
+            GithubReleaseProvider::with_api_root_and_library(api_root.clone(), library).unwrap();
+        let url = format!("{api_root}/repos/example/project");
+
+        assert!(
+            !provider
+                .get_json::<GithubRepository>(&url)
+                .await
+                .unwrap()
+                .archived
+        );
+        assert!(provider.get_json::<GithubRepository>(&url).await.is_err());
+        assert!(
+            !provider
+                .get_json::<GithubRepository>(&url)
+                .await
+                .unwrap()
+                .archived
+        );
+        server.join().unwrap();
+
+        let first = requests.recv().unwrap();
+        let second = requests.recv().unwrap();
+        let third = requests.recv().unwrap();
+        assert!(!first.to_ascii_lowercase().contains("if-none-match"));
+        assert!(
+            second
+                .to_ascii_lowercase()
+                .contains("if-none-match: \"good\"")
+        );
+        assert!(
+            third
+                .to_ascii_lowercase()
+                .contains("if-none-match: \"good\"")
+        );
+        assert!(!third.contains("\"bad\""));
+    }
+
+    #[tokio::test]
+    async fn github_metadata_and_checksum_bodies_are_bounded() {
+        let oversized = PROVIDER_JSON_MAX_BYTES + 1;
+        let responses = vec![format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {oversized}\r\nConnection: close\r\n\r\n"
+        )];
+        let (api_root, _, server) = serve_http(responses);
+        let provider = GithubReleaseProvider::with_api_root(api_root.clone()).unwrap();
+        let error = provider
+            .get_json::<serde_json::Value>(&format!("{api_root}/metadata"))
+            .await
+            .unwrap_err();
+        server.join().unwrap();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert!(error.message.contains("4194304 byte limit"));
+
+        let responses = vec![format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            CHECKSUM_MAX_BYTES + 1
+        )];
+        let (download_root, _, server) = serve_http(responses);
+        let provider = GithubReleaseProvider::with_api_root("https://api.example.invalid").unwrap();
+        let target = GithubAsset {
+            name: "game-windows.zip".into(),
+            browser_download_url: "https://downloads.example.invalid/game.zip".into(),
+            size: 1,
+            digest: None,
+        };
+        let sidecar = GithubAsset {
+            name: "game-windows.zip.sha256".into(),
+            browser_download_url: format!("{download_root}/game.sha256"),
+            size: 1,
+            digest: None,
+        };
+        let error = provider
+            .checksum_from_sidecar(&[target.clone(), sidecar], &target)
+            .await
+            .unwrap_err();
+        server.join().unwrap();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert!(error.message.contains("1048576 byte limit"));
+    }
+
+    #[test]
+    fn equally_scored_github_assets_are_ambiguous() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("re-blue").unwrap();
+        let assets = [
+            GithubAsset {
+                name: "reblue-windows-one.zip".into(),
+                browser_download_url: "https://example.invalid/one.zip".into(),
+                size: 1,
+                digest: None,
+            },
+            GithubAsset {
+                name: "reblue-windows-two.zip".into(),
+                browser_download_url: "https://example.invalid/two.zip".into(),
+                size: 1,
+                digest: None,
+            },
+        ];
+        let error = choose_asset(port, Platform::WindowsX86_64, &assets).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert!(error.message.contains("equally qualified"));
+    }
+
+    #[tokio::test]
+    async fn aggregate_checksums_require_a_filename_but_exact_sidecars_accept_a_bare_hash() {
+        let digest = "a".repeat(64);
+        let responses = vec![
+            ok_json(&digest, "Content-Type: text/plain\r\n"),
+            ok_json(
+                &format!("{digest}  game-windows.zip"),
+                "Content-Type: text/plain\r\n",
+            ),
+            ok_json(&digest, "Content-Type: text/plain\r\n"),
+        ];
+        let (download_root, _, server) = serve_http(responses);
+        let provider = GithubReleaseProvider::with_api_root("https://api.example.invalid").unwrap();
+        let target = GithubAsset {
+            name: "game-windows.zip".into(),
+            browser_download_url: "https://downloads.example.invalid/game.zip".into(),
+            size: 1,
+            digest: None,
+        };
+        let aggregate = GithubAsset {
+            name: "SHA256SUMS.txt".into(),
+            browser_download_url: format!("{download_root}/aggregate"),
+            size: 1,
+            digest: None,
+        };
+        assert!(
+            provider
+                .checksum_from_sidecar(&[target.clone(), aggregate], &target)
+                .await
+                .unwrap()
+                .is_none()
+        );
+        let aggregate = GithubAsset {
+            name: "SHA256SUMS.txt".into(),
+            browser_download_url: format!("{download_root}/aggregate-named"),
+            size: 1,
+            digest: None,
+        };
+        assert_eq!(
+            provider
+                .checksum_from_sidecar(&[target.clone(), aggregate], &target)
+                .await
+                .unwrap(),
+            Some(digest.clone())
+        );
+        let exact = GithubAsset {
+            name: "game-windows.zip.sha256".into(),
+            browser_download_url: format!("{download_root}/exact"),
+            size: 1,
+            digest: None,
+        };
+        assert_eq!(
+            provider
+                .checksum_from_sidecar(&[target.clone(), exact], &target)
+                .await
+                .unwrap(),
+            Some(digest)
+        );
+        server.join().unwrap();
+    }
+
+    #[tokio::test]
+    async fn github_release_discovery_reaches_later_pages_and_preserves_rate_limit_errors() {
+        let drafts = (0..PROVIDER_PAGE_SIZE)
+            .map(|index| github_release(&format!("draft-{index}"), true, "game-windows.zip"))
+            .collect::<Vec<_>>();
+        let later = vec![github_release("v1.0.0", false, "game-windows.zip")];
+        let responses = vec![
+            ok_json(r#"{"archived":false}"#, ""),
+            ok_json(&serde_json::to_string(&drafts).unwrap(), ""),
+            ok_json(&serde_json::to_string(&later).unwrap(), ""),
+        ];
+        let (api_root, requests, server) = serve_http(responses);
+        let provider = GithubReleaseProvider::with_api_root(api_root).unwrap();
+        let catalog = crate::Catalog::embedded().unwrap();
+        let release = provider
+            .resolve(
+                catalog.port("re-blue").unwrap(),
+                ReleaseChannel::Stable,
+                Platform::WindowsX86_64,
+            )
+            .await
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(release.version, "v1.0.0");
+        let all_requests = requests.try_iter().collect::<Vec<_>>().join("\n");
+        assert!(all_requests.contains("page=2"));
+
+        let responses = vec![
+            ok_json(r#"{"archived":false}"#, ""),
+            ok_json(&serde_json::to_string(&drafts).unwrap(), ""),
+            "HTTP/1.1 429 Too Many Requests\r\nX-RateLimit-Limit: 60\r\nX-RateLimit-Remaining: 0\r\nX-RateLimit-Reset: 1234\r\nRetry-After: 30\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".into(),
+        ];
+        let (api_root, _, server) = serve_http(responses);
+        let provider = GithubReleaseProvider::with_api_root(api_root).unwrap();
+        let error = provider
+            .resolve(
+                catalog.port("re-blue").unwrap(),
+                ReleaseChannel::Stable,
+                Platform::WindowsX86_64,
+            )
+            .await
+            .unwrap_err();
+        server.join().unwrap();
+        assert_eq!(error.code, crate::ErrorCode::Network);
+        assert_eq!(
+            error.details.get("rate_remaining").map(String::as_str),
+            Some("0")
+        );
+        assert_eq!(
+            error.details.get("retry_after").map(String::as_str),
+            Some("30")
+        );
+    }
+
+    #[tokio::test]
+    async fn github_release_pagination_stops_at_the_documented_request_bound() {
+        let full_page = (0..PROVIDER_PAGE_SIZE)
+            .map(|index| github_release(&format!("draft-{index}"), true, "game-windows.zip"))
+            .collect::<Vec<_>>();
+        let body = serde_json::to_string(&full_page).unwrap();
+        let responses = (0..GITHUB_MAX_RELEASE_PAGES)
+            .map(|_| ok_json(&body, ""))
+            .collect();
+        let (api_root, requests, server) = serve_http(responses);
+        let provider = GithubReleaseProvider::with_api_root(api_root.clone()).unwrap();
+        let error = provider
+            .releases(&format!("{api_root}/repos/example/project"))
+            .await
+            .unwrap_err();
+        server.join().unwrap();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert!(error.message.contains("1000-release bound"));
+        assert_eq!(requests.try_iter().count(), GITHUB_MAX_RELEASE_PAGES);
+    }
+
+    #[tokio::test]
+    async fn github_release_cache_revalidates_archive_state_and_fails_closed_offline() {
+        let release_body =
+            serde_json::to_string(&vec![github_release("v1.0.0", false, "game-windows.zip")])
+                .unwrap();
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("re-blue").unwrap();
+
+        let responses = vec![
+            ok_json(r#"{"archived":false}"#, ""),
+            ok_json(&release_body, ""),
+            ok_json(r#"{"archived":true}"#, ""),
+        ];
+        let (api_root, requests, server) = serve_http(responses);
+        let provider = GithubReleaseProvider::with_api_root(api_root).unwrap();
+        provider
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        let error = provider
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap_err();
+        server.join().unwrap();
+        assert_eq!(error.code, crate::ErrorCode::Unsupported);
+        assert!(error.message.contains("archived upstream"));
+        assert_eq!(requests.try_iter().count(), 3);
+
+        let responses = vec![
+            ok_json(r#"{"archived":false}"#, ""),
+            ok_json(&release_body, ""),
+            "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                .into(),
+        ];
+        let (api_root, _, server) = serve_http(responses);
+        let provider = GithubReleaseProvider::with_api_root(api_root).unwrap();
+        provider
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        let error = provider
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap_err();
+        server.join().unwrap();
+        assert_eq!(error.code, crate::ErrorCode::Network);
+        assert!(error.message.contains("503"));
+    }
+
+    #[tokio::test]
+    async fn authenticated_api_redirects_are_not_followed() {
+        let redirect_target = TcpListener::bind("127.0.0.1:0").unwrap();
+        redirect_target.set_nonblocking(true).unwrap();
+        let target_url = format!("http://{}/stolen", redirect_target.local_addr().unwrap());
+        let responses = vec![format!(
+            "HTTP/1.1 302 Found\r\nLocation: {target_url}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+        )];
+        let (api_root, requests, server) = serve_http(responses);
+        let provider = GithubReleaseProvider::with_api_root(api_root.clone()).unwrap();
+        provider.set_credential(
+            Some("redirect-secret".into()),
+            GithubAuthSource::Environment,
+        );
+        let error = provider
+            .get_json::<serde_json::Value>(&format!("{api_root}/repos/example/project"))
+            .await
+            .unwrap_err();
+        server.join().unwrap();
+        assert_eq!(error.code, crate::ErrorCode::Network);
+        assert!(
+            requests
+                .recv()
+                .unwrap()
+                .to_ascii_lowercase()
+                .contains("authorization: bearer redirect-secret")
+        );
+        assert_eq!(
+            redirect_target.accept().unwrap_err().kind(),
+            std::io::ErrorKind::WouldBlock
         );
     }
 }
