@@ -6,3 +6,9 @@
 *.glb binary
 *.jpg binary
 *.png binary
+
+# These three dated evidence archives are preserved verbatim, including source
+# Markdown hard breaks and final blank lines. No other documentation is exempt.
+docs/archive/2026-09-03-prelaunch-feature-implementation-plan.md whitespace=-blank-at-eof
+docs/archive/2026-09-04-supported-source-provenance-implementation-plan.md whitespace=-blank-at-eof
+docs/archive/2026-09-04-ux-copy-content-interaction-audit.md whitespace=-trailing-space,-blank-at-eof
