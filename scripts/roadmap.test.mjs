@@ -13,9 +13,14 @@ import {
   manualUiChecklist,
   normalizePortKey,
   parseArguments,
+  parsePortIssueForm,
   planFieldReconciliation,
+  planPortStageReconciliation,
   planViewReconciliation,
+  portFieldInitialization,
   projectMachineDrift,
+  qualifiedPlatforms,
+  reconcilePortIssueMarkers,
   renderPortIssueBody,
   renderSnapshot,
   resolveSnapshotOutput,
@@ -26,17 +31,27 @@ import {
   validateDurableIssueBody,
   validatePlanOriginCoverage,
   validatePortIssueCoverage,
+  validatePortStageSemantics,
   validateUxAuditOriginCoverage,
   viewMachineDrift,
 } from "./roadmap.mjs";
 
 const config = JSON.parse(await readFile(new URL("../.github/roadmap.json", import.meta.url)));
+const newPortForm = await readFile(new URL("../.github/ISSUE_TEMPLATE/new-port.yml", import.meta.url), "utf8");
 
 test("checked-in configuration contains schema rather than volatile item state", () => {
   assert.doesNotThrow(() => validateConfig(config));
   const invalid = structuredClone(config);
   invalid.project.items = [{ title: "mutable backlog" }];
   assert.throws(() => validateConfig(invalid), /volatile planning data/);
+});
+
+test("New Port form requires canonical identity input without a Project-token workflow", () => {
+  assert.match(newPortForm, /id: port_key/);
+  assert.match(newPortForm, /label: Durable game or target key/);
+  assert.match(newPortForm, /lowercase kebab-case/);
+  assert.match(newPortForm, /id: upstream[\s\S]*?required: true/);
+  assert.doesNotMatch(newPortForm, /(?:PROJECT_TOKEN|personal access token)/i);
 });
 
 test("argument parsing keeps positional item references and named values distinct", () => {
@@ -287,6 +302,189 @@ test("capture-port deduplication normalizes punctuation titles and combines upst
   assert.throws(() => renderPortIssueBody({ title: "Missing key", upstream: "https://example.test/port" }), /requires a durable --port-key/);
 });
 
+test("New Port form parsing requires a canonical key and direct https upstream", () => {
+  const body = `### Direct upstream URL
+
+https://github.com/example/shared
+
+### Durable game or target key
+
+pokemon-yellow
+
+### User outcome and why this port matters
+
+Play the game.`;
+  assert.deepEqual(parsePortIssueForm(body), {
+    upstream: "https://github.com/example/shared",
+    portKey: "pokemon-yellow",
+  });
+  assert.throws(() => parsePortIssueForm(body.replace("pokemon-yellow", "Pokemon Yellow")), /canonical lowercase kebab-case: pokemon-yellow/);
+  assert.throws(() => parsePortIssueForm(body.replace("https://github.com/example/shared", "http://example.test/shared")), /valid https URL/);
+  assert.throws(() => parsePortIssueForm(body.replace("https://github.com/example/shared", "_No response_")), /missing Direct upstream/);
+  assert.throws(() => parsePortIssueForm(body.replace("pokemon-yellow", "_No response_")), /missing Durable game/);
+});
+
+test("marker reconciliation preserves form content and is repeatable", () => {
+  const body = `### Direct upstream URL
+
+https://github.com/example/shared
+
+### Durable game or target key
+
+pokemon-yellow
+
+Contributor evidence stays here.
+
+<!-- portcove-port -->
+<!-- portcove-port -->
+<!-- portcove-upstream: https://wrong.test -->
+<!-- portcove-port-key: wrong -->`;
+  const once = reconcilePortIssueMarkers(body, {
+    upstream: "https://github.com/example/shared",
+    portKey: "pokemon-yellow",
+  });
+  const twice = reconcilePortIssueMarkers(once, {
+    upstream: "https://github.com/example/shared",
+    portKey: "pokemon-yellow",
+  });
+  assert.equal(once, twice);
+  assert.match(once, /Contributor evidence stays here/);
+  assert.equal(once.match(/<!-- portcove-port -->/g).length, 1);
+  assert.equal(once.match(/<!-- portcove-upstream:/g).length, 1);
+  assert.equal(once.match(/<!-- portcove-port-key:/g).length, 1);
+});
+
+test("doctor discovers unnormalized open [Port] issues but ignores ordinary body mentions", () => {
+  const form = {
+    number: 10,
+    title: "[Port] Form Candidate",
+    state: "OPEN",
+    type: "Issue",
+    url: "https://github.com/boburning/portcove/issues/10",
+    body: `### Direct upstream URL\n\nhttps://example.test/form\n\n### Durable game or target key\n\nform-candidate\n\nSubmitting this form does not grant support.`,
+  };
+  const item = { title: form.title, "work type": "Research", content: form };
+  const errors = validatePortIssueCoverage({ ports: [] }, [item], "boburning/portcove", [form]);
+  assert.ok(errors.some(value => value.includes("lacks the canonical port marker") && value.includes("normalize-port --issue 10")));
+  assert.ok(errors.some(value => value.includes("exactly one direct upstream")));
+  assert.ok(errors.some(value => value.includes("not classified as Work type = Port")));
+  assert.ok(validatePortIssueCoverage({ ports: [] }, [], "boburning/portcove", [form])
+    .some(value => value.includes("not in the Project")));
+  const unrelated = { number: 11, title: "Discuss intake", state: "OPEN", body: "The text [Port] appears here.", url: "https://github.com/boburning/portcove/issues/11" };
+  assert.deepEqual(validatePortIssueCoverage({ ports: [] }, [], "boburning/portcove", [unrelated]), []);
+});
+
+test("deduplication sees punctuation-equivalent unnormalized form issues and permits distinct shared-upstream targets", () => {
+  const formIssue = {
+    number: 10,
+    title: "[Port] Pokémon: Yellow!",
+    state: "OPEN",
+    url: "https://github.com/boburning/portcove/issues/10",
+    body: `### Direct upstream URL\n\nhttps://github.com/example/shared\n\n### Durable game or target key\n\npokemon-yellow`,
+  };
+  assert.ok(findPortIssueDuplicates([formIssue], {
+    title: "Pokemon Yellow",
+    upstream: "https://github.com/example/shared/",
+    portKey: "pokemon-yellow",
+  })[0].reasons.includes("normalized title pokemon-yellow"));
+  assert.deepEqual(findPortIssueDuplicates([formIssue], {
+    title: "Pokemon Red",
+    upstream: "https://github.com/example/shared",
+    portKey: "pokemon-red",
+  }), []);
+});
+
+test("Port stage validation is evidence-based and platform-scoped", () => {
+  const catalog = { ports: [
+    { id: "no-evidence", support_tier: "stable", platforms: ["windows"], automated_tested_platforms: [], manually_validated_platforms: [] },
+    { id: "automated", support_tier: "beta", platforms: ["windows"], automated_tested_platforms: ["windows"], manually_validated_platforms: [] },
+    { id: "windows-qualified", support_tier: "alpha", platforms: ["windows", "linux"], automated_tested_platforms: ["windows"], manually_validated_platforms: ["windows"] },
+  ] };
+  const item = (id, stage, blocker) => ({
+    id: `item-${id}-${stage}`,
+    title: `[Port] ${id}`,
+    "port stage": stage,
+    content: {
+      type: "Issue",
+      number: 1,
+      url: `https://github.com/boburning/portcove/issues/${id}`,
+      body: renderPortIssueBody({ title: id, upstream: `https://example.test/${id}`, catalogId: id, blocker }),
+    },
+  });
+  assert.deepEqual(validatePortStageSemantics(catalog, [item("no-evidence", "Cataloged")]).errors, []);
+  assert.deepEqual(validatePortStageSemantics(catalog, [item("automated", "Automated qualification")]).errors, []);
+  const stableOverclaim = validatePortStageSemantics(catalog, [item("no-evidence", "Supported")]);
+  assert.ok(stableOverclaim.errors.some(value => value.includes("no automated evidence")));
+  assert.ok(stableOverclaim.errors.some(value => value.includes("no platform with matching")));
+  const supported = validatePortStageSemantics(catalog, [item("windows-qualified", "Supported")]);
+  assert.deepEqual(supported.errors, []);
+  assert.deepEqual(qualifiedPlatforms(catalog.ports[2]), ["windows"]);
+  assert.match(supported.diagnostics[0], /qualified platforms = windows/);
+  assert.ok(validatePortStageSemantics(catalog, [item("windows-qualified", "Cataloged")]).warnings.length > 0);
+});
+
+test("Port stage validation rejects broken manual evidence non-catalog overclaim and unsupported rejection", () => {
+  const invalidManual = { id: "manual-only", platforms: ["windows"], automated_tested_platforms: [], manually_validated_platforms: ["windows"] };
+  const nonCatalog = {
+    title: "[Port] Candidate",
+    "port stage": "Supported",
+    content: { type: "Issue", url: "https://github.com/boburning/portcove/issues/1", body: renderPortIssueBody({ title: "Candidate", upstream: "https://example.test/candidate", portKey: "candidate" }) },
+  };
+  assert.ok(validatePortStageSemantics({ ports: [invalidManual] }, [nonCatalog]).errors
+    .some(value => value.includes("exactly one valid catalog ID")));
+  assert.ok(validatePortStageSemantics({ ports: [invalidManual] }, []).errors
+    .some(value => value.includes("manual evidence without matching")));
+
+  const blocked = structuredClone(nonCatalog);
+  blocked["port stage"] = "Blocked";
+  blocked.content.body = renderPortIssueBody({ title: "Candidate", upstream: "https://example.test/candidate", portKey: "candidate", blocker: "No artifact exists. Resume when upstream publishes one." });
+  const rejected = structuredClone(nonCatalog);
+  rejected["port stage"] = "Rejected";
+  assert.deepEqual(validatePortStageSemantics({ ports: [] }, [blocked, rejected]).errors, []);
+  const invalidBlocked = structuredClone(blocked);
+  invalidBlocked.content.body = renderPortIssueBody({ title: "Candidate", upstream: "https://example.test/candidate", portKey: "candidate" });
+  assert.ok(validatePortStageSemantics({ ports: [] }, [invalidBlocked]).errors
+    .some(value => value.includes("lacks a usable blocker and exact resume condition")));
+
+  const catalogRejected = structuredClone(rejected);
+  catalogRejected.content.body = renderPortIssueBody({ title: "Candidate", upstream: "https://example.test/candidate", catalogId: "candidate" });
+  assert.ok(validatePortStageSemantics({ ports: [{ id: "candidate", platforms: [], automated_tested_platforms: [], manually_validated_platforms: [] }] }, [catalogRejected]).errors
+    .some(value => value.includes("still represented as catalog-supported")));
+});
+
+test("Supported reconciliation only downgrades overstatement and becomes idempotent after application", () => {
+  const catalog = { ports: [
+    { id: "none", platforms: ["windows"], automated_tested_platforms: [], manually_validated_platforms: [] },
+    { id: "auto", platforms: ["windows"], automated_tested_platforms: ["windows"], manually_validated_platforms: [] },
+    { id: "qualified", platforms: ["windows", "linux"], automated_tested_platforms: ["windows"], manually_validated_platforms: ["windows"] },
+  ] };
+  const item = id => ({ id, title: `[Port] ${id}`, "port stage": "Supported", content: { type: "Issue", number: id, body: renderPortIssueBody({ title: id, upstream: `https://example.test/${id}`, catalogId: id }) } });
+  const items = catalog.ports.map(port => item(port.id));
+  const plan = planPortStageReconciliation(catalog, items);
+  assert.deepEqual(plan.map(change => [change.itemId, change.to]), [["none", "Cataloged"], ["auto", "Automated qualification"]]);
+  for (const change of plan) items.find(candidate => candidate.id === change.itemId)["port stage"] = change.to;
+  assert.deepEqual(planPortStageReconciliation(catalog, items), []);
+});
+
+test("normalization initializes only unset neutral fields and always classifies Work type as Port", () => {
+  const existing = {
+    status: "Ready",
+    priority: "High",
+    horizon: "Next",
+    "target release": "Alpha 2",
+    "work type": "Research",
+    workstream: "Sources and ROM validation",
+    platform: "Windows",
+    "port stage": "Researching",
+    effort: "M",
+  };
+  assert.deepEqual(portFieldInitialization(existing), { "Work type": "Port" });
+  assert.deepEqual(portFieldInitialization(null), {
+    Status: "Inbox", Priority: "None", Horizon: "Someday", "Target release": "Unscheduled",
+    "Work type": "Port", Workstream: "Port catalog", Platform: "Unknown", "Port stage": "Watchlist", Effort: "Unknown",
+  });
+});
+
 test("final UX audit origins require complete unique enumerated canonical ownership", () => {
   assert.equal(uxAuditOriginIds.length, 178);
   const completeBody = "<!-- portcove-ux-audit-origins: " + uxAuditOriginIds.join(" ") + " -->";
@@ -371,6 +569,8 @@ test("capture-port creates one repository issue and initializes Unknown platform
     if (args[0] === "api" && args[1] === "graphql") {
       if (input.includes("issues(first: 100")) return JSON.stringify({ data: { repository: { issues: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } } } } });
       if (input.includes("addProjectV2ItemById")) return JSON.stringify({ data: { addProjectV2ItemById: { item: { id: "PVTI_new" } } } });
+      if (input.includes("issue(number: 16)")) return JSON.stringify({ data: { repository: { issue: { id: "I_pipeline", number: 16 } }, node: { parent: null } } });
+      if (input.includes("addSubIssue")) return JSON.stringify({ data: { addSubIssue: { issue: { id: "I_pipeline" }, subIssue: { id: "I_new" } } } });
       return JSON.stringify({ data: { node: { projectItems: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } } } } });
     }
     return "";
@@ -383,6 +583,88 @@ test("capture-port creates one repository issue and initializes Unknown platform
   assert.ok(calls.some(call => call.input?.includes("<!-- portcove-port-key: new-port -->")));
   const fieldEdit = calls.find(call => call.input?.includes("updateProjectV2ItemFieldValue"));
   assert.ok(Object.values(JSON.parse(fieldEdit.input).variables).some(input => input.fieldId === "F6" && input.value.singleSelectOptionId === "O6"));
+  assert.equal(result.parentChanged, true);
+  assert.equal(calls.filter(call => call.input?.includes("addSubIssue")).length, 1);
+});
+
+test("normalize-port preserves existing planning choices and is idempotent with mocked GitHub", () => {
+  const calls = [];
+  const mockedConfig = structuredClone(config);
+  mockedConfig.project.number = 7;
+  let body = `### Direct upstream URL
+
+https://github.com/example/form-port
+
+### Durable game or target key
+
+form-port
+
+### User outcome and why this port matters
+
+Preserve this contributor text.`;
+  let workType = "Research";
+  const issue = () => ({
+    node_id: "I_form",
+    html_url: "https://github.com/boburning/portcove/issues/42",
+    number: 42,
+    title: "[Port] Form Port",
+    body,
+    state: "OPEN",
+  });
+  const fieldValues = () => [
+    ["Status", "Ready"], ["Priority", "High"], ["Horizon", "Next"],
+    ["Target release", "Alpha 2"], ["Work type", workType],
+    ["Workstream", "Sources and ROM validation"], ["Platform", "Windows"],
+    ["Port stage", "Researching"], ["Effort", "M"],
+  ].map(([name, value]) => ({ name: value, field: { name } }));
+  const runner = (args, input) => {
+    calls.push({ args, input });
+    if (args[0] === "api" && args[1] === "repos/boburning/portcove/issues/42" && args.includes("PATCH")) {
+      body = JSON.parse(input).body;
+      return JSON.stringify(issue());
+    }
+    if (args[0] === "api" && args[1] === "repos/boburning/portcove/issues/42") return JSON.stringify(issue());
+    if (args[0] === "project" && args[1] === "view") return JSON.stringify({ id: "PVT_project" });
+    if (args[0] === "project" && args[1] === "field-list") return JSON.stringify({ fields: [
+      { id: "F_work_type", name: "Work type", options: [{ id: "O_port", name: "Port" }] },
+    ] });
+    if (args[0] === "api" && args[1] === "graphql") {
+      if (input.includes("issues(first: 100")) return JSON.stringify({ data: { repository: { issues: {
+        nodes: [{ ...issue(), __typename: "Issue", url: issue().html_url }],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      } } } });
+      if (input.includes("items(first: 50")) return JSON.stringify({ data: { node: { items: {
+        nodes: [{
+          id: "PVTI_form",
+          content: { __typename: "Issue", number: 42, title: issue().title, body, url: issue().html_url, state: "OPEN" },
+          fieldValues: { nodes: fieldValues().map(value => ({ ...value, field: { __typename: "ProjectV2SingleSelectField", ...value.field } })) },
+        }],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      } } } });
+      if (input.includes("issue(number: 16)")) return JSON.stringify({ data: {
+        repository: { issue: { id: "I_pipeline", number: 16 } },
+        node: { parent: { id: "I_pipeline", number: 16, url: "https://github.com/boburning/portcove/issues/16" } },
+      } });
+      if (input.includes("updateProjectV2ItemFieldValue")) {
+        workType = "Port";
+        return JSON.stringify({ data: { f0: { projectV2Item: { id: "PVTI_form" } } } });
+      }
+    }
+    return "";
+  };
+  const client = new RoadmapClient(mockedConfig, runner);
+  const catalog = { ports: [] };
+  const first = client.normalizePortIssue({ number: 42, catalog });
+  assert.equal(first.bodyChanged, true);
+  assert.equal(first.projectItemAdded, false);
+  assert.deepEqual(first.fieldsChanged, ["Work type"]);
+  assert.equal(first.parentChanged, false);
+  assert.match(body, /Preserve this contributor text/);
+  const second = client.normalizePortIssue({ number: 42, catalog });
+  assert.equal(second.bodyChanged, false);
+  assert.deepEqual(second.fieldsChanged, []);
+  assert.equal(calls.filter(call => call.input?.includes("addProjectV2ItemById")).length, 0);
+  assert.equal(calls.filter(call => call.input?.includes("addSubIssue")).length, 0);
 });
 
 test("repository issue inventory follows every GraphQL page", () => {

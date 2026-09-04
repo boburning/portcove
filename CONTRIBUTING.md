@@ -5,12 +5,27 @@ Keep the core reusable, the catalog declarative, and the CLI stable for external
 ## Start with the roadmap
 
 Search the public [Portcove Roadmap](https://github.com/users/boburning/projects/1)
-before proposing work. For a newly discovered port, open the **New port /
-upstream candidate** form or create its durable issue in seconds:
+before proposing work. Maintainers can create a newly discovered port's durable
+issue directly:
 
 ```powershell
 node scripts/roadmap.mjs capture-port --title "Project name" --url https://github.com/owner/project --port-key project-name
 ```
+
+Contributors can instead use the **New port / upstream candidate** form. Its
+required durable game/target key uses lowercase kebab-case and distinguishes
+independently prioritizable games even when they share one repository. A
+maintainer then runs:
+
+```powershell
+node scripts/roadmap.mjs normalize-port --issue <number>
+```
+
+Normalization preserves the submitted form content, rejects repository-wide
+duplicates, reconciles canonical identity markers, ensures exactly one Project
+item with neutral values only where fields are unset, classifies it as a Port,
+and attaches it beneath the Continuous Port Pipeline. Both intake paths produce
+the same durable issue and Project contract. Neither grants catalog support.
 
 Include the direct upstream, why it matters, initial platform and source
 observations, artifact integrity, persistence boundary, adapter fit, and exact
