@@ -469,33 +469,41 @@
       "release": { "repository": "bryanthaboi/gen1recomp" }, "source_profile": "pokemon-gen-1",
       "executable_hints": { "windows-x86-64": ["gen1recomp.exe"], "linux-x86-64": ["gen1recomp", "gen1recomp.appimage"], "macos-x86-64": ["gen1recomp"], "macos-aarch64": ["gen1recomp"] },
       "portable_marker": true, "source_environment": "POKEPORT_IMPORT_ROM", "launch_arguments": ["--game=red"],
+      "runtime_source_filename": "portcove-import.gb", "runtime_source_materialization": "copy",
+      "runtime_mutable_paths": ["portcove-import.gb"],
       "persistent_paths": ["assets/generated", "data/generated", "red", "mods", "imports", "exports", "screenshots", "save.lua", "save.lua.bak", "options.lua"]
     },
     {
       "id": "gen2recomp-gold", "name": "Gen2Recomped: Pokémon Gold", "summary": "Opt-in Phase 2B native Lua/LÖVE recreation of Pokémon Gold.",
       "project_url": "https://github.com/UNDERdecoded/Gen2Recomped", "support_tier": "beta", "channels": ["stable"],
-      "platforms": ["windows-x86-64"], "adapter": "generated-cache",
+      "platforms": ["windows-x86-64"], "adapter": "generated-cache", "automated_tested_platforms": ["windows-x86-64"],
       "release": { "repository": "UNDERdecoded/Gen2Recomped", "asset_hints": { "windows-x86-64": ["windows.zip"] } }, "source_profile": "pokemon-gold",
       "executable_hints": { "windows-x86-64": ["Gen2Recomped.exe"] },
       "portable_marker": true, "source_environment": "POKEPORT_IMPORT_ROM", "launch_environment": { "POKEPORT_VERSION": "gold" },
+      "runtime_source_filename": "portcove-import.gbc", "runtime_source_materialization": "copy",
+      "runtime_mutable_paths": ["portcove-import.gbc"],
       "persistent_paths": ["gold", "mods", "imports", "exports", "screenshots", "saves", "editor", "prints", "save_gold.lua", "save_gold.lua.bak", "save_gold.lua.tmp", "options.lua", "boot_trace.txt", "crash.txt"]
     },
     {
       "id": "gen2recomp-silver", "name": "Gen2Recomped: Pokémon Silver", "summary": "Opt-in Phase 2B native Lua/LÖVE recreation of Pokémon Silver.",
       "project_url": "https://github.com/UNDERdecoded/Gen2Recomped", "support_tier": "beta", "channels": ["stable"],
-      "platforms": ["windows-x86-64"], "adapter": "generated-cache",
+      "platforms": ["windows-x86-64"], "adapter": "generated-cache", "automated_tested_platforms": ["windows-x86-64"],
       "release": { "repository": "UNDERdecoded/Gen2Recomped", "asset_hints": { "windows-x86-64": ["windows.zip"] } }, "source_profile": "pokemon-silver",
       "executable_hints": { "windows-x86-64": ["Gen2Recomped.exe"] },
       "portable_marker": true, "source_environment": "POKEPORT_IMPORT_ROM", "launch_environment": { "POKEPORT_VERSION": "silver" },
+      "runtime_source_filename": "portcove-import.gbc", "runtime_source_materialization": "copy",
+      "runtime_mutable_paths": ["portcove-import.gbc"],
       "persistent_paths": ["silver", "mods", "imports", "exports", "screenshots", "saves", "editor", "prints", "save_silver.lua", "save_silver.lua.bak", "save_silver.lua.tmp", "options.lua", "boot_trace.txt", "crash.txt"]
     },
     {
       "id": "gen2recomp-crystal", "name": "Gen2Recomped: Pokémon Crystal", "summary": "Opt-in beta native Lua/LÖVE recreation of Pokémon Crystal.",
       "project_url": "https://github.com/UNDERdecoded/Gen2Recomped", "support_tier": "beta", "channels": ["stable"],
-      "platforms": ["windows-x86-64"], "adapter": "generated-cache",
+      "platforms": ["windows-x86-64"], "adapter": "generated-cache", "automated_tested_platforms": ["windows-x86-64"],
       "release": { "repository": "UNDERdecoded/Gen2Recomped", "asset_hints": { "windows-x86-64": ["windows.zip"] } }, "source_profile": "pokemon-crystal",
       "executable_hints": { "windows-x86-64": ["Gen2Recomped.exe"] },
       "portable_marker": true, "source_environment": "POKEPORT_IMPORT_ROM", "launch_environment": { "POKEPORT_VERSION": "crystal" },
+      "runtime_source_filename": "portcove-import.gbc", "runtime_source_materialization": "copy",
+      "runtime_mutable_paths": ["portcove-import.gbc"],
       "persistent_paths": ["crystal", "mods", "imports", "exports", "screenshots", "saves", "editor", "prints", "save_crystal.lua", "save_crystal.lua.bak", "save_crystal.lua.tmp", "options.lua", "boot_trace.txt", "crash.txt"]
     },
     {

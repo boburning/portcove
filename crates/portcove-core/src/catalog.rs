@@ -418,6 +418,11 @@ impl Catalog {
                     && port.runtime_source_filename.as_ref().is_some_and(|source| {
                         relative == source || !crate::runtime::overlaps(relative, source)
                     });
+                let generated_cache_source_path = port.adapter == AdapterKind::GeneratedCache
+                    && port
+                        .runtime_source_filename
+                        .as_ref()
+                        .is_some_and(|source| relative == source);
                 let upstream_setup_path = port.adapter == AdapterKind::UpstreamManagedSetup
                     && port.runtime_subdirectory.is_none()
                     && port
@@ -447,7 +452,7 @@ impl Catalog {
                         .components()
                         .any(|component| !matches!(component, Component::Normal(_)))
                     || !runtime_mutable_paths.insert(relative.as_str())
-                    || (!staged_source_path && !upstream_setup_path)
+                    || (!staged_source_path && !generated_cache_source_path && !upstream_setup_path)
                     || executable_overlap
                     || portcove_metadata
                     || port
@@ -524,7 +529,9 @@ impl Catalog {
                             && source_is_persistent
                     }
                     RuntimeSourceMaterialization::Copy => {
-                        port.adapter == AdapterKind::StagedSourcePortable && source_is_persistent
+                        (port.adapter == AdapterKind::StagedSourcePortable && source_is_persistent)
+                            || (port.adapter == AdapterKind::GeneratedCache
+                                && port.source_environment.is_some())
                     }
                     RuntimeSourceMaterialization::GamecubeIso => {
                         port.adapter == AdapterKind::StagedSourcePortable
@@ -988,6 +995,15 @@ mod tests {
             Some("POKEPORT_IMPORT_ROM")
         );
         assert_eq!(port.launch_arguments, vec!["--game=red"]);
+        assert_eq!(
+            port.runtime_source_filename.as_deref(),
+            Some("portcove-import.gb")
+        );
+        assert_eq!(
+            port.runtime_source_materialization,
+            Some(crate::RuntimeSourceMaterialization::Copy)
+        );
+        assert_eq!(port.runtime_mutable_paths, ["portcove-import.gb"]);
     }
 
     #[test]
@@ -1030,6 +1046,15 @@ mod tests {
                 Some("POKEPORT_IMPORT_ROM")
             );
             assert_eq!(
+                port.runtime_source_filename.as_deref(),
+                Some("portcove-import.gbc")
+            );
+            assert_eq!(
+                port.runtime_source_materialization,
+                Some(crate::RuntimeSourceMaterialization::Copy)
+            );
+            assert_eq!(port.runtime_mutable_paths, ["portcove-import.gbc"]);
+            assert_eq!(
                 port.launch_environment
                     .get("POKEPORT_VERSION")
                     .map(String::as_str),
@@ -1037,7 +1062,10 @@ mod tests {
             );
             assert!(port.portable_marker);
             assert_eq!(port.support_tier, crate::SupportTier::Beta);
-            assert!(port.automated_tested_platforms.is_empty());
+            assert_eq!(
+                port.automated_tested_platforms,
+                [crate::Platform::WindowsX86_64]
+            );
         }
     }
 
