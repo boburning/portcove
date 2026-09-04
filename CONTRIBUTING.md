@@ -9,14 +9,16 @@ before proposing work. For a newly discovered port, open the **New port /
 upstream candidate** form or create its durable issue in seconds:
 
 ```powershell
-node scripts/roadmap.mjs capture-port --title "Project name" --url https://github.com/owner/project
+node scripts/roadmap.mjs capture-port --title "Project name" --url https://github.com/owner/project --port-key project-name
 ```
 
 Include the direct upstream, why it matters, initial platform and source
 observations, artifact integrity, persistence boundary, adapter fit, and exact
 resume condition. Every independently catalogable or prioritizable port gets
 one durable issue immediately, initialized with neutral Inbox/Watchlist fields.
-Project drafts are only for fleeting non-port ideas.
+Use a stable lowercase `--port-key` for a non-catalog game or target; use the
+catalog ID when the port is already cataloged. Project drafts are only for
+fleeting non-port ideas.
 
 Use the **Product feature or engineering work** form for non-port changes. Its
 issue must state the user outcome, current evidence, scope, non-goals,

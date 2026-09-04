@@ -16,6 +16,7 @@ const durableIssueHeadings = [
   "Dependencies and blockers", "Completion evidence",
 ];
 const portMarker = "<!-- portcove-port -->";
+const portTitlePrefix = /^\s*\[port\]\s*/i;
 const uxAuditNamespaces = {
   SYS: 14,
   UI: 47,
@@ -158,6 +159,77 @@ function portUpstreamMarkers(body) {
     .map(match => match[1]);
 }
 
+function portKeyMarkers(body) {
+  return [...String(body ?? "").matchAll(/<!--\s*portcove-port-key:\s*([^\s>]+)\s*-->/gi)]
+    .map(match => match[1]);
+}
+
+export function normalizePortKey(value) {
+  return String(value ?? "")
+    .normalize("NFKD")
+    .replace(/\p{Mark}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function normalizedPortTitle(value) {
+  return normalizePortKey(String(value ?? "").replace(portTitlePrefix, ""));
+}
+
+function normalizedUpstream(value) {
+  try {
+    const parsed = new URL(String(value));
+    const pathname = parsed.pathname.replace(/\/+$/g, "").replace(/\.git$/i, "");
+    return `${parsed.protocol.toLowerCase()}//${parsed.host.toLowerCase()}${pathname.toLowerCase()}`;
+  } catch {
+    return String(value ?? "").trim().replace(/\/+$/g, "").replace(/\.git$/i, "").toLowerCase();
+  }
+}
+
+function issueNumber(item) {
+  const direct = Number(item?.content?.number ?? item?.number);
+  if (Number.isInteger(direct) && direct > 0) return direct;
+  const match = String(itemUrl(item) ?? "").match(/\/issues\/(\d+)(?:$|[?#])/i);
+  return match ? Number(match[1]) : null;
+}
+
+function repositoryIssueContent(item) {
+  return item?.content?.type === "Issue" || item?.content?.__typename === "Issue"
+    ? item.content
+    : item;
+}
+
+function canonicalPortIssues(issues) {
+  return (issues ?? []).map(repositoryIssueContent)
+    .filter(issue => itemBody(issue).includes(portMarker));
+}
+
+export function findPortIssueDuplicates(issues, { title, upstream, catalogId, portKey }) {
+  const candidateTitle = normalizedPortTitle(title);
+  const candidateUpstream = normalizedUpstream(upstream);
+  const candidateKey = portKey ? normalizePortKey(portKey) : null;
+  const candidateIdentity = catalogId ?? candidateKey ?? candidateTitle;
+  const matches = [];
+  for (const issue of canonicalPortIssues(issues)) {
+    const body = itemBody(issue);
+    const reasons = [];
+    const ids = portCatalogMarkers(body);
+    const keys = portKeyMarkers(body).map(normalizePortKey);
+    const upstreams = portUpstreamMarkers(body).map(normalizedUpstream);
+    const titleIdentity = normalizedPortTitle(itemTitle(issue));
+    const issueIdentity = ids[0] ?? keys[0] ?? titleIdentity;
+    if (catalogId && ids.includes(catalogId)) reasons.push(`catalog ID ${catalogId}`);
+    if (candidateKey && keys.includes(candidateKey)) reasons.push(`port key ${candidateKey}`);
+    if (candidateTitle && titleIdentity === candidateTitle) reasons.push(`normalized title ${candidateTitle}`);
+    if (candidateUpstream && upstreams.includes(candidateUpstream) && issueIdentity === candidateIdentity) {
+      reasons.push("direct upstream plus game/target identity");
+    }
+    if (reasons.length) matches.push({ issue, reasons: [...new Set(reasons)] });
+  }
+  return matches;
+}
+
 export function uxAuditOrigins(body) {
   const markers = [...String(body ?? "").matchAll(/<!--\s*portcove-ux-audit-origins:\s*([\s\S]*?)-->/gi)];
   return markers.flatMap(match => match[1].trim().split(/[\s,]+/).filter(Boolean));
@@ -201,21 +273,48 @@ export function validateUxAuditOriginCoverage(items) {
 
 export function validatePlanOriginCoverage(items) {
   const owners = (items ?? []).filter(item => itemBody(item).includes(supportedSourcePlanOrigin));
-  if (owners.length === 1) return [];
-  return ["Supported-source plan origin must have exactly one canonical issue owner; found " + owners.length];
+  if (owners.length !== 1) {
+    return ["Supported-source plan origin must have exactly one canonical issue owner; found " + owners.length];
+  }
+  const owner = owners[0];
+  if (issueNumber(owner) !== 36) {
+    return [`Supported-source plan origin must be owned by issue #36; found ${itemUrl(owner) ?? itemTitle(owner)}`];
+  }
+  return [];
 }
 
-export function renderPortIssueBody({ title, upstream, catalogId, currentEvidence = "Initial intake; evidence pending triage.", blocker = "No current blocker has been established. Exact resume condition pending triage." }) {
+export function renderPortIssueBody({ title, upstream, catalogId, portKey, currentEvidence = "Initial intake; evidence pending triage.", blocker = "No current blocker has been established. Exact resume condition pending triage." }) {
+  const normalizedPortKey = portKey ? normalizePortKey(portKey) : null;
+  if (!catalogId && !normalizedPortKey) {
+    throw new Error("a non-catalog port requires a durable --port-key");
+  }
+  if (portKey && normalizedPortKey !== portKey) {
+    throw new Error(`port key must use canonical lowercase slug form: ${normalizedPortKey}`);
+  }
   const catalogLine = catalogId ?? "Not assigned (researched candidate)";
   const catalogMarker = catalogId ? `\n<!-- portcove-catalog-id: ${catalogId} -->` : "";
-  return `## User outcome\n\n${title} can be researched, prioritized, qualified, advanced, blocked, and closed independently.\n\n## Current behavior and evidence\n\n${currentEvidence}\n\n## Scope\n\n- Direct upstream: ${upstream}\n- Game/title identity: ${title}\n- Catalog ID: ${catalogLine}\n- Supported and candidate platforms: Unknown until evidenced\n- Release assets and integrity: Pending\n- Source requirements and accepted revisions: Pending\n- Executable/setup boundary: Pending\n- Persistence and user-data boundary: Pending\n- Adapter fit and dependencies: Pending\n- Current Port stage: Watchlist\n- Current blocker and exact resume condition: ${blocker}\n- Automated qualification: Not yet recorded\n- Manual qualification: Not yet recorded\n\n## Non-goals\n\nThis issue does not grant support, expand V1 scope, weaken source or artifact validation, or replace shared engineering dependencies.\n\n## Acceptance criteria\n\n- [ ] Every owned port fact above is supported by explicit evidence.\n- [ ] The catalog and Project agree with the independently closable port state.\n- [ ] Completion evidence links the implementation and exact qualification results.\n\n## Required tests\n\nValidate catalog admission, source identity, release integrity, install/update/rollback, launch, persistence, automated qualification, and required hands-on behavior for each claimed platform.\n\n## Documentation impact\n\nUpdate catalog.json only when actual support or qualification changes; keep mutable priority and stage in the Project.\n\n## Dependencies and blockers\n\n${blocker}\n\n## Completion evidence\n\nNo completion evidence yet.\n\n${portMarker}\n<!-- portcove-upstream: ${upstream} -->${catalogMarker}`;
+  const portKeyLine = normalizedPortKey ?? "Catalog ID is the durable identity";
+  const portKeyMarker = normalizedPortKey ? `\n<!-- portcove-port-key: ${normalizedPortKey} -->` : "";
+  return `## User outcome\n\n${title} can be researched, prioritized, qualified, advanced, blocked, and closed independently.\n\n## Current behavior and evidence\n\n${currentEvidence}\n\n## Scope\n\n- Direct upstream: ${upstream}\n- Game/title identity: ${title}\n- Catalog ID: ${catalogLine}\n- Durable port key: ${portKeyLine}\n- Supported and candidate platforms: Unknown until evidenced\n- Release assets and integrity: Pending\n- Source requirements and accepted revisions: Pending\n- Executable/setup boundary: Pending\n- Persistence and user-data boundary: Pending\n- Adapter fit and dependencies: Pending\n- Current Port stage: Watchlist\n- Current blocker and exact resume condition: ${blocker}\n- Automated qualification: Not yet recorded\n- Manual qualification: Not yet recorded\n\n## Non-goals\n\nThis issue does not grant support, expand V1 scope, weaken source or artifact validation, or replace shared engineering dependencies.\n\n## Acceptance criteria\n\n- [ ] Every owned port fact above is supported by explicit evidence.\n- [ ] The catalog and Project agree with the independently closable port state.\n- [ ] Completion evidence links the implementation and exact qualification results.\n\n## Required tests\n\nValidate catalog admission, source identity, release integrity, install/update/rollback, launch, persistence, automated qualification, and required hands-on behavior for each claimed platform.\n\n## Documentation impact\n\nUpdate catalog.json only when actual support or qualification changes; keep mutable priority and stage in the Project.\n\n## Dependencies and blockers\n\n${blocker}\n\n## Completion evidence\n\nNo completion evidence yet.\n\n${portMarker}\n<!-- portcove-upstream: ${upstream} -->${catalogMarker}${portKeyMarker}`;
 }
 
-export function validatePortIssueCoverage(catalog, items, repository) {
+export function validatePortIssueCoverage(catalog, items, repository, repositoryIssues = null) {
   const errors = [];
   const catalogIds = new Set((catalog?.ports ?? []).map(port => port.id));
   const issuesByCatalogId = new Map();
+  const issuesByPortKey = new Map();
+  const issuesByTitle = new Map();
+  const issuesByUpstreamAndIdentity = new Map();
+  const projectItemsByNumber = new Map();
+  const repositoryIssuePrefix = repository ? `https://github.com/${repository.toLowerCase()}/issues/` : null;
   for (const item of items ?? []) {
+    const number = issueNumber(item);
+    const itemUrlValue = String(itemUrl(item) ?? "").toLowerCase();
+    if (number && (!repositoryIssuePrefix || itemUrlValue.startsWith(repositoryIssuePrefix))) {
+      const matches = projectItemsByNumber.get(number) ?? [];
+      matches.push(item);
+      projectItemsByNumber.set(number, matches);
+    }
     if (fieldValue(item, "Work type") !== "Port") continue;
     const content = item?.content;
     const type = String(content?.type ?? content?.__typename ?? item?.type ?? "").toLowerCase();
@@ -224,32 +323,88 @@ export function validatePortIssueCoverage(catalog, items, repository) {
       errors.push(`Port Project item is not backed by a repository issue: ${url}`);
       continue;
     }
-    if (repository && !String(itemUrl(item)).toLowerCase().startsWith(`https://github.com/${repository.toLowerCase()}/issues/`)) {
+    if (repositoryIssuePrefix && !String(itemUrl(item)).toLowerCase().startsWith(repositoryIssuePrefix)) {
       errors.push(`Port issue is outside ${repository}: ${url}`);
     }
     const body = itemBody(item);
     if (!body.includes(portMarker)) errors.push(`Port issue lacks the canonical port marker: ${url}`);
+  }
+
+  const repositoryPorts = canonicalPortIssues(repositoryIssues ?? items);
+  for (const issue of repositoryPorts) {
+    const url = itemUrl(issue) ?? itemTitle(issue);
+    const number = issueNumber(issue);
+    if (repositoryIssuePrefix && !String(url).toLowerCase().startsWith(repositoryIssuePrefix)) {
+      errors.push(`Canonical port issue is outside ${repository}: ${url}`);
+    }
+    const projectMatches = number ? projectItemsByNumber.get(number) ?? [] : [];
+    if (projectMatches.length === 0) {
+      errors.push(`Canonical repository port issue is not in the Project: ${url}`);
+    } else if (projectMatches.length > 1) {
+      errors.push(`Canonical repository port issue has multiple Project items: ${url} (${projectMatches.length})`);
+    } else if (fieldValue(projectMatches[0], "Work type") !== "Port") {
+      errors.push(`Canonical repository port issue is not classified as Work type = Port: ${url}`);
+    }
+    const body = itemBody(issue);
     const upstreams = portUpstreamMarkers(body);
     if (upstreams.length !== 1) {
       errors.push("Port issue must claim exactly one direct upstream: " + url + " (" + upstreams.length + ")");
     }
     const ids = portCatalogMarkers(body);
+    const keys = portKeyMarkers(body);
     if (ids.length > 1) errors.push(`One issue claims multiple catalog ports: ${url} (${ids.join(", ")})`);
+    if (keys.length > 1) errors.push(`One issue claims multiple durable port keys: ${url} (${keys.join(", ")})`);
     if (ids.length === 1) {
       const id = ids[0];
       if (!catalogIds.has(id)) errors.push(`Port issue claims unknown catalog ID ${id}: ${url}`);
       const matches = issuesByCatalogId.get(id) ?? [];
       matches.push(url);
       issuesByCatalogId.set(id, matches);
-    } else if (!/Catalog ID:\s*Not assigned \(researched candidate\)/i.test(body)
-      || !/(?:does not grant support|not supported merely|does not change catalog\.json)/i.test(body)) {
-      errors.push("Non-catalog port issue must identify research/watchlist status and disclaim support: " + url);
+    } else {
+      if (!/Catalog ID:\s*Not assigned \(researched candidate\)/i.test(body)
+        || !/(?:does not grant support|not supported merely|does not change catalog\.json)/i.test(body)) {
+        errors.push("Non-catalog port issue must identify research/watchlist status and disclaim support: " + url);
+      }
+      if (keys.length !== 1) {
+        errors.push(`Non-catalog port issue must claim exactly one durable port key: ${url} (${keys.length})`);
+      } else {
+        const key = keys[0];
+        const normalized = normalizePortKey(key);
+        if (!normalized || normalized !== key) {
+          errors.push(`Non-catalog port issue has a non-canonical port key ${key}: ${url}`);
+        }
+        const matches = issuesByPortKey.get(normalized) ?? [];
+        matches.push(url);
+        issuesByPortKey.set(normalized, matches);
+      }
+    }
+    const title = normalizedPortTitle(itemTitle(issue));
+    if (title) {
+      const matches = issuesByTitle.get(title) ?? [];
+      matches.push(url);
+      issuesByTitle.set(title, matches);
+    }
+    if (upstreams.length === 1) {
+      const identity = ids[0] ?? (keys.length === 1 ? normalizePortKey(keys[0]) : title);
+      const combined = `${normalizedUpstream(upstreams[0])}|${identity}`;
+      const matches = issuesByUpstreamAndIdentity.get(combined) ?? [];
+      matches.push(url);
+      issuesByUpstreamAndIdentity.set(combined, matches);
     }
   }
   for (const id of catalogIds) {
     const matches = issuesByCatalogId.get(id) ?? [];
     if (matches.length === 0) errors.push(`Catalog port lacks a canonical Project issue: ${id}`);
     if (matches.length > 1) errors.push(`Two live issues represent catalog ID ${id}: ${matches.join(", ")}`);
+  }
+  for (const [key, matches] of issuesByPortKey) {
+    if (matches.length > 1) errors.push(`Two live issues represent non-catalog port key ${key}: ${matches.join(", ")}`);
+  }
+  for (const [title, matches] of issuesByTitle) {
+    if (matches.length > 1) errors.push(`Two live port issues have the same normalized title identity ${title}: ${matches.join(", ")}`);
+  }
+  for (const [identity, matches] of issuesByUpstreamAndIdentity) {
+    if (matches.length > 1) errors.push(`Two live port issues share direct upstream and game/target identity ${identity}: ${matches.join(", ")}`);
   }
   return errors;
 }
@@ -580,6 +735,20 @@ export class RoadmapClient {
     return items;
   }
 
+  repositoryIssues() {
+    const [owner, name, ...rest] = this.config.repository.split("/");
+    if (!owner || !name || rest.length) throw new Error(`invalid repository identity: ${this.config.repository}`);
+    const issues = [];
+    let after = null;
+    do {
+      const query = `query($owner: String!, $name: String!, $after: String) { repository(owner: $owner, name: $name) { issues(first: 100, after: $after, orderBy: { field: CREATED_AT, direction: ASC }) { nodes { __typename number title body url state } pageInfo { hasNextPage endCursor } } } }`;
+      const page = this.graphql(query, { owner, name, after })?.repository?.issues;
+      issues.push(...(page?.nodes ?? []).map(issue => ({ ...issue, type: issue.__typename ?? "Issue" })));
+      after = page?.pageInfo?.hasNextPage ? page.pageInfo.endCursor : null;
+    } while (after);
+    return issues;
+  }
+
   projectContext(number = this.config.project.number) {
     if (this._projectContext?.number === number) return this._projectContext;
     const details = this.projectDetails(number);
@@ -784,18 +953,15 @@ export class RoadmapClient {
     return item;
   }
 
-  createPortIssue({ title, upstream, catalogId }) {
+  createPortIssue({ title, upstream, catalogId, portKey }) {
     const issueTitle = `[Port] ${title}`;
-    const catalogMarker = catalogId ? `<!-- portcove-catalog-id: ${catalogId} -->` : null;
-    const issues = unwrapCollection(this.json([
-      "issue", "list", "--repo", this.config.repository, "--state", "all", "--limit", "1000",
-      "--json", "number,title,body,url,state",
-    ]), "issues");
-    const existing = issues.filter(issue => issue.title === issueTitle || (catalogMarker && issue.body?.includes(catalogMarker)));
-    if (existing.length) {
-      throw new Error(`port already has a durable issue: ${existing.map(issue => issue.url).join(", ")}`);
+    const issues = this.repositoryIssues();
+    const duplicates = findPortIssueDuplicates(issues, { title, upstream, catalogId, portKey });
+    if (duplicates.length) {
+      throw new Error(`port already has a durable issue: ${duplicates
+        .map(match => `${itemUrl(match.issue)} (${match.reasons.join(", ")})`).join("; ")}`);
     }
-    const body = renderPortIssueBody({ title, upstream, catalogId });
+    const body = renderPortIssueBody({ title, upstream, catalogId, portKey });
     const issue = this.json([
       "api", `repos/${this.config.repository}/issues`, "--method", "POST", "--input", "-",
     ], `${JSON.stringify({ title: issueTitle, body })}\n`);
@@ -951,17 +1117,18 @@ async function main(argv) {
     });
     const catalog = JSON.parse(await readFile(catalogPath, "utf8"));
     const items = client.itemList(number);
+    const repositoryIssues = client.repositoryIssues();
     const roadmapErrors = [
-      ...validatePortIssueCoverage(catalog, items, config.repository),
-      ...validateUxAuditOriginCoverage(items),
-      ...validatePlanOriginCoverage(items),
+      ...validatePortIssueCoverage(catalog, items, config.repository, repositoryIssues),
+      ...validateUxAuditOriginCoverage(repositoryIssues),
+      ...validatePlanOriginCoverage(repositoryIssues),
     ];
     if (drift.length || roadmapErrors.length) {
       throw new Error(`Project drift:\n${[...drift, ...roadmapErrors].map(value => `- ${value}`).join("\n")}`);
     }
     console.log(`Portcove Roadmap #${number} is reachable at ${details.url ?? project.url}.`);
     console.log(`Verified identity, PUBLIC visibility, repository linkage, ${fields.length} fields, and ${views.length} view layouts/filters/visible-field sets.`);
-    console.log(`Verified ${catalog.ports.length} canonical catalog issues, one supported-source plan owner, and all ${uxAuditOriginIds.length} final UX audit origins.`);
+    console.log(`Verified ${repositoryIssues.filter(issue => itemBody(issue).includes(portMarker)).length} repository port issues, ${catalog.ports.length} canonical catalog issues, one supported-source plan owner, and all ${uxAuditOriginIds.length} final UX audit origins.`);
     console.log(`Manual confirmation required because GitHub does not expose a reliable readable configuration API:\n${manualUiChecklist(config).join("\n")}`);
     return;
   }
@@ -978,7 +1145,12 @@ async function main(argv) {
     const title = requiredOption(parsed.options, "--title");
     const url = requiredOption(parsed.options, "--url");
     if (!/^https:\/\//.test(url)) throw new Error("--url must be an https URL");
-    const item = client.createPortIssue({ title, upstream: url, catalogId: parsed.options["--catalog-id"] });
+    const item = client.createPortIssue({
+      title,
+      upstream: url,
+      catalogId: parsed.options["--catalog-id"],
+      portKey: parsed.options["--port-key"],
+    });
     console.log(`Created durable port issue ${item.html_url} and added it to the Portcove Roadmap (${item.itemId}).`);
     return;
   }

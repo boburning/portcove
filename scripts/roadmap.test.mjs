@@ -8,8 +8,10 @@ import {
   completionEvidenceLinks,
   fieldValue,
   featureIntakeFields,
+  findPortIssueDuplicates,
   materializeViews,
   manualUiChecklist,
+  normalizePortKey,
   parseArguments,
   planFieldReconciliation,
   planViewReconciliation,
@@ -210,37 +212,79 @@ test("doctor drift covers identity linkage field options and view properties", (
 
 test("one-port-one-issue coverage rejects missing duplicate grouped and draft authority", () => {
   const catalog = { ports: [{ id: "one" }, { id: "two" }] };
-  const issue = (number, id) => ({ title: `Port ${id}`, "work type": "Port", content: { type: "Issue", url: `https://github.com/boburning/portcove/issues/${number}`, body: `${renderPortIssueBody({ title: id, upstream: `https://example.test/${id}`, catalogId: id })}` } });
-  assert.deepEqual(validatePortIssueCoverage(catalog, [issue(1, "one"), issue(2, "two")], "boburning/portcove"), []);
-  const duplicate = validatePortIssueCoverage(catalog, [issue(1, "one"), issue(2, "one")], "boburning/portcove");
+  const repositoryIssue = (number, id) => ({ number, title: `[Port] ${id}`, type: "Issue", url: `https://github.com/boburning/portcove/issues/${number}`, body: renderPortIssueBody({ title: id, upstream: `https://example.test/${id}`, catalogId: id }) });
+  const projectItem = (issue, workType = "Port") => ({ title: issue.title, "work type": workType, content: issue });
+  const first = repositoryIssue(1, "one");
+  const second = repositoryIssue(2, "two");
+  assert.deepEqual(validatePortIssueCoverage(catalog, [projectItem(first), projectItem(second)], "boburning/portcove", [first, second]), []);
+  const duplicateIssue = repositoryIssue(2, "one");
+  const duplicate = validatePortIssueCoverage(catalog, [projectItem(first), projectItem(duplicateIssue)], "boburning/portcove", [first, duplicateIssue]);
   assert.ok(duplicate.some(value => value.includes("Two live issues")));
   assert.ok(duplicate.some(value => value.includes("lacks a canonical")));
-  const grouped = issue(3, "one");
-  grouped.content.body += "\n<!-- portcove-catalog-id: two -->";
-  assert.ok(validatePortIssueCoverage(catalog, [grouped], "boburning/portcove").some(value => value.includes("multiple catalog ports")));
+  const grouped = repositoryIssue(3, "one");
+  grouped.body += "\n<!-- portcove-catalog-id: two -->";
+  assert.ok(validatePortIssueCoverage(catalog, [projectItem(grouped)], "boburning/portcove", [grouped]).some(value => value.includes("multiple catalog ports")));
   const draft = { title: "Draft only", "work type": "Port", content: { type: "DraftIssue", body: "<!-- portcove-port -->" } };
   assert.ok(validatePortIssueCoverage({ ports: [] }, [draft], "boburning/portcove").some(value => value.includes("not backed")));
+  assert.ok(validatePortIssueCoverage(catalog, [projectItem(first)], "boburning/portcove", [first, second])
+    .some(value => value.includes("not in the Project")));
+  assert.ok(validatePortIssueCoverage({ ports: [{ id: "one" }] }, [projectItem(first, "Research")], "boburning/portcove", [first])
+    .some(value => value.includes("not classified as Work type = Port")));
+  const external = structuredClone(first);
+  external.url = "https://github.com/example/other/issues/1";
+  assert.ok(validatePortIssueCoverage({ ports: [{ id: "one" }] }, [projectItem(external)], "boburning/portcove", [first])
+    .some(value => value.includes("not in the Project")));
 });
 
-test("one-port-one-issue coverage allows shared upstreams and rejects unsupported unlabeled research", () => {
-  const issue = (number, title, upstream, body) => ({
+test("one-port-one-issue coverage requires unique candidate keys and allows shared upstream multi-game repositories", () => {
+  const issue = (number, title, body) => ({
+    number,
     title,
-    "work type": "Port",
-    content: {
-      type: "Issue",
-      url: "https://github.com/boburning/portcove/issues/" + number,
-      body,
-    },
+    type: "Issue",
+    url: "https://github.com/boburning/portcove/issues/" + number,
+    body,
   });
-  const first = issue(1, "[Port] One", "https://example.test/shared",
-    renderPortIssueBody({ title: "One", upstream: "https://example.test/shared" }));
-  const second = issue(2, "[Port] Two", "https://example.test/shared",
-    renderPortIssueBody({ title: "Two", upstream: "https://example.test/shared/" }));
-  assert.deepEqual(validatePortIssueCoverage({ ports: [] }, [first, second], "boburning/portcove"), []);
-  const unlabeled = issue(3, "[Port] Three", "https://example.test/three",
+  const projectItem = repositoryIssue => ({ title: repositoryIssue.title, "work type": "Port", content: repositoryIssue });
+  const first = issue(1, "[Port] One",
+    renderPortIssueBody({ title: "One", upstream: "https://example.test/shared", portKey: "one" }));
+  const second = issue(2, "[Port] Two",
+    renderPortIssueBody({ title: "Two", upstream: "https://example.test/shared/", portKey: "two" }));
+  assert.deepEqual(validatePortIssueCoverage({ ports: [] }, [projectItem(first), projectItem(second)], "boburning/portcove", [first, second]), []);
+  const duplicateKey = issue(3, "[Port] Different title",
+    renderPortIssueBody({ title: "Different title", upstream: "https://example.test/other", portKey: "one" }));
+  assert.ok(validatePortIssueCoverage({ ports: [] }, [projectItem(first), projectItem(duplicateKey)], "boburning/portcove", [first, duplicateKey])
+    .some(value => value.includes("non-catalog port key one")));
+  const unlabeled = issue(4, "[Port] Three",
     "<!-- portcove-port -->\n<!-- portcove-upstream: https://example.test/three -->");
-  assert.ok(validatePortIssueCoverage({ ports: [] }, [unlabeled], "boburning/portcove")
+  assert.ok(validatePortIssueCoverage({ ports: [] }, [projectItem(unlabeled)], "boburning/portcove", [unlabeled])
     .some(value => value.includes("research/watchlist")));
+  assert.ok(validatePortIssueCoverage({ ports: [] }, [projectItem(unlabeled)], "boburning/portcove", [unlabeled])
+    .some(value => value.includes("durable port key")));
+});
+
+test("capture-port deduplication normalizes punctuation titles and combines upstream with game identity", () => {
+  const existing = {
+    number: 1,
+    title: "[Port] Pokémon: Yellow!",
+    url: "https://github.com/boburning/portcove/issues/1",
+    body: renderPortIssueBody({
+      title: "Pokémon: Yellow!",
+      upstream: "https://github.com/example/shared.git/",
+      portKey: "pokemon-yellow",
+    }),
+  };
+  assert.equal(normalizePortKey("Pokémon: Yellow!"), "pokemon-yellow");
+  assert.ok(findPortIssueDuplicates([existing], {
+    title: "Pokemon Yellow",
+    upstream: "https://github.com/example/shared",
+    portKey: "pokemon-yellow",
+  }).length === 1);
+  assert.deepEqual(findPortIssueDuplicates([existing], {
+    title: "Pokemon Red",
+    upstream: "https://github.com/example/shared",
+    portKey: "pokemon-red",
+  }), []);
+  assert.throws(() => renderPortIssueBody({ title: "Missing key", upstream: "https://example.test/port" }), /requires a durable --port-key/);
 });
 
 test("final UX audit origins require complete unique enumerated canonical ownership", () => {
@@ -279,6 +323,7 @@ test("supported-source plan origin has exactly one canonical owner", () => {
   assert.deepEqual(validatePlanOriginCoverage([item(36, marker)]), []);
   assert.ok(validatePlanOriginCoverage([])[0].includes("found 0"));
   assert.ok(validatePlanOriginCoverage([item(36, marker), item(99, marker)])[0].includes("found 2"));
+  assert.ok(validatePlanOriginCoverage([item(99, marker)])[0].includes("must be owned by issue #36"));
 });
 
 test("RoadmapClient capture uses mocked gh output and stores planning fields only in Project calls", () => {
@@ -320,23 +365,41 @@ test("capture-port creates one repository issue and initializes Unknown platform
   };
   const runner = (args, input) => {
     calls.push({ args, input });
-    if (args[0] === "issue" && args[1] === "list") return "[]";
     if (args[0] === "api" && args[1] === "repos/boburning/portcove/issues") return JSON.stringify({ node_id: "I_new", html_url: "https://github.com/boburning/portcove/issues/88", number: 88 });
     if (args[0] === "project" && args[1] === "view") return JSON.stringify({ id: "PVT_project" });
     if (args[0] === "project" && args[1] === "field-list") return JSON.stringify({ fields: Object.entries(expectedFields).map(([name, value], index) => ({ id: `F${index}`, name, options: [{ id: `O${index}`, name: value }] })) });
     if (args[0] === "api" && args[1] === "graphql") {
+      if (input.includes("issues(first: 100")) return JSON.stringify({ data: { repository: { issues: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } } } } });
       if (input.includes("addProjectV2ItemById")) return JSON.stringify({ data: { addProjectV2ItemById: { item: { id: "PVTI_new" } } } });
       return JSON.stringify({ data: { node: { projectItems: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } } } } });
     }
     return "";
   };
   const client = new RoadmapClient(mockedConfig, runner);
-  const result = client.createPortIssue({ title: "New Port", upstream: "https://example.test/upstream" });
+  const result = client.createPortIssue({ title: "New Port", upstream: "https://example.test/upstream", portKey: "new-port" });
   assert.equal(result.itemId, "PVTI_new");
   assert.equal(calls.filter(call => call.args[1] === "repos/boburning/portcove/issues").length, 1);
   assert.ok(calls.some(call => call.input?.includes("<!-- portcove-port -->")));
+  assert.ok(calls.some(call => call.input?.includes("<!-- portcove-port-key: new-port -->")));
   const fieldEdit = calls.find(call => call.input?.includes("updateProjectV2ItemFieldValue"));
   assert.ok(Object.values(JSON.parse(fieldEdit.input).variables).some(input => input.fieldId === "F6" && input.value.singleSelectOptionId === "O6"));
+});
+
+test("repository issue inventory follows every GraphQL page", () => {
+  const calls = [];
+  const runner = (args, input) => {
+    calls.push({ args, input });
+    const after = JSON.parse(input).variables.after;
+    const number = after ? 2 : 1;
+    return JSON.stringify({ data: { repository: { issues: {
+      nodes: [{ __typename: "Issue", number, title: `Issue ${number}`, body: "", url: `https://github.com/boburning/portcove/issues/${number}`, state: "OPEN" }],
+      pageInfo: { hasNextPage: !after, endCursor: after ? null : "cursor-1" },
+    } } } });
+  };
+  const issues = new RoadmapClient(config, runner).repositoryIssues();
+  assert.deepEqual(issues.map(issue => issue.number), [1, 2]);
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls.map(call => JSON.parse(call.input).variables.after), [null, "cursor-1"]);
 });
 
 test("promotion validation happens before any GitHub mutation", () => {

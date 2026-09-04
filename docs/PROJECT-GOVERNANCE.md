@@ -54,7 +54,8 @@ coordinate several ports but never replace their individual issues.
 
 `capture-port` creates the repository issue immediately, adds it to the Project,
 and initializes neutral Watchlist fields. A port issue owns its direct upstream,
-title identity, catalog ID when assigned, platforms, release integrity, source
+title identity, catalog ID when assigned, durable game/target key when it is a
+non-catalog candidate, platforms, release integrity, source
 contract, setup boundary, persistent data, adapter dependencies, stage, blocker
 and resume condition, automated and manual qualification, and completion
 evidence. The Continuous Port Pipeline is a parent workstream only. Project
@@ -79,9 +80,10 @@ create sub-issues only when they can be implemented and validated independently.
 Final audit and implementation-plan origins also remain machine-searchable.
 Every imported UX audit ID has exactly one canonical issue owner through a
 portcove-ux-audit-origins comment, and the supported-source plan has one parent
-owner through its portcove-origins comment. The roadmap doctor rejects missing,
+owner, issue #36, through its portcove-origins comment. The roadmap doctor
+rejects missing,
 duplicate, malformed, unknown, or range-abbreviated UX IDs and rejects duplicate
-supported-source plan ownership.
+or misplaced supported-source plan ownership.
 
 ## Working rules
 
@@ -127,8 +129,12 @@ Use `node scripts/roadmap.mjs capture-port` for fast durable port discovery,
 `set` and `move` for planning changes, and `next` for the ordered work queue.
 `doctor` verifies machine-readable identity, visibility, repository linkage,
 field types/options, view layout/filter/visible fields, the one-port/one-issue
-coverage contract, final UX origin ownership, and supported-source plan
-ownership. Grouping, sorting, auto-add, and completion workflows remain
+coverage contract across both repository issues and Project items, final UX
+origin ownership, and supported-source plan ownership. It requires every
+repository issue carrying the canonical port marker to have exactly one Port
+item and rejects duplicate catalog IDs, candidate keys, normalized title
+identities, or same-upstream/same-target identities. Distinct games or targets
+may share one upstream. Grouping, sorting, auto-add, and completion workflows remain
 explicit manual confirmations. `bootstrap` reconciles the live Project; ordinary CI runs
 only the offline `check` and tests.
 

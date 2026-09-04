@@ -31,9 +31,11 @@ ineligible.
 
 Discovery creates one durable issue immediately for every independently
 catalogable or independently prioritizable port, with the direct upstream URL,
-title identity, neutral Inbox/Watchlist fields, and an explicit statement that
-research intake does not grant support. Project drafts are only for fleeting
-non-port ideas. Triage records platform, artifact-integrity, source,
+title identity, a durable game/target key for non-catalog candidates, neutral
+Inbox/Watchlist fields, and an explicit statement that research intake does not
+grant support. The key identifies the independently prioritizable game or
+target, not merely a shared upstream repository. Project drafts are only for
+fleeting non-port ideas. Triage records platform, artifact-integrity, source,
 persistence, adapter, blocker, and resume-condition evidence. A newly cataloged
 port does not automatically become a global V1
 blocker.
