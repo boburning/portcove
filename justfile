@@ -55,7 +55,7 @@ check-ui: ui-build ui-test fallow
 
 # Deterministic release metadata and artifact tooling
 release-tools:
-    {{storage}} node --test scripts/check-release-metadata.test.mjs scripts/write-release-checksums.test.mjs scripts/reconcile-release-assets.test.mjs scripts/release-workflow.test.mjs scripts/quality-tools.test.mjs scripts/repository-settings.test.mjs scripts/dev-storage.test.mjs
+    {{storage}} node --test scripts/check-release-metadata.test.mjs scripts/write-release-checksums.test.mjs scripts/reconcile-release-assets.test.mjs scripts/release-workflow.test.mjs scripts/ci-workflow.test.mjs scripts/quality-tools.test.mjs scripts/repository-settings.test.mjs scripts/dev-storage.test.mjs
     {{storage}} node scripts/check-release-metadata.mjs
     {{storage}} node scripts/quality-tools.mjs --validate
     {{storage}} node scripts/repository-settings.mjs --validate
