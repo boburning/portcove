@@ -395,8 +395,17 @@ export function projectMachineDrift(config, { details, fields, views, repositori
   for (const step of planFieldReconciliation(config.fields, { fields })) {
     if (step.action !== "keep") drift.push(`field ${step.desired.name}: ${step.reason ?? step.action}`);
   }
+  for (const desired of config.fields) {
+    const actual = fields.find(field => field.name === desired.name);
+    const extras = (actual?.options ?? []).map(option => option.name).filter(name => !desired.options.includes(name));
+    if (extras.length) drift.push(`field ${desired.name}: unexpected options ${extras.join(", ")}`);
+  }
   for (const step of planViewReconciliation(materializeViews(config), views)) {
     if (step.action !== "keep") drift.push(`view ${step.desired.name}: ${step.action}${step.drift?.length ? ` (${step.drift.join("; ")})` : ""}`);
+  }
+  const desiredViewNames = new Set(config.views.map(view => view.name));
+  for (const view of views.filter(candidate => !desiredViewNames.has(candidate.name))) {
+    drift.push(`unexpected view ${view.name}`);
   }
   return drift;
 }

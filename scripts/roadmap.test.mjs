@@ -190,12 +190,16 @@ test("doctor drift covers identity linkage field options and view properties", (
   assert.deepEqual(projectMachineDrift(config, { details: { title: config.project.title, number: 1, public: true }, fields, views, repositories: [{ owner: { login: "boburning" }, name: "portcove" }] }), []);
   views[0].filter = "wrong";
   fields[0].options = fields[0].options.filter(option => option.name !== "Done");
+  fields[1].options.push({ id: "unexpected", name: "Unexpected" });
+  views.push({ id: "extra", name: "Unexpected", layout: "TABLE_LAYOUT", filter: "", fields: { nodes: [{ name: "Title" }] } });
   const drift = projectMachineDrift(config, { details: { title: "Wrong", number: 1, public: false }, fields, views, repositories: [] });
   assert.ok(drift.some(value => value.includes("project title")));
   assert.ok(drift.some(value => value.includes("visibility")));
   assert.ok(drift.some(value => value.includes("not linked")));
   assert.ok(drift.some(value => value.includes("field Status")));
+  assert.ok(drift.some(value => value.includes("unexpected options")));
   assert.ok(drift.some(value => value.includes("view Priority Stack")));
+  assert.ok(drift.some(value => value.includes("unexpected view")));
   assert.ok(viewMachineDrift(desiredViews[0], views[0]).some(value => value.includes("filter")));
 });
 
