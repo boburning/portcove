@@ -5,8 +5,7 @@
 <h1 align="center">Portcove</h1>
 
 <p align="center">
-  <strong>Native ports, kept current.</strong><br>
-  One local library for decompilations, recompilations, and other native game ports.
+  Install and manage decompilations, recompilations, and other native game ports from one local library.
 </p>
 
 <p align="center">
