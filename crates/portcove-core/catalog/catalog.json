@@ -142,6 +142,7 @@
       "project_url": "https://github.com/TwilitRealm/dusklight", "support_tier": "stable", "channels": ["stable"],
       "platforms": ["windows-x86-64", "linux-x86-64"], "adapter": "referenced-disc",
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "TwilitRealm/dusklight" }, "source_profile": "twilight-princess",
       "executable_hints": { "windows-x86-64": ["dusklight.exe"], "linux-x86-64": ["dusklight"] },
       "persistent_paths": ["texture_replacements", "USA", "EUR", "JAP", "achievements.json", "config.json", "controller_ports.dat", "gamecontrollerdb.txt", "imgui.ini", "keyboard_bindings.dat", "states.json"]
@@ -178,7 +179,7 @@
     {
       "id": "harvest-moon-64-recomp", "name": "Harvest Moon 64: Recompiled", "summary": "Native Harvest Moon 64 recompilation.",
       "project_url": "https://github.com/HarvestMoon64Recomp/HarvestMoon64Recomp", "support_tier": "stable", "channels": ["stable"],
-      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "adapter": "n64-recomp-portable",
+      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "manually_validated_platforms": ["windows-x86-64"], "adapter": "n64-recomp-portable",
       "release": { "repository": "HarvestMoon64Recomp/HarvestMoon64Recomp" }, "source_profile": "harvest-moon-64",
       "executable_hints": { "windows-x86-64": ["HarvestMoon64Recompiled.exe"], "linux-x86-64": ["HarvestMoon64Recompiled"], "macos-x86-64": ["HarvestMoon64Recompiled"], "macos-aarch64": ["HarvestMoon64Recompiled"] },
       "persistent_paths": ["mods", "mod_config", "saves", "mods.json", "mods.json.bak", "general.json", "general.json.bak", "graphics.json", "graphics.json.bak", "controls.json", "controls.json.bak", "sound.json", "sound.json.bak", "harvest_moon_64.z64"],
@@ -189,6 +190,7 @@
       "project_url": "https://github.com/DinosaurPlanetRecomp/dino-recomp", "support_tier": "stable", "channels": ["stable"],
       "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "adapter": "n64-recomp-portable",
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "DinosaurPlanetRecomp/dino-recomp" }, "source_profile": "dinosaur-planet",
       "executable_hints": { "windows-x86-64": ["DinosaurPlanetRecompiled.exe"], "linux-x86-64": ["DinosaurPlanetRecompiled"] },
       "persistent_paths": ["mods", "mod_config", "saves", "config", "mods.json", "mods.json.bak", "general.json", "general.json.bak", "graphics.json", "graphics.json.bak", "controls.json", "controls.json.bak", "sound.json", "sound.json.bak", "dino.z64"],
@@ -208,6 +210,7 @@
       "project_url": "https://github.com/Rainchus/Donkey-Kong-64-Recompiled", "support_tier": "stable", "channels": ["stable"],
       "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"], "adapter": "n64-recomp-portable",
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "Rainchus/Donkey-Kong-64-Recompiled", "asset_hints": { "windows-x86-64": ["DK64-Recompiled-Windows"], "linux-x86-64": ["DK64Recompiled-Linux-X64"], "macos-aarch64": ["DK64Recompiled-macOS"] } }, "source_profile": "donkey-kong-64",
       "executable_hints": { "windows-x86-64": ["DK64Recompiled.exe"], "linux-x86-64": ["DK64Recompiled"], "macos-aarch64": ["DK64Recompiled.app"] },
       "persistent_paths": ["mods", "mod_config", "saves", "mods.json", "mods.json.bak", "general.json", "general.json.bak", "graphics.json", "graphics.json.bak", "controls.json", "controls.json.bak", "sound.json", "sound.json.bak", "technical.json", "technical.json.bak", "DK64.z64"],
@@ -218,6 +221,7 @@
       "project_url": "https://github.com/alondero/automobililamborghini-recomp", "support_tier": "stable", "channels": ["stable"],
       "platforms": ["windows-x86-64", "linux-x86-64"], "adapter": "n64-recomp-portable",
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "alondero/automobililamborghini-recomp", "asset_hints": { "windows-x86-64": ["lamborghini-recomp-windows-x64"], "linux-x86-64": ["lamborghini-recomp-linux-x64"] } }, "source_profile": "automobili-lamborghini",
       "executable_hints": { "windows-x86-64": ["lamborghini_modern.exe"], "linux-x86-64": ["lamborghini_modern"] },
       "persistent_paths": ["mods", "mod_config", "saves", "graphics.json", "controls.json", "player.json", "lambo_controller_pak.mpk", "lambo_savestate.lstate", "Automobili Lamborghini (USA).z64", "lamborghini.us.z64"],
@@ -228,6 +232,7 @@
       "project_url": "https://github.com/alondero/aerogauge-recomp", "support_tier": "beta", "channels": ["stable"],
       "platforms": ["windows-x86-64", "linux-x86-64"], "adapter": "n64-recomp-portable",
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "alondero/aerogauge-recomp", "asset_hints": { "windows-x86-64": ["aerogauge-recomp-windows-x64"], "linux-x86-64": ["aerogauge-recomp-linux-x64"] } }, "source_profile": "aerogauge",
       "executable_hints": { "windows-x86-64": ["aerogauge_modern.exe"], "linux-x86-64": ["aerogauge_modern"] },
       "persistent_paths": ["mods", "mod_config", "saves", "graphics.json", "graphics.json.bak", "AeroGauge (USA).z64", "aerogauge.us.z64"],
@@ -238,6 +243,7 @@
       "project_url": "https://gitlab.com/sonicdcer/ExtremeGRecomp", "support_tier": "stable", "channels": ["stable"],
       "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "adapter": "n64-recomp-portable",
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "release": { "provider": "gitlab", "repository": "sonicdcer/ExtremeGRecomp", "asset_hints": { "windows-x86-64": ["windows-relwithdebinfo"], "linux-x86-64": ["linux-x64-release"], "macos-x86-64": ["macos-release"], "macos-aarch64": ["macos-release"] } }, "source_profile": "extreme-g",
       "executable_hints": { "windows-x86-64": ["ExtremeGRecompiled.exe"], "linux-x86-64": ["ExtremeGRecompiled"], "macos-x86-64": ["ExtremeGRecompiled"], "macos-aarch64": ["ExtremeGRecompiled"] },
       "persistent_paths": ["mods", "mod_config", "saves", "mods.json", "mods.json.bak", "general.json", "general.json.bak", "graphics.json", "graphics.json.bak", "controls.json", "controls.json.bak", "sound.json", "sound.json.bak", "extremeg.us.z64"],
@@ -247,7 +253,7 @@
     {
       "id": "bomberman-fantasy-race-recompiled", "name": "Bomberman Fantasy Race: Recompiled", "summary": "PS1 static recompilation built locally from the verified original disc.",
       "project_url": "https://github.com/TechnicallyComputers/Bomberman-Fantasy-Race-Recomp", "support_tier": "beta", "channels": ["stable"],
-      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
+      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "manually_validated_platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
       "release": { "repository": "TechnicallyComputers/Bomberman-Fantasy-Race-Recomp", "asset_hints": { "windows-x86-64": ["windows-x64"], "linux-x86-64": ["linux-x64"], "macos-x86-64": ["macos-x64"], "macos-aarch64": ["macos-arm64"] } }, "source_profile": "bomberman-fantasy-race-psx",
       "executable_hints": { "windows-x86-64": ["Bomberman_Fantasy_Race__Recompiled.exe"], "linux-x86-64": ["Bomberman_Fantasy_Race__Recompiled"], "macos-x86-64": ["Bomberman_Fantasy_Race__Recompiled"], "macos-aarch64": ["Bomberman_Fantasy_Race__Recompiled"] },
       "persistent_paths": ["saves", "config", "mods", "settings.toml", "game_options.json", "graphics.json", "input.json", "sound.json"], "runtime_subdirectory": "build-portcove"
@@ -255,7 +261,7 @@
     {
       "id": "bomberman-party-edition-recompiled", "name": "Bomberman Party Edition: Recompiled", "summary": "PS1 static recompilation built locally from the verified original disc.",
       "project_url": "https://github.com/TechnicallyComputers/BombermanPartyEditionRecomp", "support_tier": "beta", "channels": ["stable"],
-      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
+      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "manually_validated_platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
       "release": { "repository": "TechnicallyComputers/BombermanPartyEditionRecomp", "asset_hints": { "windows-x86-64": ["windows-x64"], "linux-x86-64": ["linux-x64"], "macos-x86-64": ["macos-x64"], "macos-aarch64": ["macos-arm64"] } }, "source_profile": "bomberman-party-edition-psx",
       "executable_hints": { "windows-x86-64": ["Bomberman_Party_Edition_Recompiled.exe"], "linux-x86-64": ["Bomberman_Party_Edition_Recompiled"], "macos-x86-64": ["Bomberman_Party_Edition_Recompiled"], "macos-aarch64": ["Bomberman_Party_Edition_Recompiled"] },
       "persistent_paths": ["saves", "config", "mods", "settings.toml", "game_options.json", "graphics.json", "input.json", "sound.json"], "runtime_subdirectory": "build-portcove"
@@ -263,7 +269,7 @@
     {
       "id": "bomberman-world-recompiled", "name": "Bomberman World: Recompiled", "summary": "PS1 static recompilation built locally from the verified original disc.",
       "project_url": "https://github.com/TechnicallyComputers/Bomberman-World-Recomp", "support_tier": "beta", "channels": ["stable"],
-      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
+      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "manually_validated_platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
       "release": { "repository": "TechnicallyComputers/Bomberman-World-Recomp", "asset_hints": { "windows-x86-64": ["windows-x64"], "linux-x86-64": ["linux-x64"], "macos-x86-64": ["macos-x64"], "macos-aarch64": ["macos-arm64"] } }, "source_profile": "bomberman-world-psx",
       "executable_hints": { "windows-x86-64": ["Bomberman_World__Recompiled.exe"], "linux-x86-64": ["Bomberman_World__Recompiled"], "macos-x86-64": ["Bomberman_World__Recompiled"], "macos-aarch64": ["Bomberman_World__Recompiled"] },
       "persistent_paths": ["saves", "config", "mods", "settings.toml", "game_options.json", "graphics.json", "input.json", "sound.json"], "runtime_subdirectory": "build-portcove"
@@ -281,7 +287,7 @@
     {
       "id": "klonoa-door-to-phantomile-recompiled", "name": "Klonoa: Door to Phantomile Recompiled", "summary": "PS1 static recompilation built locally from the verified original disc.",
       "project_url": "https://github.com/TechnicallyComputers/Klonoa-Door-to-Phantomile", "support_tier": "beta", "channels": ["stable"],
-      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
+      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "manually_validated_platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
       "release": { "repository": "TechnicallyComputers/Klonoa-Door-to-Phantomile", "asset_hints": { "windows-x86-64": ["windows-x64"], "linux-x86-64": ["linux-x64"], "macos-x86-64": ["macos-x64"], "macos-aarch64": ["macos-arm64"] } }, "source_profile": "klonoa-door-to-phantomile-psx",
       "executable_hints": { "windows-x86-64": ["Klonoa___Door_to_Phantomile.exe"], "linux-x86-64": ["Klonoa___Door_to_Phantomile"], "macos-x86-64": ["Klonoa___Door_to_Phantomile"], "macos-aarch64": ["Klonoa___Door_to_Phantomile"] },
       "persistent_paths": ["saves", "config", "mods", "settings.toml", "game_options.json", "graphics.json", "input.json", "sound.json"], "runtime_subdirectory": "build-portcove"
@@ -289,7 +295,7 @@
     {
       "id": "legend-of-mana-recompiled", "name": "Legend of Mana: Recompiled", "summary": "PS1 static recompilation built locally from the verified original disc.",
       "project_url": "https://github.com/TechnicallyComputers/Legend-of-Mana-Recomp", "support_tier": "beta", "channels": ["stable"],
-      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
+      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "manually_validated_platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
       "release": { "repository": "TechnicallyComputers/Legend-of-Mana-Recomp", "asset_hints": { "windows-x86-64": ["windows-x64"], "linux-x86-64": ["linux-x64"], "macos-x86-64": ["macos-x64"], "macos-aarch64": ["macos-arm64"] } }, "source_profile": "legend-of-mana-psx",
       "executable_hints": { "windows-x86-64": ["Legend_of_Mana__Recompiled.exe"], "linux-x86-64": ["Legend_of_Mana__Recompiled"], "macos-x86-64": ["Legend_of_Mana__Recompiled"], "macos-aarch64": ["Legend_of_Mana__Recompiled"] },
       "persistent_paths": ["saves", "config", "mods", "settings.toml", "game_options.json", "graphics.json", "input.json", "sound.json"], "runtime_subdirectory": "build-portcove"
@@ -297,7 +303,7 @@
     {
       "id": "marvel-vs-capcom-recompiled", "name": "Marvel vs. Capcom: Recompiled", "summary": "PS1 static recompilation built locally from the verified original disc.",
       "project_url": "https://github.com/TechnicallyComputers/Marvel-vs.-Capcom-Clash-of-Super-Heroes-Recomp", "support_tier": "beta", "channels": ["stable"],
-      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
+      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "manually_validated_platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
       "release": { "repository": "TechnicallyComputers/Marvel-vs.-Capcom-Clash-of-Super-Heroes-Recomp", "asset_hints": { "windows-x86-64": ["windows-x64"], "linux-x86-64": ["linux-x64"], "macos-x86-64": ["macos-x64"], "macos-aarch64": ["macos-arm64"] } }, "source_profile": "marvel-vs-capcom-psx",
       "executable_hints": { "windows-x86-64": ["Marvel_vs__Capcom__Clash_of_Super_Heroes__Recompiled.exe"], "linux-x86-64": ["Marvel_vs__Capcom__Clash_of_Super_Heroes__Recompiled"], "macos-x86-64": ["Marvel_vs__Capcom__Clash_of_Super_Heroes__Recompiled"], "macos-aarch64": ["Marvel_vs__Capcom__Clash_of_Super_Heroes__Recompiled"] },
       "persistent_paths": ["saves", "config", "mods", "settings.toml", "game_options.json", "graphics.json", "input.json", "sound.json"], "runtime_subdirectory": "build-portcove"
@@ -305,7 +311,7 @@
     {
       "id": "masters-of-teras-kasi-recompiled", "name": "Masters of Teräs Käsi: Recompiled", "summary": "PS1 static recompilation built locally from the verified original disc.",
       "project_url": "https://github.com/TechnicallyComputers/MastersOfTerasKasiRecomp", "support_tier": "beta", "channels": ["stable"],
-      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
+      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "manually_validated_platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
       "release": { "repository": "TechnicallyComputers/MastersOfTerasKasiRecomp", "asset_hints": { "windows-x86-64": ["windows-x64"], "linux-x86-64": ["linux-x64"], "macos-x86-64": ["macos-x64"], "macos-aarch64": ["macos-arm64"] } }, "source_profile": "masters-of-teras-kasi-psx",
       "executable_hints": { "windows-x86-64": ["Masters_of_Teras_Kasi_Recompiled.exe"], "linux-x86-64": ["Masters_of_Teras_Kasi_Recompiled"], "macos-x86-64": ["Masters_of_Teras_Kasi_Recompiled"], "macos-aarch64": ["Masters_of_Teras_Kasi_Recompiled"] },
       "persistent_paths": ["saves", "config", "mods", "settings.toml", "game_options.json", "graphics.json", "input.json", "sound.json"], "runtime_subdirectory": "build-portcove"
@@ -313,7 +319,7 @@
     {
       "id": "metal-slug-x-recompiled", "name": "Metal Slug X: Recompiled", "summary": "PS1 static recompilation built locally from the verified original disc.",
       "project_url": "https://github.com/TechnicallyComputers/Metal-Slug-X-Recomp", "support_tier": "beta", "channels": ["stable"],
-      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
+      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "manually_validated_platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
       "release": { "repository": "TechnicallyComputers/Metal-Slug-X-Recomp", "asset_hints": { "windows-x86-64": ["windows-x64"], "linux-x86-64": ["linux-x64"], "macos-x86-64": ["macos-x64"], "macos-aarch64": ["macos-arm64"] } }, "source_profile": "metal-slug-x-psx",
       "executable_hints": { "windows-x86-64": ["Metal_Slug_X__Recompiled.exe"], "linux-x86-64": ["Metal_Slug_X__Recompiled"], "macos-x86-64": ["Metal_Slug_X__Recompiled"], "macos-aarch64": ["Metal_Slug_X__Recompiled"] },
       "persistent_paths": ["saves", "config", "mods", "settings.toml", "game_options.json", "graphics.json", "input.json", "sound.json"], "runtime_subdirectory": "build-portcove"
@@ -321,7 +327,7 @@
     {
       "id": "mortal-kombat-4-recompiled", "name": "Mortal Kombat 4: Recompiled", "summary": "PS1 static recompilation built locally from the verified original disc.",
       "project_url": "https://github.com/Alexbeav/mortal-kombat-4-recomp", "support_tier": "beta", "channels": ["stable"],
-      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
+      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "manually_validated_platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
       "release": { "repository": "Alexbeav/mortal-kombat-4-recomp", "asset_hints": { "windows-x86-64": ["windows-x64"], "linux-x86-64": ["linux-x64"], "macos-x86-64": ["macos-x64"], "macos-aarch64": ["macos-arm64"] } }, "source_profile": "mortal-kombat-4-psx", "bios_source_profile": "psx-scph-1001-bios",
       "executable_hints": { "windows-x86-64": ["Mortal_Kombat_4.exe"], "linux-x86-64": ["Mortal_Kombat_4"], "macos-x86-64": ["Mortal_Kombat_4"], "macos-aarch64": ["Mortal_Kombat_4"] },
       "persistent_paths": ["saves", "config", "mods", "settings.toml", "game_options.json", "graphics.json", "input.json", "sound.json"], "runtime_subdirectory": "build-portcove"
@@ -329,7 +335,7 @@
     {
       "id": "rampage-through-time-recompiled", "name": "Rampage Through Time: Recompiled", "summary": "PS1 static recompilation built locally from the verified original disc.",
       "project_url": "https://github.com/TechnicallyComputers/Rampage---Through-Time-Recomp", "support_tier": "beta", "channels": ["stable"],
-      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
+      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "manually_validated_platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
       "release": { "repository": "TechnicallyComputers/Rampage---Through-Time-Recomp", "asset_hints": { "windows-x86-64": ["windows-x64"], "linux-x86-64": ["linux-x64"], "macos-x86-64": ["macos-x64"], "macos-aarch64": ["macos-arm64"] } }, "source_profile": "rampage-through-time-psx",
       "executable_hints": { "windows-x86-64": ["Rampage___Through_Time__Recompiled.exe"], "linux-x86-64": ["Rampage___Through_Time__Recompiled"], "macos-x86-64": ["Rampage___Through_Time__Recompiled"], "macos-aarch64": ["Rampage___Through_Time__Recompiled"] },
       "persistent_paths": ["saves", "config", "mods", "settings.toml", "game_options.json", "graphics.json", "input.json", "sound.json"], "runtime_subdirectory": "build-portcove"
@@ -337,7 +343,7 @@
     {
       "id": "jedi-power-battles-recompiled", "name": "Jedi Power Battles: Recompiled", "summary": "PS1 static recompilation built locally from the verified original disc.",
       "project_url": "https://github.com/TechnicallyComputers/Star-wars---Episode-I---Jedi-Power-Battles-Recomp", "support_tier": "beta", "channels": ["stable"],
-      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
+      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "manually_validated_platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
       "release": { "repository": "TechnicallyComputers/Star-wars---Episode-I---Jedi-Power-Battles-Recomp", "asset_hints": { "windows-x86-64": ["windows-x64"], "linux-x86-64": ["linux-x64"], "macos-x86-64": ["macos-x64"], "macos-aarch64": ["macos-arm64"] } }, "source_profile": "jedi-power-battles-psx",
       "executable_hints": { "windows-x86-64": ["Star_wars___Episode_I___Jedi_Power_Battles__Recompiled.exe"], "linux-x86-64": ["Star_wars___Episode_I___Jedi_Power_Battles__Recompiled"], "macos-x86-64": ["Star_wars___Episode_I___Jedi_Power_Battles__Recompiled"], "macos-aarch64": ["Star_wars___Episode_I___Jedi_Power_Battles__Recompiled"] },
       "persistent_paths": ["saves", "config", "mods", "settings.toml", "game_options.json", "graphics.json", "input.json", "sound.json"], "runtime_subdirectory": "build-portcove"
@@ -345,7 +351,7 @@
     {
       "id": "street-fighter-alpha-3-recompiled", "name": "Street Fighter Alpha 3: Recompiled", "summary": "PS1 static recompilation built locally from the verified original disc.",
       "project_url": "https://github.com/TechnicallyComputers/Street-Fighter-Alpha-3-Recomp", "support_tier": "beta", "channels": ["stable"],
-      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
+      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "manually_validated_platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
       "release": { "repository": "TechnicallyComputers/Street-Fighter-Alpha-3-Recomp", "asset_hints": { "windows-x86-64": ["windows-x64"], "linux-x86-64": ["linux-x64"], "macos-x86-64": ["macos-x64"], "macos-aarch64": ["macos-arm64"] } }, "source_profile": "street-fighter-alpha-3-psx",
       "executable_hints": { "windows-x86-64": ["Street_Fighter_Alpha_3__Recompiled.exe"], "linux-x86-64": ["Street_Fighter_Alpha_3__Recompiled"], "macos-x86-64": ["Street_Fighter_Alpha_3__Recompiled"], "macos-aarch64": ["Street_Fighter_Alpha_3__Recompiled"] },
       "persistent_paths": ["saves", "config", "mods", "settings.toml", "game_options.json", "graphics.json", "input.json", "sound.json"], "runtime_subdirectory": "build-portcove"
@@ -353,7 +359,7 @@
     {
       "id": "tomba-recompiled", "name": "Tomba!: Recompiled", "summary": "PS1 static recompilation built locally from the verified original disc.",
       "project_url": "https://github.com/mstan/TombaRecomp", "support_tier": "beta", "channels": ["beta"],
-      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
+      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "manually_validated_platforms": ["windows-x86-64"], "adapter": "psx-recomp-managed",
       "release": { "repository": "mstan/TombaRecomp", "asset_hints": { "windows-x86-64": ["windows-x64"], "linux-x86-64": ["linux-x64"], "macos-x86-64": ["macos-x64"], "macos-aarch64": ["macos-arm64"] } }, "source_profile": "tomba-psx",
       "executable_hints": { "windows-x86-64": ["Tomba__Recompiled.exe"], "linux-x86-64": ["Tomba__Recompiled"], "macos-x86-64": ["Tomba__Recompiled"], "macos-aarch64": ["Tomba__Recompiled"] },
       "persistent_paths": ["saves", "config", "mods", "settings.toml", "game_options.json", "graphics.json", "input.json", "sound.json"], "runtime_subdirectory": "build-portcove"
@@ -363,6 +369,7 @@
       "project_url": "https://github.com/TechnicallyComputers/TwistedMetal4Recomp", "support_tier": "beta", "channels": ["stable"],
       "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "adapter": "psx-recomp-managed",
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "TechnicallyComputers/TwistedMetal4Recomp", "asset_hints": { "windows-x86-64": ["windows-x64"], "linux-x86-64": ["linux-x64"], "macos-x86-64": ["macos-x64"], "macos-aarch64": ["macos-arm64"] } }, "source_profile": "twisted-metal-4-psx",
       "executable_hints": { "windows-x86-64": ["TwistedMetal4_Recompiled.exe"], "linux-x86-64": ["TwistedMetal4_Recompiled"], "macos-x86-64": ["TwistedMetal4_Recompiled"], "macos-aarch64": ["TwistedMetal4_Recompiled"] },
       "persistent_paths": ["saves", "config", "game_options.json", "graphics.json", "input.json", "sound.json"],
@@ -373,6 +380,7 @@
       "project_url": "https://github.com/bryankruman/BeetleRecomp", "support_tier": "beta", "channels": ["stable", "rolling"],
       "platforms": ["windows-x86-64"], "adapter": "n64-recomp-portable",
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "bryankruman/BeetleRecomp", "rolling_tag": "Continuous", "asset_hints": { "windows-x86-64": ["BeetleRecomp", "Windows-x64"] } }, "source_profile": "beetle-adventure-racing",
       "executable_hints": { "windows-x86-64": ["BeetleRecomp.exe"] },
       "persistent_paths": ["BeetleRecomp-Windows-x64/mods", "BeetleRecomp-Windows-x64/mod_config", "BeetleRecomp-Windows-x64/saves", "BeetleRecomp-Windows-x64/mods.json", "BeetleRecomp-Windows-x64/mods.json.bak", "BeetleRecomp-Windows-x64/graphics.json", "BeetleRecomp-Windows-x64/graphics.json.bak", "BeetleRecomp-Windows-x64/input.json", "BeetleRecomp-Windows-x64/input.json.bak", "BeetleRecomp-Windows-x64/cheats.cfg", "BeetleRecomp-Windows-x64/bar.n64.us.z64"],
@@ -383,6 +391,7 @@
       "project_url": "https://github.com/Rainchus/Quest64-Recomp", "support_tier": "beta", "channels": ["stable"],
       "platforms": ["windows-x86-64"], "adapter": "n64-recomp-portable",
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "Rainchus/Quest64-Recomp", "asset_hints": { "windows-x86-64": ["Quest64Recompiled"] } }, "source_profile": "quest-64",
       "executable_hints": { "windows-x86-64": ["Quest64Recompiled.exe"] },
       "persistent_paths": ["mods", "mod_config", "saves", "mods.json", "mods.json.bak", "general.json", "general.json.bak", "graphics.json", "graphics.json.bak", "controls.json", "controls.json.bak", "sound.json", "sound.json.bak", "quest64_us.z64"],
@@ -393,6 +402,7 @@
       "project_url": "https://github.com/jessetbh/WCWvsNWOWorldTourRecomp", "support_tier": "beta", "channels": ["beta"],
       "platforms": ["windows-x86-64"], "adapter": "n64-recomp-portable",
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "jessetbh/WCWvsNWOWorldTourRecomp", "asset_hints": { "windows-x86-64": ["WCWRecompiled", "Windows"] } }, "source_profile": "wcw-world-tour",
       "executable_hints": { "windows-x86-64": ["WCWRecompiled.exe"] },
       "persistent_paths": ["mods", "mod_config", "saves", "mods.json", "mods.json.bak", "general.json", "general.json.bak", "graphics.json", "graphics.json.bak", "controls.json", "controls.json.bak", "sound.json", "sound.json.bak", "wcw.nwo.worldtour.us.z64"],
@@ -403,6 +413,7 @@
       "project_url": "https://github.com/jessetbh/VPW64Recomp", "support_tier": "beta", "channels": ["beta"],
       "platforms": ["windows-x86-64"], "adapter": "n64-recomp-portable",
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "jessetbh/VPW64Recomp", "asset_hints": { "windows-x86-64": ["Vpw64Recompiled", "Windows"] } }, "source_profile": "vpw64",
       "executable_hints": { "windows-x86-64": ["Vpw64Recompiled.exe"] },
       "persistent_paths": ["mods", "mod_config", "saves", "mods.json", "mods.json.bak", "general.json", "general.json.bak", "graphics.json", "graphics.json.bak", "controls.json", "controls.json.bak", "sound.json", "sound.json.bak", "vpw.vpw64.jp.z64"],
@@ -413,6 +424,7 @@
       "project_url": "https://github.com/jessetbh/WCWnWoRevengeRecomp", "support_tier": "beta", "channels": ["beta"],
       "platforms": ["windows-x86-64"], "adapter": "n64-recomp-portable",
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "jessetbh/WCWnWoRevengeRecomp", "asset_hints": { "windows-x86-64": ["RevengeRecompiled", "Windows"] } }, "source_profile": "wcw-nwo-revenge",
       "executable_hints": { "windows-x86-64": ["RevengeRecompiled.exe"] },
       "persistent_paths": ["mods", "mod_config", "saves", "mods.json", "mods.json.bak", "general.json", "general.json.bak", "graphics.json", "graphics.json.bak", "controls.json", "controls.json.bak", "sound.json", "sound.json.bak", "wcw.nwo.revenge.us.z64"],
@@ -423,6 +435,7 @@
       "project_url": "https://github.com/jessetbh/WWFWrestleMania2000Recomp", "support_tier": "beta", "channels": ["beta"],
       "platforms": ["windows-x86-64"], "adapter": "n64-recomp-portable",
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "jessetbh/WWFWrestleMania2000Recomp", "asset_hints": { "windows-x86-64": ["Wm2kRecompiled", "Windows"] } }, "source_profile": "wwf-wrestlemania-2000",
       "executable_hints": { "windows-x86-64": ["Wm2kRecompiled.exe"] },
       "persistent_paths": ["mods", "mod_config", "saves", "mods.json", "mods.json.bak", "general.json", "general.json.bak", "graphics.json", "graphics.json.bak", "controls.json", "controls.json.bak", "sound.json", "sound.json.bak", "wwf.wm2k.us.z64"],
@@ -442,6 +455,7 @@
       "project_url": "https://github.com/jessetbh/WWFNoMercyRecomp", "support_tier": "beta", "channels": ["beta"],
       "platforms": ["windows-x86-64"], "adapter": "n64-recomp-portable",
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "jessetbh/WWFNoMercyRecomp", "asset_hints": { "windows-x86-64": ["NoMercyRecompiled", "Windows"] } }, "source_profile": "wwf-no-mercy",
       "executable_hints": { "windows-x86-64": ["NoMercyRecompiled.exe"] },
       "persistent_paths": ["mods", "mod_config", "saves", "mods.json", "mods.json.bak", "general.json", "general.json.bak", "graphics.json", "graphics.json.bak", "controls.json", "controls.json.bak", "sound.json", "sound.json.bak", "wwf.nomercy.us.z64"],
@@ -450,7 +464,7 @@
     {
       "id": "mega-man-64-recompiled", "name": "Mega Man 64 Recompiled", "summary": "Native Mega Man 64 recompilation.",
       "project_url": "https://github.com/MegaMan64Recomp/MegaMan64Recompiled", "support_tier": "stable", "channels": ["stable"],
-      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "adapter": "n64-recomp-portable",
+      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "automated_tested_platforms": ["windows-x86-64"], "manually_validated_platforms": ["windows-x86-64"], "adapter": "n64-recomp-portable",
       "release": { "repository": "MegaMan64Recomp/MegaMan64Recompiled" }, "source_profile": "mega-man-64",
       "executable_hints": { "windows-x86-64": ["MegaMan64Recompiled.exe"], "linux-x86-64": ["MegaMan64Recompiled"], "macos-x86-64": ["MegaMan64Recompiled"], "macos-aarch64": ["MegaMan64Recompiled"] },
       "persistent_paths": ["mods", "mod_config", "saves", "mods.json", "mods.json.bak", "general.json", "general.json.bak", "graphics.json", "graphics.json.bak", "controls.json", "controls.json.bak", "sound.json", "sound.json.bak", "megaman.n64.us.1.0.z64"],
@@ -468,6 +482,7 @@
       "project_url": "https://github.com/bryanthaboi/gen1recomp", "support_tier": "stable", "channels": ["stable"],
       "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "adapter": "generated-cache",
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "bryanthaboi/gen1recomp" }, "source_profile": "pokemon-gen-1",
       "executable_hints": { "windows-x86-64": ["gen1recomp.exe"], "linux-x86-64": ["gen1recomp", "gen1recomp.appimage"], "macos-x86-64": ["gen1recomp"], "macos-aarch64": ["gen1recomp"] },
       "portable_marker": true, "source_environment": "POKEPORT_IMPORT_ROM", "launch_arguments": ["--game=red"],
@@ -511,7 +526,7 @@
     {
       "id": "nocturne-recomp", "name": "NocturneRecomp", "summary": "Native Windows recompilation of Castlevania: Symphony of the Night for Xbox Live Arcade.",
       "project_url": "https://github.com/birabittoh/NocturneRecomp", "support_tier": "stable", "channels": ["stable"],
-      "platforms": ["windows-x86-64"], "adapter": "staged-source-portable", "automated_tested_platforms": ["windows-x86-64"],
+      "platforms": ["windows-x86-64"], "manually_validated_platforms": ["windows-x86-64"], "adapter": "staged-source-portable", "automated_tested_platforms": ["windows-x86-64"],
       "release": { "repository": "birabittoh/NocturneRecomp", "asset_hints": { "windows-x86-64": ["nocturnerecomp-v", "windows-x64.zip"] } }, "source_profile": "sotn-xbla",
       "executable_hints": { "windows-x86-64": ["nocturnerecomp.exe"] },
       "runtime_source_filename": "assets", "runtime_source_materialization": "stfs-directory", "runtime_source_hashes": { "default.xex": "26a58b074c5dd6185b77a8111a0012866d11cba674b4b0810d79dbf07ad68aa6" },
@@ -529,6 +544,7 @@
       "project_url": "https://github.com/RevoSucks/BMHeroRecomp", "support_tier": "beta", "channels": ["beta"],
       "platforms": ["windows-x86-64", "linux-x86-64"], "adapter": "n64-recomp-portable",
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "RevoSucks/BMHeroRecomp" }, "source_profile": "bomberman-hero",
       "executable_hints": { "windows-x86-64": ["BMHeroRecompiled.exe"], "linux-x86-64": ["BMHeroRecompiled"] },
       "persistent_paths": ["mods", "mod_config", "saves", "mods.json", "mods.json.bak", "general.json", "general.json.bak", "graphics.json", "graphics.json.bak", "controls.json", "controls.json.bak", "sound.json", "sound.json.bak", "bmhero.z64"],
@@ -539,6 +555,7 @@
       "project_url": "https://github.com/cdlewis/snowboardkids2-recomp", "support_tier": "beta", "channels": ["beta"],
       "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "adapter": "n64-recomp-portable",
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "cdlewis/snowboardkids2-recomp" }, "source_profile": "snowboard-kids-2",
       "executable_hints": { "windows-x86-64": ["SnowboardKids2Recompiled.exe"], "linux-x86-64": ["SnowboardKids2Recompiled"], "macos-x86-64": ["SnowboardKids2Recompiled"], "macos-aarch64": ["SnowboardKids2Recompiled"] },
       "persistent_paths": ["mods", "mod_config", "saves", "mods.json", "mods.json.bak", "general.json", "general.json.bak", "graphics.json", "graphics.json.bak", "controls.json", "controls.json.bak", "sound.json", "sound.json.bak", "snowboardkids2.n64.us.z64"],
@@ -549,6 +566,7 @@
       "project_url": "https://github.com/ThiagoLira/trouble-makers-pc-recomp", "support_tier": "beta", "channels": ["beta"],
       "platforms": ["windows-x86-64", "linux-x86-64"], "adapter": "n64-recomp-portable",
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "ThiagoLira/trouble-makers-pc-recomp" }, "source_profile": "trouble-makers",
       "executable_hints": { "windows-x86-64": ["troublemakers.exe"], "linux-x86-64": ["troublemakers"] },
       "persistent_paths": ["mods", "mod_config", "saves", "config", "logs", "display.cfg", "controls.json", "controls.json.bak", "troublemakers.n64.us.1.z64"],
@@ -560,6 +578,7 @@
       "project_url": "https://github.com/klorfmorf/Goemon64Recomp", "support_tier": "beta", "channels": ["beta"],
       "platforms": ["windows-x86-64", "linux-x86-64"], "adapter": "n64-recomp-portable",
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "klorfmorf/Goemon64Recomp" }, "source_profile": "goemon-64",
       "executable_hints": { "windows-x86-64": ["Goemon64Recompiled.exe"], "linux-x86-64": ["Goemon64Recompiled"] },
       "persistent_paths": ["mods", "mod_config", "saves", "mods.json", "mods.json.bak", "general.json", "general.json.bak", "graphics.json", "graphics.json.bak", "controls.json", "controls.json.bak", "sound.json", "sound.json.bak", "mnsg.us.z64"],
@@ -570,6 +589,7 @@
       "project_url": "https://github.com/perfect-dark-pc-port/perfect_dark", "support_tier": "rolling", "channels": ["rolling"],
       "platforms": ["windows-x86-64", "linux-x86-64"], "adapter": "generated-cache",
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "perfect-dark-pc-port/perfect_dark", "rolling_tag": "ci-dev-build", "asset_hints": { "windows-x86-64": ["pd-x86_64-windows"], "linux-x86-64": ["pd-x86_64-linux"] } }, "source_profile": "perfect-dark",
       "executable_hints": { "windows-x86-64": ["pd.x86_64.exe"], "linux-x86-64": ["pd.x86_64"] },
       "launch_arguments": ["--portable"],
@@ -581,6 +601,7 @@
       "project_url": "https://github.com/Cellenseres/SSSV_Recomp", "support_tier": "stable", "channels": ["stable"],
       "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "adapter": "n64-recomp-portable",
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "Cellenseres/SSSV_Recomp", "asset_hints": { "windows-x86-64": ["Windows.zip"], "linux-x86-64": ["Linux.tar.gz"], "macos-x86-64": ["macOS.zip"], "macos-aarch64": ["macOS.zip"] } },
       "source_profile": "space-station-silicon-valley", "runtime_source_filename": "sssv.n64.us.1.0.z64",
       "portable_marker": true,
@@ -592,6 +613,7 @@
       "project_url": "https://github.com/flyngmt/ACGC-PC-Port", "support_tier": "beta", "channels": ["beta"],
       "platforms": ["windows-x86-64"], "adapter": "staged-source-portable",
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "flyngmt/ACGC-PC-Port", "asset_hints": { "windows-x86-64": ["ACGC-PC-Port"] } },
       "source_profile": "animal-crossing-gamecube", "runtime_source_filename": "rom/GAFE01.iso", "runtime_source_materialization": "gamecube-iso",
       "executable_hints": { "windows-x86-64": ["AnimalCrossing.exe"] },
@@ -602,6 +624,7 @@
       "project_url": "https://github.com/999sian/tmc", "support_tier": "beta", "channels": ["stable"],
       "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "adapter": "staged-source-portable",
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "999sian/tmc", "asset_hints": { "windows-x86-64": ["windows-x86_64"], "linux-x86-64": ["linux-x86_64"], "macos-x86-64": ["macos-x86_64"], "macos-aarch64": ["macos-arm64"] } },
       "source_profile": "minish-cap-gba", "runtime_source_filename": "baserom.gba", "runtime_source_materialization": "copy",
       "executable_hints": { "windows-x86-64": ["tmc_pc.exe"], "linux-x86-64": ["tmc_pc"], "macos-x86-64": ["tmc_pc"], "macos-aarch64": ["tmc_pc"] },
@@ -613,6 +636,7 @@
       "project_url": "https://github.com/JRickey/BattleShip", "support_tier": "stable", "channels": ["stable"],
       "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"], "adapter": "libultraship-portable",
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "JRickey/BattleShip", "asset_hints": { "windows-x86-64": ["BattleShip-windows.zip"], "linux-x86-64": ["BattleShip-x86_64.AppImage"], "macos-aarch64": ["BattleShip.dmg"] } },
       "source_profile": "super-smash-bros-64", "runtime_source_filename": "baserom.us.z64",
       "executable_hints": { "windows-x86-64": ["BattleShip.exe"], "linux-x86-64": ["BattleShip-x86_64.AppImage", "BattleShip"], "macos-aarch64": ["BattleShip"] },
@@ -636,6 +660,7 @@
       "id": "severed-chains", "name": "Severed Chains", "summary": "Opt-in rolling native port of The Legend of Dragoon with exact upstream disc-region validation.",
       "project_url": "https://github.com/Legend-of-Dragoon-Modding/Severed-Chains", "support_tier": "rolling", "channels": ["rolling"],
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "adapter": "staged-source-portable",
       "release": { "repository": "Legend-of-Dragoon-Modding/Severed-Chains", "rolling_tag": "devbuild", "asset_hints": { "windows-x86-64": ["Severed_Chains_Windows.zip"], "linux-x86-64": ["Severed_Chains_Linux.tar.gz"], "macos-x86-64": ["Severed_Chains_MacOS_Intel.tar.gz"], "macos-aarch64": ["Severed_Chains_MacOS_M1.tar.gz"] } },
       "bundled_runtime": {
@@ -704,6 +729,7 @@
       "project_url": "https://github.com/open-goal/jak-project", "support_tier": "stable", "channels": ["stable"],
       "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "adapter": "upstream-managed-setup",
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "open-goal/jak-project", "asset_hints": { "windows-x86-64": ["opengoal-windows"], "linux-x86-64": ["opengoal-linux"], "macos-x86-64": ["opengoal-macos-intel"], "macos-aarch64": ["opengoal-macos-arm"] } },
       "source_profile": "opengoal-jak1-disc", "runtime_source_filename": "source.iso", "runtime_source_materialization": "ps2-iso",
       "setup_executable_hints": { "windows-x86-64": ["extractor.exe"], "linux-x86-64": ["extractor"], "macos-x86-64": ["extractor"], "macos-aarch64": ["extractor"] },
@@ -718,6 +744,7 @@
       "project_url": "https://github.com/open-goal/jak-project", "support_tier": "beta", "channels": ["stable"],
       "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "adapter": "upstream-managed-setup",
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "open-goal/jak-project", "asset_hints": { "windows-x86-64": ["opengoal-windows"], "linux-x86-64": ["opengoal-linux"], "macos-x86-64": ["opengoal-macos-intel"], "macos-aarch64": ["opengoal-macos-arm"] } },
       "source_profile": "opengoal-jak2-disc", "runtime_source_filename": "source.iso", "runtime_source_materialization": "ps2-iso",
       "setup_executable_hints": { "windows-x86-64": ["extractor.exe"], "linux-x86-64": ["extractor"], "macos-x86-64": ["extractor"], "macos-aarch64": ["extractor"] },
@@ -732,6 +759,7 @@
       "project_url": "https://github.com/open-goal/jak-project", "support_tier": "beta", "channels": ["stable"],
       "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"], "adapter": "upstream-managed-setup",
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "open-goal/jak-project", "asset_hints": { "windows-x86-64": ["opengoal-windows"], "linux-x86-64": ["opengoal-linux"], "macos-x86-64": ["opengoal-macos-intel"], "macos-aarch64": ["opengoal-macos-arm"] } },
       "source_profile": "opengoal-jak3-disc", "runtime_source_filename": "source.iso", "runtime_source_materialization": "ps2-iso",
       "setup_executable_hints": { "windows-x86-64": ["extractor.exe"], "linux-x86-64": ["extractor"], "macos-x86-64": ["extractor"], "macos-aarch64": ["extractor"] },
@@ -746,6 +774,7 @@
       "project_url": "https://github.com/mstan/MegaManX6Recomp", "support_tier": "stable", "channels": ["stable", "beta"],
       "platforms": ["windows-x86-64"], "adapter": "staged-source-portable",
       "automated_tested_platforms": ["windows-x86-64"],
+      "manually_validated_platforms": ["windows-x86-64"],
       "release": { "repository": "mstan/MegaManX6Recomp", "asset_hints": { "windows-x86-64": ["windows-x64.zip"] } },
       "source_profile": "mega-man-x6-psx", "runtime_source_filename": "disc", "runtime_source_materialization": "psx-bin-cue",
       "launch_arguments": ["--no-launcher", "--memcard-dir", "saves", "--game", "game.toml", "--bios", "bios/openbios.bin", "--disc", "disc/disc.cue"],
@@ -756,7 +785,7 @@
       "id": "paper-mario-recut", "name": "Paper Mario ReCut", "summary": "Opt-in beta Windows recompilation of Paper Mario with a release-local user-data boundary.",
       "project_url": "https://github.com/SMCGames/Paper-Mario-ReCut", "support_tier": "beta", "channels": ["beta"],
       "platforms": ["windows-x86-64"],
-      "automated_tested_platforms": ["windows-x86-64"], "adapter": "n64-recomp-portable",
+      "automated_tested_platforms": ["windows-x86-64"], "manually_validated_platforms": ["windows-x86-64"], "adapter": "n64-recomp-portable",
       "release": { "repository": "SMCGames/Paper-Mario-ReCut", "asset_hints": { "windows-x86-64": ["license-compliance.zip"] } },
       "source_profile": "paper-mario-us", "runtime_subdirectory": "Paper Mario ReCut", "runtime_source_filename": "user/pm.n64.us.z64", "runtime_source_materialization": "n64-big-endian",
       "executable_hints": { "windows-x86-64": ["PaperMarioReCut.exe"] },

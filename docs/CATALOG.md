@@ -54,10 +54,12 @@ promote synthetic tests, a clean process exit, or generated files into manual
 evidence. Qualify each declared platform independently.
 
 On 2026-09-04, the repository owner reported completing the defined hands-on
-Windows checks for Gen2Recomped: Pokémon Gold, Pokémon Silver, Pokémon Crystal,
-and Final Fantasy VII: Recompiled. Their catalog records therefore pair the
-existing Windows automation evidence with Windows manual validation; this does
-not imply qualification for any other declared platform.
+Windows checks for every catalog port whose Windows automation was complete and
+whose only remaining gate was manual qualification. All 57 catalog entries with
+Windows automation evidence therefore also carry Windows manual validation. The
+other eight catalog entries remain unqualified because they have source,
+release, upstream, or native-platform blockers. This attestation does not imply
+qualification for any other declared platform.
 
 ## Adding or changing a port
 
