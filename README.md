@@ -1,128 +1,120 @@
 <p align="center">
-  <img src="apps/desktop/assets/brand/generated/v2/portcove-logo-v2-transparent.png" alt="Portcove" width="720">
+  <img src="apps/desktop/assets/brand/generated/v2/portcove-logo-v2-transparent.png" alt="Portcove logo" width="560">
 </p>
 
 <h1 align="center">Portcove</h1>
 
-<p align="center"><strong>Native ports, kept current.</strong><br>Verified releases, local-only source handling, safe updates, rollback, and one automation contract for the desktop and CLI.</p>
+<p align="center">
+  Install and manage decompilations, recompilations, and other native game ports from one local library.
+</p>
 
-Portcove is a local-first manager for native PC ports, decompilation projects, and static recompilations. It combines a reusable Rust core, an automation-friendly CLI, and a controller-friendly Tauri 2 desktop app.
+<p align="center">
+  <a href="#project-status">Project status</a> ·
+  <a href="#build-from-source">Build from source</a> ·
+  <a href="docs/README.md">Documentation</a> ·
+  <a href="https://github.com/users/boburning/projects/1">Roadmap</a>
+</p>
 
-Current work, priority, release targeting, blockers, and the continuous new-port
-pipeline live in the public
-[Portcove Roadmap](https://github.com/users/boburning/projects/1). The embedded
-catalog grows independently of the cumulative [product release stages](docs/ROADMAP.md);
-adding a port does not automatically make it a global V1 blocker.
+Native ports are easier to find than they used to be, but they are still awkward to live with. Every project has its own release page, expected game revision, install layout, save folders, and update process. Portcove gives those moving parts one home.
 
-This repository is an early, working implementation. Catalog and state commands are usable; downloading a project is intentionally rejected unless its upstream release supplies a SHA-256 digest or checksum sidecar. Each catalog entry still needs an end-to-end release qualification on every declared platform before Portcove should be presented as production-ready.
+Portcove is a local desktop app and CLI built around a shared Rust core. It can connect the game files required by an upstream project, install a checksum-matched release, launch it, and keep saves intact through updates or rollbacks.
 
-## What is implemented
+> [!NOTE]
+> Portcove does not include or download ROMs, disc images, BIOS files, or other copyrighted game data. Required source files stay on your computer and are not modified.
 
-- Stable, beta, and rolling channels selected per port.
-- Notify, stage, and automatic update policies with an unattended `reconcile` command.
-- Failure-isolated bulk update checks, policy reconciliation, updates, and source verification for unattended frontends.
-- GitHub release discovery with active-upstream checks and a checksum-pinned retired-project path.
-- Optional GitHub device login, secure token storage, rate-limit visibility, and persistent conditional-request caching.
-- Mandatory SHA-256 validation and safe ZIP/TAR extraction.
-- Catalog-pinned game runtimes install and roll back with each immutable game version, using the same download, archive, and verification rules.
-- Versioned installs, explicit staged-update activation, verification, rollback, and preserved user data.
-- Transactionally published, versioned persistent-data backups and confirmed restore through both CLI and desktop, with tree integrity checks and automatic pre-restore safety snapshots.
-- Source records referenced in place, never uploaded, and checked against their registered size and SHA-256 on demand and before reuse; when an upstream runtime requires its own validated local copy, that copy stays inside the local Portcove user-data tree.
-- Safe adoption by copying an existing installation without changing the original.
-- JSON, JSONL, JSON Schema, deterministic exit codes, and a network-free `exec` path for launchers such as Batocera, Playnite, LaunchBox, RetroBat, and EmuDeck.
-- A local, read-only `doctor` report for host platform, library capacity, catalog state, optional `chdman`/DolphinTool discovery, and explicit repair planning for incomplete or ambiguous library state.
-- Metadata export, verified library moves and imports, and validated source relinking preserve local libraries across storage and path changes. Transfers require review, retain input data, and expose interruption recovery through the CLI and Settings.
-- Opt-in source discovery searches explicitly chosen folders with bounded hashing and current source-profile validation. Accepting a result revalidates its content before registration.
-- Cooperative cancellation stops supported preparation work and records a distinct terminal result; publication and save-data switches finish under their existing recovery guarantees.
-- Cross-process per-port operation locks so multiple launchers cannot race installation state or mutate a port while its game process is running.
-- Parent-independent desktop launch supervision with durable crash recovery, exact-version save collection, and CLI signal forwarding.
-- Tauri 2/React desktop UI with keyboard and controller navigation.
-- Successful-exit launch history shared by CLI and desktop, with a real Continue action that never promotes failed starts or crashes.
-- Durable operation activity and recoverable cross-store lifecycle journals shared by CLI and desktop, with stable sequenced progress identities for overlapping and nested work.
-- Content-addressed install identity, current-byte executable checks, and one bounded collision-aware archive policy shared by release and private-toolchain extraction.
-- Native file and folder pickers for source registration and safe adoption, while retaining pasteable paths.
-- Confirmed desktop removal of managed versions while preserving saves, configuration, mods, and original sources.
-- GUI Update Center with failure-isolated bulk checks, per-port policy reconciliation, and persistent update awareness shared with CLI checks across restarts.
-- GUI source readiness and integrity with one-place missing source/BIOS onboarding for installed ports, a read-only failure-isolated bulk verifier, and validated source-reference replacement.
-- Platform-specific automated and physical qualification evidence; deferred manual checks are never presented as completed.
-- Cross-platform draft releases with separate automation-friendly CLI archives, native Tauri bundles, and per-platform SHA-256 manifests.
-- CHD validation through explicitly configured or locally discovered MAME, Batocera, EmuDeck, and RetroBat tooling, plus normalized GameCube ISO validation through DolphinTool, with no silent binary downloads.
+## What Portcove does
 
-## Build
+- Browse a catalog of native ports and manage them as one library.
+- Register local game files without uploading them. Portcove enforces exact hashes when the catalog has them and records a local size and SHA-256 baseline to detect later changes.
+- Refuse release archives that cannot be matched to a SHA-256 published upstream—directly or in a checksum sidecar—or pinned in the catalog for a retired project.
+- Keep installed versions side by side so updates can be staged, activated, verified, or rolled back.
+- Preserve known save, configuration, and mod folders separately from application versions, with independent backup and restore.
+- Adopt an existing installation by copying it into Portcove without changing the original.
+- Provide the same behavior through a keyboard- and controller-friendly Tauri app or an automation-focused CLI with JSON, JSONL, schemas, and stable exit codes.
 
-Requirements: Rust 1.88 or newer, Node 24, pnpm 11, and the [Tauri 2 platform prerequisites](https://v2.tauri.app/start/prerequisites/).
+Portcove keeps its library, source references, and application state local. A GitHub account is optional and is used only to raise the API rate limit; startup and launching do not depend on an account or a Portcove-hosted service.
 
-On Windows, keep the development checkout on a non-system volume. The storage preflight prints the resolved Cargo, temporary, pnpm, and packaging paths and blocks heavy work that would write them to the Windows system drive. See the [development-storage workflow](docs/DEVELOPMENT-STORAGE.md) before the first build or when migrating an existing checkout.
+## Project status
+
+> [!WARNING]
+> **Current stage: Alpha 1 — trustworthy technical alpha**
+>
+> Portcove is under active development. No public release builds have been published yet. It is intended for maintainers and technically comfortable testers using disposable or fully backed-up libraries—not general users or irreplaceable setups.
+
+The catalog and state commands are usable, and the core install, update, launch, backup, and recovery paths are in place. Later stages focus on source onboarding, storage controls, frontend integrations, physical platform testing, packaging, and general product hardening.
+
+A port appearing in the catalog does **not** mean every platform has completed hands-on testing. Upstream availability, automated checks, and Portcove's own manual testing are tracked separately for each port and platform.
+
+Current priorities and blockers live in the public [Portcove Roadmap](https://github.com/users/boburning/projects/1). The meaning of Alpha, Beta, RC, and V1 lives in [docs/ROADMAP.md](docs/ROADMAP.md). The catalog can continue growing without turning every newly discovered port into a V1 blocker.
+
+## Catalog and support
+
+The catalog changes too quickly for a hand-maintained count or title list here. Browse it in the desktop app, through the CLI, or directly in [`catalog.json`](crates/portcove-core/catalog/catalog.json).
+
+```text
+portcove catalog list
+portcove catalog show <port-id>
+portcove --json catalog export
+```
+
+Each entry records its upstream project, platforms, release channels, required local files, executable layout, user-data paths, and current test evidence. Stable, beta, and rolling are release channels—not quality ratings. See [docs/CATALOG.md](docs/CATALOG.md) for the full policy.
+
+## Build from source
+
+Requirements:
+
+- Rust 1.88 or newer
+- Node.js 24
+- pnpm 11
+- the [Tauri 2 platform prerequisites](https://v2.tauri.app/start/prerequisites/)
+
+On Windows, keep the checkout on a non-system drive. The repository preflight blocks heavy work when the workspace, build output, temporary data, or package store resolves to the system drive. See [docs/DEVELOPMENT-STORAGE.md](docs/DEVELOPMENT-STORAGE.md) for details.
+
+Run the desktop app from the repository root:
 
 ```powershell
-fnm use
 node scripts/dev-storage.mjs preflight
 node scripts/dev-storage.mjs run -- pnpm --dir apps/desktop install --frozen-lockfile
-node scripts/dev-storage.mjs run -- pnpm --dir apps/desktop build
 node scripts/dev-storage.mjs run -- pnpm --dir apps/desktop desktop:dev
 ```
 
-Build and test the Rust workspace from the repository root:
+Build the CLI:
 
 ```powershell
-.\scripts\bootstrap-quality-tools.ps1
-just check
 node scripts/dev-storage.mjs run -- cargo build -p portcove-cli --release
 ```
 
-Linux and macOS developers can use `./scripts/bootstrap-quality-tools.sh`. Use `just audit` before substantial work is considered complete and `just deep` for large structural changes. See the [quality and codebase-intelligence guide](docs/QUALITY.md) for the deterministic/advisory boundary and current ratchet baseline.
+For repository checks, packaging, and release work, see [CONTRIBUTING.md](CONTRIBUTING.md), [docs/QUALITY.md](docs/QUALITY.md), and [docs/RELEASING.md](docs/RELEASING.md).
 
-After a Windows Tauri bundle build, its isolated unsigned install/launch/uninstall lifecycle can be repeated without touching an existing Portcove library:
+## CLI quick tour
 
-```powershell
-.\scripts\test-windows-installer.ps1 `
-  -InstallerPath .\target\release\bundle\nsis\Portcove_0.1.0_x64-setup.exe `
-  -TestBase E:\Portcove-Installer-Qualification
-```
+This example uses Lighthouse, the Banjo-Kazooie native port:
 
-Before creating a release tag, run the complete metadata, test, catalog, bundle, and installer gate documented in [docs/RELEASING.md](docs/RELEASING.md).
-
-## CLI examples
-
-```powershell
+```text
 portcove about
-portcove --json capabilities
-portcove --json auth status
-portcove auth login
-portcove --json catalog export
-portcove --json catalog show lighthouse
-portcove source add banjo-kazooie D:\Sources\banjo.z64
-portcove --json source verify --all
-portcove --json activity --limit 25
-portcove --json storage
-portcove --json doctor
-portcove --json plan lighthouse
-portcove --json paths lighthouse
-portcove --json backup create lighthouse
-portcove --json backup list lighthouse
-portcove --json backup restore lighthouse <backup-id> --yes
-portcove --json backup delete lighthouse <backup-id> --yes
-portcove channel set re-blue rolling
-portcove policy set lighthouse notify
-portcove --jsonl reconcile lighthouse
-portcove --json check --all
-portcove --json update --all --stage
+portcove doctor
+portcove catalog show lighthouse
+portcove source add banjo-kazooie "/path/to/Banjo-Kazooie.z64"
+portcove plan lighthouse
 portcove install lighthouse
-portcove activate lighthouse
-portcove exec lighthouse -- --fullscreen
+portcove exec lighthouse
 ```
 
-Set `PORTCOVE_LIBRARY` or pass `--library` to give another frontend a private or shared library root. See [docs/CLI.md](docs/CLI.md) for the machine contract.
-For unattended release checks, `PORTCOVE_GITHUB_TOKEN` avoids GitHub's low anonymous API allowance without storing the token in Portcove state. Interactive tokens are kept in the operating-system credential store. GitHub device login becomes available when the build is given the public `PORTCOVE_GITHUB_CLIENT_ID`; anonymous and token modes do not depend on it.
+Use `--json` for one-result machine output and `--jsonl` for streaming operations:
 
-## Design boundaries
+```text
+portcove --json check --all
+portcove --jsonl reconcile lighthouse
+```
 
-Portcove does not distribute copyrighted game data, bypass source ownership checks, or silently modify an adopted installation. Retired projects require immutable checksum-pinned direct manifests; superseded and abandoned projects fail closed. The embedded catalog is data rather than port-specific control flow; see the [catalog policy](docs/CATALOG.md), [documentation map](docs/README.md), and [release-stage contract](docs/ROADMAP.md).
+Set `PORTCOVE_LIBRARY` or pass `--library <path>` to use a specific library root. The CLI is designed for scripts and external frontends; it does not require the desktop app. The complete integration contract is documented in [docs/CLI.md](docs/CLI.md).
 
-The architecture and trust boundaries are documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). The desktop product direction and direct competitor baseline are recorded in [docs/GUI-COMPETITIVE-REVIEW.md](docs/GUI-COMPETITIVE-REVIEW.md), the N64-inspired semantic color contract is documented in [docs/THEME.md](docs/THEME.md), and artwork usage and derivative provenance live in the concise [brand guide](docs/BRAND-ASSETS.md). Security reports belong in the process described by [SECURITY.md](SECURITY.md).
+## Documentation and contributing
 
-Interactive, physical, and external-infrastructure follow-ups remain open in the [Portcove Roadmap](https://github.com/users/boburning/projects/1) until their issues contain matching completion evidence. The [project governance contract](docs/PROJECT-GOVERNANCE.md) defines intake, implementation, and validation; historical ledgers are evidence only.
+Start with the [documentation map](docs/README.md). Deeper references cover the [architecture](docs/ARCHITECTURE.md), [catalog policy](docs/CATALOG.md), [CLI contract](docs/CLI.md), [release stages](docs/ROADMAP.md), and [security policy](SECURITY.md).
 
-Licensed under MIT or Apache-2.0, at your option.
+Check the [live roadmap](https://github.com/users/boburning/projects/1) and existing issues before starting work. New ports should normally be added as catalog data or through a reusable family-level adapter rather than one-off behavior in the CLI or desktop app. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
 
-Signed catalog updates are optional. Settings -> Catalog updates (or `catalog status` / `catalog update`) supports explicit publisher trust, review, activation, rollback, and offline fallback. Startup uses local verified metadata and never requires an account or server. [Signing format and publisher tooling](docs/SIGNED-CATALOG.md) describe the contract; no production publisher key or hosting origin is configured by default.
+## License
+
+Portcove is available under either the [MIT License](LICENSE-MIT) or the [Apache License 2.0](LICENSE-APACHE), at your option.

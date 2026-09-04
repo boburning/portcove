@@ -42,6 +42,7 @@ pub struct InstallQualification {
     runtime: Option<BundledRuntime>,
     runtime_origin: RuntimeOrigin,
     generated_metadata: Vec<String>,
+    critical_paths: Vec<String>,
 }
 
 impl InstallQualification {
@@ -73,6 +74,13 @@ impl InstallQualification {
             runtime: port.bundled_runtime.get(&platform).cloned(),
             runtime_origin: RuntimeOrigin::VerifiedDownload,
             generated_metadata: crate::adapter::generated_metadata(port)?,
+            critical_paths: (port.adapter == AdapterKind::PsxRecompManaged
+                && port.runtime_source_materialization
+                    == Some(crate::RuntimeSourceMaterialization::PsxRawSet))
+            .then(|| port.runtime_source_filename.clone())
+            .flatten()
+            .into_iter()
+            .collect(),
         })
     }
 
@@ -149,6 +157,7 @@ impl InstallQualification {
             runtime: None,
             runtime_origin: RuntimeOrigin::VerifiedDownload,
             generated_metadata: Vec::new(),
+            critical_paths: Vec::new(),
         }
     }
 }
@@ -813,6 +822,16 @@ fn manifest_files(
         crate::runtime::require_executable(runtime_root.as_ref().expect("runtime root"), runtime)?;
     }
     let working_root = qualification.runtime_root(root, selected);
+    let critical_roots = qualification
+        .critical_paths
+        .iter()
+        .map(|relative| working_root.join(relative))
+        .collect::<Vec<_>>();
+    if critical_roots.iter().any(|path| !path.starts_with(root)) {
+        return Err(PortcoveError::verification(
+            "critical path escaped the install root",
+        ));
+    }
     let candidates = qualification
         .persistent_paths
         .iter()
@@ -887,6 +906,9 @@ fn manifest_files(
             critical: qualification.runtime.is_some()
                 || path == selected
                 || is_critical_companion(&path, selected)
+                || critical_roots
+                    .iter()
+                    .any(|critical| path == *critical || path.starts_with(critical))
                 || runtime_root
                     .as_ref()
                     .is_some_and(|runtime| path.starts_with(runtime)),
@@ -1233,6 +1255,50 @@ mod tests {
             }
             Ok(())
         }
+    }
+
+    #[test]
+    fn managed_psx_runtime_source_is_manifest_critical() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        let working = root.join("build-portcove");
+        let runtime_source = working.join("runtime-discs");
+        fs::create_dir_all(&runtime_source).unwrap();
+        let selected = working.join("Final_Fantasy_7.exe");
+        fs::write(&selected, b"verified fixture").unwrap();
+        fs::write(working.join("README.txt"), b"noncritical fixture").unwrap();
+        for index in 1..=3 {
+            fs::write(
+                runtime_source.join(format!("disc-{index:02}.bin")),
+                format!("disc {index}"),
+            )
+            .unwrap();
+            fs::write(
+                runtime_source.join(format!("disc-{index:02}.cue")),
+                format!("FILE \"disc-{index:02}.bin\" BINARY\n"),
+            )
+            .unwrap();
+        }
+        let catalog = crate::Catalog::embedded().unwrap();
+        let qualification = InstallQualification::from_port(
+            catalog.port("final-fantasy-vii-recompiled").unwrap(),
+            Platform::WindowsX86_64,
+        )
+        .unwrap();
+
+        let (files, _) = manifest_files(&root, &qualification, &selected).unwrap();
+
+        let source_files = files
+            .iter()
+            .filter(|file| file.path.contains("runtime-discs/"))
+            .collect::<Vec<_>>();
+        assert_eq!(source_files.len(), 6);
+        assert!(source_files.iter().all(|file| file.critical));
+        assert!(
+            files
+                .iter()
+                .any(|file| file.path.ends_with("README.txt") && !file.critical)
+        );
     }
 
     #[test]

@@ -1794,10 +1794,15 @@ impl PortcoveService {
             .to_string();
         let toolchain_root =
             crate::psx::ensure_toolchain(&self.library, platform, operation, emit).await?;
+        let runtime_source_directory = (port.runtime_source_materialization
+            == Some(crate::RuntimeSourceMaterialization::PsxRawSet))
+        .then(|| port.runtime_source_filename.as_ref().map(PathBuf::from))
+        .flatten();
         Ok(Some(crate::PsxManagedPreparation {
             source,
             bios,
             source_paths,
+            runtime_source_directory,
             toolchain_root,
             executable_basename,
         }))
