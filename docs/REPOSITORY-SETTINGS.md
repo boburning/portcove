@@ -2,7 +2,24 @@
 
 Portcove keeps its review and private-reporting expectations in version control even though GitHub stores the effective settings outside Git. `.github/repository-ruleset.json` protects exactly `refs/heads/main`; `.github/repository-security.json` names the repository and requires private vulnerability reporting.
 
-The `Protect main` ruleset blocks deletion and force-pushes, requires a pull request with one fresh approval and resolved review threads, and requires the `catalog`, `dependency-review`, `frontend`, `rust`, and `rust-quality` checks from `.github/workflows/ci.yml` against the latest main revision. Its only bypass actor is the built-in repository-admin role, and that bypass is restricted to pull requests. This prevents a solo-maintainer approval deadlock while retaining a visible PR and merge audit trail; it does not permit bypass by direct push. Use the bypass only for an explicitly authorized merge after the required checks pass.
+The `Protect main` ruleset blocks deletion and force-pushes, requires a pull
+request and resolved review threads, and requires the `catalog`,
+`dependency-review`, `frontend`, `rust`, and `rust-quality` checks from
+`.github/workflows/ci.yml` against an up-to-date main revision. Required
+approvals are zero; last-push and mandatory CODEOWNERS approval are disabled.
+GitHub's additional-approval setting for unattributed Copilot pull requests is
+retained but has no effect when required approvals are zero. The only bypass
+actor remains the built-in repository-admin role restricted to pull requests;
+it is emergency-only, never the routine solo-maintainer path.
+
+Repository auto-merge capability is enabled, but pull requests are not enrolled
+automatically. Routine authorized work must still have all mandatory checks, an
+explicit separate review result with substantive findings repaired, resolved
+threads, and current revision/authority confirmation before normal auto-merge.
+Candidate-controlled workflow changes cannot establish or remove their own
+trusted gate. Fully unattended engineering requires a separately implemented
+trusted controller and end-to-end negative/recovery proof; this policy change
+only removes the second-approver bottleneck.
 
 Validate the local artifacts without GitHub access:
 
@@ -10,16 +27,40 @@ Validate the local artifacts without GitHub access:
 node scripts/repository-settings.mjs --validate
 ```
 
-An authenticated repository administrator can reconcile and then verify the live settings with:
+An authenticated repository administrator can inspect the exact bounded delta,
+reconcile it, and then verify the live settings with:
 
 ```bash
+node scripts/repository-settings.mjs --plan
 node scripts/repository-settings.mjs --apply
 node scripts/repository-settings.mjs --check
 ```
 
-Both live modes fail closed when the ruleset or private-reporting setting differs from the checked-in contract. `--apply` updates the stable ruleset identity instead of creating duplicates. Do not weaken or delete the live rule without changing the artifact, its regression tests, and this rationale in the same reviewed pull request.
+The live modes fail closed when the stable ruleset is absent or any
+out-of-scope rule, check, condition, or bypass actor differs from the checked-in
+contract. `--apply` updates the existing stable ruleset identity only for the
+authorized review parameters, changes only the repository `allow_auto_merge`
+property, and preserves the separate release-tag ruleset. It refuses to create
+replacement protection or apply across unexpected concurrent drift. Do not
+weaken or delete a live rule without updating the artifact, regression tests,
+and rationale under separately authorized policy scope.
 
-The live `boburning/portcove` settings were reconciled and read back through the GitHub API on 2026-09-02. The repository ruleset ID is host-assigned and intentionally absent from the portable contract.
+The repository ruleset ID is host-assigned and intentionally absent from the
+portable contract. Re-read effective rulesets, classic protection, and
+repository settings after every authorized migration; a local artifact is not
+live evidence.
+
+The owner-authorized solo-maintainer migration was applied and read back on
+2026-09-05. Against ruleset 22155633 it changed only
+`required_approving_review_count` from 1 to 0 and
+`require_last_push_approval` from true to false; the repository
+`allow_auto_merge` property changed from false to true. Effective rules still
+show the five strict checks, PR requirement, resolved-thread requirement,
+deletion/non-fast-forward protections, and the same PR-only repository-role
+bypass. Classic `main` protection remains absent. The separately listed release
+tag ruleset 22334556 remained active and outside the update payload. This is live
+settings evidence for removal of the approval bottleneck, not evidence that a
+trusted unattended controller or zero-intervention merge scenario exists.
 
 ## Release protections
 

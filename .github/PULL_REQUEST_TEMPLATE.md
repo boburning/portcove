@@ -19,6 +19,10 @@ Closes #
 
 <!-- List exact commands and results. Distinguish automated evidence from human or physical-platform observations. -->
 
+## Separate review result
+
+<!-- Link or summarize an explicit diff/evidence review. No comments, timeout, or cancellation is not a successful review. -->
+
 ## Documentation
 
 <!-- Stable contract, user documentation, release snapshot, or none with reason. -->
@@ -27,7 +31,13 @@ Closes #
 
 - [ ] The linked issue is present in the Portcove Roadmap.
 - [ ] Status is In progress or Validating while this PR is open.
-- [ ] Priority, horizon, target release, dependencies, and blockers are current.
+- [ ] Priority, horizon, target release, release commitment, dependencies, and blockers are current.
+
+## Merge authority
+
+- [ ] This exact revision is within standing or explicit owner authority.
+- [ ] The normal merge path uses no administrator bypass.
+- [ ] Any protected-policy, signing/publication, or credential boundary change has separate explicit owner authorization.
 
 ## Remaining blockers or follow-up work
 

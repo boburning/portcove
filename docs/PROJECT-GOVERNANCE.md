@@ -20,6 +20,8 @@ The Project uses these single-select fields:
 - **Horizon:** Now, Next, Later, Someday.
 - **Target release:** Alpha 1, Alpha 2, Alpha 3, Beta 1, Beta 2, RC, V1,
   Post-V1, Unscheduled.
+- **Release commitment:** Required, Opportunistic. An unset value is explicitly
+  unclassified.
 - **Work type:** Workstream, Product feature, Port, Platform, Bug, Security,
   Research, Qualification, Technical debt, Documentation.
 - **Workstream:** Core trust and recovery, Sources and ROM validation, Storage
@@ -146,11 +148,16 @@ Project fields. Move actionable work to In progress when implementation begins
 and to Validating when code and review evidence are ready. Link the pull request
 to the issue using a closing keyword when appropriate.
 
-Done means the acceptance criteria have matching evidence. Code without passing
-evidence is not Done. Manual gameplay, controller, signing, installer, or
-physical-platform acceptance cannot be closed using synthetic tests alone.
-Close or merge only after the required evidence exists; keep unresolved human
-or external work Blocked or Deferred with an exact resume condition.
+Done means the acceptance criteria have matching evidence. Codex owns feasible
+acceptance execution, failure investigation, bounded repair, a separate review
+pass, and exact evidence; the owner is not a standing manual validation queue.
+Acceptance names the observation, scope, and environment rather than a human
+actor unless participation is intrinsic. Code without passing evidence is not
+Done. Gameplay comprehension and other intrinsically human observations cannot
+be closed with synthetic tests; physical-device automation is device evidence,
+not automatically human gameplay evidence. Close or merge only after required
+evidence exists; keep unresolved intrinsic human or external work Blocked or
+Deferred with an exact resume condition.
 
 Completion applies to the work promised. A port integration can be Done with
 unknown gameplay evidence when its promised operations and required checks are
@@ -165,12 +172,24 @@ with quiet success and deduplicated exceptions identifying affected operations,
 failed rules, evidence and resume conditions. Discovery has no admission
 authority. Engineering/policy/authority changes still require scoped review;
 neither an agent nor a candidate may change its own protected acceptance rules.
-Current repository review/security settings remain authoritative until a
-separately authorized implementation establishes the scoped publishing path.
+Routine authorized work follows mandatory CI, an explicit separate review
+result, substantive finding repair, current-revision and authority confirmation,
+then normal auto-merge. A timeout, cancellation, or absence of comments is not
+a successful review. Administrator bypass is emergency-only. Protected
+acceptance, merge authority, signing/publication permission, credentials, and
+other meaningful boundaries require separate owner authorization; candidates
+cannot alter or self-authorize their own gate. Privileged handling treats
+candidate code, artifacts, and text as untrusted and never executes them with
+write or signing credentials.
 
-Priority and target release are forecasts. Reorder or edit Project fields
-instead of rewriting repository documentation. New ports do not automatically
-expand global V1 scope.
+Priority, horizon, and target release are forecasts. Release commitment records
+whether the outcome is necessary for its applicable committed release. Required
+work remains a gate through genuine transitive blocking dependencies even if a
+dependency is misclassified Opportunistic, unclassified, or targeted later;
+the tooling reports that conflict. Optional classification never excuses a
+known safety failure in shipped scope. Reorder or edit Project fields instead
+of rewriting repository documentation. New ports do not automatically expand
+global V1 scope.
 
 ## Views and prioritization
 
@@ -192,13 +211,14 @@ Within the same horizon, address release blockers and safety failures before
 optional scope. Manual order is the final tie-breaker. A dependency may move an
 item earlier; record the reason in the issue rather than freezing it in docs.
 
-V1 Readiness includes every unfinished item targeted at any stage through V1;
-it does not infer optionality from issue prose or parent/child relationships.
-Keep optional prototypes, external participation/publication, and post-V1
-extensions targeted Post-V1. Split a required outcome from an optional extension
-when necessary, rather than adding a second gate ledger. Genuine implementation
-dependencies use blocking relationships; parentage and related work alone do not
-block a release. Check for cycles and paths from optional work into required gates.
+V1 Readiness shows work targeted through V1 with commitment visible. The
+derived `readiness` command and immutable snapshot compute the actual gate from
+Required outcomes and genuine transitive `blocked by` relationships. They report
+unclassified targeted work, dependency classification/target conflicts, safety
+conflicts, missing Project dependencies, and cycles. Parentage and related-work
+links alone never block a release. Unrelated unscheduled intake is not a gate.
+Keep optional work Opportunistic at the release where it may ship or Post-V1
+where that is its real target; do not distort forecasts merely to avoid a gate.
 
 The required verified application-upgrade outcome and the preferred Windows
 in-app mechanism have separate scope. While the mechanism is planned pre-V1,
@@ -215,12 +235,14 @@ updating does not become a gate through association.
 Use `node scripts/roadmap.mjs capture-port` for direct maintainer port intake,
 `normalize-port --issue <number>` for a public New Port form submission,
 `capture-feature` for feature intake, `promote` for draft-to-issue conversion,
-`set` and `move` for planning changes, and `next` for the ordered work queue.
+`set` and `move` for planning changes, `next` for the ordered work queue, and
+`readiness --release <stage>` for dependency-derived release evaluation.
 `doctor` verifies machine-readable identity, visibility, repository linkage,
 field types/options, view layout/filter/visible fields, the one-port/one-issue
 coverage contract across both repository issues and Project items, honest
 Port-stage evidence and exact Supported platform intersections, final UX
-origin ownership, and supported-source plan ownership. It requires every
+origin ownership, supported-source plan ownership, active-release commitment
+classification, and dependency-graph consistency. It requires every
 canonical issue and every open repository issue whose title begins `[Port]` to
 have exactly one Port item. It rejects missing markers, duplicate catalog IDs,
 candidate keys, normalized title identities, same-upstream/same-target

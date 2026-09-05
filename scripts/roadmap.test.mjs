@@ -4,8 +4,10 @@ import test from "node:test";
 
 import {
   RoadmapClient,
+  analyzeReleaseReadiness,
   catalogQualificationSummary,
   completionEvidenceLinks,
+  dependencyCycles,
   fieldValue,
   featureIntakeFields,
   findPortIssueDuplicates,
@@ -128,7 +130,7 @@ test("catalog summary and release snapshot derive qualification data from catalo
     generatedAt: "2026-09-03T12:00:00.000Z",
     commit: "abcdef",
     projectUrl: "https://github.com/users/boburning/projects/1",
-    items: [{ title: "Trust", status: "Blocked", priority: "Urgent", horizon: "Now", type: "Security", "target release": "Alpha 1", content: { url: "https://github.com/boburning/portcove/issues/1" } }],
+    items: [{ title: "Trust", status: "Blocked", priority: "Urgent", horizon: "Now", type: "Security", "target release": "Alpha 1", "release commitment": "Required", content: { url: "https://github.com/boburning/portcove/issues/1" } }],
     catalog,
   });
   assert.match(document, /## Open blockers[\s\S]*Trust/);
@@ -138,10 +140,10 @@ test("catalog summary and release snapshot derive qualification data from catalo
 
 test("release snapshots are cumulative and Project Status alone authorizes completion", () => {
   const items = [
-    { title: "Alpha blocker", status: "Blocked", "target release": "Alpha 1", content: { state: "OPEN", url: "https://github.com/boburning/portcove/issues/1", body: "Upstream https://example.test/not-evidence" } },
-    { title: "Closed not planned", status: "Deferred", "target release": "Alpha 2", content: { state: "CLOSED", url: "https://github.com/boburning/portcove/issues/2", body: "## Completion evidence\n\nNone." } },
-    { title: "Beta complete", status: "Done", "target release": "Beta 1", content: { state: "CLOSED", url: "https://github.com/boburning/portcove/issues/3", body: "## Completion evidence\n\nhttps://github.com/boburning/portcove/pull/12" } },
-    { title: "Later beta", status: "Ready", "target release": "Beta 2", content: { state: "OPEN", url: "https://github.com/boburning/portcove/issues/4" } },
+    { title: "Alpha blocker", status: "Blocked", "target release": "Alpha 1", "release commitment": "Required", content: { state: "OPEN", url: "https://github.com/boburning/portcove/issues/1", body: "Upstream https://example.test/not-evidence" } },
+    { title: "Closed not planned", status: "Deferred", "target release": "Alpha 2", "release commitment": "Required", content: { state: "CLOSED", url: "https://github.com/boburning/portcove/issues/2", body: "## Completion evidence\n\nNone." } },
+    { title: "Beta complete", status: "Done", "target release": "Beta 1", "release commitment": "Required", content: { state: "CLOSED", url: "https://github.com/boburning/portcove/issues/3", body: "## Completion evidence\n\nhttps://github.com/boburning/portcove/pull/12" } },
+    { title: "Later beta", status: "Ready", "target release": "Beta 2", "release commitment": "Required", content: { state: "OPEN", url: "https://github.com/boburning/portcove/issues/4" } },
   ];
   const document = renderSnapshot({ release: "Beta 1", generatedAt: "2026-09-03T00:00:00Z", commit: "abc", projectUrl: "https://example.test/project", items, catalog: { ports: [] } });
   assert.match(document, /Cumulative required stages: Alpha 1, Alpha 2, Alpha 3, Beta 1/);
@@ -152,6 +154,90 @@ test("release snapshots are cumulative and Project Status alone authorizes compl
   assert.doesNotMatch(document, /Later beta/);
   assert.doesNotMatch(document, /example\.test\/not-evidence/);
   assert.match(document, /portcove\/pull\/12/);
+});
+
+test("release readiness separates required, opportunistic, unclassified, and genuine blocking dependencies", () => {
+  const issue = (number, title, fields = {}, blockedBy = [], parent = null) => ({
+    id: `item-${number}`,
+    title,
+    ...fields,
+    content: {
+      number,
+      title,
+      state: fields.status === "Done" ? "CLOSED" : "OPEN",
+      url: `https://github.com/boburning/portcove/issues/${number}`,
+      blockedBy: { nodes: blockedBy.map(dependency => ({
+        number: dependency,
+        title: `Issue ${dependency}`,
+        state: "OPEN",
+        url: `https://github.com/boburning/portcove/issues/${dependency}`,
+      })) },
+      parent: parent ? { number: parent } : null,
+    },
+  });
+  const items = [
+    issue(1, "Required outcome", { status: "Ready", "target release": "Alpha 2", "release commitment": "Required", "work type": "Product feature" }, [2]),
+    issue(2, "Misclassified dependency", { status: "Ready", "target release": "Post-V1", "release commitment": "Opportunistic", "work type": "Product feature" }),
+    issue(3, "Optional slice", { status: "Ready", "target release": "Alpha 2", "release commitment": "Opportunistic", "work type": "Product feature" }),
+    issue(4, "Unclassified release work", { status: "Ready", "target release": "Alpha 2", "work type": "Product feature" }),
+    issue(5, "Unrelated intake", { status: "Inbox", "target release": "Unscheduled", "work type": "Port" }),
+    issue(6, "Misclassified safety failure", { status: "Blocked", "target release": "Alpha 2", "release commitment": "Opportunistic", "work type": "Security" }),
+    issue(7, "Child but not blocker", { status: "Ready", "target release": "Post-V1", "release commitment": "Opportunistic", "work type": "Product feature" }, [], 1),
+  ];
+  const analysis = analyzeReleaseReadiness(items, "Alpha 2");
+  assert.deepEqual(analysis.effectiveRequired.map(item => item.content.number).sort(), [1, 2, 6]);
+  assert.deepEqual(analysis.opportunistic.map(item => item.content.number).sort(), [3, 6]);
+  assert.deepEqual(analysis.relevantUnclassified.map(item => item.content.number), [4]);
+  assert.deepEqual(analysis.safetyConflicts.map(item => item.content.number), [6]);
+  assert.equal(analysis.dependencyConflicts.length, 1);
+  assert.equal(analysis.dependencyConflicts[0].dependency.content.number, 2);
+  assert.equal(analysis.effectiveRequired.some(item => item.content.number === 7), false);
+  assert.equal(analysis.effectiveRequired.some(item => item.content.number === 5), false);
+  assert.equal(analysis.ready, false);
+});
+
+test("dependency analysis reports cycles and Project-missing blockers", () => {
+  const one = { id: "one", title: "One", status: "Ready", "target release": "Alpha 1", "release commitment": "Required", content: { number: 1, url: "https://github.com/boburning/portcove/issues/1", blockedBy: { nodes: [{ number: 2, title: "Two" }] } } };
+  const two = { id: "two", title: "Two", status: "Ready", "target release": "Alpha 1", "release commitment": "Required", content: { number: 2, url: "https://github.com/boburning/portcove/issues/2", blockedBy: { nodes: [{ number: 1, title: "One" }, { number: 99, title: "Missing", url: "https://github.com/boburning/portcove/issues/99" }] } } };
+  assert.deepEqual(dependencyCycles([one, two]), [[1, 2, 1]]);
+  const analysis = analyzeReleaseReadiness([one, two], "Alpha 1");
+  assert.equal(analysis.missingProjectDependencies.length, 1);
+  assert.equal(analysis.missingProjectDependencies[0].dependency.content.number, 99);
+  assert.equal(analysis.ready, false);
+});
+
+test("readiness fails closed when a blocking-dependency page is truncated", () => {
+  const item = {
+    id: "one",
+    title: "One",
+    status: "Done",
+    "target release": "Alpha 1",
+    "release commitment": "Required",
+    content: {
+      number: 1,
+      state: "CLOSED",
+      url: "https://github.com/boburning/portcove/issues/1",
+      blockedBy: { totalCount: 11, nodes: [] },
+    },
+  };
+  const analysis = analyzeReleaseReadiness([item], "Alpha 1");
+  assert.deepEqual(analysis.truncatedDependencies, [item]);
+  assert.equal(analysis.ready, false);
+
+  const unrelated = {
+    ...item,
+    id: "later",
+    "target release": "Post-V1",
+    "release commitment": "Opportunistic",
+    content: { ...item.content, number: 2 },
+  };
+  const required = {
+    ...item,
+    content: { ...item.content, blockedBy: { totalCount: 0, nodes: [] } },
+  };
+  const scoped = analyzeReleaseReadiness([required, unrelated], "Alpha 1");
+  assert.deepEqual(scoped.truncatedDependencies, []);
+  assert.equal(scoped.ready, true);
 });
 
 test("completion evidence excludes ordinary upstream URLs and accepts explicit or typed records", () => {
@@ -195,7 +281,20 @@ test("feature intake accepts neutral and explicit planning fields", () => {
     "Work type": "Product feature", Effort: "Unknown",
   });
   assert.equal(featureIntakeFields(config, { "--workstream": "Desktop UX", "--platform": "Windows", "--priority": "High", "--horizon": "Now", "--release": "Alpha 2" }).Workstream, "Desktop UX");
+  assert.equal(featureIntakeFields(config, { "--commitment": "Opportunistic" })["Release commitment"], "Opportunistic");
   assert.throws(() => featureIntakeFields(config, { "--platform": "Everywhere" }), /not a valid Platform/);
+});
+
+test("Release commitment field migration is idempotent", () => {
+  const desired = [config.fields.find(field => field.name === "Release commitment")];
+  assert.equal(planFieldReconciliation(desired, { fields: [] })[0].action, "create");
+  const actual = { fields: [{
+    id: "commitment",
+    name: "Release commitment",
+    type: "ProjectV2SingleSelectField",
+    options: desired[0].options.map((name, index) => ({ id: `option-${index}`, name })),
+  }] };
+  assert.equal(planFieldReconciliation(desired, actual)[0].action, "keep");
 });
 
 test("active release materialization and manual checklist are explicit", () => {

@@ -45,10 +45,8 @@ body:
   - type: textarea
     id: manual
     attributes:
-      label: Required human observations
-      description: Gameplay, graphics, audio, physical controls, save/load, installer UI, signing prompts, or device behavior.
-    validations:
-      required: true
+      label: Intrinsic human observations, if required
+      description: Record gameplay, graphics, audio, comprehension, physical controls, save/load, installer UI, or signing prompts only when the claim intrinsically requires a person. Leave unknown rather than assigning routine automated checks to the owner.
   - type: textarea
     id: acceptance
     attributes:

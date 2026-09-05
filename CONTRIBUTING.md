@@ -38,8 +38,10 @@ fleeting non-port ideas.
 Use the **Product feature or engineering work** form for non-port changes. Its
 issue must state the user outcome, current evidence, scope, non-goals,
 acceptance criteria, required tests, documentation impact, dependencies, and
-completion evidence. Priority, horizon, and target release belong only in the
-Project.
+completion evidence. Priority, horizon, target release, and release commitment
+belong only in the Project. A target is a forecast; Required versus
+Opportunistic determines whether the outcome gates that release. Unset relevant
+work is intentionally visible as unclassified.
 
 Scope completion to the promised integration or research. Optional gameplay
 evidence may remain unknown without holding completed integration work open;
@@ -65,6 +67,12 @@ Do not suppress deterministic findings without a narrow, reviewable reason. Trea
 
 Keep commits free of source game data, signing secrets, generated build output, local libraries, and Fallow caches.
 
+Codex and deterministic automation own feasible acceptance execution, failure
+investigation, bounded repair, separate review, and exact evidence. Do not ask
+the owner to rerun adequate automated checks. Keep packaged execution,
+physical-device automation, and intrinsically human observations distinct; a
+synthetic fixture or process start cannot establish gameplay or comprehension.
+
 After a successful Windows Tauri build, `scripts/package-local.ps1` refreshes the local installer, CLI, source archive, and prints their SHA-256 hashes. It refuses an output path outside the workspace and excludes build, dependency, test-library, and generated-schema directories from the source archive.
 
 Link every pull request to its durable issue, describe the user outcome and
@@ -73,3 +81,9 @@ progress or Validating. Keep interactive, physical, or external work Blocked or
 Deferred with its exact resume condition. Automated evidence must not close an
 item that explicitly requires human observation. Do not create a second backlog
 in repository documentation; see [PROJECT-GOVERNANCE.md](docs/PROJECT-GOVERNANCE.md).
+
+Routine authorized work follows mandatory CI, an explicit separate review
+result, repair of substantive findings, and the normal merge or auto-merge path.
+Do not use administrator bypass routinely. Protected acceptance, merge,
+signing/publication, and credential boundaries require separate explicit owner
+authorization; neither a candidate nor its automation can authorize itself.
