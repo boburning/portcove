@@ -138,6 +138,15 @@ physical alternatives using the upstream contract at commit
 `0aef0b66186b3f8f29d1bd9a3ba15b6307739c7b`; the compatibility projection keeps
 the old matcher boundary unchanged until the shared schema-2 inspector lands.
 
+The same migration records the reviewed versioned N64 contracts without
+broadening that temporary matcher: Ghostship 2.0.0 (US and Japanese), Lighthouse
+1.1.0 (US revisions 0 and 1, PAL, and Japanese), Ship of Harkinian 9.2.3,
+2Ship2Harkinian 5.0.1, Zelda 64: Recompiled 1.2.2, Starship 2.0.0's selected US
+revisions, and Banjo: Recompiled 1.0.2. Each contract points to its immutable
+upstream commit and selects variants from the shared game identity. Transitional
+`legacy_projection_only` variants preserve schema-1 matching and cannot be
+selected by a schema-2 contract.
+
 The detailed pre-migration qualification narrative is preserved as a
 [dated historical snapshot](archive/2026-09-03-catalog-qualification-history.md).
 

@@ -72,6 +72,10 @@ pub struct SourceVariant {
     pub title: String,
     pub region: Option<String>,
     pub revision: Option<String>,
+    /// Transitional schema-1 projection input. The schema-2 inspector must not
+    /// classify or admit this record, and contracts may not reference it.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub legacy_projection_only: bool,
     #[serde(default)]
     pub product_codes: Vec<String>,
     pub representations: Vec<SourceRepresentation>,
@@ -306,43 +310,7 @@ impl SourceCatalog {
             validate_references("validator evidence", &validator.evidence_ids, &evidence)?;
         }
         for profile in &self.identities {
-            require_text(&profile.label, "source profile label")?;
-            validate_aliases(profile.id.as_str(), &profile.aliases, &profile.tombstones)?;
-            if profile.variants.is_empty()
-                && profile.evidence_gap.as_deref().is_none_or(str::is_empty)
-            {
-                return Err(PortcoveError::usage(format!(
-                    "{} has neither source variants nor an evidence gap",
-                    profile.id
-                )));
-            }
-            unique_ids(
-                "source variant",
-                profile.variants.iter().map(|variant| &variant.id),
-            )?;
-            for variant in &profile.variants {
-                require_text(&variant.title, "source variant title")?;
-                validate_text_values("source product code", &variant.product_codes)?;
-                validate_references("variant evidence", &variant.evidence_ids, &evidence)?;
-                if variant.representations.is_empty() {
-                    return Err(PortcoveError::usage(format!(
-                        "{} variant {} has no representations",
-                        profile.id, variant.id
-                    )));
-                }
-                unique_ids(
-                    "source representation",
-                    variant.representations.iter().map(|item| &item.id),
-                )?;
-                for representation in &variant.representations {
-                    validate_references(
-                        "representation evidence",
-                        &representation.evidence_ids,
-                        &evidence,
-                    )?;
-                    representation.validate(&validators)?;
-                }
-            }
+            profile.validate(&evidence, &validators)?;
         }
         let mut port_roles = HashSet::new();
         for contract in &self.contracts {
@@ -400,6 +368,16 @@ impl SourceCatalog {
                         contract.id, variant
                     )));
                 }
+                if profile
+                    .variants
+                    .iter()
+                    .any(|candidate| candidate.id == *variant && candidate.legacy_projection_only)
+                {
+                    return Err(PortcoveError::usage(format!(
+                        "{} references legacy projection-only variant {}",
+                        contract.id, variant
+                    )));
+                }
             }
             match contract.admission_mode {
                 CatalogAdmissionMode::Enforced
@@ -453,6 +431,64 @@ impl SourceCatalog {
 }
 
 impl SourceIdentityProfile {
+    fn validate(
+        &self,
+        evidence: &HashMap<String, ()>,
+        validators: &HashMap<String, ()>,
+    ) -> Result<()> {
+        require_text(&self.label, "source profile label")?;
+        validate_aliases(self.id.as_str(), &self.aliases, &self.tombstones)?;
+        if self.variants.is_empty() && self.evidence_gap.as_deref().is_none_or(str::is_empty) {
+            return Err(PortcoveError::usage(format!(
+                "{} has neither source variants nor an evidence gap",
+                self.id
+            )));
+        }
+        unique_ids(
+            "source variant",
+            self.variants.iter().map(|variant| &variant.id),
+        )?;
+
+        let mut deterministic_owners = HashMap::new();
+        for variant in &self.variants {
+            require_text(&variant.title, "source variant title")?;
+            validate_text_values("source product code", &variant.product_codes)?;
+            validate_references("variant evidence", &variant.evidence_ids, evidence)?;
+            if variant.representations.is_empty() {
+                return Err(PortcoveError::usage(format!(
+                    "{} variant {} has no representations",
+                    self.id, variant.id
+                )));
+            }
+            unique_ids(
+                "source representation",
+                variant.representations.iter().map(|item| &item.id),
+            )?;
+            for representation in &variant.representations {
+                validate_references(
+                    "representation evidence",
+                    &representation.evidence_ids,
+                    evidence,
+                )?;
+                representation.validate(validators)?;
+                if !variant.legacy_projection_only {
+                    for key in representation.deterministic_match_keys()? {
+                        if let Some(previous) =
+                            deterministic_owners.insert(key, variant.id.as_str())
+                            && previous != variant.id
+                        {
+                            return Err(PortcoveError::conflict(format!(
+                                "{} variants {} and {} have an ambiguous deterministic identity",
+                                self.id, previous, variant.id
+                            )));
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
     fn compatibility_profile(&self) -> Result<SourceProfile> {
         let mut legacy = SourceProfile {
             id: self.id.clone(),
@@ -465,7 +501,15 @@ impl SourceIdentityProfile {
             members: Vec::new(),
         };
         let mut represented_kind = None;
-        for variant in &self.variants {
+        let has_legacy_projection = self
+            .variants
+            .iter()
+            .any(|variant| variant.legacy_projection_only);
+        for variant in self
+            .variants
+            .iter()
+            .filter(|variant| !has_legacy_projection || variant.legacy_projection_only)
+        {
             for representation in &variant.representations {
                 append_unique(&mut legacy.accepted_extensions, &representation.extensions);
                 let kind = match &representation.kind {
@@ -624,7 +668,42 @@ fn append_unique<T: Clone + PartialEq>(target: &mut Vec<T>, values: &[T]) {
     }
 }
 
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
 impl SourceRepresentation {
+    fn deterministic_match_keys(&self) -> Result<Vec<String>> {
+        let identities = match &self.kind {
+            SourceRepresentationKind::RawFile { identities }
+            | SourceRepresentationKind::CanonicalN64 { identities }
+            | SourceRepresentationKind::ArchiveMember { identities, .. }
+            | SourceRepresentationKind::GamecubeNormalizedIso { identities }
+            | SourceRepresentationKind::OpticalTrackSet { identities, .. }
+            | SourceRepresentationKind::Compound { identities, .. } => identities,
+            SourceRepresentationKind::FileSet { .. }
+            | SourceRepresentationKind::MultiDiscSet { .. }
+            | SourceRepresentationKind::VolumeId { .. } => {
+                return Ok(vec![serde_json::to_string(&self.kind)?]);
+            }
+            SourceRepresentationKind::PinnedValidator { .. }
+            | SourceRepresentationKind::InformationalExtension { .. } => return Ok(Vec::new()),
+        };
+        let mut keys = Vec::new();
+        for identity in identities {
+            if let Some(value) = &identity.sha1 {
+                keys.push(format!("{:?}:sha1:{value}", identity.scope));
+            }
+            if let Some(value) = &identity.sha256 {
+                keys.push(format!("{:?}:sha256:{value}", identity.scope));
+            }
+            if let Some(value) = &identity.crc32 {
+                keys.push(format!("{:?}:crc32:{value}", identity.scope));
+            }
+        }
+        Ok(keys)
+    }
+
     fn validate(&self, validators: &HashMap<String, ()>) -> Result<()> {
         validate_extensions(&self.extensions)?;
         match &self.kind {

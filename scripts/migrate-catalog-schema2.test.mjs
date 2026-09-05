@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const catalogRoot = join(root, "crates", "portcove-core", "catalog");
 
-test("schema-2 catalog is the deterministic complete projection of the frozen schema-1 fixture", () => {
+test("schema-2 migration is deterministic and preserves the frozen schema-1 projection", () => {
   const result = spawnSync(process.execPath, ["scripts/migrate-catalog-schema2.mjs", "--check"], {
     cwd: root,
     encoding: "utf8",
@@ -28,4 +28,27 @@ test("schema-2 catalog is the deterministic complete projection of the frozen sc
       0,
     ),
   );
+
+  const profile = id => migrated.source_catalog.identities.find(item => item.id === id);
+  const contract = portId => migrated.source_catalog.contracts.find(item => item.port_id === portId && item.role === "game");
+  assert.deepEqual(
+    profile("ghostship-source").variants.slice(1).map(item => item.id),
+    ["super-mario-64-us", "super-mario-64-jp"],
+  );
+  assert.deepEqual(
+    contract("lighthouse").supported_variant_ids,
+    ["usa-rev0", "usa-rev1", "pal-rev0", "japan-rev0"],
+  );
+  assert.deepEqual(contract("starship").supported_variant_ids, ["usa-1-0", "usa-1-1"]);
+  for (const portId of [
+    "ghostship",
+    "lighthouse",
+    "banjo-recomp",
+    "shipwright",
+    "2ship2harkinian",
+    "zelda64-recomp",
+    "starship",
+  ]) {
+    assert.equal(contract(portId).supported_variant_ids.includes("legacy-accepted"), false);
+  }
 });

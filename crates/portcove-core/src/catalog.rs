@@ -1051,6 +1051,123 @@ mod tests {
         );
     }
 
+    #[test]
+    fn schema_2_records_each_reviewed_n64_contract_without_broadening_alpha_1() {
+        let catalog = Catalog::embedded().unwrap();
+        let source_catalog = catalog.source_catalog().unwrap();
+        let cases = [
+            (
+                "ghostship-source",
+                "ghostship",
+                vec!["super-mario-64-us", "super-mario-64-jp"],
+                "762ce4a6dff8d69b934a41a326ae41e78431e6cd",
+            ),
+            (
+                "banjo-kazooie",
+                "lighthouse",
+                vec!["usa-rev0", "usa-rev1", "pal-rev0", "japan-rev0"],
+                "9c39b49574388f1656a53a518257f399b5368062",
+            ),
+            (
+                "banjo-kazooie",
+                "banjo-recomp",
+                vec!["usa-rev0"],
+                "ec859632cfa584e2272d32e46051543429a2baf4",
+            ),
+            (
+                "ocarina-of-time",
+                "shipwright",
+                vec![
+                    "pal-1-0",
+                    "pal-1-1",
+                    "pal-gamecube",
+                    "pal-master-quest",
+                    "pal-gamecube-debug",
+                    "pal-master-quest-debug-1",
+                    "pal-master-quest-debug-2",
+                    "pal-master-quest-debug-3",
+                    "usa-1-0",
+                    "usa-1-1",
+                    "usa-1-2",
+                    "japan-1-0",
+                    "japan-1-1",
+                    "japan-1-2",
+                    "usa-gamecube",
+                    "usa-master-quest",
+                    "japan-gamecube",
+                    "japan-gamecube-collectors",
+                    "japan-master-quest",
+                ],
+                "cb71e22a79bc5d1f688fa881795bbd93094895fc",
+            ),
+            (
+                "majoras-mask",
+                "2ship2harkinian",
+                vec!["ntsc-u-1-0", "ntsc-u-gamecube"],
+                "8a24047fbce8915993804e7819f4df4fa591551f",
+            ),
+            (
+                "majoras-mask",
+                "zelda64-recomp",
+                vec!["ntsc-u-1-0"],
+                "54950a10408599d1d63802ee21cc2c4b05bfd378",
+            ),
+            (
+                "star-fox-64",
+                "starship",
+                vec!["usa-1-0", "usa-1-1"],
+                "cb19785b51698185a688e17ba1a34c7889195bdb",
+            ),
+        ];
+
+        for (profile_id, port_id, expected_variants, authority_ref) in cases {
+            let profile = source_catalog
+                .identities
+                .iter()
+                .find(|profile| profile.id == profile_id)
+                .unwrap();
+            assert!(profile.variants[0].legacy_projection_only, "{profile_id}");
+            let contract = source_catalog
+                .contracts
+                .iter()
+                .find(|contract| {
+                    contract.port_id == port_id && contract.role == crate::PortSourceRole::Game
+                })
+                .unwrap();
+            assert_eq!(
+                contract.supported_variant_ids, expected_variants,
+                "{port_id}"
+            );
+            assert_eq!(contract.authority_ref, authority_ref, "{port_id}");
+            assert!(
+                !contract
+                    .supported_variant_ids
+                    .contains(&"legacy-accepted".to_owned())
+            );
+        }
+
+        let ghostship = source_catalog
+            .identities
+            .iter()
+            .find(|profile| profile.id == "ghostship-source")
+            .unwrap();
+        let crate::SourceRepresentationKind::CanonicalN64 { identities } =
+            &ghostship.variants[2].representations[0].kind
+        else {
+            panic!("Ghostship uses canonical N64 identity")
+        };
+        assert_eq!(
+            identities[0].sha1.as_deref(),
+            Some("8a20a5c83d6ceb0f0506cfc9fa20d8f438cafe51")
+        );
+
+        let legacy = Catalog::from_json(SCHEMA_1_CATALOG_FIXTURE).unwrap();
+        assert_eq!(
+            serde_json::to_value(&catalog.document().source_profiles).unwrap(),
+            serde_json::to_value(&legacy.document().source_profiles).unwrap()
+        );
+    }
+
     fn catalog_with_executable_hint(port_id: &str, platform: &str, hint: &str) -> String {
         let mut document: serde_json::Value =
             serde_json::from_str(EMBEDDED_CATALOG).expect("embedded JSON should parse");

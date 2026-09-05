@@ -14,7 +14,7 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":16,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":17,"ok":true,"command":"status","data":{},"error":null}
 ```
 
 Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for success, failure, or cancellation. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
@@ -48,6 +48,11 @@ It introduced the migration contract before the embedded data changed.
 API schema 16 adds that authority to catalog results after the embedded catalog
 migrates to schema 2. `source_profiles` remains the core-generated compatibility
 view for current clients until the shared inspector replaces it.
+
+API schema 17 marks transitional schema-1 projection-only variants explicitly.
+Those variants preserve Alpha 1 admission while the new per-port reviewed
+variant sets wait for the shared schema-2 inspector. Port contracts cannot select
+a projection-only variant.
 
 ```text
 portcove --json capabilities
