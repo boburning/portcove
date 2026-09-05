@@ -73,6 +73,28 @@ conscious deferrals, evidence links, and a qualification summary derived from
 `catalog.json`. Never edit an older snapshot to reflect a priority change;
 generate a new dated/versioned snapshot. The live Project remains authoritative.
 
+Use two linked records to keep the release commit fixed. The committed
+pre-publication snapshot identifies its observation/base SHA and the remaining
+gates. After the finalization PR is reviewed and merged, freeze the full merge
+SHA as `C` and post an execution record on the release issue or PR, keyed by
+version and `C`. That record binds the snapshot path/blob/SHA-256, release-note
+digest, required CI and its tested tree, Windows preflight/installer evidence,
+exact manual rehearsal run/attempt, protection settings, and limitations.
+Do not commit the future rehearsal result back into the snapshot: that would
+change `C`. Any committed change after rehearsal requires a newly established
+candidate and repeated final checks. Historical snapshots retain their original
+SHA and never certify a newer commit. Project fields remain the live authority.
+
+Merge approval, authorization to create the exact tag at `C`, and approval to
+publish the verified tag-generated draft are separate boundaries. Before tagging,
+re-read release immutability and effective tag protections described in
+[REPOSITORY-SETTINGS.md](REPOSITORY-SETTINGS.md). After tagging is authorized,
+inspect the tag build's own packages and checksums; rehearsal bytes do not
+certify a later build. Keep the draft unpublished until its asset identities,
+notes, prerelease flag, and required package tests are verified and publication
+is explicitly approved. Verify release immutability and public asset integrity
+after publication; the repository setting alone is not that evidence.
+
 ## Tagged build
 
 Pushing `v*` starts `.github/workflows/release.yml`. Its preflight job repeats the identity, dependency, test, Fallow, and upstream gates before the Windows, Linux x64, Intel macOS, and Apple-silicon macOS matrix can build. Matrix jobs have read-only repository permission, stage only the CLI archive, native distributable packages, and platform SHA-256 manifest, and pass those exact files to the publisher as transient workflow artifacts. Only after every matrix job succeeds does one `publish` job receive `contents: write`, download all four artifacts, verify every declared hash and filename, reject missing or duplicate platform output, and create or reconcile one draft release. It refuses to change a published release. After the draft owns the verified files, the publisher deletes the transient workflow artifacts; a failed run retains them for no more than one day for diagnosis. GitHub generates categorized notes from merged pull requests using `.github/release.yml`; tags containing a SemVer prerelease suffix are marked as prereleases automatically. Tauri updater metadata remains disabled until Portcove has an explicit signed desktop self-update contract.
@@ -85,15 +107,23 @@ From an authenticated GitHub CLI, start and follow the rehearsal with:
 
 ```powershell
 gh workflow run release.yml --ref main
-gh run list --workflow release.yml --event workflow_dispatch --limit 1
+gh run list --workflow release.yml --event workflow_dispatch --branch main --limit 10
 ```
+
+Identify the specific dispatch by workflow, event, branch, dispatch time, actor,
+and `head_sha = C`; never select an unrelated latest run. Require successful
+preflight, every expected builder, and reconciliation, with publication skipped.
+Record the run ID, attempt, timestamps, SHA, job outcomes, reconciliation result,
+and cleanup state in the external execution record. If main moves during the
+freeze or dispatch resolves another SHA, stop readiness until the candidate is
+explicitly re-established. Do not silently retarget it.
 
 The rehearsal proves that the current commit can produce packages on hosted builders. It does not replace signing, installation, gameplay, controller, or other hands-on validation tracked in the live Portcove Roadmap.
 
 Before publishing the draft:
 
 1. confirm the aggregate `SHA256SUMS.txt` and four platform manifests cover every CLI archive and desktop bundle;
-2. review and commit the generated readiness snapshot for the exact target;
+2. verify the committed observation snapshot and external execution record both refer to the intended frozen candidate;
 3. compare release notes with live Blocked & Deferred items so manual or signing work is not overstated;
 4. keep unsigned artifacts clearly identified until the signing issue has matching completion evidence;
 5. perform the target-shell and hands-on checks appropriate to the release; and
