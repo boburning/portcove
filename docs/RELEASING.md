@@ -101,6 +101,40 @@ Before publishing the draft:
 
 Creating a tag does not authorize weakening catalog integrity, embedding game data, or marking deferred gameplay and operating-system observations as complete.
 
+## Upgrade acceptance and technical previews
+
+Every declared V1 platform needs a tested, understandable, verified application
+upgrade and recovery path. The preferred Windows desktop mechanism is the
+bounded signed in-app updater owned by
+[#52](https://github.com/boburning/portcove/issues/52); final package, signing,
+upgrade, and rehearsal evidence belongs to
+[#46](https://github.com/boburning/portcove/issues/46). Feature implementation
+precedes the feature freeze, qualification runs in beta, and RC rehearses the
+exact artifact/feed/signature and previous signed rollback identities.
+This is an acceptance contract, not a claim that updater artifacts, feeds, key
+custody, or runtime support are already implemented.
+
+Keep application updates separate from catalog/game updates. Require trusted
+origins, exact artifact identity, explicit approval, busy-state exclusion,
+stable default/beta opt-in, version rules, protected keys, and failed-update
+recovery. Tauri updater signatures, SHA-256 artifact identity, and operating-system
+publisher trust are distinct. Neither updater signing nor this plan establishes
+Authenticode/SmartScreen or macOS signing/notarization acceptance.
+
+Early technical previews may use a documented, verified manual upgrade path.
+Use a small explicitly qualified scope after applicable trust gates permit;
+label limitations and publisher prompts clearly and require disposable or fully
+backed-up libraries. Record package hashes and the unassisted first-play/recovery
+scenario outside the development checkout. A preview is not evidence of universal
+catalog or platform qualification, and its plan does not authorize publication.
+
+Qualify Linux, Steam Deck, and macOS upgrades according to the selected package
+and platform. All-platform automatic updating and standalone-CLI self-updating
+are not V1 requirements. If a named external prerequisite blocks safe Windows
+in-app delivery, record its exact resume condition and an explicit reviewed
+scope/Project-target decision while retaining the required verified upgrade
+outcome. A successful manual upgrade never completes the in-app updater tickets.
+
 ## Optional signed catalog publication
 
 `scripts/sign-catalog.mjs` signs an explicit catalog file using an existing Ed25519 PKCS#8 private key file and writes a new envelope without overwriting an existing output. This is offline publisher tooling, not a production key generator or hosted release workflow. The consumer trusts no publisher by default. Configure custody, recovery, rotation, a strictly increasing catalog sequence, and an independently verifiable public-key distribution channel before publishing a production feed. A catalog signature is neither an application code signature nor desktop updater authorization. Exact invocation and verification steps are in [SIGNED-CATALOG.md](SIGNED-CATALOG.md).

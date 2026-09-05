@@ -176,6 +176,24 @@ Within the same horizon, address release blockers and safety failures before
 optional scope. Manual order is the final tie-breaker. A dependency may move an
 item earlier; record the reason in the issue rather than freezing it in docs.
 
+V1 Readiness includes every unfinished item targeted at any stage through V1;
+it does not infer optionality from issue prose or parent/child relationships.
+Keep optional prototypes, external participation/publication, and post-V1
+extensions targeted Post-V1. Split a required outcome from an optional extension
+when necessary, rather than adding a second gate ledger. Genuine implementation
+dependencies use blocking relationships; parentage and related work alone do not
+block a release. Check for cycles and paths from optional work into required gates.
+
+The required verified application-upgrade outcome and the preferred Windows
+in-app mechanism have separate scope. While the mechanism is planned pre-V1,
+its unfinished issues remain visible in readiness. If an actual external
+prerequisite prevents safe delivery, record the blocker and a reviewed explicit
+scope/target decision on the canonical updater and release-engineering issues,
+then retarget the affected mechanism issues together. A manual upgrade path
+cannot close those in-app implementation issues. Package-appropriate upgrade
+qualification stays required for declared platforms; cross-platform automatic
+updating does not become a gate through association.
+
 ## Tools and snapshots
 
 Use `node scripts/roadmap.mjs capture-port` for direct maintainer port intake,
