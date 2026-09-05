@@ -57,6 +57,79 @@ pub(crate) struct HttpCacheEntry {
 }
 
 impl Library {
+    /// Validate a user-selected library directory without initializing it.
+    /// Empty directories and recognizable Portcove roots are accepted; unrelated
+    /// nonempty directories are left untouched.
+    pub fn validate_selection_target(root: &Path) -> Result<PathBuf> {
+        crate::path::unicode(root, "library root")?;
+        if !root.is_absolute() {
+            return Err(PortcoveError::usage("library root must be absolute"));
+        }
+        crate::path::refuse_symlink_ancestors(root)?;
+        let metadata = fs::symlink_metadata(root).map_err(|error| {
+            if error.kind() == std::io::ErrorKind::NotFound {
+                PortcoveError::not_found("selected library directory does not exist")
+                    .detail("library_root", root.display().to_string())
+            } else {
+                error.into()
+            }
+        })?;
+        if !metadata.is_dir() || metadata.file_type().is_symlink() {
+            return Err(
+                PortcoveError::usage("selected library path must be a real directory")
+                    .detail("library_root", root.display().to_string()),
+            );
+        }
+        let canonical = fs::canonicalize(root)?;
+        if canonical.parent().is_none() {
+            return Err(PortcoveError::conflict(
+                "a filesystem root cannot be used as the Portcove library",
+            ));
+        }
+        let mut entries = fs::read_dir(&canonical)?;
+        let nonempty = entries.next().transpose()?.is_some();
+        let database = canonical.join("portcove.sqlite3");
+        let database_recognized = if database.exists() {
+            use std::io::Read;
+            let metadata = fs::symlink_metadata(&database)?;
+            if !metadata.is_file() || metadata.file_type().is_symlink() {
+                false
+            } else {
+                let mut header = [0_u8; 16];
+                fs::File::open(&database)?.read_exact(&mut header).is_ok()
+                    && &header == b"SQLite format 3\0"
+            }
+        } else {
+            false
+        };
+        let recovery_present = [".portcove-authority.json", ".portcove-import.json"]
+            .iter()
+            .any(|name| canonical.join(name).exists());
+        let recovery_recognized = if recovery_present {
+            crate::library_authority::open_target(&canonical)?;
+            true
+        } else {
+            false
+        };
+        if nonempty && !database_recognized && !recovery_recognized {
+            return Err(PortcoveError::conflict(
+                "selected directory is nonempty and is not a recognizable Portcove library",
+            )
+            .detail("library_root", canonical.display().to_string()));
+        }
+        Ok(canonical)
+    }
+
+    /// After the adapter drops its current state, an exclusive lease proves that
+    /// no already-dispatched operation still owns the previous library.
+    pub fn confirm_idle_for_switch(root: &Path) -> Result<()> {
+        let _lease = crate::library_access::LibraryLease::with_access(
+            root,
+            crate::library_access::LibraryAccess::Exclusive,
+        )?;
+        Ok(())
+    }
+
     pub fn open(root: impl Into<PathBuf>) -> Result<Self> {
         let mut root = root.into();
         for _ in 0..8 {

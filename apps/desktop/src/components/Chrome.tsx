@@ -3,8 +3,8 @@ import { AlertTriangle, Boxes, Check, CheckCircle2, CircleMinus, CircleUserRound
 import desktopPackage from "../../package.json";
 import { copyText } from "../clipboard";
 import type { ThemeState, ThemePreference } from "../theme";
-import type { DoctorReport, GithubAuthStatus, GithubDeviceLogin, HostToolStatus, LibraryMetadataFile, OperationEvent, SourceProfile, SourceRecord, SourceVerificationOutcome, StorageSummary } from "../types";
-import { formatBytes, type SourceRequirement, type View } from "../view-model";
+import type { DoctorReport, GithubAuthStatus, GithubDeviceLogin, HostToolStatus, LibraryMetadataFile, LibrarySelection, OperationEvent, SourceProfile, SourceRecord, SourceVerificationOutcome, StorageSummary } from "../types";
+import { errorText, formatBytes, type SourceRequirement, type View } from "../view-model";
 import { BrandAvatar, BrandMascot, BrandWordmark } from "./Brand";
 import { ExternalLink } from "./ExternalLink";
 import { LibraryMoveButton } from "./LibraryMove";
@@ -274,8 +274,9 @@ function ThemeOption({ option, selected, select }: { option: ThemePreference; se
   return <button data-focusable className={selected ? "active" : ""} aria-pressed={selected} onClick={() => select?.(option)}>{option[0].toUpperCase() + option.slice(1)}</button>;
 }
 
-export function SettingsView({ libraryRoot = "", doctor, storage, github, busy, sources = [], sourceNeeds = [], sourceOutcomes = [], verifySources, replaceSource, addSource, appearance, createSupportBundle, exportMetadata, sourceProfiles = [], onSourceAdded, onCatalogChanged }: {
+export function SettingsView({ libraryRoot = "", librarySelection, chooseLibrary, resetLibrary, doctor, storage, github, busy, sources = [], sourceNeeds = [], sourceOutcomes = [], verifySources, replaceSource, addSource, appearance, createSupportBundle, exportMetadata, sourceProfiles = [], onSourceAdded, onCatalogChanged }: {
   libraryRoot?: string; doctor?: DoctorReport; storage?: StorageSummary; github?: GithubSettingsActions; busy?: string; sources?: SourceRecord[];
+  librarySelection?: LibrarySelection; chooseLibrary?: (currentPath?: string) => Promise<void>; resetLibrary?: () => Promise<void>;
   sourceNeeds?: SourceRequirement[]; sourceOutcomes?: SourceVerificationOutcome[]; verifySources?: () => void; replaceSource?: (source: SourceRecord) => void;
   addSource?: (profile: SourceProfile, archive: boolean) => void; appearance?: ThemeState; createSupportBundle?: () => Promise<string | undefined>;
   exportMetadata?: () => Promise<LibraryMetadataFile | undefined>;
@@ -285,6 +286,7 @@ export function SettingsView({ libraryRoot = "", doctor, storage, github, busy, 
     <GithubSettings github={github} busy={busy} />
     <SourceHealth sources={sources} requirements={sourceNeeds} outcomes={sourceOutcomes} busy={busy} verify={verifySources} replace={replaceSource} add={addSource} profiles={sourceProfiles} onAdded={onSourceAdded} />
     <StorageCard libraryRoot={storage?.library_root ?? libraryRoot} storage={storage} busy={busy} exportMetadata={exportMetadata} />
+    <LibrarySelectionCard selection={librarySelection} busy={busy} choose={chooseLibrary} reset={resetLibrary} />
     <AppearanceSettings appearance={appearance} />
     <CatalogSettings provenance={doctor?.catalog_provenance} disabled={Boolean(busy)} onChanged={onCatalogChanged} />
     <HostReadiness doctor={doctor} />
@@ -293,6 +295,25 @@ export function SettingsView({ libraryRoot = "", doctor, storage, github, busy, 
     <article className="settings-card"><p className="eyebrow">UPDATES</p><h2>Safe by default</h2><p>Stable is the default channel. Beta and rolling releases are always an explicit per-port choice.</p></article>
     <article className="settings-card"><p className="eyebrow">PRIVACY</p><h2>Local and source-safe</h2><p>Portcove does not upload game sources or collect telemetry. Source files remain where you keep them.</p></article>
   </section>;
+}
+
+function LibrarySelectionCard({ selection, busy, choose, reset }: { selection?: LibrarySelection; busy?: string; choose?: (currentPath?: string) => Promise<void>; reset?: () => Promise<void> }) {
+  const [error, setError] = useState<string>();
+  const run = async (operation: () => Promise<void>) => {
+    setError(undefined);
+    try { await operation(); } catch (value) { setError(errorText(value)); }
+  };
+  const source = selection?.source === "saved" ? "Saved host preference" : selection?.source === "invocation" ? "One-run override" : "Platform default";
+  return <article className="settings-card" data-focus-group>
+    <p className="eyebrow">DEFAULT LIBRARY</p><h2>Startup location</h2>
+    <code>{selection?.root ?? "Unavailable"}</code>
+    <p>{source}. Changing this selection opens another existing empty folder or Portcove library; it does not move files.</p>
+    <div className="button-row">
+      <button data-focusable className="small-control" disabled={Boolean(busy) || !choose} onClick={() => { void run(() => choose!(selection?.root)); }}>Choose library</button>
+      <button data-focusable className="small-control" disabled={Boolean(busy) || !reset} onClick={() => { void run(() => reset!()); }}>Use platform default</button>
+    </div>
+    {error && <p role="alert">{error}</p>}
+  </article>;
 }
 
 function HostReadiness({ doctor }: { doctor?: DoctorReport }) {

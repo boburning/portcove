@@ -14,7 +14,7 @@ fn exported_source_assessment_separates_facts_without_opening_library() {
     let output = portcove(&library, &["--json", "schema", "export"]);
     assert!(output.status.success());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 13);
+    assert_eq!(response["schema_version"], 14);
     let schema = &response["data"]["source_assessment"];
     for field in [
         "health",
@@ -32,6 +32,12 @@ fn exported_source_assessment_separates_facts_without_opening_library() {
             .contains(&Value::String("not_baselined".into()))
     );
     assert!(!library.exists());
+    let selection = &response["data"]["library_selection"];
+    assert!(selection["properties"]["root"].is_object());
+    assert_eq!(
+        selection["$defs"]["LibrarySelectionSource"]["enum"],
+        serde_json::json!(["invocation", "saved", "platform_default"])
+    );
 }
 
 #[test]
@@ -167,6 +173,54 @@ fn portcove(library: &std::path::Path, args: &[&str]) -> Output {
         .args(args)
         .output()
         .expect("Portcove CLI should start")
+}
+
+fn portcove_preferences(preferences: &std::path::Path, args: &[&str]) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_portcove"))
+        .env("PORTCOVE_PREFERENCES", preferences)
+        .args(args)
+        .output()
+        .expect("Portcove CLI should start")
+}
+
+#[test]
+fn library_preference_commands_are_library_free_recoverable_and_shared_with_startup() {
+    let temporary = tempfile::tempdir().unwrap();
+    let preferences = temporary.path().join("config/preferences.json");
+    let selected = temporary.path().join("selected");
+    std::fs::create_dir(&selected).unwrap();
+
+    let initial = json_stdout(&portcove_preferences(
+        &preferences,
+        &["--json", "library", "show"],
+    ));
+    assert_eq!(initial["data"]["source"], "platform_default");
+    assert!(!preferences.exists());
+
+    let saved = json_stdout(&portcove_preferences(
+        &preferences,
+        &["--json", "library", "set", selected.to_str().unwrap()],
+    ));
+    assert_eq!(saved["data"]["source"], "saved");
+    assert_eq!(
+        saved["data"]["root"],
+        std::fs::canonicalize(&selected).unwrap().to_str().unwrap()
+    );
+    assert_eq!(std::fs::read_dir(&selected).unwrap().count(), 0);
+
+    let storage = json_stdout(&portcove_preferences(&preferences, &["--json", "storage"]));
+    assert_eq!(storage["data"]["library_root"], saved["data"]["root"]);
+
+    std::fs::write(&preferences, b"{").unwrap();
+    let damaged = portcove_preferences(&preferences, &["--json", "library", "show"]);
+    assert!(!damaged.status.success());
+    assert_eq!(json_stdout(&damaged)["error"]["code"], "state");
+    let reset = json_stdout(&portcove_preferences(
+        &preferences,
+        &["--json", "library", "reset"],
+    ));
+    assert_eq!(reset["data"]["source"], "platform_default");
+    assert!(selected.join("portcove.sqlite3").is_file());
 }
 
 #[test]
@@ -539,7 +593,7 @@ fn default_read_commands_have_human_output_snapshots() {
 
     let capabilities = human_stdout(&portcove(root.path(), &["capabilities"])).to_owned();
     assert!(capabilities.starts_with("Portcove "));
-    assert!(capabilities.contains(" capabilities\nSchema: 13"));
+    assert!(capabilities.contains(" capabilities\nSchema: 14"));
 }
 
 #[test]
@@ -550,11 +604,11 @@ fn capabilities_are_one_clean_versioned_json_document() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 13);
+    assert_eq!(response["schema_version"], 14);
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");
     assert!(response["error"].is_null());
-    assert_eq!(response["data"]["schema_version"], 13);
+    assert_eq!(response["data"]["schema_version"], 14);
     assert_eq!(
         response["data"]["raw_stream_commands"],
         serde_json::json!(["exec"])
@@ -576,7 +630,7 @@ fn command_errors_keep_the_machine_envelope_and_stable_exit_code() {
     assert_eq!(output.status.code(), Some(4));
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 13);
+    assert_eq!(response["schema_version"], 14);
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "catalog.show");
     assert!(response["data"].is_null());
@@ -593,7 +647,7 @@ fn parser_errors_are_structured_for_machine_callers() {
     assert!(output.stderr.is_empty());
     assert!(!library.exists());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 13);
+    assert_eq!(response["schema_version"], 14);
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "cli");
     assert_eq!(response["error"]["code"], "usage");
@@ -613,7 +667,7 @@ fn jsonl_read_commands_end_with_one_result_event() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 13);
+    assert_eq!(response["schema_version"], 14);
     assert_eq!(response["type"], "result");
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");

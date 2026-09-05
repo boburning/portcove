@@ -20,6 +20,8 @@ export const desktopApi = {
   useEmbeddedCatalog: (expectedState: string) => invoke<CatalogStatus>("use_embedded_catalog", { expectedState }),
 
   bootstrapStatus: () => invoke<BootstrapStatus>("get_bootstrap_status"),
+  setDefaultLibrary: (path: string) => invoke<BootstrapStatus>("set_default_library", { path }),
+  resetDefaultLibrary: () => invoke<BootstrapStatus>("reset_default_library"),
   githubAuthStatus: () => invoke<GithubAuthStatus>("get_github_auth_status"),
   setGithubToken: (token: string) => invoke<GithubAuthStatus>("set_github_token", { token }),
   logoutGithub: () => invoke<GithubAuthStatus>("logout_github"),

@@ -9,12 +9,13 @@ use portcove_core::{
     API_SCHEMA_VERSION, ActivityRecord, AdoptionPreview, BackupAction, BackupActionPreview,
     BackupInventory, BackupRecord, CapabilityDocument, CatalogDocument, DoctorReport, ErrorCode,
     GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, GithubDeviceLoginState,
-    GithubReleaseProvider, IdentifiedLaunchRequest, InstallPlan, InstallRecord, LaunchSignal,
-    LaunchStdio, LibraryMetadata, LibraryMetadataFile, OperationCoordinator, OperationEvent,
-    OperationEventKind, PortDefinition, PortPaths, PortRemovalPreview, PortStatus, PortcoveError,
-    PortcoveService, ReconcileResult, ReleaseChannel, RestoreResult, Result, SourceRecord,
-    SourceRelinkPlan, SourceRemovalPreview, SourceVerification, StorageSummary, UpdateCheck,
-    UpdatePolicy, UpdateSnapshot, forward_launch_signal,
+    GithubReleaseProvider, HostPreferenceStore, IdentifiedLaunchRequest, InstallPlan,
+    InstallRecord, LaunchSignal, LaunchStdio, LibraryMetadata, LibraryMetadataFile,
+    OperationCoordinator, OperationEvent, OperationEventKind, PortDefinition, PortPaths,
+    PortRemovalPreview, PortStatus, PortcoveError, PortcoveService, ReconcileResult,
+    ReleaseChannel, RestoreResult, Result, SourceRecord, SourceRelinkPlan, SourceRemovalPreview,
+    SourceVerification, StorageSummary, UpdateCheck, UpdatePolicy, UpdateSnapshot,
+    forward_launch_signal,
 };
 use schemars::{JsonSchema, schema_for};
 use serde::Serialize;
@@ -164,6 +165,12 @@ enum BackupCommand {
 
 #[derive(Debug, Subcommand)]
 enum LibraryCommand {
+    /// Show the effective library and whether it came from --library, saved preferences, or default.
+    Show,
+    /// Save an existing empty directory or recognizable Portcove library as the host default.
+    Set { path: PathBuf },
+    /// Clear the saved library, including recovery from malformed or future preferences.
+    Reset,
     /// Review restoring metadata and copied content into --library's new or empty root.
     Import {
         metadata: PathBuf,
@@ -531,14 +538,20 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         render_success(mode, "schema.export", schema_document())?;
         return Ok(ExitCode::SUCCESS);
     }
+    let preferences = host_preference_store()?;
+    let platform_default = portcove_core::Library::default_root()?;
     if let Commands::Library { command } = &cli.command {
-        execute_library(cli.library.as_deref(), command, mode)?;
+        execute_library(
+            &preferences,
+            cli.library.as_deref(),
+            &platform_default,
+            command,
+            mode,
+        )?;
         return Ok(ExitCode::SUCCESS);
     }
-    let library = match cli.library {
-        Some(path) => portcove_core::Library::open(path)?,
-        None => portcove_core::Library::open_default()?,
-    };
+    let selection = preferences.resolve(cli.library.as_deref(), &platform_default)?;
+    let library = portcove_core::Library::open(selection.root)?;
     let service = std::sync::Arc::new(PortcoveService::new(library)?);
     let _cancellation_signals = matches!(
         &cli.command,
@@ -1074,6 +1087,14 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
     Ok(ExitCode::SUCCESS)
 }
 
+fn host_preference_store() -> Result<HostPreferenceStore> {
+    std::env::var_os("PORTCOVE_PREFERENCES")
+        .filter(|path| !path.is_empty())
+        .map(PathBuf::from)
+        .map(HostPreferenceStore::new)
+        .unwrap_or_else(HostPreferenceStore::open_default)
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum DeviceLoginWait {
     Poll,
@@ -1098,6 +1119,9 @@ where
 
 fn library_command_name(command: &LibraryCommand) -> &'static str {
     match command {
+        LibraryCommand::Show => "library.show",
+        LibraryCommand::Set { .. } => "library.set",
+        LibraryCommand::Reset => "library.reset",
         LibraryCommand::Import { .. } => "library.import",
         LibraryCommand::ResumeImport => "library.resume_import",
         LibraryCommand::AbortImport => "library.abort_import",
@@ -1109,22 +1133,34 @@ fn library_command_name(command: &LibraryCommand) -> &'static str {
 }
 
 fn execute_library(
-    root: Option<&std::path::Path>,
+    preferences: &HostPreferenceStore,
+    invocation_root: Option<&std::path::Path>,
+    platform_default: &std::path::Path,
     command: &LibraryCommand,
     mode: OutputMode,
 ) -> Result<()> {
-    let root = root
-        .map(std::path::Path::to_path_buf)
-        .map(Ok)
-        .unwrap_or_else(portcove_core::Library::default_root)?;
     let name = library_command_name(command);
     match command {
+        LibraryCommand::Show => render_success(
+            mode,
+            name,
+            preferences.resolve(invocation_root, platform_default)?,
+        )?,
+        LibraryCommand::Set { path } => {
+            preferences.set_library(path)?;
+            render_success(mode, name, preferences.resolve(None, platform_default)?)?;
+        }
+        LibraryCommand::Reset => {
+            preferences.reset()?;
+            render_success(mode, name, preferences.resolve(None, platform_default)?)?;
+        }
         LibraryCommand::Import {
             metadata,
             content_root,
             apply: true,
             expected_plan,
         } => {
+            let root = preferences.resolve(invocation_root, platform_default)?.root;
             render_success(
                 mode,
                 name,
@@ -1143,6 +1179,7 @@ fn execute_library(
             content_root,
             ..
         } => {
+            let root = preferences.resolve(invocation_root, platform_default)?.root;
             render_success(
                 mode,
                 name,
@@ -1150,15 +1187,19 @@ fn execute_library(
             )?;
         }
         LibraryCommand::ResumeImport => {
+            let root = preferences.resolve(invocation_root, platform_default)?.root;
             render_success(mode, name, PortcoveService::resume_library_import(&root)?)?
         }
         LibraryCommand::AbortImport => {
+            let root = preferences.resolve(invocation_root, platform_default)?.root;
             render_success(mode, name, PortcoveService::abort_library_import(&root)?)?
         }
         LibraryCommand::ResumeMove => {
+            let root = preferences.resolve(invocation_root, platform_default)?.root;
             render_success(mode, name, PortcoveService::resume_library_move(&root)?)?
         }
         LibraryCommand::AbortMove => {
+            let root = preferences.resolve(invocation_root, platform_default)?.root;
             render_success(mode, name, PortcoveService::abort_library_move(&root)?)?
         }
         LibraryCommand::Move {
@@ -1166,6 +1207,7 @@ fn execute_library(
             apply: true,
             expected_plan,
         } => {
+            let root = preferences.resolve(invocation_root, platform_default)?.root;
             let source = portcove_core::Library::open(&root)?.root().to_path_buf();
             render_success(
                 mode,
@@ -1180,10 +1222,12 @@ fn execute_library(
             )?;
         }
         LibraryCommand::Move { destination, .. } => {
+            let root = preferences.resolve(invocation_root, platform_default)?.root;
             let service = PortcoveService::new(portcove_core::Library::open(root)?)?;
             render_success(mode, name, service.plan_library_move(destination)?)?;
         }
         LibraryCommand::Export { output } => {
+            let root = preferences.resolve(invocation_root, platform_default)?.root;
             let service = PortcoveService::new(portcove_core::Library::open(root)?)?;
             if let Some(path) = output {
                 render_success(mode, name, service.write_library_metadata(path)?)?;
@@ -1283,6 +1327,10 @@ fn schema_document() -> serde_json::Value {
             (
                 "library_import_result",
                 serde_json::json!(schema_for!(portcove_core::LibraryImportResult)),
+            ),
+            (
+                "library_selection",
+                serde_json::json!(schema_for!(portcove_core::LibrarySelection)),
             ),
             (
                 "source_discovery_request",
@@ -1998,7 +2046,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 13);
+        assert_eq!(capabilities.schema_version, 14);
         assert_eq!(
             capabilities.failure_isolated_batches,
             ["check", "reconcile", "update", "source.verify"]

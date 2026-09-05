@@ -1,5 +1,6 @@
 mod catalog;
 mod diagnostics;
+mod library_selection;
 mod library_transfer;
 
 use std::{
@@ -15,11 +16,11 @@ use portcove_core::{
     ActivityRecord, AdoptionPreview, BackupAction, BackupInventory, BackupRecord, CatalogDocument,
     ChildProcessClass, ChildProcessPolicy, CompositeReleaseProvider, DoctorReport,
     GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, GithubReleaseProvider,
-    IdentifiedLaunchRequest, InstallPlan, InstallRecord, LaunchStdio, Library, LibraryMetadataFile,
-    OperationCoordinator, OperationEvent, OperationResult, PortStatus, PortcoveError,
-    PortcoveService, ReconcileResult, ReleaseChannel, ReleaseProvider, RestoreResult, SourceRecord,
-    SourceRelinkPlan, SourceRemovalPreview, SourceVerification, UpdateCheck, UpdatePolicy,
-    VerificationReport,
+    HostPreferenceStore, IdentifiedLaunchRequest, InstallPlan, InstallRecord, LaunchStdio, Library,
+    LibraryMetadataFile, LibrarySelection, LibrarySelectionSource, OperationCoordinator,
+    OperationEvent, OperationResult, PortStatus, PortcoveError, PortcoveService, ReconcileResult,
+    ReleaseChannel, ReleaseProvider, RestoreResult, SourceRecord, SourceRelinkPlan,
+    SourceRemovalPreview, SourceVerification, UpdateCheck, UpdatePolicy, VerificationReport,
 };
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
@@ -40,6 +41,7 @@ enum LaunchObservationState {
 #[derive(Clone)]
 struct ReadyDesktopState {
     library: Library,
+    selection: LibrarySelection,
     github: std::sync::Arc<GithubReleaseProvider>,
     releases: std::sync::Arc<CompositeReleaseProvider>,
 }
@@ -47,6 +49,8 @@ struct ReadyDesktopState {
 #[derive(Clone)]
 struct DesktopState {
     initialization: std::sync::Arc<std::sync::Mutex<DesktopResult<ReadyDesktopState>>>,
+    preferences: DesktopResult<HostPreferenceStore>,
+    generation: std::sync::Arc<std::sync::atomic::AtomicU64>,
     launch_observer: LaunchObserver,
 }
 
@@ -103,6 +107,8 @@ fn service(state: &DesktopState) -> DesktopResult<PortcoveService> {
 struct BootstrapStatus {
     ready: bool,
     library_root: Option<PathBuf>,
+    selection: Option<LibrarySelection>,
+    generation: u64,
     error: Option<DesktopError>,
 }
 
@@ -113,17 +119,25 @@ fn get_bootstrap_status(state: tauri::State<'_, DesktopState>) -> BootstrapStatu
 
 fn bootstrap_status(state: &DesktopState) -> BootstrapStatus {
     match ready(state) {
-        Ok(state) => BootstrapStatus {
+        Ok(ready_state) => BootstrapStatus {
             ready: true,
-            library_root: Some(state.library.root().to_path_buf()),
+            library_root: Some(ready_state.library.root().to_path_buf()),
+            selection: Some(ready_state.selection),
+            generation: state_generation(state),
             error: None,
         },
         Err(error) => BootstrapStatus {
             ready: false,
             library_root: None,
+            selection: None,
+            generation: state_generation(state),
             error: Some(error),
         },
     }
+}
+
+fn state_generation(state: &DesktopState) -> u64 {
+    state.generation.load(std::sync::atomic::Ordering::Acquire)
 }
 
 async fn blocking_service<T, F>(state: DesktopState, operation: F) -> DesktopResult<T>
@@ -1439,18 +1453,42 @@ fn open_host_target(target: &std::ffi::OsStr) -> DesktopResult<()> {
     Ok(())
 }
 
-fn initialize_desktop() -> DesktopResult<ReadyDesktopState> {
-    let configured_root = std::env::var_os("PORTCOVE_LIBRARY")
-        .filter(|path| !path.is_empty())
-        .map(PathBuf::from);
-    initialize_desktop_at(configured_root)
+fn initialize_desktop_at(configured_root: Option<PathBuf>) -> DesktopResult<ReadyDesktopState> {
+    let selection = match configured_root {
+        Some(root) => LibrarySelection {
+            root,
+            source: LibrarySelectionSource::Invocation,
+        },
+        None => LibrarySelection {
+            root: Library::default_root().map_err(DesktopError::from)?,
+            source: LibrarySelectionSource::PlatformDefault,
+        },
+    };
+    initialize_desktop_selection(selection)
 }
 
-fn initialize_desktop_at(configured_root: Option<PathBuf>) -> DesktopResult<ReadyDesktopState> {
-    let library = configured_root
-        .map(Library::open)
-        .unwrap_or_else(Library::open_default)
+fn initialize_desktop_with(
+    preferences: &HostPreferenceStore,
+    configured_root: Option<PathBuf>,
+) -> DesktopResult<ReadyDesktopState> {
+    let default = Library::default_root().map_err(DesktopError::from)?;
+    let selection = preferences
+        .resolve(configured_root.as_deref(), &default)
         .map_err(DesktopError::from)?;
+    initialize_desktop_selection(selection)
+}
+
+fn host_preference_store() -> DesktopResult<HostPreferenceStore> {
+    std::env::var_os("PORTCOVE_PREFERENCES")
+        .filter(|path| !path.is_empty())
+        .map(PathBuf::from)
+        .map(HostPreferenceStore::new)
+        .unwrap_or_else(HostPreferenceStore::open_default)
+        .map_err(DesktopError::from)
+}
+
+fn initialize_desktop_selection(selection: LibrarySelection) -> DesktopResult<ReadyDesktopState> {
+    let library = Library::open(&selection.root).map_err(DesktopError::from)?;
     start_stale_launch_recovery(&library).map_err(DesktopError::from)?;
     let releases = std::sync::Arc::new(
         CompositeReleaseProvider::for_library(&library).map_err(DesktopError::from)?,
@@ -1458,14 +1496,23 @@ fn initialize_desktop_at(configured_root: Option<PathBuf>) -> DesktopResult<Read
     let github = releases.github();
     Ok(ReadyDesktopState {
         library,
+        selection,
         github,
         releases,
     })
 }
 
 pub fn run() {
-    let initialization = std::sync::Arc::new(std::sync::Mutex::new(initialize_desktop().and_then(
-        |state| {
+    let preferences = host_preference_store();
+    let configured_root = std::env::var_os("PORTCOVE_LIBRARY")
+        .filter(|path| !path.is_empty())
+        .map(PathBuf::from);
+    let initialization_result = preferences
+        .as_ref()
+        .map_err(Clone::clone)
+        .and_then(|store| initialize_desktop_with(store, configured_root));
+    let initialization = std::sync::Arc::new(std::sync::Mutex::new(
+        initialization_result.and_then(|state| {
             diagnostics::initialize(&state.library.logs_dir()).map_err(DesktopError::from)?;
             tracing::info!(
                 operation_id = "desktop-startup",
@@ -1473,16 +1520,20 @@ pub fn run() {
                 "desktop diagnostics initialized"
             );
             Ok(state)
-        },
-    )));
+        }),
+    ));
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(DesktopState {
             initialization,
+            preferences,
+            generation: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(1)),
             launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
         })
         .invoke_handler(tauri::generate_handler![
             get_bootstrap_status,
+            library_selection::set_default_library,
+            library_selection::reset_default_library,
             get_github_auth_status,
             plan_port,
             set_github_token,
@@ -1643,6 +1694,9 @@ mod tests {
         };
         let state = DesktopState {
             initialization: std::sync::Arc::new(std::sync::Mutex::new(Err(error.clone()))),
+            preferences: HostPreferenceStore::new(temporary.path().join("preferences.json"))
+                .map_err(DesktopError::from),
+            generation: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(1)),
             launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
         };
 

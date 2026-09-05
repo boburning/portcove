@@ -127,6 +127,18 @@ describe("desktop components", () => {
     expect(html).toContain("/brand/logo/portcove-logo-v2-transparent.png");
   });
 
+  it("shows library selection provenance without implying a move", () => {
+    const html = renderToStaticMarkup(<SettingsView
+      librarySelection={{ root: "D:/Portcove Library", source: "saved" }}
+      chooseLibrary={vi.fn()}
+      resetLibrary={vi.fn()}
+    />);
+    expect(html).toContain("D:/Portcove Library");
+    expect(html).toContain("Saved host preference");
+    expect(html).toContain("it does not move files");
+    expect(html).toContain("Use platform default");
+  });
+
   it("shows the shared library path and volume capacity", () => {
     const html = renderToStaticMarkup(<SettingsView storage={{
       library_root: "E:/Portcove", volume_total_bytes: 1024 ** 4, volume_available_bytes: 512 * 1024 ** 3,
