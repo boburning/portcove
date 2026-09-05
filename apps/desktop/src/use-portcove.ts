@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { desktopApi } from "./api";
 import type { ActivityRecord, BackupInventory, BackupRecord, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, OperationEvent, PortDefinition, PortStatus, ReconcileAction, SourceRecord, SourceVerificationOutcome, UpdateCheckOutcome } from "./types";
@@ -122,16 +122,51 @@ export function useUpdateCenter(perform: Perform, statuses: PortStatus[]) {
   return { outcomes, actions, checkAll, applyPolicies };
 }
 
+// Review data is ephemeral UI intent; core still authorizes every mutation.
+function useReviewRequest<T>(identity: string, perform: Perform) {
+  const generation = useRef(new LatestRequestGeneration());
+  const [reviewed, setReviewed] = useState<{ identity: string; value: T }>();
+  useLayoutEffect(() => {
+    generation.current.begin();
+    setReviewed(undefined);
+    return () => { generation.current.begin(); };
+  }, [identity]);
+  const review = async (name: string, task: () => Promise<T>) => {
+    const request = generation.current.begin();
+    setReviewed(undefined);
+    const current = () => generation.current.isCurrent(request);
+    const result = await perform(name, async () => {
+      try { return await task(); }
+      catch (error) { if (current()) throw error; return undefined; }
+    });
+    if (result !== undefined && current()) setReviewed({ identity, value: result });
+  };
+  const guard = () => {
+    const request = generation.current.begin();
+    return () => generation.current.isCurrent(request);
+  };
+  return { value: reviewed?.identity === identity ? reviewed.value : undefined, review, guard };
+}
+
 export function useInstallPlanning(portId: string | undefined, channel: PortStatus["channel"] | undefined, perform: Perform) {
-  const [plan, setPlan] = useState<Awaited<ReturnType<typeof desktopApi.plan>>>();
-  useEffect(() => setPlan(undefined), [portId, channel]);
-  const review = useCallback(async () => {
-    if (!portId || !channel) return;
-    setPlan(undefined);
-    const result = await perform("review install", () => desktopApi.plan(portId, channel));
-    if (result) setPlan(result);
-  }, [channel, perform, portId]);
-  return { plan, review };
+  const request = useReviewRequest<Awaited<ReturnType<typeof desktopApi.plan>>>(JSON.stringify([portId, channel]), perform);
+  const review = async () => {
+    if (portId && channel) await request.review("review install", () => desktopApi.plan(portId, channel));
+  };
+  return { plan: request.value, review };
+}
+
+export function useAdoptionPlanning(path: string, portId: string | undefined, open: boolean, perform: Perform, done: () => void) {
+  const request = useReviewRequest<Awaited<ReturnType<typeof desktopApi.previewAdoption>>>(JSON.stringify([path, portId, open]), perform);
+  const review = async () => {
+    if (open && path.trim()) await request.review("preview adoption", () => desktopApi.previewAdoption(path, portId));
+  };
+  const adopt = async () => {
+    if (!open || !request.value?.selected_port_id) return;
+    const current = request.guard();
+    await adoptInstall(path, portId, request.value.plan_sha256, perform, () => { if (current()) done(); });
+  };
+  return { preview: request.value, review, adopt };
 }
 
 export function useSourceHealth(perform: Perform, sources: SourceRecord[]) {
@@ -270,7 +305,8 @@ export function detailActions(port: PortDefinition, status: PortStatus | undefin
   };
 }
 
-export async function adoptInstall(path: string, portId: string | undefined, planSha256: string, perform: Perform, done: () => void) {
+async function adoptInstall(path: string, portId: string | undefined, planSha256: string, perform: Perform, done: () => void) {
   const adopted = await perform("adopt", () => desktopApi.adopt(path, planSha256, portId));
   if (adopted) done();
 }
+
