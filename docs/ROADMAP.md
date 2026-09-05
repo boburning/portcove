@@ -51,7 +51,13 @@ The existing source/storage issues share this scenario through
 [#15](https://github.com/boburning/portcove/issues/15). A narrowly qualified,
 clearly labeled packaged technical preview can exercise it outside a development
 checkout once applicable trust gates permit, using disposable or fully backed-up
-libraries. It need not wait for universal coverage. Finding additional games
+libraries. Preview planning can precede implementation readiness, but packaging
+requires a reviewed integrated-commit implementation and trust checkpoint for
+the required onboarding outcomes. Packaged first-play qualification in
+[#242](https://github.com/boburning/portcove/issues/242) then supplies evidence
+for those outcomes and final Alpha 2 closure; it must not depend on closing the
+workstream or outcome issues that still require that same preview evidence.
+It need not wait for universal coverage. Finding additional games
 compatible with already-selected files is an optional follow-on: discovery is
 opt-in and bounded, registration is explicit, and source compatibility alone
 does not establish full installation/platform readiness.
