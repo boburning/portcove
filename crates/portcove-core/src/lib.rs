@@ -10,6 +10,7 @@ mod database;
 mod durability;
 mod error;
 mod gitlab;
+mod host_preferences;
 mod import_execution;
 mod import_journal;
 mod install;
@@ -54,6 +55,9 @@ pub use catalog_store::CatalogStatus;
 pub use catalog_update::{CatalogUpdatePlan, CatalogUpdateSource};
 pub use error::{ErrorCode, PortcoveError, Result};
 pub use gitlab::GitlabReleaseProvider;
+pub use host_preferences::{
+    HostPreferenceStore, HostPreferences, LibrarySelection, LibrarySelectionSource,
+};
 pub use import_execution::LibraryImportResult;
 pub use install::{InstallQualification, InstallRequest, Installer, VerificationReport};
 pub use launch::forward_launch_signal;
