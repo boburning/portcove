@@ -2745,44 +2745,81 @@ impl PortcoveService {
                     return Err(error);
                 }
             };
-            if let Err(error) = self.library.update_launch_session(
-                &session.id,
-                Some(child_pid),
-                Some(&child_identity),
-                LaunchSessionPhase::Running,
-            ) {
-                let _ = child.kill();
-                let _ = child.wait();
-                return Err(error);
-            }
-            session.child_pid = Some(child_pid);
-            session.child_identity = Some(child_identity);
-            session.phase = LaunchSessionPhase::Running;
-            session.updated_at = Library::now();
-            child_state_uncertain = true;
-            self.faults.check(LifecycleFaultPoint::LaunchChildStarted)?;
-
-            let mut first_error = fs::write(spec.install_root.join(LAUNCH_MARKER), b"1")
-                .err()
-                .map(PortcoveError::from);
-            on_started(&session);
-
-            let status = match child.wait() {
-                Ok(status) => status,
-                Err(error) => {
-                    return Err(PortcoveError::launch(format!(
-                        "could not observe launched process {child_pid}: {error}"
-                    )));
+            let (status, mut first_error) = if let Some(child_identity) = child_identity {
+                if let Err(error) = self.library.update_launch_session(
+                    &session.id,
+                    Some(child_pid),
+                    Some(&child_identity),
+                    LaunchSessionPhase::Running,
+                ) {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Err(error);
                 }
+                session.child_pid = Some(child_pid);
+                session.child_identity = Some(child_identity);
+                session.phase = LaunchSessionPhase::Running;
+                session.updated_at = Library::now();
+                child_state_uncertain = true;
+                self.faults.check(LifecycleFaultPoint::LaunchChildStarted)?;
+
+                let first_error = fs::write(spec.install_root.join(LAUNCH_MARKER), b"1")
+                    .err()
+                    .map(PortcoveError::from);
+                on_started(&session);
+
+                let status = match child.wait() {
+                    Ok(status) => status,
+                    Err(error) => {
+                        return Err(PortcoveError::launch(format!(
+                            "could not observe launched process {child_pid}: {error}"
+                        )));
+                    }
+                };
+                (status, first_error)
+            } else {
+                let status = match child.try_wait() {
+                    Ok(Some(status)) => status,
+                    Ok(None) => {
+                        let _ = child.kill();
+                        let _ = child.wait();
+                        return Err(PortcoveError::state(format!(
+                            "child process {child_pid} was still running after its start identity disappeared"
+                        )));
+                    }
+                    Err(error) => {
+                        return Err(PortcoveError::launch(format!(
+                            "could not observe launched process {child_pid}: {error}"
+                        )));
+                    }
+                };
+                self.library.update_launch_session(
+                    &session.id,
+                    Some(child_pid),
+                    None,
+                    LaunchSessionPhase::Collecting,
+                )?;
+                session.child_pid = Some(child_pid);
+                session.phase = LaunchSessionPhase::Collecting;
+                session.updated_at = Library::now();
+                child_state_uncertain = true;
+                let first_error = fs::write(spec.install_root.join(LAUNCH_MARKER), b"1")
+                    .err()
+                    .map(PortcoveError::from);
+                (status, first_error)
             };
-            if let Err(error) = self.library.update_launch_session(
-                &session.id,
-                None,
-                None,
-                LaunchSessionPhase::Collecting,
-            ) && first_error.is_none()
-            {
-                first_error = Some(error);
+            if session.phase != LaunchSessionPhase::Collecting {
+                if let Err(error) = self.library.update_launch_session(
+                    &session.id,
+                    None,
+                    None,
+                    LaunchSessionPhase::Collecting,
+                ) && first_error.is_none()
+                {
+                    first_error = Some(error);
+                }
+                session.phase = LaunchSessionPhase::Collecting;
+                session.updated_at = Library::now();
             }
             self.faults.check(LifecycleFaultPoint::LaunchCollecting)?;
             if status.success()
@@ -7047,7 +7084,9 @@ fn main() {
         }
         assert!(started.is_file());
         let child_pid = child.id();
-        let child_identity = crate::launch::process_identity_for_child(&child).unwrap();
+        let child_identity = crate::launch::process_identity_for_child(&child)
+            .unwrap()
+            .unwrap();
         let reaper = thread::spawn(move || child.wait().unwrap());
         let activity = library
             .begin_activity(
