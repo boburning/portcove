@@ -251,6 +251,16 @@ test("one-port-one-issue coverage rejects missing duplicate grouped and draft au
     .some(value => value.includes("not in the Project")));
 });
 
+test("intake permits integration completion without inventing gameplay qualification", () => {
+  const body = renderPortIssueBody({ title: "Fixture", upstream: "https://example.test/fixture", portKey: "fixture" });
+  assert.doesNotThrow(() => validateDurableIssueBody(body));
+  assert.match(body, /absent optional gameplay evidence as Unknown, not failure/);
+  assert.match(body, /explicit hands-on support claims still require actual observations/);
+  assert.match(body, /Unsupported management operations remain unavailable with reasons/);
+  assert.match(body, /Manual qualification: Not yet recorded/);
+  assert.doesNotMatch(body, /required hands-on behavior for each claimed platform/);
+});
+
 test("one-port-one-issue coverage requires unique candidate keys and allows shared upstream multi-game repositories", () => {
   const issue = (number, title, body) => ({
     number,

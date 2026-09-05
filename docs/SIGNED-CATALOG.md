@@ -2,6 +2,15 @@
 
 This optional local-first contract updates metadata for the embedded catalog. No publisher key, production private key, server, account, or scheduled fetch is configured by default. Local files work without a network; an explicitly requested HTTPS fetch carries no Portcove/GitHub credential and follows no redirects. The optional advisory relay and desktop self-updater are separate features.
 
+This is the implemented format-1 contract. The planned successor in
+[#245](https://github.com/boburning/portcove/issues/245) and
+[#246](https://github.com/boburning/portcove/issues/246) adds policy-based new
+definitions and routine automatic publication to already-capable clients.
+That work must retain exact installed definitions/contracts, isolate unsupported
+entries, bind protected acceptance to exact inputs, and define offline, expiry,
+revocation and recovery behavior. It does not weaken or retrofit this format's
+embedded-contract restrictions. No live automatic admission is enabled here.
+
 ## Publisher format
 
 The outer JSON object has exactly `format_version: 1`, `key_id`, `payload`, and `signature`. It is at most 4 MiB, including all JSON escaping. `key_id` is the lowercase hex SHA-256 of the raw 32-byte Ed25519 public key. `signature` is the 64-byte signature in hex. `payload` is a JSON **string**; its exact UTF-8 bytes are signed, without parsing, whitespace changes, or reserialization by the verifier.

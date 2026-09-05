@@ -41,6 +41,14 @@ acceptance criteria, required tests, documentation impact, dependencies, and
 completion evidence. Priority, horizon, and target release belong only in the
 Project.
 
+Scope completion to the promised integration or research. Optional gameplay
+evidence may remain unknown without holding completed integration work open;
+only actual hands-on results justify hands-on claims. One durable port issue
+does not require a new issue or personal approval for each upstream version.
+The future protected publisher in #246 will complete policy-compliant candidates
+automatically; current PR and integrity requirements remain in force until that
+separately authorized implementation ships.
+
 Before submitting a change:
 
 ```powershell
