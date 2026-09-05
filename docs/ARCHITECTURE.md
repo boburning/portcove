@@ -26,9 +26,30 @@ In this document, “thin adapter” means that the CLI and desktop do not reimp
 
 ## Library model
 
+<<<<<<< HEAD
+`source_assessment` defines the shared source fact contract: existing
+`SourceHealth` (including selected bytes without a baseline), classification,
+reviewed release-contract result, actual admission/mode/reason, and scoped
+evidence are independent. These serializable records are descriptions, not
+operation authorizations or a second matcher. Existing validators and lifecycle
+checks remain authoritative. Schema export exposes the contract for subsequent
+inspection integration; current verification responses retain their existing
+fields and read-only behavior.
+
+Evidence relevance compares the exact port, platform, artifact, upstream ref,
+contract, source variant/representation and check version. An unspecified legacy
+variant or absent artifact/check identity cannot establish exact qualification.
+Relevance does not mean success: consumers must retain the evidence kind and
+outcome, including failed and not-run observations. Recorded Portcove build and
+observation time remain historical attribution; changing an unrelated build
+does not erase a fact. Evidence IDs are catalog references, not renderer URLs.
+No database, catalog, signed-envelope or ownership boundary changes in this
+foundation; existing metadata architecture rules remain applicable.
+=======
 The `HostPreferenceStore` foundation provides bounded format-1 host preference storage and selection provenance without opening or mutating a library. Adapters must supply a dedicated configuration file outside movable library data and credentials; adapter integration is not yet shipped. Selection precedence is an explicit invocation path, saved path, then the platform default. Invalid selected configuration fails visibly; an explicit invocation path or explicit reset provides recovery from corrupt saved preferences. Paths in this descriptive selection contract do not certify destination availability, ownership, or an active-library switch. Those checks still belong to the library-opening and handoff operations before use.
 
 Preference writers serialize through a persistent sibling operating-system lock and publish a flushed sibling atomically using the shared durability helper. Reads never create files. Setting a library preserves compatible unknown JSON fields; explicit reset replaces the whole document, including damaged or future-format content, with current defaults. A preference change never relocates existing data. This uses the existing core policy boundary without introducing a second library authority, database migration, or machine API version.
+>>>>>>> 5a2ecc6 (Add host preference storage and library selection foundation)
 
 Core resolves newly opened library roots and validated source references to absolute paths before they produce durable records. Relative CLI arguments therefore do not tie a new installation or source to that process's working directory. Existing ambiguous relative records are not guessed or silently rebased; they require qualification from their original base and explicit reinstallation or source relinking.
 
@@ -153,6 +174,8 @@ V1 deliberately avoids automating arbitrary build scripts or installers. A new a
 Native game executables receive catalog-owned arguments plus literal caller arguments. Windows `.bat` and `.cmd` launchers are represented as `WindowsBatch`; caller arguments are rejected, and fixed catalog arguments pass a strict metacharacter check before the implicit `cmd.exe` boundary. Setup tools, validators, builders, conversion tools, and host integration require native executables. `scripts/check-child-process-policy.mjs` prevents a production adapter from reintroducing direct `Command::new` construction outside the core policy.
 
 Supervised native games run in their own process group. The CLI intercepts Ctrl-C and, on Unix, termination. Before child creation it durably cancels its known request ID; if the core has already closed cancellation, the CLI forwards the pending signal after the exact child is recorded and continues waiting so core can complete exact-install save collection. A nonzero exit or signal is a failed launch outcome and never advances successful-launch history, but it does not skip collection. The desktop supervisor is detached from the UI process and uses null standard streams; closing the window therefore cannot become a save-lifecycle decision. Desktop completion observation queries only its exact request primary key and emits one refresh after the durable terminal outcome; it never polls the complete launch-session table per launch.
+
+Desktop install and adoption reviews are ephemeral, generation-bound presentation state. Port/channel changes invalidate install plans; adoption path, target, dialog closure and newer reviews invalidate copy previews. Late results and request errors cannot replace newer review intent, and an older adoption completion cannot close a reopened dialog. Core still revalidates the content-bound adoption plan before copying.
 
 ## External frontend contract
 

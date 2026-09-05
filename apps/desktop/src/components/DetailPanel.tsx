@@ -63,7 +63,7 @@ function DetailDialog({ props, dialog }: { props: DetailPanelProps; dialog: Retu
   const selectedChannel = status?.channel ?? port.channels[0];
   const policy = status?.update_policy ?? "notify";
   const { sourceReady, biosReady, launchReady, installed, pendingSetup } = detailReadiness(port, status, source, sourcePath, bios, biosPath);
-  const state = detailState(installed, launchReady, Boolean(status?.staged), pendingSetup, Boolean(status?.readiness?.blockers.includes("missing_runtime")), status?.readiness?.source, status?.readiness?.bios);
+  const state = detailState(installed, launchReady, Boolean(status?.staged), pendingSetup, Boolean(status?.readiness?.blockers.includes("missing_runtime")), status?.readiness?.source, status?.readiness?.bios, Boolean(sourcePath.trim() || biosPath?.trim()));
   const sources: SourceControls = {
     port, source, sourceProfile, sourcePath, setSourcePath, pickSource, pickSourceArchive,
     bios, biosProfile, biosPath, setBiosPath, pickBios, sourceReady, biosReady,
@@ -95,7 +95,7 @@ function DetailBody({ port, status, state, sources, installed, launchReady, pend
     <ReadinessCard state={state} />
     <SourceFields mode="missing" controls={sources} />
     <PrimaryActions runtimeNeeded={Boolean(status?.readiness?.blockers.includes("missing_runtime"))} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} hasStaged={Boolean(status?.staged)} plan={installPlan} busy={busy} actions={actions} />
-    <TrustStrip />
+    <TrustStrip status={status} />
     <AdvancedControls port={port} status={status} selectedChannel={selectedChannel} policy={policy} installed={installed} backups={backups} backupProblems={backupProblems} backupState={backupState} busy={busy} sources={sources} actions={actions} />
   </div>;
 }
@@ -104,8 +104,8 @@ function ReadinessCard({ state }: { state: DetailState }) {
   return <div className={`readiness-card ${state.tone}`}><span><Icon glyph={state.icon} /></span><div><strong>{state.title}</strong><p>{state.description}</p></div></div>;
 }
 
-function TrustStrip() {
-  return <div className="trust-strip"><span><Icon glyph={ShieldCheck} size="sm" />Verified releases</span><span><Icon glyph={HardDrive} size="sm" />Sources stay local</span><span><Icon glyph={RotateCcw} size="sm" />Rollback retained</span></div>;
+function TrustStrip({ status }: { status?: PortStatus }) {
+  return <div className="trust-strip"><span><Icon glyph={HardDrive} size="sm" />Game files stay local</span>{status?.previous && <span><Icon glyph={RotateCcw} size="sm" />Previous version recorded · {status.previous.version}</span>}</div>;
 }
 
 function detailReadiness(port: PortDefinition, status: PortStatus | undefined, source: SourceRecord | undefined, sourcePath: string, bios: SourceRecord | undefined, biosPath: string | undefined) {
@@ -186,13 +186,14 @@ function AdvancedControls({ port, status, selectedChannel, policy, installed, ba
 
 function SourceField({ heading, profileId, profile, source, health, path, setPath, pick, pickArchive }: { heading: string; profileId: string; profile?: SourceProfile; source?: SourceRecord; health?: SourceHealth; path: string; setPath: (path: string) => void; pick?: () => void; pickArchive?: () => void }) {
   const copy = sourceFieldCopy(profile);
-  const sourceNote = source ? sourceHealthNote(health, source) : copy.note;
+  const sourceNote = path.trim() ? "Selected path has not been checked. Portcove validates these files when you continue." : source ? sourceHealthNote(health, source) : copy.note;
   const inputId = `source-${profileId}`;
   return <div className="detail-section"><label htmlFor={inputId}>{heading} · {profile?.label ?? profileId}</label>
     <div className="path-entry"><input data-focusable id={inputId} value={path} onChange={event => setPath(event.target.value)} placeholder={copy.placeholder} />
       {pick && <button data-focusable className="button-with-icon" type="button" onClick={pick}><Icon glyph={FolderOpen} />Browse</button>}
       {pickArchive && <button data-focusable className="button-with-icon" type="button" onClick={pickArchive}><Icon glyph={FileArchive} />ZIP</button>}</div>
     <small>{sourceNote}</small>
+    {path.trim() && source && health && health !== "current" && <small>{sourceHealthNote(health, source)}</small>}
   </div>;
 }
 
@@ -203,6 +204,7 @@ function sourceHealthNote(health: SourceHealth | undefined, source: SourceRecord
   if (health === "missing") return "Registered source file is missing.";
   if (health === "unreadable") return "Registered source cannot be read.";
   if (health === "not_checked") return `Registered · current bytes not checked · ${hash}`;
+  if (health === "not_baselined") return "Selected game files have no saved identity baseline.";
   return `Registered · ${hash}`;
 }
 
@@ -285,14 +287,15 @@ function CliContinuity({ port, status, channel, sourcePath, biosPath }: { port: 
   </div>;
 }
 
-function detailState(installed: boolean, launchReady: boolean, staged: boolean, pendingSetup: boolean, runtimeNeeded: boolean, sourceHealth?: SourceHealth, biosHealth?: SourceHealth) {
-  if (!installed) return { title: "Available to install", description: "Portcove will verify the release before it becomes active.", tone: "available", icon: Download };
+function detailState(installed: boolean, launchReady: boolean, staged: boolean, pendingSetup: boolean, runtimeNeeded: boolean, sourceHealth?: SourceHealth, biosHealth?: SourceHealth, selectedPath = false) {
+  if (!installed) return { title: "Available to install", description: selectedPath ? "Selected game files have not been checked. Portcove validates them when you continue installation." : "Portcove will check required game files and verify the release before it becomes active.", tone: "available", icon: Download };
   if (runtimeNeeded) return { title: "Verified runtime required", description: "Review the update to install this port with its required runtime. Existing saves stay in your library.", tone: "setup", icon: Wrench };
   const sourceIssue = sourceHealthState("Original source", sourceHealth);
   if (sourceIssue) return sourceIssue;
   const biosIssue = sourceHealthState("Required BIOS", biosHealth);
   if (biosIssue) return biosIssue;
   if (!launchReady) return { title: "Finish setup", description: "Register the required original source or BIOS to unlock Play.", tone: "setup", icon: Wrench };
+  if (selectedPath) return { title: "Game files need checking", description: "The selected path has not been checked. Portcove validates it before starting the game.", tone: "setup", icon: Wrench };
   if (pendingSetup) return { title: "First launch setup", description: "The source is registered. Portcove will run and verify the upstream setup before play.", tone: "setup", icon: Wrench };
   if (staged) return { title: "Ready · update staged", description: "Play the current version or activate the verified staged release.", tone: "staged", icon: RefreshCw };
   return { title: "Ready to launch", description: "The active version and every required local source are available.", tone: "ready", icon: CheckCircle2 };

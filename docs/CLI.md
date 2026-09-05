@@ -14,7 +14,7 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":12,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":13,"ok":true,"command":"status","data":{},"error":null}
 ```
 
 Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for success, failure, or cancellation. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
@@ -24,6 +24,16 @@ Argument-parser failures also use the machine envelope when `--json` or `--jsonl
 The compiled-binary machine contract is exercised on both Windows and Linux CI. These tests treat stdout line count, envelope fields, nested command names, JSONL completion, parser behavior, and exit codes as public integration behavior rather than implementation details.
 
 ## Discovery
+
+API schema 13 exports `source_assessment`, the shared typed contract for source
+health, classification, release-contract result, admission and scoped evidence.
+`not_baselined` means selected readable bytes have no saved identity baseline;
+`not_checked` means current bytes were not checked. `current` still means only
+unchanged against registration. This foundation adds no inspection command and
+does not change source admission or verification responses. Consumers must not
+use evidence presence, relevance, or a selected path as permission to install.
+Legacy variant-unspecified evidence never establishes exact qualification;
+failed, unknown and not-run evidence retain separate meanings.
 
 ```text
 portcove --json capabilities

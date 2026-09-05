@@ -140,6 +140,7 @@ const checkedEnums = [
   "ReleaseSource",
   "RuntimeSourceMaterialization",
   "SourceKind",
+  "SourceHealth",
   "SupportTier",
   "UpdatePolicy",
   "UpstreamStatus",
