@@ -7,6 +7,7 @@ use std::{
 };
 
 use fs2::FileExt;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{PortcoveError, Result};
@@ -32,14 +33,15 @@ impl Default for HostPreferences {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum LibrarySelectionSource {
     Invocation,
     Saved,
     PlatformDefault,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct LibrarySelection {
     pub root: PathBuf,
     pub source: LibrarySelectionSource,
@@ -53,6 +55,18 @@ pub struct HostPreferenceStore {
 }
 
 impl HostPreferenceStore {
+    pub fn default_path() -> Result<PathBuf> {
+        let project = directories::ProjectDirs::from("io.github", "Portcove", "Portcove")
+            .ok_or_else(|| {
+                PortcoveError::state("could not determine the Portcove configuration directory")
+            })?;
+        Ok(project.config_local_dir().join("preferences.json"))
+    }
+
+    pub fn open_default() -> Result<Self> {
+        Self::new(Self::default_path()?)
+    }
+
     pub fn new(path: PathBuf) -> Result<Self> {
         validate_absolute(&path)?;
         if path.file_name().is_none() {
@@ -111,10 +125,16 @@ impl HostPreferenceStore {
     }
 
     pub fn set_library(&self, root: &Path) -> Result<()> {
-        validate_absolute(root)?;
+        let root = crate::Library::validate_selection_target(root)?;
+        let preference_path = crate::path::resolve_existing_ancestor(&self.path)?;
+        if preference_path.starts_with(&root) {
+            return Err(PortcoveError::conflict(
+                "host preferences must remain outside the selected library",
+            ));
+        }
         let _lock = self.lock()?;
         let mut preferences = self.load()?;
-        preferences.library_root = Some(root.to_path_buf());
+        preferences.library_root = Some(root);
         self.publish(&preferences)
     }
 
@@ -135,6 +155,12 @@ impl HostPreferenceStore {
 
     fn lock(&self) -> Result<fs::File> {
         crate::path::refuse_symlink_ancestors(&self.path)?;
+        let parent = self
+            .path
+            .parent()
+            .ok_or_else(|| PortcoveError::usage("host preference path needs a parent directory"))?;
+        fs::create_dir_all(parent)?;
+        crate::path::refuse_symlink_ancestors(parent)?;
         let name = self
             .path
             .file_name()

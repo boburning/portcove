@@ -411,7 +411,16 @@ export type ErrorCode = "usage" | "unsupported" | "not_found" | "source_invalid"
 export interface BootstrapStatus {
   ready: boolean;
   library_root?: string;
+  selection?: LibrarySelection;
+  generation: number;
   error?: DesktopError;
+}
+
+export type LibrarySelectionSource = "invocation" | "saved" | "platform_default";
+
+export interface LibrarySelection {
+  root: string;
+  source: LibrarySelectionSource;
 }
 
 export interface LibraryMetadataFile {

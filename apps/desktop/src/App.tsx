@@ -7,7 +7,7 @@ import { CommandPalette } from "./components/CommandPalette";
 import { DetailPanel } from "./components/DetailPanel";
 import { PortBrowser } from "./components/PortBrowser";
 import { UpdateCenter } from "./components/UpdateCenter";
-import { pickInstallFolder, pickMetadataExportPath, pickSourceArchivePath, pickSourcePath } from "./file-picker";
+import { pickInstallFolder, pickLibraryFolder, pickMetadataExportPath, pickSourceArchivePath, pickSourcePath } from "./file-picker";
 import { desktopApi } from "./api";
 import { useWorkspaceScroll } from "./keyboard-shortcuts";
 import { useThemePreference } from "./theme";
@@ -27,10 +27,22 @@ export default function App() {
       setBootstrapError({ code: "state", message: errorText(value), details: {} });
     });
   }, []);
-  if (bootstrapError) return <BootstrapRecovery error={bootstrapError} />;
+  const chooseLibrary = async (currentPath = "") => {
+    const path = await pickLibraryFolder(currentPath);
+    if (!path) return;
+    const next = await desktopApi.setDefaultLibrary(path);
+    setBootstrap(next);
+    setBootstrapError(undefined);
+  };
+  const resetLibrary = async () => {
+    const next = await desktopApi.resetDefaultLibrary();
+    setBootstrap(next);
+    setBootstrapError(undefined);
+  };
+  if (bootstrapError) return <BootstrapRecovery error={bootstrapError} chooseLibrary={chooseLibrary} resetLibrary={resetLibrary} />;
   if (!bootstrap) return <BootstrapLoading />;
-  if (!bootstrap.ready) return <BootstrapRecovery error={bootstrap.error ?? { code: "state", message: "Portcove initialization failed without an error report.", details: {} }} />;
-  return <Workspace />;
+  if (!bootstrap.ready) return <BootstrapRecovery error={bootstrap.error ?? { code: "state", message: "Portcove initialization failed without an error report.", details: {} }} chooseLibrary={chooseLibrary} resetLibrary={resetLibrary} />;
+  return <Workspace key={bootstrap.generation} bootstrap={bootstrap} chooseLibrary={chooseLibrary} resetLibrary={resetLibrary} />;
 }
 
 function BootstrapLoading() {
@@ -41,7 +53,8 @@ function BootstrapLoading() {
   </main>;
 }
 
-export function BootstrapRecovery({ error }: { error: DesktopError }) {
+export function BootstrapRecovery({ error, chooseLibrary, resetLibrary }: { error: DesktopError; chooseLibrary?: () => Promise<void>; resetLibrary?: () => Promise<void> }) {
+  const [actionError, setActionError] = useState<string>();
   useGamepadNavigation(() => {});
   const recoveryRoot = transferRecoveryRoot(error);
   const importRoot = transferRecoveryRoot(error, "import_destination");
@@ -54,13 +67,18 @@ export function BootstrapRecovery({ error }: { error: DesktopError }) {
       {Object.entries(error.details).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{value}</dd></div>)}
     </dl>
     <p>Check the configured library path, access permissions, and available space, then retry. Portcove will run recovery checks again before enabling library actions.</p>
-    <button type="button" onClick={() => window.location.reload()}>Retry startup</button>
+    <div className="button-row">
+      <button type="button" onClick={() => window.location.reload()}>Retry startup</button>
+      <button type="button" onClick={() => { void chooseLibrary?.().catch(value => setActionError(errorText(value))); }}>Choose library</button>
+      <button type="button" onClick={() => { void resetLibrary?.().catch(value => setActionError(errorText(value))); }}>Use platform default</button>
+    </div>
+    {actionError && <p role="alert">{actionError}</p>}
     {recoveryRoot && <LibraryMoveRecovery source={recoveryRoot} />}
     {importRoot && <LibraryImportRecovery destination={importRoot} />}
   </main>;
 }
 
-function Workspace() {
+function Workspace({ bootstrap, chooseLibrary, resetLibrary }: { bootstrap: BootstrapStatus; chooseLibrary: (currentPath?: string) => Promise<void>; resetLibrary: () => Promise<void> }) {
   const data = usePortcoveData();
   const operations = useOperationState(data.refresh);
   const github = useGithubAuth(operations.perform, operations.setError);
@@ -92,7 +110,7 @@ function Workspace() {
     <main ref={workspace} data-focus-region="workspace">
       <PageHeader view={ui.view} query={ui.query} setQuery={ui.setQuery} portCount={data.catalog?.ports.length ?? 0} onOpenCommands={() => commandSurface.setOpen(true)} />
       <StatusLayer error={operations.error} clearError={() => operations.setError(undefined)} operation={operations.operation} busy={operations.busy} />
-      <CurrentView data={data} ui={ui} model={model} operations={operations} github={github} updates={updates} sourceHealth={sourceHealth} appearance={appearance} />
+      <CurrentView data={data} ui={ui} model={model} operations={operations} github={github} updates={updates} sourceHealth={sourceHealth} appearance={appearance} bootstrap={bootstrap} chooseLibrary={chooseLibrary} resetLibrary={resetLibrary} />
     </main>
     <SelectedPortPanel model={model} ui={ui} operations={operations} installPlanning={installPlanning} backups={backups} activities={data.activities} />
     <AdoptionOverlay ui={ui} operations={operations} />
@@ -137,12 +155,14 @@ function selectedPort(data: DataState, selectedId: string | undefined, statuses:
   };
 }
 
-function CurrentView({ data, ui, model, operations, github, updates, sourceHealth, appearance }: {
+function CurrentView({ data, ui, model, operations, github, updates, sourceHealth, appearance, bootstrap, chooseLibrary, resetLibrary }: {
   data: DataState; ui: UiState; model: ReturnType<typeof useAppModel>; operations: OperationState; github: GithubState; updates: UpdateState; sourceHealth: SourceHealthState; appearance: AppearanceState;
+  bootstrap: BootstrapStatus; chooseLibrary: (currentPath?: string) => Promise<void>; resetLibrary: () => Promise<void>;
 }) {
   if (ui.view === "updates") return <UpdateCenter ports={data.catalog?.ports ?? []} statuses={model.statusMap} activities={data.activities} outcomes={updates.outcomes} actions={updates.actions} busy={operations.busy}
     checkAll={() => { void updates.checkAll(); }} applyPolicies={() => { void updates.applyPolicies(); }} onSelect={ui.setSelectedId} onOpenSources={() => ui.setView("settings")} />;
   if (ui.view === "settings") return <SettingsView doctor={data.doctor} storage={data.storage} github={github} busy={operations.busy} sources={data.sources} appearance={appearance}
+    librarySelection={bootstrap.selection} chooseLibrary={chooseLibrary} resetLibrary={resetLibrary}
     sourceProfiles={data.catalog?.source_profiles ?? []} onSourceAdded={data.refresh} onCatalogChanged={data.refresh}
     createSupportBundle={() => operations.perform("support bundle", desktopApi.createSupportBundle)}
     exportMetadata={() => operations.perform("export library metadata", async () => {

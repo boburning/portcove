@@ -207,6 +207,11 @@ mod tests {
             initialization: std::sync::Arc::new(std::sync::Mutex::new(initialize_desktop_at(
                 Some(source.clone()),
             ))),
+            preferences: portcove_core::HostPreferenceStore::new(
+                temporary.path().join("preferences.json"),
+            )
+            .map_err(DesktopError::from),
+            generation: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(1)),
             launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
         };
         let plan = service(&state)

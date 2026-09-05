@@ -14,7 +14,7 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":13,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":14,"ok":true,"command":"status","data":{},"error":null}
 ```
 
 Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for success, failure, or cancellation. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
@@ -34,6 +34,11 @@ does not change source admission or verification responses. Consumers must not
 use evidence presence, relevance, or a selected path as permission to install.
 Legacy variant-unspecified evidence never establishes exact qualification;
 failed, unknown and not-run evidence retain separate meanings.
+
+API schema 14 adds library selection output with its effective root and
+`invocation`, `saved`, or `platform_default` provenance. It also adds the
+library-free `library show`, `library set`, and `library reset` commands shared
+with desktop bootstrap.
 
 ```text
 portcove --json capabilities
@@ -131,6 +136,20 @@ portcove --json cancel <activity-uuid>
 An active cancellable activity reports `cancellation.phase` (`preparing` or `finishing`) and `cancellation.requested`. `cancel` accepts only a running preparation and returns request acknowledgement. Wait for the operation or ledger to report its terminal outcome. A completed cancellation has status/error code `cancelled`, a schema-2 finished event with `result: cancelled`, and exit code 130 for the cancelled command. A late request returns `conflict`; it cannot interrupt publication. Existing failure-isolated batch commands still return per-port outcomes, which must be inspected individually.
 
 Ctrl-C requests cancellation of this CLI command's current and queued source discovery, release checks, install, update, ensure, or reconciliation work, then keeps waiting. Unix SIGTERM uses the same path. Another client's operations are unaffected. Downloads and hashing stop cooperatively; extraction, conversion, or compilation may need to finish their current preparation step. Repeated signals do not force an unsafe publication interruption. Restore, library transfer, migration, and game supervision retain their existing recovery/lifetime behavior. Desktop game details and activity history offer the same core cancellation request; source search also keeps its own Cancel search control inside its dialog.
+
+## Library selection
+
+```text
+portcove --json library show
+portcove --json library set <existing-directory>
+portcove --json library reset
+```
+
+Library selection uses `--library` or `PORTCOVE_LIBRARY` for one invocation, then the saved host preference, then the platform default. `library show` reports the resolved root and `invocation`, `saved`, or `platform_default` provenance without opening a library. An explicit invocation remains available when saved preferences are malformed or from a future format.
+
+`library set` accepts an existing empty directory or a recognizable Portcove library, canonicalizes it, and publishes only the host preference. It rejects missing paths, files, symlinks, filesystem roots, unrelated nonempty directories, and a choice that would place preferences inside the library. It does not move or initialize the selected directory. `library reset` replaces damaged or unsupported preferences with format 1 and restores platform-default selection without opening that library. The desktop exposes the same choice and reset controls during bootstrap recovery and in Settings. A live desktop switch first drops adapter-owned handles and refuses while an already-dispatched operation still holds the old library; successful switches remount UI data against a new library generation.
+
+The preference document lives in Portcove's platform configuration directory, outside movable library data and credential storage. `PORTCOVE_PREFERENCES` may select an alternate absolute preference file for portable/test hosts; it does not change library precedence or make a relative path valid.
 
 ## Library metadata
 
@@ -276,6 +295,7 @@ For `exec`, a successfully started game returns its exit code when it fits the p
 ## Environment
 
 - `PORTCOVE_LIBRARY`: overrides the default library root.
+- `PORTCOVE_PREFERENCES`: optional absolute host-preference file override for portable/test hosts.
 - `PORTCOVE_GITHUB_TOKEN`: preferred optional GitHub API token for unattended update checks.
 - `GH_TOKEN` / `GITHUB_TOKEN`: compatible fallbacks when the Portcove-specific token is absent.
 - `PORTCOVE_GITHUB_CLIENT_ID`: public GitHub App client ID used by device login. It may be embedded at build time or provided at runtime; it is not a client secret.
