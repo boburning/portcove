@@ -291,6 +291,9 @@ fn path_string(path: Option<&PathBuf>) -> Result<Option<String>> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LifecycleFaultPoint {
     SourcePrepared,
+    LaunchReadyToSpawn,
+    LaunchChildStarted,
+    LaunchCollecting,
     InstallPrepared,
     InstallReadyToPublish,
     InstallPublished,

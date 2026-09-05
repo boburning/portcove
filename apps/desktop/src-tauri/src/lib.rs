@@ -8,21 +8,34 @@ use std::{
     path::{Path, PathBuf},
     process::Stdio,
     thread,
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use portcove_core::{
     ActivityRecord, AdoptionPreview, BackupAction, BackupInventory, BackupRecord, CatalogDocument,
     ChildProcessClass, ChildProcessPolicy, CompositeReleaseProvider, DoctorReport,
     GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, GithubReleaseProvider,
-    InstallPlan, InstallRecord, LaunchStdio, Library, LibraryMetadataFile, OperationCoordinator,
-    OperationEvent, OperationResult, PortStatus, PortcoveError, PortcoveService, ReconcileResult,
-    ReleaseChannel, ReleaseProvider, RestoreResult, SourceRecord, SourceRelinkPlan,
-    SourceRemovalPreview, SourceVerification, UpdateCheck, UpdatePolicy, VerificationReport,
+    IdentifiedLaunchRequest, InstallPlan, InstallRecord, LaunchStdio, Library, LibraryMetadataFile,
+    OperationCoordinator, OperationEvent, OperationResult, PortStatus, PortcoveError,
+    PortcoveService, ReconcileResult, ReleaseChannel, ReleaseProvider, RestoreResult, SourceRecord,
+    SourceRelinkPlan, SourceRemovalPreview, SourceVerification, UpdateCheck, UpdatePolicy,
+    VerificationReport,
 };
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
+
+type LaunchObservation = (Library, String);
+type LaunchObserver =
+    std::sync::Arc<std::sync::Mutex<Option<std::sync::mpsc::Sender<LaunchObservation>>>>;
+const LAUNCH_ACCEPTANCE_POLL_INTERVAL: Duration = Duration::from_millis(25);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LaunchObservationState {
+    Active,
+    Complete,
+    Retry,
+}
 
 #[derive(Clone)]
 struct ReadyDesktopState {
@@ -34,6 +47,7 @@ struct ReadyDesktopState {
 #[derive(Clone)]
 struct DesktopState {
     initialization: std::sync::Arc<std::sync::Mutex<DesktopResult<ReadyDesktopState>>>,
+    launch_observer: LaunchObserver,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -954,12 +968,13 @@ async fn remove_port(
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct LaunchResult {
-    process_id: u32,
+    process_id: Option<u32>,
     session_id: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 struct LaunchSupervisorRequest {
+    request_id: String,
     library_root: PathBuf,
     port_id: String,
     source: Option<PathBuf>,
@@ -997,29 +1012,81 @@ async fn launch_port(
     arguments: Vec<String>,
 ) -> DesktopResult<LaunchResult> {
     let library = ready(&state)?.library.clone();
+    let supervisor_library = library.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
-        request_supervised_launch(&library, port_id, source, arguments)
+        request_supervised_launch(&supervisor_library, port_id, source, arguments)
     })
     .await
     .map_err(|error| DesktopError::from(PortcoveError::state(error.to_string())))??;
-    let observed_session = result.session_id.clone();
-    let observed_library = ready(&state)?.library.clone();
-    thread::spawn(move || {
-        loop {
-            match observed_library.launch_sessions() {
-                Ok(sessions)
-                    if sessions
-                        .iter()
-                        .any(|session| session.id == observed_session) =>
-                {
-                    thread::sleep(Duration::from_millis(250));
-                }
-                _ => break,
-            }
-        }
-        let _ = app.emit("portcove://library-changed", ());
-    });
+    observe_launch_completion(&app, state.inner(), library, result.session_id.clone())?;
     Ok(result)
+}
+
+fn observe_launch_completion(
+    app: &tauri::AppHandle,
+    state: &DesktopState,
+    library: Library,
+    request_id: String,
+) -> DesktopResult<()> {
+    let mut observer = state.launch_observer.lock().map_err(|_| {
+        DesktopError::from(PortcoveError::state("launch observer lock was poisoned"))
+    })?;
+    if observer.is_none() {
+        let (sender, receiver) = std::sync::mpsc::channel::<LaunchObservation>();
+        let app = app.clone();
+        thread::spawn(move || {
+            let mut pending = Vec::<(Library, String)>::new();
+            loop {
+                match receiver.recv_timeout(Duration::from_millis(250)) {
+                    Ok(observation) => pending.push(observation),
+                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
+                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) if pending.is_empty() => {
+                        break;
+                    }
+                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {}
+                }
+                while let Ok(observation) = receiver.try_recv() {
+                    pending.push(observation);
+                }
+                let completed =
+                    retain_launch_observations(&mut pending, |(library, request_id)| match library
+                        .launch_request(request_id)
+                    {
+                        Ok(Some(request)) if request.outcome.is_none() => {
+                            LaunchObservationState::Active
+                        }
+                        Ok(_) => LaunchObservationState::Complete,
+                        Err(_) => LaunchObservationState::Retry,
+                    });
+                if completed {
+                    let _ = app.emit("portcove://library-changed", ());
+                }
+            }
+        });
+        *observer = Some(sender);
+    }
+    observer
+        .as_ref()
+        .expect("launch observer was initialized")
+        .send((library, request_id))
+        .map_err(|_| {
+            DesktopError::from(PortcoveError::state("launch observer stopped unexpectedly"))
+        })
+}
+
+fn retain_launch_observations<T>(
+    pending: &mut Vec<T>,
+    mut observe: impl FnMut(&T) -> LaunchObservationState,
+) -> bool {
+    let mut completed = false;
+    pending.retain(|observation| match observe(observation) {
+        LaunchObservationState::Active | LaunchObservationState::Retry => true,
+        LaunchObservationState::Complete => {
+            completed = true;
+            false
+        }
+    });
+    completed
 }
 
 fn request_supervised_launch(
@@ -1038,6 +1105,7 @@ fn request_supervised_launch(
     publish_json(
         &request_path,
         &LaunchSupervisorRequest {
+            request_id,
             library_root: library.root().to_path_buf(),
             port_id,
             source,
@@ -1058,13 +1126,44 @@ fn request_supervised_launch(
         let _ = fs::remove_file(&request_path);
         PortcoveError::launch(format!("could not start the launch supervisor: {error}"))
     })?;
-    let deadline = Instant::now() + Duration::from_secs(300);
-    loop {
-        if response_path.is_file() {
-            let response: LaunchSupervisorResponse =
+    let result = wait_for_launch_acceptance(
+        || {
+            if !response_path.is_file() {
+                return Ok(None);
+            }
+            let response =
                 serde_json::from_slice(&fs::read(&response_path).map_err(PortcoveError::from)?)
                     .map_err(PortcoveError::from)?;
             let _ = fs::remove_file(&response_path);
+            Ok(Some(response))
+        },
+        || {
+            supervisor
+                .try_wait()
+                .map(|status| status.map(|status| status.to_string()))
+                .map_err(PortcoveError::from)
+                .map_err(DesktopError::from)
+        },
+        || thread::sleep(LAUNCH_ACCEPTANCE_POLL_INTERVAL),
+    );
+    if result.is_err() {
+        let _ = fs::remove_file(&request_path);
+    }
+    result
+}
+
+fn wait_for_launch_acceptance<R, S, W>(
+    mut read_response: R,
+    mut supervisor_status: S,
+    mut wait: W,
+) -> DesktopResult<LaunchResult>
+where
+    R: FnMut() -> DesktopResult<Option<LaunchSupervisorResponse>>,
+    S: FnMut() -> DesktopResult<Option<String>>,
+    W: FnMut(),
+{
+    loop {
+        if let Some(response) = read_response()? {
             return match (response.result, response.error) {
                 (Some(result), None) => Ok(result),
                 (None, Some(error)) => Err(error),
@@ -1073,20 +1172,13 @@ fn request_supervised_launch(
                 ),
             };
         }
-        if let Some(status) = supervisor.try_wait().map_err(PortcoveError::from)? {
-            let _ = fs::remove_file(&request_path);
+        if let Some(status) = supervisor_status()? {
             return Err(PortcoveError::launch(format!(
                 "launch supervisor exited before starting the game ({status})"
             ))
             .into());
         }
-        if Instant::now() >= deadline {
-            return Err(PortcoveError::launch(
-                "launch supervisor did not report a child process within five minutes",
-            )
-            .into());
-        }
-        thread::sleep(Duration::from_millis(25));
+        wait();
     }
 }
 
@@ -1155,10 +1247,10 @@ fn run_supervisor_request(request_path: &Path) -> i32 {
         .and_then(|bytes| {
             serde_json::from_slice::<LaunchSupervisorRequest>(&bytes).map_err(Into::into)
         });
-    let _ = fs::remove_file(request_path);
     let request = match request {
         Ok(request) => request,
         Err(error) => {
+            let _ = fs::remove_file(request_path);
             let _ = publish_json(&response_path, &LaunchSupervisorResponse::failure(error));
             return 1;
         }
@@ -1167,30 +1259,34 @@ fn run_supervisor_request(request_path: &Path) -> i32 {
     let result = Library::open(&request.library_root)
         .and_then(PortcoveService::new)
         .and_then(|service| {
-            service.supervise_launch(
-                &request.port_id,
-                request.source.as_deref(),
-                &request.arguments,
-                LaunchStdio::Null,
-                |session| {
-                    if let Some(process_id) = session.child_pid {
-                        response_written = publish_json(
-                            &response_path,
-                            &LaunchSupervisorResponse::success(LaunchResult {
-                                process_id,
-                                session_id: session.id.clone(),
-                            }),
-                        )
-                        .is_ok();
-                    }
+            service.supervise_launch_identified(
+                IdentifiedLaunchRequest {
+                    request_id: &request.request_id,
+                    port_id: &request.port_id,
+                    source_override: request.source.as_deref(),
+                    arguments: &request.arguments,
+                    stdio: LaunchStdio::Null,
                 },
+                |session| {
+                    let _ = fs::remove_file(request_path);
+                    response_written = publish_json(
+                        &response_path,
+                        &LaunchSupervisorResponse::success(LaunchResult {
+                            process_id: None,
+                            session_id: session.id.clone(),
+                        }),
+                    )
+                    .is_ok();
+                },
+                |_| {},
             )
         });
     if !response_written {
+        let _ = fs::remove_file(request_path);
         let succeeded = result.is_ok();
         let response = match result {
             Ok(outcome) => LaunchSupervisorResponse::success(LaunchResult {
-                process_id: outcome.child_pid,
+                process_id: Some(outcome.child_pid),
                 session_id: outcome.session_id,
             }),
             Err(error) => LaunchSupervisorResponse::failure(error),
@@ -1381,7 +1477,10 @@ pub fn run() {
     )));
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .manage(DesktopState { initialization })
+        .manage(DesktopState {
+            initialization,
+            launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        })
         .invoke_handler(tauri::generate_handler![
             get_bootstrap_status,
             get_github_auth_status,
@@ -1446,6 +1545,18 @@ pub fn run() {
             if let Some(window) = app.get_webview_window("main") {
                 window.set_focus()?;
             }
+            let state = app.state::<DesktopState>();
+            if let Ok(ready_state) = ready(&state) {
+                for session in ready_state.library.launch_sessions()? {
+                    observe_launch_completion(
+                        app.handle(),
+                        state.inner(),
+                        ready_state.library.clone(),
+                        session.id,
+                    )
+                    .map_err(|error| std::io::Error::other(error.message))?;
+                }
+            }
             Ok(())
         })
         .run(tauri::generate_context!())
@@ -1455,6 +1566,47 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn launch_acceptance_can_arrive_after_the_former_five_minute_deadline() {
+        let elapsed = std::cell::Cell::new(Duration::ZERO);
+
+        let result = wait_for_launch_acceptance(
+            || {
+                Ok((elapsed.get() >= Duration::from_secs(301)).then(|| {
+                    LaunchSupervisorResponse::success(LaunchResult {
+                        process_id: None,
+                        session_id: "durable-request".into(),
+                    })
+                }))
+            },
+            || Ok(None),
+            || elapsed.set(elapsed.get() + LAUNCH_ACCEPTANCE_POLL_INTERVAL),
+        )
+        .unwrap();
+
+        assert_eq!(result.session_id, "durable-request");
+        assert!(elapsed.get() > Duration::from_secs(300));
+    }
+
+    #[test]
+    fn concurrent_launch_observation_is_linear_and_coalesces_completion() {
+        let mut pending = (0_u32..16).collect::<Vec<_>>();
+        let queries = std::cell::Cell::new(0_u32);
+
+        let completed = retain_launch_observations(&mut pending, |request| {
+            queries.set(queries.get() + 1);
+            match request % 4 {
+                0 => LaunchObservationState::Complete,
+                1 => LaunchObservationState::Retry,
+                _ => LaunchObservationState::Active,
+            }
+        });
+
+        assert!(completed);
+        assert_eq!(queries.get(), 16);
+        assert_eq!(pending.len(), 12);
+    }
 
     #[test]
     fn external_links_are_limited_to_reviewed_https_destinations() {
@@ -1491,6 +1643,7 @@ mod tests {
         };
         let state = DesktopState {
             initialization: std::sync::Arc::new(std::sync::Mutex::new(Err(error.clone()))),
+            launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
         };
 
         let status = bootstrap_status(&state);

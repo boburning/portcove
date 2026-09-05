@@ -18,12 +18,12 @@ use crate::{
     BackupInventory, BackupInventoryState, BackupProblem, BackupProblemKind, BackupRecord, Catalog,
     ChildProcessPolicy, CompositeReleaseProvider, DoctorReport, InstallPlan, InstallPlanAction,
     InstallQualification, InstallRecord, InstallRequest, InstallSourceRequirement, Installer,
-    LaunchBlocker, LaunchReadiness, LaunchSessionPhase, LaunchSessionRecord, LaunchStdio, Library,
-    OperationCoordinator, OperationEvent, OperationResult, Platform, PortDefinition, PortPaths,
-    PortStatus, PortcoveError, ReconcileAction, ReconcileResult, ReleaseChannel, ReleaseProvider,
-    RepairItem, RepairItemKind, RepairPlan, ResolvedRelease, RestoreResult, Result, SourceHealth,
-    SourceRecord, SourceRemovalPreview, SourceRequirementRole, SourceVerification,
-    SupervisedLaunchOutcome, UpdateCheck, UpdatePolicy, VerificationReport,
+    LaunchBlocker, LaunchReadiness, LaunchSessionOutcome, LaunchSessionPhase, LaunchSessionRecord,
+    LaunchStdio, Library, OperationCoordinator, OperationEvent, OperationResult, Platform,
+    PortDefinition, PortPaths, PortStatus, PortcoveError, ReconcileAction, ReconcileResult,
+    ReleaseChannel, ReleaseProvider, RepairItem, RepairItemKind, RepairPlan, ResolvedRelease,
+    RestoreResult, Result, SourceHealth, SourceRecord, SourceRemovalPreview, SourceRequirementRole,
+    SourceVerification, SupervisedLaunchOutcome, UpdateCheck, UpdatePolicy, VerificationReport,
     durability::{prepare_backup_publication, publish_backup_directory},
     operation::{
         LifecycleFaultInjector, LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind,
@@ -151,6 +151,15 @@ pub struct PortcoveService {
     releases: Arc<dyn ReleaseProvider>,
     adapters: AdapterRegistry,
     faults: Arc<dyn LifecycleFaultInjector>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct IdentifiedLaunchRequest<'a> {
+    pub request_id: &'a str,
+    pub port_id: &'a str,
+    pub source_override: Option<&'a Path>,
+    pub arguments: &'a [String],
+    pub stdio: LaunchStdio,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1678,6 +1687,43 @@ impl PortcoveService {
         })
     }
 
+    fn verified_source_record_with_checkpoint(
+        &self,
+        profile_id: &str,
+        checkpoint: &dyn Fn() -> Result<()>,
+    ) -> Result<SourceRecord> {
+        let registered = self.library.source(profile_id)?.ok_or_else(|| {
+            PortcoveError::not_found(format!("source profile {profile_id} is not registered"))
+        })?;
+        self.verify_source_record_with_checkpoint(&registered, checkpoint)?;
+        Ok(registered)
+    }
+
+    fn verify_source_record_with_checkpoint(
+        &self,
+        registered: &SourceRecord,
+        checkpoint: &dyn Fn() -> Result<()>,
+    ) -> Result<()> {
+        let profile_id = &registered.profile_id;
+        let (storage_sha256, storage_size) =
+            crate::adapter::source_storage_identity_with_checkpoint(&registered.path, checkpoint)?;
+        if storage_sha256 != registered.storage_sha256 || storage_size != registered.storage_size {
+            return Err(PortcoveError::source(format!(
+                "source changed since registration: {}",
+                registered.path.display()
+            ))
+            .detail("profile_id", profile_id)
+            .detail("recorded_storage_sha256", &registered.storage_sha256)
+            .detail("actual_storage_sha256", storage_sha256)
+            .detail("recorded_storage_size", registered.storage_size.to_string())
+            .detail("actual_storage_size", storage_size.to_string()));
+        }
+        checkpoint()?;
+        self.verify_source_record(registered)?;
+        checkpoint()?;
+        Ok(())
+    }
+
     pub async fn install<F>(
         &self,
         port_id: &str,
@@ -2569,37 +2615,91 @@ impl PortcoveService {
     where
         F: FnOnce(&LaunchSessionRecord),
     {
+        let request_id = Uuid::new_v4().to_string();
+        self.supervise_launch_identified(
+            IdentifiedLaunchRequest {
+                request_id: &request_id,
+                port_id,
+                source_override,
+                arguments,
+                stdio,
+            },
+            |_| {},
+            on_started,
+        )
+    }
+
+    /// Supervises a launch under a caller-known durable request identity.
+    /// `on_accepted` runs only after the preparing session is committed, while
+    /// `on_started` runs only after the exact child identity is committed.
+    pub fn supervise_launch_identified<A, F>(
+        &self,
+        request: IdentifiedLaunchRequest<'_>,
+        on_accepted: A,
+        on_started: F,
+    ) -> Result<SupervisedLaunchOutcome>
+    where
+        A: FnOnce(&LaunchSessionRecord),
+        F: FnOnce(&LaunchSessionRecord),
+    {
+        let IdentifiedLaunchRequest {
+            request_id,
+            port_id,
+            source_override,
+            arguments,
+            stdio,
+        } = request;
+        let request_id = Uuid::parse_str(request_id)
+            .map_err(|_| PortcoveError::usage("launch request ID must be a UUID"))?;
         let _operation = self.library.try_lock_port(port_id, "launch")?;
-        let activity = self.library.begin_activity(
+        let (activity, operation) = self.begin_identified_cancellable_activity(
+            request_id,
             ActivityOperation::Launch,
             ActivityTargetKind::Port,
             Some(port_id),
         )?;
         let mut session_created = false;
+        let mut child_state_uncertain = false;
         let result = (|| {
-            let spec = self.launch_spec(port_id, source_override)?;
+            self.require_completed_restore(port_id)?;
+            let port = self.catalog.port(port_id)?;
             let install = self
                 .library
-                .all_installs()?
-                .into_iter()
-                .find(|install| install.port_id == port_id && install.path == spec.install_root)
-                .ok_or_else(|| {
-                    PortcoveError::state(format!(
-                        "the prepared {port_id} launch is not bound to a registered install"
-                    ))
-                })?;
+                .status(port_id, default_channel(port))?
+                .active
+                .ok_or_else(|| PortcoveError::not_found(format!("{port_id} is not installed")))?;
+            let supervisor_identity = crate::launch::process_identity(std::process::id())?
+                .ok_or_else(|| PortcoveError::state("launch supervisor identity disappeared"))?;
             let now = Library::now();
             let mut session = LaunchSessionRecord {
                 id: activity.id.clone(),
                 port_id: port_id.to_owned(),
-                install_id: install.id,
-                install_root: install.path,
+                install_id: install.id.clone(),
+                install_root: install.path.clone(),
                 supervisor_pid: std::process::id(),
+                supervisor_identity: Some(supervisor_identity),
                 child_pid: None,
+                child_identity: None,
                 phase: LaunchSessionPhase::Preparing,
+                outcome: None,
+                exit_code: None,
+                message: None,
                 started_at: now,
                 updated_at: now,
+                finished_at: None,
             };
+            self.library.create_launch_session(&session)?;
+            session_created = true;
+            on_accepted(&session);
+
+            operation.checkpoint()?;
+            let spec =
+                self.launch_spec_for_install(port, &install, source_override, Some(&operation))?;
+            if spec.install_root != install.path {
+                return Err(PortcoveError::state(format!(
+                    "the prepared {port_id} launch changed its registered install identity"
+                )));
+            }
             let mut command = ChildProcessPolicy::game_command(&spec.process_spec(), arguments)?;
             match stdio {
                 LaunchStdio::Inherit => {
@@ -2616,13 +2716,20 @@ impl PortcoveService {
                 }
             }
             crate::launch::configure_supervised_game(&mut command);
-            self.library.create_launch_session(&session)?;
-            session_created = true;
+            operation.checkpoint()?;
+            operation.begin_publication()?;
+            self.library.update_launch_session(
+                &session.id,
+                None,
+                None,
+                LaunchSessionPhase::Spawning,
+            )?;
+            session.phase = LaunchSessionPhase::Spawning;
+            session.updated_at = Library::now();
+            self.faults.check(LifecycleFaultPoint::LaunchReadyToSpawn)?;
             let mut child = match command.spawn() {
                 Ok(child) => child,
                 Err(error) => {
-                    self.library.remove_launch_session(&session.id)?;
-                    session_created = false;
                     return Err(PortcoveError::launch(format!(
                         "failed to start {}: {error}",
                         spec.executable.display()
@@ -2630,42 +2737,91 @@ impl PortcoveService {
                 }
             };
             let child_pid = child.id();
-            if let Err(error) = self.library.update_launch_session(
-                &session.id,
-                Some(child_pid),
-                LaunchSessionPhase::Running,
-            ) {
-                let _ = child.kill();
-                let _ = child.wait();
-                let _ = self.library.remove_launch_session(&session.id);
-                session_created = false;
-                return Err(error);
-            }
-            session.child_pid = Some(child_pid);
-            session.phase = LaunchSessionPhase::Running;
-            session.updated_at = Library::now();
-
-            let mut first_error = fs::write(spec.install_root.join(LAUNCH_MARKER), b"1")
-                .err()
-                .map(PortcoveError::from);
-            on_started(&session);
-
-            let status = match child.wait() {
-                Ok(status) => status,
+            let child_identity = match crate::launch::process_identity_for_child(&child) {
+                Ok(identity) => identity,
                 Err(error) => {
-                    return Err(PortcoveError::launch(format!(
-                        "could not observe launched process {child_pid}: {error}"
-                    )));
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Err(error);
                 }
             };
-            if let Err(error) = self.library.update_launch_session(
-                &session.id,
-                None,
-                LaunchSessionPhase::Collecting,
-            ) && first_error.is_none()
-            {
-                first_error = Some(error);
+            let (status, mut first_error) = if let Some(child_identity) = child_identity {
+                if let Err(error) = self.library.update_launch_session(
+                    &session.id,
+                    Some(child_pid),
+                    Some(&child_identity),
+                    LaunchSessionPhase::Running,
+                ) {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Err(error);
+                }
+                session.child_pid = Some(child_pid);
+                session.child_identity = Some(child_identity);
+                session.phase = LaunchSessionPhase::Running;
+                session.updated_at = Library::now();
+                child_state_uncertain = true;
+                self.faults.check(LifecycleFaultPoint::LaunchChildStarted)?;
+
+                let first_error = fs::write(spec.install_root.join(LAUNCH_MARKER), b"1")
+                    .err()
+                    .map(PortcoveError::from);
+                on_started(&session);
+
+                let status = match child.wait() {
+                    Ok(status) => status,
+                    Err(error) => {
+                        return Err(PortcoveError::launch(format!(
+                            "could not observe launched process {child_pid}: {error}"
+                        )));
+                    }
+                };
+                (status, first_error)
+            } else {
+                let status = match child.try_wait() {
+                    Ok(Some(status)) => status,
+                    Ok(None) => {
+                        let _ = child.kill();
+                        let _ = child.wait();
+                        return Err(PortcoveError::state(format!(
+                            "child process {child_pid} was still running after its start identity disappeared"
+                        )));
+                    }
+                    Err(error) => {
+                        return Err(PortcoveError::launch(format!(
+                            "could not observe launched process {child_pid}: {error}"
+                        )));
+                    }
+                };
+                self.library.update_launch_session(
+                    &session.id,
+                    Some(child_pid),
+                    None,
+                    LaunchSessionPhase::Collecting,
+                )?;
+                session.child_pid = Some(child_pid);
+                session.phase = LaunchSessionPhase::Collecting;
+                session.updated_at = Library::now();
+                child_state_uncertain = true;
+                let first_error = fs::write(spec.install_root.join(LAUNCH_MARKER), b"1")
+                    .err()
+                    .map(PortcoveError::from);
+                (status, first_error)
+            };
+            if session.phase != LaunchSessionPhase::Collecting {
+                if let Err(error) = self.library.update_launch_session(
+                    &session.id,
+                    None,
+                    None,
+                    LaunchSessionPhase::Collecting,
+                ) && first_error.is_none()
+                {
+                    first_error = Some(error);
+                }
+                session.phase = LaunchSessionPhase::Collecting;
+                session.updated_at = Library::now();
             }
+            self.faults.check(LifecycleFaultPoint::LaunchCollecting)?;
             if status.success()
                 && let Err(error) = self.library.record_successful_launch(port_id)
                 && first_error.is_none()
@@ -2677,17 +2833,12 @@ impl PortcoveService {
                 if first_error.is_none() {
                     first_error = Some(error);
                 }
-            } else if let Err(error) = self.library.remove_launch_session(&session.id) {
-                if first_error.is_none() {
-                    first_error = Some(error);
-                }
-            } else {
-                session_created = false;
             }
 
             if let Some(error) = first_error {
                 Err(error)
             } else {
+                child_state_uncertain = false;
                 Ok(SupervisedLaunchOutcome {
                     session_id: session.id,
                     child_pid,
@@ -2696,39 +2847,70 @@ impl PortcoveService {
                 })
             }
         })();
-        if session_created {
+        if session_created && child_state_uncertain {
             // An uncertain child or collection state must remain durable and
             // keep the activity running for explicit stale-session recovery.
             return result;
         }
-        let status = if result.as_ref().is_ok_and(|outcome| outcome.successful) {
-            ActivityStatus::Succeeded
+        if session_created {
+            let (outcome, exit_code, message) = match &result {
+                Ok(value) if value.successful => {
+                    (LaunchSessionOutcome::Succeeded, value.exit_code, None)
+                }
+                Ok(value) => (
+                    LaunchSessionOutcome::Failed,
+                    value.exit_code,
+                    Some("the game process did not exit successfully"),
+                ),
+                Err(error) if error.code == crate::ErrorCode::Cancelled => (
+                    LaunchSessionOutcome::Cancelled,
+                    None,
+                    Some(error.message.as_str()),
+                ),
+                Err(error) => (
+                    LaunchSessionOutcome::Failed,
+                    None,
+                    Some(error.message.as_str()),
+                ),
+            };
+            if let Err(error) =
+                self.library
+                    .finish_launch_session(&activity.id, outcome, exit_code, message)
+            {
+                return result.and(Err(error));
+            }
         } else {
-            ActivityStatus::Failed
-        };
-        let message = result.as_ref().err().map(|error| error.message.as_str());
-        if let Err(error) = self.library.finish_activity(&activity.id, status, message) {
-            return result.and(Err(error));
+            return self.finish_activity(activity, result);
         }
         result
     }
 
     pub fn stale_launch_sessions(&self) -> Result<Vec<LaunchSessionRecord>> {
-        Ok(self
-            .library
-            .launch_sessions()?
-            .into_iter()
-            .filter(|session| !crate::launch::process_alive(session.supervisor_pid))
-            .collect())
+        let mut stale = Vec::new();
+        for session in self.library.launch_sessions()? {
+            let live = match session.supervisor_identity.as_deref() {
+                Some(identity) => crate::launch::process_matches(session.supervisor_pid, identity)?,
+                None => false,
+            };
+            if !live {
+                stale.push(session);
+            }
+        }
+        Ok(stale)
     }
 
     /// Recovers a launch whose supervisor no longer exists. The exact recorded
     /// install remains locked until its child exits and collection completes.
     pub fn recover_launch_session(&self, session_id: &str) -> Result<()> {
-        let session = self.library.launch_session(session_id)?.ok_or_else(|| {
-            PortcoveError::not_found(format!("launch session {session_id} was not found"))
-        })?;
-        if crate::launch::process_alive(session.supervisor_pid) {
+        let session = self
+            .library
+            .active_launch_session(session_id)?
+            .ok_or_else(|| {
+                PortcoveError::not_found(format!("launch session {session_id} was not found"))
+            })?;
+        if let Some(identity) = session.supervisor_identity.as_deref()
+            && crate::launch::process_matches(session.supervisor_pid, identity)?
+        {
             return Err(PortcoveError::conflict(format!(
                 "launch session {session_id} still has a live supervisor"
             ))
@@ -2737,11 +2919,14 @@ impl PortcoveService {
         let _operation = self
             .library
             .try_lock_port_for_launch_recovery(&session.port_id, session_id)?;
-        let session = self.library.launch_session(session_id)?.ok_or_else(|| {
-            PortcoveError::not_found(format!(
-                "launch session {session_id} was recovered elsewhere"
-            ))
-        })?;
+        let session = self
+            .library
+            .active_launch_session(session_id)?
+            .ok_or_else(|| {
+                PortcoveError::not_found(format!(
+                    "launch session {session_id} was recovered elsewhere"
+                ))
+            })?;
         let install_is_exact = self.library.all_installs()?.into_iter().any(|install| {
             install.id == session.install_id
                 && install.port_id == session.port_id
@@ -2754,20 +2939,66 @@ impl PortcoveService {
             .detail("install_id", &session.install_id)
             .detail("install_root", session.install_root.display().to_string()));
         }
-        self.library
-            .update_launch_session(session_id, None, LaunchSessionPhase::Recovering)?;
-        if let Some(child_pid) = session.child_pid {
-            crate::launch::wait_for_process_exit(child_pid);
-            self.collect_user_data_from_install(&session.port_id, &session.install_root)?;
+        if session.phase == LaunchSessionPhase::Preparing {
+            let cancelled = crate::cancellation::cancellation_state(&self.library, session_id)?
+                .is_some_and(|state| state.requested);
+            return self.library.finish_launch_session(
+                session_id,
+                if cancelled {
+                    LaunchSessionOutcome::Cancelled
+                } else {
+                    LaunchSessionOutcome::Failed
+                },
+                None,
+                Some(if cancelled {
+                    "launch preparation was cancelled and recovered after supervisor exit"
+                } else {
+                    "launch supervisor exited before the child process started"
+                }),
+            );
         }
-        self.library.remove_launch_session(session_id)?;
-        self.library.finish_activity(
+        if session.phase == LaunchSessionPhase::Spawning {
+            return Err(PortcoveError::conflict(format!(
+                "launch session {session_id} stopped while child creation was in progress"
+            ))
+            .detail("launch_session_id", session_id)
+            .detail("recovery_action", "manual_review"));
+        }
+        self.library.update_launch_session(
             session_id,
-            ActivityStatus::Failed,
+            None,
+            None,
+            LaunchSessionPhase::Recovering,
+        )?;
+        if matches!(
+            session.phase,
+            LaunchSessionPhase::Running | LaunchSessionPhase::Recovering
+        ) {
+            let child_pid = session.child_pid.ok_or_else(|| {
+                PortcoveError::conflict("a running launch recovery has no recorded child process")
+                    .detail("launch_session_id", session_id)
+                    .detail("recovery_action", "manual_review")
+            })?;
+            let child_identity = session.child_identity.as_deref().ok_or_else(|| {
+                PortcoveError::conflict(
+                    "the recorded child predates process-start identity and cannot be recovered automatically",
+                )
+                .detail("launch_session_id", session_id)
+                .detail("process_id", child_pid.to_string())
+                .detail("recovery_action", "manual_review")
+            })?;
+            crate::launch::wait_for_process_exit(child_pid, child_identity)?;
+        }
+        self.collect_user_data_from_install(&session.port_id, &session.install_root)?;
+        self.library.finish_launch_session(
+            session_id,
+            LaunchSessionOutcome::Failed,
+            None,
             Some("launch supervisor exited; the recorded session was recovered"),
         )
     }
 
+    #[cfg(test)]
     fn launch_spec(
         &self,
         port_id: &str,
@@ -2779,21 +3010,37 @@ impl PortcoveService {
             .status(port_id)?
             .active
             .ok_or_else(|| PortcoveError::not_found(format!("{port_id} is not installed")))?;
-        crate::runtime::require_ready(port, Platform::current()?, &active)?;
-        let selected_executable = Installer::new(self.library.clone())?.verify_critical(&active)?;
+        self.launch_spec_for_install(port, &active, source_override, None)
+    }
+
+    fn launch_spec_for_install(
+        &self,
+        port: &PortDefinition,
+        active: &InstallRecord,
+        source_override: Option<&Path>,
+        operation: Option<&OperationCoordinator>,
+    ) -> Result<crate::LaunchSpec> {
+        let checkpoint = || operation.map_or(Ok(()), OperationCoordinator::checkpoint);
+        checkpoint()?;
+        crate::runtime::require_ready(port, Platform::current()?, active)?;
+        checkpoint()?;
+        let selected_executable = Installer::new(self.library.clone())?.verify_critical(active)?;
+        checkpoint()?;
         let source = if let Some(path) = source_override {
             let profile_id = port.source_profile.as_deref().ok_or_else(|| {
                 PortcoveError::usage(format!("{} does not accept a source override", port.name))
             })?;
             let profile = self.catalog.source_profile(profile_id)?;
-            Some(
+            let source = Some(
                 self.adapters
                     .get(port.adapter)
                     .validate_source(profile, path)?,
-            )
+            );
+            checkpoint()?;
+            source
         } else if let Some(profile) = &port.source_profile {
             if self.library.source(profile)?.is_some() {
-                Some(self.verified_source_record(profile)?)
+                Some(self.verified_source_record_with_checkpoint(profile, &checkpoint)?)
             } else {
                 None
             }
@@ -2802,24 +3049,32 @@ impl PortcoveService {
         };
         if active.path.join(LAUNCH_MARKER).is_file() {
             self.collect_user_data_from(port, &active.path)?;
+            checkpoint()?;
         }
         self.restore_user_data_to(port, &active.path)?;
+        checkpoint()?;
         let spec = self
             .adapters
             .get(port.adapter)
             .launch_spec_with_executable(
-                &self.library,
-                port,
-                Platform::current()?,
-                &active.path,
-                &selected_executable,
-                source.as_ref().map(|record| record.path.as_path()),
+                crate::LaunchSpecRequest {
+                    library: &self.library,
+                    port,
+                    platform: Platform::current()?,
+                    install_root: &active.path,
+                    selected_executable: &selected_executable,
+                    source: source.as_ref().map(|record| record.path.as_path()),
+                },
+                &checkpoint,
             )?;
         self.faults.check(LifecycleFaultPoint::SourcePrepared)?;
+        checkpoint()?;
         if let Some(source) = &source {
-            self.verify_source_record(source)?;
+            self.verify_source_record_with_checkpoint(source, &checkpoint)?;
         }
-        self.refresh_upstream_setup_manifest(port, &active, &spec.working_directory)?;
+        checkpoint()?;
+        self.refresh_upstream_setup_manifest(port, active, &spec.working_directory)?;
+        checkpoint()?;
         Ok(spec)
     }
 
@@ -6279,6 +6534,353 @@ fn main() {
         );
     }
 
+    struct CancelLaunchAt {
+        controller: PortcoveService,
+        request_id: String,
+        point: LifecycleFaultPoint,
+        accepted: bool,
+    }
+
+    impl LifecycleFaultInjector for CancelLaunchAt {
+        fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+            if point == self.point {
+                assert_eq!(
+                    self.controller
+                        .request_cancellation(&self.request_id)
+                        .is_ok(),
+                    self.accepted
+                );
+            }
+            Ok(())
+        }
+    }
+
+    struct FailLaunchAt(LifecycleFaultPoint);
+
+    impl LifecycleFaultInjector for FailLaunchAt {
+        fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+            if point == self.0 {
+                return Err(PortcoveError::state("simulated supervisor crash"));
+            }
+            Ok(())
+        }
+    }
+
+    fn launch_service_with_faults(
+        library: Library,
+        faults: Arc<dyn LifecycleFaultInjector>,
+    ) -> PortcoveService {
+        PortcoveService::with_provider_and_faults(
+            library,
+            Arc::new(StaticReleaseProvider {
+                version: "v1".into(),
+            }),
+            faults,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn pre_spawn_cancellation_is_durable_and_never_creates_a_child() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_launch_probe(&library, "v1", true);
+        let request_id = Uuid::new_v4().to_string();
+        let controller = PortcoveService::new(library.clone()).unwrap();
+        let service = launch_service_with_faults(
+            library.clone(),
+            Arc::new(CancelLaunchAt {
+                controller,
+                request_id: request_id.clone(),
+                point: LifecycleFaultPoint::SourcePrepared,
+                accepted: true,
+            }),
+        );
+        let started = temporary.path().join("cancelled-started");
+        let arguments = vec![
+            started.display().to_string(),
+            "0".into(),
+            "must-not-run".into(),
+            "0".into(),
+        ];
+
+        let error = service
+            .supervise_launch_identified(
+                IdentifiedLaunchRequest {
+                    request_id: &request_id,
+                    port_id: "zelda64-recomp",
+                    source_override: None,
+                    arguments: &arguments,
+                    stdio: LaunchStdio::Null,
+                },
+                |_| {},
+                |_| panic!("cancelled preparation must not report a child"),
+            )
+            .unwrap_err();
+
+        assert_eq!(error.code, crate::ErrorCode::Cancelled);
+        assert!(!started.exists());
+        assert!(library.launch_sessions().unwrap().is_empty());
+        let library_root = library.root().to_path_buf();
+        drop(service);
+        drop(library);
+        let reconnected = Library::open(library_root).unwrap();
+        let request = reconnected.launch_request(&request_id).unwrap().unwrap();
+        assert_eq!(request.outcome, Some(LaunchSessionOutcome::Cancelled));
+        assert!(request.child_pid.is_none());
+        assert_eq!(
+            reconnected.activities(1).unwrap()[0].status,
+            ActivityStatus::Cancelled
+        );
+    }
+
+    #[test]
+    fn cancellation_loses_exactly_at_the_final_pre_spawn_boundary() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_launch_probe(&library, "v1", true);
+        let request_id = Uuid::new_v4().to_string();
+        let controller = PortcoveService::new(library.clone()).unwrap();
+        let service = launch_service_with_faults(
+            library.clone(),
+            Arc::new(CancelLaunchAt {
+                controller,
+                request_id: request_id.clone(),
+                point: LifecycleFaultPoint::LaunchReadyToSpawn,
+                accepted: false,
+            }),
+        );
+        let arguments = vec![
+            temporary.path().join("started").display().to_string(),
+            "0".into(),
+            "completed".into(),
+            "0".into(),
+        ];
+
+        let outcome = service
+            .supervise_launch_identified(
+                IdentifiedLaunchRequest {
+                    request_id: &request_id,
+                    port_id: "zelda64-recomp",
+                    source_override: None,
+                    arguments: &arguments,
+                    stdio: LaunchStdio::Null,
+                },
+                |_| {},
+                |_| {},
+            )
+            .unwrap();
+
+        assert!(outcome.successful);
+        assert_eq!(
+            library
+                .launch_request(&request_id)
+                .unwrap()
+                .unwrap()
+                .outcome,
+            Some(LaunchSessionOutcome::Succeeded)
+        );
+    }
+
+    #[test]
+    fn supervisor_crashes_after_spawn_or_during_collection_never_become_success() {
+        for point in [
+            LifecycleFaultPoint::LaunchChildStarted,
+            LifecycleFaultPoint::LaunchCollecting,
+        ] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            register_launch_probe(&library, "v1", true);
+            let request_id = Uuid::new_v4().to_string();
+            let service =
+                launch_service_with_faults(library.clone(), Arc::new(FailLaunchAt(point)));
+            let arguments = vec![
+                temporary.path().join("started").display().to_string(),
+                "50".into(),
+                "recovered".into(),
+                "0".into(),
+            ];
+
+            let error = service
+                .supervise_launch_identified(
+                    IdentifiedLaunchRequest {
+                        request_id: &request_id,
+                        port_id: "zelda64-recomp",
+                        source_override: None,
+                        arguments: &arguments,
+                        stdio: LaunchStdio::Null,
+                    },
+                    |_| {},
+                    |_| {},
+                )
+                .unwrap_err();
+            assert_eq!(error.message, "simulated supervisor crash");
+            assert_eq!(library.launch_sessions().unwrap().len(), 1);
+            library
+                .connection()
+                .unwrap()
+                .execute(
+                    "UPDATE launch_sessions
+                     SET supervisor_pid=?2, supervisor_identity=NULL
+                     WHERE id=?1",
+                    rusqlite::params![request_id, u32::MAX],
+                )
+                .unwrap();
+
+            PortcoveService::new(library.clone())
+                .unwrap()
+                .recover_launch_session(&request_id)
+                .unwrap();
+            let request = library.launch_request(&request_id).unwrap().unwrap();
+            assert_eq!(request.outcome, Some(LaunchSessionOutcome::Failed));
+            assert_eq!(
+                fs::read(library.user_dir("zelda64-recomp").join("general.json")).unwrap(),
+                b"recovered"
+            );
+        }
+    }
+
+    #[test]
+    fn recovered_pid_identity_mismatch_fails_closed_and_keeps_the_port_blocked() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = register_launch_probe(&library, "v1", true);
+        let activity = library
+            .begin_activity(
+                ActivityOperation::Launch,
+                ActivityTargetKind::Port,
+                Some("zelda64-recomp"),
+            )
+            .unwrap();
+        let now = Library::now();
+        library
+            .create_launch_session(&LaunchSessionRecord {
+                id: activity.id.clone(),
+                port_id: "zelda64-recomp".into(),
+                install_id: install.id,
+                install_root: install.path,
+                supervisor_pid: u32::MAX,
+                supervisor_identity: None,
+                child_pid: Some(std::process::id()),
+                child_identity: Some("different-process-start".into()),
+                phase: LaunchSessionPhase::Running,
+                outcome: None,
+                exit_code: None,
+                message: None,
+                started_at: now,
+                updated_at: now,
+                finished_at: None,
+            })
+            .unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+
+        let error = service.recover_launch_session(&activity.id).unwrap_err();
+
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert_eq!(error.details["recovery_action"], "manual_review");
+        assert_eq!(library.launch_sessions().unwrap().len(), 1);
+        assert!(library.try_lock_port("zelda64-recomp", "update").is_err());
+        assert_eq!(
+            library.activities(1).unwrap()[0].status,
+            ActivityStatus::Running
+        );
+    }
+
+    #[test]
+    fn recovered_spawning_phase_remains_blocked_when_child_identity_is_ambiguous() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = register_launch_probe(&library, "v1", true);
+        let activity = library
+            .begin_activity(
+                ActivityOperation::Launch,
+                ActivityTargetKind::Port,
+                Some("zelda64-recomp"),
+            )
+            .unwrap();
+        let now = Library::now();
+        library
+            .create_launch_session(&LaunchSessionRecord {
+                id: activity.id.clone(),
+                port_id: "zelda64-recomp".into(),
+                install_id: install.id,
+                install_root: install.path,
+                supervisor_pid: u32::MAX,
+                supervisor_identity: None,
+                child_pid: None,
+                child_identity: None,
+                phase: LaunchSessionPhase::Spawning,
+                outcome: None,
+                exit_code: None,
+                message: None,
+                started_at: now,
+                updated_at: now,
+                finished_at: None,
+            })
+            .unwrap();
+
+        let error = PortcoveService::new(library.clone())
+            .unwrap()
+            .recover_launch_session(&activity.id)
+            .unwrap_err();
+
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert_eq!(error.details["recovery_action"], "manual_review");
+        assert_eq!(library.launch_sessions().unwrap().len(), 1);
+        assert!(library.try_lock_port("zelda64-recomp", "update").is_err());
+        assert_eq!(
+            library.activities(1).unwrap()[0].status,
+            ActivityStatus::Running
+        );
+    }
+
+    #[test]
+    fn recovered_install_identity_mismatch_fails_closed() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = register_launch_probe(&library, "v1", true);
+        let activity = library
+            .begin_activity(
+                ActivityOperation::Launch,
+                ActivityTargetKind::Port,
+                Some("zelda64-recomp"),
+            )
+            .unwrap();
+        let now = Library::now();
+        library
+            .create_launch_session(&LaunchSessionRecord {
+                id: activity.id.clone(),
+                port_id: "zelda64-recomp".into(),
+                install_id: "replaced-install".into(),
+                install_root: install.path,
+                supervisor_pid: u32::MAX,
+                supervisor_identity: None,
+                child_pid: None,
+                child_identity: None,
+                phase: LaunchSessionPhase::Collecting,
+                outcome: None,
+                exit_code: None,
+                message: None,
+                started_at: now,
+                updated_at: now,
+                finished_at: None,
+            })
+            .unwrap();
+
+        let error = PortcoveService::new(library.clone())
+            .unwrap()
+            .recover_launch_session(&activity.id)
+            .unwrap_err();
+
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert_eq!(error.details["install_id"], "replaced-install");
+        assert_eq!(library.launch_sessions().unwrap().len(), 1);
+        assert_eq!(
+            library.activities(1).unwrap()[0].status,
+            ActivityStatus::Running
+        );
+    }
+
     #[test]
     fn supervised_launch_holds_the_port_and_collects_the_exact_install() {
         let temporary = tempfile::tempdir().unwrap();
@@ -6330,6 +6932,14 @@ fn main() {
             .find(|activity| activity.id == outcome.session_id)
             .unwrap();
         assert_eq!(activity.status, ActivityStatus::Succeeded);
+        let request = library
+            .launch_request(&outcome.session_id)
+            .unwrap()
+            .unwrap();
+        assert_eq!(request.outcome, Some(LaunchSessionOutcome::Succeeded));
+        assert_eq!(request.exit_code, Some(0));
+        assert!(request.child_identity.is_some());
+        assert!(request.finished_at.is_some());
     }
 
     #[test]
@@ -6399,6 +7009,12 @@ fn main() {
             library.activities(1).unwrap()[0].status,
             ActivityStatus::Failed
         );
+        let request = library
+            .launch_request(&outcome.session_id)
+            .unwrap()
+            .unwrap();
+        assert_eq!(request.outcome, Some(LaunchSessionOutcome::Failed));
+        assert_eq!(request.exit_code, Some(7));
     }
 
     #[test]
@@ -6468,6 +7084,9 @@ fn main() {
         }
         assert!(started.is_file());
         let child_pid = child.id();
+        let child_identity = crate::launch::process_identity_for_child(&child)
+            .unwrap()
+            .unwrap();
         let reaper = thread::spawn(move || child.wait().unwrap());
         let activity = library
             .begin_activity(
@@ -6484,10 +7103,16 @@ fn main() {
                 install_id: launched.id.clone(),
                 install_root: launched.path.clone(),
                 supervisor_pid: u32::MAX,
+                supervisor_identity: None,
                 child_pid: Some(child_pid),
+                child_identity: Some(child_identity),
                 phase: LaunchSessionPhase::Running,
+                outcome: None,
+                exit_code: None,
+                message: None,
                 started_at: now,
                 updated_at: now,
+                finished_at: None,
             })
             .unwrap();
         let service = PortcoveService::new(library.clone()).unwrap();
@@ -6533,10 +7158,16 @@ fn main() {
                     .id,
                 install_root: install.clone(),
                 supervisor_pid: u32::MAX,
+                supervisor_identity: None,
                 child_pid: None,
+                child_identity: None,
                 phase: LaunchSessionPhase::Preparing,
+                outcome: None,
+                exit_code: None,
+                message: None,
                 started_at: now,
                 updated_at: now,
+                finished_at: None,
             })
             .unwrap();
         let service = PortcoveService::new(library.clone()).unwrap();
