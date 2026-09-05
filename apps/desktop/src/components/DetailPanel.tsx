@@ -3,7 +3,7 @@ import { AlertTriangle, ArchiveX, CheckCircle2, ChevronDown, Clipboard, Clipboar
 import { primaryCliCommand } from "../cli-command";
 import { copyText } from "../clipboard";
 import { useDialogFocus } from "../dialog";
-import type { ActivityRecord, BackupRecord, InstallPlan, PortDefinition, PortStatus, ReleaseChannel, SourceProfile, SourceRecord, UpdatePolicy } from "../types";
+import type { ActivityRecord, BackupInventory, BackupProblem, BackupRecord, InstallPlan, PortDefinition, PortStatus, ReleaseChannel, SourceHealth, SourceProfile, SourceRecord, UpdatePolicy } from "../types";
 import { OperationCancellation } from "./OperationCancellation";
 import { formatBytes, platformLabels } from "../view-model";
 import { BackupHistory } from "./BackupHistory";
@@ -36,6 +36,8 @@ interface DetailPanelProps {
   status?: PortStatus;
   installPlan?: InstallPlan;
   backups?: BackupRecord[];
+  backupProblems?: BackupProblem[];
+  backupState?: BackupInventory["state"];
   source?: SourceRecord;
   sourceProfile?: SourceProfile;
   sourcePath: string;
@@ -57,21 +59,22 @@ export function DetailPanel(props: DetailPanelProps) {
 }
 
 function DetailDialog({ props, dialog }: { props: DetailPanelProps; dialog: ReturnType<typeof useDialogFocus> }) {
-  const { port, status, installPlan, backups = [], source, sourceProfile, sourcePath, setSourcePath, pickSource, pickSourceArchive, bios, biosProfile, biosPath, setBiosPath, pickBios, busy, actions } = props;
+  const { port, status, installPlan, backups = [], backupProblems = [], backupState = "healthy", source, sourceProfile, sourcePath, setSourcePath, pickSource, pickSourceArchive, bios, biosProfile, biosPath, setBiosPath, pickBios, busy, actions } = props;
   const selectedChannel = status?.channel ?? port.channels[0];
   const policy = status?.update_policy ?? "notify";
   const { sourceReady, biosReady, launchReady, installed, pendingSetup } = detailReadiness(port, status, source, sourcePath, bios, biosPath);
-  const state = detailState(installed, launchReady, Boolean(status?.staged), pendingSetup, Boolean(status?.readiness?.blockers.includes("missing_runtime")));
+  const state = detailState(installed, launchReady, Boolean(status?.staged), pendingSetup, Boolean(status?.readiness?.blockers.includes("missing_runtime")), status?.readiness?.source, status?.readiness?.bios);
   const sources: SourceControls = {
     port, source, sourceProfile, sourcePath, setSourcePath, pickSource, pickSourceArchive,
     bios, biosProfile, biosPath, setBiosPath, pickBios, sourceReady, biosReady,
+    sourceHealth: status?.readiness?.source, biosHealth: status?.readiness?.bios,
   };
   return <div className="scrim" onMouseDown={event => closeFromScrim(event, actions.close)}>
     <section ref={dialog} className="detail-panel" role="dialog" aria-modal="true" aria-labelledby="port-detail-title">
       <button data-focusable className="close icon-button" aria-label="Close port details" onClick={actions.close}><Icon glyph={X} /></button>
       <DetailHero port={port} state={state} />
       {props.cancellableActivities?.map(activity => <OperationCancellation key={activity.id} operationId={activity.id} state={activity.cancellation} />)}
-      <DetailBody port={port} status={status} state={state} sources={sources} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} installPlan={installPlan} selectedChannel={selectedChannel} policy={policy} backups={backups} busy={busy} actions={actions} />
+      <DetailBody port={port} status={status} state={state} sources={sources} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} installPlan={installPlan} selectedChannel={selectedChannel} policy={policy} backups={backups} backupProblems={backupProblems} backupState={backupState} busy={busy} actions={actions} />
     </section>
   </div>;
 }
@@ -82,9 +85,9 @@ function DetailHero({ port, state }: { port: PortDefinition; state: DetailState 
   return <div className={`detail-hero art-${port.support_tier}`}><span>{port.name.slice(0, 2).toUpperCase()}</span><div><p className="eyebrow">{port.adapter.replaceAll("-", " ")}</p><h2 id="port-detail-title">{port.name}</h2><span className={`hero-state ${state.tone}`}>{state.title}</span></div></div>;
 }
 
-function DetailBody({ port, status, state, sources, installed, launchReady, pendingSetup, installPlan, selectedChannel, policy, backups, busy, actions }: {
+function DetailBody({ port, status, state, sources, installed, launchReady, pendingSetup, installPlan, selectedChannel, policy, backups, backupProblems, backupState, busy, actions }: {
   port: PortDefinition; status?: PortStatus; state: DetailState; sources: SourceControls; installed: boolean; launchReady: boolean; pendingSetup: boolean;
-  installPlan?: InstallPlan; selectedChannel: ReleaseChannel; policy: UpdatePolicy; backups: BackupRecord[]; busy?: string; actions: DetailActions;
+  installPlan?: InstallPlan; selectedChannel: ReleaseChannel; policy: UpdatePolicy; backups: BackupRecord[]; backupProblems: BackupProblem[]; backupState: BackupInventory["state"]; busy?: string; actions: DetailActions;
 }) {
   return <div className="detail-body"><p className="summary">{port.summary}</p>
     <NavigationHints />
@@ -93,7 +96,7 @@ function DetailBody({ port, status, state, sources, installed, launchReady, pend
     <SourceFields mode="missing" controls={sources} />
     <PrimaryActions runtimeNeeded={Boolean(status?.readiness?.blockers.includes("missing_runtime"))} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} hasStaged={Boolean(status?.staged)} plan={installPlan} busy={busy} actions={actions} />
     <TrustStrip />
-    <AdvancedControls port={port} status={status} selectedChannel={selectedChannel} policy={policy} installed={installed} backups={backups} busy={busy} sources={sources} actions={actions} />
+    <AdvancedControls port={port} status={status} selectedChannel={selectedChannel} policy={policy} installed={installed} backups={backups} backupProblems={backupProblems} backupState={backupState} busy={busy} sources={sources} actions={actions} />
   </div>;
 }
 
@@ -106,15 +109,23 @@ function TrustStrip() {
 }
 
 function detailReadiness(port: PortDefinition, status: PortStatus | undefined, source: SourceRecord | undefined, sourcePath: string, bios: SourceRecord | undefined, biosPath: string | undefined) {
-  const sourceReady = !port.source_profile || Boolean(source || sourcePath.trim());
-  const biosReady = !port.bios_source_profile || Boolean(bios || biosPath?.trim());
+  const installed = Boolean(status?.active);
+  const sourceReady = sourceRequirementReady(Boolean(port.source_profile), installed, status?.readiness?.source, Boolean(source || sourcePath.trim()));
+  const biosReady = sourceRequirementReady(Boolean(port.bios_source_profile), installed, status?.readiness?.bios, Boolean(bios || biosPath?.trim()));
+  const fallbackLaunchable = sourceReady && biosReady && !status?.readiness?.blockers.includes("missing_runtime");
   return {
     sourceReady,
     biosReady,
-    launchReady: sourceReady && biosReady && !status?.readiness?.blockers.includes("missing_runtime"),
-    installed: Boolean(status?.active),
+    launchReady: installed ? (status?.readiness?.launchable ?? fallbackLaunchable) : fallbackLaunchable,
+    installed,
     pendingSetup: Boolean(status?.readiness?.pending_setup),
   };
+}
+
+function sourceRequirementReady(required: boolean, installed: boolean, health: SourceHealth | undefined, selected: boolean) {
+  if (!required) return true;
+  if (!installed || health === undefined) return selected;
+  return health === "current";
 }
 
 type SourceControls = Pick<DetailPanelProps,
@@ -123,6 +134,8 @@ type SourceControls = Pick<DetailPanelProps,
 > & {
   sourceReady: boolean;
   biosReady: boolean;
+  sourceHealth?: SourceHealth;
+  biosHealth?: SourceHealth;
 };
 
 function SourceFields({ mode, controls }: { mode: "missing" | "registered"; controls: SourceControls }) {
@@ -132,13 +145,13 @@ function SourceFields({ mode, controls }: { mode: "missing" | "registered"; cont
 function originalSourceField(mode: "missing" | "registered", controls: SourceControls) {
   const profileId = controls.port.source_profile;
   if (!profileId || controls.sourceReady !== (mode === "registered")) return null;
-  return <SourceField heading="Original source" profileId={profileId} profile={controls.sourceProfile} source={controls.source} path={controls.sourcePath} setPath={controls.setSourcePath} pick={controls.pickSource} pickArchive={controls.pickSourceArchive} />;
+  return <SourceField heading="Original source" profileId={profileId} profile={controls.sourceProfile} source={controls.source} health={controls.sourceHealth} path={controls.sourcePath} setPath={controls.setSourcePath} pick={controls.pickSource} pickArchive={controls.pickSourceArchive} />;
 }
 
 function biosSourceField(mode: "missing" | "registered", controls: SourceControls) {
   const profileId = controls.port.bios_source_profile;
   if (!profileId || !controls.biosProfile || !controls.setBiosPath || controls.biosReady !== (mode === "registered")) return null;
-  return <SourceField heading="Required BIOS" profileId={profileId} profile={controls.biosProfile} source={controls.bios} path={controls.biosPath ?? ""} setPath={controls.setBiosPath} pick={controls.pickBios} />;
+  return <SourceField heading="Required BIOS" profileId={profileId} profile={controls.biosProfile} source={controls.bios} health={controls.biosHealth} path={controls.biosPath ?? ""} setPath={controls.setBiosPath} pick={controls.pickBios} />;
 }
 
 function RetiredNotice({ port }: { port: PortDefinition }) {
@@ -150,8 +163,8 @@ function closeFromScrim(event: React.MouseEvent<HTMLDivElement>, close: () => vo
   if (event.currentTarget === event.target) close();
 }
 
-function AdvancedControls({ port, status, selectedChannel, policy, installed, backups, busy, sources, actions }: {
-  port: PortDefinition; status?: PortStatus; selectedChannel: ReleaseChannel; policy: UpdatePolicy; installed: boolean; backups: BackupRecord[]; busy?: string; sources: SourceControls; actions: DetailActions;
+function AdvancedControls({ port, status, selectedChannel, policy, installed, backups, backupProblems, backupState, busy, sources, actions }: {
+  port: PortDefinition; status?: PortStatus; selectedChannel: ReleaseChannel; policy: UpdatePolicy; installed: boolean; backups: BackupRecord[]; backupProblems: BackupProblem[]; backupState: BackupInventory["state"]; busy?: string; sources: SourceControls; actions: DetailActions;
 }) {
   const persistentFiles = [...port.persistent_paths, ...(port.persistent_file_patterns ?? []).map(pattern => `${pattern.prefix}*${pattern.suffix}`)].join(" · ");
   return <details className="advanced-settings" open={!installed}>
@@ -165,14 +178,15 @@ function AdvancedControls({ port, status, selectedChannel, policy, installed, ba
       <div className="metadata"><span><small>Platforms</small>{port.platforms.map(value => platformLabels[value]).join(" · ")}</span><span><small>Automated evidence</small>{port.automated_tested_platforms.length ? port.automated_tested_platforms.map(value => platformLabels[value]).join(" · ") : "Qualification pending"}</span><span><small>Physical validation</small>{port.manually_validated_platforms.length ? port.manually_validated_platforms.map(value => platformLabels[value]).join(" · ") : "Deferred / not completed"}</span><span title={persistentFiles}><small>Persistent data root</small>{status?.user_data_root ?? "Created inside the selected library"}</span></div>
       <div className="upstream-link"><ProjectLink href={port.project_url}>Open upstream project <Icon glyph={ExternalLink} size="sm" /></ProjectLink><span>Portcove resolves releases from this reviewed upstream.</span></div>
       <CliContinuity port={port} status={status} channel={selectedChannel} sourcePath={sources.sourcePath} biosPath={sources.biosPath} />
-      {installed && <><BackupHistory backups={backups} busy={busy} restore={actions.restoreBackup} remove={actions.deleteBackup} /><MaintenanceActions canRollback={Boolean(status?.previous)} busy={busy} actions={actions} /></>}
+      {(installed || backups.length > 0 || backupProblems.length > 0) && <BackupHistory backups={backups} problems={backupProblems} state={backupState} busy={busy} restore={actions.restoreBackup} remove={actions.deleteBackup} />}
+      {installed && <MaintenanceActions canRollback={Boolean(status?.previous)} busy={busy} actions={actions} />}
     </div>
   </details>;
 }
 
-function SourceField({ heading, profileId, profile, source, path, setPath, pick, pickArchive }: { heading: string; profileId: string; profile?: SourceProfile; source?: SourceRecord; path: string; setPath: (path: string) => void; pick?: () => void; pickArchive?: () => void }) {
+function SourceField({ heading, profileId, profile, source, health, path, setPath, pick, pickArchive }: { heading: string; profileId: string; profile?: SourceProfile; source?: SourceRecord; health?: SourceHealth; path: string; setPath: (path: string) => void; pick?: () => void; pickArchive?: () => void }) {
   const copy = sourceFieldCopy(profile);
-  const sourceNote = source ? `Registered · ${source.sha256.slice(0, 12)}…` : copy.note;
+  const sourceNote = source ? sourceHealthNote(health, source) : copy.note;
   const inputId = `source-${profileId}`;
   return <div className="detail-section"><label htmlFor={inputId}>{heading} · {profile?.label ?? profileId}</label>
     <div className="path-entry"><input data-focusable id={inputId} value={path} onChange={event => setPath(event.target.value)} placeholder={copy.placeholder} />
@@ -180,6 +194,16 @@ function SourceField({ heading, profileId, profile, source, path, setPath, pick,
       {pickArchive && <button data-focusable className="button-with-icon" type="button" onClick={pickArchive}><Icon glyph={FileArchive} />ZIP</button>}</div>
     <small>{sourceNote}</small>
   </div>;
+}
+
+function sourceHealthNote(health: SourceHealth | undefined, source: SourceRecord) {
+  const hash = `${source.sha256.slice(0, 12)}…`;
+  if (health === "current") return `Current registered bytes checked · ${hash}`;
+  if (health === "changed") return "Registered source changed since it was added.";
+  if (health === "missing") return "Registered source file is missing.";
+  if (health === "unreadable") return "Registered source cannot be read.";
+  if (health === "not_checked") return `Registered · current bytes not checked · ${hash}`;
+  return `Registered · ${hash}`;
 }
 
 function sourceFieldCopy(profile?: SourceProfile) {
@@ -198,7 +222,7 @@ function PrimaryActions({ runtimeNeeded, installed, launchReady, pendingSetup, h
   if (runtimeNeeded) return <InstallAction ready plan={plan} busy={busy} install={actions.update} review={actions.reviewInstall} />;
   if (!installed) return <InstallAction ready={launchReady} plan={plan} busy={busy} install={actions.install} review={actions.reviewInstall} />;
   return <div className="actions primary-actions">
-    <button data-focusable className="primary wide button-with-icon" title={launchReady ? "Launch this port" : "Register every required source before launching"} disabled={!launchReady || Boolean(busy)} onClick={actions.launch}><Icon glyph={pendingSetup ? Wrench : Gamepad2} />{pendingSetup ? "Complete setup and play" : "Play now"}</button>
+    <button data-focusable className="primary wide button-with-icon" title={launchReady ? "Launch this port" : "Register every required source before launching"} disabled={!launchReady || Boolean(busy)} onClick={actions.launch}><Icon glyph={!launchReady ? AlertTriangle : pendingSetup ? Wrench : Gamepad2} />{!launchReady ? "Choose required source" : pendingSetup ? "Complete setup and play" : "Play now"}</button>
     {hasStaged && <button data-focusable className="staged-action button-with-icon" disabled={Boolean(busy)} onClick={actions.activate}><Icon glyph={PackageCheck} />Activate staged update</button>}
   </div>;
 }
@@ -261,11 +285,22 @@ function CliContinuity({ port, status, channel, sourcePath, biosPath }: { port: 
   </div>;
 }
 
-function detailState(installed: boolean, launchReady: boolean, staged: boolean, pendingSetup: boolean, runtimeNeeded: boolean) {
+function detailState(installed: boolean, launchReady: boolean, staged: boolean, pendingSetup: boolean, runtimeNeeded: boolean, sourceHealth?: SourceHealth, biosHealth?: SourceHealth) {
   if (!installed) return { title: "Available to install", description: "Portcove will verify the release before it becomes active.", tone: "available", icon: Download };
   if (runtimeNeeded) return { title: "Verified runtime required", description: "Review the update to install this port with its required runtime. Existing saves stay in your library.", tone: "setup", icon: Wrench };
+  const sourceIssue = sourceHealthState("Original source", sourceHealth);
+  if (sourceIssue) return sourceIssue;
+  const biosIssue = sourceHealthState("Required BIOS", biosHealth);
+  if (biosIssue) return biosIssue;
   if (!launchReady) return { title: "Finish setup", description: "Register the required original source or BIOS to unlock Play.", tone: "setup", icon: Wrench };
   if (pendingSetup) return { title: "First launch setup", description: "The source is registered. Portcove will run and verify the upstream setup before play.", tone: "setup", icon: Wrench };
   if (staged) return { title: "Ready · update staged", description: "Play the current version or activate the verified staged release.", tone: "staged", icon: RefreshCw };
   return { title: "Ready to launch", description: "The active version and every required local source are available.", tone: "ready", icon: CheckCircle2 };
+}
+
+function sourceHealthState(label: string, health?: SourceHealth) {
+  if (health === "changed") return { title: `${label} changed`, description: `Choose and register ${label.toLowerCase()} again before play.`, tone: "setup", icon: AlertTriangle };
+  if (health === "missing") return { title: `${label} missing`, description: `Choose and register ${label.toLowerCase()} again before play.`, tone: "setup", icon: AlertTriangle };
+  if (health === "unreadable") return { title: `${label} unreadable`, description: `Restore access to ${label.toLowerCase()} or register it again before play.`, tone: "setup", icon: AlertTriangle };
+  return undefined;
 }

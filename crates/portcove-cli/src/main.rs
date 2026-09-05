@@ -7,13 +7,14 @@ use std::{
 use clap::{Args, Parser, Subcommand, ValueEnum, error::ErrorKind};
 use portcove_core::{
     API_SCHEMA_VERSION, ActivityRecord, AdoptionPreview, BackupAction, BackupActionPreview,
-    BackupRecord, CapabilityDocument, CatalogDocument, DoctorReport, ErrorCode, GithubAuthStatus,
-    GithubDeviceLogin, GithubDeviceLoginResult, GithubDeviceLoginState, GithubReleaseProvider,
-    InstallPlan, InstallRecord, LaunchSignal, LaunchStdio, LibraryMetadata, LibraryMetadataFile,
-    OperationEvent, OperationEventKind, PortDefinition, PortPaths, PortRemovalPreview, PortStatus,
-    PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel, RestoreResult, Result,
-    SourceRecord, SourceRelinkPlan, SourceRemovalPreview, SourceVerification, StorageSummary,
-    UpdateCheck, UpdatePolicy, UpdateSnapshot, forward_launch_signal,
+    BackupInventory, BackupRecord, CapabilityDocument, CatalogDocument, DoctorReport, ErrorCode,
+    GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, GithubDeviceLoginState,
+    GithubReleaseProvider, InstallPlan, InstallRecord, LaunchSignal, LaunchStdio, LibraryMetadata,
+    LibraryMetadataFile, OperationEvent, OperationEventKind, PortDefinition, PortPaths,
+    PortRemovalPreview, PortStatus, PortcoveError, PortcoveService, ReconcileResult,
+    ReleaseChannel, RestoreResult, Result, SourceRecord, SourceRelinkPlan, SourceRemovalPreview,
+    SourceVerification, StorageSummary, UpdateCheck, UpdatePolicy, UpdateSnapshot,
+    forward_launch_signal,
 };
 use schemars::{JsonSchema, schema_for};
 use serde::Serialize;
@@ -636,11 +637,14 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         } => {
             let preview =
                 service.preview_backup_action(&port_id, &backup_id, BackupAction::Delete)?;
-            require_confirmation(
+            if !confirmation(
                 &format!("Permanently delete backup {backup_id} for {port_id}?"),
                 yes,
                 cli.non_interactive,
-            )?;
+            )? {
+                render_backup_cancellation(mode, "backup.delete", "Backup deletion")?;
+                return Ok(ExitCode::SUCCESS);
+            }
             let authorization = service.authorize_backup_action(
                 &port_id,
                 &backup_id,
@@ -663,13 +667,16 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         } => {
             let preview =
                 service.preview_backup_action(&port_id, &backup_id, BackupAction::Restore)?;
-            require_confirmation(
+            if !confirmation(
                 &format!(
                     "Restore backup {backup_id} for {port_id}? Current persistent data will be backed up first."
                 ),
                 yes,
                 cli.non_interactive,
-            )?;
+            )? {
+                render_backup_cancellation(mode, "backup.restore", "Backup restore")?;
+                return Ok(ExitCode::SUCCESS);
+            }
             let authorization = service.authorize_backup_action(
                 &port_id,
                 &backup_id,
@@ -1320,6 +1327,10 @@ fn schema_document() -> serde_json::Value {
             ),
             ("backup", serde_json::json!(schema_for!(BackupRecord))),
             (
+                "backup_inventory",
+                serde_json::json!(schema_for!(BackupInventory)),
+            ),
+            (
                 "backup_action_preview",
                 serde_json::json!(schema_for!(BackupActionPreview)),
             ),
@@ -1598,8 +1609,16 @@ fn api_error(error: &PortcoveError) -> ApiError {
 }
 
 fn require_confirmation(prompt: &str, yes: bool, non_interactive: bool) -> Result<()> {
+    if confirmation(prompt, yes, non_interactive)? {
+        Ok(())
+    } else {
+        Err(PortcoveError::usage("operation cancelled"))
+    }
+}
+
+fn confirmation(prompt: &str, yes: bool, non_interactive: bool) -> Result<bool> {
     if yes {
-        return Ok(());
+        return Ok(true);
     }
     if non_interactive {
         return Err(PortcoveError::usage("confirmation required; pass --yes"));
@@ -1608,10 +1627,19 @@ fn require_confirmation(prompt: &str, yes: bool, non_interactive: bool) -> Resul
     io::stderr().flush()?;
     let mut answer = String::new();
     io::stdin().read_line(&mut answer)?;
-    if answer.trim().eq_ignore_ascii_case("y") || answer.trim().eq_ignore_ascii_case("yes") {
+    Ok(answer.trim().eq_ignore_ascii_case("y") || answer.trim().eq_ignore_ascii_case("yes"))
+}
+
+fn render_backup_cancellation(mode: OutputMode, command: &str, label: &str) -> Result<()> {
+    if mode == OutputMode::Human {
+        println!("{label} cancelled. No changes were made.");
         Ok(())
     } else {
-        Err(PortcoveError::usage("operation cancelled"))
+        render_success(
+            mode,
+            command,
+            serde_json::json!({ "cancelled": true, "changed": false }),
+        )
     }
 }
 
@@ -1922,7 +1950,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 10);
+        assert_eq!(capabilities.schema_version, 11);
         assert_eq!(
             capabilities.failure_isolated_batches,
             ["check", "reconcile", "update", "source.verify"]

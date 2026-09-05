@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { desktopApi } from "./api";
-import type { ActivityRecord, BackupRecord, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, OperationEvent, PortDefinition, PortStatus, ReconcileAction, SourceRecord, SourceVerificationOutcome, UpdateCheckOutcome } from "./types";
+import type { ActivityRecord, BackupInventory, BackupRecord, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, OperationEvent, PortDefinition, PortStatus, ReconcileAction, SourceRecord, SourceVerificationOutcome, UpdateCheckOutcome } from "./types";
 import type { DetailActions } from "./components/DetailPanel";
 import { errorText, isCancellation, type Filter, type View } from "./view-model";
 import { currentUpdateSnapshot } from "./view-model";
@@ -146,27 +146,28 @@ export function useSourceHealth(perform: Perform, sources: SourceRecord[]) {
 }
 
 export function usePortBackups(portId: string | undefined, setError: (error?: string) => void) {
-  const [backups, setBackups] = useState<BackupRecord[]>([]);
+  const emptyInventory = useCallback((): BackupInventory => ({ port_id: portId ?? "", state: "healthy", backups: [], problems: [] }), [portId]);
+  const [inventory, setInventory] = useState<BackupInventory>(() => emptyInventory());
   const requestId = useRef(0);
   const refresh = useCallback(async () => {
     const request = ++requestId.current;
     if (!portId) {
-      setBackups([]);
+      setInventory(emptyInventory());
       return;
     }
     try {
       const result = await desktopApi.backups(portId);
-      if (request === requestId.current) setBackups(result);
+      if (request === requestId.current) setInventory(result);
     } catch (value) {
       if (request === requestId.current) setError(errorText(value));
     }
-  }, [portId, setError]);
+  }, [emptyInventory, portId, setError]);
   useEffect(() => {
-    setBackups([]);
+    setInventory(emptyInventory());
     void refresh();
     return () => { requestId.current += 1; };
-  }, [refresh]);
-  return { backups, refresh };
+  }, [emptyInventory, refresh]);
+  return { backups: inventory.backups, inventory, refresh };
 }
 
 export function useGithubAuth(perform: Perform, setError: (error?: string) => void) {

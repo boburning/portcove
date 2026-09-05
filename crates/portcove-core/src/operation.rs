@@ -25,6 +25,7 @@ pub(crate) enum LifecycleOperationKind {
     Adopt,
     Remove,
     Restore,
+    DeleteBackup,
     Activate,
 }
 
@@ -35,6 +36,7 @@ impl fmt::Display for LifecycleOperationKind {
             Self::Adopt => "adopt",
             Self::Remove => "remove",
             Self::Restore => "restore",
+            Self::DeleteBackup => "delete_backup",
             Self::Activate => "activate",
         })
     }
@@ -44,16 +46,18 @@ impl FromStr for LifecycleOperationKind {
     type Err = PortcoveError;
 
     fn from_str(value: &str) -> Result<Self> {
-        match value {
-            "install" => Ok(Self::Install),
-            "adopt" => Ok(Self::Adopt),
-            "remove" => Ok(Self::Remove),
-            "restore" => Ok(Self::Restore),
-            "activate" => Ok(Self::Activate),
-            _ => Err(PortcoveError::state(format!(
-                "unknown lifecycle operation kind: {value}"
-            ))),
-        }
+        let kind = match value {
+            "install" => Some(Self::Install),
+            "adopt" => Some(Self::Adopt),
+            "remove" => Some(Self::Remove),
+            "restore" => Some(Self::Restore),
+            "delete_backup" => Some(Self::DeleteBackup),
+            "activate" => Some(Self::Activate),
+            _ => None,
+        };
+        kind.ok_or_else(|| {
+            PortcoveError::state(format!("unknown lifecycle operation kind: {value}"))
+        })
     }
 }
 
@@ -300,6 +304,11 @@ pub(crate) enum LifecycleFaultPoint {
     RestorePrepared,
     RestorePublished,
     RestoreVersionSynchronized,
+    DeleteBackupPrepared,
+    DeleteBackupQuarantined,
+    DeleteBackupDeleting,
+    DeleteBackupDeleted,
+    DeleteBackupMetadataCommitted,
     ActivationMetadataCommitted,
 }
 

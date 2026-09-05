@@ -3,7 +3,7 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 import type { CancellationState, OperationEvent } from "./types";
 import type { LibraryImportPlan, LibraryImportResult, LibraryMovePlan, LibraryMoveResult } from "./types";
 import type { SourceDiscoveryRequest, SourceDiscoveryReport } from "./types";
-import type { ActivityRecord, AdoptionPreview, BackupRecord, BootstrapStatus, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, InstallPlan, InstallRecord, LibraryMetadataFile, PortStatus, ReconcileOutcome, ReleaseChannel, RestoreResult, SourceRecord, SourceRelinkPlan, SourceRemovalPreview, SourceVerificationOutcome, UpdateCheck, UpdateCheckOutcome, UpdatePolicy } from "./types";
+import type { ActivityRecord, AdoptionPreview, BackupInventory, BackupRecord, BootstrapStatus, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, InstallPlan, InstallRecord, LibraryMetadataFile, PortStatus, ReconcileOutcome, ReleaseChannel, RestoreResult, SourceRecord, SourceRelinkPlan, SourceRemovalPreview, SourceVerificationOutcome, UpdateCheck, UpdateCheckOutcome, UpdatePolicy } from "./types";
 
 export const desktopApi = {
   catalogStatus: () => invoke<CatalogStatus>("get_catalog_status"),
@@ -30,7 +30,7 @@ export const desktopApi = {
   sources: () => invoke<SourceRecord[]>("get_sources"),
   activities: () => invoke<ActivityRecord[]>("get_activities"),
   cancelOperation: (operationId: string) => invoke<CancellationState>("cancel_operation", { operationId }),
-  backups: (portId: string) => invoke<BackupRecord[]>("get_backups", { portId }),
+  backups: (portId: string) => invoke<BackupInventory>("get_backups", { portId }),
   backup: (portId: string) => invoke<BackupRecord>("create_backup", { portId }),
   restoreBackup: (portId: string, backupId: string) => invoke<RestoreResult | null>("restore_backup", { portId, backupId }),
   deleteBackup: (portId: string, backupId: string) => invoke<BackupRecord | null>("delete_backup", { portId, backupId }),

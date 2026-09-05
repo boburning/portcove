@@ -12,7 +12,7 @@ use std::{
 };
 
 use portcove_core::{
-    ActivityRecord, AdoptionPreview, BackupAction, BackupRecord, CatalogDocument,
+    ActivityRecord, AdoptionPreview, BackupAction, BackupInventory, BackupRecord, CatalogDocument,
     ChildProcessClass, ChildProcessPolicy, CompositeReleaseProvider, DoctorReport,
     GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, GithubReleaseProvider,
     InstallPlan, InstallRecord, LaunchStdio, Library, LibraryMetadataFile, OperationCoordinator,
@@ -287,7 +287,7 @@ async fn cancel_operation(
 async fn get_backups(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
-) -> DesktopResult<Vec<BackupRecord>> {
+) -> DesktopResult<BackupInventory> {
     let state = state.inner().clone();
     blocking_service(state, move |service| {
         service.list_backups(&port_id).map_err(Into::into)

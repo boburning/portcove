@@ -1,10 +1,10 @@
 use std::path::Path;
 
 use portcove_core::{
-    ActivityRecord, BackupRecord, CapabilityDocument, DoctorReport, GithubAuthSource,
-    GithubAuthStatus, HostToolSource, HostToolState, InstallPlan, InstallPlanAction, LaunchBlocker,
-    Platform, PortDefinition, PortPaths, PortStatus, RepairItemKind, SourceRecord,
-    SourceRequirementRole, StorageSummary, SupportTier,
+    ActivityRecord, BackupInventory, BackupInventoryState, BackupProblemKind, CapabilityDocument,
+    DoctorReport, GithubAuthSource, GithubAuthStatus, HostToolSource, HostToolState, InstallPlan,
+    InstallPlanAction, LaunchBlocker, Platform, PortDefinition, PortPaths, PortStatus,
+    RepairItemKind, SourceRecord, SourceRequirementRole, StorageSummary, SupportTier,
 };
 use serde::Serialize;
 use serde_json::Value;
@@ -94,11 +94,12 @@ pub(crate) fn catalog_show(port: &PortDefinition) -> String {
     )
 }
 
-pub(crate) fn backup_list(port_id: &str, backups: &[BackupRecord]) -> String {
-    if backups.is_empty() {
+pub(crate) fn backup_list(port_id: &str, inventory: &BackupInventory) -> String {
+    if inventory.backups.is_empty() && inventory.problems.is_empty() {
         return format!("No backups for {}.", clean(port_id));
     }
-    let rows = backups
+    let rows = inventory
+        .backups
         .iter()
         .map(|backup| {
             vec![
@@ -110,12 +111,58 @@ pub(crate) fn backup_list(port_id: &str, backups: &[BackupRecord]) -> String {
             ]
         })
         .collect();
+    let healthy = if inventory.backups.is_empty() {
+        format!("No verified backups for {}.", clean(port_id))
+    } else {
+        format!(
+            "Backups for {} ({})\n{}",
+            clean(port_id),
+            inventory.backups.len(),
+            table(&["ID", "CREATED (UNIX)", "FILES", "SIZE", "PATH"], rows)
+        )
+    };
+    if inventory.problems.is_empty() {
+        return healthy;
+    }
+    let state = match inventory.state {
+        BackupInventoryState::Healthy => "healthy",
+        BackupInventoryState::Degraded => "degraded",
+        BackupInventoryState::RecoveryRequired => "recovery required",
+    };
+    let problems = inventory
+        .problems
+        .iter()
+        .map(|problem| {
+            format!(
+                "- {}: {}\n  Path: {}\n  Next: {}",
+                backup_problem_kind(problem.kind),
+                clean(&problem.message),
+                clean(&problem.path.display().to_string()),
+                clean(&problem.proposed_action),
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
     format!(
-        "Backups for {} ({})\n{}",
-        clean(port_id),
-        backups.len(),
-        table(&["ID", "CREATED (UNIX)", "FILES", "SIZE", "PATH"], rows)
+        "{healthy}\nBackup inventory: {state} ({} problem{})\n{problems}",
+        inventory.problems.len(),
+        if inventory.problems.len() == 1 {
+            ""
+        } else {
+            "s"
+        },
     )
+}
+
+fn backup_problem_kind(kind: BackupProblemKind) -> &'static str {
+    match kind {
+        BackupProblemKind::MissingManifest => "missing manifest",
+        BackupProblemKind::UnreadableManifest => "unreadable manifest",
+        BackupProblemKind::MalformedManifest => "malformed manifest",
+        BackupProblemKind::IdentityMismatch => "identity mismatch",
+        BackupProblemKind::UnsupportedEntry => "unsupported entry",
+        BackupProblemKind::RecoveryRequired => "recovery required",
+    }
 }
 
 pub(crate) fn source_list(sources: &[SourceRecord]) -> String {
@@ -482,7 +529,11 @@ fn readiness(status: &PortStatus) -> String {
         .iter()
         .map(|blocker| match blocker {
             LaunchBlocker::MissingSource => "missing source",
+            LaunchBlocker::UnreadableSource => "unreadable source",
+            LaunchBlocker::ChangedSource => "changed source",
             LaunchBlocker::MissingBios => "missing BIOS",
+            LaunchBlocker::UnreadableBios => "unreadable BIOS",
+            LaunchBlocker::ChangedBios => "changed BIOS",
             LaunchBlocker::MissingRuntime => "needs verified runtime (update port)",
         })
         .collect::<Vec<_>>()
@@ -520,6 +571,8 @@ fn repair_kind(kind: RepairItemKind) -> &'static str {
         RepairItemKind::CleanupPending => "cleanup pending",
         RepairItemKind::OrphanedFinalDirectory => "orphaned directory",
         RepairItemKind::MissingRegisteredPath => "missing path",
+        RepairItemKind::DegradedBackup => "degraded backup",
+        RepairItemKind::BackupRecoveryRequired => "backup recovery required",
     }
 }
 
@@ -541,28 +594,63 @@ fn optional_path(path: Option<&Path>) -> String {
 mod tests {
     use std::path::PathBuf;
 
-    use portcove_core::{BackupRecord, StorageSummary};
+    use portcove_core::{BackupInventory, BackupInventoryState, BackupRecord, StorageSummary};
 
     use super::{backup_list, document, storage, table};
 
     #[test]
     fn read_renderers_have_stable_human_snapshots() {
-        assert_eq!(backup_list("sample", &[]), "No backups for sample.");
         assert_eq!(
             backup_list(
                 "sample",
-                &[BackupRecord {
-                    id: "backup-1".into(),
+                &BackupInventory {
                     port_id: "sample".into(),
-                    path: PathBuf::from("C:/Portcove/backups/backup-1"),
-                    created_at: 42,
-                    file_count: 3,
-                    size: 2048,
-                    sha256: "a".repeat(64),
-                }],
+                    state: BackupInventoryState::Healthy,
+                    backups: Vec::new(),
+                    problems: Vec::new(),
+                }
+            ),
+            "No backups for sample."
+        );
+        assert_eq!(
+            backup_list(
+                "sample",
+                &BackupInventory {
+                    port_id: "sample".into(),
+                    state: BackupInventoryState::Healthy,
+                    backups: vec![BackupRecord {
+                        id: "backup-1".into(),
+                        port_id: "sample".into(),
+                        path: PathBuf::from("C:/Portcove/backups/backup-1"),
+                        created_at: 42,
+                        file_count: 3,
+                        size: 2048,
+                        sha256: "a".repeat(64),
+                    }],
+                    problems: Vec::new(),
+                },
             ),
             "Backups for sample (1)\nID        CREATED (UNIX)  FILES  SIZE     PATH\n--------  --------------  -----  -------  ----------------------------\nbackup-1  42              3      2.0 KiB  C:/Portcove/backups/backup-1",
         );
+        let degraded = backup_list(
+            "sample",
+            &BackupInventory {
+                port_id: "sample".into(),
+                state: BackupInventoryState::RecoveryRequired,
+                backups: Vec::new(),
+                problems: vec![portcove_core::BackupProblem {
+                    kind: portcove_core::BackupProblemKind::RecoveryRequired,
+                    backup_id: Some("backup-1".into()),
+                    operation_id: Some("operation-1".into()),
+                    path: PathBuf::from("C:/Portcove/backups/sample/.deleting-operation-1"),
+                    message: "deletion was interrupted".into(),
+                    proposed_action: "restart Portcove, then review doctor output".into(),
+                }],
+            },
+        );
+        assert!(degraded.contains("Backup inventory: recovery required (1 problem)"));
+        assert!(degraded.contains("deletion was interrupted"));
+        assert!(degraded.contains(".deleting-operation-1"));
         assert_eq!(
             storage(&StorageSummary {
                 library_root: PathBuf::from("C:/Portcove"),

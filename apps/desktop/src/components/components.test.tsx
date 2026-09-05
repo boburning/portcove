@@ -45,6 +45,16 @@ describe("desktop components", () => {
     expect(html).not.toContain("Play now");
     expect(html).not.toContain("Choose required source");
   });
+
+  it("shows changed registered bytes as setup instead of launch readiness", () => {
+    const source = { profile_id: "sample-rom", path: "source.z64", sha256: "a".repeat(64), size: 12, storage_sha256: "a".repeat(64), storage_size: 12, updated_at: 1 };
+    const html = renderToStaticMarkup(<DetailPanel port={port} source={source} sourcePath="source.z64" setSourcePath={vi.fn()} actions={actions}
+      status={{ port_id: port.id, channel: "stable", update_policy: "notify", active: installRecord(), readiness: { launchable: false, blockers: ["changed_source"], pending_setup: false, source: "changed" } }} />);
+    expect(html).toContain("Original source changed");
+    expect(html).toContain("Registered source changed since it was added");
+    expect(html).toContain("Choose required source");
+    expect(html).not.toContain("Play now");
+  });
   it("shows the reviewed adoption copy plan and skipped entries before copying", () => {
     const html = renderToStaticMarkup(<AdoptionModal
       path="D:/Existing"
@@ -82,6 +92,22 @@ describe("desktop components", () => {
     expect(html).toContain("4 verified snapshots");
     expect(html).toContain("Show 1 older");
     expect(html).not.toContain("3333333333");
+  });
+
+  it("keeps verified backups usable while exposing degraded and recovery details", () => {
+    const backups = [{
+      id: "backup-1", port_id: port.id, path: "backups/sample/backup-1",
+      created_at: 1, file_count: 2, size: 1024, sha256: "a".repeat(64),
+    }];
+    const html = renderToStaticMarkup(<BackupHistory backups={backups} state="recovery_required" problems={[{
+      kind: "recovery_required", operation_id: "operation-1", path: "backups/sample/.deleting-operation-1",
+      message: "Deletion was interrupted.", proposed_action: "Restart Portcove, then review doctor output.",
+    }]} restore={vi.fn()} remove={vi.fn()} />);
+    expect(html).toContain("Backup recovery required");
+    expect(html).toContain("1 verified snapshot");
+    expect(html).toContain("Technical details");
+    expect(html).toContain("Deletion was interrupted");
+    expect(html).toContain("Restore");
   });
 
   it("renders navigation, headers, status, and settings content", () => {
@@ -330,6 +356,18 @@ describe("desktop components", () => {
     expect(html).toContain("CONTINUE");
     expect(html).toContain("Play again");
     expect(html).toContain("Last successful session");
+  });
+
+  it("routes Continue to setup when previously launched source bytes changed", () => {
+    const install = installRecord();
+    const recentStatus: PortStatus = {
+      port_id: port.id, channel: "stable", update_policy: "notify", active: install, last_launched_at: 100, successful_launches: 1,
+      readiness: { launchable: false, blockers: ["changed_source"], pending_setup: false, source: "changed" },
+    };
+    const html = renderToStaticMarkup(<PortBrowser view="library" ports={[port]} statuses={new Map([[port.id, recentStatus]])} registeredSources={new Set(["sample-rom"])}
+      overview={{ installed: 1, ready: 0, needsSetup: 1, staged: 0 }} recent={{ port, status: recentStatus }} filter="all" setFilter={() => undefined} onSelect={() => undefined} onContinue={() => undefined} loading={false} />);
+    expect(html).toContain("Finish setup");
+    expect(html).not.toContain("Play again");
   });
 
   it("summarizes update checks and exposes policy reconciliation", () => {
