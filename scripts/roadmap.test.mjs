@@ -200,7 +200,9 @@ test("feature intake accepts neutral and explicit planning fields", () => {
 
 test("active release materialization and manual checklist are explicit", () => {
   const current = materializeViews(config).find(view => view.name === "Current Release");
-  assert.match(current.filter, /Alpha 1/);
+  assert.equal(current.filter, `-status:Done target-release:"${config.active_release}"`);
+  const alpha1 = materializeViews({ ...config, active_release: "Alpha 1" }).find(view => view.name === "Current Release");
+  assert.equal(alpha1.filter, '-status:Done target-release:"Alpha 1"');
   assert.equal(manualUiChecklist(config).filter(line => /^\d+\. .*: group by/.test(line)).length, 9);
   assert.match(manualUiChecklist(config).at(-1), /completion workflows/);
 });
