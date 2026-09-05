@@ -3209,6 +3209,7 @@ dependencies = [
  "crc32fast",
  "directories",
  "ed25519-dalek",
+ "filetime",
  "flate2",
  "fs2",
  "futures-util",

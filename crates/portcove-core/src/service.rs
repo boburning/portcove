@@ -1,5 +1,5 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     fs,
     io::{Read, Write},
     path::{Path, PathBuf},
@@ -21,9 +21,9 @@ use crate::{
     LaunchSessionRecord, LaunchStdio, Library, OperationCoordinator, OperationEvent,
     OperationResult, Platform, PortDefinition, PortPaths, PortStatus, PortcoveError,
     ReconcileAction, ReconcileResult, ReleaseChannel, ReleaseProvider, RepairItem, RepairItemKind,
-    RepairPlan, ResolvedRelease, RestoreResult, Result, SourceRecord, SourceRemovalPreview,
-    SourceRequirementRole, SourceVerification, SupervisedLaunchOutcome, UpdateCheck, UpdatePolicy,
-    VerificationReport,
+    RepairPlan, ResolvedRelease, RestoreResult, Result, SourceHealth, SourceRecord,
+    SourceRemovalPreview, SourceRequirementRole, SourceVerification, SupervisedLaunchOutcome,
+    UpdateCheck, UpdatePolicy, VerificationReport,
     durability::{prepare_backup_publication, publish_backup_directory},
     operation::{
         LifecycleFaultInjector, LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind,
@@ -34,6 +34,25 @@ use crate::{
 
 const LAUNCH_MARKER: &str = ".portcove-launched";
 const BULK_PROVIDER_CONCURRENCY: usize = 4;
+
+fn add_source_blocker(blockers: &mut Vec<LaunchBlocker>, health: Option<SourceHealth>, bios: bool) {
+    let blocker = match (health, bios) {
+        (Some(SourceHealth::Unregistered | SourceHealth::Missing), false) => {
+            Some(LaunchBlocker::MissingSource)
+        }
+        (Some(SourceHealth::Unreadable), false) => Some(LaunchBlocker::UnreadableSource),
+        (Some(SourceHealth::Changed), false) => Some(LaunchBlocker::ChangedSource),
+        (Some(SourceHealth::Unregistered | SourceHealth::Missing), true) => {
+            Some(LaunchBlocker::MissingBios)
+        }
+        (Some(SourceHealth::Unreadable), true) => Some(LaunchBlocker::UnreadableBios),
+        (Some(SourceHealth::Changed), true) => Some(LaunchBlocker::ChangedBios),
+        _ => None,
+    };
+    if let Some(blocker) = blocker {
+        blockers.push(blocker);
+    }
+}
 
 fn restore_setup_manifest(
     manifest_path: &Path,
@@ -463,9 +482,10 @@ impl PortcoveService {
         let port = self.catalog.port(port_id)?;
         let registered_sources = self
             .library
-            .source_profile_ids()?
+            .sources()?
             .into_iter()
-            .collect::<HashSet<_>>();
+            .map(|source| (source.profile_id.clone(), source))
+            .collect::<HashMap<_, _>>();
         let (mut statuses, metrics) = self
             .library
             .statuses_with_metrics(&[(port_id.to_owned(), default_channel(port))])?;
@@ -477,7 +497,7 @@ impl PortcoveService {
         let status = statuses
             .pop()
             .ok_or_else(|| PortcoveError::state("status read model returned no row"))?;
-        Ok(self.with_launch_readiness(port, status, &registered_sources))
+        self.with_launch_readiness(port, status, &registered_sources, &mut HashMap::new())
     }
 
     pub fn statuses(&self) -> Result<Vec<PortStatus>> {
@@ -489,20 +509,24 @@ impl PortcoveService {
             .collect::<Vec<_>>();
         let registered_sources = self
             .library
-            .source_profile_ids()?
+            .sources()?
             .into_iter()
-            .collect::<HashSet<_>>();
+            .map(|source| (source.profile_id.clone(), source))
+            .collect::<HashMap<_, _>>();
         let (statuses, metrics) = self.library.statuses_with_metrics(&ports)?;
         tracing::debug!(
             port_count = statuses.len(),
             sqlite_query_count = metrics.sqlite_query_count + 1,
             "loaded status read model"
         );
+        let mut checked_sources = HashMap::new();
         self.catalog
             .ports()
             .iter()
             .zip(statuses)
-            .map(|(port, status)| Ok(self.with_launch_readiness(port, status, &registered_sources)))
+            .map(|(port, status)| {
+                self.with_launch_readiness(port, status, &registered_sources, &mut checked_sources)
+            })
             .collect()
     }
 
@@ -996,19 +1020,27 @@ impl PortcoveService {
         &self,
         port: &PortDefinition,
         mut status: PortStatus,
-        registered_sources: &HashSet<String>,
-    ) -> PortStatus {
+        registered_sources: &HashMap<String, SourceRecord>,
+        checked_sources: &mut HashMap<String, SourceHealth>,
+    ) -> Result<PortStatus> {
         let mut blockers = Vec::new();
-        if let Some(profile_id) = &port.source_profile
-            && !registered_sources.contains(profile_id)
-        {
-            blockers.push(LaunchBlocker::MissingSource);
-        }
-        if let Some(profile_id) = &port.bios_source_profile
-            && !registered_sources.contains(profile_id)
-        {
-            blockers.push(LaunchBlocker::MissingBios);
-        }
+        let installed = status.active.is_some();
+        let source = port
+            .source_profile
+            .as_deref()
+            .map(|profile_id| {
+                self.source_health(profile_id, installed, registered_sources, checked_sources)
+            })
+            .transpose()?;
+        let bios = port
+            .bios_source_profile
+            .as_deref()
+            .map(|profile_id| {
+                self.source_health(profile_id, installed, registered_sources, checked_sources)
+            })
+            .transpose()?;
+        add_source_blocker(&mut blockers, source, false);
+        add_source_blocker(&mut blockers, bios, true);
         if status.active.as_ref().is_some_and(|active| {
             Platform::current().is_ok_and(|platform| !crate::runtime::ready(port, platform, active))
         }) {
@@ -1020,11 +1052,35 @@ impl PortcoveService {
                 .is_some_and(|marker| !active.path.join(marker).is_file())
         });
         status.readiness = Some(LaunchReadiness {
-            launchable: status.active.is_some() && blockers.is_empty(),
+            launchable: installed && blockers.is_empty(),
             blockers,
             pending_setup,
+            source,
+            bios,
         });
-        status
+        Ok(status)
+    }
+
+    fn source_health(
+        &self,
+        profile_id: &str,
+        installed: bool,
+        registered_sources: &HashMap<String, SourceRecord>,
+        checked_sources: &mut HashMap<String, SourceHealth>,
+    ) -> Result<SourceHealth> {
+        let Some(source) = registered_sources.get(profile_id) else {
+            return Ok(SourceHealth::Unregistered);
+        };
+        if !installed {
+            return Ok(SourceHealth::NotChecked);
+        }
+        if let Some(health) = checked_sources.get(profile_id) {
+            return Ok(*health);
+        }
+        let profile = self.catalog.source_profile(profile_id)?;
+        let health = crate::adapter::inspect_source_health(profile, source);
+        checked_sources.insert(profile_id.into(), health);
+        Ok(health)
     }
 
     pub async fn check_update(&self, port_id: &str) -> Result<UpdateCheck> {
@@ -1308,13 +1364,7 @@ impl PortcoveService {
     }
 
     pub fn verify_source(&self, profile_id: &str) -> Result<SourceVerification> {
-        let activity = self.library.begin_activity(
-            ActivityOperation::VerifySource,
-            ActivityTargetKind::Source,
-            Some(profile_id),
-        )?;
-        let result = self.verify_source_untracked(profile_id);
-        self.finish_activity(activity, result)
+        self.verify_source_untracked(profile_id)
     }
 
     fn verify_source_untracked(&self, profile_id: &str) -> Result<SourceVerification> {
@@ -4657,19 +4707,31 @@ fn main() {
     }
 
     #[test]
-    fn source_verification_detects_changes_without_replacing_the_baseline() {
+    fn source_verification_is_read_only_and_preserves_the_registered_baseline() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let source = temporary.path().join("star-fox-64.z64");
         fs::write(&source, b"original source").unwrap();
         let service = PortcoveService::new(library.clone()).unwrap();
         let registered = service.register_source("star-fox-64", &source).unwrap();
+        let database = library.root().join("portcove.sqlite3");
+        let registered_json = serde_json::to_vec(&registered).unwrap();
+        let database_before_success = fs::read(&database).unwrap();
+        let source_before_success = fs::read(&source).unwrap();
 
         let verified = service.verify_source("star-fox-64").unwrap();
         assert_eq!(verified.sha256, registered.sha256);
         assert_eq!(verified.size, registered.size);
+        assert_eq!(fs::read(&database).unwrap(), database_before_success);
+        assert_eq!(fs::read(&source).unwrap(), source_before_success);
+        assert_eq!(
+            serde_json::to_vec(&library.source("star-fox-64").unwrap().unwrap()).unwrap(),
+            registered_json
+        );
 
         fs::write(&source, b"changed source").unwrap();
+        let database_before_failure = fs::read(&database).unwrap();
+        let source_before_failure = fs::read(&source).unwrap();
         let error = service.verify_source("star-fox-64").unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::SourceInvalid);
         assert_eq!(
@@ -4681,22 +4743,14 @@ fn main() {
             Some(&registered.storage_sha256)
         );
         assert_eq!(
-            library.source("star-fox-64").unwrap().unwrap().sha256,
-            registered.sha256
+            serde_json::to_vec(&library.source("star-fox-64").unwrap().unwrap()).unwrap(),
+            registered_json
         );
+        assert_eq!(fs::read(&database).unwrap(), database_before_failure);
+        assert_eq!(fs::read(&source).unwrap(), source_before_failure);
         let activities = library.activities(10).unwrap();
-        assert_eq!(activities[0].operation, ActivityOperation::VerifySource);
-        assert_eq!(activities[0].status, ActivityStatus::Failed);
-        assert_eq!(activities[0].target_id.as_deref(), Some("star-fox-64"));
-        assert!(
-            activities[0]
-                .message
-                .as_deref()
-                .is_some_and(|message| message.contains("source changed"))
-        );
-        assert_eq!(activities[1].operation, ActivityOperation::VerifySource);
-        assert_eq!(activities[1].status, ActivityStatus::Succeeded);
-        assert_eq!(activities[2].operation, ActivityOperation::RegisterSource);
+        assert_eq!(activities.len(), 1);
+        assert_eq!(activities[0].operation, ActivityOperation::RegisterSource);
     }
 
     #[tokio::test]
@@ -4740,30 +4794,145 @@ fn main() {
         let blocked = service.status("opengoal-jak1").unwrap().readiness.unwrap();
         assert!(!blocked.launchable);
         assert_eq!(blocked.blockers, [LaunchBlocker::MissingSource]);
+        assert_eq!(blocked.source, Some(SourceHealth::Unregistered));
         assert!(blocked.pending_setup);
 
+        let source_path = temporary.path().join("jak1.iso");
+        fs::write(&source_path, b"registered source").unwrap();
+        let (storage_sha256, storage_size) = crate::adapter::hash_file(&source_path).unwrap();
         library
             .register_source(&SourceRecord {
                 profile_id: "opengoal-jak1-disc".into(),
-                path: temporary.path().join("jak1.iso"),
-                sha256: "0".repeat(64),
-                size: 1,
-                storage_sha256: "0".repeat(64),
-                storage_size: 1,
+                path: source_path.clone(),
+                sha256: storage_sha256.clone(),
+                size: storage_size,
+                storage_sha256,
+                storage_size,
                 updated_at: Library::now(),
             })
             .unwrap();
         let pending = service.status("opengoal-jak1").unwrap().readiness.unwrap();
         assert!(pending.launchable);
         assert!(pending.blockers.is_empty());
+        assert_eq!(pending.source, Some(SourceHealth::Current));
         assert!(pending.pending_setup);
+
+        fs::write(&source_path, b"registered sourcf").unwrap();
+        let changed = service.status("opengoal-jak1").unwrap().readiness.unwrap();
+        assert!(!changed.launchable);
+        assert_eq!(changed.blockers, [LaunchBlocker::ChangedSource]);
+        assert_eq!(changed.source, Some(SourceHealth::Changed));
+
+        fs::remove_file(&source_path).unwrap();
+        let missing = service.status("opengoal-jak1").unwrap().readiness.unwrap();
+        assert!(!missing.launchable);
+        assert_eq!(missing.blockers, [LaunchBlocker::MissingSource]);
+        assert_eq!(missing.source, Some(SourceHealth::Missing));
 
         let marker = install.join("data/out/jak1/iso/0COMMON.TXT");
         fs::create_dir_all(marker.parent().unwrap()).unwrap();
         fs::write(marker, b"ready").unwrap();
-        let ready = service.status("opengoal-jak1").unwrap().readiness.unwrap();
-        assert!(ready.launchable);
-        assert!(!ready.pending_setup);
+        let still_missing = service.status("opengoal-jak1").unwrap().readiness.unwrap();
+        assert!(!still_missing.launchable);
+        assert!(!still_missing.pending_setup);
+    }
+
+    #[test]
+    fn uninstalled_registered_sources_are_explicitly_not_checked() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let source_path = temporary.path().join("star-fox-64.z64");
+        fs::write(&source_path, b"registered source").unwrap();
+        let (storage_sha256, storage_size) = crate::adapter::hash_file(&source_path).unwrap();
+        library
+            .register_source(&SourceRecord {
+                profile_id: "star-fox-64".into(),
+                path: source_path,
+                sha256: storage_sha256.clone(),
+                size: storage_size,
+                storage_sha256,
+                storage_size,
+                updated_at: Library::now(),
+            })
+            .unwrap();
+
+        let readiness = PortcoveService::new(library)
+            .unwrap()
+            .status("starship")
+            .unwrap()
+            .readiness
+            .unwrap();
+        assert!(!readiness.launchable);
+        assert!(readiness.blockers.is_empty());
+        assert_eq!(readiness.source, Some(SourceHealth::NotChecked));
+    }
+
+    #[test]
+    fn source_health_states_map_to_explicit_role_blockers() {
+        let cases = [
+            (
+                SourceHealth::Unregistered,
+                Some(LaunchBlocker::MissingSource),
+            ),
+            (SourceHealth::Missing, Some(LaunchBlocker::MissingSource)),
+            (
+                SourceHealth::Unreadable,
+                Some(LaunchBlocker::UnreadableSource),
+            ),
+            (SourceHealth::Changed, Some(LaunchBlocker::ChangedSource)),
+            (SourceHealth::Current, None),
+            (SourceHealth::NotChecked, None),
+        ];
+        for (health, expected) in cases {
+            let mut blockers = Vec::new();
+            add_source_blocker(&mut blockers, Some(health), false);
+            assert_eq!(blockers.first().copied(), expected);
+        }
+
+        let mut bios_blockers = Vec::new();
+        add_source_blocker(&mut bios_blockers, Some(SourceHealth::Unreadable), true);
+        add_source_blocker(&mut bios_blockers, Some(SourceHealth::Changed), true);
+        assert_eq!(
+            bios_blockers,
+            [LaunchBlocker::UnreadableBios, LaunchBlocker::ChangedBios]
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn status_distinguishes_an_unreadable_registered_source() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_zelda_install(&library, "v1", true);
+        let source_path = temporary.path().join("zelda.z64");
+        fs::write(&source_path, b"registered source").unwrap();
+        let (storage_sha256, storage_size) = crate::adapter::hash_file(&source_path).unwrap();
+        library
+            .register_source(&SourceRecord {
+                profile_id: "majoras-mask".into(),
+                path: source_path.clone(),
+                sha256: storage_sha256.clone(),
+                size: storage_size,
+                storage_sha256,
+                storage_size,
+                updated_at: Library::now(),
+            })
+            .unwrap();
+        fs::set_permissions(&source_path, fs::Permissions::from_mode(0o000)).unwrap();
+
+        let readiness = PortcoveService::new(library)
+            .unwrap()
+            .status("zelda64-recomp")
+            .unwrap()
+            .readiness
+            .unwrap();
+        assert!(!readiness.launchable);
+        assert_eq!(readiness.blockers, [LaunchBlocker::UnreadableSource]);
+        assert_eq!(readiness.source, Some(SourceHealth::Unreadable));
+
+        fs::set_permissions(source_path, fs::Permissions::from_mode(0o600)).unwrap();
     }
 
     #[test]

@@ -301,11 +301,12 @@ impl Adapter for StandardAdapter {
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 struct RuntimeSourceMarker {
+    schema_version: u32,
     source: String,
     #[serde(default)]
     source_member: Option<String>,
+    storage_sha256: String,
     storage_size: u64,
-    modified_unix_nanos: Option<u128>,
     materialization: RuntimeSourceMaterialization,
 }
 
@@ -353,18 +354,14 @@ fn runtime_source_marker(
     source_member: Option<String>,
     materialization: RuntimeSourceMaterialization,
 ) -> Result<RuntimeSourceMarker> {
-    let metadata = std::fs::metadata(source)?;
-    let modified_unix_nanos = metadata
-        .modified()
-        .ok()
-        .and_then(|value| value.duration_since(std::time::UNIX_EPOCH).ok())
-        .map(|value| value.as_nanos());
+    let (storage_sha256, storage_size) = source_storage_identity(source)?;
     let canonical = std::fs::canonicalize(source).unwrap_or_else(|_| source.to_path_buf());
     Ok(RuntimeSourceMarker {
+        schema_version: 2,
         source: crate::path::unicode(&canonical, "source")?,
         source_member,
-        storage_size: metadata.len(),
-        modified_unix_nanos,
+        storage_sha256,
+        storage_size,
         materialization,
     })
 }
@@ -1641,6 +1638,36 @@ pub(crate) fn verify_source_storage_identity(source: &SourceRecord, role: &str) 
     Ok(())
 }
 
+pub(crate) fn inspect_source_health(
+    profile: &SourceProfile,
+    source: &SourceRecord,
+) -> crate::SourceHealth {
+    let metadata = match std::fs::metadata(&source.path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return crate::SourceHealth::Missing;
+        }
+        Err(_) => return crate::SourceHealth::Unreadable,
+    };
+    let identity = if profile.kind == SourceKind::FileSet && metadata.is_dir() {
+        validate_file_set_source(profile, &source.path)
+            .map(|current| (current.storage_sha256, current.storage_size))
+    } else {
+        source_storage_identity(&source.path)
+    };
+    match identity {
+        Ok((sha256, size)) if sha256 == source.storage_sha256 && size == source.storage_size => {
+            crate::SourceHealth::Current
+        }
+        Ok(_)
+        | Err(PortcoveError {
+            code: crate::ErrorCode::SourceInvalid,
+            ..
+        }) => crate::SourceHealth::Changed,
+        Err(_) => crate::SourceHealth::Unreadable,
+    }
+}
+
 pub(crate) fn aggregate_sha256(hashes: &[String]) -> String {
     if let [only] = hashes {
         return only.clone();
@@ -2481,17 +2508,17 @@ mod tests {
     }
 
     #[test]
-    fn copied_runtime_sources_are_replaced_when_registration_changes() {
+    fn copied_runtime_sources_are_replaced_when_bytes_change_at_the_same_path_and_timestamp() {
         let temporary = tempfile::tempdir().unwrap();
-        let first = temporary.path().join("first.gba");
-        let second = temporary.path().join("second.gba");
+        let source = temporary.path().join("source.gba");
         let destination = temporary.path().join("runtime/baserom.gba");
         std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
-        std::fs::write(&first, b"first source").unwrap();
-        std::fs::write(&second, b"replacement source").unwrap();
+        std::fs::write(&source, b"first source").unwrap();
+        let original_mtime =
+            filetime::FileTime::from_last_modification_time(&std::fs::metadata(&source).unwrap());
 
         prepare_runtime_source(
-            &first,
+            &source,
             &destination,
             RuntimeSourceMaterialization::Copy,
             &BTreeMap::new(),
@@ -2499,23 +2526,38 @@ mod tests {
         .unwrap();
         assert_eq!(std::fs::read(&destination).unwrap(), b"first source");
 
+        std::fs::write(&source, b"other source").unwrap();
+        filetime::set_file_mtime(&source, original_mtime).unwrap();
         prepare_runtime_source(
-            &second,
+            &source,
             &destination,
             RuntimeSourceMaterialization::Copy,
             &BTreeMap::new(),
         )
         .unwrap();
-        assert_eq!(std::fs::read(&destination).unwrap(), b"replacement source");
+        assert_eq!(std::fs::read(&destination).unwrap(), b"other source");
         let marker = std::fs::read(runtime_source_marker_path(&destination).unwrap()).unwrap();
         let marker: RuntimeSourceMarker = serde_json::from_slice(&marker).unwrap();
+        assert_eq!(marker.schema_version, 2);
+        assert_eq!(marker.storage_size, 12);
         assert_eq!(
-            marker.source,
-            std::fs::canonicalize(second)
-                .unwrap()
-                .to_string_lossy()
-                .as_ref()
+            marker.storage_sha256,
+            source_storage_identity(&source).unwrap().0
         );
+
+        let reuse_sentinel = filetime::FileTime::from_unix_time(1_700_000_000, 0);
+        filetime::set_file_mtime(&destination, reuse_sentinel).unwrap();
+        prepare_runtime_source(
+            &source,
+            &destination,
+            RuntimeSourceMaterialization::Copy,
+            &BTreeMap::new(),
+        )
+        .unwrap();
+        let reused_mtime = filetime::FileTime::from_last_modification_time(
+            &std::fs::metadata(&destination).unwrap(),
+        );
+        assert_eq!(reused_mtime, reuse_sentinel);
     }
 
     #[test]

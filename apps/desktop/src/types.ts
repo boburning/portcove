@@ -133,6 +133,9 @@ export interface InstallRecord {
   selected_executable: string;
 }
 
+export type SourceHealth = "unregistered" | "current" | "missing" | "unreadable" | "changed" | "not_checked";
+export type ReadinessBlocker = "missing_source" | "unreadable_source" | "changed_source" | "missing_bios" | "unreadable_bios" | "changed_bios" | "missing_runtime";
+
 export interface PortStatus {
   port_id: string;
   user_data_root?: string;
@@ -145,8 +148,10 @@ export interface PortStatus {
   successful_launches?: number;
   readiness?: {
     launchable: boolean;
-    blockers: Array<"missing_source" | "missing_bios" | "missing_runtime">;
+    blockers: ReadinessBlocker[];
     pending_setup: boolean;
+    source?: SourceHealth;
+    bios?: SourceHealth;
   };
   last_update_check?: UpdateSnapshot;
 }

@@ -45,6 +45,16 @@ describe("desktop components", () => {
     expect(html).not.toContain("Play now");
     expect(html).not.toContain("Choose required source");
   });
+
+  it("shows changed registered bytes as setup instead of launch readiness", () => {
+    const source = { profile_id: "sample-rom", path: "source.z64", sha256: "a".repeat(64), size: 12, storage_sha256: "a".repeat(64), storage_size: 12, updated_at: 1 };
+    const html = renderToStaticMarkup(<DetailPanel port={port} source={source} sourcePath="source.z64" setSourcePath={vi.fn()} actions={actions}
+      status={{ port_id: port.id, channel: "stable", update_policy: "notify", active: installRecord(), readiness: { launchable: false, blockers: ["changed_source"], pending_setup: false, source: "changed" } }} />);
+    expect(html).toContain("Original source changed");
+    expect(html).toContain("Registered source changed since it was added");
+    expect(html).toContain("Choose required source");
+    expect(html).not.toContain("Play now");
+  });
   it("shows the reviewed adoption copy plan and skipped entries before copying", () => {
     const html = renderToStaticMarkup(<AdoptionModal
       path="D:/Existing"
@@ -330,6 +340,18 @@ describe("desktop components", () => {
     expect(html).toContain("CONTINUE");
     expect(html).toContain("Play again");
     expect(html).toContain("Last successful session");
+  });
+
+  it("routes Continue to setup when previously launched source bytes changed", () => {
+    const install = installRecord();
+    const recentStatus: PortStatus = {
+      port_id: port.id, channel: "stable", update_policy: "notify", active: install, last_launched_at: 100, successful_launches: 1,
+      readiness: { launchable: false, blockers: ["changed_source"], pending_setup: false, source: "changed" },
+    };
+    const html = renderToStaticMarkup(<PortBrowser view="library" ports={[port]} statuses={new Map([[port.id, recentStatus]])} registeredSources={new Set(["sample-rom"])}
+      overview={{ installed: 1, ready: 0, needsSetup: 1, staged: 0 }} recent={{ port, status: recentStatus }} filter="all" setFilter={() => undefined} onSelect={() => undefined} onContinue={() => undefined} loading={false} />);
+    expect(html).toContain("Finish setup");
+    expect(html).not.toContain("Play again");
   });
 
   it("summarizes update checks and exposes policy reconciliation", () => {

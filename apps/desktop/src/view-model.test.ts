@@ -40,6 +40,20 @@ describe("catalog view model", () => {
     expect(filterOptions("catalog")).toEqual(["all", "stable", "beta", "rolling"]);
   });
 
+  it("treats changed and unreadable registered bytes as setup blockers", () => {
+    const withSources = { ...ports[0], source_profile: "alpha-source", bios_source_profile: "alpha-bios" };
+    const changed: PortStatus = {
+      ...status,
+      readiness: { launchable: false, blockers: ["changed_source"], pending_setup: false, source: "changed", bios: "current" },
+    };
+    const unreadableBios: PortStatus = {
+      ...status,
+      readiness: { launchable: false, blockers: ["unreadable_bios"], pending_setup: false, source: "current", bios: "unreadable" },
+    };
+    expect(portReadiness(withSources, changed, new Set(["alpha-source", "alpha-bios"]))).toBe("source");
+    expect(portReadiness(withSources, unreadableBios, new Set(["alpha-source", "alpha-bios"]))).toBe("bios");
+  });
+
   it("keeps one-time upstream setup separate from missing sources", () => {
     const withSetup = { ...ports[0], source_profile: "alpha-source", setup_marker: "data/ready.txt" };
     const pending: PortStatus = {

@@ -1,4 +1,4 @@
-import type { DesktopError, PortDefinition, PortStatus, SourceProfile, SourceRecord, UpdateSnapshot } from "./types";
+import type { DesktopError, PortDefinition, PortStatus, ReadinessBlocker, SourceProfile, SourceRecord, UpdateSnapshot } from "./types";
 
 export type View = "library" | "catalog" | "updates" | "settings";
 export type Filter = "all" | "ready" | "setup" | "stable" | "beta" | "rolling";
@@ -36,9 +36,9 @@ export function filterOptions(view: View): Filter[] {
 
 export function portReadiness(port: PortDefinition, status: PortStatus | undefined, registeredSources: ReadonlySet<string>): PortReadiness {
   if (!status?.active) return "available";
-  const sourceMissing = status.readiness?.blockers.includes("missing_source")
+  const sourceMissing = status.readiness?.blockers.some(blocker => SOURCE_BLOCKERS.includes(blocker))
     ?? Boolean(port.source_profile && !registeredSources.has(port.source_profile));
-  const biosMissing = status.readiness?.blockers.includes("missing_bios")
+  const biosMissing = status.readiness?.blockers.some(blocker => BIOS_BLOCKERS.includes(blocker))
     ?? Boolean(port.bios_source_profile && !registeredSources.has(port.bios_source_profile));
   if (sourceMissing && biosMissing) return "setup";
   if (sourceMissing) return "source";
@@ -48,6 +48,9 @@ export function portReadiness(port: PortDefinition, status: PortStatus | undefin
   if (status.staged) return "staged";
   return "ready";
 }
+
+const SOURCE_BLOCKERS: ReadinessBlocker[] = ["missing_source", "unreadable_source", "changed_source"];
+const BIOS_BLOCKERS: ReadinessBlocker[] = ["missing_bios", "unreadable_bios", "changed_bios"];
 
 export function summarizeLibrary(ports: PortDefinition[], statuses: Map<string, PortStatus>, registeredSources: ReadonlySet<string>): LibraryOverview {
   const installed = ports.filter(port => statuses.get(port.id)?.active);

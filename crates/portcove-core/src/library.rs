@@ -706,14 +706,6 @@ impl Library {
             .map_err(Into::into)
     }
 
-    pub(crate) fn source_profile_ids(&self) -> Result<Vec<String>> {
-        let connection = self.connection()?;
-        let mut statement = connection.prepare("SELECT profile_id FROM sources")?;
-        let rows = statement.query_map([], |row| row.get(0))?;
-        rows.collect::<std::result::Result<Vec<_>, _>>()
-            .map_err(Into::into)
-    }
-
     pub(crate) fn remove_source(&self, profile_id: &str) -> Result<bool> {
         Ok(self
             .connection()?
