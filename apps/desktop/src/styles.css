@@ -1516,6 +1516,18 @@ select { width: 100%; padding: 11px; }
 
 .backup-expander:hover { color: var(--color-interactive-text-strong); }
 
+.backup-inventory-notice {
+  padding: 12px;
+  border: 1px solid var(--color-warning-border, var(--color-border));
+  border-radius: var(--radius-md);
+  background: var(--color-warning-surface, var(--color-bg-subtle));
+}
+.backup-inventory-notice.recovery_required { border-color: var(--color-danger-border, var(--color-border)); }
+.backup-inventory-notice p { margin: 4px 0 8px; color: var(--color-text-muted); }
+.backup-inventory-notice summary { cursor: pointer; }
+.backup-problem { display: grid; gap: 3px; margin-top: 10px; }
+.backup-problem span, .backup-problem small { overflow-wrap: anywhere; }
+
 .modal {
   width: min(500px, 90vw);
   max-height: calc(100dvh - var(--space-8));

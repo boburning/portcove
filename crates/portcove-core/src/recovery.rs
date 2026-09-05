@@ -239,6 +239,86 @@ pub(crate) fn recover_restore(
     Ok(())
 }
 
+pub(crate) fn recover_backup_deletion(
+    service: &PortcoveService,
+    store: &OperationStore,
+    operation: &mut LifecycleOperation,
+) -> Result<()> {
+    let (original, quarantine, backup_id) =
+        service.validate_backup_deletion_operation(operation)?;
+    if operation.phase == LifecyclePhase::Preparing {
+        return Err(PortcoveError::state(
+            "backup deletion preparation was interrupted before authorization",
+        ));
+    }
+    if operation.phase == LifecyclePhase::Prepared {
+        match (path_exists(&original)?, path_exists(&quarantine)?) {
+            (true, false) => {
+                service.validate_backup_directory_identity(
+                    &original,
+                    &operation.port_id,
+                    &backup_id,
+                )?;
+                fs::rename(&original, &quarantine)?;
+            }
+            (false, true) => service.validate_backup_directory_identity(
+                &quarantine,
+                &operation.port_id,
+                &backup_id,
+            )?,
+            (true, true) => {
+                return Err(PortcoveError::conflict(
+                    "both visible and quarantined backup paths exist; refusing automatic deletion",
+                ));
+            }
+            (false, false) => {
+                return Err(PortcoveError::state(
+                    "both visible and quarantined backup paths are missing; deletion outcome is ambiguous",
+                ));
+            }
+        }
+        operation.phase = LifecyclePhase::PayloadPublished;
+        operation.last_error = None;
+        store.put(operation)?;
+    }
+    if operation.phase == LifecyclePhase::PayloadPublished {
+        if path_exists(&original)? {
+            return Err(PortcoveError::conflict(
+                "a visible backup reappeared during deletion recovery; refusing automatic deletion",
+            ));
+        }
+        if path_exists(&quarantine)? {
+            fs::remove_dir_all(&quarantine)?;
+        }
+        operation.phase = LifecyclePhase::MetadataCommitted;
+        operation.last_error = None;
+        store.put(operation)?;
+    }
+    if matches!(
+        operation.phase,
+        LifecyclePhase::MetadataCommitted | LifecyclePhase::CleanupPending
+    ) {
+        if path_exists(&original)? {
+            return Err(PortcoveError::conflict(
+                "a visible backup exists after deletion was committed; refusing to reinterpret it",
+            ));
+        }
+        if path_exists(&quarantine)? {
+            fs::remove_dir_all(&quarantine)?;
+        }
+        store.remove(&operation.id)?;
+    }
+    Ok(())
+}
+
+fn path_exists(path: &std::path::Path) -> Result<bool> {
+    match fs::symlink_metadata(path) {
+        Ok(_) => Ok(true),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(error.into()),
+    }
+}
+
 pub(crate) fn recover_activation(
     service: &PortcoveService,
     store: &OperationStore,
