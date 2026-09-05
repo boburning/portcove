@@ -36,6 +36,7 @@ mod service;
 mod signed_catalog;
 mod source;
 mod source_assessment;
+mod source_catalog;
 mod source_discovery;
 mod source_file;
 mod stfs;
@@ -83,10 +84,11 @@ pub use signed_catalog::{
 };
 pub use source::SourceRelinkPlan;
 pub use source_assessment::*;
+pub use source_catalog::*;
 pub use source_discovery::{
     SourceDiscoveryIssue, SourceDiscoveryLimit, SourceDiscoveryLimits, SourceDiscoveryReport,
     SourceDiscoveryRequest,
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 14;
+pub const API_SCHEMA_VERSION: u32 = 15;

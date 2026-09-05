@@ -44,6 +44,17 @@ observation time remain historical attribution; changing an unrelated build
 does not erase a fact. Evidence IDs are catalog references, not renderer URLs.
 No database, catalog, signed-envelope or ownership boundary changes in this
 foundation; existing metadata architecture rules remain applicable.
+
+The schema-2 source contract models the input to those facts through reusable
+identity profiles with logical variants and alternative physical
+representations. Per-port contracts select supported variants and an enforced
+or informational admission mode. Digests inside one identity record are
+conjunctive and carry an explicit byte scope; separate identity records and
+representations are alternatives. Evidence, validators, aliases, tombstones,
+release applicability, and review URLs use stable validated IDs. The embedded
+catalog and runtime matcher remain schema 1 until the admission-equivalent
+migration is integrated; its temporary compatibility projection must have one
+owner and retire when the shared inspector replaces the legacy matcher in #180.
 `HostPreferenceStore` provides bounded format-1 host preference storage and selection provenance without moving a library. CLI and desktop use its platform configuration path outside movable library data and credentials, with an optional absolute preference-file override for portable/test hosts. Selection precedence is an explicit invocation path, saved path, then the platform default. Invalid selected configuration fails visibly; an explicit invocation path or reset remains available when preferences are corrupt or from a future format.
 
 Preference writers serialize through a persistent sibling operating-system lock and publish a flushed sibling atomically using the shared durability helper. Reads never create files. Setting a library preserves compatible unknown JSON fields; explicit reset replaces the whole document, including damaged or future-format content, with current defaults. Core validates that a saved target is an existing empty directory or recognizable Portcove root, refuses symlinks, filesystem roots, unrelated content, and preference/library overlap, then stores its canonical path without initializing it.
