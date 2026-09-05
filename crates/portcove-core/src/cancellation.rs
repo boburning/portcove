@@ -204,7 +204,19 @@ impl PortcoveService {
         target: ActivityTargetKind,
         id: Option<&str>,
     ) -> Result<(ActivityRecord, OperationCoordinator)> {
-        let activity = self.library().begin_activity(kind, target, id)?;
+        self.begin_identified_cancellable_activity(uuid::Uuid::new_v4(), kind, target, id)
+    }
+
+    pub(crate) fn begin_identified_cancellable_activity(
+        &self,
+        operation_id: uuid::Uuid,
+        kind: ActivityOperation,
+        target: ActivityTargetKind,
+        id: Option<&str>,
+    ) -> Result<(ActivityRecord, OperationCoordinator)> {
+        let activity = self
+            .library()
+            .begin_identified_activity(operation_id, kind, target, id)?;
         match OperationCoordinator::cancellable(self.library(), &activity, &self.cancellation_owner)
         {
             Ok(operation) => {
@@ -239,6 +251,11 @@ impl PortcoveService {
             let Some(state) = cancellation_state(self.library(), &id)? else {
                 continue;
             };
+            if self.library().active_launch_session(&id)?.is_some() {
+                // The launch state machine owns its request through process
+                // recovery and exact-install collection.
+                continue;
+            }
             if let Some(operation) = operations.iter().find(|operation| operation.id == id) {
                 if operation.phase != LifecyclePhase::Preparing {
                     continue;

@@ -10,7 +10,7 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior};
 
 use crate::{PortcoveError, Result};
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 12;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 13;
 
 struct Migration {
     version: i64,
@@ -91,6 +91,12 @@ const MIGRATIONS: &[Migration] = &[
         name: "immutable bundled runtime identity",
         apply: migration_12,
         verify: verify_migration_12,
+    },
+    Migration {
+        version: 13,
+        name: "durable launch request outcomes",
+        apply: migration_13,
+        verify: verify_migration_13,
     },
 ];
 
@@ -588,6 +594,68 @@ fn verify_migration_10(connection: &Connection) -> Result<()> {
             "cancellation_owner",
         ],
     )
+}
+
+fn migration_13(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "ALTER TABLE launch_sessions RENAME TO launch_sessions_v9;
+         DROP INDEX IF EXISTS launch_sessions_install_id;
+         CREATE TABLE launch_sessions (
+           id TEXT PRIMARY KEY,
+           port_id TEXT NOT NULL,
+           install_id TEXT NOT NULL,
+           install_root TEXT NOT NULL,
+           supervisor_pid INTEGER NOT NULL,
+           supervisor_identity TEXT,
+           child_pid INTEGER,
+           child_identity TEXT,
+           phase TEXT NOT NULL CHECK(phase IN ('preparing','spawning','running','collecting','recovering')),
+           outcome TEXT CHECK(outcome IN ('succeeded','failed','cancelled')),
+           exit_code INTEGER,
+           message TEXT,
+           started_at INTEGER NOT NULL,
+           updated_at INTEGER NOT NULL,
+           finished_at INTEGER
+         );
+         INSERT INTO launch_sessions(
+           id, port_id, install_id, install_root, supervisor_pid, child_pid, phase,
+           started_at, updated_at
+         )
+         SELECT id, port_id, install_id, install_root, supervisor_pid, child_pid, phase,
+                started_at, updated_at
+         FROM launch_sessions_v9;
+         DROP TABLE launch_sessions_v9;
+         CREATE INDEX launch_sessions_install_id ON launch_sessions(install_id);
+         CREATE UNIQUE INDEX launch_sessions_active_port
+           ON launch_sessions(port_id) WHERE outcome IS NULL;",
+    )?;
+    Ok(())
+}
+
+fn verify_migration_13(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "launch_sessions",
+        &[
+            "id",
+            "port_id",
+            "install_id",
+            "install_root",
+            "supervisor_pid",
+            "supervisor_identity",
+            "child_pid",
+            "child_identity",
+            "phase",
+            "outcome",
+            "exit_code",
+            "message",
+            "started_at",
+            "updated_at",
+            "finished_at",
+        ],
+    )?;
+    require_index(connection, "launch_sessions_install_id")?;
+    require_index(connection, "launch_sessions_active_port")
 }
 
 fn verify_migration_11(connection: &Connection) -> Result<()> {

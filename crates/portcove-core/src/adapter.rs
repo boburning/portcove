@@ -23,6 +23,16 @@ use crate::{
 const UPSTREAM_SETUP_METADATA: &str = ".portcove-upstream-setup.json";
 const MANAGED_PSX_RUNTIME_CONFIG: &str = ".portcove-psx-runtime.toml";
 
+#[derive(Debug, Clone, Copy)]
+pub struct LaunchSpecRequest<'a> {
+    pub library: &'a Library,
+    pub port: &'a PortDefinition,
+    pub platform: Platform,
+    pub install_root: &'a Path,
+    pub selected_executable: &'a Path,
+    pub source: Option<&'a Path>,
+}
+
 pub trait Adapter: Send + Sync {
     fn kind(&self) -> AdapterKind;
     fn validate_source(&self, profile: &SourceProfile, path: &Path) -> Result<SourceRecord>;
@@ -42,12 +52,8 @@ pub trait Adapter: Send + Sync {
     ) -> Result<LaunchSpec>;
     fn launch_spec_with_executable(
         &self,
-        library: &Library,
-        port: &PortDefinition,
-        platform: Platform,
-        install_root: &Path,
-        selected_executable: &Path,
-        source: Option<&Path>,
+        request: LaunchSpecRequest<'_>,
+        checkpoint: &dyn Fn() -> Result<()>,
     ) -> Result<LaunchSpec>;
 }
 
@@ -106,18 +112,33 @@ impl Adapter for StandardAdapter {
         source: Option<&Path>,
     ) -> Result<LaunchSpec> {
         let executable = self.find_executable(port, platform, install_root)?;
-        self.launch_spec_with_executable(library, port, platform, install_root, &executable, source)
+        self.launch_spec_with_executable(
+            LaunchSpecRequest {
+                library,
+                port,
+                platform,
+                install_root,
+                selected_executable: &executable,
+                source,
+            },
+            &|| Ok(()),
+        )
     }
 
     fn launch_spec_with_executable(
         &self,
-        library: &Library,
-        port: &PortDefinition,
-        platform: Platform,
-        install_root: &Path,
-        selected_executable: &Path,
-        source: Option<&Path>,
+        request: LaunchSpecRequest<'_>,
+        checkpoint: &dyn Fn() -> Result<()>,
     ) -> Result<LaunchSpec> {
+        let LaunchSpecRequest {
+            library,
+            port,
+            platform,
+            install_root,
+            selected_executable,
+            source,
+        } = request;
+        checkpoint()?;
         if !selected_executable.starts_with(install_root) || !selected_executable.is_file() {
             return Err(PortcoveError::verification(
                 "selected executable is not a file in the registered install",
@@ -205,7 +226,9 @@ impl Adapter for StandardAdapter {
                 port.runtime_source_materialization
                     .unwrap_or(RuntimeSourceMaterialization::N64BigEndian),
                 &port.runtime_source_hashes,
+                checkpoint,
             )?;
+            checkpoint()?;
             if let Some(variable) = &port.source_environment {
                 environment.insert(
                     variable.clone(),
@@ -221,7 +244,14 @@ impl Adapter for StandardAdapter {
                 .runtime_source_filename
                 .as_ref()
                 .map(|filename| working_directory.join(filename));
-            run_upstream_setup(port, platform, &working_directory, source_path.as_deref())?;
+            run_upstream_setup(
+                port,
+                platform,
+                &working_directory,
+                source_path.as_deref(),
+                checkpoint,
+            )?;
+            checkpoint()?;
         }
         if let Some(source) = source {
             for target in &port.runtime_source_set {
@@ -234,7 +264,9 @@ impl Adapter for StandardAdapter {
                     &target.source_filenames,
                     &destination,
                     target.materialization,
+                    checkpoint,
                 )?;
+                checkpoint()?;
             }
         }
         let has_generated_archive = std::fs::read_dir(&user_data)
@@ -315,9 +347,10 @@ fn prepare_runtime_source(
     destination: &Path,
     materialization: RuntimeSourceMaterialization,
     required_hashes: &BTreeMap<String, String>,
+    checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
     let marker_path = runtime_source_marker_path(destination)?;
-    let expected = runtime_source_marker(source, None, materialization)?;
+    let expected = runtime_source_marker(source, None, materialization, checkpoint)?;
     let destination_ready = match materialization {
         RuntimeSourceMaterialization::PsxBinCue
         | RuntimeSourceMaterialization::PsxRawSet
@@ -331,7 +364,7 @@ fn prepare_runtime_source(
             .as_ref()
             == Some(&expected);
     if reusable {
-        return verify_runtime_source_hashes(destination, required_hashes);
+        return verify_runtime_source_hashes(destination, required_hashes, checkpoint);
     }
 
     match materialization {
@@ -342,10 +375,11 @@ fn prepare_runtime_source(
         RuntimeSourceMaterialization::PsxRawSet => materialize_psx_raw_set(source, destination)?,
         RuntimeSourceMaterialization::Ps2Iso => materialize_ps2_iso(source, destination)?,
         RuntimeSourceMaterialization::StfsDirectory => {
-            materialize_stfs_directory(source, destination, required_hashes)?
+            materialize_stfs_directory(source, destination, required_hashes, checkpoint)?
         }
     }
-    verify_runtime_source_hashes(destination, required_hashes)?;
+    checkpoint()?;
+    verify_runtime_source_hashes(destination, required_hashes, checkpoint)?;
     atomic_write_json(&marker_path, &expected)
 }
 
@@ -353,8 +387,10 @@ fn runtime_source_marker(
     source: &Path,
     source_member: Option<String>,
     materialization: RuntimeSourceMaterialization,
+    checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<RuntimeSourceMarker> {
-    let (storage_sha256, storage_size) = source_storage_identity(source)?;
+    let (storage_sha256, storage_size) =
+        source_storage_identity_with_checkpoint(source, checkpoint)?;
     let canonical = std::fs::canonicalize(source).unwrap_or_else(|_| source.to_path_buf());
     Ok(RuntimeSourceMarker {
         schema_version: 2,
@@ -371,10 +407,17 @@ fn prepare_runtime_source_set_member(
     accepted_filenames: &[String],
     destination: &Path,
     materialization: RuntimeSourceMaterialization,
+    checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
     if source_root.is_dir() {
         let member = source_set_member_path(source_root, accepted_filenames)?;
-        return prepare_runtime_source(&member, destination, materialization, &BTreeMap::new());
+        return prepare_runtime_source(
+            &member,
+            destination,
+            materialization,
+            &BTreeMap::new(),
+            checkpoint,
+        );
     }
     if materialization != RuntimeSourceMaterialization::Copy
         || source_root
@@ -398,7 +441,8 @@ fn prepare_runtime_source_set_member(
         .name()
         .to_ascii_lowercase();
     let marker_path = runtime_source_marker_path(destination)?;
-    let expected = runtime_source_marker(source_root, Some(member_name), materialization)?;
+    let expected =
+        runtime_source_marker(source_root, Some(member_name), materialization, checkpoint)?;
     let reusable = destination.is_file()
         && std::fs::read(&marker_path)
             .ok()
@@ -431,6 +475,7 @@ fn materialize_stfs_directory(
     source: &Path,
     destination: &Path,
     required_hashes: &BTreeMap<String, String>,
+    checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
     let parent = destination
         .parent()
@@ -438,7 +483,8 @@ fn materialize_stfs_directory(
     std::fs::create_dir_all(parent)?;
     let temporary = parent.join(format!(".portcove-stfs-{}", Uuid::new_v4()));
     if let Err(error) = crate::stfs::extract(source, &temporary)
-        .and_then(|()| verify_runtime_source_hashes(&temporary, required_hashes))
+        .and_then(|()| checkpoint())
+        .and_then(|()| verify_runtime_source_hashes(&temporary, required_hashes, checkpoint))
     {
         let _ = std::fs::remove_dir_all(&temporary);
         return Err(error);
@@ -449,15 +495,17 @@ fn materialize_stfs_directory(
 fn verify_runtime_source_hashes(
     destination: &Path,
     required_hashes: &BTreeMap<String, String>,
+    checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
     for (relative, expected) in required_hashes {
+        checkpoint()?;
         let path = destination.join(relative);
         if !path.is_file() {
             return Err(PortcoveError::verification(format!(
                 "materialized runtime source is missing {relative}"
             )));
         }
-        let (actual, _) = hash_file(&path)?;
+        let (actual, _) = hash_file_with_checkpoint(&path, checkpoint)?;
         if !actual.eq_ignore_ascii_case(expected) {
             return Err(PortcoveError::verification(format!(
                 "materialized runtime source has an unexpected {relative}"
@@ -707,6 +755,7 @@ fn run_upstream_setup(
     platform: Platform,
     working_directory: &Path,
     source: Option<&Path>,
+    checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
     let marker = port.setup_marker.as_ref().ok_or_else(|| {
         PortcoveError::state(format!(
@@ -718,7 +767,7 @@ fn run_upstream_setup(
     let source = source.ok_or_else(|| {
         PortcoveError::source(format!("{} setup requires a registered source", port.name))
     })?;
-    let (source_sha256, source_size) = hash_file(source)?;
+    let (source_sha256, source_size) = hash_file_with_checkpoint(source, checkpoint)?;
     let metadata_path = working_directory.join(UPSTREAM_SETUP_METADATA);
     if marker_path.is_file()
         && std::fs::read(&metadata_path)
@@ -749,6 +798,7 @@ fn run_upstream_setup(
         .map_err(|error| {
             PortcoveError::launch(format!("could not run {} setup ({error})", port.name))
         })?;
+    checkpoint()?;
     if !status.success() {
         return Err(PortcoveError::source(format!(
             "{} rejected or could not prepare the registered source (exit {})",
@@ -1595,8 +1645,15 @@ pub(crate) fn psx_runtime_source_paths(path: &Path) -> Result<Vec<PathBuf>> {
 }
 
 pub(crate) fn source_storage_identity(path: &Path) -> Result<(String, u64)> {
+    source_storage_identity_with_checkpoint(path, &|| Ok(()))
+}
+
+pub(crate) fn source_storage_identity_with_checkpoint(
+    path: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<(String, u64)> {
     if path.is_file() {
-        return hash_file(path);
+        return hash_file_with_checkpoint(path, checkpoint);
     }
     let paths = psx_source_paths(
         path,
@@ -1615,7 +1672,8 @@ pub(crate) fn source_storage_identity(path: &Path) -> Result<(String, u64)> {
     let mut hashes = Vec::new();
     let mut size = 0_u64;
     for source in paths {
-        let (sha256, source_size) = hash_file(&source)?;
+        checkpoint()?;
+        let (sha256, source_size) = hash_file_with_checkpoint(&source, checkpoint)?;
         hashes.push(sha256);
         size = size.saturating_add(source_size);
     }
@@ -2138,6 +2196,7 @@ mod tests {
             &destination,
             RuntimeSourceMaterialization::StfsDirectory,
             &required,
+            &|| Ok(()),
         )
         .unwrap_err();
 
@@ -2154,6 +2213,107 @@ mod tests {
                 .to_string_lossy()
                 .starts_with(".portcove-stfs-")
         }));
+    }
+
+    #[test]
+    fn source_hashing_stops_at_a_cooperative_launch_checkpoint() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("large-source.bin");
+        std::fs::write(&source, vec![7_u8; 1024 * 1024]).unwrap();
+        let checks = std::cell::Cell::new(0_u32);
+
+        let error = hash_file_with_checkpoint(&source, || {
+            checks.set(checks.get() + 1);
+            if checks.get() == 3 {
+                Err(PortcoveError::new(
+                    crate::ErrorCode::Cancelled,
+                    "test cancellation",
+                ))
+            } else {
+                Ok(())
+            }
+        })
+        .unwrap_err();
+
+        assert_eq!(error.code, crate::ErrorCode::Cancelled);
+        assert_eq!(checks.get(), 3);
+    }
+
+    #[test]
+    fn completed_conversion_reaches_cancellation_before_launch_publication() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source.iso");
+        let destination = temporary.path().join("runtime/source.iso");
+        std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        std::fs::write(&source, b"disc bytes").unwrap();
+        let checks = std::cell::Cell::new(0_u32);
+
+        let error = prepare_runtime_source(
+            &source,
+            &destination,
+            RuntimeSourceMaterialization::Ps2Iso,
+            &BTreeMap::new(),
+            &|| {
+                checks.set(checks.get() + 1);
+                if checks.get() == 3 {
+                    Err(PortcoveError::new(
+                        crate::ErrorCode::Cancelled,
+                        "test cancellation",
+                    ))
+                } else {
+                    Ok(())
+                }
+            },
+        )
+        .unwrap_err();
+
+        assert_eq!(error.code, crate::ErrorCode::Cancelled);
+        assert_eq!(std::fs::read(destination).unwrap(), b"disc bytes");
+    }
+
+    #[test]
+    fn completed_upstream_setup_reaches_a_cancellation_boundary() {
+        let platform = Platform::current().unwrap();
+        let mut port = crate::Catalog::embedded()
+            .unwrap()
+            .document()
+            .ports
+            .iter()
+            .find(|port| {
+                port.setup_marker.is_some() && port.setup_executable_hints.contains_key(&platform)
+            })
+            .cloned()
+            .expect("the catalog has an upstream-setup port for this platform");
+        port.setup_arguments.clear();
+        let temporary = tempfile::tempdir().unwrap();
+        let working_directory = temporary.path().join("runtime");
+        std::fs::create_dir_all(&working_directory).unwrap();
+        let setup = working_directory.join(&port.setup_executable_hints[&platform][0]);
+        std::fs::create_dir_all(setup.parent().unwrap()).unwrap();
+        std::fs::copy(std::env::current_exe().unwrap(), &setup).unwrap();
+        let marker = working_directory.join(port.setup_marker.as_ref().unwrap());
+        std::fs::create_dir_all(marker.parent().unwrap()).unwrap();
+        std::fs::write(&marker, b"complete").unwrap();
+        let source = temporary.path().join("source.bin");
+        std::fs::write(&source, b"source").unwrap();
+        let checks = std::cell::Cell::new(0_u32);
+
+        let error = run_upstream_setup(&port, platform, &working_directory, Some(&source), &|| {
+            checks.set(checks.get() + 1);
+            if checks.get() == 3 {
+                Err(PortcoveError::new(
+                    crate::ErrorCode::Cancelled,
+                    "test cancellation",
+                ))
+            } else {
+                Ok(())
+            }
+        })
+        .unwrap_err();
+
+        assert_eq!(error.code, crate::ErrorCode::Cancelled);
+        assert!(marker.is_file());
+        assert!(!working_directory.join(UPSTREAM_SETUP_METADATA).exists());
     }
 
     #[test]
@@ -2522,6 +2682,7 @@ mod tests {
             &destination,
             RuntimeSourceMaterialization::Copy,
             &BTreeMap::new(),
+            &|| Ok(()),
         )
         .unwrap();
         assert_eq!(std::fs::read(&destination).unwrap(), b"first source");
@@ -2533,6 +2694,7 @@ mod tests {
             &destination,
             RuntimeSourceMaterialization::Copy,
             &BTreeMap::new(),
+            &|| Ok(()),
         )
         .unwrap();
         assert_eq!(std::fs::read(&destination).unwrap(), b"other source");
@@ -2552,6 +2714,7 @@ mod tests {
             &destination,
             RuntimeSourceMaterialization::Copy,
             &BTreeMap::new(),
+            &|| Ok(()),
         )
         .unwrap();
         let reused_mtime = filetime::FileTime::from_last_modification_time(
@@ -2573,6 +2736,7 @@ mod tests {
             &destination,
             RuntimeSourceMaterialization::Ps2Iso,
             &BTreeMap::new(),
+            &|| Ok(()),
         )
         .unwrap();
 

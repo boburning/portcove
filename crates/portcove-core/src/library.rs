@@ -13,8 +13,8 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     ActivityOperation, ActivityRecord, ActivityStatus, ActivityTargetKind, ArtifactIdentity,
-    InstallRecord, LaunchSessionPhase, LaunchSessionRecord, PortStatus, PortcoveError,
-    ReleaseChannel, Result, SourceRecord, StorageSummary, UpdateCheck, UpdatePolicy,
+    InstallRecord, LaunchSessionOutcome, LaunchSessionPhase, LaunchSessionRecord, PortStatus,
+    PortcoveError, ReleaseChannel, Result, SourceRecord, StorageSummary, UpdateCheck, UpdatePolicy,
     UpdateSnapshot,
     authorization::{AuthorizationStore, DestructiveAuthorization},
     database,
@@ -498,16 +498,19 @@ impl Library {
         let install_root = crate::path::unicode(&session.install_root, "install")?;
         self.connection()?.execute(
             "INSERT INTO launch_sessions(
-               id, port_id, install_id, install_root, supervisor_pid, child_pid, phase,
-               started_at, updated_at
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+               id, port_id, install_id, install_root, supervisor_pid, supervisor_identity,
+               child_pid, child_identity, phase, outcome, exit_code, message,
+               started_at, updated_at, finished_at
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, NULL, NULL, NULL, ?10, ?11, NULL)",
             params![
                 session.id,
                 session.port_id,
                 session.install_id,
                 install_root,
                 session.supervisor_pid,
+                session.supervisor_identity,
                 session.child_pid,
+                session.child_identity,
                 session.phase.to_string(),
                 session.started_at,
                 session.updated_at,
@@ -520,13 +523,21 @@ impl Library {
         &self,
         id: &str,
         child_pid: Option<u32>,
+        child_identity: Option<&str>,
         phase: LaunchSessionPhase,
     ) -> Result<()> {
         let changed = self.connection()?.execute(
             "UPDATE launch_sessions
-             SET child_pid=COALESCE(?2, child_pid), phase=?3, updated_at=?4
-             WHERE id=?1",
-            params![id, child_pid, phase.to_string(), Self::now()],
+             SET child_pid=COALESCE(?2, child_pid),
+                 child_identity=COALESCE(?3, child_identity), phase=?4, updated_at=?5
+             WHERE id=?1 AND outcome IS NULL",
+            params![
+                id,
+                child_pid,
+                child_identity,
+                phase.to_string(),
+                Self::now()
+            ],
         )?;
         if changed == 0 {
             return Err(PortcoveError::state(format!(
@@ -536,71 +547,94 @@ impl Library {
         Ok(())
     }
 
-    pub(crate) fn remove_launch_session(&self, id: &str) -> Result<()> {
-        self.connection()?
-            .execute("DELETE FROM launch_sessions WHERE id=?1", [id])?;
+    pub(crate) fn finish_launch_session(
+        &self,
+        id: &str,
+        outcome: LaunchSessionOutcome,
+        exit_code: Option<i32>,
+        message: Option<&str>,
+    ) -> Result<()> {
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction()?;
+        let now = Self::now();
+        let changed = transaction.execute(
+            "UPDATE launch_sessions
+             SET outcome=?2, exit_code=?3, message=?4, updated_at=?5, finished_at=?5
+             WHERE id=?1 AND outcome IS NULL",
+            params![id, outcome.to_string(), exit_code, message, now],
+        )?;
+        if changed != 1 {
+            return Err(PortcoveError::state(format!(
+                "active launch session {id} was not found"
+            )));
+        }
+        let activity_status = match outcome {
+            LaunchSessionOutcome::Succeeded => ActivityStatus::Succeeded,
+            LaunchSessionOutcome::Failed => ActivityStatus::Failed,
+            LaunchSessionOutcome::Cancelled => ActivityStatus::Cancelled,
+        };
+        Self::finish_activity_on(&transaction, id, activity_status, message)?;
+        transaction.execute(
+            "DELETE FROM launch_sessions
+             WHERE outcome IS NOT NULL
+               AND id NOT IN (
+                 SELECT id FROM launch_sessions
+                 WHERE outcome IS NOT NULL
+                 ORDER BY finished_at DESC, rowid DESC
+                 LIMIT 1000
+               )",
+            [],
+        )?;
+        transaction.commit()?;
         Ok(())
     }
 
     pub fn launch_sessions(&self) -> Result<Vec<LaunchSessionRecord>> {
         let connection = self.connection()?;
         let mut statement = connection.prepare(
-            "SELECT id, port_id, install_id, install_root, supervisor_pid, child_pid, phase,
-                    started_at, updated_at
-             FROM launch_sessions ORDER BY started_at, id",
+            "SELECT id, port_id, install_id, install_root, supervisor_pid,
+                    supervisor_identity, child_pid, child_identity, phase, outcome,
+                    exit_code, message, started_at, updated_at, finished_at
+             FROM launch_sessions WHERE outcome IS NULL ORDER BY started_at, id",
         )?;
-        let rows = statement.query_map([], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-                row.get::<_, String>(3)?,
-                row.get::<_, u32>(4)?,
-                row.get::<_, Option<u32>>(5)?,
-                row.get::<_, String>(6)?,
-                row.get::<_, i64>(7)?,
-                row.get::<_, i64>(8)?,
-            ))
-        })?;
-        rows.map(|row| {
-            let (
-                id,
-                port_id,
-                install_id,
-                install_root,
-                supervisor_pid,
-                child_pid,
-                phase,
-                started_at,
-                updated_at,
-            ) = row?;
-            Ok(LaunchSessionRecord {
-                id,
-                port_id,
-                install_id,
-                install_root: PathBuf::from(install_root),
-                supervisor_pid,
-                child_pid,
-                phase: phase.parse()?,
-                started_at,
-                updated_at,
-            })
-        })
-        .collect()
+        let rows = statement.query_map([], launch_session_row)?;
+        rows.map(|row| parse_launch_session(row?)).collect()
     }
 
-    pub(crate) fn launch_session(&self, id: &str) -> Result<Option<LaunchSessionRecord>> {
+    pub fn launch_request(&self, id: &str) -> Result<Option<LaunchSessionRecord>> {
+        let row = self
+            .connection()?
+            .query_row(
+                "SELECT id, port_id, install_id, install_root, supervisor_pid,
+                        supervisor_identity, child_pid, child_identity, phase, outcome,
+                        exit_code, message, started_at, updated_at, finished_at
+                 FROM launch_sessions WHERE id=?1",
+                [id],
+                launch_session_row,
+            )
+            .optional()?;
+        row.map(parse_launch_session).transpose()
+    }
+
+    pub(crate) fn active_launch_session(&self, id: &str) -> Result<Option<LaunchSessionRecord>> {
         Ok(self
-            .launch_sessions()?
-            .into_iter()
-            .find(|session| session.id == id))
+            .launch_request(id)?
+            .filter(|session| session.outcome.is_none()))
     }
 
     fn launch_session_for_port(&self, port_id: &str) -> Result<Option<LaunchSessionRecord>> {
-        Ok(self
-            .launch_sessions()?
-            .into_iter()
-            .find(|session| session.port_id == port_id))
+        let row = self
+            .connection()?
+            .query_row(
+                "SELECT id, port_id, install_id, install_root, supervisor_pid,
+                        supervisor_identity, child_pid, child_identity, phase, outcome,
+                        exit_code, message, started_at, updated_at, finished_at
+                 FROM launch_sessions WHERE port_id=?1 AND outcome IS NULL",
+                [port_id],
+                launch_session_row,
+            )
+            .optional()?;
+        row.map(parse_launch_session).transpose()
     }
 
     pub(crate) fn http_cache(&self, url: &str) -> Result<Option<HttpCacheEntry>> {
@@ -1255,6 +1289,64 @@ impl Library {
             .unwrap_or_default()
             .as_secs() as i64
     }
+}
+
+type StoredLaunchSession = (
+    String,
+    String,
+    String,
+    String,
+    u32,
+    Option<String>,
+    Option<u32>,
+    Option<String>,
+    String,
+    Option<String>,
+    Option<i32>,
+    Option<String>,
+    i64,
+    i64,
+    Option<i64>,
+);
+
+fn launch_session_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<StoredLaunchSession> {
+    Ok((
+        row.get(0)?,
+        row.get(1)?,
+        row.get(2)?,
+        row.get(3)?,
+        row.get(4)?,
+        row.get(5)?,
+        row.get(6)?,
+        row.get(7)?,
+        row.get(8)?,
+        row.get(9)?,
+        row.get(10)?,
+        row.get(11)?,
+        row.get(12)?,
+        row.get(13)?,
+        row.get(14)?,
+    ))
+}
+
+fn parse_launch_session(row: StoredLaunchSession) -> Result<LaunchSessionRecord> {
+    Ok(LaunchSessionRecord {
+        id: row.0,
+        port_id: row.1,
+        install_id: row.2,
+        install_root: PathBuf::from(row.3),
+        supervisor_pid: row.4,
+        supervisor_identity: row.5,
+        child_pid: row.6,
+        child_identity: row.7,
+        phase: row.8.parse()?,
+        outcome: row.9.map(|value| value.parse()).transpose()?,
+        exit_code: row.10,
+        message: row.11,
+        started_at: row.12,
+        updated_at: row.13,
+        finished_at: row.14,
+    })
 }
 
 #[cfg(test)]
