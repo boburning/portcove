@@ -112,10 +112,10 @@ unsafe fn process_identity_from_windows_handle(
 }
 
 #[cfg(windows)]
-pub(crate) fn process_identity_for_child(child: &Child) -> Result<String> {
+pub(crate) fn process_identity_for_child(child: &Child) -> Result<Option<String>> {
     use std::os::windows::io::AsRawHandle;
     // SAFETY: Child owns a valid process handle for its lifetime.
-    unsafe { process_identity_from_windows_handle(child.as_raw_handle(), child.id()) }
+    unsafe { process_identity_from_windows_handle(child.as_raw_handle(), child.id()).map(Some) }
 }
 
 #[cfg(target_os = "linux")]
@@ -263,7 +263,7 @@ pub(crate) fn process_identity(pid: u32) -> Result<Option<String>> {
 }
 
 #[cfg(target_os = "linux")]
-pub(crate) fn process_identity_for_child(child: &Child) -> Result<String> {
+pub(crate) fn process_identity_for_child(child: &Child) -> Result<Option<String>> {
     let pid = child.id();
     let body = std::fs::read_to_string(format!("/proc/{pid}/stat")).map_err(|error| {
         PortcoveError::state(format!(
@@ -271,17 +271,12 @@ pub(crate) fn process_identity_for_child(child: &Child) -> Result<String> {
         ))
     })?;
     let (_, identity) = linux_process_state_and_identity_from_stat(pid, &body)?;
-    Ok(identity)
+    Ok(Some(identity))
 }
 
 #[cfg(all(unix, not(target_os = "linux")))]
-pub(crate) fn process_identity_for_child(child: &Child) -> Result<String> {
-    process_identity(child.id())?.ok_or_else(|| {
-        PortcoveError::state(format!(
-            "child process {} exited before its start identity was recorded",
-            child.id()
-        ))
-    })
+pub(crate) fn process_identity_for_child(child: &Child) -> Result<Option<String>> {
+    process_identity(child.id())
 }
 
 pub(crate) fn process_matches(pid: u32, expected: &str) -> Result<bool> {
