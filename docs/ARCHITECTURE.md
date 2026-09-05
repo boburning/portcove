@@ -61,6 +61,15 @@ retain an explicit `legacy_projection_only` record that contracts cannot select;
 this keeps the old matcher unchanged without treating the projection as current
 schema-2 identity. The projection retires when #180 moves all consumers to the
 shared inspector.
+
+`SourceInspection` is the read-only core result for selected source bytes. Its
+observed digests retain algorithm and byte scope, schema-2 digest fields match
+conjunctively, representations match as alternatives, and more than one matching
+representation is rejected as ambiguous. Ordinary files, cartridge ZIP members,
+and canonical N64 byte orders use this result for discovery, registration,
+relink, verification, install overrides, and launch preflight. Specialized
+source shapes continue through their existing bounded validators until their
+#180 migrations add equivalent observations to this same result.
 `HostPreferenceStore` provides bounded format-1 host preference storage and selection provenance without moving a library. CLI and desktop use its platform configuration path outside movable library data and credentials, with an optional absolute preference-file override for portable/test hosts. Selection precedence is an explicit invocation path, saved path, then the platform default. Invalid selected configuration fails visibly; an explicit invocation path or reset remains available when preferences are corrupt or from a future format.
 
 Preference writers serialize through a persistent sibling operating-system lock and publish a flushed sibling atomically using the shared durability helper. Reads never create files. Setting a library preserves compatible unknown JSON fields; explicit reset replaces the whole document, including damaged or future-format content, with current defaults. Core validates that a saved target is an existing empty directory or recognizable Portcove root, refuses symlinks, filesystem roots, unrelated content, and preference/library overlap, then stores its canonical path without initializing it.

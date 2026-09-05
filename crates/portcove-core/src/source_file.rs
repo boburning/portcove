@@ -24,11 +24,16 @@ impl HashBudget {
 }
 
 pub(crate) struct FileIdentity {
-    sha256: String,
-    sha1: String,
-    size: u64,
-    storage_sha256: String,
-    storage_size: u64,
+    pub sha256: String,
+    pub sha1: String,
+    pub size: u64,
+    pub storage_sha256: String,
+    pub storage_size: u64,
+    pub content_extension: String,
+    pub archive_member: bool,
+    pub canonical_n64_sha256: Option<String>,
+    pub canonical_n64_sha1: Option<String>,
+    pub canonical_n64_size: Option<u64>,
 }
 
 impl FileIdentity {
@@ -77,14 +82,18 @@ pub(crate) fn read_identity(
                 extensions.join(", ")
             )));
         }
-        let (sha256, sha1, size) =
-            hash_reader(File::open(path)?, metadata.len(), maximum_size, budget)?;
+        let identity = hash_reader(File::open(path)?, metadata.len(), maximum_size, budget)?;
         Ok(FileIdentity {
-            storage_sha256: sha256.clone(),
-            storage_size: size,
-            sha256,
-            sha1,
-            size,
+            storage_sha256: identity.sha256.clone(),
+            storage_size: identity.size,
+            sha256: identity.sha256,
+            sha1: identity.sha1,
+            size: identity.size,
+            content_extension: extension.to_ascii_lowercase(),
+            archive_member: false,
+            canonical_n64_sha256: identity.canonical_n64_sha256,
+            canonical_n64_sha1: identity.canonical_n64_sha1,
+            canonical_n64_size: identity.canonical_n64_size,
         })
     }
 }
@@ -113,6 +122,11 @@ fn read_zip_identity(
     let entry = archive
         .by_index(index)
         .map_err(|error| PortcoveError::source(format!("invalid source ZIP entry: {error}")))?;
+    let content_extension = Path::new(entry.name())
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
     let expected = entry.size();
     if expected > maximum_size.min(512 * 1024 * 1024) {
         return Err(
@@ -125,17 +139,29 @@ fn read_zip_identity(
             .checked_add(storage_size)
             .ok_or_else(|| PortcoveError::source("source ZIP size overflowed"))?,
     )?;
-    let (sha256, sha1, size) =
-        hash_reader(entry, expected, maximum_size.min(512 * 1024 * 1024), budget)?;
-    let (storage_sha256, _, storage_size) =
-        hash_reader(File::open(path)?, storage_size, maximum_size, budget)?;
+    let identity = hash_reader(entry, expected, maximum_size.min(512 * 1024 * 1024), budget)?;
+    let storage = hash_reader(File::open(path)?, storage_size, maximum_size, budget)?;
     Ok(FileIdentity {
-        sha256,
-        sha1,
-        size,
-        storage_sha256,
-        storage_size,
+        sha256: identity.sha256,
+        sha1: identity.sha1,
+        size: identity.size,
+        storage_sha256: storage.sha256,
+        storage_size: storage.size,
+        content_extension,
+        archive_member: true,
+        canonical_n64_sha256: identity.canonical_n64_sha256,
+        canonical_n64_sha1: identity.canonical_n64_sha1,
+        canonical_n64_size: identity.canonical_n64_size,
     })
+}
+
+struct HashedContent {
+    sha256: String,
+    sha1: String,
+    size: u64,
+    canonical_n64_sha256: Option<String>,
+    canonical_n64_sha1: Option<String>,
+    canonical_n64_size: Option<u64>,
 }
 
 fn hash_reader(
@@ -143,7 +169,7 @@ fn hash_reader(
     expected: u64,
     maximum: u64,
     budget: &mut HashBudget,
-) -> Result<(String, String, u64)> {
+) -> Result<HashedContent> {
     if expected > maximum {
         return Err(PortcoveError::source(
             "source exceeds its hashing size limit",
@@ -152,6 +178,7 @@ fn hash_reader(
     budget.reserve(expected)?;
     let mut sha256 = Sha256::new();
     let mut sha1 = Sha1::new();
+    let mut n64 = N64CanonicalDigest::default();
     let mut size = 0_u64;
     let mut buffer = [0_u8; 128 * 1024];
     while size < expected {
@@ -167,15 +194,94 @@ fn hash_reader(
         size += read as u64;
         sha256.update(&buffer[..read]);
         sha1.update(&buffer[..read]);
+        n64.update(&buffer[..read])?;
     }
     if reader.read(&mut [0_u8; 1])? != 0 {
         return Err(PortcoveError::source("source grew while hashing"));
     }
-    Ok((
-        hex::encode(sha256.finalize()),
-        hex::encode(sha1.finalize()),
+    let (canonical_n64_sha256, canonical_n64_sha1, canonical_n64_size) = n64.finish()?;
+    Ok(HashedContent {
+        sha256: hex::encode(sha256.finalize()),
+        sha1: hex::encode(sha1.finalize()),
         size,
-    ))
+        canonical_n64_sha256,
+        canonical_n64_sha1,
+        canonical_n64_size,
+    })
+}
+
+#[derive(Default)]
+struct N64CanonicalDigest {
+    order: Option<N64ByteOrder>,
+    pending: Vec<u8>,
+    sha256: Sha256,
+    sha1: Sha1,
+    size: u64,
+}
+
+#[derive(Clone, Copy)]
+enum N64ByteOrder {
+    Big,
+    ByteSwapped,
+    Little,
+    Invalid,
+}
+
+impl N64CanonicalDigest {
+    fn update(&mut self, bytes: &[u8]) -> Result<()> {
+        self.pending.extend_from_slice(bytes);
+        if self.order.is_none() && self.pending.len() >= 4 {
+            self.order = Some(match self.pending[..4] {
+                [0x80, 0x37, 0x12, 0x40] => N64ByteOrder::Big,
+                [0x37, 0x80, 0x40, 0x12] => N64ByteOrder::ByteSwapped,
+                [0x40, 0x12, 0x37, 0x80] => N64ByteOrder::Little,
+                _ => N64ByteOrder::Invalid,
+            });
+        }
+        if self.order.is_some() {
+            let complete = self.pending.len() / 4 * 4;
+            if complete > 0 {
+                let mut words = self.pending.drain(..complete).collect::<Vec<_>>();
+                self.hash_words(&mut words);
+            }
+        }
+        Ok(())
+    }
+
+    fn hash_words(&mut self, words: &mut [u8]) {
+        match self.order.expect("N64 byte order is known") {
+            N64ByteOrder::Big | N64ByteOrder::Invalid => {}
+            N64ByteOrder::ByteSwapped => {
+                for pair in words.chunks_exact_mut(2) {
+                    pair.swap(0, 1);
+                }
+            }
+            N64ByteOrder::Little => {
+                for word in words.chunks_exact_mut(4) {
+                    word.reverse();
+                }
+            }
+        }
+        self.sha256.update(&*words);
+        self.sha1.update(&*words);
+        self.size += words.len() as u64;
+    }
+
+    fn finish(mut self) -> Result<(Option<String>, Option<String>, Option<u64>)> {
+        if self.order.is_none() || matches!(self.order, Some(N64ByteOrder::Invalid)) {
+            return Ok((None, None, None));
+        }
+        if !self.pending.is_empty() {
+            self.pending.resize(4, 0);
+            let mut pending = std::mem::take(&mut self.pending);
+            self.hash_words(&mut pending);
+        }
+        Ok((
+            Some(hex::encode(self.sha256.finalize())),
+            Some(hex::encode(self.sha1.finalize())),
+            Some(self.size),
+        ))
+    }
 }
 
 pub(crate) fn validate_source_hashes(

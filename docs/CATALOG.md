@@ -147,6 +147,14 @@ upstream commit and selects variants from the shared game identity. Transitional
 `legacy_projection_only` variants preserve schema-1 matching and cannot be
 selected by a schema-2 contract.
 
+The core source inspector matches ordinary-file and cartridge-ZIP observations
+against schema 2. It records original-container, original-file or archive-member,
+normalized-content, and canonical N64 big-endian digests separately. Every
+digest present in one identity must match; representations remain alternatives,
+and multiple matching representations are an ambiguity rather than an automatic
+choice. Extension-only compatibility can pass existing structural admission but
+is never reported by discovery as an exact identity.
+
 The detailed pre-migration qualification narrative is preserved as a
 [dated historical snapshot](archive/2026-09-03-catalog-qualification-history.md).
 

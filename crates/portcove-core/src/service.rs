@@ -22,8 +22,9 @@ use crate::{
     LaunchStdio, Library, OperationCoordinator, OperationEvent, OperationResult, Platform,
     PortDefinition, PortPaths, PortStatus, PortcoveError, ReconcileAction, ReconcileResult,
     ReleaseChannel, ReleaseProvider, RepairItem, RepairItemKind, RepairPlan, ResolvedRelease,
-    RestoreResult, Result, SourceHealth, SourceRecord, SourceRemovalPreview, SourceRequirementRole,
-    SourceVerification, SupervisedLaunchOutcome, UpdateCheck, UpdatePolicy, VerificationReport,
+    RestoreResult, Result, SourceHealth, SourceKind, SourceRecord, SourceRemovalPreview,
+    SourceRequirementRole, SourceVerification, SupervisedLaunchOutcome, UpdateCheck, UpdatePolicy,
+    VerificationReport,
     durability::{prepare_backup_publication, publish_backup_directory},
     operation::{
         LifecycleFaultInjector, LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind,
@@ -1464,6 +1465,40 @@ impl PortcoveService {
         self.register_source_checked(profile_id, path, None)
     }
 
+    /// Inspect selected source bytes without registering them or changing their baseline.
+    pub fn inspect_source(&self, profile_id: &str, path: &Path) -> Result<crate::SourceInspection> {
+        let profile = self.catalog.source_profile(profile_id)?;
+        if profile.kind == SourceKind::File {
+            let mut budget = crate::source_file::HashBudget {
+                operation: None,
+                limit: u64::MAX,
+                hashed: 0,
+                max_zip_entries: 4096,
+            };
+            return crate::source_inspection::inspect_file(
+                &self.catalog,
+                profile_id,
+                path,
+                u64::MAX,
+                &mut budget,
+            );
+        }
+        let record = self
+            .adapters
+            .get(crate::AdapterKind::ReferencedDisc)
+            .validate_source(profile, path)?;
+        Ok(crate::SourceInspection::from_legacy_validation(record))
+    }
+
+    pub(crate) fn inspect_source_record(
+        &self,
+        profile_id: &str,
+        path: &Path,
+    ) -> Result<SourceRecord> {
+        self.inspect_source(profile_id, path)?
+            .require_admitted_record()
+    }
+
     pub fn register_source_with_digest(
         &self,
         profile_id: &str,
@@ -1493,11 +1528,7 @@ impl PortcoveService {
         )?;
         let result = (|| {
             let _guards = self.lock_source_dependents(profile_id, None)?;
-            let profile = self.catalog.source_profile(profile_id)?;
-            let source = self
-                .adapters
-                .get(crate::AdapterKind::ReferencedDisc)
-                .validate_source(profile, path)?;
+            let source = self.inspect_source_record(profile_id, path)?;
             if expected_sha256.is_some_and(|expected| !source.sha256.eq_ignore_ascii_case(expected))
             {
                 return Err(PortcoveError::conflict(
@@ -1647,11 +1678,7 @@ impl PortcoveService {
 
     fn verify_source_record(&self, registered: &SourceRecord) -> Result<()> {
         let profile_id = &registered.profile_id;
-        let profile = self.catalog.source_profile(profile_id)?;
-        let actual = self
-            .adapters
-            .get(crate::AdapterKind::ReferencedDisc)
-            .validate_source(profile, &registered.path)?;
+        let actual = self.inspect_source_record(profile_id, &registered.path)?;
         if actual.sha256 != registered.sha256
             || actual.size != registered.size
             || actual.storage_sha256 != registered.storage_sha256
@@ -2039,11 +2066,9 @@ impl PortcoveService {
         let Some(profile_id) = &port.source_profile else {
             return Ok(None);
         };
-        let profile = self.catalog.source_profile(profile_id)?;
-        let adapter = self.adapters.get(port.adapter);
         if let Some(path) = source_override {
             let _guards = self.lock_source_dependents(profile_id, Some(&port.id))?;
-            let source = adapter.validate_source(profile, path)?;
+            let source = self.inspect_source_record(profile_id, path)?;
             self.library.register_source(&source)?;
             return Ok(Some(source));
         }
@@ -2069,11 +2094,9 @@ impl PortcoveService {
         let Some(profile_id) = &port.bios_source_profile else {
             return Ok(None);
         };
-        let profile = self.catalog.source_profile(profile_id)?;
-        let adapter = self.adapters.get(port.adapter);
         if let Some(path) = bios_override {
             let _guards = self.lock_source_dependents(profile_id, Some(&port.id))?;
-            let source = adapter.validate_source(profile, path)?;
+            let source = self.inspect_source_record(profile_id, path)?;
             self.library.register_source(&source)?;
             return Ok(Some(source));
         }
@@ -3030,12 +3053,7 @@ impl PortcoveService {
             let profile_id = port.source_profile.as_deref().ok_or_else(|| {
                 PortcoveError::usage(format!("{} does not accept a source override", port.name))
             })?;
-            let profile = self.catalog.source_profile(profile_id)?;
-            let source = Some(
-                self.adapters
-                    .get(port.adapter)
-                    .validate_source(profile, path)?,
-            );
+            let source = Some(self.inspect_source_record(profile_id, path)?);
             checkpoint()?;
             source
         } else if let Some(profile) = &port.source_profile {

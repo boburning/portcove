@@ -39,6 +39,7 @@ mod source_assessment;
 mod source_catalog;
 mod source_discovery;
 mod source_file;
+mod source_inspection;
 mod stfs;
 mod transfer_copy;
 mod transfer_journal;
@@ -89,6 +90,7 @@ pub use source_discovery::{
     SourceDiscoveryIssue, SourceDiscoveryLimit, SourceDiscoveryLimits, SourceDiscoveryReport,
     SourceDiscoveryRequest,
 };
+pub use source_inspection::{ObservedSourceDigest, SourceDigestAlgorithm, SourceInspection};
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 17;
+pub const API_SCHEMA_VERSION: u32 = 18;
