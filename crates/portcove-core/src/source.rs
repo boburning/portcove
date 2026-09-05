@@ -5,8 +5,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::{
-    ActivityOperation, ActivityTargetKind, AdapterKind, AdapterRegistry, PortcoveError,
-    PortcoveService, Result, SourceRecord,
+    ActivityOperation, ActivityTargetKind, PortcoveError, PortcoveService, Result, SourceRecord,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -23,9 +22,7 @@ impl PortcoveService {
             PortcoveError::not_found(format!("source profile {profile_id} is not registered"))
         })?;
         let profile = self.catalog().source_profile(profile_id)?;
-        let replacement = AdapterRegistry
-            .get(AdapterKind::ReferencedDisc)
-            .validate_source(profile, path)?;
+        let replacement = self.inspect_source_record(profile_id, path)?;
         if original.sha256 != replacement.sha256 || original.size != replacement.size {
             return Err(
                 PortcoveError::source("relink requires the same validated source content")

@@ -128,6 +128,7 @@ fn validate_request(request: &SourceDiscoveryRequest) -> Result<()> {
 }
 
 struct Discovery<'a> {
+    catalog: &'a Catalog,
     report: SourceDiscoveryReport,
     profiles: Vec<&'a SourceProfile>,
     limits: &'a SourceDiscoveryLimits,
@@ -162,6 +163,7 @@ fn scan(
         }
     }
     let mut discovery = Discovery {
+        catalog,
         report: SourceDiscoveryReport {
             searched_roots: selected,
             searched_profiles: Vec::new(),
@@ -350,7 +352,20 @@ impl Discovery<'_> {
             ) {
                 Ok(identity) => {
                     for profile in profiles {
-                        if let Ok(candidate) = identity.record(profile, path) {
+                        if let Ok(inspection) = crate::source_inspection::inspect_file_identity(
+                            // Discovery and registration now share schema-2 matching.
+                            // Only exact identities are eligible for automatic discovery.
+                            self.catalog,
+                            &profile.id,
+                            path,
+                            &identity,
+                        ) && matches!(
+                            inspection.assessment.admission,
+                            crate::SourceAdmission::Admitted {
+                                mode: crate::SourceAdmissionMode::ExactIdentity
+                            }
+                        ) && let Some(candidate) = inspection.record
+                        {
                             self.report.candidates.push(candidate);
                             if self.report.candidates.len() >= self.limits.max_candidates as usize {
                                 break;
