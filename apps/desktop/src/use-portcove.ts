@@ -309,4 +309,3 @@ async function adoptInstall(path: string, portId: string | undefined, planSha256
   const adopted = await perform("adopt", () => desktopApi.adopt(path, planSha256, portId));
   if (adopted) done();
 }
-
