@@ -9,12 +9,12 @@ use portcove_core::{
     API_SCHEMA_VERSION, ActivityRecord, AdoptionPreview, BackupAction, BackupActionPreview,
     BackupInventory, BackupRecord, CapabilityDocument, CatalogDocument, DoctorReport, ErrorCode,
     GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, GithubDeviceLoginState,
-    GithubReleaseProvider, InstallPlan, InstallRecord, LaunchSignal, LaunchStdio, LibraryMetadata,
-    LibraryMetadataFile, OperationEvent, OperationEventKind, PortDefinition, PortPaths,
-    PortRemovalPreview, PortStatus, PortcoveError, PortcoveService, ReconcileResult,
-    ReleaseChannel, RestoreResult, Result, SourceRecord, SourceRelinkPlan, SourceRemovalPreview,
-    SourceVerification, StorageSummary, UpdateCheck, UpdatePolicy, UpdateSnapshot,
-    forward_launch_signal,
+    GithubReleaseProvider, IdentifiedLaunchRequest, InstallPlan, InstallRecord, LaunchSignal,
+    LaunchStdio, LibraryMetadata, LibraryMetadataFile, OperationCoordinator, OperationEvent,
+    OperationEventKind, PortDefinition, PortPaths, PortRemovalPreview, PortStatus, PortcoveError,
+    PortcoveService, ReconcileResult, ReleaseChannel, RestoreResult, Result, SourceRecord,
+    SourceRelinkPlan, SourceRemovalPreview, SourceVerification, StorageSummary, UpdateCheck,
+    UpdatePolicy, UpdateSnapshot, forward_launch_signal,
 };
 use schemars::{JsonSchema, schema_for};
 use serde::Serialize;
@@ -1439,28 +1439,62 @@ fn render_about(mode: OutputMode) -> Result<()> {
 
 async fn exec_game(service: &PortcoveService, args: ExecArgs) -> Result<ExitCode> {
     let library = service.library().clone();
+    let control_library = library.clone();
+    let request_id = OperationCoordinator::new("launch", None)
+        .operation_id()
+        .to_owned();
+    let worker_request_id = request_id.clone();
+    let (accepted_sender, accepted_receiver) = tokio::sync::oneshot::channel();
     let (started_sender, started_receiver) = tokio::sync::oneshot::channel();
     let mut supervision = tokio::task::spawn_blocking(move || {
-        PortcoveService::new(library)?.supervise_launch(
-            &args.port_id,
-            args.source.as_deref(),
-            &args.game_args,
-            LaunchStdio::Inherit,
+        PortcoveService::new(library)?.supervise_launch_identified(
+            IdentifiedLaunchRequest {
+                request_id: &worker_request_id,
+                port_id: &args.port_id,
+                source_override: args.source.as_deref(),
+                arguments: &args.game_args,
+                stdio: LaunchStdio::Inherit,
+            },
+            |session| {
+                let _ = accepted_sender.send(session.id.clone());
+            },
             |session| {
                 let _ = started_sender.send(session.child_pid.expect("started session has a PID"));
             },
         )
     });
+    tokio::pin!(accepted_receiver);
     tokio::pin!(started_receiver);
+    let mut waiting_for_acceptance = true;
     let mut waiting_for_child = true;
+    let mut accepted_request = None;
     let mut child_pid = None;
     let mut pending_signal = None;
+    let mut cancellation_requested = false;
     loop {
         tokio::select! {
             result = &mut supervision => {
                 let outcome = result
                     .map_err(|error| PortcoveError::state(format!("launch supervisor task failed: {error}")))??;
                 return Ok(ExitCode::from(normalize_process_exit(outcome.exit_code)));
+            }
+            accepted = &mut accepted_receiver, if waiting_for_acceptance => {
+                waiting_for_acceptance = false;
+                if let Ok(id) = accepted {
+                    accepted_request = Some(id.clone());
+                    if let Some(signal) = pending_signal {
+                        match PortcoveService::new(control_library.clone())?.request_cancellation(&id) {
+                            Ok(_) => {
+                                cancellation_requested = true;
+                                pending_signal = None;
+                            }
+                            Err(error) if error.code == ErrorCode::Conflict => {
+                                pending_signal = Some(signal);
+                            }
+                            Err(error) => eprintln!("Portcove warning: {error}"),
+                        }
+                    }
+                }
             }
             started = &mut started_receiver, if waiting_for_child => {
                 waiting_for_child = false;
@@ -1479,8 +1513,18 @@ async fn exec_game(service: &PortcoveService, args: ExecArgs) -> Result<ExitCode
                     if let Err(error) = forward_launch_signal(pid, signal) {
                         eprintln!("Portcove warning: {error}");
                     }
-                } else {
+                } else if !cancellation_requested {
                     pending_signal = Some(signal);
+                    if let Some(id) = &accepted_request {
+                        match PortcoveService::new(control_library.clone())?.request_cancellation(id) {
+                            Ok(_) => {
+                                cancellation_requested = true;
+                                pending_signal = None;
+                            }
+                            Err(error) if error.code == ErrorCode::Conflict => {}
+                            Err(error) => eprintln!("Portcove warning: {error}"),
+                        }
+                    }
                 }
             }
         }
@@ -1950,7 +1994,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 11);
+        assert_eq!(capabilities.schema_version, 12);
         assert_eq!(
             capabilities.failure_isolated_batches,
             ["check", "reconcile", "update", "source.verify"]

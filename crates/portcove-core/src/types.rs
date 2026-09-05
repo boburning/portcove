@@ -577,6 +577,7 @@ impl FromStr for ActivityOperation {
 #[serde(rename_all = "snake_case")]
 pub enum LaunchSessionPhase {
     Preparing,
+    Spawning,
     Running,
     Collecting,
     Recovering,
@@ -586,6 +587,7 @@ impl std::fmt::Display for LaunchSessionPhase {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str(match self {
             Self::Preparing => "preparing",
+            Self::Spawning => "spawning",
             Self::Running => "running",
             Self::Collecting => "collecting",
             Self::Recovering => "recovering",
@@ -599,6 +601,7 @@ impl FromStr for LaunchSessionPhase {
     fn from_str(value: &str) -> Result<Self> {
         match value {
             "preparing" => Ok(Self::Preparing),
+            "spawning" => Ok(Self::Spawning),
             "running" => Ok(Self::Running),
             "collecting" => Ok(Self::Collecting),
             "recovering" => Ok(Self::Recovering),
@@ -616,10 +619,49 @@ pub struct LaunchSessionRecord {
     pub install_id: String,
     pub install_root: PathBuf,
     pub supervisor_pid: u32,
+    pub supervisor_identity: Option<String>,
     pub child_pid: Option<u32>,
+    pub child_identity: Option<String>,
     pub phase: LaunchSessionPhase,
+    pub outcome: Option<LaunchSessionOutcome>,
+    pub exit_code: Option<i32>,
+    pub message: Option<String>,
     pub started_at: i64,
     pub updated_at: i64,
+    pub finished_at: Option<i64>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum LaunchSessionOutcome {
+    Succeeded,
+    Failed,
+    Cancelled,
+}
+
+impl std::fmt::Display for LaunchSessionOutcome {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(match self {
+            Self::Succeeded => "succeeded",
+            Self::Failed => "failed",
+            Self::Cancelled => "cancelled",
+        })
+    }
+}
+
+impl FromStr for LaunchSessionOutcome {
+    type Err = PortcoveError;
+
+    fn from_str(value: &str) -> Result<Self> {
+        match value {
+            "succeeded" => Ok(Self::Succeeded),
+            "failed" => Ok(Self::Failed),
+            "cancelled" => Ok(Self::Cancelled),
+            _ => Err(PortcoveError::state(format!(
+                "unknown launch session outcome: {value}"
+            ))),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

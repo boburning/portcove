@@ -41,7 +41,7 @@ mod transfer_copy;
 mod transfer_journal;
 mod types;
 
-pub use adapter::{Adapter, AdapterRegistry};
+pub use adapter::{Adapter, AdapterRegistry, LaunchSpecRequest};
 pub use auth::{
     GithubAuthSource, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult,
     GithubDeviceLoginState, GithubRateLimit,
@@ -71,7 +71,7 @@ pub use psx::PsxManagedPreparation;
 pub use release::{GithubReleaseProvider, ReleaseProvider};
 pub use service::{
     AdoptionCopyFile, AdoptionCopyPlan, AdoptionPreview, AdoptionSkippedEntry, BackupAction,
-    BackupActionPreview, PortRemovalPreview, PortcoveService,
+    BackupActionPreview, IdentifiedLaunchRequest, PortRemovalPreview, PortcoveService,
 };
 pub use signed_catalog::{
     CatalogOrigin, CatalogProvenance, CatalogTrustKey, SignedCatalogEnvelope, SignedCatalogPayload,
@@ -83,4 +83,4 @@ pub use source_discovery::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 11;
+pub const API_SCHEMA_VERSION: u32 = 12;

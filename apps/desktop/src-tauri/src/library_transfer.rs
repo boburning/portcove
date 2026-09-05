@@ -207,6 +207,7 @@ mod tests {
             initialization: std::sync::Arc::new(std::sync::Mutex::new(initialize_desktop_at(
                 Some(source.clone()),
             ))),
+            launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
         };
         let plan = service(&state)
             .unwrap()
