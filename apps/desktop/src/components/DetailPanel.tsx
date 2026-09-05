@@ -203,6 +203,7 @@ function sourceHealthNote(health: SourceHealth | undefined, source: SourceRecord
   if (health === "missing") return "Registered source file is missing.";
   if (health === "unreadable") return "Registered source cannot be read.";
   if (health === "not_checked") return `Registered · current bytes not checked · ${hash}`;
+  if (health === "not_baselined") return "Selected game files have no saved identity baseline.";
   return `Registered · ${hash}`;
 }
 

@@ -1313,6 +1313,10 @@ fn schema_document() -> serde_json::Value {
                 serde_json::json!(schema_for!(SourceVerification)),
             ),
             (
+                "source_assessment",
+                serde_json::json!(schema_for!(portcove_core::SourceAssessment)),
+            ),
+            (
                 "source_batch_outcome",
                 serde_json::json!(schema_for!(SourceBatchOutcome)),
             ),
@@ -1994,7 +1998,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 12);
+        assert_eq!(capabilities.schema_version, 13);
         assert_eq!(
             capabilities.failure_isolated_batches,
             ["check", "reconcile", "update", "source.verify"]

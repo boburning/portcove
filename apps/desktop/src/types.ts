@@ -133,7 +133,7 @@ export interface InstallRecord {
   selected_executable: string;
 }
 
-export type SourceHealth = "unregistered" | "current" | "missing" | "unreadable" | "changed" | "not_checked";
+export type SourceHealth = "unregistered" | "current" | "missing" | "unreadable" | "changed" | "not_checked" | "not_baselined";
 export type ReadinessBlocker = "missing_source" | "unreadable_source" | "changed_source" | "missing_bios" | "unreadable_bios" | "changed_bios" | "missing_runtime";
 
 export interface PortStatus {
