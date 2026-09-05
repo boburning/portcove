@@ -152,6 +152,22 @@ physical-platform acceptance cannot be closed using synthetic tests alone.
 Close or merge only after the required evidence exists; keep unresolved human
 or external work Blocked or Deferred with an exact resume condition.
 
+Completion applies to the work promised. A port integration can be Done with
+unknown gameplay evidence when its promised operations and required checks are
+complete. Optional gameplay research is separate unless a concrete regression
+makes it necessary; do not leave every untested port awaiting personal playtest.
+This does not change legacy `Supported` intersections or fabricate qualification.
+Unknown evidence alone is not a Blocked condition or a runtime availability rule.
+
+One-port/one-issue identity is bookkeeping, not a per-release approval gate.
+The planned acceptance publisher completes compliant candidates automatically,
+with quiet success and deduplicated exceptions identifying affected operations,
+failed rules, evidence and resume conditions. Discovery has no admission
+authority. Engineering/policy/authority changes still require scoped review;
+neither an agent nor a candidate may change its own protected acceptance rules.
+Current repository review/security settings remain authoritative until a
+separately authorized implementation establishes the scoped publishing path.
+
 Priority and target release are forecasts. Reorder or edit Project fields
 instead of rewriting repository documentation. New ports do not automatically
 expand global V1 scope.

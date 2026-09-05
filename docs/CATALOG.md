@@ -103,6 +103,11 @@ gameplay, and real save/load evidence is complete.
 
 ## Adding or changing a port
 
+The procedure below describes the current repository workflow. Future automatic
+admission is owned by [#245](https://github.com/boburning/portcove/issues/245)
+and [#246](https://github.com/boburning/portcove/issues/246); this policy direction
+does not remove current runtime checks or activate a publisher.
+
 1. Capture or update the roadmap item and direct upstream evidence.
 2. Search the catalog and core adapters before adding behavior.
 3. Add declarative metadata and the narrowest reusable adapter contract.
@@ -118,3 +123,48 @@ atomic activation, rollback, credential boundaries, and executable trust. See
 
 The detailed pre-migration qualification narrative is preserved as a
 [dated historical snapshot](archive/2026-09-03-catalog-qualification-history.md).
+
+## Planned policy acceptance and evidence
+
+Operation eligibility is independent of publisher/source trust, artifact
+integrity, game-file compatibility, and evidence/health. Release channels and
+Project stages are separate again. Policy-eligible untested entries remain
+ordinary installable catalog entries when installation prerequisites pass.
+Missing/stale gameplay reports change the evidence display, not automatically
+installation or update eligibility. A known relevant failure holds only the
+affected operation/artifact/platform/variant. A schema pass is not an install
+test, and source-file correctness is not gameplay certification.
+
+Reusable capabilities, templates and narrowly scoped publisher authorities are
+reviewed once; deterministic checks decide routine candidates within them.
+
+| Candidate | Planned result |
+|---|---|
+| Accepted upstream, ordinary new artifact, supported contract and required checks pass | Automatically available; verify its new digest. Existing selectors need no needless definition PR. |
+| New definition or path/metadata correction inside accepted capabilities and authority | Automatically admit with honest evidence, including zero gameplay reports. |
+| Established asset identity unexpectedly changes bytes | Hold replacement, retain pinned identity and deduplicate the exception. |
+| New authority, ambiguous identity, new capability, widened access or unsupported migration | Scoped trust/engineering review; retain usable versions. |
+| Missing optional input or gameplay | Not run/Unknown, not a blanket block or a fabricated pass. |
+| Integrity, archive, source, executable or mandatory operation failure | Reject/hold the affected operation; untested cannot bypass it. |
+| Unsupported client capability or failing platform | Isolate the affected definition/platform, retaining compatible entries. |
+
+Source hashes, variants and relative paths may be accepted data inside a bounded
+schema. Ownership reinterpretation needs explicit migration/consent semantics;
+safe reusable migration templates can later be policy-authorized. Publisher
+onboarding specifies actual repository/artifact authority and reauthorization
+conditions, not a broad domain popularity rule. Missing published digests must
+be inventoried by #245; a same-download hash does not replace today's required
+independent integrity evidence. No integrity-policy change is implemented here.
+
+Local/community definitions use the same validator, explicit namespaced origin,
+conflict handling and scoped trust. Partial management may permit install/launch
+while saves or updates are unavailable. Unknown persistence cannot authorize
+destructive replacement, cleanup, broad backups or false recovery claims. This
+future behavior is owned by [#268](https://github.com/boburning/portcove/issues/268).
+
+Evidence collection distinguishes reusable adapter fixtures, actual artifact
+lifecycle checks and voluntary attributed observations. Invalidate only facts
+whose relevant inputs change; preserve historical and legacy evidence honestly.
+Opt-in reports must exclude game data, secrets and personal paths; untrusted
+reports cannot revoke the whole catalog. Ordinary success needs no owner action;
+exceptions have bounded retries, scope and a reproducible resume condition.

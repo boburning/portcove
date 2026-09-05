@@ -4,6 +4,13 @@ Without a machine-output flag, Portcove renders concise human output. Catalog, s
 
 `--json` and `--jsonl` remain the stable automation surfaces and are byte-shape independent from human rendering. Use `--json catalog export` and `--json schema export` when consuming their full documents programmatically.
 
+Future eligibility/evidence and independent-definition work must use one core
+assessment across CLI, Tauri and integrations. Operation availability and reasons,
+publisher origin/trust, digest provenance, source compatibility and scoped test
+evidence must not collapse into one supported flag. Missing gameplay is not a
+source mismatch. Observable schema changes require explicit versioning and
+legacy/unknown-value handling; this planning contract adds no command or field.
+
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json

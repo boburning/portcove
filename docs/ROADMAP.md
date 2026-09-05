@@ -18,12 +18,22 @@ frontend can integrate once. Desktop application updating belongs at its host
 boundary. Absorbing ecosystem complexity does not mean translating operating
 system APIs or supplying builds that upstream does not provide.
 
-Prefer reviewed catalog data and reusable adapters that minimize upstream work.
+Prefer policy-accepted catalog data and reusable adapters that minimize upstream work.
 Upstream metadata and tooling are optional aids, not blanket admission rules.
 Preserve local-first use, optional accounts, honest qualification, and all
 safety invariants; require no cloud service, silent telemetry, or distributed
 copyrighted game data. Judge progress by successful play, dependable updates,
 useful discovery/customization, low-risk migration, and maintainable coverage.
+
+Portcove maintains reusable capabilities and acceptance policies. Compatible
+new ports and routine upstream releases must eventually complete acceptance
+and delivery without personal playtesting or per-candidate owner approval.
+Operation eligibility, publisher/source trust, artifact integrity, game-file
+compatibility, and scoped evidence/health are independent. An eligible untested
+entry belongs in the normal catalog with Install enabled when prerequisites
+pass. Missing evidence is unknown; a known failure limits the affected operation.
+The current runtime and format-1 delivery remain as documented in
+[Catalog policy](CATALOG.md) and [Signed catalog delivery](SIGNED-CATALOG.md).
 
 ## Alpha 1 — Trustworthy technical alpha
 
@@ -84,6 +94,23 @@ blocker-driven changes. The initial Steam Deck baseline qualification target is
 Beta 1; qualification determines whether ordinary Linux packaging is sufficient
 rather than assuming a separate build.
 
+The minimum sustainable catalog path is a required V1 capability: an existing
+adapter and scoped accepted upstream deliver a new untested definition to a
+client built before that definition, then make its routine next release
+available, with protected validation, exact signed publication and recoverable
+last-known-good state. Both routine scenarios require zero per-candidate owner
+actions. Application updates and automatic game installation are separate.
+The design and complete delivery owners are
+[#245](https://github.com/boburning/portcove/issues/245) and
+[#246](https://github.com/boburning/portcove/issues/246).
+
+The 2026-09-05 sequencing decision targets that bounded feature proof at Beta 1,
+with design started ahead of it. One official feed and shared local loading
+suffice; broad discovery, authoring assistance, community reports and feed
+networks are not prerequisites. Optional social-preview/exporter work yields
+to this path. Live targets remain in the Project. This adds no Alpha 1 blocker
+and no independent-delivery prerequisite to the Alpha 2 packaged preview.
+
 The flagship client lets a player find something playable, finish setup,
 understand progress/errors, return to running or interrupted work, and launch
 again using keyboard, mouse, and controller. Required setup stays visible;
@@ -139,13 +166,12 @@ standalone-CLI self-updating are not V1 gates. See [Releasing](RELEASING.md).
 
 ## Post-V1 principles
 
-Independent delivery of reviewed definitions should let a capable installed
-engine accept new ports and compatible recipe fixes, following a
-trust/compatibility design before implementation.
-Informational metadata, declarative definitions, and new engine capabilities
-remain distinct; source, executable, setup, and persistence changes need explicit
-review and migration semantics. Retain installed definition identity and normal
-offline use; a publishing outage alone must not disable a usable library.
+Expand the bounded delivery path through local/community import, conservative
+partial management, scalable publisher onboarding and selective health checks.
+Review genuinely new authorities, capabilities and ownership boundaries; routine
+data changes inside accepted scopes do not require another personal approval.
+Retain exact installed definition content and contracts, not only a remote URL
+or digest. A publishing outage alone must not disable a usable library.
 
 Release monitoring preserves neutral intake and keeps automated canaries separate
 from physical qualification. Historical pinning supports scoped mods/profiles;
