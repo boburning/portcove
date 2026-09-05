@@ -482,7 +482,11 @@ fn readiness(status: &PortStatus) -> String {
         .iter()
         .map(|blocker| match blocker {
             LaunchBlocker::MissingSource => "missing source",
+            LaunchBlocker::UnreadableSource => "unreadable source",
+            LaunchBlocker::ChangedSource => "changed source",
             LaunchBlocker::MissingBios => "missing BIOS",
+            LaunchBlocker::UnreadableBios => "unreadable BIOS",
+            LaunchBlocker::ChangedBios => "changed BIOS",
             LaunchBlocker::MissingRuntime => "needs verified runtime (update port)",
         })
         .collect::<Vec<_>>()
