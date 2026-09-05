@@ -366,6 +366,7 @@ pub struct SourceVerification {
 /// Current relationship between a registered source path and its saved storage identity.
 /// `Current` means the bytes are unchanged since registration; it does not strengthen the
 /// catalog profile's game-revision evidence.
+/// `NotBaselined` means readable selected bytes have no saved identity baseline.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum SourceHealth {
@@ -375,6 +376,7 @@ pub enum SourceHealth {
     Unreadable,
     Changed,
     NotChecked,
+    NotBaselined,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
