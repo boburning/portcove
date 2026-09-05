@@ -15,8 +15,8 @@ import { useGamepadNavigation } from "./gamepad";
 import { focusRegion } from "./focus";
 import { overlayBackAction } from "./overlay-stack";
 import { useCommandSurface } from "./use-command-surface";
-import { adoptInstall, detailActions, type Perform, useGithubAuth, useInstallPlanning, useOperationState, usePortBackups, usePortcoveData, usePortcoveUi, useSourceHealth, useUpdateCenter } from "./use-portcove";
-import type { ActivityRecord, AdoptionPreview, BootstrapStatus, DesktopError, SourceProfile, SourceRecord } from "./types";
+import { useAdoptionPlanning, detailActions, type Perform, useGithubAuth, useInstallPlanning, useOperationState, usePortBackups, usePortcoveData, usePortcoveUi, useSourceHealth, useUpdateCenter } from "./use-portcove";
+import type { ActivityRecord, BootstrapStatus, DesktopError, SourceProfile, SourceRecord } from "./types";
 import { currentUpdateSnapshot, errorText, filterPorts, indexStatuses, mostRecentPort, requiredSourceNeeds, summarizeLibrary } from "./view-model";
 
 export default function App() {
@@ -172,14 +172,13 @@ function SelectedPortPanel({ model, ui, operations, installPlanning, backups, ac
 }
 
 function AdoptionOverlay({ ui, operations }: { ui: UiState; operations: OperationState }) {
-  const [preview, setPreview] = useState<AdoptionPreview>();
-  useEffect(() => setPreview(undefined), [ui.adoptPath, ui.selectedId, ui.adoptOpen]);
-  if (!ui.adoptOpen) return null;
   const finish = () => { ui.setAdoptOpen(false); ui.setAdoptPath(""); };
-  return <AdoptionModal path={ui.adoptPath} setPath={ui.setAdoptPath} preview={preview} busy={operations.busy} close={() => ui.setAdoptOpen(false)}
+  const planning = useAdoptionPlanning(ui.adoptPath, ui.selectedId, ui.adoptOpen, operations.perform, finish);
+  if (!ui.adoptOpen) return null;
+  return <AdoptionModal path={ui.adoptPath} setPath={ui.setAdoptPath} preview={planning.preview} busy={operations.busy} close={() => ui.setAdoptOpen(false)}
     pickFolder={() => { void applyPathChoice(pickInstallFolder(ui.adoptPath), ui.setAdoptPath, operations.setError); }}
-    review={() => { void operations.perform("preview adoption", () => desktopApi.previewAdoption(ui.adoptPath, ui.selectedId)).then(result => { if (result) setPreview(result); }); }}
-    adopt={() => { if (preview) void adoptInstall(ui.adoptPath, ui.selectedId, preview.plan_sha256, operations.perform, finish); }} />;
+    review={() => { void planning.review(); }}
+    adopt={() => { void planning.adopt(); }} />;
 }
 
 async function applyPathChoice(choice: Promise<string | null>, setPath: (path: string) => void, setError: (error?: string) => void) {
