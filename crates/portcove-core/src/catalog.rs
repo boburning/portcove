@@ -1436,16 +1436,45 @@ mod tests {
     }
 
     #[test]
-    fn dkr_alpha_exposes_only_its_published_platforms() {
+    fn dkr_r_uses_the_active_cross_platform_upstream_contract() {
         let catalog = Catalog::embedded().expect("catalog should load");
         let port = catalog.port("dkr-r").expect("DKR-R should exist");
 
-        assert_eq!(port.channels, vec![crate::ReleaseChannel::Beta]);
+        assert_eq!(port.channels, vec![crate::ReleaseChannel::Stable]);
+        assert_eq!(port.release.repository, "ThatGuyMcd/DKR-R");
+        assert_eq!(port.project_url, "https://github.com/ThatGuyMcd/DKR-R");
         assert_eq!(
             port.platforms,
-            vec![crate::Platform::LinuxX86_64, crate::Platform::MacosAarch64]
+            vec![crate::Platform::WindowsX86_64, crate::Platform::LinuxX86_64]
         );
-        assert!(!port.platforms.contains(&crate::Platform::WindowsX86_64));
+        assert_eq!(
+            port.executable_hints[&crate::Platform::WindowsX86_64],
+            vec!["DKR-R.exe"]
+        );
+        assert_eq!(
+            port.executable_hints[&crate::Platform::LinuxX86_64],
+            vec!["DKR-R-1.0.4-Linux-x86_64.AppImage"]
+        );
+        let profile = catalog
+            .source_profile("diddy-kong-racing")
+            .expect("DKR source profile should exist");
+        assert_eq!(
+            profile.accepted_sha1,
+            vec![
+                "0cb115d8716dbbc2922fda38e533b9fe63bb9670",
+                "6d96743d46f8c0cd0edb0ec5600b003c89b93755"
+            ]
+        );
+        assert!(
+            port.persistent_paths
+                .iter()
+                .any(|path| path == "dkr-runtime-data")
+        );
+        assert!(port.persistent_paths.iter().any(|path| path == "imgui.ini"));
+        assert_eq!(
+            port.launch_arguments,
+            ["--rom", "dkr-us-v80.z64", "--config", "dkr-runtime-data"]
+        );
         assert!(port.automated_tested_platforms.is_empty());
     }
 

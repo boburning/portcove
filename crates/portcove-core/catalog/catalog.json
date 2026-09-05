@@ -11,7 +11,7 @@
     { "id": "bomberman-64", "label": "Bomberman 64 (US 1.0) source", "accepted_extensions": ["z64"], "accepted_sha256": ["e6da7c26127788cd894b88b71cc055ff9dec0d0f4f8e10d9b15b40153af2b52a"] },
     { "id": "harvest-moon-64", "label": "Harvest Moon 64 (US) source", "accepted_extensions": ["z64"], "accepted_sha256": ["15c570120bfaa97b4580762f5ee5939a56ba054e696925ea81ccfa55a022d2a6"] },
     { "id": "dinosaur-planet", "label": "Dinosaur Planet December 2000 prototype source", "accepted_extensions": ["z64", "n64", "v64"], "accepted_sha256": ["22830780902f51aea442825c574b88d404ccf30d726219e4b000edc64bcc60a6"] },
-    { "id": "diddy-kong-racing", "label": "Diddy Kong Racing US Rev 1 source", "accepted_extensions": ["z64", "n64", "v64"], "accepted_sha1": ["6d96743d46f8c0cd0edb0ec5600b003c89b93755"], "accepted_sha256": [] },
+    { "id": "diddy-kong-racing", "label": "Diddy Kong Racing US v1.0 or Rev A/v1.1 source", "accepted_extensions": ["z64", "n64", "v64"], "accepted_sha1": ["0cb115d8716dbbc2922fda38e533b9fe63bb9670", "6d96743d46f8c0cd0edb0ec5600b003c89b93755"], "accepted_sha256": [] },
     { "id": "donkey-kong-64", "label": "Donkey Kong 64 (US 1.0) source", "accepted_extensions": ["z64"], "accepted_sha256": ["b6347d9f1f75d38a88d829b4f80b1acf0d93344170a5fbe9546c484dae416ce3"] },
     { "id": "automobili-lamborghini", "label": "Automobili Lamborghini (US) source", "accepted_extensions": ["z64"], "accepted_sha256": ["cab2467684a58bc19c787423d704a961aa497629763367d9fe691172de58591c"] },
     { "id": "aerogauge", "label": "AeroGauge (US) source", "accepted_extensions": ["z64"], "accepted_sha256": ["2cc529109b11b00289d87f693a40591ef260d1dc7c1129113966ba6ddb1be4a5"] },
@@ -199,13 +199,14 @@
       "runtime_source_filename": "dino.z64"
     },
     {
-      "id": "dkr-r", "name": "DKR-R", "summary": "Opt-in alpha native Diddy Kong Racing recompilation.",
-      "project_url": "https://github.com/cyscott/dkr-recomp", "support_tier": "beta", "channels": ["beta"],
-      "platforms": ["linux-x86-64", "macos-aarch64"], "adapter": "n64-recomp-portable",
-      "release": { "repository": "cyscott/dkr-recomp" }, "source_profile": "diddy-kong-racing",
-      "executable_hints": { "linux-x86-64": ["DiddyKongRacingRecompiled"], "macos-aarch64": ["Diddy Kong Racing Recompiled"] },
-      "persistent_paths": ["mods", "mod_config", "saves", "mods.json", "mods.json.bak", "general.json", "general.json.bak", "graphics.json", "graphics.json.bak", "controls.json", "controls.json.bak", "sound.json", "sound.json.bak", "dkr-us-v80.z64"],
-      "runtime_source_filename": "dkr-us-v80.z64"
+      "id": "dkr-r", "name": "DKR-R", "summary": "Cross-platform Diddy Kong Racing recompilation with portable user data.",
+      "project_url": "https://github.com/ThatGuyMcd/DKR-R", "support_tier": "beta", "channels": ["stable"],
+      "platforms": ["windows-x86-64", "linux-x86-64"], "adapter": "n64-recomp-portable",
+      "release": { "repository": "ThatGuyMcd/DKR-R", "asset_hints": { "windows-x86-64": ["Windows-x64"], "linux-x86-64": ["Linux-x86_64.AppImage"] } }, "source_profile": "diddy-kong-racing",
+      "executable_hints": { "windows-x86-64": ["DKR-R.exe"], "linux-x86-64": ["DKR-R-1.0.4-Linux-x86_64.AppImage"] },
+      "persistent_paths": ["dkr-runtime-data", "imgui.ini", "dkr-us-v80.z64"],
+      "runtime_source_filename": "dkr-us-v80.z64",
+      "launch_arguments": ["--rom", "dkr-us-v80.z64", "--config", "dkr-runtime-data"]
     },
     {
       "id": "donkey-kong-64-recompiled", "name": "Donkey Kong 64: Recompiled", "summary": "Native Donkey Kong 64 recompilation.",
