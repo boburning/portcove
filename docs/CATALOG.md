@@ -121,12 +121,22 @@ extraction, symlink refusal, persistent-data ownership, per-port locking,
 atomic activation, rollback, credential boundaries, and executable trust. See
 [ARCHITECTURE.md](ARCHITECTURE.md) and [PROJECT-GOVERNANCE.md](PROJECT-GOVERNANCE.md).
 
-The checked-in `catalog-schema1-admission-baseline.json` fixture fingerprints
-every schema-1 source profile and the complete port/profile/adapter binding set.
-It is the pre-migration comparison authority for catalog schema 2. A schema-2
-change must explain every changed fingerprint as an explicitly reviewed
-admission correction; reordering fields or inferring pairs from parallel digest
-arrays is not an admission change.
+The embedded catalog uses schema 2. It contains reusable identities, logical
+variants, tagged physical representations, explicitly scoped conjunctive digest
+records, per-port game and BIOS contracts, validators, and immutable evidence
+references. `scripts/migrate-catalog-schema2.mjs --check` regenerates it
+deterministically from the frozen schema-1 fixture. Core owns the temporary
+schema-1 compatibility projection required by the existing matcher and rejects
+any conflicting projection supplied by catalog input.
+
+`catalog-schema1-fixture.json` preserves the full pre-migration document, while
+`catalog-schema1-admission-baseline.json` fingerprints every source profile and
+the complete port/profile/adapter binding set. Tests compare every projected
+profile and port definition to that frozen input. The reviewed
+Bomberman Party Edition correction records raw MODE2/2352 and cooked ISO as two
+physical alternatives using the upstream contract at commit
+`0aef0b66186b3f8f29d1bd9a3ba15b6307739c7b`; the compatibility projection keeps
+the old matcher boundary unchanged until the shared schema-2 inspector lands.
 
 The detailed pre-migration qualification narrative is preserved as a
 [dated historical snapshot](archive/2026-09-03-catalog-qualification-history.md).

@@ -51,6 +51,90 @@ export interface SourceProfile {
   }>;
 }
 
+export type CatalogEvidenceRole = "upstream_support" | "byte_identity" | "preservation_crosswalk" | "portcove_qualification";
+export type SourceIdentityKind = "file" | "file-set" | "optical-disc" | "multi-disc-set" | "compound";
+export type DigestScope = "original-file" | "original-container" | "normalized-content" | "canonical-n64-big-endian" | "archive-member" | "gamecube-normalized-iso" | "psx-normalized-track-set" | "file-set-member" | "disc-set-member";
+
+export interface DigestIdentity {
+  scope: DigestScope;
+  sha1: string | null;
+  sha256: string | null;
+  crc32: string | null;
+}
+
+export interface CatalogEvidence {
+  id: string;
+  role: CatalogEvidenceRole;
+  authority: string;
+  authority_ref: string;
+  reviewed_at: string;
+  claim: string;
+  immutable_url: string;
+  live_url: string | null;
+}
+
+export type SourceRepresentationKind =
+  | { kind: "raw-file" | "canonical-n64" | "gamecube-normalized-iso"; identities: DigestIdentity[] }
+  | { kind: "archive-member"; member_extensions: string[]; identities: DigestIdentity[] }
+  | { kind: "file-set"; members: Array<{ id: string; label: string; filenames: string[]; identities: DigestIdentity[] }> }
+  | { kind: "optical-track-set"; track_counts: number[]; identities: DigestIdentity[] }
+  | { kind: "multi-disc-set"; discs: Array<{ id: string; label: string; track_counts: number[]; volume_ids: string[]; identities: DigestIdentity[] }> }
+  | { kind: "volume-id"; values: string[]; track_counts: number[] }
+  | { kind: "pinned-validator"; validator_contract_id: string }
+  | { kind: "compound"; format: "stfs-live"; identities: DigestIdentity[] }
+  | { kind: "informational-extension"; evidence_gap: string };
+
+export type SourceRepresentation = {
+  id: string;
+  extensions: string[];
+  evidence_ids: string[];
+} & SourceRepresentationKind;
+
+export interface SourceCatalog {
+  evidence: CatalogEvidence[];
+  identities: Array<{
+    id: string;
+    label: string;
+    kind: SourceIdentityKind;
+    variants: Array<{
+      id: string;
+      title: string;
+      region: string | null;
+      revision: string | null;
+      product_codes: string[];
+      representations: SourceRepresentation[];
+      evidence_ids: string[];
+    }>;
+    aliases: string[];
+    tombstones: string[];
+    evidence_gap: string | null;
+  }>;
+  contracts: Array<{
+    id: string;
+    port_id: string;
+    role: "game" | "bios";
+    profile_id: string;
+    admission_mode: "enforced" | "informational";
+    supported_variant_ids: string[];
+    validator_contract_id: string | null;
+    evidence_ids: string[];
+    authority_ref: string;
+    reviewed_at: string;
+    immutable_review_url: string;
+    live_review_url: string | null;
+    evidence_gap: string | null;
+    applicability: Array<{ upstream_ref: string; artifact_sha256: string | null }>;
+    aliases: string[];
+    tombstones: string[];
+  }>;
+  validators: Array<{
+    id: string;
+    tool_id: string;
+    protocol_version: string;
+    evidence_ids: string[];
+  }>;
+}
+
 export interface PortDefinition {
   id: string;
   name: string;
@@ -93,6 +177,7 @@ export interface PortDefinition {
 
 export interface CatalogDocument {
   schema_version: number;
+  source_catalog?: SourceCatalog;
   source_profiles: SourceProfile[];
   ports: PortDefinition[];
 }

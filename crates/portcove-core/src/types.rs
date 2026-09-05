@@ -336,6 +336,11 @@ pub struct PortDefinition {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CatalogDocument {
     pub schema_version: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_catalog: Option<crate::SourceCatalog>,
+    /// Core-owned schema-1 compatibility projection. Schema-2 input may omit it;
+    /// when present it must equal the deterministic projection from `source_catalog`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub source_profiles: Vec<SourceProfile>,
     pub ports: Vec<PortDefinition>,
 }
