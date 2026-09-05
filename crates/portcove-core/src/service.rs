@@ -4694,7 +4694,7 @@ mod tests {
         assert_eq!(
             statuses
                 .iter()
-                .find(|status| status.port_id == "dkr-r")
+                .find(|status| status.port_id == "tomba-recompiled")
                 .unwrap()
                 .channel,
             ReleaseChannel::Beta
@@ -4716,14 +4716,14 @@ mod tests {
         let service = PortcoveService::new(library.clone()).unwrap();
 
         let status = service
-            .set_update_policy("dkr-r", UpdatePolicy::Stage)
+            .set_update_policy("tomba-recompiled", UpdatePolicy::Stage)
             .unwrap();
 
         assert_eq!(status.channel, ReleaseChannel::Beta);
         assert_eq!(status.update_policy, UpdatePolicy::Stage);
         assert_eq!(
             library
-                .status("dkr-r", ReleaseChannel::Stable)
+                .status("tomba-recompiled", ReleaseChannel::Stable)
                 .unwrap()
                 .channel,
             ReleaseChannel::Beta
