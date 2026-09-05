@@ -143,10 +143,7 @@ fn linux_process_identity_from_stat(pid: u32, body: &str) -> Result<Option<Strin
 }
 
 #[cfg(target_os = "linux")]
-fn linux_process_state_and_identity_from_stat<'a>(
-    pid: u32,
-    body: &'a str,
-) -> Result<(&'a str, String)> {
+fn linux_process_state_and_identity_from_stat(pid: u32, body: &str) -> Result<(&str, String)> {
     let end = body.rfind(')').ok_or_else(|| {
         PortcoveError::state(format!("process {pid} returned malformed /proc identity"))
     })?;
