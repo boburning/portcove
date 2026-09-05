@@ -135,6 +135,18 @@ pub(crate) fn process_identity(pid: u32) -> Result<Option<String>> {
 
 #[cfg(target_os = "linux")]
 fn linux_process_identity_from_stat(pid: u32, body: &str) -> Result<Option<String>> {
+    let (state, identity) = linux_process_state_and_identity_from_stat(pid, body)?;
+    if matches!(state, "Z" | "X" | "x") {
+        return Ok(None);
+    }
+    Ok(Some(identity))
+}
+
+#[cfg(target_os = "linux")]
+fn linux_process_state_and_identity_from_stat<'a>(
+    pid: u32,
+    body: &'a str,
+) -> Result<(&'a str, String)> {
     let end = body.rfind(')').ok_or_else(|| {
         PortcoveError::state(format!("process {pid} returned malformed /proc identity"))
     })?;
@@ -142,9 +154,6 @@ fn linux_process_identity_from_stat(pid: u32, body: &str) -> Result<Option<Strin
     let state = fields
         .next()
         .ok_or_else(|| PortcoveError::state(format!("process {pid} has no process state")))?;
-    if matches!(state, "Z" | "X" | "x") {
-        return Ok(None);
-    }
     let start_ticks = fields
         .nth(18)
         .ok_or_else(|| PortcoveError::state(format!("process {pid} has no start identity")))?;
@@ -153,7 +162,7 @@ fn linux_process_identity_from_stat(pid: u32, body: &str) -> Result<Option<Strin
             "process {pid} returned an invalid start identity"
         )));
     }
-    Ok(Some(format!("linux-start-ticks:{start_ticks}")))
+    Ok((state, format!("linux-start-ticks:{start_ticks}")))
 }
 
 #[cfg(target_os = "macos")]
@@ -198,8 +207,9 @@ pub(crate) fn process_identity(pid: u32) -> Result<Option<String>> {
     }
 
     const PROC_PIDTBSDINFO: i32 = 3;
-    let pid = i32::try_from(pid)
-        .map_err(|_| PortcoveError::state("process ID is outside the platform range"))?;
+    let Ok(pid) = i32::try_from(pid) else {
+        return Ok(None);
+    };
     let mut info = std::mem::MaybeUninit::<ProcBsdInfo>::zeroed();
     let expected = std::mem::size_of::<ProcBsdInfo>();
     // SAFETY: `info` points to `expected` writable bytes and proc_pidinfo does
@@ -238,8 +248,9 @@ pub(crate) fn process_identity(pid: u32) -> Result<Option<String>> {
 
 #[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
 pub(crate) fn process_identity(pid: u32) -> Result<Option<String>> {
-    let pid = i32::try_from(pid)
-        .map_err(|_| PortcoveError::state("process ID is outside the platform range"))?;
+    let Ok(pid) = i32::try_from(pid) else {
+        return Ok(None);
+    };
     // SAFETY: signal 0 performs an existence/permission check without delivery.
     if unsafe { libc::kill(pid, 0) } != 0
         && std::io::Error::last_os_error().raw_os_error() != Some(libc::EPERM)
@@ -251,7 +262,19 @@ pub(crate) fn process_identity(pid: u32) -> Result<Option<String>> {
     ))
 }
 
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
+pub(crate) fn process_identity_for_child(child: &Child) -> Result<String> {
+    let pid = child.id();
+    let body = std::fs::read_to_string(format!("/proc/{pid}/stat")).map_err(|error| {
+        PortcoveError::state(format!(
+            "child process {pid} exited before its start identity was recorded: {error}"
+        ))
+    })?;
+    let (_, identity) = linux_process_state_and_identity_from_stat(pid, &body)?;
+    Ok(identity)
+}
+
+#[cfg(all(unix, not(target_os = "linux")))]
 pub(crate) fn process_identity_for_child(child: &Child) -> Result<String> {
     process_identity(child.id())?.ok_or_else(|| {
         PortcoveError::state(format!(
