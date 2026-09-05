@@ -10,6 +10,7 @@
 
 <p align="center">
   <a href="#project-status">Project status</a> ·
+  <a href="#technical-alpha-downloads">Downloads</a> ·
   <a href="#build-from-source">Build from source</a> ·
   <a href="docs/README.md">Documentation</a> ·
   <a href="https://github.com/users/boburning/projects/1">Roadmap</a>
@@ -39,13 +40,35 @@ Portcove keeps its library, source references, and application state local. A Gi
 > [!WARNING]
 > **Current stage: Alpha 1 — trustworthy technical alpha**
 >
-> Portcove is under active development. No public release builds have been published yet. It is intended for maintainers and technically comfortable testers using disposable or fully backed-up libraries—not general users or irreplaceable setups.
+> Portcove is under active development. It is intended for maintainers and technically comfortable testers using disposable or fully backed-up libraries—not general users or irreplaceable setups.
 
 The catalog and state commands are usable, and the core install, update, launch, backup, and recovery paths are in place. Later stages focus on source onboarding, storage controls, frontend integrations, physical platform testing, packaging, and general product hardening.
 
 A port appearing in the catalog does **not** mean every platform has completed hands-on testing. Upstream availability, automated checks, and Portcove's own manual testing are tracked separately for each port and platform.
 
 Current priorities and blockers live in the public [Portcove Roadmap](https://github.com/users/boburning/projects/1). The meaning of Alpha, Beta, RC, and V1 lives in [docs/ROADMAP.md](docs/ROADMAP.md). The catalog can continue growing without turning every newly discovered port into a V1 blocker.
+
+## Technical alpha downloads
+
+[GitHub Releases](https://github.com/boburning/portcove/releases) is the download
+route for packaged technical previews as they become available. Check the
+prerelease entry and its notes; source builds remain available below.
+
+| System | Desktop package | Separate CLI archive |
+|---|---|---|
+| Windows x64 | `Portcove_<version>_x64-setup.exe` | `portcove-windows-x86_64.zip` |
+| Linux x64 (experimental) | AppImage, `.deb`, or `.rpm` | `portcove-linux-x86_64.tar.gz` |
+| macOS Intel (experimental) | `Portcove_<version>_x64.dmg` | `portcove-macos-x86_64.tar.gz` |
+| macOS Apple silicon (experimental) | `Portcove_<version>_aarch64.dmg` | `portcove-macos-aarch64.tar.gz` |
+
+Use the package for your operating system and architecture. GitHub's **Source
+code** archives are not runnable desktop or CLI packages. Verify the downloaded
+file against its matching line in the release's SHA-256 manifest before use.
+Windows packages lack Authenticode signing; macOS packages lack Developer ID
+signing/notarization. Linux and macOS have hosted build/test evidence, but not
+equivalent hands-on desktop package qualification. Application upgrades are
+manual. Read the [Alpha 1 notes](docs/releases/0.1.0-alpha.1-release-notes.md)
+for setup, checksum examples, recovery scope, and known limitations.
 
 ## Catalog and support
 
