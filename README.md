@@ -38,11 +38,11 @@ Portcove keeps its library, source references, and application state local. A Gi
 ## Project status
 
 > [!WARNING]
-> **Current stage: Alpha 1 — trustworthy technical alpha**
+> **In development: Alpha 2 — onboarding and storage**
 >
 > Portcove is under active development. It is intended for maintainers and technically comfortable testers using disposable or fully backed-up libraries—not general users or irreplaceable setups.
 
-The catalog and state commands are usable, and the core install, update, launch, backup, and recovery paths are in place. Later stages focus on source onboarding, storage controls, frontend integrations, physical platform testing, packaging, and general product hardening.
+Alpha 1 is released. Alpha 2 development focuses on first-play source onboarding and storage controls. The published Alpha 1 packages and their frozen evidence remain available below; this development branch does not establish Alpha 2 implementation or qualification readiness.
 
 A port appearing in the catalog does **not** mean every platform has completed hands-on testing. Upstream availability, automated checks, and Portcove's own manual testing are tracked separately for each port and platform.
 
