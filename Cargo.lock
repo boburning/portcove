@@ -3188,7 +3188,7 @@ dependencies = [
 
 [[package]]
 name = "portcove-cli"
-version = "0.1.0"
+version = "0.1.0-alpha.1"
 dependencies = [
  "clap",
  "portcove-core",
@@ -3203,7 +3203,7 @@ dependencies = [
 
 [[package]]
 name = "portcove-core"
-version = "0.1.0"
+version = "0.1.0-alpha.1"
 dependencies = [
  "async-trait",
  "crc32fast",
@@ -3235,7 +3235,7 @@ dependencies = [
 
 [[package]]
 name = "portcove-desktop"
-version = "0.1.0"
+version = "0.1.0-alpha.1"
 dependencies = [
  "portcove-core",
  "serde",
