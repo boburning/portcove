@@ -121,6 +121,13 @@ extraction, symlink refusal, persistent-data ownership, per-port locking,
 atomic activation, rollback, credential boundaries, and executable trust. See
 [ARCHITECTURE.md](ARCHITECTURE.md) and [PROJECT-GOVERNANCE.md](PROJECT-GOVERNANCE.md).
 
+The checked-in `catalog-schema1-admission-baseline.json` fixture fingerprints
+every schema-1 source profile and the complete port/profile/adapter binding set.
+It is the pre-migration comparison authority for catalog schema 2. A schema-2
+change must explain every changed fingerprint as an explicitly reviewed
+admission correction; reordering fields or inferring pairs from parallel digest
+arrays is not an admission change.
+
 The detailed pre-migration qualification narrative is preserved as a
 [dated historical snapshot](archive/2026-09-03-catalog-qualification-history.md).
 

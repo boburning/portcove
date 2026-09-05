@@ -817,6 +817,91 @@ fn is_crc32(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sha2::{Digest, Sha256};
+
+    const SCHEMA_1_ADMISSION_BASELINE: &str =
+        include_str!("../catalog/catalog-schema1-admission-baseline.json");
+
+    fn canonical_json(value: &mut serde_json::Value) {
+        match value {
+            serde_json::Value::Array(items) => {
+                for item in items {
+                    canonical_json(item);
+                }
+            }
+            serde_json::Value::Object(object) => {
+                for item in object.values_mut() {
+                    canonical_json(item);
+                }
+                object.sort_keys();
+            }
+            _ => {}
+        }
+    }
+
+    fn contract_digest(mut value: serde_json::Value) -> String {
+        canonical_json(&mut value);
+        hex::encode(Sha256::digest(serde_json::to_vec(&value).unwrap()))
+    }
+
+    #[test]
+    fn schema_1_admission_baseline_covers_every_profile_and_port_binding() {
+        let catalog: serde_json::Value = serde_json::from_str(EMBEDDED_CATALOG).unwrap();
+        assert_eq!(catalog["schema_version"], 1);
+
+        let mut profiles = catalog["source_profiles"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|profile| {
+                serde_json::json!({
+                    "id": profile["id"],
+                    "contract_sha256": contract_digest(profile.clone()),
+                })
+            })
+            .collect::<Vec<_>>();
+        profiles.sort_by(|left, right| {
+            left["id"]
+                .as_str()
+                .unwrap()
+                .cmp(right["id"].as_str().unwrap())
+        });
+
+        let mut bindings = catalog["ports"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|port| {
+                !port["source_profile"].is_null() || !port["bios_source_profile"].is_null()
+            })
+            .map(|port| {
+                serde_json::json!({
+                    "port_id": port["id"],
+                    "adapter": port["adapter"],
+                    "source_profile": port["source_profile"],
+                    "bios_source_profile": port["bios_source_profile"],
+                })
+            })
+            .collect::<Vec<_>>();
+        bindings.sort_by(|left, right| {
+            left["port_id"]
+                .as_str()
+                .unwrap()
+                .cmp(right["port_id"].as_str().unwrap())
+        });
+
+        let actual = serde_json::json!({
+            "schema_version": 1,
+            "profile_contracts": profiles,
+            "port_bindings": {
+                "count": bindings.len(),
+                "contract_sha256": contract_digest(bindings.into()),
+            },
+        });
+        let expected: serde_json::Value =
+            serde_json::from_str(SCHEMA_1_ADMISSION_BASELINE).unwrap();
+        assert_eq!(actual, expected);
+    }
 
     fn catalog_with_executable_hint(port_id: &str, platform: &str, hint: &str) -> String {
         let mut document: serde_json::Value =
