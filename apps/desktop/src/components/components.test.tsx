@@ -240,6 +240,44 @@ describe("desktop components", () => {
     expect(html).toContain("Add ZIP");
   });
 
+  it.each([undefined, installRecord(), installRecord({ verified: false })])("does not infer blanket assurances from an install record", active => {
+    const html = renderToStaticMarkup(<DetailPanel port={port} sourcePath="" setSourcePath={vi.fn()} actions={actions}
+      status={{ port_id: port.id, channel: "stable", update_policy: "notify", active }} />);
+    expect(html).not.toContain("Verified releases");
+    expect(html).not.toContain("Rollback retained");
+    expect(html).not.toContain("Saves protected");
+    expect(html).not.toContain("Previous version recorded");
+  });
+
+  it("reports a recorded previous version without promising rollback or save compatibility", () => {
+    const html = renderToStaticMarkup(<DetailPanel port={port} sourcePath="" setSourcePath={vi.fn()} actions={actions}
+      status={{ port_id: port.id, channel: "stable", update_policy: "notify", active: installRecord(), previous: installRecord({ version: "0.9" }) }} />);
+    expect(html).toContain("Previous version recorded · 0.9");
+    expect(html).not.toContain("Rollback retained");
+    expect(html).not.toContain("Saves protected");
+  });
+
+  it("keeps an unchecked selected path eligible for install review without calling it checked", () => {
+    const html = renderToStaticMarkup(<DetailPanel port={port} sourcePath="selected.z64" setSourcePath={vi.fn()} actions={actions} />);
+    expect(html).toContain("Selected game files have not been checked");
+    expect(html).toContain("Selected path has not been checked");
+    const review = html.match(/<button[^>]*>[^]*?Review install<\/button>/g)?.at(-1)?.split("<button").at(-1);
+    expect(review).toBeDefined();
+    expect(review).not.toContain("disabled");
+    expect(html).not.toContain("Ready to launch");
+  });
+
+  it("does not turn a selected override into registered-source readiness", () => {
+    const source = { profile_id: "sample-rom", path: "registered.z64", sha256: "a".repeat(64), size: 12, storage_sha256: "a".repeat(64), storage_size: 12, updated_at: 1 };
+    const html = renderToStaticMarkup(<DetailPanel port={port} source={source} sourcePath="new.z64" setSourcePath={vi.fn()} actions={actions}
+      status={{ port_id: port.id, channel: "stable", update_policy: "notify", active: installRecord(), readiness: { source: "current", launchable: true, blockers: [], pending_setup: false } }} />);
+    expect(html).toContain("Game files need checking");
+    expect(html).toContain("Selected path has not been checked");
+    expect(html).not.toContain("Current registered bytes checked");
+    expect(html).not.toContain("Ready to launch");
+    expect(html).toContain("Play now");
+  });
+
   it("renders installed and uninstalled detail actions", () => {
     const uninstalled = renderToStaticMarkup(<DetailPanel port={port} sourcePath="" setSourcePath={vi.fn()} pickSource={vi.fn()} actions={actions} />);
     const sourceFree = renderToStaticMarkup(<DetailPanel port={{ ...port, source_profile: undefined }} sourcePath="" setSourcePath={vi.fn()} actions={actions} />);
