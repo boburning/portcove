@@ -742,6 +742,8 @@ pub enum RepairItemKind {
     CleanupPending,
     OrphanedFinalDirectory,
     MissingRegisteredPath,
+    DegradedBackup,
+    BackupRecoveryRequired,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -769,6 +771,43 @@ pub struct BackupRecord {
     pub file_count: u64,
     pub size: u64,
     pub sha256: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BackupProblemKind {
+    MissingManifest,
+    UnreadableManifest,
+    MalformedManifest,
+    IdentityMismatch,
+    UnsupportedEntry,
+    RecoveryRequired,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct BackupProblem {
+    pub kind: BackupProblemKind,
+    pub backup_id: Option<String>,
+    pub operation_id: Option<String>,
+    pub path: PathBuf,
+    pub message: String,
+    pub proposed_action: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BackupInventoryState {
+    Healthy,
+    Degraded,
+    RecoveryRequired,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct BackupInventory {
+    pub port_id: String,
+    pub state: BackupInventoryState,
+    pub backups: Vec<BackupRecord>,
+    pub problems: Vec<BackupProblem>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

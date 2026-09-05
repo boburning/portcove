@@ -165,7 +165,7 @@ function SelectedPortPanel({ model, ui, operations, installPlanning, backups, ac
   const pickSource = model.sourceProfile ? () => { void applyPathChoice(pickSourcePath(model.sourceProfile!, ui.sourcePath), ui.setSourcePath, operations.setError); } : undefined;
   const pickArchive = model.sourceProfile?.kind === "file-set" ? () => { void applyPathChoice(pickSourceArchivePath(ui.sourcePath), ui.setSourcePath, operations.setError); } : undefined;
   const pickBios = model.biosProfile ? () => { void applyPathChoice(pickSourcePath(model.biosProfile!, ui.biosPath), ui.setBiosPath, operations.setError); } : undefined;
-  return <DetailPanel port={model.port} status={model.status} installPlan={installPlanning.plan} backups={backups.backups} source={model.source} sourceProfile={model.sourceProfile} sourcePath={ui.sourcePath} setSourcePath={ui.setSourcePath}
+  return <DetailPanel port={model.port} status={model.status} installPlan={installPlanning.plan} backups={backups.backups} backupProblems={backups.inventory.problems} backupState={backups.inventory.state} source={model.source} sourceProfile={model.sourceProfile} sourcePath={ui.sourcePath} setSourcePath={ui.setSourcePath}
     cancellableActivities={activities.filter(activity => activity.target_id === model.port?.id && activity.cancellation)}
     pickSource={pickSource} pickSourceArchive={pickArchive} busy={operations.busy} bios={model.bios} biosProfile={model.biosProfile} biosPath={ui.biosPath} setBiosPath={ui.setBiosPath} pickBios={pickBios}
     actions={detailActions(model.port, model.status, ui.sourcePath, ui.biosPath, operations.perform, () => ui.setSelectedId(undefined), installPlanning.review, backups.refresh)} />;

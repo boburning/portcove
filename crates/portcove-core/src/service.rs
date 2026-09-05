@@ -15,15 +15,15 @@ use uuid::Uuid;
 
 use crate::{
     ActivityOperation, ActivityRecord, ActivityStatus, ActivityTargetKind, AdapterRegistry,
-    BackupRecord, Catalog, ChildProcessPolicy, CompositeReleaseProvider, DoctorReport, InstallPlan,
-    InstallPlanAction, InstallQualification, InstallRecord, InstallRequest,
-    InstallSourceRequirement, Installer, LaunchBlocker, LaunchReadiness, LaunchSessionPhase,
-    LaunchSessionRecord, LaunchStdio, Library, OperationCoordinator, OperationEvent,
-    OperationResult, Platform, PortDefinition, PortPaths, PortStatus, PortcoveError,
-    ReconcileAction, ReconcileResult, ReleaseChannel, ReleaseProvider, RepairItem, RepairItemKind,
-    RepairPlan, ResolvedRelease, RestoreResult, Result, SourceHealth, SourceRecord,
-    SourceRemovalPreview, SourceRequirementRole, SourceVerification, SupervisedLaunchOutcome,
-    UpdateCheck, UpdatePolicy, VerificationReport,
+    BackupInventory, BackupInventoryState, BackupProblem, BackupProblemKind, BackupRecord, Catalog,
+    ChildProcessPolicy, CompositeReleaseProvider, DoctorReport, InstallPlan, InstallPlanAction,
+    InstallQualification, InstallRecord, InstallRequest, InstallSourceRequirement, Installer,
+    LaunchBlocker, LaunchReadiness, LaunchSessionPhase, LaunchSessionRecord, LaunchStdio, Library,
+    OperationCoordinator, OperationEvent, OperationResult, Platform, PortDefinition, PortPaths,
+    PortStatus, PortcoveError, ReconcileAction, ReconcileResult, ReleaseChannel, ReleaseProvider,
+    RepairItem, RepairItemKind, RepairPlan, ResolvedRelease, RestoreResult, Result, SourceHealth,
+    SourceRecord, SourceRemovalPreview, SourceRequirementRole, SourceVerification,
+    SupervisedLaunchOutcome, UpdateCheck, UpdatePolicy, VerificationReport,
     durability::{prepare_backup_publication, publish_backup_directory},
     operation::{
         LifecycleFaultInjector, LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind,
@@ -34,6 +34,7 @@ use crate::{
 
 const LAUNCH_MARKER: &str = ".portcove-launched";
 const BULK_PROVIDER_CONCURRENCY: usize = 4;
+const BACKUP_MANIFEST_MAX_BYTES: u64 = 64 * 1024;
 
 fn add_source_blocker(blockers: &mut Vec<LaunchBlocker>, health: Option<SourceHealth>, bios: bool) {
     let blocker = match (health, bios) {
@@ -344,6 +345,25 @@ impl PortcoveService {
                 }
             }
         }
+        for port in self.catalog.ports() {
+            for problem in self.list_backups(&port.id)?.problems {
+                if problem.operation_id.is_some() {
+                    continue;
+                }
+                items.push(RepairItem {
+                    kind: if problem.kind == BackupProblemKind::RecoveryRequired {
+                        RepairItemKind::BackupRecoveryRequired
+                    } else {
+                        RepairItemKind::DegradedBackup
+                    },
+                    operation_id: None,
+                    port_id: Some(port.id.clone()),
+                    path: Some(problem.path),
+                    message: problem.message,
+                    proposed_action: problem.proposed_action,
+                });
+            }
+        }
         items.sort_by(|left, right| {
             left.path
                 .cmp(&right.path)
@@ -407,6 +427,9 @@ impl PortcoveService {
             }
             LifecycleOperationKind::Remove => self.recover_removal(store, operation),
             LifecycleOperationKind::Restore => self.recover_restore(store, operation),
+            LifecycleOperationKind::DeleteBackup => {
+                crate::recovery::recover_backup_deletion(self, store, operation)
+            }
             LifecycleOperationKind::Activate => self.recover_activation(store, operation),
         }
     }
@@ -595,9 +618,10 @@ impl PortcoveService {
             ActivityTargetKind::Port,
             Some(port_id),
         )?;
-        let result = (|| {
+        let result: Result<BackupRecord> = (|| {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "backup")?;
+            self.require_completed_backup_deletion(port_id)?;
             self.collect_active_user_data_if_launched(port_id)?;
             self.create_backup_locked(port_id)
         })();
@@ -613,7 +637,9 @@ impl PortcoveService {
         }
 
         let parent = self.library.backups_dir().join(port_id);
+        refuse_symlink_ancestors(&parent)?;
         fs::create_dir_all(&parent)?;
+        refuse_symlink_ancestors(&parent)?;
         let temporary = tempfile::Builder::new()
             .prefix(".backup-")
             .tempdir_in(&parent)?;
@@ -633,6 +659,7 @@ impl PortcoveService {
         let now = Library::now();
         let created_at = self
             .list_backups(port_id)?
+            .backups
             .first()
             .map_or(now, |latest| now.max(latest.created_at.saturating_add(1)));
         let manifest = BackupManifest {
@@ -661,35 +688,211 @@ impl PortcoveService {
         Ok(backup_record(manifest, final_path))
     }
 
-    pub fn list_backups(&self, port_id: &str) -> Result<Vec<BackupRecord>> {
+    pub fn list_backups(&self, port_id: &str) -> Result<BackupInventory> {
         self.catalog.port(port_id)?;
         let parent = self.library.backups_dir().join(port_id);
-        if !parent.is_dir() {
-            return Ok(Vec::new());
+        let operations = OperationStore::new(self.library.clone()).all()?;
+        let pending_deletions = operations
+            .iter()
+            .filter(|operation| {
+                operation.port_id == port_id
+                    && operation.kind == LifecycleOperationKind::DeleteBackup
+            })
+            .collect::<Vec<_>>();
+        let pending_paths = pending_deletions
+            .iter()
+            .filter_map(|operation| operation.paths.quarantine.as_ref())
+            .collect::<HashSet<_>>();
+        let mut problems = pending_deletions
+            .iter()
+            .map(|operation| BackupProblem {
+                kind: BackupProblemKind::RecoveryRequired,
+                backup_id: operation
+                    .paths
+                    .final_path
+                    .as_ref()
+                    .and_then(|path| path.file_name())
+                    .and_then(|name| name.to_str())
+                    .map(str::to_owned),
+                operation_id: Some(operation.id.clone()),
+                path: operation
+                    .paths
+                    .quarantine
+                    .clone()
+                    .or_else(|| operation.paths.final_path.clone())
+                    .unwrap_or_else(|| parent.clone()),
+                message: operation
+                    .last_error
+                    .clone()
+                    .unwrap_or_else(|| format!("backup deletion is paused at {}", operation.phase)),
+                proposed_action:
+                    "restart Portcove to retry recovery; review doctor output if it remains".into(),
+            })
+            .collect::<Vec<_>>();
+        if let Err(error) = refuse_symlink_ancestors(&parent) {
+            problems.push(BackupProblem {
+                kind: BackupProblemKind::RecoveryRequired,
+                backup_id: None,
+                operation_id: None,
+                path: parent.clone(),
+                message: error.message,
+                proposed_action: "restore the owned backup directory after review".into(),
+            });
+            return Ok(BackupInventory {
+                port_id: port_id.into(),
+                state: BackupInventoryState::RecoveryRequired,
+                backups: Vec::new(),
+                problems,
+            });
+        }
+        let parent_metadata = match fs::symlink_metadata(&parent) {
+            Ok(metadata) => Some(metadata),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(error) => {
+                problems.push(backup_problem(
+                    BackupProblemKind::UnreadableManifest,
+                    None,
+                    parent.clone(),
+                    format!("backup directory could not be read: {error}"),
+                ));
+                return Ok(BackupInventory {
+                    port_id: port_id.into(),
+                    state: backup_inventory_state(&problems),
+                    backups: Vec::new(),
+                    problems,
+                });
+            }
+        };
+        if parent_metadata.is_none() {
+            let state = backup_inventory_state(&problems);
+            return Ok(BackupInventory {
+                port_id: port_id.into(),
+                state,
+                backups: Vec::new(),
+                problems,
+            });
+        }
+        if !parent_metadata.is_some_and(|metadata| metadata.is_dir()) {
+            problems.push(backup_problem(
+                BackupProblemKind::UnsupportedEntry,
+                None,
+                parent.clone(),
+                "backup root is not an owned directory".into(),
+            ));
+            return Ok(BackupInventory {
+                port_id: port_id.into(),
+                state: backup_inventory_state(&problems),
+                backups: Vec::new(),
+                problems,
+            });
         }
         let mut backups = Vec::new();
-        for entry in fs::read_dir(parent)? {
-            let entry = entry?;
-            if !entry.file_type()?.is_dir() {
-                continue;
+        let entries = match fs::read_dir(&parent) {
+            Ok(entries) => entries,
+            Err(error) => {
+                problems.push(backup_problem(
+                    BackupProblemKind::UnreadableManifest,
+                    None,
+                    parent.clone(),
+                    format!("backup directory could not be listed: {error}"),
+                ));
+                return Ok(BackupInventory {
+                    port_id: port_id.into(),
+                    state: backup_inventory_state(&problems),
+                    backups,
+                    problems,
+                });
             }
-            let directory_id = entry.file_name().into_string().map_err(|_| {
-                PortcoveError::unsupported("Portcove V1 requires backup paths to be valid Unicode")
-                    .detail("path_role", "backup")
-            })?;
-            if directory_id.starts_with('.') {
-                continue;
-            }
+        };
+        for entry in entries {
+            let entry = match entry {
+                Ok(entry) => entry,
+                Err(error) => {
+                    problems.push(backup_problem(
+                        BackupProblemKind::UnreadableManifest,
+                        None,
+                        parent.clone(),
+                        format!("backup entry could not be read: {error}"),
+                    ));
+                    continue;
+                }
+            };
             let path = entry.path();
-            let manifest: BackupManifest =
-                serde_json::from_reader(fs::File::open(path.join("backup.json"))?)?;
-            if manifest.id != directory_id || manifest.port_id != port_id {
-                return Err(PortcoveError::state(format!(
-                    "backup manifest identity does not match {}",
-                    path.display()
-                )));
+            let directory_id = match entry.file_name().into_string() {
+                Ok(directory_id) => directory_id,
+                Err(_) => {
+                    problems.push(backup_problem(
+                        BackupProblemKind::UnsupportedEntry,
+                        None,
+                        path,
+                        "backup path is not valid Unicode".into(),
+                    ));
+                    continue;
+                }
+            };
+            if directory_id.starts_with(".backup-") {
+                continue;
             }
-            backups.push(backup_record(manifest, path));
+            if directory_id.starts_with('.') {
+                if !pending_paths.contains(&path) {
+                    problems.push(BackupProblem {
+                        kind: BackupProblemKind::RecoveryRequired,
+                        backup_id: None,
+                        operation_id: None,
+                        path,
+                        message: "private backup recovery data has no matching lifecycle record"
+                            .into(),
+                        proposed_action: "review with portcove doctor; do not delete it manually"
+                            .into(),
+                    });
+                }
+                continue;
+            }
+            if !matches!(
+                Uuid::parse_str(&directory_id),
+                Ok(parsed) if parsed.to_string() == directory_id
+            ) {
+                problems.push(backup_problem(
+                    BackupProblemKind::IdentityMismatch,
+                    Some(directory_id),
+                    path,
+                    "backup directory name is not a canonical backup ID".into(),
+                ));
+                continue;
+            }
+            let file_type = match entry.file_type() {
+                Ok(file_type) => file_type,
+                Err(error) => {
+                    problems.push(backup_problem(
+                        BackupProblemKind::UnreadableManifest,
+                        Some(directory_id),
+                        path,
+                        format!("backup entry metadata could not be read: {error}"),
+                    ));
+                    continue;
+                }
+            };
+            if !file_type.is_dir() || file_type.is_symlink() {
+                problems.push(backup_problem(
+                    BackupProblemKind::UnsupportedEntry,
+                    Some(directory_id),
+                    path,
+                    "backup entry is not an owned directory".into(),
+                ));
+                continue;
+            }
+            match read_backup_manifest(&path, port_id, &directory_id) {
+                Ok(manifest) => backups.push(backup_record(manifest, path)),
+                Err(error) => {
+                    let kind = backup_problem_kind(&error);
+                    problems.push(backup_problem(
+                        kind,
+                        Some(directory_id),
+                        path,
+                        error.message,
+                    ));
+                }
+            }
         }
         backups.sort_by(|left, right| {
             right
@@ -697,7 +900,17 @@ impl PortcoveService {
                 .cmp(&left.created_at)
                 .then_with(|| right.id.cmp(&left.id))
         });
-        Ok(backups)
+        problems.sort_by(|left, right| {
+            left.path
+                .cmp(&right.path)
+                .then_with(|| left.operation_id.cmp(&right.operation_id))
+        });
+        Ok(BackupInventory {
+            port_id: port_id.into(),
+            state: backup_inventory_state(&problems),
+            backups,
+            problems,
+        })
     }
 
     pub fn preview_backup_action(
@@ -782,6 +995,7 @@ impl PortcoveService {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "restore-backup")?;
             self.require_completed_restore(port_id)?;
+            self.require_completed_backup_deletion(port_id)?;
             self.library.consume_authorization_with_state(
                 authorization_token,
                 BackupAction::Restore.authorization_action(),
@@ -876,9 +1090,13 @@ impl PortcoveService {
             ActivityTargetKind::Port,
             Some(port_id),
         )?;
-        let result = (|| {
+        let store = OperationStore::new(self.library.clone());
+        let mut lifecycle =
+            LifecycleOperation::new(&activity.id, LifecycleOperationKind::DeleteBackup, port_id);
+        let mut result: Result<BackupRecord> = (|| {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "delete-backup")?;
+            self.require_completed_backup_deletion(port_id)?;
             let locked_preview =
                 self.preview_backup_action(port_id, backup_id, BackupAction::Delete)?;
             self.library.consume_authorization(
@@ -894,19 +1112,59 @@ impl PortcoveService {
                     backup.path.display()
                 ))
             })?;
-            let deleting = parent.join(format!(".deleting-{}", Uuid::new_v4()));
+            refuse_symlink_ancestors(parent)?;
+            refuse_symlink_ancestors(&backup.path)?;
+            let deleting = parent.join(format!(".deleting-{}", activity.id));
+            lifecycle.paths.final_path = Some(backup.path.clone());
+            lifecycle.paths.quarantine = Some(deleting.clone());
+            lifecycle.phase = LifecyclePhase::Prepared;
+            self.validate_backup_deletion_operation(&lifecycle)?;
+            store.put(&mut lifecycle)?;
+            self.faults
+                .check(LifecycleFaultPoint::DeleteBackupPrepared)?;
             fs::rename(&backup.path, &deleting)?;
-            if let Err(delete_error) = fs::remove_dir_all(&deleting) {
-                if let Err(rollback_error) = fs::rename(&deleting, &backup.path) {
-                    return Err(PortcoveError::state(format!(
-                        "backup deletion failed ({delete_error}) and its directory could not be returned ({rollback_error}); recovery data remains at {}",
-                        deleting.display()
-                    )));
-                }
-                return Err(delete_error.into());
-            }
+            self.faults
+                .check(LifecycleFaultPoint::DeleteBackupQuarantined)?;
+            lifecycle.phase = LifecyclePhase::PayloadPublished;
+            store.put(&mut lifecycle)?;
+            self.faults
+                .check(LifecycleFaultPoint::DeleteBackupDeleting)?;
+            refuse_symlink_ancestors(&deleting)?;
+            fs::remove_dir_all(&deleting)?;
+            self.faults
+                .check(LifecycleFaultPoint::DeleteBackupDeleted)?;
+            lifecycle.phase = LifecyclePhase::MetadataCommitted;
+            store.put(&mut lifecycle)?;
+            self.faults
+                .check(LifecycleFaultPoint::DeleteBackupMetadataCommitted)?;
+            store.remove(&lifecycle.id)?;
             Ok(backup)
         })();
+        if let Err(error) = &mut result {
+            if lifecycle.phase != LifecyclePhase::Preparing {
+                let recovery_path = lifecycle
+                    .paths
+                    .quarantine
+                    .as_ref()
+                    .map_or_else(|| self.library.backups_dir(), PathBuf::from);
+                error
+                    .details
+                    .insert("backup_state".into(), "recovery_required".into());
+                error
+                    .details
+                    .insert("recovery_action".into(), "restart_then_doctor".into());
+                error
+                    .details
+                    .insert("recovery_path".into(), recovery_path.display().to_string());
+                error.message = format!(
+                    "{}; backup recovery is required at {}. Restart Portcove to retry, then review doctor output if it remains",
+                    error.message,
+                    recovery_path.display()
+                );
+                lifecycle.last_error = Some(error.message.clone());
+                let _ = store.put(&mut lifecycle);
+            }
+        }
         self.finish_activity(activity, result)
     }
 
@@ -940,14 +1198,8 @@ impl PortcoveService {
                 "backup {backup_id} was not found for {port_id}"
             )));
         }
-        let manifest: BackupManifest =
-            serde_json::from_reader(fs::File::open(path.join("backup.json"))?)?;
-        if manifest.id != backup_id || manifest.port_id != port_id {
-            return Err(PortcoveError::verification(format!(
-                "backup manifest identity does not match {}",
-                path.display()
-            )));
-        }
+        refuse_symlink_ancestors(&path)?;
+        let manifest = read_backup_manifest(&path, port_id, backup_id)?;
         Ok(backup_record(manifest, path))
     }
 
@@ -2666,6 +2918,79 @@ impl PortcoveService {
         Ok(())
     }
 
+    fn require_completed_backup_deletion(&self, port_id: &str) -> Result<()> {
+        if OperationStore::new(self.library.clone())
+            .all()?
+            .iter()
+            .any(|operation| {
+                operation.port_id == port_id
+                    && operation.kind == LifecycleOperationKind::DeleteBackup
+            })
+        {
+            return Err(PortcoveError::conflict(format!(
+                "{port_id} has an unfinished backup deletion; restart Portcove to retry recovery and review doctor output if it remains"
+            ))
+            .detail("recovery_action", "restart_then_doctor"));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn validate_backup_deletion_operation(
+        &self,
+        operation: &LifecycleOperation,
+    ) -> Result<(PathBuf, PathBuf, String)> {
+        if operation.kind != LifecycleOperationKind::DeleteBackup {
+            return Err(PortcoveError::state(
+                "backup deletion recovery received another lifecycle kind",
+            ));
+        }
+        self.catalog.port(&operation.port_id)?;
+        let expected_parent = self.library.backups_dir().join(&operation.port_id);
+        refuse_symlink_ancestors(&expected_parent)?;
+        let original = operation.paths.final_path.clone().ok_or_else(|| {
+            PortcoveError::state("recoverable backup deletion is missing its original path")
+        })?;
+        let quarantine = operation.paths.quarantine.clone().ok_or_else(|| {
+            PortcoveError::state("recoverable backup deletion is missing its quarantine path")
+        })?;
+        if original.parent() != Some(expected_parent.as_path())
+            || quarantine.parent() != Some(expected_parent.as_path())
+        {
+            return Err(PortcoveError::conflict(
+                "backup deletion paths are outside the registered backup root",
+            ));
+        }
+        let backup_id = original
+            .file_name()
+            .and_then(|name| name.to_str())
+            .ok_or_else(|| {
+                PortcoveError::unsupported("Portcove V1 requires backup paths to be valid Unicode")
+            })?
+            .to_owned();
+        let parsed = Uuid::parse_str(&backup_id)
+            .map_err(|_| PortcoveError::state("recoverable backup ID is invalid"))?;
+        if parsed.to_string() != backup_id
+            || quarantine.file_name().and_then(|name| name.to_str())
+                != Some(format!(".deleting-{}", operation.id).as_str())
+        {
+            return Err(PortcoveError::conflict(
+                "backup deletion paths do not match the recorded operation identity",
+            ));
+        }
+        refuse_symlink_ancestors(&original)?;
+        refuse_symlink_ancestors(&quarantine)?;
+        Ok((original, quarantine, backup_id))
+    }
+
+    pub(crate) fn validate_backup_directory_identity(
+        &self,
+        path: &Path,
+        port_id: &str,
+        backup_id: &str,
+    ) -> Result<()> {
+        read_backup_manifest(path, port_id, backup_id).map(|_| ())
+    }
+
     pub(crate) fn synchronize_restored_user_data(&self, port_id: &str) -> Result<()> {
         let port = self.catalog.port(port_id)?;
         let user_root = self.library.user_dir(port_id);
@@ -2764,6 +3089,132 @@ fn backup_record(manifest: BackupManifest, path: PathBuf) -> BackupRecord {
         file_count: manifest.file_count,
         size: manifest.size,
         sha256: manifest.sha256,
+    }
+}
+
+fn read_backup_manifest(path: &Path, port_id: &str, backup_id: &str) -> Result<BackupManifest> {
+    let manifest_path = path.join("backup.json");
+    let metadata = match fs::symlink_metadata(&manifest_path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Err(backup_manifest_error(
+                BackupProblemKind::MissingManifest,
+                format!("backup manifest is missing: {}", manifest_path.display()),
+                &manifest_path,
+            ));
+        }
+        Err(error) => {
+            return Err(backup_manifest_error(
+                BackupProblemKind::UnreadableManifest,
+                format!("backup manifest metadata could not be read: {error}"),
+                &manifest_path,
+            ));
+        }
+    };
+    if !metadata.is_file() || metadata.file_type().is_symlink() {
+        return Err(backup_manifest_error(
+            BackupProblemKind::UnreadableManifest,
+            format!(
+                "backup manifest is not an owned regular file: {}",
+                manifest_path.display()
+            ),
+            &manifest_path,
+        ));
+    }
+    let bytes = crate::path::read_bounded_regular(&manifest_path, BACKUP_MANIFEST_MAX_BYTES)
+        .map_err(|error| {
+            backup_manifest_error(
+                BackupProblemKind::UnreadableManifest,
+                format!("backup manifest could not be read: {}", error.message),
+                &manifest_path,
+            )
+        })?;
+    let manifest: BackupManifest = serde_json::from_slice(&bytes).map_err(|error| {
+        backup_manifest_error(
+            BackupProblemKind::MalformedManifest,
+            format!("backup manifest is malformed: {error}"),
+            &manifest_path,
+        )
+    })?;
+    if manifest.id != backup_id || manifest.port_id != port_id {
+        return Err(backup_manifest_error(
+            BackupProblemKind::IdentityMismatch,
+            format!("backup manifest identity does not match {}", path.display()),
+            &manifest_path,
+        ));
+    }
+    Ok(manifest)
+}
+
+fn backup_manifest_error(kind: BackupProblemKind, message: String, path: &Path) -> PortcoveError {
+    let error = match kind {
+        BackupProblemKind::MissingManifest => PortcoveError::not_found(message),
+        BackupProblemKind::IdentityMismatch
+        | BackupProblemKind::MalformedManifest
+        | BackupProblemKind::UnsupportedEntry => PortcoveError::verification(message),
+        BackupProblemKind::UnreadableManifest | BackupProblemKind::RecoveryRequired => {
+            PortcoveError::state(message)
+        }
+    };
+    error
+        .detail("backup_problem", backup_problem_name(kind))
+        .detail("path", path.display().to_string())
+}
+
+fn backup_problem_name(kind: BackupProblemKind) -> &'static str {
+    match kind {
+        BackupProblemKind::MissingManifest => "missing_manifest",
+        BackupProblemKind::UnreadableManifest => "unreadable_manifest",
+        BackupProblemKind::MalformedManifest => "malformed_manifest",
+        BackupProblemKind::IdentityMismatch => "identity_mismatch",
+        BackupProblemKind::UnsupportedEntry => "unsupported_entry",
+        BackupProblemKind::RecoveryRequired => "recovery_required",
+    }
+}
+
+fn backup_problem_kind(error: &PortcoveError) -> BackupProblemKind {
+    match error.details.get("backup_problem").map(String::as_str) {
+        Some("missing_manifest") => BackupProblemKind::MissingManifest,
+        Some("unreadable_manifest") => BackupProblemKind::UnreadableManifest,
+        Some("malformed_manifest") => BackupProblemKind::MalformedManifest,
+        Some("identity_mismatch") => BackupProblemKind::IdentityMismatch,
+        Some("recovery_required") => BackupProblemKind::RecoveryRequired,
+        _ => BackupProblemKind::UnsupportedEntry,
+    }
+}
+
+fn backup_problem(
+    kind: BackupProblemKind,
+    backup_id: Option<String>,
+    path: PathBuf,
+    message: String,
+) -> BackupProblem {
+    BackupProblem {
+        kind,
+        backup_id,
+        operation_id: None,
+        path,
+        message,
+        proposed_action: match kind {
+            BackupProblemKind::RecoveryRequired => {
+                "restart Portcove to retry recovery; review doctor output if it remains"
+            }
+            _ => "repair or remove this backup entry after review",
+        }
+        .into(),
+    }
+}
+
+fn backup_inventory_state(problems: &[BackupProblem]) -> BackupInventoryState {
+    if problems
+        .iter()
+        .any(|problem| problem.kind == BackupProblemKind::RecoveryRequired)
+    {
+        BackupInventoryState::RecoveryRequired
+    } else if problems.is_empty() {
+        BackupInventoryState::Healthy
+    } else {
+        BackupInventoryState::Degraded
     }
 }
 
@@ -4335,7 +4786,10 @@ fn main() {
             fs::read(backup.path.join("data/saves/save.dat")).unwrap(),
             b"original"
         );
-        assert_eq!(service.list_backups("zelda64-recomp").unwrap(), [backup]);
+        assert_eq!(
+            service.list_backups("zelda64-recomp").unwrap().backups,
+            [backup]
+        );
         let activity = &library.activities(1).unwrap()[0];
         assert_eq!(activity.operation, ActivityOperation::Backup);
         assert_eq!(activity.status, ActivityStatus::Succeeded);
@@ -4350,7 +4804,13 @@ fn main() {
 
         let error = service.create_backup("zelda64-recomp").unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::NotFound);
-        assert!(service.list_backups("zelda64-recomp").unwrap().is_empty());
+        assert!(
+            service
+                .list_backups("zelda64-recomp")
+                .unwrap()
+                .backups
+                .is_empty()
+        );
         let activity = &library.activities(1).unwrap()[0];
         assert_eq!(activity.operation, ActivityOperation::Backup);
         assert_eq!(activity.status, ActivityStatus::Failed);
@@ -4381,8 +4841,8 @@ fn main() {
         assert_eq!(fs::read(user_root.join("save.dat")).unwrap(), b"wanted");
         assert!(!user_root.join("new.cfg").exists());
         let listed = service.list_backups("zelda64-recomp").unwrap();
-        assert_eq!(listed.len(), 2);
-        assert_eq!(listed[0], safety);
+        assert_eq!(listed.backups.len(), 2);
+        assert_eq!(listed.backups[0], safety);
         let activity = &library.activities(1).unwrap()[0];
         assert_eq!(activity.operation, ActivityOperation::Restore);
         assert_eq!(activity.status, ActivityStatus::Succeeded);
@@ -4532,7 +4992,14 @@ fn main() {
 
         assert_eq!(error.code, crate::ErrorCode::Verification);
         assert_eq!(fs::read(user_root.join("save.dat")).unwrap(), b"live");
-        assert_eq!(service.list_backups("zelda64-recomp").unwrap().len(), 1);
+        assert_eq!(
+            service
+                .list_backups("zelda64-recomp")
+                .unwrap()
+                .backups
+                .len(),
+            1
+        );
         assert_eq!(
             library.activities(1).unwrap()[0].status,
             ActivityStatus::Failed
@@ -4571,10 +5038,347 @@ fn main() {
         assert_eq!(deleted, backup);
         assert!(!backup.path.exists());
         assert_eq!(fs::read(user_root.join("save.dat")).unwrap(), b"live");
-        assert!(service.list_backups("zelda64-recomp").unwrap().is_empty());
+        assert!(
+            service
+                .list_backups("zelda64-recomp")
+                .unwrap()
+                .backups
+                .is_empty()
+        );
         let activity = &library.activities(1).unwrap()[0];
         assert_eq!(activity.operation, ActivityOperation::DeleteBackup);
         assert_eq!(activity.status, ActivityStatus::Succeeded);
+    }
+
+    #[test]
+    fn backup_inventory_isolates_every_damaged_entry_and_allows_new_backups() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let user_root = library.user_dir("zelda64-recomp");
+        fs::create_dir_all(&user_root).unwrap();
+        fs::write(user_root.join("save.dat"), b"live").unwrap();
+        let service = service_with_release(library.clone(), "v1");
+        let healthy = service.create_backup("zelda64-recomp").unwrap();
+        let parent = library.backups_dir().join("zelda64-recomp");
+        let missing = Uuid::new_v4().to_string();
+        fs::create_dir(parent.join(&missing)).unwrap();
+        let unreadable = Uuid::new_v4().to_string();
+        fs::create_dir_all(parent.join(&unreadable).join("backup.json")).unwrap();
+        let malformed = Uuid::new_v4().to_string();
+        fs::create_dir(parent.join(&malformed)).unwrap();
+        fs::write(parent.join(&malformed).join("backup.json"), b"{").unwrap();
+        let mismatched = Uuid::new_v4().to_string();
+        fs::create_dir(parent.join(&mismatched)).unwrap();
+        fs::write(
+            parent.join(&mismatched).join("backup.json"),
+            serde_json::to_vec(&BackupManifest {
+                id: Uuid::new_v4().to_string(),
+                port_id: "another-port".into(),
+                created_at: 1,
+                file_count: 1,
+                size: 1,
+                sha256: "a".repeat(64),
+            })
+            .unwrap(),
+        )
+        .unwrap();
+
+        let inventory = service.list_backups("zelda64-recomp").unwrap();
+
+        assert_eq!(inventory.state, BackupInventoryState::Degraded);
+        assert_eq!(inventory.backups, [healthy]);
+        assert_eq!(inventory.problems.len(), 4);
+        let kinds = inventory
+            .problems
+            .iter()
+            .map(|problem| problem.kind)
+            .collect::<HashSet<_>>();
+        assert_eq!(
+            kinds,
+            HashSet::from([
+                BackupProblemKind::MissingManifest,
+                BackupProblemKind::UnreadableManifest,
+                BackupProblemKind::MalformedManifest,
+                BackupProblemKind::IdentityMismatch,
+            ])
+        );
+        assert_eq!(
+            service
+                .repair_plan()
+                .unwrap()
+                .items
+                .iter()
+                .filter(|item| item.kind == RepairItemKind::DegradedBackup)
+                .count(),
+            4
+        );
+        for (backup_id, expected) in [
+            (&missing, "missing_manifest"),
+            (&unreadable, "unreadable_manifest"),
+            (&malformed, "malformed_manifest"),
+            (&mismatched, "identity_mismatch"),
+        ] {
+            for action in [BackupAction::Restore, BackupAction::Delete] {
+                let error = service
+                    .preview_backup_action("zelda64-recomp", backup_id, action)
+                    .unwrap_err();
+                assert_eq!(error.details["backup_problem"], expected);
+            }
+        }
+
+        fs::write(user_root.join("save.dat"), b"new live data").unwrap();
+        let newer = service.create_backup("zelda64-recomp").unwrap();
+        let after = service.list_backups("zelda64-recomp").unwrap();
+        assert_eq!(after.backups.len(), 2);
+        assert_eq!(after.backups[0], newer);
+        assert_eq!(after.problems.len(), 4);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn unreadable_backup_manifest_is_reported_without_hiding_other_backups() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let user_root = library.user_dir("zelda64-recomp");
+        fs::create_dir_all(&user_root).unwrap();
+        fs::write(user_root.join("save.dat"), b"live").unwrap();
+        let service = service_with_release(library, "v1");
+        let first = service.create_backup("zelda64-recomp").unwrap();
+        fs::write(user_root.join("save.dat"), b"newer").unwrap();
+        let readable = service.create_backup("zelda64-recomp").unwrap();
+        let manifest = first.path.join("backup.json");
+        fs::set_permissions(&manifest, fs::Permissions::from_mode(0o000)).unwrap();
+
+        let inventory = service.list_backups("zelda64-recomp").unwrap();
+
+        assert_eq!(inventory.backups, [readable]);
+        assert_eq!(inventory.state, BackupInventoryState::Degraded);
+        assert_eq!(
+            inventory.problems[0].kind,
+            BackupProblemKind::UnreadableManifest
+        );
+        for action in [BackupAction::Restore, BackupAction::Delete] {
+            let error = service
+                .preview_backup_action("zelda64-recomp", &first.id, action)
+                .unwrap_err();
+            assert_eq!(error.details["backup_problem"], "unreadable_manifest");
+        }
+        fs::set_permissions(&manifest, fs::Permissions::from_mode(0o600)).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinked_backup_root_is_recovery_required_and_never_followed() {
+        use std::os::unix::fs::symlink;
+
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let outside = temporary.path().join("outside");
+        let backup_id = Uuid::new_v4().to_string();
+        let user_root = library.user_dir("zelda64-recomp");
+        fs::create_dir_all(&user_root).unwrap();
+        fs::write(user_root.join("save.dat"), b"live").unwrap();
+        fs::create_dir_all(outside.join(&backup_id)).unwrap();
+        fs::write(outside.join(&backup_id).join("valuable.dat"), b"preserve").unwrap();
+        fs::create_dir_all(library.backups_dir()).unwrap();
+        symlink(&outside, library.backups_dir().join("zelda64-recomp")).unwrap();
+        let service = service_with_release(library, "v1");
+
+        let inventory = service.list_backups("zelda64-recomp").unwrap();
+
+        assert_eq!(inventory.state, BackupInventoryState::RecoveryRequired);
+        assert!(inventory.backups.is_empty());
+        assert_eq!(
+            fs::read(outside.join(&backup_id).join("valuable.dat")).unwrap(),
+            b"preserve"
+        );
+        let create_error = service.create_backup("zelda64-recomp").unwrap_err();
+        assert_eq!(create_error.code, crate::ErrorCode::Conflict);
+        let error = service
+            .delete_backup("zelda64-recomp", &backup_id, "invalid")
+            .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert_eq!(
+            fs::read(outside.join(&backup_id).join("valuable.dat")).unwrap(),
+            b"preserve"
+        );
+    }
+
+    #[test]
+    fn backup_deletion_recovers_after_every_recorded_transition() {
+        for point in [
+            LifecycleFaultPoint::DeleteBackupPrepared,
+            LifecycleFaultPoint::DeleteBackupQuarantined,
+            LifecycleFaultPoint::DeleteBackupDeleting,
+            LifecycleFaultPoint::DeleteBackupDeleted,
+            LifecycleFaultPoint::DeleteBackupMetadataCommitted,
+        ] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let user_root = library.user_dir("zelda64-recomp");
+            fs::create_dir_all(&user_root).unwrap();
+            fs::write(user_root.join("save.dat"), b"live").unwrap();
+            let service = service_with_fault(library.clone(), point);
+            let backup = service.create_backup("zelda64-recomp").unwrap();
+
+            let error =
+                delete_backup_authorized(&service, "zelda64-recomp", &backup.id).unwrap_err();
+            assert!(error.message.contains("injected lifecycle failure"));
+            let interrupted = service.list_backups("zelda64-recomp").unwrap();
+            assert_eq!(
+                interrupted.state,
+                BackupInventoryState::RecoveryRequired,
+                "{point:?}"
+            );
+
+            let recovered = service_with_release(library.clone(), "v1");
+            let inventory = recovered.list_backups("zelda64-recomp").unwrap();
+            assert_eq!(inventory.state, BackupInventoryState::Healthy, "{point:?}");
+            assert!(inventory.backups.is_empty(), "{point:?}");
+            assert!(inventory.problems.is_empty(), "{point:?}");
+            assert!(
+                recovered.repair_plan().unwrap().items.is_empty(),
+                "{point:?}"
+            );
+            assert_eq!(fs::read(user_root.join("save.dat")).unwrap(), b"live");
+        }
+    }
+
+    #[test]
+    fn backup_deletion_recovery_completes_a_partially_removed_quarantine() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let user_root = library.user_dir("zelda64-recomp");
+        fs::create_dir_all(&user_root).unwrap();
+        fs::write(user_root.join("save.dat"), b"live").unwrap();
+        let service =
+            service_with_fault(library.clone(), LifecycleFaultPoint::DeleteBackupDeleting);
+        let backup = service.create_backup("zelda64-recomp").unwrap();
+        delete_backup_authorized(&service, "zelda64-recomp", &backup.id).unwrap_err();
+        let quarantine = service.list_backups("zelda64-recomp").unwrap().problems[0]
+            .path
+            .clone();
+        fs::remove_file(quarantine.join("data/save.dat")).unwrap();
+
+        let recovered = service_with_release(library, "v1");
+
+        assert!(!quarantine.exists());
+        assert!(
+            recovered
+                .list_backups("zelda64-recomp")
+                .unwrap()
+                .problems
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn ambiguous_backup_deletion_state_requires_review_without_deleting_either_path() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let user_root = library.user_dir("zelda64-recomp");
+        fs::create_dir_all(&user_root).unwrap();
+        fs::write(user_root.join("save.dat"), b"live").unwrap();
+        let service =
+            service_with_fault(library.clone(), LifecycleFaultPoint::DeleteBackupPrepared);
+        let backup = service.create_backup("zelda64-recomp").unwrap();
+        delete_backup_authorized(&service, "zelda64-recomp", &backup.id).unwrap_err();
+        let operation = OperationStore::new(library.clone())
+            .all()
+            .unwrap()
+            .remove(0);
+        let quarantine = operation.paths.quarantine.unwrap();
+        fs::create_dir(&quarantine).unwrap();
+        fs::copy(
+            backup.path.join("backup.json"),
+            quarantine.join("backup.json"),
+        )
+        .unwrap();
+
+        let recovered = service_with_release(library, "v1");
+        let inventory = recovered.list_backups("zelda64-recomp").unwrap();
+
+        assert!(backup.path.exists());
+        assert!(quarantine.exists());
+        assert_eq!(inventory.state, BackupInventoryState::RecoveryRequired);
+        assert!(inventory.backups.contains(&backup));
+        assert!(!recovered.repair_plan().unwrap().items.is_empty());
+    }
+
+    #[test]
+    fn backup_deletion_recovery_never_mutates_paths_outside_the_backup_root() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = service_with_release(library.clone(), "v1");
+        let outside = temporary.path().join(Uuid::new_v4().to_string());
+        fs::create_dir(&outside).unwrap();
+        fs::write(outside.join("valuable.dat"), b"preserve").unwrap();
+        let mut operation = LifecycleOperation::new(
+            Uuid::new_v4().to_string(),
+            LifecycleOperationKind::DeleteBackup,
+            "zelda64-recomp",
+        );
+        operation.phase = LifecyclePhase::Prepared;
+        operation.paths.final_path = Some(outside.clone());
+        operation.paths.quarantine =
+            Some(temporary.path().join(format!(".deleting-{}", operation.id)));
+        OperationStore::new(library.clone())
+            .put(&mut operation)
+            .unwrap();
+
+        let recovered = service_with_release(library, "v1");
+
+        assert_eq!(fs::read(outside.join("valuable.dat")).unwrap(), b"preserve");
+        assert!(!recovered.repair_plan().unwrap().items.is_empty());
+        drop(service);
+    }
+
+    #[test]
+    fn backup_deletion_keeps_authorization_and_lock_failures_non_mutating() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("library");
+        let library = Library::open(&root).unwrap();
+        let user_root = library.user_dir("zelda64-recomp");
+        fs::create_dir_all(&user_root).unwrap();
+        fs::write(user_root.join("save.dat"), b"live").unwrap();
+        let service = service_with_release(library.clone(), "v1");
+        let backup = service.create_backup("zelda64-recomp").unwrap();
+
+        let unauthorized = service
+            .delete_backup("zelda64-recomp", &backup.id, "invalid")
+            .unwrap_err();
+        assert_eq!(unauthorized.code, crate::ErrorCode::Conflict);
+        assert!(backup.path.exists());
+
+        let preview = service
+            .preview_backup_action("zelda64-recomp", &backup.id, BackupAction::Delete)
+            .unwrap();
+        let authorization = service
+            .authorize_backup_action(
+                "zelda64-recomp",
+                &backup.id,
+                BackupAction::Delete,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        let competing = Library::open(root).unwrap();
+        let _guard = competing
+            .try_lock_port("zelda64-recomp", "competing-operation")
+            .unwrap();
+        let locked = service
+            .delete_backup("zelda64-recomp", &backup.id, &authorization.token)
+            .unwrap_err();
+        assert_eq!(locked.code, crate::ErrorCode::Conflict);
+        assert!(backup.path.exists());
+        assert!(
+            service
+                .list_backups("zelda64-recomp")
+                .unwrap()
+                .problems
+                .is_empty()
+        );
     }
 
     #[cfg(unix)]

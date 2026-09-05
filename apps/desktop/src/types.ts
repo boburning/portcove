@@ -209,7 +209,7 @@ export interface DoctorReport {
 export interface RepairPlan {
   generated_at: number;
   items: Array<{
-    kind: "partial_operation" | "cleanup_pending" | "orphaned_final_directory" | "missing_registered_path";
+    kind: "partial_operation" | "cleanup_pending" | "orphaned_final_directory" | "missing_registered_path" | "degraded_backup" | "backup_recovery_required";
     operation_id?: string;
     port_id?: string;
     path?: string;
@@ -226,6 +226,22 @@ export interface BackupRecord {
   file_count: number;
   size: number;
   sha256: string;
+}
+
+export interface BackupProblem {
+  kind: "missing_manifest" | "unreadable_manifest" | "malformed_manifest" | "identity_mismatch" | "unsupported_entry" | "recovery_required";
+  backup_id?: string;
+  operation_id?: string;
+  path: string;
+  message: string;
+  proposed_action: string;
+}
+
+export interface BackupInventory {
+  port_id: string;
+  state: "healthy" | "degraded" | "recovery_required";
+  backups: BackupRecord[];
+  problems: BackupProblem[];
 }
 
 export interface RestoreResult {

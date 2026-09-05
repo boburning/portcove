@@ -3,7 +3,7 @@ import { AlertTriangle, ArchiveX, CheckCircle2, ChevronDown, Clipboard, Clipboar
 import { primaryCliCommand } from "../cli-command";
 import { copyText } from "../clipboard";
 import { useDialogFocus } from "../dialog";
-import type { ActivityRecord, BackupRecord, InstallPlan, PortDefinition, PortStatus, ReleaseChannel, SourceHealth, SourceProfile, SourceRecord, UpdatePolicy } from "../types";
+import type { ActivityRecord, BackupInventory, BackupProblem, BackupRecord, InstallPlan, PortDefinition, PortStatus, ReleaseChannel, SourceHealth, SourceProfile, SourceRecord, UpdatePolicy } from "../types";
 import { OperationCancellation } from "./OperationCancellation";
 import { formatBytes, platformLabels } from "../view-model";
 import { BackupHistory } from "./BackupHistory";
@@ -36,6 +36,8 @@ interface DetailPanelProps {
   status?: PortStatus;
   installPlan?: InstallPlan;
   backups?: BackupRecord[];
+  backupProblems?: BackupProblem[];
+  backupState?: BackupInventory["state"];
   source?: SourceRecord;
   sourceProfile?: SourceProfile;
   sourcePath: string;
@@ -57,7 +59,7 @@ export function DetailPanel(props: DetailPanelProps) {
 }
 
 function DetailDialog({ props, dialog }: { props: DetailPanelProps; dialog: ReturnType<typeof useDialogFocus> }) {
-  const { port, status, installPlan, backups = [], source, sourceProfile, sourcePath, setSourcePath, pickSource, pickSourceArchive, bios, biosProfile, biosPath, setBiosPath, pickBios, busy, actions } = props;
+  const { port, status, installPlan, backups = [], backupProblems = [], backupState = "healthy", source, sourceProfile, sourcePath, setSourcePath, pickSource, pickSourceArchive, bios, biosProfile, biosPath, setBiosPath, pickBios, busy, actions } = props;
   const selectedChannel = status?.channel ?? port.channels[0];
   const policy = status?.update_policy ?? "notify";
   const { sourceReady, biosReady, launchReady, installed, pendingSetup } = detailReadiness(port, status, source, sourcePath, bios, biosPath);
@@ -72,7 +74,7 @@ function DetailDialog({ props, dialog }: { props: DetailPanelProps; dialog: Retu
       <button data-focusable className="close icon-button" aria-label="Close port details" onClick={actions.close}><Icon glyph={X} /></button>
       <DetailHero port={port} state={state} />
       {props.cancellableActivities?.map(activity => <OperationCancellation key={activity.id} operationId={activity.id} state={activity.cancellation} />)}
-      <DetailBody port={port} status={status} state={state} sources={sources} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} installPlan={installPlan} selectedChannel={selectedChannel} policy={policy} backups={backups} busy={busy} actions={actions} />
+      <DetailBody port={port} status={status} state={state} sources={sources} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} installPlan={installPlan} selectedChannel={selectedChannel} policy={policy} backups={backups} backupProblems={backupProblems} backupState={backupState} busy={busy} actions={actions} />
     </section>
   </div>;
 }
@@ -83,9 +85,9 @@ function DetailHero({ port, state }: { port: PortDefinition; state: DetailState 
   return <div className={`detail-hero art-${port.support_tier}`}><span>{port.name.slice(0, 2).toUpperCase()}</span><div><p className="eyebrow">{port.adapter.replaceAll("-", " ")}</p><h2 id="port-detail-title">{port.name}</h2><span className={`hero-state ${state.tone}`}>{state.title}</span></div></div>;
 }
 
-function DetailBody({ port, status, state, sources, installed, launchReady, pendingSetup, installPlan, selectedChannel, policy, backups, busy, actions }: {
+function DetailBody({ port, status, state, sources, installed, launchReady, pendingSetup, installPlan, selectedChannel, policy, backups, backupProblems, backupState, busy, actions }: {
   port: PortDefinition; status?: PortStatus; state: DetailState; sources: SourceControls; installed: boolean; launchReady: boolean; pendingSetup: boolean;
-  installPlan?: InstallPlan; selectedChannel: ReleaseChannel; policy: UpdatePolicy; backups: BackupRecord[]; busy?: string; actions: DetailActions;
+  installPlan?: InstallPlan; selectedChannel: ReleaseChannel; policy: UpdatePolicy; backups: BackupRecord[]; backupProblems: BackupProblem[]; backupState: BackupInventory["state"]; busy?: string; actions: DetailActions;
 }) {
   return <div className="detail-body"><p className="summary">{port.summary}</p>
     <NavigationHints />
@@ -94,7 +96,7 @@ function DetailBody({ port, status, state, sources, installed, launchReady, pend
     <SourceFields mode="missing" controls={sources} />
     <PrimaryActions runtimeNeeded={Boolean(status?.readiness?.blockers.includes("missing_runtime"))} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} hasStaged={Boolean(status?.staged)} plan={installPlan} busy={busy} actions={actions} />
     <TrustStrip />
-    <AdvancedControls port={port} status={status} selectedChannel={selectedChannel} policy={policy} installed={installed} backups={backups} busy={busy} sources={sources} actions={actions} />
+    <AdvancedControls port={port} status={status} selectedChannel={selectedChannel} policy={policy} installed={installed} backups={backups} backupProblems={backupProblems} backupState={backupState} busy={busy} sources={sources} actions={actions} />
   </div>;
 }
 
@@ -161,8 +163,8 @@ function closeFromScrim(event: React.MouseEvent<HTMLDivElement>, close: () => vo
   if (event.currentTarget === event.target) close();
 }
 
-function AdvancedControls({ port, status, selectedChannel, policy, installed, backups, busy, sources, actions }: {
-  port: PortDefinition; status?: PortStatus; selectedChannel: ReleaseChannel; policy: UpdatePolicy; installed: boolean; backups: BackupRecord[]; busy?: string; sources: SourceControls; actions: DetailActions;
+function AdvancedControls({ port, status, selectedChannel, policy, installed, backups, backupProblems, backupState, busy, sources, actions }: {
+  port: PortDefinition; status?: PortStatus; selectedChannel: ReleaseChannel; policy: UpdatePolicy; installed: boolean; backups: BackupRecord[]; backupProblems: BackupProblem[]; backupState: BackupInventory["state"]; busy?: string; sources: SourceControls; actions: DetailActions;
 }) {
   const persistentFiles = [...port.persistent_paths, ...(port.persistent_file_patterns ?? []).map(pattern => `${pattern.prefix}*${pattern.suffix}`)].join(" · ");
   return <details className="advanced-settings" open={!installed}>
@@ -176,7 +178,8 @@ function AdvancedControls({ port, status, selectedChannel, policy, installed, ba
       <div className="metadata"><span><small>Platforms</small>{port.platforms.map(value => platformLabels[value]).join(" · ")}</span><span><small>Automated evidence</small>{port.automated_tested_platforms.length ? port.automated_tested_platforms.map(value => platformLabels[value]).join(" · ") : "Qualification pending"}</span><span><small>Physical validation</small>{port.manually_validated_platforms.length ? port.manually_validated_platforms.map(value => platformLabels[value]).join(" · ") : "Deferred / not completed"}</span><span title={persistentFiles}><small>Persistent data root</small>{status?.user_data_root ?? "Created inside the selected library"}</span></div>
       <div className="upstream-link"><ProjectLink href={port.project_url}>Open upstream project <Icon glyph={ExternalLink} size="sm" /></ProjectLink><span>Portcove resolves releases from this reviewed upstream.</span></div>
       <CliContinuity port={port} status={status} channel={selectedChannel} sourcePath={sources.sourcePath} biosPath={sources.biosPath} />
-      {installed && <><BackupHistory backups={backups} busy={busy} restore={actions.restoreBackup} remove={actions.deleteBackup} /><MaintenanceActions canRollback={Boolean(status?.previous)} busy={busy} actions={actions} /></>}
+      {(installed || backups.length > 0 || backupProblems.length > 0) && <BackupHistory backups={backups} problems={backupProblems} state={backupState} busy={busy} restore={actions.restoreBackup} remove={actions.deleteBackup} />}
+      {installed && <MaintenanceActions canRollback={Boolean(status?.previous)} busy={busy} actions={actions} />}
     </div>
   </details>;
 }

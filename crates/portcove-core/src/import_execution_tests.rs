@@ -90,7 +90,7 @@ fn import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empt
         assert!(destination.join(tree).join("starship/empty").is_dir());
     }
     let service = PortcoveService::new(restored.clone()).unwrap();
-    let backup = service.list_backups("starship").unwrap().remove(0);
+    let backup = service.list_backups("starship").unwrap().backups.remove(0);
     assert!(backup.path.starts_with(&destination));
     fs::write(destination.join("user/starship/data.bin"), b"after import").unwrap();
     let preview = service

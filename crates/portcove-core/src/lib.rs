@@ -83,4 +83,4 @@ pub use source_discovery::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 10;
+pub const API_SCHEMA_VERSION: u32 = 11;

@@ -94,6 +94,22 @@ describe("desktop components", () => {
     expect(html).not.toContain("3333333333");
   });
 
+  it("keeps verified backups usable while exposing degraded and recovery details", () => {
+    const backups = [{
+      id: "backup-1", port_id: port.id, path: "backups/sample/backup-1",
+      created_at: 1, file_count: 2, size: 1024, sha256: "a".repeat(64),
+    }];
+    const html = renderToStaticMarkup(<BackupHistory backups={backups} state="recovery_required" problems={[{
+      kind: "recovery_required", operation_id: "operation-1", path: "backups/sample/.deleting-operation-1",
+      message: "Deletion was interrupted.", proposed_action: "Restart Portcove, then review doctor output.",
+    }]} restore={vi.fn()} remove={vi.fn()} />);
+    expect(html).toContain("Backup recovery required");
+    expect(html).toContain("1 verified snapshot");
+    expect(html).toContain("Technical details");
+    expect(html).toContain("Deletion was interrupted");
+    expect(html).toContain("Restore");
+  });
+
   it("renders navigation, headers, status, and settings content", () => {
     const html = [
       renderToStaticMarkup(<Sidebar view="library" setView={vi.fn()} installedCount={2} updateCount={1} onAdopt={vi.fn()} />),

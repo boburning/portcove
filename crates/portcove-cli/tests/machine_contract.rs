@@ -1,4 +1,7 @@
-use std::process::{Command, Output};
+use std::{
+    io::Write,
+    process::{Command, Output, Stdio},
+};
 
 use serde_json::Value;
 
@@ -137,6 +140,43 @@ fn portcove(library: &std::path::Path, args: &[&str]) -> Output {
         .args(args)
         .output()
         .expect("Portcove CLI should start")
+}
+
+#[test]
+fn declining_backup_deletion_is_a_neutral_non_mutating_result() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    let user = library.join("user/zelda64-recomp");
+    std::fs::create_dir_all(&user).unwrap();
+    std::fs::write(user.join("save.dat"), b"preserve").unwrap();
+    let created = json_stdout(&portcove(
+        &library,
+        &["--json", "backup", "create", "zelda64-recomp"],
+    ));
+    let backup_id = created["data"]["id"].as_str().unwrap();
+    let mut child = Command::new(env!("CARGO_BIN_EXE_portcove"))
+        .arg("--library")
+        .arg(&library)
+        .args(["backup", "delete", "zelda64-recomp", backup_id])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child.stdin.as_mut().unwrap().write_all(b"n\n").unwrap();
+    let declined = child.wait_with_output().unwrap();
+
+    assert!(declined.status.success());
+    assert!(
+        String::from_utf8_lossy(&declined.stdout)
+            .contains("Backup deletion cancelled. No changes were made.")
+    );
+    let listed = json_stdout(&portcove(
+        &library,
+        &["--json", "backup", "list", "zelda64-recomp"],
+    ));
+    assert_eq!(listed["data"]["state"], "healthy");
+    assert_eq!(listed["data"]["backups"][0]["id"], backup_id);
 }
 
 fn json_stdout(output: &Output) -> Value {
@@ -472,7 +512,7 @@ fn default_read_commands_have_human_output_snapshots() {
 
     let capabilities = human_stdout(&portcove(root.path(), &["capabilities"])).to_owned();
     assert!(capabilities.starts_with("Portcove "));
-    assert!(capabilities.contains(" capabilities\nSchema: 10"));
+    assert!(capabilities.contains(" capabilities\nSchema: 11"));
 }
 
 #[test]
@@ -483,11 +523,11 @@ fn capabilities_are_one_clean_versioned_json_document() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 10);
+    assert_eq!(response["schema_version"], 11);
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");
     assert!(response["error"].is_null());
-    assert_eq!(response["data"]["schema_version"], 10);
+    assert_eq!(response["data"]["schema_version"], 11);
     assert_eq!(
         response["data"]["raw_stream_commands"],
         serde_json::json!(["exec"])
@@ -509,7 +549,7 @@ fn command_errors_keep_the_machine_envelope_and_stable_exit_code() {
     assert_eq!(output.status.code(), Some(4));
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 10);
+    assert_eq!(response["schema_version"], 11);
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "catalog.show");
     assert!(response["data"].is_null());
@@ -526,7 +566,7 @@ fn parser_errors_are_structured_for_machine_callers() {
     assert!(output.stderr.is_empty());
     assert!(!library.exists());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 10);
+    assert_eq!(response["schema_version"], 11);
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "cli");
     assert_eq!(response["error"]["code"], "usage");
@@ -546,7 +586,7 @@ fn jsonl_read_commands_end_with_one_result_event() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 10);
+    assert_eq!(response["schema_version"], 11);
     assert_eq!(response["type"], "result");
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");
