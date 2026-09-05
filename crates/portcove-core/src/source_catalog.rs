@@ -5,7 +5,10 @@ use std::collections::{HashMap, HashSet};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{PortcoveError, Result};
+use crate::{
+    DiscIdentityProfile, DiscSourceProfile, PortcoveError, Result, SourceKind, SourceMemberProfile,
+    SourceProfile,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -77,7 +80,6 @@ pub struct SourceVariant {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
 pub struct SourceRepresentation {
     pub id: String,
     #[serde(default)]
@@ -89,7 +91,7 @@ pub struct SourceRepresentation {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(tag = "kind", rename_all = "kebab-case")]
+#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
 pub enum SourceRepresentationKind {
     RawFile {
         identities: Vec<DigestIdentity>,
@@ -437,6 +439,188 @@ impl SourceCatalog {
             }
         }
         Ok(())
+    }
+
+    /// Builds the single temporary schema-1 view consumed by the existing matcher.
+    /// Schema-2 remains authoritative; a supplied compatibility view is accepted only
+    /// when it is semantically equal after typed serialization.
+    pub fn compatibility_profiles(&self) -> Result<Vec<SourceProfile>> {
+        self.identities
+            .iter()
+            .map(SourceIdentityProfile::compatibility_profile)
+            .collect()
+    }
+}
+
+impl SourceIdentityProfile {
+    fn compatibility_profile(&self) -> Result<SourceProfile> {
+        let mut legacy = SourceProfile {
+            id: self.id.clone(),
+            label: self.label.clone(),
+            accepted_extensions: Vec::new(),
+            accepted_sha1: Vec::new(),
+            accepted_sha256: Vec::new(),
+            kind: SourceKind::File,
+            disc: None,
+            members: Vec::new(),
+        };
+        let mut represented_kind = None;
+        for variant in &self.variants {
+            for representation in &variant.representations {
+                append_unique(&mut legacy.accepted_extensions, &representation.extensions);
+                let kind = match &representation.kind {
+                    SourceRepresentationKind::RawFile { identities }
+                    | SourceRepresentationKind::CanonicalN64 { identities }
+                    | SourceRepresentationKind::ArchiveMember { identities, .. }
+                    | SourceRepresentationKind::Compound { identities, .. } => {
+                        append_digests(&mut legacy, identities);
+                        SourceKind::File
+                    }
+                    SourceRepresentationKind::GamecubeNormalizedIso { identities } => {
+                        append_digests(&mut legacy, identities);
+                        SourceKind::GamecubeDisc
+                    }
+                    SourceRepresentationKind::OpticalTrackSet {
+                        track_counts,
+                        identities,
+                    } => {
+                        append_digests(&mut legacy, identities);
+                        legacy.disc.get_or_insert_with(|| DiscSourceProfile {
+                            track_counts: Vec::new(),
+                            discs: Vec::new(),
+                        });
+                        append_unique(
+                            &mut legacy.disc.as_mut().expect("inserted").track_counts,
+                            track_counts,
+                        );
+                        SourceKind::PsxDisc
+                    }
+                    SourceRepresentationKind::MultiDiscSet { discs } => {
+                        let legacy_disc = legacy.disc.get_or_insert_with(|| DiscSourceProfile {
+                            track_counts: Vec::new(),
+                            discs: Vec::new(),
+                        });
+                        for disc in discs {
+                            let mut accepted_sha1 = Vec::new();
+                            let mut accepted_sha256 = Vec::new();
+                            append_identity_digests(
+                                &mut accepted_sha1,
+                                &mut accepted_sha256,
+                                &disc.identities,
+                            );
+                            legacy_disc.discs.push(DiscIdentityProfile {
+                                label: disc.label.clone(),
+                                accepted_sha1,
+                                accepted_sha256,
+                                accepted_volume_ids: disc.volume_ids.clone(),
+                                track_counts: disc.track_counts.clone(),
+                            });
+                        }
+                        SourceKind::PsxDisc
+                    }
+                    SourceRepresentationKind::VolumeId {
+                        values,
+                        track_counts,
+                    } => {
+                        legacy.disc = Some(DiscSourceProfile {
+                            track_counts: track_counts.clone(),
+                            discs: vec![DiscIdentityProfile {
+                                label: variant.title.clone(),
+                                accepted_sha1: Vec::new(),
+                                accepted_sha256: Vec::new(),
+                                accepted_volume_ids: values.clone(),
+                                track_counts: track_counts.clone(),
+                            }],
+                        });
+                        SourceKind::PsxDisc
+                    }
+                    SourceRepresentationKind::FileSet { members } => {
+                        for member in members {
+                            let mut accepted_sha1 = Vec::new();
+                            let mut accepted_sha256 = Vec::new();
+                            append_identity_digests(
+                                &mut accepted_sha1,
+                                &mut accepted_sha256,
+                                &member.identities,
+                            );
+                            let accepted_crc32 = member
+                                .identities
+                                .iter()
+                                .filter_map(|identity| identity.crc32.clone())
+                                .collect();
+                            legacy.members.push(SourceMemberProfile {
+                                id: member.id.clone(),
+                                label: member.label.clone(),
+                                accepted_filenames: member.filenames.clone(),
+                                accepted_sha1,
+                                accepted_sha256,
+                                accepted_crc32,
+                            });
+                        }
+                        SourceKind::FileSet
+                    }
+                    SourceRepresentationKind::PinnedValidator { .. } => {
+                        SourceKind::UpstreamValidatedDisc
+                    }
+                    SourceRepresentationKind::InformationalExtension { .. } => SourceKind::File,
+                };
+                if let Some(previous) = represented_kind
+                    && previous != kind
+                {
+                    return Err(PortcoveError::conflict(format!(
+                        "{} cannot project mixed source kinds",
+                        self.id
+                    )));
+                }
+                represented_kind = Some(kind);
+            }
+        }
+        legacy.kind = represented_kind.unwrap_or(SourceKind::File);
+        if legacy.kind == SourceKind::PsxDisc {
+            let disc = legacy.disc.get_or_insert_with(|| DiscSourceProfile {
+                track_counts: vec![1],
+                discs: Vec::new(),
+            });
+            if disc.track_counts.is_empty() {
+                disc.track_counts.push(1);
+            }
+        }
+        Ok(legacy)
+    }
+}
+
+fn append_digests(profile: &mut SourceProfile, identities: &[DigestIdentity]) {
+    let mut sha1 = std::mem::take(&mut profile.accepted_sha1);
+    let mut sha256 = std::mem::take(&mut profile.accepted_sha256);
+    append_identity_digests(&mut sha1, &mut sha256, identities);
+    profile.accepted_sha1 = sha1;
+    profile.accepted_sha256 = sha256;
+}
+
+fn append_identity_digests(
+    sha1: &mut Vec<String>,
+    sha256: &mut Vec<String>,
+    identities: &[DigestIdentity],
+) {
+    for identity in identities {
+        if let Some(value) = &identity.sha1
+            && !sha1.contains(value)
+        {
+            sha1.push(value.clone());
+        }
+        if let Some(value) = &identity.sha256
+            && !sha256.contains(value)
+        {
+            sha256.push(value.clone());
+        }
+    }
+}
+
+fn append_unique<T: Clone + PartialEq>(target: &mut Vec<T>, values: &[T]) {
+    for value in values {
+        if !target.contains(value) {
+            target.push(value.clone());
+        }
     }
 }
 

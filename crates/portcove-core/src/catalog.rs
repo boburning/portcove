@@ -21,7 +21,37 @@ impl Catalog {
     }
 
     pub fn from_json(value: &str) -> Result<Self> {
-        let document: CatalogDocument = serde_json::from_str(value)?;
+        let mut document: CatalogDocument = serde_json::from_str(value)?;
+        match document.schema_version {
+            1 => {
+                if document.source_catalog.is_some() {
+                    return Err(PortcoveError::usage(
+                        "catalog schema 1 cannot contain schema-2 source authority",
+                    ));
+                }
+            }
+            2 => {
+                let source_catalog = document.source_catalog.as_ref().ok_or_else(|| {
+                    PortcoveError::usage("catalog schema 2 is missing source_catalog")
+                })?;
+                source_catalog.validate(document.ports.iter().map(|port| port.id.as_str()))?;
+                let projection = source_catalog.compatibility_profiles()?;
+                if !document.source_profiles.is_empty()
+                    && serde_json::to_value(&document.source_profiles)?
+                        != serde_json::to_value(&projection)?
+                {
+                    return Err(PortcoveError::conflict(
+                        "schema-1 source_profiles disagree with schema-2 authority",
+                    ));
+                }
+                document.source_profiles = projection;
+            }
+            version => {
+                return Err(PortcoveError::unsupported(format!(
+                    "catalog schema {version} is not supported"
+                )));
+            }
+        }
         let catalog = Self { document };
         catalog.validate()?;
         Ok(catalog)
@@ -30,8 +60,21 @@ impl Catalog {
     pub fn document(&self) -> &CatalogDocument {
         &self.document
     }
+
+    pub(crate) fn authoritative_document(&self) -> CatalogDocument {
+        let mut document = self.document.clone();
+        if document.source_catalog.is_some() {
+            document.source_profiles.clear();
+        }
+        document
+    }
+
     pub fn ports(&self) -> &[PortDefinition] {
         &self.document.ports
+    }
+
+    pub fn source_catalog(&self) -> Option<&crate::SourceCatalog> {
+        self.document.source_catalog.as_ref()
     }
 
     pub fn port(&self, id: &str) -> Result<&PortDefinition> {
@@ -51,7 +94,7 @@ impl Catalog {
     }
 
     pub fn validate(&self) -> Result<()> {
-        if self.document.schema_version != 1 {
+        if !matches!(self.document.schema_version, 1 | 2) {
             return Err(PortcoveError::unsupported(format!(
                 "catalog schema {} is not supported",
                 self.document.schema_version
@@ -264,6 +307,32 @@ impl Catalog {
                     "{} references an invalid BIOS source profile {profile}",
                     port.id
                 )));
+            }
+            if let Some(source_catalog) = self.source_catalog() {
+                for (role, profile) in [
+                    (crate::PortSourceRole::Game, port.source_profile.as_ref()),
+                    (
+                        crate::PortSourceRole::Bios,
+                        port.bios_source_profile.as_ref(),
+                    ),
+                ] {
+                    let contracts = source_catalog
+                        .contracts
+                        .iter()
+                        .filter(|contract| contract.port_id == port.id && contract.role == role)
+                        .collect::<Vec<_>>();
+                    match profile {
+                        Some(profile)
+                            if contracts.len() == 1 && contracts[0].profile_id == *profile => {}
+                        None if contracts.is_empty() => {}
+                        _ => {
+                            return Err(PortcoveError::conflict(format!(
+                                "{} has inconsistent schema-2 {:?} source binding",
+                                port.id, role
+                            )));
+                        }
+                    }
+                }
             }
             let mut environment_names = HashSet::new();
             if let Some(variable) = &port.source_environment
@@ -821,6 +890,7 @@ mod tests {
 
     const SCHEMA_1_ADMISSION_BASELINE: &str =
         include_str!("../catalog/catalog-schema1-admission-baseline.json");
+    const SCHEMA_1_CATALOG_FIXTURE: &str = include_str!("../catalog/catalog-schema1-fixture.json");
 
     fn canonical_json(value: &mut serde_json::Value) {
         match value {
@@ -846,7 +916,7 @@ mod tests {
 
     #[test]
     fn schema_1_admission_baseline_covers_every_profile_and_port_binding() {
-        let catalog: serde_json::Value = serde_json::from_str(EMBEDDED_CATALOG).unwrap();
+        let catalog: serde_json::Value = serde_json::from_str(SCHEMA_1_CATALOG_FIXTURE).unwrap();
         assert_eq!(catalog["schema_version"], 1);
 
         let mut profiles = catalog["source_profiles"]
@@ -901,6 +971,84 @@ mod tests {
         let expected: serde_json::Value =
             serde_json::from_str(SCHEMA_1_ADMISSION_BASELINE).unwrap();
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn schema_2_compatibility_projection_preserves_every_schema_1_profile() {
+        let legacy = Catalog::from_json(SCHEMA_1_CATALOG_FIXTURE).unwrap();
+        let migrated = Catalog::embedded().unwrap();
+        assert_eq!(migrated.document().schema_version, 2);
+        let source_catalog = migrated.source_catalog().expect("schema-2 authority");
+        assert_eq!(
+            source_catalog.identities.len(),
+            legacy.document().source_profiles.len()
+        );
+        assert_eq!(
+            serde_json::to_value(&migrated.document().source_profiles).unwrap(),
+            serde_json::to_value(&legacy.document().source_profiles).unwrap()
+        );
+        assert_eq!(
+            serde_json::to_value(&migrated.document().ports).unwrap(),
+            serde_json::to_value(&legacy.document().ports).unwrap()
+        );
+    }
+
+    #[test]
+    fn schema_2_authoritative_document_omits_the_compatibility_projection() {
+        let catalog = Catalog::embedded().unwrap();
+        let document = serde_json::to_value(catalog.authoritative_document()).unwrap();
+
+        assert!(document.get("source_catalog").is_some());
+        assert!(document.get("source_profiles").is_none());
+        assert_eq!(document["ports"].as_array().unwrap().len(), 67);
+    }
+
+    #[test]
+    fn schema_2_rejects_a_conflicting_compatibility_projection() {
+        let catalog = Catalog::embedded().unwrap();
+        let mut document = serde_json::to_value(catalog.document()).unwrap();
+        document["source_profiles"][0]["label"] = "conflicting legacy authority".into();
+        let error = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("disagree with schema-2 authority")
+        );
+    }
+
+    #[test]
+    fn schema_2_records_bomberman_raw_and_cooked_disc_alternatives() {
+        let catalog = Catalog::embedded().unwrap();
+        let source_catalog = catalog.source_catalog().unwrap();
+        let profile = source_catalog
+            .identities
+            .iter()
+            .find(|profile| profile.id == "bomberman-party-edition-psx")
+            .unwrap();
+        let crate::SourceRepresentationKind::OpticalTrackSet { identities, .. } =
+            &profile.variants[0].representations[0].kind
+        else {
+            panic!("Bomberman must use normalized optical-track identities")
+        };
+        assert_eq!(identities.len(), 2);
+        assert_eq!(
+            identities[0].sha1.as_deref(),
+            Some("53a509dbe859f773856f26d966f5edacbc701b4e")
+        );
+        assert_eq!(
+            identities[0].sha256.as_deref(),
+            Some("8bd229969aadcd9fe085ef4026209a0f230b82442a599c58d1da5da68260d3d9")
+        );
+        assert_eq!(
+            identities[1].sha1.as_deref(),
+            Some("4735882768678923796f62878c05f7f0e81308d5")
+        );
+        assert!(identities[1].sha256.is_none());
+        assert!(
+            profile.variants[0]
+                .evidence_ids
+                .contains(&"bomberman-party-edition-disc-contract".to_owned())
+        );
     }
 
     fn catalog_with_executable_hint(port_id: &str, platform: &str, hint: &str) -> String {

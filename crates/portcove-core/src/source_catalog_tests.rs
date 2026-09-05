@@ -90,6 +90,11 @@ fn alternatives_are_objects_and_parallel_digest_arrays_are_rejected() {
     representation["accepted_sha1"] = serde_json::json!(["1".repeat(40)]);
     representation["accepted_sha256"] = serde_json::json!(["2".repeat(64)]);
     assert!(serde_json::from_value::<SourceCatalog>(value).is_err());
+
+    let mut value = serde_json::to_value(fixture()).unwrap();
+    value["identities"][0]["variants"][0]["representations"][0]["unexpected"] =
+        serde_json::json!(true);
+    assert!(serde_json::from_value::<SourceCatalog>(value).is_err());
 }
 
 #[test]

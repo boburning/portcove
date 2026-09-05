@@ -156,7 +156,8 @@ fn validate_update_contract(candidate: &Catalog, baseline: &Catalog) -> Result<(
             .map(|profile| Ok((profile.id.clone(), serde_json::to_value(profile)?)))
             .collect()
     };
-    if profiles(candidate)? != profiles(baseline)?
+    if candidate.source_catalog() != baseline.source_catalog()
+        || profiles(candidate)? != profiles(baseline)?
         || candidate.ports().len() != baseline.ports().len()
     {
         return Err(PortcoveError::verification(
@@ -218,7 +219,7 @@ pub(crate) fn provenance(
 ) -> Result<CatalogProvenance> {
     Ok(CatalogProvenance {
         origin,
-        catalog_sha256: digest(&serde_json::to_vec(catalog.document())?),
+        catalog_sha256: digest(&serde_json::to_vec(&catalog.authoritative_document())?),
         sequence: verified.map(|value| value.payload.sequence),
         key_id: verified.map(|value| value.envelope.key_id.clone()),
         expires_at: verified.map(|value| value.payload.expires_at),

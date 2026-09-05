@@ -11,7 +11,10 @@ use sha2::{Digest, Sha256};
 use std::io::Write;
 
 fn catalog(bytes: &[u8]) -> Catalog {
-    let mut document = Catalog::embedded().unwrap().document().clone();
+    let mut document = Catalog::from_json(include_str!("../catalog/catalog-schema1-fixture.json"))
+        .unwrap()
+        .document()
+        .clone();
     for id in ["star-fox-64", "ocarina-of-time"] {
         let profile = document
             .source_profiles

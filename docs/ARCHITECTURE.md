@@ -52,9 +52,12 @@ or informational admission mode. Digests inside one identity record are
 conjunctive and carry an explicit byte scope; separate identity records and
 representations are alternatives. Evidence, validators, aliases, tombstones,
 release applicability, and review URLs use stable validated IDs. The embedded
-catalog and runtime matcher remain schema 1 until the admission-equivalent
-migration is integrated; its temporary compatibility projection must have one
-owner and retire when the shared inspector replaces the legacy matcher in #180.
+catalog is schema 2. Core deterministically projects its source authority into
+the temporary schema-1 `SourceProfile` view consumed by the existing matcher;
+catalog input may not supply a conflicting view. The frozen full schema-1
+fixture and contract fingerprints prove that projection preserves every prior
+profile and port binding. The projection retires when #180 moves all consumers
+to the shared inspector.
 `HostPreferenceStore` provides bounded format-1 host preference storage and selection provenance without moving a library. CLI and desktop use its platform configuration path outside movable library data and credentials, with an optional absolute preference-file override for portable/test hosts. Selection precedence is an explicit invocation path, saved path, then the platform default. Invalid selected configuration fails visibly; an explicit invocation path or reset remains available when preferences are corrupt or from a future format.
 
 Preference writers serialize through a persistent sibling operating-system lock and publish a flushed sibling atomically using the shared durability helper. Reads never create files. Setting a library preserves compatible unknown JSON fields; explicit reset replaces the whole document, including damaged or future-format content, with current defaults. Core validates that a saved target is an existing empty directory or recognizable Portcove root, refuses symlinks, filesystem roots, unrelated content, and preference/library overlap, then stores its canonical path without initializing it.
