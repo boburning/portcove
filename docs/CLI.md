@@ -14,7 +14,7 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":14,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":15,"ok":true,"command":"status","data":{},"error":null}
 ```
 
 Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for success, failure, or cancellation. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
@@ -39,6 +39,12 @@ API schema 14 adds library selection output with its effective root and
 `invocation`, `saved`, or `platform_default` provenance. It also adds the
 library-free `library show`, `library set`, and `library reset` commands shared
 with desktop bootstrap.
+
+API schema 15 exports `source_catalog`, the typed schema-2 authority for source
+identity profiles, logical variants, physical representations, scoped digest
+objects, per-port admission contracts, pinned validators, and reviewed evidence.
+The export defines the migration contract; the embedded catalog and runtime
+matcher remain schema 1 until the admission-equivalent conversion is integrated.
 
 ```text
 portcove --json capabilities
