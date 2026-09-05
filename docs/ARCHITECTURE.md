@@ -26,6 +26,25 @@ In this document, “thin adapter” means that the CLI and desktop do not reimp
 
 ## Library model
 
+`source_assessment` defines the shared source fact contract: existing
+`SourceHealth` (including selected bytes without a baseline), classification,
+reviewed release-contract result, actual admission/mode/reason, and scoped
+evidence are independent. These serializable records are descriptions, not
+operation authorizations or a second matcher. Existing validators and lifecycle
+checks remain authoritative. Schema export exposes the contract for subsequent
+inspection integration; current verification responses retain their existing
+fields and read-only behavior.
+
+Evidence relevance compares the exact port, platform, artifact, upstream ref,
+contract, source variant/representation and check version. An unspecified legacy
+variant or absent artifact/check identity cannot establish exact qualification.
+Relevance does not mean success: consumers must retain the evidence kind and
+outcome, including failed and not-run observations. Recorded Portcove build and
+observation time remain historical attribution; changing an unrelated build
+does not erase a fact. Evidence IDs are catalog references, not renderer URLs.
+No database, catalog, signed-envelope or ownership boundary changes in this
+foundation; existing metadata architecture rules remain applicable.
+
 Core resolves newly opened library roots and validated source references to absolute paths before they produce durable records. Relative CLI arguments therefore do not tie a new installation or source to that process's working directory. Existing ambiguous relative records are not guessed or silently rebased; they require qualification from their original base and explicit reinstallation or source relinking.
 
 Catalog `persistent_file_patterns` extends the same core-owned persistence boundary to named save files. Rules are literal nonempty filename prefixes/suffixes in one working directory, with no recursive traversal or general glob syntax. A scan admits at most 4,096 directory entries and 1,024 matching regular files; links, directories, special entries and unsafe filenames fail closed. Collection and restore consider both source and destination names so deleted/restored-away profiles cannot reappear. Manifest schema 5 stores the rules with their resolved directory, preserves immutable executable/bootstrap/runtime checks, records the qualified target platform and each immutable file's executable intent, and rejects changed rules or permissions during import. Schema 2-4 manifests remain readable without silently acquiring executable metadata they never recorded. Signed catalog delivery keeps persistence rules frozen like literal persistence paths. This adds no adapter authority or crate dependency; the existing architecture metadata rules remain unchanged.
