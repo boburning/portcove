@@ -20,6 +20,76 @@
         "claim": "Distinguishes the supported raw MODE2/2352 disc image from its cooked 2048-byte ISO representation",
         "immutable_url": "https://github.com/TechnicallyComputers/BombermanPartyEditionRecomp/blob/0aef0b66186b3f8f29d1bd9a3ba15b6307739c7b/DISC.md",
         "live_url": "https://github.com/TechnicallyComputers/BombermanPartyEditionRecomp/blob/main/DISC.md"
+      },
+      {
+        "id": "ghostship-2-0-0-source-contract",
+        "role": "upstream_support",
+        "authority": "HarbourMasters/Ghostship",
+        "authority_ref": "762ce4a6dff8d69b934a41a326ae41e78431e6cd",
+        "reviewed_at": "2026-09-05",
+        "claim": "Lists the Japanese and US Super Mario 64 sources accepted by Ghostship 2.0.0",
+        "immutable_url": "https://github.com/HarbourMasters/Ghostship/blob/762ce4a6dff8d69b934a41a326ae41e78431e6cd/config.yml",
+        "live_url": "https://github.com/HarbourMasters/Ghostship/blob/develop/config.yml"
+      },
+      {
+        "id": "lighthouse-1-1-0-source-contract",
+        "role": "upstream_support",
+        "authority": "HarbourMasters/Lighthouse",
+        "authority_ref": "9c39b49574388f1656a53a518257f399b5368062",
+        "reviewed_at": "2026-09-05",
+        "claim": "Lists the US 1.0, US 1.1, PAL, and Japanese Banjo-Kazooie sources accepted by Lighthouse 1.1.0",
+        "immutable_url": "https://github.com/HarbourMasters/Lighthouse/blob/9c39b49574388f1656a53a518257f399b5368062/config.yml",
+        "live_url": "https://github.com/HarbourMasters/Lighthouse/blob/develop/config.yml"
+      },
+      {
+        "id": "shipwright-9-2-3-source-contract",
+        "role": "upstream_support",
+        "authority": "HarbourMasters/Shipwright",
+        "authority_ref": "cb71e22a79bc5d1f688fa881795bbd93094895fc",
+        "reviewed_at": "2026-09-05",
+        "claim": "Lists the Ocarina of Time sources accepted by Ship of Harkinian 9.2.3",
+        "immutable_url": "https://github.com/HarbourMasters/Shipwright/blob/cb71e22a79bc5d1f688fa881795bbd93094895fc/docs/supportedHashes.json",
+        "live_url": "https://github.com/HarbourMasters/Shipwright/blob/develop/docs/supportedHashes.json"
+      },
+      {
+        "id": "2ship2harkinian-5-0-1-source-contract",
+        "role": "upstream_support",
+        "authority": "HarbourMasters/2ship2harkinian",
+        "authority_ref": "8a24047fbce8915993804e7819f4df4fa591551f",
+        "reviewed_at": "2026-09-05",
+        "claim": "Lists the Majora's Mask NTSC-U 1.0 and GameCube sources accepted by 2Ship2Harkinian 5.0.1",
+        "immutable_url": "https://github.com/HarbourMasters/2ship2harkinian/blob/8a24047fbce8915993804e7819f4df4fa591551f/docs/supportedHashes.json",
+        "live_url": "https://github.com/HarbourMasters/2ship2harkinian/blob/develop/docs/supportedHashes.json"
+      },
+      {
+        "id": "starship-2-0-0-source-contract",
+        "role": "upstream_support",
+        "authority": "HarbourMasters/Starship",
+        "authority_ref": "cb19785b51698185a688e17ba1a34c7889195bdb",
+        "reviewed_at": "2026-09-05",
+        "claim": "Lists the compressed and decompressed US 1.0 and US 1.1 Star Fox 64 sources accepted by Starship 2.0.0",
+        "immutable_url": "https://github.com/HarbourMasters/Starship/blob/cb19785b51698185a688e17ba1a34c7889195bdb/config.yml",
+        "live_url": "https://github.com/HarbourMasters/Starship/blob/main/config.yml"
+      },
+      {
+        "id": "banjo-recompiled-1-0-2-source-contract",
+        "role": "upstream_support",
+        "authority": "BanjoRecomp/BanjoRecomp",
+        "authority_ref": "ec859632cfa584e2272d32e46051543429a2baf4",
+        "reviewed_at": "2026-09-05",
+        "claim": "Limits Banjo: Recompiled 1.0.2 to the North American 1.0 Banjo-Kazooie source",
+        "immutable_url": "https://github.com/BanjoRecomp/BanjoRecomp/blob/ec859632cfa584e2272d32e46051543429a2baf4/README.md",
+        "live_url": "https://github.com/BanjoRecomp/BanjoRecomp/blob/main/README.md"
+      },
+      {
+        "id": "zelda64-recompiled-1-2-2-source-contract",
+        "role": "upstream_support",
+        "authority": "Zelda64Recomp/Zelda64Recomp",
+        "authority_ref": "54950a10408599d1d63802ee21cc2c4b05bfd378",
+        "reviewed_at": "2026-09-05",
+        "claim": "Limits Zelda 64: Recompiled 1.2.2 to the US Majora's Mask source",
+        "immutable_url": "https://github.com/Zelda64Recomp/Zelda64Recomp/blob/54950a10408599d1d63802ee21cc2c4b05bfd378/README.md",
+        "live_url": "https://github.com/Zelda64Recomp/Zelda64Recomp/blob/dev/README.md"
       }
     ],
     "identities": [
@@ -51,12 +121,621 @@
             ],
             "evidence_ids": [
               "alpha1-schema1-source-contracts"
+            ],
+            "legacy_projection_only": true
+          },
+          {
+            "id": "pal-1-0",
+            "title": "PAL 1.0",
+            "region": "PAL",
+            "revision": "1.0",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "328a1f1beba30ce5e178f031662019eb32c5f3b5",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "shipwright-9-2-3-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "shipwright-9-2-3-source-contract"
+            ]
+          },
+          {
+            "id": "pal-1-1",
+            "title": "PAL 1.1",
+            "region": "PAL",
+            "revision": "1.1",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "cfbb98d392e4a9d39da8285d10cbef3974c2f012",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "shipwright-9-2-3-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "shipwright-9-2-3-source-contract"
+            ]
+          },
+          {
+            "id": "pal-gamecube",
+            "title": "PAL GameCube",
+            "region": "PAL",
+            "revision": "GameCube",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "0227d7c0074f2d0ac935631990da8ec5914597b4",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "shipwright-9-2-3-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "shipwright-9-2-3-source-contract"
+            ]
+          },
+          {
+            "id": "pal-master-quest",
+            "title": "PAL Master Quest",
+            "region": "PAL",
+            "revision": "Master Quest",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "f46239439f59a2a594ef83cf68ef65043b1bffe2",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "shipwright-9-2-3-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "shipwright-9-2-3-source-contract"
+            ]
+          },
+          {
+            "id": "pal-gamecube-debug",
+            "title": "PAL GameCube Debug",
+            "region": "PAL",
+            "revision": "GameCube Debug",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "cee6bc3c2a634b41728f2af8da54d9bf8cc14099",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "shipwright-9-2-3-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "shipwright-9-2-3-source-contract"
+            ]
+          },
+          {
+            "id": "pal-master-quest-debug-1",
+            "title": "PAL Master Quest Debug",
+            "region": "PAL",
+            "revision": "Master Quest Debug 1",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "079b855b943d6ad8bd1eb026c0ed169ecbdac7da",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "shipwright-9-2-3-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "shipwright-9-2-3-source-contract"
+            ]
+          },
+          {
+            "id": "pal-master-quest-debug-2",
+            "title": "PAL Master Quest Debug",
+            "region": "PAL",
+            "revision": "Master Quest Debug 2",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "50bebedad9e0f10746a52b07239e47fa6c284d03",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "shipwright-9-2-3-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "shipwright-9-2-3-source-contract"
+            ]
+          },
+          {
+            "id": "pal-master-quest-debug-3",
+            "title": "PAL Master Quest Debug",
+            "region": "PAL",
+            "revision": "Master Quest Debug 3",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "cfecfdc58d650e71a200c81f033de4e6d617a9f6",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "shipwright-9-2-3-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "shipwright-9-2-3-source-contract"
+            ]
+          },
+          {
+            "id": "usa-1-0",
+            "title": "NTSC 1.0 (US)",
+            "region": "USA",
+            "revision": "1.0",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "ad69c91157f6705e8ab06c79fe08aad47bb57ba7",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "shipwright-9-2-3-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "shipwright-9-2-3-source-contract"
+            ]
+          },
+          {
+            "id": "usa-1-1",
+            "title": "NTSC 1.1 (US)",
+            "region": "USA",
+            "revision": "1.1",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "d3ecb253776cd847a5aa63d859d8c89a2f37b364",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "shipwright-9-2-3-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "shipwright-9-2-3-source-contract"
+            ]
+          },
+          {
+            "id": "usa-1-2",
+            "title": "NTSC 1.2 (US)",
+            "region": "USA",
+            "revision": "1.2",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "41b3bdc48d98c48529219919015a1af22f5057c2",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "shipwright-9-2-3-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "shipwright-9-2-3-source-contract"
+            ]
+          },
+          {
+            "id": "japan-1-0",
+            "title": "NTSC 1.0 (JP)",
+            "region": "Japan",
+            "revision": "1.0",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "c892bbda3993e66bd0d56a10ecd30b1ee612210f",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "shipwright-9-2-3-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "shipwright-9-2-3-source-contract"
+            ]
+          },
+          {
+            "id": "japan-1-1",
+            "title": "NTSC 1.1 (JP)",
+            "region": "Japan",
+            "revision": "1.1",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "dbfc81f655187dc6fefd93fa6798face770d579d",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "shipwright-9-2-3-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "shipwright-9-2-3-source-contract"
+            ]
+          },
+          {
+            "id": "japan-1-2",
+            "title": "NTSC 1.2 (JP)",
+            "region": "Japan",
+            "revision": "1.2",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "fa5f5942b27480d60243c2d52c0e93e26b9e6b86",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "shipwright-9-2-3-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "shipwright-9-2-3-source-contract"
+            ]
+          },
+          {
+            "id": "usa-gamecube",
+            "title": "NTSC GameCube (US)",
+            "region": "USA",
+            "revision": "GameCube",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "b82710ba2bd3b4c6ee8aa1a7e9acf787dfc72e9b",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "shipwright-9-2-3-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "shipwright-9-2-3-source-contract"
+            ]
+          },
+          {
+            "id": "usa-master-quest",
+            "title": "NTSC Master Quest (US)",
+            "region": "USA",
+            "revision": "Master Quest",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "8b5d13aac69bfbf989861cfdc50b1d840945fc1d",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "shipwright-9-2-3-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "shipwright-9-2-3-source-contract"
+            ]
+          },
+          {
+            "id": "japan-gamecube",
+            "title": "NTSC GameCube (JP)",
+            "region": "Japan",
+            "revision": "GameCube",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "0769c84615422d60f16925cd859593cdfa597f84",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "shipwright-9-2-3-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "shipwright-9-2-3-source-contract"
+            ]
+          },
+          {
+            "id": "japan-gamecube-collectors",
+            "title": "NTSC GameCube (JP) Collector's Edition",
+            "region": "Japan",
+            "revision": "GameCube Collector's Edition",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "2ce2d1a9f0534c9cd9fa04ea5317b80da21e5e73",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "shipwright-9-2-3-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "shipwright-9-2-3-source-contract"
+            ]
+          },
+          {
+            "id": "japan-master-quest",
+            "title": "NTSC Master Quest (JP)",
+            "region": "Japan",
+            "revision": "Master Quest",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "dd14e143c4275861fe93ea79d0c02e36ae8c6c2f",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "shipwright-9-2-3-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "shipwright-9-2-3-source-contract"
             ]
           }
         ],
         "aliases": [],
         "tombstones": [],
-        "evidence_gap": "Schema 1 admits this source by extension and structural checks without deterministic identity evidence."
+        "evidence_gap": null
       },
       {
         "id": "majoras-mask",
@@ -86,12 +765,77 @@
             ],
             "evidence_ids": [
               "alpha1-schema1-source-contracts"
+            ],
+            "legacy_projection_only": true
+          },
+          {
+            "id": "ntsc-u-1-0",
+            "title": "The Legend of Zelda: Majora's Mask",
+            "region": "USA",
+            "revision": "1.0",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "d6133ace5afaa0882cf214cf88daba39e266c078",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "2ship2harkinian-5-0-1-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "2ship2harkinian-5-0-1-source-contract"
+            ]
+          },
+          {
+            "id": "ntsc-u-gamecube",
+            "title": "The Legend of Zelda: Majora's Mask",
+            "region": "USA",
+            "revision": "GameCube",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "9743aa026e9269b339eb0e3044cd5830a440c1fd",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "2ship2harkinian-5-0-1-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "2ship2harkinian-5-0-1-source-contract"
             ]
           }
         ],
         "aliases": [],
         "tombstones": [],
-        "evidence_gap": "Schema 1 admits this source by extension and structural checks without deterministic identity evidence."
+        "evidence_gap": null
       },
       {
         "id": "mario-kart-64",
@@ -166,6 +910,71 @@
             ],
             "evidence_ids": [
               "alpha1-schema1-source-contracts"
+            ],
+            "legacy_projection_only": true
+          },
+          {
+            "id": "super-mario-64-us",
+            "title": "Super Mario 64",
+            "region": "USA",
+            "revision": "1.0",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "9bef1128717f958171a4afac3ed78ee2bb4e86ce",
+                    "sha256": "17ce077343c6133f8c9f2d6d6d9a4ab62c8cd2aa57c40aea1f490b4c8bb21d91",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "ghostship-2-0-0-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "ghostship-2-0-0-source-contract"
+            ]
+          },
+          {
+            "id": "super-mario-64-jp",
+            "title": "Super Mario 64",
+            "region": "Japan",
+            "revision": "1.0",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "8a20a5c83d6ceb0f0506cfc9fa20d8f438cafe51",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "ghostship-2-0-0-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "ghostship-2-0-0-source-contract"
             ]
           }
         ],
@@ -201,12 +1010,117 @@
             ],
             "evidence_ids": [
               "alpha1-schema1-source-contracts"
+            ],
+            "legacy_projection_only": true
+          },
+          {
+            "id": "usa-1-0",
+            "title": "Star Fox 64",
+            "region": "USA",
+            "revision": "1.0",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "compressed-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "d8b1088520f7c5f81433292a9258c1184afa1457",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "starship-2-0-0-source-contract"
+                ]
+              },
+              {
+                "id": "decompressed-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "63b69f0ef36306257481afc250f9bc304c7162b2",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "starship-2-0-0-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "starship-2-0-0-source-contract"
+            ]
+          },
+          {
+            "id": "usa-1-1",
+            "title": "Star Fox 64",
+            "region": "USA",
+            "revision": "1.1",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "compressed-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "09f0d105f476b00efa5303a3ebc42e60a7753b7a",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "starship-2-0-0-source-contract"
+                ]
+              },
+              {
+                "id": "decompressed-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "f7475fb11e7e6830f82883412638e8390791ab87",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "starship-2-0-0-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "starship-2-0-0-source-contract"
             ]
           }
         ],
         "aliases": [],
         "tombstones": [],
-        "evidence_gap": "Schema 1 admits this source by extension and structural checks without deterministic identity evidence."
+        "evidence_gap": null
       },
       {
         "id": "banjo-kazooie",
@@ -241,6 +1155,135 @@
             ],
             "evidence_ids": [
               "alpha1-schema1-source-contracts"
+            ],
+            "legacy_projection_only": true
+          },
+          {
+            "id": "usa-rev0",
+            "title": "Banjo-Kazooie",
+            "region": "USA",
+            "revision": "Rev 0",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "1fe1632098865f639e22c11b9a81ee8f29c75d7a",
+                    "sha256": "59875835b9a5128bb0054315a7f929e2071c2001e528d70bf543e1d6680e6eff",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "lighthouse-1-1-0-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "lighthouse-1-1-0-source-contract"
+            ]
+          },
+          {
+            "id": "usa-rev1",
+            "title": "Banjo-Kazooie",
+            "region": "USA",
+            "revision": "Rev 1",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "ded6ee166e740ad1bc810fd678a84b48e245ab80",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "lighthouse-1-1-0-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "lighthouse-1-1-0-source-contract"
+            ]
+          },
+          {
+            "id": "pal-rev0",
+            "title": "Banjo-Kazooie",
+            "region": "PAL",
+            "revision": "Rev 0",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "bb359a75941df74bf7290212c89fbc6e2c5601fe",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "lighthouse-1-1-0-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "lighthouse-1-1-0-source-contract"
+            ]
+          },
+          {
+            "id": "japan-rev0",
+            "title": "Banjo-Kazooie",
+            "region": "Japan",
+            "revision": "Rev 0",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "90726d7e7cd5bf6cdfd38f45c9acbf4d45bd9fd8",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "lighthouse-1-1-0-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "lighthouse-1-1-0-source-contract"
             ]
           }
         ],
@@ -2844,17 +3887,42 @@
         "role": "game",
         "profile_id": "ocarina-of-time",
         "admission_mode": "informational",
-        "supported_variant_ids": [],
+        "supported_variant_ids": [
+          "pal-1-0",
+          "pal-1-1",
+          "pal-gamecube",
+          "pal-master-quest",
+          "pal-gamecube-debug",
+          "pal-master-quest-debug-1",
+          "pal-master-quest-debug-2",
+          "pal-master-quest-debug-3",
+          "usa-1-0",
+          "usa-1-1",
+          "usa-1-2",
+          "japan-1-0",
+          "japan-1-1",
+          "japan-1-2",
+          "usa-gamecube",
+          "usa-master-quest",
+          "japan-gamecube",
+          "japan-gamecube-collectors",
+          "japan-master-quest"
+        ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alpha1-schema1-source-contracts"
+          "shipwright-9-2-3-source-contract"
         ],
-        "authority_ref": "9d16cf7085ad34b995bbdc2a5763beb67c7e1190",
+        "authority_ref": "cb71e22a79bc5d1f688fa881795bbd93094895fc",
         "reviewed_at": "2026-09-05",
-        "immutable_review_url": "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json",
-        "live_review_url": null,
+        "immutable_review_url": "https://github.com/HarbourMasters/Shipwright/blob/cb71e22a79bc5d1f688fa881795bbd93094895fc/docs/supportedHashes.json",
+        "live_review_url": "https://github.com/HarbourMasters/Shipwright/blob/develop/docs/supportedHashes.json",
         "evidence_gap": "Schema 1 admits this source by extension and structural checks without deterministic identity evidence.",
-        "applicability": [],
+        "applicability": [
+          {
+            "upstream_ref": "9.2.3",
+            "artifact_sha256": null
+          }
+        ],
         "aliases": [],
         "tombstones": []
       },
@@ -2864,17 +3932,25 @@
         "role": "game",
         "profile_id": "majoras-mask",
         "admission_mode": "informational",
-        "supported_variant_ids": [],
+        "supported_variant_ids": [
+          "ntsc-u-1-0",
+          "ntsc-u-gamecube"
+        ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alpha1-schema1-source-contracts"
+          "2ship2harkinian-5-0-1-source-contract"
         ],
-        "authority_ref": "9d16cf7085ad34b995bbdc2a5763beb67c7e1190",
+        "authority_ref": "8a24047fbce8915993804e7819f4df4fa591551f",
         "reviewed_at": "2026-09-05",
-        "immutable_review_url": "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json",
-        "live_review_url": null,
+        "immutable_review_url": "https://github.com/HarbourMasters/2ship2harkinian/blob/8a24047fbce8915993804e7819f4df4fa591551f/docs/supportedHashes.json",
+        "live_review_url": "https://github.com/HarbourMasters/2ship2harkinian/blob/develop/docs/supportedHashes.json",
         "evidence_gap": "Schema 1 admits this source by extension and structural checks without deterministic identity evidence.",
-        "applicability": [],
+        "applicability": [
+          {
+            "upstream_ref": "5.0.1",
+            "artifact_sha256": null
+          }
+        ],
         "aliases": [],
         "tombstones": []
       },
@@ -2907,18 +3983,24 @@
         "profile_id": "ghostship-source",
         "admission_mode": "enforced",
         "supported_variant_ids": [
-          "legacy-accepted"
+          "super-mario-64-us",
+          "super-mario-64-jp"
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alpha1-schema1-source-contracts"
+          "ghostship-2-0-0-source-contract"
         ],
-        "authority_ref": "9d16cf7085ad34b995bbdc2a5763beb67c7e1190",
+        "authority_ref": "762ce4a6dff8d69b934a41a326ae41e78431e6cd",
         "reviewed_at": "2026-09-05",
-        "immutable_review_url": "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json",
-        "live_review_url": null,
+        "immutable_review_url": "https://github.com/HarbourMasters/Ghostship/blob/762ce4a6dff8d69b934a41a326ae41e78431e6cd/config.yml",
+        "live_review_url": "https://github.com/HarbourMasters/Ghostship/blob/develop/config.yml",
         "evidence_gap": null,
-        "applicability": [],
+        "applicability": [
+          {
+            "upstream_ref": "2.0.0",
+            "artifact_sha256": null
+          }
+        ],
         "aliases": [],
         "tombstones": []
       },
@@ -2928,17 +4010,25 @@
         "role": "game",
         "profile_id": "star-fox-64",
         "admission_mode": "informational",
-        "supported_variant_ids": [],
+        "supported_variant_ids": [
+          "usa-1-0",
+          "usa-1-1"
+        ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alpha1-schema1-source-contracts"
+          "starship-2-0-0-source-contract"
         ],
-        "authority_ref": "9d16cf7085ad34b995bbdc2a5763beb67c7e1190",
+        "authority_ref": "cb19785b51698185a688e17ba1a34c7889195bdb",
         "reviewed_at": "2026-09-05",
-        "immutable_review_url": "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json",
-        "live_review_url": null,
+        "immutable_review_url": "https://github.com/HarbourMasters/Starship/blob/cb19785b51698185a688e17ba1a34c7889195bdb/config.yml",
+        "live_review_url": "https://github.com/HarbourMasters/Starship/blob/main/config.yml",
         "evidence_gap": "Schema 1 admits this source by extension and structural checks without deterministic identity evidence.",
-        "applicability": [],
+        "applicability": [
+          {
+            "upstream_ref": "v2.0.0",
+            "artifact_sha256": null
+          }
+        ],
         "aliases": [],
         "tombstones": []
       },
@@ -2949,18 +4039,26 @@
         "profile_id": "banjo-kazooie",
         "admission_mode": "enforced",
         "supported_variant_ids": [
-          "legacy-accepted"
+          "usa-rev0",
+          "usa-rev1",
+          "pal-rev0",
+          "japan-rev0"
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alpha1-schema1-source-contracts"
+          "lighthouse-1-1-0-source-contract"
         ],
-        "authority_ref": "9d16cf7085ad34b995bbdc2a5763beb67c7e1190",
+        "authority_ref": "9c39b49574388f1656a53a518257f399b5368062",
         "reviewed_at": "2026-09-05",
-        "immutable_review_url": "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json",
-        "live_review_url": null,
+        "immutable_review_url": "https://github.com/HarbourMasters/Lighthouse/blob/9c39b49574388f1656a53a518257f399b5368062/config.yml",
+        "live_review_url": "https://github.com/HarbourMasters/Lighthouse/blob/develop/config.yml",
         "evidence_gap": null,
-        "applicability": [],
+        "applicability": [
+          {
+            "upstream_ref": "1.1.0",
+            "artifact_sha256": null
+          }
+        ],
         "aliases": [],
         "tombstones": []
       },
@@ -2990,17 +4088,25 @@
         "role": "game",
         "profile_id": "majoras-mask",
         "admission_mode": "informational",
-        "supported_variant_ids": [],
+        "supported_variant_ids": [
+          "ntsc-u-1-0"
+        ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alpha1-schema1-source-contracts"
+          "zelda64-recompiled-1-2-2-source-contract",
+          "2ship2harkinian-5-0-1-source-contract"
         ],
-        "authority_ref": "9d16cf7085ad34b995bbdc2a5763beb67c7e1190",
+        "authority_ref": "54950a10408599d1d63802ee21cc2c4b05bfd378",
         "reviewed_at": "2026-09-05",
-        "immutable_review_url": "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json",
-        "live_review_url": null,
+        "immutable_review_url": "https://github.com/Zelda64Recomp/Zelda64Recomp/blob/54950a10408599d1d63802ee21cc2c4b05bfd378/README.md",
+        "live_review_url": "https://github.com/Zelda64Recomp/Zelda64Recomp/blob/dev/README.md",
         "evidence_gap": "Schema 1 admits this source by extension and structural checks without deterministic identity evidence.",
-        "applicability": [],
+        "applicability": [
+          {
+            "upstream_ref": "v1.2.2",
+            "artifact_sha256": null
+          }
+        ],
         "aliases": [],
         "tombstones": []
       },
@@ -3011,18 +4117,24 @@
         "profile_id": "banjo-kazooie",
         "admission_mode": "enforced",
         "supported_variant_ids": [
-          "legacy-accepted"
+          "usa-rev0"
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alpha1-schema1-source-contracts"
+          "banjo-recompiled-1-0-2-source-contract",
+          "lighthouse-1-1-0-source-contract"
         ],
-        "authority_ref": "9d16cf7085ad34b995bbdc2a5763beb67c7e1190",
+        "authority_ref": "ec859632cfa584e2272d32e46051543429a2baf4",
         "reviewed_at": "2026-09-05",
-        "immutable_review_url": "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json",
-        "live_review_url": null,
+        "immutable_review_url": "https://github.com/BanjoRecomp/BanjoRecomp/blob/ec859632cfa584e2272d32e46051543429a2baf4/README.md",
+        "live_review_url": "https://github.com/BanjoRecomp/BanjoRecomp/blob/main/README.md",
         "evidence_gap": null,
-        "applicability": [],
+        "applicability": [
+          {
+            "upstream_ref": "v1.0.2",
+            "artifact_sha256": null
+          }
+        ],
         "aliases": [],
         "tombstones": []
       },

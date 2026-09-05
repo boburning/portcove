@@ -101,6 +101,7 @@ export interface SourceCatalog {
       title: string;
       region: string | null;
       revision: string | null;
+      legacy_projection_only?: boolean;
       product_codes: string[];
       representations: SourceRepresentation[];
       evidence_ids: string[];

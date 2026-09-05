@@ -30,6 +30,7 @@ fn fixture() -> SourceCatalog {
                 title: "Sample Game".into(),
                 region: Some("USA".into()),
                 revision: Some("1.0".into()),
+                legacy_projection_only: false,
                 product_codes: vec!["NSME".into()],
                 representations: vec![SourceRepresentation {
                     id: "canonical-rom".into(),
@@ -188,4 +189,39 @@ fn pinned_validators_are_referenced_by_stable_contract_id() {
 
     catalog.validators.clear();
     assert!(catalog.validate(["sample-port"]).is_err());
+}
+
+#[test]
+fn legacy_projection_variants_cannot_be_selected_by_schema_2_contracts() {
+    let mut catalog = fixture();
+    catalog.identities[0].variants[0].legacy_projection_only = true;
+    assert!(catalog.validate(["sample-port"]).is_err());
+
+    let mut current = catalog.identities[0].variants[0].clone();
+    current.id = "usa-1-0-current".into();
+    current.legacy_projection_only = false;
+    let SourceRepresentationKind::CanonicalN64 { identities } =
+        &mut current.representations[0].kind
+    else {
+        panic!("fixture uses canonical N64")
+    };
+    identities[0].sha256 = Some("3".repeat(64));
+    catalog.identities[0].variants.push(current);
+    catalog.contracts[0].supported_variant_ids = vec!["usa-1-0-current".into()];
+    catalog.validate(["sample-port"]).unwrap();
+
+    let projection = catalog.compatibility_profiles().unwrap();
+    assert_eq!(projection[0].accepted_sha256, vec!["2".repeat(64)]);
+}
+
+#[test]
+fn active_variants_cannot_share_a_deterministic_identity() {
+    let mut catalog = fixture();
+    let mut duplicate = catalog.identities[0].variants[0].clone();
+    duplicate.id = "another-edition".into();
+    catalog.identities[0].variants.push(duplicate);
+    assert!(catalog.validate(["sample-port"]).is_err());
+
+    catalog.identities[0].variants[1].legacy_projection_only = true;
+    catalog.validate(["sample-port"]).unwrap();
 }
