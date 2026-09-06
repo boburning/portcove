@@ -22,7 +22,7 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":23,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":24,"ok":true,"command":"status","data":{},"error":null}
 ```
 
 Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for success, failure, or cancellation. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
@@ -85,7 +85,11 @@ affected install records, validation results, and a state-bound fingerprint.
 revalidate it under the port lock. These commands change future placement only;
 they never move an existing installation. `plan`, `install`, and `ensure` accept
 one `--output-dir` request override. No all-port command accepts a shared output
-directory.
+directory. API schema 24 distinguishes a full volume from an unavailable volume.
+A preview fingerprint changes when available capacity crosses a 256 MiB band,
+reaches zero, becomes unavailable, or changes volume identity or total capacity,
+avoiding false stale-intent failures from incidental filesystem bookkeeping while
+requiring a new review for a meaningful capacity change.
 
 ```text
 portcove --json capabilities

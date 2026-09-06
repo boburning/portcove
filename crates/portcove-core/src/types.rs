@@ -927,6 +927,7 @@ pub struct PortOutputLocation {
 #[serde(rename_all = "snake_case")]
 pub enum OutputDestinationAvailability {
     Available,
+    Full,
     Unavailable,
 }
 

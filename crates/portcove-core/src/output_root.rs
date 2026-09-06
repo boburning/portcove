@@ -3,6 +3,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[cfg(test)]
+use std::cell::RefCell;
+
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -13,6 +16,40 @@ use crate::{
 
 const MARKER_NAME: &str = ".portcove-game-output.json";
 const MARKER_LIMIT: u64 = 16 * 1024;
+
+#[cfg(test)]
+#[derive(Debug, Clone)]
+pub(crate) enum TestVolumeDetails {
+    Available {
+        available_bytes: u64,
+        total_bytes: u64,
+        volume_identity: String,
+    },
+    Unavailable(String),
+}
+
+#[cfg(test)]
+thread_local! {
+    static TEST_VOLUME_DETAILS: RefCell<Option<TestVolumeDetails>> = const { RefCell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) struct TestVolumeDetailsGuard(Option<TestVolumeDetails>);
+
+#[cfg(test)]
+impl Drop for TestVolumeDetailsGuard {
+    fn drop(&mut self) {
+        TEST_VOLUME_DETAILS.with(|details| {
+            details.replace(self.0.take());
+        });
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn override_volume_details(details: TestVolumeDetails) -> TestVolumeDetailsGuard {
+    let previous = TEST_VOLUME_DETAILS.with(|current| current.replace(Some(details)));
+    TestVolumeDetailsGuard(previous)
+}
 
 #[derive(Debug, Clone)]
 pub(crate) struct PreparedOutputRoot {
@@ -52,8 +89,7 @@ pub(crate) fn assess_destination(
     };
     let default_root = library.versions_dir().join(port_id);
     if requested_root == default_root {
-        assessment.ownership = OutputDestinationOwnership::LibraryDefault;
-        populate_volume_details(library.root(), &mut assessment);
+        assess_default_destination(library, requested_root, &mut assessment);
         return assessment;
     }
     if let Ok(Some(record)) = library.output_root(requested_root)
@@ -135,31 +171,65 @@ pub(crate) fn assess_destination(
     assessment
 }
 
+fn assess_default_destination(
+    library: &Library,
+    requested_root: &Path,
+    assessment: &mut DestinationAssessment,
+) {
+    assessment.ownership = OutputDestinationOwnership::LibraryDefault;
+    populate_volume_details(library.root(), assessment);
+    match fs::symlink_metadata(requested_root) {
+        Ok(metadata) if !metadata.is_dir() || metadata.file_type().is_symlink() => {
+            assessment.ownership = OutputDestinationOwnership::Invalid;
+            assessment
+                .validation_errors
+                .push("default game output root must be a real directory".into());
+        }
+        Ok(_) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => {
+            assessment.availability = OutputDestinationAvailability::Unavailable;
+            assessment.validation_errors.push(error.to_string());
+        }
+    }
+}
+
 fn populate_volume_details(path: &Path, assessment: &mut DestinationAssessment) {
-    match (
-        fs2::available_space(path),
-        fs2::total_space(path),
-        volume_identity(path),
-    ) {
-        (Ok(available), Ok(total), Ok(identity)) => {
+    match destination_volume_details(path) {
+        Ok((available, total, identity)) => {
             assessment.available_bytes = Some(available);
             assessment.total_bytes = Some(total);
             assessment.volume_identity = Some(identity);
-        }
-        values => {
-            assessment.availability = OutputDestinationAvailability::Unavailable;
-            for message in [
-                values.0.err().map(|error| error.to_string()),
-                values.1.err().map(|error| error.to_string()),
-                values.2.err().map(|error| error.to_string()),
-            ]
-            .into_iter()
-            .flatten()
-            {
-                assessment.validation_errors.push(message);
+            if available == 0 {
+                assessment.availability = OutputDestinationAvailability::Full;
+                assessment
+                    .validation_errors
+                    .push("game output volume has no available space".into());
             }
         }
+        Err(message) => {
+            assessment.availability = OutputDestinationAvailability::Unavailable;
+            assessment.validation_errors.push(message);
+        }
     }
+}
+
+fn destination_volume_details(path: &Path) -> std::result::Result<(u64, u64, String), String> {
+    #[cfg(test)]
+    if let Some(details) = TEST_VOLUME_DETAILS.with(|current| current.borrow().clone()) {
+        return match details {
+            TestVolumeDetails::Available {
+                available_bytes,
+                total_bytes,
+                volume_identity,
+            } => Ok((available_bytes, total_bytes, volume_identity)),
+            TestVolumeDetails::Unavailable(message) => Err(message),
+        };
+    }
+    let available = fs2::available_space(path).map_err(|error| error.to_string())?;
+    let total = fs2::total_space(path).map_err(|error| error.to_string())?;
+    let identity = volume_identity(path).map_err(|error| error.to_string())?;
+    Ok((available, total, identity))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
