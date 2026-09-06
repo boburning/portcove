@@ -470,7 +470,10 @@ reviewContract("starship", reviewedSources.starship, ["usa-1-0", "usa-1-1"]);
 
 const migrated = {
   schema_version: 2,
-  source_catalog: { evidence, identities, contracts, validators },
+  // Legacy qualification arrays intentionally remain on each port. They do
+  // not identify an artifact, variant, representation, or check version, so
+  // migration must not manufacture exact qualification records from them.
+  source_catalog: { evidence, identities, contracts, validators, qualification: [] },
   ports: legacy.ports,
 };
 const output = `${JSON.stringify(migrated, null, 2)}\n`;

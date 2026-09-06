@@ -38,6 +38,83 @@ fn trusted(library: &Library) {
         .unwrap();
 }
 
+fn append_exact_qualification(payload: &mut SignedCatalogPayload) -> crate::SourceEvidence {
+    let source_catalog = payload.catalog.source_catalog.as_mut().unwrap();
+    let contract_index = source_catalog
+        .contracts
+        .iter()
+        .position(|contract| !contract.supported_variant_ids.is_empty())
+        .unwrap();
+    let contract = source_catalog.contracts[contract_index].clone();
+    let variant_id = contract.supported_variant_ids[0].clone();
+    let representation_id = source_catalog
+        .identities
+        .iter()
+        .find(|profile| profile.id == contract.profile_id)
+        .unwrap()
+        .variants
+        .iter()
+        .find(|variant| variant.id == variant_id)
+        .unwrap()
+        .representations[0]
+        .id
+        .clone();
+    let artifact = "d".repeat(64);
+    source_catalog.contracts[contract_index].applicability.push(
+        crate::SourceContractApplicability {
+            upstream_ref: "qualification-fixture-v1".into(),
+            artifact_sha256: Some(artifact.clone()),
+        },
+    );
+    let platform = payload
+        .catalog
+        .ports
+        .iter()
+        .find(|port| port.id == contract.port_id)
+        .unwrap()
+        .platforms[0];
+    let qualification_evidence_id = "signed-qualification-fixture";
+    let qualification_ref = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    source_catalog.evidence.push(crate::CatalogEvidence {
+        id: qualification_evidence_id.into(),
+        role: crate::CatalogEvidenceRole::PortcoveQualification,
+        authority: "Portcove".into(),
+        authority_ref: qualification_ref.into(),
+        reviewed_at: "2026-09-05".into(),
+        claim: "Records the exact isolated signed-catalog fixture".into(),
+        immutable_url: format!(
+            "https://github.com/boburning/portcove/blob/{qualification_ref}/qualification.json"
+        ),
+        live_url: None,
+    });
+    let record = crate::SourceEvidence {
+        scope: crate::SourceEvidenceScope {
+            port_id: contract.port_id,
+            platform,
+            artifact_sha256: Some(artifact),
+            upstream_ref: Some("qualification-fixture-v1".into()),
+            contract_id: Some(contract.id),
+            variant: crate::SourceVariantScope::Exact {
+                identity: crate::SourceIdentity {
+                    game_id: contract.profile_id,
+                    variant_id,
+                    representation_id,
+                },
+            },
+            check_version: Some("qualification-check-v1".into()),
+        },
+        kind: crate::SourceEvidenceKind::AutomatedLifecycle,
+        outcome: crate::SourceEvidenceOutcome::Passed,
+        observed_at: 1_799_999_900,
+        portcove_version: Some("0.1.0-alpha.1".into()),
+        portcove_commit: Some("a".repeat(40)),
+        method: "isolated signed-catalog fixture".into(),
+        evidence_ids: vec![qualification_evidence_id.into()],
+    };
+    source_catalog.qualification.push(record.clone());
+    record
+}
+
 fn write_candidate(root: &std::path::Path, sequence: i64) -> CatalogUpdateSource {
     let path = root.join(format!("catalog-{sequence}.json"));
     std::fs::write(&path, sign(&fixture(sequence, Library::now()))).unwrap();
@@ -198,6 +275,110 @@ fn signed_runtime_updates_can_change_artifacts_but_not_execution_or_mutable_owne
         }
         assert!(
             signed_catalog::verify(&sign(&changed), std::slice::from_ref(&key), now).is_err(),
+            "case {case}"
+        );
+    }
+}
+
+#[test]
+fn signed_format_one_allows_additive_artifact_qualification_only() {
+    let now = 1_800_000_000;
+    let key = crate::CatalogTrustKey::from_public_key(&hex::encode(
+        signing_key().verifying_key().as_bytes(),
+    ))
+    .unwrap();
+    let mut payload = fixture(1, now);
+    let record = append_exact_qualification(&mut payload);
+    assert!(signed_catalog::verify(&sign(&payload), std::slice::from_ref(&key), now).is_ok());
+
+    let mut unreferenced = payload.clone();
+    unreferenced
+        .catalog
+        .source_catalog
+        .as_mut()
+        .unwrap()
+        .qualification
+        .clear();
+    assert!(signed_catalog::verify(&sign(&unreferenced), std::slice::from_ref(&key), now).is_err());
+
+    let mut changed_legacy = fixture(1, now);
+    let port = changed_legacy
+        .catalog
+        .ports
+        .iter_mut()
+        .find(|port| port.id == record.scope.port_id)
+        .unwrap();
+    if port
+        .automated_tested_platforms
+        .contains(&record.scope.platform)
+    {
+        port.automated_tested_platforms
+            .retain(|platform| *platform != record.scope.platform);
+        port.manually_validated_platforms
+            .retain(|platform| *platform != record.scope.platform);
+    } else {
+        port.automated_tested_platforms.push(record.scope.platform);
+    }
+    assert!(
+        signed_catalog::verify(&sign(&changed_legacy), std::slice::from_ref(&key), now).is_err()
+    );
+
+    let mut baseline = fixture(1, now).catalog.source_catalog.unwrap();
+    let mut document = fixture(1, now);
+    append_exact_qualification(&mut document);
+    let with_record = document.catalog.source_catalog.unwrap();
+    baseline.contracts = with_record.contracts.clone();
+    baseline.qualification = with_record.qualification.clone();
+    let mut removed = baseline.clone();
+    removed.qualification.clear();
+    assert!(
+        signed_catalog::validate_source_update_contract(Some(&removed), Some(&baseline)).is_err()
+    );
+    let mut removed_binding = baseline.clone();
+    removed_binding
+        .contracts
+        .iter_mut()
+        .find(|contract| contract.id == record.scope.contract_id.as_deref().unwrap())
+        .unwrap()
+        .applicability
+        .clear();
+    assert!(
+        signed_catalog::validate_source_update_contract(Some(&removed_binding), Some(&baseline))
+            .is_err()
+    );
+}
+
+#[test]
+fn signed_format_one_freezes_source_meaning_and_identity_evidence() {
+    let now = 1_800_000_000;
+    let key = crate::CatalogTrustKey::from_public_key(&hex::encode(
+        signing_key().verifying_key().as_bytes(),
+    ))
+    .unwrap();
+    for case in 0..6 {
+        let mut payload = fixture(1, now);
+        let source = payload.catalog.source_catalog.as_mut().unwrap();
+        match case {
+            0 => source.identities[0].id.push_str("-reused"),
+            1 => source.identities[0].variants[0].id.push_str("-changed"),
+            2 => source.identities[0].variants[0].representations[0]
+                .id
+                .push_str("-changed"),
+            3 => {
+                source.contracts[0].admission_mode = match source.contracts[0].admission_mode {
+                    crate::CatalogAdmissionMode::Enforced => {
+                        crate::CatalogAdmissionMode::Informational
+                    }
+                    crate::CatalogAdmissionMode::Informational => {
+                        crate::CatalogAdmissionMode::Enforced
+                    }
+                }
+            }
+            4 => source.evidence[0].claim.push_str(" changed"),
+            _ => source.contracts[0].aliases.push("new-meaning".into()),
+        }
+        assert!(
+            signed_catalog::verify(&sign(&payload), std::slice::from_ref(&key), now).is_err(),
             "case {case}"
         );
     }

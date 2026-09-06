@@ -11,16 +11,28 @@ fn identity() -> DigestIdentity {
 
 fn fixture() -> SourceCatalog {
     SourceCatalog {
-        evidence: vec![CatalogEvidence {
-            id: "upstream-source-table".into(),
-            role: CatalogEvidenceRole::UpstreamSupport,
-            authority: "Example upstream".into(),
-            authority_ref: "0123456789abcdef0123456789abcdef01234567".into(),
-            reviewed_at: "2026-09-05".into(),
-            claim: "Lists the supported source revision".into(),
-            immutable_url: "https://github.com/example/project/blob/0123456789abcdef0123456789abcdef01234567/supported.json".into(),
-            live_url: Some("https://github.com/example/project/blob/main/supported.json".into()),
-        }],
+        evidence: vec![
+            CatalogEvidence {
+                id: "upstream-source-table".into(),
+                role: CatalogEvidenceRole::UpstreamSupport,
+                authority: "Example upstream".into(),
+                authority_ref: "0123456789abcdef0123456789abcdef01234567".into(),
+                reviewed_at: "2026-09-05".into(),
+                claim: "Lists the supported source revision".into(),
+                immutable_url: "https://github.com/example/project/blob/0123456789abcdef0123456789abcdef01234567/supported.json".into(),
+                live_url: Some("https://github.com/example/project/blob/main/supported.json".into()),
+            },
+            CatalogEvidence {
+                id: "portcove-qualification-run".into(),
+                role: CatalogEvidenceRole::PortcoveQualification,
+                authority: "Portcove".into(),
+                authority_ref: "fedcba9876543210fedcba9876543210fedcba98".into(),
+                reviewed_at: "2026-09-05".into(),
+                claim: "Records the exact isolated qualification run".into(),
+                immutable_url: "https://github.com/example/project/blob/fedcba9876543210fedcba9876543210fedcba98/qualification.json".into(),
+                live_url: None,
+            },
+        ],
         identities: vec![SourceIdentityProfile {
             id: "sample-game".into(),
             label: "Sample Game source".into(),
@@ -68,6 +80,34 @@ fn fixture() -> SourceCatalog {
             tombstones: vec![],
         }],
         validators: vec![],
+        qualification: vec![],
+    }
+}
+
+fn qualification(kind: SourceEvidenceKind, outcome: SourceEvidenceOutcome) -> SourceEvidence {
+    SourceEvidence {
+        scope: SourceEvidenceScope {
+            port_id: "sample-port".into(),
+            platform: crate::Platform::WindowsX86_64,
+            artifact_sha256: Some("3".repeat(64)),
+            upstream_ref: Some("v1.0.0".into()),
+            contract_id: Some("sample-port-source".into()),
+            variant: SourceVariantScope::Exact {
+                identity: crate::SourceIdentity {
+                    game_id: "sample-game".into(),
+                    variant_id: "usa-1-0".into(),
+                    representation_id: "canonical-rom".into(),
+                },
+            },
+            check_version: Some("source-check-v1".into()),
+        },
+        kind,
+        outcome,
+        observed_at: 1_800_000_000,
+        portcove_version: Some("0.1.0-alpha.1".into()),
+        portcove_commit: Some("a".repeat(40)),
+        method: "isolated lifecycle fixture".into(),
+        evidence_ids: vec!["portcove-qualification-run".into()],
     }
 }
 
@@ -224,4 +264,183 @@ fn active_variants_cannot_share_a_deterministic_identity() {
 
     catalog.identities[0].variants[1].legacy_projection_only = true;
     catalog.validate(["sample-port"]).unwrap();
+}
+
+#[test]
+fn exact_qualification_validates_and_aggregates_each_evidence_kind_separately() {
+    let mut catalog = fixture();
+    for (kind, outcome) in [
+        (
+            SourceEvidenceKind::StructuralCheck,
+            SourceEvidenceOutcome::Passed,
+        ),
+        (
+            SourceEvidenceKind::AutomatedLifecycle,
+            SourceEvidenceOutcome::Passed,
+        ),
+        (SourceEvidenceKind::HandsOn, SourceEvidenceOutcome::NotRun),
+        (
+            SourceEvidenceKind::KnownFailure,
+            SourceEvidenceOutcome::Failed,
+        ),
+    ] {
+        let mut record = qualification(kind, outcome);
+        record.observed_at += catalog.qualification.len() as i64;
+        catalog.qualification.push(record);
+    }
+    catalog.validate(["sample-port"]).unwrap();
+    let aggregate = catalog.assess_qualification(
+        &qualification(
+            SourceEvidenceKind::AutomatedLifecycle,
+            SourceEvidenceOutcome::Passed,
+        )
+        .scope,
+    );
+    assert_eq!(
+        aggregate.structural_check,
+        QualificationEvidenceState::Passed
+    );
+    assert_eq!(
+        aggregate.automated_lifecycle,
+        QualificationEvidenceState::Passed
+    );
+    assert_eq!(aggregate.hands_on, QualificationEvidenceState::NotRun);
+    assert_eq!(aggregate.known_failure, QualificationEvidenceState::Failed);
+    assert!(
+        catalog
+            .all_supported_sources_qualified(
+                "sample-port-source",
+                crate::Platform::WindowsX86_64,
+                "v1.0.0",
+                &"3".repeat(64),
+                "source-check-v1",
+                SourceEvidenceKind::AutomatedLifecycle,
+            )
+            .unwrap()
+    );
+}
+
+#[test]
+fn new_variant_representation_and_artifact_never_inherit_exact_qualification() {
+    let mut catalog = fixture();
+    catalog.qualification.push(qualification(
+        SourceEvidenceKind::AutomatedLifecycle,
+        SourceEvidenceOutcome::Passed,
+    ));
+    assert!(
+        catalog
+            .all_supported_sources_qualified(
+                "sample-port-source",
+                crate::Platform::WindowsX86_64,
+                "v1.0.0",
+                &"3".repeat(64),
+                "source-check-v1",
+                SourceEvidenceKind::AutomatedLifecycle,
+            )
+            .unwrap()
+    );
+
+    let mut new_representation = catalog.identities[0].variants[0].representations[0].clone();
+    new_representation.id = "byte-swapped-rom".into();
+    catalog.identities[0].variants[0]
+        .representations
+        .push(new_representation);
+    assert!(
+        !catalog
+            .all_supported_sources_qualified(
+                "sample-port-source",
+                crate::Platform::WindowsX86_64,
+                "v1.0.0",
+                &"3".repeat(64),
+                "source-check-v1",
+                SourceEvidenceKind::AutomatedLifecycle,
+            )
+            .unwrap()
+    );
+
+    let mut catalog = fixture();
+    catalog.qualification.push(qualification(
+        SourceEvidenceKind::AutomatedLifecycle,
+        SourceEvidenceOutcome::Passed,
+    ));
+    let mut new_variant = catalog.identities[0].variants[0].clone();
+    new_variant.id = "usa-1-1".into();
+    let SourceRepresentationKind::CanonicalN64 { identities } =
+        &mut new_variant.representations[0].kind
+    else {
+        panic!("fixture uses canonical N64")
+    };
+    identities[0].sha1 = Some("4".repeat(40));
+    identities[0].sha256 = Some("5".repeat(64));
+    catalog.identities[0].variants.push(new_variant);
+    catalog.contracts[0]
+        .supported_variant_ids
+        .push("usa-1-1".into());
+    catalog.validate(["sample-port"]).unwrap();
+    assert!(
+        !catalog
+            .all_supported_sources_qualified(
+                "sample-port-source",
+                crate::Platform::WindowsX86_64,
+                "v1.0.0",
+                &"3".repeat(64),
+                "source-check-v1",
+                SourceEvidenceKind::AutomatedLifecycle,
+            )
+            .unwrap()
+    );
+
+    let mut catalog = fixture();
+    catalog.qualification.push(qualification(
+        SourceEvidenceKind::AutomatedLifecycle,
+        SourceEvidenceOutcome::Passed,
+    ));
+    assert!(
+        !catalog
+            .all_supported_sources_qualified(
+                "sample-port-source",
+                crate::Platform::WindowsX86_64,
+                "v1.0.0",
+                &"4".repeat(64),
+                "source-check-v1",
+                SourceEvidenceKind::AutomatedLifecycle,
+            )
+            .unwrap()
+    );
+}
+
+#[test]
+fn incomplete_or_misaligned_qualification_scopes_fail_closed() {
+    for case in 0..8 {
+        let mut catalog = fixture();
+        let mut record = qualification(
+            SourceEvidenceKind::AutomatedLifecycle,
+            SourceEvidenceOutcome::Passed,
+        );
+        match case {
+            0 => record.scope.artifact_sha256 = None,
+            1 => record.scope.upstream_ref = Some("v2".into()),
+            2 => record.scope.contract_id = Some("missing-contract".into()),
+            3 => {
+                let SourceVariantScope::Exact { identity } = &mut record.scope.variant else {
+                    panic!()
+                };
+                identity.variant_id = "missing-variant".into();
+            }
+            4 => {
+                let SourceVariantScope::Exact { identity } = &mut record.scope.variant else {
+                    panic!()
+                };
+                identity.representation_id = "missing-representation".into();
+            }
+            5 => record.evidence_ids = vec!["missing-evidence".into()],
+            6 => record.method.clear(),
+            _ => {
+                record.kind = SourceEvidenceKind::KnownFailure;
+                record.outcome = SourceEvidenceOutcome::Passed;
+            }
+        }
+        catalog.qualification.push(record);
+        assert!(catalog.validate(["sample-port"]).is_err(), "case {case}");
+    }
 }

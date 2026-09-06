@@ -6,8 +6,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    DiscIdentityProfile, DiscSourceProfile, PortcoveError, Result, SourceKind, SourceMemberProfile,
-    SourceProfile,
+    DiscIdentityProfile, DiscSourceProfile, PortcoveError, Result, SourceEvidence,
+    SourceEvidenceKind, SourceEvidenceOutcome, SourceEvidenceScope, SourceKind,
+    SourceMemberProfile, SourceProfile, SourceVariantScope,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -17,6 +18,29 @@ pub struct SourceCatalog {
     pub identities: Vec<SourceIdentityProfile>,
     pub contracts: Vec<PortSourceContract>,
     pub validators: Vec<SourceValidatorContract>,
+    /// Exact qualification facts. Legacy platform arrays remain on the port and
+    /// are never promoted into these records because they do not identify an
+    /// artifact, source variant, representation, or check contract.
+    #[serde(default)]
+    pub qualification: Vec<SourceEvidence>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum QualificationEvidenceState {
+    Missing,
+    Unknown,
+    NotRun,
+    Passed,
+    Failed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SourceQualificationAssessment {
+    pub structural_check: QualificationEvidenceState,
+    pub automated_lifecycle: QualificationEvidenceState,
+    pub hands_on: QualificationEvidenceState,
+    pub known_failure: QualificationEvidenceState,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -323,6 +347,21 @@ impl SourceCatalog {
             require_text(&validator.protocol_version, "validator protocol version")?;
             validate_references("validator evidence", &validator.evidence_ids, &evidence)?;
         }
+        let mut qualification_keys = HashSet::new();
+        for record in &self.qualification {
+            self.validate_qualification(record, &port_ids, &evidence)?;
+            let key = serde_json::to_string(&(
+                &record.scope,
+                record.kind,
+                record.observed_at,
+                &record.method,
+            ))?;
+            if !qualification_keys.insert(key) {
+                return Err(PortcoveError::conflict(
+                    "duplicate exact source qualification record",
+                ));
+            }
+        }
         for profile in &self.identities {
             profile.validate(&evidence, &validators)?;
         }
@@ -433,6 +472,179 @@ impl SourceCatalog {
         Ok(())
     }
 
+    /// Aggregate only records with exactly the requested scope. Historical or
+    /// legacy records remain visible but cannot qualify a different target.
+    pub fn assess_qualification(
+        &self,
+        scope: &SourceEvidenceScope,
+    ) -> SourceQualificationAssessment {
+        SourceQualificationAssessment {
+            structural_check: evidence_state(self.qualification.iter().filter(|record| {
+                record.kind == SourceEvidenceKind::StructuralCheck && record.applies_to(scope)
+            })),
+            automated_lifecycle: evidence_state(self.qualification.iter().filter(|record| {
+                record.kind == SourceEvidenceKind::AutomatedLifecycle && record.applies_to(scope)
+            })),
+            hands_on: evidence_state(self.qualification.iter().filter(|record| {
+                record.kind == SourceEvidenceKind::HandsOn && record.applies_to(scope)
+            })),
+            known_failure: evidence_state(self.qualification.iter().filter(|record| {
+                record.kind == SourceEvidenceKind::KnownFailure && record.applies_to(scope)
+            })),
+        }
+    }
+
+    /// An all-source claim is true only when every currently supported variant
+    /// and representation has a passed record for the same exact artifact and
+    /// check contract. Adding either dimension therefore invalidates the claim
+    /// until its own evidence exists.
+    pub fn all_supported_sources_qualified(
+        &self,
+        contract_id: &str,
+        platform: crate::Platform,
+        upstream_ref: &str,
+        artifact_sha256: &str,
+        check_version: &str,
+        kind: SourceEvidenceKind,
+    ) -> Result<bool> {
+        let contract = self
+            .contracts
+            .iter()
+            .find(|contract| contract.id == contract_id)
+            .ok_or_else(|| {
+                PortcoveError::not_found(format!("unknown source contract: {contract_id}"))
+            })?;
+        let profile = self
+            .identities
+            .iter()
+            .find(|profile| profile.id == contract.profile_id)
+            .ok_or_else(|| {
+                PortcoveError::not_found(format!("unknown source profile: {}", contract.profile_id))
+            })?;
+        let mut targets = 0usize;
+        for variant in profile.variants.iter().filter(|variant| {
+            !variant.legacy_projection_only && contract.supported_variant_ids.contains(&variant.id)
+        }) {
+            for representation in &variant.representations {
+                targets += 1;
+                let scope = SourceEvidenceScope {
+                    port_id: contract.port_id.clone(),
+                    platform,
+                    artifact_sha256: Some(artifact_sha256.into()),
+                    upstream_ref: Some(upstream_ref.into()),
+                    contract_id: Some(contract.id.clone()),
+                    variant: SourceVariantScope::Exact {
+                        identity: crate::SourceIdentity {
+                            game_id: profile.id.clone(),
+                            variant_id: variant.id.clone(),
+                            representation_id: representation.id.clone(),
+                        },
+                    },
+                    check_version: Some(check_version.into()),
+                };
+                let passed = evidence_state(
+                    self.qualification
+                        .iter()
+                        .filter(|record| record.kind == kind && record.applies_to(&scope)),
+                ) == QualificationEvidenceState::Passed;
+                if !passed {
+                    return Ok(false);
+                }
+            }
+        }
+        Ok(targets > 0)
+    }
+
+    fn validate_qualification(
+        &self,
+        record: &SourceEvidence,
+        port_ids: &HashSet<String>,
+        evidence: &HashMap<String, ()>,
+    ) -> Result<()> {
+        let scope = &record.scope;
+        if !port_ids.contains(&scope.port_id) || !record.applies_to(scope) {
+            return Err(PortcoveError::usage(
+                "source qualification must have a complete exact scope",
+            ));
+        }
+        if record.observed_at <= 0 || record.method.trim().is_empty() {
+            return Err(PortcoveError::usage(
+                "source qualification must record a method and observation time",
+            ));
+        }
+        if record.evidence_ids.is_empty() {
+            return Err(PortcoveError::usage(
+                "source qualification must reference reviewed qualification evidence",
+            ));
+        }
+        validate_references("qualification evidence", &record.evidence_ids, evidence)?;
+        if !record.evidence_ids.iter().any(|id| {
+            self.evidence.iter().any(|item| {
+                item.id == *id && item.role == CatalogEvidenceRole::PortcoveQualification
+            })
+        }) {
+            return Err(PortcoveError::usage(
+                "source qualification must reference Portcove qualification evidence",
+            ));
+        }
+        let contract_id = scope
+            .contract_id
+            .as_deref()
+            .expect("applies_to checked contract id");
+        let contract = self
+            .contracts
+            .iter()
+            .find(|contract| contract.id == contract_id && contract.port_id == scope.port_id)
+            .ok_or_else(|| {
+                PortcoveError::usage("source qualification references an unknown contract")
+            })?;
+        let SourceVariantScope::Exact { identity } = &scope.variant else {
+            unreachable!("applies_to checked exact identity")
+        };
+        if identity.game_id != contract.profile_id
+            || !contract
+                .supported_variant_ids
+                .contains(&identity.variant_id)
+        {
+            return Err(PortcoveError::usage(
+                "source qualification references an unsupported variant",
+            ));
+        }
+        let representation_exists = self.identities.iter().any(|profile| {
+            profile.id == identity.game_id
+                && profile.variants.iter().any(|variant| {
+                    variant.id == identity.variant_id
+                        && !variant.legacy_projection_only
+                        && variant
+                            .representations
+                            .iter()
+                            .any(|representation| representation.id == identity.representation_id)
+                })
+        });
+        if !representation_exists {
+            return Err(PortcoveError::usage(
+                "source qualification references an unknown representation",
+            ));
+        }
+        let binding_exists = contract.applicability.iter().any(|binding| {
+            scope.upstream_ref.as_deref() == Some(binding.upstream_ref.as_str())
+                && scope.artifact_sha256.as_deref() == binding.artifact_sha256.as_deref()
+        });
+        if !binding_exists {
+            return Err(PortcoveError::usage(
+                "source qualification is not bound to a reviewed artifact applicability",
+            ));
+        }
+        if record.kind == SourceEvidenceKind::KnownFailure
+            && record.outcome != SourceEvidenceOutcome::Failed
+        {
+            return Err(PortcoveError::usage(
+                "known-failure evidence must have a failed outcome",
+            ));
+        }
+        Ok(())
+    }
+
     /// Builds the single temporary schema-1 view consumed by the existing matcher.
     /// Schema-2 remains authoritative; a supplied compatibility view is accepted only
     /// when it is semantically equal after typed serialization.
@@ -441,6 +653,30 @@ impl SourceCatalog {
             .iter()
             .map(SourceIdentityProfile::compatibility_profile)
             .collect()
+    }
+}
+
+fn evidence_state<'a>(
+    records: impl Iterator<Item = &'a SourceEvidence>,
+) -> QualificationEvidenceState {
+    records
+        .max_by_key(|record| (record.observed_at, outcome_rank(record.outcome)))
+        .map_or(QualificationEvidenceState::Missing, |record| {
+            match record.outcome {
+                SourceEvidenceOutcome::Unknown => QualificationEvidenceState::Unknown,
+                SourceEvidenceOutcome::NotRun => QualificationEvidenceState::NotRun,
+                SourceEvidenceOutcome::Passed => QualificationEvidenceState::Passed,
+                SourceEvidenceOutcome::Failed => QualificationEvidenceState::Failed,
+            }
+        })
+}
+
+fn outcome_rank(outcome: SourceEvidenceOutcome) -> u8 {
+    match outcome {
+        SourceEvidenceOutcome::Unknown => 0,
+        SourceEvidenceOutcome::NotRun => 1,
+        SourceEvidenceOutcome::Passed => 2,
+        SourceEvidenceOutcome::Failed => 3,
     }
 }
 

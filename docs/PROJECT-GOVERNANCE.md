@@ -65,11 +65,14 @@ channel, catalog maturity, or Project Status:
 - **Manual qualification:** automated evidence exists and hands-on
   qualification is the active next or partially completed gate. This workflow
   stage does not itself assert a recorded hands-on pass.
-- **Supported:** at least one declared platform is present in both
-  `automated_tested_platforms` and `manually_validated_platforms`. The support
-  claim is limited to that exact intersection, which must be visible. A port
-  can therefore be Supported on Windows while declared Linux or macOS pairs
-  remain unqualified.
+- **Supported:** historical entries require at least one declared platform in
+  both legacy qualification arrays. New exact claims require matching scoped
+  automated and hands-on records for the artifact, source contract, variant,
+  representation, platform, and check version actually assessed. The visible
+  support scope must identify which form applies. A port can therefore be
+  Supported on Windows while declared Linux or macOS pairs remain unqualified,
+  and a newly added artifact or source representation does not inherit the old
+  claim.
 - **Blocked:** progress cannot continue until a named external, source,
   hardware, upstream, or engineering condition is satisfied. The issue states
   the usable blocker and exact resume condition.

@@ -209,9 +209,24 @@ fn assemble_report(
             .find(|profile| profile.id == profile_id)
             .cloned()
     });
-    let exact_records = inspection
-        .as_ref()
-        .map_or_else(Vec::new, |value| value.assessment.evidence.clone());
+    let mut exact_records = source_catalog.map_or_else(Vec::new, |catalog| {
+        catalog
+            .qualification
+            .iter()
+            .filter(|record| {
+                matches!(&record.scope.variant, SourceVariantScope::Exact { identity }
+                    if identity.game_id == profile_id)
+            })
+            .cloned()
+            .collect()
+    });
+    if let Some(inspection) = inspection.as_ref() {
+        for record in &inspection.assessment.evidence {
+            if !exact_records.contains(record) {
+                exact_records.push(record.clone());
+            }
+        }
+    }
     let mut applications = Vec::new();
     if let Some(source_catalog) = source_catalog {
         for contract in source_catalog
