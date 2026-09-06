@@ -65,6 +65,7 @@ const setFlags = new Map([
   ["--priority", "Priority"],
   ["--horizon", "Horizon"],
   ["--release", "Target release"],
+  ["--commitment", "Release commitment"],
   ["--type", "Work type"],
   ["--workstream", "Workstream"],
   ["--platform", "Platform"],
@@ -125,7 +126,7 @@ export function validateConfig(config, { requireProjectNumber = false } = {}) {
       options.add(option);
     }
   }
-  for (const required of ["Status", "Priority", "Horizon", "Target release", "Work type", "Workstream", "Platform", "Port stage", "Effort"]) {
+  for (const required of ["Status", "Priority", "Horizon", "Target release", "Release commitment", "Work type", "Workstream", "Platform", "Port stage", "Effort"]) {
     if (!fieldNames.has(required)) throw new Error(`missing required roadmap field: ${required}`);
   }
   const viewNames = new Set();
@@ -648,6 +649,7 @@ Usage:
   node scripts/roadmap.mjs set <item-or-issue> [field options]
   node scripts/roadmap.mjs move <item> --before <item>
   node scripts/roadmap.mjs next
+  node scripts/roadmap.mjs readiness --release <release>
   node scripts/roadmap.mjs snapshot --release <release> --output <docs/releases/path>
 
 Use capture-port for direct maintainer intake. Use normalize-port for a public
@@ -706,6 +708,127 @@ export function selectNextItems(items) {
     .map(({ item }) => item);
 }
 
+function blockingNodes(item) {
+  const value = item?.content?.blockedBy ?? item?.blockedBy;
+  return Array.isArray(value) ? value : (value?.nodes ?? []);
+}
+
+function uniqueItems(items) {
+  return [...new Map(items.map(item => [item?.id ?? `issue:${issueNumber(item) ?? itemTitle(item)}`, item])).values()];
+}
+
+export function dependencyCycles(items) {
+  const byNumber = new Map(items.map(item => [issueNumber(item), item]).filter(([number]) => Number.isInteger(number)));
+  const cycles = [];
+  const completed = new Set();
+  const visiting = [];
+  const visit = item => {
+    const number = issueNumber(item);
+    if (!Number.isInteger(number) || completed.has(number)) return;
+    const activeIndex = visiting.indexOf(number);
+    if (activeIndex >= 0) {
+      cycles.push([...visiting.slice(activeIndex), number]);
+      return;
+    }
+    visiting.push(number);
+    for (const dependency of blockingNodes(item)) {
+      const dependencyItem = byNumber.get(issueNumber(dependency));
+      if (dependencyItem) visit(dependencyItem);
+    }
+    visiting.pop();
+    completed.add(number);
+  };
+  for (const item of byNumber.values()) visit(item);
+  return cycles;
+}
+
+export function analyzeReleaseReadiness(items, release) {
+  const releaseIndex = releaseSequence.indexOf(release);
+  if (releaseIndex < 0) throw new Error(`unknown target release: ${release}`);
+  const includedReleases = releaseSequence.slice(0, releaseIndex + 1);
+  const targeted = items.filter(item => includedReleases.includes(fieldValue(item, "Target release")));
+  const requiredRoots = targeted.filter(item => fieldValue(item, "Release commitment") === "Required");
+  const relevantUnclassified = targeted.filter(item => !fieldValue(item, "Release commitment"));
+  const safetyConflicts = targeted.filter(item => !itemDone(item)
+    && fieldValue(item, "Status") === "Blocked"
+    && fieldValue(item, "Work type") === "Security"
+    && fieldValue(item, "Release commitment") !== "Required");
+  const opportunistic = targeted.filter(item => fieldValue(item, "Release commitment") === "Opportunistic");
+  const byNumber = new Map(items.map(item => [issueNumber(item), item]).filter(([number]) => Number.isInteger(number)));
+  const effective = new Map();
+  const dependencyConflicts = [];
+  const missingProjectDependencies = [];
+  const truncatedDependencies = [];
+  const visit = item => {
+    const key = item?.id ?? `issue:${issueNumber(item) ?? itemTitle(item)}`;
+    if (effective.has(key)) return;
+    effective.set(key, item);
+    const blockedBy = item?.content?.blockedBy ?? item?.blockedBy;
+    if (Number(blockedBy?.totalCount ?? 0) > blockingNodes(item).length) {
+      truncatedDependencies.push(item);
+    }
+    for (const dependency of blockingNodes(item)) {
+      const number = issueNumber(dependency);
+      const projectItem = byNumber.get(number);
+      if (!projectItem) {
+        const synthetic = {
+          id: `missing-project:${number}`,
+          title: dependency.title,
+          content: { ...dependency, type: "Issue" },
+          missingProject: true,
+        };
+        effective.set(synthetic.id, synthetic);
+        missingProjectDependencies.push({ item, dependency: synthetic });
+        continue;
+      }
+      const commitment = fieldValue(projectItem, "Release commitment");
+      const target = fieldValue(projectItem, "Target release");
+      if (commitment !== "Required" || !includedReleases.includes(target)) {
+        dependencyConflicts.push({ item, dependency: projectItem, commitment, target });
+      }
+      visit(projectItem);
+    }
+  };
+  for (const item of uniqueItems([...requiredRoots, ...safetyConflicts])) visit(item);
+  const effectiveRequired = [...effective.values()];
+  const cycles = dependencyCycles(effectiveRequired.filter(item => !item.missingProject));
+  const unfinishedRequired = effectiveRequired.filter(item => !itemDone(item));
+  return {
+    release,
+    includedReleases,
+    targeted,
+    requiredRoots,
+    effectiveRequired,
+    unfinishedRequired,
+    relevantUnclassified,
+    opportunistic,
+    safetyConflicts,
+    dependencyConflicts,
+    missingProjectDependencies,
+    truncatedDependencies,
+    cycles,
+    ready: unfinishedRequired.length === 0
+      && relevantUnclassified.length === 0
+      && safetyConflicts.length === 0
+      && dependencyConflicts.length === 0
+      && missingProjectDependencies.length === 0
+      && truncatedDependencies.length === 0
+      && cycles.length === 0,
+  };
+}
+
+export function renderReadinessSummary(analysis) {
+  const section = values => values.length ? values.map(itemLine).join("\n") : "- None recorded.";
+  const dependencyConflicts = analysis.dependencyConflicts.map(({ item, dependency, commitment, target }) =>
+    `- ${markdownLink(item)} depends on ${markdownLink(dependency)}, classified ${commitment ?? "Unclassified"} / ${target ?? "Unscheduled"}.`);
+  const missing = analysis.missingProjectDependencies.map(({ item, dependency }) =>
+    `- ${markdownLink(item)} depends on ${markdownLink(dependency)}, which has no Project item.`);
+  const cycles = analysis.cycles.map(cycle => `- ${cycle.map(number => `#${number}`).join(" -> ")}`);
+  const truncated = analysis.truncatedDependencies.map(item =>
+    `- ${markdownLink(item)} has more blocking dependencies than the bounded query returned.`);
+  return `# ${analysis.release} readiness\n\n- Result: ${analysis.ready ? "READY" : "NOT READY"}\n- Required outcomes including blocking dependencies: ${analysis.effectiveRequired.length}\n- Unfinished required outcomes: ${analysis.unfinishedRequired.length}\n\n## Unfinished required outcomes\n\n${section(analysis.unfinishedRequired)}\n\n## Relevant unclassified work\n\n${section(analysis.relevantUnclassified)}\n\n## Safety commitment conflicts\n\n${section(analysis.safetyConflicts)}\n\n## Dependency classification conflicts\n\n${[...dependencyConflicts, ...missing, ...truncated].join("\n") || "- None recorded."}\n\n## Dependency cycles\n\n${cycles.join("\n") || "- None recorded."}\n\n## Opportunistic work through this release\n\n${section(analysis.opportunistic)}\n`;
+}
+
 export function catalogQualificationSummary(catalog) {
   const ports = Array.isArray(catalog?.ports) ? catalog.ports : [];
   const byTier = {};
@@ -734,7 +857,7 @@ function markdownLink(item) {
 }
 
 function itemLine(item) {
-  const details = ["Status", "Priority", "Horizon", "Work type", "Workstream", "Platform"]
+  const details = ["Status", "Priority", "Horizon", "Target release", "Release commitment", "Work type", "Workstream", "Platform"]
     .map(name => fieldValue(item, name) ? `${name}: ${fieldValue(item, name)}` : null)
     .filter(Boolean)
     .join("; ");
@@ -763,24 +886,31 @@ export function completionEvidenceLinks(items) {
 }
 
 export function renderSnapshot({ release, generatedAt, commit, projectUrl, items, catalog }) {
-  const releaseIndex = releaseSequence.indexOf(release);
-  const includedReleases = releaseIndex < 0 ? [release] : releaseSequence.slice(0, releaseIndex + 1);
-  const matching = items.filter(item => includedReleases.includes(fieldValue(item, "Target release")));
-  const complete = matching.filter(itemDone);
-  const unfinished = matching.filter(item => !itemDone(item));
+  const readiness = analyzeReleaseReadiness(items, release);
+  const { includedReleases } = readiness;
+  const matching = uniqueItems([...readiness.effectiveRequired, ...readiness.relevantUnclassified]);
+  const complete = readiness.effectiveRequired.filter(itemDone);
+  const unfinished = readiness.unfinishedRequired;
   const blockers = unfinished.filter(item => fieldValue(item, "Status") === "Blocked");
   const inconsistencies = matching.filter(item => {
     const state = repositoryState(item);
     return ((state === "closed" || state === "merged") && !itemDone(item))
       || (state === "open" && itemDone(item));
   });
-  const deferred = items.filter(item => ["Deferred", "Post-V1"].includes(fieldValue(item, "Status"))
+  const deferred = items.filter(item => fieldValue(item, "Status") === "Deferred"
     || fieldValue(item, "Target release") === "Post-V1");
   const summary = catalogQualificationSummary(catalog);
   const tiers = Object.entries(summary.byTier).sort().map(([name, count]) => `  - ${name}: ${count}`).join("\n") || "  - none";
   const section = values => values.length ? values.map(itemLine).join("\n") : "- None recorded.";
   const links = completionEvidenceLinks(matching);
-  return `# ${release} release readiness\n\n> Immutable snapshot generated from the live Portcove Roadmap and catalog. The Project Status field is completion authority after ${generatedAt}.\n\n- Generated: ${generatedAt}\n- Commit: \`${commit}\`\n- Project: ${projectUrl}\n- Target release: ${release}\n- Cumulative required stages: ${includedReleases.join(", ")}\n\n## Open blockers\n\n${section(blockers)}\n\n## Completed required items\n\n${section(complete)}\n\n## Unfinished required items\n\n${section(unfinished)}\n\n## Repository closure and Project Status inconsistencies\n\n${section(inconsistencies)}\n\nA closed or not-planned repository issue is not complete unless Project Status is Done. Resolve every inconsistency before release.\n\n## Consciously deferred or postponed\n\n${section(deferred)}\n\n## Catalog qualification summary\n\n- Catalog entries: ${summary.ports}\n- Declared port/platform pairs: ${summary.declaredPlatformPairs}\n- Automated port/platform pairs: ${summary.automatedPlatformPairs}\n- Manually validated port/platform pairs: ${summary.manuallyValidatedPlatformPairs}\n- Support tiers:\n${tiers}\n\n## Completion evidence links\n\n${links.length ? links.map(url => `- ${url}`).join("\n") : "- No explicit completion evidence links were recorded on matching Project items."}\n\n## Test, CI, rehearsal, signing, and human validation\n\n- Record reviewed test commands and results here.\n- Record required CI runs here.\n- Record release rehearsal evidence here.\n- Record signing/notarization evidence or the explicit unsigned limitation here.\n- Record required human and physical-platform evidence here.\n\n## Explicit limitations\n\n- Review every unfinished and deferred item above before publication.\n- This snapshot does not grant qualification or replace catalog evidence.\n- Project fields may change after generation; regenerate rather than editing this snapshot in place.\n`;
+  const conflictLines = readiness.dependencyConflicts.map(({ item, dependency, commitment, target }) =>
+    `- ${markdownLink(item)} depends on ${markdownLink(dependency)}, classified ${commitment ?? "Unclassified"} / ${target ?? "Unscheduled"}.`);
+  conflictLines.push(...readiness.missingProjectDependencies.map(({ item, dependency }) =>
+    `- ${markdownLink(item)} depends on ${markdownLink(dependency)}, which has no Project item.`));
+  conflictLines.push(...readiness.truncatedDependencies.map(item =>
+    `- ${markdownLink(item)} has more blocking dependencies than the bounded query returned.`));
+  conflictLines.push(...readiness.cycles.map(cycle => `- Dependency cycle: ${cycle.map(number => `#${number}`).join(" -> ")}`));
+  return `# ${release} release readiness\n\n> Immutable snapshot generated from the live Portcove Roadmap and catalog. Project fields and genuine blocking dependencies define readiness after ${generatedAt}.\n\n- Generated: ${generatedAt}\n- Commit: \`${commit}\`\n- Project: ${projectUrl}\n- Target release: ${release}\n- Cumulative required stages: ${includedReleases.join(", ")}\n- Derived readiness: ${readiness.ready ? "READY" : "NOT READY"}\n\n## Open blockers\n\n${section(blockers)}\n\n## Completed required items\n\n${section(complete)}\n\n## Unfinished required items\n\n${section(unfinished)}\n\n## Relevant unclassified work\n\n${section(readiness.relevantUnclassified)}\n\n## Commitment and dependency conflicts\n\n${[...readiness.safetyConflicts.map(itemLine), ...conflictLines].join("\n") || "- None recorded."}\n\n## Opportunistic work through this release\n\n${section(readiness.opportunistic)}\n\n## Repository closure and Project Status inconsistencies\n\n${section(inconsistencies)}\n\nA closed or not-planned repository issue is not complete unless Project Status is Done. Resolve every inconsistency before release.\n\n## Consciously deferred or postponed\n\n${section(deferred)}\n\n## Catalog qualification summary\n\n- Catalog entries: ${summary.ports}\n- Declared port/platform pairs: ${summary.declaredPlatformPairs}\n- Automated port/platform pairs: ${summary.automatedPlatformPairs}\n- Manually validated port/platform pairs: ${summary.manuallyValidatedPlatformPairs}\n- Support tiers:\n${tiers}\n\n## Completion evidence links\n\n${links.length ? links.map(url => `- ${url}`).join("\n") : "- No explicit completion evidence links were recorded on matching Project items."}\n\n## Test, CI, rehearsal, signing, and human validation\n\n- Record reviewed test commands and results here.\n- Record required CI runs here.\n- Record release rehearsal evidence here.\n- Record signing/notarization evidence or the explicit unsigned limitation here.\n- Record required human and physical-platform evidence here.\n\n## Explicit limitations\n\n- Review every unfinished, unclassified, conflicting, and deferred item above before publication.\n- This snapshot does not grant qualification or replace catalog evidence.\n- Project fields may change after generation; regenerate rather than editing this snapshot in place.\n`;
 }
 
 function unwrapCollection(value, key) {
@@ -940,12 +1070,15 @@ export class RoadmapClient {
     return this.json(["project", "field-list", String(number), "--owner", this.config.owner, "--format", "json", "--limit", "100"]);
   }
 
-  itemList(number) {
+  itemList(number, { includeDependencies = false } = {}) {
     const details = this.projectDetails(number);
     const items = [];
     let after = null;
+    const dependencies = includeDependencies
+      ? "blockedBy(first: 10) { totalCount nodes { id number title url state } }"
+      : "";
     do {
-      const query = `query($id: ID!, $after: String) { node(id: $id) { ... on ProjectV2 { items(first: 50, after: $after) { nodes { id content { __typename ... on DraftIssue { title body } ... on Issue { number title body url state } ... on PullRequest { number title body url state merged } } fieldValues(first: 25) { nodes { ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2SingleSelectField { name } } } } } } pageInfo { hasNextPage endCursor } } } } }`;
+      const query = `query($id: ID!, $after: String) { node(id: $id) { ... on ProjectV2 { items(first: 50, after: $after) { nodes { id content { __typename ... on DraftIssue { title body } ... on Issue { id number title body url state ${dependencies} } ... on PullRequest { number title body url state merged } } fieldValues(first: 25) { nodes { ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2SingleSelectField { name } } } } } } pageInfo { hasNextPage endCursor } } } } }`;
       const page = this.graphql(query, { id: details.id, after })?.node?.items;
       for (const node of page?.nodes ?? []) {
         const content = node.content ? { ...node.content, type: node.content.__typename } : null;
@@ -1383,6 +1516,14 @@ export function featureIntakeFields(config, options = {}) {
     "Work type": "Product feature",
     Effort: "Unknown",
   };
+  if (options["--commitment"]) {
+    fields["Release commitment"] = configuredValue(
+      config,
+      "Release commitment",
+      options["--commitment"],
+      "--commitment",
+    );
+  }
   if (options["--workstream"]) fields.Workstream = configuredValue(config, "Workstream", options["--workstream"], "--workstream");
   if (options["--platform"]) fields.Platform = configuredValue(config, "Platform", options["--platform"], "--platform");
   return fields;
@@ -1431,14 +1572,26 @@ async function main(argv) {
       repositories: audit?.repositories?.nodes ?? [],
     });
     const catalog = JSON.parse(await readFile(catalogPath, "utf8"));
-    const items = client.itemList(number);
+    const items = client.itemList(number, { includeDependencies: true });
     const repositoryIssues = client.repositoryIssues();
     const stage = validatePortStageSemantics(catalog, items);
+    const readiness = analyzeReleaseReadiness(items, config.active_release);
     const roadmapErrors = [
       ...validatePortIssueCoverage(catalog, items, config.repository, repositoryIssues),
       ...stage.errors,
       ...validateUxAuditOriginCoverage(repositoryIssues),
       ...validatePlanOriginCoverage(repositoryIssues),
+      ...readiness.relevantUnclassified.map(item =>
+        `${config.active_release} work is unclassified: ${itemUrl(item) ?? itemTitle(item)}`),
+      ...readiness.safetyConflicts.map(item =>
+        `${config.active_release} safety work is not Required: ${itemUrl(item) ?? itemTitle(item)}`),
+      ...readiness.dependencyConflicts.map(({ item, dependency }) =>
+        `${itemUrl(item) ?? itemTitle(item)} has a conflicting blocking dependency ${itemUrl(dependency) ?? itemTitle(dependency)}`),
+      ...readiness.missingProjectDependencies.map(({ item, dependency }) =>
+        `${itemUrl(item) ?? itemTitle(item)} has a blocking dependency outside the Project: ${itemUrl(dependency) ?? itemTitle(dependency)}`),
+      ...readiness.truncatedDependencies.map(item =>
+        `${itemUrl(item) ?? itemTitle(item)} has more than 10 blocking dependencies; readiness query is incomplete`),
+      ...readiness.cycles.map(cycle => `blocking dependency cycle: ${cycle.map(value => `#${value}`).join(" -> ")}`),
     ];
     if (drift.length || roadmapErrors.length) {
       throw new Error(`Project drift:\n${[...drift, ...roadmapErrors].map(value => `- ${value}`).join("\n")}`);
@@ -1448,6 +1601,7 @@ async function main(argv) {
     console.log(`Verified ${repositoryIssues.filter(issue => itemBody(issue).includes(portMarker)).length} repository port issues, ${catalog.ports.length} canonical catalog issues, one supported-source plan owner, and all ${uxAuditOriginIds.length} final UX audit origins.`);
     if (stage.diagnostics.length) console.log(`Supported platform scope:\n${stage.diagnostics.map(value => `- ${value}`).join("\n")}`);
     if (stage.warnings.length) console.log(`Conservative Port-stage warnings:\n${stage.warnings.map(value => `- ${value}`).join("\n")}`);
+    console.log(`${config.active_release} readiness has ${readiness.unfinishedRequired.length} unfinished required outcomes and ${readiness.opportunistic.length} opportunistic outcomes.`);
     console.log(`Manual confirmation required because GitHub does not expose a reliable readable configuration API:\n${manualUiChecklist(config).join("\n")}`);
     return;
   }
@@ -1534,6 +1688,16 @@ async function main(argv) {
     console.log(items.map((item, index) => `${index + 1}. ${itemTitle(item)} | ${fieldValue(item, "Priority") ?? "None"} | ${fieldValue(item, "Horizon")} | ${fieldValue(item, "Status") ?? "Unassigned"}${itemUrl(item) ? ` | ${itemUrl(item)}` : ""}`).join("\n"));
     return;
   }
+  if (parsed.command === "readiness") {
+    const release = requiredOption(parsed.options, "--release");
+    const analysis = analyzeReleaseReadiness(
+      client.itemList(config.project.number, { includeDependencies: true }),
+      release,
+    );
+    console.log(renderReadinessSummary(analysis));
+    if (!analysis.ready) process.exitCode = 1;
+    return;
+  }
   if (parsed.command === "snapshot") {
     const release = requiredOption(parsed.options, "--release");
     const output = requiredOption(parsed.options, "--output");
@@ -1555,7 +1719,7 @@ async function main(argv) {
       generatedAt: new Date().toISOString(),
       commit,
       projectUrl: `https://github.com/users/${config.owner}/projects/${config.project.number}`,
-      items: client.itemList(config.project.number),
+      items: client.itemList(config.project.number, { includeDependencies: true }),
       catalog,
     });
     await writeFile(outputPath, document, { encoding: "utf8", flag: "wx" });

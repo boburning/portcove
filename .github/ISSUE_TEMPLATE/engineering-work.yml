@@ -34,14 +34,14 @@ body:
     id: acceptance
     attributes:
       label: Acceptance criteria
-      description: Use a concrete checklist with observable outcomes.
+      description: Use a concrete checklist naming each observation, scope, and environment. Name a human actor only when participation is intrinsic.
     validations:
       required: true
   - type: textarea
     id: tests
     attributes:
       label: Required tests and evidence
-      description: Name deterministic checks and any required human or physical-platform validation.
+      description: Name deterministic checks, isolated or packaged runs, physical-device evidence, and only intrinsically required human observations. Automation owns feasible routine validation.
     validations:
       required: true
   - type: textarea

@@ -10,6 +10,16 @@ the [Portcove Roadmap](https://github.com/users/boburning/projects/1).
 
 ## Product direction
 
+**North Star:** Make native game ports easy to discover, set up, and keep
+playing, without making players manage the quirks of every upstream project.
+
+Compatible additions and routine updates should flow through without
+proportional maintainer work. Automation handles ordinary work inside
+established authority; the owner handles direction and genuine exceptions.
+The intended experience is: “I choose a game, understand what files I need, use
+what I already have, get it running, and keep my setup usable when things
+change.”
+
 Portcove makes heterogeneous native ports feel like one coherent platform.
 Portcove Desktop is the flagship experience for discovery, setup, updates,
 everyday play, and controller use. Shared core services own each port's source,
@@ -25,6 +35,12 @@ safety invariants; require no cloud service, silent telemetry, or distributed
 copyrighted game data. Judge progress by successful play, dependable updates,
 useful discovery/customization, low-risk migration, and maintainable coverage.
 
+Portcove is not complete by reaching a fixed port count, covering every
+upstream, requiring personal gameplay of every entry, becoming a universal
+launcher/emulator or compatibility layer, hosting games or ROMs, mandating
+telemetry/cloud/accounts, operating a social network or unrestricted mod
+marketplace, or trusting runtime AI to execute arbitrary upstream instructions.
+
 Portcove maintains reusable capabilities and acceptance policies. Compatible
 new ports and routine upstream releases must eventually complete acceptance
 and delivery without personal playtesting or per-candidate owner approval.
@@ -34,6 +50,50 @@ entry belongs in the normal catalog with Install enabled when prerequisites
 pass. Missing evidence is unknown; a known failure limits the affected operation.
 The current runtime and format-1 delivery remain as documented in
 [Catalog policy](CATALOG.md) and [Signed catalog delivery](SIGNED-CATALOG.md).
+
+## Finite V1 outcome contract
+
+The cumulative V1 finish line has seven outcomes. Canonical issues own their
+executable details and evidence; this map is stable direction, not another live
+status checklist.
+
+1. **Unassisted first play:** #15 with #36–#39 and exact packaged qualification
+   in #242 covers discovery, source understanding, explicit local discovery or
+   selection, preparation, storage choice, installation, launch, and actionable
+   refusal within representative scope.
+2. **Safe ongoing management:** the core trust/recovery owners under #13 plus
+   #42 and #48 cover tested install, update, adoption, backup, restore, rollback,
+   removal, interruption, capacity, busy-session, and failed-update semantics.
+3. **A user-controlled library:** #37 and #38 own coherent default/per-game
+   destinations, safe copy versus authorized move, relocation, and currently
+   committed adoption/portability. Broad importer coverage in #249 is Post-V1.
+4. **A finished flagship experience:** #200 and its active UX owners cover
+   understandable setup, progress, errors, cancellation, interrupted recovery,
+   return from play, accessibility, and declared keyboard/mouse/controller use.
+5. **Production-ready distribution:** #46 and #52 own qualified packages and
+   understandable application upgrade/recovery for every claimed platform,
+   without conflating application updates with game updates.
+6. **One proven integration contract:** #14 and #243 prove one bounded real
+   reference frontend through the shared CLI/core lifecycle without copied
+   per-port rules; marketplace acceptance or multiple frontends are not gates.
+7. **A proven autonomous catalog path:** #245 and #246 prove one accepted scope
+   delivering a new compatible definition, its next routine artifact, and a safe
+   correction to an unchanged client through protected acceptance and exact
+   publication, with zero per-candidate owner actions after provisioning.
+
+The sequence remains Alpha 2 onboarding/storage outcomes; Alpha 3 bounded
+integration and scale; Beta 1 required V1 capabilities and feature completeness;
+Beta 2 qualification; RC exact artifacts and rehearsal; and V1 the cumulative
+support contract. Tests influence development before qualification. If feature
+development paused after V1, users could still set up, play, update, preserve
+progress, and recover while compatible routine catalog changes kept flowing.
+
+General autonomous engineering is separately owned by #284. It is a Post-V1
+extension, not a V1, Alpha 2, #243, or #246 dependency. Repository auto-merge
+capability and zero required approvals do not establish unattended operation;
+the trusted controller, least-privilege trigger, durable resume/evidence model,
+budgeting, separate review gate, and end-to-end refusal/recovery scenarios must
+exist and pass first.
 
 ## Alpha 1 — Trustworthy technical alpha
 
@@ -166,6 +226,39 @@ standalone-CLI self-updating are not V1 gates. See [Releasing](RELEASING.md).
 
 ## Post-V1 principles
 
+Initial value order is:
+
+1. **More coverage without proportional maintainer work** — #246, #177, #247,
+   #254, and #268. First prove one additional reusable family or one narrow
+   local-definition flow with exact identity, repeated completion, rejection,
+   recovery, budgets, and explicit local trust; stop before arbitrary scripts,
+   false official endorsement, or a broad feed network.
+2. **Discover what the user can actually play** — #251 with existing
+   identity/source discovery owners. First compare two implementations and
+   connect explicitly selected-file matches to readiness while keeping source
+   match, platform artifact, prerequisites, and observed gameplay distinct.
+3. **Bring existing libraries and preferred frontends along** — #249 and #243.
+   First adopt one declared launcher mapping through inspect, preview, consent,
+   duplicate detection, preservation, and recovery; stop before broad importer
+   promises, partnerships, or copied lifecycle logic.
+4. **Continue progress between PC and Steam Deck** — #252 before #253. First
+   prove manual export/import for one persistence family and declared
+   version/platform pair with identity-bound snapshots, conflicts, a pre-import
+   safety snapshot, and interrupted recovery; transport remains optional.
+5. **Customize safely and reversibly** — #40 where exact-version identity is
+   required, then #250. First prove one clean and one local customized profile,
+   including switching, disabling, removal, compatibility limits, and recovery;
+   no hosted mod marketplace or arbitrary execution authority is implied.
+6. **Reduce attention required by larger libraries** — #248. First prove that
+   suitable stages resume or safely restart without duplicate destructive work
+   or lost consent, reusing existing activity/cancellation/recovery and honoring
+   locks, sessions, pins, budgets, and recovery assets.
+
+These are ordered themes, not new epics, dated promises, or simultaneous
+commitments. Dependencies override display order. Keep them Opportunistic and
+outside the active Now/Next queue unless a narrow existing V1 prerequisite
+actually requires otherwise.
+
 Expand the bounded delivery path through local/community import, conservative
 partial management, scalable publisher onboarding and selective health checks.
 Review genuinely new authorities, capabilities and ownership boundaries; routine
@@ -191,3 +284,26 @@ Maintainer tooling should strengthen existing catalog intake and qualification.
 Demand, installation friction, reusable adapter coverage, maintenance cost, and
 upstream stability inform prioritization; optional upstream examples require no
 universal packaging standard. Actual order and targets remain in the Project.
+
+## Outcome measures
+
+Existing owners record lightweight measures with an explicit scope,
+denominator, evidence source, exclusions, and reporting location:
+
+- #15/#242/#255 record active user effort from game selection to first play,
+  excluding passive waits and separating automated evidence from usability
+  observation.
+- #46/#52 and game-update owners record successful return after application and
+  game updates separately.
+- #22/#48 and applicable lifecycle owners record recovery without manual file
+  repair or maintainer coaching and preservation of original sources, saves,
+  settings, and recoverable state.
+- #246/#247/#254 record owner interventions per eligible routine addition,
+  artifact update, and correction; zero-intervention completions; deduplicated
+  exceptions; repair attempts; latency/cost; and recovery outcomes. One-time
+  provisioning is separate from routine intervention.
+
+Do not invent baselines, adoption claims, or numeric targets without evidence,
+or require telemetry infrastructure to make these measures possible. Eligibility
+and exclusions stay visible. Preservation failures are failures, not an average
+to hide, and agent-job count is not a success measure.

@@ -15,15 +15,40 @@ Read `docs/ARCHITECTURE.md` before a structural or cross-layer change.
 ## Planning and issue workflow
 
 GitHub Projects is the sole live authority for current work, priority, horizon,
-status, blockers, deferred work, target release, and the new-port pipeline.
+status, blockers, deferred work, target release, release commitment, and the
+new-port pipeline. `Target release` is a forecast; `Release commitment` says
+whether the outcome is Required or Opportunistic for that target. Unset
+relevant work is unclassified, not silently optional.
 Before substantial work, read the linked issue, its dependencies, and its live
 Portcove Roadmap fields. If no durable issue exists for actionable work, create
 or promote one using the workflow in `docs/PROJECT-GOVERNANCE.md`.
 
 Move active work to In progress and evidence-ready work to Validating. Link the
 pull request to the issue and update Project state as implementation changes.
+Codex owns implementation, execution of acceptance checks, failure
+investigation, bounded repair, review, and exact evidence within the authorized
+scope. The normal path is implement, execute checks, investigate, repair,
+independently review, record evidence, and complete the authorized workflow.
+Do not ask the owner to repeat adequate automated checks. Acceptance specifies
+the observation, scope, and environment rather than naming a human actor unless
+human participation is intrinsic. Build the smallest reusable automation when
+practical; do not invent a large test platform before a bounded harness can
+establish the claim.
+
 Do not mark work Done until its acceptance criteria have matching test, CI, and
-required human or physical-platform evidence.
+intrinsically required human or physical-platform evidence. Keep deterministic,
+isolated integration, packaged execution, physical-device execution, and human
+observations distinct. A physical-device automated run is device evidence, not
+human gameplay or novice-comprehension evidence.
+
+Routine preauthorized work may use the normal PR and auto-merge path only after
+mandatory CI, an explicit separate review result, substantive finding repair,
+and current-revision/authority confirmation. Never use administrator bypass for
+the routine path. Changes to protected acceptance, merge authority, signing or
+publication permissions, credentials, or other meaningful boundaries require
+separate owner authorization. Candidate code cannot define, remove, or approve
+its own trusted gate, and privileged workflows must not execute untrusted
+candidate code or instructions.
 
 Do not create or maintain TODO documents, JSON work ledgers, mutable status
 files, milestone mirrors, or another planning authority. Repository docs own

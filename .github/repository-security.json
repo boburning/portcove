@@ -1,5 +1,6 @@
 {
   "schema_version": 1,
   "repository": "boburning/portcove",
-  "private_vulnerability_reporting": true
+  "private_vulnerability_reporting": true,
+  "allow_auto_merge": true
 }

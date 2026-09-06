@@ -60,14 +60,27 @@ node scripts/roadmap.mjs snapshot --release "Alpha 1" --output docs/releases/0.1
 ```
 
 Snapshots are cumulative: an Alpha 2 snapshot includes Alpha 1 and Alpha 2,
-and every later stage includes all earlier required stages. Only Project
-`Status = Done` counts as complete. The generator reports closed/not-planned
-issues whose Project status disagrees, and accepts evidence links only from the
-explicit Completion evidence section, implementation pull requests/checks, or
-qualification and rehearsal records.
+and every later stage includes all earlier Required outcomes. `Target release`
+is a forecast; `Release commitment` controls the gate. The generator follows
+genuine transitive blocking relationships and reports later, Opportunistic,
+unclassified, or Project-missing dependencies as conflicts. Parentage and
+related-work links do not block a release. Relevant unclassified work and known
+shipped-scope safety conflicts prevent a falsely green result, while unrelated
+unscheduled intake does not. Only Project `Status = Done` counts as complete.
+Use `roadmap.mjs readiness --release <stage>` for a live derived preview. The
+generator reports closed/not-planned issues whose Project status disagrees and
+accepts evidence links only from the explicit Completion evidence section,
+implementation pull requests/checks, or qualification and rehearsal records.
 
-Review and complete its test, CI, rehearsal, signing, human-validation, and
-explicit-limitation sections before committing it. The file records generation
+Codex and deterministic automation execute feasible validation, investigate
+failures, repair within scope, perform a separate review pass, and record exact
+evidence; the owner does not repeat adequate automated checks. Human participation
+is required only when intrinsic to the claim, such as novice comprehension or
+actual gameplay observation. A packaged process start, synthetic fixture, VM,
+or physical-device script proves only what it directly observed.
+
+Review and complete the snapshot's test, CI, rehearsal, signing, intrinsically
+human-validation, and explicit-limitation sections before committing it. The file records generation
 time, commit, Project URL, completed and unfinished required items, blockers,
 conscious deferrals, evidence links, and a qualification summary derived from
 `catalog.json`. Never edit an older snapshot to reflect a priority change;
@@ -85,8 +98,11 @@ change `C`. Any committed change after rehearsal requires a newly established
 candidate and repeated final checks. Historical snapshots retain their original
 SHA and never certify a newer commit. Project fields remain the live authority.
 
-Merge approval, authorization to create the exact tag at `C`, and approval to
-publish the verified tag-generated draft are separate boundaries. Before tagging,
+Normal merge authority, authorization to create the exact tag at `C`, and
+authorization to publish the verified tag-generated draft are separate
+boundaries. Routine merges use mandatory CI, an explicit separate review result,
+resolved threads, current revision/authority confirmation, and no administrator
+bypass. Tagging and publication remain explicit protected boundaries. Before tagging,
 re-read release immutability and effective tag protections described in
 [REPOSITORY-SETTINGS.md](REPOSITORY-SETTINGS.md). After tagging is authorized,
 inspect the tag build's own packages and checksums; rehearsal bytes do not

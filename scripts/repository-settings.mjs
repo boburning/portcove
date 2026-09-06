@@ -29,6 +29,9 @@ export function validateRepositorySettings(ruleset, security) {
   if (security.private_vulnerability_reporting !== true) {
     throw new Error("private vulnerability reporting must be enabled");
   }
+  if (security.allow_auto_merge !== true) {
+    throw new Error("repository auto-merge capability must be enabled");
+  }
   if (ruleset.name !== "Protect main" || ruleset.target !== "branch") {
     throw new Error("ruleset must target branches under the stable Protect main name");
   }
@@ -44,12 +47,14 @@ export function validateRepositorySettings(ruleset, security) {
   requiredRule(ruleset, "non_fast_forward");
   const pullRequest = requiredRule(ruleset, "pull_request").parameters;
   if (
-    pullRequest.required_approving_review_count < 1
+    pullRequest.required_approving_review_count !== 0
     || !pullRequest.dismiss_stale_reviews_on_push
-    || !pullRequest.require_last_push_approval
+    || pullRequest.require_last_push_approval
+    || pullRequest.require_code_owner_review
+    || pullRequest.require_extra_approval_for_unattributed_changes !== true
     || !pullRequest.required_review_thread_resolution
   ) {
-    throw new Error("pull requests must require a fresh approval and resolved review threads");
+    throw new Error("pull requests must require zero approvals, no last-push or CODEOWNERS approval, and resolved review threads");
   }
   const statusChecks = requiredRule(ruleset, "required_status_checks").parameters;
   const contexts = statusChecks.required_status_checks.map(check => check.context).sort();
@@ -77,8 +82,11 @@ export function projectRuleset(ruleset) {
             allowed_merge_methods: rule.parameters.allowed_merge_methods,
             dismiss_stale_reviews_on_push: rule.parameters.dismiss_stale_reviews_on_push,
             require_code_owner_review: rule.parameters.require_code_owner_review,
+            require_extra_approval_for_unattributed_changes:
+              rule.parameters.require_extra_approval_for_unattributed_changes,
             require_last_push_approval: rule.parameters.require_last_push_approval,
             required_approving_review_count: rule.parameters.required_approving_review_count,
+            required_reviewers: rule.parameters.required_reviewers ?? [],
             required_review_thread_resolution: rule.parameters.required_review_thread_resolution,
           },
         };
@@ -90,6 +98,7 @@ export function projectRuleset(ruleset) {
             do_not_enforce_on_create: rule.parameters.do_not_enforce_on_create,
             required_status_checks: rule.parameters.required_status_checks.map(check => ({
               context: check.context,
+              ...(Number.isInteger(check.integration_id) ? { integration_id: check.integration_id } : {}),
             })),
             strict_required_status_checks_policy: rule.parameters.strict_required_status_checks_policy,
           },
@@ -100,21 +109,83 @@ export function projectRuleset(ruleset) {
   };
 }
 
-export function repositoryApplyPlan(rulesets, securityStatus, desiredRuleset) {
-  const existing = rulesets.find(
-    ruleset => ruleset.name === desiredRuleset.name && ruleset.target === desiredRuleset.target,
+const authorizedReviewChanges = [
+  "required_approving_review_count",
+  "require_last_push_approval",
+  "require_code_owner_review",
+];
+
+function assertExactKeys(value, expected, label) {
+  const actual = Object.keys(value ?? {}).sort();
+  const wanted = [...expected].sort();
+  if (!isDeepStrictEqual(actual, wanted)) {
+    throw new Error(`${label} has unexpected parameters; refusing the bounded migration`);
+  }
+}
+
+export function rulesetMigration(actualRuleset, desiredRuleset) {
+  if (!actualRuleset) throw new Error("Protect main ruleset is not configured; refusing to create replacement protection");
+  const actualPullRequestRule = requiredRule(actualRuleset, "pull_request");
+  const desiredPullRequestRule = requiredRule(desiredRuleset, "pull_request");
+  assertExactKeys(
+    actualPullRequestRule.parameters,
+    Object.keys(desiredPullRequestRule.parameters),
+    "Protect main pull-request rule",
   );
+  const actualStatusRule = requiredRule(actualRuleset, "required_status_checks");
+  const desiredStatusRule = requiredRule(desiredRuleset, "required_status_checks");
+  assertExactKeys(
+    actualStatusRule.parameters,
+    Object.keys(desiredStatusRule.parameters),
+    "Protect main status-check rule",
+  );
+  for (const check of actualStatusRule.parameters.required_status_checks ?? []) {
+    const keys = Number.isInteger(check.integration_id) ? ["context", "integration_id"] : ["context"];
+    assertExactKeys(check, keys, `Protect main status check ${check.context ?? "<unnamed>"}`);
+  }
+  const payload = projectRuleset(actualRuleset);
+  const actualPullRequest = requiredRule(payload, "pull_request").parameters;
+  const desiredPullRequest = requiredRule(desiredRuleset, "pull_request").parameters;
+  const changes = [];
+  for (const name of authorizedReviewChanges) {
+    if (actualPullRequest[name] !== desiredPullRequest[name]) {
+      changes.push({ path: `pull_request.${name}`, from: actualPullRequest[name], to: desiredPullRequest[name] });
+      actualPullRequest[name] = desiredPullRequest[name];
+    }
+  }
+  if (!isDeepStrictEqual(payload, desiredRuleset)) {
+    throw new Error("Protect main has unexpected out-of-scope drift; refusing the bounded migration");
+  }
+  return { payload, changes };
+}
+
+export function repositoryApplyPlan({
+  rulesets,
+  actualRuleset,
+  securityStatus,
+  repositoryStatus,
+  desiredRuleset,
+  desiredAutoMerge,
+}) {
+  const existing = rulesets.find(ruleset =>
+    ruleset.name === desiredRuleset.name && ruleset.target === desiredRuleset.target);
+  if (!existing) throw new Error("Protect main ruleset is not configured; refusing to create replacement protection");
+  if (actualRuleset?.id !== undefined && actualRuleset.id !== existing.id) {
+    throw new Error("Protect main ruleset identity changed during inspection; refusing the bounded migration");
+  }
+  const migration = rulesetMigration(actualRuleset, desiredRuleset);
   return {
-    rulesetMethod: existing ? "PUT" : "POST",
-    rulesetEndpoint: existing
-      ? `rulesets/${existing.id}`
-      : "rulesets",
+    rulesetEndpoint: `rulesets/${existing.id}`,
+    rulesetPayload: migration.payload,
+    rulesetChanges: migration.changes,
     enablePrivateReporting: securityStatus.enabled !== true,
+    enableAutoMerge: repositoryStatus.allow_auto_merge !== desiredAutoMerge,
   };
 }
 
 function gh(repo, args, input) {
-  const command = ["api", `repos/${repo}/${args.endpoint}`, "--method", args.method];
+  const endpoint = args.endpoint ? `repos/${repo}/${args.endpoint}` : `repos/${repo}`;
+  const command = ["api", endpoint, "--method", args.method];
   if (input !== undefined) command.push("--input", "-");
   const result = spawnSync("gh", command, {
     cwd: projectRoot,
@@ -138,8 +209,8 @@ async function loadDesired() {
 
 async function main(argv) {
   const mode = argv[0] ?? "--validate";
-  if (!["--validate", "--check", "--apply"].includes(mode) || argv.length > 1) {
-    throw new Error("usage: node scripts/repository-settings.mjs [--validate|--check|--apply]");
+  if (!["--validate", "--plan", "--check", "--apply"].includes(mode) || argv.length > 1) {
+    throw new Error("usage: node scripts/repository-settings.mjs [--validate|--plan|--check|--apply]");
   }
   const { ruleset, security } = await loadDesired();
   if (mode === "--validate") {
@@ -149,24 +220,54 @@ async function main(argv) {
   const repo = security.repository;
   let summaries = gh(repo, { endpoint: "rulesets", method: "GET" });
   let securityStatus = gh(repo, { endpoint: "private-vulnerability-reporting", method: "GET" });
-  let plan = repositoryApplyPlan(summaries, securityStatus, ruleset);
+  let repositoryStatus = gh(repo, { endpoint: "", method: "GET" });
+  let summary = summaries.find(item => item.name === ruleset.name && item.target === ruleset.target);
+  if (!summary) throw new Error("Protect main ruleset is not configured");
+  let actual = gh(repo, { endpoint: `rulesets/${summary.id}`, method: "GET" });
+  const plan = repositoryApplyPlan({
+    rulesets: summaries,
+    actualRuleset: actual,
+    securityStatus,
+    repositoryStatus,
+    desiredRuleset: ruleset,
+    desiredAutoMerge: security.allow_auto_merge,
+  });
+  if (mode === "--plan") {
+    console.log(JSON.stringify({
+      ruleset: plan.rulesetChanges,
+      repository: plan.enableAutoMerge
+        ? [{ path: "allow_auto_merge", from: repositoryStatus.allow_auto_merge, to: security.allow_auto_merge }]
+        : [],
+      privateVulnerabilityReporting: plan.enablePrivateReporting
+        ? [{ path: "private_vulnerability_reporting", from: false, to: true }]
+        : [],
+    }, null, 2));
+    return;
+  }
   if (mode === "--apply") {
-    gh(repo, { endpoint: plan.rulesetEndpoint, method: plan.rulesetMethod }, ruleset);
+    if (plan.rulesetChanges.length) {
+      gh(repo, { endpoint: plan.rulesetEndpoint, method: "PUT" }, plan.rulesetPayload);
+    }
+    if (plan.enableAutoMerge) {
+      gh(repo, { endpoint: "", method: "PATCH" }, { allow_auto_merge: security.allow_auto_merge });
+    }
     if (plan.enablePrivateReporting) {
       gh(repo, { endpoint: "private-vulnerability-reporting", method: "PUT" });
     }
     summaries = gh(repo, { endpoint: "rulesets", method: "GET" });
     securityStatus = gh(repo, { endpoint: "private-vulnerability-reporting", method: "GET" });
-    plan = repositoryApplyPlan(summaries, securityStatus, ruleset);
+    repositoryStatus = gh(repo, { endpoint: "", method: "GET" });
+    summary = summaries.find(item => item.name === ruleset.name && item.target === ruleset.target);
+    if (!summary) throw new Error("Protect main ruleset disappeared during application");
+    actual = gh(repo, { endpoint: `rulesets/${summary.id}`, method: "GET" });
   }
-  const summary = summaries.find(item => item.name === ruleset.name && item.target === ruleset.target);
-  if (!summary) throw new Error("Protect main ruleset is not configured");
-  const actual = gh(repo, { endpoint: `rulesets/${summary.id}`, method: "GET" });
   if (!isDeepStrictEqual(projectRuleset(actual), projectRuleset(ruleset))) {
     throw new Error("Protect main ruleset differs from .github/repository-ruleset.json");
   }
   if (securityStatus.enabled !== true) throw new Error("private vulnerability reporting is not enabled");
-  if (plan.enablePrivateReporting) throw new Error("private vulnerability reporting still requires application");
+  if (repositoryStatus.allow_auto_merge !== security.allow_auto_merge) {
+    throw new Error("repository auto-merge capability differs from .github/repository-security.json");
+  }
   console.log(`Repository settings match the checked-in contract for ${repo}.`);
 }
 
