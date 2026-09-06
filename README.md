@@ -130,11 +130,11 @@ portcove --json check --all
 portcove --jsonl reconcile lighthouse
 ```
 
-Set `PORTCOVE_LIBRARY` or pass `--library <path>` to use a specific library root. The CLI is designed for scripts and external frontends; it does not require the desktop app. The complete integration contract is documented in [docs/CLI.md](docs/CLI.md).
+Set `PORTCOVE_LIBRARY` or pass `--library <path>` to use a specific library root. The CLI is designed for scripts and external frontends; it does not require the desktop app. Current machine behavior is documented in [docs/CLI.md](docs/CLI.md), and the capability, ownership, and frontend-support model is documented in [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md).
 
 ## Documentation and contributing
 
-Start with the [documentation map](docs/README.md). Deeper references cover the [architecture](docs/ARCHITECTURE.md), [catalog policy](docs/CATALOG.md), [CLI contract](docs/CLI.md), [release stages](docs/ROADMAP.md), and [security policy](SECURITY.md).
+Start with the [documentation map](docs/README.md). Deeper references cover the [architecture](docs/ARCHITECTURE.md), [catalog policy](docs/CATALOG.md), [CLI contract](docs/CLI.md), [external frontend integration](docs/INTEGRATIONS.md), [release stages](docs/ROADMAP.md), and [security policy](SECURITY.md).
 
 Check the [live roadmap](https://github.com/users/boburning/projects/1) and existing issues before starting work. New ports should normally be added as catalog data or through a reusable family-level adapter rather than one-off behavior in the CLI or desktop app. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
 

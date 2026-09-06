@@ -14,6 +14,24 @@ After changing them, run Cargo once so the three workspace package entries in `C
 
 `scripts/check-release-metadata.mjs` verifies those versions, the tag, package manager pin, repository/license metadata, Tauri identity, and the required master/runtime/platform brand assets. Local packaging derives its default version from that check and rejects an explicit mismatch.
 
+## Standalone CLI integration artifact
+
+Every released external-client claim points to an exact standalone CLI archive,
+its platform SHA-256 manifest, declared host prerequisites, and the applicable
+CLI/schema compatibility documentation. The release matrix already produces
+separate Windows, Linux, Intel macOS, and Apple-silicon macOS CLI archives; an
+integrator need not compile Portcove or install/run the desktop application.
+Artifact presence is not platform or frontend qualification, and the current
+alpha signing and hands-on limits still apply.
+
+[#46](https://github.com/boburning/portcove/issues/46) remains the package,
+checksum, signing, and exact-artifact qualification owner. #30 owns the public
+machine contract and compatibility policy, while #243 owns the independent
+consumer exercise. A development exercise may use one exactly identified
+packaged candidate to avoid a release dependency cycle, but final author
+guidance must point to an available public release and may not describe the
+candidate as released.
+
 ## Windows preflight
 
 From the repository root, run the complete local gate before creating a tag:

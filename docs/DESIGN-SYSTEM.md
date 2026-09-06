@@ -39,6 +39,29 @@ Portcove should feel like development software from an alternate 1997 console st
 
 GUI labels should match the CLI concepts. A GUI action that external tools may automate should expose its canonical `portcove` command where practical.
 
+When a general product explanation is useful, prefer: “Portcove handles
+installation, updates, and saves for native game ports. Use its desktop app, or
+connect another launcher through the command-line interface.” Use named projects
+only where instructions and scoped status make the name useful.
+
+The game-detail command card must describe the command it actually generated,
+not advertise a list of launchers. For an installed game, the planned copy is
+heading **Launch from another app**, help “Use this command in a launcher that
+supports custom commands. Portcove will start this game without opening the
+desktop app.”, and action/accessibility label **Copy launch command**. For an
+uninstalled game, it is heading **Set up from the command line**, help “Use this
+command to set up this port from a terminal or script.”, and
+action/accessibility label **Copy setup command**.
+
+[#206](https://github.com/boburning/portcove/issues/206) owns that planned
+runtime change. Use the wording only when the generated command and its
+prerequisites make it truthful. A command containing placeholders is a template,
+not ready-to-run. The implementation must also cover executable discovery,
+explicit effective-library selection, spaces, Unicode, escaping, unavailable
+tooling, and the distinction between a shell command and separate launcher
+executable/argument fields. This documentation does not claim the current UI has
+already changed.
+
 ## Shell and navigation
 
 The stable desktop shell consists of primary port navigation, a scrollable workspace, contextual port details, and a predictable operation/error layer. Pages do not invent unrelated chrome. `Ctrl/Cmd+1–4` changes primary views, `/` focuses port search, and `Ctrl/Cmd+K` opens the command palette. Workspace shortcuts stay inactive behind a dialog.

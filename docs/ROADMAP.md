@@ -28,6 +28,17 @@ frontend can integrate once. Desktop application updating belongs at its host
 boundary. Absorbing ecosystem complexity does not mean translating operating
 system APIs or supplying builds that upstream does not provide.
 
+Portcove is a complete native-port manager with a dependable public CLI. Other
+applications should integrate once with Portcove instead of learning how to
+manage each individual port. CLI-first interoperability does not make Desktop
+secondary or require players to use a terminal. Portcove maintains the core,
+public contract, author documentation, conformance fixtures, and one bounded
+real reference client. Additional applications may integrate independently;
+Portcove does not promise a first-party plugin for every launcher. Community
+participation, partnerships, marketplace approval, integration count, and
+adoption are not release gates. See
+[External frontend integration](INTEGRATIONS.md).
+
 Prefer policy-accepted catalog data and reusable adapters that minimize upstream work.
 Upstream metadata and tooling are optional aids, not blanket admission rules.
 Preserve local-first use, optional accounts, honest qualification, and all
@@ -73,9 +84,11 @@ status checklist.
 5. **Production-ready distribution:** #46 and #52 own qualified packages and
    understandable application upgrade/recovery for every claimed platform,
    without conflating application updates with game updates.
-6. **One proven integration contract:** #14 and #243 prove one bounded real
-   reference frontend through the shared CLI/core lifecycle without copied
-   per-port rules; marketplace acceptance or multiple frontends are not gates.
+6. **One independently consumable integration contract:** #14, #30, and #243
+   provide a documented, tested public CLI plus one bounded real lifecycle
+   reference and fresh-workspace consumer exercise without private knowledge or
+   copied per-port rules. Multiple frontends, organic adoption, marketplace
+   acceptance, automatic Steam entries, and Decky are not gates.
 7. **A proven autonomous catalog path:** #245 and #246 prove one accepted scope
    delivering a new compatible definition, its next routine artifact, and a safe
    correction to an unchanged client through protected acceptance and exact
@@ -140,8 +153,13 @@ internal boundary work justified by proven transaction seams. Prove the shared
 machine contract through one bounded real reference client: catalog/installed
 discovery, prerequisites/readiness, install/update progress, actionable errors,
 supervised launch, and recovery without copied per-port rules. Stable identities
-and supported launch entry points must survive game updates. External marketplace
-acceptance, partnerships, or third-party adoption are not release gates.
+and supported launch entry points must survive game updates. Complete a compact
+integration-author path with tested schemas/examples, conformance fixtures and
+redistributable synthetic assets. A fresh client workspace must consume only a
+released CLI artifact and public material; an exactly identified packaged
+candidate may stand in during development, with that limitation disclosed.
+External marketplace acceptance, partnerships, third-party adoption, and an
+integration count are not release gates.
 
 Complete the planned Windows desktop updater feature work before the V1 feature
 freeze, after trust and onboarding priorities. Exact historical game-release
@@ -152,7 +170,12 @@ pinning and reproducible profiles remain independent of required onboarding.
 All required V1 capabilities are present. Feature scope freezes except for
 blocker-driven changes. The initial Steam Deck baseline qualification target is
 Beta 1; qualification determines whether ordinary Linux packaging is sufficient
-rather than assuming a separate build.
+rather than assuming a separate build. #290 adds a required documented
+plugin-free Steam route for Portcove itself and individual already-installed
+games, coordinated with #51's packaging, controller, Gamescope, storage, and
+physical-evidence owners. Desktop Steam and Steam Deck evidence remain separate.
+Automatic entry management in #292 and a Decky client in #293 are optional
+Post-V1 work, not prerequisites.
 
 The minimum sustainable catalog path is a required V1 capability: an existing
 adapter and scoped accepted upstream deliver a new untested definition to a
@@ -184,14 +207,16 @@ affect design; beta records completion evidence for controller-first operation,
 Desktop handoff, Gamescope focus/process behavior, suspend/interruption recovery,
 removable storage, and return from a game. Hardware and human observations remain
 unverified until performed. Automatic per-game Steam shortcut management is a
-separate optional feature.
+separate optional feature. The baseline must work with Decky absent and remain
+usable when an optional plugin is disabled, removed, broken, or incompatible.
 
 ## Beta 2 — Qualification beta
 
 Physical platform, controller, representative-port, installer, migration,
 backup/restore, and user-experience qualification is substantially complete.
 
-Qualify the Windows upgrade mechanism and the reference-client outcome. Required
+Qualify the Windows upgrade mechanism, reference-client outcome, and claimed
+plugin-free Steam/Steam Deck launch environments. Required
 migration safety means core adoption, backup/restore, and schema migration;
 experimental imports from other launchers and broad importer coverage are
 separate. Voluntary comparative sessions may inform development, but recruitment,
@@ -224,6 +249,13 @@ blocker and explicit reviewed scope/Project-target decision. Manual upgrading
 does not complete an in-app updater ticket. All-platform automatic updating and
 standalone-CLI self-updating are not V1 gates. See [Releasing](RELEASING.md).
 
+The public interface at V1 is documented, tested, independently consumable, and
+proven by one real reference client. V1 does not require a universal frontend
+list, a community-contribution or adoption quota, a plugin matrix, automatic
+Steam entry management, or Decky. Launch-only, library, and lifecycle claims
+remain distinct, as do planned, implemented, automated-tested,
+frontend-tested, and physically qualified evidence.
+
 ## Post-V1 principles
 
 Initial value order is:
@@ -237,10 +269,13 @@ Initial value order is:
    identity/source discovery owners. First compare two implementations and
    connect explicitly selected-file matches to readiness while keeping source
    match, platform artifact, prerequisites, and observed gameplay distinct.
-3. **Bring existing libraries and preferred frontends along** — #249 and #243.
-   First adopt one declared launcher mapping through inspect, preview, consent,
-   duplicate detection, preservation, and recovery; stop before broad importer
-   promises, partnerships, or copied lifecycle logic.
+3. **Bring existing libraries and preferred frontends along** — first #291's
+   reusable ES-DE export profile, then #292's safe Steam-entry evaluation and
+   demand-led Windows/environment profiles; #249 remains the bounded existing-
+   library importer. #293 is a separate optional/community Decky opportunity.
+   Use inspect/preview, consent, stable ownership, duplicate prevention,
+   preservation, scoped cleanup, and recovery; stop before broad promises,
+   partnerships, a plugin per launcher, or copied lifecycle logic.
 4. **Continue progress between PC and Steam Deck** — #252 before #253. First
    prove manual export/import for one persistence family and declared
    version/platform pair with identity-bound snapshots, conflicts, a pre-import

@@ -2,6 +2,15 @@
 
 Keep the core reusable, the catalog declarative, and the CLI stable for external frontends. Avoid game-specific branches in the CLI or React app; add catalog metadata or a family-level adapter instead.
 
+External clients integrate through the supported CLI rather than Portcove's
+database, private Rust APIs, or desktop state. Before proposing a frontend,
+exporter, or plugin, read [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md), identify
+the recurring problem that remains after the generic CLI route, and state its
+capability level, maintenance owner/category, supported environments, evidence,
+and limitations. A reference example is not automatically a supported
+production plugin, and frontend availability does not expand Portcove's platform
+support.
+
 ## Start with the roadmap
 
 Search the public [Portcove Roadmap](https://github.com/users/boburning/projects/1)

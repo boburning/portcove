@@ -1,17 +1,17 @@
 # Architecture
 
-Portcove currently has one authority for catalog, source, release, installation, and launch behavior: `portcove-core`. The CLI and Tauri backend are thin adapters around it. The React frontend invokes Tauri commands and never owns installation state.
+Portcove currently has one authority for catalog, source, release, installation, update, rollback, persistence, recovery, and launch behavior: `portcove-core`. The CLI and Tauri backend are thin adapters around it. The React frontend invokes Tauri commands and never owns installation state. External frontends use the public CLI and own only their presentation and platform-facing translation; they do not become another game-management authority.
 
 ```text
-Playnite / LaunchBox / RetroBat / EmuDeck / scripts
-                         │ JSON, JSONL, exit codes
-                         ▼
-                    portcove CLI
-                         │
+External frontend / launcher / script
+       │ JSON, JSONL, exit codes; raw supervised exec
+       ▼
+  portcove CLI
+       │
 React UI ── Tauri IPC ───┤
                          ▼
                   portcove-core
-       catalog ─ releases ─ adapters ─ installer
+ catalog ─ sources ─ releases ─ lifecycle ─ launch
                          │
                  SQLite + library tree
 ```
@@ -23,6 +23,16 @@ This document records the architecture Portcove tests today; it is not a promise
 Make such changes as one reviewed migration: explain the pressure and tradeoffs here, assign one owner to every durable state transition, update `scripts/check-rust-architecture.mjs` and its tests, and remove the superseded route. Safety invariants, machine-readable CLI compatibility, and rollback behavior remain hard constraints. File size, a complexity score, or a desire to make a tool green is not sufficient evidence by itself.
 
 In this document, “thin adapter” means that the CLI and desktop do not reimplement catalog, installation, release, source, or library policy. Adapters may own concerns that exist only at their boundary, including argument and IPC translation, native dialogs, credential-store access, process attachment, and presentation-shaped aggregation. If a boundary concern becomes reusable domain behavior, move it behind the shared authority instead of copying it.
+
+The same rule applies to third-party clients. A launch-only integration may
+translate a stable Portcove/library identity into its frontend's executable and
+argument fields. A library integration may map supported metadata. A lifecycle
+integration may present Portcove readiness, progress, errors, cancellation, and
+recovery. None may read SQLite, duplicate catalog/admission rules, derive durable
+identity from display names or mutable paths, or retain a parallel operation
+database. `exec` deliberately transfers its standard streams and final process
+status to the game; structured management calls and durable core activity remain
+the observation path around it. See [External frontend integration](INTEGRATIONS.md).
 
 ## Library model
 
