@@ -325,6 +325,7 @@ describe("desktop components", () => {
       port_id: port.id, channel: "stable", platform: "windows-x86-64", action: "download", source_requirements: [], download_bytes: 64 * 1024 ** 2,
       release: { version: "2.0", channel: "stable", asset: { name: "sample.zip", url: "https://example.com/sample.zip", size: 64 * 1024 ** 2, sha256: "a".repeat(64) } },
       storage: { library_root: "E:/Portcove", volume_total_bytes: 1024 ** 4, volume_available_bytes: 512 * 1024 ** 3 },
+      output_location: { port_id: port.id, library_root: "E:/Portcove", default_output_directory: "E:/Portcove/versions/sample", effective_output_directory: "E:/Portcove/versions/sample", selection_source: "library_default", user_data_root: "E:/Portcove/user/sample" },
     }} />);
     expect(html).toContain("INSTALL PLAN");
     expect(html).toContain("2.0");

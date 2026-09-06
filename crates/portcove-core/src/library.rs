@@ -852,6 +852,41 @@ impl Library {
         Ok(())
     }
 
+    pub(crate) fn output_directory(&self, port_id: &str) -> Result<Option<PathBuf>> {
+        Ok(self
+            .connection()?
+            .query_row(
+                "SELECT output_directory FROM port_settings WHERE port_id=?1",
+                [port_id],
+                |row| row.get::<_, Option<String>>(0),
+            )
+            .optional()?
+            .flatten()
+            .map(PathBuf::from))
+    }
+
+    pub(crate) fn set_output_directory(
+        &self,
+        port_id: &str,
+        output_directory: Option<&Path>,
+        default_channel: ReleaseChannel,
+    ) -> Result<()> {
+        let output_directory = output_directory
+            .map(|path| crate::path::normalized_absolute(path, "port output directory"))
+            .transpose()?;
+        let output_directory = output_directory
+            .as_deref()
+            .map(|path| crate::path::unicode(path, "port output directory"))
+            .transpose()?;
+        self.connection()?.execute(
+            "INSERT INTO port_settings(port_id, channel, update_policy, output_directory)
+             VALUES (?1, ?2, 'notify', ?3)
+             ON CONFLICT(port_id) DO UPDATE SET output_directory=excluded.output_directory",
+            params![port_id, default_channel.to_string(), output_directory],
+        )?;
+        Ok(())
+    }
+
     pub(crate) fn write_install(
         connection: &Connection,
         install: &InstallRecord,

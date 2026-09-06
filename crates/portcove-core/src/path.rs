@@ -66,6 +66,16 @@ pub(crate) fn resolve_existing_ancestor(path: &Path) -> Result<std::path::PathBu
     Ok(resolved)
 }
 
+pub(crate) fn normalized_absolute(path: &Path, role: &str) -> Result<std::path::PathBuf> {
+    if path.as_os_str().is_empty() {
+        return Err(PortcoveError::usage(format!("{role} cannot be empty")));
+    }
+    unicode(path, role)?;
+    let resolved = resolve_existing_ancestor(&std::path::absolute(path)?)?;
+    unicode(&resolved, role)?;
+    Ok(resolved)
+}
+
 /// V1's durable and child-process contracts use Unicode strings on every host.
 /// Reject an unrepresentable path at the boundary instead of storing or passing
 /// a lossy alias that cannot identify the original filesystem object.

@@ -901,6 +901,26 @@ pub struct InstallPlan {
     pub action: InstallPlanAction,
     pub source_requirements: Vec<InstallSourceRequirement>,
     pub storage: StorageSummary,
+    pub output_location: PortOutputLocation,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum OutputLocationSource {
+    RequestOverride,
+    PortSetting,
+    LibraryDefault,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct PortOutputLocation {
+    pub port_id: String,
+    pub library_root: PathBuf,
+    pub default_output_directory: PathBuf,
+    pub configured_output_directory: Option<PathBuf>,
+    pub effective_output_directory: PathBuf,
+    pub selection_source: OutputLocationSource,
+    pub user_data_root: PathBuf,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -911,6 +931,7 @@ pub struct PortPaths {
     pub active_install_root: Option<PathBuf>,
     pub previous_install_root: Option<PathBuf>,
     pub staged_install_root: Option<PathBuf>,
+    pub output_location: PortOutputLocation,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

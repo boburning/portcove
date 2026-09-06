@@ -196,6 +196,14 @@ pub(crate) fn validate_metadata(metadata: &LibraryMetadata, catalog: &Catalog) -
     let mut settings = BTreeSet::new();
     for setting in &metadata.port_settings {
         catalog.port(&setting.port_id)?;
+        if let Some(path) = setting.output_directory.as_deref() {
+            crate::path::unicode(path, "port output directory")?;
+            if !path.is_absolute() {
+                return Err(PortcoveError::verification(
+                    "metadata contains a non-absolute port output directory",
+                ));
+            }
+        }
         if !settings.insert(&setting.port_id)
             || (setting.active_install_id.is_some()
                 && setting.active_install_id == setting.previous_install_id)

@@ -96,4 +96,4 @@ pub use source_inspection::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 21;
+pub const API_SCHEMA_VERSION: u32 = 22;

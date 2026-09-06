@@ -3,8 +3,8 @@ use std::path::Path;
 use portcove_core::{
     ActivityRecord, BackupInventory, BackupInventoryState, BackupProblemKind, CapabilityDocument,
     DoctorReport, GithubAuthSource, GithubAuthStatus, HostToolSource, HostToolState, InstallPlan,
-    InstallPlanAction, LaunchBlocker, Platform, PortDefinition, PortPaths, PortStatus,
-    RepairItemKind, SourceRecord, SourceRequirementRole, StorageSummary, SupportTier,
+    InstallPlanAction, LaunchBlocker, OutputLocationSource, Platform, PortDefinition, PortPaths,
+    PortStatus, RepairItemKind, SourceRecord, SourceRequirementRole, StorageSummary, SupportTier,
 };
 use serde::Serialize;
 use serde_json::Value;
@@ -346,7 +346,7 @@ pub(crate) fn plan(plan: &InstallPlan) -> String {
         },
     );
     format!(
-        "Install plan for {}\nAction: {}\nChannel: {}\nPlatform: {}\nRelease: {}\nAsset: {} ({})\nBundled runtime: {}\nTotal download: {}\nSources: {}\nAvailable storage: {}",
+        "Install plan for {}\nAction: {}\nChannel: {}\nPlatform: {}\nRelease: {}\nAsset: {} ({})\nBundled runtime: {}\nTotal download: {}\nSources: {}\nOutput folder: {} ({})\nAvailable library storage: {}",
         clean(&plan.port_id),
         install_action(plan.action),
         plan.channel,
@@ -357,20 +357,44 @@ pub(crate) fn plan(plan: &InstallPlan) -> String {
         runtime,
         format_bytes(plan.download_bytes),
         requirements,
+        clean(
+            &plan
+                .output_location
+                .effective_output_directory
+                .display()
+                .to_string()
+        ),
+        output_location_source(plan.output_location.selection_source),
         format_bytes(plan.storage.volume_available_bytes),
     )
 }
 
 pub(crate) fn paths(paths: &PortPaths) -> String {
     format!(
-        "Paths for {}\nLibrary: {}\nPersistent data: {}\nActive: {}\nPrevious: {}\nStaged: {}",
+        "Paths for {}\nLibrary: {}\nPersistent data: {}\nFuture install folder: {} ({})\nActive: {}\nPrevious: {}\nStaged: {}",
         clean(&paths.port_id),
         clean(&paths.library_root.display().to_string()),
         clean(&paths.user_data_root.display().to_string()),
+        clean(
+            &paths
+                .output_location
+                .effective_output_directory
+                .display()
+                .to_string()
+        ),
+        output_location_source(paths.output_location.selection_source),
         optional_path(paths.active_install_root.as_deref()),
         optional_path(paths.previous_install_root.as_deref()),
         optional_path(paths.staged_install_root.as_deref()),
     )
+}
+
+fn output_location_source(source: OutputLocationSource) -> &'static str {
+    match source {
+        OutputLocationSource::RequestOverride => "this request",
+        OutputLocationSource::PortSetting => "saved for this game",
+        OutputLocationSource::LibraryDefault => "library default",
+    }
 }
 
 pub(crate) fn capabilities(capabilities: &CapabilityDocument) -> String {

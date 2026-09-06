@@ -49,6 +49,9 @@ fn fixture(root: &Path, export: &Path) -> LibraryMetadata {
     library.record_successful_launch("starship").unwrap();
     let service = PortcoveService::new(library).unwrap();
     service.create_backup("starship").unwrap();
+    service
+        .set_output_directory("starship", &root.with_extension("starship-output"))
+        .unwrap();
     service.write_library_metadata(export).unwrap();
     service.export_library_metadata().unwrap()
 }
@@ -76,6 +79,10 @@ fn import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empt
     assert_eq!(status.active.unwrap().id, "active");
     assert_eq!(status.previous.unwrap().id, "old");
     assert_eq!(status.staged.unwrap().id, "staged");
+    assert_eq!(
+        restored.output_directory("starship").unwrap(),
+        expected.port_settings[0].output_directory
+    );
     assert_eq!(
         restored.activities(1).unwrap()[0].status,
         ActivityStatus::Succeeded
