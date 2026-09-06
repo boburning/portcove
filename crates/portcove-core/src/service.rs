@@ -20,11 +20,12 @@ use crate::{
     InstallQualification, InstallRecord, InstallRequest, InstallSourceRequirement, Installer,
     LaunchBlocker, LaunchReadiness, LaunchSessionOutcome, LaunchSessionPhase, LaunchSessionRecord,
     LaunchStdio, Library, OperationCoordinator, OperationEvent, OperationResult,
-    OutputLocationSource, Platform, PortDefinition, PortOutputLocation, PortPaths, PortStatus,
-    PortcoveError, ReconcileAction, ReconcileResult, ReleaseChannel, ReleaseProvider, RepairItem,
-    RepairItemKind, RepairPlan, ResolvedRelease, RestoreResult, Result, SourceHealth, SourceKind,
-    SourceRecord, SourceRemovalPreview, SourceRequirementRole, SourceVerification,
-    SupervisedLaunchOutcome, UpdateCheck, UpdatePolicy, VerificationReport,
+    OutputAffectedInstall, OutputDestinationPreview, OutputLocationSource, Platform,
+    PortDefinition, PortOutputLocation, PortPaths, PortStatus, PortcoveError, ReconcileAction,
+    ReconcileResult, ReleaseChannel, ReleaseProvider, RepairItem, RepairItemKind, RepairPlan,
+    ResolvedRelease, RestoreResult, Result, SourceHealth, SourceKind, SourceRecord,
+    SourceRemovalPreview, SourceRequirementRole, SourceVerification, SupervisedLaunchOutcome,
+    UpdateCheck, UpdatePolicy, VerificationReport,
     durability::{prepare_backup_publication, publish_backup_directory},
     operation::{
         LifecycleFaultInjector, LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind,
@@ -628,6 +629,11 @@ impl PortcoveService {
         self.catalog.port(port_id)?;
         let configured_output_directory = self.library.output_directory(port_id)?;
         let default_output_directory = self.library.versions_dir().join(port_id);
+        if request_override.is_some_and(|path| !path.is_absolute()) {
+            return Err(PortcoveError::usage(
+                "port output directory must be an absolute path",
+            ));
+        }
         let request_override = request_override
             .map(|path| crate::path::normalized_absolute(path, "port output directory"))
             .transpose()?;
@@ -659,7 +665,152 @@ impl PortcoveService {
         })
     }
 
-    pub fn set_output_directory(
+    pub fn preview_output_directory(
+        &self,
+        port_id: &str,
+        output_directory: Option<&Path>,
+    ) -> Result<OutputDestinationPreview> {
+        let current = self.output_location(port_id, None)?;
+        let proposed = match output_directory {
+            Some(path) => self.preview_output_location(port_id, path)?,
+            None => PortOutputLocation {
+                port_id: current.port_id.clone(),
+                library_root: current.library_root.clone(),
+                default_output_directory: current.default_output_directory.clone(),
+                configured_output_directory: None,
+                effective_output_directory: current.default_output_directory.clone(),
+                selection_source: OutputLocationSource::LibraryDefault,
+                user_data_root: current.user_data_root.clone(),
+            },
+        };
+        let assessment = crate::output_root::assess_destination(
+            &self.library,
+            port_id,
+            &proposed.effective_output_directory,
+        );
+        let status = self.status(port_id)?;
+        let installs = [
+            status
+                .active
+                .as_ref()
+                .map(|install| (install, true, false, false)),
+            status
+                .previous
+                .as_ref()
+                .map(|install| (install, false, true, false)),
+            status
+                .staged
+                .as_ref()
+                .map(|install| (install, false, false, true)),
+        ];
+        let mut affected_installs = Vec::new();
+        for (install, active, previous, staged) in installs.into_iter().flatten() {
+            if let Some(existing) = affected_installs
+                .iter_mut()
+                .find(|existing: &&mut OutputAffectedInstall| existing.install_id == install.id)
+            {
+                existing.active |= active;
+                existing.previous |= previous;
+                existing.staged |= staged;
+            } else {
+                affected_installs.push(OutputAffectedInstall {
+                    install_id: install.id.clone(),
+                    version: install.version.clone(),
+                    path: install.path.clone(),
+                    active,
+                    previous,
+                    staged,
+                });
+            }
+        }
+        let mut preview = OutputDestinationPreview {
+            port_id: port_id.into(),
+            current,
+            proposed,
+            reset_to_default: output_directory.is_none(),
+            availability: assessment.availability,
+            ownership: assessment.ownership,
+            available_bytes: assessment.available_bytes,
+            total_bytes: assessment.total_bytes,
+            volume_identity: assessment.volume_identity,
+            validation_errors: assessment.validation_errors,
+            affected_installs,
+            moves_existing_install: false,
+            preview_sha256: String::new(),
+        };
+        preview.preview_sha256 = output_destination_fingerprint(&preview)?;
+        Ok(preview)
+    }
+
+    pub fn authorize_output_directory_change(
+        &self,
+        port_id: &str,
+        output_directory: Option<&Path>,
+        expected_preview_sha256: &str,
+    ) -> Result<crate::DestructiveAuthorization> {
+        let preview = self.preview_output_directory(port_id, output_directory)?;
+        if preview.preview_sha256 != expected_preview_sha256 {
+            return Err(PortcoveError::conflict(
+                "output destination changed after preview; review it again",
+            ));
+        }
+        require_valid_output_preview(&preview)?;
+        self.library.issue_authorization(
+            "set_output_directory",
+            &output_authorization_target(port_id, output_directory)?,
+            &preview.preview_sha256,
+        )
+    }
+
+    pub fn apply_output_directory_change(
+        &self,
+        port_id: &str,
+        output_directory: Option<&Path>,
+        authorization_token: &str,
+    ) -> Result<PortOutputLocation> {
+        let port = self.catalog.port(port_id)?;
+        let _guard = self
+            .library
+            .try_lock_port(port_id, "set-output-directory")?;
+        let target = output_authorization_target(port_id, output_directory)?;
+        self.library.consume_authorization_with_state(
+            authorization_token,
+            "set_output_directory",
+            &target,
+            || {
+                let preview = self.preview_output_directory(port_id, output_directory)?;
+                require_valid_output_preview(&preview)?;
+                Ok(preview.preview_sha256)
+            },
+        )?;
+        self.library
+            .set_output_directory(port_id, output_directory, default_channel(port))?;
+        self.output_location(port_id, None)
+    }
+
+    fn preview_output_location(&self, port_id: &str, path: &Path) -> Result<PortOutputLocation> {
+        if path.as_os_str().is_empty() || !path.is_absolute() {
+            return Err(PortcoveError::usage(
+                "port output directory must be a nonempty absolute path",
+            ));
+        }
+        crate::path::unicode(path, "port output directory")?;
+        let effective_output_directory =
+            crate::path::normalized_absolute(path, "port output directory")
+                .unwrap_or_else(|_| path.to_path_buf());
+        Ok(PortOutputLocation {
+            port_id: port_id.into(),
+            library_root: self.library.root().to_path_buf(),
+            default_output_directory: self.library.versions_dir().join(port_id),
+            configured_output_directory: Some(effective_output_directory.clone()),
+            effective_output_directory,
+            selection_source: OutputLocationSource::PortSetting,
+            user_data_root: self.library.user_dir(port_id),
+        })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_output_directory(
         &self,
         port_id: &str,
         output_directory: &Path,
@@ -673,7 +824,8 @@ impl PortcoveService {
         self.output_location(port_id, None)
     }
 
-    pub fn reset_output_directory(&self, port_id: &str) -> Result<PortOutputLocation> {
+    #[cfg(test)]
+    pub(crate) fn reset_output_directory(&self, port_id: &str) -> Result<PortOutputLocation> {
         let port = self.catalog.port(port_id)?;
         self.library
             .set_output_directory(port_id, None, default_channel(port))?;
@@ -1885,6 +2037,7 @@ impl PortcoveService {
         emit(operation.started());
         let result = async {
             let port = self.catalog.port(port_id)?;
+            self.output_location(port_id, overrides.output_directory)?;
             let _operation = self.library.try_lock_port(port_id, "install")?;
             let status = self.status(port_id)?;
             let selected_channel = channel.unwrap_or(status.channel);
@@ -1938,6 +2091,7 @@ impl PortcoveService {
     where
         F: FnMut(OperationEvent),
     {
+        self.output_location(port_id, output_directory)?;
         if let Some(active) = self.status(port_id)?.active
             && crate::runtime::ready(self.catalog.port(port_id)?, Platform::current()?, &active)
         {
@@ -3748,6 +3902,53 @@ fn default_channel(port: &PortDefinition) -> ReleaseChannel {
     } else {
         port.channels[0]
     }
+}
+
+fn output_authorization_target(port_id: &str, output_directory: Option<&Path>) -> Result<String> {
+    let destination = output_directory
+        .map(|path| crate::path::unicode(path, "port output directory"))
+        .transpose()?
+        .unwrap_or_else(|| "<library-default>".into());
+    Ok(format!("{port_id}\n{destination}"))
+}
+
+fn output_destination_fingerprint(preview: &OutputDestinationPreview) -> Result<String> {
+    let capacity_available = preview.available_bytes.is_some_and(|bytes| bytes > 0);
+    let bound = (
+        &preview.port_id,
+        &preview.current,
+        &preview.proposed,
+        preview.reset_to_default,
+        preview.availability,
+        preview.ownership,
+        capacity_available,
+        preview.total_bytes,
+        &preview.volume_identity,
+        &preview.validation_errors,
+        &preview.affected_installs,
+        preview.moves_existing_install,
+    );
+    Ok(hex::encode(Sha256::digest(serde_json::to_vec(&bound)?)))
+}
+
+fn require_valid_output_preview(preview: &OutputDestinationPreview) -> Result<()> {
+    if preview.validation_errors.is_empty()
+        && preview.availability == crate::OutputDestinationAvailability::Available
+        && !matches!(
+            preview.ownership,
+            crate::OutputDestinationOwnership::OwnedByAnotherPort
+                | crate::OutputDestinationOwnership::UnrelatedContent
+                | crate::OutputDestinationOwnership::Invalid
+                | crate::OutputDestinationOwnership::Unknown
+        )
+    {
+        return Ok(());
+    }
+    Err(PortcoveError::conflict(
+        "output destination is not safe to save; review the validation results",
+    )
+    .detail("preview_sha256", preview.preview_sha256.clone())
+    .detail("validation_errors", preview.validation_errors.join("; ")))
 }
 
 fn source_removal_fingerprint(
@@ -5969,6 +6170,177 @@ fn main() {
                 .effective_output_directory,
             crate::path::resolve_existing_ancestor(&starship_output).unwrap()
         );
+    }
+
+    #[test]
+    fn output_preview_is_read_only_state_bound_and_never_relocates_an_install() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = service_with_release(library.clone(), "v1");
+        let active = register_zelda_install(&library, "v1", true);
+        let destination = temporary.path().join("future-output");
+
+        let preview = service
+            .preview_output_directory("zelda64-recomp", Some(&destination))
+            .unwrap();
+
+        assert_eq!(
+            preview.ownership,
+            crate::OutputDestinationOwnership::Unclaimed
+        );
+        assert_eq!(
+            preview.availability,
+            crate::OutputDestinationAvailability::Available
+        );
+        assert!(preview.available_bytes.is_some());
+        assert_eq!(preview.affected_installs.len(), 1);
+        assert!(preview.affected_installs[0].active);
+        assert!(!preview.moves_existing_install);
+        assert!(!destination.exists());
+        assert!(
+            library
+                .output_directory("zelda64-recomp")
+                .unwrap()
+                .is_none()
+        );
+
+        let authorization = service
+            .authorize_output_directory_change(
+                "zelda64-recomp",
+                Some(&destination),
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        service
+            .set_output_directory("zelda64-recomp", &temporary.path().join("changed"))
+            .unwrap();
+        let stale = service
+            .apply_output_directory_change(
+                "zelda64-recomp",
+                Some(&destination),
+                &authorization.token,
+            )
+            .unwrap_err();
+        assert_eq!(stale.code, crate::ErrorCode::Conflict);
+
+        let current = service
+            .preview_output_directory("zelda64-recomp", Some(&destination))
+            .unwrap();
+        let authorization = service
+            .authorize_output_directory_change(
+                "zelda64-recomp",
+                Some(&destination),
+                &current.preview_sha256,
+            )
+            .unwrap();
+        let saved = service
+            .apply_output_directory_change(
+                "zelda64-recomp",
+                Some(&destination),
+                &authorization.token,
+            )
+            .unwrap();
+        assert_eq!(saved.selection_source, OutputLocationSource::PortSetting);
+        assert_eq!(
+            service
+                .status("zelda64-recomp")
+                .unwrap()
+                .active
+                .unwrap()
+                .path,
+            active
+        );
+        assert!(!destination.exists());
+        assert!(
+            service
+                .apply_output_directory_change(
+                    "zelda64-recomp",
+                    Some(&destination),
+                    &authorization.token,
+                )
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn output_preview_reports_unsafe_content_and_rejects_relative_paths() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = service_with_release(library, "v1");
+        let unrelated = temporary.path().join("unrelated");
+        fs::create_dir(&unrelated).unwrap();
+        fs::write(unrelated.join("keep.txt"), b"keep").unwrap();
+
+        let preview = service
+            .preview_output_directory("zelda64-recomp", Some(&unrelated))
+            .unwrap();
+        assert_eq!(
+            preview.ownership,
+            crate::OutputDestinationOwnership::UnrelatedContent
+        );
+        assert!(!preview.validation_errors.is_empty());
+        assert!(
+            service
+                .authorize_output_directory_change(
+                    "zelda64-recomp",
+                    Some(&unrelated),
+                    &preview.preview_sha256,
+                )
+                .is_err()
+        );
+        assert_eq!(fs::read(unrelated.join("keep.txt")).unwrap(), b"keep");
+
+        let relative = service
+            .preview_output_directory("zelda64-recomp", Some(Path::new("relative")))
+            .unwrap_err();
+        assert_eq!(relative.code, crate::ErrorCode::Usage);
+    }
+
+    #[test]
+    fn output_change_revalidates_after_lock_contention_without_spending_consent() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("library");
+        let library = Library::open(&root).unwrap();
+        let service = service_with_release(library.clone(), "v1");
+        let destination = temporary.path().join("future-output");
+        let preview = service
+            .preview_output_directory("zelda64-recomp", Some(&destination))
+            .unwrap();
+        let authorization = service
+            .authorize_output_directory_change(
+                "zelda64-recomp",
+                Some(&destination),
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        let competing = Library::open(root).unwrap();
+        let guard = competing
+            .try_lock_port("zelda64-recomp", "competing-operation")
+            .unwrap();
+
+        let busy = service
+            .apply_output_directory_change(
+                "zelda64-recomp",
+                Some(&destination),
+                &authorization.token,
+            )
+            .unwrap_err();
+        assert_eq!(busy.code, crate::ErrorCode::Conflict);
+        assert!(
+            library
+                .output_directory("zelda64-recomp")
+                .unwrap()
+                .is_none()
+        );
+
+        drop(guard);
+        service
+            .apply_output_directory_change(
+                "zelda64-recomp",
+                Some(&destination),
+                &authorization.token,
+            )
+            .unwrap();
     }
 
     #[tokio::test]

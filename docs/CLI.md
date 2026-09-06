@@ -22,7 +22,7 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":22,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":23,"ok":true,"command":"status","data":{},"error":null}
 ```
 
 Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for success, failure, or cancellation. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
@@ -78,6 +78,15 @@ and path results. It distinguishes a one-request override, the saved port
 setting, and the existing library default while retaining the exact recorded
 paths for active, previous, and staged installations.
 
+API schema 23 adds a read-only per-game output-destination preview with the
+resolved path, inherited or custom origin, availability, capacity, ownership,
+affected install records, validation results, and a state-bound fingerprint.
+`output set` and `output reset` require that exact reviewed fingerprint and
+revalidate it under the port lock. These commands change future placement only;
+they never move an existing installation. `plan`, `install`, and `ensure` accept
+one `--output-dir` request override. No all-port command accepts a shared output
+directory.
+
 ```text
 portcove --json capabilities
 portcove --json schema export
@@ -88,6 +97,10 @@ portcove --json storage
 portcove --json doctor
 portcove --json plan <port-id>
 portcove --json paths <port-id>
+portcove --json output show <port-id>
+portcove --json output preview <port-id> [path]
+portcove --json output set <port-id> <path> --expected-preview <sha256> --yes
+portcove --json output reset <port-id> --expected-preview <sha256> --yes
 portcove --json backup list <port-id>
 ```
 

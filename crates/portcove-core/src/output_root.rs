@@ -6,7 +6,10 @@ use std::{
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{Library, PortcoveError, Result, library::OutputRootRecord};
+use crate::{
+    Library, OutputDestinationAvailability, OutputDestinationOwnership, PortcoveError, Result,
+    library::OutputRootRecord,
+};
 
 const MARKER_NAME: &str = ".portcove-game-output.json";
 const MARKER_LIMIT: u64 = 16 * 1024;
@@ -22,6 +25,141 @@ pub(crate) struct RemovalPaths {
     pub live: PathBuf,
     pub quarantined: PathBuf,
     pub cleanup_root: PathBuf,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct DestinationAssessment {
+    pub availability: OutputDestinationAvailability,
+    pub ownership: OutputDestinationOwnership,
+    pub available_bytes: Option<u64>,
+    pub total_bytes: Option<u64>,
+    pub volume_identity: Option<String>,
+    pub validation_errors: Vec<String>,
+}
+
+pub(crate) fn assess_destination(
+    library: &Library,
+    port_id: &str,
+    requested_root: &Path,
+) -> DestinationAssessment {
+    let mut assessment = DestinationAssessment {
+        availability: OutputDestinationAvailability::Available,
+        ownership: OutputDestinationOwnership::Unknown,
+        available_bytes: None,
+        total_bytes: None,
+        volume_identity: None,
+        validation_errors: Vec::new(),
+    };
+    let default_root = library.versions_dir().join(port_id);
+    if requested_root == default_root {
+        assessment.ownership = OutputDestinationOwnership::LibraryDefault;
+        populate_volume_details(library.root(), &mut assessment);
+        return assessment;
+    }
+    if let Ok(Some(record)) = library.output_root(requested_root)
+        && record.port_id != port_id
+    {
+        assessment.ownership = OutputDestinationOwnership::OwnedByAnotherPort;
+        assessment
+            .validation_errors
+            .push(format!("game output folder is owned by {}", record.port_id));
+        return assessment;
+    }
+    if let Err(error) = validate_external_path(library, port_id, requested_root) {
+        assessment.ownership = OutputDestinationOwnership::Invalid;
+        assessment.validation_errors.push(error.to_string());
+        return assessment;
+    }
+    let capacity_path = match crate::path::existing_ancestor(requested_root) {
+        Ok(path) => path,
+        Err(error) => {
+            assessment.availability = OutputDestinationAvailability::Unavailable;
+            assessment.validation_errors.push(error.to_string());
+            return assessment;
+        }
+    };
+    populate_volume_details(&capacity_path, &mut assessment);
+    match fs::symlink_metadata(requested_root) {
+        Ok(metadata) if !metadata.is_dir() || metadata.file_type().is_symlink() => {
+            assessment.ownership = OutputDestinationOwnership::Invalid;
+            assessment
+                .validation_errors
+                .push("game output root must be a real directory".into());
+        }
+        Ok(_) => match library.output_root(requested_root) {
+            Ok(Some(record)) if record.port_id != port_id => {
+                assessment.ownership = OutputDestinationOwnership::OwnedByAnotherPort;
+                assessment
+                    .validation_errors
+                    .push(format!("game output folder is owned by {}", record.port_id));
+            }
+            Ok(Some(record)) => match volume_identity(requested_root).and_then(|current| {
+                validate_marker(library, port_id, &record, &current)?;
+                Ok(current)
+            }) {
+                Ok(current) => {
+                    assessment.ownership = OutputDestinationOwnership::OwnedByPort;
+                    assessment.volume_identity = Some(current);
+                }
+                Err(error) => {
+                    assessment.ownership = OutputDestinationOwnership::Invalid;
+                    assessment.validation_errors.push(error.to_string());
+                }
+            },
+            Ok(None) => match fs::read_dir(requested_root)
+                .and_then(|mut entries| entries.next().transpose())
+            {
+                Ok(None) => assessment.ownership = OutputDestinationOwnership::Unclaimed,
+                Ok(Some(_)) => {
+                    assessment.ownership = OutputDestinationOwnership::UnrelatedContent;
+                    assessment.validation_errors.push(
+                        "game output folder is nonempty and is not registered to this library and port"
+                            .into(),
+                    );
+                }
+                Err(error) => {
+                    assessment.availability = OutputDestinationAvailability::Unavailable;
+                    assessment.validation_errors.push(error.to_string());
+                }
+            },
+            Err(error) => assessment.validation_errors.push(error.to_string()),
+        },
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            assessment.ownership = OutputDestinationOwnership::Unclaimed;
+        }
+        Err(error) => {
+            assessment.availability = OutputDestinationAvailability::Unavailable;
+            assessment.validation_errors.push(error.to_string());
+        }
+    }
+    assessment
+}
+
+fn populate_volume_details(path: &Path, assessment: &mut DestinationAssessment) {
+    match (
+        fs2::available_space(path),
+        fs2::total_space(path),
+        volume_identity(path),
+    ) {
+        (Ok(available), Ok(total), Ok(identity)) => {
+            assessment.available_bytes = Some(available);
+            assessment.total_bytes = Some(total);
+            assessment.volume_identity = Some(identity);
+        }
+        values => {
+            assessment.availability = OutputDestinationAvailability::Unavailable;
+            for message in [
+                values.0.err().map(|error| error.to_string()),
+                values.1.err().map(|error| error.to_string()),
+                values.2.err().map(|error| error.to_string()),
+            ]
+            .into_iter()
+            .flatten()
+            {
+                assessment.validation_errors.push(message);
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

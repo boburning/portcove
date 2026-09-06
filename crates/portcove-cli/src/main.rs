@@ -9,8 +9,8 @@ use portcove_core::{
     API_SCHEMA_VERSION, ActivityRecord, AdoptionPreview, BackupAction, BackupActionPreview,
     BackupInventory, BackupRecord, CapabilityDocument, CatalogDocument, DoctorReport, ErrorCode,
     GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, GithubDeviceLoginState,
-    GithubReleaseProvider, HostPreferenceStore, IdentifiedLaunchRequest, InstallPlan,
-    InstallRecord, LaunchSignal, LaunchStdio, LibraryMetadata, LibraryMetadataFile,
+    GithubReleaseProvider, HostPreferenceStore, IdentifiedLaunchRequest, InstallOverrides,
+    InstallPlan, InstallRecord, LaunchSignal, LaunchStdio, LibraryMetadata, LibraryMetadataFile,
     OperationCoordinator, OperationEvent, OperationEventKind, PortDefinition, PortPaths,
     PortRemovalPreview, PortStatus, PortcoveError, PortcoveService, ReconcileResult,
     ReleaseChannel, RestoreResult, Result, SourceRecord, SourceRelinkPlan, SourceRemovalPreview,
@@ -87,6 +87,8 @@ enum Commands {
         port_id: String,
         #[arg(long, value_enum)]
         channel: Option<ChannelArg>,
+        #[arg(long)]
+        output_dir: Option<PathBuf>,
     },
     Paths {
         port_id: String,
@@ -118,6 +120,10 @@ enum Commands {
     Policy {
         #[command(subcommand)]
         command: PolicyCommand,
+    },
+    Output {
+        #[command(subcommand)]
+        command: OutputCommand,
     },
     Exec(ExecArgs),
     Capabilities,
@@ -283,6 +289,8 @@ struct InstallArgs {
     #[arg(long)]
     bios: Option<PathBuf>,
     #[arg(long)]
+    output_dir: Option<PathBuf>,
+    #[arg(long)]
     stage: bool,
 }
 
@@ -295,6 +303,37 @@ struct EnsureArgs {
     source: Option<PathBuf>,
     #[arg(long)]
     bios: Option<PathBuf>,
+    #[arg(long)]
+    output_dir: Option<PathBuf>,
+}
+
+#[derive(Debug, Subcommand)]
+enum OutputCommand {
+    /// Show the saved and effective future install folder for one game.
+    Show { port_id: String },
+    /// Review a future install folder without changing files or settings.
+    Preview {
+        port_id: String,
+        /// Omit PATH to preview resetting to the library default.
+        path: Option<PathBuf>,
+    },
+    /// Save a reviewed future install folder. Existing installs are not moved.
+    Set {
+        port_id: String,
+        path: PathBuf,
+        #[arg(long)]
+        expected_preview: String,
+        #[arg(long)]
+        yes: bool,
+    },
+    /// Return future installs to the library default. Existing installs are not moved.
+    Reset {
+        port_id: String,
+        #[arg(long)]
+        expected_preview: String,
+        #[arg(long)]
+        yes: bool,
+    },
 }
 
 #[derive(Debug, Args)]
@@ -861,12 +900,16 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
             render_read_success(mode, "doctor", service.doctor()?, human::doctor)?;
         }
         Commands::About => unreachable!("about exits before opening the library"),
-        Commands::Plan { port_id, channel } => {
+        Commands::Plan {
+            port_id,
+            channel,
+            output_dir,
+        } => {
             render_read_success(
                 mode,
                 "plan",
                 service
-                    .plan_install(&port_id, channel.map(Into::into))
+                    .plan_install_at(&port_id, channel.map(Into::into), output_dir.as_deref())
                     .await?,
                 human::plan,
             )?;
@@ -874,6 +917,82 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         Commands::Paths { port_id } => {
             render_read_success(mode, "paths", service.port_paths(&port_id)?, human::paths)?;
         }
+        Commands::Output { command } => match command {
+            OutputCommand::Show { port_id } => render_read_success(
+                mode,
+                "output.show",
+                service.output_location(&port_id, None)?,
+                human::output_location,
+            )?,
+            OutputCommand::Preview { port_id, path } => render_read_success(
+                mode,
+                "output.preview",
+                service.preview_output_directory(&port_id, path.as_deref())?,
+                human::output_preview,
+            )?,
+            OutputCommand::Set {
+                port_id,
+                path,
+                expected_preview,
+                yes,
+            } => {
+                let preview = service.preview_output_directory(&port_id, Some(&path))?;
+                if mode == OutputMode::Human {
+                    println!("{}", human::output_preview(&preview));
+                }
+                if preview.preview_sha256 != expected_preview {
+                    return Err(PortcoveError::conflict(
+                        "output destination preview changed; review it again",
+                    ));
+                }
+                require_confirmation(
+                    "Change the future install folder? Existing installations will not move.",
+                    yes,
+                    cli.non_interactive,
+                )?;
+                let authorization = service.authorize_output_directory_change(
+                    &port_id,
+                    Some(&path),
+                    &expected_preview,
+                )?;
+                render_success(
+                    mode,
+                    "output.set",
+                    service.apply_output_directory_change(
+                        &port_id,
+                        Some(&path),
+                        &authorization.token,
+                    )?,
+                )?;
+            }
+            OutputCommand::Reset {
+                port_id,
+                expected_preview,
+                yes,
+            } => {
+                let preview = service.preview_output_directory(&port_id, None)?;
+                if mode == OutputMode::Human {
+                    println!("{}", human::output_preview(&preview));
+                }
+                if preview.preview_sha256 != expected_preview {
+                    return Err(PortcoveError::conflict(
+                        "output destination preview changed; review it again",
+                    ));
+                }
+                require_confirmation(
+                    "Use the library default for future installs? Existing installations will not move.",
+                    yes,
+                    cli.non_interactive,
+                )?;
+                let authorization =
+                    service.authorize_output_directory_change(&port_id, None, &expected_preview)?;
+                render_success(
+                    mode,
+                    "output.reset",
+                    service.apply_output_directory_change(&port_id, None, &authorization.token)?,
+                )?;
+            }
+        },
         Commands::Check(args) => {
             if args.all {
                 let installed = service
@@ -933,11 +1052,14 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         Commands::Install(args) => {
             let mut progress = progress_renderer(mode);
             let install = service
-                .install(
+                .install_at(
                     &args.port_id,
                     args.channel.map(Into::into),
-                    args.source.as_deref(),
-                    args.bios.as_deref(),
+                    InstallOverrides {
+                        source: args.source.as_deref(),
+                        bios: args.bios.as_deref(),
+                        output_directory: args.output_dir.as_deref(),
+                    },
                     !args.stage,
                     &mut progress,
                 )
@@ -947,11 +1069,12 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         Commands::Ensure(args) => {
             let mut progress = progress_renderer(mode);
             let install = service
-                .ensure(
+                .ensure_at(
                     &args.port_id,
                     args.channel.map(Into::into),
                     args.source.as_deref(),
                     args.bios.as_deref(),
+                    args.output_dir.as_deref(),
                     &mut progress,
                 )
                 .await?;
@@ -1278,6 +1401,14 @@ fn schema_document() -> serde_json::Value {
             ),
             ("port", serde_json::json!(schema_for!(PortDefinition))),
             ("status", serde_json::json!(schema_for!(PortStatus))),
+            (
+                "port_output_location",
+                serde_json::json!(schema_for!(portcove_core::PortOutputLocation)),
+            ),
+            (
+                "output_destination_preview",
+                serde_json::json!(schema_for!(portcove_core::OutputDestinationPreview)),
+            ),
             ("update_check", serde_json::json!(schema_for!(UpdateCheck))),
             (
                 "update_snapshot",
@@ -1795,6 +1926,12 @@ fn command_name(command: &Commands) -> &'static str {
         Commands::About => "about",
         Commands::Plan { .. } => "plan",
         Commands::Paths { .. } => "paths",
+        Commands::Output { command } => match command {
+            OutputCommand::Show { .. } => "output.show",
+            OutputCommand::Preview { .. } => "output.preview",
+            OutputCommand::Set { .. } => "output.set",
+            OutputCommand::Reset { .. } => "output.reset",
+        },
         Commands::Check(_) => "check",
         Commands::Reconcile(_) => "reconcile",
         Commands::Install(_) => "install",
@@ -1815,9 +1952,11 @@ fn command_name(command: &Commands) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use super::{
         AuthCommand, BackupCommand, CapabilityDocument, CatalogCommand, ChannelArg, Cli, Commands,
-        SourceCommand, normalize_process_exit,
+        OutputCommand, SourceCommand, normalize_process_exit,
     };
     use clap::Parser;
 
@@ -1997,11 +2136,70 @@ mod tests {
     fn plan_accepts_an_optional_release_channel() {
         let cli =
             Cli::try_parse_from(["portcove", "plan", "lighthouse", "--channel", "beta"]).unwrap();
-        let Commands::Plan { port_id, channel } = cli.command else {
+        let Commands::Plan {
+            port_id,
+            channel,
+            output_dir,
+        } = cli.command
+        else {
             panic!("expected plan command");
         };
         assert_eq!(port_id, "lighthouse");
         assert!(matches!(channel, Some(ChannelArg::Beta)));
+        assert!(output_dir.is_none());
+    }
+
+    #[test]
+    fn output_controls_are_single_port_and_review_bound() {
+        let output = PathBuf::from("Games").join("Lighthouse");
+        let output_argument = output.to_string_lossy();
+        let preview = Cli::try_parse_from([
+            "portcove",
+            "output",
+            "preview",
+            "lighthouse",
+            output_argument.as_ref(),
+        ])
+        .unwrap();
+        assert!(matches!(
+            preview.command,
+            Commands::Output {
+                command: OutputCommand::Preview { port_id, path }
+            } if port_id == "lighthouse" && path == Some(output.clone())
+        ));
+        assert!(
+            Cli::try_parse_from([
+                "portcove",
+                "output",
+                "set",
+                "lighthouse",
+                output_argument.as_ref(),
+            ])
+            .is_err()
+        );
+        for command in ["plan", "install", "ensure"] {
+            assert!(
+                Cli::try_parse_from([
+                    "portcove",
+                    command,
+                    "lighthouse",
+                    "--output-dir",
+                    output_argument.as_ref(),
+                ])
+                .is_ok(),
+                "{command}"
+            );
+        }
+        assert!(
+            Cli::try_parse_from([
+                "portcove",
+                "update",
+                "--all",
+                "--output-dir",
+                output_argument.as_ref(),
+            ])
+            .is_err()
+        );
     }
 
     #[test]
@@ -2054,7 +2252,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 22);
+        assert_eq!(capabilities.schema_version, 23);
         assert_eq!(
             capabilities.failure_isolated_batches,
             ["check", "reconcile", "update", "source.verify"]

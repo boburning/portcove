@@ -79,7 +79,8 @@ pub use psx::PsxManagedPreparation;
 pub use release::{GithubReleaseProvider, ReleaseProvider};
 pub use service::{
     AdoptionCopyFile, AdoptionCopyPlan, AdoptionPreview, AdoptionSkippedEntry, BackupAction,
-    BackupActionPreview, IdentifiedLaunchRequest, PortRemovalPreview, PortcoveService,
+    BackupActionPreview, IdentifiedLaunchRequest, InstallOverrides, PortRemovalPreview,
+    PortcoveService,
 };
 pub use signed_catalog::{
     CatalogOrigin, CatalogProvenance, CatalogTrustKey, SignedCatalogEnvelope, SignedCatalogPayload,
@@ -97,4 +98,4 @@ pub use source_inspection::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 22;
+pub const API_SCHEMA_VERSION: u32 = 23;
