@@ -13,6 +13,26 @@ use crate::{
 };
 
 pub const SOURCE_INSPECTION_REPORT_SCHEMA_VERSION: u32 = 1;
+pub const SOURCE_INTAKE_INSPECTION_SCHEMA_VERSION: u32 = 1;
+
+/// Read-only result for paths offered through a host intake surface such as
+/// native drag and drop. The core, rather than the host adapter, decides
+/// whether the offered shape can be inspected for the requested profile.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct SourceIntakeInspection {
+    pub schema_version: u32,
+    pub profile_id: String,
+    pub input_count: usize,
+    /// Open stable code. A successful single-path inspection reuses the nested
+    /// source report's state code.
+    pub state_code: String,
+    pub summary: String,
+    pub next_action: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub report: Option<SourceInspectionReport>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub problem: Option<SourceInspectionProblem>,
+}
 
 /// A stable, complete explanation of selected source bytes. `state_code` is an
 /// open string so clients can preserve an unfamiliar future state instead of
@@ -490,7 +510,7 @@ fn report_message(
     }
 }
 
-fn error_code(error: &PortcoveError) -> String {
+pub(crate) fn error_code(error: &PortcoveError) -> String {
     match error.code {
         crate::ErrorCode::Usage => "usage",
         crate::ErrorCode::Unsupported => "unsupported",
@@ -713,5 +733,39 @@ mod tests {
         assert!(source_catalog.reviewed_evidence_url(&evidence_id).is_err());
         source_catalog.evidence.clear();
         assert!(source_catalog.reviewed_evidence_url(&evidence_id).is_err());
+    }
+
+    #[test]
+    fn intake_shapes_are_core_owned_and_read_only() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = crate::Library::open(temporary.path().join("library")).unwrap();
+        let service = crate::PortcoveService::new(library.clone()).unwrap();
+        let selected = temporary.path().join("selected.z64");
+        std::fs::write(&selected, b"read-only intake fixture").unwrap();
+        let before = std::fs::read(&selected).unwrap();
+
+        let empty = service.inspect_source_intake("star-fox-64", &[]).unwrap();
+        assert_eq!(empty.state_code, "no_paths");
+        let multiple = service
+            .inspect_source_intake("star-fox-64", &[selected.clone(), selected.clone()])
+            .unwrap();
+        assert_eq!(multiple.state_code, "multiple_paths");
+        assert_eq!(multiple.input_count, 2);
+        let unsupported_directory = temporary.path().join("selected-directory");
+        std::fs::create_dir(&unsupported_directory).unwrap();
+        let directory = service
+            .inspect_source_intake("star-fox-64", &[unsupported_directory])
+            .unwrap();
+        assert_eq!(directory.state_code, "unsupported_shape");
+        assert_eq!(directory.problem.unwrap().code, "source_invalid");
+        let single = service
+            .inspect_source_intake("star-fox-64", std::slice::from_ref(&selected))
+            .unwrap();
+        assert_eq!(single.input_count, 1);
+        assert!(single.report.is_some());
+
+        assert!(library.sources().unwrap().is_empty());
+        assert_eq!(std::fs::read(&selected).unwrap(), before);
+        assert!(!library.versions_dir().join("star-fox-64").exists());
     }
 }

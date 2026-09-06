@@ -412,6 +412,20 @@ describe("desktop components", () => {
     expect(loading).toContain("alt=\"Portcove\"");
   });
 
+  it("reveals eligible card targets only during native file drag and keeps a keyboard check in details", () => {
+    const overview = { installed: 0, ready: 0, needsSetup: 1, staged: 0 };
+    const idle = renderToStaticMarkup(<PortBrowser view="catalog" ports={[port]} statuses={new Map()} registeredSources={new Set()} overview={overview} filter="all" setFilter={vi.fn()} onSelect={vi.fn()} loading={false} />);
+    const dragging = renderToStaticMarkup(<PortBrowser view="catalog" ports={[port]} statuses={new Map()} registeredSources={new Set()} overview={overview} filter="all" setFilter={vi.fn()} onSelect={vi.fn()} loading={false} nativeSourceDrag={{ active: true, pathCount: 1, targetPortId: port.id }} />);
+    expect(idle).not.toContain("data-source-drop-profile-id");
+    expect(idle).not.toContain("Drop to check");
+    expect(dragging).toContain('data-source-drop-profile-id="sample-rom"');
+    expect(dragging).toContain("Release to check");
+    expect(dragging).toContain("One path selected");
+
+    const details = renderToStaticMarkup(<DetailPanel port={port} sourceProfile={{ id: "sample-rom", label: "Sample cartridge", kind: "file", accepted_extensions: ["z64"], accepted_sha1: [], accepted_sha256: [], members: [] }} sourcePath="" setSourcePath={vi.fn()} inspectSource={vi.fn()} actions={actions} />);
+    expect(details).toContain("Check original game files");
+  });
+
   it("summarizes an installed library around play readiness", () => {
     const install = installRecord();
     const status: PortStatus = {

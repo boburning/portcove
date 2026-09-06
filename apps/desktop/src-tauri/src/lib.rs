@@ -22,9 +22,9 @@ use portcove_core::{
     LibrarySelectionSource, OperationCoordinator, OperationEvent, OperationResult, PortStatus,
     PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel, ReleaseProvider,
     RestoreResult, SourceDiscoveryLimits, SourceImportMode, SourceImportPlan, SourceImportResult,
-    SourceInboxPaths, SourceInboxResolution, SourceInspectionReport, SourceRecord,
-    SourceRelinkPlan, SourceRemovalPreview, SourceVerification, UpdateCheck, UpdatePolicy,
-    VerificationReport,
+    SourceInboxPaths, SourceInboxResolution, SourceInspectionReport, SourceIntakeInspection,
+    SourceRecord, SourceRelinkPlan, SourceRemovalPreview, SourceVerification, UpdateCheck,
+    UpdatePolicy, VerificationReport,
 };
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
@@ -470,6 +470,29 @@ async fn inspect_source(
         inspect_source_with_service(&service, &profile_id)
     })
     .await
+}
+
+#[tauri::command]
+async fn inspect_source_intake(
+    state: tauri::State<'_, DesktopState>,
+    profile_id: String,
+    paths: Vec<PathBuf>,
+) -> DesktopResult<SourceIntakeInspection> {
+    let state = state.inner().clone();
+    blocking_service(state, move |service| {
+        inspect_source_intake_with_service(&service, &profile_id, &paths)
+    })
+    .await
+}
+
+fn inspect_source_intake_with_service(
+    service: &PortcoveService,
+    profile_id: &str,
+    paths: &[PathBuf],
+) -> DesktopResult<SourceIntakeInspection> {
+    service
+        .inspect_source_intake(profile_id, paths)
+        .map_err(Into::into)
 }
 
 fn inspect_source_with_service(
@@ -1900,6 +1923,7 @@ pub fn run() {
             delete_backup,
             verify_source,
             inspect_source,
+            inspect_source_intake,
             plan_source_relink,
             relink_source,
             verify_sources,
@@ -2084,6 +2108,28 @@ mod tests {
             serde_json::to_value(desktop).unwrap(),
             serde_json::to_value(core).unwrap()
         );
+    }
+
+    #[test]
+    fn desktop_source_intake_is_the_exact_read_only_core_result() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let selected = temporary.path().join("source.z64");
+        fs::write(&selected, b"desktop read-only intake source").unwrap();
+        let before = fs::read(&selected).unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let paths = vec![selected.clone()];
+
+        let core = service
+            .inspect_source_intake("star-fox-64", &paths)
+            .unwrap();
+        let desktop = inspect_source_intake_with_service(&service, "star-fox-64", &paths).unwrap();
+        assert_eq!(
+            serde_json::to_value(desktop).unwrap(),
+            serde_json::to_value(core).unwrap()
+        );
+        assert!(library.sources().unwrap().is_empty());
+        assert_eq!(fs::read(selected).unwrap(), before);
     }
 
     #[test]
