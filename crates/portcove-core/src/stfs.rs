@@ -45,16 +45,7 @@ pub(crate) fn extract(source: &Path, destination: &Path) -> Result<()> {
     let info = parse_info(&mut input, source_size)?;
     let entries = parse_entries(&mut input, source_size, &info)?;
     let plans = plan_entries(&entries, source_size)?;
-    let expanded = entries
-        .iter()
-        .filter(|entry| !entry.directory)
-        .try_fold(0_u64, |total, entry| total.checked_add(entry.size))
-        .ok_or_else(|| PortcoveError::source("STFS expanded size overflowed"))?;
-    if expanded > MAX_EXPANDED_BYTES || expanded > source_size {
-        return Err(PortcoveError::source(
-            "STFS package exceeds its expanded-size safety limit",
-        ));
-    }
+    let expanded = validate_expanded_size(&entries, source_size)?;
     let parent = destination
         .parent()
         .ok_or_else(|| PortcoveError::state("STFS destination has no parent directory"))?;
@@ -77,6 +68,43 @@ pub(crate) fn extract(source: &Path, destination: &Path) -> Result<()> {
         extract_entry(&mut input, source_size, &info, entry, &target)?;
     }
     Ok(())
+}
+
+/// Validate the same bounded package structure and file-block chains used by
+/// extraction without creating destination files.
+pub(crate) fn validate(source: &Path, checkpoint: &dyn Fn() -> Result<()>) -> Result<()> {
+    let source_size = std::fs::metadata(source)?.len();
+    let mut input = File::open(source)?;
+    let info = parse_info(&mut input, source_size)?;
+    checkpoint()?;
+    let entries = parse_entries(&mut input, source_size, &info)?;
+    let _plans = plan_entries(&entries, source_size)?;
+    validate_expanded_size(&entries, source_size)?;
+    for entry in entries.iter().filter(|entry| !entry.directory) {
+        read_entry_blocks(
+            &mut input,
+            source_size,
+            &info,
+            entry,
+            checkpoint,
+            |_| Ok(()),
+        )?;
+    }
+    Ok(())
+}
+
+fn validate_expanded_size(entries: &[Entry], source_size: u64) -> Result<u64> {
+    let expanded = entries
+        .iter()
+        .filter(|entry| !entry.directory)
+        .try_fold(0_u64, |total, entry| total.checked_add(entry.size))
+        .ok_or_else(|| PortcoveError::source("STFS expanded size overflowed"))?;
+    if expanded > MAX_EXPANDED_BYTES || expanded > source_size {
+        return Err(PortcoveError::source(
+            "STFS package exceeds its expanded-size safety limit",
+        ));
+    }
+    Ok(expanded)
 }
 
 fn parse_info(input: &mut File, source_size: u64) -> Result<Info> {
@@ -227,10 +255,28 @@ fn extract_entry(
     destination: &Path,
 ) -> Result<()> {
     let mut output = File::create(destination)?;
+    read_entry_blocks(input, source_size, info, entry, &|| Ok(()), |bytes| {
+        output.write_all(bytes)?;
+        Ok(())
+    })?;
+    output.sync_all()?;
+    Ok(())
+}
+
+fn read_entry_blocks(
+    input: &mut File,
+    source_size: u64,
+    info: &Info,
+    entry: &Entry,
+    checkpoint: &dyn Fn() -> Result<()>,
+    mut consume: impl FnMut(&[u8]) -> Result<()>,
+) -> Result<()> {
     let mut remaining = entry.size;
     let mut block = entry.first_block;
     let mut seen = HashSet::new();
+    let mut bytes = [0_u8; BLOCK_SIZE as usize];
     while remaining > 0 {
+        checkpoint()?;
         if block == END_OF_CHAIN || block >= info.total_blocks || !seen.insert(block) {
             return Err(PortcoveError::source(
                 "STFS file block chain ended early or cycled",
@@ -238,15 +284,13 @@ fn extract_entry(
         }
         let count = remaining.min(BLOCK_SIZE) as usize;
         let offset = block_offset(block, info)?;
-        let mut bytes = vec![0_u8; count];
-        read_exact_at(input, source_size, offset, &mut bytes)?;
-        output.write_all(&bytes)?;
+        read_exact_at(input, source_size, offset, &mut bytes[..count])?;
+        consume(&bytes[..count])?;
         remaining -= count as u64;
         if remaining > 0 {
             block = next_block(input, source_size, block, info)?;
         }
     }
-    output.sync_all()?;
     Ok(())
 }
 
@@ -352,6 +396,18 @@ mod tests {
     }
 
     #[test]
+    fn validates_a_package_without_creating_output() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        std::fs::write(&source, fixture()).unwrap();
+
+        validate(&source, &|| Ok(())).unwrap();
+
+        assert_eq!(std::fs::read(&source).unwrap(), fixture());
+        assert_eq!(std::fs::read_dir(temporary.path()).unwrap().count(), 1);
+    }
+
+    #[test]
     fn rejects_case_colliding_paths_before_writing() {
         let temporary = tempfile::tempdir().unwrap();
         let source = temporary.path().join("source");
@@ -380,5 +436,6 @@ mod tests {
         std::fs::write(&source, package).unwrap();
         let destination = temporary.path().join("assets");
         assert!(extract(&source, &destination).is_err());
+        assert!(validate(&source, &|| Ok(())).is_err());
     }
 }
