@@ -668,7 +668,7 @@ Usage:
 
 Use capture-port for direct maintainer intake. Use normalize-port for a public
 New Port form submission; it preserves form content, reconciles canonical
-markers, Project membership and neutral unset fields, and the #16 relationship.`;
+markers, Project membership and neutral unset fields. Parent relationships are preserved.`;
 
 export function fieldValue(item, fieldName) {
   const wanted = normalizedKey(fieldName);
@@ -1129,25 +1129,6 @@ export class RoadmapClient {
     return issue;
   }
 
-  portPipelineParentState(issueId) {
-    const [owner, name] = this.config.repository.split("/");
-    const query = `query($owner: String!, $name: String!, $child: ID!) { repository(owner: $owner, name: $name) { issue(number: 16) { id number } } node(id: $child) { ... on Issue { parent { id number url } } } }`;
-    const data = this.graphql(query, { owner, name, child: issueId });
-    const pipeline = data?.repository?.issue;
-    if (!pipeline?.id) throw new Error("Continuous Port Pipeline issue #16 was not found");
-    return { pipeline, current: data?.node?.parent ?? null };
-  }
-
-  attachToPortPipeline(issueId, state = this.portPipelineParentState(issueId)) {
-    if (state.current?.number === 16) return false;
-    if (state.current) {
-      throw new Error(`port issue already has parent #${state.current.number}; review before replacing it with #16`);
-    }
-    const mutation = `mutation($input: AddSubIssueInput!) { addSubIssue(input: $input) { issue { id } subIssue { id } } }`;
-    this.graphql(mutation, { input: { issueId: state.pipeline.id, subIssueId: issueId, replaceParent: false } });
-    return true;
-  }
-
   projectContext(number = this.config.project.number) {
     if (this._projectContext?.number === number) return this._projectContext;
     const details = this.projectDetails(number);
@@ -1369,8 +1350,7 @@ export class RoadmapClient {
     this.setItemFields(item.id, {
       ...neutralPortFields,
     });
-    const parentChanged = this.attachToPortPipeline(issue.node_id);
-    return { ...issue, itemId: item.id, parentChanged };
+    return { ...issue, itemId: item.id };
   }
 
   normalizePortIssue({ number, catalog }) {
@@ -1401,10 +1381,6 @@ export class RoadmapClient {
     if (existingItems.length > 1) {
       throw new Error(`issue #${number} has multiple Project items; remove the duplicate before normalization`);
     }
-    const parentState = this.portPipelineParentState(issue.node_id);
-    if (parentState.current && parentState.current.number !== 16) {
-      throw new Error(`port issue already has parent #${parentState.current.number}; review before replacing it with #16`);
-    }
     const body = reconcilePortIssueMarkers(issue.body, {
       upstream: form.upstream,
       catalogId,
@@ -1422,13 +1398,11 @@ export class RoadmapClient {
     }
     const item = existingItem ?? this.ensureIssueItem(issue.node_id);
     if (Object.keys(fieldUpdates).length) this.setItemFields(item.id, fieldUpdates);
-    const parentChanged = this.attachToPortPipeline(issue.node_id, parentState);
     return {
       issue: issue.html_url,
       bodyChanged,
       projectItemAdded: !existingItem,
       fieldsChanged: Object.keys(fieldUpdates),
-      parentChanged,
       itemId: item.id,
     };
   }
@@ -1646,7 +1620,7 @@ async function main(argv) {
     if (!/^\d+$/.test(value) || Number(value) < 1) throw new Error("--issue must be a positive repository issue number");
     const catalog = JSON.parse(await readFile(catalogPath, "utf8"));
     const result = client.normalizePortIssue({ number: Number(value), catalog });
-    console.log(`Normalized ${result.issue}: body ${result.bodyChanged ? "updated" : "unchanged"}; Project item ${result.projectItemAdded ? "added" : "reused"}; fields ${result.fieldsChanged.length ? `set ${result.fieldsChanged.join(", ")}` : "unchanged"}; #16 relationship ${result.parentChanged ? "added" : "unchanged"}.`);
+    console.log(`Normalized ${result.issue}: body ${result.bodyChanged ? "updated" : "unchanged"}; Project item ${result.projectItemAdded ? "added" : "reused"}; fields ${result.fieldsChanged.length ? `set ${result.fieldsChanged.join(", ")}` : "unchanged"}; parent relationships preserved.`);
     return;
   }
   if (parsed.command === "capture-feature") {
