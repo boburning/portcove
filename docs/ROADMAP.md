@@ -320,6 +320,27 @@ Demand, installation friction, reusable adapter coverage, maintenance cost, and
 upstream stability inform prioritization; optional upstream examples require no
 universal packaging standard. Actual order and targets remain in the Project.
 
+Competitive catalogs are discovery evidence. Resolve the game, implementation,
+source edition, distribution authority, and native runtime separately before
+intake. Different games may share an upstream; a wrapper, renamed repository,
+framework, or planned game is not an additional implementation. Alternatives
+retain independent sources, installations, saves, and qualification. A working
+alternative does not resolve the original implementation's failure.
+
+Schedule bounded source/setup, process ownership, and package-assembly work
+around demonstrated reusable needs. An investigation may proceed while an
+affected operation remains blocked. Legacy artifact acquisition requires its
+own accepted trust decision; hashing observed bytes does not establish their
+initial authenticity. Optional legacy coverage must not become a prerequisite
+for the minimum autonomous catalog path. Qualification covers shipped claims
+and selected canaries, never every discovery record.
+
+The [2026-09-06 port audit and discovery reconciliation](archive/2026-09-06-ports-roadmap-reconciliation.md)
+preserves the historical findings, owner mapping, source gaps, and observed
+planning changes. It is a dated snapshot; current issue scope and Project
+placement remain authoritative. Comparative claims about effort or reliability
+require measured evidence, even when feature lists overlap.
+
 ## Outcome measures
 
 Existing owners record lightweight measures with an explicit scope,
