@@ -22,7 +22,7 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":27,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":28,"ok":true,"command":"status","data":{},"error":null}
 ```
 
 Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for success, failure, or cancellation. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
@@ -109,6 +109,12 @@ API schema 27 adds library-free `tool list`, `tool set-path`, and
 uses the same core resolver, validation, and host-preference store. A selected
 path is saved only after its registry-owned, shell-free probe succeeds; clearing
 it reveals any environment or discovered candidate without changing a library.
+
+API schema 28 adds an optional `observed_identity` to source records returned by
+registration, listing, relink planning, and relink apply. New registrations retain
+versioned digest scopes, component facts, a selected ZIP member when present, and
+validator observations. Legacy registrations omit the field and remain usable;
+classification and admission are recomputed against the active catalog.
 
 ```text
 portcove --json capabilities

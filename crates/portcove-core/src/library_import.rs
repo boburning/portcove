@@ -159,6 +159,9 @@ pub(crate) fn validate_metadata(metadata: &LibraryMetadata, catalog: &Catalog) -
     let mut sources = BTreeSet::new();
     for source in &metadata.source_references {
         catalog.source_profile(&source.profile_id)?;
+        if let Some(identity) = &source.observed_identity {
+            identity.validate_for_record(source)?;
+        }
         if !sources.insert(&source.profile_id)
             || source.path.as_os_str().is_empty()
             || !sha256(&source.sha256)
@@ -290,6 +293,38 @@ mod tests {
         assert!(
             PortcoveService::plan_library_import(&metadata_path, &bundle, &destination).is_err()
         );
+        assert!(!destination.exists());
+    }
+
+    #[test]
+    fn import_rejects_observed_identity_that_does_not_match_its_source_baseline() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source_library = temporary.path().join("source");
+        let original = temporary.path().join("original.z64");
+        let metadata_path = temporary.path().join("library.json");
+        let bundle = temporary.path().join("bundle");
+        let destination = temporary.path().join("destination");
+        let service = PortcoveService::new(Library::open(&source_library).unwrap()).unwrap();
+        fs::write(&original, b"synthetic source identity").unwrap();
+        service.register_source("star-fox-64", &original).unwrap();
+        service.write_library_metadata(&metadata_path).unwrap();
+        fs::create_dir_all(&bundle).unwrap();
+
+        let mut metadata: serde_json::Value =
+            serde_json::from_slice(&fs::read(&metadata_path).unwrap()).unwrap();
+        for digest in metadata["source_references"][0]["observed_identity"]["digests"]
+            .as_array_mut()
+            .unwrap()
+        {
+            if digest["algorithm"] == "sha256" {
+                digest["value"] = serde_json::Value::String("0".repeat(64));
+            }
+        }
+        fs::write(&metadata_path, serde_json::to_vec(&metadata).unwrap()).unwrap();
+
+        let error = PortcoveService::plan_library_import(&metadata_path, &bundle, &destination)
+            .unwrap_err();
+        assert!(error.message.contains("registration baseline"));
         assert!(!destination.exists());
     }
 }

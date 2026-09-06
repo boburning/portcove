@@ -48,6 +48,11 @@ fn fixture(root: &Path, export: &Path) -> LibraryMetadata {
     }
     library.record_successful_launch("starship").unwrap();
     let service = PortcoveService::new(library).unwrap();
+    let original_source = root.with_extension("original.z64");
+    fs::write(&original_source, b"synthetic imported source identity").unwrap();
+    service
+        .register_source("star-fox-64", &original_source)
+        .unwrap();
     service.create_backup("starship").unwrap();
     service
         .set_output_directory("starship", &root.with_extension("starship-output"))
@@ -82,6 +87,14 @@ fn import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empt
     assert_eq!(
         restored.output_directory("starship").unwrap(),
         expected.port_settings[0].output_directory
+    );
+    assert_eq!(
+        restored
+            .source("star-fox-64")
+            .unwrap()
+            .unwrap()
+            .observed_identity,
+        expected.source_references[0].observed_identity
     );
     assert_eq!(
         restored.activities(1).unwrap()[0].status,

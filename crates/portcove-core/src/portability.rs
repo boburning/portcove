@@ -279,6 +279,7 @@ mod tests {
             .ensure_settings("starship", ReleaseChannel::Stable)
             .unwrap();
         let before = service.library().sources().unwrap();
+        assert!(before[0].observed_identity.is_some());
         let metadata = service.export_library_metadata().unwrap();
         assert_eq!(
             serde_json::to_value(&metadata.source_references).unwrap(),
@@ -297,6 +298,19 @@ mod tests {
             serde_json::to_value(&parsed.source_references).unwrap(),
             serde_json::to_value(&before).unwrap()
         );
+        assert_eq!(
+            parsed.source_references[0].observed_identity,
+            before[0].observed_identity
+        );
+        let mut legacy_value = serde_json::to_value(&parsed).unwrap();
+        legacy_value["source_references"][0]
+            .as_object_mut()
+            .unwrap()
+            .remove("observed_identity");
+        legacy_value["source_references"][0]["future_source_field"] =
+            serde_json::json!({"ignored": true});
+        let legacy: LibraryMetadata = serde_json::from_value(legacy_value).unwrap();
+        assert!(legacy.source_references[0].observed_identity.is_none());
         assert!(service.write_library_metadata(&destination).is_err());
         assert_eq!(fs::read(destination).unwrap(), bytes);
         assert_eq!(fs::read(source).unwrap(), source_bytes);
@@ -324,7 +338,19 @@ mod tests {
             .unwrap()
             .remove("output_directory");
         legacy["future_optional_field"] = serde_json::json!({"ignored": true});
+        if let Some(source) = legacy["source_references"]
+            .as_array_mut()
+            .and_then(|rows| rows.first_mut())
+        {
+            source.as_object_mut().unwrap().remove("observed_identity");
+        }
         let decoded: LibraryMetadata = serde_json::from_value(legacy).unwrap();
         assert!(decoded.port_settings[0].output_directory.is_none());
+        assert!(
+            decoded
+                .source_references
+                .first()
+                .is_none_or(|source| source.observed_identity.is_none())
+        );
     }
 }

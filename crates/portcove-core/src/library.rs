@@ -20,6 +20,58 @@ use crate::{
     database,
 };
 
+struct StoredSourceRow {
+    profile_id: String,
+    path: String,
+    sha256: String,
+    size: u64,
+    storage_sha256: String,
+    storage_size: u64,
+    updated_at: i64,
+    observed_identity_json: Option<String>,
+}
+
+impl StoredSourceRow {
+    fn from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Self> {
+        Ok(Self {
+            profile_id: row.get(0)?,
+            path: row.get(1)?,
+            sha256: row.get(2)?,
+            size: row.get(3)?,
+            storage_sha256: row.get(4)?,
+            storage_size: row.get(5)?,
+            updated_at: row.get(6)?,
+            observed_identity_json: row.get(7)?,
+        })
+    }
+
+    fn into_record(self) -> Result<SourceRecord> {
+        let observed_identity = self
+            .observed_identity_json
+            .map(|json| serde_json::from_str::<crate::ObservedSourceIdentity>(&json))
+            .transpose()
+            .map_err(|error| {
+                PortcoveError::state("stored observed source identity is invalid")
+                    .detail("profile_id", &self.profile_id)
+                    .detail("cause", error.to_string())
+            })?;
+        let record = SourceRecord {
+            profile_id: self.profile_id,
+            path: PathBuf::from(self.path),
+            sha256: self.sha256,
+            size: self.size,
+            storage_sha256: self.storage_sha256,
+            storage_size: self.storage_size,
+            updated_at: self.updated_at,
+            observed_identity,
+        };
+        if let Some(identity) = &record.observed_identity {
+            identity.validate_for_record(&record)?;
+        }
+        Ok(record)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Library {
     root: PathBuf,
@@ -761,12 +813,21 @@ impl Library {
 
     pub(crate) fn write_source(connection: &Connection, source: &SourceRecord) -> Result<()> {
         let path = crate::path::unicode(&source.path, "source")?;
+        if let Some(identity) = &source.observed_identity {
+            identity.validate_for_record(source)?;
+        }
+        let observed_identity_json = source
+            .observed_identity
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()?;
         connection.execute(
-            "INSERT INTO sources(profile_id, path, sha256, size, storage_sha256, storage_size, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+            "INSERT INTO sources(profile_id, path, sha256, size, storage_sha256, storage_size, updated_at, observed_identity_json)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
              ON CONFLICT(profile_id) DO UPDATE SET path=excluded.path, sha256=excluded.sha256,
-               size=excluded.size, storage_sha256=excluded.storage_sha256,
-               storage_size=excluded.storage_size, updated_at=excluded.updated_at",
+                size=excluded.size, storage_sha256=excluded.storage_sha256,
+                storage_size=excluded.storage_size, updated_at=excluded.updated_at,
+                observed_identity_json=excluded.observed_identity_json",
             params![
                 source.profile_id,
                 path,
@@ -774,7 +835,8 @@ impl Library {
                 source.size,
                 source.storage_sha256,
                 source.storage_size,
-                source.updated_at
+                source.updated_at,
+                observed_identity_json
             ],
         )?;
         Ok(())
@@ -782,19 +844,12 @@ impl Library {
 
     pub fn source(&self, profile_id: &str) -> Result<Option<SourceRecord>> {
         let connection = self.connection()?;
-        connection.query_row(
-            "SELECT profile_id, path, sha256, size, storage_sha256, storage_size, updated_at FROM sources WHERE profile_id=?1",
+        let stored = connection.query_row(
+            "SELECT profile_id, path, sha256, size, storage_sha256, storage_size, updated_at, observed_identity_json FROM sources WHERE profile_id=?1",
             [profile_id],
-            |row| Ok(SourceRecord {
-                profile_id: row.get(0)?,
-                path: PathBuf::from(row.get::<_, String>(1)?),
-                sha256: row.get(2)?,
-                size: row.get(3)?,
-                storage_sha256: row.get(4)?,
-                storage_size: row.get(5)?,
-                updated_at: row.get(6)?,
-            }),
-        ).optional().map_err(Into::into)
+            StoredSourceRow::from_row,
+        ).optional()?;
+        stored.map(StoredSourceRow::into_record).transpose()
     }
 
     pub fn sources(&self) -> Result<Vec<SourceRecord>> {
@@ -804,21 +859,10 @@ impl Library {
 
     pub(crate) fn sources_from(connection: &Connection) -> Result<Vec<SourceRecord>> {
         let mut statement = connection.prepare(
-            "SELECT profile_id, path, sha256, size, storage_sha256, storage_size, updated_at FROM sources ORDER BY profile_id",
+            "SELECT profile_id, path, sha256, size, storage_sha256, storage_size, updated_at, observed_identity_json FROM sources ORDER BY profile_id",
         )?;
-        let rows = statement.query_map([], |row| {
-            Ok(SourceRecord {
-                profile_id: row.get(0)?,
-                path: PathBuf::from(row.get::<_, String>(1)?),
-                sha256: row.get(2)?,
-                size: row.get(3)?,
-                storage_sha256: row.get(4)?,
-                storage_size: row.get(5)?,
-                updated_at: row.get(6)?,
-            })
-        })?;
-        rows.collect::<std::result::Result<Vec<_>, _>>()
-            .map_err(Into::into)
+        let rows = statement.query_map([], StoredSourceRow::from_row)?;
+        rows.map(|row| row?.into_record()).collect()
     }
 
     pub(crate) fn remove_source(&self, profile_id: &str) -> Result<bool> {

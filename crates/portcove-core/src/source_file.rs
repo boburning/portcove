@@ -31,6 +31,7 @@ pub(crate) struct FileIdentity {
     pub storage_size: u64,
     pub content_extension: String,
     pub archive_member: bool,
+    pub archive_member_name: Option<String>,
     pub canonical_n64_sha256: Option<String>,
     pub canonical_n64_sha1: Option<String>,
     pub canonical_n64_size: Option<u64>,
@@ -47,6 +48,7 @@ impl FileIdentity {
             storage_sha256: self.storage_sha256.clone(),
             storage_size: self.storage_size,
             updated_at: Library::now(),
+            observed_identity: None,
         })
     }
 }
@@ -91,6 +93,7 @@ pub(crate) fn read_identity(
             size: identity.size,
             content_extension: extension.to_ascii_lowercase(),
             archive_member: false,
+            archive_member_name: None,
             canonical_n64_sha256: identity.canonical_n64_sha256,
             canonical_n64_sha1: identity.canonical_n64_sha1,
             canonical_n64_size: identity.canonical_n64_size,
@@ -122,7 +125,8 @@ fn read_zip_identity(
     let entry = archive
         .by_index(index)
         .map_err(|error| PortcoveError::source(format!("invalid source ZIP entry: {error}")))?;
-    let content_extension = Path::new(entry.name())
+    let archive_member_name = entry.name().to_owned();
+    let content_extension = Path::new(&archive_member_name)
         .extension()
         .and_then(|value| value.to_str())
         .unwrap_or_default()
@@ -149,6 +153,7 @@ fn read_zip_identity(
         storage_size: storage.size,
         content_extension,
         archive_member: true,
+        archive_member_name: Some(archive_member_name),
         canonical_n64_sha256: identity.canonical_n64_sha256,
         canonical_n64_sha1: identity.canonical_n64_sha1,
         canonical_n64_size: identity.canonical_n64_size,

@@ -16,7 +16,7 @@ fn exported_source_assessment_separates_facts_without_opening_library() {
     let output = portcove(&library, &["--json", "schema", "export"]);
     assert!(output.status.success());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 27);
+    assert_eq!(response["schema_version"], 28);
     let schema = &response["data"]["source_assessment"];
     for field in [
         "health",
@@ -657,19 +657,22 @@ fn source_relink_requires_a_current_plan_and_preserves_registered_content() {
     let relocated = temporary.path().join("relocated.z64");
     std::fs::write(&original, b"synthetic source fixture").unwrap();
     std::fs::copy(&original, &relocated).unwrap();
-    assert!(
-        portcove(
-            &library,
-            &[
-                "--json",
-                "source",
-                "add",
-                "star-fox-64",
-                original.to_str().unwrap()
-            ]
-        )
-        .status
-        .success()
+    let added = portcove(
+        &library,
+        &[
+            "--json",
+            "source",
+            "add",
+            "star-fox-64",
+            original.to_str().unwrap(),
+        ],
+    );
+    assert!(added.status.success());
+    let added = json_stdout(&added);
+    assert_eq!(added["data"]["observed_identity"]["schema_version"], 1);
+    assert_eq!(
+        added["data"]["observed_identity"]["digests"][0]["algorithm"],
+        "sha1"
     );
     let args = [
         "--json",
@@ -681,6 +684,10 @@ fn source_relink_requires_a_current_plan_and_preserves_registered_content() {
     let plan = json_stdout(&portcove(&library, &args));
     assert_eq!(plan["command"], "source.relink");
     assert_eq!(plan["data"]["original"]["path"], original.to_str().unwrap());
+    assert_eq!(
+        plan["data"]["replacement"]["observed_identity"],
+        plan["data"]["original"]["observed_identity"]
+    );
     let fingerprint = plan["data"]["preview_sha256"].as_str().unwrap();
     assert_eq!(fingerprint.len(), 64);
     let mut apply = args.to_vec();
@@ -703,6 +710,10 @@ fn source_relink_requires_a_current_plan_and_preserves_registered_content() {
     assert_eq!(result["command"], "source.relink");
     assert_eq!(result["data"]["path"], relocated.to_str().unwrap());
     assert_eq!(result["data"]["sha256"], plan["data"]["original"]["sha256"]);
+    assert_eq!(
+        result["data"]["observed_identity"],
+        plan["data"]["replacement"]["observed_identity"]
+    );
 }
 
 #[test]
@@ -818,7 +829,7 @@ fn default_read_commands_have_human_output_snapshots() {
 
     let capabilities = human_stdout(&portcove(root.path(), &["capabilities"])).to_owned();
     assert!(capabilities.starts_with("Portcove "));
-    assert!(capabilities.contains(" capabilities\nSchema: 27"));
+    assert!(capabilities.contains(" capabilities\nSchema: 28"));
 }
 
 #[test]
@@ -1098,11 +1109,11 @@ fn capabilities_are_one_clean_versioned_json_document() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 27);
+    assert_eq!(response["schema_version"], 28);
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");
     assert!(response["error"].is_null());
-    assert_eq!(response["data"]["schema_version"], 27);
+    assert_eq!(response["data"]["schema_version"], 28);
     assert_eq!(
         response["data"]["raw_stream_commands"],
         serde_json::json!(["exec"])
@@ -1124,7 +1135,7 @@ fn command_errors_keep_the_machine_envelope_and_stable_exit_code() {
     assert_eq!(output.status.code(), Some(4));
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 27);
+    assert_eq!(response["schema_version"], 28);
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "catalog.show");
     assert!(response["data"].is_null());
@@ -1141,7 +1152,7 @@ fn parser_errors_are_structured_for_machine_callers() {
     assert!(output.stderr.is_empty());
     assert!(!library.exists());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 27);
+    assert_eq!(response["schema_version"], 28);
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "cli");
     assert_eq!(response["error"]["code"], "usage");
@@ -1161,7 +1172,7 @@ fn jsonl_read_commands_end_with_one_result_event() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 27);
+    assert_eq!(response["schema_version"], 28);
     assert_eq!(response["type"], "result");
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");
