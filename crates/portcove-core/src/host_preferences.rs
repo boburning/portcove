@@ -20,9 +20,15 @@ pub struct HostPreferences {
     pub format_version: u32,
     pub library_root: Option<PathBuf>,
     #[serde(default)]
-    pub host_tool_paths: BTreeMap<String, PathBuf>,
+    pub host_tool_paths: BTreeMap<String, HostToolPreference>,
     #[serde(flatten)]
     extensions: BTreeMap<String, serde_json::Value>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HostToolPreference {
+    pub path: PathBuf,
+    pub sha256: String,
 }
 
 impl Default for HostPreferences {
@@ -111,9 +117,19 @@ impl HostPreferenceStore {
         if let Some(root) = &preferences.library_root {
             validate_absolute(root)?;
         }
-        for (id, path) in &preferences.host_tool_paths {
+        for (id, selection) in &preferences.host_tool_paths {
             crate::host_tools::definition(id)?;
-            validate_absolute(path)?;
+            validate_absolute(&selection.path)?;
+            if selection.sha256.len() != 64
+                || !selection
+                    .sha256
+                    .bytes()
+                    .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+            {
+                return Err(PortcoveError::state(format!(
+                    "saved host-tool fingerprint is invalid: {id}"
+                )));
+            }
         }
         Ok(preferences)
     }
@@ -163,18 +179,70 @@ impl HostPreferenceStore {
 
     pub fn host_tool_path(&self, id: &str) -> Result<Option<PathBuf>> {
         crate::host_tools::definition(id)?;
+        Ok(self
+            .load()?
+            .host_tool_paths
+            .get(id)
+            .map(|selection| selection.path.clone()))
+    }
+
+    pub(crate) fn host_tool_preference(&self, id: &str) -> Result<Option<HostToolPreference>> {
+        crate::host_tools::definition(id)?;
         Ok(self.load()?.host_tool_paths.get(id).cloned())
     }
 
-    pub fn set_host_tool_path(&self, id: &str, path: &Path) -> Result<()> {
-        crate::host_tools::definition(id)?;
-        validate_absolute(path)?;
+    #[cfg(test)]
+    pub(crate) fn set_host_tool_path(&self, id: &str, path: &Path, sha256: &str) -> Result<()> {
+        self.validate_host_tool_selection(id, path, sha256)?;
         let _lock = self.lock()?;
         let mut preferences = self.load()?;
-        preferences
-            .host_tool_paths
-            .insert(id.to_owned(), path.to_path_buf());
+        preferences.host_tool_paths.insert(
+            id.to_owned(),
+            HostToolPreference {
+                path: path.to_path_buf(),
+                sha256: sha256.to_owned(),
+            },
+        );
         self.publish(&preferences)
+    }
+
+    pub(crate) fn replace_host_tool_path_if_unchanged(
+        &self,
+        id: &str,
+        expected: Option<&HostToolPreference>,
+        path: &Path,
+        sha256: &str,
+    ) -> Result<bool> {
+        self.validate_host_tool_selection(id, path, sha256)?;
+        let _lock = self.lock()?;
+        let mut preferences = self.load()?;
+        if preferences.host_tool_paths.get(id) != expected {
+            return Ok(false);
+        }
+        preferences.host_tool_paths.insert(
+            id.to_owned(),
+            HostToolPreference {
+                path: path.to_path_buf(),
+                sha256: sha256.to_owned(),
+            },
+        );
+        self.publish(&preferences)?;
+        Ok(true)
+    }
+
+    fn validate_host_tool_selection(&self, id: &str, path: &Path, sha256: &str) -> Result<()> {
+        crate::host_tools::definition(id)?;
+        validate_absolute(path)?;
+        if sha256.len() != 64
+            || !sha256
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+        {
+            return Err(PortcoveError::usage(
+                "host-tool fingerprint must be a lowercase SHA-256 digest",
+            ));
+        }
+        Ok(())
     }
 
     pub fn clear_host_tool_path(&self, id: &str) -> Result<()> {

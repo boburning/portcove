@@ -61,10 +61,13 @@ pub use catalog_update::{CatalogUpdatePlan, CatalogUpdateSource};
 pub use error::{ErrorCode, PortcoveError, Result};
 pub use gitlab::GitlabReleaseProvider;
 pub use host_preferences::{
-    HostPreferenceStore, HostPreferences, LibrarySelection, LibrarySelectionSource,
+    HostPreferenceStore, HostPreferences, HostToolPreference, LibrarySelection,
+    LibrarySelectionSource,
 };
 pub use host_tools::{
-    HostToolDefinition, HostToolProbePolicy, definitions as host_tool_definitions,
+    HostToolDefinition, HostToolProbePolicy, HostToolProbeResult, HostToolProbeState,
+    clear_host_tool, configure_host_tool, configure_host_tool_with_cancellation,
+    definitions as host_tool_definitions, probe_host_tool, probe_host_tool_with_cancellation,
 };
 pub use import_execution::LibraryImportResult;
 pub use install::{InstallQualification, InstallRequest, Installer, VerificationReport};

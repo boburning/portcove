@@ -1,0 +1,34 @@
+use std::{env, fs, io::{self, Write}, process::Command, thread, time::Duration};
+
+fn main() {
+    let args = env::args().skip(1).collect::<Vec<_>>();
+    match args.first().map(String::as_str) {
+        Some("-help") => println!("chdman verify extractdvd"),
+        Some("--success") => println!("testtool verify convert"),
+        Some("--nonzero") => std::process::exit(7),
+        Some("--sleep") => {
+            thread::sleep(Duration::from_secs(2));
+            println!("testtool verify convert");
+        }
+        Some("--large") => print!("testtool verify convert {}", "x".repeat(8192)),
+        Some("--malformed") => io::stdout().write_all(&[0xff, 0xfe]).unwrap(),
+        Some("--incompatible") => println!("testtool legacy"),
+        Some("--record") => {
+            fs::write(&args[1], args[2..].join("\n")).unwrap();
+            println!("testtool verify convert");
+        }
+        Some("--tree") => {
+            thread::sleep(Duration::from_millis(100));
+            Command::new(env::current_exe().unwrap())
+                .args(["--grandchild", &args[1]])
+                .spawn()
+                .unwrap();
+            thread::sleep(Duration::from_secs(2));
+        }
+        Some("--grandchild") => {
+            thread::sleep(Duration::from_secs(1));
+            fs::write(&args[1], b"orphaned").unwrap();
+        }
+        _ => println!("wrong program"),
+    }
+}
