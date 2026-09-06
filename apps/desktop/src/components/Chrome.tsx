@@ -3,7 +3,7 @@ import { AlertTriangle, Boxes, Check, CheckCircle2, CircleMinus, CircleUserRound
 import desktopPackage from "../../package.json";
 import { copyText } from "../clipboard";
 import type { ThemeState, ThemePreference } from "../theme";
-import type { DoctorReport, GithubAuthStatus, GithubDeviceLogin, HostToolProbeResult, HostToolStatus, LibraryMetadataFile, LibrarySelection, OperationEvent, SourceProfile, SourceRecord, SourceVerificationOutcome, StorageSummary } from "../types";
+import type { DoctorReport, GithubAuthStatus, GithubDeviceLogin, HostToolProbeResult, HostToolStatus, LibraryMetadataFile, LibrarySelection, OperationEvent, SourceInspectionReport, SourceProfile, SourceRecord, SourceVerificationOutcome, StorageSummary } from "../types";
 import { errorText, formatBytes, type SourceRequirement, type View } from "../view-model";
 import { BrandAvatar, BrandMascot, BrandWordmark } from "./Brand";
 import { ExternalLink } from "./ExternalLink";
@@ -11,6 +11,7 @@ import { LibraryMoveButton } from "./LibraryMove";
 import { LibraryImportButton } from "./LibraryImport";
 import { CatalogSettings } from "./CatalogUpdates";
 import { SourceDiscoveryButton } from "./SourceDiscovery";
+import { SourceIdentityPanel } from "./SourceIdentity";
 import { Icon, NavigationHints, Shortcut } from "./ui";
 
 export function Sidebar({ view, setView, installedCount, updateCount, onAdopt, controller }: {
@@ -198,10 +199,10 @@ function SourceRequirements({ requirements, busy, add }: { requirements: SourceR
   </div>;
 }
 
-function SourceHealth({ sources, requirements, outcomes, busy, verify, replace, add, profiles, onAdded }: {
+function SourceHealth({ sources, requirements, outcomes, inspections, busy, verify, replace, add, profiles, onAdded, openEvidence }: {
   sources: SourceRecord[]; outcomes: SourceVerificationOutcome[]; busy?: string; verify?: () => void;
   replace?: (source: SourceRecord) => void; requirements: SourceRequirement[]; add?: (profile: SourceProfile, archive: boolean) => void;
-  profiles: SourceProfile[]; onAdded?: () => Promise<void>;
+  profiles: SourceProfile[]; inspections: ReadonlyMap<string, SourceInspectionReport>; onAdded?: () => Promise<void>; openEvidence?: (evidenceId: string) => void;
 }) {
   const byProfile = new Map(outcomes.map(outcome => [outcome.profile_id, outcome]));
   return <article className="settings-card source-health" data-focus-group>
@@ -211,21 +212,27 @@ function SourceHealth({ sources, requirements, outcomes, busy, verify, replace, 
     <SourceDiscoveryButton profiles={profiles} disabled={Boolean(busy)} onAdded={onAdded} />
     {sources.length === 0
       ? <p>No source files are registered yet.</p>
-      : <div className="source-health-list">{sources.map(source => <SourceHealthRow key={source.profile_id} source={source} outcome={byProfile.get(source.profile_id)} busy={busy} replace={replace} />)}</div>}
+      : <div className="source-health-list">{sources.map(source => <SourceHealthRow key={source.profile_id} source={source} report={inspections.get(source.profile_id)} outcome={byProfile.get(source.profile_id)} busy={busy} replace={replace} openEvidence={openEvidence} />)}</div>}
     <p>Verification is local and read-only. Relink source checks the current source profile and confirms identical content at the new location before updating Portcove's reference. Your source files stay untouched.</p>
   </article>;
 }
 
-function SourceHealthRow({ source, outcome, busy, replace }: { source: SourceRecord; outcome?: SourceVerificationOutcome; busy?: string; replace?: (source: SourceRecord) => void }) {
+function SourceHealthRow({ source, report, outcome, busy, replace, openEvidence }: { source: SourceRecord; report?: SourceInspectionReport; outcome?: SourceVerificationOutcome; busy?: string; replace?: (source: SourceRecord) => void; openEvidence?: (evidenceId: string) => void }) {
   return <div className="source-health-row">
-    <div><strong>{source.profile_id}</strong><code>{source.path}</code></div>
-    <div className="source-health-actions"><SourceState outcome={outcome} />
+    <div><strong>{report?.expected_identity?.label ?? source.profile_id}</strong><code>{source.path}</code></div>
+    <div className="source-health-actions"><SourceState report={report} outcome={outcome} />
       <button data-focusable className="small-control" disabled={Boolean(busy)} onClick={() => replace?.(source)}>Relink source</button></div>
     {outcome?.error && <small>{outcome.error.message}</small>}
+    {report ? <SourceIdentityPanel report={report} openEvidence={openEvidence} /> : <p className="source-inspection-loading" role="status">Checking identity…</p>}
   </div>;
 }
 
-function SourceState({ outcome }: { outcome?: SourceVerificationOutcome }) {
+function SourceState({ report, outcome }: { report?: SourceInspectionReport; outcome?: SourceVerificationOutcome }) {
+  if (report) {
+    if (report.state_code === "recognized_exact") return <span className="source-state verified"><Icon glyph={Check} size="sm" />Exact match</span>;
+    if (["known_mismatch", "source_changed", "source_missing", "source_could_not_be_checked"].includes(report.state_code)) return <span className="source-state failed"><Icon glyph={AlertTriangle} size="sm" />Needs attention</span>;
+    return <span className="source-state"><Icon glyph={CircleMinus} size="sm" />{report.summary}</span>;
+  }
   if (!outcome) return <span className="source-state">Not checked</span>;
   if (outcome.ok) return <span className="source-state verified"><Icon glyph={Check} size="sm" />Verified</span>;
   return <span className="source-state failed"><Icon glyph={AlertTriangle} size="sm" />Needs attention</span>;
@@ -281,10 +288,11 @@ function ThemeOption({ option, selected, select }: { option: ThemePreference; se
   return <button data-focusable className={selected ? "active" : ""} aria-pressed={selected} onClick={() => select?.(option)}>{option[0].toUpperCase() + option.slice(1)}</button>;
 }
 
-export function SettingsView({ libraryRoot = "", librarySelection, chooseLibrary, switchLibrary, resetLibrary, doctor, storage, github, busy, sources = [], sourceNeeds = [], sourceOutcomes = [], verifySources, replaceSource, addSource, appearance, createSupportBundle, exportMetadata, sourceProfiles = [], onSourceAdded, onCatalogChanged, hostToolActions }: {
+export function SettingsView({ libraryRoot = "", librarySelection, chooseLibrary, switchLibrary, resetLibrary, doctor, storage, github, busy, sources = [], sourceNeeds = [], sourceOutcomes = [], sourceInspections = new Map(), verifySources, replaceSource, addSource, appearance, createSupportBundle, exportMetadata, sourceProfiles = [], onSourceAdded, onCatalogChanged, hostToolActions, openSourceEvidence }: {
   libraryRoot?: string; doctor?: DoctorReport; storage?: StorageSummary; github?: GithubSettingsActions; busy?: string; sources?: SourceRecord[];
   librarySelection?: LibrarySelection; chooseLibrary?: (currentPath: string) => Promise<string | null>; switchLibrary?: (path: string) => Promise<void>; resetLibrary?: () => Promise<void>;
   sourceNeeds?: SourceRequirement[]; sourceOutcomes?: SourceVerificationOutcome[]; verifySources?: () => void; replaceSource?: (source: SourceRecord) => void;
+  sourceInspections?: ReadonlyMap<string, SourceInspectionReport>; openSourceEvidence?: (evidenceId: string) => void;
   addSource?: (profile: SourceProfile, archive: boolean) => void; appearance?: ThemeState; createSupportBundle?: () => Promise<string | undefined>;
   exportMetadata?: () => Promise<LibraryMetadataFile | undefined>;
   sourceProfiles?: SourceProfile[]; onSourceAdded?: () => Promise<void>; onCatalogChanged?: () => Promise<void>;
@@ -295,7 +303,7 @@ export function SettingsView({ libraryRoot = "", librarySelection, chooseLibrary
     <LibrarySelectionCard selection={librarySelection} busy={busy} choose={chooseLibrary} switchLibrary={switchLibrary} reset={resetLibrary} />
     <StorageCard libraryRoot={storage?.library_root ?? libraryRoot} storage={storage} busy={busy} exportMetadata={exportMetadata} />
     <GithubSettings github={github} busy={busy} />
-    <SourceHealth sources={sources} requirements={sourceNeeds} outcomes={sourceOutcomes} busy={busy} verify={verifySources} replace={replaceSource} add={addSource} profiles={sourceProfiles} onAdded={onSourceAdded} />
+    <SourceHealth sources={sources} requirements={sourceNeeds} outcomes={sourceOutcomes} inspections={sourceInspections} busy={busy} verify={verifySources} replace={replaceSource} add={addSource} profiles={sourceProfiles} onAdded={onSourceAdded} openEvidence={openSourceEvidence} />
     <AppearanceSettings appearance={appearance} />
     <CatalogSettings provenance={doctor?.catalog_provenance} disabled={Boolean(busy)} onChanged={onCatalogChanged} />
     <HostReadiness doctor={doctor} busy={busy} actions={hostToolActions} />

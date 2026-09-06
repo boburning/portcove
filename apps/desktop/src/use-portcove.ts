@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { desktopApi } from "./api";
-import type { ActivityRecord, BackupInventory, BackupRecord, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, OperationEvent, PortDefinition, PortStatus, ReconcileAction, SourceRecord, SourceVerificationOutcome, UpdateCheckOutcome } from "./types";
+import type { ActivityRecord, BackupInventory, BackupRecord, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, OperationEvent, PortDefinition, PortStatus, ReconcileAction, SourceInspectionReport, SourceRecord, SourceVerificationOutcome, UpdateCheckOutcome } from "./types";
 import type { DetailActions } from "./components/DetailPanel";
 import { errorText, isCancellation, type Filter, type View } from "./view-model";
 import { currentUpdateSnapshot } from "./view-model";
@@ -173,15 +173,32 @@ export function useAdoptionPlanning(path: string, portId: string | undefined, op
   return { preview: request.value, review, adopt };
 }
 
-export function useSourceHealth(perform: Perform, sources: SourceRecord[]) {
+export function useSourceHealth(perform: Perform, sources: SourceRecord[], requestedProfileIds: readonly string[] = [], catalogIdentity = "") {
   const [outcomes, setOutcomes] = useState<SourceVerificationOutcome[]>([]);
-  const baseline = sources.map(source => `${source.profile_id}:${source.sha256}:${source.size}:${source.path}`).join("|");
-  useEffect(() => setOutcomes([]), [baseline]);
+  const [inspections, setInspections] = useState<ReadonlyMap<string, SourceInspectionReport>>(new Map());
+  const generation = useRef(new LatestRequestGeneration());
+  const requested = new Set(requestedProfileIds);
+  const inspectionSources = sources.filter(source => requested.has(source.profile_id));
+  const baseline = `${catalogIdentity}|${JSON.stringify(inspectionSources)}`;
+  const inspectAll = useCallback(async () => {
+    const request = generation.current.begin();
+    const results = await Promise.allSettled(inspectionSources.map(source => desktopApi.inspectSource(source.profile_id)));
+    if (!generation.current.isCurrent(request)) return;
+    setInspections(new Map(results.flatMap((result, index) => result.status === "fulfilled" ? [[inspectionSources[index].profile_id, result.value] as const] : [])));
+  }, [baseline]);
+  useEffect(() => {
+    generation.current.begin();
+    setOutcomes([]);
+    setInspections(new Map());
+    void inspectAll();
+    return () => { generation.current.begin(); };
+  }, [inspectAll]);
   const verifyAll = useCallback(async () => {
     const result = await perform("verify sources", desktopApi.verifySources);
     if (result) setOutcomes(result);
-  }, [perform]);
-  return { outcomes, verifyAll };
+    await inspectAll();
+  }, [inspectAll, perform]);
+  return { outcomes, inspections, inspectAll, verifyAll };
 }
 
 export function usePortBackups(portId: string | undefined, setError: (error?: string) => void) {

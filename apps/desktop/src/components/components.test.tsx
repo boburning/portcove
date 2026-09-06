@@ -248,15 +248,28 @@ describe("desktop components", () => {
     };
     const verified = renderToStaticMarkup(<SettingsView libraryRoot="C:/Portcove" sources={[source]} sourceOutcomes={[{
       profile_id: source.profile_id, ok: true, result: { ...source, registered_at: 1, verified_at: 2, inspection },
-    }]} verifySources={vi.fn()} replaceSource={vi.fn()} />);
+    }]} sourceInspections={new Map([[source.profile_id, inspection]])} verifySources={vi.fn()} replaceSource={vi.fn()} />);
     const failed = renderToStaticMarkup(<SettingsView libraryRoot="C:/Portcove" sources={[source]} sourceOutcomes={[{
       profile_id: source.profile_id, ok: false, error: { code: "source_invalid", message: "source changed since registration", details: {} },
     }]} verifySources={vi.fn()} />);
-    expect(verified).toContain("Verified");
+    expect(verified).toContain("Exact match");
+    expect(verified).toContain("Full identity and evidence");
     expect(verified).toContain("D:/ROMs/sample.z64");
     expect(verified).toContain("Relink source");
     expect(failed).toContain("Needs attention");
     expect(failed).toContain("source changed since registration");
+  });
+
+  it("shows the saved registered path as inspected and keeps a replacement path unchecked", () => {
+    const source = { profile_id: "sample-rom", path: "D:/ROMs/registered.z64", sha256: "a".repeat(64), size: 1024, storage_sha256: "a".repeat(64), storage_size: 1024, updated_at: 1 };
+    const inspection: SourceInspectionReport = { schema_version: 1, profile_id: source.profile_id, health: "current", state_code: "recognized_exact", summary: "Exact registered identity.", next_action: "Continue.", registered: source, applications: [], evidence: [], legacy: { registration_identity_not_recorded: false, variant_unspecified_records: [] } };
+    const saved = renderToStaticMarkup(<DetailPanel port={port} source={source} sourceInspection={inspection} sourcePath={source.path} setSourcePath={vi.fn()} actions={actions} />);
+    const replacement = renderToStaticMarkup(<DetailPanel port={port} source={source} sourceInspection={inspection} sourcePath="D:/ROMs/replacement.z64" setSourcePath={vi.fn()} actions={actions} />);
+    expect(saved).toContain("Exact match");
+    expect(saved).toContain("Exact registered identity.");
+    expect(saved).not.toContain("Selected path has not been checked");
+    expect(replacement).toContain("Selected path has not been checked");
+    expect(replacement).not.toContain("Exact registered identity.");
   });
 
   it("surfaces missing installed-library source requirements in settings", () => {

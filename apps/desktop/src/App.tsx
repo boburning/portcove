@@ -85,9 +85,11 @@ function Workspace({ bootstrap, switchLibrary, resetLibrary }: { bootstrap: Boot
   const operations = useOperationState(data.refresh);
   const github = useGithubAuth(operations.perform, operations.setError);
   const updates = useUpdateCenter(operations.perform, data.statuses);
-  const sourceHealth = useSourceHealth(operations.perform, data.sources);
-  const appearance = useThemePreference();
   const ui = usePortcoveUi();
+  const selectedPort = data.catalog?.ports.find(port => port.id === ui.selectedId);
+  const inspectionProfiles = ui.view === "settings" ? data.sources.map(source => source.profile_id) : [selectedPort?.source_profile, selectedPort?.bios_source_profile].filter((profile): profile is string => Boolean(profile));
+  const sourceHealth = useSourceHealth(operations.perform, data.sources, inspectionProfiles, JSON.stringify(data.catalog?.source_catalog ?? null));
+  const appearance = useThemePreference();
   const model = useAppModel(data, ui, operations.setError);
   const installPlanning = useInstallPlanning(model.port?.id, model.status?.channel ?? model.port?.channels[0], operations.perform);
   const backups = usePortBackups(model.port?.id, operations.setError);
@@ -114,7 +116,7 @@ function Workspace({ bootstrap, switchLibrary, resetLibrary }: { bootstrap: Boot
       <StatusLayer error={operations.error} clearError={() => operations.setError(undefined)} operation={operations.operation} busy={operations.busy} />
       <CurrentView data={data} ui={ui} model={model} operations={operations} github={github} updates={updates} sourceHealth={sourceHealth} appearance={appearance} bootstrap={bootstrap} switchLibrary={switchLibrary} resetLibrary={resetLibrary} />
     </main>
-    <SelectedPortPanel model={model} ui={ui} operations={operations} installPlanning={installPlanning} backups={backups} activities={data.activities} libraryGeneration={bootstrap.generation} />
+    <SelectedPortPanel model={model} ui={ui} operations={operations} sourceHealth={sourceHealth} installPlanning={installPlanning} backups={backups} activities={data.activities} libraryGeneration={bootstrap.generation} />
     <AdoptionOverlay ui={ui} operations={operations} />
     <CommandPalette open={commandSurface.open} commands={commandSurface.commands} close={() => commandSurface.setOpen(false)} />
   </div>;
@@ -183,7 +185,7 @@ function CurrentView({ data, ui, model, operations, github, updates, sourceHealt
       const path = await pickMetadataExportPath();
       return path ? desktopApi.exportLibraryMetadata(path) : undefined;
     })}
-    sourceOutcomes={sourceHealth.outcomes} verifySources={() => { void sourceHealth.verifyAll(); }} replaceSource={source => {
+    sourceOutcomes={sourceHealth.outcomes} sourceInspections={sourceHealth.inspections} verifySources={() => { void sourceHealth.verifyAll(); }} openSourceEvidence={evidenceId => { void operations.perform("open source evidence", () => desktopApi.openSourceEvidence(evidenceId)); }} replaceSource={source => {
       const profile = data.catalog?.source_profiles.find(candidate => candidate.id === source.profile_id);
       void replaceRegisteredSource(profile, source, operations.perform, operations.setError);
     }} sourceNeeds={model.sourceNeeds} addSource={(profile, archive) => {
@@ -194,14 +196,15 @@ function CurrentView({ data, ui, model, operations, github, updates, sourceHealt
     onBrowseCatalog={() => ui.setView("catalog")} clearFilters={() => { ui.setFilter("all"); ui.setQuery(""); }} loading={!data.catalog} />;
 }
 
-function SelectedPortPanel({ model, ui, operations, installPlanning, backups, activities, libraryGeneration }: { model: ReturnType<typeof useAppModel>; ui: UiState; operations: OperationState; installPlanning: InstallPlanningState; backups: BackupState; activities: ActivityRecord[]; libraryGeneration: number }) {
+function SelectedPortPanel({ model, ui, operations, sourceHealth, installPlanning, backups, activities, libraryGeneration }: { model: ReturnType<typeof useAppModel>; ui: UiState; operations: OperationState; sourceHealth: SourceHealthState; installPlanning: InstallPlanningState; backups: BackupState; activities: ActivityRecord[]; libraryGeneration: number }) {
   if (!model.port) return null;
   const pickSource = model.sourceProfile ? () => { void applyPathChoice(pickSourcePath(model.sourceProfile!, ui.sourcePath), ui.setSourcePath, operations.setError); } : undefined;
   const pickArchive = model.sourceProfile?.kind === "file-set" ? () => { void applyPathChoice(pickSourceArchivePath(ui.sourcePath), ui.setSourcePath, operations.setError); } : undefined;
   const pickBios = model.biosProfile ? () => { void applyPathChoice(pickSourcePath(model.biosProfile!, ui.biosPath), ui.setBiosPath, operations.setError); } : undefined;
-  return <DetailPanel port={model.port} status={model.status} installPlan={installPlanning.plan} backups={backups.backups} backupProblems={backups.inventory.problems} backupState={backups.inventory.state} source={model.source} sourceProfile={model.sourceProfile} sourcePath={ui.sourcePath} setSourcePath={ui.setSourcePath}
+  return <DetailPanel port={model.port} status={model.status} installPlan={installPlanning.plan} backups={backups.backups} backupProblems={backups.inventory.problems} backupState={backups.inventory.state} source={model.source} sourceInspection={model.port.source_profile ? sourceHealth.inspections.get(model.port.source_profile) : undefined} sourceProfile={model.sourceProfile} sourcePath={ui.sourcePath} setSourcePath={ui.setSourcePath}
     cancellableActivities={activities.filter(activity => activity.target_id === model.port?.id && activity.cancellation)} libraryGeneration={libraryGeneration} outputLocationChanged={installPlanning.invalidate}
-    pickSource={pickSource} pickSourceArchive={pickArchive} busy={operations.busy} bios={model.bios} biosProfile={model.biosProfile} biosPath={ui.biosPath} setBiosPath={ui.setBiosPath} pickBios={pickBios}
+    pickSource={pickSource} pickSourceArchive={pickArchive} busy={operations.busy} bios={model.bios} biosInspection={model.port.bios_source_profile ? sourceHealth.inspections.get(model.port.bios_source_profile) : undefined} biosProfile={model.biosProfile} biosPath={ui.biosPath} setBiosPath={ui.setBiosPath} pickBios={pickBios}
+    openSourceEvidence={evidenceId => { void operations.perform("open source evidence", () => desktopApi.openSourceEvidence(evidenceId)); }}
     actions={detailActions(model.port, model.status, ui.sourcePath, ui.biosPath, operations.perform, () => ui.setSelectedId(undefined), installPlanning.review, backups.refresh)} />;
 }
 
