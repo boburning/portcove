@@ -22,6 +22,7 @@ mod library_import;
 mod library_move;
 mod library_transfer;
 mod operation;
+mod output_relocation;
 mod output_root;
 mod path;
 mod permissions;
@@ -69,6 +70,9 @@ pub use library_import::LibraryImportPlan;
 pub use library_move::LibraryMoveResult;
 pub use library_transfer::{LibraryMovePlan, LibraryTreePlan};
 pub use operation::{OPERATION_EVENT_SCHEMA_VERSION, OperationCoordinator};
+pub use output_relocation::{
+    OutputRelocationInstall, OutputRelocationPlan, OutputRelocationResult, OutputRelocationStatus,
+};
 pub use portability::{
     LibraryContentKind, LibraryContentRoot, LibraryLaunchHistory, LibraryMetadata,
     LibraryMetadataFile, LibraryPortSettings,
@@ -98,4 +102,4 @@ pub use source_inspection::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 24;
+pub const API_SCHEMA_VERSION: u32 = 25;

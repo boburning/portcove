@@ -10,7 +10,7 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior};
 
 use crate::{PortcoveError, Result};
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 15;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 16;
 
 struct Migration {
     version: i64,
@@ -109,6 +109,12 @@ const MIGRATIONS: &[Migration] = &[
         name: "external output ownership",
         apply: migration_15,
         verify: verify_migration_15,
+    },
+    Migration {
+        version: 16,
+        name: "recoverable output relocation",
+        apply: migration_16,
+        verify: verify_migration_16,
     },
 ];
 
@@ -734,6 +740,23 @@ fn verify_migration_15(connection: &Connection) -> Result<()> {
     Ok(())
 }
 
+fn migration_16(transaction: &Transaction<'_>) -> Result<()> {
+    if !table_columns(transaction, "lifecycle_operations")?
+        .iter()
+        .any(|column| column == "relocation_json")
+    {
+        transaction.execute(
+            "ALTER TABLE lifecycle_operations ADD COLUMN relocation_json TEXT",
+            [],
+        )?;
+    }
+    Ok(())
+}
+
+fn verify_migration_16(connection: &Connection) -> Result<()> {
+    require_columns(connection, "lifecycle_operations", &["relocation_json"])
+}
+
 fn verify_migration_11(connection: &Connection) -> Result<()> {
     require_columns(connection, "catalog_trust", &["key_id", "public_key"])?;
     require_columns(
@@ -1113,5 +1136,29 @@ mod tests {
             .unwrap();
         assert_eq!(second, first);
         verify_migration_15(&connect(temporary.path()).unwrap()).unwrap();
+    }
+
+    #[test]
+    fn interrupted_output_relocation_migration_completes_idempotently() {
+        let temporary = tempdir().unwrap();
+        prepare_root(temporary.path());
+        migrate_to(temporary.path(), 15).unwrap();
+        let connection = connect(temporary.path()).unwrap();
+        connection
+            .execute(
+                "ALTER TABLE lifecycle_operations ADD COLUMN relocation_json TEXT",
+                [],
+            )
+            .unwrap();
+        drop(connection);
+
+        migrate(temporary.path()).unwrap();
+
+        let connection = connect(temporary.path()).unwrap();
+        assert_eq!(
+            recorded_versions(&connection).unwrap(),
+            (1..=CURRENT_SCHEMA_VERSION).collect::<Vec<_>>()
+        );
+        verify_migration_16(&connection).unwrap();
     }
 }

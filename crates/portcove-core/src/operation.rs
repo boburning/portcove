@@ -14,7 +14,7 @@ use uuid::Uuid;
 
 use crate::{
     ActivityRecord, InstallRecord, Library, OperationEvent, OperationEventKind, OperationResult,
-    OperationTarget, PortcoveError, Result, database,
+    OperationTarget, OutputRelocationPlan, PortcoveError, Result, database,
 };
 
 pub const OPERATION_EVENT_SCHEMA_VERSION: u32 = 2;
@@ -27,6 +27,7 @@ pub(crate) enum LifecycleOperationKind {
     Restore,
     DeleteBackup,
     Activate,
+    Relocate,
 }
 
 impl fmt::Display for LifecycleOperationKind {
@@ -38,6 +39,7 @@ impl fmt::Display for LifecycleOperationKind {
             Self::Restore => "restore",
             Self::DeleteBackup => "delete_backup",
             Self::Activate => "activate",
+            Self::Relocate => "relocate",
         })
     }
 }
@@ -53,6 +55,7 @@ impl FromStr for LifecycleOperationKind {
             "restore" => Some(Self::Restore),
             "delete_backup" => Some(Self::DeleteBackup),
             "activate" => Some(Self::Activate),
+            "relocate" => Some(Self::Relocate),
             _ => None,
         };
         kind.ok_or_else(|| {
@@ -114,6 +117,7 @@ pub(crate) struct LifecycleOperation {
     pub phase: LifecyclePhase,
     pub paths: LifecyclePaths,
     pub install: Option<InstallRecord>,
+    pub relocation: Option<OutputRelocationPlan>,
     pub original_paths: Vec<PathBuf>,
     pub activate: bool,
     pub last_error: Option<String>,
@@ -139,6 +143,7 @@ impl LifecycleOperation {
                 quarantine: None,
             },
             install: None,
+            relocation: None,
             original_paths: Vec::new(),
             activate: false,
             last_error: None,
@@ -175,12 +180,17 @@ impl OperationStore {
             .as_ref()
             .map(serde_json::to_string)
             .transpose()?;
+        let relocation_json = operation
+            .relocation
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()?;
         let original_paths_json = serde_json::to_string(&operation.original_paths)?;
         database::connect(self.library.root())?.execute(
             "INSERT INTO lifecycle_operations(
                id, kind, port_id, phase, staging_path, final_path, quarantine_path,
-               install_json, original_paths_json, activate, last_error, created_at, updated_at
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+               install_json, relocation_json, original_paths_json, activate, last_error, created_at, updated_at
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
              ON CONFLICT(id) DO UPDATE SET
                kind=excluded.kind,
                port_id=excluded.port_id,
@@ -189,6 +199,7 @@ impl OperationStore {
                final_path=excluded.final_path,
                quarantine_path=excluded.quarantine_path,
                install_json=excluded.install_json,
+               relocation_json=excluded.relocation_json,
                original_paths_json=excluded.original_paths_json,
                activate=excluded.activate,
                last_error=excluded.last_error,
@@ -202,6 +213,7 @@ impl OperationStore {
                 path_string(operation.paths.final_path.as_ref())?,
                 path_string(operation.paths.quarantine.as_ref())?,
                 install_json,
+                relocation_json,
                 original_paths_json,
                 operation.activate as i64,
                 operation.last_error,
@@ -222,7 +234,7 @@ impl OperationStore {
         let connection = database::connect(self.library.root())?;
         let mut statement = connection.prepare(
             "SELECT id, kind, port_id, phase, staging_path, final_path, quarantine_path,
-                    install_json, original_paths_json, activate, last_error, created_at, updated_at
+                    install_json, relocation_json, original_paths_json, activate, last_error, created_at, updated_at
              FROM lifecycle_operations
              ORDER BY created_at, rowid",
         )?;
@@ -236,11 +248,12 @@ impl OperationStore {
                 row.get::<_, Option<String>>(5)?,
                 row.get::<_, Option<String>>(6)?,
                 row.get::<_, Option<String>>(7)?,
-                row.get::<_, String>(8)?,
-                row.get::<_, i64>(9)?,
-                row.get::<_, Option<String>>(10)?,
-                row.get::<_, i64>(11)?,
+                row.get::<_, Option<String>>(8)?,
+                row.get::<_, String>(9)?,
+                row.get::<_, i64>(10)?,
+                row.get::<_, Option<String>>(11)?,
                 row.get::<_, i64>(12)?,
+                row.get::<_, i64>(13)?,
             ))
         })?;
         rows.map(|row| {
@@ -253,6 +266,7 @@ impl OperationStore {
                 final_path,
                 quarantine_path,
                 install_json,
+                relocation_json,
                 original_paths_json,
                 activate,
                 last_error,
@@ -270,6 +284,9 @@ impl OperationStore {
                     quarantine: quarantine_path.map(PathBuf::from),
                 },
                 install: install_json
+                    .map(|value| serde_json::from_str(&value))
+                    .transpose()?,
+                relocation: relocation_json
                     .map(|value| serde_json::from_str(&value))
                     .transpose()?,
                 original_paths: serde_json::from_str(&original_paths_json)?,
@@ -313,6 +330,13 @@ pub(crate) enum LifecycleFaultPoint {
     DeleteBackupDeleted,
     DeleteBackupMetadataCommitted,
     ActivationMetadataCommitted,
+    RelocationJournaled,
+    RelocationCopyStarted,
+    RelocationCopied,
+    RelocationPrepared,
+    RelocationPublished,
+    RelocationMetadataCommitted,
+    RelocationCleanupCompleted,
 }
 
 pub(crate) trait LifecycleFaultInjector: Send + Sync {

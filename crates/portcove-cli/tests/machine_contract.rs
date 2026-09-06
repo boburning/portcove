@@ -5,6 +5,8 @@ use std::{
 
 use serde_json::Value;
 
+static CAPACITY_SENSITIVE_TEST: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 struct RunningCli(std::process::Child);
 
 #[test]
@@ -14,7 +16,7 @@ fn exported_source_assessment_separates_facts_without_opening_library() {
     let output = portcove(&library, &["--json", "schema", "export"]);
     assert!(output.status.success());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 24);
+    assert_eq!(response["schema_version"], 25);
     let schema = &response["data"]["source_assessment"];
     for field in [
         "health",
@@ -100,6 +102,19 @@ fn exported_source_assessment_separates_facts_without_opening_library() {
             "unknown"
         ])
     );
+    let relocation = &response["data"]["output_relocation_plan"];
+    for field in [
+        "current",
+        "destination_root",
+        "installs",
+        "required_bytes",
+        "sources_will_move",
+        "user_data_will_move",
+        "backups_will_move",
+        "plan_sha256",
+    ] {
+        assert!(relocation["properties"][field].is_object(), "{field}");
+    }
 }
 
 #[test]
@@ -172,6 +187,7 @@ impl Drop for RunningCli {
 #[test]
 fn cancellation_from_another_cli_stops_discovery_with_a_durable_cancelled_result() {
     use std::io::{BufRead, Read};
+    let _capacity_guard = CAPACITY_SENSITIVE_TEST.lock().unwrap();
     let temporary = tempfile::tempdir().unwrap();
     let sources = temporary.path().join("sources");
     std::fs::create_dir(&sources).unwrap();
@@ -655,11 +671,12 @@ fn default_read_commands_have_human_output_snapshots() {
 
     let capabilities = human_stdout(&portcove(root.path(), &["capabilities"])).to_owned();
     assert!(capabilities.starts_with("Portcove "));
-    assert!(capabilities.contains(" capabilities\nSchema: 24"));
+    assert!(capabilities.contains(" capabilities\nSchema: 25"));
 }
 
 #[test]
 fn output_controls_share_one_preview_and_apply_contract_across_modes() {
+    let _capacity_guard = CAPACITY_SENSITIVE_TEST.lock().unwrap();
     let temporary = tempfile::tempdir().unwrap();
     let library = temporary.path().join("library");
     let destination = temporary.path().join("future-games");
@@ -716,6 +733,7 @@ fn output_controls_share_one_preview_and_apply_contract_across_modes() {
         ],
     ));
     assert_eq!(applied["command"], "output.set");
+    assert_eq!(applied["ok"], true, "{applied}");
     assert_eq!(
         applied["data"]["effective_output_directory"],
         preview["data"]["proposed"]["effective_output_directory"]
@@ -933,11 +951,11 @@ fn capabilities_are_one_clean_versioned_json_document() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 24);
+    assert_eq!(response["schema_version"], 25);
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");
     assert!(response["error"].is_null());
-    assert_eq!(response["data"]["schema_version"], 24);
+    assert_eq!(response["data"]["schema_version"], 25);
     assert_eq!(
         response["data"]["raw_stream_commands"],
         serde_json::json!(["exec"])
@@ -959,7 +977,7 @@ fn command_errors_keep_the_machine_envelope_and_stable_exit_code() {
     assert_eq!(output.status.code(), Some(4));
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 24);
+    assert_eq!(response["schema_version"], 25);
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "catalog.show");
     assert!(response["data"].is_null());
@@ -976,7 +994,7 @@ fn parser_errors_are_structured_for_machine_callers() {
     assert!(output.stderr.is_empty());
     assert!(!library.exists());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 24);
+    assert_eq!(response["schema_version"], 25);
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "cli");
     assert_eq!(response["error"]["code"], "usage");
@@ -996,7 +1014,7 @@ fn jsonl_read_commands_end_with_one_result_event() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 24);
+    assert_eq!(response["schema_version"], 25);
     assert_eq!(response["type"], "result");
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");

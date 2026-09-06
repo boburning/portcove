@@ -242,7 +242,7 @@ export interface PortStatus {
   last_update_check?: UpdateSnapshot;
 }
 
-export type ActivityOperation = "update_catalog" | "discover_sources" | "import_library" | "move_library" | "launch" | "check_update" | "backup" | "restore" | "delete_backup" | "install" | "update" | "reconcile" | "verify_install" | "activate" | "rollback" | "adopt" | "remove" | "remove_source" | "register_source" | "verify_source";
+export type ActivityOperation = "update_catalog" | "discover_sources" | "import_library" | "move_library" | "relocate_output" | "launch" | "check_update" | "backup" | "restore" | "delete_backup" | "install" | "update" | "reconcile" | "verify_install" | "activate" | "rollback" | "adopt" | "remove" | "remove_source" | "register_source" | "verify_source";
 export type ActivityStatus = "running" | "succeeded" | "failed" | "cancelled";
 export type CancellationPhase = "preparing" | "finishing";
 export interface CancellationState {

@@ -4,9 +4,9 @@ use portcove_core::{
     ActivityRecord, BackupInventory, BackupInventoryState, BackupProblemKind, CapabilityDocument,
     DoctorReport, GithubAuthSource, GithubAuthStatus, HostToolSource, HostToolState, InstallPlan,
     InstallPlanAction, LaunchBlocker, OutputDestinationAvailability, OutputDestinationOwnership,
-    OutputDestinationPreview, OutputLocationSource, Platform, PortDefinition, PortOutputLocation,
-    PortPaths, PortStatus, RepairItemKind, SourceRecord, SourceRequirementRole, StorageSummary,
-    SupportTier,
+    OutputDestinationPreview, OutputLocationSource, OutputRelocationPlan, Platform, PortDefinition,
+    PortOutputLocation, PortPaths, PortStatus, RepairItemKind, SourceRecord, SourceRequirementRole,
+    StorageSummary, SupportTier,
 };
 use serde::Serialize;
 use serde_json::Value;
@@ -468,6 +468,62 @@ pub(crate) fn output_preview(preview: &OutputDestinationPreview) -> String {
         affected,
         validation,
         clean(&preview.preview_sha256),
+    )
+}
+
+pub(crate) fn output_relocation_plan(plan: &OutputRelocationPlan) -> String {
+    let availability = match plan.availability {
+        OutputDestinationAvailability::Available => "available",
+        OutputDestinationAvailability::Full => "full",
+        OutputDestinationAvailability::Unavailable => "unavailable",
+    };
+    let installs = plan
+        .installs
+        .iter()
+        .map(|entry| {
+            let role = if entry.active {
+                "active"
+            } else if entry.previous {
+                "previous"
+            } else if entry.staged {
+                "staged"
+            } else {
+                "retained"
+            };
+            format!(
+                "{} ({}) -> {}",
+                clean(&entry.install.version),
+                role,
+                clean(&entry.destination_path.display().to_string())
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("; ");
+    let validation = if plan.validation_errors.is_empty() {
+        "safe to relocate".into()
+    } else {
+        plan.validation_errors
+            .iter()
+            .map(|message| clean(message))
+            .collect::<Vec<_>>()
+            .join("; ")
+    };
+    format!(
+        "Output relocation review for {}\nFrom: {}\nTo: {}\nInstalled versions: {}\nRequired space: {}\nDestination: {}\nSources: stay in place\nPersistent data: stays in place\nBackups: stay in place\nValidation: {}\nPlan fingerprint: {}",
+        clean(&plan.port_id),
+        clean(
+            &plan
+                .current
+                .effective_output_directory
+                .display()
+                .to_string()
+        ),
+        clean(&plan.destination_root.display().to_string()),
+        installs,
+        format_bytes(plan.required_bytes),
+        availability,
+        validation,
+        clean(&plan.plan_sha256),
     )
 }
 
