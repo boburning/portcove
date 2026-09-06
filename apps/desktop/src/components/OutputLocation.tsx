@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import { AlertTriangle, FolderOpen, HardDrive, RotateCcw, ShieldCheck } from "lucide-react";
 import { desktopApi } from "../api";
 import { pickGameOutputFolder } from "../file-picker";
-import type { OutputDestinationPreview, PortOutputLocation } from "../types";
+import type { OutputDestinationPreview, OutputRelocationPlan, OutputRelocationResult, OutputRelocationStatus, PortOutputLocation } from "../types";
 import { errorText, formatBytes } from "../view-model";
 import { Icon } from "./ui";
 
@@ -16,6 +16,9 @@ export function OutputLocationControl({ portId, generation, busy, onChanged, onA
   const [location, setLocation] = useState<PortOutputLocation>();
   const [draft, setDraft] = useState("");
   const [preview, setPreview] = useState<OutputDestinationPreview>();
+  const [relocation, setRelocation] = useState<OutputRelocationPlan>();
+  const [relocationStatus, setRelocationStatus] = useState<OutputRelocationStatus>();
+  const [relocationResult, setRelocationResult] = useState<OutputRelocationResult>();
   const [error, setError] = useState<string>();
   const [pending, setPending] = useState<"load" | "pick" | "review" | "apply">();
   const request = useRef(0);
@@ -28,11 +31,15 @@ export function OutputLocationControl({ portId, generation, busy, onChanged, onA
     const currentRequest = ++request.current;
     setLocation(undefined);
     setPreview(undefined);
+    setRelocation(undefined);
+    setRelocationResult(undefined);
+    setRelocationStatus(undefined);
     setError(undefined);
     setPending("load");
-    void desktopApi.outputLocation(portId, generation).then(result => {
+    void Promise.all([desktopApi.outputLocation(portId, generation), desktopApi.outputRelocationStatus(portId, generation)]).then(([result, status]) => {
       if (request.current !== currentRequest) return;
       setLocation(result);
+      setRelocationStatus(status ?? undefined);
       setDraft(result.configured_output_directory ?? result.effective_output_directory);
       setPending(undefined);
     }).catch(value => {
@@ -50,13 +57,15 @@ export function OutputLocationControl({ portId, generation, busy, onChanged, onA
   }, [generation, portId]);
 
   useEffect(() => {
-    if (preview) applyButton.current?.focus();
-  }, [preview]);
+    if (preview || relocation) applyButton.current?.focus();
+  }, [preview, relocation]);
 
   const invalidate = (path: string) => {
     request.current += 1;
     setDraft(path);
     setPreview(undefined);
+    setRelocation(undefined);
+    setRelocationResult(undefined);
     setError(undefined);
     setPending(undefined);
   };
@@ -85,6 +94,7 @@ export function OutputLocationControl({ portId, generation, busy, onChanged, onA
     }
     const currentRequest = ++request.current;
     setPreview(undefined);
+    setRelocation(undefined);
     setError(undefined);
     setPending("review");
     try {
@@ -96,6 +106,58 @@ export function OutputLocationControl({ portId, generation, busy, onChanged, onA
       if (request.current !== currentRequest) return;
       setPending(undefined);
       setError(errorText(value));
+    }
+  };
+
+  const reviewRelocation = async () => {
+    if (!preview) return;
+    const reviewedDestination = preview.proposed.effective_output_directory;
+    const currentRequest = ++request.current;
+    setPending("review");
+    setError(undefined);
+    try {
+      const result = await desktopApi.planOutputRelocation(portId, reviewedDestination, generation);
+      if (request.current !== currentRequest) return;
+      setRelocation(result);
+      setPending(undefined);
+    } catch (value) {
+      if (request.current !== currentRequest) return;
+      setPending(undefined);
+      setPreview(undefined);
+      setError(`${errorText(value)} Review the current destination again.`);
+    }
+  };
+
+  const applyRelocation = async () => {
+    if (!relocation) return;
+    const reviewed = relocation;
+    const currentRequest = ++request.current;
+    setPending("apply");
+    setError(undefined);
+    applying.current = true;
+    onApplying?.(true);
+    try {
+      const result = await desktopApi.relocateOutput(portId, reviewed.destination_root, reviewed.plan_sha256, generation);
+      if (request.current !== currentRequest) return;
+      setLocation(result.output_location);
+      setDraft(result.output_location.configured_output_directory ?? result.output_location.effective_output_directory);
+      setRelocationResult(result);
+      setRelocationStatus(undefined);
+      setRelocation(undefined);
+      setPreview(undefined);
+      setPending(undefined);
+      applying.current = false;
+      onApplying?.(false);
+      onChanged?.();
+    } catch (value) {
+      if (request.current !== currentRequest) return;
+      setPending(undefined);
+      setRelocation(undefined);
+      setPreview(undefined);
+      applying.current = false;
+      onApplying?.(false);
+      setError(`${errorText(value)} Review the current destination again.`);
+      window.requestAnimationFrame(() => reviewButton.current?.focus());
     }
   };
 
@@ -134,6 +196,7 @@ export function OutputLocationControl({ portId, generation, busy, onChanged, onA
     const reset = preview?.reset_to_default;
     request.current += 1;
     setPreview(undefined);
+    setRelocation(undefined);
     setError(undefined);
     setPending(undefined);
     window.requestAnimationFrame(() => (reset ? resetButton : reviewButton).current?.focus());
@@ -158,16 +221,21 @@ export function OutputLocationControl({ portId, generation, busy, onChanged, onA
       <button ref={reviewButton} data-focusable className="small-control" disabled={!location || controlsDisabled || !draft.trim()} onClick={() => { void review(draft); }}>{pending === "review" ? "Checking folder…" : "Review future folder"}</button>
       {location?.configured_output_directory && <button ref={resetButton} data-focusable className="small-control button-with-icon" disabled={controlsDisabled || pending === "review"} onClick={() => { void review(null); }}><Icon glyph={RotateCcw} />Review library default</button>}
     </div>
-    {preview && <OutputLocationReview preview={preview} pending={pending === "apply"} applyButton={applyButton} apply={() => { void apply(); }} cancel={cancelReview} />}
+    {preview && <OutputLocationReview preview={preview} relocation={relocation} pending={pending} applyButton={applyButton} apply={() => { void apply(); }} reviewRelocation={() => { void reviewRelocation(); }} applyRelocation={() => { void applyRelocation(); }} cancel={cancelReview} />}
+    {relocationResult && <p className="output-location-success" role="status"><Icon glyph={ShieldCheck} size="sm" />{relocationResult.cleanup_pending ? `Move completed. ${relocationResult.old_paths_retained.length} old folder(s) contain changed files and remain for safe cleanup.` : `Moved ${relocationResult.relocated_installs.length} recorded version(s) and verified the new location.`}</p>}
+    {relocationStatus && <p className="output-location-error" role="status"><Icon glyph={AlertTriangle} size="sm" />Relocation cleanup is pending for {relocationStatus.cleanup_pending_paths.length} old folder(s). Portcove will retry only when their reviewed contents are unchanged.</p>}
     {error && <p className="output-location-error" role="alert"><Icon glyph={AlertTriangle} size="sm" />{error}</p>}
   </section>;
 }
 
-function OutputLocationReview({ preview, pending, applyButton, apply, cancel }: {
+function OutputLocationReview({ preview, relocation, pending, applyButton, apply, reviewRelocation, applyRelocation, cancel }: {
   preview: OutputDestinationPreview;
-  pending: boolean;
+  relocation?: OutputRelocationPlan;
+  pending?: "load" | "pick" | "review" | "apply";
   applyButton: RefObject<HTMLButtonElement | null>;
   apply: () => void;
+  reviewRelocation: () => void;
+  applyRelocation: () => void;
   cancel: () => void;
 }) {
   const safe = preview.availability === "available" && preview.validation_errors.length === 0
@@ -180,6 +248,7 @@ function OutputLocationReview({ preview, pending, applyButton, apply, cancel }: 
       : `${formatBytes(preview.available_bytes)} available of ${formatBytes(preview.total_bytes)}`;
   const ownership = outputOwnershipLabel(preview.ownership);
   const action = preview.reset_to_default ? "Use library default for future installs" : "Use this folder for future installs";
+  if (relocation) return <OutputRelocationReview plan={relocation} pending={pending === "apply"} applyButton={applyButton} apply={applyRelocation} cancel={cancel} />;
   return <div className={`output-location-review ${safe ? "safe" : "blocked"}`} role="group" aria-label="Output destination review">
     <div className="output-review-title" aria-live="polite"><strong>{preview.reset_to_default ? "Review library default" : "Review future folder"}</strong><span>{availability}</span></div>
     <code title={preview.proposed.effective_output_directory}>{preview.proposed.effective_output_directory}</code>
@@ -192,7 +261,37 @@ function OutputLocationReview({ preview, pending, applyButton, apply, cancel }: 
     <p><Icon glyph={ShieldCheck} size="sm" />Future placement only; this review does not move an existing installation.</p>
     {preview.validation_errors.length > 0 && <ul className="output-validation-errors" aria-label="Destination problems">{preview.validation_errors.map(message => <li key={message}>{message}</li>)}</ul>}
     <div className="button-row">
-      <button ref={applyButton} data-focusable data-autofocus className="small-control" disabled={!safe || pending} onClick={apply}>{pending ? "Saving…" : action}</button>
+      <button ref={applyButton} data-focusable data-autofocus className="small-control" disabled={!safe || Boolean(pending)} onClick={apply}>{pending === "apply" ? "Saving…" : action}</button>
+      {preview.affected_installs.length > 0 && <button data-focusable className="small-control" disabled={!safe || Boolean(pending)} onClick={reviewRelocation}>{pending === "review" ? "Checking versions…" : "Review moving existing versions"}</button>}
+      <button data-focusable className="small-control" disabled={Boolean(pending)} onClick={cancel}>Cancel review</button>
+    </div>
+  </div>;
+}
+
+function OutputRelocationReview({ plan, pending, applyButton, apply, cancel }: {
+  plan: OutputRelocationPlan;
+  pending: boolean;
+  applyButton: RefObject<HTMLButtonElement | null>;
+  apply: () => void;
+  cancel: () => void;
+}) {
+  const safe = plan.availability === "available" && plan.validation_errors.length === 0
+    && !["owned_by_another_port", "unrelated_content", "invalid", "unknown"].includes(plan.ownership)
+    && !plan.sources_will_move && !plan.user_data_will_move && !plan.backups_will_move;
+  return <div className={`output-location-review ${safe ? "safe" : "blocked"}`} role="group" aria-label="Existing version relocation review">
+    <div className="output-review-title" aria-live="polite"><strong>Review moving existing versions</strong><span>{plan.installs.length} version{plan.installs.length === 1 ? "" : "s"}</span></div>
+    <code title={plan.destination_root}>{plan.destination_root}</code>
+    <dl>
+      <div><dt>Copy required</dt><dd>{formatBytes(plan.required_bytes)}</dd></div>
+      <div><dt>Capacity</dt><dd>{plan.available_bytes == null ? "Capacity unavailable" : `${formatBytes(plan.available_bytes)} available`}</dd></div>
+      <div><dt>Sources</dt><dd>{plan.sources_will_move ? "Unexpected move requested" : "Stay in the central source library"}</dd></div>
+      <div><dt>Saves and backups</dt><dd>{plan.user_data_will_move || plan.backups_will_move ? "Unexpected move requested" : "Stay in their current folders"}</dd></div>
+    </dl>
+    <ul className="output-relocation-installs" aria-label="Versions to move">{plan.installs.map(item => <li key={item.install.id}><strong>{item.install.version}</strong><span>{[item.active && "active", item.previous && "previous", item.staged && "staged", item.retained && "retained"].filter(Boolean).join(" · ")}</span><code title={item.install.path}>{item.install.path}</code></li>)}</ul>
+    <p><Icon glyph={ShieldCheck} size="sm" />Portcove copies and verifies every recorded version before atomically changing its records. Old folders are removed only when their reviewed contents are unchanged.</p>
+    {plan.validation_errors.length > 0 && <ul className="output-validation-errors" aria-label="Relocation problems">{plan.validation_errors.map(message => <li key={message}>{message}</li>)}</ul>}
+    <div className="button-row">
+      <button ref={applyButton} data-focusable data-autofocus className="small-control" disabled={!safe || pending} onClick={apply}>{pending ? "Moving and verifying…" : "Move existing versions"}</button>
       <button data-focusable className="small-control" disabled={pending} onClick={cancel}>Cancel review</button>
     </div>
   </div>;

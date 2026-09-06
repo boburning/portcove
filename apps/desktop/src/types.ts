@@ -462,6 +462,53 @@ export interface OutputDestinationPreview {
   preview_sha256: string;
 }
 
+export interface OutputRelocationInstall {
+  install: InstallRecord;
+  destination_path: string;
+  active: boolean;
+  previous: boolean;
+  staged: boolean;
+  retained: boolean;
+  copy: AdoptionCopyPlan;
+}
+
+export interface OutputRelocationPlan {
+  port_id: string;
+  current: PortOutputLocation;
+  channel: ReleaseChannel;
+  destination_root: string;
+  installs: OutputRelocationInstall[];
+  required_bytes: number;
+  available_bytes: number | null;
+  total_bytes: number | null;
+  volume_identity: string | null;
+  availability: OutputDestinationAvailability;
+  ownership: OutputDestinationOwnership;
+  validation_errors: string[];
+  sources_will_move: boolean;
+  user_data_will_move: boolean;
+  backups_will_move: boolean;
+  plan_sha256: string;
+}
+
+export interface OutputRelocationResult {
+  operation_id: string;
+  port_id: string;
+  output_location: PortOutputLocation;
+  relocated_installs: InstallRecord[];
+  old_paths_retained: string[];
+  cleanup_pending: boolean;
+}
+
+export interface OutputRelocationStatus {
+  operation_id: string;
+  port_id: string;
+  phase: string;
+  destination_root: string;
+  cleanup_pending_paths: string[];
+  last_error?: string;
+}
+
 export interface InstallPlan {
   port_id: string;
   channel: ReleaseChannel;
