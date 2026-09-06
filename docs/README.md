@@ -24,6 +24,7 @@ machine-readable product state.
 - [Product roadmap and release stages](ROADMAP.md)
 - [Quality workflow](QUALITY.md)
 - [Release process](RELEASING.md)
+- [Upgrading and recovering Portcove](UPGRADING.md)
 - [Signed catalog delivery](SIGNED-CATALOG.md)
 - [Security policy](../SECURITY.md)
 
