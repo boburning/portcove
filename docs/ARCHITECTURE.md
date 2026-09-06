@@ -52,8 +52,13 @@ Relevance does not mean success: consumers must retain the evidence kind and
 outcome, including failed and not-run observations. Recorded Portcove build and
 observation time remain historical attribution; changing an unrelated build
 does not erase a fact. Evidence IDs are catalog references, not renderer URLs.
-No database, catalog, signed-envelope or ownership boundary changes in this
-foundation; existing metadata architecture rules remain applicable.
+Schema 2 stores exact source qualification under the same core authority. Core
+validates each record's port, platform, contract, artifact applicability,
+variant, representation, check version, method, outcome, and evidence references
+and derives category and all-source claims from exact matches only. Legacy
+platform arrays remain historical unscoped facts. Signed format 1 can add
+reviewed artifact applicability and exact qualification for existing contracts,
+while source meanings and prior facts remain frozen.
 
 The schema-2 source contract models the input to those facts through reusable
 identity profiles with logical variants and alternative physical

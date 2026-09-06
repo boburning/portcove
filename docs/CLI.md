@@ -22,7 +22,7 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":29,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":30,"ok":true,"command":"status","data":{},"error":null}
 ```
 
 Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for success, failure, or cancellation. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
@@ -110,7 +110,7 @@ uses the same core resolver, validation, and host-preference store. A selected
 path is saved only after its registry-owned, shell-free probe succeeds; clearing
 it reveals any environment or discovered candidate without changing a library.
 
-API schema 29 adds the read-only `source inspect <profile-id>` command and embeds
+API schema 29 added the read-only `source inspect <profile-id>` command and embeds
 that same complete report in successful `source verify` results. The report has
 its own format version and an open `state_code`, includes full observed and
 expected digests with their algorithms and scopes, dependent source contracts,
@@ -118,6 +118,12 @@ reviewed evidence IDs and links, release applicability, and conservative
 qualification and legacy coverage. Missing or unreadable registered paths return
 a structured inspection state; inspection and verification never replace the
 saved baseline.
+
+API schema 30 adds exact schema-2 source qualification records and core-derived
+qualification states. These records keep structural, automated lifecycle,
+hands-on, known-failure, missing, and not-run evidence distinct and require an
+exact artifact, contract, variant, representation, platform, and check version.
+Legacy platform arrays remain historical unscoped coverage.
 
 Desktop inspection calls the same core method. Evidence navigation accepts only
 a stable evidence ID, resolves it from the active catalog, revalidates the stored

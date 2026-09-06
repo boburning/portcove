@@ -315,6 +315,18 @@ impl Catalog {
                 )));
             }
             if let Some(source_catalog) = self.source_catalog() {
+                for record in source_catalog
+                    .qualification
+                    .iter()
+                    .filter(|record| record.scope.port_id == port.id)
+                {
+                    if !port.platforms.contains(&record.scope.platform) {
+                        return Err(PortcoveError::usage(format!(
+                            "{} has source qualification for undeclared platform {:?}",
+                            port.id, record.scope.platform
+                        )));
+                    }
+                }
                 for (role, profile) in [
                     (crate::PortSourceRole::Game, port.source_profile.as_ref()),
                     (
@@ -997,6 +1009,101 @@ mod tests {
             serde_json::to_value(&migrated.document().ports).unwrap(),
             serde_json::to_value(&legacy.document().ports).unwrap()
         );
+        assert!(migrated.source_catalog().unwrap().qualification.is_empty());
+        assert!(migrated.document().ports.iter().any(|port| {
+            !port.automated_tested_platforms.is_empty()
+                || !port.manually_validated_platforms.is_empty()
+        }));
+    }
+
+    #[test]
+    fn exact_source_qualification_rejects_an_undeclared_port_platform() {
+        let catalog = Catalog::embedded().unwrap();
+        let mut document = catalog.authoritative_document();
+        let source_catalog = document.source_catalog.as_mut().unwrap();
+        let contract_index = source_catalog
+            .contracts
+            .iter()
+            .position(|contract| {
+                !contract.supported_variant_ids.is_empty()
+                    && document
+                        .ports
+                        .iter()
+                        .find(|port| port.id == contract.port_id)
+                        .is_some_and(|port| port.platforms.len() < 4)
+            })
+            .unwrap();
+        let contract = source_catalog.contracts[contract_index].clone();
+        let port = document
+            .ports
+            .iter()
+            .find(|port| port.id == contract.port_id)
+            .unwrap();
+        let platform = [
+            crate::Platform::WindowsX86_64,
+            crate::Platform::LinuxX86_64,
+            crate::Platform::MacosX86_64,
+            crate::Platform::MacosAarch64,
+        ]
+        .into_iter()
+        .find(|platform| !port.platforms.contains(platform))
+        .unwrap();
+        let variant = source_catalog
+            .identities
+            .iter()
+            .find(|profile| profile.id == contract.profile_id)
+            .unwrap()
+            .variants
+            .iter()
+            .find(|variant| contract.supported_variant_ids.contains(&variant.id))
+            .unwrap()
+            .clone();
+        let artifact = "d".repeat(64);
+        source_catalog.contracts[contract_index].applicability.push(
+            crate::SourceContractApplicability {
+                upstream_ref: "fixture-v1".into(),
+                artifact_sha256: Some(artifact.clone()),
+            },
+        );
+        let evidence_ref = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+        source_catalog.evidence.push(crate::CatalogEvidence {
+            id: "qualification-fixture".into(),
+            role: crate::CatalogEvidenceRole::PortcoveQualification,
+            authority: "Portcove".into(),
+            authority_ref: evidence_ref.into(),
+            reviewed_at: "2026-09-05".into(),
+            claim: "Records an isolated qualification fixture".into(),
+            immutable_url: format!(
+                "https://github.com/boburning/portcove/blob/{evidence_ref}/qualification.json"
+            ),
+            live_url: None,
+        });
+        source_catalog.qualification.push(crate::SourceEvidence {
+            scope: crate::SourceEvidenceScope {
+                port_id: contract.port_id,
+                platform,
+                artifact_sha256: Some(artifact),
+                upstream_ref: Some("fixture-v1".into()),
+                contract_id: Some(contract.id),
+                variant: crate::SourceVariantScope::Exact {
+                    identity: crate::SourceIdentity {
+                        game_id: contract.profile_id,
+                        variant_id: variant.id.clone(),
+                        representation_id: variant.representations[0].id.clone(),
+                    },
+                },
+                check_version: Some("fixture-check-v1".into()),
+            },
+            kind: crate::SourceEvidenceKind::AutomatedLifecycle,
+            outcome: crate::SourceEvidenceOutcome::Passed,
+            observed_at: 1,
+            portcove_version: None,
+            portcove_commit: None,
+            method: "fixture".into(),
+            evidence_ids: vec!["qualification-fixture".into()],
+        });
+        let error = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap_err();
+        assert!(error.to_string().contains("undeclared platform"));
     }
 
     #[test]

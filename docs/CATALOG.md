@@ -70,15 +70,28 @@ claims. A catalog entry may be beta, rolling, platform-limited,
 qualification-pending, or blocked while the application continues toward V1,
 provided the UI and documentation represent that state honestly.
 
-`automated_tested_platforms` records deterministic evidence for the exact
-port/platform contract. `manually_validated_platforms` records hands-on
-gameplay, graphics, audio, controller, save/load, and platform behavior. Never
-promote synthetic tests, a clean process exit, or generated files into manual
-evidence. Qualify each declared platform independently.
+Schema 2 stores new source qualification in `source_catalog.qualification`.
+Each record binds the port, platform, release artifact SHA-256, upstream ref,
+source contract, exact variant and representation, check-contract version,
+method, time, result, and reviewed evidence IDs. Structural checks, automated
+lifecycle results, hands-on observations, and known failures remain separate.
+The core derives an exact claim only when the whole requested scope matches;
+adding an artifact, variant, representation, platform, or check version cannot
+inherit an older result. Missing or not-run evidence remains distinct from a
+bounded failure and does not change source admission.
 
-Project `Port stage = Supported` means that at least one declared platform is
-present in both arrays. The support claim is limited to that exact intersection;
-other declared platforms may remain unqualified. Catalog support tier, upstream
+`automated_tested_platforms` and `manually_validated_platforms` are retained as
+legacy historical coverage. They identify a port/platform intersection but do
+not identify the artifact or source variant that was exercised. Migration keeps
+those arrays visible and does not manufacture exact records from them. New
+qualification belongs in the scoped collection. Never promote synthetic tests,
+a clean process exit, or generated files into hands-on evidence. Qualify each
+declared platform independently.
+
+Legacy Project `Port stage = Supported` means that at least one declared
+platform is present in both historical arrays. That historical claim is limited
+to the port/platform intersection and does not become an unconditional claim
+about every current source representation or artifact. Catalog support tier, upstream
 release channel, upstream status, catalog admission, source-contract coverage,
 Project Status, and Port stage are independent. In particular, a stable support
 tier, successful download, or catalog entry does not itself mean Supported.
@@ -123,11 +136,15 @@ atomic activation, rollback, credential boundaries, and executable trust. See
 
 The embedded catalog uses schema 2. It contains reusable identities, logical
 variants, tagged physical representations, explicitly scoped conjunctive digest
-records, per-port game and BIOS contracts, validators, and immutable evidence
+records, per-port game and BIOS contracts, validators, exact qualification facts,
+and immutable evidence
 references. `scripts/migrate-catalog-schema2.mjs --check` regenerates it
 deterministically from the frozen schema-1 fixture. Core owns the temporary
 schema-1 compatibility projection required by the existing matcher and rejects
-any conflicting projection supplied by catalog input.
+any conflicting projection supplied by catalog input. The deterministic
+migration emits an empty exact-qualification collection while preserving the
+legacy arrays because their missing artifact and source dimensions cannot be
+guessed.
 
 `catalog-schema1-fixture.json` preserves the full pre-migration document, while
 `catalog-schema1-admission-baseline.json` fingerprints every source profile and

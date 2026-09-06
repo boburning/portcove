@@ -6,7 +6,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::{Catalog, CatalogDocument, PortcoveError, Result};
+use crate::{Catalog, CatalogDocument, PortcoveError, Result, SourceCatalog};
 
 pub(crate) const MAX_CATALOG_BYTES: usize = 4 * 1024 * 1024;
 pub(crate) const MAX_SEQUENCE: i64 = 9_007_199_254_740_991;
@@ -156,14 +156,14 @@ fn validate_update_contract(candidate: &Catalog, baseline: &Catalog) -> Result<(
             .map(|profile| Ok((profile.id.clone(), serde_json::to_value(profile)?)))
             .collect()
     };
-    if candidate.source_catalog() != baseline.source_catalog()
-        || profiles(candidate)? != profiles(baseline)?
+    if profiles(candidate)? != profiles(baseline)?
         || candidate.ports().len() != baseline.ports().len()
     {
         return Err(PortcoveError::verification(
             "catalog updates cannot change source contracts or V1 membership",
         ));
     }
+    validate_source_update_contract(candidate.source_catalog(), baseline.source_catalog())?;
     for port in candidate.ports() {
         let original = baseline.port(&port.id)?;
         let mut contract = serde_json::to_value(port)?;
@@ -175,8 +175,6 @@ fn validate_update_contract(candidate: &Catalog, baseline: &Catalog) -> Result<(
             "support_tier",
             "channels",
             "platforms",
-            "automated_tested_platforms",
-            "manually_validated_platforms",
             "release",
             "upstream_status",
         ] {
@@ -207,6 +205,89 @@ fn validate_update_contract(candidate: &Catalog, baseline: &Catalog) -> Result<(
                 port.id
             )));
         }
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_source_update_contract(
+    candidate: Option<&SourceCatalog>,
+    baseline: Option<&SourceCatalog>,
+) -> Result<()> {
+    let (Some(candidate), Some(baseline)) = (candidate, baseline) else {
+        if candidate == baseline {
+            return Ok(());
+        }
+        return Err(PortcoveError::verification(
+            "catalog updates cannot add or remove source authority",
+        ));
+    };
+
+    for original in &baseline.qualification {
+        if !candidate.qualification.contains(original) {
+            return Err(PortcoveError::verification(
+                "catalog updates cannot remove or rewrite qualification evidence",
+            ));
+        }
+    }
+    for original in &baseline.evidence {
+        if !candidate.evidence.contains(original) {
+            return Err(PortcoveError::verification(
+                "catalog updates cannot remove or rewrite source evidence",
+            ));
+        }
+    }
+    for added in candidate
+        .evidence
+        .iter()
+        .filter(|item| !baseline.evidence.contains(item))
+    {
+        if added.role != crate::CatalogEvidenceRole::PortcoveQualification
+            || !candidate
+                .qualification
+                .iter()
+                .any(|record| record.evidence_ids.contains(&added.id))
+        {
+            return Err(PortcoveError::verification(
+                "catalog updates may add only referenced Portcove qualification evidence",
+            ));
+        }
+    }
+    for original in &baseline.contracts {
+        let Some(updated) = candidate
+            .contracts
+            .iter()
+            .find(|item| item.id == original.id)
+        else {
+            return Err(PortcoveError::verification(
+                "catalog updates cannot remove source contracts",
+            ));
+        };
+        if original
+            .applicability
+            .iter()
+            .any(|binding| !updated.applicability.contains(binding))
+        {
+            return Err(PortcoveError::verification(
+                "catalog updates cannot remove reviewed source applicability",
+            ));
+        }
+    }
+
+    let frozen = |catalog: &SourceCatalog| {
+        let mut catalog = catalog.clone();
+        catalog.qualification.clear();
+        catalog
+            .evidence
+            .retain(|item| item.role != crate::CatalogEvidenceRole::PortcoveQualification);
+        for contract in &mut catalog.contracts {
+            contract.applicability.clear();
+        }
+        catalog
+    };
+    if frozen(candidate) != frozen(baseline) {
+        return Err(PortcoveError::verification(
+            "catalog updates cannot change source identities, representations, evidence, admission, validators, or stable IDs",
+        ));
     }
     Ok(())
 }
