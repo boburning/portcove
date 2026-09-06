@@ -1489,6 +1489,9 @@ impl PortcoveService {
         if profile.kind == SourceKind::FileSet {
             return crate::source_inspection::inspect_file_set(&self.catalog, profile_id, path);
         }
+        if matches!(profile.kind, SourceKind::GamecubeDisc | SourceKind::PsxDisc) {
+            return crate::source_inspection::inspect_disc(&self.catalog, profile_id, path);
+        }
         let record = self
             .adapters
             .get(crate::AdapterKind::ReferencedDisc)

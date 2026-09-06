@@ -14,7 +14,7 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":19,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":20,"ok":true,"command":"status","data":{},"error":null}
 ```
 
 Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for success, failure, or cancellation. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
@@ -54,9 +54,10 @@ Those variants preserve Alpha 1 admission while the new per-port reviewed
 variant sets wait for the shared schema-2 inspector. Port contracts cannot select
 a projection-only variant.
 
-API schema 19 exports the shared read-only source inspection result. It includes
-observed digest algorithm/scope records, typed file-set member observations, and
-typed exact, structural, mismatch, and ambiguity outcomes.
+API schema 20 exports the shared read-only source inspection result. It includes
+observed digest algorithm/scope records, typed file-set and optical-disc
+components (including track counts and readable volume IDs), and typed exact,
+structural, mismatch, and ambiguity outcomes.
 
 ```text
 portcove --json capabilities

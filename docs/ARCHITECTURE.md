@@ -68,15 +68,25 @@ conjunctively, representations match as alternatives, and more than one matching
 representation is rejected as ambiguous. Ordinary files, cartridge ZIP members,
 canonical N64 byte orders, and file sets use this result for discovery,
 registration, relink, verification, install overrides, and launch preflight.
-Remaining disc, validator, and compound source shapes continue through their
-existing bounded validators until their #180 migrations add equivalent
-observations to this same result.
+GameCube and PlayStation disc sources use the same result through their existing
+bounded conversion paths. Pinned-validator and compound source shapes continue
+through their compatibility validators until their #180 migrations add
+equivalent observations to this result.
 
 File-set inspection records each required top-level member with its stable
 catalog member ID, selected filename, byte size, and SHA-1, SHA-256, and CRC32
 facts. It matches all digest fields inside one member identity together and
 aggregates admitted members with the established source-record algorithm. ZIP
 storage identity remains distinct from member and aggregate content identity.
+
+Disc inspection reuses the established bounded GameCube and PlayStation
+materializers without changing the selected input. GameCube results retain the
+normalized ISO SHA-1/SHA-256 separately from compressed-container storage
+identity. PlayStation results retain ordered per-disc track counts, readable
+volume IDs, normalized data-track SHA-1/SHA-256, and aggregate versus CHD-set
+storage identity. Schema-2 matching requires every configured fact for one
+representation and rejects reordered, incomplete, mismatching, or ambiguous
+disc sets before a source record becomes usable.
 `HostPreferenceStore` provides bounded format-1 host preference storage and selection provenance without moving a library. CLI and desktop use its platform configuration path outside movable library data and credentials, with an optional absolute preference-file override for portable/test hosts. Selection precedence is an explicit invocation path, saved path, then the platform default. Invalid selected configuration fails visibly; an explicit invocation path or reset remains available when preferences are corrupt or from a future format.
 
 Preference writers serialize through a persistent sibling operating-system lock and publish a flushed sibling atomically using the shared durability helper. Reads never create files. Setting a library preserves compatible unknown JSON fields; explicit reset replaces the whole document, including damaged or future-format content, with current defaults. Core validates that a saved target is an existing empty directory or recognizable Portcove root, refuses symlinks, filesystem roots, unrelated content, and preference/library overlap, then stores its canonical path without initializing it.
