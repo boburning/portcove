@@ -70,6 +70,11 @@ enum Commands {
         #[command(subcommand)]
         command: SourceCommand,
     },
+    /// Inspect and configure optional disc preparation tools for this host.
+    Tool {
+        #[command(subcommand)]
+        command: ToolCommand,
+    },
     Status {
         port_id: Option<String>,
     },
@@ -235,6 +240,19 @@ enum SourceCommand {
         #[arg(long)]
         yes: bool,
     },
+}
+
+#[derive(Debug, Subcommand)]
+enum ToolCommand {
+    /// Show resolution, source, purpose, and official setup reference for every tool.
+    List,
+    /// Validate a native executable with the tool's fixed probe before saving it.
+    SetPath {
+        tool_id: String,
+        executable_path: PathBuf,
+    },
+    /// Clear the saved path without changing an environment override or any library.
+    ClearPath { tool_id: String },
 }
 
 #[derive(Debug, Args)]
@@ -600,6 +618,10 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         )?;
         return Ok(ExitCode::SUCCESS);
     }
+    if let Commands::Tool { command } = &cli.command {
+        execute_tool(&preferences, command, mode)?;
+        return Ok(ExitCode::SUCCESS);
+    }
     let selection = preferences.resolve(cli.library.as_deref(), &platform_default)?;
     let library = portcove_core::Library::open(selection.root)?;
     let service = std::sync::Arc::new(PortcoveService::new(library)?);
@@ -625,6 +647,9 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         }
         Commands::Library { .. } => {
             unreachable!("library commands handle exclusive access before opening a service")
+        }
+        Commands::Tool { .. } => {
+            unreachable!("tool commands handle host preferences before opening a service")
         }
         Commands::Auth { command } => {
             let github = GithubReleaseProvider::for_library(service.library())?;
@@ -1266,6 +1291,38 @@ fn host_preference_store() -> Result<HostPreferenceStore> {
     HostPreferenceStore::open_configured()
 }
 
+fn execute_tool(
+    preferences: &HostPreferenceStore,
+    command: &ToolCommand,
+    mode: OutputMode,
+) -> Result<()> {
+    match command {
+        ToolCommand::List => render_read_success(
+            mode,
+            "tool.list",
+            portcove_core::host_tool_statuses(preferences)?,
+            |tools| human::host_tools(tools),
+        ),
+        ToolCommand::SetPath {
+            tool_id,
+            executable_path,
+        } => render_read_success(
+            mode,
+            "tool.set-path",
+            portcove_core::configure_host_tool(preferences, tool_id, executable_path)?,
+            human::host_tool_probe,
+        ),
+        ToolCommand::ClearPath { tool_id } => {
+            portcove_core::clear_host_tool(preferences, tool_id)?;
+            let status = portcove_core::host_tool_statuses(preferences)?
+                .into_iter()
+                .find(|status| status.id == *tool_id)
+                .ok_or_else(|| PortcoveError::usage(format!("unknown host tool: {tool_id}")))?;
+            render_read_success(mode, "tool.clear-path", status, human::host_tool)
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum DeviceLoginWait {
     Poll,
@@ -1554,6 +1611,14 @@ fn schema_document() -> serde_json::Value {
             (
                 "source_batch_outcome",
                 serde_json::json!(schema_for!(SourceBatchOutcome)),
+            ),
+            (
+                "host_tool_status",
+                serde_json::json!(schema_for!(portcove_core::HostToolStatus)),
+            ),
+            (
+                "host_tool_probe_result",
+                serde_json::json!(schema_for!(portcove_core::HostToolProbeResult)),
             ),
             ("activity", serde_json::json!(schema_for!(ActivityRecord))),
             (
@@ -1977,6 +2042,11 @@ fn command_name(command: &Commands) -> &'static str {
             SourceCommand::Verify(_) => "source.verify",
             SourceCommand::Remove { .. } => "source.remove",
         },
+        Commands::Tool { command } => match command {
+            ToolCommand::List => "tool.list",
+            ToolCommand::SetPath { .. } => "tool.set-path",
+            ToolCommand::ClearPath { .. } => "tool.clear-path",
+        },
         Commands::Status { .. } => "status",
         Commands::Activity { .. } => "activity",
         Commands::Cancel { .. } => "cancel",
@@ -2324,6 +2394,15 @@ mod tests {
             ),
             (vec!["portcove", "catalog", "list"], "catalog.list"),
             (vec!["portcove", "source", "list"], "source.list"),
+            (vec!["portcove", "tool", "list"], "tool.list"),
+            (
+                vec!["portcove", "tool", "set-path", "chdman", "chdman.exe"],
+                "tool.set-path",
+            ),
+            (
+                vec!["portcove", "tool", "clear-path", "chdman"],
+                "tool.clear-path",
+            ),
             (
                 vec!["portcove", "channel", "set", "lighthouse", "beta"],
                 "channel.set",
@@ -2344,7 +2423,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 26);
+        assert_eq!(capabilities.schema_version, 27);
         assert_eq!(
             capabilities.failure_isolated_batches,
             ["check", "reconcile", "update", "source.verify"]
@@ -2353,6 +2432,7 @@ mod tests {
         assert!(capabilities.commands.contains(&"storage".to_owned()));
         assert!(capabilities.commands.contains(&"doctor".to_owned()));
         assert!(capabilities.commands.contains(&"backup".to_owned()));
+        assert!(capabilities.commands.contains(&"tool".to_owned()));
         assert!(capabilities.commands.contains(&"plan".to_owned()));
         assert!(capabilities.commands.contains(&"paths".to_owned()));
         assert_eq!(capabilities.raw_stream_commands, ["exec"]);

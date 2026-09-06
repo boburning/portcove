@@ -3,7 +3,7 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 import type { CancellationState, OperationEvent } from "./types";
 import type { LibraryImportPlan, LibraryImportResult, LibraryMovePlan, LibraryMoveResult } from "./types";
 import type { SourceDiscoveryRequest, SourceDiscoveryReport } from "./types";
-import type { ActivityRecord, AdoptionPreview, BackupInventory, BackupRecord, BootstrapStatus, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, InstallPlan, InstallRecord, LibraryMetadataFile, OutputDestinationPreview, OutputRelocationPlan, OutputRelocationResult, OutputRelocationStatus, PortOutputLocation, PortStatus, ReconcileOutcome, ReleaseChannel, RestoreResult, SourceRecord, SourceRelinkPlan, SourceRemovalPreview, SourceVerificationOutcome, UpdateCheck, UpdateCheckOutcome, UpdatePolicy } from "./types";
+import type { ActivityRecord, AdoptionPreview, BackupInventory, BackupRecord, BootstrapStatus, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, HostToolProbeResult, HostToolStatus, InstallPlan, InstallRecord, LibraryMetadataFile, OutputDestinationPreview, OutputRelocationPlan, OutputRelocationResult, OutputRelocationStatus, PortOutputLocation, PortStatus, ReconcileOutcome, ReleaseChannel, RestoreResult, SourceRecord, SourceRelinkPlan, SourceRemovalPreview, SourceVerificationOutcome, UpdateCheck, UpdateCheckOutcome, UpdatePolicy } from "./types";
 
 export const desktopApi = {
   catalogStatus: () => invoke<CatalogStatus>("get_catalog_status"),
@@ -58,6 +58,11 @@ export const desktopApi = {
   checkInstalled: () => invoke<UpdateCheckOutcome[]>("check_installed"),
   reconcileInstalled: () => invoke<ReconcileOutcome[]>("reconcile_installed"),
   doctor: () => invoke<DoctorReport>("get_doctor_report"),
+  hostTools: () => invoke<HostToolStatus[]>("get_host_tools"),
+  setHostToolPath: (toolId: string, path: string) => invoke<HostToolProbeResult>("set_host_tool_path", { toolId, path }),
+  clearHostToolPath: (toolId: string) => invoke<HostToolStatus>("clear_host_tool_path", { toolId }),
+  recheckHostTool: (toolId: string) => invoke<HostToolProbeResult>("recheck_host_tool", { toolId }),
+  openHostToolOfficialSite: (toolId: string) => invoke<void>("open_host_tool_official_site", { toolId }),
   createSupportBundle: () => invoke<string>("create_support_bundle"),
   exportLibraryMetadata: (path: string) => invoke<LibraryMetadataFile>("export_library_metadata", { path }),
   planLibraryMove: (destination: string) => invoke<LibraryMovePlan>("plan_library_move", { destination }),

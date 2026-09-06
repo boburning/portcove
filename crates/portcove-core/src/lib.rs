@@ -49,6 +49,7 @@ mod transfer_journal;
 mod types;
 
 pub use adapter::{Adapter, AdapterRegistry, LaunchSpecRequest};
+pub use adapter::{host_tool_statuses, recheck_host_tool};
 pub use auth::{
     GithubAuthSource, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult,
     GithubDeviceLoginState, GithubRateLimit,
@@ -109,4 +110,4 @@ pub use source_inspection::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 26;
+pub const API_SCHEMA_VERSION: u32 = 27;

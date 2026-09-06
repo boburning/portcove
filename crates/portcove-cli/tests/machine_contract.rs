@@ -16,7 +16,7 @@ fn exported_source_assessment_separates_facts_without_opening_library() {
     let output = portcove(&library, &["--json", "schema", "export"]);
     assert!(output.status.success());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 26);
+    assert_eq!(response["schema_version"], 27);
     let schema = &response["data"]["source_assessment"];
     for field in [
         "health",
@@ -259,6 +259,153 @@ fn portcove_preferences(preferences: &std::path::Path, args: &[&str]) -> Output 
         .args(args)
         .output()
         .expect("Portcove CLI should start")
+}
+
+fn portcove_tool(
+    preferences: &std::path::Path,
+    library: &std::path::Path,
+    args: &[&str],
+) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_portcove"))
+        .env("PORTCOVE_PREFERENCES", preferences)
+        .env_remove("PORTCOVE_CHDMAN")
+        .env_remove("PORTCOVE_DOLPHIN_TOOL")
+        .arg("--library")
+        .arg(library)
+        .args(args)
+        .output()
+        .expect("Portcove CLI should start")
+}
+
+fn compile_chdman_fixture(directory: &std::path::Path) -> std::path::PathBuf {
+    let source = directory.join("chdman_fixture.rs");
+    std::fs::write(
+        &source,
+        r#"fn main() {
+    if std::env::args().nth(1).as_deref() == Some("-help") {
+        println!("chdman verify extractdvd");
+    } else {
+        println!("unexpected arguments");
+        std::process::exit(7);
+    }
+}"#,
+    )
+    .unwrap();
+    let executable = directory.join(if cfg!(windows) {
+        "chdman-fixture.exe"
+    } else {
+        "chdman-fixture"
+    });
+    let compiled = Command::new("rustc")
+        .arg(&source)
+        .arg("-o")
+        .arg(&executable)
+        .output()
+        .unwrap();
+    assert!(
+        compiled.status.success(),
+        "fixture compilation failed: {}",
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    executable
+}
+
+#[test]
+fn disc_tool_commands_are_library_free_restart_safe_and_machine_readable() {
+    let temporary = tempfile::tempdir().unwrap();
+    let preferences = temporary.path().join("config/preferences.json");
+    let library = temporary.path().join("must-not-be-opened");
+    let helper = compile_chdman_fixture(temporary.path());
+    let helper_text = helper.to_str().unwrap();
+
+    let listed = portcove_tool(&preferences, &library, &["--json", "tool", "list"]);
+    assert!(listed.status.success());
+    let listed = json_stdout(&listed);
+    assert_eq!(listed["command"], "tool.list");
+    assert_eq!(listed["data"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        listed["data"][0]["official_url"],
+        "https://docs.mamedev.org/tools/chdman.html"
+    );
+    assert!(!library.exists());
+    assert!(!preferences.exists());
+
+    let configured = json_stdout(&portcove_tool(
+        &preferences,
+        &library,
+        &["--json", "tool", "set-path", "chdman", helper_text],
+    ));
+    assert_eq!(configured["command"], "tool.set-path");
+    assert_eq!(configured["data"]["state"], "success");
+    assert_eq!(configured["data"]["persisted"], true);
+    assert!(configured["data"]["sha256"].as_str().is_some());
+    assert!(!library.exists());
+
+    let restarted = json_stdout(&portcove_tool(
+        &preferences,
+        &library,
+        &["--json", "tool", "list"],
+    ));
+    let chdman = restarted["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|tool| tool["id"] == "chdman")
+        .unwrap();
+    assert_eq!(chdman["state"], "available");
+    assert_eq!(chdman["source"], "saved");
+    assert_eq!(chdman["path"], helper_text);
+
+    let missing = temporary.path().join("missing-chdman");
+    let rejected = json_stdout(&portcove_tool(
+        &preferences,
+        &library,
+        &[
+            "--json",
+            "tool",
+            "set-path",
+            "chdman",
+            missing.to_str().unwrap(),
+        ],
+    ));
+    assert_eq!(rejected["data"]["state"], "missing");
+    assert_eq!(rejected["data"]["persisted"], false);
+    let preserved = json_stdout(&portcove_tool(
+        &preferences,
+        &library,
+        &["--json", "tool", "list"],
+    ));
+    let chdman = preserved["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|tool| tool["id"] == "chdman")
+        .unwrap();
+    assert_eq!(chdman["path"], helper_text);
+    assert_eq!(chdman["source"], "saved");
+
+    let cleared = json_stdout(&portcove_tool(
+        &preferences,
+        &library,
+        &["--jsonl", "tool", "clear-path", "chdman"],
+    ));
+    assert_eq!(cleared["type"], "result");
+    assert_eq!(cleared["command"], "tool.clear-path");
+    assert_ne!(cleared["data"]["source"], "saved");
+
+    let unknown = portcove_tool(
+        &preferences,
+        &library,
+        &["--json", "tool", "clear-path", "https://example.com"],
+    );
+    assert_eq!(unknown.status.code(), Some(2));
+    assert_eq!(json_stdout(&unknown)["error"]["code"], "usage");
+
+    let human = portcove_tool(&preferences, &library, &["tool", "list"]);
+    let human = String::from_utf8(human.stdout).unwrap();
+    assert!(human.contains("Disc tools (2)"));
+    assert!(human.contains("OFFICIAL SITE"));
+    assert!(!library.exists());
 }
 
 #[test]
@@ -671,7 +818,7 @@ fn default_read_commands_have_human_output_snapshots() {
 
     let capabilities = human_stdout(&portcove(root.path(), &["capabilities"])).to_owned();
     assert!(capabilities.starts_with("Portcove "));
-    assert!(capabilities.contains(" capabilities\nSchema: 26"));
+    assert!(capabilities.contains(" capabilities\nSchema: 27"));
 }
 
 #[test]
@@ -951,11 +1098,11 @@ fn capabilities_are_one_clean_versioned_json_document() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 26);
+    assert_eq!(response["schema_version"], 27);
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");
     assert!(response["error"].is_null());
-    assert_eq!(response["data"]["schema_version"], 26);
+    assert_eq!(response["data"]["schema_version"], 27);
     assert_eq!(
         response["data"]["raw_stream_commands"],
         serde_json::json!(["exec"])
@@ -977,7 +1124,7 @@ fn command_errors_keep_the_machine_envelope_and_stable_exit_code() {
     assert_eq!(output.status.code(), Some(4));
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 26);
+    assert_eq!(response["schema_version"], 27);
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "catalog.show");
     assert!(response["data"].is_null());
@@ -994,7 +1141,7 @@ fn parser_errors_are_structured_for_machine_callers() {
     assert!(output.stderr.is_empty());
     assert!(!library.exists());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 26);
+    assert_eq!(response["schema_version"], 27);
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "cli");
     assert_eq!(response["error"]["code"], "usage");
@@ -1014,7 +1161,7 @@ fn jsonl_read_commands_end_with_one_result_event() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 26);
+    assert_eq!(response["schema_version"], 27);
     assert_eq!(response["type"], "result");
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");

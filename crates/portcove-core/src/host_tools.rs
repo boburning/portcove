@@ -1335,4 +1335,21 @@ mod tests {
         assert_eq!(missing.state, HostToolState::Missing);
         assert_eq!(missing.source, None);
     }
+
+    #[test]
+    fn unsupported_platform_state_is_explicit_and_never_resolves_a_path() {
+        let temporary = tempfile::tempdir().unwrap();
+        let store = HostPreferenceStore::new(temporary.path().join("preferences.json")).unwrap();
+        let mut definition = test_definition(&["--success"]);
+        definition.supported_platforms.clear();
+
+        let status = resolve_with_environment(definition, Vec::new(), &store, None).unwrap();
+
+        assert_eq!(status.state, HostToolState::Unsupported);
+        assert!(status.path.is_none());
+        assert_eq!(
+            require_path(&status, &[]).unwrap_err().code,
+            crate::ErrorCode::Unsupported
+        );
+    }
 }

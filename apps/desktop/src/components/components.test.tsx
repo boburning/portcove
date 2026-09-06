@@ -173,7 +173,7 @@ describe("desktop components", () => {
         id: "future_tool", display_name: "Future tool", state: "missing", configuration_variable: "PORTCOVE_FUTURE_TOOL", purpose: "future source conversion", official_url: "https://example.com/tool",
       }],
     }} />);
-    expect(html).toContain("Source tools");
+    expect(html).toContain("Disc tools");
     expect(html).toContain("windows-x86-64");
     expect(html).toContain("61 ports · 10 installed · 9 sources");
     expect(html).toContain("Ready");
@@ -182,6 +182,9 @@ describe("desktop components", () => {
     expect(html).toContain("C:/Tools/chdman.exe");
     expect(html).toContain("E:/Missing/DolphinTool.exe");
     expect(html).toContain("Set PORTCOVE_FUTURE_TOOL");
+    expect(html).toContain("Official site");
+    expect(html).toContain("Locate executable");
+    expect(html).toContain("Recheck");
   });
 
   it("renders an accessible system, dark, and light appearance choice", () => {

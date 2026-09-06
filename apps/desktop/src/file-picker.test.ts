@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { open } from "@tauri-apps/plugin-dialog";
-import { pickGameOutputFolder, pickInstallFolder, pickSourceArchivePath, pickSourcePath } from "./file-picker";
+import { pickGameOutputFolder, pickHostToolExecutable, pickInstallFolder, pickSourceArchivePath, pickSourcePath } from "./file-picker";
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn() }));
 const openMock = vi.mocked(open);
@@ -97,6 +97,17 @@ describe("native path pickers", () => {
       multiple: false,
       directory: true,
       defaultPath: "F:/Games",
+    });
+  });
+
+  it("uses a neutral native executable picker without accepting probe arguments", async () => {
+    openMock.mockResolvedValue(null);
+    await expect(pickHostToolExecutable("DolphinTool", "D:/Tools/DolphinTool.exe")).resolves.toBeNull();
+    expect(openMock).toHaveBeenCalledWith({
+      title: "Locate DolphinTool executable",
+      multiple: false,
+      directory: false,
+      defaultPath: "D:/Tools/DolphinTool.exe",
     });
   });
 });
