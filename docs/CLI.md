@@ -86,10 +86,11 @@ revalidate it under the port lock. These commands change future placement only;
 they never move an existing installation. `plan`, `install`, and `ensure` accept
 one `--output-dir` request override. No all-port command accepts a shared output
 directory. API schema 24 distinguishes a full volume from an unavailable volume.
-A preview fingerprint changes when available capacity crosses a 256 MiB band,
-reaches zero, becomes unavailable, or changes volume identity or total capacity,
-avoiding false stale-intent failures from incidental filesystem bookkeeping while
-requiring a new review for a meaningful capacity change.
+A preview fingerprint changes when the volume becomes full or unavailable, or
+when its identity changes. Exact free-space and total-capacity values remain
+visible review facts, but ordinary positive free-space movement does not stale
+consent. Apply repeats the availability check, and install or relocation repeats
+the exact sufficiency check for the bytes that operation needs.
 
 API schema 25 added explicit per-game relocation. `output move <port-id> <path>`
 returns a read-only, state-bound plan covering every recorded active, previous,
