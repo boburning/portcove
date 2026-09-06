@@ -3913,7 +3913,10 @@ fn output_authorization_target(port_id: &str, output_directory: Option<&Path>) -
 }
 
 fn output_destination_fingerprint(preview: &OutputDestinationPreview) -> Result<String> {
-    let capacity_available = preview.available_bytes.is_some_and(|bytes| bytes > 0);
+    const CAPACITY_REVIEW_GRANULARITY_BYTES: u64 = 256 * 1024 * 1024;
+    let capacity_band = preview
+        .available_bytes
+        .map(|bytes| bytes / CAPACITY_REVIEW_GRANULARITY_BYTES);
     let bound = (
         &preview.port_id,
         &preview.current,
@@ -3921,7 +3924,7 @@ fn output_destination_fingerprint(preview: &OutputDestinationPreview) -> Result<
         preview.reset_to_default,
         preview.availability,
         preview.ownership,
-        capacity_available,
+        capacity_band,
         preview.total_bytes,
         &preview.volume_identity,
         &preview.validation_errors,
@@ -4389,6 +4392,31 @@ mod tests {
             }),
         )
         .unwrap()
+    }
+
+    fn library_file_snapshot(library: &Library) -> Vec<(PathBuf, String)> {
+        fn visit(root: &Path, current: &Path, files: &mut Vec<(PathBuf, String)>) {
+            for entry in fs::read_dir(current).unwrap() {
+                let entry = entry.unwrap();
+                let path = entry.path();
+                let metadata = fs::symlink_metadata(&path).unwrap();
+                if metadata.is_dir() {
+                    visit(root, &path, files);
+                } else if metadata.is_file()
+                    && !path.to_string_lossy().ends_with("portcove.sqlite3-shm")
+                {
+                    files.push((
+                        path.strip_prefix(root).unwrap().to_path_buf(),
+                        sha256_file(&path).unwrap(),
+                    ));
+                }
+            }
+        }
+
+        let mut files = Vec::new();
+        visit(library.root(), library.root(), &mut files);
+        files.sort_by(|left, right| left.0.cmp(&right.0));
+        files
     }
 
     #[tokio::test]
@@ -6341,6 +6369,330 @@ fn main() {
                 &authorization.token,
             )
             .unwrap();
+    }
+
+    #[test]
+    fn output_preview_matrix_is_read_only_for_inherited_custom_missing_and_owned_roots() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = service_with_release(library.clone(), "v1");
+
+        let before = library_file_snapshot(&library);
+        let inherited = service
+            .preview_output_directory("zelda64-recomp", None)
+            .unwrap();
+        assert_eq!(
+            inherited.ownership,
+            crate::OutputDestinationOwnership::LibraryDefault
+        );
+        assert_eq!(before, library_file_snapshot(&library));
+
+        let default_root = library.versions_dir().join("zelda64-recomp");
+        fs::write(&default_root, b"tampered default root").unwrap();
+        let default_file = service
+            .preview_output_directory("zelda64-recomp", None)
+            .unwrap();
+        assert_eq!(
+            default_file.ownership,
+            crate::OutputDestinationOwnership::Invalid
+        );
+        assert!(!default_file.validation_errors.is_empty());
+        fs::remove_file(default_root).unwrap();
+
+        let custom = temporary.path().join("custom-output");
+        fs::create_dir(&custom).unwrap();
+        service
+            .set_output_directory("zelda64-recomp", &custom)
+            .unwrap();
+        let before = library_file_snapshot(&library);
+        let custom_preview = service
+            .preview_output_directory("zelda64-recomp", Some(&custom))
+            .unwrap();
+        assert_eq!(
+            custom_preview.current.selection_source,
+            OutputLocationSource::PortSetting
+        );
+        assert_eq!(
+            custom_preview.ownership,
+            crate::OutputDestinationOwnership::Unclaimed
+        );
+        assert_eq!(before, library_file_snapshot(&library));
+
+        let missing = temporary.path().join("missing-output");
+        let before = library_file_snapshot(&library);
+        let missing_preview = service
+            .preview_output_directory("zelda64-recomp", Some(&missing))
+            .unwrap();
+        assert_eq!(
+            missing_preview.ownership,
+            crate::OutputDestinationOwnership::Unclaimed
+        );
+        assert!(!missing.exists());
+        assert_eq!(before, library_file_snapshot(&library));
+
+        let owned = temporary.path().join("owned-output");
+        crate::output_root::prepare_for_install(
+            &library,
+            "zelda64-recomp",
+            &owned,
+            &Uuid::new_v4().to_string(),
+            0,
+        )
+        .unwrap();
+        let marker = owned.join(".portcove-game-output.json");
+        let marker_before = fs::read(&marker).unwrap();
+        let before = library_file_snapshot(&library);
+        let owned_preview = service
+            .preview_output_directory("zelda64-recomp", Some(&owned))
+            .unwrap();
+        assert_eq!(
+            owned_preview.ownership,
+            crate::OutputDestinationOwnership::OwnedByPort
+        );
+        assert_eq!(marker_before, fs::read(marker).unwrap());
+        assert_eq!(before, library_file_snapshot(&library));
+    }
+
+    #[test]
+    fn output_preview_reports_full_and_unavailable_volumes_without_mutation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = service_with_release(library.clone(), "v1");
+        let destination = temporary.path().join("future-output");
+        let before = library_file_snapshot(&library);
+
+        {
+            let _volume = crate::output_root::override_volume_details(
+                crate::output_root::TestVolumeDetails::Available {
+                    available_bytes: 0,
+                    total_bytes: 1024,
+                    volume_identity: "full-volume".into(),
+                },
+            );
+            let full = service
+                .preview_output_directory("zelda64-recomp", Some(&destination))
+                .unwrap();
+            assert_eq!(
+                full.availability,
+                crate::OutputDestinationAvailability::Full
+            );
+            assert_eq!(full.available_bytes, Some(0));
+            assert!(!full.validation_errors.is_empty());
+        }
+        assert!(!destination.exists());
+        assert_eq!(before, library_file_snapshot(&library));
+
+        {
+            let _volume = crate::output_root::override_volume_details(
+                crate::output_root::TestVolumeDetails::Unavailable(
+                    "selected drive is unavailable".into(),
+                ),
+            );
+            let unavailable = service
+                .preview_output_directory("zelda64-recomp", Some(&destination))
+                .unwrap();
+            assert_eq!(
+                unavailable.availability,
+                crate::OutputDestinationAvailability::Unavailable
+            );
+            assert_eq!(unavailable.available_bytes, None);
+            assert!(
+                unavailable
+                    .validation_errors
+                    .iter()
+                    .any(|message| message.contains("unavailable"))
+            );
+        }
+        assert!(!destination.exists());
+        assert_eq!(before, library_file_snapshot(&library));
+    }
+
+    #[test]
+    fn output_apply_rejects_changed_install_marker_capacity_drive_and_port_identity() {
+        const CAPACITY_BAND: u64 = 256 * 1024 * 1024;
+
+        let install_case = tempfile::tempdir().unwrap();
+        let install_library = Library::open(install_case.path().join("library")).unwrap();
+        let install_service = service_with_release(install_library.clone(), "v1");
+        let install_destination = install_case.path().join("future-output");
+        let preview = install_service
+            .preview_output_directory("zelda64-recomp", Some(&install_destination))
+            .unwrap();
+        let authorization = install_service
+            .authorize_output_directory_change(
+                "zelda64-recomp",
+                Some(&install_destination),
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        register_zelda_install(&install_library, "v1", true);
+        assert_eq!(
+            install_service
+                .apply_output_directory_change(
+                    "zelda64-recomp",
+                    Some(&install_destination),
+                    &authorization.token,
+                )
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Conflict
+        );
+
+        let marker_case = tempfile::tempdir().unwrap();
+        let marker_library = Library::open(marker_case.path().join("library")).unwrap();
+        let marker_service = service_with_release(marker_library.clone(), "v1");
+        let owned = marker_case.path().join("owned-output");
+        crate::output_root::prepare_for_install(
+            &marker_library,
+            "zelda64-recomp",
+            &owned,
+            &Uuid::new_v4().to_string(),
+            0,
+        )
+        .unwrap();
+        let preview = marker_service
+            .preview_output_directory("zelda64-recomp", Some(&owned))
+            .unwrap();
+        let authorization = marker_service
+            .authorize_output_directory_change(
+                "zelda64-recomp",
+                Some(&owned),
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        fs::write(owned.join(".portcove-game-output.json"), b"{}").unwrap();
+        assert_eq!(
+            marker_service
+                .apply_output_directory_change(
+                    "zelda64-recomp",
+                    Some(&owned),
+                    &authorization.token,
+                )
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Conflict
+        );
+
+        let capacity_case = tempfile::tempdir().unwrap();
+        let capacity_library = Library::open(capacity_case.path().join("library")).unwrap();
+        let capacity_service = service_with_release(capacity_library.clone(), "v1");
+        let capacity_destination = capacity_case.path().join("future-output");
+        let initial_capacity = crate::output_root::override_volume_details(
+            crate::output_root::TestVolumeDetails::Available {
+                available_bytes: CAPACITY_BAND * 3,
+                total_bytes: CAPACITY_BAND * 8,
+                volume_identity: "capacity-volume".into(),
+            },
+        );
+        let preview = capacity_service
+            .preview_output_directory("zelda64-recomp", Some(&capacity_destination))
+            .unwrap();
+        let authorization = capacity_service
+            .authorize_output_directory_change(
+                "zelda64-recomp",
+                Some(&capacity_destination),
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        let changed_capacity = crate::output_root::override_volume_details(
+            crate::output_root::TestVolumeDetails::Available {
+                available_bytes: CAPACITY_BAND,
+                total_bytes: CAPACITY_BAND * 8,
+                volume_identity: "capacity-volume".into(),
+            },
+        );
+        assert_eq!(
+            capacity_service
+                .apply_output_directory_change(
+                    "zelda64-recomp",
+                    Some(&capacity_destination),
+                    &authorization.token,
+                )
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Conflict
+        );
+        drop(changed_capacity);
+        drop(initial_capacity);
+        assert!(
+            capacity_library
+                .output_directory("zelda64-recomp")
+                .unwrap()
+                .is_none()
+        );
+
+        let drive_case = tempfile::tempdir().unwrap();
+        let drive_library = Library::open(drive_case.path().join("library")).unwrap();
+        let drive_service = service_with_release(drive_library.clone(), "v1");
+        let drive_destination = drive_case.path().join("future-output");
+        let initial_drive = crate::output_root::override_volume_details(
+            crate::output_root::TestVolumeDetails::Available {
+                available_bytes: CAPACITY_BAND * 3,
+                total_bytes: CAPACITY_BAND * 8,
+                volume_identity: "removable-volume".into(),
+            },
+        );
+        let preview = drive_service
+            .preview_output_directory("zelda64-recomp", Some(&drive_destination))
+            .unwrap();
+        let authorization = drive_service
+            .authorize_output_directory_change(
+                "zelda64-recomp",
+                Some(&drive_destination),
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        let unavailable_drive = crate::output_root::override_volume_details(
+            crate::output_root::TestVolumeDetails::Unavailable(
+                "selected drive was disconnected".into(),
+            ),
+        );
+        assert_eq!(
+            drive_service
+                .apply_output_directory_change(
+                    "zelda64-recomp",
+                    Some(&drive_destination),
+                    &authorization.token,
+                )
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Conflict
+        );
+        drop(unavailable_drive);
+        drop(initial_drive);
+        assert!(
+            drive_library
+                .output_directory("zelda64-recomp")
+                .unwrap()
+                .is_none()
+        );
+
+        let port_case = tempfile::tempdir().unwrap();
+        let port_library = Library::open(port_case.path().join("library")).unwrap();
+        let port_service = service_with_release(port_library.clone(), "v1");
+        let port_destination = port_case.path().join("future-output");
+        let preview = port_service
+            .preview_output_directory("zelda64-recomp", Some(&port_destination))
+            .unwrap();
+        let authorization = port_service
+            .authorize_output_directory_change(
+                "zelda64-recomp",
+                Some(&port_destination),
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        assert_eq!(
+            port_service
+                .apply_output_directory_change(
+                    "starship",
+                    Some(&port_destination),
+                    &authorization.token,
+                )
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Conflict
+        );
+        assert!(port_library.output_directory("starship").unwrap().is_none());
     }
 
     #[tokio::test]

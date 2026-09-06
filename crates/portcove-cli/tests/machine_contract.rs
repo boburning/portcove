@@ -14,7 +14,7 @@ fn exported_source_assessment_separates_facts_without_opening_library() {
     let output = portcove(&library, &["--json", "schema", "export"]);
     assert!(output.status.success());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 23);
+    assert_eq!(response["schema_version"], 24);
     let schema = &response["data"]["source_assessment"];
     for field in [
         "health",
@@ -84,6 +84,10 @@ fn exported_source_assessment_separates_facts_without_opening_library() {
     ] {
         assert!(output["properties"][field].is_object(), "{field}");
     }
+    assert_eq!(
+        output["$defs"]["OutputDestinationAvailability"]["enum"],
+        serde_json::json!(["available", "full", "unavailable"])
+    );
     assert_eq!(
         output["$defs"]["OutputDestinationOwnership"]["enum"],
         serde_json::json!([
@@ -651,7 +655,7 @@ fn default_read_commands_have_human_output_snapshots() {
 
     let capabilities = human_stdout(&portcove(root.path(), &["capabilities"])).to_owned();
     assert!(capabilities.starts_with("Portcove "));
-    assert!(capabilities.contains(" capabilities\nSchema: 23"));
+    assert!(capabilities.contains(" capabilities\nSchema: 24"));
 }
 
 #[test]
@@ -677,6 +681,26 @@ fn output_controls_share_one_preview_and_apply_contract_across_modes() {
     assert_eq!(preview["data"]["moves_existing_install"], false);
     assert!(!destination.exists());
     let fingerprint = preview["data"]["preview_sha256"].as_str().unwrap();
+
+    let human_preview = human_stdout(&portcove(
+        &library,
+        &["output", "preview", "lighthouse", destination_text],
+    ))
+    .to_owned();
+    assert!(human_preview.starts_with("Export / install folder preview for lighthouse"));
+    assert!(human_preview.contains(fingerprint));
+    let jsonl_preview = json_stdout(&portcove(
+        &library,
+        &[
+            "--jsonl",
+            "output",
+            "preview",
+            "lighthouse",
+            destination_text,
+        ],
+    ));
+    assert_eq!(jsonl_preview["type"], "result");
+    assert_eq!(jsonl_preview["data"]["preview_sha256"], fingerprint);
 
     let applied = json_stdout(&portcove(
         &library,
@@ -718,6 +742,74 @@ fn output_controls_share_one_preview_and_apply_contract_across_modes() {
     let human = human_stdout(&show);
     assert!(human.starts_with("Export / install folder for lighthouse\nEffective:"));
     assert!(human.contains("Existing installs are not moved"));
+    let json_show = json_stdout(&portcove(
+        &library,
+        &["--json", "output", "show", "lighthouse"],
+    ));
+    assert_eq!(json_show["command"], "output.show");
+    let jsonl_show = json_stdout(&portcove(
+        &library,
+        &["--jsonl", "output", "show", "lighthouse"],
+    ));
+    assert_eq!(jsonl_show["type"], "result");
+    assert_eq!(jsonl_show["command"], "output.show");
+
+    let set_again_preview = json_stdout(&portcove(
+        &library,
+        &[
+            "--json",
+            "output",
+            "preview",
+            "lighthouse",
+            destination_text,
+        ],
+    ));
+    let set_again_fingerprint = set_again_preview["data"]["preview_sha256"]
+        .as_str()
+        .unwrap();
+    let human_set = human_stdout(&portcove(
+        &library,
+        &[
+            "output",
+            "set",
+            "lighthouse",
+            destination_text,
+            "--expected-preview",
+            set_again_fingerprint,
+            "--yes",
+        ],
+    ))
+    .to_owned();
+    assert!(human_set.contains("existing installs will not move"));
+
+    let jsonl_set_preview = json_stdout(&portcove(
+        &library,
+        &[
+            "--json",
+            "output",
+            "preview",
+            "lighthouse",
+            destination_text,
+        ],
+    ));
+    let jsonl_set_fingerprint = jsonl_set_preview["data"]["preview_sha256"]
+        .as_str()
+        .unwrap();
+    let jsonl_set = json_stdout(&portcove(
+        &library,
+        &[
+            "--jsonl",
+            "output",
+            "set",
+            "lighthouse",
+            destination_text,
+            "--expected-preview",
+            jsonl_set_fingerprint,
+            "--yes",
+        ],
+    ));
+    assert_eq!(jsonl_set["type"], "result");
+    assert_eq!(jsonl_set["command"], "output.set");
 
     let reset_preview = json_stdout(&portcove(
         &library,
@@ -726,6 +818,97 @@ fn output_controls_share_one_preview_and_apply_contract_across_modes() {
     assert_eq!(reset_preview["type"], "result");
     assert_eq!(reset_preview["data"]["reset_to_default"], true);
     let reset_fingerprint = reset_preview["data"]["preview_sha256"].as_str().unwrap();
+    let human_reset = human_stdout(&portcove(
+        &library,
+        &[
+            "output",
+            "reset",
+            "lighthouse",
+            "--expected-preview",
+            reset_fingerprint,
+            "--yes",
+        ],
+    ))
+    .to_owned();
+    assert!(human_reset.contains("existing installs will not move"));
+
+    let restore_preview = json_stdout(&portcove(
+        &library,
+        &[
+            "--json",
+            "output",
+            "preview",
+            "lighthouse",
+            destination_text,
+        ],
+    ));
+    let restore_fingerprint = restore_preview["data"]["preview_sha256"].as_str().unwrap();
+    json_stdout(&portcove(
+        &library,
+        &[
+            "--json",
+            "output",
+            "set",
+            "lighthouse",
+            destination_text,
+            "--expected-preview",
+            restore_fingerprint,
+            "--yes",
+        ],
+    ));
+    let jsonl_reset_preview = json_stdout(&portcove(
+        &library,
+        &["--jsonl", "output", "preview", "lighthouse"],
+    ));
+    let jsonl_reset_fingerprint = jsonl_reset_preview["data"]["preview_sha256"]
+        .as_str()
+        .unwrap();
+    let jsonl_reset = json_stdout(&portcove(
+        &library,
+        &[
+            "--jsonl",
+            "output",
+            "reset",
+            "lighthouse",
+            "--expected-preview",
+            jsonl_reset_fingerprint,
+            "--yes",
+        ],
+    ));
+    assert_eq!(jsonl_reset["type"], "result");
+    assert_eq!(jsonl_reset["command"], "output.reset");
+
+    let restore_preview = json_stdout(&portcove(
+        &library,
+        &[
+            "--json",
+            "output",
+            "preview",
+            "lighthouse",
+            destination_text,
+        ],
+    ));
+    let restore_fingerprint = restore_preview["data"]["preview_sha256"].as_str().unwrap();
+    json_stdout(&portcove(
+        &library,
+        &[
+            "--json",
+            "output",
+            "set",
+            "lighthouse",
+            destination_text,
+            "--expected-preview",
+            restore_fingerprint,
+            "--yes",
+        ],
+    ));
+    let json_reset_preview = json_stdout(&portcove(
+        &library,
+        &["--json", "output", "preview", "lighthouse"],
+    ));
+    let json_reset_fingerprint = json_reset_preview["data"]["preview_sha256"]
+        .as_str()
+        .unwrap();
     let reset = json_stdout(&portcove(
         &library,
         &[
@@ -734,7 +917,7 @@ fn output_controls_share_one_preview_and_apply_contract_across_modes() {
             "reset",
             "lighthouse",
             "--expected-preview",
-            reset_fingerprint,
+            json_reset_fingerprint,
             "--yes",
         ],
     ));
@@ -750,11 +933,11 @@ fn capabilities_are_one_clean_versioned_json_document() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 23);
+    assert_eq!(response["schema_version"], 24);
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");
     assert!(response["error"].is_null());
-    assert_eq!(response["data"]["schema_version"], 23);
+    assert_eq!(response["data"]["schema_version"], 24);
     assert_eq!(
         response["data"]["raw_stream_commands"],
         serde_json::json!(["exec"])
@@ -776,7 +959,7 @@ fn command_errors_keep_the_machine_envelope_and_stable_exit_code() {
     assert_eq!(output.status.code(), Some(4));
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 23);
+    assert_eq!(response["schema_version"], 24);
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "catalog.show");
     assert!(response["data"].is_null());
@@ -793,7 +976,7 @@ fn parser_errors_are_structured_for_machine_callers() {
     assert!(output.stderr.is_empty());
     assert!(!library.exists());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 23);
+    assert_eq!(response["schema_version"], 24);
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "cli");
     assert_eq!(response["error"]["code"], "usage");
@@ -813,7 +996,7 @@ fn jsonl_read_commands_end_with_one_result_event() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 23);
+    assert_eq!(response["schema_version"], 24);
     assert_eq!(response["type"], "result");
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");

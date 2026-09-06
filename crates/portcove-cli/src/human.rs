@@ -405,6 +405,7 @@ pub(crate) fn output_location(location: &PortOutputLocation) -> String {
 pub(crate) fn output_preview(preview: &OutputDestinationPreview) -> String {
     let availability = match preview.availability {
         OutputDestinationAvailability::Available => "available",
+        OutputDestinationAvailability::Full => "full",
         OutputDestinationAvailability::Unavailable => "unavailable",
     };
     let ownership = match preview.ownership {
