@@ -328,10 +328,13 @@ retain independent sources, installations, saves, and qualification. A working
 alternative does not resolve the original implementation's failure.
 
 The Port Pipeline Project view is the complete port inventory, with one canonical
-issue per independent port. #16 coordinates the ongoing process; its child list
-is historical organization rather than an exhaustive inventory. Parent groups
-are optional and useful for bounded outcomes. Intake preserves existing links
-and does not require a parent or create numbered overflow workstreams.
+issue per independent port across upstream versions, including completed and
+deferred records. Active Port Work filters unfinished, non-deferred work without
+changing that inventory. The former #16 umbrella is superseded by these views
+and finite engineering issues. Parent groups are optional and useful for bounded
+outcomes. Intake preserves existing links and does not require a parent or create
+numbered overflow workstreams. Work completion remains separate from the
+catalog's support and qualification evidence.
 
 Schedule bounded source/setup, process ownership, and package-assembly work
 around demonstrated reusable needs. An investigation may proceed while an

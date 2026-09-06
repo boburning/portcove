@@ -99,6 +99,21 @@ test("view reconciliation reuses matching GraphQL views and creates only missing
   );
 });
 
+test("active port work is additive and preserves the complete inventory view", () => {
+  const inventory = config.views.find(view => view.name === "Port Pipeline");
+  assert.equal(inventory.filter, "work-type:Port");
+  const active = config.views.find(view => view.name === "Active Port Work");
+  assert.equal(active.layout, "TABLE_LAYOUT");
+  assert.equal(active.filter, "work-type:Port -status:Done -status:Deferred");
+  assert.deepEqual(active.fields, ["Title", "Priority", "Horizon", "Status", "Port stage", "Platform", "Assignees"]);
+  assert.equal(active.manual_group_by, "Status");
+  assert.equal(active.manual_sort_by, "Priority,manual");
+  const existing = config.views.filter(view => view !== active).map((view, index) => ({ ...view, id: `V${index}` }));
+  const plan = planViewReconciliation(config.views, existing);
+  assert.deepEqual(plan.filter(step => step.action === "create").map(step => step.desired.name), ["Active Port Work"]);
+  assert.equal(plan.find(step => step.desired.name === inventory.name).actual.id, "V2");
+});
+
 test("next work excludes workstreams, completed items, and Later horizon", () => {
   const items = [
     { title: "Next medium", status: "Ready", priority: "Medium", horizon: "Next", "work type": "Bug" },
@@ -302,7 +317,7 @@ test("active release materialization and manual checklist are explicit", () => {
   assert.equal(current.filter, `-status:Done target-release:"${config.active_release}"`);
   const alpha1 = materializeViews({ ...config, active_release: "Alpha 1" }).find(view => view.name === "Current Release");
   assert.equal(alpha1.filter, '-status:Done target-release:"Alpha 1"');
-  assert.equal(manualUiChecklist(config).filter(line => /^\d+\. .*: group by/.test(line)).length, 9);
+  assert.equal(manualUiChecklist(config).filter(line => /^\d+\. .*: group by/.test(line)).length, config.views.length);
   assert.match(manualUiChecklist(config).at(-1), /completion workflows/);
 });
 
@@ -679,7 +694,7 @@ test("capture-port creates one Project-backed issue without depending on parent 
     if (args[0] === "project" && args[1] === "field-list") return JSON.stringify({ fields: Object.entries(expectedFields).map(([name, value], index) => ({ id: `F${index}`, name, options: [{ id: `O${index}`, name: value }] })) });
     if (args[0] === "api" && args[1] === "graphql") {
       assert.doesNotMatch(input, /issue\(number: 16\)|\bparent\s*\{|addSubIssue|removeSubIssue/);
-      if (input.includes("issues(first: 100")) return JSON.stringify({ data: { repository: { issues: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } } } } });
+      if (input.includes("issues(first: 100")) return JSON.stringify({ data: { repository: { issues: { totalCount: 0, nodes: [], pageInfo: { hasNextPage: false, endCursor: null } } } } });
       if (input.includes("addProjectV2ItemById")) return JSON.stringify({ data: { addProjectV2ItemById: { item: { id: "PVTI_new" } } } });
       return JSON.stringify({ data: { node: { projectItems: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } } } } });
     }
@@ -742,10 +757,12 @@ Preserve this contributor text.`;
       if (args[0] === "api" && args[1] === "graphql") {
         assert.doesNotMatch(input, /issue\(number: 16\)|\bparent\s*\{|addSubIssue|removeSubIssue/);
         if (input.includes("issues(first: 100")) return JSON.stringify({ data: { repository: { issues: {
+          totalCount: 1,
           nodes: [{ ...issue(), __typename: "Issue", url: issue().html_url }],
           pageInfo: { hasNextPage: false, endCursor: null },
         } } } });
         if (input.includes("items(first: 50")) return JSON.stringify({ data: { node: { items: {
+          totalCount: 1,
           nodes: [{
             id: "PVTI_form",
             content: { __typename: "Issue", number: 42, title: issue().title, body, url: issue().html_url, state: "OPEN" },
@@ -782,6 +799,7 @@ test("repository issue inventory follows every GraphQL page", () => {
     const after = JSON.parse(input).variables.after;
     const number = after ? 2 : 1;
     return JSON.stringify({ data: { repository: { issues: {
+      totalCount: 2,
       nodes: [{ __typename: "Issue", number, title: `Issue ${number}`, body: "", url: `https://github.com/boburning/portcove/issues/${number}`, state: "OPEN" }],
       pageInfo: { hasNextPage: !after, endCursor: after ? null : "cursor-1" },
     } } } });
@@ -805,6 +823,7 @@ test("move refuses ambiguous item references", () => {
   const runner = (args, input) => {
     if (args[1] === "view") return JSON.stringify({ id: "PVT_project" });
     if (args[1] === "graphql") return JSON.stringify({ data: { node: { items: {
+      totalCount: 3,
       nodes: [
         { id: "A", content: { __typename: "DraftIssue", title: "Same" }, fieldValues: { nodes: [] } },
         { id: "B", content: { __typename: "DraftIssue", title: "Same" }, fieldValues: { nodes: [] } },
@@ -852,7 +871,7 @@ test("GraphQL view pagination reads every page", () => {
   assert.equal(calls.length, 2);
 });
 
-test("GraphQL Project item pagination reads every item and field page", () => {
+test("GraphQL Project item pagination reads every item with normalized fields", () => {
   const calls = [];
   const runner = (args, input) => {
     calls.push({ args, input });
@@ -861,7 +880,7 @@ test("GraphQL Project item pagination reads every item and field page", () => {
     const item = after
       ? { id: "I2", content: { __typename: "DraftIssue", title: "Second", body: "Draft" }, fieldValues: { nodes: [{ name: "Inbox", field: { name: "Status" } }] } }
       : { id: "I1", content: { __typename: "Issue", number: 1, title: "First", body: "Issue", url: "https://github.com/boburning/portcove/issues/1", state: "OPEN" }, fieldValues: { nodes: [{ name: "Port", field: { name: "Work type" } }] } };
-    return JSON.stringify({ data: { node: { items: { nodes: [item], pageInfo: after
+    return JSON.stringify({ data: { node: { items: { totalCount: 2, nodes: [item], pageInfo: after
       ? { hasNextPage: false, endCursor: null }
       : { hasNextPage: true, endCursor: "next" } } } } });
   };
@@ -871,3 +890,58 @@ test("GraphQL Project item pagination reads every item and field page", () => {
   assert.equal(fieldValue(items[1], "Status"), "Inbox");
   assert.equal(calls.filter(call => call.args[1] === "graphql").length, 2);
 });
+
+for (const kind of ["issues", "items"]) {
+  const node = value => kind === "issues" ? { number: value, __typename: "Issue" } : { id: `PVTI_${value}` };
+  const page = (numbers, totalCount, cursor = null) => ({
+    nodes: numbers.map(node), totalCount,
+    pageInfo: { hasNextPage: cursor !== null, endCursor: cursor },
+  });
+  function readPages(pages) {
+    let index = 0;
+    const client = new RoadmapClient(config, (args, input) => {
+      if (args[0] === "project") return JSON.stringify({ id: "PVT" });
+      assert.match(JSON.parse(input).query, /totalCount/);
+      const current = pages[index++];
+      if (current instanceof Error) throw current;
+      assert.ok(index <= pages.length, "reader must stop before exhausting the fixture");
+      return JSON.stringify({ data: kind === "issues"
+        ? { repository: { issues: current } }
+        : { node: { items: current } } });
+    });
+    return kind === "issues" ? client.repositoryIssues() : client.itemList(1);
+  }
+
+  test(`${kind} inventory accepts an empty connection`, () => {
+    assert.deepEqual(readPages([page([], 0)]), []);
+  });
+  test(`${kind} inventory accepts an exact page boundary`, () => {
+    const size = kind === "issues" ? 100 : 50;
+    assert.equal(readPages([page(Array.from({ length: size }, (_, i) => i + 1), size)]).length, size);
+  });
+  const failures = [
+    ["missing connection", [null]],
+    ["missing nodes", [{ totalCount: 0, pageInfo: { hasNextPage: false, endCursor: null } }]],
+    ["missing pagination", [{ nodes: [], totalCount: 0 }]],
+    ["missing total", [{ ...page([], 0), totalCount: undefined }]],
+    ["invalid total", [page([], -1)]],
+    ["invalid hasNextPage", [{ ...page([], 0), pageInfo: { hasNextPage: "false", endCursor: null } }]],
+    ["missing cursor", [{ ...page([1], 2), pageInfo: { hasNextPage: true, endCursor: null } }]],
+    ["repeated cursor", [page([1], 3, "next"), page([2], 3, "next")]],
+    ["cursor cycle", [page([1], 4, "a"), page([2], 4, "b"), page([3], 4, "a")]],
+    ["empty intermediate page", [page([], 1, "next")]],
+    ["duplicate records", [page([1], 2, "next"), page([1], 2)]],
+    ["null record", [{ ...page([], 1), nodes: [null] }]],
+    ["missing identity", [{ ...page([], 1), nodes: [{}] }]],
+    ["short total", [page([1], 2)]],
+    ["excess records", [page([1, 2], 1)]],
+    ["changing total", [page([1], 2, "next"), page([2], 3)]],
+    ["missing final page", [page([1], 2, "next"), null]],
+    ["failed final request", [page([1], 2, "next"), new Error("API unavailable")]],
+  ];
+  for (const [reason, pages] of failures) {
+    test(`${kind} inventory rejects ${reason}`, () => {
+      assert.throws(() => readPages(pages), /inventory|API unavailable/);
+    });
+  }
+}
