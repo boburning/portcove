@@ -13,9 +13,9 @@ use portcove_core::{
     InstallPlan, InstallRecord, LaunchSignal, LaunchStdio, LibraryMetadata, LibraryMetadataFile,
     OperationCoordinator, OperationEvent, OperationEventKind, PortDefinition, PortPaths,
     PortRemovalPreview, PortStatus, PortcoveError, PortcoveService, ReconcileResult,
-    ReleaseChannel, RestoreResult, Result, SourceRecord, SourceRelinkPlan, SourceRemovalPreview,
-    SourceVerification, StorageSummary, UpdateCheck, UpdatePolicy, UpdateSnapshot,
-    forward_launch_signal,
+    ReleaseChannel, RestoreResult, Result, SourceInspectionReport, SourceRecord, SourceRelinkPlan,
+    SourceRemovalPreview, SourceVerification, StorageSummary, UpdateCheck, UpdatePolicy,
+    UpdateSnapshot, forward_launch_signal,
 };
 use schemars::{JsonSchema, schema_for};
 use serde::Serialize;
@@ -234,6 +234,10 @@ enum SourceCommand {
         expected_plan: Option<String>,
     },
     List,
+    /// Inspect a registered source without changing its bytes or saved baseline.
+    Inspect {
+        profile_id: String,
+    },
     Verify(SourceVerifyArgs),
     Remove {
         profile_id: String,
@@ -816,6 +820,16 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
             )?;
         }
         Commands::Source {
+            command: SourceCommand::Inspect { profile_id },
+        } => {
+            render_read_success(
+                mode,
+                "source.inspect",
+                service.inspect_registered_source(&profile_id)?,
+                human::source_inspection,
+            )?;
+        }
+        Commands::Source {
             command:
                 SourceCommand::Relink {
                     profile_id,
@@ -875,7 +889,10 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 let profile_id = args
                     .profile_id
                     .ok_or_else(|| PortcoveError::usage("provide PROFILE_ID or --all"))?;
-                render_success(mode, "source.verify", service.verify_source(&profile_id)?)?;
+                let verification = service.verify_source(&profile_id)?;
+                render_success_with(mode, "source.verify", verification, |result| {
+                    Ok(human::source_inspection(&result.inspection))
+                })?;
             }
         }
         Commands::Source {
@@ -1602,7 +1619,7 @@ fn schema_document() -> serde_json::Value {
             ),
             (
                 "source_inspection",
-                serde_json::json!(schema_for!(portcove_core::SourceInspection)),
+                serde_json::json!(schema_for!(SourceInspectionReport)),
             ),
             (
                 "source_catalog",
@@ -2039,6 +2056,7 @@ fn command_name(command: &Commands) -> &'static str {
             SourceCommand::Discover(_) => "source.discover",
             SourceCommand::Relink { .. } => "source.relink",
             SourceCommand::List => "source.list",
+            SourceCommand::Inspect { .. } => "source.inspect",
             SourceCommand::Verify(_) => "source.verify",
             SourceCommand::Remove { .. } => "source.remove",
         },
@@ -2423,7 +2441,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 28);
+        assert_eq!(capabilities.schema_version, 29);
         assert_eq!(
             capabilities.failure_isolated_batches,
             ["check", "reconcile", "update", "source.verify"]

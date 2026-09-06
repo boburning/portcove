@@ -43,6 +43,7 @@ mod source_catalog;
 mod source_discovery;
 mod source_file;
 mod source_inspection;
+mod source_report;
 mod stfs;
 mod transfer_copy;
 mod transfer_journal;
@@ -108,6 +109,11 @@ pub use source_inspection::{
     ObservedSourceComponent, ObservedSourceDigest, ObservedSourceIdentity, ObservedSourceValidator,
     SourceComponentKind, SourceDigestAlgorithm, SourceInspection, SourceValidatorResult,
 };
+pub use source_report::{
+    SOURCE_INSPECTION_REPORT_SCHEMA_VERSION, SourceApplicationInspection, SourceEvidenceLink,
+    SourceInspectionProblem, SourceInspectionReport, SourceLegacyCoverage,
+    SourceQualificationCoverage, SourceReleaseApplicability,
+};
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 28;
+pub const API_SCHEMA_VERSION: u32 = 29;

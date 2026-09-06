@@ -245,6 +245,20 @@ pub struct SourceValidatorContract {
 }
 
 impl SourceCatalog {
+    /// Resolve an immutable reviewed link by stable evidence ID and revalidate it
+    /// at the moment of use. Adapters must never substitute a renderer URL.
+    pub fn reviewed_evidence_url(&self, evidence_id: &str) -> Result<&str> {
+        let evidence = self
+            .evidence
+            .iter()
+            .find(|evidence| evidence.id == evidence_id)
+            .ok_or_else(|| {
+                PortcoveError::not_found(format!("unknown source evidence id: {evidence_id}"))
+            })?;
+        validate_evidence_url(&evidence.immutable_url, true)?;
+        Ok(&evidence.immutable_url)
+    }
+
     pub fn validate<I, S>(&self, port_ids: I) -> Result<()>
     where
         I: IntoIterator<Item = S>,
