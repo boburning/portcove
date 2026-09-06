@@ -1467,6 +1467,9 @@ impl PortcoveService {
 
     /// Inspect selected source bytes without registering them or changing their baseline.
     pub fn inspect_source(&self, profile_id: &str, path: &Path) -> Result<crate::SourceInspection> {
+        crate::path::unicode(path, "source")?;
+        let absolute = std::path::absolute(path)?;
+        let path = absolute.as_path();
         let profile = self.catalog.source_profile(profile_id)?;
         if profile.kind == SourceKind::File {
             let mut budget = crate::source_file::HashBudget {
@@ -1482,6 +1485,9 @@ impl PortcoveService {
                 u64::MAX,
                 &mut budget,
             );
+        }
+        if profile.kind == SourceKind::FileSet {
+            return crate::source_inspection::inspect_file_set(&self.catalog, profile_id, path);
         }
         let record = self
             .adapters

@@ -90,7 +90,10 @@ pub use source_discovery::{
     SourceDiscoveryIssue, SourceDiscoveryLimit, SourceDiscoveryLimits, SourceDiscoveryReport,
     SourceDiscoveryRequest,
 };
-pub use source_inspection::{ObservedSourceDigest, SourceDigestAlgorithm, SourceInspection};
+pub use source_inspection::{
+    ObservedSourceComponent, ObservedSourceDigest, SourceComponentKind, SourceDigestAlgorithm,
+    SourceInspection,
+};
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 18;
+pub const API_SCHEMA_VERSION: u32 = 19;

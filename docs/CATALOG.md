@@ -155,6 +155,11 @@ and multiple matching representations are an ambiguity rather than an automatic
 choice. Extension-only compatibility can pass existing structural admission but
 is never reported by discovery as an exact identity.
 
+File-set representations match only when every declared member has exactly one
+top-level filename match and one conjunctive digest identity. Directory
+symlinks and nested or traversal-shaped ZIP entries cannot satisfy a member.
+Observed member facts remain available separately from the aggregate identity.
+
 The detailed pre-migration qualification narrative is preserved as a
 [dated historical snapshot](archive/2026-09-03-catalog-qualification-history.md).
 
