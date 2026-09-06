@@ -119,15 +119,31 @@ contract, setup boundary, persistent data, adapter dependencies, stage evidence,
 and resume condition, automated and manual qualification, and completion
 evidence. The live Port stage remains only in the Project; generated issue text
 records its initial Watchlist state without copying mutable authority. The
-Continuous Port Pipeline (#16) coordinates the process and links to the complete
-Port Pipeline Project view. Project membership with Work type = Port defines
-the inventory; a missing parent is not missing intake or incomplete support.
-Existing parent links remain as historical organization. Optional parent groups
-should represent bounded work with a meaningful completion condition, not
-numbered overflow batches or a second inventory. Parentage alone does not create
-a blocking dependency or release commitment. Intake must not depend on #16's
-child capacity, move existing parents, or create overflow workstreams.
+Port Pipeline Project view is the complete inventory. Project membership with
+Work type = Port defines coverage; a missing parent is not missing intake or
+incomplete support. The former Continuous Port Pipeline (#16) is superseded by
+this inventory and finite engineering issues; its retirement preserves historical
+evidence and removes only its direct child links. Optional parent groups represent
+bounded work with a meaningful completion condition, not numbered overflow
+batches or a second inventory. Parentage alone does not create a blocking
+dependency or release commitment. Intake must not depend on any parent's child
+capacity, move existing parents, or create overflow workstreams.
 Project drafts remain available for fleeting non-port ideas.
+
+The canonical port issue persists across upstream versions. Completing its
+current work does not change catalog support or qualification: Status and Port
+stage remain independent. Retain canonical Project items, including completed
+and deferred entries, so coverage stays auditable. Use linked, finite maintenance
+issues for new work without duplicating the canonical Port record. Automatic
+archival is not part of this lifecycle; archived-item coverage must be explicitly
+validated before adopting an archival policy.
+
+Live roadmap and provenance inventories read every page and require unique
+record counts to match the reported totals. Missing pages, stalled cursors,
+changing totals, or API failures invalidate the read; retry from the beginning.
+The provenance generator leaves the previous snapshot intact when enrichment
+fails. A successful traversal is a dated observation, not an atomic snapshot
+of concurrent field edits.
 
 A promoted draft or port implementation issue must state:
 
@@ -206,7 +222,8 @@ global V1 scope.
 ## Views and prioritization
 
 Use Priority Stack for ordered Now/Next execution, Now Board for active flow,
-Port Pipeline for continuous admission, Product Roadmap for non-port work,
+Port Pipeline for the full port inventory, Active Port Work for unfinished
+non-deferred port work, Product Roadmap for non-port work,
 Current Release for the earliest active target, Blocked & Deferred for resume
 conditions, Inbox & Triage for intake, Steam Deck for that platform, and V1
 Readiness for cumulative required gates through V1. The checked-in view schema
@@ -216,7 +233,7 @@ those manual settings or the built-in workflows are configured.
 
 `.github/roadmap.json` names `active_release`. Advancing Current Release is a
 reviewed repository change: update that value, run `bootstrap`, confirm the view
-filter and all nine manual grouping/sorting rules in the UI, run `doctor`, and
+filter and all configured manual grouping/sorting rules in the UI, run `doctor`, and
 record the change in the release pull request.
 
 Within the same horizon, address release blockers and safety failures before

@@ -35,8 +35,15 @@ duplicates, reconciles canonical identity markers, ensures exactly one Project
 item with neutral values only where fields are unset, and classifies it as a Port.
 Both intake paths preserve existing parent relationships and leave unparented
 issues unparented. Project membership defines the complete port inventory;
-the Continuous Port Pipeline coordinates the process without requiring every
-port as a child. Neither intake path grants catalog support.
+optional parents coordinate finite outcomes with a clear completion condition.
+Use Port Pipeline for the full inventory and Active Port Work for unfinished,
+non-deferred work. Neither intake path grants catalog support.
+
+Keep the same canonical port issue across upstream releases. Close completed
+work and retain its Project item; Status and Port stage describe independent
+facts. A completed integration does not erase support or require automatic
+archival. Track new bounded maintenance work separately when needed, linking
+back to the canonical port issue instead of creating another inventory record.
 
 Include the direct upstream, why it matters, initial platform and source
 observations, artifact integrity, persistence boundary, adapter fit, and exact

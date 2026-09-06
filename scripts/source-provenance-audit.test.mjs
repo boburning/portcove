@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 
 import { renderPortIssueBody } from "./roadmap.mjs";
 import {
@@ -7,6 +8,7 @@ import {
   readLiveSourceProvenance,
   renderSourceProvenanceAudit,
   runReadOnlyGitHubCommand,
+  runSourceProvenanceAudit,
 } from "./source-provenance-audit.mjs";
 
 const sha = character => character.repeat(40);
@@ -195,14 +197,24 @@ test("live enrichment calls only bounded read commands and API errors do not exp
     repository: "boburning/portcove",
     owner: "boburning",
     projectNumber: 1,
-    run(args) {
-      calls.push(args);
-      return args[0] === "issue" ? [] : { items: [] };
+    run(args, input) {
+      calls.push({ args, input });
+      if (args[0] === "project") return { id: "PVT" };
+      const page = { totalCount: 0, nodes: [], pageInfo: { hasNextPage: false, endCursor: null } };
+      return JSON.parse(input).query.includes("issues(first:")
+        ? { data: { repository: { issues: page } } }
+        : { data: { node: { items: page } } };
     },
   });
   assert.deepEqual(result, { issues: [], projectItems: [], projectState: "available" });
-  assert.deepEqual(calls.map(args => args.slice(0, 2)), [["issue", "list"], ["project", "item-list"]]);
-  assert.equal(calls.flat().some(value => /create|edit|close|delete|token/i.test(value)), false);
+  assert.deepEqual(calls.map(({ args }) => args.slice(0, 2)), [["api", "graphql"], ["project", "view"], ["api", "graphql"]]);
+  for (const { input } of calls.filter(call => call.input)) {
+    const query = JSON.parse(input).query;
+    assert.match(query, /^query\(/);
+    assert.match(query, /(?:issues\(first: 100|items\(first: 50)/);
+    assert.match(query, /totalCount/);
+    assert.doesNotMatch(query, /\bmutation\b/);
+  }
 
   const secret = "github_pat_secret_value_that_must_not_appear";
   assert.throws(
@@ -218,13 +230,14 @@ test("live enrichment calls only bounded read commands and API errors do not exp
 
 test("live GitHub reads allow the full bounded Project payload", () => {
   let invocation;
-  const value = runReadOnlyGitHubCommand(["project", "item-list"], (command, args, options) => {
+  const value = runReadOnlyGitHubCommand(["api", "graphql", "--input", "-"], '{"query":"query { viewer { login } }"}', (command, args, options) => {
     invocation = { command, args, options };
     return { status: 0, stdout: '{"items":[]}', stderr: "" };
   });
   assert.deepEqual(value, { items: [] });
   assert.equal(invocation.command, "gh");
-  assert.deepEqual(invocation.args, ["project", "item-list"]);
+  assert.deepEqual(invocation.args, ["api", "graphql", "--input", "-"]);
+  assert.equal(invocation.options.input, '{"query":"query { viewer { login } }"}');
   assert.equal(invocation.options.maxBuffer, 32 * 1024 * 1024);
 });
 
@@ -235,4 +248,85 @@ test("rendered output labels evidence authority and catalog versus research scop
   assert.match(report, /## Cataloged support inventory/);
   assert.match(report, /## Research inventory/);
   assert.match(report, /Exact qualification counts only artifact\/source-variant-scoped records/);
+});
+
+function paginatedLiveRunner(issues, projectItems, intercept = () => {}) {
+  return (args, input) => {
+    if (args[0] === "project") return { id: "PVT" };
+    const { query, variables } = JSON.parse(input);
+    const isIssues = query.includes("issues(first:");
+    const values = isIssues ? issues : projectItems;
+    const size = isIssues ? 100 : 50;
+    const offset = Number(variables.after ?? 0);
+    intercept({ isIssues, offset });
+    const nodes = values.slice(offset, offset + size);
+    const hasNextPage = offset + nodes.length < values.length;
+    const page = { nodes, totalCount: values.length,
+      pageInfo: { hasNextPage, endCursor: hasNextPage ? String(offset + nodes.length) : null } };
+    return { data: isIssues ? { repository: { issues: page } } : { node: { items: page } } };
+  };
+}
+
+function largeLiveFixture() {
+  const input = fixture();
+  const issues = [
+    ...Array.from({ length: 1001 }, (_, i) => ({ number: i + 3, title: `Other work ${i}`, body: "", state: "CLOSED", __typename: "Issue" })),
+    ...input.issues.map(value => ({ ...value, __typename: "Issue" })),
+  ];
+  const projectItems = [
+    ...Array.from({ length: 1001 }, (_, i) => ({ id: `PVTI_draft_${i}`, content: { __typename: "DraftIssue", title: `Draft ${i}` }, fieldValues: { nodes: [] } })),
+    ...input.projectItems.map((value, index) => ({
+      id: `PVTI_port_${index}`, content: { ...value.content, __typename: "Issue" },
+      fieldValues: { nodes: [
+        ["Status", value.status], ["Work type", "Port"], ["Port stage", value["port stage"]],
+        ["Horizon", value.horizon], ["Priority", value.priority], ["Target release", value["target release"]],
+      ].map(([name, option]) => ({ name: option, field: { name } })) },
+    })),
+  ];
+  return { input, issues, projectItems };
+}
+
+test("live provenance includes canonical ports beyond 1000 records with deterministic output", () => {
+  const { input, issues, projectItems } = largeLiveFixture();
+  const calls = [];
+  const run = paginatedLiveRunner(issues, projectItems, call => calls.push(call));
+  const live = readLiveSourceProvenance({ repository: "boburning/portcove", owner: "boburning", projectNumber: 1, run });
+  assert.equal(live.issues.length, 1003);
+  assert.equal(live.projectItems.length, 1003);
+  assert.equal(calls.filter(call => call.isIssues).length, 11);
+  assert.equal(calls.filter(call => !call.isIssues).length, 21);
+  assert.equal(live.projectItems.at(-1).content.number, 1);
+  const first = buildSourceProvenanceAudit({ ...input, ...live });
+  const second = buildSourceProvenanceAudit({ ...input, ...readLiveSourceProvenance({ repository: "boburning/portcove", owner: "boburning", projectNumber: 1, run }) });
+  assert.deepEqual(first.observations, []);
+  assert.equal(first.counts.portIssues, 2);
+  assert.equal(first.counts.catalogedIssues, 1);
+  assert.equal(first.counts.researchIssues, 1);
+  assert.equal(renderSourceProvenanceAudit(first), renderSourceProvenanceAudit(second));
+});
+
+test("failed later live pages preserve existing snapshots and create no partial snapshot", async () => {
+  const directory = await mkdtemp(new URL("../docs/archive/provenance-test-", import.meta.url));
+  const existing = `${directory}/existing.md`;
+  const absent = `${directory}/absent.md`;
+  const secret = "github_pat_private_test_value";
+  const { issues, projectItems } = largeLiveFixture();
+  try {
+    await writeFile(existing, "previous verified snapshot\n");
+    for (const failIssues of [true, false]) {
+      const run = paginatedLiveRunner(issues, projectItems, ({ isIssues, offset }) => {
+        if (isIssues === failIssues && offset > 0) throw new Error(secret);
+      });
+      for (const output of [existing, absent]) {
+        await assert.rejects(runSourceProvenanceAudit([
+          "--live", "--generated-at", "2026-09-06T15:00:00Z", "--base-commit", sha("a"),
+          "--generator-commit", sha("b"), "--output", output,
+        ], { run }), error => error.message === "read-only GitHub enrichment failed; no snapshot was written" && !error.message.includes(secret));
+      }
+      assert.equal(await readFile(existing, "utf8"), "previous verified snapshot\n");
+      await assert.rejects(readFile(absent), { code: "ENOENT" });
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });

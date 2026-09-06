@@ -1057,6 +1057,39 @@ export class RoadmapClient {
     return result?.data;
   }
 
+  readInventory(query, variables, connection, identity) {
+    const nodes = [];
+    const identities = new Set();
+    const cursors = new Set();
+    let after = null;
+    let totalCount;
+    do {
+      const page = connection(this.graphql(query, { ...variables, after }));
+      if (!Array.isArray(page?.nodes) || !Number.isSafeInteger(page.totalCount) || page.totalCount < 0
+        || typeof page.pageInfo?.hasNextPage !== "boolean"
+        || !(page.pageInfo.endCursor === null || typeof page.pageInfo.endCursor === "string")) {
+        throw new Error("incomplete GitHub inventory: malformed connection or pagination");
+      }
+      totalCount ??= page.totalCount;
+      if (totalCount !== page.totalCount) throw new Error("GitHub inventory changed during pagination; retry the read");
+      for (const node of page.nodes) {
+        const key = node && identity(node);
+        if (!key || identities.has(key)) throw new Error("incomplete GitHub inventory: missing or duplicate record identity");
+        identities.add(key);
+        nodes.push(node);
+      }
+      if (nodes.length > totalCount) throw new Error("incomplete GitHub inventory: record count exceeds total");
+      if (!page.pageInfo.hasNextPage) break;
+      after = page.pageInfo.endCursor;
+      if (!page.nodes.length || !after || cursors.has(after) || nodes.length >= totalCount) {
+        throw new Error("incomplete GitHub inventory: pagination did not advance");
+      }
+      cursors.add(after);
+    } while (true);
+    if (nodes.length !== totalCount) throw new Error("incomplete GitHub inventory: record count does not match total");
+    return nodes;
+  }
+
   listProjects() {
     return unwrapCollection(this.json(["project", "list", "--owner", this.config.owner, "--format", "json", "--limit", "100"]), "projects");
   }
@@ -1086,39 +1119,29 @@ export class RoadmapClient {
 
   itemList(number, { includeDependencies = false } = {}) {
     const details = this.projectDetails(number);
-    const items = [];
-    let after = null;
+    if (!details?.id) throw new Error("incomplete GitHub inventory: Project identity is unavailable");
     const dependencies = includeDependencies
       ? "blockedBy(first: 10) { totalCount nodes { id number title url state } }"
       : "";
-    do {
-      const query = `query($id: ID!, $after: String) { node(id: $id) { ... on ProjectV2 { items(first: 50, after: $after) { nodes { id content { __typename ... on DraftIssue { title body } ... on Issue { id number title body url state ${dependencies} } ... on PullRequest { number title body url state merged } } fieldValues(first: 25) { nodes { ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2SingleSelectField { name } } } } } } pageInfo { hasNextPage endCursor } } } } }`;
-      const page = this.graphql(query, { id: details.id, after })?.node?.items;
-      for (const node of page?.nodes ?? []) {
+    const query = `query($id: ID!, $after: String) { node(id: $id) { ... on ProjectV2 { items(first: 50, after: $after) { totalCount nodes { id content { __typename ... on DraftIssue { title body } ... on Issue { id number title body url state ${dependencies} } ... on PullRequest { number title body url state merged } } fieldValues(first: 25) { nodes { ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2SingleSelectField { name } } } } } } pageInfo { hasNextPage endCursor } } } } }`;
+    return this.readInventory(query, { id: details.id }, data => data?.node?.items, node => node.id)
+      .map(node => {
         const content = node.content ? { ...node.content, type: node.content.__typename } : null;
         const fieldValues = (node.fieldValues?.nodes ?? []).map(value => ({
           name: value.name,
           field: { name: value.field?.name },
         })).filter(value => value.name && value.field.name);
-        items.push({ ...node, title: content?.title, type: content?.type, content, fieldValues });
-      }
-      after = page?.pageInfo?.hasNextPage ? page.pageInfo.endCursor : null;
-    } while (after);
-    return items;
+        return { ...node, title: content?.title, type: content?.type, content, fieldValues };
+      });
   }
 
   repositoryIssues() {
     const [owner, name, ...rest] = this.config.repository.split("/");
     if (!owner || !name || rest.length) throw new Error(`invalid repository identity: ${this.config.repository}`);
-    const issues = [];
-    let after = null;
-    do {
-      const query = `query($owner: String!, $name: String!, $after: String) { repository(owner: $owner, name: $name) { issues(first: 100, after: $after, orderBy: { field: CREATED_AT, direction: ASC }) { nodes { __typename number title body url state } pageInfo { hasNextPage endCursor } } } }`;
-      const page = this.graphql(query, { owner, name, after })?.repository?.issues;
-      issues.push(...(page?.nodes ?? []).map(issue => ({ ...issue, type: issue.__typename ?? "Issue" })));
-      after = page?.pageInfo?.hasNextPage ? page.pageInfo.endCursor : null;
-    } while (after);
-    return issues;
+    const query = `query($owner: String!, $name: String!, $after: String) { repository(owner: $owner, name: $name) { issues(first: 100, after: $after, orderBy: { field: CREATED_AT, direction: ASC }) { totalCount nodes { __typename number title body url state } pageInfo { hasNextPage endCursor } } } }`;
+    return this.readInventory(query, { owner, name }, data => data?.repository?.issues,
+      issue => Number.isSafeInteger(issue.number) && issue.number > 0 ? issue.number : null)
+      .map(issue => ({ ...issue, type: issue.__typename ?? "Issue" }));
   }
 
   repositoryIssue(number) {
