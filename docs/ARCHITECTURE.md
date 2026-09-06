@@ -79,9 +79,12 @@ representation is rejected as ambiguous. Ordinary files, cartridge ZIP members,
 canonical N64 byte orders, and file sets use this result for discovery,
 registration, relink, verification, install overrides, and launch preflight.
 GameCube and PlayStation disc sources use the same result through their existing
-bounded conversion paths. Pinned-validator and compound source shapes continue
-through their compatibility validators until their #180 migrations add
-equivalent observations to this result.
+bounded conversion paths. LIVE/STFS compound inspection also applies the same
+bounded parser, path checks, expanded-size limit, and block-chain checks used by
+materialization before an exact package identity can be admitted. Pinned
+upstream-validator sources record the selected validator contract and a `not_run`
+result while preserving preliminary structural admission; they do not claim an
+exact identity until the pinned setup tool performs its validation.
 
 File-set inspection records each required top-level member with its stable
 catalog member ID, selected filename, byte size, and SHA-1, SHA-256, and CRC32

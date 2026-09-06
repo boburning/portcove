@@ -9,10 +9,10 @@ use sha1::Sha1;
 use sha2::{Digest, Sha256};
 
 use crate::{
-    Catalog, DigestIdentity, DigestScope, Library, PortcoveError, Result, SourceAdmission,
-    SourceAdmissionMode, SourceAssessment, SourceClassification, SourceContractResult,
-    SourceIdentity, SourceKind, SourceRecord, SourceRejectionReason, SourceRepresentation,
-    SourceRepresentationKind,
+    Catalog, CompoundSourceFormat, DigestIdentity, DigestScope, Library, PortcoveError, Result,
+    SourceAdmission, SourceAdmissionMode, SourceAssessment, SourceClassification,
+    SourceContractResult, SourceIdentity, SourceKind, SourceRecord, SourceRejectionReason,
+    SourceRepresentation, SourceRepresentationKind,
     adapter::{
         ObservedDiscSource, ObservedOpticalDisc, aggregate_sha256, observe_gamecube_disc_source,
         observe_psx_disc_source,
@@ -54,6 +54,23 @@ pub struct ObservedSourceComponent {
     pub volume_id: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SourceValidatorResult {
+    NotRun,
+    Passed,
+    Failed,
+    MissingTool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ObservedSourceValidator {
+    pub contract_id: String,
+    pub tool_id: String,
+    pub protocol_version: String,
+    pub result: SourceValidatorResult,
+}
+
 /// Facts returned by read-only inspection. A record is present only when the
 /// admission state permits existing callers to register or use the source.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -63,34 +80,14 @@ pub struct SourceInspection {
     pub observed_digests: Vec<ObservedSourceDigest>,
     #[serde(default)]
     pub components: Vec<ObservedSourceComponent>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub validator: Option<ObservedSourceValidator>,
     pub assessment: SourceAssessment,
     pub record: Option<SourceRecord>,
     pub message: String,
 }
 
 impl SourceInspection {
-    pub(crate) fn from_legacy_validation(record: SourceRecord) -> Self {
-        Self {
-            profile_id: record.profile_id.clone(),
-            path: record.path.clone(),
-            observed_digests: Vec::new(),
-            components: Vec::new(),
-            assessment: SourceAssessment {
-                health: crate::SourceHealth::NotBaselined,
-                classification: SourceClassification::NotEvaluated,
-                contract: SourceContractResult::NotEvaluated,
-                admission: SourceAdmission::Admitted {
-                    mode: SourceAdmissionMode::StructuralChecks,
-                },
-                evidence: Vec::new(),
-            },
-            record: Some(record),
-            message:
-                "source passed a specialized compatibility inspector awaiting schema-2 migration"
-                    .into(),
-        }
-    }
-
     pub fn require_admitted_record(self) -> Result<SourceRecord> {
         if matches!(self.assessment.admission, SourceAdmission::Admitted { .. }) {
             return self.record.ok_or_else(|| {
@@ -130,7 +127,150 @@ pub(crate) fn inspect_file(
 ) -> Result<SourceInspection> {
     let legacy = catalog.source_profile(profile_id)?;
     let identity = read_identity(path, &legacy.accepted_extensions, maximum_size, budget)?;
-    inspect_file_identity(catalog, profile_id, path, &identity)
+    let observed = observed_digests(&identity);
+    let compound_format = matching_compound_format(catalog, profile_id, &identity, &observed);
+    if let Some(CompoundSourceFormat::StfsLive) = compound_format {
+        crate::stfs::validate(path, &|| {
+            if let Some(operation) = &budget.operation {
+                operation.checkpoint()?;
+            }
+            Ok(())
+        })?;
+    }
+    inspect_file_identity_with_compound(catalog, profile_id, path, &identity, compound_format)
+}
+
+pub(crate) fn inspect_pinned_validator(
+    catalog: &Catalog,
+    profile_id: &str,
+    path: &Path,
+    maximum_size: u64,
+    budget: &mut HashBudget,
+) -> Result<SourceInspection> {
+    let legacy = catalog.source_profile(profile_id)?;
+    let identity = read_identity(path, &legacy.accepted_extensions, maximum_size, budget)?;
+    let observed_digests = observed_digests(&identity);
+    let record = identity.record_without_admission(profile_id, path);
+
+    let Some(source_catalog) = catalog.source_catalog() else {
+        return Ok(SourceInspection {
+            profile_id: profile_id.into(),
+            path: path.into(),
+            observed_digests,
+            components: Vec::new(),
+            validator: None,
+            assessment: SourceAssessment {
+                health: crate::SourceHealth::NotBaselined,
+                classification: SourceClassification::NotEvaluated,
+                contract: SourceContractResult::NotEvaluated,
+                admission: SourceAdmission::Admitted {
+                    mode: SourceAdmissionMode::StructuralChecks,
+                },
+                evidence: Vec::new(),
+            },
+            record: Some(record),
+            message: "source passed the schema-1 upstream-validator selection contract".into(),
+        });
+    };
+    let profile = source_catalog
+        .identities
+        .iter()
+        .find(|profile| profile.id == profile_id)
+        .ok_or_else(|| {
+            PortcoveError::state(format!("schema-2 source profile {profile_id} is missing"))
+        })?;
+    let mut candidates = Vec::new();
+    for variant in profile
+        .variants
+        .iter()
+        .filter(|variant| !variant.legacy_projection_only)
+    {
+        for representation in &variant.representations {
+            let SourceRepresentationKind::PinnedValidator {
+                validator_contract_id,
+            } = &representation.kind
+            else {
+                continue;
+            };
+            if !representation_extensions_match(representation, &identity) {
+                continue;
+            }
+            let validator = source_catalog
+                .validators
+                .iter()
+                .find(|validator| validator.id == *validator_contract_id)
+                .ok_or_else(|| {
+                    PortcoveError::state(format!(
+                        "schema-2 source validator {validator_contract_id} is missing"
+                    ))
+                })?;
+            candidates.push((
+                SourceIdentity {
+                    game_id: profile.id.clone(),
+                    variant_id: variant.id.clone(),
+                    representation_id: representation.id.clone(),
+                },
+                ObservedSourceValidator {
+                    contract_id: validator.id.clone(),
+                    tool_id: validator.tool_id.clone(),
+                    protocol_version: validator.protocol_version.clone(),
+                    result: SourceValidatorResult::NotRun,
+                },
+            ));
+        }
+    }
+
+    let (classification, admission, admitted_record, validator, message) =
+        match candidates.as_slice() {
+            [(_, validator)] => (
+                SourceClassification::NotEvaluated,
+                SourceAdmission::Admitted {
+                    mode: SourceAdmissionMode::StructuralChecks,
+                },
+                Some(record),
+                Some(validator.clone()),
+                format!(
+                    "source passed preliminary selection; pinned validator {} has not run",
+                    validator.contract_id
+                ),
+            ),
+            [] => (
+                SourceClassification::Unrecognized,
+                SourceAdmission::Rejected {
+                    reason: SourceRejectionReason::KnownMismatch,
+                },
+                None,
+                None,
+                format!("source is not eligible for {} validation", legacy.label),
+            ),
+            many => (
+                SourceClassification::Ambiguous {
+                    candidates: many.iter().map(|(identity, _)| identity.clone()).collect(),
+                },
+                SourceAdmission::Rejected {
+                    reason: SourceRejectionReason::AmbiguousIdentity,
+                },
+                None,
+                None,
+                "source is eligible for more than one pinned validator".into(),
+            ),
+        };
+    Ok(SourceInspection {
+        profile_id: profile_id.into(),
+        path: path.into(),
+        observed_digests,
+        components: Vec::new(),
+        validator,
+        assessment: SourceAssessment {
+            health: crate::SourceHealth::NotBaselined,
+            classification,
+            contract: SourceContractResult::NotEvaluated,
+            admission,
+            evidence: Vec::new(),
+        },
+        record: admitted_record,
+        message,
+    })
 }
 
 pub(crate) fn inspect_file_set(
@@ -238,6 +378,7 @@ pub(crate) fn inspect_file_set(
         path: path.into(),
         observed_digests,
         components: observed,
+        validator: None,
         assessment: SourceAssessment {
             health: crate::SourceHealth::NotBaselined,
             classification,
@@ -346,6 +487,7 @@ fn inspect_disc_observation(
         path: path.into(),
         observed_digests,
         components,
+        validator: None,
         assessment: SourceAssessment {
             health: crate::SourceHealth::NotBaselined,
             classification,
@@ -780,6 +922,16 @@ pub(crate) fn inspect_file_identity(
     path: &Path,
     identity: &FileIdentity,
 ) -> Result<SourceInspection> {
+    inspect_file_identity_with_compound(catalog, profile_id, path, identity, None)
+}
+
+fn inspect_file_identity_with_compound(
+    catalog: &Catalog,
+    profile_id: &str,
+    path: &Path,
+    identity: &FileIdentity,
+    validated_compound: Option<CompoundSourceFormat>,
+) -> Result<SourceInspection> {
     let legacy = catalog.source_profile(profile_id)?;
     let observed_digests = observed_digests(identity);
     let record = identity.record_without_admission(profile_id, path);
@@ -795,6 +947,7 @@ pub(crate) fn inspect_file_identity(
             path: path.into(),
             observed_digests,
             components: Vec::new(),
+            validator: None,
             assessment: SourceAssessment {
                 health: crate::SourceHealth::NotBaselined,
                 classification: SourceClassification::NotEvaluated,
@@ -821,7 +974,12 @@ pub(crate) fn inspect_file_identity(
         .filter(|variant| !variant.legacy_projection_only)
     {
         for representation in &variant.representations {
-            if representation_matches(representation, identity, &observed_digests) {
+            if representation_matches(
+                representation,
+                identity,
+                &observed_digests,
+                validated_compound,
+            ) {
                 let candidate = SourceIdentity {
                     game_id: profile.id.clone(),
                     variant_id: variant.id.clone(),
@@ -878,6 +1036,7 @@ pub(crate) fn inspect_file_identity(
         path: path.into(),
         observed_digests,
         components: Vec::new(),
+        validator: None,
         assessment: SourceAssessment {
             health: crate::SourceHealth::NotBaselined,
             classification,
@@ -894,13 +1053,9 @@ fn representation_matches(
     representation: &SourceRepresentation,
     file: &FileIdentity,
     observed: &[ObservedSourceDigest],
+    validated_compound: Option<CompoundSourceFormat>,
 ) -> bool {
-    if !representation.extensions.is_empty()
-        && !representation
-            .extensions
-            .iter()
-            .any(|extension| extension.eq_ignore_ascii_case(&file.content_extension))
-    {
+    if !representation_extensions_match(representation, file) {
         return false;
     }
     let identities = match &representation.kind {
@@ -924,11 +1079,59 @@ fn representation_matches(
             }
             identities
         }
+        SourceRepresentationKind::Compound { format, identities } => {
+            if validated_compound != Some(*format) || file.archive_member {
+                return false;
+            }
+            identities
+        }
         _ => return false,
     };
     identities
         .iter()
         .any(|identity| digest_identity_matches(identity, observed))
+}
+
+fn representation_extensions_match(
+    representation: &SourceRepresentation,
+    file: &FileIdentity,
+) -> bool {
+    representation.extensions.is_empty()
+        || representation
+            .extensions
+            .iter()
+            .any(|extension| extension.eq_ignore_ascii_case(&file.content_extension))
+}
+
+fn matching_compound_format(
+    catalog: &Catalog,
+    profile_id: &str,
+    file: &FileIdentity,
+    observed: &[ObservedSourceDigest],
+) -> Option<CompoundSourceFormat> {
+    if file.archive_member {
+        return None;
+    }
+    catalog
+        .source_catalog()?
+        .identities
+        .iter()
+        .find(|profile| profile.id == profile_id)?
+        .variants
+        .iter()
+        .filter(|variant| !variant.legacy_projection_only)
+        .flat_map(|variant| &variant.representations)
+        .find_map(|representation| {
+            let SourceRepresentationKind::Compound { format, identities } = &representation.kind
+            else {
+                return None;
+            };
+            (representation_extensions_match(representation, file)
+                && identities
+                    .iter()
+                    .any(|identity| digest_identity_matches(identity, observed)))
+            .then_some(*format)
+        })
 }
 
 fn digest_identity_matches(identity: &DigestIdentity, observed: &[ObservedSourceDigest]) -> bool {
@@ -1097,6 +1300,26 @@ mod tests {
             track_count: tracks,
             volume_id: None,
         }
+    }
+
+    fn stfs_fixture() -> Vec<u8> {
+        let mut package = vec![0_u8; 0xe000];
+        package[..4].copy_from_slice(b"LIVE");
+        package[0x340..0x344].copy_from_slice(&0xad0e_u32.to_be_bytes());
+        package[0x37b] = 1;
+        package[0x37c..0x37e].copy_from_slice(&1_u16.to_le_bytes());
+        package[0x395..0x399].copy_from_slice(&2_u32.to_be_bytes());
+        package[0xb014..0xb018].copy_from_slice(&0x00ff_ffff_u32.to_be_bytes());
+        package[0xb02c..0xb030].copy_from_slice(&0x00ff_ffff_u32.to_be_bytes());
+        let entry = &mut package[0xc000..0xc040];
+        entry[..11].copy_from_slice(b"default.xex");
+        entry[0x28] = 11;
+        entry[0x29] = 1;
+        entry[0x2f] = 1;
+        entry[0x32..0x34].copy_from_slice(&u16::MAX.to_be_bytes());
+        entry[0x34..0x38].copy_from_slice(&4_u32.to_be_bytes());
+        package[0xd000..0xd004].copy_from_slice(b"XEX2");
+        package
     }
 
     #[test]
@@ -1571,5 +1794,196 @@ mod tests {
         assert_eq!(registered.sha256, expected.sha256);
         assert_eq!(registered.storage_sha256, expected.storage_sha256);
         assert_eq!(service.library().sources().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn stfs_compound_requires_exact_identity_and_bounded_structure() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("source");
+        let package = stfs_fixture();
+        let sha256 = hex::encode(Sha256::digest(&package));
+        let catalog = catalog_with_identity("sotn-xbla", |profile| {
+            let SourceRepresentationKind::Compound { identities, .. } =
+                &mut profile.variants[0].representations[0].kind
+            else {
+                panic!("SotN fixture is an STFS compound source")
+            };
+            identities[0].sha256 = Some(sha256.clone());
+        });
+        fs::write(&path, &package).unwrap();
+
+        let exact = inspect(&catalog, "sotn-xbla", &path);
+
+        assert!(matches!(
+            exact.assessment.classification,
+            SourceClassification::Recognized { .. }
+        ));
+        assert!(matches!(
+            exact.assessment.admission,
+            SourceAdmission::Admitted {
+                mode: SourceAdmissionMode::ExactIdentity
+            }
+        ));
+        assert!(exact.observed_digests.iter().any(|digest| {
+            digest.scope == DigestScope::NormalizedContent && digest.value == sha256
+        }));
+        assert_eq!(fs::read(&path).unwrap(), package);
+
+        let mut changed = stfs_fixture();
+        changed[0xd000..0xd004].copy_from_slice(b"XEX3");
+        fs::write(&path, changed).unwrap();
+        let mismatch = inspect(&catalog, "sotn-xbla", &path);
+        assert!(matches!(
+            mismatch.assessment.admission,
+            SourceAdmission::Rejected {
+                reason: SourceRejectionReason::KnownMismatch
+            }
+        ));
+        assert!(mismatch.record.is_none());
+    }
+
+    #[test]
+    fn exact_hash_cannot_admit_malformed_or_truncated_stfs() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("source");
+        let mut malformed = stfs_fixture();
+        malformed[0] = b'X';
+        let sha256 = hex::encode(Sha256::digest(&malformed));
+        let catalog = catalog_with_identity("sotn-xbla", |profile| {
+            let SourceRepresentationKind::Compound { identities, .. } =
+                &mut profile.variants[0].representations[0].kind
+            else {
+                unreachable!()
+            };
+            identities[0].sha256 = Some(sha256);
+        });
+        fs::write(&path, malformed).unwrap();
+        assert!(
+            inspect_file(
+                &catalog,
+                "sotn-xbla",
+                &path,
+                u64::MAX,
+                &mut HashBudget {
+                    operation: None,
+                    limit: u64::MAX,
+                    hashed: 0,
+                    max_zip_entries: 4096,
+                },
+            )
+            .is_err()
+        );
+
+        let mut truncated = stfs_fixture();
+        truncated[0xc029] = 2;
+        truncated[0xc034..0xc038].copy_from_slice(&4097_u32.to_be_bytes());
+        let sha256 = hex::encode(Sha256::digest(&truncated));
+        let catalog = catalog_with_identity("sotn-xbla", |profile| {
+            let SourceRepresentationKind::Compound { identities, .. } =
+                &mut profile.variants[0].representations[0].kind
+            else {
+                unreachable!()
+            };
+            identities[0].sha256 = Some(sha256);
+        });
+        fs::write(&path, truncated).unwrap();
+        assert!(
+            inspect_file(
+                &catalog,
+                "sotn-xbla",
+                &path,
+                u64::MAX,
+                &mut HashBudget {
+                    operation: None,
+                    limit: u64::MAX,
+                    hashed: 0,
+                    max_zip_entries: 4096,
+                },
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn pinned_validator_selection_is_typed_but_not_an_exact_match() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("game.iso");
+        fs::write(&path, b"synthetic retail disc candidate").unwrap();
+        let service = crate::PortcoveService::new(
+            crate::Library::open(temporary.path().join("library")).unwrap(),
+        )
+        .unwrap();
+
+        let inspection = service.inspect_source("opengoal-jak1-disc", &path).unwrap();
+
+        assert_eq!(
+            inspection.assessment.classification,
+            SourceClassification::NotEvaluated
+        );
+        assert!(matches!(
+            inspection.assessment.admission,
+            SourceAdmission::Admitted {
+                mode: SourceAdmissionMode::StructuralChecks
+            }
+        ));
+        let validator = inspection.validator.as_ref().unwrap();
+        assert_eq!(validator.contract_id, "opengoal-jak1-disc-validator-v1");
+        assert_eq!(validator.tool_id, "opengoal-launcher");
+        assert_eq!(validator.result, SourceValidatorResult::NotRun);
+        assert!(service.library().sources().unwrap().is_empty());
+
+        let expected = inspection.record.unwrap();
+        let registered = service
+            .register_source("opengoal-jak1-disc", &path)
+            .unwrap();
+        assert_eq!(registered.sha256, expected.sha256);
+        assert_eq!(service.library().sources().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn pinned_validator_ambiguity_and_wrong_extension_are_not_admitted() {
+        let temporary = tempfile::tempdir().unwrap();
+        let iso = temporary.path().join("game.iso");
+        fs::write(&iso, b"ambiguous candidate").unwrap();
+        let catalog = catalog_with_identity("opengoal-jak1-disc", |profile| {
+            let mut second = profile.variants[0].representations[0].clone();
+            second.id = "second-pinned-validator".into();
+            profile.variants[0].representations.push(second);
+        });
+        let mut budget = HashBudget {
+            operation: None,
+            limit: u64::MAX,
+            hashed: 0,
+            max_zip_entries: 4096,
+        };
+        let ambiguous =
+            inspect_pinned_validator(&catalog, "opengoal-jak1-disc", &iso, u64::MAX, &mut budget)
+                .unwrap();
+        assert!(matches!(
+            ambiguous.assessment.admission,
+            SourceAdmission::Rejected {
+                reason: SourceRejectionReason::AmbiguousIdentity
+            }
+        ));
+        assert!(ambiguous.record.is_none());
+
+        let wrong = temporary.path().join("game.bin");
+        fs::write(&wrong, b"wrong extension").unwrap();
+        let mut budget = HashBudget {
+            operation: None,
+            limit: u64::MAX,
+            hashed: 0,
+            max_zip_entries: 4096,
+        };
+        assert!(
+            inspect_pinned_validator(
+                &Catalog::embedded().unwrap(),
+                "opengoal-jak1-disc",
+                &wrong,
+                u64::MAX,
+                &mut budget,
+            )
+            .is_err()
+        );
     }
 }

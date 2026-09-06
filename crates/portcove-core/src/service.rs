@@ -1471,13 +1471,25 @@ impl PortcoveService {
         let absolute = std::path::absolute(path)?;
         let path = absolute.as_path();
         let profile = self.catalog.source_profile(profile_id)?;
-        if profile.kind == SourceKind::File {
+        if matches!(
+            profile.kind,
+            SourceKind::File | SourceKind::UpstreamValidatedDisc
+        ) {
             let mut budget = crate::source_file::HashBudget {
                 operation: None,
                 limit: u64::MAX,
                 hashed: 0,
                 max_zip_entries: 4096,
             };
+            if profile.kind == SourceKind::UpstreamValidatedDisc {
+                return crate::source_inspection::inspect_pinned_validator(
+                    &self.catalog,
+                    profile_id,
+                    path,
+                    u64::MAX,
+                    &mut budget,
+                );
+            }
             return crate::source_inspection::inspect_file(
                 &self.catalog,
                 profile_id,
@@ -1492,11 +1504,7 @@ impl PortcoveService {
         if matches!(profile.kind, SourceKind::GamecubeDisc | SourceKind::PsxDisc) {
             return crate::source_inspection::inspect_disc(&self.catalog, profile_id, path);
         }
-        let record = self
-            .adapters
-            .get(crate::AdapterKind::ReferencedDisc)
-            .validate_source(profile, path)?;
-        Ok(crate::SourceInspection::from_legacy_validation(record))
+        unreachable!("all source kinds have a shared inspection path")
     }
 
     pub(crate) fn inspect_source_record(
