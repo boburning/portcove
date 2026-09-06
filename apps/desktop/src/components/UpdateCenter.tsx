@@ -146,6 +146,7 @@ function operationLabel(operation: ActivityOperation) {
     move_library: "Moved library",
     relocate_output: "Relocated game files",
     import_library: "Imported library",
+    import_source: "Imported source",
     discover_sources: "Searched for sources",
     update_catalog: "Updated catalog",
   };

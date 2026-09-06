@@ -208,6 +208,11 @@ impl InboxScan<'_> {
                 if !self.charge_entry() {
                     break;
                 }
+                if entry.file_name().to_str().is_some_and(|name| {
+                    name.starts_with(".portcove-import-") && name.ends_with(".staging")
+                }) {
+                    continue;
+                }
                 let file_type = entry.file_type()?;
                 if file_type.is_symlink() {
                     self.stats.symlinks_skipped += 1;

@@ -14,7 +14,7 @@ use uuid::Uuid;
 
 use crate::{
     ActivityRecord, InstallRecord, Library, OperationEvent, OperationEventKind, OperationResult,
-    OperationTarget, OutputRelocationPlan, PortcoveError, Result, database,
+    OperationTarget, OutputRelocationPlan, PortcoveError, Result, SourceImportPlan, database,
 };
 
 pub const OPERATION_EVENT_SCHEMA_VERSION: u32 = 2;
@@ -28,6 +28,7 @@ pub(crate) enum LifecycleOperationKind {
     DeleteBackup,
     Activate,
     Relocate,
+    ImportSource,
 }
 
 impl fmt::Display for LifecycleOperationKind {
@@ -40,6 +41,7 @@ impl fmt::Display for LifecycleOperationKind {
             Self::DeleteBackup => "delete_backup",
             Self::Activate => "activate",
             Self::Relocate => "relocate",
+            Self::ImportSource => "import_source",
         })
     }
 }
@@ -56,6 +58,7 @@ impl FromStr for LifecycleOperationKind {
             "delete_backup" => Some(Self::DeleteBackup),
             "activate" => Some(Self::Activate),
             "relocate" => Some(Self::Relocate),
+            "import_source" => Some(Self::ImportSource),
             _ => None,
         };
         kind.ok_or_else(|| {
@@ -118,6 +121,7 @@ pub(crate) struct LifecycleOperation {
     pub paths: LifecyclePaths,
     pub install: Option<InstallRecord>,
     pub relocation: Option<OutputRelocationPlan>,
+    pub source_import: Option<SourceImportPlan>,
     pub original_paths: Vec<PathBuf>,
     pub activate: bool,
     pub last_error: Option<String>,
@@ -144,6 +148,7 @@ impl LifecycleOperation {
             },
             install: None,
             relocation: None,
+            source_import: None,
             original_paths: Vec::new(),
             activate: false,
             last_error: None,
@@ -185,12 +190,17 @@ impl OperationStore {
             .as_ref()
             .map(serde_json::to_string)
             .transpose()?;
+        let source_import_json = operation
+            .source_import
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()?;
         let original_paths_json = serde_json::to_string(&operation.original_paths)?;
         database::connect(self.library.root())?.execute(
             "INSERT INTO lifecycle_operations(
                id, kind, port_id, phase, staging_path, final_path, quarantine_path,
-               install_json, relocation_json, original_paths_json, activate, last_error, created_at, updated_at
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+               install_json, relocation_json, source_import_json, original_paths_json, activate, last_error, created_at, updated_at
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
              ON CONFLICT(id) DO UPDATE SET
                kind=excluded.kind,
                port_id=excluded.port_id,
@@ -199,7 +209,8 @@ impl OperationStore {
                final_path=excluded.final_path,
                quarantine_path=excluded.quarantine_path,
                install_json=excluded.install_json,
-               relocation_json=excluded.relocation_json,
+                relocation_json=excluded.relocation_json,
+                source_import_json=excluded.source_import_json,
                original_paths_json=excluded.original_paths_json,
                activate=excluded.activate,
                last_error=excluded.last_error,
@@ -214,6 +225,7 @@ impl OperationStore {
                 path_string(operation.paths.quarantine.as_ref())?,
                 install_json,
                 relocation_json,
+                source_import_json,
                 original_paths_json,
                 operation.activate as i64,
                 operation.last_error,
@@ -234,7 +246,7 @@ impl OperationStore {
         let connection = database::connect(self.library.root())?;
         let mut statement = connection.prepare(
             "SELECT id, kind, port_id, phase, staging_path, final_path, quarantine_path,
-                    install_json, relocation_json, original_paths_json, activate, last_error, created_at, updated_at
+                    install_json, relocation_json, source_import_json, original_paths_json, activate, last_error, created_at, updated_at
              FROM lifecycle_operations
              ORDER BY created_at, rowid",
         )?;
@@ -249,11 +261,12 @@ impl OperationStore {
                 row.get::<_, Option<String>>(6)?,
                 row.get::<_, Option<String>>(7)?,
                 row.get::<_, Option<String>>(8)?,
-                row.get::<_, String>(9)?,
-                row.get::<_, i64>(10)?,
-                row.get::<_, Option<String>>(11)?,
-                row.get::<_, i64>(12)?,
+                row.get::<_, Option<String>>(9)?,
+                row.get::<_, String>(10)?,
+                row.get::<_, i64>(11)?,
+                row.get::<_, Option<String>>(12)?,
                 row.get::<_, i64>(13)?,
+                row.get::<_, i64>(14)?,
             ))
         })?;
         rows.map(|row| {
@@ -267,6 +280,7 @@ impl OperationStore {
                 quarantine_path,
                 install_json,
                 relocation_json,
+                source_import_json,
                 original_paths_json,
                 activate,
                 last_error,
@@ -287,6 +301,9 @@ impl OperationStore {
                     .map(|value| serde_json::from_str(&value))
                     .transpose()?,
                 relocation: relocation_json
+                    .map(|value| serde_json::from_str(&value))
+                    .transpose()?,
+                source_import: source_import_json
                     .map(|value| serde_json::from_str(&value))
                     .transpose()?,
                 original_paths: serde_json::from_str(&original_paths_json)?,
@@ -337,6 +354,15 @@ pub(crate) enum LifecycleFaultPoint {
     RelocationPublished,
     RelocationMetadataCommitted,
     RelocationCleanupCompleted,
+    SourceImportJournaled,
+    SourceImportCopyStarted,
+    SourceImportCopied,
+    SourceImportVerified,
+    SourceImportPublished,
+    SourceImportRegistered,
+    SourceImportOriginalQuarantined,
+    SourceImportDeleteAttempt,
+    SourceImportCleanupCompleted,
 }
 
 pub(crate) trait LifecycleFaultInjector: Send + Sync {
@@ -387,6 +413,21 @@ impl OperationCoordinator {
                 kind: activity.target_kind,
                 id: id.clone(),
             }),
+            next_sequence: Arc::new(AtomicU64::new(0)),
+            cancellation: None,
+        }
+    }
+
+    pub(crate) fn resume(
+        operation_id: impl Into<String>,
+        operation: impl Into<String>,
+        target: Option<OperationTarget>,
+    ) -> Self {
+        Self {
+            operation_id: operation_id.into(),
+            parent_operation_id: None,
+            operation: operation.into(),
+            target,
             next_sequence: Arc::new(AtomicU64::new(0)),
             cancellation: None,
         }
