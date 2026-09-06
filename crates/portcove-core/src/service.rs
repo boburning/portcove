@@ -3946,10 +3946,10 @@ fn output_authorization_target(port_id: &str, output_directory: Option<&Path>) -
 }
 
 fn output_destination_fingerprint(preview: &OutputDestinationPreview) -> Result<String> {
-    const CAPACITY_REVIEW_GRANULARITY_BYTES: u64 = 256 * 1024 * 1024;
-    let capacity_band = preview
-        .available_bytes
-        .map(|bytes| bytes / CAPACITY_REVIEW_GRANULARITY_BYTES);
+    // Free-space counts are useful preview facts, but unrelated writes on the
+    // selected volume must not invalidate consent while the destination stays
+    // usable. Availability is bound below and every apply recomputes it, while
+    // install and relocation operations perform their own exact sufficiency check.
     let bound = (
         &preview.port_id,
         &preview.current,
@@ -3957,8 +3957,6 @@ fn output_destination_fingerprint(preview: &OutputDestinationPreview) -> Result<
         preview.reset_to_default,
         preview.availability,
         preview.ownership,
-        capacity_band,
-        preview.total_bytes,
         &preview.volume_identity,
         &preview.validation_errors,
         &preview.affected_installs,
@@ -6634,21 +6632,65 @@ fn main() {
                 volume_identity: "capacity-volume".into(),
             },
         );
+        capacity_service
+            .apply_output_directory_change(
+                "zelda64-recomp",
+                Some(&capacity_destination),
+                &authorization.token,
+            )
+            .unwrap();
+        drop(changed_capacity);
+        drop(initial_capacity);
+        assert!(
+            capacity_library
+                .output_directory("zelda64-recomp")
+                .unwrap()
+                .is_some()
+        );
+
+        let full_case = tempfile::tempdir().unwrap();
+        let full_library = Library::open(full_case.path().join("library")).unwrap();
+        let full_service = service_with_release(full_library.clone(), "v1");
+        let full_destination = full_case.path().join("future-output");
+        let initial_capacity = crate::output_root::override_volume_details(
+            crate::output_root::TestVolumeDetails::Available {
+                available_bytes: CAPACITY_BAND * 3,
+                total_bytes: CAPACITY_BAND * 8,
+                volume_identity: "capacity-volume".into(),
+            },
+        );
+        let preview = full_service
+            .preview_output_directory("zelda64-recomp", Some(&full_destination))
+            .unwrap();
+        let authorization = full_service
+            .authorize_output_directory_change(
+                "zelda64-recomp",
+                Some(&full_destination),
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        let exhausted_capacity = crate::output_root::override_volume_details(
+            crate::output_root::TestVolumeDetails::Available {
+                available_bytes: 0,
+                total_bytes: CAPACITY_BAND * 8,
+                volume_identity: "capacity-volume".into(),
+            },
+        );
         assert_eq!(
-            capacity_service
+            full_service
                 .apply_output_directory_change(
                     "zelda64-recomp",
-                    Some(&capacity_destination),
+                    Some(&full_destination),
                     &authorization.token,
                 )
                 .unwrap_err()
                 .code,
             crate::ErrorCode::Conflict
         );
-        drop(changed_capacity);
+        drop(exhausted_capacity);
         drop(initial_capacity);
         assert!(
-            capacity_library
+            full_library
                 .output_directory("zelda64-recomp")
                 .unwrap()
                 .is_none()
