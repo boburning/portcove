@@ -3,7 +3,7 @@ import { AlertTriangle, ArchiveX, CheckCircle2, ChevronDown, Clipboard, Clipboar
 import { primaryCliCommand } from "../cli-command";
 import { copyText } from "../clipboard";
 import { useDialogFocus } from "../dialog";
-import type { ActivityRecord, BackupInventory, BackupProblem, BackupRecord, InstallPlan, PortDefinition, PortStatus, ReleaseChannel, SourceHealth, SourceProfile, SourceRecord, UpdatePolicy } from "../types";
+import type { ActivityRecord, BackupInventory, BackupProblem, BackupRecord, InstallPlan, PortDefinition, PortStatus, ReleaseChannel, SourceHealth, SourceInspectionReport, SourceProfile, SourceRecord, UpdatePolicy } from "../types";
 import { OperationCancellation } from "./OperationCancellation";
 import { OutputLocationControl } from "./OutputLocation";
 import { formatBytes, platformLabels } from "../view-model";
@@ -11,6 +11,7 @@ import { BackupHistory } from "./BackupHistory";
 import { ChoiceMenu } from "./ChoiceMenu";
 import { ExternalLink as ProjectLink } from "./ExternalLink";
 import { Icon, NavigationHints, Shortcut } from "./ui";
+import { SourceIdentityPanel } from "./SourceIdentity";
 
 export interface DetailActions {
   activate: () => void;
@@ -40,12 +41,14 @@ interface DetailPanelProps {
   backupProblems?: BackupProblem[];
   backupState?: BackupInventory["state"];
   source?: SourceRecord;
+  sourceInspection?: SourceInspectionReport;
   sourceProfile?: SourceProfile;
   sourcePath: string;
   setSourcePath: (path: string) => void;
   pickSource?: () => void;
   pickSourceArchive?: () => void;
   bios?: SourceRecord;
+  biosInspection?: SourceInspectionReport;
   biosProfile?: SourceProfile;
   biosPath?: string;
   setBiosPath?: (path: string) => void;
@@ -53,6 +56,7 @@ interface DetailPanelProps {
   busy?: string;
   libraryGeneration?: number;
   outputLocationChanged?: () => void;
+  openSourceEvidence?: (evidenceId: string) => void;
   actions: DetailActions;
 }
 
@@ -62,7 +66,7 @@ export function DetailPanel(props: DetailPanelProps) {
 }
 
 function DetailDialog({ props, dialog }: { props: DetailPanelProps; dialog: ReturnType<typeof useDialogFocus> }) {
-  const { port, status, installPlan, backups = [], backupProblems = [], backupState = "healthy", source, sourceProfile, sourcePath, setSourcePath, pickSource, pickSourceArchive, bios, biosProfile, biosPath, setBiosPath, pickBios, busy, actions } = props;
+  const { port, status, installPlan, backups = [], backupProblems = [], backupState = "healthy", source, sourceInspection, sourceProfile, sourcePath, setSourcePath, pickSource, pickSourceArchive, bios, biosInspection, biosProfile, biosPath, setBiosPath, pickBios, busy, actions } = props;
   const [outputApplying, setOutputApplying] = useState(false);
   const effectiveBusy = busy ?? (outputApplying ? "storage location" : undefined);
   const selectedChannel = status?.channel ?? port.channels[0];
@@ -70,8 +74,8 @@ function DetailDialog({ props, dialog }: { props: DetailPanelProps; dialog: Retu
   const { sourceReady, biosReady, launchReady, installed, pendingSetup } = detailReadiness(port, status, source, sourcePath, bios, biosPath);
   const state = detailState(installed, launchReady, Boolean(status?.staged), pendingSetup, Boolean(status?.readiness?.blockers.includes("missing_runtime")), status?.readiness?.source, status?.readiness?.bios, Boolean(sourcePath.trim() || biosPath?.trim()));
   const sources: SourceControls = {
-    port, source, sourceProfile, sourcePath, setSourcePath, pickSource, pickSourceArchive,
-    bios, biosProfile, biosPath, setBiosPath, pickBios, sourceReady, biosReady,
+    port, source, sourceInspection, sourceProfile, sourcePath, setSourcePath, pickSource, pickSourceArchive,
+    bios, biosInspection, biosProfile, biosPath, setBiosPath, pickBios, sourceReady, biosReady, openSourceEvidence: props.openSourceEvidence,
     sourceHealth: status?.readiness?.source, biosHealth: status?.readiness?.bios,
   };
   return <div className="scrim" onMouseDown={event => closeFromScrim(event, actions.close)}>
@@ -135,8 +139,8 @@ function sourceRequirementReady(required: boolean, installed: boolean, health: S
 }
 
 type SourceControls = Pick<DetailPanelProps,
-  "port" | "source" | "sourceProfile" | "sourcePath" | "setSourcePath" | "pickSource" | "pickSourceArchive"
-  | "bios" | "biosProfile" | "biosPath" | "setBiosPath" | "pickBios"
+  "port" | "source" | "sourceInspection" | "sourceProfile" | "sourcePath" | "setSourcePath" | "pickSource" | "pickSourceArchive"
+  | "bios" | "biosInspection" | "biosProfile" | "biosPath" | "setBiosPath" | "pickBios" | "openSourceEvidence"
 > & {
   sourceReady: boolean;
   biosReady: boolean;
@@ -151,13 +155,13 @@ function SourceFields({ mode, controls }: { mode: "missing" | "registered"; cont
 function originalSourceField(mode: "missing" | "registered", controls: SourceControls) {
   const profileId = controls.port.source_profile;
   if (!profileId || controls.sourceReady !== (mode === "registered")) return null;
-  return <SourceField heading="Original source" profileId={profileId} profile={controls.sourceProfile} source={controls.source} health={controls.sourceHealth} path={controls.sourcePath} setPath={controls.setSourcePath} pick={controls.pickSource} pickArchive={controls.pickSourceArchive} />;
+  return <SourceField heading="Original source" profileId={profileId} profile={controls.sourceProfile} source={controls.source} inspection={controls.sourceInspection} health={controls.sourceHealth} path={controls.sourcePath} setPath={controls.setSourcePath} pick={controls.pickSource} pickArchive={controls.pickSourceArchive} openEvidence={controls.openSourceEvidence} />;
 }
 
 function biosSourceField(mode: "missing" | "registered", controls: SourceControls) {
   const profileId = controls.port.bios_source_profile;
   if (!profileId || !controls.biosProfile || !controls.setBiosPath || controls.biosReady !== (mode === "registered")) return null;
-  return <SourceField heading="Required BIOS" profileId={profileId} profile={controls.biosProfile} source={controls.bios} health={controls.biosHealth} path={controls.biosPath ?? ""} setPath={controls.setBiosPath} pick={controls.pickBios} />;
+  return <SourceField heading="Required BIOS" profileId={profileId} profile={controls.biosProfile} source={controls.bios} inspection={controls.biosInspection} health={controls.biosHealth} path={controls.biosPath ?? ""} setPath={controls.setBiosPath} pick={controls.pickBios} openEvidence={controls.openSourceEvidence} />;
 }
 
 function RetiredNotice({ port }: { port: PortDefinition }) {
@@ -190,16 +194,18 @@ function AdvancedControls({ port, status, selectedChannel, policy, installed, ba
   </details>;
 }
 
-function SourceField({ heading, profileId, profile, source, health, path, setPath, pick, pickArchive }: { heading: string; profileId: string; profile?: SourceProfile; source?: SourceRecord; health?: SourceHealth; path: string; setPath: (path: string) => void; pick?: () => void; pickArchive?: () => void }) {
+function SourceField({ heading, profileId, profile, source, inspection, health, path, setPath, pick, pickArchive, openEvidence }: { heading: string; profileId: string; profile?: SourceProfile; source?: SourceRecord; inspection?: SourceInspectionReport; health?: SourceHealth; path: string; setPath: (path: string) => void; pick?: () => void; pickArchive?: () => void; openEvidence?: (evidenceId: string) => void }) {
   const copy = sourceFieldCopy(profile);
-  const sourceNote = path.trim() ? "Selected path has not been checked. Portcove validates these files when you continue." : source ? sourceHealthNote(health, source) : copy.note;
+  const selectedOverride = Boolean(path.trim()) && (!source || path !== source.path);
+  const sourceNote = selectedOverride ? "Selected path has not been checked. Portcove validates these files when you continue." : source ? sourceHealthNote(inspection?.health ?? health, source) : copy.note;
   const inputId = `source-${profileId}`;
   return <div className="detail-section"><label htmlFor={inputId}>{heading} · {profile?.label ?? profileId}</label>
     <div className="path-entry"><input data-focusable id={inputId} value={path} onChange={event => setPath(event.target.value)} placeholder={copy.placeholder} />
       {pick && <button data-focusable className="button-with-icon" type="button" onClick={pick}><Icon glyph={FolderOpen} />Browse</button>}
       {pickArchive && <button data-focusable className="button-with-icon" type="button" onClick={pickArchive}><Icon glyph={FileArchive} />ZIP</button>}</div>
     <small>{sourceNote}</small>
-    {path.trim() && source && health && health !== "current" && <small>{sourceHealthNote(health, source)}</small>}
+    {selectedOverride && source && health && health !== "current" && <small>{sourceHealthNote(health, source)}</small>}
+    {!selectedOverride && inspection && <SourceIdentityPanel report={inspection} openEvidence={openEvidence} />}
   </div>;
 }
 
