@@ -1,19 +1,35 @@
 //! Fixed host-tool definitions and the shared environment/saved/discovery resolver.
 
-use std::path::{Path, PathBuf};
+use std::{
+    fs,
+    io::Read,
+    path::{Path, PathBuf},
+    process::Stdio,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+        mpsc,
+    },
+    thread,
+    time::{Duration, Instant},
+};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 use crate::{
-    HostPreferenceStore, HostToolSource, HostToolState, HostToolStatus, Platform, PortcoveError,
-    Result,
+    ChildProcessClass, ChildProcessPolicy, HostPreferenceStore, HostToolSource, HostToolState,
+    HostToolStatus, Platform, PortcoveError, Result,
 };
+
+const MAX_EXECUTABLE_BYTES: u64 = 512 * 1024 * 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct HostToolProbePolicy {
     pub arguments: Vec<String>,
     pub expected_output: String,
+    pub required_output_markers: Vec<String>,
     pub timeout_millis: u64,
     pub max_output_bytes: u64,
 }
@@ -27,6 +43,32 @@ pub struct HostToolDefinition {
     pub official_url: String,
     pub supported_platforms: Vec<Platform>,
     pub probe: HostToolProbePolicy,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum HostToolProbeState {
+    Missing,
+    Invalid,
+    Blocked,
+    TimedOut,
+    ExcessiveOutput,
+    FailedProbe,
+    IncompatibleVersion,
+    Cancelled,
+    Success,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct HostToolProbeResult {
+    pub tool_id: String,
+    pub path: PathBuf,
+    pub state: HostToolProbeState,
+    pub message: String,
+    pub sha256: Option<String>,
+    pub persisted: bool,
+    pub retry_action: String,
+    pub clear_action_available: bool,
 }
 
 pub fn definitions() -> Vec<HostToolDefinition> {
@@ -53,6 +95,7 @@ fn fixed_definitions() -> Vec<HostToolDefinition> {
             probe: HostToolProbePolicy {
                 arguments: vec!["-help".into()],
                 expected_output: "chdman".into(),
+                required_output_markers: vec!["verify".into(), "extractdvd".into()],
                 timeout_millis: 5_000,
                 max_output_bytes: 64 * 1024,
             },
@@ -67,6 +110,7 @@ fn fixed_definitions() -> Vec<HostToolDefinition> {
             probe: HostToolProbePolicy {
                 arguments: vec!["--help".into()],
                 expected_output: "DolphinTool".into(),
+                required_output_markers: vec!["convert".into(), "verify".into()],
                 timeout_millis: 5_000,
                 max_output_bytes: 64 * 1024,
             },
@@ -149,6 +193,609 @@ pub fn definition(id: &str) -> Result<HostToolDefinition> {
         .ok_or_else(|| PortcoveError::usage(format!("unknown host tool: {id}")))
 }
 
+pub fn probe_host_tool(id: &str, path: &Path) -> Result<HostToolProbeResult> {
+    let definition = definition(id)?;
+    Ok(probe_definition(&definition, path, || {}))
+}
+
+pub fn probe_host_tool_with_cancellation(
+    id: &str,
+    path: &Path,
+    cancelled: impl Fn() -> bool,
+) -> Result<HostToolProbeResult> {
+    let definition = definition(id)?;
+    Ok(probe_definition_with_cancellation(
+        &definition,
+        path,
+        || {},
+        cancelled,
+    ))
+}
+
+pub fn configure_host_tool(
+    preferences: &HostPreferenceStore,
+    id: &str,
+    path: &Path,
+) -> Result<HostToolProbeResult> {
+    configure_host_tool_with_cancellation(preferences, id, path, || false)
+}
+
+pub fn configure_host_tool_with_cancellation(
+    preferences: &HostPreferenceStore,
+    id: &str,
+    path: &Path,
+    cancelled: impl Fn() -> bool,
+) -> Result<HostToolProbeResult> {
+    configure_host_tool_with_hooks(preferences, id, path, || {}, cancelled)
+}
+
+fn configure_host_tool_with_hooks(
+    preferences: &HostPreferenceStore,
+    id: &str,
+    path: &Path,
+    before_persist: impl FnOnce(),
+    cancelled: impl Fn() -> bool,
+) -> Result<HostToolProbeResult> {
+    let previous = preferences.host_tool_preference(id)?;
+    let mut result = probe_host_tool_with_cancellation(id, path, cancelled)?;
+    result.clear_action_available = previous.is_some();
+    if result.state == HostToolProbeState::Success {
+        let sha256 = result
+            .sha256
+            .as_deref()
+            .expect("a successful probe has a fingerprint");
+        before_persist();
+        if preferences.replace_host_tool_path_if_unchanged(id, previous.as_ref(), path, sha256)? {
+            result.persisted = true;
+            result.clear_action_available = true;
+        } else {
+            result.state = HostToolProbeState::Invalid;
+            result.message = "the host-tool preference changed while the probe was running".into();
+            result.sha256 = None;
+            result.clear_action_available = preferences.host_tool_path(id)?.is_some();
+        }
+    }
+    Ok(result)
+}
+
+pub fn clear_host_tool(preferences: &HostPreferenceStore, id: &str) -> Result<()> {
+    preferences.clear_host_tool_path(id)
+}
+
+fn probe_definition(
+    definition: &HostToolDefinition,
+    path: &Path,
+    before_spawn: impl FnOnce(),
+) -> HostToolProbeResult {
+    probe_definition_with_cancellation(definition, path, before_spawn, || false)
+}
+
+fn probe_definition_with_cancellation(
+    definition: &HostToolDefinition,
+    path: &Path,
+    before_spawn: impl FnOnce(),
+    cancelled: impl Fn() -> bool,
+) -> HostToolProbeResult {
+    let platform = match Platform::current() {
+        Ok(platform) => platform,
+        Err(error) => {
+            return probe_result(
+                definition,
+                path,
+                HostToolProbeState::Blocked,
+                error.message,
+                None,
+            );
+        }
+    };
+    if !definition.supported_platforms.contains(&platform) {
+        return probe_result(
+            definition,
+            path,
+            HostToolProbeState::Blocked,
+            format!(
+                "{} is not supported on this platform",
+                definition.display_name
+            ),
+            None,
+        );
+    }
+    let initial = match selected_file_fingerprint(path, platform) {
+        Ok(fingerprint) => fingerprint,
+        Err(failure) => {
+            return probe_result(definition, path, failure.state, failure.message, None);
+        }
+    };
+
+    before_spawn();
+    let pre_spawn = match selected_file_fingerprint(path, platform) {
+        Ok(fingerprint) => fingerprint,
+        Err(failure) => {
+            return probe_result(definition, path, failure.state, failure.message, None);
+        }
+    };
+    if initial != pre_spawn {
+        return probe_result(
+            definition,
+            path,
+            HostToolProbeState::Invalid,
+            "the selected executable changed before its probe started".into(),
+            None,
+        );
+    }
+
+    if let Err(failure) = run_fixed_probe(definition, path, cancelled) {
+        return probe_result(definition, path, failure.state, failure.message, None);
+    }
+    let final_fingerprint = match selected_file_fingerprint(path, platform) {
+        Ok(fingerprint) => fingerprint,
+        Err(failure) => {
+            return probe_result(definition, path, failure.state, failure.message, None);
+        }
+    };
+    if initial != final_fingerprint {
+        return probe_result(
+            definition,
+            path,
+            HostToolProbeState::Invalid,
+            "the selected executable changed while it was being probed".into(),
+            None,
+        );
+    }
+    probe_result(
+        definition,
+        path,
+        HostToolProbeState::Success,
+        format!("{} passed its fixed probe", definition.display_name),
+        Some(initial.sha256),
+    )
+}
+
+fn run_fixed_probe(
+    definition: &HostToolDefinition,
+    path: &Path,
+    cancelled: impl Fn() -> bool,
+) -> std::result::Result<(), ProbeFailure> {
+    let mut command = ChildProcessPolicy::native_command(ChildProcessClass::HostTool, path)
+        .map_err(|error| ProbeFailure {
+            state: HostToolProbeState::Blocked,
+            message: error.message,
+        })?;
+    command
+        .args(&definition.probe.arguments)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        command.process_group(0);
+    }
+    let mut child = command.spawn().map_err(|error| ProbeFailure {
+        state: spawn_error_state(error.kind()),
+        message: format!("could not start the fixed probe: {error}"),
+    })?;
+    let process_group = match ProbeProcessGroup::attach(&child) {
+        Ok(process_group) => process_group,
+        Err(failure) => {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(failure);
+        }
+    };
+    let total = Arc::new(AtomicU64::new(0));
+    let (exceeded_tx, exceeded_rx) = mpsc::channel();
+    let stdout = child.stdout.take().expect("piped probe stdout");
+    let stderr = child.stderr.take().expect("piped probe stderr");
+    let max_output = definition.probe.max_output_bytes;
+    let stdout_reader = spawn_output_reader(stdout, total.clone(), max_output, exceeded_tx.clone());
+    let stderr_reader = spawn_output_reader(stderr, total.clone(), max_output, exceeded_tx);
+    let deadline = Instant::now() + Duration::from_millis(definition.probe.timeout_millis);
+    let (status, interrupted) = wait_for_probe(
+        &mut child,
+        &process_group,
+        deadline,
+        &exceeded_rx,
+        cancelled,
+    )?;
+    let stdout = stdout_reader.join().ok().and_then(std::result::Result::ok);
+    let stderr = stderr_reader.join().ok().and_then(std::result::Result::ok);
+    if let Some(state) = interrupted {
+        return Err(ProbeFailure {
+            state,
+            message: interrupted_probe_message(state).into(),
+        });
+    }
+    let (Some(stdout), Some(stderr)) = (stdout, stderr) else {
+        return Err(ProbeFailure {
+            state: HostToolProbeState::FailedProbe,
+            message: "could not collect the fixed probe output".into(),
+        });
+    };
+    if total.load(Ordering::Relaxed) > max_output {
+        return Err(ProbeFailure {
+            state: HostToolProbeState::ExcessiveOutput,
+            message: interrupted_probe_message(HostToolProbeState::ExcessiveOutput).into(),
+        });
+    }
+    let status = status.expect("an uninterrupted probe has an exit status");
+    if !status.success() {
+        return Err(ProbeFailure {
+            state: HostToolProbeState::FailedProbe,
+            message: format!("the fixed probe exited unsuccessfully: {status}"),
+        });
+    }
+    validate_probe_output(definition, stdout, stderr)
+}
+
+fn wait_for_probe(
+    child: &mut std::process::Child,
+    process_group: &ProbeProcessGroup,
+    deadline: Instant,
+    exceeded: &mpsc::Receiver<()>,
+    cancelled: impl Fn() -> bool,
+) -> std::result::Result<(Option<std::process::ExitStatus>, Option<HostToolProbeState>), ProbeFailure>
+{
+    loop {
+        let interrupted = if cancelled() {
+            Some(HostToolProbeState::Cancelled)
+        } else if exceeded.try_recv().is_ok() {
+            Some(HostToolProbeState::ExcessiveOutput)
+        } else if Instant::now() >= deadline {
+            Some(HostToolProbeState::TimedOut)
+        } else {
+            None
+        };
+        if let Some(state) = interrupted {
+            terminate_probe(child, process_group);
+            return Ok((None, Some(state)));
+        }
+        match child.try_wait() {
+            Ok(Some(status)) => return Ok((Some(status), None)),
+            Ok(None) => thread::sleep(Duration::from_millis(10)),
+            Err(error) => {
+                terminate_probe(child, process_group);
+                return Err(ProbeFailure {
+                    state: HostToolProbeState::FailedProbe,
+                    message: format!("could not observe the fixed probe: {error}"),
+                });
+            }
+        }
+    }
+}
+
+fn validate_probe_output(
+    definition: &HostToolDefinition,
+    mut stdout: Vec<u8>,
+    stderr: Vec<u8>,
+) -> std::result::Result<(), ProbeFailure> {
+    stdout.extend(stderr);
+    let output = String::from_utf8(stdout).map_err(|_| ProbeFailure {
+        state: HostToolProbeState::Invalid,
+        message: "the fixed probe returned malformed output".into(),
+    })?;
+    if output.trim().is_empty() {
+        return Err(ProbeFailure {
+            state: HostToolProbeState::Invalid,
+            message: "the fixed probe returned malformed output".into(),
+        });
+    }
+    let normalized = output.to_ascii_lowercase();
+    if !normalized.contains(&definition.probe.expected_output.to_ascii_lowercase()) {
+        return Err(ProbeFailure {
+            state: HostToolProbeState::Invalid,
+            message: format!("probe output does not identify {}", definition.display_name),
+        });
+    }
+    if definition
+        .probe
+        .required_output_markers
+        .iter()
+        .any(|marker| !normalized.contains(&marker.to_ascii_lowercase()))
+    {
+        return Err(ProbeFailure {
+            state: HostToolProbeState::IncompatibleVersion,
+            message: format!(
+                "{} does not advertise the required commands for this Portcove version",
+                definition.display_name
+            ),
+        });
+    }
+    Ok(())
+}
+
+fn interrupted_probe_message(state: HostToolProbeState) -> &'static str {
+    match state {
+        HostToolProbeState::TimedOut => "the fixed probe exceeded its time limit",
+        HostToolProbeState::Cancelled => "the fixed probe was cancelled and cleaned up",
+        _ => "the fixed probe exceeded its output limit",
+    }
+}
+
+fn spawn_error_state(kind: std::io::ErrorKind) -> HostToolProbeState {
+    match kind {
+        std::io::ErrorKind::NotFound => HostToolProbeState::Missing,
+        std::io::ErrorKind::PermissionDenied => HostToolProbeState::Blocked,
+        _ => HostToolProbeState::FailedProbe,
+    }
+}
+
+#[derive(Debug)]
+struct ProbeFailure {
+    state: HostToolProbeState,
+    message: String,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct SelectedFileFingerprint {
+    size: u64,
+    sha256: String,
+}
+
+fn selected_file_fingerprint(
+    path: &Path,
+    platform: Platform,
+) -> std::result::Result<SelectedFileFingerprint, ProbeFailure> {
+    if !path.is_absolute()
+        || path
+            .components()
+            .any(|component| matches!(component, std::path::Component::ParentDir))
+    {
+        return Err(ProbeFailure {
+            state: HostToolProbeState::Invalid,
+            message: "host-tool selections must use an absolute path without parent traversal"
+                .into(),
+        });
+    }
+    if crate::path::unicode(path, "host-tool executable").is_err()
+        || crate::path::refuse_symlink_ancestors(path).is_err()
+    {
+        return Err(ProbeFailure {
+            state: HostToolProbeState::Invalid,
+            message: "host-tool selections cannot use symlinks or non-Unicode paths".into(),
+        });
+    }
+    let metadata = fs::symlink_metadata(path).map_err(|error| ProbeFailure {
+        state: match error.kind() {
+            std::io::ErrorKind::NotFound => HostToolProbeState::Missing,
+            std::io::ErrorKind::PermissionDenied => HostToolProbeState::Blocked,
+            _ => HostToolProbeState::Invalid,
+        },
+        message: format!("could not inspect the selected executable: {error}"),
+    })?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(ProbeFailure {
+            state: HostToolProbeState::Invalid,
+            message: "the selected path must be a regular file and cannot be a symlink".into(),
+        });
+    }
+    validate_platform_path(path, platform)?;
+    #[cfg(unix)]
+    if crate::permissions::platform_requires_executable(platform)
+        && !crate::permissions::executable_intent(path).unwrap_or(false)
+    {
+        return Err(ProbeFailure {
+            state: HostToolProbeState::Invalid,
+            message: "the selected file is not executable on this host".into(),
+        });
+    }
+    if metadata.len() > MAX_EXECUTABLE_BYTES {
+        return Err(ProbeFailure {
+            state: HostToolProbeState::Invalid,
+            message: "the selected executable exceeds the validation size limit".into(),
+        });
+    }
+    let mut file = fs::File::open(path).map_err(|error| ProbeFailure {
+        state: if error.kind() == std::io::ErrorKind::PermissionDenied {
+            HostToolProbeState::Blocked
+        } else {
+            HostToolProbeState::Invalid
+        },
+        message: format!("could not read the selected executable: {error}"),
+    })?;
+    let mut hasher = Sha256::new();
+    let mut read = 0_u64;
+    let mut buffer = [0_u8; 64 * 1024];
+    loop {
+        let count = file.read(&mut buffer).map_err(|error| ProbeFailure {
+            state: if error.kind() == std::io::ErrorKind::PermissionDenied {
+                HostToolProbeState::Blocked
+            } else {
+                HostToolProbeState::Invalid
+            },
+            message: format!("could not read the selected executable: {error}"),
+        })?;
+        if count == 0 {
+            break;
+        }
+        read = read.saturating_add(count as u64);
+        if read > MAX_EXECUTABLE_BYTES {
+            return Err(ProbeFailure {
+                state: HostToolProbeState::Invalid,
+                message: "the selected executable grew beyond the validation size limit".into(),
+            });
+        }
+        hasher.update(&buffer[..count]);
+    }
+    Ok(SelectedFileFingerprint {
+        size: read,
+        sha256: hex::encode(hasher.finalize()),
+    })
+}
+
+fn validate_platform_path(
+    path: &Path,
+    platform: Platform,
+) -> std::result::Result<(), ProbeFailure> {
+    let extension = path
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    if matches!(
+        extension.as_str(),
+        "bat" | "cmd" | "ps1" | "psm1" | "sh" | "bash" | "zsh" | "fish"
+    ) {
+        return Err(ProbeFailure {
+            state: HostToolProbeState::Blocked,
+            message: "script files cannot be selected as native host tools".into(),
+        });
+    }
+    if platform == Platform::WindowsX86_64 && extension != "exe" {
+        return Err(ProbeFailure {
+            state: HostToolProbeState::Invalid,
+            message: "Windows host tools must be native .exe files".into(),
+        });
+    }
+    Ok(())
+}
+
+fn spawn_output_reader(
+    mut reader: impl Read + Send + 'static,
+    total: Arc<AtomicU64>,
+    limit: u64,
+    exceeded: mpsc::Sender<()>,
+) -> thread::JoinHandle<std::io::Result<Vec<u8>>> {
+    thread::spawn(move || {
+        let mut captured = Vec::new();
+        let mut buffer = [0_u8; 8 * 1024];
+        loop {
+            let count = reader.read(&mut buffer)?;
+            if count == 0 {
+                break;
+            }
+            let previous = total.fetch_add(count as u64, Ordering::Relaxed);
+            if previous.saturating_add(count as u64) > limit {
+                let _ = exceeded.send(());
+                break;
+            }
+            captured.extend_from_slice(&buffer[..count]);
+        }
+        Ok(captured)
+    })
+}
+
+fn terminate_probe(child: &mut std::process::Child, process_group: &ProbeProcessGroup) {
+    process_group.terminate(child);
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
+#[cfg(unix)]
+struct ProbeProcessGroup;
+
+#[cfg(unix)]
+impl ProbeProcessGroup {
+    fn attach(_child: &std::process::Child) -> std::result::Result<Self, ProbeFailure> {
+        Ok(Self)
+    }
+
+    fn terminate(&self, child: &std::process::Child) {
+        unsafe {
+            libc::kill(-(child.id() as i32), libc::SIGKILL);
+        }
+    }
+}
+
+#[cfg(windows)]
+struct ProbeProcessGroup {
+    job: windows_sys::Win32::Foundation::HANDLE,
+}
+
+#[cfg(windows)]
+impl ProbeProcessGroup {
+    fn attach(child: &std::process::Child) -> std::result::Result<Self, ProbeFailure> {
+        use std::os::windows::io::AsRawHandle;
+        use windows_sys::Win32::System::JobObjects::{
+            AssignProcessToJobObject, CreateJobObjectW, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+            JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JobObjectExtendedLimitInformation,
+            SetInformationJobObject,
+        };
+
+        unsafe {
+            let candidate = CreateJobObjectW(std::ptr::null(), std::ptr::null());
+            if candidate.is_null() {
+                return Err(process_group_failure());
+            }
+            let mut limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
+            limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+            let configured = SetInformationJobObject(
+                candidate,
+                JobObjectExtendedLimitInformation,
+                (&raw const limits).cast(),
+                std::mem::size_of_val(&limits) as u32,
+            );
+            if configured == 0 {
+                let failure = process_group_failure();
+                windows_sys::Win32::Foundation::CloseHandle(candidate);
+                return Err(failure);
+            }
+            if AssignProcessToJobObject(
+                candidate,
+                child.as_raw_handle() as windows_sys::Win32::Foundation::HANDLE,
+            ) == 0
+            {
+                let failure = process_group_failure();
+                windows_sys::Win32::Foundation::CloseHandle(candidate);
+                return Err(failure);
+            }
+            Ok(Self { job: candidate })
+        }
+    }
+
+    fn terminate(&self, _child: &std::process::Child) {
+        if !self.job.is_null() {
+            unsafe {
+                windows_sys::Win32::System::JobObjects::TerminateJobObject(self.job, 1);
+            }
+        }
+    }
+}
+
+#[cfg(windows)]
+fn process_group_failure() -> ProbeFailure {
+    ProbeFailure {
+        state: HostToolProbeState::Blocked,
+        message: format!(
+            "could not contain the fixed probe process tree: {}",
+            std::io::Error::last_os_error()
+        ),
+    }
+}
+
+#[cfg(windows)]
+impl Drop for ProbeProcessGroup {
+    fn drop(&mut self) {
+        if !self.job.is_null() {
+            unsafe {
+                windows_sys::Win32::Foundation::CloseHandle(self.job);
+            }
+        }
+    }
+}
+
+fn probe_result(
+    definition: &HostToolDefinition,
+    path: &Path,
+    state: HostToolProbeState,
+    message: String,
+    sha256: Option<String>,
+) -> HostToolProbeResult {
+    HostToolProbeResult {
+        tool_id: definition.id.clone(),
+        path: path.to_path_buf(),
+        state,
+        message,
+        sha256,
+        persisted: false,
+        retry_action: format!(
+            "select a valid {} executable and retry",
+            definition.display_name
+        ),
+        clear_action_available: false,
+    }
+}
+
 pub(crate) fn resolve(
     id: &str,
     candidates: Vec<PathBuf>,
@@ -183,15 +830,17 @@ fn resolve_with_environment(
             Some(HostToolSource::Environment),
         ));
     }
-    if let Some(path) = preferences.host_tool_path(&definition.id)? {
+    if let Some(selection) = preferences.host_tool_preference(&definition.id)? {
+        let valid = selected_file_fingerprint(&selection.path, platform)
+            .is_ok_and(|fingerprint| fingerprint.sha256 == selection.sha256);
         return Ok(status(
             &definition,
-            if path.is_file() {
+            if valid {
                 HostToolState::Available
             } else {
                 HostToolState::Misconfigured
             },
-            Some(path),
+            Some(selection.path),
             Some(HostToolSource::Saved),
         ));
     }
@@ -287,6 +936,62 @@ mod tests {
     use super::*;
     use std::{collections::HashSet, fs};
 
+    fn remember_test_selection(store: &HostPreferenceStore, id: &str, path: &Path) {
+        crate::permissions::normalize_archive_entry(path, false, true).unwrap();
+        let sha256 = selected_file_fingerprint(path, Platform::current().unwrap())
+            .unwrap()
+            .sha256;
+        assert!(
+            store
+                .replace_host_tool_path_if_unchanged(id, None, path, &sha256)
+                .unwrap()
+        );
+    }
+
+    fn build_probe(directory: &Path) -> PathBuf {
+        let source = directory.join("host_tool_probe.rs");
+        fs::write(&source, include_str!("testdata/host_tool_probe.rs.txt")).unwrap();
+        let executable = directory.join(if cfg!(windows) {
+            "host_tool_probe.exe"
+        } else {
+            "host_tool_probe"
+        });
+        let mut rustc =
+            ChildProcessPolicy::native_command(ChildProcessClass::ManagedBuilder, "rustc").unwrap();
+        assert!(
+            rustc
+                .arg(&source)
+                .arg("-o")
+                .arg(&executable)
+                .status()
+                .unwrap()
+                .success()
+        );
+        crate::permissions::normalize_archive_entry(&executable, false, true).unwrap();
+        executable
+    }
+
+    fn test_definition(arguments: &[&str]) -> HostToolDefinition {
+        HostToolDefinition {
+            id: "test_tool".into(),
+            display_name: "TestTool".into(),
+            configuration_variable: "PORTCOVE_TEST_TOOL".into(),
+            purpose: "test fixed probes".into(),
+            official_url: "https://example.invalid/test-tool".into(),
+            supported_platforms: vec![Platform::current().unwrap()],
+            probe: HostToolProbePolicy {
+                arguments: arguments
+                    .iter()
+                    .map(|argument| (*argument).into())
+                    .collect(),
+                expected_output: "testtool".into(),
+                required_output_markers: vec!["verify".into(), "convert".into()],
+                timeout_millis: 200,
+                max_output_bytes: 512,
+            },
+        }
+    }
+
     #[test]
     fn fixed_registry_has_unique_safe_complete_definitions() {
         let registry = definitions();
@@ -341,6 +1046,9 @@ mod tests {
         registry[0].probe.expected_output.clear();
         assert!(validate_definitions(&registry).is_err());
         let mut registry = definitions();
+        registry[0].probe.required_output_markers.clear();
+        assert!(validate_definitions(&registry).is_err());
+        let mut registry = definitions();
         registry[0].probe.timeout_millis = 0;
         assert!(validate_definitions(&registry).is_err());
         let mut registry = definitions();
@@ -349,14 +1057,224 @@ mod tests {
     }
 
     #[test]
+    fn selected_file_validation_rejects_missing_directories_scripts_and_bad_permissions() {
+        let temporary = tempfile::tempdir().unwrap();
+        let missing = temporary.path().join(if cfg!(windows) {
+            "missing.exe"
+        } else {
+            "missing"
+        });
+        assert_eq!(
+            probe_definition(&test_definition(&["--success"]), &missing, || {}).state,
+            HostToolProbeState::Missing
+        );
+        assert_eq!(
+            probe_definition(&test_definition(&["--success"]), temporary.path(), || {}).state,
+            HostToolProbeState::Invalid
+        );
+
+        let helper = build_probe(temporary.path());
+        let blocked = temporary.path().join("looks-safe.cmd");
+        fs::copy(&helper, &blocked).unwrap();
+        crate::permissions::normalize_archive_entry(&blocked, false, true).unwrap();
+        assert_eq!(
+            probe_definition(&test_definition(&["--success"]), &blocked, || {}).state,
+            HostToolProbeState::Blocked
+        );
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::{PermissionsExt, symlink};
+            let non_executable = temporary.path().join("non-executable");
+            fs::copy(&helper, &non_executable).unwrap();
+            fs::set_permissions(&non_executable, fs::Permissions::from_mode(0o644)).unwrap();
+            assert_eq!(
+                probe_definition(&test_definition(&["--success"]), &non_executable, || {}).state,
+                HostToolProbeState::Invalid
+            );
+            let link = temporary.path().join("linked-tool");
+            symlink(&helper, &link).unwrap();
+            assert_eq!(
+                probe_definition(&test_definition(&["--success"]), &link, || {}).state,
+                HostToolProbeState::Invalid
+            );
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::symlink_file;
+            let link = temporary.path().join("linked-tool.exe");
+            if symlink_file(&helper, &link).is_ok() {
+                assert_eq!(
+                    probe_definition(&test_definition(&["--success"]), &link, || {}).state,
+                    HostToolProbeState::Invalid
+                );
+            }
+        }
+        assert_eq!(
+            spawn_error_state(std::io::ErrorKind::PermissionDenied),
+            HostToolProbeState::Blocked
+        );
+    }
+
+    #[test]
+    fn fixed_probe_reports_every_bounded_process_and_compatibility_outcome() {
+        let temporary = tempfile::tempdir().unwrap();
+        let helper = build_probe(temporary.path());
+        for (argument, expected) in [
+            ("--success", HostToolProbeState::Success),
+            ("--nonzero", HostToolProbeState::FailedProbe),
+            ("--sleep", HostToolProbeState::TimedOut),
+            ("--large", HostToolProbeState::ExcessiveOutput),
+            ("--malformed", HostToolProbeState::Invalid),
+            ("--incompatible", HostToolProbeState::IncompatibleVersion),
+        ] {
+            assert_eq!(
+                probe_definition(&test_definition(&[argument]), &helper, || {}).state,
+                expected,
+                "probe outcome for {argument}"
+            );
+        }
+
+        let cancellations = std::sync::atomic::AtomicUsize::new(0);
+        let cancelled = probe_definition_with_cancellation(
+            &test_definition(&["--sleep"]),
+            &helper,
+            || {},
+            || cancellations.fetch_add(1, Ordering::Relaxed) > 1,
+        );
+        assert_eq!(cancelled.state, HostToolProbeState::Cancelled);
+
+        let changed = probe_definition(&test_definition(&["--success"]), &helper, || {
+            fs::write(&helper, b"changed before spawn").unwrap();
+        });
+        assert_eq!(changed.state, HostToolProbeState::Invalid);
+        assert!(changed.message.contains("changed before"));
+    }
+
+    #[test]
+    fn timed_out_probe_cleans_up_its_process_tree() {
+        let temporary = tempfile::tempdir().unwrap();
+        let helper = build_probe(temporary.path());
+        let orphan_marker = temporary.path().join("orphan-marker");
+        let result = probe_definition(
+            &test_definition(&["--tree", orphan_marker.to_str().unwrap()]),
+            &helper,
+            || {},
+        );
+        assert_eq!(result.state, HostToolProbeState::TimedOut);
+        thread::sleep(Duration::from_millis(1_100));
+        assert!(!orphan_marker.exists());
+    }
+
+    #[test]
+    fn native_probe_treats_shell_text_and_shell_looking_paths_as_literal_data() {
+        let temporary = tempfile::tempdir().unwrap();
+        let helper = build_probe(temporary.path());
+        let special = temporary.path().join(if cfg!(windows) {
+            "tool & echo injected.exe"
+        } else {
+            "tool & echo injected"
+        });
+        fs::copy(&helper, &special).unwrap();
+        crate::permissions::normalize_archive_entry(&special, false, true).unwrap();
+        let recorded = temporary.path().join("arguments with spaces.txt");
+        let injected = temporary.path().join("injected");
+        let shell_text = "quotes-'\"' & | ; $(touch injected)";
+        let definition = test_definition(&["--record", recorded.to_str().unwrap(), shell_text]);
+
+        let result = probe_definition(&definition, &special, || {});
+
+        assert_eq!(result.state, HostToolProbeState::Success);
+        assert_eq!(fs::read_to_string(recorded).unwrap(), shell_text);
+        assert!(!injected.exists());
+    }
+
+    #[test]
+    fn failed_configuration_preserves_the_previous_valid_selection_and_hash_binding() {
+        let temporary = tempfile::tempdir().unwrap();
+        let store = HostPreferenceStore::new(temporary.path().join("preferences.json")).unwrap();
+        let helper = build_probe(temporary.path());
+        let configured = configure_host_tool(&store, "chdman", &helper).unwrap();
+        assert_eq!(configured.state, HostToolProbeState::Success);
+        assert!(configured.persisted);
+        let saved = store.host_tool_preference("chdman").unwrap().unwrap();
+
+        let missing = temporary.path().join(if cfg!(windows) {
+            "missing.exe"
+        } else {
+            "missing"
+        });
+        let rejected = configure_host_tool(&store, "chdman", &missing).unwrap();
+        assert_eq!(rejected.state, HostToolProbeState::Missing);
+        assert!(rejected.clear_action_available);
+        assert_eq!(store.host_tool_preference("chdman").unwrap(), Some(saved));
+
+        fs::write(&helper, b"changed after validation").unwrap();
+        let status =
+            resolve_with_environment(definition("chdman").unwrap(), Vec::new(), &store, None)
+                .unwrap();
+        assert_eq!(status.state, HostToolState::Misconfigured);
+        assert_eq!(status.source, Some(HostToolSource::Saved));
+    }
+
+    #[test]
+    fn preference_change_invalidates_a_completed_probe_before_persistence() {
+        let temporary = tempfile::tempdir().unwrap();
+        let store = HostPreferenceStore::new(temporary.path().join("preferences.json")).unwrap();
+        let helper = build_probe(temporary.path());
+        let concurrent = temporary.path().join(if cfg!(windows) {
+            "concurrent.exe"
+        } else {
+            "concurrent"
+        });
+        fs::copy(&helper, &concurrent).unwrap();
+        crate::permissions::normalize_archive_entry(&concurrent, false, true).unwrap();
+
+        let result = configure_host_tool_with_hooks(
+            &store,
+            "chdman",
+            &helper,
+            || {
+                let configured = configure_host_tool(&store, "chdman", &concurrent).unwrap();
+                assert!(configured.persisted);
+            },
+            || false,
+        )
+        .unwrap();
+
+        assert_eq!(result.state, HostToolProbeState::Invalid);
+        assert!(!result.persisted);
+        assert_eq!(store.host_tool_path("chdman").unwrap(), Some(concurrent));
+    }
+
+    #[test]
+    fn platform_rules_cover_every_supported_native_executable_shape() {
+        assert!(
+            validate_platform_path(Path::new("tools/chdman.exe"), Platform::WindowsX86_64).is_ok()
+        );
+        assert!(
+            validate_platform_path(Path::new("tools/chdman"), Platform::WindowsX86_64).is_err()
+        );
+        for platform in [
+            Platform::LinuxX86_64,
+            Platform::MacosX86_64,
+            Platform::MacosAarch64,
+        ] {
+            assert!(validate_platform_path(Path::new("tools/chdman"), platform).is_ok());
+            assert!(validate_platform_path(Path::new("tools/chdman.sh"), platform).is_err());
+        }
+    }
+
+    #[test]
     fn saved_path_precedes_discovery_and_invalid_saved_path_does_not_fall_back() {
         let temporary = tempfile::tempdir().unwrap();
         let store = HostPreferenceStore::new(temporary.path().join("preferences.json")).unwrap();
-        let saved = temporary.path().join("saved-tool");
-        let discovered = temporary.path().join("discovered-tool");
+        let suffix = if cfg!(windows) { ".exe" } else { "" };
+        let saved = temporary.path().join(format!("saved-tool{suffix}"));
+        let discovered = temporary.path().join(format!("discovered-tool{suffix}"));
         fs::write(&saved, b"saved").unwrap();
         fs::write(&discovered, b"discovered").unwrap();
-        store.set_host_tool_path("chdman", &saved).unwrap();
+        remember_test_selection(&store, "chdman", &saved);
         let selected = resolve("chdman", vec![discovered.clone()], &store).unwrap();
         assert_eq!(selected.path.as_deref(), Some(saved.as_path()));
         assert_eq!(selected.source, Some(HostToolSource::Saved));
@@ -371,11 +1289,12 @@ mod tests {
     fn environment_path_precedes_saved_and_invalid_environment_does_not_fall_back() {
         let temporary = tempfile::tempdir().unwrap();
         let store = HostPreferenceStore::new(temporary.path().join("preferences.json")).unwrap();
-        let saved = temporary.path().join("saved-tool");
-        let environment = temporary.path().join("environment-tool");
+        let suffix = if cfg!(windows) { ".exe" } else { "" };
+        let saved = temporary.path().join(format!("saved-tool{suffix}"));
+        let environment = temporary.path().join(format!("environment-tool{suffix}"));
         fs::write(&saved, b"saved").unwrap();
         fs::write(&environment, b"environment").unwrap();
-        store.set_host_tool_path("chdman", &saved).unwrap();
+        remember_test_selection(&store, "chdman", &saved);
         let selected = resolve_with_environment(
             definition("chdman").unwrap(),
             Vec::new(),

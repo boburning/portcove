@@ -223,7 +223,9 @@ fn host_tool_paths_persist_independently_and_clear_without_erasing_library_choic
     fs::create_dir(&library).unwrap();
     fs::write(&executable, b"tool").unwrap();
     store.set_library(&library).unwrap();
-    store.set_host_tool_path("chdman", &executable).unwrap();
+    store
+        .set_host_tool_path("chdman", &executable, &"0".repeat(64))
+        .unwrap();
 
     let restarted = HostPreferenceStore::new(temp.path().join("preferences.json")).unwrap();
     assert_eq!(
@@ -233,7 +235,7 @@ fn host_tool_paths_persist_independently_and_clear_without_erasing_library_choic
     assert!(restarted.load().unwrap().library_root.is_some());
     assert!(
         restarted
-            .set_host_tool_path("unknown", &executable)
+            .set_host_tool_path("unknown", &executable, &"0".repeat(64))
             .is_err()
     );
 

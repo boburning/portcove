@@ -2377,11 +2377,16 @@ mod tests {
     fn doctor_inspection_and_preparation_share_the_selected_tool_path() {
         let temporary = tempfile::tempdir().unwrap();
         let store = HostPreferenceStore::new(temporary.path().join("preferences.json")).unwrap();
-        let selected = temporary.path().join("selected-chdman");
-        let discovered = temporary.path().join("discovered-chdman");
+        let suffix = if cfg!(windows) { ".exe" } else { "" };
+        let selected = temporary.path().join(format!("selected-chdman{suffix}"));
+        let discovered = temporary.path().join(format!("discovered-chdman{suffix}"));
         std::fs::write(&selected, b"selected").unwrap();
         std::fs::write(&discovered, b"discovered").unwrap();
-        store.set_host_tool_path("chdman", &selected).unwrap();
+        crate::permissions::normalize_archive_entry(&selected, false, true).unwrap();
+        let fingerprint = hex::encode(Sha256::digest(std::fs::read(&selected).unwrap()));
+        store
+            .set_host_tool_path("chdman", &selected, &fingerprint)
+            .unwrap();
 
         let doctor = host_tool_statuses(&store)
             .unwrap()
