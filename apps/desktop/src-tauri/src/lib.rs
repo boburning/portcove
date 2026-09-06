@@ -2,6 +2,7 @@ mod catalog;
 mod diagnostics;
 mod library_selection;
 mod library_transfer;
+mod output_location;
 
 use std::{
     fs,
@@ -101,6 +102,25 @@ fn service(state: &DesktopState) -> DesktopResult<PortcoveService> {
     let state = ready(state)?;
     let releases: std::sync::Arc<dyn ReleaseProvider> = state.releases.clone();
     PortcoveService::with_provider(state.library.clone(), releases).map_err(Into::into)
+}
+
+fn service_at_generation(
+    state: &DesktopState,
+    expected_generation: u64,
+) -> DesktopResult<PortcoveService> {
+    require_library_generation(state_generation(state), expected_generation)?;
+    let service = service(state)?;
+    require_library_generation(state_generation(state), expected_generation)?;
+    Ok(service)
+}
+
+fn require_library_generation(actual: u64, expected: u64) -> DesktopResult<()> {
+    if actual == expected {
+        return Ok(());
+    }
+    Err(DesktopError::from(PortcoveError::conflict(
+        "the open library changed; review this storage location again",
+    )))
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1550,6 +1570,10 @@ pub fn run() {
             catalog::use_embedded_catalog,
             catalog::use_cached_catalog,
             get_statuses,
+            output_location::get_output_location,
+            output_location::preview_output_location,
+            output_location::set_output_location,
+            output_location::reset_output_location,
             get_sources,
             get_activities,
             cancel_operation,
@@ -1617,6 +1641,14 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn storage_commands_reject_a_stale_library_generation() {
+        assert!(require_library_generation(7, 7).is_ok());
+        let error = require_library_generation(8, 7).unwrap_err();
+        assert_eq!(error.code, portcove_core::ErrorCode::Conflict);
+        assert!(error.message.contains("open library changed"));
+    }
 
     #[test]
     fn launch_acceptance_can_arrive_after_the_former_five_minute_deadline() {

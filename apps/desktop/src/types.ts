@@ -424,6 +424,8 @@ export interface ResolvedRelease {
 
 export type InstallPlanAction = "already_active" | "use_staged" | "reuse_retained" | "blocked_unverified" | "download";
 export type OutputLocationSource = "request_override" | "port_setting" | "library_default";
+export type OutputDestinationAvailability = "available" | "full" | "unavailable";
+export type OutputDestinationOwnership = "library_default" | "unclaimed" | "owned_by_port" | "owned_by_another_port" | "unrelated_content" | "invalid" | "unknown";
 
 export interface PortOutputLocation {
   port_id: string;
@@ -433,6 +435,31 @@ export interface PortOutputLocation {
   effective_output_directory: string;
   selection_source: OutputLocationSource;
   user_data_root: string;
+}
+
+export interface OutputAffectedInstall {
+  install_id: string;
+  version: string;
+  path: string;
+  active: boolean;
+  previous: boolean;
+  staged: boolean;
+}
+
+export interface OutputDestinationPreview {
+  port_id: string;
+  current: PortOutputLocation;
+  proposed: PortOutputLocation;
+  reset_to_default: boolean;
+  availability: OutputDestinationAvailability;
+  ownership: OutputDestinationOwnership;
+  available_bytes: number | null;
+  total_bytes: number | null;
+  volume_identity: string | null;
+  validation_errors: string[];
+  affected_installs: OutputAffectedInstall[];
+  moves_existing_install: boolean;
+  preview_sha256: string;
 }
 
 export interface InstallPlan {
