@@ -1344,7 +1344,26 @@ fn source_set_member_path(root: &Path, accepted_filenames: &[String]) -> Result<
     Ok(matches.remove(0))
 }
 
-fn validate_psx_disc_source(profile: &SourceProfile, path: &Path) -> Result<SourceRecord> {
+#[derive(Debug, Clone)]
+pub(crate) struct ObservedOpticalDisc {
+    pub name: Option<String>,
+    pub sha1: String,
+    pub sha256: String,
+    pub size: u64,
+    pub track_count: u32,
+    pub volume_id: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ObservedDiscSource {
+    pub record: SourceRecord,
+    pub discs: Vec<ObservedOpticalDisc>,
+}
+
+pub(crate) fn observe_psx_disc_source(
+    profile: &SourceProfile,
+    path: &Path,
+) -> Result<ObservedDiscSource> {
     let disc = profile.disc.as_ref().ok_or_else(|| {
         PortcoveError::state(format!("{} is missing its disc identity", profile.id))
     })?;
@@ -1358,55 +1377,83 @@ fn validate_psx_disc_source(profile: &SourceProfile, path: &Path) -> Result<Sour
         .prefix("portcove-psx-")
         .tempdir_in(temporary_parent)
         .map_err(PortcoveError::from)?;
-    let mut normalized_sha256 = Vec::new();
+    let mut observations = Vec::with_capacity(paths.len());
+    let mut normalized_sha256 = Vec::with_capacity(paths.len());
     let mut normalized_size = 0_u64;
     for (index, source) in paths.iter().enumerate() {
         let output = temporary.path().join(format!("disc-{:02}", index + 1));
         let cue = materialize_psx_chd(source, &output)?;
         let (track_count, data_track) = inspect_psx_cue(&cue)?;
+        let (sha256, size) = hash_file(&data_track)?;
+        let sha1 = hash_file_sha1(&data_track)?;
+        let volume_id = inspect_psx_volume_id(&data_track).ok();
+        normalized_sha256.push(sha256.clone());
+        normalized_size = normalized_size.saturating_add(size);
+        observations.push(ObservedOpticalDisc {
+            name: source
+                .file_name()
+                .and_then(|value| value.to_str())
+                .map(str::to_owned),
+            sha1,
+            sha256,
+            size,
+            track_count,
+            volume_id,
+        });
+    }
+    let sha256 = aggregate_sha256(&normalized_sha256);
+    let (storage_sha256, storage_size) = source_storage_identity(path)?;
+    Ok(ObservedDiscSource {
+        record: SourceRecord {
+            profile_id: profile.id.clone(),
+            path: path.to_path_buf(),
+            sha256,
+            size: normalized_size,
+            storage_sha256,
+            storage_size,
+            updated_at: Library::now(),
+        },
+        discs: observations,
+    })
+}
+
+fn validate_psx_disc_source(profile: &SourceProfile, path: &Path) -> Result<SourceRecord> {
+    let observation = observe_psx_disc_source(profile, path)?;
+    let disc = profile.disc.as_ref().ok_or_else(|| {
+        PortcoveError::state(format!("{} is missing its disc identity", profile.id))
+    })?;
+    for (index, observed) in observation.discs.iter().enumerate() {
         let identity = disc.discs.get(index);
         let track_counts = identity
             .map(|entry| entry.track_counts.as_slice())
             .unwrap_or(&disc.track_counts);
-        if !track_counts.contains(&track_count) {
+        if !track_counts.contains(&observed.track_count) {
             let label = identity
                 .map(|entry| entry.label.as_str())
                 .unwrap_or(&profile.label);
             return Err(PortcoveError::source(format!(
-                "{label} has {track_count} tracks; expected one of {track_counts:?}"
+                "{label} has {} tracks; expected one of {track_counts:?}",
+                observed.track_count
             )));
         }
-        let (sha256, size) = hash_file(&data_track)?;
-        let needs_sha1 = identity.is_some_and(|entry| !entry.accepted_sha1.is_empty())
-            || (identity.is_none() && !profile.accepted_sha1.is_empty());
-        let sha1 = if needs_sha1 {
-            hash_file_sha1(&data_track)?
-        } else {
-            String::new()
-        };
-        let volume_id = inspect_required_psx_volume_id(identity, &data_track)?;
         if let Some(identity) = identity {
-            validate_disc_identity(identity, &sha1, &sha256, &volume_id)?;
+            validate_disc_identity(
+                identity,
+                &observed.sha1,
+                &observed.sha256,
+                observed.volume_id.as_deref().unwrap_or_default(),
+            )?;
         } else {
-            validate_source_hashes(profile, &sha1, &sha256)?;
+            validate_source_hashes(profile, &observed.sha1, &observed.sha256)?;
         }
-        normalized_sha256.push(sha256);
-        normalized_size = normalized_size.saturating_add(size);
     }
-    let sha256 = aggregate_sha256(&normalized_sha256);
-    let (storage_sha256, storage_size) = source_storage_identity(path)?;
-    Ok(SourceRecord {
-        profile_id: profile.id.clone(),
-        path: path.to_path_buf(),
-        sha256,
-        size: normalized_size,
-        storage_sha256,
-        storage_size,
-        updated_at: Library::now(),
-    })
+    Ok(observation.record)
 }
 
-fn validate_gamecube_disc_source(profile: &SourceProfile, path: &Path) -> Result<SourceRecord> {
+pub(crate) fn observe_gamecube_disc_source(
+    profile: &SourceProfile,
+    path: &Path,
+) -> Result<ObservedDiscSource> {
     if !path.is_file() {
         return Err(PortcoveError::source(format!(
             "GameCube source does not exist or is not a file: {}",
@@ -1448,17 +1495,39 @@ fn validate_gamecube_disc_source(profile: &SourceProfile, path: &Path) -> Result
         let (sha256, size) = hash_file(&iso)?;
         (sha256, hash_file_sha1(&iso)?, size)
     };
-    validate_source_hashes(profile, &sha1, &sha256)?;
     let (storage_sha256, storage_size) = hash_file(path)?;
-    Ok(SourceRecord {
-        profile_id: profile.id.clone(),
-        path: path.to_path_buf(),
-        sha256,
-        size,
-        storage_sha256,
-        storage_size,
-        updated_at: Library::now(),
+    Ok(ObservedDiscSource {
+        record: SourceRecord {
+            profile_id: profile.id.clone(),
+            path: path.to_path_buf(),
+            sha256: sha256.clone(),
+            size,
+            storage_sha256,
+            storage_size,
+            updated_at: Library::now(),
+        },
+        discs: vec![ObservedOpticalDisc {
+            name: path
+                .file_name()
+                .and_then(|value| value.to_str())
+                .map(str::to_owned),
+            sha1,
+            sha256,
+            size,
+            track_count: 1,
+            volume_id: None,
+        }],
     })
+}
+
+fn validate_gamecube_disc_source(profile: &SourceProfile, path: &Path) -> Result<SourceRecord> {
+    let observation = observe_gamecube_disc_source(profile, path)?;
+    let disc = observation
+        .discs
+        .first()
+        .ok_or_else(|| PortcoveError::state("GameCube inspection produced no disc"))?;
+    validate_source_hashes(profile, &disc.sha1, &disc.sha256)?;
+    Ok(observation.record)
 }
 
 fn materialize_gamecube_iso(source: &Path, destination: &Path) -> Result<()> {
@@ -2085,17 +2154,6 @@ fn inspect_psx_volume_id(data_track: &Path) -> Result<String> {
         "PS1 data track has no readable ISO 9660 volume identity: {}",
         data_track.display()
     )))
-}
-
-fn inspect_required_psx_volume_id(
-    identity: Option<&DiscIdentityProfile>,
-    data_track: &Path,
-) -> Result<String> {
-    if identity.is_some_and(|entry| !entry.accepted_volume_ids.is_empty()) {
-        inspect_psx_volume_id(data_track)
-    } else {
-        Ok(String::new())
-    }
 }
 
 fn read_zip_source(
@@ -2980,21 +3038,12 @@ mod tests {
     }
 
     #[test]
-    fn hash_only_psx_identity_does_not_require_an_iso_volume_label() {
+    fn psx_volume_inspection_rejects_a_track_without_an_iso_volume_label() {
         let temporary = tempfile::tempdir().unwrap();
         let path = temporary.path().join("hash-only.bin");
         std::fs::write(&path, b"a data track without an ISO 9660 descriptor").unwrap();
 
-        assert_eq!(inspect_required_psx_volume_id(None, &path).unwrap(), "");
-
-        let volume_identity = DiscIdentityProfile {
-            label: "volume-qualified disc".into(),
-            accepted_sha1: Vec::new(),
-            accepted_sha256: Vec::new(),
-            accepted_volume_ids: vec!["SCUS94491".into()],
-            track_counts: vec![1],
-        };
-        assert!(inspect_required_psx_volume_id(Some(&volume_identity), &path).is_err());
+        assert!(inspect_psx_volume_id(&path).is_err());
     }
 
     #[test]

@@ -11,9 +11,12 @@ use sha2::{Digest, Sha256};
 use crate::{
     Catalog, DigestIdentity, DigestScope, Library, PortcoveError, Result, SourceAdmission,
     SourceAdmissionMode, SourceAssessment, SourceClassification, SourceContractResult,
-    SourceIdentity, SourceRecord, SourceRejectionReason, SourceRepresentation,
+    SourceIdentity, SourceKind, SourceRecord, SourceRejectionReason, SourceRepresentation,
     SourceRepresentationKind,
-    adapter::aggregate_sha256,
+    adapter::{
+        ObservedDiscSource, ObservedOpticalDisc, aggregate_sha256, observe_gamecube_disc_source,
+        observe_psx_disc_source,
+    },
     source_file::{FileIdentity, HashBudget, read_identity},
 };
 
@@ -37,6 +40,7 @@ pub struct ObservedSourceDigest {
 #[serde(rename_all = "snake_case")]
 pub enum SourceComponentKind {
     FileSetMember,
+    OpticalDisc,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -244,6 +248,302 @@ pub(crate) fn inspect_file_set(
         record,
         message,
     })
+}
+
+pub(crate) fn inspect_disc(
+    catalog: &Catalog,
+    profile_id: &str,
+    path: &Path,
+) -> Result<SourceInspection> {
+    let legacy = catalog.source_profile(profile_id)?;
+    let observation = match legacy.kind {
+        SourceKind::GamecubeDisc => observe_gamecube_disc_source(legacy, path)?,
+        SourceKind::PsxDisc => observe_psx_disc_source(legacy, path)?,
+        _ => {
+            return Err(PortcoveError::state(format!(
+                "{profile_id} is not a specialized disc source"
+            )));
+        }
+    };
+    inspect_disc_observation(catalog, profile_id, path, observation)
+}
+
+fn inspect_disc_observation(
+    catalog: &Catalog,
+    profile_id: &str,
+    path: &Path,
+    observation: ObservedDiscSource,
+) -> Result<SourceInspection> {
+    let legacy = catalog.source_profile(profile_id)?;
+    let profile = catalog
+        .source_catalog()
+        .and_then(|source_catalog| {
+            source_catalog
+                .identities
+                .iter()
+                .find(|profile| profile.id == profile_id)
+        })
+        .ok_or_else(|| {
+            PortcoveError::state(format!("schema-2 source profile {profile_id} is missing"))
+        })?;
+    let components = if legacy.kind == SourceKind::PsxDisc {
+        observed_disc_components(&observation.discs)
+    } else {
+        Vec::new()
+    };
+    let observed_digests = observed_disc_aggregate_digests(legacy.kind, &observation);
+    let mut matches = Vec::new();
+    for variant in profile
+        .variants
+        .iter()
+        .filter(|variant| !variant.legacy_projection_only)
+    {
+        for representation in &variant.representations {
+            if disc_representation_matches(representation, path, &observation.discs) {
+                let candidate = SourceIdentity {
+                    game_id: profile.id.clone(),
+                    variant_id: variant.id.clone(),
+                    representation_id: representation.id.clone(),
+                };
+                if !matches.contains(&candidate) {
+                    matches.push(candidate);
+                }
+            }
+        }
+    }
+    let (classification, admission, record, message) = match matches.as_slice() {
+        [identity] => (
+            SourceClassification::Recognized {
+                identity: identity.clone(),
+            },
+            SourceAdmission::Admitted {
+                mode: SourceAdmissionMode::ExactIdentity,
+            },
+            Some(observation.record),
+            "source disc matches one exact schema-2 identity".into(),
+        ),
+        [] => (
+            SourceClassification::Unrecognized,
+            SourceAdmission::Rejected {
+                reason: SourceRejectionReason::KnownMismatch,
+            },
+            None,
+            format!("source disc is not a supported {} variant", legacy.label),
+        ),
+        many => (
+            SourceClassification::Ambiguous {
+                candidates: many.to_vec(),
+            },
+            SourceAdmission::Rejected {
+                reason: SourceRejectionReason::AmbiguousIdentity,
+            },
+            None,
+            "source disc matches more than one schema-2 identity".into(),
+        ),
+    };
+    Ok(SourceInspection {
+        profile_id: profile_id.into(),
+        path: path.into(),
+        observed_digests,
+        components,
+        assessment: SourceAssessment {
+            health: crate::SourceHealth::NotBaselined,
+            classification,
+            contract: SourceContractResult::NotEvaluated,
+            admission,
+            evidence: Vec::new(),
+        },
+        record,
+        message,
+    })
+}
+
+fn observed_disc_components(discs: &[ObservedOpticalDisc]) -> Vec<ObservedSourceComponent> {
+    let scope = if discs.len() == 1 {
+        DigestScope::PsxNormalizedTrackSet
+    } else {
+        DigestScope::DiscSetMember
+    };
+    discs
+        .iter()
+        .enumerate()
+        .map(|(index, disc)| ObservedSourceComponent {
+            id: format!("disc-{}", index + 1),
+            kind: SourceComponentKind::OpticalDisc,
+            name: disc.name.clone(),
+            digests: digest_pair(scope, disc.size, &disc.sha1, &disc.sha256),
+            size: disc.size,
+            track_count: Some(disc.track_count),
+            volume_id: disc.volume_id.clone(),
+        })
+        .collect()
+}
+
+fn observed_disc_aggregate_digests(
+    kind: SourceKind,
+    observation: &ObservedDiscSource,
+) -> Vec<ObservedSourceDigest> {
+    let mut values = if kind == SourceKind::GamecubeDisc {
+        observation
+            .discs
+            .first()
+            .map(|disc| {
+                digest_pair(
+                    DigestScope::GamecubeNormalizedIso,
+                    disc.size,
+                    &disc.sha1,
+                    &disc.sha256,
+                )
+            })
+            .unwrap_or_default()
+    } else if observation.discs.len() == 1 {
+        let disc = &observation.discs[0];
+        digest_pair(
+            DigestScope::PsxNormalizedTrackSet,
+            disc.size,
+            &disc.sha1,
+            &disc.sha256,
+        )
+    } else {
+        vec![ObservedSourceDigest {
+            algorithm: SourceDigestAlgorithm::Sha256,
+            scope: DigestScope::NormalizedContent,
+            value: observation.record.sha256.clone(),
+            size: observation.record.size,
+        }]
+    };
+    if observation.record.storage_sha256 != observation.record.sha256
+        || observation.record.storage_size != observation.record.size
+    {
+        values.push(ObservedSourceDigest {
+            algorithm: SourceDigestAlgorithm::Sha256,
+            scope: DigestScope::OriginalContainer,
+            value: observation.record.storage_sha256.clone(),
+            size: observation.record.storage_size,
+        });
+    }
+    values
+}
+
+fn disc_representation_matches(
+    representation: &SourceRepresentation,
+    path: &Path,
+    discs: &[ObservedOpticalDisc],
+) -> bool {
+    if !disc_extensions_match(representation, path, discs) {
+        return false;
+    }
+    match &representation.kind {
+        SourceRepresentationKind::GamecubeNormalizedIso { identities } => {
+            let [disc] = discs else { return false };
+            identities.iter().any(|identity| {
+                digest_identity_matches(
+                    identity,
+                    &digest_pair(
+                        DigestScope::GamecubeNormalizedIso,
+                        disc.size,
+                        &disc.sha1,
+                        &disc.sha256,
+                    ),
+                )
+            })
+        }
+        SourceRepresentationKind::OpticalTrackSet {
+            track_counts,
+            identities,
+        } => {
+            let [disc] = discs else { return false };
+            track_counts.contains(&disc.track_count)
+                && identities.iter().any(|identity| {
+                    digest_identity_matches(
+                        identity,
+                        &digest_pair(
+                            DigestScope::PsxNormalizedTrackSet,
+                            disc.size,
+                            &disc.sha1,
+                            &disc.sha256,
+                        ),
+                    )
+                })
+        }
+        SourceRepresentationKind::MultiDiscSet { discs: expected } => {
+            discs.len() == expected.len()
+                && expected.iter().zip(discs).all(|(expected, actual)| {
+                    expected.track_counts.contains(&actual.track_count)
+                        && (expected.volume_ids.is_empty()
+                            || actual.volume_id.as_ref().is_some_and(|actual| {
+                                expected
+                                    .volume_ids
+                                    .iter()
+                                    .any(|value| value.eq_ignore_ascii_case(actual))
+                            }))
+                        && (expected.identities.is_empty()
+                            || expected.identities.iter().any(|identity| {
+                                digest_identity_matches(
+                                    identity,
+                                    &digest_pair(
+                                        DigestScope::DiscSetMember,
+                                        actual.size,
+                                        &actual.sha1,
+                                        &actual.sha256,
+                                    ),
+                                )
+                            }))
+                })
+        }
+        SourceRepresentationKind::VolumeId {
+            values,
+            track_counts,
+        } => {
+            let [disc] = discs else { return false };
+            track_counts.contains(&disc.track_count)
+                && disc.volume_id.as_ref().is_some_and(|actual| {
+                    values
+                        .iter()
+                        .any(|expected| expected.eq_ignore_ascii_case(actual))
+                })
+        }
+        _ => false,
+    }
+}
+
+fn disc_extensions_match(
+    representation: &SourceRepresentation,
+    path: &Path,
+    discs: &[ObservedOpticalDisc],
+) -> bool {
+    if representation.extensions.is_empty() {
+        return true;
+    }
+    let matches = |name: &str| {
+        Path::new(name)
+            .extension()
+            .and_then(|value| value.to_str())
+            .is_some_and(|extension| {
+                representation
+                    .extensions
+                    .iter()
+                    .any(|expected| expected.eq_ignore_ascii_case(extension))
+            })
+    };
+    if path.is_file() {
+        return path.to_str().is_some_and(matches);
+    }
+    !discs.is_empty()
+        && discs
+            .iter()
+            .all(|disc| disc.name.as_deref().is_some_and(matches))
+}
+
+fn digest_pair(
+    scope: DigestScope,
+    size: u64,
+    sha1: &str,
+    sha256: &str,
+) -> Vec<ObservedSourceDigest> {
+    let mut values = Vec::with_capacity(2);
+    append_pair(&mut values, scope, size, sha1, sha256);
+    values
 }
 
 fn inspect_file_set_representation(
@@ -763,6 +1063,42 @@ mod tests {
         inspect_file(catalog, profile_id, path, u64::MAX, &mut budget).unwrap()
     }
 
+    fn observed_disc_source(
+        profile_id: &str,
+        path: &Path,
+        discs: Vec<ObservedOpticalDisc>,
+    ) -> ObservedDiscSource {
+        let hashes = discs
+            .iter()
+            .map(|disc| disc.sha256.clone())
+            .collect::<Vec<_>>();
+        let size = discs.iter().map(|disc| disc.size).sum();
+        let sha256 = aggregate_sha256(&hashes);
+        ObservedDiscSource {
+            record: SourceRecord {
+                profile_id: profile_id.into(),
+                path: path.into(),
+                sha256: sha256.clone(),
+                size,
+                storage_sha256: format!("storage-{sha256}"),
+                storage_size: size + 1,
+                updated_at: Library::now(),
+            },
+            discs,
+        }
+    }
+
+    fn optical_disc(name: &str, bytes: &[u8], tracks: u32) -> ObservedOpticalDisc {
+        ObservedOpticalDisc {
+            name: Some(name.into()),
+            sha1: hex::encode(Sha1::digest(bytes)),
+            sha256: hex::encode(Sha256::digest(bytes)),
+            size: bytes.len() as u64,
+            track_count: tracks,
+            volume_id: None,
+        }
+    }
+
     #[test]
     fn raw_file_digests_are_conjunctive_and_zip_storage_stays_separate() {
         let temporary = tempfile::tempdir().unwrap();
@@ -1026,6 +1362,185 @@ mod tests {
             }
         ));
         assert!(rejected.record.is_none());
+    }
+
+    #[test]
+    fn raw_gamecube_iso_is_observed_without_rewriting_the_selected_file() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("game.iso");
+        let bytes = b"synthetic normalized GameCube ISO";
+        fs::write(&path, bytes).unwrap();
+        let sha1 = hex::encode(Sha1::digest(bytes));
+        let sha256 = hex::encode(Sha256::digest(bytes));
+        let catalog = catalog_with_identity("animal-crossing-gamecube", |profile| {
+            let SourceRepresentationKind::GamecubeNormalizedIso { identities } =
+                &mut profile.variants[0].representations[0].kind
+            else {
+                panic!("Animal Crossing fixture is a normalized GameCube ISO")
+            };
+            identities[0].sha1 = Some(sha1);
+            identities[0].sha256 = Some(sha256);
+        });
+        let legacy = catalog.source_profile("animal-crossing-gamecube").unwrap();
+        let observed = observe_gamecube_disc_source(legacy, &path).unwrap();
+        let result =
+            inspect_disc_observation(&catalog, "animal-crossing-gamecube", &path, observed)
+                .unwrap();
+
+        assert!(matches!(
+            result.assessment.admission,
+            SourceAdmission::Admitted {
+                mode: SourceAdmissionMode::ExactIdentity
+            }
+        ));
+        assert!(result.components.is_empty());
+        assert!(result.observed_digests.iter().any(|digest| {
+            digest.algorithm == SourceDigestAlgorithm::Sha1
+                && digest.scope == DigestScope::GamecubeNormalizedIso
+        }));
+        assert_eq!(fs::read(path).unwrap(), bytes);
+    }
+
+    #[test]
+    fn psx_track_set_requires_one_conjunctive_identity_and_an_allowed_track_count() {
+        let path = Path::new("game.chd");
+        let disc = optical_disc("game.chd", b"normalized PSX data track", 17);
+        let catalog = catalog_with_identity("masters-of-teras-kasi-psx", |profile| {
+            let SourceRepresentationKind::OpticalTrackSet { identities, .. } =
+                &mut profile.variants[0].representations[0].kind
+            else {
+                panic!("Masters fixture is an optical track set")
+            };
+            identities[0].sha1 = Some(disc.sha1.clone());
+            identities[0].sha256 = Some(disc.sha256.clone());
+        });
+        let exact = inspect_disc_observation(
+            &catalog,
+            "masters-of-teras-kasi-psx",
+            path,
+            observed_disc_source("masters-of-teras-kasi-psx", path, vec![disc.clone()]),
+        )
+        .unwrap();
+        assert!(matches!(
+            exact.assessment.classification,
+            SourceClassification::Recognized { .. }
+        ));
+        assert_eq!(exact.components[0].track_count, Some(17));
+        assert!(exact.observed_digests.iter().any(|digest| {
+            digest.scope == DigestScope::PsxNormalizedTrackSet
+                && digest.algorithm == SourceDigestAlgorithm::Sha256
+        }));
+
+        let mismatch = catalog_with_identity("masters-of-teras-kasi-psx", |profile| {
+            let SourceRepresentationKind::OpticalTrackSet { identities, .. } =
+                &mut profile.variants[0].representations[0].kind
+            else {
+                unreachable!()
+            };
+            identities[0].sha1 = Some(disc.sha1.clone());
+            identities[0].sha256 = Some("0".repeat(64));
+        });
+        let rejected = inspect_disc_observation(
+            &mismatch,
+            "masters-of-teras-kasi-psx",
+            path,
+            observed_disc_source("masters-of-teras-kasi-psx", path, vec![disc.clone()]),
+        )
+        .unwrap();
+        assert!(matches!(
+            rejected.assessment.admission,
+            SourceAdmission::Rejected {
+                reason: SourceRejectionReason::KnownMismatch
+            }
+        ));
+
+        let mut wrong_tracks = disc;
+        wrong_tracks.track_count = 1;
+        let rejected = inspect_disc_observation(
+            &catalog,
+            "masters-of-teras-kasi-psx",
+            path,
+            observed_disc_source("masters-of-teras-kasi-psx", path, vec![wrong_tracks]),
+        )
+        .unwrap();
+        assert!(rejected.record.is_none());
+    }
+
+    #[test]
+    fn psx_multi_disc_matching_preserves_order_volume_ids_and_per_disc_facts() {
+        let path = Path::new("disc-set");
+        let mut discs = (1..=4)
+            .map(|index| optical_disc(&format!("disc-{index}.chd"), &[index as u8], 1))
+            .collect::<Vec<_>>();
+        for (disc, volume_id) in
+            discs
+                .iter_mut()
+                .zip(["SCUS94491", "SCUS94584", "SCUS94585", "SCUS94586"])
+        {
+            disc.volume_id = Some(volume_id.into());
+        }
+        let catalog = Catalog::embedded().unwrap();
+        let exact = inspect_disc_observation(
+            &catalog,
+            "legend-of-dragoon-usa",
+            path,
+            observed_disc_source("legend-of-dragoon-usa", path, discs.clone()),
+        )
+        .unwrap();
+        assert!(matches!(
+            exact.assessment.admission,
+            SourceAdmission::Admitted {
+                mode: SourceAdmissionMode::ExactIdentity
+            }
+        ));
+        assert_eq!(exact.components.len(), 4);
+        assert!(exact.components.iter().all(|component| {
+            component.kind == SourceComponentKind::OpticalDisc
+                && component.track_count == Some(1)
+                && component.volume_id.is_some()
+                && component
+                    .digests
+                    .iter()
+                    .all(|digest| digest.scope == DigestScope::DiscSetMember)
+        }));
+
+        discs.swap(0, 1);
+        let rejected = inspect_disc_observation(
+            &catalog,
+            "legend-of-dragoon-usa",
+            path,
+            observed_disc_source("legend-of-dragoon-usa", path, discs),
+        )
+        .unwrap();
+        assert!(matches!(
+            rejected.assessment.admission,
+            SourceAdmission::Rejected {
+                reason: SourceRejectionReason::KnownMismatch
+            }
+        ));
+
+        let volume_only = SourceRepresentation {
+            id: "volume-only".into(),
+            extensions: vec!["chd".into()],
+            kind: SourceRepresentationKind::VolumeId {
+                values: vec!["SCUS94491".into()],
+                track_counts: vec![1],
+            },
+            evidence_ids: Vec::new(),
+        };
+        let first = optical_disc("disc-1.chd", b"one", 1);
+        let mut first_with_volume = first.clone();
+        first_with_volume.volume_id = Some("scus94491".into());
+        assert!(disc_representation_matches(
+            &volume_only,
+            Path::new("disc-1.chd"),
+            &[first_with_volume]
+        ));
+        assert!(!disc_representation_matches(
+            &volume_only,
+            Path::new("disc-1.chd"),
+            &[first]
+        ));
     }
 
     #[test]
