@@ -7,15 +7,16 @@ use std::{
 use clap::{Args, Parser, Subcommand, ValueEnum, error::ErrorKind};
 use portcove_core::{
     API_SCHEMA_VERSION, ActivityRecord, AdoptionPreview, BackupAction, BackupActionPreview,
-    BackupInventory, BackupRecord, CapabilityDocument, CatalogDocument, DoctorReport, ErrorCode,
-    GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, GithubDeviceLoginState,
-    GithubReleaseProvider, HostPreferenceStore, IdentifiedLaunchRequest, InstallOverrides,
-    InstallPlan, InstallRecord, LaunchSignal, LaunchStdio, LibraryMetadata, LibraryMetadataFile,
-    OperationCoordinator, OperationEvent, OperationEventKind, PortDefinition, PortPaths,
-    PortRemovalPreview, PortStatus, PortcoveError, PortcoveService, ReconcileResult,
-    ReleaseChannel, RestoreResult, Result, SourceInspectionReport, SourceRecord, SourceRelinkPlan,
-    SourceRemovalPreview, SourceVerification, StorageSummary, UpdateCheck, UpdatePolicy,
-    UpdateSnapshot, forward_launch_signal,
+    BackupInventory, BackupRecord, CapabilityDocument, CatalogDocument, ChildProcessClass,
+    ChildProcessPolicy, DoctorReport, ErrorCode, GithubAuthStatus, GithubDeviceLogin,
+    GithubDeviceLoginResult, GithubDeviceLoginState, GithubReleaseProvider, HostPreferenceStore,
+    IdentifiedLaunchRequest, InstallOverrides, InstallPlan, InstallRecord, LaunchSignal,
+    LaunchStdio, LibraryMetadata, LibraryMetadataFile, OperationCoordinator, OperationEvent,
+    OperationEventKind, PortDefinition, PortPaths, PortRemovalPreview, PortStatus, PortcoveError,
+    PortcoveService, ReconcileResult, ReleaseChannel, RestoreResult, Result, SourceImportMode,
+    SourceInspectionReport, SourceRecord, SourceRelinkPlan, SourceRemovalPreview,
+    SourceVerification, StorageSummary, UpdateCheck, UpdatePolicy, UpdateSnapshot,
+    forward_launch_signal,
 };
 use schemars::{JsonSchema, schema_for};
 use serde::Serialize;
@@ -218,6 +219,11 @@ enum LibraryCommand {
 enum SourceCommand {
     /// Search only explicitly selected folders and profiles; never registers a candidate.
     Discover(SourceDiscoveryArgs),
+    /// Inspect and manage the profile-scoped Source Inbox.
+    Inbox {
+        #[command(subcommand)]
+        command: SourceInboxCommand,
+    },
     Add {
         profile_id: String,
         path: PathBuf,
@@ -244,6 +250,74 @@ enum SourceCommand {
         #[arg(long)]
         yes: bool,
     },
+}
+
+#[derive(Debug, Subcommand)]
+enum SourceInboxCommand {
+    /// Return the core-owned profile folder without changing it.
+    Path { profile_id: String },
+    /// Create the validated profile folder and show it in the system file manager.
+    Open { profile_id: String },
+    /// Scan only one profile folder; never registers an unresolved candidate.
+    Scan(SourceInboxScanArgs),
+    /// Review or apply a copy, explicit move, or current-location registration.
+    Import {
+        profile_id: String,
+        path: PathBuf,
+        #[arg(long, value_enum, default_value_t = SourceImportModeArg::Copy)]
+        mode: SourceImportModeArg,
+        #[arg(long, requires = "expected_plan")]
+        apply: bool,
+        #[arg(long, requires = "apply")]
+        expected_plan: Option<String>,
+        /// Confirm deletion of the original after a verified move publication.
+        #[arg(long)]
+        yes: bool,
+    },
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum SourceImportModeArg {
+    Copy,
+    Move,
+    UseCurrentLocation,
+}
+
+impl From<SourceImportModeArg> for SourceImportMode {
+    fn from(value: SourceImportModeArg) -> Self {
+        match value {
+            SourceImportModeArg::Copy => Self::Copy,
+            SourceImportModeArg::Move => Self::Move,
+            SourceImportModeArg::UseCurrentLocation => Self::UseCurrentLocation,
+        }
+    }
+}
+
+#[derive(Debug, Args)]
+struct SourceInboxScanArgs {
+    profile_id: String,
+    #[arg(long)]
+    max_entries: Option<u32>,
+    #[arg(long)]
+    max_depth: Option<u32>,
+    #[arg(long)]
+    max_file_bytes: Option<u64>,
+    #[arg(long)]
+    max_hash_bytes: Option<u64>,
+    #[arg(long)]
+    max_candidates: Option<u32>,
+}
+
+impl SourceInboxScanArgs {
+    fn limits(self) -> portcove_core::SourceDiscoveryLimits {
+        source_limits(
+            self.max_entries,
+            self.max_depth,
+            self.max_file_bytes,
+            self.max_hash_bytes,
+            self.max_candidates,
+        )
+    }
 }
 
 #[derive(Debug, Subcommand)]
@@ -286,18 +360,34 @@ struct SourceDiscoveryArgs {
 
 impl SourceDiscoveryArgs {
     fn request(self) -> portcove_core::SourceDiscoveryRequest {
-        let defaults = portcove_core::SourceDiscoveryLimits::default();
         portcove_core::SourceDiscoveryRequest {
             roots: self.roots,
             profile_ids: self.profiles,
-            limits: portcove_core::SourceDiscoveryLimits {
-                max_entries: self.max_entries.unwrap_or(defaults.max_entries),
-                max_depth: self.max_depth.unwrap_or(defaults.max_depth),
-                max_file_bytes: self.max_file_bytes.unwrap_or(defaults.max_file_bytes),
-                max_hash_bytes: self.max_hash_bytes.unwrap_or(defaults.max_hash_bytes),
-                max_candidates: self.max_candidates.unwrap_or(defaults.max_candidates),
-            },
+            limits: source_limits(
+                self.max_entries,
+                self.max_depth,
+                self.max_file_bytes,
+                self.max_hash_bytes,
+                self.max_candidates,
+            ),
         }
+    }
+}
+
+fn source_limits(
+    max_entries: Option<u32>,
+    max_depth: Option<u32>,
+    max_file_bytes: Option<u64>,
+    max_hash_bytes: Option<u64>,
+    max_candidates: Option<u32>,
+) -> portcove_core::SourceDiscoveryLimits {
+    let defaults = portcove_core::SourceDiscoveryLimits::default();
+    portcove_core::SourceDiscoveryLimits {
+        max_entries: max_entries.unwrap_or(defaults.max_entries),
+        max_depth: max_depth.unwrap_or(defaults.max_depth),
+        max_file_bytes: max_file_bytes.unwrap_or(defaults.max_file_bytes),
+        max_hash_bytes: max_hash_bytes.unwrap_or(defaults.max_hash_bytes),
+        max_candidates: max_candidates.unwrap_or(defaults.max_candidates),
     }
 }
 
@@ -791,6 +881,86 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 service.discover_sources_with_progress(&args.request(), progress_renderer(mode))?,
             )?;
         }
+        Commands::Source {
+            command: SourceCommand::Inbox { command },
+        } => match command {
+            SourceInboxCommand::Path { profile_id } => {
+                render_success(
+                    mode,
+                    "source.inbox.path",
+                    service.source_inbox_paths(Some(&profile_id))?,
+                )?;
+            }
+            SourceInboxCommand::Open { profile_id } => {
+                let paths = service.prepare_source_inbox_profile(&profile_id)?;
+                open_cli_directory(paths.profile.as_deref().ok_or_else(|| {
+                    PortcoveError::state("prepared Source Inbox has no profile path")
+                })?)?;
+                render_success(mode, "source.inbox.open", paths)?;
+            }
+            SourceInboxCommand::Scan(args) => {
+                let profile_id = args.profile_id.clone();
+                let limits = args.limits();
+                render_success(
+                    mode,
+                    "source.inbox.scan",
+                    service.scan_source_inbox_with_progress(
+                        &profile_id,
+                        &limits,
+                        progress_renderer(mode),
+                    )?,
+                )?;
+            }
+            SourceInboxCommand::Import {
+                profile_id,
+                path,
+                mode: import_mode,
+                apply,
+                expected_plan,
+                yes,
+            } => {
+                let import_mode = SourceImportMode::from(import_mode);
+                if !apply {
+                    render_success(
+                        mode,
+                        "source.inbox.import",
+                        service.plan_source_import(&profile_id, &path, import_mode)?,
+                    )?;
+                } else {
+                    let expected_plan = expected_plan
+                        .as_deref()
+                        .ok_or_else(|| PortcoveError::usage("--apply requires --expected-plan"))?;
+                    let authorization = if import_mode == SourceImportMode::Move {
+                        require_confirmation(
+                            &format!(
+                                "Move the original source for {profile_id} into its Source Inbox? The original is removed only after the verified Inbox copy is registered."
+                            ),
+                            yes,
+                            cli.non_interactive,
+                        )?;
+                        Some(
+                            service
+                                .authorize_source_move(&profile_id, &path, expected_plan)?
+                                .token,
+                        )
+                    } else {
+                        None
+                    };
+                    render_success(
+                        mode,
+                        "source.inbox.import",
+                        service.import_source_with_progress(
+                            &profile_id,
+                            &path,
+                            import_mode,
+                            expected_plan,
+                            authorization.as_deref(),
+                            progress_renderer(mode),
+                        )?,
+                    )?;
+                }
+            }
+        },
         Commands::Source {
             command:
                 SourceCommand::Add {
@@ -1606,6 +1776,22 @@ fn schema_document() -> serde_json::Value {
                 serde_json::json!(schema_for!(portcove_core::SourceDiscoveryLimit)),
             ),
             (
+                "source_inbox_paths",
+                serde_json::json!(schema_for!(portcove_core::SourceInboxPaths)),
+            ),
+            (
+                "source_inbox_resolution",
+                serde_json::json!(schema_for!(portcove_core::SourceInboxResolution)),
+            ),
+            (
+                "source_import_plan",
+                serde_json::json!(schema_for!(portcove_core::SourceImportPlan)),
+            ),
+            (
+                "source_import_result",
+                serde_json::json!(schema_for!(portcove_core::SourceImportResult)),
+            ),
+            (
                 "source_removal_preview",
                 serde_json::json!(schema_for!(SourceRemovalPreview)),
             ),
@@ -1890,6 +2076,24 @@ fn normalize_process_exit(code: Option<i32>) -> u8 {
     }
 }
 
+fn open_cli_directory(path: &std::path::Path) -> Result<()> {
+    #[cfg(target_os = "windows")]
+    let program = "explorer.exe";
+    #[cfg(target_os = "macos")]
+    let program = "open";
+    #[cfg(target_os = "linux")]
+    let program = "xdg-open";
+    ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, program)?
+        .arg(path)
+        .spawn()
+        .map_err(|error| {
+            PortcoveError::state(format!(
+                "could not open the Source Inbox with the system file manager: {error}"
+            ))
+        })?;
+    Ok(())
+}
+
 fn progress_renderer(mode: OutputMode) -> impl FnMut(OperationEvent) {
     move |event| match mode {
         OutputMode::Jsonl => println!(
@@ -2054,6 +2258,12 @@ fn command_name(command: &Commands) -> &'static str {
         Commands::Source { command } => match command {
             SourceCommand::Add { .. } => "source.add",
             SourceCommand::Discover(_) => "source.discover",
+            SourceCommand::Inbox { command } => match command {
+                SourceInboxCommand::Path { .. } => "source.inbox.path",
+                SourceInboxCommand::Open { .. } => "source.inbox.open",
+                SourceInboxCommand::Scan(_) => "source.inbox.scan",
+                SourceInboxCommand::Import { .. } => "source.inbox.import",
+            },
             SourceCommand::Relink { .. } => "source.relink",
             SourceCommand::List => "source.list",
             SourceCommand::Inspect { .. } => "source.inspect",
@@ -2441,7 +2651,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 32);
+        assert_eq!(capabilities.schema_version, 33);
         assert_eq!(
             capabilities.failure_isolated_batches,
             ["check", "reconcile", "update", "source.verify"]

@@ -22,7 +22,7 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":32,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":33,"ok":true,"command":"status","data":{},"error":null}
 ```
 
 Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for success, failure, or cancellation. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
@@ -140,6 +140,13 @@ single-use authorization and reports a verified registered copy with the exact
 retained-original path if cleanup fails. Lifecycle activity and SQLite schema 18
 allow interrupted imports to resume without duplicate registration.
 
+API schema 33 exposes Source Inbox paths, scans, import plans, and import
+execution through the CLI and desktop adapters. Both adapters preserve the
+core operation ID in progress events and final results. Opening the profile
+folder remains a host-integration action after core validates and creates the
+profile directory. A move requires a separately reviewed plan and explicit
+confirmation before the adapter grants the core's single-use authorization.
+
 Desktop inspection calls the same core method. Evidence navigation accepts only
 a stable evidence ID, resolves it from the active catalog, revalidates the stored
 immutable HTTPS URL at use, and then hands that URL to the operating system.
@@ -167,6 +174,11 @@ portcove --json output move <port-id> <path>
 portcove --json tool list
 portcove --json tool set-path <tool-id> <executable-path>
 portcove --json tool clear-path <tool-id>
+portcove --json source inbox path <profile-id>
+portcove --jsonl source inbox scan <profile-id>
+portcove --json source inbox import <profile-id> <path> --mode copy
+portcove --jsonl source inbox import <profile-id> <path> --mode copy --apply --expected-plan <sha256>
+portcove source inbox open <profile-id>
 portcove --json output move <port-id> <path> --apply --expected-plan <sha256> --yes
 portcove --json backup list <port-id>
 ```

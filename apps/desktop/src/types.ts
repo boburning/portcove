@@ -835,6 +835,71 @@ export interface SourceDiscoveryReport {
   issues_omitted: number;
 }
 
+export interface SourceInboxPaths {
+  root: string;
+  profile_id?: string;
+  profile?: string;
+}
+
+export type SourceInboxResolutionState = "registered" | "exact_match" | "approval_required" | "unresolved" | "conflict" | "incomplete";
+
+export interface SourceInboxCandidate {
+  inspection: SourceInspection;
+  automatically_reusable: boolean;
+}
+
+export interface SourceInboxScanStats {
+  entries_examined: number;
+  candidates_inspected: number;
+  hash_bytes: number;
+  symlinks_skipped: number;
+  limits_reached: SourceDiscoveryLimit[];
+  issues: SourceDiscoveryIssue[];
+  issues_omitted: number;
+}
+
+export interface SourceInboxResolution {
+  operation_id: string;
+  profile_id: string;
+  paths: SourceInboxPaths;
+  state: SourceInboxResolutionState;
+  selected?: SourceRecord;
+  candidates: SourceInboxCandidate[];
+  stats: SourceInboxScanStats;
+}
+
+export type SourceImportMode = "copy" | "move" | "use_current_location";
+export type SourceImportOutcome = "copied" | "moved" | "reused_existing" | "registered_current_location" | "copied_original_retained";
+export type SourceAdmissionMode = "exact_identity" | "structural_checks" | "informational_consent" | "upstream_validator";
+
+export interface SourceImportPlan {
+  schema_version: number;
+  profile_id: string;
+  mode: SourceImportMode;
+  source: SourceRecord;
+  admission_mode: SourceAdmissionMode;
+  destination: string;
+  destination_exists: boolean;
+  reuse_existing: boolean;
+  required_bytes: number;
+  existing_registration?: SourceRecord;
+  source_guard_sha256: string;
+  plan_sha256: string;
+}
+
+export interface SourceImportResult {
+  import_id: string;
+  profile_id: string;
+  mode: SourceImportMode;
+  outcome: SourceImportOutcome;
+  registered: SourceRecord;
+  copied: boolean;
+  original_deleted: boolean;
+  original_retained: boolean;
+  retained_original_path?: string;
+  recovered: boolean;
+}
+
 export type GithubAuthSource = "anonymous" | "environment" | "credential_store";
 
 export interface GithubAuthStatus {

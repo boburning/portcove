@@ -161,6 +161,14 @@ import defaults to copy, while use-current-location performs inspection and
 registration without copying. Deterministic digest-suffixed collision paths
 prevent an unrelated existing entry from being replaced.
 
+CLI and Tauri expose the same core-owned Source Inbox paths, profile scan,
+state-bound import plan, and transactional import result. Adapters may open a
+core-validated profile directory with the operating-system file manager and
+may collect move confirmation, but they do not choose destinations, classify
+candidates, copy bytes, grant reusable authorization, or write registrations.
+React retains only transient scan, plan-review, progress, and cancellation
+state.
+
 The versioned source-inspection report is the shared explanation boundary for CLI
 and desktop. It combines current health and observed facts with the complete
 expected profile, every dependent port contract, reviewed evidence metadata,

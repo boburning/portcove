@@ -1031,22 +1031,10 @@ fn digest_name(name: &str, storage_sha256: &str) -> String {
 }
 
 fn ensure_profile_directory(service: &PortcoveService, profile_id: &str) -> Result<PathBuf> {
-    let path = service.library().source_inbox_profile_dir(profile_id)?;
-    match fs::create_dir(&path) {
-        Ok(()) => {
-            crate::durability::sync_publication(service.library().source_inbox_dir().as_path())?
-        }
-        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
-            require_regular_source_shape(&path)?;
-            if !fs::symlink_metadata(&path)?.is_dir() {
-                return Err(PortcoveError::conflict(
-                    "profile Source Inbox path is not a directory",
-                ));
-            }
-        }
-        Err(error) => return Err(error.into()),
-    }
-    Ok(path)
+    service
+        .prepare_source_inbox_profile(profile_id)?
+        .profile
+        .ok_or_else(|| PortcoveError::state("prepared Source Inbox has no profile path"))
 }
 
 fn require_capacity(destination: &Path, required: u64) -> Result<()> {

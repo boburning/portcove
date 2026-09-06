@@ -59,6 +59,7 @@ pub struct SourceInboxScanStats {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SourceInboxResolution {
+    pub operation_id: String,
     pub profile_id: String,
     pub paths: SourceInboxPaths,
     pub state: SourceInboxResolutionState,
@@ -90,6 +91,35 @@ impl PortcoveService {
         })
     }
 
+    /// Create and validate one profile-scoped Inbox directory without opening it.
+    /// Host adapters remain responsible for asking the operating system to display it.
+    pub fn prepare_source_inbox_profile(&self, profile_id: &str) -> Result<SourceInboxPaths> {
+        let paths = self.source_inbox_paths(Some(profile_id))?;
+        let profile = paths
+            .profile
+            .as_ref()
+            .expect("a profile was requested for Source Inbox preparation");
+        match fs::create_dir(profile) {
+            Ok(()) => crate::durability::sync_publication(&paths.root)?,
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+            Err(error) => return Err(error.into()),
+        }
+        crate::path::refuse_symlink_ancestors(profile)?;
+        let metadata = fs::symlink_metadata(profile)?;
+        let canonical_root = fs::canonicalize(&paths.root)?;
+        let canonical_profile = fs::canonicalize(profile)?;
+        if !metadata.is_dir()
+            || metadata.file_type().is_symlink()
+            || !canonical_profile.starts_with(&canonical_root)
+        {
+            return Err(PortcoveError::conflict(
+                "the profile Source Inbox must be a real child directory",
+            )
+            .detail("profile_id", profile_id));
+        }
+        Ok(paths)
+    }
+
     /// Scan only the selected profile's deterministic inbox. This records an
     /// activity like explicit source discovery but never registers or mutates a source.
     pub fn scan_source_inbox(
@@ -97,16 +127,29 @@ impl PortcoveService {
         profile_id: &str,
         limits: &SourceDiscoveryLimits,
     ) -> Result<SourceInboxResolution> {
+        self.scan_source_inbox_with_progress(profile_id, limits, |_| {})
+    }
+
+    pub fn scan_source_inbox_with_progress<F>(
+        &self,
+        profile_id: &str,
+        limits: &SourceDiscoveryLimits,
+        mut emit: F,
+    ) -> Result<SourceInboxResolution>
+    where
+        F: FnMut(crate::OperationEvent),
+    {
         crate::source_discovery::validate_limits(limits)?;
         let (activity, operation) = self.begin_cancellable_activity(
             ActivityOperation::DiscoverSources,
             ActivityTargetKind::Source,
             Some(profile_id),
         )?;
-        self.finish_activity(
-            activity,
-            self.scan_source_inbox_untracked(profile_id, limits, &operation),
-        )
+        emit(operation.started());
+        let result = self.scan_source_inbox_untracked(profile_id, limits, &operation);
+        let result = self.finish_activity(activity, result);
+        emit(operation.finished(crate::OperationResult::from_result(&result)));
+        result
     }
 
     pub(crate) fn scan_source_inbox_untracked(
@@ -120,6 +163,7 @@ impl PortcoveService {
         if let Some(registered) = self.library().source(profile_id)? {
             self.verify_source_record(&registered)?;
             return Ok(SourceInboxResolution {
+                operation_id: operation.operation_id().into(),
                 profile_id: profile_id.into(),
                 paths,
                 state: SourceInboxResolutionState::Registered,
@@ -134,7 +178,11 @@ impl PortcoveService {
             .as_ref()
             .expect("a profile was requested for Source Inbox resolution");
         if !profile_path.try_exists()? {
-            return Ok(empty_resolution(profile_id, paths));
+            return Ok(empty_resolution(
+                profile_id,
+                paths,
+                operation.operation_id(),
+            ));
         }
         let profile_root = fs::canonicalize(profile_path)?;
         let inbox_root = fs::canonicalize(&paths.root)?;
@@ -166,8 +214,13 @@ impl PortcoveService {
     }
 }
 
-fn empty_resolution(profile_id: &str, paths: SourceInboxPaths) -> SourceInboxResolution {
+fn empty_resolution(
+    profile_id: &str,
+    paths: SourceInboxPaths,
+    operation_id: &str,
+) -> SourceInboxResolution {
     SourceInboxResolution {
+        operation_id: operation_id.into(),
         profile_id: profile_id.into(),
         paths,
         state: SourceInboxResolutionState::Unresolved,
@@ -333,6 +386,7 @@ impl InboxScan<'_> {
             }
         };
         Ok(SourceInboxResolution {
+            operation_id: self.operation.operation_id().into(),
             profile_id: profile_id.into(),
             paths,
             state,
