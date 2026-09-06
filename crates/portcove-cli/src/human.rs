@@ -3,8 +3,10 @@ use std::path::Path;
 use portcove_core::{
     ActivityRecord, BackupInventory, BackupInventoryState, BackupProblemKind, CapabilityDocument,
     DoctorReport, GithubAuthSource, GithubAuthStatus, HostToolSource, HostToolState, InstallPlan,
-    InstallPlanAction, LaunchBlocker, OutputLocationSource, Platform, PortDefinition, PortPaths,
-    PortStatus, RepairItemKind, SourceRecord, SourceRequirementRole, StorageSummary, SupportTier,
+    InstallPlanAction, LaunchBlocker, OutputDestinationAvailability, OutputDestinationOwnership,
+    OutputDestinationPreview, OutputLocationSource, Platform, PortDefinition, PortOutputLocation,
+    PortPaths, PortStatus, RepairItemKind, SourceRecord, SourceRequirementRole, StorageSummary,
+    SupportTier,
 };
 use serde::Serialize;
 use serde_json::Value;
@@ -386,6 +388,85 @@ pub(crate) fn paths(paths: &PortPaths) -> String {
         optional_path(paths.active_install_root.as_deref()),
         optional_path(paths.previous_install_root.as_deref()),
         optional_path(paths.staged_install_root.as_deref()),
+    )
+}
+
+pub(crate) fn output_location(location: &PortOutputLocation) -> String {
+    format!(
+        "Export / install folder for {}\nEffective: {} ({})\nSaved custom folder: {}\nLibrary default: {}\nExisting installs are not moved when this setting changes.",
+        clean(&location.port_id),
+        clean(&location.effective_output_directory.display().to_string()),
+        output_location_source(location.selection_source),
+        optional_path(location.configured_output_directory.as_deref()),
+        clean(&location.default_output_directory.display().to_string()),
+    )
+}
+
+pub(crate) fn output_preview(preview: &OutputDestinationPreview) -> String {
+    let availability = match preview.availability {
+        OutputDestinationAvailability::Available => "available",
+        OutputDestinationAvailability::Unavailable => "unavailable",
+    };
+    let ownership = match preview.ownership {
+        OutputDestinationOwnership::LibraryDefault => "library default",
+        OutputDestinationOwnership::Unclaimed => "unclaimed",
+        OutputDestinationOwnership::OwnedByPort => "owned by this game",
+        OutputDestinationOwnership::OwnedByAnotherPort => "owned by another game",
+        OutputDestinationOwnership::UnrelatedContent => "contains unrelated data",
+        OutputDestinationOwnership::Invalid => "invalid",
+        OutputDestinationOwnership::Unknown => "unknown",
+    };
+    let capacity = preview.available_bytes.map_or_else(
+        || "unavailable".into(),
+        |available| {
+            preview.total_bytes.map_or_else(
+                || format_bytes(available),
+                |total| {
+                    format!(
+                        "{} available of {}",
+                        format_bytes(available),
+                        format_bytes(total)
+                    )
+                },
+            )
+        },
+    );
+    let affected = if preview.affected_installs.is_empty() {
+        "none".into()
+    } else {
+        preview
+            .affected_installs
+            .iter()
+            .map(|install| clean(&install.path.display().to_string()))
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    let validation = if preview.validation_errors.is_empty() {
+        "safe to save".into()
+    } else {
+        preview
+            .validation_errors
+            .iter()
+            .map(|message| clean(message))
+            .collect::<Vec<_>>()
+            .join("; ")
+    };
+    format!(
+        "Export / install folder preview for {}\nProposed: {}\nAvailability: {}\nOwnership: {}\nCapacity: {}\nExisting installs: {}\nEffect: future placement only; existing installs will not move\nValidation: {}\nPreview fingerprint: {}",
+        clean(&preview.port_id),
+        clean(
+            &preview
+                .proposed
+                .effective_output_directory
+                .display()
+                .to_string()
+        ),
+        availability,
+        ownership,
+        capacity,
+        affected,
+        validation,
+        clean(&preview.preview_sha256),
     )
 }
 

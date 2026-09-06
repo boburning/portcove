@@ -923,6 +923,52 @@ pub struct PortOutputLocation {
     pub user_data_root: PathBuf,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum OutputDestinationAvailability {
+    Available,
+    Unavailable,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum OutputDestinationOwnership {
+    LibraryDefault,
+    Unclaimed,
+    OwnedByPort,
+    OwnedByAnotherPort,
+    UnrelatedContent,
+    Invalid,
+    Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct OutputAffectedInstall {
+    pub install_id: String,
+    pub version: String,
+    pub path: PathBuf,
+    pub active: bool,
+    pub previous: bool,
+    pub staged: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct OutputDestinationPreview {
+    pub port_id: String,
+    pub current: PortOutputLocation,
+    pub proposed: PortOutputLocation,
+    pub reset_to_default: bool,
+    pub availability: OutputDestinationAvailability,
+    pub ownership: OutputDestinationOwnership,
+    pub available_bytes: Option<u64>,
+    pub total_bytes: Option<u64>,
+    pub volume_identity: Option<String>,
+    pub validation_errors: Vec<String>,
+    pub affected_installs: Vec<OutputAffectedInstall>,
+    pub moves_existing_install: bool,
+    pub preview_sha256: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct PortPaths {
     pub port_id: String,
