@@ -4,6 +4,14 @@ Without a machine-output flag, Portcove renders concise human output. Catalog, s
 
 `--json` and `--jsonl` remain the stable automation surfaces and are byte-shape independent from human rendering. Use `--json catalog export` and `--json schema export` when consuming their full documents programmatically.
 
+The public CLI is the supported boundary for external frontends; the desktop is
+not required to run it. [External frontend integration](INTEGRATIONS.md) defines
+the launch-only, library, and lifecycle capability vocabulary, maintenance and
+support-record expectations, author path, and Steam/Steam Deck boundaries. This
+file documents current implemented behavior. Future completeness and
+compatibility gaps remain owned by #30 and are not shipped merely because they
+are described in the roadmap.
+
 Future eligibility/evidence and independent-definition work must use one core
 assessment across CLI, Tauri and integrations. Operation availability and reasons,
 publisher origin/trust, digest provenance, source compatibility and scoped test
@@ -89,6 +97,13 @@ portcove --json auth logout
 Automated frontends normally provide `PORTCOVE_GITHUB_TOKEN` in the child-process environment and avoid interactive auth commands. `auth status` reports only the credential source, GitHub login, and rate-limit headers; it never returns the token.
 
 Call `capabilities` rather than assuming commands or platforms. It reports both the machine `schema_version` and the running `product_version`; integrations should branch on advertised capabilities instead of parsing either version string. `raw_stream_commands` identifies commands such as `exec` that intentionally cannot use the advertised machine formats. Generate bindings from `schema export` when useful, and tolerate additive object fields within a schema version. Portcove's own desktop declarations are checked against that export by `just check-rust`, including all catalog adapters, shared enum values, and the top-level fields of transported DTOs.
+
+The current capability and schema mechanisms are an implemented foundation, not
+an eternal compatibility promise. Before V1, #30 must record and test the
+supported compatibility window, announced breaking-change and migration
+practice, unknown enum behavior, and any identities or operation readback still
+missing from an independent client's workflow. Alpha may make announced breaks;
+clients must negotiate rather than infer compatibility from a version string.
 
 `doctor` is a local, network-free, read-only host report. It returns the current platform, library capacity, catalog/installation/source counts, one typed entry for each optional host tool Portcove can use, and a repair plan. The repair plan reports partial lifecycle operations, cleanup-pending private trees, missing registered install paths, and untracked final directories; it proposes an action but never mutates or deletes them. Tool state is `available`, `missing`, or `misconfigured`; an available tool includes its resolved path and whether it came from an environment override or normal discovery. Missing optional tools do not fail the command because callers may never select a port or source format that needs them. An explicit but invalid `PORTCOVE_CHDMAN` or `PORTCOVE_DOLPHIN_TOOL` remains `misconfigured` instead of silently falling back to another executable. `status` and `doctor` never initialize missing per-port settings; their in-memory defaults come from the catalog, choosing stable when offered and otherwise the port's first declared channel. A later policy-only change persists that same catalog default.
 
