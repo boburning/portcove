@@ -269,16 +269,18 @@ export interface StorageSummary {
   volume_available_bytes: number;
 }
 
-export type HostToolState = "available" | "missing" | "misconfigured";
-export type HostToolSource = "environment" | "discovery";
+export type HostToolState = "available" | "missing" | "misconfigured" | "unsupported";
+export type HostToolSource = "environment" | "saved" | "discovery";
 
 export interface HostToolStatus {
   id: string;
+  display_name: string;
   state: HostToolState;
   path?: string;
   source?: HostToolSource;
   configuration_variable: string;
   purpose: string;
+  official_url: string;
 }
 
 export interface DoctorReport {

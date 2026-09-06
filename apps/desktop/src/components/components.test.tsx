@@ -164,13 +164,13 @@ describe("desktop components", () => {
       registered_source_count: 9,
       repair: { generated_at: 1, items: [] },
       host_tools: [{
-        id: "chdman", state: "available", path: "C:/Tools/chdman.exe", source: "discovery",
-        configuration_variable: "PORTCOVE_CHDMAN", purpose: "CHD validation and disc-image materialization",
+        id: "chdman", display_name: "chdman", state: "available", path: "C:/Tools/chdman.exe", source: "discovery",
+        configuration_variable: "PORTCOVE_CHDMAN", purpose: "CHD validation and disc-image materialization", official_url: "https://docs.mamedev.org/tools/chdman.html",
       }, {
-        id: "dolphin_tool", state: "misconfigured", path: "E:/Missing/DolphinTool.exe", source: "environment",
-        configuration_variable: "PORTCOVE_DOLPHIN_TOOL", purpose: "compressed GameCube validation and ISO materialization",
+        id: "dolphin_tool", display_name: "DolphinTool", state: "misconfigured", path: "E:/Missing/DolphinTool.exe", source: "environment",
+        configuration_variable: "PORTCOVE_DOLPHIN_TOOL", purpose: "compressed GameCube validation and ISO materialization", official_url: "https://dolphin-emu.org/download/",
       }, {
-        id: "future_tool", state: "missing", configuration_variable: "PORTCOVE_FUTURE_TOOL", purpose: "future source conversion",
+        id: "future_tool", display_name: "Future tool", state: "missing", configuration_variable: "PORTCOVE_FUTURE_TOOL", purpose: "future source conversion", official_url: "https://example.com/tool",
       }],
     }} />);
     expect(html).toContain("Source tools");

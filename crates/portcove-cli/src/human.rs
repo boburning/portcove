@@ -271,6 +271,7 @@ pub(crate) fn doctor(report: &DoctorReport) -> String {
                 host_tool_state(tool.state).into(),
                 tool.source.map_or("-".into(), |source| match source {
                     HostToolSource::Environment => "environment".into(),
+                    HostToolSource::Saved => "saved preference".into(),
                     HostToolSource::Discovery => "discovery".into(),
                 }),
                 tool.path
@@ -724,6 +725,7 @@ fn host_tool_state(state: HostToolState) -> &'static str {
         HostToolState::Available => "available",
         HostToolState::Missing => "missing",
         HostToolState::Misconfigured => "misconfigured",
+        HostToolState::Unsupported => "unsupported",
     }
 }
 
