@@ -32,9 +32,11 @@ node scripts/roadmap.mjs normalize-port --issue <number>
 
 Normalization preserves the submitted form content, rejects repository-wide
 duplicates, reconciles canonical identity markers, ensures exactly one Project
-item with neutral values only where fields are unset, classifies it as a Port,
-and attaches it beneath the Continuous Port Pipeline. Both intake paths produce
-the same durable issue and Project contract. Neither grants catalog support.
+item with neutral values only where fields are unset, and classifies it as a Port.
+Both intake paths preserve existing parent relationships and leave unparented
+issues unparented. Project membership defines the complete port inventory;
+the Continuous Port Pipeline coordinates the process without requiring every
+port as a child. Neither intake path grants catalog support.
 
 Include the direct upstream, why it matters, initial platform and source
 observations, artifact integrity, persistence boundary, adapter fit, and exact

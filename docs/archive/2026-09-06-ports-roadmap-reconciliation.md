@@ -2,6 +2,15 @@
 
 > Historical planning evidence, not a live roadmap, priority, status, catalog, or qualification authority. Read the [live Project](https://github.com/users/boburning/projects/1) and linked canonical issues for current scope and placement. This snapshot does not certify any artifact or authorize a new trust model.
 
+> **Approved follow-up — 2026-09-06:** Project membership with Work type = Port
+> defines the complete inventory. Parent links are optional; existing links are
+> preserved and #16 coordinates the process. The 62 unapplied parent edges recorded
+> in this original snapshot are no longer required under that decision. Their
+> issue notices were reconciled without adding, removing, or moving parents.
+> [PR #386](https://github.com/boburning/portcove/pull/386) records the intake-tooling
+> change, regression coverage, and validation. The original observations below
+> remain historical evidence, including the temporary API and validation limits.
+
 ## Scope and evidence
 
 - Planning owner: [#313](https://github.com/boburning/portcove/issues/313). Source document: `portcove-final-roadmap-codex-prompt-2026-09-06.md`, SHA-256 `55d87c1f54f8b58f6084e8eb0f8c9ed4f61e706faf11a9f7e48f969e428bdf50`. Its imperative implementation passages were treated as future requirements, not executed.

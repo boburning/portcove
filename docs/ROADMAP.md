@@ -327,6 +327,12 @@ framework, or planned game is not an additional implementation. Alternatives
 retain independent sources, installations, saves, and qualification. A working
 alternative does not resolve the original implementation's failure.
 
+The Port Pipeline Project view is the complete port inventory, with one canonical
+issue per independent port. #16 coordinates the ongoing process; its child list
+is historical organization rather than an exhaustive inventory. Parent groups
+are optional and useful for bounded outcomes. Intake preserves existing links
+and does not require a parent or create numbered overflow workstreams.
+
 Schedule bounded source/setup, process ownership, and package-assembly work
 around demonstrated reusable needs. An investigation may proceed while an
 affected operation remains blocked. Legacy artifact acquisition requires its

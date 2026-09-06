@@ -39,8 +39,9 @@ GitHub reserves the field name `Type` for its own item-type filter, so the live
 single-select field is named `Work type`. It carries the exact requested Type
 options and is the field referred to as “Type” in historical planning material.
 
-Issue relationships and sub-issues express dependencies. Do not copy blockers
-into a free-text Project field.
+Explicit blocking relationships express dependencies. Sub-issues organize work
+but do not imply blockers by themselves. Do not copy blockers into a free-text
+Project field.
 
 ## Port-stage contract
 
@@ -100,15 +101,16 @@ exactly one durable GitHub issue. Shared engineering and family issues may
 coordinate several ports but never replace their individual issues.
 
 `capture-port` creates the repository issue immediately, adds it to the Project,
-attaches it beneath #16, and initializes neutral Watchlist fields. A public New
+and initializes neutral Watchlist fields. A public New
 Port form submission enters the same contract when a maintainer runs
 `normalize-port --issue <number>`. Normalization preserves contributor content,
 requires the canonical `[Port]` title plus direct-upstream and lowercase
 kebab-case game/target-key sections, rejects repository-wide duplicate catalog
 IDs, keys, punctuation-normalized titles, and upstream/target identities,
 reconciles one marker set, ensures one Project item, sets Work type to Port,
-fills neutral values only where fields are unset, and attaches the issue beneath
-#16. It is repeatable and never changes catalog support.
+and fills neutral values only where fields are unset. Both intake paths preserve
+existing parent relationships and leave unparented issues unparented.
+Normalization is repeatable and never changes catalog support.
 
 A port issue owns its direct upstream,
 title identity, catalog ID when assigned, durable game/target key when it is a
@@ -117,8 +119,15 @@ contract, setup boundary, persistent data, adapter dependencies, stage evidence,
 and resume condition, automated and manual qualification, and completion
 evidence. The live Port stage remains only in the Project; generated issue text
 records its initial Watchlist state without copying mutable authority. The
-Continuous Port Pipeline is a parent workstream only. Project
-drafts remain available for fleeting non-port ideas.
+Continuous Port Pipeline (#16) coordinates the process and links to the complete
+Port Pipeline Project view. Project membership with Work type = Port defines
+the inventory; a missing parent is not missing intake or incomplete support.
+Existing parent links remain as historical organization. Optional parent groups
+should represent bounded work with a meaningful completion condition, not
+numbered overflow batches or a second inventory. Parentage alone does not create
+a blocking dependency or release commitment. Intake must not depend on #16's
+child capacity, move existing parents, or create overflow workstreams.
+Project drafts remain available for fleeting non-port ideas.
 
 A promoted draft or port implementation issue must state:
 
