@@ -21,8 +21,10 @@ use portcove_core::{
     InstallRecord, LaunchStdio, Library, LibraryMetadataFile, LibrarySelection,
     LibrarySelectionSource, OperationCoordinator, OperationEvent, OperationResult, PortStatus,
     PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel, ReleaseProvider,
-    RestoreResult, SourceInspectionReport, SourceRecord, SourceRelinkPlan, SourceRemovalPreview,
-    SourceVerification, UpdateCheck, UpdatePolicy, VerificationReport,
+    RestoreResult, SourceDiscoveryLimits, SourceImportMode, SourceImportPlan, SourceImportResult,
+    SourceInboxPaths, SourceInboxResolution, SourceInspectionReport, SourceRecord,
+    SourceRelinkPlan, SourceRemovalPreview, SourceVerification, UpdateCheck, UpdatePolicy,
+    VerificationReport,
 };
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
@@ -719,6 +721,176 @@ async fn discover_sources(
             .map_err(Into::into)
     })
     .await
+}
+
+#[tauri::command]
+async fn get_source_inbox_paths(
+    state: tauri::State<'_, DesktopState>,
+    profile_id: String,
+) -> DesktopResult<SourceInboxPaths> {
+    blocking_service(state.inner().clone(), move |service| {
+        service
+            .source_inbox_paths(Some(&profile_id))
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn open_source_inbox(
+    state: tauri::State<'_, DesktopState>,
+    profile_id: String,
+) -> DesktopResult<SourceInboxPaths> {
+    blocking_service(state.inner().clone(), move |service| {
+        let paths = service.prepare_source_inbox_profile(&profile_id)?;
+        open_directory(
+            paths
+                .profile
+                .as_deref()
+                .ok_or_else(|| PortcoveError::state("prepared Source Inbox has no profile path"))?,
+        )?;
+        Ok(paths)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn scan_source_inbox(
+    state: tauri::State<'_, DesktopState>,
+    profile_id: String,
+    limits: SourceDiscoveryLimits,
+    on_event: tauri::ipc::Channel<OperationEvent>,
+) -> DesktopResult<SourceInboxResolution> {
+    blocking_service(state.inner().clone(), move |service| {
+        scan_source_inbox_for(&service, &profile_id, &limits, |event| {
+            let _ = on_event.send(event);
+        })
+    })
+    .await
+}
+
+fn scan_source_inbox_for<F>(
+    service: &PortcoveService,
+    profile_id: &str,
+    limits: &SourceDiscoveryLimits,
+    emit: F,
+) -> DesktopResult<SourceInboxResolution>
+where
+    F: FnMut(OperationEvent),
+{
+    service
+        .scan_source_inbox_with_progress(profile_id, limits, emit)
+        .map_err(Into::into)
+}
+
+#[tauri::command]
+async fn plan_source_import(
+    state: tauri::State<'_, DesktopState>,
+    profile_id: String,
+    path: PathBuf,
+    mode: SourceImportMode,
+) -> DesktopResult<SourceImportPlan> {
+    blocking_service(state.inner().clone(), move |service| {
+        plan_source_import_for(&service, &profile_id, &path, mode)
+    })
+    .await
+}
+
+fn plan_source_import_for(
+    service: &PortcoveService,
+    profile_id: &str,
+    path: &Path,
+    mode: SourceImportMode,
+) -> DesktopResult<SourceImportPlan> {
+    service
+        .plan_source_import(profile_id, path, mode)
+        .map_err(Into::into)
+}
+
+#[tauri::command]
+async fn import_source(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, DesktopState>,
+    profile_id: String,
+    path: PathBuf,
+    mode: SourceImportMode,
+    expected_plan: String,
+    on_event: tauri::ipc::Channel<OperationEvent>,
+) -> DesktopResult<Option<SourceImportResult>> {
+    if mode == SourceImportMode::Move {
+        let reviewed = blocking_service(state.inner().clone(), {
+            let profile_id = profile_id.clone();
+            let path = path.clone();
+            move |service| plan_source_import_for(&service, &profile_id, &path, mode)
+        })
+        .await?;
+        if reviewed.plan_sha256 != expected_plan {
+            return Err(PortcoveError::conflict(
+                "the source import changed after review; review the move again",
+            )
+            .into());
+        }
+        if !confirm_destructive(
+            &app,
+            "Move original source",
+            format!(
+                "Move the original source for {profile_id} into its Source Inbox?\n\nPortcove removes the original only after the Inbox copy is verified and registered."
+            ),
+            "Move source",
+        )
+        .await
+        {
+            return Ok(None);
+        }
+    }
+    blocking_service(state.inner().clone(), move |service| {
+        import_source_for(
+            &service,
+            &profile_id,
+            &path,
+            mode,
+            &expected_plan,
+            mode == SourceImportMode::Move,
+            |event| {
+                let _ = on_event.send(event);
+            },
+        )
+        .map(Some)
+    })
+    .await
+}
+
+fn import_source_for<F>(
+    service: &PortcoveService,
+    profile_id: &str,
+    path: &Path,
+    mode: SourceImportMode,
+    expected_plan: &str,
+    authorize_move: bool,
+    emit: F,
+) -> DesktopResult<SourceImportResult>
+where
+    F: FnMut(OperationEvent),
+{
+    let authorization = if authorize_move && mode == SourceImportMode::Move {
+        Some(
+            service
+                .authorize_source_move(profile_id, path, expected_plan)?
+                .token,
+        )
+    } else {
+        None
+    };
+    service
+        .import_source_with_progress(
+            profile_id,
+            path,
+            mode,
+            expected_plan,
+            authorization.as_deref(),
+            emit,
+        )
+        .map_err(Into::into)
 }
 
 #[tauri::command]
@@ -1736,6 +1908,11 @@ pub fn run() {
             reconcile_installed,
             add_source,
             discover_sources,
+            get_source_inbox_paths,
+            open_source_inbox,
+            scan_source_inbox,
+            plan_source_import,
+            import_source,
             preview_source_removal,
             remove_source,
             set_channel,
@@ -1907,6 +2084,80 @@ mod tests {
             serde_json::to_value(desktop).unwrap(),
             serde_json::to_value(core).unwrap()
         );
+    }
+
+    #[test]
+    fn desktop_source_inbox_adapters_preserve_core_results_and_activity_ids() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let profile = "opengoal-jak1-disc";
+
+        let mut scan_events = Vec::new();
+        let scan = scan_source_inbox_for(
+            &service,
+            profile,
+            &SourceDiscoveryLimits::default(),
+            |event| scan_events.push(event),
+        )
+        .unwrap();
+        assert_eq!(scan_events[0].operation_id, scan.operation_id);
+        assert_eq!(
+            library
+                .activities(10)
+                .unwrap()
+                .into_iter()
+                .find(|activity| activity.id == scan.operation_id)
+                .unwrap()
+                .operation,
+            portcove_core::ActivityOperation::DiscoverSources
+        );
+
+        let source = temporary.path().join("selected.iso");
+        fs::write(&source, b"desktop adapter source import").unwrap();
+        let core_plan = service
+            .plan_source_import(profile, &source, SourceImportMode::Copy)
+            .unwrap();
+        let desktop_plan =
+            plan_source_import_for(&service, profile, &source, SourceImportMode::Copy).unwrap();
+        assert_eq!(
+            serde_json::to_value(&desktop_plan).unwrap(),
+            serde_json::to_value(&core_plan).unwrap()
+        );
+        let mut import_events = Vec::new();
+        let imported = import_source_for(
+            &service,
+            profile,
+            &source,
+            SourceImportMode::Copy,
+            &desktop_plan.plan_sha256,
+            false,
+            |event| import_events.push(event),
+        )
+        .unwrap();
+        assert_eq!(import_events[0].operation_id, imported.import_id);
+        assert_eq!(
+            library.source(profile).unwrap().unwrap().path,
+            imported.registered.path
+        );
+
+        let move_source = temporary.path().join("move.iso");
+        fs::write(&move_source, b"desktop unauthorized move").unwrap();
+        let move_plan = service
+            .plan_source_import(profile, &move_source, SourceImportMode::Move)
+            .unwrap();
+        let error = import_source_for(
+            &service,
+            profile,
+            &move_source,
+            SourceImportMode::Move,
+            &move_plan.plan_sha256,
+            false,
+            |_| {},
+        )
+        .unwrap_err();
+        assert_eq!(error.code, portcove_core::ErrorCode::Conflict);
+        assert!(move_source.exists());
     }
 
     #[test]

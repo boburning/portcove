@@ -125,4 +125,4 @@ pub use source_report::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 32;
+pub const API_SCHEMA_VERSION: u32 = 33;

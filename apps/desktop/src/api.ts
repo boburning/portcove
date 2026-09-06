@@ -2,7 +2,7 @@ import type { CatalogStatus, CatalogUpdatePlan, CatalogUpdateSource } from "./ty
 import { Channel, invoke } from "@tauri-apps/api/core";
 import type { CancellationState, OperationEvent } from "./types";
 import type { LibraryImportPlan, LibraryImportResult, LibraryMovePlan, LibraryMoveResult } from "./types";
-import type { SourceDiscoveryRequest, SourceDiscoveryReport } from "./types";
+import type { SourceDiscoveryLimits, SourceDiscoveryRequest, SourceDiscoveryReport, SourceImportMode, SourceImportPlan, SourceImportResult, SourceInboxPaths, SourceInboxResolution } from "./types";
 import type { ActivityRecord, AdoptionPreview, BackupInventory, BackupRecord, BootstrapStatus, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, HostToolProbeResult, HostToolStatus, InstallPlan, InstallRecord, LibraryMetadataFile, OutputDestinationPreview, OutputRelocationPlan, OutputRelocationResult, OutputRelocationStatus, PortOutputLocation, PortStatus, ReconcileOutcome, ReleaseChannel, RestoreResult, SourceInspectionReport, SourceRecord, SourceRelinkPlan, SourceRemovalPreview, SourceVerificationOutcome, UpdateCheck, UpdateCheckOutcome, UpdatePolicy } from "./types";
 
 export const desktopApi = {
@@ -48,6 +48,19 @@ export const desktopApi = {
     const channel = new Channel<OperationEvent>();
     channel.onmessage = event => onEvent?.(event);
     return invoke<SourceDiscoveryReport>("discover_sources", { request, onEvent: channel });
+  },
+  sourceInboxPaths: (profileId: string) => invoke<SourceInboxPaths>("get_source_inbox_paths", { profileId }),
+  openSourceInbox: (profileId: string) => invoke<SourceInboxPaths>("open_source_inbox", { profileId }),
+  scanSourceInbox: (profileId: string, limits: SourceDiscoveryLimits, onEvent?: (event: OperationEvent) => void) => {
+    const channel = new Channel<OperationEvent>();
+    channel.onmessage = event => onEvent?.(event);
+    return invoke<SourceInboxResolution>("scan_source_inbox", { profileId, limits, onEvent: channel });
+  },
+  planSourceImport: (profileId: string, path: string, mode: SourceImportMode) => invoke<SourceImportPlan>("plan_source_import", { profileId, path, mode }),
+  importSource: (profileId: string, path: string, mode: SourceImportMode, expectedPlan: string, onEvent?: (event: OperationEvent) => void) => {
+    const channel = new Channel<OperationEvent>();
+    channel.onmessage = event => onEvent?.(event);
+    return invoke<SourceImportResult | null>("import_source", { profileId, path, mode, expectedPlan, onEvent: channel });
   },
   planSourceRelink: (profileId: string, path: string) => invoke<SourceRelinkPlan>("plan_source_relink", { profileId, path }),
   relinkSource: (profileId: string, path: string, previewSha256: string) => invoke<SourceRecord>("relink_source", { profileId, path, previewSha256 }),
