@@ -42,6 +42,7 @@ mod source_assessment;
 mod source_catalog;
 mod source_discovery;
 mod source_file;
+mod source_import;
 mod source_inbox;
 mod source_inspection;
 mod source_report;
@@ -106,6 +107,9 @@ pub use source_discovery::{
     SourceDiscoveryIssue, SourceDiscoveryLimit, SourceDiscoveryLimits, SourceDiscoveryReport,
     SourceDiscoveryRequest,
 };
+pub use source_import::{
+    SourceImportMode, SourceImportOutcome, SourceImportPlan, SourceImportResult,
+};
 pub use source_inbox::{
     SourceInboxCandidate, SourceInboxPaths, SourceInboxResolution, SourceInboxResolutionState,
     SourceInboxScanStats,
@@ -121,4 +125,4 @@ pub use source_report::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 31;
+pub const API_SCHEMA_VERSION: u32 = 32;

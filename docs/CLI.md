@@ -22,7 +22,7 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":31,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":32,"ok":true,"command":"status","data":{},"error":null}
 ```
 
 Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for success, failure, or cancellation. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
@@ -131,6 +131,14 @@ movable content root; format-1 Alpha 1 exports remain importable and represent
 an empty Source Inbox. Core scans only one profile directory at a time, returns
 typed exact, approval-required, conflict, incomplete, and unresolved states,
 and reuses a candidate during install only after one exact match is rechecked.
+
+API schema 32 adds the core source-import plan and result contracts. A plan
+binds the inspected identity, filesystem objects, current registration, chosen
+Source Inbox destination, capacity requirement, and copy, move, or
+use-current-location mode. Copy is non-destructive. Move consumes a separate
+single-use authorization and reports a verified registered copy with the exact
+retained-original path if cleanup fails. Lifecycle activity and SQLite schema 18
+allow interrupted imports to resume without duplicate registration.
 
 Desktop inspection calls the same core method. Evidence navigation accepts only
 a stable evidence ID, resolves it from the active catalog, revalidates the stored

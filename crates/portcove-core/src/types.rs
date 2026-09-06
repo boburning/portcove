@@ -370,7 +370,7 @@ pub struct SourceVerification {
     pub storage_size: u64,
     pub registered_at: i64,
     pub verified_at: i64,
-    /// Complete current inspection under API schema 31. This is read-only and
+    /// Complete current inspection under API schema 32. This is read-only and
     /// never replaces the registration baseline.
     pub inspection: crate::SourceInspectionReport,
 }
@@ -508,6 +508,7 @@ impl FromStr for ActivityTargetKind {
 pub enum ActivityOperation {
     UpdateCatalog,
     DiscoverSources,
+    ImportSource,
     ImportLibrary,
     MoveLibrary,
     RelocateOutput,
@@ -535,6 +536,7 @@ impl std::fmt::Display for ActivityOperation {
             Self::UpdateCatalog => "update_catalog",
             Self::ImportLibrary => "import_library",
             Self::DiscoverSources => "discover_sources",
+            Self::ImportSource => "import_source",
             Self::MoveLibrary => "move_library",
             Self::RelocateOutput => "relocate_output",
             Self::Launch => "launch",
@@ -565,6 +567,7 @@ impl FromStr for ActivityOperation {
             "update_catalog" => Ok(Self::UpdateCatalog),
             "import_library" => Ok(Self::ImportLibrary),
             "discover_sources" => Ok(Self::DiscoverSources),
+            "import_source" => Ok(Self::ImportSource),
             "move_library" => Ok(Self::MoveLibrary),
             "relocate_output" => Ok(Self::RelocateOutput),
             "launch" => Ok(Self::Launch),

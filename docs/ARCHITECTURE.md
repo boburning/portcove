@@ -138,6 +138,16 @@ Schema 16 adds the reviewed relocation plan to the existing lifecycle journal. C
 
 Schema 17 adds an optional format-1 observed-identity document to each source registration while preserving `profile_id` as the registration key. New registration and relink writes retain versioned digest scopes, safe selected ZIP-member names, file-set or disc components, and validator observations. Existing rows remain usable with no structured observation, which means not evaluated rather than an inferred variant. Verification, install, and launch inspect current bytes through the shared source inspector; stored facts remain the registration baseline and never become a cached admission verdict. Catalog changes therefore neither rewrite source rows nor leave an old classification authoritative. Library metadata format 1 carries the same optional document without source payloads, and imports validate it before hydration.
 
+Schema 18 adds a reviewed source-import plan to the lifecycle journal. Copy and
+move stage into an operation-private directory on the Source Inbox volume,
+reinspect both the selected original and staged bytes, publish by same-volume
+rename, and then register the published path. Move additionally requires a
+single-use state-bound authorization and quarantines the still-matching original
+beside its old path only after registration commits. An interrupted operation is
+resumed from its durable phase at startup. If original cleanup cannot complete,
+the verified Inbox copy stays registered and the result reports the exact
+retained path rather than claiming a move.
+
 The Source Inbox is the core-owned `source-inbox/<profile-id>` tree inside the
 movable library. Profile IDs pass one conservative ASCII portable-component
 policy, case aliases and symlink ancestors fail closed, and every scan stays
@@ -146,7 +156,10 @@ typed exact, approval-required, ambiguous, incomplete, or unresolved results.
 Only one exact result may be rechecked and registered when install needs that
 profile; a saved registration retains precedence. Library metadata format 2
 adds the Source Inbox as a reviewed movable content root. Format-1 Alpha 1
-metadata remains readable and has no implied Source Inbox content.
+metadata remains readable and has no implied Source Inbox content. Explicit
+import defaults to copy, while use-current-location performs inspection and
+registration without copying. Deterministic digest-suffixed collision paths
+prevent an unrelated existing entry from being replaced.
 
 The versioned source-inspection report is the shared explanation boundary for CLI
 and desktop. It combines current health and observed facts with the complete
