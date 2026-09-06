@@ -32,16 +32,30 @@ const ref = process.env.RETCOMM_CATALOG_REF ?? "main";
 const rawHeaders = { "User-Agent": "Portcove-RetComM-upstream-audit" };
 
 async function loadRetcommTitle(titleId) {
+  const relativeCandidates = [
+    join("titles", "psx", `${titleId}.json`),
+    join("titles", `${titleId}.json`),
+  ];
   if (localCatalogDir) {
-    return JSON.parse(await readFile(join(localCatalogDir, "titles", `${titleId}.json`), "utf8"));
+    for (const relative of relativeCandidates) {
+      try {
+        return JSON.parse(await readFile(join(localCatalogDir, relative), "utf8"));
+      } catch (error) {
+        if (error.code !== "ENOENT") throw error;
+      }
+    }
+    throw new Error(`RetComM catalog has no PSX title manifest for ${titleId}`);
   }
 
-  const url = `https://raw.githubusercontent.com/TechnicallyComputers/retcomm-catalog/${encodeURIComponent(ref)}/titles/${titleId}.json`;
-  const response = await fetch(url, { headers: rawHeaders });
-  if (!response.ok) {
-    throw new Error(`RetComM catalog returned ${response.status} for ${titleId}`);
+  for (const relative of relativeCandidates) {
+    const url = `https://raw.githubusercontent.com/TechnicallyComputers/retcomm-catalog/${encodeURIComponent(ref)}/${relative.replaceAll("\\", "/")}`;
+    const response = await fetch(url, { headers: rawHeaders });
+    if (response.ok) return response.json();
+    if (response.status !== 404) {
+      throw new Error(`RetComM catalog returned ${response.status} for ${titleId}`);
+    }
   }
-  return response.json();
+  throw new Error(`RetComM catalog returned 404 for ${titleId}`);
 }
 
 await Promise.all(Object.entries(mappings).map(async ([portId, titleId]) => {
