@@ -756,23 +756,27 @@ pub enum HostToolState {
     Available,
     Missing,
     Misconfigured,
+    Unsupported,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum HostToolSource {
     Environment,
+    Saved,
     Discovery,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct HostToolStatus {
     pub id: String,
+    pub display_name: String,
     pub state: HostToolState,
     pub path: Option<PathBuf>,
     pub source: Option<HostToolSource>,
     pub configuration_variable: String,
     pub purpose: String,
+    pub official_url: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

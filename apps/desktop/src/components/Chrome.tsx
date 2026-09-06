@@ -370,20 +370,15 @@ function HostToolRow({ tool }: { tool: HostToolStatus }) {
     available: { label: "Ready", icon: CheckCircle2 },
     missing: { label: "Not found", icon: CircleMinus },
     misconfigured: { label: "Check path", icon: AlertTriangle },
+    unsupported: { label: "Unsupported", icon: CircleMinus },
   };
   const state = states[tool.state];
   const location = tool.path ?? `Set ${tool.configuration_variable}`;
   return <div className="host-tool-row">
-    <div className="host-tool-heading"><strong>{hostToolName(tool.id)}</strong><span className={`host-tool-state ${tool.state}`}><Icon glyph={state.icon} size="sm" />{state.label}</span></div>
+    <div className="host-tool-heading"><strong>{tool.display_name}</strong><span className={`host-tool-state ${tool.state}`}><Icon glyph={state.icon} size="sm" />{state.label}</span></div>
     <small>{tool.purpose}</small>
     <code title={location}>{location}</code>
   </div>;
-}
-
-function hostToolName(id: string) {
-  if (id === "dolphin_tool") return "DolphinTool";
-  if (id === "chdman") return "chdman";
-  return id.replaceAll("_", " ");
 }
 
 function StorageCard({ libraryRoot, storage, busy, exportMetadata }: { libraryRoot: string; storage?: StorageSummary; busy?: string; exportMetadata?: () => Promise<LibraryMetadataFile | undefined> }) {

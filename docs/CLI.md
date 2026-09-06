@@ -22,7 +22,7 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":25,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":26,"ok":true,"command":"status","data":{},"error":null}
 ```
 
 Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for success, failure, or cancellation. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
@@ -91,7 +91,7 @@ reaches zero, becomes unavailable, or changes volume identity or total capacity,
 avoiding false stale-intent failures from incidental filesystem bookkeeping while
 requiring a new review for a meaningful capacity change.
 
-API schema 25 adds explicit per-game relocation. `output move <port-id> <path>`
+API schema 25 added explicit per-game relocation. `output move <port-id> <path>`
 returns a read-only, state-bound plan covering every recorded active, previous,
 staged, and retained installation. Add `--apply --expected-plan <sha256> --yes`
 to copy and verify those versions, atomically switch their recorded paths and the
@@ -99,6 +99,9 @@ future output preference, then remove reviewed old copies. Sources, persistent
 data, and backups remain in their central locations. If old-copy cleanup cannot
 finish, the result reports `cleanup_pending` and startup retries it from the
 durable journal; the new paths remain authoritative.
+
+API schema 26 adds fixed disc-tool definitions, saved-path resolution, and the
+`saved`/`unsupported` tool states.
 
 ```text
 portcove --json capabilities
@@ -144,7 +147,7 @@ practice, unknown enum behavior, and any identities or operation readback still
 missing from an independent client's workflow. Alpha may make announced breaks;
 clients must negotiate rather than infer compatibility from a version string.
 
-`doctor` is a local, network-free, read-only host report. It returns the current platform, library capacity, catalog/installation/source counts, one typed entry for each optional host tool Portcove can use, and a repair plan. The repair plan reports partial lifecycle operations, cleanup-pending private trees, missing registered install paths, and untracked final directories; it proposes an action but never mutates or deletes them. Tool state is `available`, `missing`, or `misconfigured`; an available tool includes its resolved path and whether it came from an environment override or normal discovery. Missing optional tools do not fail the command because callers may never select a port or source format that needs them. An explicit but invalid `PORTCOVE_CHDMAN` or `PORTCOVE_DOLPHIN_TOOL` remains `misconfigured` instead of silently falling back to another executable. `status` and `doctor` never initialize missing per-port settings; their in-memory defaults come from the catalog, choosing stable when offered and otherwise the port's first declared channel. A later policy-only change persists that same catalog default.
+`doctor` is a local, network-free, read-only host report. It returns the current platform, library capacity, catalog/installation/source counts, one typed entry for each optional host tool Portcove can use, and a repair plan. The repair plan reports partial lifecycle operations, cleanup-pending private trees, missing registered install paths, and untracked final directories; it proposes an action but never mutates or deletes them. Tool state is `available`, `missing`, `misconfigured`, or `unsupported`; an available tool includes its resolved path and whether it came from an environment override, saved host preference, or reviewed discovery. Missing optional tools do not fail the command because callers may never select a port or source format that needs them. An invalid environment or saved path remains `misconfigured` instead of silently falling back to another executable. `status` and `doctor` never initialize missing per-port settings; their in-memory defaults come from the catalog, choosing stable when offered and otherwise the port's first declared channel. A later policy-only change persists that same catalog default.
 
 `catalog list` is a concise port array and `catalog show PORT_ID` retrieves one port. `catalog export` returns the complete versioned `CatalogDocument`, including every source profile referenced by a port. External frontends should use that document when they need accepted source extensions, exact multi-file or disc requirements, or source labels instead of copying Portcove's embedded catalog.
 

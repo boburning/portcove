@@ -1373,7 +1373,13 @@ fn start_stale_launch_recovery(library: &Library) -> portcove_core::Result<()> {
 #[tauri::command]
 async fn get_doctor_report(state: tauri::State<'_, DesktopState>) -> DesktopResult<DoctorReport> {
     let state = state.inner().clone();
-    blocking_service(state, |service| service.doctor().map_err(Into::into)).await
+    blocking_worker(move || {
+        let preferences = state.preferences.as_ref().map_err(Clone::clone)?;
+        service(&state)?
+            .doctor_with_preferences(preferences)
+            .map_err(Into::into)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -1499,12 +1505,7 @@ fn initialize_desktop_with(
 }
 
 fn host_preference_store() -> DesktopResult<HostPreferenceStore> {
-    std::env::var_os("PORTCOVE_PREFERENCES")
-        .filter(|path| !path.is_empty())
-        .map(PathBuf::from)
-        .map(HostPreferenceStore::new)
-        .unwrap_or_else(HostPreferenceStore::open_default)
-        .map_err(DesktopError::from)
+    HostPreferenceStore::open_configured().map_err(DesktopError::from)
 }
 
 fn initialize_desktop_selection(selection: LibrarySelection) -> DesktopResult<ReadyDesktopState> {

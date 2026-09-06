@@ -289,6 +289,13 @@ impl PortcoveService {
     }
 
     pub fn doctor(&self) -> Result<DoctorReport> {
+        self.doctor_with_preferences(&crate::HostPreferenceStore::open_configured()?)
+    }
+
+    pub fn doctor_with_preferences(
+        &self,
+        preferences: &crate::HostPreferenceStore,
+    ) -> Result<DoctorReport> {
         let statuses = self.statuses()?;
         Ok(DoctorReport {
             platform: Platform::current()?,
@@ -300,7 +307,7 @@ impl PortcoveService {
                 .filter(|status| status.active.is_some())
                 .count(),
             registered_source_count: self.library.sources()?.len(),
-            host_tools: crate::adapter::host_tool_statuses(),
+            host_tools: crate::adapter::host_tool_statuses(preferences)?,
             repair: self.repair_plan()?,
         })
     }

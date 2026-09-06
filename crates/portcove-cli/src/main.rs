@@ -908,7 +908,12 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
             )?;
         }
         Commands::Doctor => {
-            render_read_success(mode, "doctor", service.doctor()?, human::doctor)?;
+            render_read_success(
+                mode,
+                "doctor",
+                service.doctor_with_preferences(&preferences)?,
+                human::doctor,
+            )?;
         }
         Commands::About => unreachable!("about exits before opening the library"),
         Commands::Plan {
@@ -1258,11 +1263,7 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
 }
 
 fn host_preference_store() -> Result<HostPreferenceStore> {
-    std::env::var_os("PORTCOVE_PREFERENCES")
-        .filter(|path| !path.is_empty())
-        .map(PathBuf::from)
-        .map(HostPreferenceStore::new)
-        .unwrap_or_else(HostPreferenceStore::open_default)
+    HostPreferenceStore::open_configured()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2343,7 +2344,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 25);
+        assert_eq!(capabilities.schema_version, 26);
         assert_eq!(
             capabilities.failure_isolated_batches,
             ["check", "reconcile", "update", "source.verify"]

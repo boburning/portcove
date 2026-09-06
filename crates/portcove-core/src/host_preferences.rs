@@ -19,6 +19,8 @@ const MAX_BYTES: u64 = 64 * 1024;
 pub struct HostPreferences {
     pub format_version: u32,
     pub library_root: Option<PathBuf>,
+    #[serde(default)]
+    pub host_tool_paths: BTreeMap<String, PathBuf>,
     #[serde(flatten)]
     extensions: BTreeMap<String, serde_json::Value>,
 }
@@ -28,6 +30,7 @@ impl Default for HostPreferences {
         Self {
             format_version: FORMAT_VERSION,
             library_root: None,
+            host_tool_paths: BTreeMap::new(),
             extensions: BTreeMap::new(),
         }
     }
@@ -67,6 +70,14 @@ impl HostPreferenceStore {
         Self::new(Self::default_path()?)
     }
 
+    pub fn open_configured() -> Result<Self> {
+        std::env::var_os("PORTCOVE_PREFERENCES")
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from)
+            .map(Self::new)
+            .unwrap_or_else(Self::open_default)
+    }
+
     pub fn new(path: PathBuf) -> Result<Self> {
         validate_absolute(&path)?;
         if path.file_name().is_none() {
@@ -99,6 +110,10 @@ impl HostPreferenceStore {
         }
         if let Some(root) = &preferences.library_root {
             validate_absolute(root)?;
+        }
+        for (id, path) in &preferences.host_tool_paths {
+            crate::host_tools::definition(id)?;
+            validate_absolute(path)?;
         }
         Ok(preferences)
     }
@@ -143,6 +158,30 @@ impl HostPreferenceStore {
         let _lock = self.lock()?;
         let mut preferences = self.load()?;
         preferences.library_root = None;
+        self.publish(&preferences)
+    }
+
+    pub fn host_tool_path(&self, id: &str) -> Result<Option<PathBuf>> {
+        crate::host_tools::definition(id)?;
+        Ok(self.load()?.host_tool_paths.get(id).cloned())
+    }
+
+    pub fn set_host_tool_path(&self, id: &str, path: &Path) -> Result<()> {
+        crate::host_tools::definition(id)?;
+        validate_absolute(path)?;
+        let _lock = self.lock()?;
+        let mut preferences = self.load()?;
+        preferences
+            .host_tool_paths
+            .insert(id.to_owned(), path.to_path_buf());
+        self.publish(&preferences)
+    }
+
+    pub fn clear_host_tool_path(&self, id: &str) -> Result<()> {
+        crate::host_tools::definition(id)?;
+        let _lock = self.lock()?;
+        let mut preferences = self.load()?;
+        preferences.host_tool_paths.remove(id);
         self.publish(&preferences)
     }
 

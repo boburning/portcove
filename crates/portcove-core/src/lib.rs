@@ -11,6 +11,7 @@ mod durability;
 mod error;
 mod gitlab;
 mod host_preferences;
+mod host_tools;
 mod import_execution;
 mod import_journal;
 mod install;
@@ -62,6 +63,9 @@ pub use gitlab::GitlabReleaseProvider;
 pub use host_preferences::{
     HostPreferenceStore, HostPreferences, LibrarySelection, LibrarySelectionSource,
 };
+pub use host_tools::{
+    HostToolDefinition, HostToolProbePolicy, definitions as host_tool_definitions,
+};
 pub use import_execution::LibraryImportResult;
 pub use install::{InstallQualification, InstallRequest, Installer, VerificationReport};
 pub use launch::forward_launch_signal;
@@ -102,4 +106,4 @@ pub use source_inspection::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 25;
+pub const API_SCHEMA_VERSION: u32 = 26;

@@ -213,3 +213,31 @@ fn platform_preference_path_is_absolute_and_outside_the_default_library() {
     assert_eq!(preferences.file_name().unwrap(), "preferences.json");
     assert!(!preferences.starts_with(library));
 }
+
+#[test]
+fn host_tool_paths_persist_independently_and_clear_without_erasing_library_choice() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = HostPreferenceStore::new(temp.path().join("preferences.json")).unwrap();
+    let library = temp.path().join("library");
+    let executable = temp.path().join("chdman.exe");
+    fs::create_dir(&library).unwrap();
+    fs::write(&executable, b"tool").unwrap();
+    store.set_library(&library).unwrap();
+    store.set_host_tool_path("chdman", &executable).unwrap();
+
+    let restarted = HostPreferenceStore::new(temp.path().join("preferences.json")).unwrap();
+    assert_eq!(
+        restarted.host_tool_path("chdman").unwrap().as_deref(),
+        Some(executable.as_path())
+    );
+    assert!(restarted.load().unwrap().library_root.is_some());
+    assert!(
+        restarted
+            .set_host_tool_path("unknown", &executable)
+            .is_err()
+    );
+
+    restarted.clear_host_tool_path("chdman").unwrap();
+    assert_eq!(restarted.host_tool_path("chdman").unwrap(), None);
+    assert!(restarted.load().unwrap().library_root.is_some());
+}

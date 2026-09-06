@@ -1,6 +1,5 @@
 use std::{
     collections::BTreeMap,
-    ffi::OsString,
     fs::File,
     io::{Read, Seek, SeekFrom},
     path::{Path, PathBuf},
@@ -15,9 +14,9 @@ use uuid::Uuid;
 use crate::source_file::{single_zip_source_index, validate_source_hashes};
 
 use crate::{
-    AdapterKind, ChildProcessClass, ChildProcessPolicy, DiscIdentityProfile, HostToolSource,
-    HostToolState, HostToolStatus, LaunchKind, LaunchSpec, Library, Platform, PortDefinition,
-    PortcoveError, Result, RuntimeSourceMaterialization, SourceKind, SourceProfile, SourceRecord,
+    AdapterKind, ChildProcessClass, ChildProcessPolicy, DiscIdentityProfile, HostPreferenceStore,
+    HostToolStatus, LaunchKind, LaunchSpec, Library, Platform, PortDefinition, PortcoveError,
+    Result, RuntimeSourceMaterialization, SourceKind, SourceProfile, SourceRecord,
 };
 
 const UPSTREAM_SETUP_METADATA: &str = ".portcove-upstream-setup.json";
@@ -1586,22 +1585,19 @@ fn materialize_gamecube_iso(source: &Path, destination: &Path) -> Result<()> {
 }
 
 fn resolve_dolphin_tool() -> Result<PathBuf> {
-    resolve_host_tool(
-        "PORTCOVE_DOLPHIN_TOOL",
-        "dolphin_tool_path",
-        "DolphinTool was not found; install Dolphin or set PORTCOVE_DOLPHIN_TOOL to its full path",
-        "set PORTCOVE_DOLPHIN_TOOL to the full DolphinTool executable path",
-        "Portcove checks PATH, its own directory, DOLPHIN_HOME, and launcher-provided RetroBat paths",
-        dolphin_tool_candidates(),
+    let candidates = dolphin_tool_candidates();
+    resolve_host_tool_path(
+        "dolphin_tool",
+        candidates,
+        &HostPreferenceStore::open_configured()?,
     )
 }
 
 fn dolphin_tool_candidates() -> Vec<PathBuf> {
-    let executable_names: &[&str] = if cfg!(windows) {
-        &["DolphinTool.exe"]
-    } else {
-        &["dolphin-tool", "DolphinTool"]
+    let Ok(platform) = Platform::current() else {
+        return Vec::new();
     };
+    let executable_names = host_tool_executable_names("dolphin_tool", platform);
     let mut candidates = Vec::new();
     if let Some(path) = std::env::var_os("PATH") {
         for directory in std::env::split_paths(&path) {
@@ -1633,20 +1629,8 @@ fn dolphin_tool_candidates() -> Vec<PathBuf> {
             );
         }
     }
-    #[cfg(unix)]
-    for path in [
-        "/usr/bin/dolphin-tool",
-        "/usr/local/bin/dolphin-tool",
-        "/app/bin/dolphin-tool",
-    ] {
-        push_unique_path(&mut candidates, PathBuf::from(path));
-    }
-    #[cfg(target_os = "macos")]
-    for path in [
-        "/opt/homebrew/bin/dolphin-tool",
-        "/Applications/Dolphin.app/Contents/MacOS/DolphinTool",
-    ] {
-        push_unique_path(&mut candidates, PathBuf::from(path));
+    for path in reviewed_platform_candidates("dolphin_tool", platform, None, None) {
+        push_unique_path(&mut candidates, path);
     }
     candidates
 }
@@ -1893,22 +1877,19 @@ pub(crate) fn materialize_psx_chd(source: &Path, destination: &Path) -> Result<P
 }
 
 fn resolve_chdman() -> Result<PathBuf> {
-    resolve_host_tool(
-        "PORTCOVE_CHDMAN",
-        "chdman_path",
-        "chdman was not found; install MAME or set PORTCOVE_CHDMAN to its full path",
-        "set PORTCOVE_CHDMAN to the full chdman executable path",
-        "Portcove checks PATH, its own directory, MAME_HOME, and known Batocera, EmuDeck, and RetroBat locations",
-        chdman_candidates(),
+    let candidates = chdman_candidates();
+    resolve_host_tool_path(
+        "chdman",
+        candidates,
+        &HostPreferenceStore::open_configured()?,
     )
 }
 
 fn chdman_candidates() -> Vec<PathBuf> {
-    let executable_name = if cfg!(windows) {
-        "chdman.exe"
-    } else {
-        "chdman"
+    let Ok(platform) = Platform::current() else {
+        return Vec::new();
     };
+    let executable_name = host_tool_executable_names("chdman", platform)[0];
     let mut candidates = Vec::new();
     if let Some(path) = std::env::var_os("PATH") {
         for directory in std::env::split_paths(&path) {
@@ -1935,34 +1916,74 @@ fn chdman_candidates() -> Vec<PathBuf> {
         );
     }
 
-    #[cfg(windows)]
-    if let Some(app_data) = std::env::var_os("APPDATA").filter(|value| !value.is_empty()) {
-        push_unique_path(
-            &mut candidates,
-            PathBuf::from(app_data)
-                .join("EmuDeck")
-                .join("backend")
-                .join("tools")
-                .join("chdconv")
-                .join(executable_name),
-        );
-    }
-    #[cfg(unix)]
+    let app_data = std::env::var_os("APPDATA")
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from);
+    let home = std::env::var_os("HOME")
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from);
+    for path in
+        reviewed_platform_candidates("chdman", platform, app_data.as_deref(), home.as_deref())
     {
-        push_unique_path(&mut candidates, PathBuf::from("/usr/bin/mame/chdman"));
-        push_unique_path(&mut candidates, PathBuf::from("/usr/bin/chdman"));
-        push_unique_path(&mut candidates, PathBuf::from("/usr/local/bin/chdman"));
-        if let Some(home) = std::env::var_os("HOME").filter(|value| !value.is_empty()) {
-            push_unique_path(
-                &mut candidates,
-                PathBuf::from(home).join(".config/EmuDeck/backend/tools/chdconv/chdman"),
-            );
+        push_unique_path(&mut candidates, path);
+    }
+    candidates
+}
+
+fn host_tool_executable_names(id: &str, platform: Platform) -> &'static [&'static str] {
+    match (id, platform) {
+        ("chdman", Platform::WindowsX86_64) => &["chdman.exe"],
+        ("chdman", _) => &["chdman"],
+        ("dolphin_tool", Platform::WindowsX86_64) => &["DolphinTool.exe"],
+        ("dolphin_tool", _) => &["dolphin-tool", "DolphinTool"],
+        _ => &[],
+    }
+}
+
+fn reviewed_platform_candidates(
+    id: &str,
+    platform: Platform,
+    app_data: Option<&Path>,
+    home: Option<&Path>,
+) -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+    if id == "chdman" {
+        if platform == Platform::WindowsX86_64 {
+            if let Some(app_data) = app_data {
+                candidates.push(
+                    app_data
+                        .join("EmuDeck/backend/tools/chdconv")
+                        .join(host_tool_executable_names(id, platform)[0]),
+                );
+            }
+        } else {
+            candidates.extend([
+                PathBuf::from("/usr/bin/mame/chdman"),
+                PathBuf::from("/usr/bin/chdman"),
+                PathBuf::from("/usr/local/bin/chdman"),
+            ]);
+            if let Some(home) = home {
+                candidates.push(home.join(".config/EmuDeck/backend/tools/chdconv/chdman"));
+            }
+            if matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64) {
+                candidates.extend([
+                    PathBuf::from("/opt/homebrew/bin/chdman"),
+                    PathBuf::from("/Applications/MAME/chdman"),
+                ]);
+            }
         }
-    }
-    #[cfg(target_os = "macos")]
-    {
-        push_unique_path(&mut candidates, PathBuf::from("/opt/homebrew/bin/chdman"));
-        push_unique_path(&mut candidates, PathBuf::from("/Applications/MAME/chdman"));
+    } else if id == "dolphin_tool" && platform != Platform::WindowsX86_64 {
+        candidates.extend([
+            PathBuf::from("/usr/bin/dolphin-tool"),
+            PathBuf::from("/usr/local/bin/dolphin-tool"),
+            PathBuf::from("/app/bin/dolphin-tool"),
+        ]);
+        if matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64) {
+            candidates.extend([
+                PathBuf::from("/opt/homebrew/bin/dolphin-tool"),
+                PathBuf::from("/Applications/Dolphin.app/Contents/MacOS/DolphinTool"),
+            ]);
+        }
     }
     candidates
 }
@@ -1973,119 +1994,20 @@ fn push_unique_path(paths: &mut Vec<PathBuf>, candidate: PathBuf) {
     }
 }
 
-#[derive(Debug)]
-struct HostToolDiscovery {
-    state: HostToolState,
-    path: Option<PathBuf>,
-    source: Option<HostToolSource>,
-    searched_paths: Vec<PathBuf>,
+pub(crate) fn host_tool_statuses(preferences: &HostPreferenceStore) -> Result<Vec<HostToolStatus>> {
+    Ok(vec![
+        crate::host_tools::resolve("chdman", chdman_candidates(), preferences)?,
+        crate::host_tools::resolve("dolphin_tool", dolphin_tool_candidates(), preferences)?,
+    ])
 }
 
-fn discover_host_tool(configured: Option<OsString>, candidates: Vec<PathBuf>) -> HostToolDiscovery {
-    if let Some(configured) = configured {
-        let path = PathBuf::from(configured);
-        return HostToolDiscovery {
-            state: if path.is_file() {
-                HostToolState::Available
-            } else {
-                HostToolState::Misconfigured
-            },
-            path: Some(path),
-            source: Some(HostToolSource::Environment),
-            searched_paths: Vec::new(),
-        };
-    }
-    let path = candidates
-        .iter()
-        .find(|candidate| candidate.is_file())
-        .cloned();
-    let source = path.as_ref().map(|_| HostToolSource::Discovery);
-    HostToolDiscovery {
-        state: if path.is_some() {
-            HostToolState::Available
-        } else {
-            HostToolState::Missing
-        },
-        path,
-        source,
-        searched_paths: candidates,
-    }
-}
-
-fn resolve_host_tool(
-    configuration_variable: &str,
-    path_detail: &str,
-    missing_message: &str,
-    configured_setup_hint: &str,
-    missing_setup_hint: &str,
-    candidates: Vec<PathBuf>,
-) -> Result<PathBuf> {
-    let discovery = discover_host_tool(
-        std::env::var_os(configuration_variable).filter(|value| !value.is_empty()),
-        candidates,
-    );
-    match discovery.state {
-        HostToolState::Available => Ok(discovery.path.expect("available host tool has a path")),
-        HostToolState::Misconfigured => {
-            let path = discovery
-                .path
-                .expect("misconfigured host tool has a configured path");
-            Err(PortcoveError::source(format!(
-                "{configuration_variable} does not point to a file: {}",
-                path.display()
-            ))
-            .detail(path_detail, path.display().to_string())
-            .detail("setup_hint", configured_setup_hint))
-        }
-        HostToolState::Missing => {
-            let searched = discovery
-                .searched_paths
-                .iter()
-                .map(|candidate| candidate.display().to_string())
-                .collect::<Vec<_>>()
-                .join(";");
-            Err(PortcoveError::source(missing_message)
-                .detail("searched_paths", searched)
-                .detail("setup_hint", missing_setup_hint))
-        }
-    }
-}
-
-fn host_tool_status(
+fn resolve_host_tool_path(
     id: &str,
-    configuration_variable: &str,
-    purpose: &str,
     candidates: Vec<PathBuf>,
-) -> HostToolStatus {
-    let discovery = discover_host_tool(
-        std::env::var_os(configuration_variable).filter(|value| !value.is_empty()),
-        candidates,
-    );
-    HostToolStatus {
-        id: id.into(),
-        state: discovery.state,
-        path: discovery.path,
-        source: discovery.source,
-        configuration_variable: configuration_variable.into(),
-        purpose: purpose.into(),
-    }
-}
-
-pub(crate) fn host_tool_statuses() -> Vec<HostToolStatus> {
-    vec![
-        host_tool_status(
-            "chdman",
-            "PORTCOVE_CHDMAN",
-            "CHD validation and disc-image materialization",
-            chdman_candidates(),
-        ),
-        host_tool_status(
-            "dolphin_tool",
-            "PORTCOVE_DOLPHIN_TOOL",
-            "compressed GameCube validation and ISO materialization",
-            dolphin_tool_candidates(),
-        ),
-    ]
+    preferences: &HostPreferenceStore,
+) -> Result<PathBuf> {
+    let status = crate::host_tools::resolve(id, candidates.clone(), preferences)?;
+    crate::host_tools::require_path(&status, &candidates)
 }
 
 fn inspect_psx_cue(cue: &Path) -> Result<(u32, PathBuf)> {
@@ -2396,40 +2318,81 @@ mod tests {
     }
 
     #[test]
-    fn chdman_candidate_selection_is_ordered_and_ignores_missing_files() {
-        let temporary = tempfile::tempdir().unwrap();
-        let missing = temporary.path().join("missing-chdman");
-        let available = temporary.path().join("available-chdman");
-        std::fs::write(&available, b"test").unwrap();
-        let discovery = discover_host_tool(None, vec![missing, available.clone()]);
-
-        assert_eq!(discovery.state, HostToolState::Available);
-        assert_eq!(discovery.path, Some(available));
-        assert_eq!(discovery.source, Some(HostToolSource::Discovery));
-    }
-
-    #[test]
-    fn explicit_missing_host_tool_is_reported_as_misconfigured() {
-        let temporary = tempfile::tempdir().unwrap();
-        let configured = temporary.path().join("missing-tool");
-        let fallback = temporary.path().join("available-tool");
-        std::fs::write(&fallback, b"test").unwrap();
-
-        let discovery =
-            discover_host_tool(Some(configured.clone().into_os_string()), vec![fallback]);
-
-        assert_eq!(discovery.state, HostToolState::Misconfigured);
-        assert_eq!(discovery.path, Some(configured));
-        assert_eq!(discovery.source, Some(HostToolSource::Environment));
-    }
-
-    #[test]
     fn chdman_candidate_paths_are_deduplicated() {
         let mut candidates = Vec::new();
         push_unique_path(&mut candidates, PathBuf::from("chdman"));
         push_unique_path(&mut candidates, PathBuf::from("chdman"));
 
         assert_eq!(candidates, vec![PathBuf::from("chdman")]);
+    }
+
+    #[test]
+    fn host_tool_platform_fixtures_cover_reviewed_names_and_locations() {
+        assert_eq!(
+            host_tool_executable_names("chdman", Platform::WindowsX86_64),
+            ["chdman.exe"]
+        );
+        assert_eq!(
+            host_tool_executable_names("dolphin_tool", Platform::WindowsX86_64),
+            ["DolphinTool.exe"]
+        );
+        let windows = reviewed_platform_candidates(
+            "chdman",
+            Platform::WindowsX86_64,
+            Some(Path::new("test-app-data")),
+            None,
+        );
+        assert!(windows.iter().any(|path| path.ends_with("chdman.exe")));
+
+        for platform in [
+            Platform::LinuxX86_64,
+            Platform::MacosX86_64,
+            Platform::MacosAarch64,
+        ] {
+            assert_eq!(host_tool_executable_names("chdman", platform), ["chdman"]);
+            assert_eq!(
+                host_tool_executable_names("dolphin_tool", platform),
+                ["dolphin-tool", "DolphinTool"]
+            );
+            let chdman = reviewed_platform_candidates(
+                "chdman",
+                platform,
+                None,
+                Some(Path::new("test-home")),
+            );
+            assert!(chdman.contains(&PathBuf::from("/usr/bin/chdman")));
+            assert!(chdman.iter().any(|path| path.ends_with("chdconv/chdman")));
+            let dolphin = reviewed_platform_candidates("dolphin_tool", platform, None, None);
+            assert!(dolphin.contains(&PathBuf::from("/usr/bin/dolphin-tool")));
+            assert!(dolphin.contains(&PathBuf::from("/app/bin/dolphin-tool")));
+        }
+
+        let macos =
+            reviewed_platform_candidates("dolphin_tool", Platform::MacosAarch64, None, None);
+        assert!(macos.iter().any(|path| path.ends_with("DolphinTool")));
+        assert!(macos.len() > 1);
+    }
+
+    #[test]
+    fn doctor_inspection_and_preparation_share_the_selected_tool_path() {
+        let temporary = tempfile::tempdir().unwrap();
+        let store = HostPreferenceStore::new(temporary.path().join("preferences.json")).unwrap();
+        let selected = temporary.path().join("selected-chdman");
+        let discovered = temporary.path().join("discovered-chdman");
+        std::fs::write(&selected, b"selected").unwrap();
+        std::fs::write(&discovered, b"discovered").unwrap();
+        store.set_host_tool_path("chdman", &selected).unwrap();
+
+        let doctor = host_tool_statuses(&store)
+            .unwrap()
+            .into_iter()
+            .find(|status| status.id == "chdman")
+            .unwrap();
+        let operation = resolve_host_tool_path("chdman", vec![discovered], &store).unwrap();
+
+        assert_eq!(doctor.path.as_deref(), Some(selected.as_path()));
+        assert_eq!(operation, selected);
+        assert_eq!(doctor.source, Some(crate::HostToolSource::Saved));
     }
 
     #[test]
