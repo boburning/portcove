@@ -334,6 +334,17 @@ enum OutputCommand {
         #[arg(long)]
         yes: bool,
     },
+    /// Review or apply relocation of every installed version for one game.
+    Move {
+        port_id: String,
+        path: PathBuf,
+        #[arg(long, requires = "expected_plan")]
+        apply: bool,
+        #[arg(long, requires = "apply")]
+        expected_plan: Option<String>,
+        #[arg(long, requires = "apply")]
+        yes: bool,
+    },
 }
 
 #[derive(Debug, Args)]
@@ -992,6 +1003,42 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                     service.apply_output_directory_change(&port_id, None, &authorization.token)?,
                 )?;
             }
+            OutputCommand::Move {
+                port_id,
+                path,
+                apply,
+                expected_plan,
+                yes,
+            } => {
+                let plan = service.plan_output_relocation(&port_id, &path)?;
+                if !apply {
+                    render_read_success(mode, "output.move", plan, human::output_relocation_plan)?;
+                } else {
+                    if mode == OutputMode::Human {
+                        println!("{}", human::output_relocation_plan(&plan));
+                    }
+                    let expected_plan = expected_plan
+                        .as_deref()
+                        .ok_or_else(|| PortcoveError::usage("--apply requires --expected-plan"))?;
+                    if plan.plan_sha256 != expected_plan {
+                        return Err(PortcoveError::conflict(
+                            "output relocation plan changed; review it again",
+                        ));
+                    }
+                    require_confirmation(
+                        "Relocate every installed version for this game and make the destination authoritative?",
+                        yes,
+                        cli.non_interactive,
+                    )?;
+                    let authorization =
+                        service.authorize_output_relocation(&port_id, &path, expected_plan)?;
+                    render_success(
+                        mode,
+                        "output.move",
+                        service.relocate_output(&port_id, &path, &authorization.token)?,
+                    )?;
+                }
+            }
         },
         Commands::Check(args) => {
             if args.all {
@@ -1538,6 +1585,18 @@ fn schema_document() -> serde_json::Value {
                 serde_json::json!(schema_for!(PortRemovalPreview)),
             ),
             ("storage", serde_json::json!(schema_for!(StorageSummary))),
+            (
+                "output_relocation_plan",
+                serde_json::json!(schema_for!(portcove_core::OutputRelocationPlan)),
+            ),
+            (
+                "output_relocation_result",
+                serde_json::json!(schema_for!(portcove_core::OutputRelocationResult)),
+            ),
+            (
+                "output_relocation_status",
+                serde_json::json!(schema_for!(portcove_core::OutputRelocationStatus)),
+            ),
             ("doctor", serde_json::json!(schema_for!(DoctorReport))),
             ("install_plan", serde_json::json!(schema_for!(InstallPlan))),
             ("port_paths", serde_json::json!(schema_for!(PortPaths))),
@@ -1931,6 +1990,7 @@ fn command_name(command: &Commands) -> &'static str {
             OutputCommand::Preview { .. } => "output.preview",
             OutputCommand::Set { .. } => "output.set",
             OutputCommand::Reset { .. } => "output.reset",
+            OutputCommand::Move { .. } => "output.move",
         },
         Commands::Check(_) => "check",
         Commands::Reconcile(_) => "reconcile",
@@ -2177,6 +2237,37 @@ mod tests {
             ])
             .is_err()
         );
+        let relocation = Cli::try_parse_from([
+            "portcove",
+            "output",
+            "move",
+            "lighthouse",
+            output_argument.as_ref(),
+        ])
+        .unwrap();
+        assert!(matches!(
+            relocation.command,
+            Commands::Output {
+                command: OutputCommand::Move {
+                    port_id,
+                    path,
+                    apply: false,
+                    expected_plan: None,
+                    yes: false,
+                }
+            } if port_id == "lighthouse" && path == output
+        ));
+        assert!(
+            Cli::try_parse_from([
+                "portcove",
+                "output",
+                "move",
+                "lighthouse",
+                output_argument.as_ref(),
+                "--apply",
+            ])
+            .is_err()
+        );
         for command in ["plan", "install", "ensure"] {
             assert!(
                 Cli::try_parse_from([
@@ -2252,7 +2343,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 24);
+        assert_eq!(capabilities.schema_version, 25);
         assert_eq!(
             capabilities.failure_isolated_batches,
             ["check", "reconcile", "update", "source.verify"]

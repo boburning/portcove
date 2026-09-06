@@ -6,7 +6,10 @@ use std::{
 
 use sha2::{Digest, Sha256};
 
-use crate::{Library, LibraryMetadata, LibraryMovePlan, LibraryTreePlan, PortcoveError, Result};
+use crate::{
+    AdoptionCopyPlan, Library, LibraryMetadata, LibraryMovePlan, LibraryTreePlan, PortcoveError,
+    Result,
+};
 
 pub(crate) fn copy_content(
     source_root: &Path,
@@ -18,55 +21,77 @@ pub(crate) fn copy_content(
     for tree in content {
         let source = source_root.join(&tree.relative_path);
         let destination = destination_root.join(&tree.relative_path);
-        ensure_directory(&destination)?;
-        for relative in &tree.copy.directories {
-            ensure_directory(&destination.join(relative))?;
+        copy_reviewed_tree(&source, &destination, &tree.copy, &work)?;
+    }
+    Ok(())
+}
+
+pub(crate) fn copy_reviewed_tree(
+    source: &Path,
+    destination: &Path,
+    plan: &AdoptionCopyPlan,
+    work: &Path,
+) -> Result<()> {
+    ensure_directory(work)?;
+    ensure_directory(destination)?;
+    for relative in &plan.directories {
+        ensure_directory(&destination.join(relative))?;
+    }
+    for file in &plan.files {
+        let target = destination.join(&file.relative_path);
+        if fs::symlink_metadata(&target).is_ok() {
+            verify_file(&target, file.size, &file.sha256)?;
+            continue;
         }
-        for file in &tree.copy.files {
-            let target = destination.join(&file.relative_path);
-            if fs::symlink_metadata(&target).is_ok() {
-                verify_file(&target, file.size, &file.sha256)?;
-                continue;
+        let origin = source.join(&file.relative_path);
+        regular_file(&origin)?;
+        let mut input = File::open(&origin)?;
+        let mut output = tempfile::NamedTempFile::new_in(work)?;
+        let mut digest = Sha256::new();
+        let mut size = 0_u64;
+        let mut buffer = [0_u8; 64 * 1024];
+        loop {
+            let read = input.read(&mut buffer)?;
+            if read == 0 {
+                break;
             }
-            let origin = source.join(&file.relative_path);
-            regular_file(&origin)?;
-            let mut input = File::open(&origin)?;
-            let mut output = tempfile::NamedTempFile::new_in(&work)?;
-            let mut digest = Sha256::new();
-            let mut size = 0_u64;
-            let mut buffer = [0_u8; 64 * 1024];
-            loop {
-                let read = input.read(&mut buffer)?;
-                if read == 0 {
-                    break;
-                }
-                size += read as u64;
-                if size > file.size {
-                    return Err(PortcoveError::verification(
-                        "library file grew while copying",
-                    ));
-                }
-                digest.update(&buffer[..read]);
-                output.write_all(&buffer[..read])?;
-            }
-            if size != file.size || hex::encode(digest.finalize()) != file.sha256 {
+            size += read as u64;
+            if size > file.size {
                 return Err(PortcoveError::verification(
-                    "library file changed while copying",
+                    "reviewed file grew while copying",
                 ));
             }
-            output
-                .as_file()
-                .set_permissions(input.metadata()?.permissions())?;
-            output.as_file().sync_all()?;
-            output
-                .persist_noclobber(&target)
-                .map_err(|error| PortcoveError::from(error.error))?;
-            crate::durability::sync_publication(
-                target
-                    .parent()
-                    .ok_or_else(|| PortcoveError::state("copy target has no parent"))?,
-            )?;
+            digest.update(&buffer[..read]);
+            output.write_all(&buffer[..read])?;
         }
+        if size != file.size || hex::encode(digest.finalize()) != file.sha256 {
+            return Err(PortcoveError::verification(
+                "reviewed file changed while copying",
+            ));
+        }
+        output
+            .as_file()
+            .set_permissions(input.metadata()?.permissions())?;
+        output.as_file().sync_all()?;
+        output
+            .persist_noclobber(&target)
+            .map_err(|error| PortcoveError::from(error.error))?;
+        crate::durability::sync_publication(
+            target
+                .parent()
+                .ok_or_else(|| PortcoveError::state("copy target has no parent"))?,
+        )?;
+    }
+    Ok(())
+}
+
+pub(crate) fn verify_reviewed_tree(root: &Path, expected: &AdoptionCopyPlan) -> Result<()> {
+    let actual = crate::library_transfer::reviewed_tree(root)?;
+    if &actual != expected {
+        return Err(PortcoveError::verification(
+            "copied application differs from the reviewed source tree",
+        )
+        .detail("path", root.display().to_string()));
     }
     Ok(())
 }

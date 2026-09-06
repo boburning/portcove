@@ -262,6 +262,25 @@ impl PortcoveService {
         })
     }
 
+    #[cfg(test)]
+    pub(crate) fn with_faults(
+        library: Library,
+        faults: Arc<dyn LifecycleFaultInjector>,
+    ) -> Result<Self> {
+        let releases = Arc::new(CompositeReleaseProvider::for_library(&library)?);
+        let (catalog, catalog_provenance) = library.load_catalog()?;
+        Ok(Self {
+            cancellation_owner: Uuid::new_v4().to_string(),
+            cancellation_requested: std::sync::atomic::AtomicBool::new(false),
+            catalog,
+            catalog_provenance,
+            library,
+            releases,
+            adapters: AdapterRegistry,
+            faults,
+        })
+    }
+
     pub fn catalog(&self) -> &Catalog {
         &self.catalog
     }
@@ -443,7 +462,14 @@ impl PortcoveService {
                 crate::recovery::recover_backup_deletion(self, store, operation)
             }
             LifecycleOperationKind::Activate => self.recover_activation(store, operation),
+            LifecycleOperationKind::Relocate => {
+                crate::output_relocation::recover(self, store, operation)
+            }
         }
+    }
+
+    pub(crate) fn check_lifecycle_fault(&self, point: LifecycleFaultPoint) -> Result<()> {
+        self.faults.check(point)
     }
 
     fn recover_published_install(

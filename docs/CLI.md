@@ -22,7 +22,7 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":24,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":25,"ok":true,"command":"status","data":{},"error":null}
 ```
 
 Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for success, failure, or cancellation. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
@@ -91,6 +91,15 @@ reaches zero, becomes unavailable, or changes volume identity or total capacity,
 avoiding false stale-intent failures from incidental filesystem bookkeeping while
 requiring a new review for a meaningful capacity change.
 
+API schema 25 adds explicit per-game relocation. `output move <port-id> <path>`
+returns a read-only, state-bound plan covering every recorded active, previous,
+staged, and retained installation. Add `--apply --expected-plan <sha256> --yes`
+to copy and verify those versions, atomically switch their recorded paths and the
+future output preference, then remove reviewed old copies. Sources, persistent
+data, and backups remain in their central locations. If old-copy cleanup cannot
+finish, the result reports `cleanup_pending` and startup retries it from the
+durable journal; the new paths remain authoritative.
+
 ```text
 portcove --json capabilities
 portcove --json schema export
@@ -105,6 +114,8 @@ portcove --json output show <port-id>
 portcove --json output preview <port-id> [path]
 portcove --json output set <port-id> <path> --expected-preview <sha256> --yes
 portcove --json output reset <port-id> --expected-preview <sha256> --yes
+portcove --json output move <port-id> <path>
+portcove --json output move <port-id> <path> --apply --expected-plan <sha256> --yes
 portcove --json backup list <port-id>
 ```
 

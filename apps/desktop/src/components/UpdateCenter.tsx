@@ -144,6 +144,7 @@ function operationLabel(operation: ActivityOperation) {
     register_source: "Registered source",
     verify_source: "Verified source",
     move_library: "Moved library",
+    relocate_output: "Relocated game files",
     import_library: "Imported library",
     discover_sources: "Searched for sources",
     update_catalog: "Updated catalog",
