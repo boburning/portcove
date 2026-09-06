@@ -257,6 +257,13 @@ impl PortcoveService {
                 continue;
             }
             if let Some(operation) = operations.iter().find(|operation| operation.id == id) {
+                // Lifecycle operations other than install own their recovery path.
+                // In particular, a source import may have durable private copy state
+                // while its activity is still cancellable; treating that state as an
+                // install staging directory would discard it with the wrong validator.
+                if operation.kind != LifecycleOperationKind::Install {
+                    continue;
+                }
                 if operation.phase != LifecyclePhase::Preparing {
                     continue;
                 }

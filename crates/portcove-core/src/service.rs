@@ -420,39 +420,53 @@ impl PortcoveService {
     fn recover_lifecycle_operations(&self) -> Result<()> {
         let store = OperationStore::new(self.library.clone());
         for mut operation in store.all()? {
-            let _guard = match self
-                .library
-                .try_lock_port(&operation.port_id, "recover-lifecycle-operation")
-            {
-                Ok(guard) => guard,
-                Err(error) if error.code == crate::ErrorCode::Conflict => continue,
-                Err(error) => return Err(error),
+            let _guards = if operation.kind == LifecycleOperationKind::ImportSource {
+                match self.lock_source_dependents(&operation.port_id, None) {
+                    Ok(guards) => guards,
+                    Err(error) if error.code == crate::ErrorCode::Conflict => continue,
+                    Err(error) => return Err(error),
+                }
+            } else {
+                match self
+                    .library
+                    .try_lock_port(&operation.port_id, "recover-lifecycle-operation")
+                {
+                    Ok(guard) => vec![guard],
+                    Err(error) if error.code == crate::ErrorCode::Conflict => continue,
+                    Err(error) => return Err(error),
+                }
             };
             let unstarted_removal = operation.kind == LifecycleOperationKind::Remove
                 && operation.phase == LifecyclePhase::Preparing
                 && operation.original_paths.is_empty();
-            if let Err(error) = self.recover_lifecycle_operation(&store, &mut operation) {
-                operation.last_error = Some(error.message.clone());
-                store.put(&mut operation)?;
-                tracing::warn!(
-                    operation_id = operation.id,
-                    port_id = operation.port_id,
-                    "lifecycle recovery requires review: {error}"
-                );
-            } else {
-                let _ = self.library.finish_activity(
-                    &operation.id,
-                    if unstarted_removal {
-                        ActivityStatus::Failed
-                    } else {
-                        ActivityStatus::Succeeded
-                    },
-                    Some(if unstarted_removal {
-                        "removal ended before managed-file publication; no versions were removed"
-                    } else {
-                        "completed during startup recovery"
-                    }),
-                );
+            match self.recover_lifecycle_operation(&store, &mut operation) {
+                Err(error) => {
+                    operation.last_error = Some(error.message.clone());
+                    store.put(&mut operation)?;
+                    tracing::warn!(
+                        operation_id = operation.id,
+                        port_id = operation.port_id,
+                        "lifecycle recovery requires review: {error}"
+                    );
+                }
+                Ok(recovery_message) => {
+                    let message = recovery_message.as_deref().unwrap_or({
+                        if unstarted_removal {
+                            "removal ended before managed-file publication; no versions were removed"
+                        } else {
+                            "completed during startup recovery"
+                        }
+                    });
+                    let _ = self.library.finish_activity(
+                        &operation.id,
+                        if unstarted_removal {
+                            ActivityStatus::Failed
+                        } else {
+                            ActivityStatus::Succeeded
+                        },
+                        Some(message),
+                    );
+                }
             }
         }
         Ok(())
@@ -462,19 +476,27 @@ impl PortcoveService {
         &self,
         store: &OperationStore,
         operation: &mut LifecycleOperation,
-    ) -> Result<()> {
+    ) -> Result<Option<String>> {
         match operation.kind {
-            LifecycleOperationKind::Install | LifecycleOperationKind::Adopt => {
-                self.recover_published_install(store, operation)
+            LifecycleOperationKind::Install | LifecycleOperationKind::Adopt => self
+                .recover_published_install(store, operation)
+                .map(|()| None),
+            LifecycleOperationKind::Remove => self.recover_removal(store, operation).map(|()| None),
+            LifecycleOperationKind::Restore => {
+                self.recover_restore(store, operation).map(|()| None)
             }
-            LifecycleOperationKind::Remove => self.recover_removal(store, operation),
-            LifecycleOperationKind::Restore => self.recover_restore(store, operation),
             LifecycleOperationKind::DeleteBackup => {
-                crate::recovery::recover_backup_deletion(self, store, operation)
+                crate::recovery::recover_backup_deletion(self, store, operation).map(|()| None)
             }
-            LifecycleOperationKind::Activate => self.recover_activation(store, operation),
+            LifecycleOperationKind::Activate => {
+                self.recover_activation(store, operation).map(|()| None)
+            }
             LifecycleOperationKind::Relocate => {
-                crate::output_relocation::recover(self, store, operation)
+                crate::output_relocation::recover(self, store, operation).map(|()| None)
+            }
+            LifecycleOperationKind::ImportSource => {
+                crate::source_import::recover(self, store, operation)
+                    .map(|result| Some(crate::source_import::import_message(result.outcome).into()))
             }
         }
     }
