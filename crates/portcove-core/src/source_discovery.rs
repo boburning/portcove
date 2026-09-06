@@ -29,8 +29,8 @@ impl Default for SourceDiscoveryLimits {
         Self {
             max_entries: 10_000,
             max_depth: 6,
-            max_file_bytes: 512 * 1024 * 1024,
-            max_hash_bytes: 8 * 1024 * 1024 * 1024,
+            max_file_bytes: 2 * 1024 * 1024 * 1024,
+            max_hash_bytes: 16 * 1024 * 1024 * 1024,
             max_candidates: 64,
         }
     }
@@ -110,7 +110,16 @@ fn validate_request(request: &SourceDiscoveryRequest) -> Result<()> {
         || request.roots.len() > 8
         || request.profile_ids.is_empty()
         || request.profile_ids.len() > 256
-        || limits.max_entries == 0
+    {
+        return Err(PortcoveError::usage(
+            "source discovery needs 1-8 explicit roots and 1-256 profiles",
+        ));
+    }
+    validate_limits(limits)
+}
+
+pub(crate) fn validate_limits(limits: &SourceDiscoveryLimits) -> Result<()> {
+    if limits.max_entries == 0
         || limits.max_entries > 100_000
         || limits.max_depth > 16
         || limits.max_file_bytes == 0
@@ -121,7 +130,7 @@ fn validate_request(request: &SourceDiscoveryRequest) -> Result<()> {
         || limits.max_candidates > 512
     {
         return Err(PortcoveError::usage(
-            "source discovery needs 1-8 explicit roots, 1-256 profiles, and bounded positive scan limits",
+            "source discovery needs bounded positive scan limits",
         ));
     }
     Ok(())

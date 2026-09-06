@@ -65,14 +65,19 @@ impl TransferJournal {
                 "library move journal identity or destination is invalid",
             ));
         }
-        let expected = ["versions", "user", "backups", "toolchains"];
-        if self.plan.content.len() != expected.len()
+        crate::library_import::validate_metadata(
+            &self.plan.metadata,
+            &crate::Catalog::embedded()?,
+        )?;
+        if self.plan.content.len() != self.plan.metadata.content_roots.len()
             || self
                 .plan
                 .content
                 .iter()
-                .zip(expected)
-                .any(|(tree, expected)| tree.relative_path != expected)
+                .zip(&self.plan.metadata.content_roots)
+                .any(|(tree, expected)| {
+                    tree.kind != expected.kind || tree.relative_path != expected.relative_path
+                })
         {
             return Err(PortcoveError::verification(
                 "library move journal has unexpected content roots",

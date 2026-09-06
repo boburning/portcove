@@ -226,10 +226,26 @@ mod tests {
         let service = PortcoveService::new(Library::open(&source).unwrap()).unwrap();
         fs::create_dir_all(source.join("user/example")).unwrap();
         fs::write(source.join("user/example/save.dat"), b"synthetic save").unwrap();
+        fs::create_dir_all(source.join("source-inbox/example-profile")).unwrap();
+        fs::write(
+            source.join("source-inbox/example-profile/source.bin"),
+            b"synthetic owned source",
+        )
+        .unwrap();
         let first = service.plan_library_move(&destination).unwrap();
         let second = service.plan_library_move(&destination).unwrap();
         assert_eq!(first.plan_sha256, second.plan_sha256);
         assert!(first.source_will_be_retained);
+        let inbox = first
+            .content
+            .iter()
+            .find(|tree| tree.kind == LibraryContentKind::SourceInbox)
+            .unwrap();
+        assert_eq!(inbox.copy.files.len(), 1);
+        assert_eq!(
+            inbox.copy.files[0].relative_path,
+            PathBuf::from("example-profile/source.bin")
+        );
         assert!(!destination.exists());
         assert_eq!(
             fs::read(source.join("user/example/save.dat")).unwrap(),

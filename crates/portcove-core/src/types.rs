@@ -370,7 +370,7 @@ pub struct SourceVerification {
     pub storage_size: u64,
     pub registered_at: i64,
     pub verified_at: i64,
-    /// Complete current inspection under API schema 30. This is read-only and
+    /// Complete current inspection under API schema 31. This is read-only and
     /// never replaces the registration baseline.
     pub inspection: crate::SourceInspectionReport,
 }

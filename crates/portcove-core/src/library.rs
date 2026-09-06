@@ -116,6 +116,29 @@ pub(crate) struct OutputRootRecord {
     pub volume_identity: String,
 }
 
+fn validate_source_inbox_profile_id(profile_id: &str) -> Result<()> {
+    let (relative, key) =
+        crate::archive::validate_relative_path(profile_id, true).map_err(|_| {
+            PortcoveError::usage("Source Inbox profile IDs must be portable path components")
+                .detail("profile_id", profile_id)
+        })?;
+    if relative.components().count() != 1
+        || key != profile_id
+        || profile_id.starts_with('-')
+        || profile_id.ends_with('-')
+        || profile_id.contains("--")
+        || !profile_id
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+    {
+        return Err(PortcoveError::usage(
+            "Source Inbox profile IDs must be portable path components",
+        )
+        .detail("profile_id", profile_id));
+    }
+    Ok(())
+}
+
 impl Library {
     /// Validate a user-selected library directory without initializing it.
     /// Empty directories and recognizable Portcove roots are accepted; unrelated
@@ -289,6 +312,44 @@ impl Library {
     pub fn downloads_dir(&self) -> PathBuf {
         self.root.join("downloads")
     }
+    pub fn source_inbox_dir(&self) -> PathBuf {
+        self.root.join("source-inbox")
+    }
+    pub fn source_inbox_profile_dir(&self, profile_id: &str) -> Result<PathBuf> {
+        validate_source_inbox_profile_id(profile_id)?;
+        let root = self.source_inbox_dir();
+        crate::path::refuse_symlink_ancestors(&root)?;
+        let root_metadata = fs::symlink_metadata(&root)?;
+        if !root_metadata.is_dir() || root_metadata.file_type().is_symlink() {
+            return Err(PortcoveError::conflict(
+                "the Source Inbox root must be a real directory",
+            ));
+        }
+        for entry in fs::read_dir(&root)? {
+            let entry = entry?;
+            let Some(name) = entry.file_name().to_str().map(str::to_owned) else {
+                continue;
+            };
+            if name.eq_ignore_ascii_case(profile_id) && name != profile_id {
+                return Err(PortcoveError::conflict(
+                    "the Source Inbox contains a case-alias for this profile",
+                )
+                .detail("profile_id", profile_id)
+                .detail("conflicting_name", name));
+            }
+        }
+        let profile = root.join(profile_id);
+        crate::path::refuse_symlink_ancestors(&profile)?;
+        if let Ok(metadata) = fs::symlink_metadata(&profile)
+            && (!metadata.is_dir() || metadata.file_type().is_symlink())
+        {
+            return Err(PortcoveError::conflict(
+                "the profile Source Inbox path must be a real directory",
+            )
+            .detail("profile_id", profile_id));
+        }
+        Ok(profile)
+    }
     pub fn backups_dir(&self) -> PathBuf {
         self.root.join("backups")
     }
@@ -393,10 +454,12 @@ impl Library {
     }
 
     fn create_layout(&self) -> Result<()> {
+        crate::path::refuse_symlink_ancestors(&self.source_inbox_dir())?;
         for directory in [
             self.versions_dir(),
             self.staging_dir(),
             self.downloads_dir(),
+            self.source_inbox_dir(),
             self.backups_dir(),
             self.toolchains_dir(),
             self.root.join("user"),
