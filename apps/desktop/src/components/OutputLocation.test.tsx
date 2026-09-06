@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { desktopApi } from "../api";
-import type { OutputDestinationPreview, PortOutputLocation } from "../types";
+import type { InstallRecord, OutputDestinationPreview, OutputRelocationPlan, PortOutputLocation } from "../types";
 import { OutputLocationControl } from "./OutputLocation";
 
 const defaultLocation = (portId: string, custom?: string): PortOutputLocation => ({
@@ -73,6 +73,7 @@ beforeEach(() => {
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
+  vi.spyOn(desktopApi, "outputRelocationStatus").mockResolvedValue(null);
 });
 
 afterEach(async () => {
@@ -241,5 +242,55 @@ describe("per-game Export / install folder", () => {
     expect(onApplying.mock.calls).toEqual([[true], [false]]);
     expect(onChanged).not.toHaveBeenCalled();
     expect(container.textContent).toContain("E:/Portcove/versions/second");
+  });
+
+  it("offers a state-bound relocation review and reports retained cleanup truthfully", async () => {
+    const affected = { install_id: "install-1", version: "1.0.0", path: "E:/Portcove/versions/sample/old", active: true, previous: false, staged: false };
+    vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(defaultLocation("sample"));
+    vi.spyOn(desktopApi, "previewOutputLocation").mockResolvedValue(destinationPreview("sample", "F:/Games/Sample", { affected_installs: [affected] }));
+    const install = { id: "install-1", port_id: "sample", version: "1.0.0", path: affected.path } as InstallRecord;
+    const plan = {
+      port_id: "sample",
+      current: defaultLocation("sample"),
+      channel: "stable",
+      destination_root: "F:/Games/Sample",
+      installs: [{ install, destination_path: "F:/Games/Sample/install-1", active: true, previous: false, staged: false, retained: false, copy: { directories: [], files: [], skipped_entries: [], total_bytes: 4096 } }],
+      required_bytes: 4096,
+      available_bytes: 1024 ** 3,
+      total_bytes: 2 * 1024 ** 3,
+      volume_identity: "volume-f",
+      availability: "available",
+      ownership: "unclaimed",
+      validation_errors: [],
+      sources_will_move: false,
+      user_data_will_move: false,
+      backups_will_move: false,
+      plan_sha256: "b".repeat(64),
+    } satisfies OutputRelocationPlan;
+    const reviewMove = vi.spyOn(desktopApi, "planOutputRelocation").mockResolvedValue(plan);
+    const move = vi.spyOn(desktopApi, "relocateOutput").mockResolvedValue({
+      operation_id: "operation-1",
+      port_id: "sample",
+      output_location: defaultLocation("sample", "F:/Games/Sample"),
+      relocated_installs: [{ ...install, path: "F:/Games/Sample/install-1" }],
+      old_paths_retained: [affected.path],
+      cleanup_pending: true,
+    });
+    const onApplying = vi.fn();
+
+    await render(<OutputLocationControl portId="sample" generation={14} onApplying={onApplying} />);
+    await changePath("F:/Games/Sample");
+    await click("Review future folder");
+    expect(container.textContent).toContain("remain at their recorded locations");
+    await click("Review moving existing versions");
+    expect(reviewMove).toHaveBeenCalledWith("sample", "F:/Games/Sample", 14);
+    expect(container.textContent).toContain("SourcesStay in the central source library");
+    expect(container.textContent).toContain("Saves and backupsStay in their current folders");
+    expect(container.textContent).toContain("active");
+    await click("Move existing versions");
+    expect(move).toHaveBeenCalledWith("sample", "F:/Games/Sample", "b".repeat(64), 14);
+    expect(onApplying.mock.calls).toEqual([[true], [false]]);
+    expect(container.textContent).toContain("Move completed");
+    expect(container.textContent).toContain("remain for safe cleanup");
   });
 });

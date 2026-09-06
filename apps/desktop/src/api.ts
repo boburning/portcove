@@ -3,7 +3,7 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 import type { CancellationState, OperationEvent } from "./types";
 import type { LibraryImportPlan, LibraryImportResult, LibraryMovePlan, LibraryMoveResult } from "./types";
 import type { SourceDiscoveryRequest, SourceDiscoveryReport } from "./types";
-import type { ActivityRecord, AdoptionPreview, BackupInventory, BackupRecord, BootstrapStatus, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, InstallPlan, InstallRecord, LibraryMetadataFile, OutputDestinationPreview, PortOutputLocation, PortStatus, ReconcileOutcome, ReleaseChannel, RestoreResult, SourceRecord, SourceRelinkPlan, SourceRemovalPreview, SourceVerificationOutcome, UpdateCheck, UpdateCheckOutcome, UpdatePolicy } from "./types";
+import type { ActivityRecord, AdoptionPreview, BackupInventory, BackupRecord, BootstrapStatus, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, InstallPlan, InstallRecord, LibraryMetadataFile, OutputDestinationPreview, OutputRelocationPlan, OutputRelocationResult, OutputRelocationStatus, PortOutputLocation, PortStatus, ReconcileOutcome, ReleaseChannel, RestoreResult, SourceRecord, SourceRelinkPlan, SourceRemovalPreview, SourceVerificationOutcome, UpdateCheck, UpdateCheckOutcome, UpdatePolicy } from "./types";
 
 export const desktopApi = {
   catalogStatus: () => invoke<CatalogStatus>("get_catalog_status"),
@@ -33,6 +33,9 @@ export const desktopApi = {
   previewOutputLocation: (portId: string, path: string | null, generation: number) => invoke<OutputDestinationPreview>("preview_output_location", { portId, path, generation }),
   setOutputLocation: (portId: string, path: string, expectedPreview: string, generation: number) => invoke<PortOutputLocation>("set_output_location", { portId, path, expectedPreview, generation }),
   resetOutputLocation: (portId: string, expectedPreview: string, generation: number) => invoke<PortOutputLocation>("reset_output_location", { portId, expectedPreview, generation }),
+  planOutputRelocation: (portId: string, path: string, generation: number) => invoke<OutputRelocationPlan>("plan_output_relocation", { portId, path, generation }),
+  relocateOutput: (portId: string, path: string, expectedPlan: string, generation: number) => invoke<OutputRelocationResult>("relocate_output", { portId, path, expectedPlan, generation }),
+  outputRelocationStatus: (portId: string, generation: number) => invoke<OutputRelocationStatus | null>("get_output_relocation_status", { portId, generation }),
   sources: () => invoke<SourceRecord[]>("get_sources"),
   activities: () => invoke<ActivityRecord[]>("get_activities"),
   cancelOperation: (operationId: string) => invoke<CancellationState>("cancel_operation", { operationId }),
