@@ -131,12 +131,16 @@ describe("desktop components", () => {
     const html = renderToStaticMarkup(<SettingsView
       librarySelection={{ root: "D:/Portcove Library", source: "saved" }}
       chooseLibrary={vi.fn()}
+      switchLibrary={vi.fn()}
       resetLibrary={vi.fn()}
     />);
     expect(html).toContain("D:/Portcove Library");
     expect(html).toContain("Saved host preference");
-    expect(html).toContain("it does not move files");
-    expect(html).toContain("Use platform default");
+    expect(html).toContain("does not move files");
+    expect(html).toContain("STORAGE LOCATIONS");
+    expect(html).toContain("WHOLE PORTCOVE LIBRARY");
+    expect(html).toContain("Review platform default");
+    expect(html).toContain("Each game’s Export / install folder is reviewed separately");
   });
 
   it("shows the shared library path and volume capacity", () => {

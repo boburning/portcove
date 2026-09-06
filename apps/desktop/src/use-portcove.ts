@@ -145,7 +145,11 @@ function useReviewRequest<T>(identity: string, perform: Perform) {
     const request = generation.current.begin();
     return () => generation.current.isCurrent(request);
   };
-  return { value: reviewed?.identity === identity ? reviewed.value : undefined, review, guard };
+  const invalidate = () => {
+    generation.current.begin();
+    setReviewed(undefined);
+  };
+  return { value: reviewed?.identity === identity ? reviewed.value : undefined, review, guard, invalidate };
 }
 
 export function useInstallPlanning(portId: string | undefined, channel: PortStatus["channel"] | undefined, perform: Perform) {
@@ -153,7 +157,7 @@ export function useInstallPlanning(portId: string | undefined, channel: PortStat
   const review = async () => {
     if (portId && channel) await request.review("review install", () => desktopApi.plan(portId, channel));
   };
-  return { plan: request.value, review };
+  return { plan: request.value, review, invalidate: request.invalidate };
 }
 
 export function useAdoptionPlanning(path: string, portId: string | undefined, open: boolean, perform: Perform, done: () => void) {

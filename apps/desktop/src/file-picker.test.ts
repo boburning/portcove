@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { open } from "@tauri-apps/plugin-dialog";
-import { pickInstallFolder, pickSourceArchivePath, pickSourcePath } from "./file-picker";
+import { pickGameOutputFolder, pickInstallFolder, pickSourceArchivePath, pickSourcePath } from "./file-picker";
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn() }));
 const openMock = vi.mocked(open);
@@ -87,5 +87,16 @@ describe("native path pickers", () => {
     openMock.mockResolvedValue(null);
     await expect(pickInstallFolder("")).resolves.toBeNull();
     expect(openMock).toHaveBeenCalledWith({ multiple: false, directory: true, defaultPath: undefined });
+  });
+
+  it("names the per-game output picker without implying a library move", async () => {
+    openMock.mockResolvedValue("F:/Games/Sample");
+    await expect(pickGameOutputFolder("F:/Games")).resolves.toBe("F:/Games/Sample");
+    expect(openMock).toHaveBeenCalledWith({
+      title: "Choose Export / install folder",
+      multiple: false,
+      directory: true,
+      defaultPath: "F:/Games",
+    });
   });
 });

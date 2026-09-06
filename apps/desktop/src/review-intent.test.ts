@@ -52,6 +52,16 @@ describe("current review intent", () => {
     expect(install.plan).toBe(current);
   });
 
+  it("invalidates a reviewed install after its output destination changes", async () => {
+    const reviewed = { port_id: "first" } as Plan;
+    vi.spyOn(desktopApi, "plan").mockResolvedValue(reviewed);
+    await render();
+    await act(async () => { await install.review(); });
+    expect(install.plan).toBe(reviewed);
+    await act(async () => { install.invalidate(); });
+    expect(install.plan).toBeUndefined();
+  });
+
   it.each([{ path: "B" }, { port: "second" }, { open: false }])("invalidates adoption preview and action on %j", async props => {
     const old = deferred<Preview>(); const next = deferred<Preview>();
     vi.spyOn(desktopApi, "previewAdoption").mockReturnValueOnce(old.promise).mockReturnValueOnce(next.promise);
@@ -107,4 +117,3 @@ describe("current review intent", () => {
     expect(done).not.toHaveBeenCalled(); expect(adoption.preview).toBeUndefined();
   });
 });
-

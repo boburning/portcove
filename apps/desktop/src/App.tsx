@@ -27,12 +27,14 @@ export default function App() {
       setBootstrapError({ code: "state", message: errorText(value), details: {} });
     });
   }, []);
-  const chooseLibrary = async (currentPath = "") => {
-    const path = await pickLibraryFolder(currentPath);
-    if (!path) return;
+  const switchLibrary = async (path: string) => {
     const next = await desktopApi.setDefaultLibrary(path);
     setBootstrap(next);
     setBootstrapError(undefined);
+  };
+  const chooseLibrary = async (currentPath = "") => {
+    const path = await pickLibraryFolder(currentPath);
+    if (path) await switchLibrary(path);
   };
   const resetLibrary = async () => {
     const next = await desktopApi.resetDefaultLibrary();
@@ -42,7 +44,7 @@ export default function App() {
   if (bootstrapError) return <BootstrapRecovery error={bootstrapError} chooseLibrary={chooseLibrary} resetLibrary={resetLibrary} />;
   if (!bootstrap) return <BootstrapLoading />;
   if (!bootstrap.ready) return <BootstrapRecovery error={bootstrap.error ?? { code: "state", message: "Portcove initialization failed without an error report.", details: {} }} chooseLibrary={chooseLibrary} resetLibrary={resetLibrary} />;
-  return <Workspace key={bootstrap.generation} bootstrap={bootstrap} chooseLibrary={chooseLibrary} resetLibrary={resetLibrary} />;
+  return <Workspace key={bootstrap.generation} bootstrap={bootstrap} switchLibrary={switchLibrary} resetLibrary={resetLibrary} />;
 }
 
 function BootstrapLoading() {
@@ -78,7 +80,7 @@ export function BootstrapRecovery({ error, chooseLibrary, resetLibrary }: { erro
   </main>;
 }
 
-function Workspace({ bootstrap, chooseLibrary, resetLibrary }: { bootstrap: BootstrapStatus; chooseLibrary: (currentPath?: string) => Promise<void>; resetLibrary: () => Promise<void> }) {
+function Workspace({ bootstrap, switchLibrary, resetLibrary }: { bootstrap: BootstrapStatus; switchLibrary: (path: string) => Promise<void>; resetLibrary: () => Promise<void> }) {
   const data = usePortcoveData();
   const operations = useOperationState(data.refresh);
   const github = useGithubAuth(operations.perform, operations.setError);
@@ -110,9 +112,9 @@ function Workspace({ bootstrap, chooseLibrary, resetLibrary }: { bootstrap: Boot
     <main ref={workspace} data-focus-region="workspace">
       <PageHeader view={ui.view} query={ui.query} setQuery={ui.setQuery} portCount={data.catalog?.ports.length ?? 0} onOpenCommands={() => commandSurface.setOpen(true)} />
       <StatusLayer error={operations.error} clearError={() => operations.setError(undefined)} operation={operations.operation} busy={operations.busy} />
-      <CurrentView data={data} ui={ui} model={model} operations={operations} github={github} updates={updates} sourceHealth={sourceHealth} appearance={appearance} bootstrap={bootstrap} chooseLibrary={chooseLibrary} resetLibrary={resetLibrary} />
+      <CurrentView data={data} ui={ui} model={model} operations={operations} github={github} updates={updates} sourceHealth={sourceHealth} appearance={appearance} bootstrap={bootstrap} switchLibrary={switchLibrary} resetLibrary={resetLibrary} />
     </main>
-    <SelectedPortPanel model={model} ui={ui} operations={operations} installPlanning={installPlanning} backups={backups} activities={data.activities} />
+    <SelectedPortPanel model={model} ui={ui} operations={operations} installPlanning={installPlanning} backups={backups} activities={data.activities} libraryGeneration={bootstrap.generation} />
     <AdoptionOverlay ui={ui} operations={operations} />
     <CommandPalette open={commandSurface.open} commands={commandSurface.commands} close={() => commandSurface.setOpen(false)} />
   </div>;
@@ -155,14 +157,14 @@ function selectedPort(data: DataState, selectedId: string | undefined, statuses:
   };
 }
 
-function CurrentView({ data, ui, model, operations, github, updates, sourceHealth, appearance, bootstrap, chooseLibrary, resetLibrary }: {
+function CurrentView({ data, ui, model, operations, github, updates, sourceHealth, appearance, bootstrap, switchLibrary, resetLibrary }: {
   data: DataState; ui: UiState; model: ReturnType<typeof useAppModel>; operations: OperationState; github: GithubState; updates: UpdateState; sourceHealth: SourceHealthState; appearance: AppearanceState;
-  bootstrap: BootstrapStatus; chooseLibrary: (currentPath?: string) => Promise<void>; resetLibrary: () => Promise<void>;
+  bootstrap: BootstrapStatus; switchLibrary: (path: string) => Promise<void>; resetLibrary: () => Promise<void>;
 }) {
   if (ui.view === "updates") return <UpdateCenter ports={data.catalog?.ports ?? []} statuses={model.statusMap} activities={data.activities} outcomes={updates.outcomes} actions={updates.actions} busy={operations.busy}
     checkAll={() => { void updates.checkAll(); }} applyPolicies={() => { void updates.applyPolicies(); }} onSelect={ui.setSelectedId} onOpenSources={() => ui.setView("settings")} />;
   if (ui.view === "settings") return <SettingsView doctor={data.doctor} storage={data.storage} github={github} busy={operations.busy} sources={data.sources} appearance={appearance}
-    librarySelection={bootstrap.selection} chooseLibrary={chooseLibrary} resetLibrary={resetLibrary}
+    librarySelection={bootstrap.selection} chooseLibrary={pickLibraryFolder} switchLibrary={switchLibrary} resetLibrary={resetLibrary}
     sourceProfiles={data.catalog?.source_profiles ?? []} onSourceAdded={data.refresh} onCatalogChanged={data.refresh}
     createSupportBundle={() => operations.perform("support bundle", desktopApi.createSupportBundle)}
     exportMetadata={() => operations.perform("export library metadata", async () => {
@@ -180,13 +182,13 @@ function CurrentView({ data, ui, model, operations, github, updates, sourceHealt
     onBrowseCatalog={() => ui.setView("catalog")} clearFilters={() => { ui.setFilter("all"); ui.setQuery(""); }} loading={!data.catalog} />;
 }
 
-function SelectedPortPanel({ model, ui, operations, installPlanning, backups, activities }: { model: ReturnType<typeof useAppModel>; ui: UiState; operations: OperationState; installPlanning: InstallPlanningState; backups: BackupState; activities: ActivityRecord[] }) {
+function SelectedPortPanel({ model, ui, operations, installPlanning, backups, activities, libraryGeneration }: { model: ReturnType<typeof useAppModel>; ui: UiState; operations: OperationState; installPlanning: InstallPlanningState; backups: BackupState; activities: ActivityRecord[]; libraryGeneration: number }) {
   if (!model.port) return null;
   const pickSource = model.sourceProfile ? () => { void applyPathChoice(pickSourcePath(model.sourceProfile!, ui.sourcePath), ui.setSourcePath, operations.setError); } : undefined;
   const pickArchive = model.sourceProfile?.kind === "file-set" ? () => { void applyPathChoice(pickSourceArchivePath(ui.sourcePath), ui.setSourcePath, operations.setError); } : undefined;
   const pickBios = model.biosProfile ? () => { void applyPathChoice(pickSourcePath(model.biosProfile!, ui.biosPath), ui.setBiosPath, operations.setError); } : undefined;
   return <DetailPanel port={model.port} status={model.status} installPlan={installPlanning.plan} backups={backups.backups} backupProblems={backups.inventory.problems} backupState={backups.inventory.state} source={model.source} sourceProfile={model.sourceProfile} sourcePath={ui.sourcePath} setSourcePath={ui.setSourcePath}
-    cancellableActivities={activities.filter(activity => activity.target_id === model.port?.id && activity.cancellation)}
+    cancellableActivities={activities.filter(activity => activity.target_id === model.port?.id && activity.cancellation)} libraryGeneration={libraryGeneration} outputLocationChanged={installPlanning.invalidate}
     pickSource={pickSource} pickSourceArchive={pickArchive} busy={operations.busy} bios={model.bios} biosProfile={model.biosProfile} biosPath={ui.biosPath} setBiosPath={ui.setBiosPath} pickBios={pickBios}
     actions={detailActions(model.port, model.status, ui.sourcePath, ui.biosPath, operations.perform, () => ui.setSelectedId(undefined), installPlanning.review, backups.refresh)} />;
 }

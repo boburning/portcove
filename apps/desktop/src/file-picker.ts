@@ -33,6 +33,10 @@ export function pickLibraryFolder(currentPath: string) {
   return open({ title: "Choose Portcove library", multiple: false, directory: true, defaultPath: currentPath || undefined });
 }
 
+export function pickGameOutputFolder(currentPath: string) {
+  return open({ title: "Choose Export / install folder", multiple: false, directory: true, defaultPath: currentPath || undefined });
+}
+
 export function pickMetadataExportPath() {
   return save({ title: "Export library metadata", defaultPath: "portcove-library.json", filters: [{ name: "Portcove library metadata", extensions: ["json"] }] });
 }

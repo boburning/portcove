@@ -1,4 +1,4 @@
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { AlertTriangle, Boxes, Check, CheckCircle2, CircleMinus, CircleUserRound, Command, Download, FolderInput, HardDrive, Library, LoaderCircle, Search, Settings, ShieldCheck, Wrench, X } from "lucide-react";
 import desktopPackage from "../../package.json";
 import { copyText } from "../clipboard";
@@ -274,19 +274,20 @@ function ThemeOption({ option, selected, select }: { option: ThemePreference; se
   return <button data-focusable className={selected ? "active" : ""} aria-pressed={selected} onClick={() => select?.(option)}>{option[0].toUpperCase() + option.slice(1)}</button>;
 }
 
-export function SettingsView({ libraryRoot = "", librarySelection, chooseLibrary, resetLibrary, doctor, storage, github, busy, sources = [], sourceNeeds = [], sourceOutcomes = [], verifySources, replaceSource, addSource, appearance, createSupportBundle, exportMetadata, sourceProfiles = [], onSourceAdded, onCatalogChanged }: {
+export function SettingsView({ libraryRoot = "", librarySelection, chooseLibrary, switchLibrary, resetLibrary, doctor, storage, github, busy, sources = [], sourceNeeds = [], sourceOutcomes = [], verifySources, replaceSource, addSource, appearance, createSupportBundle, exportMetadata, sourceProfiles = [], onSourceAdded, onCatalogChanged }: {
   libraryRoot?: string; doctor?: DoctorReport; storage?: StorageSummary; github?: GithubSettingsActions; busy?: string; sources?: SourceRecord[];
-  librarySelection?: LibrarySelection; chooseLibrary?: (currentPath?: string) => Promise<void>; resetLibrary?: () => Promise<void>;
+  librarySelection?: LibrarySelection; chooseLibrary?: (currentPath: string) => Promise<string | null>; switchLibrary?: (path: string) => Promise<void>; resetLibrary?: () => Promise<void>;
   sourceNeeds?: SourceRequirement[]; sourceOutcomes?: SourceVerificationOutcome[]; verifySources?: () => void; replaceSource?: (source: SourceRecord) => void;
   addSource?: (profile: SourceProfile, archive: boolean) => void; appearance?: ThemeState; createSupportBundle?: () => Promise<string | undefined>;
   exportMetadata?: () => Promise<LibraryMetadataFile | undefined>;
   sourceProfiles?: SourceProfile[]; onSourceAdded?: () => Promise<void>; onCatalogChanged?: () => Promise<void>;
 }) {
   return <section className="settings-grid">
+    <div className="settings-section-heading"><p className="eyebrow">STORAGE LOCATIONS</p><h2>Whole-library storage</h2><p>Choose which Portcove library opens at startup. Each game’s Export / install folder is reviewed separately from its game page.</p></div>
+    <LibrarySelectionCard selection={librarySelection} busy={busy} choose={chooseLibrary} switchLibrary={switchLibrary} reset={resetLibrary} />
+    <StorageCard libraryRoot={storage?.library_root ?? libraryRoot} storage={storage} busy={busy} exportMetadata={exportMetadata} />
     <GithubSettings github={github} busy={busy} />
     <SourceHealth sources={sources} requirements={sourceNeeds} outcomes={sourceOutcomes} busy={busy} verify={verifySources} replace={replaceSource} add={addSource} profiles={sourceProfiles} onAdded={onSourceAdded} />
-    <StorageCard libraryRoot={storage?.library_root ?? libraryRoot} storage={storage} busy={busy} exportMetadata={exportMetadata} />
-    <LibrarySelectionCard selection={librarySelection} busy={busy} choose={chooseLibrary} reset={resetLibrary} />
     <AppearanceSettings appearance={appearance} />
     <CatalogSettings provenance={doctor?.catalog_provenance} disabled={Boolean(busy)} onChanged={onCatalogChanged} />
     <HostReadiness doctor={doctor} />
@@ -297,21 +298,58 @@ export function SettingsView({ libraryRoot = "", librarySelection, chooseLibrary
   </section>;
 }
 
-function LibrarySelectionCard({ selection, busy, choose, reset }: { selection?: LibrarySelection; busy?: string; choose?: (currentPath?: string) => Promise<void>; reset?: () => Promise<void> }) {
+export function LibrarySelectionCard({ selection, busy, choose, switchLibrary, reset }: { selection?: LibrarySelection; busy?: string; choose?: (currentPath: string) => Promise<string | null>; switchLibrary?: (path: string) => Promise<void>; reset?: () => Promise<void> }) {
   const [error, setError] = useState<string>();
+  const [review, setReview] = useState<{ kind: "switch"; path: string } | { kind: "reset" }>();
+  const [pending, setPending] = useState(false);
+  const switchTrigger = useRef<HTMLButtonElement>(null);
+  const resetTrigger = useRef<HTMLButtonElement>(null);
   const run = async (operation: () => Promise<void>) => {
     setError(undefined);
+    setPending(true);
     try { await operation(); } catch (value) { setError(errorText(value)); }
+    finally { setPending(false); }
+  };
+  const chooseCandidate = async () => {
+    setError(undefined);
+    setPending(true);
+    try {
+      const path = await choose?.(selection?.root ?? "");
+      if (path && path !== selection?.root) setReview({ kind: "switch", path });
+    } catch (value) { setError(errorText(value)); }
+    finally { setPending(false); }
+  };
+  const cancelReview = () => {
+    const trigger = review?.kind === "reset" ? resetTrigger : switchTrigger;
+    setReview(undefined);
+    window.requestAnimationFrame(() => trigger.current?.focus());
+  };
+  const applyReview = async () => {
+    if (!review) return;
+    await run(async () => {
+      if (review.kind === "switch") await switchLibrary?.(review.path);
+      else await reset?.();
+      setReview(undefined);
+    });
   };
   const source = selection?.source === "saved" ? "Saved host preference" : selection?.source === "invocation" ? "One-run override" : "Platform default";
   return <article className="settings-card" data-focus-group>
-    <p className="eyebrow">DEFAULT LIBRARY</p><h2>Startup location</h2>
+    <p className="eyebrow">WHOLE PORTCOVE LIBRARY</p><h2>Startup selection</h2>
     <code>{selection?.root ?? "Unavailable"}</code>
-    <p>{source}. Changing this selection opens another existing empty folder or Portcove library; it does not move files.</p>
+    <p>{source}. Switching opens another existing empty folder or Portcove library. It does not move files or change any game’s Export / install folder.</p>
     <div className="button-row">
-      <button data-focusable className="small-control" disabled={Boolean(busy) || !choose} onClick={() => { void run(() => choose!(selection?.root)); }}>Choose library</button>
-      <button data-focusable className="small-control" disabled={Boolean(busy) || !reset} onClick={() => { void run(() => reset!()); }}>Use platform default</button>
+      <button ref={switchTrigger} data-focusable className="small-control" disabled={Boolean(busy) || pending || !choose || !switchLibrary} onClick={() => { void chooseCandidate(); }}>Review library switch</button>
+      <button ref={resetTrigger} data-focusable className="small-control" disabled={Boolean(busy) || pending || !reset} onClick={() => setReview({ kind: "reset" })}>Review platform default</button>
     </div>
+    {review && <div className="library-selection-review" role="group" aria-labelledby="library-selection-review-title">
+      <strong id="library-selection-review-title">{review.kind === "switch" ? "Switch whole Portcove library" : "Use the platform-default library"}</strong>
+      {review.kind === "switch" && <code>{review.path}</code>}
+      <p>Portcove will close this library and open the reviewed selection. Existing files stay in place, and per-game Export / install folders do not change.</p>
+      <div className="button-row">
+        <button data-focusable data-autofocus className="small-control" disabled={pending} onClick={() => { void applyReview(); }}>{pending ? "Switching…" : review.kind === "switch" ? "Switch whole library" : "Use platform default"}</button>
+        <button data-focusable className="small-control" disabled={pending} onClick={cancelReview}>Keep current library</button>
+      </div>
+    </div>}
     {error && <p role="alert">{error}</p>}
   </article>;
 }
@@ -354,7 +392,7 @@ function StorageCard({ libraryRoot, storage, busy, exportMetadata }: { libraryRo
   const available = storage?.volume_available_bytes ?? 0;
   const availablePercent = total > 0 ? Math.min(100, available / total * 100) : 0;
   return <article className="settings-card storage-card" data-focus-group>
-    <p className="eyebrow">LIBRARY</p><h2><Icon glyph={HardDrive} />Managed files</h2><code>{libraryRoot || "Loading…"}</code>
+    <p className="eyebrow">CURRENT LIBRARY</p><h2><Icon glyph={HardDrive} />Files and capacity</h2><code>{libraryRoot || "Loading…"}</code>
     {storage && <div className="storage-capacity">
       <div><strong>{formatBytes(available)} available</strong><span>{formatBytes(total)} volume</span></div>
       <div className="storage-meter" role="meter" aria-label="Available library storage" aria-valuemin={0} aria-valuemax={total} aria-valuenow={available}><i style={{ width: `${availablePercent}%` }} /></div>
