@@ -22,7 +22,7 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":26,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":27,"ok":true,"command":"status","data":{},"error":null}
 ```
 
 Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for success, failure, or cancellation. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
@@ -103,6 +103,12 @@ durable journal; the new paths remain authoritative.
 API schema 26 adds fixed disc-tool definitions, saved-path resolution, and the
 `saved`/`unsupported` tool states.
 
+API schema 27 adds library-free `tool list`, `tool set-path`, and
+`tool clear-path` commands plus typed status and bounded-probe results. Desktop
+uses the same core resolver, validation, and host-preference store. A selected
+path is saved only after its registry-owned, shell-free probe succeeds; clearing
+it reveals any environment or discovered candidate without changing a library.
+
 ```text
 portcove --json capabilities
 portcove --json schema export
@@ -118,6 +124,9 @@ portcove --json output preview <port-id> [path]
 portcove --json output set <port-id> <path> --expected-preview <sha256> --yes
 portcove --json output reset <port-id> --expected-preview <sha256> --yes
 portcove --json output move <port-id> <path>
+portcove --json tool list
+portcove --json tool set-path <tool-id> <executable-path>
+portcove --json tool clear-path <tool-id>
 portcove --json output move <port-id> <path> --apply --expected-plan <sha256> --yes
 portcove --json backup list <port-id>
 ```

@@ -1994,11 +1994,41 @@ fn push_unique_path(paths: &mut Vec<PathBuf>, candidate: PathBuf) {
     }
 }
 
-pub(crate) fn host_tool_statuses(preferences: &HostPreferenceStore) -> Result<Vec<HostToolStatus>> {
+pub fn host_tool_statuses(preferences: &HostPreferenceStore) -> Result<Vec<HostToolStatus>> {
     Ok(vec![
         crate::host_tools::resolve("chdman", chdman_candidates(), preferences)?,
         crate::host_tools::resolve("dolphin_tool", dolphin_tool_candidates(), preferences)?,
     ])
+}
+
+pub fn recheck_host_tool(
+    preferences: &HostPreferenceStore,
+    id: &str,
+) -> Result<crate::HostToolProbeResult> {
+    let status = host_tool_statuses(preferences)?
+        .into_iter()
+        .find(|status| status.id == id)
+        .ok_or_else(|| PortcoveError::usage(format!("unknown host tool: {id}")))?;
+    let path = status.path.ok_or_else(|| {
+        PortcoveError::not_found(format!("{} is not currently resolved", status.display_name))
+            .detail("tool_id", id)
+            .detail("official_url", status.official_url)
+    })?;
+    if status.state == crate::HostToolState::Misconfigured {
+        return Ok(crate::HostToolProbeResult {
+            tool_id: id.to_owned(),
+            path,
+            state: crate::HostToolProbeState::Invalid,
+            message: "the resolved executable is missing or changed; locate it again to approve the current bytes".into(),
+            sha256: None,
+            persisted: false,
+            retry_action: format!("locate the {} executable again", status.display_name),
+            clear_action_available: preferences.host_tool_path(id)?.is_some(),
+        });
+    }
+    let mut result = crate::host_tools::probe_host_tool(id, &path)?;
+    result.clear_action_available = preferences.host_tool_path(id)?.is_some();
+    Ok(result)
 }
 
 fn resolve_host_tool_path(

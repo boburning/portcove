@@ -1148,6 +1148,7 @@ impl CapabilityDocument {
                 "backup".into(),
                 "catalog".into(),
                 "source".into(),
+                "tool".into(),
                 "status".into(),
                 "activity".into(),
                 "storage".into(),

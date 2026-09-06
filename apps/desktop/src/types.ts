@@ -283,6 +283,19 @@ export interface HostToolStatus {
   official_url: string;
 }
 
+export type HostToolProbeState = "missing" | "invalid" | "blocked" | "timed_out" | "excessive_output" | "failed_probe" | "incompatible_version" | "cancelled" | "success";
+
+export interface HostToolProbeResult {
+  tool_id: string;
+  path: string;
+  state: HostToolProbeState;
+  message: string;
+  sha256?: string;
+  persisted: boolean;
+  retry_action: string;
+  clear_action_available: boolean;
+}
+
 export interface DoctorReport {
   platform: Platform;
   library: StorageSummary;

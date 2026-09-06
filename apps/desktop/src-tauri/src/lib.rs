@@ -17,11 +17,12 @@ use portcove_core::{
     ActivityRecord, AdoptionPreview, BackupAction, BackupInventory, BackupRecord, CatalogDocument,
     ChildProcessClass, ChildProcessPolicy, CompositeReleaseProvider, DoctorReport,
     GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, GithubReleaseProvider,
-    HostPreferenceStore, IdentifiedLaunchRequest, InstallPlan, InstallRecord, LaunchStdio, Library,
-    LibraryMetadataFile, LibrarySelection, LibrarySelectionSource, OperationCoordinator,
-    OperationEvent, OperationResult, PortStatus, PortcoveError, PortcoveService, ReconcileResult,
-    ReleaseChannel, ReleaseProvider, RestoreResult, SourceRecord, SourceRelinkPlan,
-    SourceRemovalPreview, SourceVerification, UpdateCheck, UpdatePolicy, VerificationReport,
+    HostPreferenceStore, HostToolProbeResult, HostToolStatus, IdentifiedLaunchRequest, InstallPlan,
+    InstallRecord, LaunchStdio, Library, LibraryMetadataFile, LibrarySelection,
+    LibrarySelectionSource, OperationCoordinator, OperationEvent, OperationResult, PortStatus,
+    PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel, ReleaseProvider,
+    RestoreResult, SourceRecord, SourceRelinkPlan, SourceRemovalPreview, SourceVerification,
+    UpdateCheck, UpdatePolicy, VerificationReport,
 };
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
@@ -1383,6 +1384,102 @@ async fn get_doctor_report(state: tauri::State<'_, DesktopState>) -> DesktopResu
 }
 
 #[tauri::command]
+async fn get_host_tools(
+    state: tauri::State<'_, DesktopState>,
+) -> DesktopResult<Vec<HostToolStatus>> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let preferences = state.preferences.as_ref().map_err(Clone::clone)?;
+        host_tools_for(preferences)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn set_host_tool_path(
+    state: tauri::State<'_, DesktopState>,
+    tool_id: String,
+    path: PathBuf,
+) -> DesktopResult<HostToolProbeResult> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let preferences = state.preferences.as_ref().map_err(Clone::clone)?;
+        set_host_tool_path_for(preferences, &tool_id, &path)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn clear_host_tool_path(
+    state: tauri::State<'_, DesktopState>,
+    tool_id: String,
+) -> DesktopResult<HostToolStatus> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let preferences = state.preferences.as_ref().map_err(Clone::clone)?;
+        clear_host_tool_for(preferences, &tool_id)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn recheck_host_tool(
+    state: tauri::State<'_, DesktopState>,
+    tool_id: String,
+) -> DesktopResult<HostToolProbeResult> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let preferences = state.preferences.as_ref().map_err(Clone::clone)?;
+        recheck_host_tool_for(preferences, &tool_id)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn open_host_tool_official_site(tool_id: String) -> DesktopResult<()> {
+    let url = host_tool_official_url(&tool_id)?;
+    blocking_worker(move || open_host_target(std::ffi::OsStr::new(&url))).await
+}
+
+fn host_tool_official_url(tool_id: &str) -> DesktopResult<String> {
+    portcove_core::host_tool_definitions()
+        .into_iter()
+        .find(|definition| definition.id == tool_id)
+        .map(|definition| definition.official_url)
+        .ok_or_else(|| DesktopError::from(PortcoveError::usage("unknown host tool")))
+}
+
+fn host_tools_for(preferences: &HostPreferenceStore) -> DesktopResult<Vec<HostToolStatus>> {
+    portcove_core::host_tool_statuses(preferences).map_err(Into::into)
+}
+
+fn set_host_tool_path_for(
+    preferences: &HostPreferenceStore,
+    tool_id: &str,
+    path: &Path,
+) -> DesktopResult<HostToolProbeResult> {
+    portcove_core::configure_host_tool(preferences, tool_id, path).map_err(Into::into)
+}
+
+fn recheck_host_tool_for(
+    preferences: &HostPreferenceStore,
+    tool_id: &str,
+) -> DesktopResult<HostToolProbeResult> {
+    portcove_core::recheck_host_tool(preferences, tool_id).map_err(Into::into)
+}
+
+fn clear_host_tool_for(
+    preferences: &HostPreferenceStore,
+    tool_id: &str,
+) -> DesktopResult<HostToolStatus> {
+    portcove_core::clear_host_tool(preferences, tool_id)?;
+    host_tools_for(preferences)?
+        .into_iter()
+        .find(|status| status.id == tool_id)
+        .ok_or_else(|| PortcoveError::usage(format!("unknown host tool: {tool_id}")).into())
+}
+
+#[tauri::command]
 async fn open_user_data(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
@@ -1608,6 +1705,11 @@ pub fn run() {
             remove_port,
             launch_port,
             get_doctor_report,
+            get_host_tools,
+            set_host_tool_path,
+            clear_host_tool_path,
+            recheck_host_tool,
+            open_host_tool_official_site,
             open_user_data,
             open_external_url,
             create_support_bundle,
@@ -1717,6 +1819,94 @@ mod tests {
                 "{url}"
             );
         }
+    }
+
+    #[test]
+    fn disc_tool_navigation_uses_only_fixed_registry_ids() {
+        assert_eq!(
+            host_tool_official_url("chdman").unwrap(),
+            "https://docs.mamedev.org/tools/chdman.html"
+        );
+        assert_eq!(
+            host_tool_official_url("dolphin_tool").unwrap(),
+            "https://dolphin-emu.org/download/"
+        );
+        for supplied in [
+            "https://example.com",
+            "chdman?redirect=https://example.com",
+            "unknown",
+        ] {
+            assert!(host_tool_official_url(supplied).is_err());
+        }
+    }
+
+    #[test]
+    fn disc_tool_controls_are_library_free_and_unknown_ids_do_not_mutate_preferences() {
+        let temporary = tempfile::tempdir().unwrap();
+        let preference_path = temporary.path().join("preferences.json");
+        let preferences = HostPreferenceStore::new(preference_path.clone()).unwrap();
+
+        let tools = host_tools_for(&preferences).unwrap();
+        assert_eq!(tools.len(), 2);
+        assert!(tools.iter().any(|tool| tool.id == "chdman"));
+        assert!(tools.iter().any(|tool| tool.id == "dolphin_tool"));
+        assert!(!preference_path.exists());
+
+        let error = clear_host_tool_for(&preferences, "https://example.com").unwrap_err();
+        assert_eq!(error.code, portcove_core::ErrorCode::Usage);
+        assert!(!preference_path.exists());
+
+        let source = temporary.path().join("host_tool_probe.rs");
+        fs::write(
+            &source,
+            include_str!("../../../../crates/portcove-core/src/testdata/host_tool_probe.rs.txt"),
+        )
+        .unwrap();
+        let executable = temporary.path().join(if cfg!(windows) {
+            "chdman-fixture.exe"
+        } else {
+            "chdman-fixture"
+        });
+        let mut rustc =
+            ChildProcessPolicy::native_command(ChildProcessClass::ManagedBuilder, "rustc").unwrap();
+        let compiled = rustc
+            .arg(&source)
+            .arg("-o")
+            .arg(&executable)
+            .output()
+            .unwrap();
+        assert!(
+            compiled.status.success(),
+            "fixture compilation failed: {}",
+            String::from_utf8_lossy(&compiled.stderr)
+        );
+
+        let configured = set_host_tool_path_for(&preferences, "chdman", &executable).unwrap();
+        assert_eq!(configured.state, portcove_core::HostToolProbeState::Success);
+        assert!(configured.persisted);
+
+        let restarted = HostPreferenceStore::new(preference_path).unwrap();
+        let status = host_tools_for(&restarted)
+            .unwrap()
+            .into_iter()
+            .find(|tool| tool.id == "chdman")
+            .unwrap();
+        assert_eq!(status.source, Some(portcove_core::HostToolSource::Saved));
+        let checked = recheck_host_tool_for(&restarted, "chdman").unwrap();
+        assert_eq!(checked.state, portcove_core::HostToolProbeState::Success);
+        assert!(checked.clear_action_available);
+
+        fs::write(&executable, b"changed after selection").unwrap();
+        let changed = recheck_host_tool_for(&restarted, "chdman").unwrap();
+        assert_eq!(changed.state, portcove_core::HostToolProbeState::Invalid);
+        assert!(changed.clear_action_available);
+        assert_eq!(
+            restarted.host_tool_path("chdman").unwrap(),
+            Some(executable)
+        );
+
+        let cleared = clear_host_tool_for(&restarted, "chdman").unwrap();
+        assert_ne!(cleared.source, Some(portcove_core::HostToolSource::Saved));
     }
 
     #[test]

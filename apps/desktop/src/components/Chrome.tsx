@@ -3,7 +3,7 @@ import { AlertTriangle, Boxes, Check, CheckCircle2, CircleMinus, CircleUserRound
 import desktopPackage from "../../package.json";
 import { copyText } from "../clipboard";
 import type { ThemeState, ThemePreference } from "../theme";
-import type { DoctorReport, GithubAuthStatus, GithubDeviceLogin, HostToolStatus, LibraryMetadataFile, LibrarySelection, OperationEvent, SourceProfile, SourceRecord, SourceVerificationOutcome, StorageSummary } from "../types";
+import type { DoctorReport, GithubAuthStatus, GithubDeviceLogin, HostToolProbeResult, HostToolStatus, LibraryMetadataFile, LibrarySelection, OperationEvent, SourceProfile, SourceRecord, SourceVerificationOutcome, StorageSummary } from "../types";
 import { errorText, formatBytes, type SourceRequirement, type View } from "../view-model";
 import { BrandAvatar, BrandMascot, BrandWordmark } from "./Brand";
 import { ExternalLink } from "./ExternalLink";
@@ -122,6 +122,13 @@ export interface GithubSettingsActions {
   logout: () => Promise<void>;
   beginDeviceLogin: () => Promise<void>;
   refresh: () => Promise<void>;
+}
+
+export interface HostToolActions {
+  locate: (tool: HostToolStatus) => Promise<HostToolProbeResult | undefined>;
+  clear: (toolId: string) => Promise<void>;
+  recheck: (toolId: string) => Promise<HostToolProbeResult>;
+  openOfficial: (toolId: string) => Promise<void>;
 }
 
 function GithubConnection({ status }: { status?: GithubAuthStatus }) {
@@ -274,13 +281,14 @@ function ThemeOption({ option, selected, select }: { option: ThemePreference; se
   return <button data-focusable className={selected ? "active" : ""} aria-pressed={selected} onClick={() => select?.(option)}>{option[0].toUpperCase() + option.slice(1)}</button>;
 }
 
-export function SettingsView({ libraryRoot = "", librarySelection, chooseLibrary, switchLibrary, resetLibrary, doctor, storage, github, busy, sources = [], sourceNeeds = [], sourceOutcomes = [], verifySources, replaceSource, addSource, appearance, createSupportBundle, exportMetadata, sourceProfiles = [], onSourceAdded, onCatalogChanged }: {
+export function SettingsView({ libraryRoot = "", librarySelection, chooseLibrary, switchLibrary, resetLibrary, doctor, storage, github, busy, sources = [], sourceNeeds = [], sourceOutcomes = [], verifySources, replaceSource, addSource, appearance, createSupportBundle, exportMetadata, sourceProfiles = [], onSourceAdded, onCatalogChanged, hostToolActions }: {
   libraryRoot?: string; doctor?: DoctorReport; storage?: StorageSummary; github?: GithubSettingsActions; busy?: string; sources?: SourceRecord[];
   librarySelection?: LibrarySelection; chooseLibrary?: (currentPath: string) => Promise<string | null>; switchLibrary?: (path: string) => Promise<void>; resetLibrary?: () => Promise<void>;
   sourceNeeds?: SourceRequirement[]; sourceOutcomes?: SourceVerificationOutcome[]; verifySources?: () => void; replaceSource?: (source: SourceRecord) => void;
   addSource?: (profile: SourceProfile, archive: boolean) => void; appearance?: ThemeState; createSupportBundle?: () => Promise<string | undefined>;
   exportMetadata?: () => Promise<LibraryMetadataFile | undefined>;
   sourceProfiles?: SourceProfile[]; onSourceAdded?: () => Promise<void>; onCatalogChanged?: () => Promise<void>;
+  hostToolActions?: HostToolActions;
 }) {
   return <section className="settings-grid">
     <div className="settings-section-heading"><p className="eyebrow">STORAGE LOCATIONS</p><h2>Whole-library storage</h2><p>Choose which Portcove library opens at startup. Each game’s Export / install folder is reviewed separately from its game page.</p></div>
@@ -290,7 +298,7 @@ export function SettingsView({ libraryRoot = "", librarySelection, chooseLibrary
     <SourceHealth sources={sources} requirements={sourceNeeds} outcomes={sourceOutcomes} busy={busy} verify={verifySources} replace={replaceSource} add={addSource} profiles={sourceProfiles} onAdded={onSourceAdded} />
     <AppearanceSettings appearance={appearance} />
     <CatalogSettings provenance={doctor?.catalog_provenance} disabled={Boolean(busy)} onChanged={onCatalogChanged} />
-    <HostReadiness doctor={doctor} />
+    <HostReadiness doctor={doctor} busy={busy} actions={hostToolActions} />
     <DiagnosticsCard busy={busy} createSupportBundle={createSupportBundle} />
     <AboutCard />
     <article className="settings-card"><p className="eyebrow">UPDATES</p><h2>Safe by default</h2><p>Stable is the default channel. Beta and rolling releases are always an explicit per-port choice.</p></article>
@@ -354,18 +362,34 @@ export function LibrarySelectionCard({ selection, busy, choose, switchLibrary, r
   </article>;
 }
 
-function HostReadiness({ doctor }: { doctor?: DoctorReport }) {
+function HostReadiness({ doctor, busy, actions }: { doctor?: DoctorReport; busy?: string; actions?: HostToolActions }) {
   return <article className="settings-card host-readiness">
-    <p className="eyebrow">HOST</p><h2><Icon glyph={Wrench} />Source tools</h2>
+    <p className="eyebrow">HOST</p><h2><Icon glyph={Wrench} />Disc tools</h2>
     {doctor
       ? <><p className="host-summary"><code>{doctor.platform}</code><span>{doctor.catalog_port_count} ports · {doctor.installed_port_count} installed · {doctor.registered_source_count} sources</span></p>
-        <div className="host-tool-list">{doctor.host_tools.map(tool => <HostToolRow key={tool.id} tool={tool} />)}</div></>
-      : <p>Checking source-tool readiness…</p>}
+        <div className="host-tool-list">{doctor.host_tools.map(tool => <HostToolRow key={tool.id} tool={tool} busy={Boolean(busy)} actions={actions} />)}</div></>
+      : <p>Checking disc-tool readiness…</p>}
     <p>Optional tools are required only when a matching compressed disc format needs validation or materialization.</p>
   </article>;
 }
 
-function HostToolRow({ tool }: { tool: HostToolStatus }) {
+function HostToolRow({ tool, busy, actions }: { tool: HostToolStatus; busy: boolean; actions?: HostToolActions }) {
+  const [pending, setPending] = useState<string>();
+  const [outcome, setOutcome] = useState<HostToolProbeResult>();
+  const [error, setError] = useState<string>();
+  const run = async (name: string, operation: () => Promise<HostToolProbeResult | void | undefined> | undefined) => {
+    setPending(name);
+    setError(undefined);
+    setOutcome(undefined);
+    try {
+      const result = await operation();
+      if (result) setOutcome(result);
+    } catch (value) {
+      setError(errorText(value));
+    } finally {
+      setPending(undefined);
+    }
+  };
   const states = {
     available: { label: "Ready", icon: CheckCircle2 },
     missing: { label: "Not found", icon: CircleMinus },
@@ -374,10 +398,21 @@ function HostToolRow({ tool }: { tool: HostToolStatus }) {
   };
   const state = states[tool.state];
   const location = tool.path ?? `Set ${tool.configuration_variable}`;
-  return <div className="host-tool-row">
+  const configured = tool.source === "saved";
+  const source = tool.source === "saved" ? "Saved preference" : tool.source === "environment" ? "Environment override" : tool.source === "discovery" ? "Host discovery" : "Not resolved";
+  return <div className="host-tool-row" data-focus-group>
     <div className="host-tool-heading"><strong>{tool.display_name}</strong><span className={`host-tool-state ${tool.state}`}><Icon glyph={state.icon} size="sm" />{state.label}</span></div>
     <small>{tool.purpose}</small>
     <code title={location}>{location}</code>
+    <small>{source} · Technical ID: <code>{tool.id}</code></small>
+    <div className="button-row">
+      <button data-focusable className="small-control" disabled={busy || Boolean(pending) || !actions} onClick={() => { void run("site", () => actions?.openOfficial(tool.id)); }}>Official site</button>
+      <button data-focusable className="small-control" disabled={busy || Boolean(pending) || !actions} onClick={() => { void run("locate", () => actions?.locate(tool)); }}>{pending === "locate" ? "Checking…" : "Locate executable…"}</button>
+      <button data-focusable className="small-control" disabled={busy || Boolean(pending) || !actions || !tool.path} onClick={() => { void run("recheck", () => actions?.recheck(tool.id)); }}>{pending === "recheck" ? "Checking…" : "Recheck"}</button>
+      {configured && <button data-focusable className="small-control" disabled={busy || Boolean(pending) || !actions} onClick={() => { void run("clear", () => actions?.clear(tool.id)); }}>Clear custom path</button>}
+    </div>
+    {outcome && <p role="status">{outcome.message}</p>}
+    {error && <p role="alert">{error}</p>}
   </div>;
 }
 

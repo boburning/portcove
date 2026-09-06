@@ -2,11 +2,12 @@ use std::path::Path;
 
 use portcove_core::{
     ActivityRecord, BackupInventory, BackupInventoryState, BackupProblemKind, CapabilityDocument,
-    DoctorReport, GithubAuthSource, GithubAuthStatus, HostToolSource, HostToolState, InstallPlan,
-    InstallPlanAction, LaunchBlocker, OutputDestinationAvailability, OutputDestinationOwnership,
-    OutputDestinationPreview, OutputLocationSource, OutputRelocationPlan, Platform, PortDefinition,
-    PortOutputLocation, PortPaths, PortStatus, RepairItemKind, SourceRecord, SourceRequirementRole,
-    StorageSummary, SupportTier,
+    DoctorReport, GithubAuthSource, GithubAuthStatus, HostToolProbeResult, HostToolSource,
+    HostToolState, HostToolStatus, InstallPlan, InstallPlanAction, LaunchBlocker,
+    OutputDestinationAvailability, OutputDestinationOwnership, OutputDestinationPreview,
+    OutputLocationSource, OutputRelocationPlan, Platform, PortDefinition, PortOutputLocation,
+    PortPaths, PortStatus, RepairItemKind, SourceRecord, SourceRequirementRole, StorageSummary,
+    SupportTier,
 };
 use serde::Serialize;
 use serde_json::Value;
@@ -311,6 +312,60 @@ pub(crate) fn doctor(report: &DoctorReport) -> String {
         storage(&report.library),
         table(&["TOOL", "STATE", "SOURCE", "PATH"], tool_rows),
         repairs,
+    )
+}
+
+pub(crate) fn host_tools(tools: &[HostToolStatus]) -> String {
+    let rows = tools
+        .iter()
+        .map(|tool| {
+            vec![
+                tool.id.clone(),
+                tool.display_name.clone(),
+                host_tool_state(tool.state).into(),
+                tool.source.map_or("-".into(), |source| match source {
+                    HostToolSource::Environment => "environment".into(),
+                    HostToolSource::Saved => "saved preference".into(),
+                    HostToolSource::Discovery => "discovery".into(),
+                }),
+                tool.path
+                    .as_deref()
+                    .map_or_else(|| "-".into(), |path| path.display().to_string()),
+                tool.official_url.clone(),
+            ]
+        })
+        .collect();
+    format!(
+        "Disc tools ({})\n{}",
+        tools.len(),
+        table(
+            &["ID", "NAME", "STATUS", "SOURCE", "PATH", "OFFICIAL SITE"],
+            rows
+        )
+    )
+}
+
+pub(crate) fn host_tool(tool: &HostToolStatus) -> String {
+    host_tools(std::slice::from_ref(tool))
+}
+
+pub(crate) fn host_tool_probe(result: &HostToolProbeResult) -> String {
+    format!(
+        "Disc tool: {}\nStatus: {}\nPath: {}\n{}",
+        clean(&result.tool_id),
+        match result.state {
+            portcove_core::HostToolProbeState::Missing => "missing",
+            portcove_core::HostToolProbeState::Invalid => "invalid",
+            portcove_core::HostToolProbeState::Blocked => "blocked",
+            portcove_core::HostToolProbeState::TimedOut => "timed out",
+            portcove_core::HostToolProbeState::ExcessiveOutput => "excessive output",
+            portcove_core::HostToolProbeState::FailedProbe => "probe failed",
+            portcove_core::HostToolProbeState::IncompatibleVersion => "incompatible",
+            portcove_core::HostToolProbeState::Cancelled => "cancelled",
+            portcove_core::HostToolProbeState::Success => "ready",
+        },
+        clean(&result.path.display().to_string()),
+        clean(&result.message),
     )
 }
 

@@ -7,7 +7,7 @@ import { CommandPalette } from "./components/CommandPalette";
 import { DetailPanel } from "./components/DetailPanel";
 import { PortBrowser } from "./components/PortBrowser";
 import { UpdateCenter } from "./components/UpdateCenter";
-import { pickInstallFolder, pickLibraryFolder, pickMetadataExportPath, pickSourceArchivePath, pickSourcePath } from "./file-picker";
+import { pickHostToolExecutable, pickInstallFolder, pickLibraryFolder, pickMetadataExportPath, pickSourceArchivePath, pickSourcePath } from "./file-picker";
 import { desktopApi } from "./api";
 import { useWorkspaceScroll } from "./keyboard-shortcuts";
 import { useThemePreference } from "./theme";
@@ -16,7 +16,7 @@ import { focusRegion } from "./focus";
 import { overlayBackAction } from "./overlay-stack";
 import { useCommandSurface } from "./use-command-surface";
 import { useAdoptionPlanning, detailActions, type Perform, useGithubAuth, useInstallPlanning, useOperationState, usePortBackups, usePortcoveData, usePortcoveUi, useSourceHealth, useUpdateCenter } from "./use-portcove";
-import type { ActivityRecord, BootstrapStatus, DesktopError, SourceProfile, SourceRecord } from "./types";
+import type { ActivityRecord, BootstrapStatus, DesktopError, HostToolStatus, SourceProfile, SourceRecord } from "./types";
 import { currentUpdateSnapshot, errorText, filterPorts, indexStatuses, mostRecentPort, requiredSourceNeeds, summarizeLibrary } from "./view-model";
 
 export default function App() {
@@ -166,6 +166,18 @@ function CurrentView({ data, ui, model, operations, github, updates, sourceHealt
   if (ui.view === "settings") return <SettingsView doctor={data.doctor} storage={data.storage} github={github} busy={operations.busy} sources={data.sources} appearance={appearance}
     librarySelection={bootstrap.selection} chooseLibrary={pickLibraryFolder} switchLibrary={switchLibrary} resetLibrary={resetLibrary}
     sourceProfiles={data.catalog?.source_profiles ?? []} onSourceAdded={data.refresh} onCatalogChanged={data.refresh}
+    hostToolActions={{
+      locate: async (tool: HostToolStatus) => {
+        const path = await pickHostToolExecutable(tool.display_name, tool.path ?? "");
+        if (!path) return undefined;
+        const result = await desktopApi.setHostToolPath(tool.id, path);
+        await data.refresh();
+        return result;
+      },
+      clear: async (toolId: string) => { await desktopApi.clearHostToolPath(toolId); await data.refresh(); },
+      recheck: async (toolId: string) => desktopApi.recheckHostTool(toolId),
+      openOfficial: (toolId: string) => desktopApi.openHostToolOfficialSite(toolId),
+    }}
     createSupportBundle={() => operations.perform("support bundle", desktopApi.createSupportBundle)}
     exportMetadata={() => operations.perform("export library metadata", async () => {
       const path = await pickMetadataExportPath();
