@@ -6,6 +6,7 @@ import {
   buildSourceProvenanceAudit,
   readLiveSourceProvenance,
   renderSourceProvenanceAudit,
+  runReadOnlyGitHubCommand,
 } from "./source-provenance-audit.mjs";
 
 const sha = character => character.repeat(40);
@@ -202,6 +203,18 @@ test("live enrichment calls only bounded read commands and API errors do not exp
     }),
     error => !error.message.includes(secret),
   );
+});
+
+test("live GitHub reads allow the full bounded Project payload", () => {
+  let invocation;
+  const value = runReadOnlyGitHubCommand(["project", "item-list"], (command, args, options) => {
+    invocation = { command, args, options };
+    return { status: 0, stdout: '{"items":[]}', stderr: "" };
+  });
+  assert.deepEqual(value, { items: [] });
+  assert.equal(invocation.command, "gh");
+  assert.deepEqual(invocation.args, ["project", "item-list"]);
+  assert.equal(invocation.options.maxBuffer, 32 * 1024 * 1024);
 });
 
 test("rendered output labels evidence authority and catalog versus research scope", () => {
