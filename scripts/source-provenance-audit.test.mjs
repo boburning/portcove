@@ -159,7 +159,16 @@ test("duplicate candidate keys and titles fail while one shared upstream can ser
     false,
   );
 
-  const duplicateKey = issue(4, "Different Title", {
+  const duplicateTarget = issue(4, "Alias for Another Game", {
+    portKey: "another-game",
+    upstream: "https://example.test/shared",
+  });
+  const sameTarget = structuredClone(input);
+  sameTarget.issues.push(duplicateTarget);
+  sameTarget.projectItems.push(projectItem(duplicateTarget, "Watchlist"));
+  assert.ok(buildSourceProvenanceAudit(sameTarget).observations.some(value => value.includes("share direct upstream and game/target identity")));
+
+  const duplicateKey = issue(5, "Different Title", {
     portKey: "research",
     upstream: "https://example.test/other",
   });
@@ -168,7 +177,7 @@ test("duplicate candidate keys and titles fail while one shared upstream can ser
   const keyAudit = buildSourceProvenanceAudit(input);
   assert.ok(keyAudit.observations.some(value => value.includes("non-catalog port key research")));
 
-  const duplicateTitle = issue(5, "Research!", { portKey: "unique-key" });
+  const duplicateTitle = issue(6, "Research!", { portKey: "unique-key" });
   input.issues.push(duplicateTitle);
   input.projectItems.push(projectItem(duplicateTitle, "Watchlist"));
   assert.ok(buildSourceProvenanceAudit(input).observations.some(value => value.includes("normalized title identity research")));
