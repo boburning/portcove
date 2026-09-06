@@ -23,6 +23,12 @@ pub(crate) fn recover_published_install(
         PortcoveError::state("recoverable publication is missing its staging path")
     })?;
     let payload = staging.join("payload");
+    crate::output_root::validate_staging_path(
+        &service.library,
+        &operation.port_id,
+        &operation.id,
+        &staging,
+    )?;
     if operation.phase == LifecyclePhase::Prepared {
         match (payload.exists(), install.path.exists()) {
             (true, false) => {
@@ -101,7 +107,7 @@ pub(crate) fn recover_removal(
     store: &OperationStore,
     operation: &mut LifecycleOperation,
 ) -> Result<()> {
-    let quarantine = operation.paths.quarantine.clone().ok_or_else(|| {
+    operation.paths.quarantine.as_ref().ok_or_else(|| {
         PortcoveError::state("recoverable removal is missing its quarantine path")
     })?;
     if operation.phase == LifecyclePhase::Preparing {
@@ -110,18 +116,18 @@ pub(crate) fn recover_removal(
             return Ok(());
         }
         for path in &operation.original_paths {
-            let relative = path
-                .strip_prefix(service.library.versions_dir())
-                .map_err(|_| {
-                    PortcoveError::conflict("registered removal path is outside managed versions")
-                })?;
-            let quarantined = quarantine.join(relative);
-            match (path.exists(), quarantined.exists()) {
+            let removal = crate::output_root::removal_paths(
+                &service.library,
+                &operation.port_id,
+                &operation.id,
+                path,
+            )?;
+            match (removal.live.exists(), removal.quarantined.exists()) {
                 (true, false) => {
-                    if let Some(parent) = quarantined.parent() {
+                    if let Some(parent) = removal.quarantined.parent() {
                         fs::create_dir_all(parent)?;
                     }
-                    fs::rename(path, &quarantined)?;
+                    fs::rename(&removal.live, &removal.quarantined)?;
                 }
                 (false, true) => {}
                 (true, true) => {
@@ -150,8 +156,23 @@ pub(crate) fn recover_removal(
         operation.phase,
         LifecyclePhase::MetadataCommitted | LifecyclePhase::CleanupPending
     ) {
-        if quarantine.exists() {
-            fs::remove_dir_all(&quarantine)?;
+        let cleanup_roots = operation
+            .original_paths
+            .iter()
+            .map(|path| {
+                crate::output_root::removal_paths(
+                    &service.library,
+                    &operation.port_id,
+                    &operation.id,
+                    path,
+                )
+                .map(|removal| removal.cleanup_root)
+            })
+            .collect::<Result<std::collections::BTreeSet<_>>>()?;
+        for cleanup_root in cleanup_roots {
+            if cleanup_root.exists() {
+                fs::remove_dir_all(cleanup_root)?;
+            }
         }
         store.remove(&operation.id)?;
     }

@@ -22,6 +22,7 @@ mod library_import;
 mod library_move;
 mod library_transfer;
 mod operation;
+mod output_root;
 mod path;
 mod permissions;
 mod persistence;

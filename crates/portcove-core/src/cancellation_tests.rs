@@ -243,6 +243,7 @@ async fn cancellation_before_prepared_cleans_private_data_and_after_prepared_fin
             .install(
                 InstallRequest {
                     port_id: "sample".into(),
+                    output_root: service.library().versions_dir().join("sample"),
                     release: ResolvedRelease {
                         version: "v1".into(),
                         channel: ReleaseChannel::Stable,

@@ -56,6 +56,14 @@ pub(crate) struct HttpCacheEntry {
     pub body: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct OutputRootRecord {
+    pub path: PathBuf,
+    pub port_id: String,
+    pub marker_id: String,
+    pub volume_identity: String,
+}
+
 impl Library {
     /// Validate a user-selected library directory without initializing it.
     /// Empty directories and recognizable Portcove roots are accepted; unrelated
@@ -883,6 +891,64 @@ impl Library {
              VALUES (?1, ?2, 'notify', ?3)
              ON CONFLICT(port_id) DO UPDATE SET output_directory=excluded.output_directory",
             params![port_id, default_channel.to_string(), output_directory],
+        )?;
+        Ok(())
+    }
+
+    pub(crate) fn identity(&self) -> Result<String> {
+        self.connection()?
+            .query_row(
+                "SELECT id FROM library_identity WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(Into::into)
+    }
+
+    pub(crate) fn output_roots(&self) -> Result<Vec<OutputRootRecord>> {
+        let connection = self.connection()?;
+        let mut statement = connection.prepare(
+            "SELECT path, port_id, marker_id, volume_identity
+             FROM output_roots ORDER BY path",
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok(OutputRootRecord {
+                path: PathBuf::from(row.get::<_, String>(0)?),
+                port_id: row.get(1)?,
+                marker_id: row.get(2)?,
+                volume_identity: row.get(3)?,
+            })
+        })?;
+        rows.collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(Into::into)
+    }
+
+    pub(crate) fn output_root(&self, path: &Path) -> Result<Option<OutputRootRecord>> {
+        let path = crate::path::unicode(path, "game output root")?;
+        self.connection()?
+            .query_row(
+                "SELECT path, port_id, marker_id, volume_identity
+                 FROM output_roots WHERE path=?1",
+                [path],
+                |row| {
+                    Ok(OutputRootRecord {
+                        path: PathBuf::from(row.get::<_, String>(0)?),
+                        port_id: row.get(1)?,
+                        marker_id: row.get(2)?,
+                        volume_identity: row.get(3)?,
+                    })
+                },
+            )
+            .optional()
+            .map_err(Into::into)
+    }
+
+    pub(crate) fn register_output_root(&self, root: &OutputRootRecord) -> Result<()> {
+        let path = crate::path::unicode(&root.path, "game output root")?;
+        self.connection()?.execute(
+            "INSERT INTO output_roots(path, port_id, marker_id, volume_identity, created_at)
+             VALUES (?1, ?2, ?3, ?4, unixepoch())",
+            params![path, root.port_id, root.marker_id, root.volume_identity],
         )?;
         Ok(())
     }

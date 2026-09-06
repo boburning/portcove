@@ -66,6 +66,21 @@ pub(crate) fn resolve_existing_ancestor(path: &Path) -> Result<std::path::PathBu
     Ok(resolved)
 }
 
+pub(crate) fn existing_ancestor(path: &Path) -> Result<std::path::PathBuf> {
+    let mut existing = std::path::absolute(path)?;
+    loop {
+        match std::fs::symlink_metadata(&existing) {
+            Ok(_) => return std::fs::canonicalize(existing).map_err(Into::into),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                if !existing.pop() {
+                    return Err(PortcoveError::usage("path has no existing parent"));
+                }
+            }
+            Err(error) => return Err(error.into()),
+        }
+    }
+}
+
 pub(crate) fn normalized_absolute(path: &Path, role: &str) -> Result<std::path::PathBuf> {
     if path.as_os_str().is_empty() {
         return Err(PortcoveError::usage(format!("{role} cannot be empty")));
