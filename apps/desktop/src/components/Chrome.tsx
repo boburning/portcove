@@ -381,7 +381,7 @@ function HostReadiness({ doctor, busy, actions }: { doctor?: DoctorReport; busy?
   </article>;
 }
 
-function HostToolRow({ tool, busy, actions }: { tool: HostToolStatus; busy: boolean; actions?: HostToolActions }) {
+export function HostToolRow({ tool, busy, actions, showTechnicalId = true }: { tool: HostToolStatus; busy: boolean; actions?: HostToolActions; showTechnicalId?: boolean }) {
   const [pending, setPending] = useState<string>();
   const [outcome, setOutcome] = useState<HostToolProbeResult>();
   const [error, setError] = useState<string>();
@@ -412,7 +412,7 @@ function HostToolRow({ tool, busy, actions }: { tool: HostToolStatus; busy: bool
     <div className="host-tool-heading"><strong>{tool.display_name}</strong><span className={`host-tool-state ${tool.state}`}><Icon glyph={state.icon} size="sm" />{state.label}</span></div>
     <small>{tool.purpose}</small>
     <code title={location}>{location}</code>
-    <small>{source} · Technical ID: <code>{tool.id}</code></small>
+    <small>{source}{showTechnicalId && <> · Technical ID: <code>{tool.id}</code></>}</small>
     <div className="button-row">
       <button data-focusable className="small-control" disabled={busy || Boolean(pending) || !actions} onClick={() => { void run("site", () => actions?.openOfficial(tool.id)); }}>Official site</button>
       <button data-focusable className="small-control" disabled={busy || Boolean(pending) || !actions} onClick={() => { void run("locate", () => actions?.locate(tool)); }}>{pending === "locate" ? "Checking…" : "Locate executable…"}</button>

@@ -3,10 +3,11 @@ import { FileSearch } from "lucide-react";
 import { desktopApi } from "../api";
 import { useDialogFocus } from "../dialog";
 import { pickSourcePath } from "../file-picker";
-import type { SourceImportMode, SourceImportPlan, SourceIntakeInspection, SourceProfile } from "../types";
+import type { HostToolStatus, SourceImportMode, SourceImportPlan, SourceIntakeInspection, SourceProfile } from "../types";
 import { errorText, isCancellation } from "../view-model";
 import { SourceIdentityPanel } from "./SourceIdentity";
 import { SourceImportReview, sourceImportModeLabel, sourceImportNotice } from "./SourceDiscovery";
+import { HostToolRow, type HostToolActions } from "./Chrome";
 import { Icon, NavigationHints } from "./ui";
 
 export interface SourceIntakeRequest {
@@ -16,11 +17,13 @@ export interface SourceIntakeRequest {
   paths: string[];
 }
 
-export function SourceIntakeDialog({ request, close, onAdded, openEvidence }: {
+export function SourceIntakeDialog({ request, close, onAdded, openEvidence, hostTools = [], hostToolActions }: {
   request: SourceIntakeRequest;
   close: () => void;
   onAdded?: () => Promise<void>;
   openEvidence?: (evidenceId: string) => void;
+  hostTools?: HostToolStatus[];
+  hostToolActions?: HostToolActions;
 }) {
   const [result, setResult] = useState<SourceIntakeInspection>();
   const [plan, setPlan] = useState<SourceImportPlan>();
@@ -28,17 +31,20 @@ export function SourceIntakeDialog({ request, close, onAdded, openEvidence }: {
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
   const [selectedPaths, setSelectedPaths] = useState(request.paths);
+  const selectedPathsRef = useRef(request.paths);
   const intent = useRef(0);
   const dismiss = () => { if (!busy) close(); };
   const dialog = useDialogFocus(dismiss);
 
   const inspect = useCallback(async (paths: string[]) => {
     const current = ++intent.current;
+    selectedPathsRef.current = paths;
     setSelectedPaths(paths);
     setBusy("Checking game files…");
     setError(undefined);
     setNotice(undefined);
     setPlan(undefined);
+    setResult(undefined);
     try {
       const inspection = await desktopApi.inspectSourceIntake(request.profile.id, paths);
       if (intent.current === current) setResult(inspection);
@@ -101,6 +107,24 @@ export function SourceIntakeDialog({ request, close, onAdded, openEvidence }: {
     }
   };
   const candidate = result?.report?.inspection?.record;
+  const requiredTool = result?.problem?.tool_id ? hostTools.find(tool => tool.id === result.problem?.tool_id) : undefined;
+  const inlineToolActions = requiredTool && hostToolActions ? {
+    locate: async (tool: HostToolStatus) => {
+      const outcome = await hostToolActions.locate(tool);
+      await inspect(selectedPathsRef.current);
+      return outcome;
+    },
+    clear: async (toolId: string) => {
+      await hostToolActions.clear(toolId);
+      await inspect(selectedPathsRef.current);
+    },
+    recheck: async (toolId: string) => {
+      const outcome = await hostToolActions.recheck(toolId);
+      await inspect(selectedPathsRef.current);
+      return outcome;
+    },
+    openOfficial: hostToolActions.openOfficial,
+  } satisfies HostToolActions : undefined;
 
   return <div className="scrim source-intake-scrim"><section ref={dialog} className="modal wide-modal source-intake" role="dialog" aria-modal="true" aria-labelledby="source-intake-title">
     <p className="eyebrow">GAME FILE CHECK</p>
@@ -112,6 +136,11 @@ export function SourceIntakeDialog({ request, close, onAdded, openEvidence }: {
     {result && <section className="source-intake-result" aria-label="Game file check result">
       {!result.report && <><p className="source-intake-summary" role="status">{result.summary}</p><p>{result.next_action}</p>{result.problem && <details><summary data-focusable>Check details</summary><p>{result.problem.message}</p></details>}</>}
       {result.report && <SourceIdentityPanel report={result.report} openEvidence={openEvidence} />}
+      {requiredTool && <section className="source-intake-tool" aria-label="Preparation tool needed">
+        <h3>Preparation tool needed</h3>
+        <p>This source format needs {requiredTool.display_name} before Portcove can finish checking it. Your selected game files remain unchanged.</p>
+        <HostToolRow tool={requiredTool} busy={Boolean(busy)} actions={inlineToolActions} showTechnicalId={false} />
+      </section>}
       {candidate && !plan && <div className="source-intake-actions" aria-label="Add checked game files">
         <p>Checking is complete. Choose a separate action only if you want Portcove to add these files.</p>
         <div className="actions"><button data-focusable className="primary" disabled={Boolean(busy)} onClick={() => { void review("copy"); }}>Copy to Source Inbox</button><button data-focusable disabled={Boolean(busy)} onClick={() => { void review("use_current_location"); }}>Use current location</button><button data-focusable className="danger" disabled={Boolean(busy)} onClick={() => { void review("move"); }}>Review destructive move</button></div>

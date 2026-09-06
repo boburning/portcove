@@ -92,7 +92,7 @@ function DetailDialog({ props, dialog }: { props: DetailPanelProps; dialog: Retu
 type DetailState = ReturnType<typeof detailState>;
 
 function DetailHero({ port, state }: { port: PortDefinition; state: DetailState }) {
-  return <div className={`detail-hero art-${port.support_tier}`}><span>{port.name.slice(0, 2).toUpperCase()}</span><div><p className="eyebrow">{port.adapter.replaceAll("-", " ")}</p><h2 id="port-detail-title">{port.name}</h2><span className={`hero-state ${state.tone}`}>{state.title}</span></div></div>;
+  return <div className={`detail-hero art-${port.support_tier}`}><span>{port.name.slice(0, 2).toUpperCase()}</span><div><p className="eyebrow">{port.platforms.map(platform => platformLabels[platform]).join(" · ")}</p><h2 id="port-detail-title">{port.name}</h2><span className={`hero-state ${state.tone}`}>{state.title}</span></div></div>;
 }
 
 function DetailBody({ port, status, state, sources, installed, launchReady, pendingSetup, installPlan, selectedChannel, policy, backups, backupProblems, backupState, busy, outputExternalBusy, libraryGeneration, outputLocationChanged, outputApplying, actions }: {
@@ -187,7 +187,7 @@ function AdvancedControls({ port, status, selectedChannel, policy, installed, ba
   port: PortDefinition; status?: PortStatus; selectedChannel: ReleaseChannel; policy: UpdatePolicy; installed: boolean; backups: BackupRecord[]; backupProblems: BackupProblem[]; backupState: BackupInventory["state"]; busy?: string; sources: SourceControls; actions: DetailActions;
 }) {
   const persistentFiles = [...port.persistent_paths, ...(port.persistent_file_patterns ?? []).map(pattern => `${pattern.prefix}*${pattern.suffix}`)].join(" · ");
-  return <details className="advanced-settings" open={!installed}>
+  return <details className="advanced-settings">
     <summary data-focusable className="advanced-summary">Release, sources &amp; maintenance <span className="advanced-summary-meta">Advanced controls</span><Icon glyph={ChevronDown} /></summary>
     <div className="advanced-body">
       <div className="detail-section"><label>Release channel</label><div className="segmented">{port.channels.map(channel =>
@@ -195,7 +195,7 @@ function AdvancedControls({ port, status, selectedChannel, policy, installed, ba
       <div className="detail-section"><ChoiceMenu label="Update policy" value={policy} disabled={Boolean(busy)} onChange={actions.setPolicy}
         options={[{ value: "notify", label: "Notify me" }, { value: "stage", label: "Download and stage" }, { value: "automatic", label: "Install automatically" }]} /></div>
       <SourceFields mode="registered" controls={sources} />
-      <div className="metadata"><span><small>Platforms</small>{port.platforms.map(value => platformLabels[value]).join(" · ")}</span><span><small>Automated evidence</small>{port.automated_tested_platforms.length ? port.automated_tested_platforms.map(value => platformLabels[value]).join(" · ") : "Qualification pending"}</span><span><small>Physical validation</small>{port.manually_validated_platforms.length ? port.manually_validated_platforms.map(value => platformLabels[value]).join(" · ") : "Deferred / not completed"}</span><span title={persistentFiles}><small>Persistent data root</small>{status?.user_data_root ?? "Created inside the selected library"}</span></div>
+      <div className="metadata"><span><small>Platforms</small>{port.platforms.map(value => platformLabels[value]).join(" · ")}</span><span><small>Installation method</small>{adapterPresentation[port.adapter]}</span><span><small>Automated evidence</small>{port.automated_tested_platforms.length ? port.automated_tested_platforms.map(value => platformLabels[value]).join(" · ") : "Qualification pending"}</span><span><small>Physical validation</small>{port.manually_validated_platforms.length ? port.manually_validated_platforms.map(value => platformLabels[value]).join(" · ") : "Deferred / not completed"}</span><span title={persistentFiles}><small>Persistent data root</small>{status?.user_data_root ?? "Created inside the selected library"}</span></div>
       <div className="upstream-link"><ProjectLink href={port.project_url}>Open upstream project <Icon glyph={ExternalLink} size="sm" /></ProjectLink><span>Portcove resolves releases from this reviewed upstream.</span></div>
       <CliContinuity port={port} status={status} channel={selectedChannel} sourcePath={sources.sourcePath} biosPath={sources.biosPath} />
       {(installed || backups.length > 0 || backupProblems.length > 0) && <BackupHistory backups={backups} problems={backupProblems} state={backupState} busy={busy} restore={actions.restoreBackup} remove={actions.deleteBackup} />}
@@ -203,6 +203,16 @@ function AdvancedControls({ port, status, selectedChannel, policy, installed, ba
     </div>
   </details>;
 }
+
+const adapterPresentation: Record<PortDefinition["adapter"], string> = {
+  "libultraship-portable": "Portable upstream package",
+  "n64-recomp-portable": "Portable N64 recompilation",
+  "staged-source-portable": "Prepared source beside the game",
+  "referenced-disc": "Original disc referenced at launch",
+  "generated-cache": "Generated game data",
+  "upstream-managed-setup": "Upstream setup process",
+  "psx-recomp-managed": "Managed PS1 recompilation",
+};
 
 function SourceField({ heading, profileId, profile, source, inspection, health, path, setPath, pick, pickArchive, openEvidence }: { heading: string; profileId: string; profile?: SourceProfile; source?: SourceRecord; inspection?: SourceInspectionReport; health?: SourceHealth; path: string; setPath: (path: string) => void; pick?: () => void; pickArchive?: () => void; openEvidence?: (evidenceId: string) => void }) {
   const copy = sourceFieldCopy(profile);

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdoptionModal } from "./components/AdoptionModal";
 import { LibraryMoveRecovery, transferRecoveryRoot } from "./components/LibraryMove";
 import { LibraryImportRecovery } from "./components/LibraryImport";
-import { PageHeader, SettingsView, Sidebar, StatusLayer } from "./components/Chrome";
+import { PageHeader, SettingsView, Sidebar, StatusLayer, type HostToolActions } from "./components/Chrome";
 import { CommandPalette } from "./components/CommandPalette";
 import { DetailPanel } from "./components/DetailPanel";
 import { PortBrowser } from "./components/PortBrowser";
@@ -116,6 +116,18 @@ function Workspace({ bootstrap, switchLibrary, resetLibrary }: { bootstrap: Boot
     else focusRegion("sidebar");
   }, [commandSurface.open, commandSurface.setOpen, ui.adoptOpen, ui.selectedId, ui.setAdoptOpen, ui.setSelectedId]);
   const controller = useGamepadNavigation(handleBack);
+  const hostToolActions: HostToolActions = {
+    locate: async (tool: HostToolStatus) => {
+      const path = await pickHostToolExecutable(tool.display_name, tool.path ?? "");
+      if (!path) return undefined;
+      const result = await desktopApi.setHostToolPath(tool.id, path);
+      await data.refresh();
+      return result;
+    },
+    clear: async (toolId: string) => { await desktopApi.clearHostToolPath(toolId); await data.refresh(); },
+    recheck: async (toolId: string) => desktopApi.recheckHostTool(toolId),
+    openOfficial: (toolId: string) => desktopApi.openHostToolOfficialSite(toolId),
+  };
 
   return <div className="app-shell">
     <Sidebar view={ui.view} setView={ui.setView} controller={controller} installedCount={data.statuses.filter(status => status.active).length}
@@ -123,12 +135,12 @@ function Workspace({ bootstrap, switchLibrary, resetLibrary }: { bootstrap: Boot
     <main ref={workspace} data-focus-region="workspace">
       <PageHeader view={ui.view} query={ui.query} setQuery={ui.setQuery} portCount={data.catalog?.ports.length ?? 0} onOpenCommands={() => commandSurface.setOpen(true)} />
       <StatusLayer error={operations.error} clearError={() => operations.setError(undefined)} operation={operations.operation} busy={operations.busy} />
-      <CurrentView data={data} ui={ui} model={model} operations={operations} github={github} updates={updates} sourceHealth={sourceHealth} appearance={appearance} bootstrap={bootstrap} switchLibrary={switchLibrary} resetLibrary={resetLibrary} nativeSourceDrag={nativeSourceDrag} />
+      <CurrentView data={data} ui={ui} model={model} operations={operations} github={github} updates={updates} sourceHealth={sourceHealth} appearance={appearance} bootstrap={bootstrap} switchLibrary={switchLibrary} resetLibrary={resetLibrary} nativeSourceDrag={nativeSourceDrag} hostToolActions={hostToolActions} />
     </main>
     <SelectedPortPanel model={model} ui={ui} operations={operations} sourceHealth={sourceHealth} installPlanning={installPlanning} backups={backups} activities={data.activities} libraryGeneration={bootstrap.generation} openSourceIntake={openSourceIntake} />
     <AdoptionOverlay ui={ui} operations={operations} />
     <CommandPalette open={commandSurface.open} commands={commandSurface.commands} close={() => commandSurface.setOpen(false)} />
-    {sourceIntake && <SourceIntakeDialog request={sourceIntake} close={() => setSourceIntake(undefined)} onAdded={data.refresh} openEvidence={evidenceId => { void operations.perform("open source evidence", () => desktopApi.openSourceEvidence(evidenceId)); }} />}
+    {sourceIntake && <SourceIntakeDialog request={sourceIntake} close={() => setSourceIntake(undefined)} onAdded={data.refresh} openEvidence={evidenceId => { void operations.perform("open source evidence", () => desktopApi.openSourceEvidence(evidenceId)); }} hostTools={data.doctor?.host_tools} hostToolActions={hostToolActions} />}
   </div>;
 }
 
@@ -169,28 +181,18 @@ function selectedPort(data: DataState, selectedId: string | undefined, statuses:
   };
 }
 
-function CurrentView({ data, ui, model, operations, github, updates, sourceHealth, appearance, bootstrap, switchLibrary, resetLibrary, nativeSourceDrag }: {
+function CurrentView({ data, ui, model, operations, github, updates, sourceHealth, appearance, bootstrap, switchLibrary, resetLibrary, nativeSourceDrag, hostToolActions }: {
   data: DataState; ui: UiState; model: ReturnType<typeof useAppModel>; operations: OperationState; github: GithubState; updates: UpdateState; sourceHealth: SourceHealthState; appearance: AppearanceState;
   bootstrap: BootstrapStatus; switchLibrary: (path: string) => Promise<void>; resetLibrary: () => Promise<void>;
   nativeSourceDrag: ReturnType<typeof useNativeSourceDrop>;
+  hostToolActions: HostToolActions;
 }) {
   if (ui.view === "updates") return <UpdateCenter ports={data.catalog?.ports ?? []} statuses={model.statusMap} activities={data.activities} outcomes={updates.outcomes} actions={updates.actions} busy={operations.busy}
     checkAll={() => { void updates.checkAll(); }} applyPolicies={() => { void updates.applyPolicies(); }} onSelect={ui.setSelectedId} onOpenSources={() => ui.setView("settings")} />;
   if (ui.view === "settings") return <SettingsView doctor={data.doctor} storage={data.storage} github={github} busy={operations.busy} sources={data.sources} appearance={appearance}
     librarySelection={bootstrap.selection} chooseLibrary={pickLibraryFolder} switchLibrary={switchLibrary} resetLibrary={resetLibrary}
     sourceProfiles={data.catalog?.source_profiles ?? []} onSourceAdded={data.refresh} onCatalogChanged={data.refresh}
-    hostToolActions={{
-      locate: async (tool: HostToolStatus) => {
-        const path = await pickHostToolExecutable(tool.display_name, tool.path ?? "");
-        if (!path) return undefined;
-        const result = await desktopApi.setHostToolPath(tool.id, path);
-        await data.refresh();
-        return result;
-      },
-      clear: async (toolId: string) => { await desktopApi.clearHostToolPath(toolId); await data.refresh(); },
-      recheck: async (toolId: string) => desktopApi.recheckHostTool(toolId),
-      openOfficial: (toolId: string) => desktopApi.openHostToolOfficialSite(toolId),
-    }}
+    hostToolActions={hostToolActions}
     createSupportBundle={() => operations.perform("support bundle", desktopApi.createSupportBundle)}
     exportMetadata={() => operations.perform("export library metadata", async () => {
       const path = await pickMetadataExportPath();

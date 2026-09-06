@@ -1175,12 +1175,14 @@ mod tests {
         } else {
             "tool & echo injected"
         });
-        fs::copy(&helper, &special).unwrap();
-        crate::permissions::normalize_archive_entry(&special, false, true).unwrap();
+        fs::rename(&helper, &special).unwrap();
         let recorded = temporary.path().join("arguments with spaces.txt");
         let injected = temporary.path().join("injected");
         let shell_text = "quotes-'\"' & | ; $(touch injected)";
-        let definition = test_definition(&["--record", recorded.to_str().unwrap(), shell_text]);
+        let mut definition = test_definition(&["--record", recorded.to_str().unwrap(), shell_text]);
+        // The assertion exercises literal native argument delivery, not the
+        // timeout path. Allow for Windows executable scanning under test load.
+        definition.probe.timeout_millis = 5_000;
 
         let result = probe_definition(&definition, &special, || {});
 

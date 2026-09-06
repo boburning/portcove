@@ -344,6 +344,8 @@ describe("desktop components", () => {
     expect(installed).toContain("Delete");
     expect(installed).toContain("Remove managed files");
     expect(installed).toContain("source.z64");
+    expect(uninstalled).not.toContain('<details class="advanced-settings" open="">');
+    expect(installed).not.toContain('<details class="advanced-settings" open="">');
     expect(installed).toContain("Persistent data root");
     expect(installed).toContain("C:/Portcove/user/sample");
     expect(installed).toContain("Deferred / not completed");
@@ -404,12 +406,22 @@ describe("desktop components", () => {
     const loading = renderToStaticMarkup(<PortBrowser view="library" ports={[]} statuses={new Map()} registeredSources={new Set()} overview={overview} filter="all" setFilter={vi.fn()} onSelect={vi.fn()} loading />);
     expect(cards).toContain("Sample Port");
     expect(cards).toContain("Available");
+    expect(cards).toContain("Windows");
+    expect(cards).not.toContain("staged-source-portable");
     expect(empty).toContain("No ports match these filters");
     expect(empty).toContain("Clear search and filters");
     expect(emptyLibrary).toContain("/brand/mascot/portcove-mascot-v2-front.png");
     expect(emptyLibrary).toContain("aria-hidden=\"true\"");
     expect(loading).toContain("/brand/logo/portcove-logo-v2-transparent.png");
     expect(loading).toContain("alt=\"Portcove\"");
+  });
+
+  it("keeps adapter internals out of the primary detail view", () => {
+    const html = renderToStaticMarkup(<DetailPanel port={port} sourcePath="" setSourcePath={vi.fn()} actions={actions} />);
+    expect(html).toContain("Windows");
+    expect(html).toContain("Installation method");
+    expect(html).toContain("Prepared source beside the game");
+    expect(html).not.toContain("staged-source-portable");
   });
 
   it("reveals eligible card targets only during native file drag and keeps a keyboard check in details", () => {

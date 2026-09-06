@@ -518,7 +518,7 @@ export interface SourceInspectionReport {
   next_action: string;
   registered?: SourceRecord;
   inspection?: SourceInspection;
-  problem?: { code: string; message: string };
+  problem?: { code: string; message: string; tool_id?: string };
   expected_identity?: SourceCatalog["identities"][number];
   applications: Array<{
     port_id: string;
@@ -553,7 +553,7 @@ export interface SourceIntakeInspection {
   summary: string;
   next_action: string;
   report?: SourceInspectionReport;
-  problem?: { code: string; message: string };
+  problem?: { code: string; message: string; tool_id?: string };
 }
 
 export interface SourceVerificationOutcome {

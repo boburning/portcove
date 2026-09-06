@@ -169,6 +169,11 @@ candidates, copy bytes, grant reusable authorization, or write registrations.
 React retains only transient scan, plan-review, progress, and cancellation
 state.
 
+Source inspection problems may include only the registry-owned host-tool ID
+needed to continue a check. Desktop maps that ID back to the shared readiness
+controls and reuses the selected paths for the retry; tool paths and other
+private error details do not cross this presentation contract.
+
 The versioned source-inspection report is the shared explanation boundary for CLI
 and desktop. It combines current health and observed facts with the complete
 expected profile, every dependent port contract, reviewed evidence metadata,
