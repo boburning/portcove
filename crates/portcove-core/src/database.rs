@@ -10,7 +10,7 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior};
 
 use crate::{PortcoveError, Result};
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 16;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 17;
 
 struct Migration {
     version: i64,
@@ -115,6 +115,12 @@ const MIGRATIONS: &[Migration] = &[
         name: "recoverable output relocation",
         apply: migration_16,
         verify: verify_migration_16,
+    },
+    Migration {
+        version: 17,
+        name: "observed source identity",
+        apply: migration_17,
+        verify: verify_migration_17,
     },
 ];
 
@@ -757,6 +763,24 @@ fn verify_migration_16(connection: &Connection) -> Result<()> {
     require_columns(connection, "lifecycle_operations", &["relocation_json"])
 }
 
+fn migration_17(transaction: &Transaction<'_>) -> Result<()> {
+    let columns = table_columns(transaction, "sources")?;
+    if !columns
+        .iter()
+        .any(|column| column == "observed_identity_json")
+    {
+        transaction.execute(
+            "ALTER TABLE sources ADD COLUMN observed_identity_json TEXT",
+            [],
+        )?;
+    }
+    Ok(())
+}
+
+fn verify_migration_17(connection: &Connection) -> Result<()> {
+    require_columns(connection, "sources", &["observed_identity_json"])
+}
+
 fn verify_migration_11(connection: &Connection) -> Result<()> {
     require_columns(connection, "catalog_trust", &["key_id", "public_key"])?;
     require_columns(
@@ -1160,5 +1184,109 @@ mod tests {
             (1..=CURRENT_SCHEMA_VERSION).collect::<Vec<_>>()
         );
         verify_migration_16(&connection).unwrap();
+    }
+
+    #[test]
+    fn observed_identity_migration_preserves_legacy_rows_as_not_evaluated() {
+        let temporary = tempdir().unwrap();
+        prepare_root(temporary.path());
+        migrate_to(temporary.path(), 16).unwrap();
+        let connection = connect(temporary.path()).unwrap();
+        connection
+            .execute(
+                "INSERT INTO sources(profile_id, path, sha256, size, storage_sha256, storage_size, updated_at)
+                 VALUES ('legacy', 'legacy.z64', ?1, 42, ?1, 42, 7)",
+                ["a".repeat(64)],
+            )
+            .unwrap();
+        drop(connection);
+
+        migrate(temporary.path()).unwrap();
+
+        let connection = connect(temporary.path()).unwrap();
+        let row: (String, String, i64, Option<String>) = connection
+            .query_row(
+                "SELECT profile_id, path, updated_at, observed_identity_json FROM sources WHERE profile_id='legacy'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(row, ("legacy".into(), "legacy.z64".into(), 7, None));
+    }
+
+    #[test]
+    fn interrupted_partially_populated_observed_identity_migration_completes() {
+        let temporary = tempdir().unwrap();
+        prepare_root(temporary.path());
+        migrate_to(temporary.path(), 16).unwrap();
+        let connection = connect(temporary.path()).unwrap();
+        connection
+            .execute(
+                "ALTER TABLE sources ADD COLUMN observed_identity_json TEXT",
+                [],
+            )
+            .unwrap();
+        for profile_id in ["legacy", "observed"] {
+            connection
+                .execute(
+                    "INSERT INTO sources(profile_id, path, sha256, size, storage_sha256, storage_size, updated_at)
+                     VALUES (?1, ?2, ?3, 42, ?3, 42, 7)",
+                    rusqlite::params![profile_id, format!("{profile_id}.z64"), "a".repeat(64)],
+                )
+                .unwrap();
+        }
+        let identity = serde_json::json!({
+            "schema_version": 1,
+            "digests": [{
+                "algorithm": "sha256",
+                "scope": "original-file",
+                "value": "a".repeat(64),
+                "size": 42
+            }]
+        });
+        connection
+            .execute(
+                "UPDATE sources SET observed_identity_json=?1 WHERE profile_id='observed'",
+                [identity.to_string()],
+            )
+            .unwrap();
+        drop(connection);
+
+        migrate(temporary.path()).unwrap();
+
+        let connection = connect(temporary.path()).unwrap();
+        assert_eq!(
+            recorded_versions(&connection).unwrap(),
+            (1..=CURRENT_SCHEMA_VERSION).collect::<Vec<_>>()
+        );
+        let populated: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM sources WHERE observed_identity_json IS NOT NULL",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(populated, 1);
+        verify_migration_17(&connection).unwrap();
+    }
+
+    #[test]
+    fn recorded_partial_observed_identity_migration_is_rejected() {
+        let temporary = tempdir().unwrap();
+        prepare_root(temporary.path());
+        migrate_to(temporary.path(), 16).unwrap();
+        let connection = connect(temporary.path()).unwrap();
+        connection
+            .execute(
+                "INSERT INTO schema_migrations(version, applied_at) VALUES (17, 0)",
+                [],
+            )
+            .unwrap();
+        drop(connection);
+
+        let error = migrate(temporary.path()).unwrap_err();
+        assert_eq!(error.details["migration_version"], "17");
+        assert!(error.message.contains("partially applied"));
+        assert!(error.details["cause"].contains("observed_identity_json"));
     }
 }

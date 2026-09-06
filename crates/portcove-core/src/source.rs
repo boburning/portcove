@@ -39,6 +39,7 @@ impl PortcoveService {
             replacement.size,
             &replacement.storage_sha256,
             replacement.storage_size,
+            &replacement.observed_identity,
         ))?));
         Ok(SourceRelinkPlan {
             original,
@@ -117,6 +118,16 @@ mod tests {
             .unwrap();
         assert_eq!(result.path, replacement);
         assert_eq!(result.sha256, before.sha256);
+        assert!(result.observed_identity.is_some());
+        assert_eq!(
+            result.observed_identity,
+            service
+                .library()
+                .source("star-fox-64")
+                .unwrap()
+                .unwrap()
+                .observed_identity
+        );
         service.verify_source("star-fox-64").unwrap();
     }
 

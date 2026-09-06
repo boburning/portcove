@@ -386,6 +386,39 @@ export interface SourceRecord {
   storage_sha256: string;
   storage_size: number;
   updated_at: number;
+  observed_identity?: ObservedSourceIdentity;
+}
+
+export interface ObservedSourceDigest {
+  algorithm: "sha1" | "sha256" | "crc32";
+  scope: DigestScope;
+  value: string;
+  size: number;
+}
+
+export interface ObservedSourceComponent {
+  id: string;
+  kind: "file_set_member" | "optical_disc";
+  name: string | null;
+  digests: ObservedSourceDigest[];
+  size: number;
+  track_count: number | null;
+  volume_id: string | null;
+}
+
+export interface ObservedSourceValidator {
+  contract_id: string;
+  tool_id: string;
+  protocol_version: string;
+  result: "not_run" | "passed" | "failed" | "missing_tool";
+}
+
+export interface ObservedSourceIdentity {
+  schema_version: number;
+  archive_member_name?: string;
+  digests: ObservedSourceDigest[];
+  components?: ObservedSourceComponent[];
+  validator?: ObservedSourceValidator;
 }
 
 export interface SourceRemovalPreview {

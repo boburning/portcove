@@ -71,6 +71,102 @@ pub struct ObservedSourceValidator {
     pub result: SourceValidatorResult,
 }
 
+/// Durable, catalog-independent facts observed when a source registration is written.
+/// Classification and admission are intentionally recomputed from the active catalog.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ObservedSourceIdentity {
+    pub schema_version: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archive_member_name: Option<String>,
+    pub digests: Vec<ObservedSourceDigest>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub components: Vec<ObservedSourceComponent>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub validator: Option<ObservedSourceValidator>,
+}
+
+impl ObservedSourceIdentity {
+    pub(crate) fn validate(&self) -> Result<()> {
+        if self.schema_version != 1 {
+            return Err(PortcoveError::unsupported(
+                "unsupported observed source identity schema",
+            ));
+        }
+        if let Some(name) = &self.archive_member_name {
+            crate::archive::validate_relative_path(name, false).map_err(|_| {
+                PortcoveError::verification("observed source archive member is unsafe")
+            })?;
+        }
+        if self.digests.is_empty() && self.components.is_empty() {
+            return Err(PortcoveError::verification(
+                "observed source identity has no digest facts",
+            ));
+        }
+        for digest in self.digests.iter().chain(
+            self.components
+                .iter()
+                .flat_map(|component| &component.digests),
+        ) {
+            let expected = match digest.algorithm {
+                SourceDigestAlgorithm::Sha1 => 40,
+                SourceDigestAlgorithm::Sha256 => 64,
+                SourceDigestAlgorithm::Crc32 => 8,
+            };
+            if digest.value.len() != expected
+                || !digest.value.bytes().all(|byte| byte.is_ascii_hexdigit())
+            {
+                return Err(PortcoveError::verification(
+                    "observed source identity contains an invalid digest",
+                ));
+            }
+        }
+        if self.components.iter().any(|component| {
+            component.id.is_empty()
+                || component
+                    .name
+                    .as_deref()
+                    .is_some_and(|name| name.is_empty())
+        }) {
+            return Err(PortcoveError::verification(
+                "observed source identity contains an invalid component",
+            ));
+        }
+        if self.validator.as_ref().is_some_and(|validator| {
+            validator.contract_id.is_empty()
+                || validator.tool_id.is_empty()
+                || validator.protocol_version.is_empty()
+        }) {
+            return Err(PortcoveError::verification(
+                "observed source identity contains an invalid validator",
+            ));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn validate_for_record(&self, source: &SourceRecord) -> Result<()> {
+        self.validate()?;
+        let has_content_baseline = self.digests.iter().any(|digest| {
+            digest.algorithm == SourceDigestAlgorithm::Sha256
+                && digest.value.eq_ignore_ascii_case(&source.sha256)
+                && digest.size == source.size
+        });
+        let has_storage_baseline = (source.storage_sha256.eq_ignore_ascii_case(&source.sha256)
+            && source.storage_size == source.size)
+            || self.digests.iter().any(|digest| {
+                digest.algorithm == SourceDigestAlgorithm::Sha256
+                    && digest.scope == DigestScope::OriginalContainer
+                    && digest.value.eq_ignore_ascii_case(&source.storage_sha256)
+                    && digest.size == source.storage_size
+            });
+        if !has_content_baseline || !has_storage_baseline {
+            return Err(PortcoveError::verification(
+                "observed source identity does not match its registration baseline",
+            ));
+        }
+        Ok(())
+    }
+}
+
 /// Facts returned by read-only inspection. A record is present only when the
 /// admission state permits existing callers to register or use the source.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -78,6 +174,8 @@ pub struct SourceInspection {
     pub profile_id: String,
     pub path: PathBuf,
     pub observed_digests: Vec<ObservedSourceDigest>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archive_member_name: Option<String>,
     #[serde(default)]
     pub components: Vec<ObservedSourceComponent>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -88,11 +186,22 @@ pub struct SourceInspection {
 }
 
 impl SourceInspection {
-    pub fn require_admitted_record(self) -> Result<SourceRecord> {
+    pub fn require_admitted_record(mut self) -> Result<SourceRecord> {
         if matches!(self.assessment.admission, SourceAdmission::Admitted { .. }) {
-            return self.record.ok_or_else(|| {
+            let record = self.record.as_mut().ok_or_else(|| {
                 PortcoveError::state("admitted source inspection did not produce a source record")
             });
+            let record = record?;
+            let observed_identity = ObservedSourceIdentity {
+                schema_version: 1,
+                archive_member_name: self.archive_member_name,
+                digests: self.observed_digests,
+                components: self.components,
+                validator: self.validator,
+            };
+            observed_identity.validate_for_record(record)?;
+            record.observed_identity = Some(observed_identity);
+            return Ok(self.record.expect("admitted source record was checked"));
         }
         let reason = match self.assessment.admission {
             SourceAdmission::Rejected { reason } => rejection_code(reason),
@@ -157,6 +266,7 @@ pub(crate) fn inspect_pinned_validator(
             profile_id: profile_id.into(),
             path: path.into(),
             observed_digests,
+            archive_member_name: identity.archive_member_name.clone(),
             components: Vec::new(),
             validator: None,
             assessment: SourceAssessment {
@@ -259,6 +369,7 @@ pub(crate) fn inspect_pinned_validator(
         profile_id: profile_id.into(),
         path: path.into(),
         observed_digests,
+        archive_member_name: identity.archive_member_name.clone(),
         components: Vec::new(),
         validator,
         assessment: SourceAssessment {
@@ -377,6 +488,7 @@ pub(crate) fn inspect_file_set(
         profile_id: profile_id.into(),
         path: path.into(),
         observed_digests,
+        archive_member_name: None,
         components: observed,
         validator: None,
         assessment: SourceAssessment {
@@ -486,6 +598,7 @@ fn inspect_disc_observation(
         profile_id: profile_id.into(),
         path: path.into(),
         observed_digests,
+        archive_member_name: None,
         components,
         validator: None,
         assessment: SourceAssessment {
@@ -554,6 +667,18 @@ fn observed_disc_aggregate_digests(
             size: observation.record.size,
         }]
     };
+    if !values.iter().any(|digest| {
+        digest.algorithm == SourceDigestAlgorithm::Sha256
+            && digest.value == observation.record.sha256
+            && digest.size == observation.record.size
+    }) {
+        values.push(ObservedSourceDigest {
+            algorithm: SourceDigestAlgorithm::Sha256,
+            scope: DigestScope::NormalizedContent,
+            value: observation.record.sha256.clone(),
+            size: observation.record.size,
+        });
+    }
     if observation.record.storage_sha256 != observation.record.sha256
         || observation.record.storage_size != observation.record.size
     {
@@ -781,6 +906,7 @@ fn inspect_file_set_representation(
             storage_sha256,
             storage_size,
             updated_at: Library::now(),
+            observed_identity: None,
         },
         matched,
     )))
@@ -946,6 +1072,7 @@ fn inspect_file_identity_with_compound(
             profile_id: profile_id.into(),
             path: path.into(),
             observed_digests,
+            archive_member_name: identity.archive_member_name.clone(),
             components: Vec::new(),
             validator: None,
             assessment: SourceAssessment {
@@ -1035,6 +1162,7 @@ fn inspect_file_identity_with_compound(
         profile_id: profile_id.into(),
         path: path.into(),
         observed_digests,
+        archive_member_name: identity.archive_member_name.clone(),
         components: Vec::new(),
         validator: None,
         assessment: SourceAssessment {
@@ -1228,6 +1356,7 @@ impl FileIdentity {
             storage_sha256: self.storage_sha256.clone(),
             storage_size: self.storage_size,
             updated_at: Library::now(),
+            observed_identity: None,
         }
     }
 }
@@ -1283,9 +1412,10 @@ mod tests {
                 path: path.into(),
                 sha256: sha256.clone(),
                 size,
-                storage_sha256: format!("storage-{sha256}"),
+                storage_sha256: hex::encode(Sha256::digest(format!("storage-{sha256}").as_bytes())),
                 storage_size: size + 1,
                 updated_at: Library::now(),
+                observed_identity: None,
             },
             discs,
         }
@@ -1395,6 +1525,15 @@ mod tests {
                 .observed_digests
                 .iter()
                 .any(|digest| digest.scope == DigestScope::ArchiveMember)
+        );
+        assert_eq!(zipped.archive_member_name.as_deref(), Some("bios.bin"));
+        let durable = zipped.require_admitted_record().unwrap();
+        assert_eq!(
+            durable
+                .observed_identity
+                .as_ref()
+                .and_then(|identity| identity.archive_member_name.as_deref()),
+            Some("bios.bin")
         );
 
         fs::write(&file, b"different bytes").unwrap();
@@ -1653,6 +1792,13 @@ mod tests {
             digest.scope == DigestScope::PsxNormalizedTrackSet
                 && digest.algorithm == SourceDigestAlgorithm::Sha256
         }));
+        assert!(
+            exact
+                .require_admitted_record()
+                .unwrap()
+                .observed_identity
+                .is_some()
+        );
 
         let mismatch = catalog_with_identity("masters-of-teras-kasi-psx", |profile| {
             let SourceRepresentationKind::OpticalTrackSet { identities, .. } =
@@ -1793,7 +1939,16 @@ mod tests {
         let registered = service.register_source("star-fox-64", &path).unwrap();
         assert_eq!(registered.sha256, expected.sha256);
         assert_eq!(registered.storage_sha256, expected.storage_sha256);
-        assert_eq!(service.library().sources().unwrap().len(), 1);
+        let stored = service.library().sources().unwrap();
+        assert_eq!(stored.len(), 1);
+        assert_eq!(registered.observed_identity, stored[0].observed_identity);
+        assert_eq!(
+            stored[0]
+                .observed_identity
+                .as_ref()
+                .map(|identity| identity.schema_version),
+            Some(1)
+        );
     }
 
     #[test]
@@ -1937,6 +2092,14 @@ mod tests {
             .register_source("opengoal-jak1-disc", &path)
             .unwrap();
         assert_eq!(registered.sha256, expected.sha256);
+        assert_eq!(
+            registered
+                .observed_identity
+                .as_ref()
+                .and_then(|identity| identity.validator.as_ref())
+                .map(|validator| validator.result),
+            Some(SourceValidatorResult::NotRun)
+        );
         assert_eq!(service.library().sources().unwrap().len(), 1);
     }
 

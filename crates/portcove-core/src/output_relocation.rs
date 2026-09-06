@@ -841,6 +841,7 @@ mod tests {
                     storage_sha256: source_sha256,
                     storage_size: source_contents.len() as u64,
                     updated_at: Library::now(),
+                    observed_identity: None,
                 })
                 .unwrap();
             Self {

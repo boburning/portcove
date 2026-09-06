@@ -1253,6 +1253,7 @@ fn validate_file_set_source(profile: &SourceProfile, path: &Path) -> Result<Sour
         storage_sha256,
         storage_size,
         updated_at: Library::now(),
+        observed_identity: None,
     })
 }
 
@@ -1411,6 +1412,7 @@ pub(crate) fn observe_psx_disc_source(
             storage_sha256,
             storage_size,
             updated_at: Library::now(),
+            observed_identity: None,
         },
         discs: observations,
     })
@@ -1504,6 +1506,7 @@ pub(crate) fn observe_gamecube_disc_source(
             storage_sha256,
             storage_size,
             updated_at: Library::now(),
+            observed_identity: None,
         },
         discs: vec![ObservedOpticalDisc {
             name: path

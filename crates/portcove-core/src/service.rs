@@ -1976,16 +1976,11 @@ impl PortcoveService {
     }
 
     fn verified_source_record(&self, profile_id: &str) -> Result<SourceRecord> {
-        let verified = self.verify_source_untracked(profile_id)?;
-        Ok(SourceRecord {
-            profile_id: verified.profile_id,
-            path: verified.path,
-            sha256: verified.sha256,
-            size: verified.size,
-            storage_sha256: verified.storage_sha256,
-            storage_size: verified.storage_size,
-            updated_at: verified.registered_at,
-        })
+        let registered = self.library.source(profile_id)?.ok_or_else(|| {
+            PortcoveError::not_found(format!("source profile {profile_id} is not registered"))
+        })?;
+        self.verify_source_record(&registered)?;
+        Ok(registered)
     }
 
     fn verified_source_record_with_checkpoint(
@@ -6862,6 +6857,13 @@ fn main() {
         fs::write(&source, b"original source").unwrap();
         let service = PortcoveService::new(library.clone()).unwrap();
         let registered = service.register_source("star-fox-64", &source).unwrap();
+        assert_eq!(
+            registered
+                .observed_identity
+                .as_ref()
+                .map(|identity| identity.schema_version),
+            Some(1)
+        );
         let database = library.root().join("portcove.sqlite3");
         let registered_json = serde_json::to_vec(&registered).unwrap();
         let database_before_success = fs::read(&database).unwrap();
@@ -6957,6 +6959,7 @@ fn main() {
                 storage_sha256,
                 storage_size,
                 updated_at: Library::now(),
+                observed_identity: None,
             })
             .unwrap();
         let pending = service.status("opengoal-jak1").unwrap().readiness.unwrap();
@@ -7001,6 +7004,7 @@ fn main() {
                 storage_sha256,
                 storage_size,
                 updated_at: Library::now(),
+                observed_identity: None,
             })
             .unwrap();
 
@@ -7066,6 +7070,7 @@ fn main() {
                 storage_sha256,
                 storage_size,
                 updated_at: Library::now(),
+                observed_identity: None,
             })
             .unwrap();
         fs::set_permissions(&source_path, fs::Permissions::from_mode(0o000)).unwrap();
@@ -7099,6 +7104,7 @@ fn main() {
                 storage_sha256,
                 storage_size,
                 updated_at: Library::now(),
+                observed_identity: None,
             })
             .unwrap();
         let service = PortcoveService::new(library).unwrap();
@@ -7122,6 +7128,7 @@ fn main() {
             storage_sha256: "1".repeat(64),
             storage_size: 17,
             updated_at: Library::now(),
+            observed_identity: None,
         };
         library.register_source(&source).unwrap();
         let lighthouse = library

@@ -750,6 +750,7 @@ mod tests {
                 storage_sha256: "0".repeat(64),
                 storage_size: 8,
                 updated_at: 0,
+                observed_identity: None,
             })
             .unwrap();
         let error = prepare_for_install(

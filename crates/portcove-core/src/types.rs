@@ -354,6 +354,10 @@ pub struct SourceRecord {
     pub storage_sha256: String,
     pub storage_size: u64,
     pub updated_at: i64,
+    /// Versioned facts observed when this registration was created. Legacy rows and
+    /// metadata omit this field rather than guessing a schema-2 variant.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub observed_identity: Option<crate::ObservedSourceIdentity>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

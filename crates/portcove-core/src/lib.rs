@@ -105,9 +105,9 @@ pub use source_discovery::{
     SourceDiscoveryRequest,
 };
 pub use source_inspection::{
-    ObservedSourceComponent, ObservedSourceDigest, ObservedSourceValidator, SourceComponentKind,
-    SourceDigestAlgorithm, SourceInspection, SourceValidatorResult,
+    ObservedSourceComponent, ObservedSourceDigest, ObservedSourceIdentity, ObservedSourceValidator,
+    SourceComponentKind, SourceDigestAlgorithm, SourceInspection, SourceValidatorResult,
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 27;
+pub const API_SCHEMA_VERSION: u32 = 28;
