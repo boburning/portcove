@@ -145,13 +145,14 @@ impl Fixture {
         }
     }
 
-    fn request(&self, activate: bool) -> InstallRequest {
+    fn request(&self, library: &Library, activate: bool) -> InstallRequest {
         // Transport is local in this fixture; the catalog admission tests still require HTTPS.
         let mut release = self.release.clone();
         release.asset.url = format!("{}/game.zip", self.server.url);
         InstallRequest {
             port_id: PORT.into(),
             release,
+            output_root: library.versions_dir().join(PORT),
             activate,
             managed: None,
             qualification: InstallQualification::from_port(
@@ -167,7 +168,7 @@ impl Fixture {
         Installer::new(library.clone())
             .unwrap()
             .install(
-                self.request(activate),
+                self.request(library, activate),
                 &OperationCoordinator::new("install", None),
                 |_| {},
             )
@@ -278,7 +279,7 @@ async fn named_saves_survive_backup_restore_version_changes_and_reinstallation()
         let installer = Installer::new(library.clone()).unwrap();
         assert!(installer.verify(install).unwrap().valid);
         installer
-            .verify_import_contract(install, &second.request(true).qualification)
+            .verify_import_contract(install, &second.request(&library, true).qualification)
             .unwrap();
         let mut changed = second.port.clone();
         changed.persistent_file_patterns.clear();
@@ -451,7 +452,7 @@ async fn runtime_failure_or_cancellation_never_publishes_a_partial_install() {
                 Some(PORT),
             )
             .unwrap();
-        let error = Installer::new(library.clone()).unwrap().install(fixture.request(true), &operation, |event| {
+        let error = Installer::new(library.clone()).unwrap().install(fixture.request(&library, true), &operation, |event| {
             if failure == "cancel" && matches!(&event.event, OperationEventKind::Message {message, ..} if message.contains("runtime.zip")) {
                 service.request_cancellation(&activity.id).unwrap();
             }
@@ -595,10 +596,10 @@ async fn runtime_follows_a_nested_working_directory_and_rejects_resolved_mutable
     assert!(!install.path.join("jdk25").exists());
     fixture.port.persistent_paths = vec!["BUNDLE/JDK25".into()];
     let destination = Library::open(root.path().join("overlap")).unwrap();
-    let error = Installer::new(destination)
+    let error = Installer::new(destination.clone())
         .unwrap()
         .install(
-            fixture.request(true),
+            fixture.request(&destination, true),
             &OperationCoordinator::new("install", None),
             |_| {},
         )

@@ -10,7 +10,7 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior};
 
 use crate::{PortcoveError, Result};
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 14;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 15;
 
 struct Migration {
     version: i64,
@@ -103,6 +103,12 @@ const MIGRATIONS: &[Migration] = &[
         name: "per-port output directory",
         apply: migration_14,
         verify: verify_migration_14,
+    },
+    Migration {
+        version: 15,
+        name: "external output ownership",
+        apply: migration_15,
+        verify: verify_migration_15,
     },
 ];
 
@@ -681,6 +687,53 @@ fn verify_migration_14(connection: &Connection) -> Result<()> {
     require_columns(connection, "port_settings", &["output_directory"])
 }
 
+fn migration_15(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE IF NOT EXISTS library_identity (
+           singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
+           id TEXT NOT NULL CHECK(length(id) = 32)
+         );
+         INSERT OR IGNORE INTO library_identity(singleton, id)
+         VALUES (1, lower(hex(randomblob(16))));
+         CREATE TABLE IF NOT EXISTS output_roots (
+           path TEXT PRIMARY KEY,
+           port_id TEXT NOT NULL,
+           marker_id TEXT NOT NULL UNIQUE,
+           volume_identity TEXT NOT NULL,
+           created_at INTEGER NOT NULL
+         );
+         CREATE INDEX IF NOT EXISTS output_roots_port_id ON output_roots(port_id);",
+    )?;
+    Ok(())
+}
+
+fn verify_migration_15(connection: &Connection) -> Result<()> {
+    require_columns(connection, "library_identity", &["singleton", "id"])?;
+    require_columns(
+        connection,
+        "output_roots",
+        &[
+            "path",
+            "port_id",
+            "marker_id",
+            "volume_identity",
+            "created_at",
+        ],
+    )?;
+    require_index(connection, "output_roots_port_id")?;
+    let identity_count: i64 = connection.query_row(
+        "SELECT count(*) FROM library_identity WHERE singleton=1 AND length(id)=32",
+        [],
+        |row| row.get(0),
+    )?;
+    if identity_count != 1 {
+        return Err(PortcoveError::state(
+            "library identity is missing or invalid after migration",
+        ));
+    }
+    Ok(())
+}
+
 fn verify_migration_11(connection: &Connection) -> Result<()> {
     require_columns(connection, "catalog_trust", &["key_id", "public_key"])?;
     require_columns(
@@ -1030,5 +1083,35 @@ mod tests {
             (1..=CURRENT_SCHEMA_VERSION).collect::<Vec<_>>()
         );
         verify_migration_14(&connection).unwrap();
+    }
+
+    #[test]
+    fn output_ownership_migration_assigns_one_stable_library_identity() {
+        let temporary = tempdir().unwrap();
+        prepare_root(temporary.path());
+        migrate_to(temporary.path(), 14).unwrap();
+
+        migrate(temporary.path()).unwrap();
+        let first: String = connect(temporary.path())
+            .unwrap()
+            .query_row(
+                "SELECT id FROM library_identity WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(first.len(), 32);
+
+        migrate(temporary.path()).unwrap();
+        let second: String = connect(temporary.path())
+            .unwrap()
+            .query_row(
+                "SELECT id FROM library_identity WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(second, first);
+        verify_migration_15(&connect(temporary.path()).unwrap()).unwrap();
     }
 }

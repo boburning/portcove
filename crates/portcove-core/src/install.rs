@@ -25,6 +25,7 @@ use tokio::io::AsyncWriteExt;
 pub struct InstallRequest {
     pub port_id: String,
     pub release: ResolvedRelease,
+    pub output_root: PathBuf,
     pub activate: bool,
     pub managed: Option<PsxManagedPreparation>,
     pub qualification: InstallQualification,
@@ -274,18 +275,28 @@ impl Installer {
                 runtime.identity(),
             ))?));
         }
-        let destination = self
-            .library
-            .versions_dir()
-            .join(&request.port_id)
-            .join(&storage_key);
+        let required_bytes = request.release.asset.size.saturating_add(
+            request
+                .qualification
+                .runtime
+                .as_ref()
+                .map_or(0, |runtime| runtime.asset.size),
+        );
+        let prepared_root = crate::output_root::prepare_for_install(
+            &self.library,
+            &request.port_id,
+            &request.output_root,
+            operation.operation_id(),
+            required_bytes,
+        )?;
+        let destination = prepared_root.root.join(&storage_key);
         if destination.exists() {
             return Err(PortcoveError::conflict(format!(
                 "version {} already exists for {}",
                 request.release.version, request.port_id
             )));
         }
-        let operation_root = self.library.staging_dir().join(operation.operation_id());
+        let operation_root = prepared_root.operation_root;
         let mut record = LifecycleOperation::new(
             operation.operation_id(),
             LifecycleOperationKind::Install,
@@ -2080,9 +2091,10 @@ mod tests {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         fs::create_dir_all(library.versions_dir().join("sample").join("0".repeat(64))).unwrap();
-        let installer = Installer::new(library).unwrap();
+        let installer = Installer::new(library.clone()).unwrap();
         let request = InstallRequest {
             port_id: "sample".into(),
+            output_root: library.versions_dir().join("sample"),
             release: ResolvedRelease {
                 version: "v1".into(),
                 channel: crate::ReleaseChannel::Stable,
@@ -2131,6 +2143,7 @@ mod tests {
         let installer = Installer::new(library.clone()).unwrap();
         let request = InstallRequest {
             port_id: "sample".into(),
+            output_root: library.versions_dir().join("sample"),
             release: ResolvedRelease {
                 version: "v1".into(),
                 channel: crate::ReleaseChannel::Stable,
@@ -2158,7 +2171,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn install_recovers_after_every_publication_boundary() {
+    async fn external_install_recovers_after_every_publication_boundary() {
         use std::{
             io::{Read, Write},
             net::TcpListener,
@@ -2197,6 +2210,7 @@ mod tests {
                 stream.write_all(&response_bytes).unwrap();
             });
             let library = Library::open(temporary.path().join("library")).unwrap();
+            let output_root = temporary.path().join("external-output");
             let installer = Installer::with_faults(
                 library.clone(),
                 Arc::new(FailOnce {
@@ -2208,6 +2222,7 @@ mod tests {
             let operation = OperationCoordinator::new("install", None);
             let request = InstallRequest {
                 port_id: "sample".into(),
+                output_root: output_root.clone(),
                 release: ResolvedRelease {
                     version: "v1".into(),
                     channel: crate::ReleaseChannel::Stable,
@@ -2233,7 +2248,12 @@ mod tests {
 
             crate::PortcoveService::new(library.clone()).unwrap();
             let install = library.install_by_version("sample", "v1").unwrap().unwrap();
+            assert_eq!(
+                install.path.parent(),
+                Some(fs::canonicalize(&output_root).unwrap().as_path())
+            );
             assert!(install.path.join("sample-game.exe").is_file());
+            assert!(output_root.join(".portcove-game-output.json").is_file());
             assert!(OperationStore::new(library).all().unwrap().is_empty());
         }
     }

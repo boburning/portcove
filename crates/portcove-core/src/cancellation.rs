@@ -300,25 +300,23 @@ pub(crate) fn discard_private_install(
     }
     uuid::Uuid::parse_str(&operation.id)
         .map_err(|_| PortcoveError::state("invalid private operation identity"))?;
-    let expected = library.staging_dir().join(&operation.id);
-    if operation.paths.staging.as_ref() != Some(&expected) {
-        return Err(PortcoveError::conflict(
-            "private staging path does not match the operation identity",
-        ));
-    }
-    match std::fs::symlink_metadata(&expected) {
+    let expected = operation.paths.staging.as_ref().ok_or_else(|| {
+        PortcoveError::conflict("private staging path is missing from the operation")
+    })?;
+    crate::output_root::validate_staging_path(
+        library,
+        &operation.port_id,
+        &operation.id,
+        expected,
+    )?;
+    match std::fs::symlink_metadata(expected) {
         Ok(metadata) => {
-            let staging_root = std::fs::canonicalize(library.staging_dir())?;
-            if !metadata.is_dir()
-                || metadata.file_type().is_symlink()
-                || staging_root != std::fs::canonicalize(library.root())?.join("staging")
-                || std::fs::canonicalize(&expected)?.parent() != Some(staging_root.as_path())
-            {
+            if !metadata.is_dir() || metadata.file_type().is_symlink() {
                 return Err(PortcoveError::conflict(
                     "private staging directory changed identity",
                 ));
             }
-            std::fs::remove_dir_all(&expected)?;
+            std::fs::remove_dir_all(expected)?;
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
         Err(error) => return Err(error.into()),
