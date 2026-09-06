@@ -22,7 +22,7 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":21,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":22,"ok":true,"command":"status","data":{},"error":null}
 ```
 
 Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for success, failure, or cancellation. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
@@ -72,6 +72,11 @@ identifies the catalog contract, tool, protocol, and current validator result.
 Preliminary ISO/CHD selection reports `not_run` with structural admission rather
 than claiming an exact match. LIVE/STFS packages now reach exact admission only
 after the shared bounded package validator succeeds.
+
+API schema 22 adds the core-resolved per-game output location to install plans
+and path results. It distinguishes a one-request override, the saved port
+setting, and the existing library default while retaining the exact recorded
+paths for active, previous, and staged installations.
 
 ```text
 portcove --json capabilities

@@ -47,6 +47,8 @@ pub struct LibraryPortSettings {
     pub update_policy: UpdatePolicy,
     pub active_install_id: Option<String>,
     pub previous_install_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output_directory: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -140,7 +142,7 @@ impl Library {
 }
 
 fn read_settings(connection: &rusqlite::Connection) -> Result<Vec<LibraryPortSettings>> {
-    let mut statement = connection.prepare("SELECT port_id, channel, update_policy, active_install_id, previous_install_id FROM port_settings ORDER BY port_id")?;
+    let mut statement = connection.prepare("SELECT port_id, channel, update_policy, active_install_id, previous_install_id, output_directory FROM port_settings ORDER BY port_id")?;
     let rows = statement.query_map([], |row| {
         Ok((
             row.get::<_, String>(0)?,
@@ -148,16 +150,19 @@ fn read_settings(connection: &rusqlite::Connection) -> Result<Vec<LibraryPortSet
             row.get::<_, String>(2)?,
             row.get::<_, Option<String>>(3)?,
             row.get::<_, Option<String>>(4)?,
+            row.get::<_, Option<String>>(5)?,
         ))
     })?;
     rows.map(|row| {
-        let (port_id, channel, policy, active_install_id, previous_install_id) = row?;
+        let (port_id, channel, policy, active_install_id, previous_install_id, output_directory) =
+            row?;
         Ok(LibraryPortSettings {
             port_id,
             channel: channel.parse()?,
             update_policy: policy.parse()?,
             active_install_id,
             previous_install_id,
+            output_directory: output_directory.map(PathBuf::from),
         })
     })
     .collect()
@@ -295,5 +300,31 @@ mod tests {
         assert!(service.write_library_metadata(&destination).is_err());
         assert_eq!(fs::read(destination).unwrap(), bytes);
         assert_eq!(fs::read(source).unwrap(), source_bytes);
+    }
+
+    #[test]
+    fn metadata_format_one_defaults_and_round_trips_the_optional_output_directory() {
+        let temporary = tempfile::tempdir().unwrap();
+        let service =
+            PortcoveService::new(Library::open(temporary.path().join("library")).unwrap()).unwrap();
+        let output = temporary.path().join("custom-output");
+        let normalized = service
+            .set_output_directory("starship", &output)
+            .unwrap()
+            .effective_output_directory;
+        let value = serde_json::to_value(service.export_library_metadata().unwrap()).unwrap();
+        assert_eq!(
+            value["port_settings"][0]["output_directory"],
+            normalized.to_str().unwrap()
+        );
+
+        let mut legacy = value;
+        legacy["port_settings"][0]
+            .as_object_mut()
+            .unwrap()
+            .remove("output_directory");
+        legacy["future_optional_field"] = serde_json::json!({"ignored": true});
+        let decoded: LibraryMetadata = serde_json::from_value(legacy).unwrap();
+        assert!(decoded.port_settings[0].output_directory.is_none());
     }
 }

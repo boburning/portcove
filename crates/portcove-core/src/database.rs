@@ -10,7 +10,7 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior};
 
 use crate::{PortcoveError, Result};
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 13;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 14;
 
 struct Migration {
     version: i64,
@@ -97,6 +97,12 @@ const MIGRATIONS: &[Migration] = &[
         name: "durable launch request outcomes",
         apply: migration_13,
         verify: verify_migration_13,
+    },
+    Migration {
+        version: 14,
+        name: "per-port output directory",
+        apply: migration_14,
+        verify: verify_migration_14,
     },
 ];
 
@@ -658,6 +664,23 @@ fn verify_migration_13(connection: &Connection) -> Result<()> {
     require_index(connection, "launch_sessions_active_port")
 }
 
+fn migration_14(transaction: &Transaction<'_>) -> Result<()> {
+    if !table_columns(transaction, "port_settings")?
+        .iter()
+        .any(|column| column == "output_directory")
+    {
+        transaction.execute(
+            "ALTER TABLE port_settings ADD COLUMN output_directory TEXT",
+            [],
+        )?;
+    }
+    Ok(())
+}
+
+fn verify_migration_14(connection: &Connection) -> Result<()> {
+    require_columns(connection, "port_settings", &["output_directory"])
+}
+
 fn verify_migration_11(connection: &Connection) -> Result<()> {
     require_columns(connection, "catalog_trust", &["key_id", "public_key"])?;
     require_columns(
@@ -914,5 +937,98 @@ mod tests {
             )
             .unwrap();
         assert_eq!(identity, ("digest".into(), 42));
+    }
+
+    #[test]
+    fn alpha_1_schema_adds_an_empty_output_setting_without_reinterpreting_installs() {
+        let temporary = tempdir().unwrap();
+        prepare_root(temporary.path());
+        migrate_to(temporary.path(), 13).unwrap();
+        let connection = connect(temporary.path()).unwrap();
+        connection
+            .execute(
+                "INSERT INTO installs(
+                   id, port_id, version, path, channel, installed_at, verified, staged,
+                   artifact_name, artifact_sha256, artifact_size, manifest_sha256,
+                   selected_executable, runtime_json
+                 ) VALUES ('active', 'starship', 'v1', 'E:/old/active', 'stable', 7, 1, 0,
+                           'game.zip', ?1, 42, ?2, 'game.exe', NULL)",
+                ["a".repeat(64), "b".repeat(64)],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO port_settings(
+                   port_id, channel, update_policy, active_install_id, previous_install_id
+                 ) VALUES ('starship', 'stable', 'notify', 'active', NULL)",
+                [],
+            )
+            .unwrap();
+        drop(connection);
+
+        migrate(temporary.path()).unwrap();
+
+        let connection = connect(temporary.path()).unwrap();
+        let install: (String, String, String, String, i64, i64) = connection
+            .query_row(
+                "SELECT id, port_id, version, path, installed_at, verified
+                 FROM installs WHERE id='active'",
+                [],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                        row.get(5)?,
+                    ))
+                },
+            )
+            .unwrap();
+        assert_eq!(
+            install,
+            (
+                "active".into(),
+                "starship".into(),
+                "v1".into(),
+                "E:/old/active".into(),
+                7,
+                1,
+            )
+        );
+        let settings: (Option<String>, Option<String>, Option<String>) = connection
+            .query_row(
+                "SELECT active_install_id, previous_install_id, output_directory
+                 FROM port_settings WHERE port_id='starship'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(settings, (Some("active".into()), None, None));
+    }
+
+    #[test]
+    fn interrupted_output_setting_migration_completes_idempotently() {
+        let temporary = tempdir().unwrap();
+        prepare_root(temporary.path());
+        migrate_to(temporary.path(), 13).unwrap();
+        let connection = connect(temporary.path()).unwrap();
+        connection
+            .execute(
+                "ALTER TABLE port_settings ADD COLUMN output_directory TEXT",
+                [],
+            )
+            .unwrap();
+        drop(connection);
+
+        migrate(temporary.path()).unwrap();
+
+        let connection = connect(temporary.path()).unwrap();
+        assert_eq!(
+            recorded_versions(&connection).unwrap(),
+            (1..=CURRENT_SCHEMA_VERSION).collect::<Vec<_>>()
+        );
+        verify_migration_14(&connection).unwrap();
     }
 }

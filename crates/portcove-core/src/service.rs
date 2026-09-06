@@ -19,12 +19,12 @@ use crate::{
     ChildProcessPolicy, CompositeReleaseProvider, DoctorReport, InstallPlan, InstallPlanAction,
     InstallQualification, InstallRecord, InstallRequest, InstallSourceRequirement, Installer,
     LaunchBlocker, LaunchReadiness, LaunchSessionOutcome, LaunchSessionPhase, LaunchSessionRecord,
-    LaunchStdio, Library, OperationCoordinator, OperationEvent, OperationResult, Platform,
-    PortDefinition, PortPaths, PortStatus, PortcoveError, ReconcileAction, ReconcileResult,
-    ReleaseChannel, ReleaseProvider, RepairItem, RepairItemKind, RepairPlan, ResolvedRelease,
-    RestoreResult, Result, SourceHealth, SourceKind, SourceRecord, SourceRemovalPreview,
-    SourceRequirementRole, SourceVerification, SupervisedLaunchOutcome, UpdateCheck, UpdatePolicy,
-    VerificationReport,
+    LaunchStdio, Library, OperationCoordinator, OperationEvent, OperationResult,
+    OutputLocationSource, Platform, PortDefinition, PortOutputLocation, PortPaths, PortStatus,
+    PortcoveError, ReconcileAction, ReconcileResult, ReleaseChannel, ReleaseProvider, RepairItem,
+    RepairItemKind, RepairPlan, ResolvedRelease, RestoreResult, Result, SourceHealth, SourceKind,
+    SourceRecord, SourceRemovalPreview, SourceRequirementRole, SourceVerification,
+    SupervisedLaunchOutcome, UpdateCheck, UpdatePolicy, VerificationReport,
     durability::{prepare_backup_publication, publish_backup_directory},
     operation::{
         LifecycleFaultInjector, LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind,
@@ -568,6 +568,15 @@ impl PortcoveService {
         port_id: &str,
         channel: Option<ReleaseChannel>,
     ) -> Result<InstallPlan> {
+        self.plan_install_at(port_id, channel, None).await
+    }
+
+    pub async fn plan_install_at(
+        &self,
+        port_id: &str,
+        channel: Option<ReleaseChannel>,
+        output_directory: Option<&Path>,
+    ) -> Result<InstallPlan> {
         let port = self.catalog.port(port_id)?;
         let status = self.status(port_id)?;
         let selected_channel = channel.unwrap_or(status.channel);
@@ -606,7 +615,68 @@ impl PortcoveService {
             bundled_runtime,
             download_bytes,
             storage: self.library.storage_summary()?,
+            output_location: self.output_location(port_id, output_directory)?,
         })
+    }
+
+    pub fn output_location(
+        &self,
+        port_id: &str,
+        request_override: Option<&Path>,
+    ) -> Result<PortOutputLocation> {
+        self.catalog.port(port_id)?;
+        let configured_output_directory = self.library.output_directory(port_id)?;
+        let default_output_directory = self.library.versions_dir().join(port_id);
+        let request_override = request_override
+            .map(|path| crate::path::normalized_absolute(path, "port output directory"))
+            .transpose()?;
+        if let Some(path) = request_override.as_deref() {
+            crate::path::unicode(path, "port output directory")?;
+        }
+        let (effective_output_directory, selection_source) = request_override.map_or_else(
+            || {
+                configured_output_directory.clone().map_or_else(
+                    || {
+                        (
+                            default_output_directory.clone(),
+                            OutputLocationSource::LibraryDefault,
+                        )
+                    },
+                    |path| (path, OutputLocationSource::PortSetting),
+                )
+            },
+            |path| (path, OutputLocationSource::RequestOverride),
+        );
+        Ok(PortOutputLocation {
+            port_id: port_id.into(),
+            library_root: self.library.root().to_path_buf(),
+            default_output_directory,
+            configured_output_directory,
+            effective_output_directory,
+            selection_source,
+            user_data_root: self.library.user_dir(port_id),
+        })
+    }
+
+    pub fn set_output_directory(
+        &self,
+        port_id: &str,
+        output_directory: &Path,
+    ) -> Result<PortOutputLocation> {
+        let port = self.catalog.port(port_id)?;
+        self.library.set_output_directory(
+            port_id,
+            Some(output_directory),
+            default_channel(port),
+        )?;
+        self.output_location(port_id, None)
+    }
+
+    pub fn reset_output_directory(&self, port_id: &str) -> Result<PortOutputLocation> {
+        let port = self.catalog.port(port_id)?;
+        self.library
+            .set_output_directory(port_id, None, default_channel(port))?;
+        self.output_location(port_id, None)
     }
 
     pub fn port_paths(&self, port_id: &str) -> Result<PortPaths> {
@@ -619,6 +689,7 @@ impl PortcoveService {
             active_install_root: status.active.map(|install| install.path),
             previous_install_root: status.previous.map(|install| install.path),
             staged_install_root: status.staged.map(|install| install.path),
+            output_location: self.output_location(port_id, None)?,
         })
     }
 
@@ -5700,6 +5771,14 @@ fn main() {
         assert_eq!(download.action, InstallPlanAction::Download);
         assert_eq!(download.release.version, "v2");
         assert_eq!(download.storage.library_root, library.root());
+        assert_eq!(
+            download.output_location.effective_output_directory,
+            library.versions_dir().join("zelda64-recomp")
+        );
+        assert_eq!(
+            download.output_location.selection_source,
+            OutputLocationSource::LibraryDefault
+        );
         assert_eq!(download.source_requirements.len(), 1);
         assert_eq!(
             download.source_requirements[0].role,
@@ -5717,6 +5796,95 @@ fn main() {
                 .unwrap()
                 .active
                 .is_none()
+        );
+    }
+
+    #[test]
+    fn per_port_output_resolution_is_independent_and_never_reinterprets_existing_installs() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = service_with_release(library.clone(), "v1");
+        let active = register_zelda_install(&library, "v1", true);
+        let zelda_output = temporary.path().join("outputs/zelda");
+        let starship_output = temporary.path().join("outputs/starship");
+        let request_output = temporary.path().join("one-request");
+
+        let zelda = service
+            .set_output_directory("zelda64-recomp", &zelda_output)
+            .unwrap();
+        let starship = service
+            .set_output_directory("starship", &starship_output)
+            .unwrap();
+
+        assert_eq!(zelda.selection_source, OutputLocationSource::PortSetting);
+        assert_eq!(
+            zelda.effective_output_directory,
+            crate::path::resolve_existing_ancestor(&zelda_output).unwrap()
+        );
+        assert_eq!(
+            starship.effective_output_directory,
+            crate::path::resolve_existing_ancestor(&starship_output).unwrap()
+        );
+        let requested = service
+            .output_location("zelda64-recomp", Some(&request_output))
+            .unwrap();
+        assert_eq!(
+            requested.selection_source,
+            OutputLocationSource::RequestOverride
+        );
+        assert_eq!(
+            requested.configured_output_directory,
+            Some(crate::path::resolve_existing_ancestor(&zelda_output).unwrap())
+        );
+        assert_eq!(
+            requested.effective_output_directory,
+            crate::path::resolve_existing_ancestor(&request_output).unwrap()
+        );
+        assert!(!zelda_output.exists());
+        assert!(!starship_output.exists());
+        assert!(!request_output.exists());
+        assert_eq!(
+            service
+                .status("zelda64-recomp")
+                .unwrap()
+                .active
+                .unwrap()
+                .path,
+            active
+        );
+
+        let reset = service.reset_output_directory("zelda64-recomp").unwrap();
+        assert_eq!(reset.selection_source, OutputLocationSource::LibraryDefault);
+        assert_eq!(
+            reset.effective_output_directory,
+            library.versions_dir().join("zelda64-recomp")
+        );
+        assert_eq!(
+            service
+                .status("zelda64-recomp")
+                .unwrap()
+                .active
+                .unwrap()
+                .path,
+            active
+        );
+        assert_eq!(
+            service
+                .output_location("starship", None)
+                .unwrap()
+                .effective_output_directory,
+            crate::path::resolve_existing_ancestor(&starship_output).unwrap()
+        );
+        let empty = service
+            .set_output_directory("starship", Path::new(""))
+            .unwrap_err();
+        assert_eq!(empty.code, crate::ErrorCode::Usage);
+        assert_eq!(
+            service
+                .output_location("starship", None)
+                .unwrap()
+                .effective_output_directory,
+            crate::path::resolve_existing_ancestor(&starship_output).unwrap()
         );
     }
 
@@ -5762,6 +5930,10 @@ fn main() {
         assert_eq!(paths.active_install_root.as_deref(), Some(active.as_path()));
         assert_eq!(paths.staged_install_root.as_deref(), Some(staged.as_path()));
         assert!(paths.previous_install_root.is_none());
+        assert_eq!(
+            paths.output_location.effective_output_directory,
+            library.versions_dir().join("zelda64-recomp")
+        );
     }
 
     #[test]

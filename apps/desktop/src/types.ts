@@ -423,6 +423,17 @@ export interface ResolvedRelease {
 }
 
 export type InstallPlanAction = "already_active" | "use_staged" | "reuse_retained" | "blocked_unverified" | "download";
+export type OutputLocationSource = "request_override" | "port_setting" | "library_default";
+
+export interface PortOutputLocation {
+  port_id: string;
+  library_root: string;
+  default_output_directory: string;
+  configured_output_directory?: string;
+  effective_output_directory: string;
+  selection_source: OutputLocationSource;
+  user_data_root: string;
+}
 
 export interface InstallPlan {
   port_id: string;
@@ -439,6 +450,7 @@ export interface InstallPlan {
     registered: boolean;
   }>;
   storage: StorageSummary;
+  output_location: PortOutputLocation;
 }
 
 export interface UpdateSnapshot {

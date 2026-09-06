@@ -270,7 +270,7 @@ fn restore_metadata(target: &Library, metadata: &LibraryMetadata) -> Result<()> 
         Library::write_install(&transaction, &install, install.staged)?;
     }
     for settings in &metadata.port_settings {
-        transaction.execute("INSERT INTO port_settings(port_id, channel, update_policy, active_install_id, previous_install_id) VALUES (?1, ?2, ?3, ?4, ?5)", rusqlite::params![settings.port_id, settings.channel.to_string(), settings.update_policy.to_string(), settings.active_install_id, settings.previous_install_id])?;
+        transaction.execute("INSERT INTO port_settings(port_id, channel, update_policy, active_install_id, previous_install_id, output_directory) VALUES (?1, ?2, ?3, ?4, ?5, ?6)", rusqlite::params![settings.port_id, settings.channel.to_string(), settings.update_policy.to_string(), settings.active_install_id, settings.previous_install_id, settings.output_directory.as_deref().map(|path| crate::path::unicode(path, "port output directory")).transpose()?])?;
     }
     for launch in &metadata.launch_history {
         transaction.execute("INSERT INTO launch_history(port_id, last_launched_at, successful_launches) VALUES (?1, ?2, ?3)", rusqlite::params![launch.port_id, launch.last_launched_at, launch.successful_launches])?;
