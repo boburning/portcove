@@ -343,7 +343,11 @@ mod tests {
     #[test]
     fn alpha_one_metadata_without_a_source_inbox_remains_importable() {
         let temporary = tempfile::tempdir().unwrap();
-        let service = PortcoveService::new(Library::open(temporary.path()).unwrap()).unwrap();
+        let source = temporary.path().join("source");
+        let bundle = temporary.path().join("bundle");
+        let metadata_path = temporary.path().join("alpha-one-library.json");
+        let destination = temporary.path().join("destination");
+        let service = PortcoveService::new(Library::open(&source).unwrap()).unwrap();
         let mut metadata = service.export_library_metadata().unwrap();
         assert_eq!(metadata.schema_version, 2);
         metadata.schema_version = 1;
@@ -351,6 +355,24 @@ mod tests {
             .content_roots
             .retain(|root| root.kind != LibraryContentKind::SourceInbox);
         validate_metadata(&metadata, &Catalog::embedded().unwrap()).unwrap();
+
+        for root in &metadata.content_roots {
+            fs::create_dir_all(bundle.join(&root.relative_path)).unwrap();
+        }
+        fs::write(
+            &metadata_path,
+            serde_json::to_vec_pretty(&metadata).unwrap(),
+        )
+        .unwrap();
+        let plan =
+            PortcoveService::plan_library_import(&metadata_path, &bundle, &destination).unwrap();
+        assert_eq!(plan.metadata.schema_version, 1);
+        assert!(
+            plan.content
+                .iter()
+                .all(|root| root.kind != LibraryContentKind::SourceInbox)
+        );
+        assert!(!destination.exists());
 
         metadata.schema_version = 2;
         assert!(validate_metadata(&metadata, &Catalog::embedded().unwrap()).is_err());

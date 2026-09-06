@@ -881,12 +881,63 @@ mod tests {
         thread,
     };
 
+    use sha2::{Digest, Sha256};
     use tempfile::tempdir;
 
     use super::*;
 
     fn prepare_root(root: &Path) {
         fs::create_dir_all(root.join("locks")).unwrap();
+    }
+
+    fn schema_fingerprint(connection: &Connection) -> String {
+        let mut statement = connection
+            .prepare(
+                "SELECT type, name, tbl_name, sql
+                 FROM sqlite_master WHERE sql IS NOT NULL ORDER BY type, name",
+            )
+            .unwrap();
+        let rows = statement
+            .query_map([], |row| {
+                Ok(format!(
+                    "{}|{}|{}|{}",
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                ))
+            })
+            .unwrap()
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .unwrap();
+        hex::encode(Sha256::digest(rows.join("\n").as_bytes()))
+    }
+
+    fn insert_alpha_one_install(
+        connection: &Connection,
+        id: &str,
+        version: &str,
+        path: &Path,
+        staged: bool,
+    ) {
+        connection
+            .execute(
+                "INSERT INTO installs(
+                   id, port_id, version, path, channel, installed_at, verified, staged,
+                   artifact_name, artifact_sha256, artifact_size, manifest_sha256,
+                   selected_executable, runtime_json
+                 ) VALUES (?1, 'starship', ?2, ?3, 'stable', 7, 1, ?4,
+                           'game.zip', ?5, 42, ?6, 'game.exe', NULL)",
+                rusqlite::params![
+                    id,
+                    version,
+                    path.display().to_string(),
+                    i64::from(staged),
+                    "a".repeat(64),
+                    "b".repeat(64),
+                ],
+            )
+            .unwrap();
     }
 
     #[test]
@@ -1129,6 +1180,283 @@ mod tests {
             )
             .unwrap();
         assert_eq!(settings, (Some("active".into()), None, None));
+    }
+
+    #[test]
+    fn released_alpha_one_library_upgrades_on_a_copy_without_reinterpreting_state() {
+        // Generated with the published v0.1.0-alpha.1 Windows CLI archive
+        // (SHA-256 8d7b49aa563982f08e8416d3d5bf34da9b04125f01690221a47bcd79d9b697dd)
+        // from release target d10c331d1d8a06b512f047f9ba5be721e1cfe4fa.
+        const ALPHA_ONE_SCHEMA_FINGERPRINT: &str =
+            "b857e2507b32b44cf30a06f611bc7eac63a8509b4c3d05f257ed3f39636d37bc";
+
+        let original = tempdir().unwrap();
+        let candidate = tempdir().unwrap();
+        prepare_root(original.path());
+        prepare_root(candidate.path());
+        migrate_to(original.path(), 13).unwrap();
+
+        let candidate_root = std::path::absolute(candidate.path()).unwrap();
+        let exact_source = candidate_root.join("offline").join("exact-source.z64");
+        let legacy_source = candidate_root.join("offline").join("legacy-source.wad");
+        let active_path = candidate_root
+            .join("versions")
+            .join("starship")
+            .join("active");
+        let previous_path = candidate_root
+            .join("versions")
+            .join("starship")
+            .join("previous");
+        let staged_path = candidate_root
+            .join("versions")
+            .join("starship")
+            .join("staged");
+
+        let connection = connect(original.path()).unwrap();
+        assert_eq!(
+            schema_fingerprint(&connection),
+            ALPHA_ONE_SCHEMA_FINGERPRINT
+        );
+        connection
+            .execute(
+                "INSERT INTO sources(profile_id, path, sha256, size, updated_at, storage_sha256, storage_size)
+                 VALUES ('star-fox-64', ?1, ?2, 64, 5, ?3, 64),
+                        ('doom-wad', ?4, ?5, 128, 6, ?6, 128)",
+                rusqlite::params![
+                    exact_source.display().to_string(),
+                    "1".repeat(64),
+                    "2".repeat(64),
+                    legacy_source.display().to_string(),
+                    "3".repeat(64),
+                    "4".repeat(64),
+                ],
+            )
+            .unwrap();
+        insert_alpha_one_install(&connection, "active", "v2", &active_path, false);
+        insert_alpha_one_install(&connection, "previous", "v1", &previous_path, false);
+        insert_alpha_one_install(&connection, "staged", "v3", &staged_path, true);
+        connection
+            .execute(
+                "INSERT INTO port_settings(port_id, channel, update_policy, active_install_id, previous_install_id)
+                 VALUES ('starship', 'stable', 'stage', 'active', 'previous')",
+                [],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO activity_history(id, operation, target_kind, target_id, status, message, started_at, finished_at)
+                 VALUES ('activity', 'restore', 'port', 'starship', 'succeeded', 'restored', 8, 9)",
+                [],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO launch_history(port_id, last_launched_at, successful_launches)
+                 VALUES ('starship', 10, 2)",
+                [],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO launch_sessions(
+                   id, port_id, install_id, install_root, supervisor_pid, phase, outcome,
+                   exit_code, message, started_at, updated_at, finished_at
+                 ) VALUES ('launch', 'starship', 'active', ?1, 1, 'collecting', 'succeeded',
+                           0, 'completed', 10, 11, 11)",
+                [active_path.display().to_string()],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO lifecycle_operations(
+                   id, kind, port_id, phase, staging_path, final_path, quarantine_path,
+                   install_json, original_paths_json, activate, last_error, created_at, updated_at
+                 ) VALUES ('recovery', 'install', 'starship', 'committed', NULL, ?1, NULL,
+                           NULL, '[]', 0, NULL, 12, 13)",
+                [active_path.display().to_string()],
+            )
+            .unwrap();
+        connection
+            .execute_batch("PRAGMA wal_checkpoint(TRUNCATE)")
+            .unwrap();
+        drop(connection);
+
+        for (path, bytes) in [
+            (active_path.join("game.exe"), b"active".as_slice()),
+            (previous_path.join("game.exe"), b"previous".as_slice()),
+            (staged_path.join("game.exe"), b"staged".as_slice()),
+            (
+                candidate_root.join("user/starship/save.dat"),
+                b"save".as_slice(),
+            ),
+            (
+                candidate_root.join("user/starship/settings.ini"),
+                b"settings".as_slice(),
+            ),
+            (
+                candidate_root.join("backups/starship/backup-1/backup.json"),
+                b"backup manifest".as_slice(),
+            ),
+            (
+                candidate_root.join("backups/starship/backup-1/save.dat"),
+                b"backup save".as_slice(),
+            ),
+            (
+                candidate_root.join("recovery/alpha-one-note.json"),
+                b"recovery note".as_slice(),
+            ),
+        ] {
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, bytes).unwrap();
+        }
+        fs::copy(
+            database_path(original.path()),
+            database_path(candidate.path()),
+        )
+        .unwrap();
+
+        let library = crate::Library::open(candidate.path().to_path_buf()).unwrap();
+        assert_eq!(library.root(), candidate_root);
+        let upgraded = connect(candidate.path()).unwrap();
+        assert_eq!(
+            recorded_versions(&upgraded).unwrap(),
+            (1..=CURRENT_SCHEMA_VERSION).collect::<Vec<_>>()
+        );
+        let sources = upgraded
+            .prepare(
+                "SELECT profile_id, path, sha256, storage_sha256, observed_identity_json
+                 FROM sources ORDER BY profile_id",
+            )
+            .unwrap()
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, Option<String>>(4)?,
+                ))
+            })
+            .unwrap()
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(sources.len(), 2);
+        assert_eq!(sources[0].0, "doom-wad");
+        assert_eq!(sources[0].1, legacy_source.display().to_string());
+        assert_eq!(sources[0].2, "3".repeat(64));
+        assert_eq!(sources[0].3, "4".repeat(64));
+        assert_eq!(sources[0].4, None);
+        assert_eq!(sources[1].0, "star-fox-64");
+        assert_eq!(sources[1].1, exact_source.display().to_string());
+        assert_eq!(sources[1].2, "1".repeat(64));
+        assert_eq!(sources[1].3, "2".repeat(64));
+        assert_eq!(sources[1].4, None);
+
+        let pointers: (String, String, String, Option<String>) = upgraded
+            .query_row(
+                "SELECT active_install_id, previous_install_id, update_policy, output_directory
+                 FROM port_settings WHERE port_id='starship'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            pointers,
+            ("active".into(), "previous".into(), "stage".into(), None)
+        );
+        let installs: Vec<(String, String, String, i64)> = upgraded
+            .prepare("SELECT id, version, path, staged FROM installs ORDER BY id")
+            .unwrap()
+            .query_map([], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+            })
+            .unwrap()
+            .collect::<std::result::Result<_, _>>()
+            .unwrap();
+        assert_eq!(
+            installs,
+            vec![
+                (
+                    "active".into(),
+                    "v2".into(),
+                    active_path.display().to_string(),
+                    0
+                ),
+                (
+                    "previous".into(),
+                    "v1".into(),
+                    previous_path.display().to_string(),
+                    0,
+                ),
+                (
+                    "staged".into(),
+                    "v3".into(),
+                    staged_path.display().to_string(),
+                    1
+                ),
+            ]
+        );
+        let retained_records: (i64, i64, i64, Option<String>, Option<String>) = upgraded
+            .query_row(
+                "SELECT
+                   (SELECT count(*) FROM activity_history WHERE id='activity'),
+                   (SELECT count(*) FROM launch_sessions WHERE id='launch' AND outcome='succeeded'),
+                   (SELECT successful_launches FROM launch_history WHERE port_id='starship'),
+                   (SELECT relocation_json FROM lifecycle_operations WHERE id='recovery'),
+                   (SELECT source_import_json FROM lifecycle_operations WHERE id='recovery')",
+                [],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                    ))
+                },
+            )
+            .unwrap();
+        assert_eq!(retained_records, (1, 1, 2, None, None));
+        assert_eq!(
+            upgraded
+                .query_row("SELECT count(*) FROM output_roots", [], |row| row
+                    .get::<_, i64>(0))
+                .unwrap(),
+            0
+        );
+
+        assert_eq!(fs::read(active_path.join("game.exe")).unwrap(), b"active");
+        assert_eq!(
+            fs::read(previous_path.join("game.exe")).unwrap(),
+            b"previous"
+        );
+        assert_eq!(fs::read(staged_path.join("game.exe")).unwrap(), b"staged");
+        assert_eq!(
+            fs::read(candidate_root.join("user/starship/save.dat")).unwrap(),
+            b"save"
+        );
+        assert_eq!(
+            fs::read(candidate_root.join("user/starship/settings.ini")).unwrap(),
+            b"settings"
+        );
+        assert_eq!(
+            fs::read(candidate_root.join("backups/starship/backup-1/save.dat")).unwrap(),
+            b"backup save"
+        );
+        assert_eq!(
+            fs::read(candidate_root.join("recovery/alpha-one-note.json")).unwrap(),
+            b"recovery note"
+        );
+
+        let unchanged_original = connect(original.path()).unwrap();
+        assert_eq!(
+            recorded_versions(&unchanged_original).unwrap().last(),
+            Some(&13)
+        );
+        assert_eq!(
+            schema_fingerprint(&unchanged_original),
+            ALPHA_ONE_SCHEMA_FINGERPRINT
+        );
     }
 
     #[test]

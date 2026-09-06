@@ -20,6 +20,9 @@ Native ports are easier to find than they used to be, but they are still awkward
 
 Portcove is a local desktop app and CLI built around a shared Rust core. It can connect the game files required by an upstream project, install a checksum-matched release, launch it, and keep saves intact through updates or rollbacks.
 
+Existing Alpha 1 libraries can be carried forward with the documented
+[upgrade and recovery procedure](docs/UPGRADING.md).
+
 > [!NOTE]
 > Portcove does not include or download ROMs, disc images, BIOS files, or other copyrighted game data. Required source files stay on your computer and are not modified.
 
