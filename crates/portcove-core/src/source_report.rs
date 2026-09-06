@@ -66,6 +66,18 @@ pub struct SourceInspectionProblem {
     /// Open, stable machine code. Unknown future values remain readable.
     pub code: String,
     pub message: String,
+    /// Optional host-tool identifier that adapters can use to offer the
+    /// matching shared readiness controls. Other error details remain private.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_id: Option<String>,
+}
+
+pub(crate) fn problem_from_error(error: &PortcoveError) -> SourceInspectionProblem {
+    SourceInspectionProblem {
+        code: error_code(error),
+        message: error.message.clone(),
+        tool_id: error.details.get("tool_id").cloned(),
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -172,10 +184,7 @@ pub(crate) fn unavailable_report(
             state_code,
             summary,
             next_action,
-            problem: Some(SourceInspectionProblem {
-                code: error_code(problem),
-                message: problem.message.clone(),
-            }),
+            problem: Some(problem_from_error(problem)),
         },
     )
 }
@@ -540,6 +549,20 @@ mod tests {
 
     use super::*;
     use crate::{ObservedSourceDigest, SourceAssessment, SourceDigestAlgorithm, SourceIdentity};
+
+    #[test]
+    fn source_problem_exposes_only_the_matching_host_tool_hint() {
+        let error = PortcoveError::source("chdman is required")
+            .detail("tool_id", "chdman")
+            .detail("tool_path", "private/tools/chdman.exe");
+
+        let problem = problem_from_error(&error);
+        assert_eq!(problem.code, "source_invalid");
+        assert_eq!(problem.tool_id.as_deref(), Some("chdman"));
+        let serialized = serde_json::to_string(&problem).unwrap();
+        assert!(!serialized.contains("tool_path"));
+        assert!(!serialized.contains("private"));
+    }
 
     fn report_for(
         catalog: &Catalog,

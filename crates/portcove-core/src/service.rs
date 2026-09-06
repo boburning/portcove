@@ -1870,10 +1870,7 @@ impl PortcoveService {
                     next_action: "Choose the expected file or source folder and check it again."
                         .to_owned(),
                     report: None,
-                    problem: Some(crate::SourceInspectionProblem {
-                        code: crate::source_report::error_code(&error),
-                        message: error.message,
-                    }),
+                    problem: Some(crate::source_report::problem_from_error(&error)),
                 })
             }
         }

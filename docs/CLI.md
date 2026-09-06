@@ -22,7 +22,7 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":33,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":34,"ok":true,"command":"status","data":{},"error":null}
 ```
 
 Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for success, failure, or cancellation. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
@@ -146,6 +146,11 @@ core operation ID in progress events and final results. Opening the profile
 folder remains a host-integration action after core validates and creates the
 profile directory. A move requires a separately reviewed plan and explicit
 confirmation before the adapter grants the core's single-use authorization.
+
+API schema 34 adds an optional `tool_id` to source-inspection problems. The
+core exposes only the matching host-tool identifier, so CLI and desktop clients
+can offer the same readiness actions without receiving configured tool paths or
+other private error details.
 
 Desktop inspection calls the same core method. Evidence navigation accepts only
 a stable evidence ID, resolves it from the active catalog, revalidates the stored

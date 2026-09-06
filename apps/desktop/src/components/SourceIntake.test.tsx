@@ -4,7 +4,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
-import type { SourceInspectionReport, SourceIntakeInspection, SourceProfile, SourceRecord } from "../types";
+import type { HostToolStatus, SourceInspectionReport, SourceIntakeInspection, SourceProfile, SourceRecord } from "../types";
 import { SourceIntakeDialog, type SourceIntakeRequest } from "./SourceIntake";
 
 const profile: SourceProfile = { id: "game", label: "Owned game source", kind: "file", accepted_extensions: ["z64"], accepted_sha1: [], accepted_sha256: [], members: [] };
@@ -76,6 +76,43 @@ describe("source intake dialog", () => {
 
     expect(host.textContent).toContain("Choose one source.");
     expect(button("Copy to Source Inbox")).toBeUndefined();
+  });
+
+  it("offers the matching preparation tool inline and rechecks the unchanged selection", async () => {
+    const missing: SourceIntakeInspection = {
+      schema_version: 1,
+      profile_id: profile.id,
+      input_count: 1,
+      state_code: "unsupported_shape",
+      summary: "A preparation tool is required.",
+      next_action: "Locate the tool and check again.",
+      problem: { code: "source_invalid", message: "chdman is required", tool_id: "chdman" },
+    };
+    const tool: HostToolStatus = {
+      id: "chdman",
+      display_name: "chdman",
+      state: "missing",
+      configuration_variable: "PORTCOVE_CHDMAN",
+      purpose: "CHD validation and disc-image materialization",
+      official_url: "https://docs.mamedev.org/tools/chdman.html",
+    };
+    const inspect = vi.spyOn(desktopApi, "inspectSourceIntake").mockResolvedValueOnce(missing).mockResolvedValueOnce(intake("D:/Game.chd"));
+    const locate = vi.fn().mockResolvedValue({ tool_id: "chdman", path: "C:/Tools/chdman.exe", state: "success", message: "Ready", persisted: true, retry_action: "", clear_action_available: true });
+
+    await act(async () => root.render(<SourceIntakeDialog request={request(["D:/Game.chd"])} close={vi.fn()} hostTools={[tool]} hostToolActions={{
+      locate,
+      clear: vi.fn(),
+      recheck: vi.fn(),
+      openOfficial: vi.fn(),
+    }} />));
+
+    expect(host.textContent).toContain("Preparation tool needed");
+    expect(host.textContent).toContain("Your selected game files remain unchanged.");
+    expect(host.textContent).not.toContain("Technical ID");
+    await act(async () => button("Locate executable")!.click());
+    expect(locate).toHaveBeenCalledWith(tool);
+    expect(inspect).toHaveBeenNthCalledWith(2, profile.id, ["D:/Game.chd"]);
+    expect(button("Copy to Source Inbox")).toBeDefined();
   });
 
   it("ignores an older inspection and an older error after the selected path changes", async () => {

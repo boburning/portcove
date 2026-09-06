@@ -72,7 +72,7 @@ function PortCard({ port, status, readiness, onSelect, nativeSourceDrag }: { por
   return <button data-focusable className={`port-card${dropEligible ? " source-drop-eligible" : ""}${dropTarget ? " source-drop-targeted" : ""}`} aria-label={`${port.name}. ${state.label}. ${state.action}.`} onClick={() => onSelect(port.id)}
     data-source-drop-port-id={dropEligible ? port.id : undefined} data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}>
     {dropEligible && <span className="source-drop-target" aria-hidden="true">{dropTarget ? "Release to check" : "Drop to check for this game"}</span>}
-    <div className={`card-art palette-${color}`}><span>{port.name.slice(0, 2).toUpperCase()}</span><i>{port.adapter.replaceAll("-", " ")}</i></div>
+    <div className={`card-art palette-${color}`}><span>{port.name.slice(0, 2).toUpperCase()}</span><i>{port.platforms.map(platform => platformLabels[platform]).join(" · ")}</i></div>
     <div className="card-content"><div className="card-kicker"><span className={`readiness ${state.tone}`}><i />{state.label}</span><span className={`badge ${status?.channel ?? port.support_tier}`}>{status?.channel ?? port.support_tier}</span></div>
       <div className="card-title"><h2>{port.name}</h2></div>
       <div className="card-flags">{updateAvailable && <span className="badge update">Update available</span>}{port.upstream_status === "retired" && <span className="badge retired">Retired upstream</span>}</div>
