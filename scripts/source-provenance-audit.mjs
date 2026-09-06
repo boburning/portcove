@@ -82,6 +82,17 @@ function releaseIntegrityState(body) {
   return "Not structurally recorded";
 }
 
+function sourceEvidenceState(body) {
+  const value = String(body ?? "").match(
+    /^\s*- Source requirements and accepted revisions:\s*(.+)$/im,
+  )?.[1]?.trim();
+  if (!value) return "Not structurally recorded";
+  if (/^(?:pending|unknown|not (?:yet )?(?:known|recorded|available)|none)\b/i.test(value)) {
+    return "Gap recorded";
+  }
+  return "Evidence mentioned in issue";
+}
+
 function profileForContract(sourceCatalog, contract) {
   return sourceCatalog.identities.find(profile => profile.id === contract.profile_id);
 }
@@ -185,9 +196,7 @@ export function buildSourceProvenanceAudit({
         url: issue.url,
         portKey: identity.portKeys[0] ?? "Missing",
         upstream: identity.upstreams[0] ?? "Missing",
-        sourceEvidence: /(?:source evidence|source requirements|accepted revisions):[^\n]*(?!pending|unknown)/i.test(issue.body ?? "")
-          ? "Evidence mentioned in issue"
-          : "Gap or unstructured",
+        sourceEvidence: sourceEvidenceState(issue.body),
         releaseIntegrity: releaseIntegrityState(issue.body),
         projectContext: projectContext(projectItem),
         gap: explicitGap(issue.body),
@@ -217,13 +226,12 @@ export function buildSourceProvenanceAudit({
       sourceEvidence: unresolvedEvidence.length
         ? `Missing: ${unresolvedEvidence.sort().join(", ")}`
         : contractEvidence.size ? `${contractEvidence.size} reviewed reference(s)` : "No contract evidence",
-      qualification: qualificationSummary(records),
+      qualification: `${qualificationSummary(records)}; legacy automated=${(port.automated_tested_platforms ?? []).length}, hands-on=${(port.manually_validated_platforms ?? []).length}`,
       legacyAutomatedPlatforms: [...(port.automated_tested_platforms ?? [])].sort(),
       legacyHandsOnPlatforms: [...(port.manually_validated_platforms ?? [])].sort(),
       projectContext: projectContext(projectItem),
       gap: [
         ...contractStates.map(state => state.gap).filter(Boolean),
-        ...contracts.map(contract => contract.evidence_gap).filter(Boolean),
       ].join("; ") || "No structural source gap",
     };
   }).sort((a, b) => a.id.localeCompare(b.id));

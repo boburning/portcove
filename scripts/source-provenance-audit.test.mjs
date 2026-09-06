@@ -111,6 +111,8 @@ test("identical offline fixtures produce byte-identical ordered evidence", () =>
     researchIssues: 1,
   });
   assert.deepEqual(first.observations, []);
+  assert.equal(first.research[0].sourceEvidence, "Gap recorded");
+  assert.equal(first.cataloged[0].qualification, "No exact records; legacy automated=0, hands-on=0");
 });
 
 test("negative fixtures expose missing tickets, duplicate catalog IDs, stale hashes, and missing evidence", () => {
