@@ -22,7 +22,7 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":30,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":31,"ok":true,"command":"status","data":{},"error":null}
 ```
 
 Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for success, failure, or cancellation. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
@@ -124,6 +124,13 @@ qualification states. These records keep structural, automated lifecycle,
 hands-on, known-failure, missing, and not-run evidence distinct and require an
 exact artifact, contract, variant, representation, platform, and check version.
 Legacy platform arrays remain historical unscoped coverage.
+
+API schema 31 adds the core Source Inbox path and resolution contracts and
+library metadata format 2. Metadata format 2 includes `source-inbox` as a
+movable content root; format-1 Alpha 1 exports remain importable and represent
+an empty Source Inbox. Core scans only one profile directory at a time, returns
+typed exact, approval-required, conflict, incomplete, and unresolved states,
+and reuses a candidate during install only after one exact match is rechecked.
 
 Desktop inspection calls the same core method. Evidence navigation accepts only
 a stable evidence ID, resolves it from the active catalog, revalidates the stored
@@ -269,13 +276,13 @@ portcove --library <path> --json library export
 portcove --library <path> --json library export --output <new-file.json>
 ```
 
-Export reads one consistent SQLite snapshot. The versioned metadata document contains source references, managed version identities, active/previous/staged state, per-port preferences, and successful launch history. Application versions, user data, backups, and toolchains are identified as separate content roots; their contents and credentials are not embedded. Managed installation paths become relative to the original library root, while source references retain their original paths and identities.
+Export reads one consistent SQLite snapshot. The versioned metadata document contains source references, managed version identities, active/previous/staged state, per-port preferences, and successful launch history. Application versions, user data, Source Inbox, backups, and toolchains are identified as separate content roots; their contents and credentials are not embedded. Managed installation paths become relative to the original library root, while source references retain their original paths and identities. Format-1 Alpha 1 metadata without a Source Inbox root remains importable.
 
 Without `--output`, the document appears in the normal CLI response. With `--output`, core writes a raw metadata document to a new file and returns its path, byte size, and SHA-256. Publication does not replace an existing file. Settings → Library → Export metadata invokes the same operation through a native save dialog.
 
 ## Library imports and recovery
 
-Import a trusted metadata export together with a separate backup folder containing its `versions`, `user`, `backups`, and `toolchains` trees:
+Import a trusted metadata export together with a separate backup folder containing its `versions`, `user`, `source-inbox`, `backups`, and `toolchains` trees:
 
 ```text
 portcove --library <new-or-empty-root> --json library import <metadata.json> <copied-library-folder>
@@ -297,7 +304,7 @@ portcove --library <original> --json library resume-move
 portcove --library <original> --json library abort-move
 ```
 
-Review is read-only. The destination must be a new directory beneath an existing parent. The plan identifies the four managed content categories, source references, required working space, and available capacity. It rejects symlinks, special entries, case-insensitive collisions, and paths outside the conservative portable ASCII filename policy. Source references stay at their original paths. Complete all launch/lifecycle recovery and close other Portcove clients before applying; every open handle holds a library lease. Settings → Library → Move library uses the same plan and core operation while releasing its own cached handles.
+Review is read-only. The destination must be a new directory beneath an existing parent. The plan identifies the five managed content categories, source references, required working space, and available capacity. It rejects symlinks, special entries, case-insensitive collisions, and paths outside the conservative portable ASCII filename policy. Source references stay at their original paths. Complete all launch/lifecycle recovery and close other Portcove clients before applying; every open handle holds a library lease. Settings → Library → Move library uses the same plan and core operation while releasing its own cached handles.
 
 Apply recomputes the reviewed fingerprint, copies with no overwrite, verifies file inventories, metadata, SQLite integrity and immutable installation manifests, then switches authority. The original directory is retained as a recovery copy. Opening that old path subsequently follows the verified relocation, so configured paths survive an ordinary move. For disk removal or machine migration, configure the new root directly. Metadata export alone is not a payload backup or import.
 

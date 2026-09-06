@@ -284,6 +284,10 @@ impl PortcoveService {
     pub fn catalog(&self) -> &Catalog {
         &self.catalog
     }
+    #[cfg(test)]
+    pub(crate) fn replace_catalog_for_test(&mut self, catalog: Catalog) {
+        self.catalog = catalog;
+    }
     pub fn library(&self) -> &Library {
         &self.library
     }
@@ -1988,7 +1992,7 @@ impl PortcoveService {
         })
     }
 
-    fn verify_source_record(&self, registered: &SourceRecord) -> Result<()> {
+    pub(crate) fn verify_source_record(&self, registered: &SourceRecord) -> Result<()> {
         let profile_id = &registered.profile_id;
         let actual = self.inspect_source_record(profile_id, &registered.path)?;
         if actual.sha256 != registered.sha256
@@ -2276,9 +2280,10 @@ impl PortcoveService {
             return Ok(existing);
         }
         self.collect_active_user_data_if_launched(&port.id)?;
-        let source = self.validate_and_remember_source(port, overrides.source)?;
+        let source =
+            self.validate_and_remember_source(port, overrides.source, reporter.operation)?;
         reporter.operation.checkpoint()?;
-        let bios = self.validate_and_remember_bios(port, overrides.bios)?;
+        let bios = self.validate_and_remember_bios(port, overrides.bios, reporter.operation)?;
         reporter.operation.checkpoint()?;
         let platform = Platform::current()?;
         let qualification = InstallQualification::from_port(port, platform)?;
@@ -2421,6 +2426,7 @@ impl PortcoveService {
         &self,
         port: &PortDefinition,
         source_override: Option<&Path>,
+        operation: &OperationCoordinator,
     ) -> Result<Option<SourceRecord>> {
         let Some(profile_id) = &port.source_profile else {
             return Ok(None);
@@ -2431,24 +2437,32 @@ impl PortcoveService {
             self.library.register_source(&source)?;
             return Ok(Some(source));
         }
-        self.verified_source_record(profile_id)
-            .map(Some)
-            .map_err(|error| {
-                if error.code == crate::ErrorCode::NotFound {
-                    PortcoveError::source(format!(
-                        "{} requires source profile {profile_id}; pass --source or register it first",
-                        port.name
-                    ))
-                } else {
-                    error
-                }
-            })
+        match self.verified_source_record(profile_id) {
+            Ok(source) => Ok(Some(source)),
+            Err(error) if error.code == crate::ErrorCode::NotFound => self
+                .resolve_and_register_inbox_source(profile_id, Some(&port.id), operation)
+                .map(Some)
+                .map_err(|error| {
+                    if error.code == crate::ErrorCode::NotFound {
+                        PortcoveError::source(format!(
+                            "{} requires source profile {profile_id}; place it in the Source Inbox, pass --source, or register it first",
+                            port.name
+                        ))
+                        .detail("profile_id", profile_id)
+                        .detail("source_inbox", self.library.source_inbox_dir().display().to_string())
+                    } else {
+                        error
+                    }
+                }),
+            Err(error) => Err(error),
+        }
     }
 
     fn validate_and_remember_bios(
         &self,
         port: &PortDefinition,
         bios_override: Option<&Path>,
+        operation: &OperationCoordinator,
     ) -> Result<Option<SourceRecord>> {
         let Some(profile_id) = &port.bios_source_profile else {
             return Ok(None);
@@ -2459,18 +2473,98 @@ impl PortcoveService {
             self.library.register_source(&source)?;
             return Ok(Some(source));
         }
-        self.verified_source_record(profile_id)
-            .map(Some)
-            .map_err(|error| {
-                if error.code == crate::ErrorCode::NotFound {
-                    PortcoveError::source(format!(
-                        "{} requires BIOS profile {profile_id}; pass --bios or register it first",
-                        port.name
-                    ))
-                } else {
-                    error
+        match self.verified_source_record(profile_id) {
+            Ok(source) => Ok(Some(source)),
+            Err(error) if error.code == crate::ErrorCode::NotFound => self
+                .resolve_and_register_inbox_source(profile_id, Some(&port.id), operation)
+                .map(Some)
+                .map_err(|error| {
+                    if error.code == crate::ErrorCode::NotFound {
+                        PortcoveError::source(format!(
+                            "{} requires BIOS profile {profile_id}; place it in the Source Inbox, pass --bios, or register it first",
+                            port.name
+                        ))
+                        .detail("profile_id", profile_id)
+                        .detail("source_inbox", self.library.source_inbox_dir().display().to_string())
+                    } else {
+                        error
+                    }
+                }),
+            Err(error) => Err(error),
+        }
+    }
+
+    pub(crate) fn resolve_and_register_inbox_source(
+        &self,
+        profile_id: &str,
+        already_locked: Option<&str>,
+        operation: &OperationCoordinator,
+    ) -> Result<SourceRecord> {
+        let _guards = self.lock_source_dependents(profile_id, already_locked)?;
+        if let Some(registered) = self.library.source(profile_id)? {
+            self.verify_source_record(&registered)?;
+            return Ok(registered);
+        }
+        let resolution = self.scan_source_inbox_untracked(
+            profile_id,
+            &crate::SourceDiscoveryLimits::default(),
+            operation,
+        )?;
+        match resolution.state {
+            crate::SourceInboxResolutionState::ExactMatch => {
+                let selected = resolution.selected.ok_or_else(|| {
+                    PortcoveError::state("an exact Source Inbox result omitted its source record")
+                })?;
+                let inspection = self.inspect_source(profile_id, &selected.path)?;
+                if !matches!(
+                    inspection.assessment.admission,
+                    crate::SourceAdmission::Admitted {
+                        mode: crate::SourceAdmissionMode::ExactIdentity
+                    }
+                ) {
+                    return Err(PortcoveError::conflict(
+                        "the Source Inbox candidate changed after inspection",
+                    )
+                    .detail("profile_id", profile_id)
+                    .detail("path", selected.path.display().to_string()));
                 }
-            })
+                let source = inspection.require_admitted_record()?;
+                self.library.register_source(&source)?;
+                Ok(source)
+            }
+            crate::SourceInboxResolutionState::Conflict => {
+                let paths = resolution
+                    .candidates
+                    .iter()
+                    .filter(|candidate| candidate.automatically_reusable)
+                    .map(|candidate| candidate.inspection.path.display().to_string())
+                    .collect::<Vec<_>>();
+                Err(PortcoveError::conflict(
+                    "more than one exact source matches in the profile Source Inbox",
+                )
+                .detail("profile_id", profile_id)
+                .detail("candidate_paths", serde_json::to_string(&paths)?))
+            }
+            crate::SourceInboxResolutionState::ApprovalRequired => Err(PortcoveError::source(
+                "the Source Inbox candidate needs explicit approval before first registration",
+            )
+            .detail("profile_id", profile_id)
+            .detail("inbox_state", "approval_required")),
+            crate::SourceInboxResolutionState::Incomplete => Err(PortcoveError::source(
+                "the Source Inbox scan was incomplete and cannot select a source safely",
+            )
+            .detail("profile_id", profile_id)
+            .detail(
+                "limits_reached",
+                serde_json::to_string(&resolution.stats.limits_reached)?,
+            )
+            .detail("issue_count", resolution.stats.issues.len().to_string())),
+            crate::SourceInboxResolutionState::Unresolved
+            | crate::SourceInboxResolutionState::Registered => Err(PortcoveError::not_found(
+                "the profile Source Inbox has no reusable exact source",
+            )
+            .detail("profile_id", profile_id)),
+        }
     }
 
     async fn managed_preparation<F>(

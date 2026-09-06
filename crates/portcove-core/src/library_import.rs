@@ -134,23 +134,35 @@ pub(crate) fn import_fingerprint(plan: &LibraryImportPlan) -> Result<String> {
 }
 
 pub(crate) fn validate_metadata(metadata: &LibraryMetadata, catalog: &Catalog) -> Result<()> {
-    if metadata.schema_version != 1 {
+    if !matches!(metadata.schema_version, 1 | 2) {
         return Err(PortcoveError::unsupported(
             "unsupported library metadata schema",
         ));
     }
-    let expected = [
+    let legacy_expected = [
         (LibraryContentKind::ApplicationVersions, "versions"),
         (LibraryContentKind::UserData, "user"),
         (LibraryContentKind::Backups, "backups"),
         (LibraryContentKind::Toolchains, "toolchains"),
     ];
+    let current_expected = [
+        (LibraryContentKind::ApplicationVersions, "versions"),
+        (LibraryContentKind::UserData, "user"),
+        (LibraryContentKind::SourceInbox, "source-inbox"),
+        (LibraryContentKind::Backups, "backups"),
+        (LibraryContentKind::Toolchains, "toolchains"),
+    ];
+    let expected = if metadata.schema_version == 1 {
+        legacy_expected.as_slice()
+    } else {
+        current_expected.as_slice()
+    };
     if metadata.content_roots.len() != expected.len()
         || metadata
             .content_roots
             .iter()
-            .zip(expected)
-            .any(|(root, (kind, path))| root.kind != kind || root.relative_path != path)
+            .zip(expected.iter())
+            .any(|(root, (kind, path))| root.kind != *kind || root.relative_path != *path)
     {
         return Err(PortcoveError::verification(
             "metadata has unexpected or overlapping content roots",
@@ -326,5 +338,21 @@ mod tests {
             .unwrap_err();
         assert!(error.message.contains("registration baseline"));
         assert!(!destination.exists());
+    }
+
+    #[test]
+    fn alpha_one_metadata_without_a_source_inbox_remains_importable() {
+        let temporary = tempfile::tempdir().unwrap();
+        let service = PortcoveService::new(Library::open(temporary.path()).unwrap()).unwrap();
+        let mut metadata = service.export_library_metadata().unwrap();
+        assert_eq!(metadata.schema_version, 2);
+        metadata.schema_version = 1;
+        metadata
+            .content_roots
+            .retain(|root| root.kind != LibraryContentKind::SourceInbox);
+        validate_metadata(&metadata, &Catalog::embedded().unwrap()).unwrap();
+
+        metadata.schema_version = 2;
+        assert!(validate_metadata(&metadata, &Catalog::embedded().unwrap()).is_err());
     }
 }

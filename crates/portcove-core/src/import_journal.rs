@@ -184,8 +184,8 @@ pub(crate) fn ensure_empty_destination(root: &Path) -> Result<()> {
         let allowed = if kind.is_dir() {
             match name {
                 "locks" | "logs" => true,
-                "versions" | "user" | "backups" | "toolchains" | "staging" | "downloads"
-                | "recovery" => fs::read_dir(entry.path())?.next().is_none(),
+                "versions" | "user" | "source-inbox" | "backups" | "toolchains" | "staging"
+                | "downloads" | "recovery" => fs::read_dir(entry.path())?.next().is_none(),
                 _ => false,
             }
         } else {

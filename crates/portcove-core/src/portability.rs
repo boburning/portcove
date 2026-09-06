@@ -36,6 +36,7 @@ pub struct LibraryContentRoot {
 pub enum LibraryContentKind {
     ApplicationVersions,
     UserData,
+    SourceInbox,
     Backups,
     Toolchains,
 }
@@ -118,12 +119,13 @@ impl Library {
         let launch_history = read_launch_history(&transaction)?;
         transaction.commit()?;
         Ok(LibraryMetadata {
-            schema_version: 1,
+            schema_version: 2,
             exported_at: Self::now(),
             original_root,
             content_roots: [
                 (LibraryContentKind::ApplicationVersions, "versions"),
                 (LibraryContentKind::UserData, "user"),
+                (LibraryContentKind::SourceInbox, "source-inbox"),
                 (LibraryContentKind::Backups, "backups"),
                 (LibraryContentKind::Toolchains, "toolchains"),
             ]
@@ -285,7 +287,12 @@ mod tests {
             serde_json::to_value(&metadata.source_references).unwrap(),
             serde_json::to_value(&before).unwrap()
         );
-        assert_eq!(metadata.content_roots.len(), 4);
+        assert_eq!(metadata.schema_version, 2);
+        assert_eq!(metadata.content_roots.len(), 5);
+        assert_eq!(
+            metadata.content_roots[2].kind,
+            LibraryContentKind::SourceInbox
+        );
         let destination = temporary.path().join("metadata.json");
         let report = service.write_library_metadata(&destination).unwrap();
         let bytes = fs::read(&destination).unwrap();
