@@ -25,7 +25,7 @@ const inboxLimits: SourceDiscoveryLimits = {
   max_candidates: 64,
 };
 
-const modeLabel: Record<SourceImportMode, string> = {
+export const sourceImportModeLabel: Record<SourceImportMode, string> = {
   copy: "Copy to Inbox",
   move: "Move to Inbox",
   use_current_location: "Use current location",
@@ -37,7 +37,7 @@ export function SourceDiscoveryButton({ profiles, disabled, onAdded }: { profile
     {open && <SourceDiscoveryDialog profiles={profiles} onAdded={onAdded} close={() => setOpen(false)} />}</>;
 }
 
-function importNotice(result: SourceImportResult) {
+export function sourceImportNotice(result: SourceImportResult) {
   switch (result.outcome) {
     case "copied_original_retained": return `Inbox copy registered. The original remains at ${result.retained_original_path ?? "its prior location"}.`;
     case "moved": return "Inbox copy verified and registered; the original was removed.";
@@ -96,7 +96,7 @@ function useSourceDiscoveryWorkflow(onAdded?: () => Promise<void>) {
   });
   const applyImport = () => {
     if (!plan) return Promise.resolve();
-    return run(`${modeLabel[plan.mode]}…`, async () => {
+    return run(`${sourceImportModeLabel[plan.mode]}…`, async () => {
       const result = await desktopApi.importSource(plan.profile_id, plan.source.path, plan.mode, plan.plan_sha256, trackStart);
       if (!result) {
         setNotice("Move cancelled. The original and registration were left unchanged.");
@@ -104,7 +104,7 @@ function useSourceDiscoveryWorkflow(onAdded?: () => Promise<void>) {
       }
       setRegistered(result.registered.path);
       setPlan(undefined);
-      setNotice(importNotice(result));
+      setNotice(sourceImportNotice(result));
       await onAdded?.();
     });
   };
@@ -137,16 +137,16 @@ function DiscoveryResults({ workflow }: { workflow: Workflow }) {
   </section>;
 }
 
-function ImportReview({ plan, busy, onCancel, onApply }: { plan?: SourceImportPlan; busy: boolean; onCancel: () => void; onApply: () => Promise<void> }) {
+export function SourceImportReview({ plan, busy, onCancel, onApply }: { plan?: SourceImportPlan; busy: boolean; onCancel: () => void; onApply: () => Promise<void> }) {
   if (!plan) return null;
   const explanation = plan.mode === "move"
     ? "The original is removed only after the Inbox copy is verified and registered."
     : plan.mode === "copy" ? "The original stays in place after the verified Inbox copy is registered." : "No source bytes are copied or removed.";
   return <section className="source-discovery-results" aria-label="Source import review">
-    <h3>{modeLabel[plan.mode]}</h3><p>{explanation}</p>
+    <h3>{sourceImportModeLabel[plan.mode]}</h3><p>{explanation}</p>
     <p>Source: <code>{plan.source.path}</code></p><p>Registration: <code>{plan.destination}</code></p>
     {plan.existing_registration && <p>This replaces the current registration after the selected source is rechecked.</p>}
-    <div className="actions"><button data-focusable disabled={busy} onClick={onCancel}>Cancel review</button><button data-focusable className="primary" disabled={busy} onClick={() => { void onApply(); }}>{modeLabel[plan.mode]}</button></div>
+    <div className="actions"><button data-focusable disabled={busy} onClick={onCancel}>Cancel review</button><button data-focusable className="primary" disabled={busy} onClick={() => { void onApply(); }}>{sourceImportModeLabel[plan.mode]}</button></div>
   </section>;
 }
 
@@ -174,7 +174,7 @@ function SourceDiscoveryDialog({ profiles, onAdded, close }: { profiles: SourceP
     {report && <p>{report.candidates.length} validated {report.candidates.length === 1 ? "match" : "matches"}. Checked {report.entries_examined.toLocaleString()} entries and hashed {formatBytes(report.hash_bytes)}.</p>}
     {inbox && <section aria-label="Source Inbox scan result"><p>Inbox state: {inbox.state.replaceAll("_", " ")}. Checked {inbox.stats.entries_examined.toLocaleString()} entries and hashed {formatBytes(inbox.stats.hash_bytes)}.</p>{inbox.selected && <p>Registered source: <code>{inbox.selected.path}</code></p>}</section>}
     <DiscoveryResults workflow={workflow} />
-    <ImportReview plan={plan} busy={Boolean(busy)} onCancel={workflow.cancelReview} onApply={workflow.applyImport} />
+    <SourceImportReview plan={plan} busy={Boolean(busy)} onCancel={workflow.cancelReview} onApply={workflow.applyImport} />
     {registered && <p role="status">Source registered: <code>{registered}</code></p>}{error && <p role="alert">{error}</p>}
     <div className="actions"><button data-focusable disabled={Boolean(busy)} onClick={dismiss}>Close</button><button data-focusable className="primary" disabled={Boolean(busy) || !profile || !root.trim()} onClick={() => { void workflow.search(); }}>Search this folder</button></div>
   </section></div>;

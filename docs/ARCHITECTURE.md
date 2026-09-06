@@ -189,6 +189,15 @@ response cannot replace newer intent. A saved registered path may display its
 current report; a different typed or picked path remains selected and unchecked
 until a core operation evaluates it.
 
+Native game-file intake is another read-only route to the same inspector. Core
+classifies empty, single-path, directory, multi-path, unsupported, mismatch, and
+ambiguous inputs for one requested source profile. Tauri translates only native
+external-file events and does not infer identity or perform a mutation. React
+temporarily reveals eligible port-card targets, binds each reply to the current
+port/profile/path intent, and opens the same detailed evidence before offering
+separate copy, current-location, or authorized move actions. A drop by itself
+never registers, installs, copies, moves, replaces, or deletes source data.
+
 Core also owns the read-only output-destination preview, capacity/ownership assessment, state-bound fingerprint, one-use authorization, port locking, and apply-time revalidation. CLI and Tauri translate the same preview and mutation results. New desktop storage commands bind each request to the active bootstrap generation, while React holds only the typed path entry and transient review state; a library, port, path, or newer-request change discards an old response. The Settings surface reviews whole-library switching separately, and a game page labels its per-port choice “Export / install folder” and states that it changes future placement without relocating recorded installs.
 
 Management operations create a running activity before work and finish it as succeeded or failed without replacing the command's primary result. Best-effort progress uses a versioned core event envelope containing that activity UUID, a per-operation sequence, millisecond timestamp, typed target, optional parent operation, and terminal result. Nested work receives its own ID and names the parent. SQLite activity is authoritative after disconnect or restart; event delivery is never treated as durable truth. Update snapshots likewise come from the core, allowing a CLI check to repopulate the desktop after restart; consumers validate the snapshot's installed artifact digest, display version, and channel before presenting it as current. Catalog-wide status uses one bulk read model: settings, installs, launch history, update snapshots, and registered source records are each loaded once, and results are reassembled in catalog order without writing default rows. Required source identities are hashed once per profile during that status request and shared by every installed dependent. Uninstalled registrations are reported as `not_checked` instead of causing catalog browsing to hash source files. Debug diagnostics record the port and SQLite-query counts; scale tests hold the database portion to four queries at 250, 500, and 1,000 rows.

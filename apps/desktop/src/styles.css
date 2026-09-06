@@ -836,7 +836,34 @@ h2 { letter-spacing: -0.025em; line-height: var(--leading-tight); }
   box-shadow: var(--shadow-control);
   text-align: left;
   cursor: pointer;
+  position: relative;
   transition: transform var(--duration-slow) var(--ease-emphasized), border-color var(--duration-slow) var(--ease-emphasized), box-shadow var(--duration-slow) var(--ease-emphasized), background-color var(--duration-slow) var(--ease-emphasized);
+}
+
+.port-card.source-drop-eligible {
+  border-color: var(--color-interactive-border);
+}
+
+.port-card.source-drop-targeted {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.source-drop-target {
+  position: absolute;
+  inset: var(--space-3);
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  border: 2px dashed var(--color-interactive-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-on-dark);
+  background: color-mix(in srgb, var(--color-interactive) 92%, transparent);
+  font-size: var(--text-sm);
+  font-weight: 800;
+  text-align: center;
+  pointer-events: none;
 }
 
 .port-card:hover {
@@ -1857,6 +1884,14 @@ select { width: 100%; padding: 11px; }
 .source-health-row > .source-identity,
 .source-health-row > .source-inspection-loading { grid-column: 1 / -1; }
 .source-discovery-results code { white-space: normal; overflow-wrap: anywhere; }
+.source-intake { max-height: min(90vh, 58rem); overflow: auto; }
+.source-intake-picker { display: flex; align-items: center; gap: var(--space-3); }
+.source-intake-picker small { color: var(--color-text-muted); }
+.source-intake-shortcuts { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-4) 0; }
+.source-intake-result { display: grid; gap: var(--space-3); }
+.source-intake-summary { margin-bottom: 0; font-weight: 700; }
+.source-intake-actions { display: grid; gap: var(--space-3); padding: var(--space-4); border: 1px solid var(--color-success-border); border-radius: var(--radius-md); background: var(--color-success-subtle); }
+.source-intake-actions p { margin: 0; }
 .operation-cancellation { margin-block: var(--space-3); }
 .activity-row .operation-cancellation { grid-column: 2 / -1; }
 .detail-panel > .operation-cancellation { margin-inline: var(--space-6); }

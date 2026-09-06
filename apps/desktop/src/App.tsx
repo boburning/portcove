@@ -6,6 +6,7 @@ import { PageHeader, SettingsView, Sidebar, StatusLayer } from "./components/Chr
 import { CommandPalette } from "./components/CommandPalette";
 import { DetailPanel } from "./components/DetailPanel";
 import { PortBrowser } from "./components/PortBrowser";
+import { SourceIntakeDialog, type SourceIntakeRequest } from "./components/SourceIntake";
 import { UpdateCenter } from "./components/UpdateCenter";
 import { pickHostToolExecutable, pickInstallFolder, pickLibraryFolder, pickMetadataExportPath, pickSourceArchivePath, pickSourcePath } from "./file-picker";
 import { desktopApi } from "./api";
@@ -14,6 +15,7 @@ import { useThemePreference } from "./theme";
 import { useGamepadNavigation } from "./gamepad";
 import { focusRegion } from "./focus";
 import { overlayBackAction } from "./overlay-stack";
+import { useNativeSourceDrop } from "./native-source-drop";
 import { useCommandSurface } from "./use-command-surface";
 import { useAdoptionPlanning, detailActions, type Perform, useGithubAuth, useInstallPlanning, useOperationState, usePortBackups, usePortcoveData, usePortcoveUi, useSourceHealth, useUpdateCenter } from "./use-portcove";
 import type { ActivityRecord, BootstrapStatus, DesktopError, HostToolStatus, SourceProfile, SourceRecord } from "./types";
@@ -86,6 +88,13 @@ function Workspace({ bootstrap, switchLibrary, resetLibrary }: { bootstrap: Boot
   const github = useGithubAuth(operations.perform, operations.setError);
   const updates = useUpdateCenter(operations.perform, data.statuses);
   const ui = usePortcoveUi();
+  const [sourceIntake, setSourceIntake] = useState<SourceIntakeRequest>();
+  const openSourceIntake = useCallback((portId: string, profileId: string, paths: string[] = []) => {
+    const port = data.catalog?.ports.find(candidate => candidate.id === portId);
+    const profile = data.catalog?.source_profiles.find(candidate => candidate.id === profileId);
+    if (port && profile) setSourceIntake({ portId, portName: port.name, profile, paths });
+  }, [data.catalog]);
+  const nativeSourceDrag = useNativeSourceDrop(drop => openSourceIntake(drop.portId, drop.profileId, drop.paths));
   const selectedPort = data.catalog?.ports.find(port => port.id === ui.selectedId);
   const inspectionProfiles = ui.view === "settings" ? data.sources.map(source => source.profile_id) : [selectedPort?.source_profile, selectedPort?.bios_source_profile].filter((profile): profile is string => Boolean(profile));
   const sourceHealth = useSourceHealth(operations.perform, data.sources, inspectionProfiles, JSON.stringify(data.catalog?.source_catalog ?? null));
@@ -114,11 +123,12 @@ function Workspace({ bootstrap, switchLibrary, resetLibrary }: { bootstrap: Boot
     <main ref={workspace} data-focus-region="workspace">
       <PageHeader view={ui.view} query={ui.query} setQuery={ui.setQuery} portCount={data.catalog?.ports.length ?? 0} onOpenCommands={() => commandSurface.setOpen(true)} />
       <StatusLayer error={operations.error} clearError={() => operations.setError(undefined)} operation={operations.operation} busy={operations.busy} />
-      <CurrentView data={data} ui={ui} model={model} operations={operations} github={github} updates={updates} sourceHealth={sourceHealth} appearance={appearance} bootstrap={bootstrap} switchLibrary={switchLibrary} resetLibrary={resetLibrary} />
+      <CurrentView data={data} ui={ui} model={model} operations={operations} github={github} updates={updates} sourceHealth={sourceHealth} appearance={appearance} bootstrap={bootstrap} switchLibrary={switchLibrary} resetLibrary={resetLibrary} nativeSourceDrag={nativeSourceDrag} />
     </main>
-    <SelectedPortPanel model={model} ui={ui} operations={operations} sourceHealth={sourceHealth} installPlanning={installPlanning} backups={backups} activities={data.activities} libraryGeneration={bootstrap.generation} />
+    <SelectedPortPanel model={model} ui={ui} operations={operations} sourceHealth={sourceHealth} installPlanning={installPlanning} backups={backups} activities={data.activities} libraryGeneration={bootstrap.generation} openSourceIntake={openSourceIntake} />
     <AdoptionOverlay ui={ui} operations={operations} />
     <CommandPalette open={commandSurface.open} commands={commandSurface.commands} close={() => commandSurface.setOpen(false)} />
+    {sourceIntake && <SourceIntakeDialog request={sourceIntake} close={() => setSourceIntake(undefined)} onAdded={data.refresh} openEvidence={evidenceId => { void operations.perform("open source evidence", () => desktopApi.openSourceEvidence(evidenceId)); }} />}
   </div>;
 }
 
@@ -159,9 +169,10 @@ function selectedPort(data: DataState, selectedId: string | undefined, statuses:
   };
 }
 
-function CurrentView({ data, ui, model, operations, github, updates, sourceHealth, appearance, bootstrap, switchLibrary, resetLibrary }: {
+function CurrentView({ data, ui, model, operations, github, updates, sourceHealth, appearance, bootstrap, switchLibrary, resetLibrary, nativeSourceDrag }: {
   data: DataState; ui: UiState; model: ReturnType<typeof useAppModel>; operations: OperationState; github: GithubState; updates: UpdateState; sourceHealth: SourceHealthState; appearance: AppearanceState;
   bootstrap: BootstrapStatus; switchLibrary: (path: string) => Promise<void>; resetLibrary: () => Promise<void>;
+  nativeSourceDrag: ReturnType<typeof useNativeSourceDrop>;
 }) {
   if (ui.view === "updates") return <UpdateCenter ports={data.catalog?.ports ?? []} statuses={model.statusMap} activities={data.activities} outcomes={updates.outcomes} actions={updates.actions} busy={operations.busy}
     checkAll={() => { void updates.checkAll(); }} applyPolicies={() => { void updates.applyPolicies(); }} onSelect={ui.setSelectedId} onOpenSources={() => ui.setView("settings")} />;
@@ -193,10 +204,10 @@ function CurrentView({ data, ui, model, operations, github, updates, sourceHealt
     }} />;
   return <PortBrowser view={ui.view} ports={model.visible} statuses={model.statusMap} registeredSources={model.registeredSources} overview={model.overview} recent={model.recent}
     filter={ui.filter} setFilter={ui.setFilter} onSelect={ui.setSelectedId} onContinue={portId => { void operations.perform("launch", () => desktopApi.launch(portId, "")); }}
-    onBrowseCatalog={() => ui.setView("catalog")} clearFilters={() => { ui.setFilter("all"); ui.setQuery(""); }} loading={!data.catalog} />;
+    onBrowseCatalog={() => ui.setView("catalog")} clearFilters={() => { ui.setFilter("all"); ui.setQuery(""); }} loading={!data.catalog} nativeSourceDrag={nativeSourceDrag} />;
 }
 
-function SelectedPortPanel({ model, ui, operations, sourceHealth, installPlanning, backups, activities, libraryGeneration }: { model: ReturnType<typeof useAppModel>; ui: UiState; operations: OperationState; sourceHealth: SourceHealthState; installPlanning: InstallPlanningState; backups: BackupState; activities: ActivityRecord[]; libraryGeneration: number }) {
+function SelectedPortPanel({ model, ui, operations, sourceHealth, installPlanning, backups, activities, libraryGeneration, openSourceIntake }: { model: ReturnType<typeof useAppModel>; ui: UiState; operations: OperationState; sourceHealth: SourceHealthState; installPlanning: InstallPlanningState; backups: BackupState; activities: ActivityRecord[]; libraryGeneration: number; openSourceIntake: (portId: string, profileId: string, paths?: string[]) => void }) {
   if (!model.port) return null;
   const pickSource = model.sourceProfile ? () => { void applyPathChoice(pickSourcePath(model.sourceProfile!, ui.sourcePath), ui.setSourcePath, operations.setError); } : undefined;
   const pickArchive = model.sourceProfile?.kind === "file-set" ? () => { void applyPathChoice(pickSourceArchivePath(ui.sourcePath), ui.setSourcePath, operations.setError); } : undefined;
@@ -205,6 +216,7 @@ function SelectedPortPanel({ model, ui, operations, sourceHealth, installPlannin
     cancellableActivities={activities.filter(activity => activity.target_id === model.port?.id && activity.cancellation)} libraryGeneration={libraryGeneration} outputLocationChanged={installPlanning.invalidate}
     pickSource={pickSource} pickSourceArchive={pickArchive} busy={operations.busy} bios={model.bios} biosInspection={model.port.bios_source_profile ? sourceHealth.inspections.get(model.port.bios_source_profile) : undefined} biosProfile={model.biosProfile} biosPath={ui.biosPath} setBiosPath={ui.setBiosPath} pickBios={pickBios}
     openSourceEvidence={evidenceId => { void operations.perform("open source evidence", () => desktopApi.openSourceEvidence(evidenceId)); }}
+    inspectSource={profile => openSourceIntake(model.port!.id, profile.id)}
     actions={detailActions(model.port, model.status, ui.sourcePath, ui.biosPath, operations.perform, () => ui.setSelectedId(undefined), installPlanning.review, backups.refresh)} />;
 }
 

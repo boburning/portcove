@@ -4,30 +4,34 @@ import type { PortDefinition, PortStatus } from "../types";
 import { currentUpdateSnapshot, filterOptions, platformLabels, portReadiness, type Filter, type LibraryOverview, type PortReadiness, type RecentPort, type View } from "../view-model";
 import { BrandMascot, BrandWordmark } from "./Brand";
 import { BrandMotif, EmptyState, Icon } from "./ui";
+import type { NativeSourceDragState } from "../native-source-drop";
 
-export function PortBrowser({ view, ports, statuses, registeredSources, overview, recent, filter, setFilter, onSelect, onContinue, onBrowseCatalog, clearFilters, loading }: {
+export function PortBrowser({ view, ports, statuses, registeredSources, overview, recent, filter, setFilter, onSelect, onContinue, onBrowseCatalog, clearFilters, loading, nativeSourceDrag = { active: false, pathCount: 0 } }: {
   view: View; ports: PortDefinition[]; statuses: Map<string, PortStatus>; registeredSources: ReadonlySet<string>; overview: LibraryOverview; filter: Filter;
   recent?: RecentPort; setFilter: Dispatch<SetStateAction<Filter>>; onSelect: (portId: string) => void; onContinue?: (portId: string) => void;
   onBrowseCatalog?: () => void; clearFilters?: () => void; loading: boolean;
+  nativeSourceDrag?: NativeSourceDragState;
 }) {
   return <>
+    <p className="sr-only" aria-live="polite">{nativeSourceDrag.active ? `Game file drop targets are available. ${nativeSourceDrag.pathCount === 1 ? "One path" : `${nativeSourceDrag.pathCount} paths`} selected.` : ""}</p>
     {view === "library" && recent && onContinue && <ContinueCard recent={recent} launch={onContinue} details={onSelect} />}
     {view === "library" && <LibrarySummary overview={overview} />}
     <div className="filter-row" data-focus-group aria-label={view === "library" ? "Library filters" : "Release channel filters"}>{filterOptions(view).map(item =>
       <button data-focusable aria-pressed={filter === item} key={item} className={filter === item ? "filter active" : "filter"} onClick={() => setFilter(item)}>{filterLabel(item)}</button>)}
       <span>{ports.length} {ports.length === 1 ? "port" : "ports"}</span>
     </div>
-    <BrowserResults view={view} ports={ports} statuses={statuses} registeredSources={registeredSources} onSelect={onSelect} onBrowseCatalog={onBrowseCatalog} clearFilters={clearFilters} loading={loading} />
+    <BrowserResults view={view} ports={ports} statuses={statuses} registeredSources={registeredSources} onSelect={onSelect} onBrowseCatalog={onBrowseCatalog} clearFilters={clearFilters} loading={loading} nativeSourceDrag={nativeSourceDrag} />
   </>;
 }
 
-function BrowserResults({ view, ports, statuses, registeredSources, onSelect, onBrowseCatalog, clearFilters, loading }: {
+function BrowserResults({ view, ports, statuses, registeredSources, onSelect, onBrowseCatalog, clearFilters, loading, nativeSourceDrag }: {
   view: View; ports: PortDefinition[]; statuses: Map<string, PortStatus>; registeredSources: ReadonlySet<string>;
   onSelect: (portId: string) => void; onBrowseCatalog?: () => void; clearFilters?: () => void; loading: boolean;
+  nativeSourceDrag: NativeSourceDragState;
 }) {
   if (loading) return <LoadingState />;
   if (ports.length === 0) return <BrowserEmptyState view={view} clearFilters={clearFilters} onBrowseCatalog={onBrowseCatalog} />;
-  return <section className="port-grid" data-focus-group>{ports.map(port => <PortCard key={port.id} port={port} status={statuses.get(port.id)} readiness={portReadiness(port, statuses.get(port.id), registeredSources)} onSelect={onSelect} />)}</section>;
+  return <section className="port-grid" data-focus-group>{ports.map(port => <PortCard key={port.id} port={port} status={statuses.get(port.id)} readiness={portReadiness(port, statuses.get(port.id), registeredSources)} onSelect={onSelect} nativeSourceDrag={nativeSourceDrag} />)}</section>;
 }
 
 function LoadingState() {
@@ -59,11 +63,15 @@ function LibrarySummary({ overview }: { overview: LibraryOverview }) {
   </section>;
 }
 
-function PortCard({ port, status, readiness, onSelect }: { port: PortDefinition; status?: PortStatus; readiness: PortReadiness; onSelect: (portId: string) => void }) {
+function PortCard({ port, status, readiness, onSelect, nativeSourceDrag }: { port: PortDefinition; status?: PortStatus; readiness: PortReadiness; onSelect: (portId: string) => void; nativeSourceDrag: NativeSourceDragState }) {
   const state = readinessPresentation(readiness);
   const updateAvailable = currentUpdateSnapshot(status)?.check.update_available;
   const color = [...port.id].reduce((total, character) => total + character.charCodeAt(0), 0) % 6;
-  return <button data-focusable className="port-card" aria-label={`${port.name}. ${state.label}. ${state.action}.`} onClick={() => onSelect(port.id)}>
+  const dropEligible = nativeSourceDrag.active && Boolean(port.source_profile);
+  const dropTarget = dropEligible && nativeSourceDrag.targetPortId === port.id;
+  return <button data-focusable className={`port-card${dropEligible ? " source-drop-eligible" : ""}${dropTarget ? " source-drop-targeted" : ""}`} aria-label={`${port.name}. ${state.label}. ${state.action}.`} onClick={() => onSelect(port.id)}
+    data-source-drop-port-id={dropEligible ? port.id : undefined} data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}>
+    {dropEligible && <span className="source-drop-target" aria-hidden="true">{dropTarget ? "Release to check" : "Drop to check for this game"}</span>}
     <div className={`card-art palette-${color}`}><span>{port.name.slice(0, 2).toUpperCase()}</span><i>{port.adapter.replaceAll("-", " ")}</i></div>
     <div className="card-content"><div className="card-kicker"><span className={`readiness ${state.tone}`}><i />{state.label}</span><span className={`badge ${status?.channel ?? port.support_tier}`}>{status?.channel ?? port.support_tier}</span></div>
       <div className="card-title"><h2>{port.name}</h2></div>

@@ -1802,6 +1802,83 @@ impl PortcoveService {
         crate::source_report::available_report(&self.catalog, None, inspection)
     }
 
+    /// Inspect paths offered by a host intake surface without registering,
+    /// copying, moving, deleting, or installing anything.
+    pub fn inspect_source_intake(
+        &self,
+        profile_id: &str,
+        paths: &[PathBuf],
+    ) -> Result<crate::SourceIntakeInspection> {
+        self.catalog.source_profile(profile_id)?;
+        let static_result =
+            |state_code: &str, summary: &str, next_action: &str| crate::SourceIntakeInspection {
+                schema_version: crate::SOURCE_INTAKE_INSPECTION_SCHEMA_VERSION,
+                profile_id: profile_id.to_owned(),
+                input_count: paths.len(),
+                state_code: state_code.to_owned(),
+                summary: summary.to_owned(),
+                next_action: next_action.to_owned(),
+                report: None,
+                problem: None,
+            };
+        if paths.is_empty() {
+            return Ok(static_result(
+                "no_paths",
+                "No game files were offered for inspection.",
+                "Choose one file or one source folder, then check it again.",
+            ));
+        }
+        if paths.len() != 1 {
+            return Ok(static_result(
+                "multiple_paths",
+                "Portcove cannot determine one source from multiple dropped paths.",
+                "Choose one file or one source folder that contains the complete required set.",
+            ));
+        }
+        match self.inspect_source_report(profile_id, &paths[0]) {
+            Ok(report) => Ok(crate::SourceIntakeInspection {
+                schema_version: crate::SOURCE_INTAKE_INSPECTION_SCHEMA_VERSION,
+                profile_id: profile_id.to_owned(),
+                input_count: 1,
+                state_code: report.state_code.clone(),
+                summary: report.summary.clone(),
+                next_action: report.next_action.clone(),
+                report: Some(report),
+                problem: None,
+            }),
+            Err(error) => {
+                let state_code = match error.code {
+                    crate::ErrorCode::NotFound => "source_missing",
+                    crate::ErrorCode::Usage
+                    | crate::ErrorCode::Unsupported
+                    | crate::ErrorCode::SourceInvalid => "unsupported_shape",
+                    _ => "source_could_not_be_checked",
+                };
+                Ok(crate::SourceIntakeInspection {
+                    schema_version: crate::SOURCE_INTAKE_INSPECTION_SCHEMA_VERSION,
+                    profile_id: profile_id.to_owned(),
+                    input_count: 1,
+                    state_code: state_code.to_owned(),
+                    summary: match state_code {
+                        "source_missing" => "The selected game files could not be found.",
+                        "unsupported_shape" => {
+                            "The selected path is not a supported shape for this game."
+                        }
+                        _ => "The selected game files could not be checked.",
+                    }
+                    .to_owned(),
+                    next_action: "Choose the expected file or source folder and check it again."
+                        .to_owned(),
+                    report: None,
+                    problem: Some(crate::SourceInspectionProblem {
+                        code: crate::source_report::error_code(&error),
+                        message: error.message,
+                    }),
+                })
+            }
+        }
+    }
+
     /// Inspect the registered source and preserve missing/unreadable states as a
     /// machine-readable report. The saved baseline and source bytes are unchanged.
     pub fn inspect_registered_source(

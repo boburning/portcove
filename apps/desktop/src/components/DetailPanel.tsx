@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertTriangle, ArchiveX, CheckCircle2, ChevronDown, Clipboard, ClipboardCheck, Download, ExternalLink, FileArchive, FolderOpen, Gamepad2, HardDrive, PackageCheck, RefreshCw, RotateCcw, Save, ShieldCheck, Trash2, Wrench, X } from "lucide-react";
+import { AlertTriangle, ArchiveX, CheckCircle2, ChevronDown, Clipboard, ClipboardCheck, Download, ExternalLink, FileArchive, FileSearch, FolderOpen, Gamepad2, HardDrive, PackageCheck, RefreshCw, RotateCcw, Save, ShieldCheck, Trash2, Wrench, X } from "lucide-react";
 import { primaryCliCommand } from "../cli-command";
 import { copyText } from "../clipboard";
 import { useDialogFocus } from "../dialog";
@@ -57,6 +57,7 @@ interface DetailPanelProps {
   libraryGeneration?: number;
   outputLocationChanged?: () => void;
   openSourceEvidence?: (evidenceId: string) => void;
+  inspectSource?: (profile: SourceProfile) => void;
   actions: DetailActions;
 }
 
@@ -75,7 +76,7 @@ function DetailDialog({ props, dialog }: { props: DetailPanelProps; dialog: Retu
   const state = detailState(installed, launchReady, Boolean(status?.staged), pendingSetup, Boolean(status?.readiness?.blockers.includes("missing_runtime")), status?.readiness?.source, status?.readiness?.bios, Boolean(sourcePath.trim() || biosPath?.trim()));
   const sources: SourceControls = {
     port, source, sourceInspection, sourceProfile, sourcePath, setSourcePath, pickSource, pickSourceArchive,
-    bios, biosInspection, biosProfile, biosPath, setBiosPath, pickBios, sourceReady, biosReady, openSourceEvidence: props.openSourceEvidence,
+    bios, biosInspection, biosProfile, biosPath, setBiosPath, pickBios, sourceReady, biosReady, openSourceEvidence: props.openSourceEvidence, inspectSource: props.inspectSource,
     sourceHealth: status?.readiness?.source, biosHealth: status?.readiness?.bios,
   };
   return <div className="scrim" onMouseDown={event => closeFromScrim(event, actions.close)}>
@@ -103,6 +104,7 @@ function DetailBody({ port, status, state, sources, installed, launchReady, pend
     <RetiredNotice port={port} />
     <ReadinessCard state={state} />
     <SourceFields mode="missing" controls={sources} />
+    <SourceIntakeActions controls={sources} busy={Boolean(busy)} />
     <PrimaryActions runtimeNeeded={Boolean(status?.readiness?.blockers.includes("missing_runtime"))} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} hasStaged={Boolean(status?.staged)} plan={installPlan} busy={busy} actions={actions} />
     <TrustStrip status={status} />
     <OutputLocationControl portId={port.id} generation={libraryGeneration} busy={outputExternalBusy} onChanged={outputLocationChanged} onApplying={outputApplying} />
@@ -140,7 +142,7 @@ function sourceRequirementReady(required: boolean, installed: boolean, health: S
 
 type SourceControls = Pick<DetailPanelProps,
   "port" | "source" | "sourceInspection" | "sourceProfile" | "sourcePath" | "setSourcePath" | "pickSource" | "pickSourceArchive"
-  | "bios" | "biosInspection" | "biosProfile" | "biosPath" | "setBiosPath" | "pickBios" | "openSourceEvidence"
+  | "bios" | "biosInspection" | "biosProfile" | "biosPath" | "setBiosPath" | "pickBios" | "openSourceEvidence" | "inspectSource"
 > & {
   sourceReady: boolean;
   biosReady: boolean;
@@ -150,6 +152,14 @@ type SourceControls = Pick<DetailPanelProps,
 
 function SourceFields({ mode, controls }: { mode: "missing" | "registered"; controls: SourceControls }) {
   return <>{originalSourceField(mode, controls)}{biosSourceField(mode, controls)}</>;
+}
+
+function SourceIntakeActions({ controls, busy }: { controls: SourceControls; busy: boolean }) {
+  if (!controls.inspectSource || (!controls.sourceProfile && !controls.biosProfile)) return null;
+  return <div className="source-intake-shortcuts" aria-label="Check game files">
+    {controls.sourceProfile && <button data-focusable className="button-with-icon" type="button" disabled={busy} onClick={() => controls.inspectSource?.(controls.sourceProfile!)}><Icon glyph={FileSearch} />Check original game files</button>}
+    {controls.biosProfile && <button data-focusable className="button-with-icon" type="button" disabled={busy} onClick={() => controls.inspectSource?.(controls.biosProfile!)}><Icon glyph={FileSearch} />Check required BIOS</button>}
+  </div>;
 }
 
 function originalSourceField(mode: "missing" | "registered", controls: SourceControls) {

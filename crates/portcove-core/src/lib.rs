@@ -119,8 +119,9 @@ pub use source_inspection::{
     SourceComponentKind, SourceDigestAlgorithm, SourceInspection, SourceValidatorResult,
 };
 pub use source_report::{
-    SOURCE_INSPECTION_REPORT_SCHEMA_VERSION, SourceApplicationInspection, SourceEvidenceLink,
-    SourceInspectionProblem, SourceInspectionReport, SourceLegacyCoverage,
+    SOURCE_INSPECTION_REPORT_SCHEMA_VERSION, SOURCE_INTAKE_INSPECTION_SCHEMA_VERSION,
+    SourceApplicationInspection, SourceEvidenceLink, SourceInspectionProblem,
+    SourceInspectionReport, SourceIntakeInspection, SourceLegacyCoverage,
     SourceQualificationCoverage, SourceReleaseApplicability,
 };
 pub use types::*;

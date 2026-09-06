@@ -544,6 +544,18 @@ export interface SourceInspectionReport {
   };
 }
 
+export interface SourceIntakeInspection {
+  schema_version: number;
+  profile_id: string;
+  input_count: number;
+  /** Open stable code. Successful single-path checks reuse the source report code. */
+  state_code: string;
+  summary: string;
+  next_action: string;
+  report?: SourceInspectionReport;
+  problem?: { code: string; message: string };
+}
+
 export interface SourceVerificationOutcome {
   profile_id: string;
   ok: boolean;

@@ -3,7 +3,7 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 import type { CancellationState, OperationEvent } from "./types";
 import type { LibraryImportPlan, LibraryImportResult, LibraryMovePlan, LibraryMoveResult } from "./types";
 import type { SourceDiscoveryLimits, SourceDiscoveryRequest, SourceDiscoveryReport, SourceImportMode, SourceImportPlan, SourceImportResult, SourceInboxPaths, SourceInboxResolution } from "./types";
-import type { ActivityRecord, AdoptionPreview, BackupInventory, BackupRecord, BootstrapStatus, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, HostToolProbeResult, HostToolStatus, InstallPlan, InstallRecord, LibraryMetadataFile, OutputDestinationPreview, OutputRelocationPlan, OutputRelocationResult, OutputRelocationStatus, PortOutputLocation, PortStatus, ReconcileOutcome, ReleaseChannel, RestoreResult, SourceInspectionReport, SourceRecord, SourceRelinkPlan, SourceRemovalPreview, SourceVerificationOutcome, UpdateCheck, UpdateCheckOutcome, UpdatePolicy } from "./types";
+import type { ActivityRecord, AdoptionPreview, BackupInventory, BackupRecord, BootstrapStatus, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, HostToolProbeResult, HostToolStatus, InstallPlan, InstallRecord, LibraryMetadataFile, OutputDestinationPreview, OutputRelocationPlan, OutputRelocationResult, OutputRelocationStatus, PortOutputLocation, PortStatus, ReconcileOutcome, ReleaseChannel, RestoreResult, SourceInspectionReport, SourceIntakeInspection, SourceRecord, SourceRelinkPlan, SourceRemovalPreview, SourceVerificationOutcome, UpdateCheck, UpdateCheckOutcome, UpdatePolicy } from "./types";
 
 export const desktopApi = {
   catalogStatus: () => invoke<CatalogStatus>("get_catalog_status"),
@@ -68,6 +68,7 @@ export const desktopApi = {
   removeSource: (profileId: string, previewSha256: string) => invoke<SourceRemovalPreview | null>("remove_source", { profileId, previewSha256 }),
   verifySources: () => invoke<SourceVerificationOutcome[]>("verify_sources"),
   inspectSource: (profileId: string) => invoke<SourceInspectionReport>("inspect_source", { profileId }),
+  inspectSourceIntake: (profileId: string, paths: string[]) => invoke<SourceIntakeInspection>("inspect_source_intake", { profileId, paths }),
   openSourceEvidence: (evidenceId: string) => invoke<void>("open_source_evidence", { evidenceId }),
   check: (portId: string) => invoke<UpdateCheck>("check_port", { portId }),
   checkInstalled: () => invoke<UpdateCheckOutcome[]>("check_installed"),
