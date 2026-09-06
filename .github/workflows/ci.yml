@@ -227,7 +227,7 @@ jobs:
           node-version-file: .node-version
       - name: Verify repository and release contracts
         run: |
-          node --test scripts/check-release-metadata.test.mjs scripts/write-release-checksums.test.mjs scripts/reconcile-release-assets.test.mjs scripts/release-workflow.test.mjs scripts/ci-workflow.test.mjs scripts/quality-tools.test.mjs scripts/repository-settings.test.mjs
+          node --test scripts/check-release-metadata.test.mjs scripts/write-release-checksums.test.mjs scripts/reconcile-release-assets.test.mjs scripts/release-workflow.test.mjs scripts/ci-workflow.test.mjs scripts/quality-tools.test.mjs scripts/repository-settings.test.mjs scripts/source-provenance-audit.test.mjs
           node scripts/check-release-metadata.mjs
           node scripts/quality-tools.mjs --validate
           node scripts/repository-settings.mjs --validate

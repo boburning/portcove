@@ -259,3 +259,14 @@ Before a tagged release, generate a dated readiness snapshot with
 `roadmap.mjs snapshot`. Review and commit that immutable evidence document under
 `docs/releases/`. It records what the Project and catalog said at one commit;
 the live Project remains authoritative afterward.
+
+Use `source-provenance-audit.mjs --live` when a dated source-support and durable
+Port-ticket coverage record is needed. The command reads the raw catalog,
+repository issues, and Project items; it writes only the explicitly selected
+path under `docs/archive/`. The report records the exact catalog digest, dynamic
+typed-source and issue counts, cataloged-versus-research scope, deterministic
+identity and evidence gaps, exact qualification counts, duplicate/drift
+findings, and a fingerprint of the timestamped Project context. It does not
+change GitHub, the Project, or catalog support. Offline fixtures exercise the
+same generator in ordinary CI without a token; live enrichment is explicit and
+read-only, and a failed API read produces no partial snapshot.

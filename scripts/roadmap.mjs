@@ -282,6 +282,20 @@ function portIdentity(issue) {
   };
 }
 
+export function sourceProvenancePortIdentity(issue) {
+  const identity = portIdentity(repositoryIssueContent(issue));
+  return {
+    catalogIds: [...identity.ids],
+    portKeys: [...identity.keys],
+    upstreams: [...identity.upstreams],
+    title: identity.title,
+  };
+}
+
+export function sourceProvenancePortIssues(issues) {
+  return discoveredPortIssues(issues);
+}
+
 export function findPortIssueDuplicates(issues, { title, upstream, catalogId, portKey }) {
   const candidateTitle = normalizedPortTitle(title);
   const candidateUpstream = normalizedUpstream(upstream);
