@@ -77,6 +77,12 @@ impl Catalog {
         self.document.source_catalog.as_ref()
     }
 
+    pub fn reviewed_source_evidence_url(&self, evidence_id: &str) -> Result<&str> {
+        self.source_catalog()
+            .ok_or_else(|| PortcoveError::unsupported("source evidence requires catalog schema 2"))?
+            .reviewed_evidence_url(evidence_id)
+    }
+
     pub fn port(&self, id: &str) -> Result<&PortDefinition> {
         self.document
             .ports

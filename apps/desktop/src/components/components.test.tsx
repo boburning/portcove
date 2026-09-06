@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import type { InstallRecord, OperationEvent, PortDefinition, PortStatus } from "../types";
+import type { InstallRecord, OperationEvent, PortDefinition, PortStatus, SourceInspectionReport } from "../types";
 import { PageHeader, SettingsView, Sidebar, StatusLayer } from "./Chrome";
 import { BackupHistory } from "./BackupHistory";
 import { DetailPanel, type DetailActions } from "./DetailPanel";
@@ -234,8 +234,20 @@ describe("desktop components", () => {
 
   it("shows read-only source integrity outcomes", () => {
     const source = { profile_id: "sample-rom", path: "D:/ROMs/sample.z64", sha256: "a".repeat(64), size: 1024, storage_sha256: "a".repeat(64), storage_size: 1024, updated_at: 1 };
+    const inspection: SourceInspectionReport = {
+      schema_version: 1,
+      profile_id: source.profile_id,
+      health: "current",
+      state_code: "recognized_exact",
+      summary: "The source matches one exact catalog identity.",
+      next_action: "Review the dependent port requirements before setup.",
+      registered: source,
+      applications: [],
+      evidence: [],
+      legacy: { registration_identity_not_recorded: true, variant_unspecified_records: [] },
+    };
     const verified = renderToStaticMarkup(<SettingsView libraryRoot="C:/Portcove" sources={[source]} sourceOutcomes={[{
-      profile_id: source.profile_id, ok: true, result: { ...source, registered_at: 1, verified_at: 2 },
+      profile_id: source.profile_id, ok: true, result: { ...source, registered_at: 1, verified_at: 2, inspection },
     }]} verifySources={vi.fn()} replaceSource={vi.fn()} />);
     const failed = renderToStaticMarkup(<SettingsView libraryRoot="C:/Portcove" sources={[source]} sourceOutcomes={[{
       profile_id: source.profile_id, ok: false, error: { code: "source_invalid", message: "source changed since registration", details: {} },

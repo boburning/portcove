@@ -443,6 +443,105 @@ export interface SourceVerification {
   storage_size: number;
   registered_at: number;
   verified_at: number;
+  inspection: SourceInspectionReport;
+}
+
+export interface SourceIdentity {
+  game_id: string;
+  variant_id: string;
+  representation_id: string;
+}
+
+export type SourceClassification =
+  | { state: "not_evaluated" }
+  | { state: "unrecognized" }
+  | { state: "recognized"; identity: SourceIdentity }
+  | { state: "ambiguous"; candidates: SourceIdentity[] };
+
+export type SourceContractResult =
+  | { state: "not_evaluated" }
+  | { state: "unreviewed_for_release" }
+  | { state: "supported"; contract_id: string }
+  | { state: "recognized_not_listed"; contract_id: string }
+  | { state: "known_incompatible"; contract_id: string }
+  | { state: "informational"; contract_id: string };
+
+export type SourceAdmission =
+  | { state: "not_evaluated" }
+  | { state: "admitted"; mode: "exact_identity" | "structural_checks" | "informational_consent" | "upstream_validator" }
+  | { state: "rejected"; reason: "missing" | "unreadable" | "changed" | "known_mismatch" | "ambiguous_identity" | "missing_tool" | "check_failed" | "consent_required" };
+
+export interface SourceEvidenceRecord {
+  scope: {
+    port_id: string;
+    platform: Platform;
+    artifact_sha256: string | null;
+    upstream_ref: string | null;
+    contract_id: string | null;
+    variant: { state: "unspecified" } | { state: "exact"; identity: SourceIdentity };
+    check_version: string | null;
+  };
+  kind: "structural_check" | "automated_lifecycle" | "hands_on" | "known_failure";
+  outcome: "passed" | "failed" | "not_run" | "unknown";
+  observed_at: number;
+  portcove_version: string | null;
+  portcove_commit: string | null;
+  method: string;
+  evidence_ids: string[];
+}
+
+export interface SourceInspection {
+  profile_id: string;
+  path: string;
+  observed_digests: ObservedSourceDigest[];
+  archive_member_name?: string;
+  components: ObservedSourceComponent[];
+  validator?: ObservedSourceValidator;
+  assessment: {
+    health: SourceHealth;
+    classification: SourceClassification;
+    contract: SourceContractResult;
+    admission: SourceAdmission;
+    evidence: SourceEvidenceRecord[];
+  };
+  record?: SourceRecord;
+  message: string;
+}
+
+export interface SourceInspectionReport {
+  schema_version: number;
+  profile_id: string;
+  health: SourceHealth;
+  /** Open stable code: preserve unfamiliar future values. */
+  state_code: string;
+  summary: string;
+  next_action: string;
+  registered?: SourceRecord;
+  inspection?: SourceInspection;
+  problem?: { code: string; message: string };
+  expected_identity?: SourceCatalog["identities"][number];
+  applications: Array<{
+    port_id: string;
+    port_name: string;
+    role: "game" | "bios";
+    contract: SourceCatalog["contracts"][number];
+    contract_result: SourceContractResult;
+    release_applicability: {
+      /** Open stable code for artifact, upstream-release, or missing rebinding. */
+      state_code: string;
+      reviewed_bindings: Array<{ upstream_ref: string; artifact_sha256: string | null }>;
+    };
+    qualification: {
+      legacy_automated_platforms: Platform[];
+      legacy_hands_on_platforms: Platform[];
+      exact_records: SourceEvidenceRecord[];
+    };
+  }>;
+  evidence: Array<Omit<CatalogEvidence, "live_url"> & { live_url?: string }>;
+  legacy: {
+    registration_identity_not_recorded: boolean;
+    variant_unspecified_records: SourceEvidenceRecord[];
+  };
 }
 
 export interface SourceVerificationOutcome {

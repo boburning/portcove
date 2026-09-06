@@ -21,8 +21,8 @@ use portcove_core::{
     InstallRecord, LaunchStdio, Library, LibraryMetadataFile, LibrarySelection,
     LibrarySelectionSource, OperationCoordinator, OperationEvent, OperationResult, PortStatus,
     PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel, ReleaseProvider,
-    RestoreResult, SourceRecord, SourceRelinkPlan, SourceRemovalPreview, SourceVerification,
-    UpdateCheck, UpdatePolicy, VerificationReport,
+    RestoreResult, SourceInspectionReport, SourceRecord, SourceRelinkPlan, SourceRemovalPreview,
+    SourceVerification, UpdateCheck, UpdatePolicy, VerificationReport,
 };
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
@@ -456,6 +456,27 @@ async fn verify_source(
         service.verify_source(&profile_id).map_err(Into::into)
     })
     .await
+}
+
+#[tauri::command]
+async fn inspect_source(
+    state: tauri::State<'_, DesktopState>,
+    profile_id: String,
+) -> DesktopResult<SourceInspectionReport> {
+    let state = state.inner().clone();
+    blocking_service(state, move |service| {
+        inspect_source_with_service(&service, &profile_id)
+    })
+    .await
+}
+
+fn inspect_source_with_service(
+    service: &PortcoveService,
+    profile_id: &str,
+) -> DesktopResult<SourceInspectionReport> {
+    service
+        .inspect_registered_source(profile_id)
+        .map_err(Into::into)
 }
 
 #[tauri::command]
@@ -1507,6 +1528,29 @@ async fn open_external_url(
     .await
 }
 
+#[tauri::command]
+async fn open_source_evidence(
+    state: tauri::State<'_, DesktopState>,
+    evidence_id: String,
+) -> DesktopResult<()> {
+    let state = state.inner().clone();
+    blocking_service(state, move |service| {
+        let url = resolve_source_evidence_url(service.catalog(), &evidence_id)?;
+        open_host_target(std::ffi::OsStr::new(&url))
+    })
+    .await
+}
+
+fn resolve_source_evidence_url(
+    catalog: &portcove_core::Catalog,
+    evidence_id: &str,
+) -> DesktopResult<String> {
+    catalog
+        .reviewed_source_evidence_url(evidence_id)
+        .map(str::to_owned)
+        .map_err(Into::into)
+}
+
 fn validate_external_url(catalog: &CatalogDocument, url: &str) -> DesktopResult<()> {
     let known = matches!(
         url,
@@ -1683,6 +1727,7 @@ pub fn run() {
             restore_backup,
             delete_backup,
             verify_source,
+            inspect_source,
             plan_source_relink,
             relink_source,
             verify_sources,
@@ -1712,6 +1757,7 @@ pub fn run() {
             open_host_tool_official_site,
             open_user_data,
             open_external_url,
+            open_source_evidence,
             create_support_bundle,
             export_library_metadata,
             library_transfer::plan_library_move,
@@ -1819,6 +1865,48 @@ mod tests {
                 "{url}"
             );
         }
+    }
+
+    #[test]
+    fn source_evidence_navigation_accepts_only_an_active_catalog_id() {
+        let catalog = portcove_core::Catalog::embedded().unwrap();
+        let evidence = &catalog.source_catalog().unwrap().evidence[0];
+        assert_eq!(
+            resolve_source_evidence_url(&catalog, &evidence.id).unwrap(),
+            evidence.immutable_url
+        );
+        for renderer_input in [
+            evidence.immutable_url.as_str(),
+            evidence
+                .live_url
+                .as_deref()
+                .unwrap_or("https://example.invalid/live"),
+            "https://attacker.invalid/reviewed-looking-link",
+            "file:///C:/Windows",
+            "stale-evidence-id",
+        ] {
+            assert!(
+                resolve_source_evidence_url(&catalog, renderer_input).is_err(),
+                "renderer input unexpectedly resolved: {renderer_input}"
+            );
+        }
+    }
+
+    #[test]
+    fn desktop_source_inspection_is_the_exact_core_result() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let selected = temporary.path().join("source.z64");
+        std::fs::write(&selected, b"adapter parity source").unwrap();
+        let service = PortcoveService::new(library).unwrap();
+        service.register_source("star-fox-64", &selected).unwrap();
+
+        let core = service.inspect_registered_source("star-fox-64").unwrap();
+        let desktop = inspect_source_with_service(&service, "star-fox-64").unwrap();
+        assert_eq!(
+            serde_json::to_value(desktop).unwrap(),
+            serde_json::to_value(core).unwrap()
+        );
     }
 
     #[test]

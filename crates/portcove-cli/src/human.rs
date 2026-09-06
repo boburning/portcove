@@ -6,8 +6,8 @@ use portcove_core::{
     HostToolState, HostToolStatus, InstallPlan, InstallPlanAction, LaunchBlocker,
     OutputDestinationAvailability, OutputDestinationOwnership, OutputDestinationPreview,
     OutputLocationSource, OutputRelocationPlan, Platform, PortDefinition, PortOutputLocation,
-    PortPaths, PortStatus, RepairItemKind, SourceRecord, SourceRequirementRole, StorageSummary,
-    SupportTier,
+    PortPaths, PortStatus, RepairItemKind, SourceClassification, SourceContractResult,
+    SourceInspectionReport, SourceRecord, SourceRequirementRole, StorageSummary, SupportTier,
 };
 use serde::Serialize;
 use serde_json::Value;
@@ -188,6 +188,212 @@ pub(crate) fn source_list(sources: &[SourceRecord]) -> String {
         sources.len(),
         table(&["PROFILE", "SIZE", "UPDATED (UNIX)", "PATH"], rows)
     )
+}
+
+pub(crate) fn source_inspection(report: &SourceInspectionReport) -> String {
+    let mut lines = vec![
+        format!("Source inspection: {}", clean(&report.profile_id)),
+        format!("State: {}", clean(&report.state_code)),
+        clean(&report.summary),
+    ];
+    if let Some(inspection) = &report.inspection {
+        lines.push(format!(
+            "Path: {}",
+            clean(&inspection.path.display().to_string())
+        ));
+        match &inspection.assessment.classification {
+            SourceClassification::Recognized { identity } => lines.push(format!(
+                "Recognized identity: {} / {} / {}",
+                clean(&identity.game_id),
+                clean(&identity.variant_id),
+                clean(&identity.representation_id)
+            )),
+            SourceClassification::Ambiguous { candidates } => lines.push(format!(
+                "Candidate identities: {}",
+                candidates
+                    .iter()
+                    .map(|identity| format!(
+                        "{} / {} / {}",
+                        clean(&identity.game_id),
+                        clean(&identity.variant_id),
+                        clean(&identity.representation_id)
+                    ))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )),
+            SourceClassification::Unrecognized => lines.push("Recognized identity: unknown".into()),
+            SourceClassification::NotEvaluated => {
+                lines.push("Recognized identity: not evaluated".into())
+            }
+        }
+        lines.push("Observed identities:".into());
+        for digest in &inspection.observed_digests {
+            lines.push(format!(
+                "- {:?} {:?}: {} ({} bytes)",
+                digest.algorithm,
+                digest.scope,
+                clean(&digest.value),
+                digest.size
+            ));
+        }
+        for component in &inspection.components {
+            lines.push(format!(
+                "- component {}{}",
+                clean(&component.id),
+                component
+                    .name
+                    .as_deref()
+                    .map_or_else(String::new, |name| format!(" ({})", clean(name)))
+            ));
+            for digest in &component.digests {
+                lines.push(format!(
+                    "  {:?} {:?}: {} ({} bytes)",
+                    digest.algorithm,
+                    digest.scope,
+                    clean(&digest.value),
+                    digest.size
+                ));
+            }
+        }
+    }
+    if let Some(problem) = &report.problem {
+        lines.push(format!(
+            "Problem ({}): {}",
+            clean(&problem.code),
+            clean(&problem.message)
+        ));
+    }
+    if let Some(expected) = &report.expected_identity {
+        lines.push(format!(
+            "Expected identity: {} ({})",
+            clean(&expected.label),
+            clean(&expected.id)
+        ));
+        for variant in expected
+            .variants
+            .iter()
+            .filter(|variant| !variant.legacy_projection_only)
+        {
+            lines.push(format!(
+                "- {}{}{} ({})",
+                clean(&variant.title),
+                variant
+                    .region
+                    .as_deref()
+                    .map_or_else(String::new, |value| format!(" — {}", clean(value))),
+                variant
+                    .revision
+                    .as_deref()
+                    .map_or_else(String::new, |value| format!(" — {}", clean(value))),
+                clean(&variant.id)
+            ));
+            for representation in &variant.representations {
+                lines.push(format!("  representation: {}", clean(&representation.id)));
+                let value = serde_json::to_value(&representation.kind).unwrap_or_default();
+                collect_expected_digests(&value, &mut lines, "    ");
+            }
+        }
+    } else {
+        lines.push("Expected identity: missing from this catalog schema".into());
+    }
+    if !report.applications.is_empty() {
+        lines.push("Reviewed port requirements:".into());
+        for application in &report.applications {
+            let state = match &application.contract_result {
+                SourceContractResult::Supported { .. } => "listed",
+                SourceContractResult::RecognizedNotListed { .. } => "recognized but not listed",
+                SourceContractResult::KnownIncompatible { .. } => "known mismatch",
+                SourceContractResult::Informational { .. } => "informational",
+                SourceContractResult::UnreviewedForRelease => "not rechecked for release",
+                SourceContractResult::NotEvaluated => "not evaluated",
+            };
+            lines.push(format!(
+                "- {} ({}): {} [{}]",
+                clean(&application.port_name),
+                clean(&application.port_id),
+                state,
+                clean(&application.contract.id)
+            ));
+            lines.push(format!(
+                "  Release applicability: {} ({} reviewed binding{})",
+                clean(&application.release_applicability.state_code),
+                application.release_applicability.reviewed_bindings.len(),
+                if application.release_applicability.reviewed_bindings.len() == 1 {
+                    ""
+                } else {
+                    "s"
+                }
+            ));
+            lines.push(format!(
+                "  Automated legacy platform coverage: {}",
+                platform_list(&application.qualification.legacy_automated_platforms)
+            ));
+            lines.push(format!(
+                "  Hands-on legacy platform coverage: {}",
+                platform_list(&application.qualification.legacy_hands_on_platforms)
+            ));
+            lines.push(format!(
+                "  Exact qualification records: {}",
+                application.qualification.exact_records.len()
+            ));
+        }
+    }
+    if !report.evidence.is_empty() {
+        lines.push("Reviewed evidence:".into());
+        for evidence in &report.evidence {
+            lines.push(format!(
+                "- {}: {}\n  {}",
+                clean(&evidence.id),
+                clean(&evidence.claim),
+                clean(&evidence.immutable_url)
+            ));
+        }
+    }
+    if report.legacy.registration_identity_not_recorded {
+        lines.push("Legacy coverage: the registration predates structured source identity.".into());
+    }
+    lines.push(format!("Next: {}", clean(&report.next_action)));
+    lines.join("\n")
+}
+
+fn collect_expected_digests(value: &Value, lines: &mut Vec<String>, indent: &str) {
+    match value {
+        Value::Object(map) => {
+            if let Some(scope) = map.get("scope").and_then(Value::as_str) {
+                for algorithm in ["sha1", "sha256", "crc32"] {
+                    if let Some(digest) = map.get(algorithm).and_then(Value::as_str) {
+                        lines.push(format!(
+                            "{indent}{} {}: {}",
+                            algorithm.to_ascii_uppercase(),
+                            clean(scope),
+                            clean(digest)
+                        ));
+                    }
+                }
+            }
+            for child in map.values() {
+                collect_expected_digests(child, lines, indent);
+            }
+        }
+        Value::Array(values) => {
+            for child in values {
+                collect_expected_digests(child, lines, indent);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn platform_list(platforms: &[Platform]) -> String {
+    if platforms.is_empty() {
+        "none recorded".into()
+    } else {
+        platforms
+            .iter()
+            .map(|platform| platform_name(*platform))
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
 }
 
 pub(crate) fn status(status: &PortStatus) -> String {

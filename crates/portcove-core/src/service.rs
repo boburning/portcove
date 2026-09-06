@@ -1764,6 +1764,42 @@ impl PortcoveService {
         unreachable!("all source kinds have a shared inspection path")
     }
 
+    /// Inspect explicitly selected bytes and attach the active catalog's complete
+    /// expected identity, dependent contracts, evidence, applicability, and
+    /// qualification context without registering or modifying anything.
+    pub fn inspect_source_report(
+        &self,
+        profile_id: &str,
+        path: &Path,
+    ) -> Result<crate::SourceInspectionReport> {
+        let inspection = self.inspect_source(profile_id, path)?;
+        crate::source_report::available_report(&self.catalog, None, inspection)
+    }
+
+    /// Inspect the registered source and preserve missing/unreadable states as a
+    /// machine-readable report. The saved baseline and source bytes are unchanged.
+    pub fn inspect_registered_source(
+        &self,
+        profile_id: &str,
+    ) -> Result<crate::SourceInspectionReport> {
+        self.catalog.source_profile(profile_id)?;
+        let registered = self.library.source(profile_id)?.ok_or_else(|| {
+            PortcoveError::not_found(format!("source profile {profile_id} is not registered"))
+        })?;
+        match self.inspect_source(profile_id, &registered.path) {
+            Ok(inspection) => {
+                crate::source_report::available_report(&self.catalog, Some(registered), inspection)
+            }
+            Err(error) => {
+                let health = match registered.path.try_exists() {
+                    Ok(false) => SourceHealth::Missing,
+                    Ok(true) | Err(_) => SourceHealth::Unreadable,
+                };
+                crate::source_report::unavailable_report(&self.catalog, registered, health, &error)
+            }
+        }
+    }
+
     pub(crate) fn inspect_source_record(
         &self,
         profile_id: &str,
@@ -1937,7 +1973,8 @@ impl PortcoveService {
         let registered = self.library.source(profile_id)?.ok_or_else(|| {
             PortcoveError::not_found(format!("source profile {profile_id} is not registered"))
         })?;
-        self.verify_source_record(&registered)?;
+        let inspection = self.inspect_registered_source(profile_id)?;
+        require_current_admitted_inspection(&inspection)?;
         Ok(SourceVerification {
             profile_id: registered.profile_id,
             path: registered.path,
@@ -1947,6 +1984,7 @@ impl PortcoveService {
             storage_size: registered.storage_size,
             registered_at: registered.updated_at,
             verified_at: Library::now(),
+            inspection,
         })
     }
 
@@ -3978,6 +4016,75 @@ fn require_valid_output_preview(preview: &OutputDestinationPreview) -> Result<()
     )
     .detail("preview_sha256", preview.preview_sha256.clone())
     .detail("validation_errors", preview.validation_errors.join("; ")))
+}
+
+fn require_current_admitted_inspection(report: &crate::SourceInspectionReport) -> Result<()> {
+    if let Some(problem) = &report.problem {
+        return Err(PortcoveError::source(problem.message.clone())
+            .detail("profile_id", &report.profile_id)
+            .detail("inspection_state", &report.state_code));
+    }
+    let registered = report
+        .registered
+        .as_ref()
+        .ok_or_else(|| PortcoveError::state("registered source inspection omitted its baseline"))?;
+    let inspection = report.inspection.as_ref().ok_or_else(|| {
+        PortcoveError::state("available source inspection omitted its observed facts")
+    })?;
+    if !matches!(
+        inspection.assessment.admission,
+        crate::SourceAdmission::Admitted { .. }
+    ) {
+        return Err(PortcoveError::source(inspection.message.clone())
+            .detail("profile_id", &report.profile_id)
+            .detail("inspection_state", &report.state_code));
+    }
+    if report.health != SourceHealth::Current {
+        let actual_content = inspection.observed_digests.iter().find(|digest| {
+            digest.algorithm == crate::SourceDigestAlgorithm::Sha256
+                && digest.scope != crate::DigestScope::OriginalContainer
+        });
+        let actual_storage = inspection
+            .observed_digests
+            .iter()
+            .find(|digest| {
+                digest.algorithm == crate::SourceDigestAlgorithm::Sha256
+                    && digest.scope == crate::DigestScope::OriginalContainer
+            })
+            .or_else(|| {
+                inspection.observed_digests.iter().find(|digest| {
+                    digest.algorithm == crate::SourceDigestAlgorithm::Sha256
+                        && digest.scope == crate::DigestScope::OriginalFile
+                })
+            });
+        return Err(PortcoveError::source(format!(
+            "source changed since registration: {}",
+            registered.path.display()
+        ))
+        .detail("profile_id", &report.profile_id)
+        .detail("recorded_sha256", &registered.sha256)
+        .detail(
+            "actual_sha256",
+            actual_content.map_or("", |digest| digest.value.as_str()),
+        )
+        .detail("recorded_size", registered.size.to_string())
+        .detail(
+            "actual_size",
+            actual_content.map_or_else(String::new, |digest| digest.size.to_string()),
+        )
+        .detail("recorded_storage_sha256", &registered.storage_sha256)
+        .detail(
+            "actual_storage_sha256",
+            actual_storage.map_or("", |digest| digest.value.as_str()),
+        )
+        .detail("recorded_storage_size", registered.storage_size.to_string())
+        .detail(
+            "actual_storage_size",
+            actual_storage.map_or_else(String::new, |digest| digest.size.to_string()),
+        )
+        .detail("inspection_state", &report.state_code));
+    }
+    Ok(())
 }
 
 fn source_removal_fingerprint(
