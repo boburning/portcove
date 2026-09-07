@@ -57,7 +57,7 @@ check-ui: ui-build ui-test fallow
 
 # Deterministic release metadata and artifact tooling
 release-tools:
-    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-release-metadata.test.mjs scripts/write-release-checksums.test.mjs scripts/reconcile-release-assets.test.mjs scripts/release-workflow.test.mjs scripts/ci-workflow.test.mjs scripts/test-duration-reporter.test.mjs scripts/quality-tools.test.mjs scripts/repository-settings.test.mjs scripts/dev-storage.test.mjs scripts/migrate-catalog-schema2.test.mjs scripts/windows-qualification-session.test.mjs
+    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-release-metadata.test.mjs scripts/write-release-checksums.test.mjs scripts/reconcile-release-assets.test.mjs scripts/release-workflow.test.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/test-duration-reporter.test.mjs scripts/quality-tools.test.mjs scripts/repository-settings.test.mjs scripts/dev-storage.test.mjs scripts/migrate-catalog-schema2.test.mjs scripts/windows-qualification-session.test.mjs
     {{storage}} node --test scripts/windows-qualification-session.integration.test.mjs
     {{storage}} node scripts/check-release-metadata.mjs
     {{storage}} node scripts/check-retcomm-upstreams.mjs --offline
@@ -105,3 +105,7 @@ deep: audit hawk duplicates
 
 mutants:
     {{storage}} cargo mutants --package portcove-core
+
+# Read-only hosted CI history; kept outside required offline checks.
+ci-health:
+    node scripts/ci-health.mjs

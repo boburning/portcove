@@ -122,6 +122,44 @@ The pinned tool remains available through the optional deep bootstrap and
 
 ## Test latency and reliability
 
+Use `just ci-health` to inspect the latest 20 main CI runs, including every rerun
+attempt. GitHub CLI authentication with read access to Actions is required.
+This is an on-demand report, not another required CI job or a planning authority.
+
+```powershell
+just ci-health
+node scripts/ci-health.mjs --runs 30 --json > work/ci-health.json
+node scripts/ci-health.mjs --branch my-branch --event pull_request --runs 10
+```
+
+The report separates successful first attempts from successful reruns, reports
+cancelled/incomplete/failed outcomes, and links failed-then-passing attempts for
+investigation. JSON output includes per-job timings and the three longest steps
+in each job. A rerun recovery is not proof of a flaky test: runners, caches and
+external services may differ even when the commit does not. No retries are
+scheduled by this report, and it never changes issues, checks, caches or runs.
+
+Use `--since <ISO-date>` to restrict the selected recent runs to those created
+after a workflow change. Main contains already-reviewed merges; inspect the
+relevant pull-request branch as well when investigating flaky tests.
+
+Review this evidence when a slowdown or repeated failure appears and before
+changing CI scheduling. Inspect the linked failed job to distinguish assertion,
+build, setup, runner and network failures. Use the same workflow revision and
+cache evidence when comparing performance; an aggregate spanning workflow
+changes describes history, not the current design. Cache warmth is deliberately
+unclassified without job-log evidence. First attempts can be warm, and reruns
+can miss caches. Cold rebuilds remain visible rather than being counted as flakes.
+
+Durations run from creation (first attempt) or the attempt start (reruns) to the
+attempt's terminal update, including queueing, setup and aggregation. In-progress
+attempts have no completed duration. Percentiles use nearest-rank selection.
+The report omits p95 until a cohort has at
+least 20 valid successful samples; that minimum alone does not establish a
+representative long-term rate. Confirm improvements over ordinary subsequent
+changes, not only repeated runs of one commit. Prefer fixing a recurrent costly
+step over further sharding, reduced assertions or a growing monitoring service.
+
 The required Rust test lanes and `just rust-test` use the version of cargo-nextest
 pinned in `.github/quality-tools.json`. Five seconds is a diagnostic threshold,
 not an acceptance limit. Nextest reports slow tests every five seconds and

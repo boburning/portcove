@@ -2,6 +2,37 @@
 
 On Windows, Portcove development should run from a workspace on a non-system volume. Keeping the checkout there gives Cargo, Tauri, frontend builds, tests, mutation analysis, packaging, and generated data one physical home instead of accumulating independent trees on the Windows system drive.
 
+Prefer a non-system **SSD** for active development. Free capacity alone does not
+make an HDD suitable for the many small reads and writes in dependency loading,
+SQLite fixtures and linking. Moving only Cargo output or temporary files leaves
+frontend dependencies and relative-path tests on the checkout's volume. Storage
+contention can time out test workers before assertions begin; investigate worker
+startup and disk queues separately from slow test bodies.
+
+An additional Git worktree provides an SSD development path without replacing a
+dirty checkout. Inspect existing worktrees and the proposed destination first;
+choose an unused path and branch name. For example, after verifying H: is a
+non-system SSD and the destination does not exist:
+
+```powershell
+git worktree list
+git fetch origin
+git worktree add -b feature/my-change H:\Portcove-Worktrees\my-change origin/main
+Set-Location H:\Portcove-Worktrees\my-change
+node scripts/dev-storage.mjs preflight
+node scripts/dev-storage.mjs run -- pnpm --dir apps/desktop install --frozen-lockfile
+just check
+```
+
+The defaults below keep the entire new workspace on that SSD. Check for inherited
+`CARGO_TARGET_DIR`, `PORTCOVE_TEMP_DIR`, `PORTCOVE_PNPM_STORE_DIR` and
+`PORTCOVE_OUTPUT_DIR` overrides in preflight; they may point back to an HDD or
+another worktree. Use session-scoped overrides for deliberately shared caches,
+and avoid simultaneous builds against the same Cargo target. Do not edit system
+environment variables, move existing worktrees, or delete old artifacts simply
+to prepare an isolated validation checkout. A clean SSD run diagnoses a storage
+problem; it does not erase evidence from a failed HDD run.
+
 ## Bootstrap and preflight
 
 Clone or copy the repository to a deliberately selected development path on the spacious volume, such as `E:\Portcove-Development`. Do not copy an old `target`, `node_modules`, `dist`, or `src-tauri/gen` directory; they are reconstructed from `Cargo.lock` and `apps/desktop/pnpm-lock.yaml`. Preserve ignored source inputs, qualification evidence, and final outputs unless each item has separately been proved disposable.
