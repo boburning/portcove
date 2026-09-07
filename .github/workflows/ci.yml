@@ -53,7 +53,7 @@ jobs:
           TEST_SHARD: ${{ matrix.shard }}
         run: |
           function Invoke-CargoTest([string[]] $Arguments) {
-            & cargo nextest run --locked --test-threads 1 @Arguments
+            & cargo nextest run --locked @Arguments
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
@@ -103,7 +103,7 @@ jobs:
         uses: taiki-e/install-action@e67fa11c4b9316fa714ddf0abed07a0c3143b95b # v2
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
-      - run: cargo nextest run --locked --workspace --exclude portcove-core --test-threads 1
+      - run: cargo nextest run --locked --workspace --exclude portcove-core
 
   rust_clippy:
     name: rust-clippy
