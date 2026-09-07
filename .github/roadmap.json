@@ -18,7 +18,7 @@
     { "name": "Release commitment", "options": ["Required", "Opportunistic"] },
     { "name": "Work type", "options": ["Workstream", "Product feature", "Port", "Platform", "Bug", "Security", "Research", "Qualification", "Technical debt", "Documentation"] },
     { "name": "Workstream", "options": ["Core trust and recovery", "Sources and ROM validation", "Storage and library", "Installation and updates", "Desktop UX", "CLI and integrations", "Platform support", "Port catalog", "Release engineering", "Documentation and governance"] },
-    { "name": "Platform", "options": ["Unknown", "All", "Multi-platform", "Windows", "Linux", "Steam Deck", "macOS Intel", "macOS Apple Silicon", "Not applicable"] },
+    { "name": "Platform", "options": ["Unknown", "All", "Multi-platform", "Windows", "Linux", "Steam Deck", "macOS Intel", "macOS Apple Silicon", "Android", "Not applicable"] },
     { "name": "Port stage", "options": ["Watchlist", "Researching", "Source contract known", "Release integrity qualified", "Cataloged", "Automated qualification", "Manual qualification", "Supported", "Blocked", "Rejected"] },
     { "name": "Effort", "options": ["XS", "S", "M", "L", "XL", "Unknown"] }
   ],
