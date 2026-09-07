@@ -267,6 +267,12 @@ test("installer qualification resolves relative scratch paths, isolates process 
 $ErrorActionPreference = "Stop"
 $previousTemp = $env:TEMP
 function Get-AuthenticodeSignature { @{ Status = "NotSigned" } }
+function Get-ItemProperty {
+    param([string]$Path, [string]$ErrorAction)
+    if ($Path -notmatch '^HK(CU|LM):.*Uninstall') { throw "Unexpected registry query in storage fixture" }
+    # This storage unit fixture models an empty registry without consulting the host installation.
+    @()
+}
 function Start-Process {
     @{ temp = $env:TEMP; tmp = $env:TMP; tmpdir = $env:TMPDIR } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $PSScriptRoot "installer-env.json")
     throw "Expected test installer failure"
