@@ -66,7 +66,6 @@ export async function collectDoctor() {
     { id: "git", command: ["git", "--version"] },
     { id: "gh", command: ["gh", "--version"], required: false },
     ...manifest.tools.filter(tool => tool.tier === "required"),
-    { id: "cargo-nextest", command: ["cargo", "nextest", "--version"], required: false },
     { id: "tauri-driver", command: ["tauri-driver", "--help"], required: false },
   ];
   const tools = definitions.map(definition => ({ ...probeTool(definition), paths: executablePaths(definition.command[0]) }));

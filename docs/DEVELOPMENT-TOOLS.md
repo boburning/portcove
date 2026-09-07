@@ -57,13 +57,13 @@ references. It never overwrites a report. Artifact references are local paths;
 retain the directory when handing off results. The revision is source context,
 not proof an externally supplied executable was built from that revision.
 
-## Optional test runner
+## Rust test runner
 
-For the measured pilot, install `cargo-nextest` 0.9.143, then use `just nextest`.
-Existing `just check-rust` and CI still use Cargo. Nextest's process-per-test
-behavior can change resource contention and process assumptions; compare actual
-outcomes, timing and cleanup before proposing a default change. Doctests run in
-Cargo separately. Record cold compilation separately from warm test execution.
+Use `just rust-test` and the cargo-nextest version pinned in the existing quality
+manifest. The standard wrapper prepares native test fixtures and retains the
+repository's scheduling configuration; doctests run in Cargo separately. Do not
+duplicate this orchestration in a skill or a competing recipe. Record cold
+compilation separately from warm test execution when comparing performance.
 
 ## Targeted safety experiments
 
