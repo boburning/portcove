@@ -55,6 +55,7 @@ test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () 
   assert.match(windowsStorage, /runs-on: windows-latest/);
   assert.match(windowsStorage, /scripts\/dev-storage\.test\.mjs/);
   assert.match(windowsStorage, /--test-skip-pattern "pnpm uses\|direct just recipes"/);
+  assert.match(windowsStorage, /node --test scripts\/windows-qualification-session\.test\.mjs/);
   assert.doesNotMatch(windowsStorage, /rust-toolchain|rust-cache|cargo/);
 
   assert.match(rust, /^    if: always\(\)$/m);
