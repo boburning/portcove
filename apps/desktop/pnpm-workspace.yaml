@@ -1,7 +1,5 @@
 allowBuilds:
-  edgedriver: false
   esbuild: true
-  geckodriver: false
 minimumReleaseAgeExclude:
   - "@fallow-cli/darwin-arm64@3.22.0"
   - "@fallow-cli/darwin-x64@3.22.0"

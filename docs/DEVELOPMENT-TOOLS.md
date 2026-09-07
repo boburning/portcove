@@ -28,6 +28,8 @@ Install `tauri-driver` 2.0.6 and a Microsoft Edge WebDriver matching the install
 WebView2 runtime on Windows. Linux needs WebKitWebDriver and a graphical session.
 The external driver path adds no automation plugin to the product. Native macOS
 execution is not supported by this harness.
+The pinned Selenium client connects to the explicitly started driver server;
+the harness does not invoke Selenium Manager or provision browsers automatically.
 
 Build the frontend and a desktop binary with embedded assets using the storage
 wrapper (`pnpm --dir apps/desktop build`, then `cargo build -p portcove-desktop

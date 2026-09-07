@@ -16,10 +16,6 @@ Pass `-IncludeDeep` or `--include-deep` to also install cargo-modules, semdup, c
 
 See [Development tools](DEVELOPMENT-TOOLS.md) for the read-only host doctor,
 native desktop evidence harness, repository skills and targeted safety experiments.
-WebdriverIO's transitive edgedriver/geckodriver install scripts are deliberately
-disabled in pnpm: the native harness uses an explicitly supplied platform driver
-and never needs either package to download or select browser executables during
-dependency installation. The harness does not use browser auto-provisioning.
 
 | Scope | Command | Purpose |
 |---|---|---|

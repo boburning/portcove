@@ -6,7 +6,7 @@ import net from "node:net";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
 import axe from "axe-core";
-import { remote } from "webdriverio";
+import { Builder, By, Key, until } from "selenium-webdriver";
 import { writeEvidence, fileIdentity } from "../../../scripts/development-evidence.mjs";
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 
@@ -51,7 +51,7 @@ async function requireUnusedPort(number) {
   });
   await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
 }
-const invoke = async (command, args = {}) => JSON.parse(await browser.executeAsync((name, input, done) => {
+const invoke = async (command, args = {}) => JSON.parse(await browser.executeAsyncScript((name, input, done) => {
   window.__TAURI_INTERNALS__.invoke(name, input).then(value => done(JSON.stringify({ ok: true, value })), error => done(JSON.stringify({ ok: false, error })));
 }, command, args));
 
@@ -65,18 +65,20 @@ async function scenario(name, action) {
   }
   if (browser) {
     const screenshot = path.join(output, `${name}.png`);
-    try { await browser.saveScreenshot(screenshot); artifacts.push(screenshot); }
+    try { await writeFile(screenshot, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" }); artifacts.push(screenshot); }
     catch { /* The failed scenario remains recorded even if its window disappeared. */ }
   }
 }
 
 async function connect() {
-  browser = await remote({ hostname: "127.0.0.1", port, logLevel: "error", connectionRetryCount: 0,
-    connectionRetryTimeout: 30_000, capabilities: { "tauri:options": { application: values.app,
-      ...(process.platform === "win32" ? { webviewOptions: { userDataFolder: profile } } : {}) } } });
-  await browser.setTimeout({ script: 15_000 });
-  await browser.$('nav[aria-label="Primary navigation"]').waitForExist({ timeout: 30_000 });
-  await browser.$(".loading-state").waitForExist({ reverse: true, timeout: 30_000 });
+  browser = await new Builder().disableEnvironmentOverrides().usingServer(`http://127.0.0.1:${port}`).withCapabilities({
+    browserName: process.platform === "win32" ? "webview2" : "wry",
+    "tauri:options": { application: values.app,
+      ...(process.platform === "win32" ? { webviewOptions: { userDataFolder: profile } } : {}) },
+  }).build();
+  await browser.manage().setTimeouts({ script: 15_000 });
+  await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 30_000);
+  await browser.wait(async () => (await browser.findElements(By.css(".loading-state"))).length === 0, 30_000);
 }
 
 try {
@@ -115,26 +117,26 @@ try {
     assert.equal((await invoke("get_bootstrap_status")).value.ready, true);
   });
   await scenario("keyboard-layout", async () => {
-    await browser.setWindowSize(960, 640);
-    await browser.$('nav button').click();
-    await browser.keys(["Tab"]);
-    const focus = await browser.execute(() => ({ tag: document.activeElement.tagName,
+    await browser.manage().window().setRect({ width: 960, height: 640 });
+    await browser.findElement(By.css('nav button')).click();
+    await browser.actions().sendKeys(Key.TAB).perform();
+    const focus = await browser.executeScript(() => ({ tag: document.activeElement.tagName,
       overflow: document.documentElement.scrollWidth > window.innerWidth + 1 }));
     assert.notEqual(focus.tag, "BODY");
     assert.equal(focus.overflow, false);
   });
   await scenario("appearance-restart", async () => {
-    await browser.$('nav').$('button*=Settings').click();
-    await browser.$('button=Light').click();
-    assert.equal(await browser.execute(() => document.documentElement.dataset.theme), "light");
-    await browser.deleteSession();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+    await browser.findElement(By.xpath('//button[normalize-space(.)="Light"]')).click();
+    assert.equal(await browser.executeScript(() => document.documentElement.dataset.theme), "light");
+    await browser.quit();
     browser = undefined;
     await connect();
-    assert.equal(await browser.execute(() => document.documentElement.dataset.theme), "light");
+    assert.equal(await browser.executeScript(() => document.documentElement.dataset.theme), "light");
   });
   await scenario("accessibility", async () => {
-    await browser.execute(axe.source);
-    const result = await browser.executeAsync(done => window.axe.run().then(done));
+    await browser.executeScript(axe.source);
+    const result = await browser.executeAsyncScript(done => window.axe.run().then(done));
     const report = path.join(output, "accessibility.json");
     await writeFile(report, JSON.stringify(result, null, 2), { flag: "wx" });
     artifacts.push(report);
@@ -145,11 +147,11 @@ try {
   checks.push({ scenario: "harness", outcome: "failed", message: error.message });
   if (browser) {
     const screenshot = path.join(output, "harness-failure.png");
-    await browser.saveScreenshot(screenshot).then(() => artifacts.push(screenshot)).catch(() => {});
+    await browser.takeScreenshot().then(data => writeFile(screenshot, data, { encoding: "base64", flag: "wx" })).then(() => artifacts.push(screenshot)).catch(() => {});
   }
   process.exitCode = 1;
 } finally {
-  if (browser) await browser.deleteSession().catch(() => {});
+  if (browser) await browser.quit().catch(() => {});
   stopDriver();
   clearTimeout(deadline);
   try {
