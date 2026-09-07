@@ -416,7 +416,7 @@ async fn publication_is_offline_snapshot_bound_and_replay_protected() {
 }
 
 #[tokio::test]
-async fn rollback_and_cache_selection_keep_the_replay_floor() {
+async fn rollback_keeps_the_replay_floor() {
     let root = tempfile::tempdir().unwrap();
     let library = Library::open(root.path().join("library")).unwrap();
     trusted(&library);
@@ -431,8 +431,35 @@ async fn rollback_and_cache_selection_keep_the_replay_floor() {
     assert_eq!(rollback.provenance.sequence, Some(1));
     assert!(!rollback.can_rollback);
     assert!(service.plan_catalog_update(&second).await.is_err());
+    assert!(
+        library
+            .activities(20)
+            .unwrap()
+            .iter()
+            .all(|entry| entry.status == ActivityStatus::Succeeded)
+    );
+}
+
+#[tokio::test]
+async fn cache_selection_keeps_the_replay_floor() {
+    let root = tempfile::tempdir().unwrap();
+    let library = Library::open(root.path().join("library")).unwrap();
+    trusted(&library);
+    let service = PortcoveService::new(library.clone()).unwrap();
+    publish(&service, &write_candidate(root.path(), 1)).await;
+    // Model the durable replay floor after rollback. The public two-publication
+    // rollback path is exercised separately; cache selection must not lower it.
+    library
+        .connection()
+        .unwrap()
+        .execute(
+            "UPDATE catalog_state SET highest_sequence=2 WHERE singleton=1",
+            [],
+        )
+        .unwrap();
+    let rolled_back = library.catalog_status().unwrap();
     let embedded = library
-        .use_embedded_catalog(&rollback.state_sha256)
+        .use_embedded_catalog(&rolled_back.state_sha256)
         .unwrap();
     assert_eq!(embedded.provenance.origin, CatalogOrigin::Embedded);
     assert_eq!(embedded.highest_sequence, 2);

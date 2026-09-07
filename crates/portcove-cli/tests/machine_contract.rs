@@ -291,6 +291,15 @@ fn portcove_tool(
 }
 
 fn compile_chdman_fixture(directory: &std::path::Path) -> std::path::PathBuf {
+    if let Some(prepared) = std::env::var_os("PORTCOVE_HOST_TOOL_FIXTURE") {
+        let executable = directory.join(if cfg!(windows) {
+            "chdman-fixture.exe"
+        } else {
+            "chdman-fixture"
+        });
+        std::fs::copy(prepared, &executable).unwrap();
+        return executable;
+    }
     let source = directory.join("chdman_fixture.rs");
     std::fs::write(
         &source,

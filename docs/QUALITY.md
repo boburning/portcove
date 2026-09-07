@@ -171,6 +171,13 @@ CLI tests resolve nextest's remapped executable path at runtime so archives do
 not depend on the build machine's checkout or target-directory location.
 The required Rust aggregate fails if either the build or any Intel test job fails.
 
+Timed Rust lanes compile the native host-tool probe fixture once during setup.
+Each test copies it into its own temporary directory before mutation or probing.
+`just rust-test` uses the same preparation through `scripts/run-rust-tests.mjs`;
+plain Cargo tests retain their standalone fixture compiler. Fixture compilation
+is build setup, while every test's assertions and process probes keep the same
+five-second deadline.
+
 The test profile optimizes the Ed25519 and Curve25519 dependencies because catalog
 fixtures validate real signatures repeatedly. Portcove code retains its normal
 test profile and debug assertions. Windows session integration compiles immutable

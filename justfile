@@ -21,7 +21,7 @@ clippy:
     {{storage}} cargo clippy --workspace --all-targets -- -D warnings
 
 rust-test:
-    {{storage}} cargo nextest run --locked --workspace
+    {{storage}} node scripts/run-rust-tests.mjs --locked --workspace
     {{storage}} cargo test --locked --workspace --doc
 
 shear:

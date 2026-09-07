@@ -50,6 +50,12 @@ test("Rust setup installs the repository pin instead of an unrelated stable tool
   for (const section of [rustTests, rustWorkspaceTests, rustClippy, nativeRust, intelBuild, intelTests, rustDocs, rustQuality]) {
     assert.match(section, /uses: \.\/\.github\/actions\/setup-rust/);
   }
+  assert.match(setup, /node scripts\/run-rust-tests\.mjs --prepare-only/);
+  for (const section of [rustTests, rustWorkspaceTests, nativeRust, intelTests, rustQuality]) {
+    assert.match(section, /test-fixtures: true/);
+  }
+  const recipes = await readFile(new URL("../justfile", import.meta.url), "utf8");
+  assert.match(recipes, /node scripts\/run-rust-tests\.mjs --locked --workspace/);
 });
 
 test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () => {
