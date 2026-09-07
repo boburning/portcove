@@ -1030,7 +1030,7 @@ mod tests {
     }
 
     #[test]
-    fn authorization_is_state_bound_and_unsafe_destinations_are_rejected() {
+    fn authorization_rejects_changed_install_state() {
         let fixture = Fixture::new();
         let service = PortcoveService::new(fixture.library.clone()).unwrap();
         let plan = service
@@ -1047,7 +1047,10 @@ mod tests {
         assert_eq!(error.code, ErrorCode::Verification);
         assert!(fixture.library.output_directory(PORT).unwrap().is_none());
         assert!(fixture.original.iter().all(|install| install.path.exists()));
+    }
 
+    #[test]
+    fn authorization_rejects_destination_collisions() {
         let collision_case = Fixture::new();
         let collision_service = PortcoveService::new(collision_case.library.clone()).unwrap();
         let collision = collision_case
@@ -1069,7 +1072,10 @@ mod tests {
                 .code,
             ErrorCode::Conflict
         );
+    }
 
+    #[test]
+    fn authorization_rejects_unavailable_volumes() {
         let volume_case = Fixture::new();
         let volume_service = PortcoveService::new(volume_case.library.clone()).unwrap();
         let _volume = crate::output_root::override_volume_details(
@@ -1093,8 +1099,10 @@ mod tests {
                 .code,
             ErrorCode::Conflict
         );
-        drop(_volume);
+    }
 
+    #[test]
+    fn authorization_rejects_full_volumes() {
         let full_case = Fixture::new();
         let full_service = PortcoveService::new(full_case.library.clone()).unwrap();
         let _full_volume = crate::output_root::override_volume_details(

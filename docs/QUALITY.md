@@ -153,7 +153,8 @@ they exercise compiled processes and installer lifecycle behavior using their
 existing integration deadlines. The static qualification contract runs with the
 unit budget. No integration coverage is removed.
 
-Rust tests run two at a time by default. Windows core lanes run one at a time
+Rust tests run two at a time by default. The local Windows wrapper and Windows
+CI lanes run one at a time
 in exhaustive hash partitions to avoid filesystem contention. CLI free-space
 snapshot contracts share a scheduling group because their existing in-process
 mutex cannot synchronize nextest's separate processes. Full signed-catalog tests
