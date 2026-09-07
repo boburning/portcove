@@ -50,7 +50,7 @@ pub(crate) fn recover_published_install(
                         .parent()
                         .ok_or_else(|| PortcoveError::state("install destination has no parent"))?,
                 )?;
-                fs::rename(&payload, &install.path)?;
+                crate::durability::rename_noreplace(&payload, &install.path)?;
             }
             (false, true) => {}
             (true, true) => {
@@ -127,7 +127,7 @@ pub(crate) fn recover_removal(
                     if let Some(parent) = removal.quarantined.parent() {
                         fs::create_dir_all(parent)?;
                     }
-                    fs::rename(&removal.live, &removal.quarantined)?;
+                    crate::durability::rename_noreplace(&removal.live, &removal.quarantined)?;
                 }
                 (false, true) => {}
                 (true, true) => {
@@ -280,7 +280,7 @@ pub(crate) fn recover_backup_deletion(
                     &operation.port_id,
                     &backup_id,
                 )?;
-                fs::rename(&original, &quarantine)?;
+                crate::durability::rename_noreplace(&original, &quarantine)?;
             }
             (false, true) => service.validate_backup_directory_identity(
                 &quarantine,

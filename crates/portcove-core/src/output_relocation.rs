@@ -361,7 +361,10 @@ fn execute_relocation(
             let staged = operation_root.join(&entry.install.id);
             match (staged.exists(), entry.destination_path.exists()) {
                 (true, false) => {
-                    fs::rename(&staged, &entry.destination_path)?;
+                    service.check_lifecycle_fault(
+                        LifecycleFaultPoint::RelocationPublicationPrepared,
+                    )?;
+                    crate::durability::rename_noreplace(&staged, &entry.destination_path)?;
                     crate::durability::sync_publication(&plan.destination_root)?;
                 }
                 (false, true) => {}
@@ -757,7 +760,14 @@ fn default_channel(port: &crate::PortDefinition) -> crate::ReleaseChannel {
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, path::Path, sync::Arc};
+    use std::{
+        fs,
+        path::Path,
+        sync::{
+            Arc,
+            atomic::{AtomicBool, Ordering},
+        },
+    };
 
     use sha2::{Digest, Sha256};
     use tempfile::TempDir;
@@ -793,6 +803,23 @@ mod tests {
         fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
             if point == LifecycleFaultPoint::RelocationCopied {
                 fs::write(self.0.join("late-change.bin"), b"changed during copy").unwrap();
+            }
+            Ok(())
+        }
+    }
+
+    #[derive(Debug)]
+    struct CreateLateRelocationDestination {
+        destination: PathBuf,
+        fired: AtomicBool,
+    }
+
+    impl LifecycleFaultInjector for CreateLateRelocationDestination {
+        fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+            if point == LifecycleFaultPoint::RelocationPublicationPrepared
+                && !self.fired.swap(true, Ordering::SeqCst)
+            {
+                fs::create_dir(&self.destination)?;
             }
             Ok(())
         }
@@ -1199,6 +1226,7 @@ mod tests {
             LifecycleFaultPoint::RelocationCopyStarted,
             LifecycleFaultPoint::RelocationCopied,
             LifecycleFaultPoint::RelocationPrepared,
+            LifecycleFaultPoint::RelocationPublicationPrepared,
             LifecycleFaultPoint::RelocationPublished,
             LifecycleFaultPoint::RelocationMetadataCommitted,
             LifecycleFaultPoint::RelocationCleanupCompleted,
@@ -1248,6 +1276,75 @@ mod tests {
             );
             fixture.assert_protected_files_unchanged();
         }
+    }
+
+    #[test]
+    fn late_empty_relocation_destination_is_preserved_until_controlled_resolution() {
+        let fixture = Fixture::new();
+        let service = PortcoveService::new(fixture.library.clone()).unwrap();
+        let plan = service
+            .plan_output_relocation(PORT, &fixture.destination)
+            .unwrap();
+        let token = service
+            .authorize_output_relocation(PORT, &fixture.destination, &plan.plan_sha256)
+            .unwrap()
+            .token;
+        let late_destination = plan.installs[0].destination_path.clone();
+        let service = PortcoveService::with_faults(
+            fixture.library.clone(),
+            Arc::new(CreateLateRelocationDestination {
+                destination: late_destination.clone(),
+                fired: AtomicBool::new(false),
+            }),
+        )
+        .unwrap();
+
+        let error = service
+            .relocate_output(PORT, &fixture.destination, &token)
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::Conflict);
+        assert!(late_destination.is_dir());
+        assert!(fs::read_dir(&late_destination).unwrap().next().is_none());
+        assert!(fixture.original.iter().all(|install| install.path.exists()));
+        assert!(fixture.library.output_directory(PORT).unwrap().is_none());
+        drop(service);
+
+        let conflicted_restart = PortcoveService::new(fixture.library.clone()).unwrap();
+        assert!(late_destination.is_dir());
+        assert!(fs::read_dir(&late_destination).unwrap().next().is_none());
+        assert!(fixture.original.iter().all(|install| install.path.exists()));
+        assert!(fixture.library.output_directory(PORT).unwrap().is_none());
+        assert!(
+            conflicted_restart
+                .output_relocation_status(PORT)
+                .unwrap()
+                .is_some()
+        );
+        drop(conflicted_restart);
+
+        fs::remove_dir(&late_destination).unwrap();
+        let recovered = PortcoveService::new(fixture.library.clone()).unwrap();
+        assert!(recovered.output_relocation_status(PORT).unwrap().is_none());
+        assert_eq!(
+            fixture.library.output_directory(PORT).unwrap().as_deref(),
+            Some(plan.destination_root.as_path())
+        );
+        assert!(
+            fixture
+                .library
+                .all_installs()
+                .unwrap()
+                .iter()
+                .all(|install| install.path.starts_with(&plan.destination_root))
+        );
+        assert!(
+            fixture
+                .original
+                .iter()
+                .all(|install| !install.path.exists())
+        );
+        fixture.assert_protected_files_unchanged();
     }
 
     #[test]

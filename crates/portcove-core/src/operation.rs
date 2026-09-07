@@ -351,6 +351,7 @@ pub(crate) enum LifecycleFaultPoint {
     RelocationCopyStarted,
     RelocationCopied,
     RelocationPrepared,
+    RelocationPublicationPrepared,
     RelocationPublished,
     RelocationMetadataCommitted,
     RelocationCleanupCompleted,

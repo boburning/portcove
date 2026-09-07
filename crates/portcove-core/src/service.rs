@@ -1415,7 +1415,7 @@ impl PortcoveService {
             store.put(&mut lifecycle)?;
             self.faults
                 .check(LifecycleFaultPoint::DeleteBackupPrepared)?;
-            fs::rename(&backup.path, &deleting)?;
+            crate::durability::rename_noreplace(&backup.path, &deleting)?;
             self.faults
                 .check(LifecycleFaultPoint::DeleteBackupQuarantined)?;
             lifecycle.phase = LifecyclePhase::PayloadPublished;
@@ -3031,7 +3031,7 @@ impl PortcoveService {
                     .parent()
                     .expect("version directory has a parent"),
             )?;
-            fs::rename(&payload_root, &destination)?;
+            crate::durability::rename_noreplace(&payload_root, &destination)?;
             lifecycle.phase = LifecyclePhase::PayloadPublished;
             store.put(&mut lifecycle)?;
             self.faults.check(LifecycleFaultPoint::AdoptionPublished)?;
@@ -3147,7 +3147,7 @@ impl PortcoveService {
                 if let Some(parent) = removal.quarantined.parent() {
                     fs::create_dir_all(parent)?;
                 }
-                fs::rename(&removal.live, &removal.quarantined)?;
+                crate::durability::rename_noreplace(&removal.live, &removal.quarantined)?;
             }
             lifecycle.phase = LifecyclePhase::PayloadPublished;
             store.put(&mut lifecycle)?;

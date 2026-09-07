@@ -2,6 +2,91 @@ use std::{fs, path::Path};
 
 use crate::{PortcoveError, Result};
 
+/// Atomically publish a same-filesystem staged file or directory only while
+/// the authorized final name is vacant. Unsupported filesystems fail closed.
+pub(crate) fn rename_noreplace(staging: &Path, destination: &Path) -> Result<()> {
+    match rename_noreplace_os(staging, destination) {
+        Ok(()) => Ok(()),
+        Err(error)
+            if error.kind() == std::io::ErrorKind::AlreadyExists
+                || fs::symlink_metadata(destination).is_ok() =>
+        {
+            Err(PortcoveError::conflict(
+                "publication destination appeared after review; it was retained",
+            )
+            .detail("destination", destination.display().to_string())
+            .detail("os_error", error.to_string()))
+        }
+        Err(error)
+            if matches!(
+                error.kind(),
+                std::io::ErrorKind::Unsupported | std::io::ErrorKind::InvalidInput
+            ) =>
+        {
+            Err(
+                PortcoveError::state("filesystem does not support atomic no-replace publication")
+                    .detail("destination", destination.display().to_string())
+                    .detail("os_error", error.to_string()),
+            )
+        }
+        Err(error) => Err(error.into()),
+    }
+}
+
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+fn rename_noreplace_os(staging: &Path, destination: &Path) -> std::io::Result<()> {
+    rustix::fs::renameat_with(
+        rustix::fs::CWD,
+        staging,
+        rustix::fs::CWD,
+        destination,
+        rustix::fs::RenameFlags::NOREPLACE,
+    )
+    .map_err(std::io::Error::from)
+}
+
+#[cfg(windows)]
+fn rename_noreplace_os(staging: &Path, destination: &Path) -> std::io::Result<()> {
+    use std::os::windows::ffi::OsStrExt;
+
+    fn wide(path: &Path) -> std::io::Result<Vec<u16>> {
+        let mut value = path.as_os_str().encode_wide().collect::<Vec<_>>();
+        if value.contains(&0) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "publication path contains a null character",
+            ));
+        }
+        value.push(0);
+        Ok(value)
+    }
+
+    let staging = wide(staging)?;
+    let destination = wide(destination)?;
+    // SAFETY: both buffers are valid, null-terminated UTF-16 for the duration
+    // of the call. Omitting MOVEFILE_REPLACE_EXISTING is the no-clobber contract.
+    if unsafe {
+        windows_sys::Win32::Storage::FileSystem::MoveFileExW(
+            staging.as_ptr(),
+            destination.as_ptr(),
+            0,
+        )
+    } == 0
+    {
+        Err(std::io::Error::last_os_error())
+    } else {
+        Ok(())
+    }
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
+fn rename_noreplace_os(_staging: &Path, _destination: &Path) -> std::io::Result<()> {
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "atomic no-replace rename is unavailable on this platform",
+    ))
+}
+
 /// Flush a private sibling file before an atomic namespace publication.
 /// Replacement is only for core-owned journals, never user export files.
 pub(crate) fn write_json_atomically<T: serde::Serialize>(
@@ -74,9 +159,9 @@ pub(crate) fn publish_backup_directory(
     backup_parent: &Path,
     directory_sync: bool,
 ) -> Result<()> {
-    if let Err(error) = fs::rename(staging_path, final_path) {
+    if let Err(error) = rename_noreplace(staging_path, final_path) {
         let _ = fs::remove_dir_all(staging_path);
-        return Err(error.into());
+        return Err(error);
     }
 
     if directory_sync && let Err(sync_error) = sync_directory(backup_parent) {
@@ -169,5 +254,48 @@ mod tests {
         write_bytes_atomically(&destination, b"new", true).unwrap();
 
         assert_eq!(fs::read(destination).unwrap(), b"new");
+    }
+
+    #[test]
+    fn no_replace_publication_moves_complete_files_and_directories() {
+        let temporary = tempfile::tempdir().unwrap();
+        let staged_file = temporary.path().join("staged-file");
+        let final_file = temporary.path().join("final-file");
+        fs::write(&staged_file, b"complete file").unwrap();
+        rename_noreplace(&staged_file, &final_file).unwrap();
+        assert!(!staged_file.exists());
+        assert_eq!(fs::read(final_file).unwrap(), b"complete file");
+
+        let staged_directory = temporary.path().join("staged-directory");
+        let final_directory = temporary.path().join("final-directory");
+        fs::create_dir(&staged_directory).unwrap();
+        fs::write(staged_directory.join("complete"), b"directory").unwrap();
+        rename_noreplace(&staged_directory, &final_directory).unwrap();
+        assert!(!staged_directory.exists());
+        assert_eq!(
+            fs::read(final_directory.join("complete")).unwrap(),
+            b"directory"
+        );
+    }
+
+    #[test]
+    fn no_replace_publication_preserves_existing_files_and_empty_directories() {
+        let temporary = tempfile::tempdir().unwrap();
+        let staged_file = temporary.path().join("staged-file");
+        let final_file = temporary.path().join("final-file");
+        fs::write(&staged_file, b"staged").unwrap();
+        fs::write(&final_file, b"unrelated").unwrap();
+        assert!(rename_noreplace(&staged_file, &final_file).is_err());
+        assert_eq!(fs::read(&staged_file).unwrap(), b"staged");
+        assert_eq!(fs::read(&final_file).unwrap(), b"unrelated");
+
+        let staged_directory = temporary.path().join("staged-directory");
+        let final_directory = temporary.path().join("final-directory");
+        fs::create_dir(&staged_directory).unwrap();
+        fs::write(staged_directory.join("staged"), b"complete").unwrap();
+        fs::create_dir(&final_directory).unwrap();
+        assert!(rename_noreplace(&staged_directory, &final_directory).is_err());
+        assert!(staged_directory.join("staged").exists());
+        assert!(fs::read_dir(final_directory).unwrap().next().is_none());
     }
 }
