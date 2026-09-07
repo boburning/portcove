@@ -84,12 +84,17 @@ fn create_directory_symlink(target: &Path, link: &Path) -> std::io::Result<()> {
     std::os::windows::fs::symlink_dir(target, link)
 }
 
-fn fixture() -> (tempfile::TempDir, Library, PortcoveService, PathBuf) {
+fn library_fixture() -> (tempfile::TempDir, Library, PathBuf) {
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
     let source = temporary.path().join("original").join("disc.iso");
     fs::create_dir_all(source.parent().unwrap()).unwrap();
     fs::write(&source, b"synthetic format-only disc source").unwrap();
+    (temporary, library, source)
+}
+
+fn fixture() -> (tempfile::TempDir, Library, PortcoveService, PathBuf) {
+    let (temporary, library, source) = library_fixture();
     let service = PortcoveService::new(library.clone()).unwrap();
     (temporary, library, service, source)
 }
@@ -359,7 +364,8 @@ fn deletion_failure_reports_a_valid_copy_and_the_exact_retained_original() {
 }
 
 fn assert_durable_move_recovery(point: LifecycleFaultPoint) {
-    let (_temporary, library, _service, source) = fixture();
+    let (_temporary, library, source) = library_fixture();
+    eprintln!("{point:?}: fixture created");
     let service = PortcoveService::with_faults(library.clone(), Arc::new(FailAt(point))).unwrap();
     let plan = service
         .plan_source_import(PROFILE, &source, SourceImportMode::Move)
@@ -381,6 +387,7 @@ fn assert_durable_move_recovery(point: LifecycleFaultPoint) {
         "{point:?}"
     );
     drop(service);
+    eprintln!("{point:?}: interruption recorded; recovering");
 
     let recovered = PortcoveService::new(library.clone()).unwrap();
     let registered = recovered.library().source(PROFILE).unwrap().unwrap();
@@ -406,6 +413,7 @@ fn assert_durable_move_recovery(point: LifecycleFaultPoint) {
         "{point:?}"
     );
     drop(recovered);
+    eprintln!("{point:?}: recovery verified; checking idempotence");
     let recovered_again = PortcoveService::new(library.clone()).unwrap();
     let registered_again = recovered_again.library().source(PROFILE).unwrap().unwrap();
     assert_eq!(registered_again.path, registered.path, "{point:?}");
