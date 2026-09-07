@@ -159,6 +159,16 @@ This changes scheduling
 only; every Rust test retains the same deadline. CI caches compiled dependencies
 after test failures so fixing a failed assertion does not require a cold rebuild.
 
+Intel test binaries are cross-compiled for `x86_64-apple-darwin` on Apple Silicon
+and transferred in a nextest archive scoped to the current workflow attempt.
+Both partitions execute on Intel macOS, including tests which compile native
+helper processes. Intel documentation tests still build and run on Intel.
+This avoids repeatedly compiling the full test workspace on variable Intel
+runners. The archive is retained for one day; it is not a release artifact.
+CLI tests resolve nextest's remapped executable path at runtime so archives do
+not depend on the build machine's checkout or target-directory location.
+The required Rust aggregate fails if either the build or any Intel test job fails.
+
 The test profile optimizes the Ed25519 and Curve25519 dependencies because catalog
 fixtures validate real signatures repeatedly. Portcove code retains its normal
 test profile and debug assertions. Windows session integration compiles immutable

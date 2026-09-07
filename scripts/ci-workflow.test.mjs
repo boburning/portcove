@@ -13,7 +13,9 @@ const rustTests = jobSection("rust_tests", "rust_workspace_tests");
 const rustWorkspaceTests = jobSection("rust_workspace_tests", "rust_clippy");
 const rustClippy = jobSection("rust_clippy", "windows_storage");
 const windowsStorage = jobSection("windows_storage", "native_rust");
-const nativeRust = jobSection("native_rust", "rust_docs");
+const nativeRust = jobSection("native_rust", "intel_build");
+const intelBuild = jobSection("intel_build", "intel_tests");
+const intelTests = jobSection("intel_tests", "rust_docs");
 const rustDocs = jobSection("rust_docs", "rust");
 const rust = jobSection("rust", "rust-quality");
 const rustQuality = jobSection("rust-quality", "frontend");
@@ -33,8 +35,7 @@ test("every Node test file is included in required CI and the local quality work
 test("required CI keeps its cancellation and least-privilege contracts", () => {
   assert.match(workflow, /^permissions:\r?\n  contents: read$/m);
   assert.match(workflow, /^concurrency:\r?\n  group: ci-\$\{\{ github\.event\.pull_request\.number \|\| github\.ref \}\}\r?\n  cancel-in-progress: true$/m);
-  assert.doesNotMatch(workflow, /upload-artifact/);
-  for (const section of [rustTests, rustWorkspaceTests, rustClippy, windowsStorage, nativeRust, rustDocs, rustQuality, frontend, catalog]) {
+  for (const section of [rustTests, rustWorkspaceTests, rustClippy, windowsStorage, nativeRust, intelBuild, intelTests, rustDocs, rustQuality, frontend, catalog]) {
     assert.notEqual(section, "");
     assert.doesNotMatch(section, /^    if:/m);
   }
@@ -73,7 +74,7 @@ test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () 
   assert.doesNotMatch(windowsStorage, /rust-toolchain|rust-cache|cargo/);
 
   assert.match(rust, /^    if: always\(\)$/m);
-  assert.match(rust, /^    needs: \[rust_tests, rust_workspace_tests, rust_clippy, windows_storage, native_rust, rust_docs\]$/m);
+  assert.match(rust, /^    needs: \[rust_tests, rust_workspace_tests, rust_clippy, windows_storage, native_rust, intel_build, intel_tests, rust_docs\]$/m);
   assert.match(rust, /RUST_TEST_RESULT: \$\{\{ needs\.rust_tests\.result \}\}/);
   assert.match(rust, /RUST_WORKSPACE_TEST_RESULT: \$\{\{ needs\.rust_workspace_tests\.result \}\}/);
   assert.match(rust, /RUST_CLIPPY_RESULT: \$\{\{ needs\.rust_clippy\.result \}\}/);
@@ -87,7 +88,6 @@ test("native Rust runs the full workspace on every supported Unix architecture",
   assert.match(nativeRust, /^    name: native-rust \(\$\{\{ matrix\.platform \}\}, \$\{\{ matrix\.partition \}\}\)$/m);
   for (const [platform, runner] of [
     ["linux-x86_64", "ubuntu-22.04"],
-    ["macos-x86_64", "macos-15-intel"],
     ["macos-aarch64", "macos-15"],
   ]) {
     assert.match(nativeRust, new RegExp(`platform: ${platform}\\r?\\n\\s+runner: ${runner}`));
@@ -98,9 +98,27 @@ test("native Rust runs the full workspace on every supported Unix architecture",
   assert.match(nativeRust, /cargo nextest run --locked --workspace/);
   assert.match(nativeRust, /--partition "\$\{\{ matrix\.partition \}\}"/);
   assert.equal((nativeRust.match(/partition: hash:1\/1/g) ?? []).length, 2);
-  assert.equal((nativeRust.match(/partition: hash:1\/2/g) ?? []).length, 1);
-  assert.equal((nativeRust.match(/partition: hash:2\/2/g) ?? []).length, 1);
   assert.doesNotMatch(nativeRust, /continue-on-error/);
+});
+
+test("Intel tests build once on Apple Silicon and execute every partition on Intel", () => {
+  assert.match(intelBuild, /runs-on: macos-15$/m);
+  assert.match(intelBuild, /targets: x86_64-apple-darwin/);
+  assert.match(intelBuild, /cargo nextest archive --locked --workspace --target x86_64-apple-darwin/);
+  assert.match(intelBuild, /if-no-files-found: error/);
+  assert.match(intelBuild, /retention-days: 1/);
+  assert.match(intelTests, /needs: intel_build/);
+  assert.match(intelTests, /runs-on: macos-15-intel/);
+  assert.match(intelTests, /partition: \["hash:1\/2", "hash:2\/2"\]/);
+  assert.match(intelTests, /cargo nextest run --archive-file .* --workspace-remap "\$PWD" --partition "\$\{\{ matrix\.partition \}\}"/);
+  for (const section of [intelBuild, intelTests]) {
+    assert.match(section, /name: intel-rust-tests-\$\{\{ github\.run_attempt \}\}/);
+    assert.doesNotMatch(section, /continue-on-error/);
+  }
+  for (const [variable, job] of [["INTEL_BUILD_RESULT", "intel_build"], ["INTEL_TEST_RESULT", "intel_tests"]]) {
+    assert.ok(rust.includes(`${variable}: ` + "${{ needs." + job + ".result }}"));
+    assert.ok(rust.includes(`"$${variable}" != "success"`));
+  }
 });
 
 test("Linux Rust quality keeps its platform-specific and policy gates without pnpm", () => {
@@ -218,7 +236,7 @@ test("Rust unit budgets fail at five seconds and documentation coverage remains"
   }
   assert.match(rust, /RUST_DOC_RESULT: \$\{\{ needs\.rust_docs\.result \}\}/);
   assert.match(rust, /"\$RUST_DOC_RESULT" != "success"/);
-  for (const section of [rustTests, rustWorkspaceTests, nativeRust]) {
+  for (const section of [rustTests, rustWorkspaceTests, nativeRust, intelBuild, intelTests]) {
     assert.match(section, /Install pinned test runner/);
     assert.match(section, /Get-Content \.github\/quality-tools\.json/);
     assert.match(section, /Where-Object id -eq "cargo-nextest"/);

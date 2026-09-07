@@ -7,6 +7,14 @@ use serde_json::Value;
 
 static CAPACITY_SENSITIVE_TEST: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+fn cli_binary() -> std::path::PathBuf {
+    // Nextest remaps this path when executing an archive on another runner.
+    // Cargo's compile-time path remains the fallback for cargo test.
+    std::env::var_os("NEXTEST_BIN_EXE_portcove")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_portcove").into())
+}
+
 struct RunningCli(std::process::Child);
 
 #[test]
@@ -203,7 +211,7 @@ fn cancellation_from_another_cli_stops_discovery_with_a_durable_cancelled_result
         .unwrap();
     let library = temporary.path().join("library");
     let mut child = RunningCli(
-        Command::new(env!("CARGO_BIN_EXE_portcove"))
+        Command::new(cli_binary())
             .arg("--library")
             .arg(&library)
             .args(["--jsonl", "source", "discover", "--root"])
@@ -250,7 +258,7 @@ fn cancellation_from_another_cli_stops_discovery_with_a_durable_cancelled_result
 }
 
 fn portcove(library: &std::path::Path, args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_portcove"))
+    Command::new(cli_binary())
         .arg("--library")
         .arg(library)
         .args(args)
@@ -259,7 +267,7 @@ fn portcove(library: &std::path::Path, args: &[&str]) -> Output {
 }
 
 fn portcove_preferences(preferences: &std::path::Path, args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_portcove"))
+    Command::new(cli_binary())
         .env("PORTCOVE_PREFERENCES", preferences)
         .args(args)
         .output()
@@ -271,7 +279,7 @@ fn portcove_tool(
     library: &std::path::Path,
     args: &[&str],
 ) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_portcove"))
+    Command::new(cli_binary())
         .env("PORTCOVE_PREFERENCES", preferences)
         .env_remove("PORTCOVE_CHDMAN")
         .env_remove("PORTCOVE_DOLPHIN_TOOL")
@@ -465,7 +473,7 @@ fn declining_backup_deletion_is_a_neutral_non_mutating_result() {
         &["--json", "backup", "create", "zelda64-recomp"],
     ));
     let backup_id = created["data"]["id"].as_str().unwrap();
-    let mut child = Command::new(env!("CARGO_BIN_EXE_portcove"))
+    let mut child = Command::new(cli_binary())
         .arg("--library")
         .arg(&library)
         .args(["backup", "delete", "zelda64-recomp", backup_id])
