@@ -396,7 +396,7 @@ fn assert_late_destination_collision_is_safe(mode: SourceImportMode, sentinel: V
 }
 
 #[test]
-fn current_location_registers_without_copying_and_removal_leaves_inbox_bytes() {
+fn current_location_registers_without_copying() {
     let (_temporary, _library, service, source) = fixture();
     let current = import(&service, &source, SourceImportMode::UseCurrentLocation);
     assert_eq!(
@@ -404,7 +404,12 @@ fn current_location_registers_without_copying_and_removal_leaves_inbox_bytes() {
         SourceImportOutcome::RegisteredCurrentLocation
     );
     assert_eq!(current.registered.path, fs::canonicalize(&source).unwrap());
+    assert!(source.exists());
+}
 
+#[test]
+fn removal_leaves_copied_inbox_bytes() {
+    let (_temporary, _library, service, source) = fixture();
     let copied = import(&service, &source, SourceImportMode::Copy);
     let inbox_path = copied.registered.path.clone();
     let preview = service.preview_source_removal(PROFILE).unwrap();
@@ -1353,8 +1358,10 @@ fn missing_published_destination_blocks_recovery_and_preserves_the_original() {
 
 #[test]
 fn directory_file_sets_copy_with_names_and_identity_intact() {
+    eprintln!("directory import: initialize library");
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
+    eprintln!("directory import: prepare catalog");
     let member_bytes: [&[u8]; 3] = [b"synthetic cartridge", b"synthetic disk", b"synthetic IPL"];
     let mut document = Catalog::embedded().unwrap().authoritative_document();
     let profile = document
@@ -1385,8 +1392,10 @@ fn directory_file_sets_copy_with_names_and_identity_intact() {
         }];
     }
     let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    eprintln!("directory import: initialize service");
     let mut service = PortcoveService::new(library).unwrap();
     service.replace_catalog_for_test(catalog);
+    eprintln!("directory import: prepare source files");
     let source = temporary.path().join("owned-files");
     fs::create_dir(&source).unwrap();
     for (name, bytes) in [
@@ -1396,6 +1405,7 @@ fn directory_file_sets_copy_with_names_and_identity_intact() {
     ] {
         fs::write(source.join(name), bytes).unwrap();
     }
+    eprintln!("directory import: plan and publish");
     let result = import_profile(
         &service,
         "g-diffuser-source-set",
@@ -1403,6 +1413,7 @@ fn directory_file_sets_copy_with_names_and_identity_intact() {
         SourceImportMode::Copy,
     );
     assert!(result.registered.path.is_dir());
+    eprintln!("directory import: verify published bytes");
     for name in [
         "baserom.us.rev0.z64",
         "baserom.translated.ek.ndd",
@@ -1413,6 +1424,7 @@ fn directory_file_sets_copy_with_names_and_identity_intact() {
             fs::read(result.registered.path.join(name)).unwrap()
         );
     }
+    eprintln!("directory import: cleanup");
 }
 
 #[test]
