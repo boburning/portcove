@@ -1,0 +1,35 @@
+name: Install repository Rust toolchain
+description: Read the repository pin before installing Rust and optional cross targets.
+inputs:
+  targets:
+    description: Additional compilation targets for the pinned toolchain.
+    required: false
+    default: ""
+  test-fixtures:
+    description: Compile native host-tool fixtures once before timed tests.
+    required: false
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - name: Read repository toolchain
+      id: repository-toolchain
+      shell: pwsh
+      run: |
+        $config = Get-Content rust-toolchain.toml -Raw
+        if ($config -notmatch '(?m)^channel\s*=\s*"([^"]+)"\s*$') {
+          throw "Missing Rust channel in rust-toolchain.toml"
+        }
+        "channel=$($Matches[1])" >> $env:GITHUB_OUTPUT
+    - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c
+      with:
+        toolchain: ${{ steps.repository-toolchain.outputs.channel }}
+        targets: ${{ inputs.targets }}
+    - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      if: inputs.test-fixtures == 'true'
+      with:
+        node-version-file: .node-version
+    - name: Prepare native host-tool fixture
+      if: inputs.test-fixtures == 'true'
+      shell: pwsh
+      run: node scripts/run-rust-tests.mjs --prepare-only

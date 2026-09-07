@@ -1,31 +1,28 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { checkTransportContract } from "./check-transport-contract.mjs";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const schemas = {
+  operation_event: { properties: {}, oneOf: [{ properties: { type: { const: "progress" } } }] },
+  activity: { $defs: { ActivityOperation: { enum: ["install", "remove_source"] } } },
+};
 
-test("rejects a TypeScript enum that drifts from the Rust transport schema", () => {
-  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "portcove-transport-"));
-  try {
-    const source = fs.readFileSync(path.join(root, "apps", "desktop", "src", "types.ts"), "utf8");
-    const changed = source.replace('"remove_source" | ', "");
-    assert.notEqual(changed, source, "drift fixture must change ActivityOperation");
-    const fixture = path.join(temporary, "types.ts");
-    fs.writeFileSync(fixture, changed);
+test("enum drift is rejected without spawning Cargo", () => {
+  const source = 'export type ActivityOperation = "install" | "remove_source";';
+  assert.ok(!checkTransportContract(schemas, source).some(item => item.startsWith("ActivityOperation")));
+  assert.ok(checkTransportContract(schemas, source.replace(' | "remove_source"', '')).some(item => item.startsWith("ActivityOperation values differ")));
+});
 
-    const result = spawnSync(
-      process.execPath,
-      [path.join(root, "scripts", "check-transport-contract.mjs"), "--types", fixture],
-      { cwd: root, encoding: "utf8" },
-    );
+test("event aliases resolve references and cyclic aliases fail closed", () => {
+  const source = 'export type Progress = "progress"; export type OperationEventType = Progress;';
+  assert.ok(!checkTransportContract(schemas, source).some(item => item.startsWith("OperationEventType")));
+  const cyclic = 'export type Progress = OperationEventType; export type OperationEventType = Progress;';
+  assert.ok(checkTransportContract(schemas, cyclic).some(item => item.startsWith("OperationEventType values differ")));
+});
 
-    assert.equal(result.status, 1);
-    assert.match(result.stderr, /ActivityOperation values differ/);
-  } finally {
-    fs.rmSync(temporary, { recursive: true, force: true });
-  }
+test("missing interfaces and inconsistent Rust enum definitions are reported", () => {
+  const conflict = { ...schemas, other: { $defs: { ActivityOperation: { enum: ["changed"] } } } };
+  const failures = checkTransportContract(conflict, "");
+  assert.ok(failures.includes("Rust schemas disagree about ActivityOperation"));
+  assert.ok(failures.includes("catalog is missing its CatalogDocument contract"));
 });

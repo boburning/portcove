@@ -42,7 +42,7 @@ CI installs the small prebuilt tool set through the commit-pinned installer acti
 
 Required CI cancels an older in-progress run when a newer commit reaches the same branch or pull request. This keeps obsolete Windows builds from occupying the queue while preserving a complete run for the newest commit.
 
-Required pull-request CI has a five-minute warm-cache target for the Windows lanes, measured from run creation to their terminal result. The Windows Rust suite is exhaustively partitioned into service, recovery, remaining-core, non-core workspace-test, and format/Clippy lanes, while a lightweight Windows job covers development-storage behavior. A native matrix also runs `cargo test --workspace` on Linux x86-64, macOS x86-64, and macOS arm64 so platform-specific filesystem, process, and permission behavior cannot be represented by Windows compilation alone. Native tests use the runner-owned temporary directory so macOS's system `/var` compatibility symlink is not mistaken for a library-controlled symlink ancestor. Giving the non-core test and lint lanes independent job identities also gives them independent Rust cache keys; a fast core shard therefore cannot win a shared-key save race and leave the slower graphs uncached. The required `rust` job fails closed unless every Windows and native producer passes. Clippy's all-target compilation replaces a duplicate standalone `cargo check`; the Linux quality lane likewise avoids installing pnpm because it invokes Node and Rust tools directly. These boundaries are enforced by `scripts/ci-workflow.test.mjs` so missing shards, native platforms, unused setup, a shared-key race, or accidental serialization cannot silently return to the critical path.
+Required pull-request CI has a five-minute warm-cache target for the complete pipeline, measured from run creation to the terminal required-job result. The Windows Rust suite is exhaustively partitioned into service, recovery, remaining-core, non-core workspace-test, and format/Clippy lanes, while a lightweight Windows job covers development-storage behavior. A native matrix also runs the full workspace through cargo-nextest on Linux x86-64, macOS x86-64, and macOS arm64 so platform-specific filesystem, process, and permission behavior cannot be represented by Windows compilation alone. Native tests use the runner-owned temporary directory so macOS's system `/var` compatibility symlink is not mistaken for a library-controlled symlink ancestor. Giving the non-core test and lint lanes independent job identities also gives them independent Rust cache keys; a fast core shard therefore cannot win a shared-key save race and leave the slower graphs uncached. The required `rust` job fails closed unless every Windows and native producer passes. Clippy's all-target compilation replaces a duplicate standalone `cargo check`; the Linux quality lane likewise avoids installing pnpm because it invokes Node and Rust tools directly. These boundaries are enforced by `scripts/ci-workflow.test.mjs` so missing shards, native platforms, unused setup, a shared-key race, or accidental serialization cannot silently return to the critical path.
 
 A lockfile or toolchain change is expected to pay each lane's cold-build cost once. [Run 33832768415](https://github.com/boburning/portcove/actions/runs/33832768415) established the initial 7m45s cold baseline and exposed the shared-key race. After isolating the non-core jobs, [run 33833781499](https://github.com/boburning/portcove/actions/runs/33833781499) passed in 6m49s while populating both new lane-specific caches.
 
@@ -119,3 +119,83 @@ The advisory cycle report is deliberately excluded from routine CI and `audit`
 because its known inherent-item cycle baseline produces non-actionable noise.
 The pinned tool remains available through the optional deep bootstrap and
 `just cycles`; the deterministic Cargo-metadata architecture gate is unchanged.
+
+## Test latency and reliability
+
+The required Rust test lanes and `just rust-test` use the version of cargo-nextest
+pinned in `.github/quality-tools.json`. Five seconds is a diagnostic threshold,
+not an acceptance limit. Nextest reports slow tests every five seconds and
+terminates a test at thirty seconds with no retries or termination grace period.
+This hang guard bounds real filesystem and process lifecycle tests while allowing
+normal runner variability. Investigate slow cases using their actual work and
+repeated timings; preserve coherent scenarios instead of splitting assertions
+solely to satisfy a stopwatch. Pure unit tests should normally finish well below
+the diagnostic threshold. A timeout or failed assertion still fails the lane.
+Nextest prints individual elapsed times. Documentation tests still run separately
+with Cargo on Windows, Linux, and both macOS architectures. Their required jobs
+run in parallel with unit tests because Cargo's documentation build uses a
+different dependency graph. The Rust aggregate fails if any documentation job fails.
+
+CI uses line-table debug information for development and test builds to retain
+file/line backtraces while reducing debug-data generation and linking work.
+The shared Rust setup action reads `rust-toolchain.toml` before installation;
+cross targets are installed for that same compiler, rather than unrelated stable.
+Local development profiles remain unchanged. Changing this setting invalidates
+build caches; report cold and warm hosted timings separately. The five-minute
+pipeline target includes setup and required-job aggregation, not just test runtime.
+The Rust cache key includes the root Cargo manifest so test-profile changes cannot
+keep restoring an immutable cache containing only the previous profile's artifacts.
+
+The UI suite consists of small JavaScript/DOM tests and keeps Vitest's five-second
+timeout. Its report validates complete measurements and lists slow passing tests. Two isolated worker threads avoid repeated Node process
+startup for this JavaScript/DOM suite; file isolation remains enabled.
+Node test commands use a thirty-second asynchronous hang timeout and report
+individual results above five seconds without failing on elapsed time alone.
+Synchronous work cannot be interrupted by Node's event-loop timeout; measured
+latency still appears in the report and CI job timeouts bound a stuck process.
+Suite aggregate durations are not individual test durations.
+
+Windows qualification session integration tests remain a separate required step;
+they exercise compiled processes and installer lifecycle behavior using their
+existing integration deadlines. The static qualification contract runs with the
+Node hang guard. No integration coverage is removed.
+
+Rust tests run two at a time by default. The local Windows wrapper and Windows
+CI lanes run one at a time
+in exhaustive hash partitions to avoid filesystem contention. CLI free-space
+snapshot contracts share a scheduling group because their existing in-process
+mutex cannot synchronize nextest's separate processes. Full signed-catalog tests
+and CLI process contracts
+reserve both default CPU slots while verifying complete snapshots. Intel macOS
+uses two exhaustive hash partitions to keep this work off the critical path.
+This changes scheduling
+only; every Rust test retains the same deadline. CI caches compiled dependencies
+after test failures so fixing a failed assertion does not require a cold rebuild.
+
+Intel test binaries are cross-compiled for `x86_64-apple-darwin` on Apple Silicon
+and transferred in a nextest archive scoped to the current workflow attempt.
+Both partitions execute on Intel macOS, including tests which compile native
+helper processes. Intel documentation tests still build and run on Intel.
+This avoids repeatedly compiling the full test workspace on variable Intel
+runners. The archive is retained for one day; it is not a release artifact.
+CLI tests resolve nextest's remapped executable path at runtime so archives do
+not depend on the build machine's checkout or target-directory location.
+The required Rust aggregate fails if either the build or any Intel test job fails.
+
+Timed Rust lanes compile the native host-tool probe fixture once during setup.
+Each test copies it into its own temporary directory before mutation or probing.
+`just rust-test` uses the same preparation through `scripts/run-rust-tests.mjs`;
+plain Cargo tests retain their standalone fixture compiler. Fixture compilation
+is build setup, while every test's assertions and process probes keep the same
+hang guard.
+
+The test profile optimizes the Ed25519 and Curve25519 dependencies because catalog
+fixtures validate real signatures repeatedly. Portcove code retains its normal
+test profile and debug assertions. Windows session integration compiles immutable
+fixture programs once per suite, then gives every case separate copies and state.
+Concurrency assertions use synchronization instead of elapsed-time assumptions.
+
+Every Node test file is explicitly covered by required CI and local quality
+recipes; the workflow contract checks this inventory. Transport comparator unit
+tests use fixed inputs, while a separate required integration test mutates the
+real TypeScript contract and checks it against the CLI's live Rust schema export.

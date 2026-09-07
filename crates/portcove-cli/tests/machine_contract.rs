@@ -7,6 +7,14 @@ use serde_json::Value;
 
 static CAPACITY_SENSITIVE_TEST: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+fn cli_binary() -> std::path::PathBuf {
+    // Nextest remaps this path when executing an archive on another runner.
+    // Cargo's compile-time path remains the fallback for cargo test.
+    std::env::var_os("NEXTEST_BIN_EXE_portcove")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_portcove").into())
+}
+
 struct RunningCli(std::process::Child);
 
 #[test]
@@ -192,6 +200,7 @@ impl Drop for RunningCli {
 #[test]
 fn cancellation_from_another_cli_stops_discovery_with_a_durable_cancelled_result() {
     use std::io::{BufRead, Read};
+    eprintln!("CLI cancellation: prepare source");
     let _capacity_guard = CAPACITY_SENSITIVE_TEST.lock().unwrap();
     let temporary = tempfile::tempdir().unwrap();
     let sources = temporary.path().join("sources");
@@ -203,7 +212,7 @@ fn cancellation_from_another_cli_stops_discovery_with_a_durable_cancelled_result
         .unwrap();
     let library = temporary.path().join("library");
     let mut child = RunningCli(
-        Command::new(env!("CARGO_BIN_EXE_portcove"))
+        Command::new(cli_binary())
             .arg("--library")
             .arg(&library)
             .args(["--jsonl", "source", "discover", "--root"])
@@ -216,11 +225,13 @@ fn cancellation_from_another_cli_stops_discovery_with_a_durable_cancelled_result
     );
     let mut output = std::io::BufReader::new(child.0.stdout.take().unwrap());
     let mut started = String::new();
+    eprintln!("CLI cancellation: await started event");
     output.read_line(&mut started).unwrap();
     let started: Value = serde_json::from_str(&started).unwrap();
     assert_eq!(started["schema_version"], 2);
     assert_eq!(started["type"], "started");
     let id = started["operation_id"].as_str().unwrap();
+    eprintln!("CLI cancellation: request cancellation");
     let cancelled = portcove(&library, &["--json", "cancel", id]);
     assert!(
         cancelled.status.success(),
@@ -229,6 +240,7 @@ fn cancellation_from_another_cli_stops_discovery_with_a_durable_cancelled_result
     );
     assert_eq!(json_stdout(&cancelled)["data"]["requested"], true);
     let mut rest = String::new();
+    eprintln!("CLI cancellation: await exit");
     output.read_to_string(&mut rest).unwrap();
     assert_eq!(child.0.wait().unwrap().code(), Some(130));
     let lines = rest
@@ -239,9 +251,11 @@ fn cancellation_from_another_cli_stops_discovery_with_a_durable_cancelled_result
         && line["type"] == "finished"
         && line["result"] == "cancelled"));
     assert_eq!(lines.last().unwrap()["error"]["code"], "cancelled");
+    eprintln!("CLI cancellation: verify durable activity");
     let ledger = json_stdout(&portcove(&library, &["--json", "activity"]));
     assert_eq!(ledger["data"][0]["id"], id);
     assert_eq!(ledger["data"][0]["status"], "cancelled");
+    eprintln!("CLI cancellation: verify empty source registry");
     assert_eq!(
         json_stdout(&portcove(&library, &["--json", "source", "list"]))["data"],
         serde_json::json!([])
@@ -250,7 +264,7 @@ fn cancellation_from_another_cli_stops_discovery_with_a_durable_cancelled_result
 }
 
 fn portcove(library: &std::path::Path, args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_portcove"))
+    Command::new(cli_binary())
         .arg("--library")
         .arg(library)
         .args(args)
@@ -259,7 +273,7 @@ fn portcove(library: &std::path::Path, args: &[&str]) -> Output {
 }
 
 fn portcove_preferences(preferences: &std::path::Path, args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_portcove"))
+    Command::new(cli_binary())
         .env("PORTCOVE_PREFERENCES", preferences)
         .args(args)
         .output()
@@ -271,7 +285,7 @@ fn portcove_tool(
     library: &std::path::Path,
     args: &[&str],
 ) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_portcove"))
+    Command::new(cli_binary())
         .env("PORTCOVE_PREFERENCES", preferences)
         .env_remove("PORTCOVE_CHDMAN")
         .env_remove("PORTCOVE_DOLPHIN_TOOL")
@@ -283,6 +297,15 @@ fn portcove_tool(
 }
 
 fn compile_chdman_fixture(directory: &std::path::Path) -> std::path::PathBuf {
+    if let Some(prepared) = std::env::var_os("PORTCOVE_HOST_TOOL_FIXTURE") {
+        let executable = directory.join(if cfg!(windows) {
+            "chdman-fixture.exe"
+        } else {
+            "chdman-fixture"
+        });
+        std::fs::copy(prepared, &executable).unwrap();
+        return executable;
+    }
     let source = directory.join("chdman_fixture.rs");
     std::fs::write(
         &source,
@@ -465,7 +488,7 @@ fn declining_backup_deletion_is_a_neutral_non_mutating_result() {
         &["--json", "backup", "create", "zelda64-recomp"],
     ));
     let backup_id = created["data"]["id"].as_str().unwrap();
-    let mut child = Command::new(env!("CARGO_BIN_EXE_portcove"))
+    let mut child = Command::new(cli_binary())
         .arg("--library")
         .arg(&library)
         .args(["backup", "delete", "zelda64-recomp", backup_id])
@@ -554,56 +577,112 @@ fn library_move_requires_review_and_redirects_later_cli_processes() {
     assert_eq!(json_stdout(&resumed)["command"], "library.resume_move");
 }
 
-#[test]
-fn library_import_is_read_only_until_reviewed_and_usable_by_a_fresh_cli() {
-    let temporary = tempfile::tempdir().unwrap();
-    let source = temporary.path().join("source");
-    let metadata = temporary.path().join("metadata.json");
-    let content = temporary.path().join("copied-content");
-    let destination = temporary.path().join("restored");
-    let exported = portcove(
-        &source,
-        &[
+struct CliImportFixture {
+    _temporary: tempfile::TempDir,
+    destination: std::path::PathBuf,
+    metadata: std::path::PathBuf,
+    content: std::path::PathBuf,
+    plan: Value,
+}
+
+impl CliImportFixture {
+    fn new() -> Self {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        let metadata = temporary.path().join("metadata.json");
+        let content = temporary.path().join("copied-content");
+        let destination = temporary.path().join("restored");
+        let exported = portcove(
+            &source,
+            &[
+                "--json",
+                "library",
+                "export",
+                "--output",
+                metadata.to_str().unwrap(),
+            ],
+        );
+        assert!(exported.status.success());
+        std::fs::create_dir_all(content.join("user/example")).unwrap();
+        std::fs::write(content.join("user/example/save.bin"), b"synthetic save").unwrap();
+        let args = vec![
             "--json",
             "library",
-            "export",
-            "--output",
+            "import",
             metadata.to_str().unwrap(),
-        ],
-    );
-    assert!(exported.status.success());
-    std::fs::create_dir_all(content.join("user/example")).unwrap();
-    std::fs::write(content.join("user/example/save.bin"), b"synthetic save").unwrap();
-    let mut args = vec![
-        "--json",
-        "library",
-        "import",
-        metadata.to_str().unwrap(),
-        content.to_str().unwrap(),
-    ];
-    let planned = portcove(&destination, &args);
-    assert!(planned.status.success(), "{planned:?}");
-    assert!(!destination.exists());
-    assert!(!content.join("portcove.sqlite3").exists());
-    let document = json_stdout(&planned);
-    let hash = document["data"]["plan_sha256"].as_str().unwrap();
+            content.to_str().unwrap(),
+        ];
+        let planned = portcove(&destination, &args);
+        assert!(planned.status.success(), "{planned:?}");
+        assert!(!destination.exists());
+        assert!(!content.join("portcove.sqlite3").exists());
+        let document = json_stdout(&planned);
+        Self {
+            _temporary: temporary,
+            destination,
+            metadata,
+            content,
+            plan: document,
+        }
+    }
+
+    fn arguments(&self) -> [&str; 5] {
+        [
+            "--json",
+            "library",
+            "import",
+            self.metadata.to_str().unwrap(),
+            self.content.to_str().unwrap(),
+        ]
+    }
+
+    fn apply(&self) {
+        let mut args = self.arguments().to_vec();
+        args.extend([
+            "--apply",
+            "--expected-plan",
+            self.plan["data"]["plan_sha256"].as_str().unwrap(),
+        ]);
+        let restored = portcove(&self.destination, &args);
+        assert!(restored.status.success(), "{restored:?}");
+        assert_eq!(json_stdout(&restored)["data"]["completed"], true);
+        assert_eq!(
+            std::fs::read(self.destination.join("user/example/save.bin")).unwrap(),
+            b"synthetic save"
+        );
+    }
+}
+
+#[test]
+fn library_import_is_read_only_until_reviewed() {
+    let fixture = CliImportFixture::new();
+    let mut args = fixture.arguments().to_vec();
     args.push("--apply");
-    assert_eq!(portcove(&destination, &args).status.code(), Some(2));
-    args.extend(["--expected-plan", hash]);
-    let restored = portcove(&destination, &args);
-    assert!(restored.status.success(), "{restored:?}");
-    assert_eq!(json_stdout(&restored)["data"]["completed"], true);
-    assert_eq!(
-        std::fs::read(destination.join("user/example/save.bin")).unwrap(),
-        b"synthetic save"
-    );
-    let fresh = portcove(&destination, &["--json", "library", "export"]);
+    assert_eq!(portcove(&fixture.destination, &args).status.code(), Some(2));
+    assert!(!fixture.destination.exists());
+    assert!(!fixture.content.join("portcove.sqlite3").exists());
+}
+
+#[test]
+fn reviewed_library_import_is_usable_by_a_fresh_cli() {
+    let fixture = CliImportFixture::new();
+    fixture.apply();
+    let fresh = portcove(&fixture.destination, &["--json", "library", "export"]);
     assert!(fresh.status.success());
-    let resumed = portcove(&destination, &["--json", "library", "resume-import"]);
+}
+
+#[test]
+fn completed_library_import_resumes_idempotently_and_cannot_be_aborted() {
+    let fixture = CliImportFixture::new();
+    fixture.apply();
+    let resumed = portcove(
+        &fixture.destination,
+        &["--json", "library", "resume-import"],
+    );
     assert!(resumed.status.success(), "{resumed:?}");
     assert_eq!(json_stdout(&resumed)["command"], "library.resume_import");
     assert!(
-        !portcove(&destination, &["--json", "library", "abort-import"])
+        !portcove(&fixture.destination, &["--json", "library", "abort-import"])
             .status
             .success()
     );
@@ -1040,21 +1119,28 @@ fn source_inbox_controls_share_stable_scan_and_import_activity_ids() {
 }
 
 #[test]
-fn default_read_commands_have_human_output_snapshots() {
+fn catalog_list_has_human_output_snapshot() {
     let root = tempfile::tempdir().unwrap();
-
     let catalog = human_stdout(&portcove(root.path(), &["catalog", "list"])).to_owned();
     assert!(catalog.starts_with("Ports ("));
     assert!(catalog.contains("ID"));
     assert!(catalog.contains("lighthouse"));
     assert!(!catalog.trim_start().starts_with('['));
+}
 
+#[test]
+fn port_status_has_human_output_snapshot() {
+    let root = tempfile::tempdir().unwrap();
     let status = human_stdout(&portcove(root.path(), &["status", "lighthouse"])).to_owned();
     assert!(status.starts_with("Status (1)\nPORT"));
     assert!(status.contains("lighthouse"));
     assert!(status.contains("stable"));
     assert!(!status.trim_start().starts_with('{'));
+}
 
+#[test]
+fn empty_library_lists_has_human_output_snapshot() {
+    let root = tempfile::tempdir().unwrap();
     assert_eq!(
         human_stdout(&portcove(root.path(), &["source", "list"])),
         "No registered sources.\n",
@@ -1067,62 +1153,132 @@ fn default_read_commands_have_human_output_snapshots() {
         human_stdout(&portcove(root.path(), &["activity"])),
         "No activity records.\n",
     );
+}
 
+#[test]
+fn paths_has_human_output_snapshot() {
+    let root = tempfile::tempdir().unwrap();
     let paths = human_stdout(&portcove(root.path(), &["paths", "lighthouse"])).to_owned();
     assert!(paths.starts_with("Paths for lighthouse\nLibrary:"));
     assert!(paths.contains("\nPersistent data:"));
+}
 
+#[test]
+fn storage_has_human_output_snapshot() {
+    let root = tempfile::tempdir().unwrap();
     let storage = human_stdout(&portcove(root.path(), &["storage"])).to_owned();
     assert!(storage.starts_with("Library storage\nRoot:"));
     assert!(storage.contains("\nAvailable:"));
+}
 
+#[test]
+fn doctor_has_human_output_snapshot() {
+    let root = tempfile::tempdir().unwrap();
     let doctor = human_stdout(&portcove(root.path(), &["doctor"])).to_owned();
     assert!(doctor.starts_with("Portcove doctor\nPlatform:"));
     assert!(doctor.contains("\nRepair review: no items"));
+}
 
+#[test]
+fn catalog_show_has_human_output_snapshot() {
+    let root = tempfile::tempdir().unwrap();
     let port = human_stdout(&portcove(root.path(), &["catalog", "show", "lighthouse"])).to_owned();
     assert!(port.starts_with("Lighthouse (lighthouse)\nSupport:"));
     assert!(port.contains("\nProject: https://"));
+}
 
+#[test]
+fn capabilities_has_human_output_snapshot() {
+    let root = tempfile::tempdir().unwrap();
     let capabilities = human_stdout(&portcove(root.path(), &["capabilities"])).to_owned();
     assert!(capabilities.starts_with("Portcove "));
     assert!(capabilities.contains(" capabilities\nSchema: 34"));
 }
 
+struct OutputFixture {
+    _capacity_guard: std::sync::MutexGuard<'static, ()>,
+    _temporary: tempfile::TempDir,
+    library: std::path::PathBuf,
+    destination: std::path::PathBuf,
+    preview: serde_json::Value,
+}
+
+impl OutputFixture {
+    fn new() -> Self {
+        let _capacity_guard = CAPACITY_SENSITIVE_TEST.lock().unwrap();
+        let temporary = tempfile::tempdir().unwrap();
+        let library = temporary.path().join("library");
+        let destination = temporary.path().join("future-games");
+        let destination_text = destination.to_str().unwrap();
+
+        let preview = json_stdout(&portcove(
+            &library,
+            &[
+                "--json",
+                "output",
+                "preview",
+                "lighthouse",
+                destination_text,
+            ],
+        ));
+        assert_eq!(preview["command"], "output.preview");
+        assert_eq!(preview["data"]["ownership"], "unclaimed");
+        assert_eq!(preview["data"]["availability"], "available");
+        assert_eq!(preview["data"]["moves_existing_install"], false);
+        assert!(!destination.exists());
+        Self {
+            _capacity_guard,
+            _temporary: temporary,
+            library,
+            destination,
+            preview,
+        }
+    }
+
+    fn apply(&self) {
+        let library = &self.library;
+        let destination = &self.destination;
+        let destination_text = destination.to_str().unwrap();
+        let preview = &self.preview;
+        let fingerprint = preview["data"]["preview_sha256"].as_str().unwrap();
+        let applied = json_stdout(&portcove(
+            library,
+            &[
+                "--json",
+                "output",
+                "set",
+                "lighthouse",
+                destination_text,
+                "--expected-preview",
+                fingerprint,
+                "--yes",
+            ],
+        ));
+        assert_eq!(applied["command"], "output.set");
+        assert_eq!(applied["ok"], true, "{applied}");
+        assert_eq!(
+            applied["data"]["effective_output_directory"],
+            preview["data"]["proposed"]["effective_output_directory"]
+        );
+        assert!(!destination.exists());
+    }
+}
+
 #[test]
-fn output_controls_share_one_preview_and_apply_contract_across_modes() {
-    let _capacity_guard = CAPACITY_SENSITIVE_TEST.lock().unwrap();
-    let temporary = tempfile::tempdir().unwrap();
-    let library = temporary.path().join("library");
-    let destination = temporary.path().join("future-games");
-    let destination_text = destination.to_str().unwrap();
-
-    let preview = json_stdout(&portcove(
-        &library,
-        &[
-            "--json",
-            "output",
-            "preview",
-            "lighthouse",
-            destination_text,
-        ],
-    ));
-    assert_eq!(preview["command"], "output.preview");
-    assert_eq!(preview["data"]["ownership"], "unclaimed");
-    assert_eq!(preview["data"]["availability"], "available");
-    assert_eq!(preview["data"]["moves_existing_install"], false);
-    assert!(!destination.exists());
-    let fingerprint = preview["data"]["preview_sha256"].as_str().unwrap();
-
+fn output_preview_agrees_across_modes() {
+    let fixture = OutputFixture::new();
+    let library = &fixture.library;
+    let destination_text = fixture.destination.to_str().unwrap();
+    let fingerprint = fixture.preview["data"]["preview_sha256"].as_str().unwrap();
     let human_preview = human_stdout(&portcove(
-        &library,
+        library,
         &["output", "preview", "lighthouse", destination_text],
     ))
     .to_owned();
     assert!(human_preview.starts_with("Export / install folder preview for lighthouse"));
     assert!(human_preview.contains(fingerprint));
     let jsonl_preview = json_stdout(&portcove(
-        &library,
+        library,
         &[
             "--jsonl",
             "output",
@@ -1133,30 +1289,17 @@ fn output_controls_share_one_preview_and_apply_contract_across_modes() {
     ));
     assert_eq!(jsonl_preview["type"], "result");
     assert_eq!(jsonl_preview["data"]["preview_sha256"], fingerprint);
+}
 
-    let applied = json_stdout(&portcove(
-        &library,
-        &[
-            "--json",
-            "output",
-            "set",
-            "lighthouse",
-            destination_text,
-            "--expected-preview",
-            fingerprint,
-            "--yes",
-        ],
-    ));
-    assert_eq!(applied["command"], "output.set");
-    assert_eq!(applied["ok"], true, "{applied}");
-    assert_eq!(
-        applied["data"]["effective_output_directory"],
-        preview["data"]["proposed"]["effective_output_directory"]
-    );
-    assert!(!destination.exists());
-
+#[test]
+fn output_set_rejects_stale_review_and_show_agrees_across_modes() {
+    let fixture = OutputFixture::new();
+    let library = &fixture.library;
+    let destination_text = fixture.destination.to_str().unwrap();
+    let fingerprint = fixture.preview["data"]["preview_sha256"].as_str().unwrap();
+    fixture.apply();
     let stale = portcove(
-        &library,
+        library,
         &[
             "--json",
             "output",
@@ -1171,24 +1314,31 @@ fn output_controls_share_one_preview_and_apply_contract_across_modes() {
     assert_eq!(stale.status.code(), Some(14));
     assert_eq!(json_stdout(&stale)["error"]["code"], "conflict");
 
-    let show = portcove(&library, &["output", "show", "lighthouse"]);
+    let show = portcove(library, &["output", "show", "lighthouse"]);
     let human = human_stdout(&show);
     assert!(human.starts_with("Export / install folder for lighthouse\nEffective:"));
     assert!(human.contains("Existing installs are not moved"));
     let json_show = json_stdout(&portcove(
-        &library,
+        library,
         &["--json", "output", "show", "lighthouse"],
     ));
     assert_eq!(json_show["command"], "output.show");
     let jsonl_show = json_stdout(&portcove(
-        &library,
+        library,
         &["--jsonl", "output", "show", "lighthouse"],
     ));
     assert_eq!(jsonl_show["type"], "result");
     assert_eq!(jsonl_show["command"], "output.show");
+}
 
+#[test]
+fn output_reapply_human_preserves_the_shared_contract() {
+    let fixture = OutputFixture::new();
+    let library = &fixture.library;
+    let destination_text = fixture.destination.to_str().unwrap();
+    fixture.apply();
     let set_again_preview = json_stdout(&portcove(
-        &library,
+        library,
         &[
             "--json",
             "output",
@@ -1201,7 +1351,7 @@ fn output_controls_share_one_preview_and_apply_contract_across_modes() {
         .as_str()
         .unwrap();
     let human_set = human_stdout(&portcove(
-        &library,
+        library,
         &[
             "output",
             "set",
@@ -1214,9 +1364,16 @@ fn output_controls_share_one_preview_and_apply_contract_across_modes() {
     ))
     .to_owned();
     assert!(human_set.contains("existing installs will not move"));
+}
 
+#[test]
+fn output_reapply_jsonl_preserves_the_shared_contract() {
+    let fixture = OutputFixture::new();
+    let library = &fixture.library;
+    let destination_text = fixture.destination.to_str().unwrap();
+    fixture.apply();
     let jsonl_set_preview = json_stdout(&portcove(
-        &library,
+        library,
         &[
             "--json",
             "output",
@@ -1229,7 +1386,7 @@ fn output_controls_share_one_preview_and_apply_contract_across_modes() {
         .as_str()
         .unwrap();
     let jsonl_set = json_stdout(&portcove(
-        &library,
+        library,
         &[
             "--jsonl",
             "output",
@@ -1243,16 +1400,22 @@ fn output_controls_share_one_preview_and_apply_contract_across_modes() {
     ));
     assert_eq!(jsonl_set["type"], "result");
     assert_eq!(jsonl_set["command"], "output.set");
+}
 
+#[test]
+fn output_reset_human_uses_the_reviewed_default() {
+    let fixture = OutputFixture::new();
+    let library = &fixture.library;
+    fixture.apply();
     let reset_preview = json_stdout(&portcove(
-        &library,
+        library,
         &["--jsonl", "output", "preview", "lighthouse"],
     ));
     assert_eq!(reset_preview["type"], "result");
     assert_eq!(reset_preview["data"]["reset_to_default"], true);
     let reset_fingerprint = reset_preview["data"]["preview_sha256"].as_str().unwrap();
     let human_reset = human_stdout(&portcove(
-        &library,
+        library,
         &[
             "output",
             "reset",
@@ -1264,40 +1427,22 @@ fn output_controls_share_one_preview_and_apply_contract_across_modes() {
     ))
     .to_owned();
     assert!(human_reset.contains("existing installs will not move"));
+}
 
-    let restore_preview = json_stdout(&portcove(
-        &library,
-        &[
-            "--json",
-            "output",
-            "preview",
-            "lighthouse",
-            destination_text,
-        ],
-    ));
-    let restore_fingerprint = restore_preview["data"]["preview_sha256"].as_str().unwrap();
-    json_stdout(&portcove(
-        &library,
-        &[
-            "--json",
-            "output",
-            "set",
-            "lighthouse",
-            destination_text,
-            "--expected-preview",
-            restore_fingerprint,
-            "--yes",
-        ],
-    ));
+#[test]
+fn output_reset_jsonl_uses_the_reviewed_default() {
+    let fixture = OutputFixture::new();
+    let library = &fixture.library;
+    fixture.apply();
     let jsonl_reset_preview = json_stdout(&portcove(
-        &library,
+        library,
         &["--jsonl", "output", "preview", "lighthouse"],
     ));
     let jsonl_reset_fingerprint = jsonl_reset_preview["data"]["preview_sha256"]
         .as_str()
         .unwrap();
     let jsonl_reset = json_stdout(&portcove(
-        &library,
+        library,
         &[
             "--jsonl",
             "output",
@@ -1310,40 +1455,22 @@ fn output_controls_share_one_preview_and_apply_contract_across_modes() {
     ));
     assert_eq!(jsonl_reset["type"], "result");
     assert_eq!(jsonl_reset["command"], "output.reset");
+}
 
-    let restore_preview = json_stdout(&portcove(
-        &library,
-        &[
-            "--json",
-            "output",
-            "preview",
-            "lighthouse",
-            destination_text,
-        ],
-    ));
-    let restore_fingerprint = restore_preview["data"]["preview_sha256"].as_str().unwrap();
-    json_stdout(&portcove(
-        &library,
-        &[
-            "--json",
-            "output",
-            "set",
-            "lighthouse",
-            destination_text,
-            "--expected-preview",
-            restore_fingerprint,
-            "--yes",
-        ],
-    ));
+#[test]
+fn output_reset_json_uses_the_reviewed_default() {
+    let fixture = OutputFixture::new();
+    let library = &fixture.library;
+    fixture.apply();
     let json_reset_preview = json_stdout(&portcove(
-        &library,
+        library,
         &["--json", "output", "preview", "lighthouse"],
     ));
     let json_reset_fingerprint = json_reset_preview["data"]["preview_sha256"]
         .as_str()
         .unwrap();
     let reset = json_stdout(&portcove(
-        &library,
+        library,
         &[
             "--json",
             "output",

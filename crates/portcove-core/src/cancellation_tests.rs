@@ -186,111 +186,118 @@ impl LifecycleFaultInjector for CancelAt {
     }
 }
 
-#[tokio::test]
-async fn cancellation_before_prepared_cleans_private_data_and_after_prepared_finishes_publication()
-{
-    for (point, accepted) in [
-        (LifecycleFaultPoint::InstallReadyToPublish, true),
-        (LifecycleFaultPoint::InstallPrepared, false),
-        (LifecycleFaultPoint::InstallPublished, false),
-    ] {
-        let (temporary, service) = service();
-        let archive = temporary.path().join("synthetic.zip");
-        let mut writer = zip::ZipWriter::new(fs::File::create(&archive).unwrap());
-        writer
-            .start_file("sample.exe", zip::write::SimpleFileOptions::default())
-            .unwrap();
-        writer.write_all(b"synthetic executable").unwrap();
-        writer.finish().unwrap();
-        let bytes = fs::read(archive).unwrap();
-        let asset = ReleaseAsset {
-            name: "synthetic.zip".into(),
-            url: String::new(),
-            size: bytes.len() as u64,
-            sha256: hex::encode(Sha256::digest(&bytes)),
-        };
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let address = listener.local_addr().unwrap();
-        let server = thread::spawn(move || {
-            let (mut connection, _) = listener.accept().unwrap();
-            let _ = connection.read(&mut [0_u8; 4096]);
-            write!(
-                connection,
-                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-                bytes.len()
-            )
-            .unwrap();
-            connection.write_all(&bytes).unwrap();
-        });
-        let (activity, operation) = service
-            .begin_cancellable_activity(
-                ActivityOperation::Install,
-                ActivityTargetKind::Port,
-                Some("sample"),
-            )
-            .unwrap();
-        let installer = Installer::with_faults(
-            service.library().clone(),
-            Arc::new(CancelAt {
-                service: service.clone(),
-                id: activity.id.clone(),
-                point,
-                accepted,
-            }),
+async fn assert_install_cancellation_boundary(point: LifecycleFaultPoint, accepted: bool) {
+    let (temporary, service) = service();
+    let archive = temporary.path().join("synthetic.zip");
+    let mut writer = zip::ZipWriter::new(fs::File::create(&archive).unwrap());
+    writer
+        .start_file("sample.exe", zip::write::SimpleFileOptions::default())
+        .unwrap();
+    writer.write_all(b"synthetic executable").unwrap();
+    writer.finish().unwrap();
+    let bytes = fs::read(archive).unwrap();
+    let asset = ReleaseAsset {
+        name: "synthetic.zip".into(),
+        url: String::new(),
+        size: bytes.len() as u64,
+        sha256: hex::encode(Sha256::digest(&bytes)),
+    };
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = thread::spawn(move || {
+        let (mut connection, _) = listener.accept().unwrap();
+        let _ = connection.read(&mut [0_u8; 4096]);
+        write!(
+            connection,
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            bytes.len()
         )
         .unwrap();
-        let result = installer
-            .install(
-                InstallRequest {
-                    port_id: "sample".into(),
-                    output_root: service.library().versions_dir().join("sample"),
-                    release: ResolvedRelease {
-                        version: "v1".into(),
-                        channel: ReleaseChannel::Stable,
-                        published_at: None,
-                        asset: ReleaseAsset {
-                            url: format!("http://{address}/synthetic.zip"),
-                            ..asset
-                        },
+        connection.write_all(&bytes).unwrap();
+    });
+    let (activity, operation) = service
+        .begin_cancellable_activity(
+            ActivityOperation::Install,
+            ActivityTargetKind::Port,
+            Some("sample"),
+        )
+        .unwrap();
+    let installer = Installer::with_faults(
+        service.library().clone(),
+        Arc::new(CancelAt {
+            service: service.clone(),
+            id: activity.id.clone(),
+            point,
+            accepted,
+        }),
+    )
+    .unwrap();
+    let result = installer
+        .install(
+            InstallRequest {
+                port_id: "sample".into(),
+                output_root: service.library().versions_dir().join("sample"),
+                release: ResolvedRelease {
+                    version: "v1".into(),
+                    channel: ReleaseChannel::Stable,
+                    published_at: None,
+                    asset: ReleaseAsset {
+                        url: format!("http://{address}/synthetic.zip"),
+                        ..asset
                     },
-                    activate: true,
-                    managed: None,
-                    qualification: InstallQualification::test("sample.exe"),
                 },
-                &operation,
-                |_| {},
-            )
-            .await;
-        let result = service.finish_activity(activity, result);
-        server.join().unwrap();
-        if accepted {
-            assert_eq!(result.unwrap_err().code, ErrorCode::Cancelled);
-        } else {
-            assert!(installer.verify(&result.unwrap()).unwrap().valid);
-        }
-        assert_eq!(
-            service.library().all_installs().unwrap().len(),
-            usize::from(!accepted)
-        );
-        assert!(
-            OperationStore::new(service.library().clone())
-                .all()
-                .unwrap()
-                .is_empty()
-        );
-        assert_eq!(
-            fs::read_dir(service.library().staging_dir())
-                .unwrap()
-                .count(),
-            0
-        );
-        assert_eq!(
-            service.library().activities(1).unwrap()[0].status,
-            if accepted {
-                ActivityStatus::Cancelled
-            } else {
-                ActivityStatus::Succeeded
-            }
-        );
+                activate: true,
+                managed: None,
+                qualification: InstallQualification::test("sample.exe"),
+            },
+            &operation,
+            |_| {},
+        )
+        .await;
+    let result = service.finish_activity(activity, result);
+    server.join().unwrap();
+    if accepted {
+        assert_eq!(result.unwrap_err().code, ErrorCode::Cancelled);
+    } else {
+        assert!(installer.verify(&result.unwrap()).unwrap().valid);
     }
+    assert_eq!(
+        service.library().all_installs().unwrap().len(),
+        usize::from(!accepted)
+    );
+    assert!(
+        OperationStore::new(service.library().clone())
+            .all()
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        fs::read_dir(service.library().staging_dir())
+            .unwrap()
+            .count(),
+        0
+    );
+    assert_eq!(
+        service.library().activities(1).unwrap()[0].status,
+        if accepted {
+            ActivityStatus::Cancelled
+        } else {
+            ActivityStatus::Succeeded
+        }
+    );
+}
+
+#[tokio::test]
+async fn cancellation_before_prepared_cleans_private_data() {
+    assert_install_cancellation_boundary(LifecycleFaultPoint::InstallReadyToPublish, true).await;
+}
+
+#[tokio::test]
+async fn cancellation_after_prepared_finishes_publication() {
+    assert_install_cancellation_boundary(LifecycleFaultPoint::InstallPrepared, false).await;
+}
+
+#[tokio::test]
+async fn cancellation_after_published_finishes_publication() {
+    assert_install_cancellation_boundary(LifecycleFaultPoint::InstallPublished, false).await;
 }

@@ -940,25 +940,54 @@ mod tests {
             .unwrap();
     }
 
-    #[test]
-    fn fresh_and_every_historical_schema_upgrade_in_order() {
-        for historical_version in 0..CURRENT_SCHEMA_VERSION {
-            let temporary = tempdir().unwrap();
-            let root = temporary.path();
-            prepare_root(root);
-            migrate_to(root, historical_version).unwrap();
+    fn assert_historical_schema_upgrade(historical_version: i64) {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, historical_version).unwrap();
 
-            migrate(root).unwrap();
+        migrate(root).unwrap();
 
-            let connection = connect(root).unwrap();
-            assert_eq!(
-                recorded_versions(&connection).unwrap(),
-                (1..=CURRENT_SCHEMA_VERSION).collect::<Vec<_>>()
-            );
-            for migration in MIGRATIONS {
-                (migration.verify)(&connection).unwrap();
-            }
+        let connection = connect(root).unwrap();
+        assert_eq!(
+            recorded_versions(&connection).unwrap(),
+            (1..=CURRENT_SCHEMA_VERSION).collect::<Vec<_>>()
+        );
+        for migration in MIGRATIONS {
+            (migration.verify)(&connection).unwrap();
         }
+    }
+
+    macro_rules! historical_schema_tests {
+        ($($name:ident: $version:literal),+ $(,)?) => {
+            #[test]
+            fn historical_schema_cases_cover_every_migration() {
+                assert_eq!(vec![$($version),+], (0..CURRENT_SCHEMA_VERSION).collect::<Vec<_>>());
+            }
+            $(#[test]
+            fn $name() { assert_historical_schema_upgrade($version); })+
+        };
+    }
+
+    historical_schema_tests! {
+        schema_0: 0,
+        schema_1: 1,
+        schema_2: 2,
+        schema_3: 3,
+        schema_4: 4,
+        schema_5: 5,
+        schema_6: 6,
+        schema_7: 7,
+        schema_8: 8,
+        schema_9: 9,
+        schema_10: 10,
+        schema_11: 11,
+        schema_12: 12,
+        schema_13: 13,
+        schema_14: 14,
+        schema_15: 15,
+        schema_16: 16,
+        schema_17: 17,
     }
 
     #[test]

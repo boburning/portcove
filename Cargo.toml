@@ -48,3 +48,11 @@ zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
 windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_Console", "Win32_System_JobObjects", "Win32_System_Threading"] }
 rpassword = "7.5.4"
 rustix = { version = "1.1.4", features = ["fs"] }
+
+# Signed-catalog tests exercise real signatures repeatedly. Optimize the numeric
+# dependency work while keeping Portcove itself unoptimized with debug assertions.
+[profile.test.package.curve25519-dalek]
+opt-level = 3
+
+[profile.test.package.ed25519-dalek]
+opt-level = 3

@@ -385,7 +385,7 @@ fn signed_format_one_freezes_source_meaning_and_identity_evidence() {
 }
 
 #[tokio::test]
-async fn publication_is_offline_replay_protected_and_rollback_keeps_the_floor() {
+async fn publication_is_offline_snapshot_bound_and_replay_protected() {
     let root = tempfile::tempdir().unwrap();
     let library = Library::open(root.path().join("library")).unwrap();
     assert_eq!(
@@ -395,7 +395,6 @@ async fn publication_is_offline_replay_protected_and_rollback_keeps_the_floor() 
     trusted(&library);
     let service = PortcoveService::new(library.clone()).unwrap();
     let first = write_candidate(root.path(), 1);
-    let second = write_candidate(root.path(), 2);
     let original_catalog = service.catalog().document().ports[0].summary.clone();
     let one = publish(&service, &first).await;
     assert_eq!(one.provenance.sequence, Some(1));
@@ -414,15 +413,58 @@ async fn publication_is_offline_replay_protected_and_rollback_keeps_the_floor() 
         fresh.plan_catalog_update(&first).await.unwrap_err().code,
         ErrorCode::Verification
     );
-    let two = publish(&fresh, &second).await;
+}
+
+#[tokio::test]
+async fn rollback_keeps_the_replay_floor() {
+    let root = tempfile::tempdir().unwrap();
+    let library = Library::open(root.path().join("library")).unwrap();
+    trusted(&library);
+    let service = PortcoveService::new(library.clone()).unwrap();
+    eprintln!("catalog rollback: first publication");
+    publish(&service, &write_candidate(root.path(), 1)).await;
+    // Snapshot refresh belongs to publication_is_offline_snapshot_bound_and_replay_protected.
+    // This case tests two publications and rollback on the same durable library.
+    eprintln!("catalog rollback: second publication");
+    let second = write_candidate(root.path(), 2);
+    let two = publish(&service, &second).await;
     assert!(two.can_rollback);
+    eprintln!("catalog rollback: roll back");
     let rollback = library.rollback_catalog(&two.state_sha256).unwrap();
     assert_eq!(rollback.highest_sequence, 2);
     assert_eq!(rollback.provenance.sequence, Some(1));
     assert!(!rollback.can_rollback);
+    eprintln!("catalog rollback: reject replay");
     assert!(service.plan_catalog_update(&second).await.is_err());
+    assert!(
+        library
+            .activities(20)
+            .unwrap()
+            .iter()
+            .all(|entry| entry.status == ActivityStatus::Succeeded)
+    );
+}
+
+#[tokio::test]
+async fn cache_selection_keeps_the_replay_floor() {
+    let root = tempfile::tempdir().unwrap();
+    let library = Library::open(root.path().join("library")).unwrap();
+    trusted(&library);
+    let service = PortcoveService::new(library.clone()).unwrap();
+    publish(&service, &write_candidate(root.path(), 1)).await;
+    // Model the durable replay floor after rollback. The public two-publication
+    // rollback path is exercised separately; cache selection must not lower it.
+    library
+        .connection()
+        .unwrap()
+        .execute(
+            "UPDATE catalog_state SET highest_sequence=2 WHERE singleton=1",
+            [],
+        )
+        .unwrap();
+    let rolled_back = library.catalog_status().unwrap();
     let embedded = library
-        .use_embedded_catalog(&rollback.state_sha256)
+        .use_embedded_catalog(&rolled_back.state_sha256)
         .unwrap();
     assert_eq!(embedded.provenance.origin, CatalogOrigin::Embedded);
     assert_eq!(embedded.highest_sequence, 2);
@@ -439,7 +481,7 @@ async fn publication_is_offline_replay_protected_and_rollback_keeps_the_floor() 
 }
 
 #[tokio::test]
-async fn corruption_expiry_and_revocation_fall_back_without_trusting_bad_metadata() {
+async fn corruption_and_expiry_fall_back_without_trusting_bad_metadata() {
     let root = tempfile::tempdir().unwrap();
     let library = Library::open(root.path().join("library")).unwrap();
     trusted(&library);
@@ -464,6 +506,14 @@ async fn corruption_expiry_and_revocation_fall_back_without_trusting_bad_metadat
         state.resolve(now + 7200).unwrap().1.origin,
         CatalogOrigin::Embedded
     );
+}
+
+#[tokio::test]
+async fn revoked_catalog_keys_preserve_the_replay_floor() {
+    let root = tempfile::tempdir().unwrap();
+    let library = Library::open(root.path().join("library")).unwrap();
+    trusted(&library);
+    let service = PortcoveService::new(library.clone()).unwrap();
     let next = publish(&service, &write_candidate(root.path(), 3)).await;
     let revoked = library
         .revoke_catalog_key(&next.trusted_keys[0].key_id, &next.state_sha256)

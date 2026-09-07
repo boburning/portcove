@@ -1628,6 +1628,7 @@ mod tests {
         fs::write(root.join("helper.exe"), b"trusted helper").unwrap();
         let qualification = InstallQualification::test("game.exe");
         let (installer, mut install) = create_test_install(&root, &qualification);
+        eprintln!("legacy companion fixture created");
 
         let manifest_path = root.join(".portcove-manifest.json");
         let mut value: serde_json::Value =
@@ -1642,12 +1643,14 @@ mod tests {
         let bytes = serde_json::to_vec_pretty(&value).unwrap();
         fs::write(&manifest_path, &bytes).unwrap();
         install.manifest_sha256 = hex::encode(Sha256::digest(&bytes));
+        eprintln!("legacy companion manifest written; verifying trusted files");
 
         assert_eq!(
             installer.verify_critical(&install).unwrap(),
             root.join("game.exe")
         );
         fs::write(root.join("helper.exe"), b"tampered helper").unwrap();
+        eprintln!("companion changed; verifying tamper rejection");
         let error = installer.verify_critical(&install).unwrap_err();
         assert!(error.details["failures"].contains("changed: helper.exe"));
     }
@@ -2170,91 +2173,99 @@ mod tests {
         assert_eq!(fs::read_dir(library.staging_dir()).unwrap().count(), 0);
     }
 
-    #[tokio::test]
-    async fn external_install_recovers_after_every_publication_boundary() {
+    async fn assert_external_install_recovery(point: LifecycleFaultPoint) {
         use std::{
             io::{Read, Write},
             net::TcpListener,
             thread,
         };
 
-        for point in [
-            LifecycleFaultPoint::InstallPrepared,
-            LifecycleFaultPoint::InstallPublished,
-            LifecycleFaultPoint::InstallMetadataCommitted,
-        ] {
-            let temporary = tempfile::tempdir().unwrap();
-            let archive_path = temporary.path().join("test.zip");
-            let archive = File::create(&archive_path).unwrap();
-            let mut writer = zip::ZipWriter::new(archive);
-            writer
-                .start_file("sample-game.exe", zip::write::SimpleFileOptions::default())
-                .unwrap();
-            writer.write_all(b"verified executable").unwrap();
-            writer.finish().unwrap();
-            let archive_bytes = fs::read(&archive_path).unwrap();
-            let sha256 = hex::encode(Sha256::digest(&archive_bytes));
-            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-            let address = listener.local_addr().unwrap();
-            let response_bytes = archive_bytes.clone();
-            let server = thread::spawn(move || {
-                let (mut stream, _) = listener.accept().unwrap();
-                let mut request = [0_u8; 1024];
-                let _ = stream.read(&mut request);
-                write!(
-                    stream,
-                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-                    response_bytes.len()
-                )
-                .unwrap();
-                stream.write_all(&response_bytes).unwrap();
-            });
-            let library = Library::open(temporary.path().join("library")).unwrap();
-            let output_root = temporary.path().join("external-output");
-            let installer = Installer::with_faults(
-                library.clone(),
-                Arc::new(FailOnce {
-                    point,
-                    fired: AtomicBool::new(false),
-                }),
+        let temporary = tempfile::tempdir().unwrap();
+        let archive_path = temporary.path().join("test.zip");
+        let archive = File::create(&archive_path).unwrap();
+        let mut writer = zip::ZipWriter::new(archive);
+        writer
+            .start_file("sample-game.exe", zip::write::SimpleFileOptions::default())
+            .unwrap();
+        writer.write_all(b"verified executable").unwrap();
+        writer.finish().unwrap();
+        let archive_bytes = fs::read(&archive_path).unwrap();
+        let sha256 = hex::encode(Sha256::digest(&archive_bytes));
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let response_bytes = archive_bytes.clone();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0_u8; 1024];
+            let _ = stream.read(&mut request);
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                response_bytes.len()
             )
             .unwrap();
-            let operation = OperationCoordinator::new("install", None);
-            let request = InstallRequest {
-                port_id: "sample".into(),
-                output_root: output_root.clone(),
-                release: ResolvedRelease {
-                    version: "v1".into(),
-                    channel: crate::ReleaseChannel::Stable,
-                    published_at: None,
-                    asset: crate::ReleaseAsset {
-                        name: "test.zip".into(),
-                        url: format!("http://{address}/test.zip"),
-                        size: archive_bytes.len() as u64,
-                        sha256,
-                    },
+            stream.write_all(&response_bytes).unwrap();
+        });
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let output_root = temporary.path().join("external-output");
+        let installer = Installer::with_faults(
+            library.clone(),
+            Arc::new(FailOnce {
+                point,
+                fired: AtomicBool::new(false),
+            }),
+        )
+        .unwrap();
+        let operation = OperationCoordinator::new("install", None);
+        let request = InstallRequest {
+            port_id: "sample".into(),
+            output_root: output_root.clone(),
+            release: ResolvedRelease {
+                version: "v1".into(),
+                channel: crate::ReleaseChannel::Stable,
+                published_at: None,
+                asset: crate::ReleaseAsset {
+                    name: "test.zip".into(),
+                    url: format!("http://{address}/test.zip"),
+                    size: archive_bytes.len() as u64,
+                    sha256,
                 },
-                activate: true,
-                managed: None,
-                qualification: InstallQualification::test("sample-game.exe"),
-            };
+            },
+            activate: true,
+            managed: None,
+            qualification: InstallQualification::test("sample-game.exe"),
+        };
 
-            let error = installer
-                .install(request, &operation, |_| {})
-                .await
-                .unwrap_err();
-            assert!(error.message.contains("injected lifecycle failure"));
-            server.join().unwrap();
+        let error = installer
+            .install(request, &operation, |_| {})
+            .await
+            .unwrap_err();
+        assert!(error.message.contains("injected lifecycle failure"));
+        server.join().unwrap();
 
-            crate::PortcoveService::new(library.clone()).unwrap();
-            let install = library.install_by_version("sample", "v1").unwrap().unwrap();
-            assert_eq!(
-                install.path.parent(),
-                Some(fs::canonicalize(&output_root).unwrap().as_path())
-            );
-            assert!(install.path.join("sample-game.exe").is_file());
-            assert!(output_root.join(".portcove-game-output.json").is_file());
-            assert!(OperationStore::new(library).all().unwrap().is_empty());
-        }
+        crate::PortcoveService::new(library.clone()).unwrap();
+        let install = library.install_by_version("sample", "v1").unwrap().unwrap();
+        assert_eq!(
+            install.path.parent(),
+            Some(fs::canonicalize(&output_root).unwrap().as_path())
+        );
+        assert!(install.path.join("sample-game.exe").is_file());
+        assert!(output_root.join(".portcove-game-output.json").is_file());
+        assert!(OperationStore::new(library).all().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn external_install_recovers_after_prepared() {
+        assert_external_install_recovery(LifecycleFaultPoint::InstallPrepared).await;
+    }
+
+    #[tokio::test]
+    async fn external_install_recovers_after_published() {
+        assert_external_install_recovery(LifecycleFaultPoint::InstallPublished).await;
+    }
+
+    #[tokio::test]
+    async fn external_install_recovers_after_metadata_committed() {
+        assert_external_install_recovery(LifecycleFaultPoint::InstallMetadataCommitted).await;
     }
 }

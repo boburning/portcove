@@ -100,6 +100,7 @@ struct Fixture {
 
 impl Fixture {
     fn new(runtime_bytes: &[u8], game_extra: bool) -> Self {
+        eprintln!("runtime fixture: prepare archives");
         let platform = Platform::current().unwrap();
         let mut port = Catalog::embedded().unwrap().port(PORT).unwrap().clone();
         port.platforms = vec![platform];
@@ -165,8 +166,10 @@ impl Fixture {
     }
 
     async fn install(&self, library: &Library, activate: bool) -> InstallRecord {
-        Installer::new(library.clone())
-            .unwrap()
+        eprintln!("runtime fixture: install, activate={activate}");
+        let installed = Installer::new(library.clone()).unwrap();
+        eprintln!("runtime fixture: installed");
+        installed
             .install(
                 self.request(library, activate),
                 &OperationCoordinator::new("install", None),
@@ -177,6 +180,7 @@ impl Fixture {
     }
 
     fn service(&self, library: Library) -> PortcoveService {
+        eprintln!("runtime fixture: initialize service");
         let mut service =
             PortcoveService::with_provider(library, Arc::new(FixedRelease(self.release.clone())))
                 .unwrap();
@@ -187,6 +191,7 @@ impl Fixture {
             .find(|port| port.id == PORT)
             .unwrap() = self.port.clone();
         service.catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        eprintln!("runtime fixture: service ready");
         service
     }
 }
@@ -205,7 +210,47 @@ impl ReleaseProvider for FixedRelease {
 }
 
 #[tokio::test]
-async fn named_saves_survive_backup_restore_version_changes_and_reinstallation() {
+async fn named_saves_follow_activation_and_rollback_including_deleted_slots() {
+    let root = tempfile::tempdir().unwrap();
+    let library = Library::open(root.path()).unwrap();
+    let patterns = vec![crate::PersistentFilePattern {
+        prefix: "profile_".into(),
+        suffix: ".sav".into(),
+    }];
+    let mut first = Fixture::new(b"runtime one", false);
+    first.port.persistent_file_patterns = patterns.clone();
+    let old = first.install(&library, true).await;
+    let mut second = Fixture::new(b"runtime two", false);
+    second.port.persistent_file_patterns = patterns;
+    let staged = second.install(&library, false).await;
+    let service = second.service(library.clone());
+    fs::write(old.path.join("profile_bob.sav"), b"older synthetic save").unwrap();
+    fs::write(old.path.join(LAUNCH_MARKER), b"1").unwrap();
+    fs::write(staged.path.join("profile_default.sav"), b"upstream default").unwrap();
+    service.activate_staged(PORT).unwrap();
+    assert!(staged.path.join("profile_default.sav").is_file());
+    assert_eq!(
+        fs::read(staged.path.join("profile_bob.sav")).unwrap(),
+        b"older synthetic save"
+    );
+    fs::write(staged.path.join("profile_bob.sav"), b"newer fixture").unwrap();
+    fs::write(staged.path.join("profile_extra.sav"), b"second slot").unwrap();
+    fs::write(staged.path.join(LAUNCH_MARKER), b"1").unwrap();
+    service.create_backup(PORT).unwrap();
+    service.rollback(PORT).unwrap();
+    assert_eq!(
+        fs::read(old.path.join("profile_bob.sav")).unwrap(),
+        b"newer fixture"
+    );
+    assert!(old.path.join("profile_extra.sav").is_file());
+    fs::remove_file(old.path.join("profile_extra.sav")).unwrap();
+    service.rollback(PORT).unwrap();
+    assert!(!staged.path.join("profile_extra.sav").exists());
+    assert!(!library.user_dir(PORT).join("profile_extra.sav").exists());
+}
+
+#[tokio::test]
+async fn named_save_restore_updates_every_version_and_preserves_import_policy() {
     let root = tempfile::tempdir().unwrap();
     let library = Library::open(root.path()).unwrap();
     let patterns = vec![crate::PersistentFilePattern {
@@ -229,22 +274,10 @@ async fn named_saves_survive_backup_restore_version_changes_and_reinstallation()
         fs::read(staged.path.join("profile_bob.sav")).unwrap(),
         b"older synthetic save"
     );
-    fs::write(staged.path.join("profile_bob.sav"), b"newer fixture").unwrap();
     fs::write(staged.path.join("profile_extra.sav"), b"second slot").unwrap();
     fs::write(staged.path.join(LAUNCH_MARKER), b"1").unwrap();
-    service.create_backup(PORT).unwrap();
-    service.rollback(PORT).unwrap();
-    assert_eq!(
-        fs::read(old.path.join("profile_bob.sav")).unwrap(),
-        b"newer fixture"
-    );
-    assert!(old.path.join("profile_extra.sav").is_file());
-    fs::remove_file(old.path.join("profile_extra.sav")).unwrap();
-    service.rollback(PORT).unwrap();
-    assert!(!staged.path.join("profile_extra.sav").exists());
-    assert!(!library.user_dir(PORT).join("profile_extra.sav").exists());
-    fs::write(staged.path.join("profile_extra.sav"), b"second slot").unwrap();
-    service.create_backup(PORT).unwrap();
+    service.collect_user_data(PORT).unwrap();
+    eprintln!("named save restore: authorize restoration");
     let preview = service
         .preview_backup_action(PORT, &backup.id, BackupAction::Restore)
         .unwrap();
@@ -259,6 +292,7 @@ async fn named_saves_survive_backup_restore_version_changes_and_reinstallation()
     let restored = service
         .restore_backup(PORT, &backup.id, &authorization.token)
         .unwrap();
+    eprintln!("named save restore: verify every version");
     assert_eq!(
         fs::read(
             restored
@@ -293,14 +327,32 @@ async fn named_saves_survive_backup_restore_version_changes_and_reinstallation()
                 .is_err()
         );
     }
-    service.rollback(PORT).unwrap();
-    service.collect_user_data(PORT).unwrap();
+}
+
+#[tokio::test]
+async fn named_saves_survive_reinstallation_without_weakening_executable_policy() {
+    let root = tempfile::tempdir().unwrap();
+    let library = Library::open(root.path()).unwrap();
+    let patterns = vec![crate::PersistentFilePattern {
+        prefix: "profile_".into(),
+        suffix: ".sav".into(),
+    }];
+    let mut first = Fixture::new(b"runtime one", false);
+    first.port.persistent_file_patterns = patterns.clone();
+    let old = first.install(&library, true).await;
+    let second = first;
+    let service = second.service(library.clone());
+    fs::write(old.path.join("profile_bob.sav"), b"older synthetic save").unwrap();
+    fs::write(old.path.join(LAUNCH_MARKER), b"1").unwrap();
+    // Removal collects launched saves; an explicit pre-collection duplicated it.
+    eprintln!("named save reinstall: remove");
     let removal = service.preview_removal(PORT).unwrap();
     let authorization = service
         .authorize_removal(PORT, &removal.preview_sha256)
         .unwrap();
     service.remove(PORT, &authorization.token).unwrap();
     let installed = second.install(&library, true).await;
+    eprintln!("named save reinstall: restore and verify");
     service
         .restore_user_data_to(&second.port, &installed.path)
         .unwrap();
@@ -415,73 +467,90 @@ async fn runtime_only_updates_stage_reuse_and_rollback_with_their_exact_bytes() 
     );
 }
 
-#[tokio::test]
-async fn runtime_failure_or_cancellation_never_publishes_a_partial_install() {
+async fn assert_runtime_failure_preserves_install(failure: &str) {
     let root = tempfile::tempdir().unwrap();
     let library = Library::open(root.path()).unwrap();
     let first = Fixture::new(b"old", false);
     let old = first.install(&library, true).await;
     fs::create_dir_all(library.user_dir(PORT)).unwrap();
     fs::write(library.user_dir(PORT).join("save"), b"existing save").unwrap();
-    for failure in ["checksum", "collision", "cancel", "missing executable"] {
-        let mut fixture = Fixture::new(b"candidate", failure == "collision");
-        if failure == "checksum" {
-            fixture
-                .port
-                .bundled_runtime
-                .values_mut()
-                .next()
-                .unwrap()
-                .asset
-                .sha256 = "0".repeat(64);
-        }
-        if failure == "missing executable" {
-            fixture
-                .port
-                .bundled_runtime
-                .values_mut()
-                .next()
-                .unwrap()
-                .executable = "absent/java".into();
-        }
-        let service = fixture.service(library.clone());
-        let (activity, operation) = service
-            .begin_cancellable_activity(
-                ActivityOperation::Install,
-                ActivityTargetKind::Port,
-                Some(PORT),
-            )
-            .unwrap();
-        let error = Installer::new(library.clone()).unwrap().install(fixture.request(&library, true), &operation, |event| {
-            if failure == "cancel" && matches!(&event.event, OperationEventKind::Message {message, ..} if message.contains("runtime.zip")) {
-                service.request_cancellation(&activity.id).unwrap();
-            }
-        }).await.unwrap_err();
-        if failure == "cancel" {
-            assert_eq!(error.code, ErrorCode::Cancelled);
-        } else {
-            assert_eq!(error.code, ErrorCode::Verification);
-        }
-        service
-            .finish_activity::<()>(activity, Err(error))
-            .unwrap_err();
-        assert_eq!(service.status(PORT).unwrap().active.unwrap().id, old.id);
-        assert_eq!(
-            fs::read(library.user_dir(PORT).join("save")).unwrap(),
-            b"existing save"
-        );
-        assert_eq!(fs::read_dir(library.staging_dir()).unwrap().count(), 0);
-        assert!(
-            OperationStore::new(library.clone())
-                .all()
-                .unwrap()
-                .is_empty()
-        );
+    let mut fixture = Fixture::new(b"candidate", failure == "collision");
+    if failure == "checksum" {
+        fixture
+            .port
+            .bundled_runtime
+            .values_mut()
+            .next()
+            .unwrap()
+            .asset
+            .sha256 = "0".repeat(64);
     }
+    if failure == "missing executable" {
+        fixture
+            .port
+            .bundled_runtime
+            .values_mut()
+            .next()
+            .unwrap()
+            .executable = "absent/java".into();
+    }
+    let service = fixture.service(library.clone());
+    let (activity, operation) = service
+        .begin_cancellable_activity(
+            ActivityOperation::Install,
+            ActivityTargetKind::Port,
+            Some(PORT),
+        )
+        .unwrap();
+    let error = Installer::new(library.clone()).unwrap().install(fixture.request(&library, true), &operation, |event| {
+        if failure == "cancel" && matches!(&event.event, OperationEventKind::Message {message, ..} if message.contains("runtime.zip")) {
+            service.request_cancellation(&activity.id).unwrap();
+        }
+    }).await.unwrap_err();
+    if failure == "cancel" {
+        assert_eq!(error.code, ErrorCode::Cancelled);
+    } else {
+        assert_eq!(error.code, ErrorCode::Verification);
+    }
+    service
+        .finish_activity::<()>(activity, Err(error))
+        .unwrap_err();
+    assert_eq!(service.status(PORT).unwrap().active.unwrap().id, old.id);
+    assert_eq!(
+        fs::read(library.user_dir(PORT).join("save")).unwrap(),
+        b"existing save"
+    );
+    assert_eq!(fs::read_dir(library.staging_dir()).unwrap().count(), 0);
+    assert!(
+        OperationStore::new(library.clone())
+            .all()
+            .unwrap()
+            .is_empty()
+    );
 }
 
 #[tokio::test]
-async fn adoption_and_metadata_import_preserve_runtime_provenance_and_critical_policy() {
+async fn runtime_checksum_preserves_the_active_install() {
+    assert_runtime_failure_preserves_install("checksum").await;
+}
+
+#[tokio::test]
+async fn runtime_collision_preserves_the_active_install() {
+    assert_runtime_failure_preserves_install("collision").await;
+}
+
+#[tokio::test]
+async fn runtime_cancel_preserves_the_active_install() {
+    assert_runtime_failure_preserves_install("cancel").await;
+}
+
+#[tokio::test]
+async fn runtime_missing_executable_preserves_the_active_install() {
+    assert_runtime_failure_preserves_install("missing executable").await;
+}
+
+#[tokio::test]
+async fn runtime_adoption_changes_provenance_without_mutating_the_downloaded_install() {
     let root = tempfile::tempdir().unwrap();
     let original = Library::open(root.path().join("original")).unwrap();
     let fixture = Fixture::new(b"runtime", false);
@@ -502,7 +571,6 @@ async fn adoption_and_metadata_import_preserve_runtime_provenance_and_critical_p
         RuntimeOrigin::AdoptedTree
     );
     assert_ne!(adopted.runtime, downloaded.runtime);
-    assert!(service.check_update(PORT).await.unwrap().update_available);
     assert!(
         Installer::new(original)
             .unwrap()
@@ -510,6 +578,58 @@ async fn adoption_and_metadata_import_preserve_runtime_provenance_and_critical_p
             .unwrap()
             .valid
     );
+}
+
+fn adopted_runtime_fixture() -> (
+    tempfile::TempDir,
+    Library,
+    PortcoveService,
+    crate::InstallRecord,
+) {
+    let root = tempfile::tempdir().unwrap();
+    let fixture = Fixture::new(b"runtime", false);
+    let platform = Platform::current().unwrap();
+    let runtime = &fixture.port.bundled_runtime[&platform];
+    let external = root.path().join("external");
+    for (relative, bytes) in [
+        (
+            fixture.port.executable_hints[&platform][0].clone(),
+            b"synthetic game launcher".as_slice(),
+        ),
+        ("libs/game.jar".into(), b"synthetic game code"),
+        (
+            format!("{}/{}", runtime.target_directory, runtime.executable),
+            b"synthetic runtime executable",
+        ),
+        (
+            format!("{}/lib/modules", runtime.target_directory),
+            b"runtime",
+        ),
+    ] {
+        let file = external.join(relative);
+        fs::create_dir_all(file.parent().unwrap()).unwrap();
+        fs::write(&file, bytes).unwrap();
+        crate::permissions::normalize_archive_entry(&file, false, true).unwrap();
+    }
+    let library = Library::open(root.path().join("adopted")).unwrap();
+    let service = fixture.service(library.clone());
+    let preview = service.preview_adoption(&external, Some(PORT)).unwrap();
+    let authorization = service
+        .authorize_adoption(&external, Some(PORT), &preview.plan_sha256)
+        .unwrap();
+    let adopted = service
+        .adopt(&external, Some(PORT), &authorization.token)
+        .unwrap();
+    assert_eq!(
+        adopted.runtime.as_ref().unwrap().origin,
+        RuntimeOrigin::AdoptedTree
+    );
+    (root, library, service, adopted)
+}
+
+#[test]
+fn metadata_import_preserves_adopted_runtime_provenance() {
+    let (root, library, service, adopted) = adopted_runtime_fixture();
     let metadata = root.path().join("metadata.json");
     service.write_library_metadata(&metadata).unwrap();
     let destination = root.path().join("restored");
@@ -521,6 +641,12 @@ async fn adoption_and_metadata_import_preserve_runtime_provenance_and_critical_p
     let record = restored.status(PORT).unwrap().active.unwrap();
     assert_eq!(record.runtime, adopted.runtime);
     assert!(restored.verify(PORT).unwrap().valid);
+}
+
+#[tokio::test]
+async fn adopted_runtime_remains_subject_to_critical_launch_policy() {
+    let (_root, _library, service, adopted) = adopted_runtime_fixture();
+    assert!(service.check_update(PORT).await.unwrap().update_available);
     fs::remove_file(
         adopted
             .path
