@@ -677,8 +677,12 @@ fn assert_prejournal_rejects(mutation: PublicationMutation) {
             fs::remove_file(publication_receipt_path(&operation, &plan).unwrap()).unwrap();
         }
         PublicationMutation::SameContentReplacement => {
+            // Allocate while the original still exists so its file identity cannot
+            // be recycled by the filesystem between removal and replacement.
+            let replacement = plan.destination.with_extension("replacement");
+            fs::copy(&source, &replacement).unwrap();
             fs::remove_file(&plan.destination).unwrap();
-            fs::copy(&source, &plan.destination).unwrap();
+            fs::rename(replacement, &plan.destination).unwrap();
         }
     }
     drop(service);

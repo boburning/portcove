@@ -38,6 +38,7 @@ process-policy:
 transport-contract:
     {{storage}} node --test --test-timeout=5000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-transport-contract.test.mjs
     {{storage}} node scripts/check-transport-contract.mjs
+    {{storage}} node --test scripts/check-transport-contract.integration.test.mjs
 
 check-rust: fmt rust-check clippy rust-test shear architecture process-policy transport-contract
 

@@ -391,16 +391,19 @@ test("launch-pending recovery rejects a matching process started before the requ
   try { execFileSync("taskkill.exe", ["/PID", String(state.process_runs[0].pid), "/T", "/F"], { windowsHide: true, stdio: "ignore" }); } catch {}
   const desktopPath = path.join(item.session, state.files.desktop.path);
   const older = spawn(desktopPath, [], { windowsHide: true, stdio: "ignore" });
-  await once(older, "spawn");
-  state.process_runs[0].status = "exit_unobserved";
-  const futureFiletime = (BigInt(Date.now() + 60_000 + 11644473600000) * 10000n).toString();
-  const pending = { ...state.process_runs[0], id: "future-pending", requested_at: new Date(Date.now() + 60_000).toISOString(), requested_at_filetime: futureFiletime, status: "launch_pending", pid: null, start_time: null, start_time_filetime: null, window_title: null, exit_code: null, exit_observation: null };
-  state.process_runs.push(pending); state.active_run_id = pending.id;
-  writeFileSync(sessionPath, `${JSON.stringify(state, null, 2)}\n`);
-  const finish = runPowerShell(["-Action", "finish", "-SessionRoot", item.session]);
-  assert.notEqual(finish.status, 0);
-  assert.match(finish.stderr, /predates the journaled launch request/);
-  try { execFileSync("taskkill.exe", ["/PID", String(older.pid), "/T", "/F"], { windowsHide: true, stdio: "ignore" }); } catch {}
+  try {
+    await once(older, "spawn");
+    state.process_runs[0].status = "exit_unobserved";
+    const futureFiletime = (BigInt(Date.now() + 60_000 + 11644473600000) * 10000n).toString();
+    const pending = { ...state.process_runs[0], id: "future-pending", requested_at: new Date(Date.now() + 60_000).toISOString(), requested_at_filetime: futureFiletime, status: "launch_pending", pid: null, start_time: null, start_time_filetime: null, window_title: null, exit_code: null, exit_observation: null };
+    state.process_runs.push(pending); state.active_run_id = pending.id;
+    writeFileSync(sessionPath, `${JSON.stringify(state, null, 2)}\n`);
+    const finish = runPowerShell(["-Action", "finish", "-SessionRoot", item.session]);
+    assert.notEqual(finish.status, 0);
+    assert.match(finish.stderr, /predates the journaled launch request/);
+  } finally {
+    try { execFileSync("taskkill.exe", ["/PID", String(older.pid), "/T", "/F"], { windowsHide: true, stdio: "ignore" }); } catch {}
+  }
 });
 
 for (const faultpoint of ["after_snapshot_temp", "after_snapshot", "after_receipt_temp", "after_receipt"]) {

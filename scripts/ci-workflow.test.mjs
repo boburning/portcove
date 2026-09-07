@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 
 const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
@@ -13,18 +13,28 @@ const rustTests = jobSection("rust_tests", "rust_workspace_tests");
 const rustWorkspaceTests = jobSection("rust_workspace_tests", "rust_clippy");
 const rustClippy = jobSection("rust_clippy", "windows_storage");
 const windowsStorage = jobSection("windows_storage", "native_rust");
-const nativeRust = jobSection("native_rust", "rust");
+const nativeRust = jobSection("native_rust", "rust_docs");
+const rustDocs = jobSection("rust_docs", "rust");
 const rust = jobSection("rust", "rust-quality");
 const rustQuality = jobSection("rust-quality", "frontend");
 const frontend = jobSection("frontend", "catalog");
 const catalog = jobSection("catalog", "dependency-review");
 const dependencyReview = jobSection("dependency-review");
 
+test("every Node test file is included in required CI and the local quality workflow", async () => {
+  const recipes = await readFile(new URL("../justfile", import.meta.url), "utf8");
+  const files = (await readdir(new URL(".", import.meta.url))).filter(name => name.endsWith(".test.mjs"));
+  for (const file of files) {
+    assert.ok(workflow.includes(`scripts/${file}`), `${file} is absent from required CI`);
+    assert.ok(recipes.includes(`scripts/${file}`), `${file} is absent from local quality checks`);
+  }
+});
+
 test("required CI keeps its cancellation and least-privilege contracts", () => {
   assert.match(workflow, /^permissions:\r?\n  contents: read$/m);
   assert.match(workflow, /^concurrency:\r?\n  group: ci-\$\{\{ github\.event\.pull_request\.number \|\| github\.ref \}\}\r?\n  cancel-in-progress: true$/m);
   assert.doesNotMatch(workflow, /upload-artifact/);
-  for (const section of [rustTests, rustWorkspaceTests, rustClippy, windowsStorage, nativeRust, rustQuality, frontend, catalog]) {
+  for (const section of [rustTests, rustWorkspaceTests, rustClippy, windowsStorage, nativeRust, rustDocs, rustQuality, frontend, catalog]) {
     assert.notEqual(section, "");
     assert.doesNotMatch(section, /^    if:/m);
   }
@@ -63,7 +73,7 @@ test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () 
   assert.doesNotMatch(windowsStorage, /rust-toolchain|rust-cache|cargo/);
 
   assert.match(rust, /^    if: always\(\)$/m);
-  assert.match(rust, /^    needs: \[rust_tests, rust_workspace_tests, rust_clippy, windows_storage, native_rust\]$/m);
+  assert.match(rust, /^    needs: \[rust_tests, rust_workspace_tests, rust_clippy, windows_storage, native_rust, rust_docs\]$/m);
   assert.match(rust, /RUST_TEST_RESULT: \$\{\{ needs\.rust_tests\.result \}\}/);
   assert.match(rust, /RUST_WORKSPACE_TEST_RESULT: \$\{\{ needs\.rust_workspace_tests\.result \}\}/);
   assert.match(rust, /RUST_CLIPPY_RESULT: \$\{\{ needs\.rust_clippy\.result \}\}/);
@@ -198,12 +208,16 @@ test("Rust unit budgets fail at five seconds and documentation coverage remains"
     assert.doesNotMatch(override, /slow-timeout|retries/);
   }
   assert.match(rustTests, /cargo nextest run --locked --test-threads 1 @Arguments/);
-  for (const section of [rustWorkspaceTests, nativeRust]) {
-    assert.match(section, /cargo test --locked --workspace --doc/);
+  assert.match(rustDocs, /cargo test --locked --workspace --doc/);
+  for (const platform of ["windows-x86_64", "linux-x86_64", "macos-x86_64", "macos-aarch64"]) {
+    assert.ok(rustDocs.includes(`platform: ${platform}`));
   }
+  assert.match(rust, /RUST_DOC_RESULT: \$\{\{ needs\.rust_docs\.result \}\}/);
+  assert.match(rust, /"\$RUST_DOC_RESULT" != "success"/);
   for (const section of [rustTests, rustWorkspaceTests, nativeRust]) {
     assert.match(section, /Install pinned test runner/);
-    assert.match(section, /quality-tools\.mjs --version cargo-nextest/);
+    assert.match(section, /Get-Content \.github\/quality-tools\.json/);
+    assert.match(section, /Where-Object id -eq "cargo-nextest"/);
   }
   assert.match(rustQuality, /cargo nextest run --locked -p portcove-core/);
   assert.match(workflow, /CARGO_PROFILE_TEST_DEBUG: line-tables-only/);

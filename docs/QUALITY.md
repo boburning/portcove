@@ -127,13 +127,17 @@ pinned in `.github/quality-tools.json`. Each test has a five-second timeout,
 no termination grace period, and no retries. A timed-out test fails the lane;
 repair its fixture or implementation instead of raising its budget or skipping it.
 Nextest prints individual elapsed times. Documentation tests still run separately
-with Cargo on Windows, Linux, and both macOS architectures.
+with Cargo on Windows, Linux, and both macOS architectures. Their required jobs
+run in parallel with unit tests because Cargo's documentation build uses a
+different dependency graph. The Rust aggregate fails if any documentation job fails.
 
 CI uses line-table debug information for development and test builds to retain
 file/line backtraces while reducing debug-data generation and linking work.
 Local development profiles remain unchanged. Changing this setting invalidates
 build caches; report cold and warm hosted timings separately. The five-minute
 pipeline target includes setup and required-job aggregation, not just test runtime.
+The Rust cache key includes the root Cargo manifest so test-profile changes cannot
+keep restoring an immutable cache containing only the previous profile's artifacts.
 
 The UI test command sets Vitest's five-second timeout and validates every passing
 test's recorded duration. Node unit commands use the same timeout plus a reporter
@@ -157,3 +161,8 @@ fixtures validate real signatures repeatedly. Portcove code retains its normal
 test profile and debug assertions. Windows session integration compiles immutable
 fixture programs once per suite, then gives every case separate copies and state.
 Concurrency assertions use synchronization instead of elapsed-time assumptions.
+
+Every Node test file is explicitly covered by required CI and local quality
+recipes; the workflow contract checks this inventory. Transport comparator unit
+tests use fixed inputs, while a separate required integration test mutates the
+real TypeScript contract and checks it against the CLI's live Rust schema export.
