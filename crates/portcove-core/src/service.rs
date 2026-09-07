@@ -6931,9 +6931,7 @@ fn main() {
     }
 
     #[test]
-    fn output_apply_rejects_changed_install_marker_capacity_drive_and_port_identity() {
-        const CAPACITY_BAND: u64 = 256 * 1024 * 1024;
-
+    fn output_apply_rejects_changed_install_state() {
         let install_case = tempfile::tempdir().unwrap();
         let install_library = Library::open(install_case.path().join("library")).unwrap();
         let install_service = service_with_release(install_library.clone(), "v1");
@@ -6960,7 +6958,10 @@ fn main() {
                 .code,
             crate::ErrorCode::Conflict
         );
+    }
 
+    #[test]
+    fn output_apply_rejects_changed_ownership_marker() {
         let marker_case = tempfile::tempdir().unwrap();
         let marker_library = Library::open(marker_case.path().join("library")).unwrap();
         let marker_service = service_with_release(marker_library.clone(), "v1");
@@ -6995,7 +6996,11 @@ fn main() {
                 .code,
             crate::ErrorCode::Conflict
         );
+    }
 
+    #[test]
+    fn output_apply_accepts_capacity_changes_with_sufficient_space() {
+        const CAPACITY_BAND: u64 = 256 * 1024 * 1024;
         let capacity_case = tempfile::tempdir().unwrap();
         let capacity_library = Library::open(capacity_case.path().join("library")).unwrap();
         let capacity_service = service_with_release(capacity_library.clone(), "v1");
@@ -7039,7 +7044,11 @@ fn main() {
                 .unwrap()
                 .is_some()
         );
+    }
 
+    #[test]
+    fn output_apply_rejects_exhausted_capacity() {
+        const CAPACITY_BAND: u64 = 256 * 1024 * 1024;
         let full_case = tempfile::tempdir().unwrap();
         let full_library = Library::open(full_case.path().join("library")).unwrap();
         let full_service = service_with_release(full_library.clone(), "v1");
@@ -7087,7 +7096,11 @@ fn main() {
                 .unwrap()
                 .is_none()
         );
+    }
 
+    #[test]
+    fn output_apply_rejects_a_disconnected_drive() {
+        const CAPACITY_BAND: u64 = 256 * 1024 * 1024;
         let drive_case = tempfile::tempdir().unwrap();
         let drive_library = Library::open(drive_case.path().join("library")).unwrap();
         let drive_service = service_with_release(drive_library.clone(), "v1");
@@ -7133,7 +7146,10 @@ fn main() {
                 .unwrap()
                 .is_none()
         );
+    }
 
+    #[test]
+    fn output_apply_rejects_a_different_port_identity() {
         let port_case = tempfile::tempdir().unwrap();
         let port_library = Library::open(port_case.path().join("library")).unwrap();
         let port_service = service_with_release(port_library.clone(), "v1");

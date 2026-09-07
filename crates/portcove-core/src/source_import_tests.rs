@@ -795,80 +795,87 @@ fn copy_recovers_after_publication_before_phase_persistence_and_registers_once()
 }
 
 #[test]
-fn copy_and_move_recover_when_publication_phase_write_fails() {
-    for mode in [SourceImportMode::Copy, SourceImportMode::Move] {
-        let (_temporary, library, _service, source) = fixture();
-        let service = PortcoveService::with_faults(
-            library.clone(),
-            Arc::new(RejectPublicationPhaseWrite {
-                library: library.clone(),
-                armed: AtomicBool::new(false),
-            }),
+fn copy_recovers_when_publication_phase_write_fails() {
+    assert_publication_phase_write_recovery(SourceImportMode::Copy);
+}
+
+#[test]
+fn move_recovers_when_publication_phase_write_fails() {
+    assert_publication_phase_write_recovery(SourceImportMode::Move);
+}
+
+fn assert_publication_phase_write_recovery(mode: SourceImportMode) {
+    let (_temporary, library, source) = library_fixture();
+    let service = PortcoveService::with_faults(
+        library.clone(),
+        Arc::new(RejectPublicationPhaseWrite {
+            library: library.clone(),
+            armed: AtomicBool::new(false),
+        }),
+    )
+    .unwrap();
+    let plan = service.plan_source_import(PROFILE, &source, mode).unwrap();
+    let authorization = (mode == SourceImportMode::Move).then(|| {
+        service
+            .authorize_source_move(PROFILE, &source, &plan.plan_sha256)
+            .unwrap()
+            .token
+    });
+    let error = service
+        .import_source(
+            PROFILE,
+            &source,
+            mode,
+            &plan.plan_sha256,
+            authorization.as_deref(),
+        )
+        .unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("simulated publication journal failure")
+    );
+    let interrupted = OperationStore::new(library.clone()).all().unwrap();
+    assert_eq!(interrupted.len(), 1);
+    assert_eq!(interrupted[0].phase, LifecyclePhase::Prepared);
+    assert!(!interrupted[0].paths.staging.as_ref().unwrap().exists());
+    let staging_root = interrupted[0]
+        .paths
+        .staging
+        .as_ref()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .to_path_buf();
+    assert!(plan.destination.exists());
+    drop(service);
+
+    library
+        .connection()
+        .unwrap()
+        .execute_batch("DROP TRIGGER reject_source_import_publication_phase")
+        .unwrap();
+    let recovered = PortcoveService::new(library.clone()).unwrap();
+    let registered = recovered.library().source(PROFILE).unwrap().unwrap();
+    assert_eq!(registered.path, plan.destination);
+    assert_eq!(source.exists(), mode == SourceImportMode::Copy);
+    assert!(
+        OperationStore::new(library.clone())
+            .all()
+            .unwrap()
+            .is_empty()
+    );
+    assert!(!staging_root.exists());
+    let registration_count: i64 = library
+        .connection()
+        .unwrap()
+        .query_row(
+            "SELECT COUNT(*) FROM sources WHERE profile_id=?1",
+            [PROFILE],
+            |row| row.get(0),
         )
         .unwrap();
-        let plan = service.plan_source_import(PROFILE, &source, mode).unwrap();
-        let authorization = (mode == SourceImportMode::Move).then(|| {
-            service
-                .authorize_source_move(PROFILE, &source, &plan.plan_sha256)
-                .unwrap()
-                .token
-        });
-        let error = service
-            .import_source(
-                PROFILE,
-                &source,
-                mode,
-                &plan.plan_sha256,
-                authorization.as_deref(),
-            )
-            .unwrap_err();
-        assert!(
-            error
-                .to_string()
-                .contains("simulated publication journal failure")
-        );
-        let interrupted = OperationStore::new(library.clone()).all().unwrap();
-        assert_eq!(interrupted.len(), 1);
-        assert_eq!(interrupted[0].phase, LifecyclePhase::Prepared);
-        assert!(!interrupted[0].paths.staging.as_ref().unwrap().exists());
-        let staging_root = interrupted[0]
-            .paths
-            .staging
-            .as_ref()
-            .unwrap()
-            .parent()
-            .unwrap()
-            .to_path_buf();
-        assert!(plan.destination.exists());
-        drop(service);
-
-        library
-            .connection()
-            .unwrap()
-            .execute_batch("DROP TRIGGER reject_source_import_publication_phase")
-            .unwrap();
-        let recovered = PortcoveService::new(library.clone()).unwrap();
-        let registered = recovered.library().source(PROFILE).unwrap().unwrap();
-        assert_eq!(registered.path, plan.destination);
-        assert_eq!(source.exists(), mode == SourceImportMode::Copy);
-        assert!(
-            OperationStore::new(library.clone())
-                .all()
-                .unwrap()
-                .is_empty()
-        );
-        assert!(!staging_root.exists());
-        let registration_count: i64 = library
-            .connection()
-            .unwrap()
-            .query_row(
-                "SELECT COUNT(*) FROM sources WHERE profile_id=?1",
-                [PROFILE],
-                |row| row.get(0),
-            )
-            .unwrap();
-        assert_eq!(registration_count, 1);
-    }
+    assert_eq!(registration_count, 1);
 }
 
 #[derive(Debug, Clone, Copy)]
