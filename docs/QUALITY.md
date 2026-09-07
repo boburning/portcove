@@ -133,6 +133,8 @@ different dependency graph. The Rust aggregate fails if any documentation job fa
 
 CI uses line-table debug information for development and test builds to retain
 file/line backtraces while reducing debug-data generation and linking work.
+The shared Rust setup action reads `rust-toolchain.toml` before installation;
+cross targets are installed for that same compiler, rather than unrelated stable.
 Local development profiles remain unchanged. Changing this setting invalidates
 build caches; report cold and warm hosted timings separately. The five-minute
 pipeline target includes setup and required-job aggregation, not just test runtime.

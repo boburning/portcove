@@ -41,6 +41,17 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   }
 });
 
+test("Rust setup installs the repository pin instead of an unrelated stable toolchain", async () => {
+  const setup = await readFile(new URL("../.github/actions/setup-rust/action.yml", import.meta.url), "utf8");
+  assert.match(setup, /Get-Content rust-toolchain\.toml -Raw/);
+  assert.match(setup, /toolchain: \$\{\{ steps\.repository-toolchain\.outputs\.channel \}\}/);
+  assert.match(setup, /targets: \$\{\{ inputs\.targets \}\}/);
+  assert.doesNotMatch(workflow, /uses: dtolnay\/rust-toolchain/);
+  for (const section of [rustTests, rustWorkspaceTests, rustClippy, nativeRust, intelBuild, intelTests, rustDocs, rustQuality]) {
+    assert.match(section, /uses: \.\/\.github\/actions\/setup-rust/);
+  }
+});
+
 test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () => {
   assert.match(rustTests, /^    name: rust-test \(\$\{\{ matrix\.shard \}\}\)$/m);
   assert.match(rustTests, /runs-on: windows-latest/);
