@@ -1,13 +1,13 @@
 use super::*;
 use crate::{ArtifactIdentity, BackupAction, InstallRecord, ReleaseChannel};
 
-fn fixture(root: &Path, export: &Path) -> LibraryMetadata {
+fn fixture_library(root: &Path, installs: &[(&str, bool)]) -> Library {
     let library = Library::open(root).unwrap();
     let catalog = Catalog::embedded().unwrap();
     let port = catalog.port("starship").unwrap();
     let platform = Platform::current().unwrap();
     let qualification = InstallQualification::from_port(port, platform).unwrap();
-    for (id, staged) in [("old", false), ("active", false), ("staged", true)] {
+    for &(id, staged) in installs {
         let path = root.join("versions/starship").join(id);
         fs::create_dir_all(&path).unwrap();
         let executable = path.join(&port.executable_hints[&platform][0]);
@@ -42,6 +42,11 @@ fn fixture(root: &Path, export: &Path) -> LibraryMetadata {
             )
             .unwrap();
     }
+    library
+}
+
+fn fixture(root: &Path, export: &Path) -> LibraryMetadata {
+    let library = fixture_library(root, &[("old", false), ("active", false), ("staged", true)]);
     for tree in ["user", "toolchains"] {
         fs::create_dir_all(root.join(tree).join("starship/empty")).unwrap();
         fs::write(root.join(tree).join("starship/data.bin"), tree).unwrap();
@@ -305,8 +310,11 @@ fn a_self_consistent_manifest_cannot_select_an_undeclared_executable_on_import()
     let source = temp.path().join("source");
     let export = temp.path().join("export.json");
     let destination = temp.path().join("destination");
-    let mut metadata = fixture(&source, &export);
-    let library = Library::open(&source).unwrap();
+    let library = fixture_library(&source, &[("active", false)]);
+    let mut metadata = PortcoveService::new(library.clone())
+        .unwrap()
+        .export_library_metadata()
+        .unwrap();
     let install = &mut metadata.application_versions[0];
     let path = source.join(&install.path);
     fs::write(path.join("undeclared.exe"), b"not a declared application").unwrap();
