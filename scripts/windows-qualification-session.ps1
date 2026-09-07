@@ -276,6 +276,14 @@ function Assert-NoOwnedProcesses($Session, [string]$Root, $Context) {
     )
     if ($Context.install) { $knownPaths += @(Join-Path $Context.install "portcove-desktop.exe", Join-Path $Context.install "uninstall.exe") }
     foreach ($path in $knownPaths) { Assert-NoProcessAtPath $path }
+    $temporaryRoot = Resolve-ContainedPath $Root $Session.paths.temp "Directory"
+    $temporaryPrefix = $temporaryRoot.TrimEnd('\') + '\'
+    foreach ($process in @(Get-Process)) {
+        $actual = try { [System.IO.Path]::GetFullPath($process.Path) } catch { continue }
+        if ($actual.StartsWith($temporaryPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "Session-owned temporary process is still running: $actual (PID $($process.Id))"
+        }
+    }
     if ($Context.evidence) {
         foreach ($run in @($Context.evidence.process_runs)) {
             if (-not $run.executable_path) { continue }
@@ -305,14 +313,39 @@ function Assert-AbortQuiescent($Session, [string]$Root, $Context) {
     if (@(Get-UninstallEntries).Count -ne 0) { throw "A Portcove installer registration remains after abort" }
 }
 
-function Assert-AbortProcessIdentity($Process, $Attempt, [string]$Root) {
+function Assert-AbortProcessIdentity($Process, $Attempt, $Session, [string]$Root, [switch]$OwnedLaunchHandle) {
     $expected = Resolve-ContainedPath $Root $Attempt.executable "File"
-    $actual = try { [System.IO.Path]::GetFullPath($Process.Path) } catch { throw "Cannot read the abort process path" }
-    if (-not $actual.Equals($expected, [System.StringComparison]::OrdinalIgnoreCase)) { throw "Abort process path does not match its write-ahead record" }
-    Assert-Hash $actual $Attempt.executable_sha256 "abort uninstaller executable"
+    if ($OwnedLaunchHandle) {
+        $launched = try { [System.IO.Path]::GetFullPath($Process.StartInfo.FileName) } catch { throw "Cannot read the abort launch path" }
+        if (-not $launched.Equals($expected, [System.StringComparison]::OrdinalIgnoreCase)) { throw "Abort retained handle does not identify the journaled launch path" }
+    }
     $earliest = [DateTime]::FromFileTimeUtc([long]$Attempt.requested_at_filetime).AddSeconds(-$LaunchStartToleranceSeconds)
     if ($Process.StartTime.ToUniversalTime() -lt $earliest) { throw "Abort process predates its write-ahead record" }
     if ($Attempt.start_time_filetime -and $Process.StartTime.ToFileTimeUtc() -ne [long]$Attempt.start_time_filetime) { throw "Abort PID was reused" }
+    $deadline = (Get-Date).AddSeconds(2)
+    $actual = $null
+    do {
+        $Process.Refresh()
+        $candidate = try { $Process.Path } catch { $null }
+        if (-not [string]::IsNullOrWhiteSpace($candidate) -and [System.IO.Path]::GetExtension($candidate).Equals(".exe", [System.StringComparison]::OrdinalIgnoreCase)) {
+            $actual = [System.IO.Path]::GetFullPath($candidate)
+            break
+        }
+        if ($Process.HasExited) { break }
+        Start-Sleep -Milliseconds 25
+    } while ((Get-Date) -lt $deadline)
+    if (-not $actual) {
+        if ($OwnedLaunchHandle -and $Process.HasExited) { return }
+        throw "Cannot observe a stable abort executable image path"
+    }
+    if (-not $actual.Equals($expected, [System.StringComparison]::OrdinalIgnoreCase)) {
+        $temporaryRoot = Resolve-ContainedPath $Root $Session.paths.temp "Directory"
+        if (-not $actual.StartsWith($temporaryRoot.TrimEnd('\') + '\', [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "Abort process relocated outside its session-owned temporary root"
+        }
+    }
+    Assert-NoReparseAncestry $actual | Out-Null
+    Assert-Hash $actual $Attempt.executable_sha256 "abort uninstaller executable"
 }
 
 function Resume-AbortAttempt($Session, [string]$Root, $Context) {
@@ -328,11 +361,20 @@ function Resume-AbortAttempt($Session, [string]$Root, $Context) {
     $process = if ($attempt.pid) { Get-Process -Id $attempt.pid -ErrorAction SilentlyContinue } else { $null }
     if (-not $process -and -not $attempt.pid) {
         $expected = Resolve-ContainedPath $Root $attempt.executable
-        $matches = @(Get-Process -Name ([System.IO.Path]::GetFileNameWithoutExtension($expected)) -ErrorAction SilentlyContinue | Where-Object { try { [System.IO.Path]::GetFullPath($_.Path).Equals($expected, [System.StringComparison]::OrdinalIgnoreCase) } catch { $false } })
+        $temporaryRoot = Resolve-ContainedPath $Root $Session.paths.temp "Directory"
+        $temporaryPrefix = $temporaryRoot.TrimEnd('\') + '\'
+        $earliest = [DateTime]::FromFileTimeUtc([long]$attempt.requested_at_filetime).AddSeconds(-$LaunchStartToleranceSeconds)
+        $matches = @(Get-Process | Where-Object {
+            try {
+                $actual = [System.IO.Path]::GetFullPath($_.Path)
+                $pathAllowed = $actual.Equals($expected, [System.StringComparison]::OrdinalIgnoreCase) -or $actual.StartsWith($temporaryPrefix, [System.StringComparison]::OrdinalIgnoreCase)
+                $pathAllowed -and $_.StartTime.ToUniversalTime() -ge $earliest -and (Get-Sha256 $actual) -eq $attempt.executable_sha256
+            } catch { $false }
+        })
         if ($matches.Count -gt 1) { throw "Abort launch-pending state matches multiple processes" }
-        if ($matches.Count -eq 1) { $process = $matches[0]; Assert-AbortProcessIdentity $process $attempt $Root; $attempt.pid = $process.Id; $attempt.start_time = $process.StartTime.ToUniversalTime().ToString("o"); $attempt.start_time_filetime = $process.StartTime.ToFileTimeUtc(); $attempt.status = "running_recovered"; Write-Session $Session $Root }
+        if ($matches.Count -eq 1) { $process = $matches[0]; Assert-AbortProcessIdentity $process $attempt $Session $Root; $attempt.pid = $process.Id; $attempt.start_time = $process.StartTime.ToUniversalTime().ToString("o"); $attempt.start_time_filetime = $process.StartTime.ToFileTimeUtc(); $attempt.status = "running_recovered"; Write-Session $Session $Root }
     }
-    if ($process) { Assert-AbortProcessIdentity $process $attempt $Root; throw "A journaled abort process is still running; retry after it exits" }
+    if ($process) { Assert-AbortProcessIdentity $process $attempt $Session $Root; throw "A journaled abort process is still running; retry after it exits" }
     try { Assert-AbortQuiescent $Session $Root $Context } catch { throw "Abort process outcome is ambiguous and cleanup is incomplete: $($_.Exception.Message)" }
     $attempt.status = "exit_unobserved_cleanup_proven"; $attempt.exit_observation = "Process absence and complete owned-state cleanup were proven"; Write-Session $Session $Root
     $true
@@ -451,9 +493,9 @@ if ($Action -eq "abort") {
         $requested = [DateTime]::UtcNow
         $attempt = [ordered]@{ id = [System.Guid]::NewGuid().ToString("N"); executable = $relativeUninstaller; executable_sha256 = $context.evidence.uninstaller_sha256; requested_at = $requested.ToString("o"); requested_at_filetime = $requested.ToFileTimeUtc(); status = "launch_pending"; pid = $null; start_time = $null; start_time_filetime = $null; exit_code = $null; exit_observation = $null }
         $session.abort_attempts += $attempt; Write-Session $session $root
-        $process = Start-Process -FilePath $context.uninstaller -ArgumentList "/S" -PassThru -WindowStyle Hidden
+        $process = Invoke-WithEnvironment (Get-Environment $session $root) { Start-Process -FilePath $context.uninstaller -ArgumentList "/S" -PassThru -WindowStyle Hidden }
         $attempt.pid = $process.Id; $attempt.start_time = $process.StartTime.ToUniversalTime().ToString("o"); $attempt.start_time_filetime = $process.StartTime.ToFileTimeUtc(); $attempt.status = "running"; Write-Session $session $root
-        Assert-AbortProcessIdentity $process $attempt $root
+        Assert-AbortProcessIdentity $process $attempt $session $root -OwnedLaunchHandle
         $process.WaitForExit(); $attempt.status = "exit_observed"; $attempt.exit_code = $process.ExitCode; $attempt.exit_observation = "Observed through the retained abort launch handle"; Write-Session $session $root
         $pause = [System.Environment]::GetEnvironmentVariable("PORTCOVE_QUALIFICATION_TEST_PAUSE_AFTER_ABORT_EXIT_MS", "Process")
         if ($pause) { Start-Sleep -Milliseconds ([int]$pause) }
