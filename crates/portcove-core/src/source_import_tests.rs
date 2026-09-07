@@ -4,7 +4,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicBool, Ordering},
     },
 };
@@ -69,6 +69,69 @@ impl LifecycleFaultInjector for ReplacePublishedAtFinalOwnershipCheck {
             fs::copy(&self.source, &replacement)?;
             fs::remove_file(&self.destination)?;
             fs::rename(replacement, &self.destination)?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+struct CreateLateDestination {
+    destination: PathBuf,
+    sentinel: Vec<u8>,
+    created_identity: Mutex<Option<String>>,
+    fired: AtomicBool,
+}
+
+impl LifecycleFaultInjector for CreateLateDestination {
+    fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+        if point == LifecycleFaultPoint::SourceImportPublicationPrepared
+            && !self.fired.swap(true, Ordering::SeqCst)
+        {
+            let mut file = fs::OpenOptions::new()
+                .create_new(true)
+                .write(true)
+                .open(&self.destination)?;
+            use std::io::Write;
+            file.write_all(&self.sentinel)?;
+            file.sync_all()?;
+            *self.created_identity.lock().unwrap() = Some(object_identity(&self.destination)?);
+        }
+        Ok(())
+    }
+}
+
+#[cfg(windows)]
+#[derive(Debug)]
+struct HoldStagingWithoutDeleteSharing {
+    profile_directory: PathBuf,
+    destination_name: std::ffi::OsString,
+    held: Mutex<Option<File>>,
+}
+
+#[cfg(windows)]
+impl LifecycleFaultInjector for HoldStagingWithoutDeleteSharing {
+    fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+        if point == LifecycleFaultPoint::SourceImportPublicationPrepared
+            && self.held.lock().unwrap().is_none()
+        {
+            use std::os::windows::fs::OpenOptionsExt;
+            use windows_sys::Win32::Storage::FileSystem::{FILE_SHARE_READ, FILE_SHARE_WRITE};
+
+            let staging_root = fs::read_dir(&self.profile_directory)?
+                .collect::<std::io::Result<Vec<_>>>()?
+                .into_iter()
+                .find(|entry| {
+                    entry.file_name().to_str().is_some_and(|name| {
+                        name.starts_with(".portcove-import-") && name.ends_with(".staging")
+                    })
+                })
+                .ok_or_else(|| PortcoveError::state("source import staging root was not found"))?;
+            let staging = staging_root.path().join(&self.destination_name);
+            let file = fs::OpenOptions::new()
+                .read(true)
+                .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE)
+                .open(staging)?;
+            *self.held.lock().unwrap() = Some(file);
         }
         Ok(())
     }
@@ -160,6 +223,176 @@ fn copy_is_reviewed_destination_local_verified_and_non_destructive() {
         service.library().source(PROFILE).unwrap().unwrap().path,
         result.registered.path
     );
+}
+
+#[test]
+fn late_destination_collision_preserves_copy_sentinel_original_and_recovery() {
+    assert_late_destination_collision_is_safe(
+        SourceImportMode::Copy,
+        b"unrelated late copy destination".to_vec(),
+    );
+}
+
+#[test]
+fn late_destination_collision_preserves_move_sentinel_original_and_recovery() {
+    assert_late_destination_collision_is_safe(
+        SourceImportMode::Move,
+        b"unrelated late move destination".to_vec(),
+    );
+}
+
+#[test]
+fn same_content_late_destination_with_different_identity_is_still_a_collision() {
+    for mode in [SourceImportMode::Copy, SourceImportMode::Move] {
+        assert_late_destination_collision_is_safe(
+            mode,
+            b"synthetic format-only disc source".to_vec(),
+        );
+    }
+}
+
+#[cfg(windows)]
+#[test]
+fn sharing_failure_retains_move_original_and_resumes_after_handle_release() {
+    let (_temporary, library, service, source) = fixture();
+    let original = fs::read(&source).unwrap();
+    let plan = service
+        .plan_source_import(PROFILE, &source, SourceImportMode::Move)
+        .unwrap();
+    let fault = Arc::new(HoldStagingWithoutDeleteSharing {
+        profile_directory: plan.destination.parent().unwrap().to_path_buf(),
+        destination_name: plan.destination.file_name().unwrap().to_os_string(),
+        held: Mutex::new(None),
+    });
+    let service = PortcoveService::with_faults(library.clone(), fault.clone()).unwrap();
+    let authorization = service
+        .authorize_source_move(PROFILE, &source, &plan.plan_sha256)
+        .unwrap();
+
+    let error = service
+        .import_source(
+            PROFILE,
+            &source,
+            SourceImportMode::Move,
+            &plan.plan_sha256,
+            Some(&authorization.token),
+        )
+        .unwrap_err();
+
+    assert_eq!(error.code, ErrorCode::State);
+    assert_eq!(fs::read(&source).unwrap(), original);
+    assert!(!plan.destination.exists());
+    assert!(service.library().source(PROFILE).unwrap().is_none());
+    let retained = OperationStore::new(library.clone()).all().unwrap();
+    assert_eq!(retained.len(), 1);
+    assert_eq!(retained[0].phase, LifecyclePhase::Prepared);
+    assert!(retained[0].paths.staging.as_ref().unwrap().exists());
+    *fault.held.lock().unwrap() = None;
+    drop(service);
+
+    let recovered = PortcoveService::new(library.clone()).unwrap();
+    let registered = recovered.library().source(PROFILE).unwrap().unwrap();
+    assert_eq!(registered.path, plan.destination);
+    assert_eq!(fs::read(registered.path).unwrap(), original);
+    assert!(!source.exists());
+    assert!(OperationStore::new(library).all().unwrap().is_empty());
+}
+
+fn assert_late_destination_collision_is_safe(mode: SourceImportMode, sentinel: Vec<u8>) {
+    let (_temporary, library, service, source) = fixture();
+    let original = fs::read(&source).unwrap();
+    let plan = service.plan_source_import(PROFILE, &source, mode).unwrap();
+    let fault = Arc::new(CreateLateDestination {
+        destination: plan.destination.clone(),
+        sentinel: sentinel.clone(),
+        created_identity: Mutex::new(None),
+        fired: AtomicBool::new(false),
+    });
+    let service = PortcoveService::with_faults(library.clone(), fault.clone()).unwrap();
+    let authorization = (mode == SourceImportMode::Move).then(|| {
+        service
+            .authorize_source_move(PROFILE, &source, &plan.plan_sha256)
+            .unwrap()
+            .token
+    });
+
+    let result = service.import_source(
+        PROFILE,
+        &source,
+        mode,
+        &plan.plan_sha256,
+        authorization.as_deref(),
+    );
+
+    assert!(
+        result.is_err(),
+        "{mode:?} falsely reported successful publication"
+    );
+    let sentinel_identity = fault.created_identity.lock().unwrap().clone().unwrap();
+    assert_eq!(fs::read(&plan.destination).unwrap(), sentinel, "{mode:?}");
+    assert_eq!(
+        object_identity(&plan.destination).unwrap(),
+        sentinel_identity,
+        "{mode:?}"
+    );
+    assert_eq!(fs::read(&source).unwrap(), original, "{mode:?}");
+    assert!(
+        service.library().source(PROFILE).unwrap().is_none(),
+        "{mode:?}"
+    );
+    let retained = OperationStore::new(library.clone()).all().unwrap();
+    assert_eq!(retained.len(), 1, "{mode:?}");
+    assert_eq!(retained[0].phase, LifecyclePhase::Prepared, "{mode:?}");
+    let staging = retained[0].paths.staging.clone().unwrap();
+    assert!(staging.exists(), "{mode:?}");
+    drop(service);
+
+    let conflicted_restart = PortcoveService::new(library.clone()).unwrap();
+    assert!(
+        conflicted_restart
+            .library()
+            .source(PROFILE)
+            .unwrap()
+            .is_none(),
+        "{mode:?}"
+    );
+    assert_eq!(fs::read(&plan.destination).unwrap(), sentinel, "{mode:?}");
+    assert_eq!(
+        object_identity(&plan.destination).unwrap(),
+        sentinel_identity,
+        "{mode:?}"
+    );
+    assert_eq!(fs::read(&source).unwrap(), original, "{mode:?}");
+    assert!(staging.exists(), "{mode:?}");
+    let retained = OperationStore::new(library.clone()).all().unwrap();
+    assert_eq!(retained.len(), 1, "{mode:?}");
+    assert_eq!(retained[0].phase, LifecyclePhase::Prepared, "{mode:?}");
+    assert!(retained[0].last_error.is_some(), "{mode:?}");
+    drop(conflicted_restart);
+
+    fs::remove_file(&plan.destination).unwrap();
+    let recovered = PortcoveService::new(library.clone()).unwrap();
+    let registered = recovered.library().source(PROFILE).unwrap().unwrap();
+    assert_eq!(registered.path, plan.destination, "{mode:?}");
+    assert_eq!(fs::read(&registered.path).unwrap(), original, "{mode:?}");
+    assert_eq!(source.exists(), mode == SourceImportMode::Copy, "{mode:?}");
+    assert!(
+        OperationStore::new(library.clone())
+            .all()
+            .unwrap()
+            .is_empty(),
+        "{mode:?}"
+    );
+    let registration_count: i64 = library
+        .connection()
+        .unwrap()
+        .query_row(
+            "SELECT COUNT(*) FROM sources WHERE profile_id=?1",
+            [PROFILE],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(registration_count, 1, "{mode:?}");
 }
 
 #[test]

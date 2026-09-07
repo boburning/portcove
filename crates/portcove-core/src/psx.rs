@@ -181,7 +181,7 @@ where
     if destination.exists() {
         fs::remove_dir_all(&destination)?;
     }
-    fs::rename(&pack_root, &destination)?;
+    crate::durability::rename_noreplace(&pack_root, &destination)?;
     if !validate_toolchain(&destination, platform, artifact)? {
         return Err(PortcoveError::verification(
             "installed PS1 toolchain did not pass its post-install checks",
