@@ -649,7 +649,7 @@ fn publish_staging(
             service.check_lifecycle_fault(
                 crate::operation::LifecycleFaultPoint::SourceImportPublicationPrepared,
             )?;
-            fs::rename(staging, &plan.destination)?;
+            crate::durability::rename_noreplace(staging, &plan.destination)?;
             crate::durability::sync_publication(profile)?;
             verify_publication_receipt(operation, plan, &plan.destination)?;
         }
@@ -833,7 +833,7 @@ fn cleanup_original(
             store.put(operation)?;
             return Ok(Some(source.clone()));
         }
-        if let Err(error) = fs::rename(source, &quarantine) {
+        if let Err(error) = crate::durability::rename_noreplace(source, &quarantine) {
             operation.last_error = Some(error.to_string());
             store.put(operation)?;
             return Ok(Some(source.clone()));

@@ -3218,6 +3218,7 @@ dependencies = [
  "libc",
  "reqwest",
  "rusqlite",
+ "rustix",
  "schemars 1.2.2",
  "serde",
  "serde_json",

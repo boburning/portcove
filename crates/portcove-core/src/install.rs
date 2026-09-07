@@ -383,7 +383,7 @@ impl Installer {
                 destination.parent().expect("runtime has parent"),
                 &runtime.target_directory,
             )?;
-            fs::rename(source, destination)?;
+            crate::durability::rename_noreplace(&source, &destination)?;
             operation.checkpoint()?;
         }
         if let Some(preparation) = request.managed.clone() {
@@ -437,7 +437,7 @@ impl Installer {
                 request.release.version
             )));
         } else {
-            fs::rename(&payload_root, &lifecycle.destination)?;
+            crate::durability::rename_noreplace(&payload_root, &lifecycle.destination)?;
         }
         lifecycle.record.phase = LifecyclePhase::PayloadPublished;
         lifecycle.store.put(&mut lifecycle.record)?;

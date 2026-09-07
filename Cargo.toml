@@ -47,3 +47,4 @@ uuid = { version = "1.26.0", features = ["v4", "serde"] }
 zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
 windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_Console", "Win32_System_JobObjects", "Win32_System_Threading"] }
 rpassword = "7.5.4"
+rustix = { version = "1.1.4", features = ["fs"] }
