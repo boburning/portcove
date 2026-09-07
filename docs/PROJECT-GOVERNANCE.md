@@ -29,7 +29,7 @@ The Project uses these single-select fields:
   Platform support, Port catalog, Release engineering, Documentation and
   governance.
 - **Platform:** Unknown, All, Multi-platform, Windows, Linux, Steam Deck, macOS Intel,
-  macOS Apple Silicon, Not applicable.
+  macOS Apple Silicon, Android, Not applicable.
 - **Port stage:** Watchlist, Researching, Source contract known, Release
   integrity qualified, Cataloged, Automated qualification, Manual
   qualification, Supported, Blocked, Rejected.
