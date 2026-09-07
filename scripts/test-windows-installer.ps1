@@ -6,7 +6,11 @@ param(
     [string]$TestBase,
     [string]$RetainedLibraryRoot,
     [string]$RetainExecutablePath,
-    [string]$EvidencePath
+    [string]$EvidencePath,
+    [ValidateRange(1, 600)]
+    [int]$ProcessTimeoutSeconds = 120,
+    [ValidateRange(1, 60)]
+    [int]$CleanupTimeoutSeconds = 15
 )
 
 $ErrorActionPreference = "Stop"
@@ -273,7 +277,23 @@ function Complete-JournaledProcess($Run, $Process, [string]$Status) {
 
 function Invoke-JournaledProcess([string]$Role, [string]$Executable, [object[]]$Arguments, [string]$AllowedRelocationRoot = "") {
     $launch = Start-JournaledProcess -Role $Role -Executable $Executable -Arguments $Arguments -AllowedRelocationRoot $AllowedRelocationRoot
-    $launch.process.WaitForExit()
+    if (-not $launch.process.WaitForExit($ProcessTimeoutSeconds * 1000)) {
+        $launch.run.status = "timed_out"
+        $launch.run.exit_observation = "No exit was observed within $ProcessTimeoutSeconds seconds"
+        if ($evidence) { Write-InstallerEvidence $evidence.phase }
+        try {
+            $launch.process.Kill($true)
+            if ($launch.process.WaitForExit(5000)) {
+                $launch.run.exit_observation += "; the retained process tree was force-terminated"
+            } else {
+                $launch.run.exit_observation += "; force-termination was not observed within 5 seconds"
+            }
+        } catch {
+            $launch.run.exit_observation += "; force-termination failed: $($_.Exception.Message)"
+        }
+        if ($evidence) { Write-InstallerEvidence $evidence.phase }
+        throw "$Role did not exit within $ProcessTimeoutSeconds seconds"
+    }
     Complete-JournaledProcess $launch.run $launch.process "exit_observed"
     $launch.process
 }
@@ -376,7 +396,7 @@ try {
     if ($uninstall.ExitCode -ne 0) {
         throw "Silent uninstaller exited with code $($uninstall.ExitCode)"
     }
-    $deadline = (Get-Date).AddSeconds(15)
+    $deadline = (Get-Date).AddSeconds($CleanupTimeoutSeconds)
     do {
         $managedFilesRemain = [System.IO.File]::Exists($application) -or
             [System.IO.File]::Exists($uninstaller)
@@ -386,6 +406,9 @@ try {
         }
         Start-Sleep -Milliseconds 250
     } while ((Get-Date) -lt $deadline)
+    $managedFilesRemain = [System.IO.File]::Exists($application) -or
+        [System.IO.File]::Exists($uninstaller)
+    $remainingRegistryEntries = @(Get-UninstallEntries $installRoot)
     if ($managedFilesRemain) {
         throw "Uninstall left managed application files behind in $installRoot"
     }
