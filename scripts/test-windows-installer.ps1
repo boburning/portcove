@@ -4,6 +4,7 @@ param(
     [string]$UpgradeFromInstallerPath,
     [string]$ExpectedExecutablePath,
     [string]$TestBase,
+    [string]$RetainedLibraryRoot,
     [string]$RetainExecutablePath,
     [string]$EvidencePath
 )
@@ -167,10 +168,26 @@ $base = (Resolve-Path -LiteralPath $base).Path.TrimEnd('\')
 
 $runRoot = Join-Path $base ("run-" + [System.Guid]::NewGuid().ToString("N"))
 $installRoot = Join-Path $runRoot "installed"
-$libraryRoot = Join-Path $runRoot "library"
 $expectedPrefix = $base + [System.IO.Path]::DirectorySeparatorChar
 if (-not $runRoot.StartsWith($expectedPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
     throw "Generated test directory escaped TestBase"
+}
+$libraryRoot = if ($RetainedLibraryRoot) {
+    $requested = [System.IO.Path]::GetFullPath($RetainedLibraryRoot).TrimEnd('\')
+    $sessionRoot = [System.IO.Path]::GetDirectoryName($base).TrimEnd('\')
+    $sessionPrefix = $sessionRoot + [System.IO.Path]::DirectorySeparatorChar
+    if (-not $requested.StartsWith($sessionPrefix, [System.StringComparison]::OrdinalIgnoreCase) -or
+        $requested.Equals($base, [System.StringComparison]::OrdinalIgnoreCase) -or
+        $requested.StartsWith($base + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase) -or
+        $base.StartsWith($requested + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "RetainedLibraryRoot must be an isolated sibling below the TestBase parent"
+    }
+    if (-not [System.IO.Directory]::Exists($requested)) { throw "RetainedLibraryRoot must be an existing directory" }
+    Assert-NoReparseAncestry $requested
+    if (@(Get-ChildItem -LiteralPath $requested -Force).Count -ne 0) { throw "RetainedLibraryRoot must be empty before qualification" }
+    $requested
+} else {
+    Join-Path $runRoot "library"
 }
 [System.IO.Directory]::CreateDirectory($runRoot) | Out-Null
 

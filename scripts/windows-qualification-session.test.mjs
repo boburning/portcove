@@ -30,12 +30,12 @@ function makeFixture(t) {
   copyFileSync(reportTool, path.join(repository, "scripts", "qualification-report.mjs"));
   writeFileSync(path.join(repository, "scripts", "test-windows-installer.ps1"), String.raw`param(
   [string]$InstallerPath, [string]$UpgradeFromInstallerPath, [string]$ExpectedExecutablePath,
-  [string]$TestBase, [string]$RetainExecutablePath, [string]$EvidencePath
+  [string]$TestBase, [string]$RetainedLibraryRoot, [string]$RetainExecutablePath, [string]$EvidencePath
 )
 $ErrorActionPreference = "Stop"
 $run = Join-Path $TestBase "run-fixture"
 $install = Join-Path $run "installed"
-$library = $env:PORTCOVE_LIBRARY
+$library = $RetainedLibraryRoot
 [IO.Directory]::CreateDirectory($install) | Out-Null
 [IO.Directory]::CreateDirectory($library) | Out-Null
 [ordered]@{ format=1; phase="initialized"; owned_paths=[ordered]@{ run_root_relative="run-fixture"; install_relative="run-fixture/installed"; library_relative="../library" }; failure=$null } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $EvidencePath -Encoding utf8
@@ -115,6 +115,10 @@ test("installer lifecycle journals every required process before spawning it", (
   assert.match(source, /-Role "predecessor_installer".*-AllowedRelocationRoot \$runRoot/);
   assert.match(source, /-Role "candidate_installer".*-AllowedRelocationRoot \$runRoot/);
   assert.match(source, /-Role "candidate_uninstaller".*-AllowedRelocationRoot \$runRoot/);
+  assert.match(source, /RetainedLibraryRoot must be an isolated sibling below the TestBase parent/);
+  assert.match(source, /RetainedLibraryRoot must be empty before qualification/);
+  assert.match(source, /\$requested\.Equals\(\$base, \[System\.StringComparison\]::OrdinalIgnoreCase\)/);
+  assert.match(readFileSync(script, "utf8"), /RetainedLibraryRoot = Resolve-ContainedPath \$root \$session\.paths\.library "Directory"/);
   assert.match(readFileSync(script, "utf8"), /Abort retained handle does not identify the journaled launch path/);
   assert.match(readFileSync(script, "utf8"), /Cannot observe a stable abort executable image path/);
 });
@@ -148,6 +152,7 @@ test("stateful fake packaged session prepares, journals process identity, checkp
   assert.equal(state.installer.registration_removed, true);
   assert.ok(state.process_runs[0].pid);
   assert.ok(state.process_runs[0].start_time);
+  assert.ok(existsSync(path.join(item.session, "library", "portcove.sqlite3")));
 
   mkdirSync(path.join(item.session, "checkpoints", "0009-interrupted"));
   const checkpoint = runPowerShell(["-Action", "checkpoint", "-SessionRoot", item.session, "-Label", "automated", "-Relaunch"]);
