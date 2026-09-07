@@ -11,6 +11,19 @@ entries, bind protected acceptance to exact inputs, and define offline, expiry,
 revocation and recovery behavior. It does not weaken or retrofit this format's
 embedded-contract restrictions. No live automatic admission is enabled here.
 
+The successor's client-loading phase is tracked in
+[#397](https://github.com/boburning/portcove/issues/397); #246 retains the complete
+protected acceptance/publication outcome, with configured upstream observations
+from [#398](https://github.com/boburning/portcove/issues/398). Their future proofs
+retain exact definition content and referenced source/execution/persistence
+contracts for installed, staged, previous and adopted versions, together with
+relevant artifact, runtime/tool, platform and source identities. A remote URL or
+digest alone cannot preserve an installed contract. Migration preserves existing
+catalog availability and isolates unsupported new semantics. Observation has no
+signing or admission authority, and availability never authorizes installation,
+trust expansion or data migration. These are planned requirements, not changes
+to the format-1 behavior below.
+
 ## Publisher format
 
 The outer JSON object has exactly `format_version: 1`, `key_id`, `payload`, and `signature`. It is at most 4 MiB, including all JSON escaping. `key_id` is the lowercase hex SHA-256 of the raw 32-byte Ed25519 public key. `signature` is the 64-byte signature in hex. `payload` is a JSON **string**; its exact UTF-8 bytes are signed, without parsing, whitespace changes, or reserialization by the verifier.

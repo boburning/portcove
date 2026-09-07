@@ -10,12 +10,19 @@ the [Portcove Roadmap](https://github.com/users/boburning/projects/1).
 
 ## Product direction
 
-**North Star:** Make native game ports easy to discover, set up, and keep
-playing, without making players manage the quirks of every upstream project.
+**North Star:** Portcove is the place players go to discover and play native
+game ports: a broad, continually updated catalog, straightforward setup, and a
+dependable library that preserves their progress, without players or maintainers
+managing every upstream project individually.
 
 Compatible additions and routine updates should flow through without
 proportional maintainer work. Automation handles ordinary work inside
 established authority; the owner handles direction and genuine exceptions.
+The owner should spend time on product direction, useful capabilities and
+genuine exceptions rather than processing releases, repairing the same
+integrations, personally playtesting every port or approving already-validated
+changes. Catalog coverage and freshness should grow faster than the recurring
+maintainer attention needed to sustain them.
 The intended experience is: “I choose a game, understand what files I need, use
 what I already have, get it running, and keep my setup usable when things
 change.”
@@ -62,6 +69,35 @@ pass. Missing evidence is unknown; a known failure limits the affected operation
 The current runtime and format-1 delivery remain as documented in
 [Catalog policy](CATALOG.md) and [Signed catalog delivery](SIGNED-CATALOG.md).
 
+Broad, current coverage is central, not a small curated selection.
+Representative ports bound architectural proofs and release qualification, not
+the available catalog. Native source ports, decompilations, recompilations and
+new implementations remain within established scope; this does not silently
+admit every derivative, emulator, wrapper or compatibility layer. Research
+inventory remains distinct from usable coverage and gameplay evidence.
+
+During incremental migration, preserve existing availability, stable identities,
+installations, sources, saves/configuration, retained versions and documented
+external behavior. Existing adapters may remain behind the shared authority;
+unmigrated definitions alone do not justify withdrawing ports. A demonstrated
+safety failure still holds the affected operation/artifact/platform. Compatible
+additions should mainly add definitions and fixtures. Important new ports may
+justify reusable capabilities or a narrowly isolated title-specific exception;
+neither a universal abstraction nor a duplicate lifecycle is the entry price.
+
+Use the existing queue for both application maturity and catalog freshness.
+High-priority active port work can be Opportunistic for a release: absence does
+not block that release, but the work need not always wait. Bound work in progress
+and give safety/release blockers precedence. Before independent delivery ships,
+compatible additions may still require application releases; preserve that
+transitional route without claiming format-1 clients can load new definitions.
+
+The long-term operating test is an extended absence from routine maintainer
+work: installed libraries remain usable, accepted routine releases keep arriving,
+compatible submitted additions flow through the authorized path, and failures
+become isolated, deduplicated exceptions. This is an unproven operating target,
+not a new month-long V1 gate.
+
 ## Finite V1 outcome contract
 
 The cumulative V1 finish line has seven outcomes. Canonical issues own their
@@ -93,6 +129,9 @@ status checklist.
    delivering a new compatible definition, its next routine artifact, and a safe
    correction to an unchanged client through protected acceptance and exact
    publication, with zero per-candidate owner actions after provisioning.
+   The bounded configured-upstream observer in #398 supplies regular exact
+   observations; #246 owns the combined observation-to-client proof. Broad
+   discovery in #177 remains outside this finite outcome.
 
 The sequence remains Alpha 2 onboarding/storage outcomes; Alpha 3 bounded
 integration and scale; Beta 1 required V1 capabilities and feature completeness;
@@ -145,6 +184,10 @@ compatible with already-selected files is an optional follow-on: discovery is
 opt-in and bounded, registration is explicit, and source compatibility alone
 does not establish full installation/platform readiness.
 
+Start #245 design alongside the remaining Alpha 2 qualification and continue
+compatible catalog work. Independent delivery, freshness and preparation-boundary
+migration add no Alpha 2 prerequisite and do not alter the exact package handoff.
+
 ## Alpha 3 — Integration and scale alpha
 
 Close stale asynchronous behavior, machine-contract and transport gaps,
@@ -161,14 +204,39 @@ candidate may stand in during development, with that limitation disclosed.
 External marketplace acceptance, partnerships, third-party adoption, and an
 integration count are not release gates.
 
+After accepted #245 design, #397 schedules #246's first independently verifiable
+phase: compatible client loading, capability negotiation and exact retained
+contracts. The complete delivery outcome remains Beta 1. Begin #398's bounded
+configured-upstream observation, independently testable without a publisher.
+Neither full adapter migration nor broad #177 discovery closes this alpha.
+
+#31 owns one justified preparation/launch improvement, starting with one
+setup-heavy family: inspect requirements, resolve an exact plan, perform managed
+preparation, publish readiness, then validate/supervise launch and preserve data.
+Substantial extraction, conversion, builds and tool setup should be explicit
+preparation; necessary upstream interactive first-run work remains a visible
+handoff. Reuse the journal, locks, activity, cancellation and recovery; revalidate
+stale inputs and resume only safe phases. No daemon, second job store or full
+#248 scheduler is required. #30 exposes core-owned operation actions/reasons;
+#206 owns presentation, focus and progressive disclosure. Consistent inputs must
+produce consistent supported actions across clients, never path-based readiness.
+
+#245/#397 define a small typed capability vocabulary with explicit inputs,
+outputs, permissions and supported combinations; existing adapters may implement
+it incrementally. Simple binaries, generated data, disc inputs and awkward
+runtime/persistence cases guide proof selection without shrinking coverage. Each
+new capability needs redistributable success, malformed/missing-input, output,
+interruption/retry and preservation fixtures. Synthetic evidence is not gameplay.
+
 Complete the planned Windows desktop updater feature work before the V1 feature
 freeze, after trust and onboarding priorities. Exact historical game-release
 pinning and reproducible profiles remain independent of required onboarding.
 
 ## Beta 1 — V1 feature-complete beta
 
-All required V1 capabilities are present. Feature scope freezes except for
-blocker-driven changes. The initial Steam Deck baseline qualification target is
+All required V1 capabilities are present. Application feature scope freezes
+except for blocker-driven changes; compatible independent catalog growth
+continues after that capability ships. The initial Steam Deck baseline target is
 Beta 1; qualification determines whether ordinary Linux packaging is sufficient
 rather than assuming a separate build. #290 adds a required documented
 plugin-free Steam route for Portcove itself and individual already-installed
@@ -187,12 +255,31 @@ The design and complete delivery owners are
 [#245](https://github.com/boburning/portcove/issues/245) and
 [#246](https://github.com/boburning/portcove/issues/246).
 
-The 2026-09-05 sequencing decision targets that bounded feature proof at Beta 1,
-with design started ahead of it. One official feed and shared local loading
-suffice; broad discovery, authoring assistance, community reports and feed
-networks are not prerequisites. Optional social-preview/exporter work yields
-to this path. Live targets remain in the Project. This adds no Alpha 1 blocker
-and no independent-delivery prerequisite to the Alpha 2 packaged preview.
+The bounded feature proof remains Beta 1, with design and the #397 client phase
+ahead of it. One official feed, shared local loading and #398's configured
+accepted-upstream observation suffice. #398 begins during Alpha 3 and completes
+for Beta 1; #246 depends on its observation contract for final integration, while
+both components develop with fixtures independently. Broad discovery, authoring,
+community reports, legacy acquisition and feed networks are not prerequisites.
+Optional social-preview/exporter work yields to this path. Live targets remain
+in the Project. No Alpha 2 preview prerequisite is added.
+
+The freshness proof connects observation, candidate, protected acceptance, exact
+publication and compatible-client availability. It covers complete pagination,
+validated caching, rate limits/backoff, bounded retry, interrupted recovery and
+explicit stable/preview/rolling policies where supported. Verify provider
+semantics during implementation; a latest endpoint need not include previews.
+Prerelease-only projects remain discoverable. Distinguish latest observed,
+latest eligible per platform/channel/capabilities and installed version; show
+newer held releases and reasons instead of calling an older version fully
+current. Availability never overrides update settings, sessions or consent.
+
+Use deterministic fixtures, a scheduled actual configured-upstream observation
+and controlled redistributable/test-upstream artifact changes. Keep synthetic,
+live observation, real-artifact lifecycle and gameplay evidence distinct.
+Same-day availability within accepted scope is an initial measured engineering
+objective, not existing performance or a universal guarantee. Declare cadence,
+clocks, scope, exclusions and unknown baseline; expose unmonitored/stale entries.
 
 The flagship client lets a player find something playable, finish setup,
 understand progress/errors, return to running or interrupted work, and launch
@@ -223,6 +310,10 @@ separate. Voluntary comparative sessions may inform development, but recruitment
 external participation, and sample size are not release gates. Reproducible
 first-play, recovery, and return-after-update acceptance remains required.
 
+Qualify the bounded independent-delivery path and its migration/recovery as well
+as application packages and declared controls/platforms. Compatible catalog work
+continues; a failure limits the affected scope rather than freezing the inventory.
+
 ## RC — Release candidate
 
 Exact release artifacts, upgrade paths, packaging, signing requirements for
@@ -230,6 +321,11 @@ claimed platforms, and the release rehearsal pass with no known release blocker.
 Rehearse exact installer, feed, signature, failed-update recovery, and previous
 signed rollback identities for the Windows updater when included. Qualify
 package-appropriate Linux, Steam Deck, and macOS upgrade paths separately.
+
+Bind qualification to exact application artifacts and exact catalog inputs.
+Compatible independent catalog updates may continue during RC/V1 application
+freezes; new engine capabilities or unsafe contract changes cannot silently
+enter the candidate. Requalify inputs relevant to each changed claim.
 
 ## V1
 
@@ -298,6 +394,12 @@ Expand the bounded delivery path through local/community import, conservative
 partial management, scalable publisher onboarding and selective health checks.
 Review genuinely new authorities, capabilities and ownership boundaries; routine
 data changes inside accepted scopes do not require another personal approval.
+Under #254, gather identity/distribution evidence and declare accepted repository,
+artifact-host and operation scopes for repeatable onboarding; no universal
+GitHub/domain trust or per-release review queue. Upstreams need not publish
+Portcove metadata, change packaging or make special releases. Deterministic
+maintenance is the default; agents assist capability work, diagnosis and bounded
+repair without becoming publication authority.
 Retain exact installed definition content and contracts, not only a remote URL
 or digest. A publishing outage alone must not disable a usable library.
 
@@ -352,23 +454,25 @@ require measured evidence, even when feature lists overlap.
 
 ## Outcome measures
 
-Existing owners record lightweight measures with an explicit scope,
-denominator, evidence source, exclusions, and reporting location:
+Owners record measurements in existing Completion evidence sections and linked
+CI/qualification artifacts, not a new dashboard or telemetry service. Every
+report declares observation time, method, denominator, exclusions and unknown or
+baseline status. This planning change establishes no measurement baseline.
 
-- #15/#242/#255 record active user effort from game selection to first play,
-  excluding passive waits and separating automated evidence from usability
-  observation.
-- #46/#52 and game-update owners record successful return after application and
-  game updates separately.
-- #22/#48 and applicable lifecycle owners record recovery without manual file
-  repair or maintainer coaching and preservation of original sources, saves,
-  settings, and recoverable state.
-- #246/#247/#254 record owner interventions per eligible routine addition,
-  artifact update, and correction; zero-intervention completions; deduplicated
-  exceptions; repair attempts; latency/cost; and recovery outcomes. One-time
-  provisioning is separate from routine intervention.
+| Measure and owner | Collection and denominator | Exclusions and limits |
+|---|---|---|
+| Available coverage: #246; expanded onboarding #254 | Catalog/core assessment counts distinct usable ports per platform/operation against declared catalog scope. | Separate research inventory, catalog presence and gameplay qualification; report unsupported/unknown operations. |
+| Freshness: #398 observation, #246 acceptance-to-client | Timestamp upstream publication, observation, acceptance, publication and client availability for each release in configured scope. | Declare cadence/clocks; list holds, missing timestamps, unmonitored/stale entries and capability/authority exclusions. Same-day is a target until measured. |
+| Compatible addition effort: #246/#254 | Record human/agent effort and application-code changes per addition expected to use existing capabilities. | Separate new-capability engineering and one-time onboarding; retain failed attempts. |
+| Routine intervention: #246 | Count owner actions and zero-action completions per eligible definition, artifact update and correction. | Separate provisioning/authority decisions from recurring actions; report excluded candidates and reasons. |
+| Exceptions: #246 minimum, #247 expansion | Existing records report age, recurrence, affected scope, failed rule, evidence, fallback and resume condition per unique exception and attempted change. | Deduplicate occurrences without hiding recurrence or unresolved holds. |
+| Player outcomes: #15/#242/#255, #46/#52, #22/#48 | Scoped journey records measure active first-play effort, return after app/game updates, recovery and source/save/settings preservation per attempted scenario. | Separate passive waits, automation, physical observation and novice comprehension; synthetic success cannot establish understanding. |
+| Operating cost: #398/#246, expanded tooling #254 | Record API calls, download bytes, CI time, retained storage and agent cost per accepted change and per exception. | Declare shared/provisioning costs and unavailable billing data; bound retries, concurrency and retention while protecting active/pinned/recovery assets. |
 
-Do not invent baselines, adoption claims, or numeric targets without evidence,
-or require telemetry infrastructure to make these measures possible. Eligibility
-and exclusions stay visible. Preservation failures are failures, not an average
-to hide, and agent-job count is not a success measure.
+Targets remain targets until measured. One accepted upstream does not establish
+ecosystem-wide autonomy; expand declared proven scope over time. Preservation
+failures are failures, not an average to hide, and job count is not success.
+
+Freeze application feature scope when needed, not compatible catalog growth.
+Representative ports prove the engine; use that engine to make the full catalog
+broader, more current and less expensive to maintain.

@@ -240,6 +240,20 @@ Within the same horizon, address release blockers and safety failures before
 optional scope. Manual order is the final tie-breaker. A dependency may move an
 item earlier; record the reason in the issue rather than freezing it in docs.
 
+Coordinate application maturity and compatible catalog freshness in these same
+queues and views; no additional workstream is needed. A high-priority active Port
+may be Opportunistic for a release: its absence does not block that release,
+but it need not always wait. Keep work in progress bounded instead of promoting
+the full pipeline. A feature freeze constrains application scope, not compatible
+catalog growth through an implemented independent path. Until that path ships,
+compatible additions may still use the ordinary application-release route.
+
+When a finite component needs an earlier target than its parent outcome, give
+only that independently verifiable slice a child and Project item. Parentage
+does not block component development. Use one-way final-integration dependencies
+and fixture-based component proofs; do not make an optional broad parent a
+transitive release gate or mark planned phases complete.
+
 V1 Readiness shows work targeted through V1 with commitment visible. The
 derived `readiness` command and immutable snapshot compute the actual gate from
 Required outcomes and genuine transitive `blocked by` relationships. They report
