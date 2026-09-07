@@ -421,15 +421,20 @@ async fn rollback_keeps_the_replay_floor() {
     let library = Library::open(root.path().join("library")).unwrap();
     trusted(&library);
     let service = PortcoveService::new(library.clone()).unwrap();
+    eprintln!("catalog rollback: first publication");
     publish(&service, &write_candidate(root.path(), 1)).await;
-    let fresh = PortcoveService::new(library.clone()).unwrap();
+    // Snapshot refresh belongs to publication_is_offline_snapshot_bound_and_replay_protected.
+    // This case tests two publications and rollback on the same durable library.
+    eprintln!("catalog rollback: second publication");
     let second = write_candidate(root.path(), 2);
-    let two = publish(&fresh, &second).await;
+    let two = publish(&service, &second).await;
     assert!(two.can_rollback);
+    eprintln!("catalog rollback: roll back");
     let rollback = library.rollback_catalog(&two.state_sha256).unwrap();
     assert_eq!(rollback.highest_sequence, 2);
     assert_eq!(rollback.provenance.sequence, Some(1));
     assert!(!rollback.can_rollback);
+    eprintln!("catalog rollback: reject replay");
     assert!(service.plan_catalog_update(&second).await.is_err());
     assert!(
         library
