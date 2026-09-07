@@ -10,7 +10,9 @@ param(
     [ValidateRange(1, 600)]
     [int]$ProcessTimeoutSeconds = 120,
     [ValidateRange(1, 60)]
-    [int]$CleanupTimeoutSeconds = 15
+    [int]$CleanupTimeoutSeconds = 15,
+    [ValidateSet("", "post-spawn-verification")]
+    [string]$TestFault = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -223,51 +225,98 @@ function Write-InstallerEvidence([string]$Phase, $Details = $null) {
 }
 Write-InstallerEvidence "initialized"
 
+function Stop-JournaledProcess($Run, $Process, [string]$Status, [string]$Reason) {
+    $Run.status = $Status
+    $journalFailure = $null
+    $parentExited = $false
+    try {
+        $Process.Refresh()
+        $parentExited = $Process.HasExited
+    } catch {
+        $Reason += "; retained parent state observation failed: $($_.Exception.Message)"
+    }
+    if ($parentExited) {
+        $Run.exit_observation = "$Reason; the retained parent had already exited"
+    } else {
+        $Run.exit_observation = "$Reason; process-tree termination was requested"
+    }
+    if ($evidence) {
+        try { Write-InstallerEvidence $evidence.phase } catch { $journalFailure = $_.Exception.Message }
+    }
+    if (-not $parentExited) {
+        try {
+            $Process.Kill($true)
+            if ($Process.WaitForExit(5000)) {
+                $Run.exit_observation += "; retained parent exit was observed after the termination request"
+            } else {
+                $Run.exit_observation += "; retained parent exit was not observed within 5 seconds"
+            }
+        } catch {
+            $Run.exit_observation += "; termination request failed: $($_.Exception.Message)"
+        }
+    }
+    if ($evidence) {
+        try { Write-InstallerEvidence $evidence.phase } catch { if (-not $journalFailure) { $journalFailure = $_.Exception.Message } }
+    }
+    if ($journalFailure) {
+        throw "Process cleanup evidence could not be persisted after the termination attempt: $journalFailure"
+    }
+}
+
 function Start-JournaledProcess([string]$Role, [string]$Executable, [object[]]$Arguments, [string]$AllowedRelocationRoot = "") {
     $exact = [System.IO.Path]::GetFullPath($Executable)
     $requested = [DateTime]::UtcNow
     $run = [ordered]@{ id = [System.Guid]::NewGuid().ToString("N"); role = $Role; requested_at = $requested.ToString("o"); requested_at_filetime = $requested.ToFileTimeUtc(); executable_path = $exact; executable_sha256 = (Get-FileHash -LiteralPath $exact -Algorithm SHA256).Hash.ToLowerInvariant(); arguments = @($Arguments); status = "launch_pending"; pid = $null; start_time = $null; start_time_filetime = $null; exit_code = $null; exit_observation = $null }
     if ($evidence) { $evidence.process_runs += $run; Write-InstallerEvidence $evidence.phase }
     $process = Start-Process -FilePath $exact -ArgumentList $Arguments -PassThru -WindowStyle Hidden
-    $run.pid = $process.Id; $run.start_time = $process.StartTime.ToUniversalTime().ToString("o"); $run.start_time_filetime = $process.StartTime.ToFileTimeUtc(); $run.status = "running"
-    if ($evidence) { Write-InstallerEvidence $evidence.phase }
-    $launchedPath = [System.IO.Path]::GetFullPath($process.StartInfo.FileName)
-    if (-not $launchedPath.Equals($exact, [System.StringComparison]::OrdinalIgnoreCase)) {
-        throw "$Role retained handle does not identify the exact requested launch path"
-    }
-    $imageDeadline = (Get-Date).AddSeconds(2)
-    $observedPath = $null
-    do {
-        $process.Refresh()
-        $candidatePath = try { $process.Path } catch { $null }
-        if (-not [string]::IsNullOrWhiteSpace($candidatePath) -and [System.IO.Path]::GetExtension($candidatePath).Equals(".exe", [System.StringComparison]::OrdinalIgnoreCase)) {
-            $observedPath = $candidatePath
-            break
+    try {
+        $run.pid = $process.Id; $run.start_time = $process.StartTime.ToUniversalTime().ToString("o"); $run.start_time_filetime = $process.StartTime.ToFileTimeUtc(); $run.status = "running"
+        if ($evidence) { Write-InstallerEvidence $evidence.phase }
+        if ($TestFault -eq "post-spawn-verification") {
+            throw "$Role injected post-spawn verification failure"
         }
-        if ($process.HasExited) { break }
-        Start-Sleep -Milliseconds 25
-    } while ((Get-Date) -lt $imageDeadline)
-    if ([string]::IsNullOrWhiteSpace($observedPath)) {
-        if (-not $process.HasExited) { throw "$Role stable executable image path could not be observed while it was running" }
-        $run.image_observation = "Process exited before a stable executable image path was observable; StartInfo and the retained handle identify the exact hash-journaled launch"
-        if ($evidence) { Write-InstallerEvidence $evidence.phase }
-    } else {
-        $actualPath = [System.IO.Path]::GetFullPath($observedPath)
-        $run.observed_image_path = $actualPath
-        if ($evidence) { Write-InstallerEvidence $evidence.phase }
-        if (-not $actualPath.Equals($exact, [System.StringComparison]::OrdinalIgnoreCase)) {
-            if (-not $AllowedRelocationRoot) { throw "$Role process path does not match its write-ahead record" }
-            $relocationRoot = [System.IO.Path]::GetFullPath($AllowedRelocationRoot).TrimEnd('\')
-            if (-not $actualPath.StartsWith($relocationRoot + '\', [System.StringComparison]::OrdinalIgnoreCase)) {
-                throw "$Role process relocated outside its owned temporary root"
+        $launchedPath = [System.IO.Path]::GetFullPath($process.StartInfo.FileName)
+        if (-not $launchedPath.Equals($exact, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "$Role retained handle does not identify the exact requested launch path"
+        }
+        $imageDeadline = (Get-Date).AddSeconds(2)
+        $observedPath = $null
+        do {
+            $process.Refresh()
+            $candidatePath = try { $process.Path } catch { $null }
+            if (-not [string]::IsNullOrWhiteSpace($candidatePath) -and [System.IO.Path]::GetExtension($candidatePath).Equals(".exe", [System.StringComparison]::OrdinalIgnoreCase)) {
+                $observedPath = $candidatePath
+                break
             }
-            Assert-NoReparseAncestry $actualPath
+            if ($process.HasExited) { break }
+            Start-Sleep -Milliseconds 25
+        } while ((Get-Date) -lt $imageDeadline)
+        if ([string]::IsNullOrWhiteSpace($observedPath)) {
+            if (-not $process.HasExited) { throw "$Role stable executable image path could not be observed while it was running" }
+            $run.image_observation = "Process exited before a stable executable image path was observable; StartInfo and the retained handle identify the exact hash-journaled launch"
+            if ($evidence) { Write-InstallerEvidence $evidence.phase }
+        } else {
+            $actualPath = [System.IO.Path]::GetFullPath($observedPath)
+            $run.observed_image_path = $actualPath
+            if ($evidence) { Write-InstallerEvidence $evidence.phase }
+            if (-not $actualPath.Equals($exact, [System.StringComparison]::OrdinalIgnoreCase)) {
+                if (-not $AllowedRelocationRoot) { throw "$Role process path does not match its write-ahead record" }
+                $relocationRoot = [System.IO.Path]::GetFullPath($AllowedRelocationRoot).TrimEnd('\')
+                if (-not $actualPath.StartsWith($relocationRoot + '\', [System.StringComparison]::OrdinalIgnoreCase)) {
+                    throw "$Role process relocated outside its owned temporary root"
+                }
+                Assert-NoReparseAncestry $actualPath
+            }
+            if ((Get-FileHash -LiteralPath $actualPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $run.executable_sha256) { throw "$Role process bytes do not match its write-ahead record" }
+            $run.image_observation = "Observed the exact hash-journaled image or its exact session-owned temporary copy"
+            if ($evidence) { Write-InstallerEvidence $evidence.phase }
         }
-        if ((Get-FileHash -LiteralPath $actualPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $run.executable_sha256) { throw "$Role process bytes do not match its write-ahead record" }
-        $run.image_observation = "Observed the exact hash-journaled image or its exact session-owned temporary copy"
-        if ($evidence) { Write-InstallerEvidence $evidence.phase }
+        [pscustomobject]@{ process = $process; run = $run }
+    } catch {
+        $failure = $_.Exception.Message
+        Stop-JournaledProcess $run $process "verification_failed" "Post-spawn verification failed: $failure"
+        throw
     }
-    [pscustomobject]@{ process = $process; run = $run }
 }
 
 function Complete-JournaledProcess($Run, $Process, [string]$Status) {
@@ -277,25 +326,20 @@ function Complete-JournaledProcess($Run, $Process, [string]$Status) {
 
 function Invoke-JournaledProcess([string]$Role, [string]$Executable, [object[]]$Arguments, [string]$AllowedRelocationRoot = "") {
     $launch = Start-JournaledProcess -Role $Role -Executable $Executable -Arguments $Arguments -AllowedRelocationRoot $AllowedRelocationRoot
-    if (-not $launch.process.WaitForExit($ProcessTimeoutSeconds * 1000)) {
-        $launch.run.status = "timed_out"
-        $launch.run.exit_observation = "No exit was observed within $ProcessTimeoutSeconds seconds"
-        if ($evidence) { Write-InstallerEvidence $evidence.phase }
-        try {
-            $launch.process.Kill($true)
-            if ($launch.process.WaitForExit(5000)) {
-                $launch.run.exit_observation += "; the retained process tree was force-terminated"
-            } else {
-                $launch.run.exit_observation += "; force-termination was not observed within 5 seconds"
-            }
-        } catch {
-            $launch.run.exit_observation += "; force-termination failed: $($_.Exception.Message)"
+    try {
+        if (-not $launch.process.WaitForExit($ProcessTimeoutSeconds * 1000)) {
+            Stop-JournaledProcess $launch.run $launch.process "timed_out" "No exit was observed within $ProcessTimeoutSeconds seconds"
+            throw "$Role did not exit within $ProcessTimeoutSeconds seconds"
         }
-        if ($evidence) { Write-InstallerEvidence $evidence.phase }
-        throw "$Role did not exit within $ProcessTimeoutSeconds seconds"
+        Complete-JournaledProcess $launch.run $launch.process "exit_observed"
+        $launch.process
+    } catch {
+        if ($launch.run.status -ne "timed_out" -and $launch.run.status -ne "process_wait_failed") {
+            $failure = $_.Exception.Message
+            Stop-JournaledProcess $launch.run $launch.process "process_wait_failed" "Retained-handle wait or completion failed: $failure"
+        }
+        throw
     }
-    Complete-JournaledProcess $launch.run $launch.process "exit_observed"
-    $launch.process
 }
 
 $completed = $false

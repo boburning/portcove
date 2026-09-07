@@ -43,5 +43,12 @@ test("installer lifecycle waits for managed files and uninstall registration to 
     /if \(-not \$managedFilesRemain -and \$remainingRegistryEntries\.Count -eq 0\)/,
   );
   assert.match(source, /WaitForExit\(\$ProcessTimeoutSeconds \* 1000\)/);
-  assert.match(source, /status = "timed_out"/);
+  assert.match(source, /Stop-JournaledProcess \$launch\.run \$launch\.process "timed_out"/);
+  const start = source.indexOf("function Start-JournaledProcess");
+  const spawn = source.indexOf("$process = Start-Process", start);
+  const verificationGuard = source.indexOf("    try {", spawn);
+  const verificationCatch = source.indexOf("    } catch {", verificationGuard);
+  const cleanup = source.indexOf('Stop-JournaledProcess $run $process "verification_failed"', verificationCatch);
+  const invoke = source.indexOf("function Invoke-JournaledProcess", start);
+  assert.ok(start >= 0 && spawn > start && verificationGuard > spawn && verificationCatch > verificationGuard && cleanup > verificationCatch && invoke > cleanup);
 });

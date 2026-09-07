@@ -94,25 +94,27 @@ class Uninstaller { static void Main() { if (Environment.GetEnvironmentVariable(
   execFileSync(csc, ["/nologo", `/out:${uninstaller}`, uninstallerSource], { windowsHide: true });
 
   const installerSource = path.join(root, "installer.cs");
-  writeFileSync(installerSource, `using System; using System.IO; using Microsoft.Win32;
-class Installer { static void Main(string[] args) { string install = null; foreach (var arg in args) if (arg.StartsWith("/D=")) install = arg.Substring(3); if (install == null) Environment.Exit(2); Directory.CreateDirectory(install); File.Copy(${csharpLiteral(desktop)}, Path.Combine(install, "portcove-desktop.exe"), true); File.Copy(${csharpLiteral(uninstaller)}, Path.Combine(install, "uninstall.exe"), true); using (var key = Registry.CurrentUser.CreateSubKey(${csharpLiteral(keyPath)})) { key.SetValue("DisplayName", "Portcove"); key.SetValue("InstallLocation", install); key.SetValue("UninstallString", "\\\"" + Path.Combine(install, "uninstall.exe") + "\\\""); } } }
+  writeFileSync(installerSource, `using System; using System.IO; using System.Threading; using Microsoft.Win32;
+class Installer { static void Main(string[] args) { if (Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_HANG_INSTALLER") == "1") Thread.Sleep(60000); string install = null; foreach (var arg in args) if (arg.StartsWith("/D=")) install = arg.Substring(3); if (install == null) Environment.Exit(2); Directory.CreateDirectory(install); File.Copy(${csharpLiteral(desktop)}, Path.Combine(install, "portcove-desktop.exe"), true); File.Copy(${csharpLiteral(uninstaller)}, Path.Combine(install, "uninstall.exe"), true); using (var key = Registry.CurrentUser.CreateSubKey(${csharpLiteral(keyPath)})) { key.SetValue("DisplayName", "Portcove"); key.SetValue("InstallLocation", install); key.SetValue("UninstallString", "\\\"" + Path.Combine(install, "uninstall.exe") + "\\\""); } } }
 `);
   const installer = path.join(root, "installer.exe");
   execFileSync(csc, ["/nologo", `/out:${installer}`, installerSource], { windowsHide: true });
   return { root, installer, keyPath };
 }
 
-function runInstallerLifecycle(item, name, environment, processTimeoutSeconds = "5") {
+function runInstallerLifecycle(item, name, environment, processTimeoutSeconds = "5", testFault = "") {
   const caseRoot = path.join(item.root, name);
   mkdirSync(caseRoot);
-  return spawnSync("pwsh.exe", [
+  const args = [
     "-NoLogo", "-NoProfile", "-File", installerLifecycleTool,
     "-InstallerPath", item.installer,
     "-TestBase", path.join(caseRoot, "runs"),
     "-EvidencePath", path.join(caseRoot, "evidence.json"),
     "-ProcessTimeoutSeconds", processTimeoutSeconds,
     "-CleanupTimeoutSeconds", "2",
-  ], { encoding: "utf8", windowsHide: true, timeout: 60_000, env: { ...process.env, ...environment } });
+  ];
+  if (testFault) args.push("-TestFault", testFault);
+  return spawnSync("pwsh.exe", args, { encoding: "utf8", windowsHide: true, timeout: 60_000, env: { ...process.env, ...environment } });
 }
 
 function removeInstallerLifecycleRegistration(item) {
@@ -139,8 +141,18 @@ test("installer lifecycle behavior handles delayed, persistent, and hung uninsta
   const hungEvidence = JSON.parse(readFileSync(path.join(item.root, "hung", "evidence.json"), "utf8"));
   const uninstallerRun = hungEvidence.process_runs.find(run => run.role === "candidate_uninstaller");
   assert.equal(uninstallerRun.status, "timed_out");
-  assert.match(uninstallerRun.exit_observation, /force-terminated/);
+  assert.match(uninstallerRun.exit_observation, /retained parent exit was observed after the termination request/);
   removeInstallerLifecycleRegistration(item);
+
+  const verification = runInstallerLifecycle(item, "verification", { PORTCOVE_FIXTURE_HANG_INSTALLER: "1" }, "5", "post-spawn-verification");
+  assert.notEqual(verification.status, 0);
+  assert.match(verification.stderr, /candidate_installer injected post-spawn verification failure/);
+  const verificationEvidence = JSON.parse(readFileSync(path.join(item.root, "verification", "evidence.json"), "utf8"));
+  const installerRun = verificationEvidence.process_runs.find(run => run.role === "candidate_installer");
+  assert.equal(installerRun.status, "verification_failed");
+  assert.match(installerRun.exit_observation, /retained parent exit was observed after the termination request/);
+  const task = spawnSync("tasklist.exe", ["/FI", `PID eq ${installerRun.pid}`, "/FO", "CSV", "/NH"], { encoding: "utf8", windowsHide: true });
+  assert.doesNotMatch(task.stdout, new RegExp(`"${installerRun.pid}"`));
 });
 
 function makeFixture(t) {
