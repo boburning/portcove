@@ -21,7 +21,8 @@ clippy:
     {{storage}} cargo clippy --workspace --all-targets -- -D warnings
 
 rust-test:
-    {{storage}} cargo test --workspace
+    {{storage}} cargo nextest run --locked --workspace
+    {{storage}} cargo test --locked --workspace --doc
 
 shear:
     {{storage}} cargo shear --deny-warnings

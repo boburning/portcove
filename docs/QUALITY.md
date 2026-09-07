@@ -119,3 +119,20 @@ The advisory cycle report is deliberately excluded from routine CI and `audit`
 because its known inherent-item cycle baseline produces non-actionable noise.
 The pinned tool remains available through the optional deep bootstrap and
 `just cycles`; the deterministic Cargo-metadata architecture gate is unchanged.
+
+## Test duration budget
+
+The required Rust test lanes and `just rust-test` use the version of cargo-nextest
+pinned in `.github/quality-tools.json`. Each test has a five-second timeout,
+no termination grace period, and no retries. A timed-out test fails the lane;
+repair its fixture or implementation instead of raising its budget or skipping it.
+Nextest prints individual elapsed times. Documentation tests still run separately
+with Cargo on Windows, Linux, and both macOS architectures.
+
+CI uses line-table debug information for development and test builds to retain
+file/line backtraces while reducing debug-data generation and linking work.
+Local development profiles remain unchanged. Changing this setting invalidates
+build caches; report cold and warm hosted timings separately. The five-minute
+pipeline target includes setup and required-job aggregation, not just test runtime.
+
+The UI test command explicitly sets Vitest's five-second test timeout.

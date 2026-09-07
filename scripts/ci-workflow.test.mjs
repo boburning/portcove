@@ -38,11 +38,11 @@ test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () 
     assert.match(rustTests, new RegExp(`"${shard.replaceAll("::", "::")}"`));
   }
   assert.match(rustTests, /"--skip", "service::", "--skip", "cancellation::", "--skip", "database::", "--skip", "import_execution::", "--skip", "library_move::"/);
-  assert.doesNotMatch(rustTests, /workspace-other|setup-node|pnpm|cargo check|cargo fmt|cargo clippy/);
+  assert.doesNotMatch(rustTests, /workspace-other|pnpm|cargo check|cargo fmt|cargo clippy/);
 
   assert.match(rustWorkspaceTests, /^    name: rust-test \(workspace-other\)$/m);
   assert.match(rustWorkspaceTests, /runs-on: windows-latest/);
-  assert.match(rustWorkspaceTests, /cargo test --workspace --exclude portcove-core/);
+  assert.match(rustWorkspaceTests, /cargo nextest run --locked --workspace --exclude portcove-core/);
   assert.doesNotMatch(rustWorkspaceTests, /matrix|cargo fmt|cargo clippy/);
 
   assert.match(rustClippy, /^    name: rust-clippy$/m);
@@ -81,7 +81,7 @@ test("native Rust runs the full workspace on every supported Unix architecture",
   assert.match(nativeRust, /if: runner\.os == 'Linux'/);
   assert.match(nativeRust, /echo "TMPDIR=\$RUNNER_TEMP" >> "\$GITHUB_ENV"/);
   assert.match(nativeRust, /libwebkit2gtk-4\.1-dev libappindicator3-dev librsvg2-dev patchelf/);
-  assert.match(nativeRust, /cargo test --workspace/);
+  assert.match(nativeRust, /cargo nextest run --locked --workspace/);
   assert.doesNotMatch(nativeRust, /continue-on-error/);
 });
 
@@ -183,4 +183,22 @@ test("offline RetComM validation rejects bad mappings without loading upstream d
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test("Rust unit budgets fail at five seconds and documentation coverage remains", async () => {
+  const config = await readFile(new URL("../.config/nextest.toml", import.meta.url), "utf8");
+  assert.match(config, /slow-timeout = \{ period = "5s", terminate-after = 1, grace-period = "0s" \}/);
+  assert.match(config, /^retries = 0$/m);
+  assert.doesNotMatch(config, /overrides|on-timeout|default-filter/);
+  assert.match(rustTests, /cargo nextest run --locked @Arguments/);
+  for (const section of [rustWorkspaceTests, nativeRust]) {
+    assert.match(section, /cargo test --locked --workspace --doc/);
+  }
+  for (const section of [rustTests, rustWorkspaceTests, nativeRust]) {
+    assert.match(section, /Install pinned test runner/);
+    assert.match(section, /quality-tools\.mjs --version cargo-nextest/);
+  }
+  assert.match(rustQuality, /cargo nextest run --locked -p portcove-core/);
+  assert.match(workflow, /CARGO_PROFILE_TEST_DEBUG: line-tables-only/);
+  assert.match(workflow, /CARGO_PROFILE_DEV_DEBUG: line-tables-only/);
 });

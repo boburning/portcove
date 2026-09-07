@@ -1,0 +1,7 @@
+# Every Rust unit/integration test has its own process and timing record.
+# A timeout is a failure; there are no retries or per-test budget exemptions.
+[profile.default]
+slow-timeout = { period = "5s", terminate-after = 1, grace-period = "0s" }
+retries = 0
+status-level = "pass"
+final-status-level = "slow"
