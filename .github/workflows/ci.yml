@@ -175,6 +175,11 @@ jobs:
         if: runner.os == 'Linux'
         timeout-minutes: 2
         run: |
+          for source in /etc/apt/sources.list /etc/apt/apt-mirrors.txt; do
+            if [ -f "$source" ]; then
+              sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$source"
+            fi
+          done
           sudo apt-get -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 -o Acquire::Retries=0 update
           sudo apt-get -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 -o Acquire::Retries=0 install -y --no-install-recommends libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
       - name: Test the full Rust workspace natively
@@ -276,6 +281,11 @@ jobs:
         if: runner.os == 'Linux'
         timeout-minutes: 2
         run: |
+          for source in /etc/apt/sources.list /etc/apt/apt-mirrors.txt; do
+            if [ -f "$source" ]; then
+              sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$source"
+            fi
+          done
           sudo apt-get -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 -o Acquire::Retries=0 update
           sudo apt-get -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 -o Acquire::Retries=0 install -y --no-install-recommends libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
       - name: Test workspace documentation
