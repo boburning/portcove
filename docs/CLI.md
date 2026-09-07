@@ -138,7 +138,10 @@ Source Inbox destination, capacity requirement, and copy, move, or
 use-current-location mode. Copy is non-destructive. Move consumes a separate
 single-use authorization and reports a verified registered copy with the exact
 retained-original path if cleanup fails. Lifecycle activity and SQLite schema 18
-allow interrupted imports to resume without duplicate registration.
+allow interrupted imports to resume without duplicate registration. A durable
+operation-bound receipt lets restart recognize a rename that completed before
+its journal phase write, while missing, changed, or unrelated destinations stay
+blocked without deletion.
 
 API schema 33 exposes Source Inbox paths, scans, import plans, and import
 execution through the CLI and desktop adapters. Both adapters preserve the

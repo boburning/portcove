@@ -19,6 +19,8 @@ use crate::{
 };
 
 const IMPORT_PLAN_SCHEMA_VERSION: u32 = 1;
+const PUBLICATION_RECEIPT_SCHEMA_VERSION: u32 = 1;
+const PUBLICATION_RECEIPT_FILE: &str = ".portcove-publication-receipt.json";
 const MAX_IMPORT_ENTRIES: u32 = 4_096;
 const MOVE_ACTION: &str = "move_source_to_inbox";
 
@@ -95,6 +97,16 @@ struct SourceGuard {
     sha256: String,
     bytes: u64,
     root_identity: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SourceImportPublicationReceipt {
+    schema_version: u32,
+    import_id: String,
+    plan_sha256: String,
+    destination: PathBuf,
+    object_identity: String,
 }
 
 impl PortcoveService {
@@ -408,18 +420,34 @@ where
     }
 
     if operation.phase == LifecyclePhase::Prepared {
-        revalidate_source(service, &plan, &plan.source.path)?;
-        if !plan.reuse_existing {
-            publish_staging(operation, &plan)?;
+        if plan.reuse_existing {
+            revalidate_source(service, &plan, &plan.source.path)?;
+        } else {
+            publish_staging(service, operation, &plan)?;
+            service.check_lifecycle_fault(
+                crate::operation::LifecycleFaultPoint::SourceImportBeforePublicationRecorded,
+            )?;
         }
         revalidate_destination(service, &plan)?;
+        if !plan.reuse_existing {
+            service.check_lifecycle_fault(
+                crate::operation::LifecycleFaultPoint::SourceImportBeforePublicationOwnershipRecorded,
+            )?;
+            verify_publication_receipt(operation, &plan, &plan.destination)?;
+        }
         operation.phase = LifecyclePhase::PayloadPublished;
         store.put(operation)?;
+        if !plan.reuse_existing {
+            cleanup_publication_receipt(operation, &plan)?;
+        }
         service
             .check_lifecycle_fault(crate::operation::LifecycleFaultPoint::SourceImportPublished)?;
     }
 
     if operation.phase == LifecyclePhase::PayloadPublished {
+        if !plan.reuse_existing {
+            cleanup_publication_receipt(operation, &plan)?;
+        }
         let registered = revalidate_destination(service, &plan)?;
         service.library().register_source(&registered)?;
         operation.phase = LifecyclePhase::MetadataCommitted;
@@ -597,27 +625,182 @@ fn revalidate_registered(
     Ok(registered)
 }
 
-fn publish_staging(operation: &LifecycleOperation, plan: &SourceImportPlan) -> Result<()> {
+fn publish_staging(
+    service: &PortcoveService,
+    operation: &LifecycleOperation,
+    plan: &SourceImportPlan,
+) -> Result<()> {
     let staging = operation.paths.staging.as_ref().ok_or_else(|| {
         PortcoveError::state("source import lifecycle record has no staging path")
     })?;
-    match fs::symlink_metadata(&plan.destination) {
-        Ok(_) => {
-            return Err(PortcoveError::conflict(
-                "Source Inbox destination appeared after import review",
-            ));
+    let profile = plan
+        .destination
+        .parent()
+        .ok_or_else(|| PortcoveError::state("Source Inbox destination has no parent"))?;
+    let staging_root = validated_staging_root(staging, profile, &operation.id)?;
+    let staging_exists = path_exists(staging)?;
+    let destination_exists = path_exists(&plan.destination)?;
+    match (staging_exists, destination_exists) {
+        (true, false) => {
+            require_owned_staging_root(staging_root, profile)?;
+            require_regular_source_shape(staging)?;
+            revalidate_source(service, plan, &plan.source.path)?;
+            ensure_publication_receipt(operation, plan, staging)?;
+            service.check_lifecycle_fault(
+                crate::operation::LifecycleFaultPoint::SourceImportPublicationPrepared,
+            )?;
+            fs::rename(staging, &plan.destination)?;
+            crate::durability::sync_publication(profile)?;
+            verify_publication_receipt(operation, plan, &plan.destination)?;
         }
+        (false, true) => {
+            require_owned_staging_root(staging_root, profile)?;
+            require_regular_source_shape(&plan.destination)?;
+            verify_publication_receipt(operation, plan, &plan.destination)?;
+        }
+        (true, true) => {
+            return Err(PortcoveError::conflict(
+                "both source import staging and its final destination exist",
+            )
+            .detail("staging", staging.display().to_string())
+            .detail("destination", plan.destination.display().to_string()));
+        }
+        (false, false) => {
+            return Err(PortcoveError::state(
+                "prepared source import staging and destination are both absent",
+            )
+            .detail("staging", staging.display().to_string())
+            .detail("destination", plan.destination.display().to_string()));
+        }
+    }
+    Ok(())
+}
+
+fn path_exists(path: &Path) -> Result<bool> {
+    match fs::symlink_metadata(path) {
+        Ok(_) => Ok(true),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(error.into()),
+    }
+}
+
+fn ensure_publication_receipt(
+    operation: &LifecycleOperation,
+    plan: &SourceImportPlan,
+    staged: &Path,
+) -> Result<()> {
+    let receipt_path = publication_receipt_path(operation, plan)?;
+    let expected = SourceImportPublicationReceipt {
+        schema_version: PUBLICATION_RECEIPT_SCHEMA_VERSION,
+        import_id: operation.id.clone(),
+        plan_sha256: plan.plan_sha256.clone(),
+        destination: plan.destination.clone(),
+        object_identity: object_identity(staged)?,
+    };
+    if path_exists(&receipt_path)? {
+        let actual = read_publication_receipt(&receipt_path)?;
+        require_publication_receipt(&actual, &expected)?;
+    } else {
+        crate::durability::write_json_atomically(&receipt_path, &expected, false)?;
+    }
+    Ok(())
+}
+
+fn verify_publication_receipt(
+    operation: &LifecycleOperation,
+    plan: &SourceImportPlan,
+    published: &Path,
+) -> Result<()> {
+    let receipt_path = publication_receipt_path(operation, plan)?;
+    let actual = read_publication_receipt(&receipt_path)?;
+    let expected = SourceImportPublicationReceipt {
+        schema_version: PUBLICATION_RECEIPT_SCHEMA_VERSION,
+        import_id: operation.id.clone(),
+        plan_sha256: plan.plan_sha256.clone(),
+        destination: plan.destination.clone(),
+        object_identity: object_identity(published)?,
+    };
+    require_publication_receipt(&actual, &expected)
+}
+
+fn require_publication_receipt(
+    actual: &SourceImportPublicationReceipt,
+    expected: &SourceImportPublicationReceipt,
+) -> Result<()> {
+    if actual.schema_version != PUBLICATION_RECEIPT_SCHEMA_VERSION
+        || uuid::Uuid::parse_str(&actual.import_id).is_err()
+        || actual.import_id != expected.import_id
+        || actual.plan_sha256 != expected.plan_sha256
+        || actual.destination != expected.destination
+        || actual.object_identity != expected.object_identity
+    {
+        return Err(PortcoveError::conflict(
+            "source import publication receipt does not own the observed destination",
+        ));
+    }
+    Ok(())
+}
+
+fn read_publication_receipt(path: &Path) -> Result<SourceImportPublicationReceipt> {
+    let metadata = fs::symlink_metadata(path).map_err(|error| {
+        if error.kind() == std::io::ErrorKind::NotFound {
+            PortcoveError::conflict(
+                "source import destination exists without its operation-bound publication receipt",
+            )
+        } else {
+            error.into()
+        }
+    })?;
+    if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.len() > 16 * 1024 {
+        return Err(PortcoveError::state(
+            "source import publication receipt is not a bounded regular file",
+        ));
+    }
+    Ok(serde_json::from_slice(&crate::path::read_bounded_regular(
+        path,
+        16 * 1024,
+    )?)?)
+}
+
+fn publication_receipt_path(
+    operation: &LifecycleOperation,
+    plan: &SourceImportPlan,
+) -> Result<PathBuf> {
+    let staging = operation.paths.staging.as_ref().ok_or_else(|| {
+        PortcoveError::state("source import lifecycle record has no staging path")
+    })?;
+    let profile = plan
+        .destination
+        .parent()
+        .ok_or_else(|| PortcoveError::state("Source Inbox destination has no parent"))?;
+    Ok(validated_staging_root(staging, profile, &operation.id)?.join(PUBLICATION_RECEIPT_FILE))
+}
+
+fn cleanup_publication_receipt(
+    operation: &LifecycleOperation,
+    plan: &SourceImportPlan,
+) -> Result<()> {
+    let receipt = publication_receipt_path(operation, plan)?;
+    let root = receipt
+        .parent()
+        .ok_or_else(|| PortcoveError::state("source import receipt path has no parent"))?;
+    if !path_exists(root)? {
+        return Ok(());
+    }
+    let profile = plan
+        .destination
+        .parent()
+        .ok_or_else(|| PortcoveError::state("Source Inbox destination has no parent"))?;
+    require_owned_staging_root(root, profile)?;
+    match fs::remove_file(&receipt) {
+        Ok(()) => {}
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
         Err(error) => return Err(error.into()),
     }
-    fs::rename(staging, &plan.destination)?;
-    crate::durability::sync_publication(
-        plan.destination
-            .parent()
-            .ok_or_else(|| PortcoveError::state("Source Inbox destination has no parent"))?,
-    )?;
-    if let Some(root) = staging.parent() {
-        let _ = fs::remove_dir(root);
+    match fs::remove_dir(root) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.into()),
     }
     Ok(())
 }
@@ -706,6 +889,20 @@ fn prepare_staging(staging: &Path, destination: &Path, import_id: &str) -> Resul
     let profile = destination
         .parent()
         .ok_or_else(|| PortcoveError::state("Source Inbox destination has no parent"))?;
+    let staging_root = validated_staging_root(staging, profile, import_id)?;
+    if staging_root.try_exists()? {
+        require_owned_staging_tree(staging_root, profile)?;
+        fs::remove_dir_all(staging_root)?;
+    }
+    fs::create_dir(staging_root)?;
+    Ok(())
+}
+
+fn validated_staging_root<'a>(
+    staging: &'a Path,
+    profile: &Path,
+    import_id: &str,
+) -> Result<&'a Path> {
     let staging_root = staging
         .parent()
         .ok_or_else(|| PortcoveError::state("source import staging path has no parent"))?;
@@ -717,15 +914,16 @@ fn prepare_staging(staging: &Path, destination: &Path, import_id: &str) -> Resul
             "source import staging path escaped its profile directory",
         ));
     }
-    if staging_root.try_exists()? {
-        require_owned_staging_tree(staging_root, profile)?;
-        fs::remove_dir_all(staging_root)?;
-    }
-    fs::create_dir(staging_root)?;
-    Ok(())
+    Ok(staging_root)
 }
 
 fn require_owned_staging_tree(staging_root: &Path, profile: &Path) -> Result<()> {
+    require_owned_staging_root(staging_root, profile)?;
+    source_guard(staging_root)?;
+    Ok(())
+}
+
+fn require_owned_staging_root(staging_root: &Path, profile: &Path) -> Result<()> {
     crate::path::refuse_symlink_ancestors(staging_root)?;
     let canonical_profile = fs::canonicalize(profile)?;
     let canonical_staging = fs::canonicalize(staging_root)?;
@@ -736,7 +934,6 @@ fn require_owned_staging_tree(staging_root: &Path, profile: &Path) -> Result<()>
             "source import staging tree is not an owned profile child",
         ));
     }
-    source_guard(staging_root)?;
     Ok(())
 }
 
