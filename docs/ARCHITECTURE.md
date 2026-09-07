@@ -144,7 +144,14 @@ reinspect both the selected original and staged bytes, publish by same-volume
 rename, and then register the published path. Move additionally requires a
 single-use state-bound authorization and quarantines the still-matching original
 beside its old path only after registration commits. An interrupted operation is
-resumed from its durable phase at startup. If original cleanup cannot complete,
+resumed from its durable phase at startup. Before rename, core durably records an
+operation-bound receipt beside private staging with the reviewed plan,
+destination, and staged filesystem-object identity. If rename succeeds before
+the next journal phase is persisted, recovery accepts the visible destination
+only when that receipt, object identity, content, admission, path, and operation
+lock still agree. A missing or unrelated destination, including a same-content
+replacement with another filesystem identity, remains an actionable,
+non-destructive conflict. If original cleanup cannot complete,
 the verified Inbox copy stays registered and the result reports the exact
 retained path rather than claiming a move.
 
