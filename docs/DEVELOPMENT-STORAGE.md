@@ -47,6 +47,14 @@ just check
 
 The read-only preflight resolves the workspace and Cargo target through `cargo metadata`, follows existing symlinks and junctions (including ancestors of directories not yet created), and prints the physical storage paths. It stops on Windows if the workspace, Cargo target, project temporary directory, packaging output, pnpm store, frontend dependencies/output, or Tauri generated directory resolves to the system drive. It also stops when any relevant filesystem has less than 20 GiB free. `PORTCOVE_MIN_FREE_GIB` or `--minimum-free-gib` can raise that margin for release or mutation work; lowering it should be an explicit, temporary decision based on a measured build. `preflight --json` returns the same checked layout for scripts.
 
+Before installing dependencies, compare `pnpm --version` with `packageManager`
+in `apps/desktop/package.json`. A host-provided fallback that ignores the project
+pin can create a different installation layout and later trigger an unexpected
+reinstall. Use the repository's pinned package manager. If a worktree is renamed,
+recreate its generated `node_modules` from the lockfile at the final location;
+Windows dependency junctions may still contain the old absolute path. Preserve
+the old generated directory until the replacement passes validation.
+
 The default layout is entirely relative to the checkout:
 
 | Purpose | Path |
