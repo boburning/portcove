@@ -390,11 +390,38 @@ fn normalize_archive_directories(destination: &Path, deepest: &Path) -> Result<(
 
 #[cfg(test)]
 mod tests {
+    use proptest::prelude::*;
     use std::io::{Cursor, Write};
 
     use tempfile::tempdir;
 
     use super::*;
+
+    proptest! {
+        #[test]
+        fn property_archive_paths_reject_traversal_and_device_aliases(
+            segment in "[a-zA-Z][a-zA-Z0-9_-]{0,24}",
+            suffix in "[a-zA-Z0-9]{1,8}",
+            device in prop::sample::select(vec!["CON", "nul", "Aux", "COM1", "lpt9"]),
+        ) {
+            prop_assert!(validate_relative_path(&format!("{segment}/../{suffix}"), false).is_err(), "traversal accepted");
+            prop_assert!(validate_relative_path(&format!("{segment}/{device}.{suffix}"), false).is_err(), "device alias accepted");
+            prop_assert!(validate_relative_path(&format!("{segment}:{suffix}"), false).is_err(), "alternate stream accepted");
+        }
+
+        #[test]
+        fn property_case_aliases_cannot_publish_two_entries(
+            segment in "[a-z]{1,20}",
+            filename in "[a-z]{1,20}",
+        ) {
+            let name = format!("dir_{segment}/file_{filename}.bin");
+            let (_, first) = validate_relative_path(&name, false).unwrap();
+            let (_, second) = validate_relative_path(&name.to_ascii_uppercase(), false).unwrap();
+            let mut collisions = CollisionSet::default();
+            prop_assert!(collisions.insert(first, false).is_ok());
+            prop_assert!(collisions.insert(second, false).is_err());
+        }
+    }
 
     #[test]
     fn portable_path_policy_rejects_aliases_and_reserved_names() {

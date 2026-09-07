@@ -14,6 +14,13 @@ Pass `-IncludeDeep` or `--include-deep` to also install cargo-modules, semdup, c
 
 ## Canonical commands
 
+See [Development tools](DEVELOPMENT-TOOLS.md) for the read-only host doctor,
+native desktop evidence harness, repository skills and optional nextest pilot.
+WebdriverIO's transitive edgedriver/geckodriver install scripts are deliberately
+disabled in pnpm: the native harness uses an explicitly supplied platform driver
+and never needs either package to download or select browser executables during
+dependency installation. The harness does not use browser auto-provisioning.
+
 | Scope | Command | Purpose |
 |---|---|---|
 | Rust change | `just check-rust` | format, compile, Clippy, tests, unused dependencies/files, and crate boundaries |
