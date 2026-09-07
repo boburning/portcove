@@ -25,10 +25,7 @@ try {
     appendFileSync(process.env.GITHUB_ENV, `PORTCOVE_HOST_TOOL_FIXTURE=${executable}\n`);
     retained = true; // The runner owns cleanup after all test steps finish.
   } else {
-    const scheduling = process.platform === "win32" && !process.env.NEXTEST_TEST_THREADS
-      && !args.some(arg => /^--test-threads(?:=|$)/.test(arg))
-      ? ["--test-threads", "1"] : [];
-    const tested = spawnSync("cargo", ["nextest", "run", ...scheduling, ...args], {
+    const tested = spawnSync("cargo", ["nextest", "run", ...args], {
       cwd: root, stdio: "inherit", windowsHide: true,
       env: { ...process.env, PORTCOVE_HOST_TOOL_FIXTURE: executable },
     });

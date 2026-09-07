@@ -246,7 +246,9 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
   for (const override of config.split("[[profile.default.overrides]]").slice(1)) {
     assert.doesNotMatch(override, /slow-timeout|retries/);
   }
-  assert.match(rustTests, /cargo nextest run --locked --test-threads 1 @Arguments/);
+  assert.match(rustTests, /cargo nextest run --locked @Arguments/);
+  assert.doesNotMatch(rustTests + rustWorkspaceTests, /--test-threads 1/);
+  assert.match(config, /^test-threads = 2$/m);
   assert.match(rustDocs, /cargo test --locked --workspace --doc/);
   for (const platform of ["windows-x86_64", "linux-x86_64", "macos-x86_64", "macos-aarch64"]) {
     assert.ok(rustDocs.includes(`platform: ${platform}`));
