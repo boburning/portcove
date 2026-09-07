@@ -444,104 +444,123 @@ mod tests {
         );
     }
 
-    #[test]
-    fn every_recorded_move_boundary_recovers_without_two_writable_libraries() {
-        for fault in [
-            TransferPhase::Copying,
-            TransferPhase::Verified,
-            TransferPhase::Published,
-            TransferPhase::Complete,
-        ] {
-            let temporary = tempfile::tempdir().unwrap();
-            let source = temporary.path().join("source");
-            let destination = temporary.path().join("destination");
-            let service = fixture(&source);
-            let plan = service.plan_library_move(&destination).unwrap();
-            drop(service);
-            let error = start_move(&source, &destination, &plan.plan_sha256, &|phase| {
-                if phase == fault {
-                    Err(PortcoveError::state("simulated process interruption"))
-                } else {
-                    Ok(())
-                }
-            })
-            .unwrap_err();
-            assert_eq!(error.message, "simulated process interruption");
-            if fault == TransferPhase::Complete {
-                let current = Library::open(&source).unwrap();
-                assert_eq!(current.root(), fs::canonicalize(&destination).unwrap());
-                fs::write(
-                    destination.join("user/starship/data.bin"),
-                    b"new save after activation",
-                )
-                .unwrap();
+    fn assert_move_boundary_recovery(fault: TransferPhase) {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        let destination = temporary.path().join("destination");
+        let service = fixture(&source);
+        let plan = service.plan_library_move(&destination).unwrap();
+        drop(service);
+        let error = start_move(&source, &destination, &plan.plan_sha256, &|phase| {
+            if phase == fault {
+                Err(PortcoveError::state("simulated process interruption"))
             } else {
-                assert!(Library::open(&source).is_err());
-                assert!(Library::open(&destination).is_err());
+                Ok(())
             }
-            assert!(
-                PortcoveService::resume_library_move(&source)
-                    .unwrap()
-                    .completed
-            );
-            assert!(
-                PortcoveService::resume_library_move(&source)
-                    .unwrap()
-                    .completed
-            );
+        })
+        .unwrap_err();
+        assert_eq!(error.message, "simulated process interruption");
+        if fault == TransferPhase::Complete {
+            let current = Library::open(&source).unwrap();
+            assert_eq!(current.root(), fs::canonicalize(&destination).unwrap());
+            fs::write(
+                destination.join("user/starship/data.bin"),
+                b"new save after activation",
+            )
+            .unwrap();
+        } else {
+            assert!(Library::open(&source).is_err());
+            assert!(Library::open(&destination).is_err());
+        }
+        assert!(
+            PortcoveService::resume_library_move(&source)
+                .unwrap()
+                .completed
+        );
+        assert!(
+            PortcoveService::resume_library_move(&source)
+                .unwrap()
+                .completed
+        );
+        assert_eq!(
+            fs::read(source.join("user/starship/data.bin")).unwrap(),
+            b"save"
+        );
+        if fault == TransferPhase::Complete {
             assert_eq!(
-                fs::read(source.join("user/starship/data.bin")).unwrap(),
-                b"save"
+                fs::read(destination.join("user/starship/data.bin")).unwrap(),
+                b"new save after activation"
             );
-            if fault == TransferPhase::Complete {
-                assert_eq!(
-                    fs::read(destination.join("user/starship/data.bin")).unwrap(),
-                    b"new save after activation"
-                );
-            }
         }
     }
 
     #[test]
-    fn changed_source_or_destination_stops_recovery_and_abort_retains_both_copies() {
-        for change_source in [true, false] {
-            let temporary = tempfile::tempdir().unwrap();
-            let source = temporary.path().join("source");
-            let destination = temporary.path().join("destination");
-            let service = fixture(&source);
-            let plan = service.plan_library_move(&destination).unwrap();
-            drop(service);
-            start_move(&source, &destination, &plan.plan_sha256, &|phase| {
-                if phase == TransferPhase::Verified {
-                    Err(PortcoveError::state("interruption"))
-                } else {
-                    Ok(())
-                }
-            })
-            .unwrap_err();
-            let changed = if change_source { &source } else { &destination };
-            fs::write(
-                changed.join("user/starship/data.bin"),
-                b"retained changed save",
-            )
-            .unwrap();
-            assert!(PortcoveService::resume_library_move(&source).is_err());
-            assert!(
-                !PortcoveService::abort_library_move(&source)
-                    .unwrap()
-                    .completed
-            );
-            let reopened = Library::open(&source).unwrap();
-            assert_eq!(
-                fs::canonicalize(reopened.root()).unwrap(),
-                fs::canonicalize(&source).unwrap()
-            );
-            assert!(Library::open(&destination).is_err());
-            assert_eq!(
-                fs::read(changed.join("user/starship/data.bin")).unwrap(),
-                b"retained changed save"
-            );
-        }
+    fn copying_move_recovers_without_two_writable_libraries() {
+        assert_move_boundary_recovery(TransferPhase::Copying);
+    }
+
+    #[test]
+    fn verified_move_recovers_without_two_writable_libraries() {
+        assert_move_boundary_recovery(TransferPhase::Verified);
+    }
+
+    #[test]
+    fn published_move_recovers_without_two_writable_libraries() {
+        assert_move_boundary_recovery(TransferPhase::Published);
+    }
+
+    #[test]
+    fn completed_move_recovers_without_two_writable_libraries() {
+        assert_move_boundary_recovery(TransferPhase::Complete);
+    }
+
+    fn assert_changed_move_retained(change_source: bool) {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        let destination = temporary.path().join("destination");
+        let service = fixture(&source);
+        let plan = service.plan_library_move(&destination).unwrap();
+        drop(service);
+        start_move(&source, &destination, &plan.plan_sha256, &|phase| {
+            if phase == TransferPhase::Verified {
+                Err(PortcoveError::state("interruption"))
+            } else {
+                Ok(())
+            }
+        })
+        .unwrap_err();
+        let changed = if change_source { &source } else { &destination };
+        fs::write(
+            changed.join("user/starship/data.bin"),
+            b"retained changed save",
+        )
+        .unwrap();
+        assert!(PortcoveService::resume_library_move(&source).is_err());
+        assert!(
+            !PortcoveService::abort_library_move(&source)
+                .unwrap()
+                .completed
+        );
+        let reopened = Library::open(&source).unwrap();
+        assert_eq!(
+            fs::canonicalize(reopened.root()).unwrap(),
+            fs::canonicalize(&source).unwrap()
+        );
+        assert!(Library::open(&destination).is_err());
+        assert_eq!(
+            fs::read(changed.join("user/starship/data.bin")).unwrap(),
+            b"retained changed save"
+        );
+    }
+
+    #[test]
+    fn changed_move_source_stops_recovery_and_abort_retains_both_copies() {
+        assert_changed_move_retained(true);
+    }
+
+    #[test]
+    fn changed_move_destination_stops_recovery_and_abort_retains_both_copies() {
+        assert_changed_move_retained(false);
     }
 
     #[test]

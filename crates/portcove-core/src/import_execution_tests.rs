@@ -143,87 +143,102 @@ fn import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empt
     );
 }
 
-#[test]
-fn interrupted_imports_recover_and_published_copies_never_replay_old_saves() {
-    for phase in [
-        TransferPhase::Copying,
-        TransferPhase::Verified,
-        TransferPhase::Published,
-    ] {
-        let temp = tempfile::tempdir().unwrap();
-        let source = temp.path().join("source");
-        let export = temp.path().join("export.json");
-        let destination = temp.path().join("destination");
-        fixture(&source, &export);
-        let plan = PortcoveService::plan_library_import(&export, &source, &destination).unwrap();
-        let failure = start_import(&export, &source, &destination, &plan.plan_sha256, &|at| {
-            if at == phase {
-                Err(PortcoveError::state("synthetic interruption"))
-            } else {
-                Ok(())
-            }
-        })
-        .unwrap_err();
-        assert!(failure.details.contains_key("import_destination"));
-        if phase == TransferPhase::Published {
-            drop(Library::open(&destination).unwrap());
-            fs::write(destination.join("user/starship/data.bin"), b"new save").unwrap();
-            fs::rename(&source, temp.path().join("offline-source")).unwrap();
-            assert!(PortcoveService::abort_library_import(&destination).is_err());
+fn assert_interrupted_import_recovery(phase: TransferPhase) {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let export = temp.path().join("export.json");
+    let destination = temp.path().join("destination");
+    fixture(&source, &export);
+    let plan = PortcoveService::plan_library_import(&export, &source, &destination).unwrap();
+    let failure = start_import(&export, &source, &destination, &plan.plan_sha256, &|at| {
+        if at == phase {
+            Err(PortcoveError::state("synthetic interruption"))
         } else {
-            assert!(Library::open(&destination).is_err());
+            Ok(())
         }
-        assert!(
-            PortcoveService::resume_library_import(&destination)
-                .unwrap()
-                .completed
+    })
+    .unwrap_err();
+    assert!(failure.details.contains_key("import_destination"));
+    if phase == TransferPhase::Published {
+        drop(Library::open(&destination).unwrap());
+        fs::write(destination.join("user/starship/data.bin"), b"new save").unwrap();
+        fs::rename(&source, temp.path().join("offline-source")).unwrap();
+        assert!(PortcoveService::abort_library_import(&destination).is_err());
+    } else {
+        assert!(Library::open(&destination).is_err());
+    }
+    assert!(
+        PortcoveService::resume_library_import(&destination)
+            .unwrap()
+            .completed
+    );
+    if phase == TransferPhase::Published {
+        assert_eq!(
+            fs::read(destination.join("user/starship/data.bin")).unwrap(),
+            b"new save"
         );
-        if phase == TransferPhase::Published {
-            assert_eq!(
-                fs::read(destination.join("user/starship/data.bin")).unwrap(),
-                b"new save"
-            );
-        }
     }
 }
 
 #[test]
-fn changed_import_input_or_destination_is_retained_and_never_published() {
-    for change_input in [true, false] {
-        let temp = tempfile::tempdir().unwrap();
-        let source = temp.path().join("source");
-        let export = temp.path().join("export.json");
-        let destination = temp.path().join("destination");
-        fixture(&source, &export);
-        let plan = PortcoveService::plan_library_import(&export, &source, &destination).unwrap();
-        start_import(&export, &source, &destination, &plan.plan_sha256, &|at| {
-            if at == TransferPhase::Verified {
-                Err(PortcoveError::state("interruption"))
-            } else {
-                Ok(())
-            }
-        })
-        .unwrap_err();
-        let changed = if change_input { &source } else { &destination };
-        fs::write(changed.join("user/starship/data.bin"), b"changed").unwrap();
-        assert!(PortcoveService::resume_library_import(&destination).is_err());
-        assert!(
-            !PortcoveService::abort_library_import(&destination)
-                .unwrap()
-                .completed
-        );
-        assert!(
-            !PortcoveService::abort_library_import(&destination)
-                .unwrap()
-                .completed
-        );
-        assert!(Library::open(&destination).is_err());
-        assert_eq!(
-            fs::read(changed.join("user/starship/data.bin")).unwrap(),
-            b"changed"
-        );
-        assert!(Library::open(&source).is_ok());
-    }
+fn copying_import_recovers_without_replaying_old_saves() {
+    assert_interrupted_import_recovery(TransferPhase::Copying);
+}
+
+#[test]
+fn verified_import_recovers_without_replaying_old_saves() {
+    assert_interrupted_import_recovery(TransferPhase::Verified);
+}
+
+#[test]
+fn published_import_recovers_without_replaying_old_saves() {
+    assert_interrupted_import_recovery(TransferPhase::Published);
+}
+
+fn assert_changed_import_retained(change_input: bool) {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let export = temp.path().join("export.json");
+    let destination = temp.path().join("destination");
+    fixture(&source, &export);
+    let plan = PortcoveService::plan_library_import(&export, &source, &destination).unwrap();
+    start_import(&export, &source, &destination, &plan.plan_sha256, &|at| {
+        if at == TransferPhase::Verified {
+            Err(PortcoveError::state("interruption"))
+        } else {
+            Ok(())
+        }
+    })
+    .unwrap_err();
+    let changed = if change_input { &source } else { &destination };
+    fs::write(changed.join("user/starship/data.bin"), b"changed").unwrap();
+    assert!(PortcoveService::resume_library_import(&destination).is_err());
+    assert!(
+        !PortcoveService::abort_library_import(&destination)
+            .unwrap()
+            .completed
+    );
+    assert!(
+        !PortcoveService::abort_library_import(&destination)
+            .unwrap()
+            .completed
+    );
+    assert!(Library::open(&destination).is_err());
+    assert_eq!(
+        fs::read(changed.join("user/starship/data.bin")).unwrap(),
+        b"changed"
+    );
+    assert!(Library::open(&source).is_ok());
+}
+
+#[test]
+fn changed_import_input_is_retained_and_never_published() {
+    assert_changed_import_retained(true);
+}
+
+#[test]
+fn changed_import_destination_is_retained_and_never_published() {
+    assert_changed_import_retained(false);
 }
 
 #[test]
