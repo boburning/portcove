@@ -14,6 +14,9 @@ Pass `-IncludeDeep` or `--include-deep` to also install cargo-modules, semdup, c
 
 ## Canonical commands
 
+See [Development tools](DEVELOPMENT-TOOLS.md) for the read-only host doctor,
+native desktop evidence harness, repository skills and targeted safety experiments.
+
 | Scope | Command | Purpose |
 |---|---|---|
 | Rust change | `just check-rust` | format, compile, Clippy, tests, unused dependencies/files, and crate boundaries |

@@ -41,7 +41,7 @@ export function windowsSystemDriveViolations(paths, systemDrive = "C:") {
     .map(([label, candidate]) => `${label}=${candidate}`);
 }
 
-function getPaths() {
+export function getPaths() {
   const metadata = cargoMetadata();
   const metadataRoot = path.resolve(metadata.workspace_root);
   if (metadataRoot.toLowerCase() !== projectRoot.toLowerCase()) {

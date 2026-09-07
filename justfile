@@ -7,6 +7,15 @@ default: check
 preflight:
     node scripts/dev-storage.mjs preflight
 
+doctor:
+    node scripts/dev-doctor.mjs
+
+development-tools:
+    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/dev-doctor.test.mjs scripts/development-evidence.test.mjs
+
+desktop-test *args:
+    {{storage}} node apps/desktop/scripts/desktop-test.mjs {{args}}
+
 clean-build:
     node scripts/dev-storage.mjs clean
 
@@ -79,7 +88,7 @@ roadmap-bootstrap:
     node scripts/roadmap.mjs bootstrap
 
 # Standard repository check
-check: check-rust check-ui release-tools roadmap-check
+check: check-rust check-ui release-tools roadmap-check development-tools
 
 # Deeper deterministic and structural audit
 deny:

@@ -1364,9 +1364,31 @@ impl FileIdentity {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
     use sha1::Sha1;
     use sha2::{Digest, Sha256};
     use std::{fs, io::Write};
+
+    proptest! {
+        #[test]
+        fn property_digest_identity_requires_every_digest_and_exact_scope(
+            sha1 in "[0-9a-f]{40}", sha256 in "[0-9a-f]{64}",
+        ) {
+            let identity = DigestIdentity { scope: DigestScope::OriginalFile,
+                sha1: Some(sha1.clone()), sha256: Some(sha256.clone()), crc32: None };
+            let mut observed = vec![
+                ObservedSourceDigest { algorithm: SourceDigestAlgorithm::Sha1,
+                    scope: DigestScope::OriginalFile, value: sha1.to_ascii_uppercase(), size: 16 },
+                ObservedSourceDigest { algorithm: SourceDigestAlgorithm::Sha256,
+                    scope: DigestScope::OriginalFile, value: sha256, size: 16 },
+            ];
+            prop_assert!(digest_identity_matches(&identity, &observed));
+            observed[1].scope = DigestScope::ArchiveMember;
+            prop_assert!(!digest_identity_matches(&identity, &observed));
+            observed.pop();
+            prop_assert!(!digest_identity_matches(&identity, &observed));
+        }
+    }
 
     fn catalog_with_identity(
         profile_id: &str,
