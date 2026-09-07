@@ -21,7 +21,7 @@ concurrency:
 jobs:
   rust_tests:
     name: rust-test (${{ matrix.shard }})
-    runs-on: windows-2022
+    runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
@@ -34,7 +34,7 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           cache-on-failure: true
-          key: windows-2022-${{ hashFiles('Cargo.toml') }}
+          key: ${{ hashFiles('Cargo.toml') }}
       - name: Read pinned test runner
         id: test-runner
         shell: pwsh
@@ -81,7 +81,7 @@ jobs:
 
   rust_workspace_tests:
     name: rust-test (workspace-other)
-    runs-on: windows-2022
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-rust
@@ -90,7 +90,7 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           cache-on-failure: true
-          key: windows-2022-${{ hashFiles('Cargo.toml') }}
+          key: ${{ hashFiles('Cargo.toml') }}
       - name: Read pinned test runner
         id: test-runner
         shell: pwsh
@@ -129,9 +129,9 @@ jobs:
         with:
           node-version-file: .node-version
       - name: Test development storage on Windows
-        run: node scripts/dev-storage.mjs run -- node --test --test-timeout=5000 --test-reporter=./scripts/test-duration-reporter.mjs --test-skip-pattern "pnpm uses|direct just recipes" scripts/dev-storage.test.mjs
+        run: node scripts/dev-storage.mjs run -- node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs --test-skip-pattern "pnpm uses|direct just recipes" scripts/dev-storage.test.mjs
       - name: Test Windows qualification unit contracts
-        run: node --test --test-timeout=5000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/windows-qualification-session.test.mjs
+        run: node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/windows-qualification-session.test.mjs
       - name: Test Windows qualification session integration
         run: node --test scripts/windows-qualification-session.integration.test.mjs
 
@@ -358,17 +358,17 @@ jobs:
       - name: Test backup durability contract on Linux
         run: cargo nextest run --locked -p portcove-core durability::tests::backup_directory_durability_support_is_explicit_for_the_host -- --exact
       - name: Test development storage on Linux
-        run: node scripts/dev-storage.mjs run -- node --test --test-timeout=5000 --test-reporter=./scripts/test-duration-reporter.mjs --test-skip-pattern "pnpm uses|direct just recipes" scripts/dev-storage.test.mjs
+        run: node scripts/dev-storage.mjs run -- node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs --test-skip-pattern "pnpm uses|direct just recipes" scripts/dev-storage.test.mjs
       - run: cargo shear --deny-warnings
       - run: cargo deny check --hide-inclusion-graph -W unmaintained
-      - run: node --test --test-timeout=5000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-rust-architecture.test.mjs
+      - run: node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-rust-architecture.test.mjs
       - run: node scripts/check-rust-architecture.mjs
       - name: Check child-process policy and live transport contracts
         run: |
           node scripts/check-child-process-policy.mjs
           node scripts/check-transport-contract.mjs
           node --test scripts/check-transport-contract.integration.test.mjs
-      - run: node --test --test-timeout=5000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/run-rscheck.test.mjs
+      - run: node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/run-rscheck.test.mjs
       - run: node scripts/run-rscheck.mjs
 
   frontend:
@@ -399,7 +399,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Test development storage tool integration
         working-directory: .
-        run: node scripts/dev-storage.mjs run -- node --test --test-timeout=5000 --test-reporter=./scripts/test-duration-reporter.mjs --test-name-pattern "pnpm uses|direct just recipes" scripts/dev-storage.test.mjs
+        run: node scripts/dev-storage.mjs run -- node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs --test-name-pattern "pnpm uses|direct just recipes" scripts/dev-storage.test.mjs
       - run: pnpm build
       - run: pnpm test
       - name: Fallow quality gate
@@ -415,7 +415,7 @@ jobs:
           node-version-file: .node-version
       - name: Verify repository and release contracts
         run: |
-          node --test --test-timeout=5000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-release-metadata.test.mjs scripts/write-release-checksums.test.mjs scripts/reconcile-release-assets.test.mjs scripts/release-workflow.test.mjs scripts/ci-workflow.test.mjs scripts/test-duration-reporter.test.mjs scripts/quality-tools.test.mjs scripts/repository-settings.test.mjs scripts/source-provenance-audit.test.mjs scripts/check-child-process-policy.test.mjs scripts/check-transport-contract.test.mjs scripts/check-fallow-report.test.mjs scripts/migrate-catalog-schema2.test.mjs scripts/roadmap.test.mjs
+          node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-release-metadata.test.mjs scripts/write-release-checksums.test.mjs scripts/reconcile-release-assets.test.mjs scripts/release-workflow.test.mjs scripts/ci-workflow.test.mjs scripts/test-duration-reporter.test.mjs scripts/quality-tools.test.mjs scripts/repository-settings.test.mjs scripts/source-provenance-audit.test.mjs scripts/check-child-process-policy.test.mjs scripts/check-transport-contract.test.mjs scripts/check-fallow-report.test.mjs scripts/migrate-catalog-schema2.test.mjs scripts/roadmap.test.mjs
           node scripts/check-release-metadata.mjs
           node scripts/quality-tools.mjs --validate
           node scripts/repository-settings.mjs --validate

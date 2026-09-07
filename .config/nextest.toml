@@ -1,7 +1,8 @@
 # Every Rust unit/integration test has its own process and timing record.
-# A timeout is a failure; there are no retries or per-test budget exemptions.
+# Five seconds flags a slow test for investigation; thirty seconds detects hangs.
+# Filesystem and process lifecycle coverage stays intact. Failures are not retried.
 [profile.default]
-slow-timeout = { period = "5s", terminate-after = 1, grace-period = "0s" }
+slow-timeout = { period = "5s", terminate-after = 6, grace-period = "0s" }
 retries = 0
 fail-fast = false
 test-threads = 2

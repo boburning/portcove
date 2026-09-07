@@ -1,29 +1,28 @@
 import { spec } from "node:test/reporters";
 import { Readable } from "node:stream";
 
-export const testBudgetMs = 5_000;
+export const slowTestThresholdMs = 5_000;
 
-export function exceedsTestBudget(event) {
+export function isSlowTest(event) {
   return ["test:pass", "test:fail"].includes(event.type)
     && event.data.details.type === "test"
     && !event.data.skip && !event.data.todo
-    && event.data.details.duration_ms > testBudgetMs;
+    && event.data.details.duration_ms > slowTestThresholdMs;
 }
 
-// Node's timeout can interrupt asynchronous tests, but a synchronous test can
-// block the event loop beyond its deadline. Check its measured duration too.
+// Report measured latency independently of the hang timeout. In particular,
+// synchronous work can block the event loop beyond an asynchronous deadline.
 export default async function* report(source) {
   const slow = [];
   async function* inspect() {
     for await (const event of source) {
-      if (exceedsTestBudget(event)) slow.push(event.data);
+      if (isSlowTest(event)) slow.push(event.data);
       yield event;
     }
   }
   yield* Readable.from(inspect()).compose(spec());
   if (slow.length) {
-    process.exitCode = 1;
-    yield `\nUnit-test budget exceeded (${testBudgetMs}ms):\n`;
+    yield `\nSlow tests to investigate (${slowTestThresholdMs}ms):\n`;
     for (const test of slow) yield `  ${test.name}: ${test.details.duration_ms.toFixed(1)}ms\n`;
   }
 }

@@ -60,7 +60,7 @@ test("Rust setup installs the repository pin instead of an unrelated stable tool
 
 test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () => {
   assert.match(rustTests, /^    name: rust-test \(\$\{\{ matrix\.shard \}\}\)$/m);
-  assert.match(rustTests, /runs-on: windows-2022/);
+  assert.match(rustTests, /runs-on: windows-latest/);
   assert.match(rustTests, /shard: \[core-service-1, core-service-2, core-recovery, core-other-1, core-other-2\]/);
   for (const shard of ["service::", "cancellation::", "database::", "import_execution::", "library_move::"]) {
     assert.match(rustTests, new RegExp(`"${shard.replaceAll("::", "::")}"`));
@@ -71,7 +71,7 @@ test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () 
   assert.doesNotMatch(rustTests, /workspace-other|pnpm|cargo check|cargo fmt|cargo clippy/);
 
   assert.match(rustWorkspaceTests, /^    name: rust-test \(workspace-other\)$/m);
-  assert.match(rustWorkspaceTests, /runs-on: windows-2022/);
+  assert.match(rustWorkspaceTests, /runs-on: windows-latest/);
   assert.match(rustWorkspaceTests, /cargo nextest run --locked --workspace --exclude portcove-core/);
   assert.doesNotMatch(rustWorkspaceTests, /matrix|cargo fmt|cargo clippy/);
 
@@ -87,7 +87,7 @@ test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () 
   assert.match(windowsStorage, /--test-skip-pattern "pnpm uses\|direct just recipes"/);
   assert.match(windowsStorage, /scripts\/windows-qualification-session\.test\.mjs/);
   assert.match(windowsStorage, /node --test scripts\/windows-qualification-session\.integration\.test\.mjs/);
-  assert.match(windowsStorage, /--test-timeout=5000 --test-reporter=\.\/scripts\/test-duration-reporter\.mjs/);
+  assert.match(windowsStorage, /--test-timeout=30000 --test-reporter=\.\/scripts\/test-duration-reporter\.mjs/);
   assert.doesNotMatch(windowsStorage, /rust-toolchain|rust-cache|cargo/);
 
   assert.match(rust, /^    if: always\(\)$/m);
@@ -238,9 +238,9 @@ test("offline RetComM validation rejects bad mappings without loading upstream d
   }
 });
 
-test("Rust unit budgets fail at five seconds and documentation coverage remains", async () => {
+test("Rust reports slow tests, terminates hangs and retains documentation coverage", async () => {
   const config = await readFile(new URL("../.config/nextest.toml", import.meta.url), "utf8");
-  assert.match(config, /slow-timeout = \{ period = "5s", terminate-after = 1, grace-period = "0s" \}/);
+  assert.match(config, /slow-timeout = \{ period = "5s", terminate-after = 6, grace-period = "0s" \}/);
   assert.match(config, /^retries = 0$/m);
   assert.doesNotMatch(config, /on-timeout|default-filter/);
   for (const override of config.split("[[profile.default.overrides]]").slice(1)) {

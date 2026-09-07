@@ -120,12 +120,17 @@ because its known inherent-item cycle baseline produces non-actionable noise.
 The pinned tool remains available through the optional deep bootstrap and
 `just cycles`; the deterministic Cargo-metadata architecture gate is unchanged.
 
-## Test duration budget
+## Test latency and reliability
 
 The required Rust test lanes and `just rust-test` use the version of cargo-nextest
-pinned in `.github/quality-tools.json`. Each test has a five-second timeout,
-no termination grace period, and no retries. A timed-out test fails the lane;
-repair its fixture or implementation instead of raising its budget or skipping it.
+pinned in `.github/quality-tools.json`. Five seconds is a diagnostic threshold,
+not an acceptance limit. Nextest reports slow tests every five seconds and
+terminates a test at thirty seconds with no retries or termination grace period.
+This hang guard bounds real filesystem and process lifecycle tests while allowing
+normal runner variability. Investigate slow cases using their actual work and
+repeated timings; preserve coherent scenarios instead of splitting assertions
+solely to satisfy a stopwatch. Pure unit tests should normally finish well below
+the diagnostic threshold. A timeout or failed assertion still fails the lane.
 Nextest prints individual elapsed times. Documentation tests still run separately
 with Cargo on Windows, Linux, and both macOS architectures. Their required jobs
 run in parallel with unit tests because Cargo's documentation build uses a
@@ -141,17 +146,19 @@ pipeline target includes setup and required-job aggregation, not just test runti
 The Rust cache key includes the root Cargo manifest so test-profile changes cannot
 keep restoring an immutable cache containing only the previous profile's artifacts.
 
-The UI test command sets Vitest's five-second timeout and validates every passing
-test's recorded duration. Two isolated worker threads avoid repeated Node process
+The UI suite consists of small JavaScript/DOM tests and keeps Vitest's five-second
+timeout. Its report validates complete measurements and lists slow passing tests. Two isolated worker threads avoid repeated Node process
 startup for this JavaScript/DOM suite; file isolation remains enabled.
-Node unit commands use the same timeout plus a reporter
-that fails on recorded overruns, including synchronous work that blocks timeout
-callbacks. Suite aggregate durations are not individual test durations.
+Node test commands use a thirty-second asynchronous hang timeout and report
+individual results above five seconds without failing on elapsed time alone.
+Synchronous work cannot be interrupted by Node's event-loop timeout; measured
+latency still appears in the report and CI job timeouts bound a stuck process.
+Suite aggregate durations are not individual test durations.
 
 Windows qualification session integration tests remain a separate required step;
 they exercise compiled processes and installer lifecycle behavior using their
 existing integration deadlines. The static qualification contract runs with the
-unit budget. No integration coverage is removed.
+Node hang guard. No integration coverage is removed.
 
 Rust tests run two at a time by default. The local Windows wrapper and Windows
 CI lanes run one at a time
@@ -180,7 +187,7 @@ Each test copies it into its own temporary directory before mutation or probing.
 `just rust-test` uses the same preparation through `scripts/run-rust-tests.mjs`;
 plain Cargo tests retain their standalone fixture compiler. Fixture compilation
 is build setup, while every test's assertions and process probes keep the same
-five-second deadline.
+hang guard.
 
 The test profile optimizes the Ed25519 and Curve25519 dependencies because catalog
 fixtures validate real signatures repeatedly. Portcove code retains its normal

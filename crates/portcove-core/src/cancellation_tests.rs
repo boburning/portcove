@@ -19,9 +19,10 @@ fn service() -> (tempfile::TempDir, Arc<PortcoveService>) {
     (temporary, Arc::new(service))
 }
 
-fn assert_four_publication_admission_races() {
+#[test]
+fn request_and_publication_admission_have_exactly_one_winner() {
     let (_temporary, service) = service();
-    for _ in 0..4 {
+    for _ in 0..16 {
         let (activity, operation) = service
             .begin_cancellable_activity(
                 ActivityOperation::Install,
@@ -55,26 +56,6 @@ fn assert_four_publication_admission_races() {
         );
         assert!(service.request_cancellation(&activity.id).is_err());
     }
-}
-
-#[test]
-fn publication_admission_races_batch_one() {
-    assert_four_publication_admission_races();
-}
-
-#[test]
-fn publication_admission_races_batch_two() {
-    assert_four_publication_admission_races();
-}
-
-#[test]
-fn publication_admission_races_batch_three() {
-    assert_four_publication_admission_races();
-}
-
-#[test]
-fn publication_admission_races_batch_four() {
-    assert_four_publication_admission_races();
 }
 
 #[tokio::test]
