@@ -152,7 +152,10 @@ unit budget. No integration coverage is removed.
 Rust tests run two at a time by default. Windows core lanes run one at a time
 in exhaustive hash partitions to avoid filesystem contention. CLI free-space
 snapshot contracts share a scheduling group because their existing in-process
-mutex cannot synchronize nextest's separate processes. This changes scheduling
+mutex cannot synchronize nextest's separate processes. Full signed-catalog tests
+reserve both default CPU slots while verifying complete snapshots. Intel macOS
+uses two exhaustive hash partitions to keep this work off the critical path.
+This changes scheduling
 only; every Rust test retains the same deadline. CI caches compiled dependencies
 after test failures so fixing a failed assertion does not require a cold rebuild.
 

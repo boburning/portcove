@@ -84,7 +84,7 @@ test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () 
 });
 
 test("native Rust runs the full workspace on every supported Unix architecture", () => {
-  assert.match(nativeRust, /^    name: native-rust \(\$\{\{ matrix\.platform \}\}\)$/m);
+  assert.match(nativeRust, /^    name: native-rust \(\$\{\{ matrix\.platform \}\}, \$\{\{ matrix\.partition \}\}\)$/m);
   for (const [platform, runner] of [
     ["linux-x86_64", "ubuntu-22.04"],
     ["macos-x86_64", "macos-15-intel"],
@@ -96,6 +96,10 @@ test("native Rust runs the full workspace on every supported Unix architecture",
   assert.match(nativeRust, /echo "TMPDIR=\$RUNNER_TEMP" >> "\$GITHUB_ENV"/);
   assert.match(nativeRust, /libwebkit2gtk-4\.1-dev libappindicator3-dev librsvg2-dev patchelf/);
   assert.match(nativeRust, /cargo nextest run --locked --workspace/);
+  assert.match(nativeRust, /--partition "\$\{\{ matrix\.partition \}\}"/);
+  assert.equal((nativeRust.match(/partition: hash:1\/1/g) ?? []).length, 2);
+  assert.equal((nativeRust.match(/partition: hash:1\/2/g) ?? []).length, 1);
+  assert.equal((nativeRust.match(/partition: hash:2\/2/g) ?? []).length, 1);
   assert.doesNotMatch(nativeRust, /continue-on-error/);
 });
 

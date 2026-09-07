@@ -16,3 +16,9 @@ capacity-sensitive = { max-threads = 1 }
 [[profile.default.overrides]]
 filter = 'package(portcove-cli) & (test(/^output_/) | test(cancellation_from_another_cli_stops_discovery_with_a_durable_cancelled_result))'
 test-group = 'capacity-sensitive'
+
+# Full signed-catalog lifecycle cases repeatedly verify complete snapshots.
+# Reserve both default CPU slots while one runs; the deadline is unchanged.
+[[profile.default.overrides]]
+filter = 'package(portcove-core) & test(catalog_update::tests::)'
+threads-required = 2

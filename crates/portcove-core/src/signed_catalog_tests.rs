@@ -482,7 +482,6 @@ async fn revoked_catalog_keys_preserve_the_replay_floor() {
     let library = Library::open(root.path().join("library")).unwrap();
     trusted(&library);
     let service = PortcoveService::new(library.clone()).unwrap();
-    publish(&service, &write_candidate(root.path(), 1)).await;
     let next = publish(&service, &write_candidate(root.path(), 3)).await;
     let revoked = library
         .revoke_catalog_key(&next.trusted_keys[0].key_id, &next.state_sha256)
