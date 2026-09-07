@@ -3,5 +3,16 @@
 [profile.default]
 slow-timeout = { period = "5s", terminate-after = 1, grace-period = "0s" }
 retries = 0
+fail-fast = false
+test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
+
+# These CLI contracts compare free-space snapshots across child processes.
+# Preserve their existing mutual exclusion across nextest's process boundary.
+[test-groups]
+capacity-sensitive = { max-threads = 1 }
+
+[[profile.default.overrides]]
+filter = 'package(portcove-cli) & (test(/^output_/) | test(cancellation_from_another_cli_stops_discovery_with_a_durable_cancelled_result))'
+test-group = 'capacity-sensitive'

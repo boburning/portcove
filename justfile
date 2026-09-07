@@ -28,15 +28,15 @@ shear:
     {{storage}} cargo shear --deny-warnings
 
 architecture:
-    {{storage}} node --test scripts/check-rust-architecture.test.mjs
+    {{storage}} node --test --test-timeout=5000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-rust-architecture.test.mjs
     {{storage}} node scripts/check-rust-architecture.mjs
 
 process-policy:
-    {{storage}} node --test scripts/check-child-process-policy.test.mjs
+    {{storage}} node --test --test-timeout=5000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-child-process-policy.test.mjs
     {{storage}} node scripts/check-child-process-policy.mjs
 
 transport-contract:
-    {{storage}} node --test scripts/check-transport-contract.test.mjs
+    {{storage}} node --test --test-timeout=5000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-transport-contract.test.mjs
     {{storage}} node scripts/check-transport-contract.mjs
 
 check-rust: fmt rust-check clippy rust-test shear architecture process-policy transport-contract
@@ -49,14 +49,15 @@ ui-test:
     {{storage}} pnpm --dir apps/desktop test
 
 fallow:
-    {{storage}} node --test scripts/check-fallow-report.test.mjs
+    {{storage}} node --test --test-timeout=5000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-fallow-report.test.mjs
     {{storage}} node scripts/run-fallow.mjs
 
 check-ui: ui-build ui-test fallow
 
 # Deterministic release metadata and artifact tooling
 release-tools:
-    {{storage}} node --test scripts/check-release-metadata.test.mjs scripts/write-release-checksums.test.mjs scripts/reconcile-release-assets.test.mjs scripts/release-workflow.test.mjs scripts/ci-workflow.test.mjs scripts/quality-tools.test.mjs scripts/repository-settings.test.mjs scripts/dev-storage.test.mjs scripts/migrate-catalog-schema2.test.mjs scripts/windows-qualification-session.test.mjs
+    {{storage}} node --test --test-timeout=5000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-release-metadata.test.mjs scripts/write-release-checksums.test.mjs scripts/reconcile-release-assets.test.mjs scripts/release-workflow.test.mjs scripts/ci-workflow.test.mjs scripts/test-duration-reporter.test.mjs scripts/quality-tools.test.mjs scripts/repository-settings.test.mjs scripts/dev-storage.test.mjs scripts/migrate-catalog-schema2.test.mjs scripts/windows-qualification-session.test.mjs
+    {{storage}} node --test scripts/windows-qualification-session.integration.test.mjs
     {{storage}} node scripts/check-release-metadata.mjs
     {{storage}} node scripts/check-retcomm-upstreams.mjs --offline
     {{storage}} node scripts/quality-tools.mjs --validate
@@ -64,7 +65,7 @@ release-tools:
 
 # Offline roadmap schema and governance checks. Live Project access is explicit.
 roadmap-check:
-    {{storage}} node --test scripts/roadmap.test.mjs scripts/source-provenance-audit.test.mjs
+    {{storage}} node --test --test-timeout=5000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/roadmap.test.mjs scripts/source-provenance-audit.test.mjs
     {{storage}} node scripts/roadmap.mjs check
 
 roadmap-doctor:
@@ -87,7 +88,7 @@ cycles:
     -{{storage}} cargo modules dependencies -p portcove-core --lib --acyclic
 
 rscheck:
-    {{storage}} node --test scripts/run-rscheck.test.mjs
+    {{storage}} node --test --test-timeout=5000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/run-rscheck.test.mjs
     {{storage}} node scripts/run-rscheck.mjs
 
 audit: check deny rscheck

@@ -135,4 +135,18 @@ Local development profiles remain unchanged. Changing this setting invalidates
 build caches; report cold and warm hosted timings separately. The five-minute
 pipeline target includes setup and required-job aggregation, not just test runtime.
 
-The UI test command explicitly sets Vitest's five-second test timeout.
+The UI test command sets Vitest's five-second timeout and validates every passing
+test's recorded duration. Node unit commands use the same timeout plus a reporter
+that fails on recorded overruns, including synchronous work that blocks timeout
+callbacks. Suite aggregate durations are not individual test durations.
+
+Windows qualification session integration tests remain a separate required step;
+they exercise compiled processes and installer lifecycle behavior using their
+existing integration deadlines. The static qualification contract runs with the
+unit budget. No integration coverage is removed.
+
+Rust tests run two at a time to limit filesystem contention. CLI free-space
+snapshot contracts share a scheduling group because their existing in-process
+mutex cannot synchronize nextest's separate processes. This changes scheduling
+only; every Rust test retains the same deadline. CI caches compiled dependencies
+after test failures so fixing a failed assertion does not require a cold rebuild.

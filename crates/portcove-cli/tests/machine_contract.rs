@@ -1089,40 +1089,90 @@ fn default_read_commands_have_human_output_snapshots() {
     assert!(capabilities.contains(" capabilities\nSchema: 34"));
 }
 
+struct OutputFixture {
+    _capacity_guard: std::sync::MutexGuard<'static, ()>,
+    _temporary: tempfile::TempDir,
+    library: std::path::PathBuf,
+    destination: std::path::PathBuf,
+    preview: serde_json::Value,
+}
+
+impl OutputFixture {
+    fn new() -> Self {
+        let _capacity_guard = CAPACITY_SENSITIVE_TEST.lock().unwrap();
+        let temporary = tempfile::tempdir().unwrap();
+        let library = temporary.path().join("library");
+        let destination = temporary.path().join("future-games");
+        let destination_text = destination.to_str().unwrap();
+
+        let preview = json_stdout(&portcove(
+            &library,
+            &[
+                "--json",
+                "output",
+                "preview",
+                "lighthouse",
+                destination_text,
+            ],
+        ));
+        assert_eq!(preview["command"], "output.preview");
+        assert_eq!(preview["data"]["ownership"], "unclaimed");
+        assert_eq!(preview["data"]["availability"], "available");
+        assert_eq!(preview["data"]["moves_existing_install"], false);
+        assert!(!destination.exists());
+        Self {
+            _capacity_guard,
+            _temporary: temporary,
+            library,
+            destination,
+            preview,
+        }
+    }
+
+    fn apply(&self) {
+        let library = &self.library;
+        let destination = &self.destination;
+        let destination_text = destination.to_str().unwrap();
+        let preview = &self.preview;
+        let fingerprint = preview["data"]["preview_sha256"].as_str().unwrap();
+        let applied = json_stdout(&portcove(
+            library,
+            &[
+                "--json",
+                "output",
+                "set",
+                "lighthouse",
+                destination_text,
+                "--expected-preview",
+                fingerprint,
+                "--yes",
+            ],
+        ));
+        assert_eq!(applied["command"], "output.set");
+        assert_eq!(applied["ok"], true, "{applied}");
+        assert_eq!(
+            applied["data"]["effective_output_directory"],
+            preview["data"]["proposed"]["effective_output_directory"]
+        );
+        assert!(!destination.exists());
+    }
+}
+
 #[test]
-fn output_controls_share_one_preview_and_apply_contract_across_modes() {
-    let _capacity_guard = CAPACITY_SENSITIVE_TEST.lock().unwrap();
-    let temporary = tempfile::tempdir().unwrap();
-    let library = temporary.path().join("library");
-    let destination = temporary.path().join("future-games");
-    let destination_text = destination.to_str().unwrap();
-
-    let preview = json_stdout(&portcove(
-        &library,
-        &[
-            "--json",
-            "output",
-            "preview",
-            "lighthouse",
-            destination_text,
-        ],
-    ));
-    assert_eq!(preview["command"], "output.preview");
-    assert_eq!(preview["data"]["ownership"], "unclaimed");
-    assert_eq!(preview["data"]["availability"], "available");
-    assert_eq!(preview["data"]["moves_existing_install"], false);
-    assert!(!destination.exists());
-    let fingerprint = preview["data"]["preview_sha256"].as_str().unwrap();
-
+fn output_preview_agrees_across_modes() {
+    let fixture = OutputFixture::new();
+    let library = &fixture.library;
+    let destination_text = fixture.destination.to_str().unwrap();
+    let fingerprint = fixture.preview["data"]["preview_sha256"].as_str().unwrap();
     let human_preview = human_stdout(&portcove(
-        &library,
+        library,
         &["output", "preview", "lighthouse", destination_text],
     ))
     .to_owned();
     assert!(human_preview.starts_with("Export / install folder preview for lighthouse"));
     assert!(human_preview.contains(fingerprint));
     let jsonl_preview = json_stdout(&portcove(
-        &library,
+        library,
         &[
             "--jsonl",
             "output",
@@ -1133,30 +1183,17 @@ fn output_controls_share_one_preview_and_apply_contract_across_modes() {
     ));
     assert_eq!(jsonl_preview["type"], "result");
     assert_eq!(jsonl_preview["data"]["preview_sha256"], fingerprint);
+}
 
-    let applied = json_stdout(&portcove(
-        &library,
-        &[
-            "--json",
-            "output",
-            "set",
-            "lighthouse",
-            destination_text,
-            "--expected-preview",
-            fingerprint,
-            "--yes",
-        ],
-    ));
-    assert_eq!(applied["command"], "output.set");
-    assert_eq!(applied["ok"], true, "{applied}");
-    assert_eq!(
-        applied["data"]["effective_output_directory"],
-        preview["data"]["proposed"]["effective_output_directory"]
-    );
-    assert!(!destination.exists());
-
+#[test]
+fn output_set_rejects_stale_review_and_show_agrees_across_modes() {
+    let fixture = OutputFixture::new();
+    let library = &fixture.library;
+    let destination_text = fixture.destination.to_str().unwrap();
+    let fingerprint = fixture.preview["data"]["preview_sha256"].as_str().unwrap();
+    fixture.apply();
     let stale = portcove(
-        &library,
+        library,
         &[
             "--json",
             "output",
@@ -1171,24 +1208,31 @@ fn output_controls_share_one_preview_and_apply_contract_across_modes() {
     assert_eq!(stale.status.code(), Some(14));
     assert_eq!(json_stdout(&stale)["error"]["code"], "conflict");
 
-    let show = portcove(&library, &["output", "show", "lighthouse"]);
+    let show = portcove(library, &["output", "show", "lighthouse"]);
     let human = human_stdout(&show);
     assert!(human.starts_with("Export / install folder for lighthouse\nEffective:"));
     assert!(human.contains("Existing installs are not moved"));
     let json_show = json_stdout(&portcove(
-        &library,
+        library,
         &["--json", "output", "show", "lighthouse"],
     ));
     assert_eq!(json_show["command"], "output.show");
     let jsonl_show = json_stdout(&portcove(
-        &library,
+        library,
         &["--jsonl", "output", "show", "lighthouse"],
     ));
     assert_eq!(jsonl_show["type"], "result");
     assert_eq!(jsonl_show["command"], "output.show");
+}
 
+#[test]
+fn output_reapply_human_preserves_the_shared_contract() {
+    let fixture = OutputFixture::new();
+    let library = &fixture.library;
+    let destination_text = fixture.destination.to_str().unwrap();
+    fixture.apply();
     let set_again_preview = json_stdout(&portcove(
-        &library,
+        library,
         &[
             "--json",
             "output",
@@ -1201,7 +1245,7 @@ fn output_controls_share_one_preview_and_apply_contract_across_modes() {
         .as_str()
         .unwrap();
     let human_set = human_stdout(&portcove(
-        &library,
+        library,
         &[
             "output",
             "set",
@@ -1214,9 +1258,16 @@ fn output_controls_share_one_preview_and_apply_contract_across_modes() {
     ))
     .to_owned();
     assert!(human_set.contains("existing installs will not move"));
+}
 
+#[test]
+fn output_reapply_jsonl_preserves_the_shared_contract() {
+    let fixture = OutputFixture::new();
+    let library = &fixture.library;
+    let destination_text = fixture.destination.to_str().unwrap();
+    fixture.apply();
     let jsonl_set_preview = json_stdout(&portcove(
-        &library,
+        library,
         &[
             "--json",
             "output",
@@ -1229,7 +1280,7 @@ fn output_controls_share_one_preview_and_apply_contract_across_modes() {
         .as_str()
         .unwrap();
     let jsonl_set = json_stdout(&portcove(
-        &library,
+        library,
         &[
             "--jsonl",
             "output",
@@ -1243,16 +1294,22 @@ fn output_controls_share_one_preview_and_apply_contract_across_modes() {
     ));
     assert_eq!(jsonl_set["type"], "result");
     assert_eq!(jsonl_set["command"], "output.set");
+}
 
+#[test]
+fn output_reset_human_uses_the_reviewed_default() {
+    let fixture = OutputFixture::new();
+    let library = &fixture.library;
+    fixture.apply();
     let reset_preview = json_stdout(&portcove(
-        &library,
+        library,
         &["--jsonl", "output", "preview", "lighthouse"],
     ));
     assert_eq!(reset_preview["type"], "result");
     assert_eq!(reset_preview["data"]["reset_to_default"], true);
     let reset_fingerprint = reset_preview["data"]["preview_sha256"].as_str().unwrap();
     let human_reset = human_stdout(&portcove(
-        &library,
+        library,
         &[
             "output",
             "reset",
@@ -1264,40 +1321,22 @@ fn output_controls_share_one_preview_and_apply_contract_across_modes() {
     ))
     .to_owned();
     assert!(human_reset.contains("existing installs will not move"));
+}
 
-    let restore_preview = json_stdout(&portcove(
-        &library,
-        &[
-            "--json",
-            "output",
-            "preview",
-            "lighthouse",
-            destination_text,
-        ],
-    ));
-    let restore_fingerprint = restore_preview["data"]["preview_sha256"].as_str().unwrap();
-    json_stdout(&portcove(
-        &library,
-        &[
-            "--json",
-            "output",
-            "set",
-            "lighthouse",
-            destination_text,
-            "--expected-preview",
-            restore_fingerprint,
-            "--yes",
-        ],
-    ));
+#[test]
+fn output_reset_jsonl_uses_the_reviewed_default() {
+    let fixture = OutputFixture::new();
+    let library = &fixture.library;
+    fixture.apply();
     let jsonl_reset_preview = json_stdout(&portcove(
-        &library,
+        library,
         &["--jsonl", "output", "preview", "lighthouse"],
     ));
     let jsonl_reset_fingerprint = jsonl_reset_preview["data"]["preview_sha256"]
         .as_str()
         .unwrap();
     let jsonl_reset = json_stdout(&portcove(
-        &library,
+        library,
         &[
             "--jsonl",
             "output",
@@ -1310,40 +1349,22 @@ fn output_controls_share_one_preview_and_apply_contract_across_modes() {
     ));
     assert_eq!(jsonl_reset["type"], "result");
     assert_eq!(jsonl_reset["command"], "output.reset");
+}
 
-    let restore_preview = json_stdout(&portcove(
-        &library,
-        &[
-            "--json",
-            "output",
-            "preview",
-            "lighthouse",
-            destination_text,
-        ],
-    ));
-    let restore_fingerprint = restore_preview["data"]["preview_sha256"].as_str().unwrap();
-    json_stdout(&portcove(
-        &library,
-        &[
-            "--json",
-            "output",
-            "set",
-            "lighthouse",
-            destination_text,
-            "--expected-preview",
-            restore_fingerprint,
-            "--yes",
-        ],
-    ));
+#[test]
+fn output_reset_json_uses_the_reviewed_default() {
+    let fixture = OutputFixture::new();
+    let library = &fixture.library;
+    fixture.apply();
     let json_reset_preview = json_stdout(&portcove(
-        &library,
+        library,
         &["--json", "output", "preview", "lighthouse"],
     ));
     let json_reset_fingerprint = json_reset_preview["data"]["preview_sha256"]
         .as_str()
         .unwrap();
     let reset = json_stdout(&portcove(
-        &library,
+        library,
         &[
             "--json",
             "output",

@@ -55,7 +55,9 @@ test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () 
   assert.match(windowsStorage, /runs-on: windows-latest/);
   assert.match(windowsStorage, /scripts\/dev-storage\.test\.mjs/);
   assert.match(windowsStorage, /--test-skip-pattern "pnpm uses\|direct just recipes"/);
-  assert.match(windowsStorage, /node --test scripts\/windows-qualification-session\.test\.mjs/);
+  assert.match(windowsStorage, /scripts\/windows-qualification-session\.test\.mjs/);
+  assert.match(windowsStorage, /node --test scripts\/windows-qualification-session\.integration\.test\.mjs/);
+  assert.match(windowsStorage, /--test-timeout=5000 --test-reporter=\.\/scripts\/test-duration-reporter\.mjs/);
   assert.doesNotMatch(windowsStorage, /rust-toolchain|rust-cache|cargo/);
 
   assert.match(rust, /^    if: always\(\)$/m);
@@ -189,7 +191,10 @@ test("Rust unit budgets fail at five seconds and documentation coverage remains"
   const config = await readFile(new URL("../.config/nextest.toml", import.meta.url), "utf8");
   assert.match(config, /slow-timeout = \{ period = "5s", terminate-after = 1, grace-period = "0s" \}/);
   assert.match(config, /^retries = 0$/m);
-  assert.doesNotMatch(config, /overrides|on-timeout|default-filter/);
+  assert.doesNotMatch(config, /on-timeout|default-filter/);
+  for (const override of config.split("[[profile.default.overrides]]").slice(1)) {
+    assert.doesNotMatch(override, /slow-timeout|retries/);
+  }
   assert.match(rustTests, /cargo nextest run --locked @Arguments/);
   for (const section of [rustWorkspaceTests, nativeRust]) {
     assert.match(section, /cargo test --locked --workspace --doc/);
