@@ -30,3 +30,16 @@ test("installer lifecycle journals every required process before spawning it", (
   assert.match(readFileSync(script, "utf8"), /Abort retained handle does not identify the journaled launch path/);
   assert.match(readFileSync(script, "utf8"), /Cannot observe a stable abort executable image path/);
 });
+
+test("installer lifecycle waits for managed files and uninstall registration to disappear", () => {
+  const source = readFileSync(installerLifecycleTool, "utf8");
+  const uninstall = source.indexOf('Invoke-JournaledProcess -Role "candidate_uninstaller"');
+  const wait = source.indexOf("$deadline = (Get-Date).AddSeconds(15)", uninstall);
+  const registryCheck = source.indexOf("$remainingRegistryEntries = @(Get-UninstallEntries $installRoot)", wait);
+  const waitEnd = source.indexOf("} while ((Get-Date) -lt $deadline)", registryCheck);
+  assert.ok(uninstall >= 0 && wait > uninstall && registryCheck > wait && waitEnd > registryCheck);
+  assert.match(
+    source.slice(wait, waitEnd),
+    /if \(-not \$managedFilesRemain -and \$remainingRegistryEntries\.Count -eq 0\)/,
+  );
+});

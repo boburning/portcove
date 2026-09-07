@@ -377,13 +377,18 @@ try {
         throw "Silent uninstaller exited with code $($uninstall.ExitCode)"
     }
     $deadline = (Get-Date).AddSeconds(15)
-    while ([System.IO.Directory]::Exists($installRoot) -and (Get-Date) -lt $deadline) {
+    do {
+        $managedFilesRemain = [System.IO.File]::Exists($application) -or
+            [System.IO.File]::Exists($uninstaller)
+        $remainingRegistryEntries = @(Get-UninstallEntries $installRoot)
+        if (-not $managedFilesRemain -and $remainingRegistryEntries.Count -eq 0) {
+            break
+        }
         Start-Sleep -Milliseconds 250
-    }
-    if ([System.IO.File]::Exists($application) -or [System.IO.File]::Exists($uninstaller)) {
+    } while ((Get-Date) -lt $deadline)
+    if ($managedFilesRemain) {
         throw "Uninstall left managed application files behind in $installRoot"
     }
-    $remainingRegistryEntries = Get-UninstallEntries $installRoot
     if ($remainingRegistryEntries.Count -ne 0) {
         throw "Uninstall left registration entries behind for $installRoot"
     }
