@@ -170,11 +170,18 @@ test("a checkpoint with changed evidence is rejected before another action", { s
   const prepared = runPowerShell(prepareArgs(item));
   assert.equal(prepared.status, 0, prepared.stderr);
   const state = JSON.parse(readFileSync(path.join(item.session, "session.json"), "utf8"));
-  writeFileSync(path.join(item.session, state.checkpoints[0].metadata.replace("checkpoint.json", "evidence.json")), "tampered\n", { flag: "a" });
-  const result = runPowerShell(["-Action", "checkpoint", "-SessionRoot", item.session]);
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /checkpoint file SHA-256 mismatch/);
-  try { execFileSync("taskkill.exe", ["/PID", String(state.process_runs[0].pid), "/T", "/F"], { windowsHide: true, stdio: "ignore" }); } catch {}
+  const evidencePath = path.join(item.session, state.checkpoints[0].metadata.replace("checkpoint.json", "evidence.json"));
+  const evidence = readFileSync(evidencePath);
+  try {
+    writeFileSync(evidencePath, "tampered\n", { flag: "a" });
+    const result = runPowerShell(["-Action", "checkpoint", "-SessionRoot", item.session]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /checkpoint file SHA-256 mismatch/);
+  } finally {
+    writeFileSync(evidencePath, evidence);
+    const finished = runPowerShell(["-Action", "finish", "-SessionRoot", item.session]);
+    assert.equal(finished.status, 0, finished.stderr);
+  }
 });
 
 test("an interrupted prepare binds its journal and runs only a correctly hashed harmless uninstaller", { skip: process.platform !== "win32", timeout: 120_000 }, t => {
