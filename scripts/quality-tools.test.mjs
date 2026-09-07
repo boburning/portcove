@@ -13,8 +13,8 @@ const manifest = JSON.parse(await readFile(new URL("../.github/quality-tools.jso
 test("quality manifest owns exact unique pins and workflow outputs", () => {
   assert.doesNotThrow(() => validateQualityManifest(manifest));
   assert.deepEqual(githubOutputs(manifest), {
-    required_prebuilt: "just@1.58.0,cargo-shear@1.13.4,cargo-deny@0.20.2,cargo-modules@0.27.0",
-    required_all: "just@1.58.0,cargo-shear@1.13.4,cargo-deny@0.20.2,cargo-modules@0.27.0,rscheck-cli@0.1.0",
+    required_prebuilt: "just@1.58.0,cargo-shear@1.13.4,cargo-deny@0.20.2",
+    required_all: "just@1.58.0,cargo-shear@1.13.4,cargo-deny@0.20.2,rscheck-cli@0.1.0",
     rscheck_spec: "rscheck-cli@0.1.0",
     semdup_spec: "semdup@0.2.0",
     hawk_version: "0.1.13",

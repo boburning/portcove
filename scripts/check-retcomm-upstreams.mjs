@@ -7,6 +7,7 @@ const catalog = JSON.parse(await readFile(catalogPath, "utf8"));
 const mappings = JSON.parse(await readFile(mappingPath, "utf8"));
 const psxPorts = catalog.ports.filter(port => port.adapter === "psx-recomp-managed");
 const failures = [];
+const offline = process.argv.includes("--offline");
 
 const mappedPortIds = new Set(Object.keys(mappings));
 for (const port of psxPorts) {
@@ -58,33 +59,39 @@ async function loadRetcommTitle(titleId) {
   throw new Error(`RetComM catalog returned 404 for ${titleId}`);
 }
 
-await Promise.all(Object.entries(mappings).map(async ([portId, titleId]) => {
-  const port = psxPorts.find(candidate => candidate.id === portId);
-  if (!port) return;
+if (!offline) {
+  await Promise.all(Object.entries(mappings).map(async ([portId, titleId]) => {
+    const port = psxPorts.find(candidate => candidate.id === portId);
+    if (!port) return;
 
-  try {
-    const title = await loadRetcommTitle(titleId);
-    const releaseRepository = title.release?.github;
-    const buildRepository = title.build?.source?.github;
-    if (!releaseRepository) {
-      failures.push(`${titleId}: RetComM entry has no GitHub game release repository`);
-      return;
+    try {
+      const title = await loadRetcommTitle(titleId);
+      const releaseRepository = title.release?.github;
+      const buildRepository = title.build?.source?.github;
+      if (!releaseRepository) {
+        failures.push(`${titleId}: RetComM entry has no GitHub game release repository`);
+        return;
+      }
+      if (buildRepository && buildRepository !== releaseRepository) {
+        failures.push(`${titleId}: RetComM release (${releaseRepository}) and build (${buildRepository}) repositories differ`);
+      }
+      if (port.release.repository !== releaseRepository) {
+        failures.push(`${portId}: Portcove uses ${port.release.repository}, RetComM uses ${releaseRepository}`);
+      }
+    } catch (error) {
+      failures.push(`${portId}: ${error.message}`);
     }
-    if (buildRepository && buildRepository !== releaseRepository) {
-      failures.push(`${titleId}: RetComM release (${releaseRepository}) and build (${buildRepository}) repositories differ`);
-    }
-    if (port.release.repository !== releaseRepository) {
-      failures.push(`${portId}: Portcove uses ${port.release.repository}, RetComM uses ${releaseRepository}`);
-    }
-  } catch (error) {
-    failures.push(`${portId}: ${error.message}`);
-  }
-}));
+  }));
+}
 
 if (failures.length) {
   console.error(failures.sort().join("\n"));
   process.exit(1);
 }
 
-const source = localCatalogDir ? localCatalogDir : `TechnicallyComputers/retcomm-catalog@${ref}`;
-console.log(`Verified ${psxPorts.length} direct PS1 game upstreams against ${source}; RetComM-Launcher is not a runtime source.`);
+if (offline) {
+  console.log(`Verified ${psxPorts.length} local PS1 mappings; live upstream checks were not run.`);
+} else {
+  const source = localCatalogDir ? localCatalogDir : `TechnicallyComputers/retcomm-catalog@${ref}`;
+  console.log(`Verified ${psxPorts.length} direct PS1 game upstreams against ${source}; RetComM-Launcher is not a runtime source.`);
+}

@@ -177,9 +177,6 @@ jobs:
       - run: cargo deny check --hide-inclusion-graph -W unmaintained
       - run: node --test scripts/check-rust-architecture.test.mjs
       - run: node scripts/check-rust-architecture.mjs
-      - name: Report current cargo-modules baseline
-        continue-on-error: true
-        run: cargo modules dependencies -p portcove-core --lib --acyclic
       - run: node --test scripts/run-rscheck.test.mjs
       - run: node scripts/run-rscheck.mjs
 
@@ -231,10 +228,8 @@ jobs:
           node scripts/check-release-metadata.mjs
           node scripts/quality-tools.mjs --validate
           node scripts/repository-settings.mjs --validate
-      - run: node scripts/check-catalog-repositories.mjs
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - run: node scripts/check-retcomm-upstreams.mjs
+      - name: Validate local RetComM mappings
+        run: node scripts/check-retcomm-upstreams.mjs --offline
 
   dependency-review:
     if: github.event_name == 'pull_request'

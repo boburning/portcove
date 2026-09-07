@@ -10,7 +10,7 @@ Portcove uses one local quality interface for humans, CI, and coding agents. The
 ./scripts/bootstrap-quality-tools.sh
 ```
 
-Pass `-IncludeDeep` or `--include-deep` to also install semdup, cargo-mutants, and Hawk where supported. Both scripts are idempotent, verify and print exact installed versions, and never silently upgrade tools. Deep tools remain optional: Hawk uses its own manifest-pinned Rust toolchain and does not support Windows, while semdup requires a current native C++ linker for its ONNX runtime.
+Pass `-IncludeDeep` or `--include-deep` to also install cargo-modules, semdup, cargo-mutants, and Hawk where supported. Both scripts are idempotent, verify and print exact installed versions, and never silently upgrade tools. Deep tools remain optional: Hawk uses its own manifest-pinned Rust toolchain and does not support Windows, while semdup requires a current native C++ linker for its ONNX runtime.
 
 ## Canonical commands
 
@@ -19,8 +19,9 @@ Pass `-IncludeDeep` or `--include-deep` to also install semdup, cargo-mutants, a
 | Rust change | `just check-rust` | format, compile, Clippy, tests, unused dependencies/files, and crate boundaries |
 | UI change | `just check-ui` | production build, tests, and the existing Fallow gate |
 | Cross-stack or release change | `just check` | both fast loops plus deterministic release metadata and checksum-tool tests |
-| Substantial completion | `just audit` | fast loop plus dependency policy, the current module-cycle report, and rscheck |
+| Substantial completion | `just audit` | fast loop plus dependency policy and rscheck |
 | Large structural change | `just deep` | audit plus advisory Hawk and semdup analysis |
+| Explicit cycle investigation | `just cycles` | optional advisory module-cycle report |
 | Critical core test review | `just mutants` | optional mutation analysis for `portcove-core` |
 
 Deterministic failures block: rustfmt, Cargo compilation, Clippy, tests, cargo-shear, cargo-deny security/license/source policy, the Cargo-metadata architecture checker, Fallow, and rscheck's absolute-path rule outside reviewed exceptions.
@@ -78,7 +79,7 @@ The 2026-09-02 baseline is classified as follows:
 - **A — defect or dangerous architecture issue:** none after deterministic checks.
 - **B — clear low-risk cleanup:** cargo-shear identified and removed three manifest-only dependencies (`tracing` from the CLI; `serde_json` and `tokio` from the Tauri adapter). Hawk identified three unreachable library-less release-provider constructors; production already used the library-aware constructors, so the unused public APIs were removed after caller review.
 - **C — existing design debt:** `catalog::validate`, CLI `execute`, and `adapter::launch_spec` exceed the initial function-complexity threshold. `Library` and `PortcoveService` have broad impl surfaces. Improve these only when nearby product work reveals a stable domain boundary.
-- **D — intentional or tool limitation:** reviewed DolphinTool/chdman discovery locations and Windows path-rewrite fixtures are exact rscheck path exceptions. cargo-modules 0.27 reports type-to-associated-item ownership edges as circular; the command remains visible and advisory rather than forcing a meaningless refactor.
+- **D — intentional or tool limitation:** reviewed DolphinTool/chdman discovery locations and Windows path-rewrite fixtures are exact rscheck path exceptions. cargo-modules 0.27 reports type-to-associated-item ownership edges as circular; the command remains available through `just cycles` for explicit investigations, outside routine CI and audits.
 - **E — investigate when touched:** rscheck reports similar source/BIOS registration, DolphinTool/chdman resolution, and hash-validation flows. Confirm domain equivalence before extracting any abstraction.
 
 The first complete hosted deep baseline is [run 33651741470](https://github.com/boburning/portcove/actions/runs/33651741470) at commit `b8486d4`. Hawk reported zero dead public APIs after the reviewed cleanup. semdup indexed 638 units, scanned the 236 functions meeting the eight-line floor with the exact index, and reported zero qualifying pairs in zero three-member clusters at 0.85; six smaller clusters were hidden by the intentional rule-of-three threshold. The cold semdup stage took 37 minutes, after which Actions saved a 141.4 MB model cache and 2.0 MB corpus cache. This is a clean advisory baseline, not proof that no smaller or conceptual duplication exists.
@@ -87,7 +88,7 @@ The incremental path is proven by [run 33657080917](https://github.com/boburning
 
 The completed audit-remediation implementation was revalidated by [run 33705777418](https://github.com/boburning/portcove/actions/runs/33705777418) at commit `df9de02`. All three lanes passed: semantic duplication in 5m49s, Hawk in 7m01s, and the full deterministic audit in 9m37s. This run is the final-head structural evidence; its analyzer reports remain advisory under the policy above.
 
-Do not expand exceptions casually. Newly introduced absolute path literals still fail. Promote cargo-modules to a hard gate once its baseline represents actual module edges cleanly.
+Do not expand exceptions casually. Newly introduced absolute path literals still fail. Reconsider routine cargo-modules coverage only after its report represents actual module edges cleanly and demonstrates actionable value.
 
 The three dated roadmap-reconciliation files named explicitly in
 `.gitattributes` are verbatim historical evidence. Their source documents use
@@ -101,3 +102,20 @@ On the current Windows development host, semdup 0.2.0 reaches its ONNX Runtime l
 ## Ratcheting
 
 Do not increase the current complexity limits or add new warnings in touched code without review. Lower `max_fn` from 25 only after the repository satisfies the lower value naturally. Treat semdup's 0.85, three-member threshold as an investigation threshold; do not weaken it to hide a finding or build abstractions solely to reduce its score.
+
+## Upstream health checks
+
+Every PR retains deterministic repository, release, and local RetComM mapping
+validation in the required `catalog` job. Live repository availability and
+RetComM upstream comparisons run separately in `upstream-health.yml` when catalog
+data, the mapping, either checker, the Node version, or that workflow changes.
+The same workflow runs daily and can be dispatched manually. Its path-filtered
+status must not be configured as an always-required branch check, because an
+unrelated PR does not create that status. Scheduled failures remain visible in
+Actions and require investigation as upstream drift, not a local code failure.
+Release workflow and local release preflight retain their live upstream checks.
+
+The advisory cycle report is deliberately excluded from routine CI and `audit`
+because its known inherent-item cycle baseline produces non-actionable noise.
+The pinned tool remains available through the optional deep bootstrap and
+`just cycles`; the deterministic Cargo-metadata architecture gate is unchanged.

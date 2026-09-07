@@ -71,7 +71,7 @@ An intentional architecture change must preserve one clear owner for each piece 
 - Substantial completion: `just audit`
 - Broad refactor, public API or dependency restructuring, significant abstraction, or architecture change: `just deep`
 
-`just deep` findings are evidence to inspect, not automatic instructions to rewrite code. `cargo-modules` remains advisory while its recorded inherent-item cycle baseline is unresolved.
+`just deep` findings are evidence to inspect, not automatic instructions to rewrite code. `just cycles` is an explicit, advisory architecture investigation; it is excluded from routine CI and audits while its recorded inherent-item cycle baseline is unresolved.
 
 ## Fixing failures
 
