@@ -34,7 +34,7 @@ test("installer lifecycle journals every required process before spawning it", (
 test("installer lifecycle waits for managed files and uninstall registration to disappear", () => {
   const source = readFileSync(installerLifecycleTool, "utf8");
   const uninstall = source.indexOf('Invoke-JournaledProcess -Role "candidate_uninstaller"');
-  const wait = source.indexOf("$deadline = (Get-Date).AddSeconds(15)", uninstall);
+  const wait = source.indexOf("$deadline = (Get-Date).AddSeconds($CleanupTimeoutSeconds)", uninstall);
   const registryCheck = source.indexOf("$remainingRegistryEntries = @(Get-UninstallEntries $installRoot)", wait);
   const waitEnd = source.indexOf("} while ((Get-Date) -lt $deadline)", registryCheck);
   assert.ok(uninstall >= 0 && wait > uninstall && registryCheck > wait && waitEnd > registryCheck);
@@ -42,4 +42,6 @@ test("installer lifecycle waits for managed files and uninstall registration to 
     source.slice(wait, waitEnd),
     /if \(-not \$managedFilesRemain -and \$remainingRegistryEntries\.Count -eq 0\)/,
   );
+  assert.match(source, /WaitForExit\(\$ProcessTimeoutSeconds \* 1000\)/);
+  assert.match(source, /status = "timed_out"/);
 });
