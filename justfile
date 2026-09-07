@@ -57,6 +57,7 @@ check-ui: ui-build ui-test fallow
 release-tools:
     {{storage}} node --test scripts/check-release-metadata.test.mjs scripts/write-release-checksums.test.mjs scripts/reconcile-release-assets.test.mjs scripts/release-workflow.test.mjs scripts/ci-workflow.test.mjs scripts/quality-tools.test.mjs scripts/repository-settings.test.mjs scripts/dev-storage.test.mjs scripts/migrate-catalog-schema2.test.mjs
     {{storage}} node scripts/check-release-metadata.mjs
+    {{storage}} node scripts/check-retcomm-upstreams.mjs --offline
     {{storage}} node scripts/quality-tools.mjs --validate
     {{storage}} node scripts/repository-settings.mjs --validate
 
@@ -88,7 +89,7 @@ rscheck:
     {{storage}} node --test scripts/run-rscheck.test.mjs
     {{storage}} node scripts/run-rscheck.mjs
 
-audit: check deny cycles rscheck
+audit: check deny rscheck
 
 # Expensive or experimental intelligence. Failures remain diagnostic.
 hawk:

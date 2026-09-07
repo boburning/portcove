@@ -1,0 +1,47 @@
+name: Upstream health
+
+on:
+  pull_request:
+    paths:
+      - 'crates/portcove-core/catalog/**'
+      - 'scripts/retcomm-psx-upstreams.json'
+      - 'scripts/check-catalog-repositories.mjs'
+      - 'scripts/check-retcomm-upstreams.mjs'
+      - '.node-version'
+      - '.github/workflows/upstream-health.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'crates/portcove-core/catalog/**'
+      - 'scripts/retcomm-psx-upstreams.json'
+      - 'scripts/check-catalog-repositories.mjs'
+      - 'scripts/check-retcomm-upstreams.mjs'
+      - '.node-version'
+      - '.github/workflows/upstream-health.yml'
+  schedule:
+    - cron: '23 9 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upstream-health-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  upstream-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: Check hosted catalog repositories
+        run: node scripts/check-catalog-repositories.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check RetComM upstream identity
+        if: ${{ !cancelled() }}
+        run: node scripts/check-retcomm-upstreams.mjs

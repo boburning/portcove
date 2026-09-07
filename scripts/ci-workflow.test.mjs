@@ -114,3 +114,72 @@ test("frontend keeps deterministic product gates and delegates vulnerability cha
 test("catalog executes the CI workflow contract", () => {
   assert.match(catalog, /scripts\/ci-workflow\.test\.mjs/);
 });
+
+test("routine checks retain architecture enforcement but make cycles optional", async () => {
+  assert.doesNotMatch(rustQuality, /cargo modules/);
+  assert.match(rustQuality, /node scripts\/check-rust-architecture\.mjs/);
+  const recipes = await readFile(new URL("../justfile", import.meta.url), "utf8");
+  assert.match(recipes, /^audit: check deny rscheck$/m);
+  assert.match(recipes, /^cycles:\r?\n.*cargo modules/m);
+});
+
+test("live upstream health has bounded independent triggers while catalog stays offline", async () => {
+  assert.doesNotMatch(catalog, /check-catalog-repositories\.mjs/);
+  assert.match(catalog, /check-retcomm-upstreams\.mjs --offline/);
+  const health = await readFile(new URL("../.github/workflows/upstream-health.yml", import.meta.url), "utf8");
+  assert.match(health, /schedule:\r?\n    - cron:/);
+  assert.match(health, /workflow_dispatch:/);
+  assert.match(health, /timeout-minutes: 10/);
+  assert.match(health, /^permissions:\r?\n  contents: read$/m);
+  assert.doesNotMatch(health, /pull_request_target|continue-on-error/);
+  for (const trigger of ["pull_request", "push"]) {
+    const section = health.split(`  ${trigger}:`)[1].split(/^  \w+:/m)[0];
+    for (const path of ["crates/portcove-core/catalog/**", "scripts/retcomm-psx-upstreams.json", "scripts/check-catalog-repositories.mjs", "scripts/check-retcomm-upstreams.mjs", ".node-version", ".github/workflows/upstream-health.yml"]) {
+      assert.ok(section.includes(`'${path}'`), `${trigger} must cover ${path}`);
+    }
+  }
+  assert.match(health, /run: node scripts\/check-catalog-repositories\.mjs/);
+  assert.match(health, /run: node scripts\/check-retcomm-upstreams\.mjs\r?$/m);
+  const release = await readFile(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
+  assert.match(release, /run: node scripts\/check-retcomm-upstreams\.mjs\r?$/m);
+});
+
+test("offline RetComM validation rejects bad mappings without loading upstream data", async () => {
+  const { mkdtemp, mkdir, writeFile, copyFile, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { spawnSync } = await import("node:child_process");
+  const { pathToFileURL } = await import("node:url");
+  const root = await mkdtemp(join(tmpdir(), "portcove-offline-"));
+  try {
+    await mkdir(join(root, "scripts"));
+    await mkdir(join(root, "crates/portcove-core/catalog"), { recursive: true });
+    const checker = join(root, "scripts/check-retcomm-upstreams.mjs");
+    await copyFile(new URL("./check-retcomm-upstreams.mjs", import.meta.url), checker);
+    const preload = join(root, "deny-network.mjs");
+    await writeFile(preload, 'globalThis.fetch = () => { throw new Error("NETWORK_FORBIDDEN"); };');
+    const port = { id: "fixture", adapter: "psx-recomp-managed", release: { repository: "owner/game" } };
+    const catalogFile = join(root, "crates/portcove-core/catalog/catalog.json");
+    await writeFile(catalogFile, JSON.stringify({ ports: [port] }));
+    const mappingFile = join(root, "scripts/retcomm-psx-upstreams.json");
+    const run = (...args) => spawnSync(process.execPath, ["--import", pathToFileURL(preload).href, checker, ...args], {
+      encoding: "utf8", env: { ...process.env, RETCOMM_CATALOG_DIR: "" },
+    });
+    await writeFile(mappingFile, JSON.stringify({ fixture: "fixture-title" }));
+    const valid = run("--offline");
+    assert.equal(valid.status, 0, valid.stderr);
+    assert.match(valid.stdout, /live upstream checks were not run/);
+    const live = run();
+    assert.equal(live.status, 1);
+    assert.match(live.stderr, /NETWORK_FORBIDDEN/);
+    for (const mappings of [{}, { stale: "fixture-title" }]) {
+      await writeFile(mappingFile, JSON.stringify(mappings));
+      const invalid = run("--offline");
+      assert.equal(invalid.status, 1);
+      assert.match(invalid.stderr, /missing RetComM title mapping/);
+      assert.doesNotMatch(invalid.stderr, /NETWORK_FORBIDDEN/);
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
