@@ -200,6 +200,7 @@ impl Drop for RunningCli {
 #[test]
 fn cancellation_from_another_cli_stops_discovery_with_a_durable_cancelled_result() {
     use std::io::{BufRead, Read};
+    eprintln!("CLI cancellation: prepare source");
     let _capacity_guard = CAPACITY_SENSITIVE_TEST.lock().unwrap();
     let temporary = tempfile::tempdir().unwrap();
     let sources = temporary.path().join("sources");
@@ -224,11 +225,13 @@ fn cancellation_from_another_cli_stops_discovery_with_a_durable_cancelled_result
     );
     let mut output = std::io::BufReader::new(child.0.stdout.take().unwrap());
     let mut started = String::new();
+    eprintln!("CLI cancellation: await started event");
     output.read_line(&mut started).unwrap();
     let started: Value = serde_json::from_str(&started).unwrap();
     assert_eq!(started["schema_version"], 2);
     assert_eq!(started["type"], "started");
     let id = started["operation_id"].as_str().unwrap();
+    eprintln!("CLI cancellation: request cancellation");
     let cancelled = portcove(&library, &["--json", "cancel", id]);
     assert!(
         cancelled.status.success(),
@@ -237,6 +240,7 @@ fn cancellation_from_another_cli_stops_discovery_with_a_durable_cancelled_result
     );
     assert_eq!(json_stdout(&cancelled)["data"]["requested"], true);
     let mut rest = String::new();
+    eprintln!("CLI cancellation: await exit");
     output.read_to_string(&mut rest).unwrap();
     assert_eq!(child.0.wait().unwrap().code(), Some(130));
     let lines = rest
@@ -247,9 +251,11 @@ fn cancellation_from_another_cli_stops_discovery_with_a_durable_cancelled_result
         && line["type"] == "finished"
         && line["result"] == "cancelled"));
     assert_eq!(lines.last().unwrap()["error"]["code"], "cancelled");
+    eprintln!("CLI cancellation: verify durable activity");
     let ledger = json_stdout(&portcove(&library, &["--json", "activity"]));
     assert_eq!(ledger["data"][0]["id"], id);
     assert_eq!(ledger["data"][0]["status"], "cancelled");
+    eprintln!("CLI cancellation: verify empty source registry");
     assert_eq!(
         json_stdout(&portcove(&library, &["--json", "source", "list"]))["data"],
         serde_json::json!([])

@@ -17,6 +17,12 @@ capacity-sensitive = { max-threads = 1 }
 filter = 'package(portcove-cli) & (test(/^output_/) | test(cancellation_from_another_cli_stops_discovery_with_a_durable_cancelled_result))'
 test-group = 'capacity-sensitive'
 
+# CLI contracts launch real processes which initialize complete catalogs.
+# Avoid overlapping their startup work on the default two-core test budget.
+[[profile.default.overrides]]
+filter = 'package(portcove-cli)'
+threads-required = 2
+
 # Full signed-catalog lifecycle cases repeatedly verify complete snapshots.
 # Reserve both default CPU slots while one runs; the deadline is unchanged.
 [[profile.default.overrides]]
