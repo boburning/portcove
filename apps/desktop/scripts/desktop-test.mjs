@@ -76,6 +76,7 @@ async function connect() {
       ...(process.platform === "win32" ? { webviewOptions: { userDataFolder: profile } } : {}) } } });
   await browser.setTimeout({ script: 15_000 });
   await browser.$('nav[aria-label="Primary navigation"]').waitForExist({ timeout: 30_000 });
+  await browser.$(".loading-state").waitForExist({ reverse: true, timeout: 30_000 });
 }
 
 try {
