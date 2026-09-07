@@ -66,6 +66,84 @@ node scripts/qualification-report.mjs --cli <portcove.exe> --library <qualificat
 
 The report captures versioned core diagnostics, catalog, sources, status, activity, capacity, and backup listings, plus the exact CLI hash. Its checklist leaves gameplay, audio, controller, and save/load observations unassessed. Keep these local reports private because source references contain local paths; they never contain source file contents or account credentials. The tool does not edit catalog qualification flags.
 
+For a packaged Windows qualification session, first create an immutable build
+record from the exact clean candidate checkout. Put all package inputs below
+that checkout; ignored `target`, `work`, or `outputs` directories are suitable.
+The predecessor version and installer digest are mandatory:
+
+```powershell
+node scripts/write-windows-qualification-build.mjs `
+  --repository <absolute-clean-candidate-checkout> `
+  --installer <candidate-setup.exe> --cli <candidate-portcove.exe> `
+  --desktop <raw-candidate-portcove-desktop.exe> `
+  --predecessor <published-predecessor-setup.exe> `
+  --predecessor-version <published-version> --output <new-build-record.json>
+```
+
+Record the printed build-record SHA-256 outside the candidate checkout. Prepare
+then rechecks that hash, candidate commit and tree, tracked cleanliness, every
+package, and every qualification tool even with `-ValidateOnly`:
+
+```powershell
+.\scripts\windows-qualification-session.ps1 -Action prepare `
+  -SessionRoot <new-absolute-disposable-directory> `
+  -CandidateCheckout <absolute-clean-candidate-checkout> `
+  -BuildRecordPath <build-record.json> `
+  -ExpectedBuildRecordSha256 <sha256>
+```
+
+The command refuses any existing Portcove installer registration and any
+existing, relative, volume-root, or reparse-backed session directory. It copies
+and verifies all executable inputs and tools below the session root. The normal
+installer probe performs the predecessor upgrade, responsive-window smoke,
+complete recursive preservation comparison, and uninstall. Before uninstall it
+copies the verified packaged desktop into the session. The later functional
+session therefore leaves no installer registration while it runs. Both
+`PORTCOVE_LIBRARY` and `PORTCOVE_PREFERENCES` remain below the session root.
+
+Run later actions with the verified copy at
+`<session>\tools\windows-qualification-session.ps1`. Checkpoint asks the
+journaled desktop process to close, captures a new report
+with the verified packaged CLI, and never overwrites an earlier or interrupted
+sequence. Every relaunch appends a process-run record, and each checkpoint links
+to the run it closed. Recovery accepts a pending launch only when one process
+matches the exact executable path and hash and began no earlier than five
+seconds before the recorded request. Use `-Relaunch` when the next scenario
+needs restart persistence:
+
+```powershell
+& <session>\tools\windows-qualification-session.ps1 -Action checkpoint `
+  -SessionRoot <same-disposable-directory> -Label after-storage -Relaunch
+```
+
+Finish closes a running session through its main window, captures one final
+report, preserves the exact pre-finish session metadata, and writes a hashed
+receipt covering the recursive retained evidence. A later invocation
+cannot recover the original Windows process handle, so a close followed by
+process disappearance is recorded as an unobserved exit code rather than a
+clean-exit claim. An interrupted finish resumes its recorded attempt and reuses
+the exact snapshot or receipt instead of repeating the final checkpoint:
+
+```powershell
+& <session>\tools\windows-qualification-session.ps1 -Action finish `
+  -SessionRoot <same-disposable-directory>
+```
+
+If prepare fails after an installer starts, keep the session root and run
+`-Action abort`. Abort requires the phase journal hash to have been bound into
+`session.json`, then verifies its owned paths and recorded uninstaller hash. It
+acts only inside the validated session root. If it cannot
+prove that identity, it leaves the partial evidence and installation untouched
+for explicit recovery. It records an abort only after proving that no owned
+process, managed install file, or Portcove registration remains.
+
+The session record is automated package and application-state evidence only.
+Synthetic fixtures may prove orchestration, refusal, and recovery behavior, but
+they do not establish source admission, game installation, gameplay, audio,
+controller behavior, save compatibility, comprehension, publisher prompts, or
+physical-platform behavior. Leave every unobserved row unassessed. If candidate
+source or package bytes change, create a new build record and session root.
+
 ## Roadmap readiness snapshot
 
 Before publishing a tagged release, review the live Portcove Roadmap view for

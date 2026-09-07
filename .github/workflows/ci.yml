@@ -84,6 +84,8 @@ jobs:
           node-version-file: .node-version
       - name: Test development storage on Windows
         run: node scripts/dev-storage.mjs run -- node --test --test-skip-pattern "pnpm uses|direct just recipes" scripts/dev-storage.test.mjs
+      - name: Test Windows qualification session orchestration
+        run: node --test scripts/windows-qualification-session.test.mjs
 
   native_rust:
     name: native-rust (${{ matrix.platform }})

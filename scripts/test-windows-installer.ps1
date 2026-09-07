@@ -3,7 +3,9 @@ param(
     [string]$InstallerPath,
     [string]$UpgradeFromInstallerPath,
     [string]$ExpectedExecutablePath,
-    [string]$TestBase
+    [string]$TestBase,
+    [string]$RetainExecutablePath,
+    [string]$EvidencePath
 )
 
 $ErrorActionPreference = "Stop"
@@ -41,14 +43,16 @@ function Get-UninstallEntries([string]$InstallLocation) {
     })
 }
 
-function Invoke-ApplicationSmoke([string]$Application) {
-    $process = Start-Process -FilePath $Application -PassThru -WindowStyle Hidden
+function Invoke-ApplicationSmoke([string]$Application, [string]$Role) {
+    $launch = Start-JournaledProcess $Role $Application @()
+    $process = $launch.process
     try {
         $deadline = (Get-Date).AddSeconds(30)
         do {
             Start-Sleep -Milliseconds 250
             $process.Refresh()
             if ($process.HasExited) {
+                Complete-JournaledProcess $launch.run $process "exit_observed"
                 throw "Installed application exited before the smoke check completed"
             }
         } while ((-not $process.Responding -or -not $process.MainWindowTitle) -and (Get-Date) -lt $deadline)
@@ -60,6 +64,7 @@ function Invoke-ApplicationSmoke([string]$Application) {
         if (-not $process.WaitForExit(10000)) {
             throw "Installed application did not exit cleanly after its window closed"
         }
+        Complete-JournaledProcess $launch.run $process "exit_observed"
         if ($process.ExitCode -ne 0) {
             throw "Installed application exited with code $($process.ExitCode)"
         }
@@ -68,6 +73,9 @@ function Invoke-ApplicationSmoke([string]$Application) {
     finally {
         if (-not $process.HasExited) {
             Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            $launch.run.status = "forced_termination"
+            $launch.run.exit_observation = "Installer smoke cleanup forced the process to stop"
+            Write-InstallerEvidence $evidence.phase
         }
         $process.Dispose()
     }
@@ -94,6 +102,31 @@ function Get-ExpectedBundledHash([string]$Executable) {
     }
     finally { $hasher.Dispose() }
     [pscustomobject]@{ raw_sha256 = $rawHash; bundled_sha256 = $bundledHash; bundle_slot_patched = $index -ge 0 }
+}
+
+function Get-RecursiveFileManifest([string]$Root) {
+    if (-not [System.IO.Directory]::Exists($Root)) { throw "Manifest root does not exist: $Root" }
+    @(Get-ChildItem -LiteralPath $Root -Force -Recurse | Sort-Object FullName | ForEach-Object {
+            $item = $_
+            if ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+                throw "Refusing to manifest a reparse point: $($item.FullName)"
+            }
+            if ($item.PSIsContainer) {
+                [pscustomobject]@{ path = [System.IO.Path]::GetRelativePath($Root, $item.FullName).Replace('\', '/') + '/'; type = "directory"; bytes = $null; sha256 = $null }
+            } else {
+                [pscustomobject]@{ path = [System.IO.Path]::GetRelativePath($Root, $item.FullName).Replace('\', '/'); type = "file"; bytes = $item.Length; sha256 = (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
+            }
+        })
+}
+
+function Get-PreservationManifest([string]$LibraryRoot) {
+    $preferences = [System.Environment]::GetEnvironmentVariable("PORTCOVE_PREFERENCES", "Process")
+    [ordered]@{
+        library = @(Get-RecursiveFileManifest $LibraryRoot)
+        preferences = if ($preferences -and [System.IO.File]::Exists($preferences)) {
+            [ordered]@{ present = $true; bytes = (Get-Item -LiteralPath $preferences).Length; sha256 = (Get-FileHash -LiteralPath $preferences -Algorithm SHA256).Hash.ToLowerInvariant() }
+        } else { [ordered]@{ present = $false; bytes = $null; sha256 = $null } }
+    }
 }
 
 $installer = (Resolve-Path -LiteralPath $InstallerPath).Path
@@ -126,6 +159,60 @@ if (-not $runRoot.StartsWith($expectedPrefix, [System.StringComparison]::Ordinal
 }
 [System.IO.Directory]::CreateDirectory($runRoot) | Out-Null
 
+$evidence = if ($EvidencePath) {
+    $evidenceFull = [System.IO.Path]::GetFullPath($EvidencePath)
+    $evidenceParent = [System.IO.Path]::GetDirectoryName($evidenceFull)
+    if (-not [System.IO.Directory]::Exists($evidenceParent)) { throw "EvidencePath parent must exist" }
+    if ([System.IO.File]::Exists($evidenceFull)) { throw "EvidencePath must be new: $evidenceFull" }
+    [ordered]@{
+        format = 1
+        phase = "initialized"
+        process_runs = @()
+        owned_paths = [ordered]@{
+            run_root_relative = [System.IO.Path]::GetRelativePath($base, $runRoot).Replace('\', '/')
+            install_relative = [System.IO.Path]::GetRelativePath($base, $installRoot).Replace('\', '/')
+            library_relative = [System.IO.Path]::GetRelativePath($base, $libraryRoot).Replace('\', '/')
+        }
+        failure = $null
+    }
+} else { $null }
+
+function Write-InstallerEvidence([string]$Phase, $Details = $null) {
+    if (-not $evidence) { return }
+    $evidence.phase = $Phase
+    if ($Details) { $evidence.details = $Details }
+    $next = "$evidenceFull.next"
+    $evidence | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $next -Encoding utf8
+    [System.IO.File]::Move($next, $evidenceFull, $true)
+}
+Write-InstallerEvidence "initialized"
+
+function Start-JournaledProcess([string]$Role, [string]$Executable, [object[]]$Arguments) {
+    $exact = [System.IO.Path]::GetFullPath($Executable)
+    $requested = [DateTime]::UtcNow
+    $run = [ordered]@{ id = [System.Guid]::NewGuid().ToString("N"); role = $Role; requested_at = $requested.ToString("o"); requested_at_filetime = $requested.ToFileTimeUtc(); executable_path = $exact; executable_sha256 = (Get-FileHash -LiteralPath $exact -Algorithm SHA256).Hash.ToLowerInvariant(); arguments = @($Arguments); status = "launch_pending"; pid = $null; start_time = $null; start_time_filetime = $null; exit_code = $null; exit_observation = $null }
+    if ($evidence) { $evidence.process_runs += $run; Write-InstallerEvidence $evidence.phase }
+    $process = Start-Process -FilePath $exact -ArgumentList $Arguments -PassThru -WindowStyle Hidden
+    $run.pid = $process.Id; $run.start_time = $process.StartTime.ToUniversalTime().ToString("o"); $run.start_time_filetime = $process.StartTime.ToFileTimeUtc(); $run.status = "running"
+    if ($evidence) { Write-InstallerEvidence $evidence.phase }
+    $actualPath = [System.IO.Path]::GetFullPath($process.Path)
+    if (-not $actualPath.Equals($exact, [System.StringComparison]::OrdinalIgnoreCase)) { throw "$Role process path does not match its write-ahead record" }
+    if ((Get-FileHash -LiteralPath $actualPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $run.executable_sha256) { throw "$Role process bytes do not match its write-ahead record" }
+    [pscustomobject]@{ process = $process; run = $run }
+}
+
+function Complete-JournaledProcess($Run, $Process, [string]$Status) {
+    $Run.status = $Status; $Run.exit_code = $Process.ExitCode; $Run.exit_observation = "Observed through the retained launch handle"
+    if ($evidence) { Write-InstallerEvidence $evidence.phase }
+}
+
+function Invoke-JournaledProcess([string]$Role, [string]$Executable, [object[]]$Arguments) {
+    $launch = Start-JournaledProcess $Role $Executable $Arguments
+    $launch.process.WaitForExit()
+    Complete-JournaledProcess $launch.run $launch.process "exit_observed"
+    $launch.process
+}
+
 $completed = $false
 $previousLibrary = [System.Environment]::GetEnvironmentVariable("PORTCOVE_LIBRARY", "Process")
 $previousTemp = @{}
@@ -141,11 +228,17 @@ try {
     [System.Environment]::SetEnvironmentVariable("PORTCOVE_LIBRARY", $libraryRoot, "Process")
     $upgrade = $null
     if ($predecessor) {
-        $previousInstall = Start-Process -FilePath $predecessor -ArgumentList @("/S", "/D=$installRoot") -PassThru -Wait -WindowStyle Hidden
+        Write-InstallerEvidence "predecessor_installing"
+        $previousInstall = Invoke-JournaledProcess "predecessor_installer" $predecessor @("/S", "/D=$installRoot")
         if ($previousInstall.ExitCode -ne 0) {
             throw "Predecessor installer exited with code $($previousInstall.ExitCode)"
         }
-        $previousSmoke = Invoke-ApplicationSmoke $application
+        if (-not [System.IO.File]::Exists($uninstaller)) { throw "Predecessor did not publish an uninstaller" }
+        if ($evidence) {
+            $evidence.uninstaller_sha256 = (Get-FileHash -LiteralPath $uninstaller -Algorithm SHA256).Hash.ToLowerInvariant()
+            Write-InstallerEvidence "predecessor_installed"
+        }
+        $previousSmoke = Invoke-ApplicationSmoke $application "predecessor_smoke"
         $previousHash = (Get-FileHash -LiteralPath $application -Algorithm SHA256).Hash.ToLowerInvariant()
         $database = Join-Path $libraryRoot "portcove.sqlite3"
         if (-not [System.IO.File]::Exists($database)) {
@@ -156,6 +249,7 @@ try {
             predecessor_executable_sha256 = $previousHash
             predecessor_smoke = $previousSmoke
         }
+        Write-InstallerEvidence "predecessor_verified" $upgrade
     }
     # This is a qualification marker, not a fabricated game save.
     $sentinelRoot = Join-Path $libraryRoot "user\installer-qualification"
@@ -163,7 +257,8 @@ try {
     $sentinel = Join-Path $sentinelRoot "preserve.txt"
     [System.IO.File]::WriteAllText($sentinel, [System.Guid]::NewGuid().ToString("N"))
     $sentinelHash = (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash
-    $install = Start-Process -FilePath $installer -ArgumentList @("/S", "/D=$installRoot") -PassThru -Wait -WindowStyle Hidden
+    Write-InstallerEvidence "candidate_installing"
+    $install = Invoke-JournaledProcess "candidate_installer" $installer @("/S", "/D=$installRoot")
     if ($install.ExitCode -ne 0) {
         throw "Silent installer exited with code $($install.ExitCode)"
     }
@@ -174,6 +269,10 @@ try {
     if (-not [System.IO.File]::Exists($uninstaller)) {
         throw "Uninstaller was not found at $uninstaller"
     }
+    if ($evidence) {
+        $evidence.uninstaller_sha256 = (Get-FileHash -LiteralPath $uninstaller -Algorithm SHA256).Hash.ToLowerInvariant()
+        Write-InstallerEvidence "candidate_installed"
+    }
 
     $installedHash = (Get-FileHash -LiteralPath $application -Algorithm SHA256).Hash.ToLowerInvariant()
     if ($expected -and $installedHash -ne $expected.bundled_sha256) {
@@ -183,12 +282,30 @@ try {
     if (@($registryEntries).Count -ne 1) {
         throw "Expected exactly one uninstall registration for the isolated installation"
     }
-    $smoke = Invoke-ApplicationSmoke $application
+    $smoke = Invoke-ApplicationSmoke $application "candidate_smoke"
     if ((Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -ne $sentinelHash) {
         throw "Installation or application startup changed the isolated persistent-data marker"
     }
 
-    $uninstall = Start-Process -FilePath $uninstaller -ArgumentList "/S" -PassThru -Wait -WindowStyle Hidden
+    if ($RetainExecutablePath) {
+        $retained = [System.IO.Path]::GetFullPath($RetainExecutablePath)
+        $retainedParent = [System.IO.Path]::GetDirectoryName($retained)
+        if (-not [System.IO.Directory]::Exists($retainedParent)) { throw "RetainExecutablePath parent must exist" }
+        if ([System.IO.File]::Exists($retained)) { throw "RetainExecutablePath must be new: $retained" }
+        Copy-Item -LiteralPath $application -Destination $retained
+        if ((Get-FileHash -LiteralPath $retained -Algorithm SHA256).Hash.ToLowerInvariant() -ne $installedHash) {
+            throw "Retained executable does not match the installed application"
+        }
+    }
+    $beforeUninstallManifest = Get-PreservationManifest $libraryRoot
+    Write-InstallerEvidence "candidate_verified" ([ordered]@{
+        installed_executable_sha256 = $installedHash
+        retained_executable_sha256 = if ($RetainExecutablePath) { $installedHash } else { $null }
+        preservation_manifest = $beforeUninstallManifest
+    })
+
+    Write-InstallerEvidence "uninstalling"
+    $uninstall = Invoke-JournaledProcess "candidate_uninstaller" $uninstaller @("/S")
     if ($uninstall.ExitCode -ne 0) {
         throw "Silent uninstaller exited with code $($uninstall.ExitCode)"
     }
@@ -207,9 +324,14 @@ try {
         -not [System.IO.File]::Exists((Join-Path $libraryRoot "portcove.sqlite3"))) {
         throw "Uninstall did not preserve the isolated library and persistent-data marker"
     }
+    $afterUninstallManifest = Get-PreservationManifest $libraryRoot
+    if (($beforeUninstallManifest | ConvertTo-Json -Depth 6 -Compress) -ne
+        ($afterUninstallManifest | ConvertTo-Json -Depth 6 -Compress)) {
+        throw "Uninstall changed the recursive isolated-library manifest"
+    }
 
     $completed = $true
-    [pscustomobject]@{
+    $result = [pscustomobject]@{
         installer = $installer
         installer_sha256 = $installerHash
         signature_status = $signature.Status.ToString()
@@ -225,7 +347,18 @@ try {
         uninstall_exit_code = $uninstall.ExitCode
         managed_files_removed = $true
         registration_removed = $true
-    } | ConvertTo-Json -Depth 5 -Compress
+        preservation_manifest_before_uninstall = $beforeUninstallManifest
+        preservation_manifest_after_uninstall = $afterUninstallManifest
+    }
+    Write-InstallerEvidence "complete" $result
+    $result | ConvertTo-Json -Depth 10 -Compress
+}
+catch {
+    if ($evidence) {
+        $evidence.failure = $_.Exception.Message
+        Write-InstallerEvidence "failed"
+    }
+    throw
 }
 finally {
     foreach ($name in $previousTemp.Keys) {
