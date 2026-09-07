@@ -554,56 +554,112 @@ fn library_move_requires_review_and_redirects_later_cli_processes() {
     assert_eq!(json_stdout(&resumed)["command"], "library.resume_move");
 }
 
-#[test]
-fn library_import_is_read_only_until_reviewed_and_usable_by_a_fresh_cli() {
-    let temporary = tempfile::tempdir().unwrap();
-    let source = temporary.path().join("source");
-    let metadata = temporary.path().join("metadata.json");
-    let content = temporary.path().join("copied-content");
-    let destination = temporary.path().join("restored");
-    let exported = portcove(
-        &source,
-        &[
+struct CliImportFixture {
+    _temporary: tempfile::TempDir,
+    destination: std::path::PathBuf,
+    metadata: std::path::PathBuf,
+    content: std::path::PathBuf,
+    plan: Value,
+}
+
+impl CliImportFixture {
+    fn new() -> Self {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        let metadata = temporary.path().join("metadata.json");
+        let content = temporary.path().join("copied-content");
+        let destination = temporary.path().join("restored");
+        let exported = portcove(
+            &source,
+            &[
+                "--json",
+                "library",
+                "export",
+                "--output",
+                metadata.to_str().unwrap(),
+            ],
+        );
+        assert!(exported.status.success());
+        std::fs::create_dir_all(content.join("user/example")).unwrap();
+        std::fs::write(content.join("user/example/save.bin"), b"synthetic save").unwrap();
+        let args = vec![
             "--json",
             "library",
-            "export",
-            "--output",
+            "import",
             metadata.to_str().unwrap(),
-        ],
-    );
-    assert!(exported.status.success());
-    std::fs::create_dir_all(content.join("user/example")).unwrap();
-    std::fs::write(content.join("user/example/save.bin"), b"synthetic save").unwrap();
-    let mut args = vec![
-        "--json",
-        "library",
-        "import",
-        metadata.to_str().unwrap(),
-        content.to_str().unwrap(),
-    ];
-    let planned = portcove(&destination, &args);
-    assert!(planned.status.success(), "{planned:?}");
-    assert!(!destination.exists());
-    assert!(!content.join("portcove.sqlite3").exists());
-    let document = json_stdout(&planned);
-    let hash = document["data"]["plan_sha256"].as_str().unwrap();
+            content.to_str().unwrap(),
+        ];
+        let planned = portcove(&destination, &args);
+        assert!(planned.status.success(), "{planned:?}");
+        assert!(!destination.exists());
+        assert!(!content.join("portcove.sqlite3").exists());
+        let document = json_stdout(&planned);
+        Self {
+            _temporary: temporary,
+            destination,
+            metadata,
+            content,
+            plan: document,
+        }
+    }
+
+    fn arguments(&self) -> [&str; 5] {
+        [
+            "--json",
+            "library",
+            "import",
+            self.metadata.to_str().unwrap(),
+            self.content.to_str().unwrap(),
+        ]
+    }
+
+    fn apply(&self) {
+        let mut args = self.arguments().to_vec();
+        args.extend([
+            "--apply",
+            "--expected-plan",
+            self.plan["data"]["plan_sha256"].as_str().unwrap(),
+        ]);
+        let restored = portcove(&self.destination, &args);
+        assert!(restored.status.success(), "{restored:?}");
+        assert_eq!(json_stdout(&restored)["data"]["completed"], true);
+        assert_eq!(
+            std::fs::read(self.destination.join("user/example/save.bin")).unwrap(),
+            b"synthetic save"
+        );
+    }
+}
+
+#[test]
+fn library_import_is_read_only_until_reviewed() {
+    let fixture = CliImportFixture::new();
+    let mut args = fixture.arguments().to_vec();
     args.push("--apply");
-    assert_eq!(portcove(&destination, &args).status.code(), Some(2));
-    args.extend(["--expected-plan", hash]);
-    let restored = portcove(&destination, &args);
-    assert!(restored.status.success(), "{restored:?}");
-    assert_eq!(json_stdout(&restored)["data"]["completed"], true);
-    assert_eq!(
-        std::fs::read(destination.join("user/example/save.bin")).unwrap(),
-        b"synthetic save"
-    );
-    let fresh = portcove(&destination, &["--json", "library", "export"]);
+    assert_eq!(portcove(&fixture.destination, &args).status.code(), Some(2));
+    assert!(!fixture.destination.exists());
+    assert!(!fixture.content.join("portcove.sqlite3").exists());
+}
+
+#[test]
+fn reviewed_library_import_is_usable_by_a_fresh_cli() {
+    let fixture = CliImportFixture::new();
+    fixture.apply();
+    let fresh = portcove(&fixture.destination, &["--json", "library", "export"]);
     assert!(fresh.status.success());
-    let resumed = portcove(&destination, &["--json", "library", "resume-import"]);
+}
+
+#[test]
+fn completed_library_import_resumes_idempotently_and_cannot_be_aborted() {
+    let fixture = CliImportFixture::new();
+    fixture.apply();
+    let resumed = portcove(
+        &fixture.destination,
+        &["--json", "library", "resume-import"],
+    );
     assert!(resumed.status.success(), "{resumed:?}");
     assert_eq!(json_stdout(&resumed)["command"], "library.resume_import");
     assert!(
-        !portcove(&destination, &["--json", "library", "abort-import"])
+        !portcove(&fixture.destination, &["--json", "library", "abort-import"])
             .status
             .success()
     );
@@ -1040,21 +1096,28 @@ fn source_inbox_controls_share_stable_scan_and_import_activity_ids() {
 }
 
 #[test]
-fn default_read_commands_have_human_output_snapshots() {
+fn catalog_list_has_human_output_snapshot() {
     let root = tempfile::tempdir().unwrap();
-
     let catalog = human_stdout(&portcove(root.path(), &["catalog", "list"])).to_owned();
     assert!(catalog.starts_with("Ports ("));
     assert!(catalog.contains("ID"));
     assert!(catalog.contains("lighthouse"));
     assert!(!catalog.trim_start().starts_with('['));
+}
 
+#[test]
+fn port_status_has_human_output_snapshot() {
+    let root = tempfile::tempdir().unwrap();
     let status = human_stdout(&portcove(root.path(), &["status", "lighthouse"])).to_owned();
     assert!(status.starts_with("Status (1)\nPORT"));
     assert!(status.contains("lighthouse"));
     assert!(status.contains("stable"));
     assert!(!status.trim_start().starts_with('{'));
+}
 
+#[test]
+fn empty_library_lists_has_human_output_snapshot() {
+    let root = tempfile::tempdir().unwrap();
     assert_eq!(
         human_stdout(&portcove(root.path(), &["source", "list"])),
         "No registered sources.\n",
@@ -1067,23 +1130,43 @@ fn default_read_commands_have_human_output_snapshots() {
         human_stdout(&portcove(root.path(), &["activity"])),
         "No activity records.\n",
     );
+}
 
+#[test]
+fn paths_has_human_output_snapshot() {
+    let root = tempfile::tempdir().unwrap();
     let paths = human_stdout(&portcove(root.path(), &["paths", "lighthouse"])).to_owned();
     assert!(paths.starts_with("Paths for lighthouse\nLibrary:"));
     assert!(paths.contains("\nPersistent data:"));
+}
 
+#[test]
+fn storage_has_human_output_snapshot() {
+    let root = tempfile::tempdir().unwrap();
     let storage = human_stdout(&portcove(root.path(), &["storage"])).to_owned();
     assert!(storage.starts_with("Library storage\nRoot:"));
     assert!(storage.contains("\nAvailable:"));
+}
 
+#[test]
+fn doctor_has_human_output_snapshot() {
+    let root = tempfile::tempdir().unwrap();
     let doctor = human_stdout(&portcove(root.path(), &["doctor"])).to_owned();
     assert!(doctor.starts_with("Portcove doctor\nPlatform:"));
     assert!(doctor.contains("\nRepair review: no items"));
+}
 
+#[test]
+fn catalog_show_has_human_output_snapshot() {
+    let root = tempfile::tempdir().unwrap();
     let port = human_stdout(&portcove(root.path(), &["catalog", "show", "lighthouse"])).to_owned();
     assert!(port.starts_with("Lighthouse (lighthouse)\nSupport:"));
     assert!(port.contains("\nProject: https://"));
+}
 
+#[test]
+fn capabilities_has_human_output_snapshot() {
+    let root = tempfile::tempdir().unwrap();
     let capabilities = human_stdout(&portcove(root.path(), &["capabilities"])).to_owned();
     assert!(capabilities.starts_with("Portcove "));
     assert!(capabilities.contains(" capabilities\nSchema: 34"));

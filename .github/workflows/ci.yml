@@ -99,7 +99,7 @@ jobs:
         uses: taiki-e/install-action@e67fa11c4b9316fa714ddf0abed07a0c3143b95b # v2
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
-      - run: cargo nextest run --locked --workspace --exclude portcove-core
+      - run: cargo nextest run --locked --workspace --exclude portcove-core --test-threads 1
 
   rust_clippy:
     name: rust-clippy
