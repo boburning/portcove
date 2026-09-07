@@ -100,6 +100,7 @@ struct Fixture {
 
 impl Fixture {
     fn new(runtime_bytes: &[u8], game_extra: bool) -> Self {
+        eprintln!("runtime fixture: prepare archives");
         let platform = Platform::current().unwrap();
         let mut port = Catalog::embedded().unwrap().port(PORT).unwrap().clone();
         port.platforms = vec![platform];
@@ -165,8 +166,10 @@ impl Fixture {
     }
 
     async fn install(&self, library: &Library, activate: bool) -> InstallRecord {
-        Installer::new(library.clone())
-            .unwrap()
+        eprintln!("runtime fixture: install, activate={activate}");
+        let installed = Installer::new(library.clone()).unwrap();
+        eprintln!("runtime fixture: installed");
+        installed
             .install(
                 self.request(library, activate),
                 &OperationCoordinator::new("install", None),
@@ -177,6 +180,7 @@ impl Fixture {
     }
 
     fn service(&self, library: Library) -> PortcoveService {
+        eprintln!("runtime fixture: initialize service");
         let mut service =
             PortcoveService::with_provider(library, Arc::new(FixedRelease(self.release.clone())))
                 .unwrap();
@@ -187,6 +191,7 @@ impl Fixture {
             .find(|port| port.id == PORT)
             .unwrap() = self.port.clone();
         service.catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        eprintln!("runtime fixture: service ready");
         service
     }
 }
@@ -271,7 +276,8 @@ async fn named_save_restore_updates_every_version_and_preserves_import_policy() 
     );
     fs::write(staged.path.join("profile_extra.sav"), b"second slot").unwrap();
     fs::write(staged.path.join(LAUNCH_MARKER), b"1").unwrap();
-    service.create_backup(PORT).unwrap();
+    service.collect_user_data(PORT).unwrap();
+    eprintln!("named save restore: authorize restoration");
     let preview = service
         .preview_backup_action(PORT, &backup.id, BackupAction::Restore)
         .unwrap();
@@ -286,6 +292,7 @@ async fn named_save_restore_updates_every_version_and_preserves_import_policy() 
     let restored = service
         .restore_backup(PORT, &backup.id, &authorization.token)
         .unwrap();
+    eprintln!("named save restore: verify every version");
     assert_eq!(
         fs::read(
             restored
@@ -337,13 +344,15 @@ async fn named_saves_survive_reinstallation_without_weakening_executable_policy(
     let service = second.service(library.clone());
     fs::write(old.path.join("profile_bob.sav"), b"older synthetic save").unwrap();
     fs::write(old.path.join(LAUNCH_MARKER), b"1").unwrap();
-    service.collect_user_data(PORT).unwrap();
+    // Removal collects launched saves; an explicit pre-collection duplicated it.
+    eprintln!("named save reinstall: remove");
     let removal = service.preview_removal(PORT).unwrap();
     let authorization = service
         .authorize_removal(PORT, &removal.preview_sha256)
         .unwrap();
     service.remove(PORT, &authorization.token).unwrap();
     let installed = second.install(&library, true).await;
+    eprintln!("named save reinstall: restore and verify");
     service
         .restore_user_data_to(&second.port, &installed.path)
         .unwrap();
@@ -540,12 +549,8 @@ async fn runtime_missing_executable_preserves_the_active_install() {
     assert_runtime_failure_preserves_install("missing executable").await;
 }
 
-async fn adopted_runtime_fixture() -> (
-    tempfile::TempDir,
-    Library,
-    PortcoveService,
-    crate::InstallRecord,
-) {
+#[tokio::test]
+async fn runtime_adoption_changes_provenance_without_mutating_the_downloaded_install() {
     let root = tempfile::tempdir().unwrap();
     let original = Library::open(root.path().join("original")).unwrap();
     let fixture = Fixture::new(b"runtime", false);
@@ -573,12 +578,58 @@ async fn adopted_runtime_fixture() -> (
             .unwrap()
             .valid
     );
+}
+
+fn adopted_runtime_fixture() -> (
+    tempfile::TempDir,
+    Library,
+    PortcoveService,
+    crate::InstallRecord,
+) {
+    let root = tempfile::tempdir().unwrap();
+    let fixture = Fixture::new(b"runtime", false);
+    let platform = Platform::current().unwrap();
+    let runtime = &fixture.port.bundled_runtime[&platform];
+    let external = root.path().join("external");
+    for (relative, bytes) in [
+        (
+            fixture.port.executable_hints[&platform][0].clone(),
+            b"synthetic game launcher".as_slice(),
+        ),
+        ("libs/game.jar".into(), b"synthetic game code"),
+        (
+            format!("{}/{}", runtime.target_directory, runtime.executable),
+            b"synthetic runtime executable",
+        ),
+        (
+            format!("{}/lib/modules", runtime.target_directory),
+            b"runtime",
+        ),
+    ] {
+        let file = external.join(relative);
+        fs::create_dir_all(file.parent().unwrap()).unwrap();
+        fs::write(&file, bytes).unwrap();
+        crate::permissions::normalize_archive_entry(&file, false, true).unwrap();
+    }
+    let library = Library::open(root.path().join("adopted")).unwrap();
+    let service = fixture.service(library.clone());
+    let preview = service.preview_adoption(&external, Some(PORT)).unwrap();
+    let authorization = service
+        .authorize_adoption(&external, Some(PORT), &preview.plan_sha256)
+        .unwrap();
+    let adopted = service
+        .adopt(&external, Some(PORT), &authorization.token)
+        .unwrap();
+    assert_eq!(
+        adopted.runtime.as_ref().unwrap().origin,
+        RuntimeOrigin::AdoptedTree
+    );
     (root, library, service, adopted)
 }
 
-#[tokio::test]
-async fn metadata_import_preserves_adopted_runtime_provenance() {
-    let (root, library, service, adopted) = adopted_runtime_fixture().await;
+#[test]
+fn metadata_import_preserves_adopted_runtime_provenance() {
+    let (root, library, service, adopted) = adopted_runtime_fixture();
     let metadata = root.path().join("metadata.json");
     service.write_library_metadata(&metadata).unwrap();
     let destination = root.path().join("restored");
@@ -594,7 +645,7 @@ async fn metadata_import_preserves_adopted_runtime_provenance() {
 
 #[tokio::test]
 async fn adopted_runtime_remains_subject_to_critical_launch_policy() {
-    let (_root, _library, service, adopted) = adopted_runtime_fixture().await;
+    let (_root, _library, service, adopted) = adopted_runtime_fixture();
     assert!(service.check_update(PORT).await.unwrap().update_available);
     fs::remove_file(
         adopted
