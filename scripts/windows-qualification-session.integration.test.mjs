@@ -4,12 +4,14 @@ import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { after } from "node:test";
+import { once } from "node:events";
 import { fileURLToPath } from "node:url";
 
 const script = fileURLToPath(new URL("./windows-qualification-session.ps1", import.meta.url));
 const reportTool = fileURLToPath(new URL("./qualification-report.mjs", import.meta.url));
 const recordTool = fileURLToPath(new URL("./write-windows-qualification-build.mjs", import.meta.url));
+const installerLifecycleTool = fileURLToPath(new URL("./test-windows-installer.ps1", import.meta.url));
 const csc = "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe";
 const sha256 = file => createHash("sha256").update(readFileSync(file)).digest("hex");
 
@@ -17,6 +19,44 @@ function runPowerShell(args, options = {}) {
   return spawnSync("pwsh.exe", ["-NoLogo", "-NoProfile", "-File", script, ...args], {
     encoding: "utf8", windowsHide: true, timeout: 90_000, ...options,
   });
+}
+
+let compiledFixtureRoot;
+after(() => {
+  if (compiledFixtureRoot) rmSync(compiledFixtureRoot, { recursive: true, force: true });
+});
+
+function compiledFixtures() {
+  if (compiledFixtureRoot) return compiledFixtureRoot;
+  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-session-compiled-"));
+  compiledFixtureRoot = root;
+  const artifacts = root;
+  const desktopSource = path.join(root, "desktop.cs");
+  writeFileSync(desktopSource, String.raw`using System; using System.Windows.Forms;
+class Desktop { [STAThread] static void Main() { Application.EnableVisualStyles(); var f = new Form(); f.Text = "Portcove fixture"; Application.Run(f); } }
+`);
+  const desktop = path.join(artifacts, "desktop.exe");
+  execFileSync(csc, ["/nologo", "/target:winexe", "/reference:System.Windows.Forms.dll", `/out:${desktop}`, desktopSource], { windowsHide: true });
+  const cliSource = path.join(root, "cli.cs");
+  writeFileSync(cliSource, String.raw`using System;
+class Cli { static void Main(string[] a) { string data = "{}"; for (int i=0;i<a.Length;i++) { if (a[i]=="catalog") data="{\"schema_version\":2,\"ports\":[]}"; else if (a[i]=="status" || a[i]=="activity" || (a[i]=="source" && i+1<a.Length && a[i+1]=="list")) data="[]"; } Console.Write("{\"ok\":true,\"data\":"+data+"}"); } }
+`);
+  const cli = path.join(artifacts, "cli.exe");
+  execFileSync(csc, ["/nologo", `/out:${cli}`, cliSource], { windowsHide: true });
+  const installer = path.join(artifacts, "installer.exe");
+  const predecessor = path.join(artifacts, "predecessor.exe");
+  copyFileSync(desktop, installer); copyFileSync(desktop, predecessor);
+  const uninstallerSource = path.join(root, "uninstaller.cs");
+  writeFileSync(uninstallerSource, String.raw`using System; using System.Diagnostics; using System.Reflection; using System.Threading;
+class Uninstaller { static int Main() { var delay = Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_UNINSTALL_DELAY_MS"); if (delay != null) Thread.Sleep(Int32.Parse(delay)); var requestedExit = Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_UNINSTALL_EXIT"); if (requestedExit != null) return Int32.Parse(requestedExit); if (Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_UNINSTALL_LEAVE") == "1") return 0; var self = Assembly.GetExecutingAssembly().Location; var command = "/c ping 127.0.0.1 -n 2 > nul & del /f /q \"" + self + "\""; Process.Start(new ProcessStartInfo("cmd.exe", command) { CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden }); return 0; } }
+`);
+  const uninstaller = path.join(artifacts, "uninstaller.exe");
+  execFileSync(csc, ["/nologo", `/out:${uninstaller}`, uninstallerSource], { windowsHide: true });
+  const sleeperSource = path.join(root, "sleeper.cs");
+  writeFileSync(sleeperSource, "using System; using System.Threading; class Sleeper { static void Main() { Thread.Sleep(Int32.Parse(Environment.GetEnvironmentVariable(\"PORTCOVE_FIXTURE_SLEEP_MS\") ?? \"10000\")); } }\n");
+  const sleeper = path.join(artifacts, "sleeper.exe");
+  execFileSync(csc, ["/nologo", `/out:${sleeper}`, sleeperSource], { windowsHide: true });
+  return root;
 }
 
 function makeFixture(t) {
@@ -61,31 +101,19 @@ $hash = (Get-FileHash -LiteralPath $RetainExecutablePath -Algorithm SHA256).Hash
 
   const artifacts = path.join(repository, "artifacts");
   mkdirSync(artifacts);
-  const desktopSource = path.join(root, "desktop.cs");
-  writeFileSync(desktopSource, String.raw`using System; using System.Windows.Forms;
-class Desktop { [STAThread] static void Main() { Application.EnableVisualStyles(); var f = new Form(); f.Text = "Portcove fixture"; Application.Run(f); } }
-`);
+  const compiled = compiledFixtures();
   const desktop = path.join(artifacts, "desktop.exe");
-  execFileSync(csc, ["/nologo", "/target:winexe", "/reference:System.Windows.Forms.dll", `/out:${desktop}`, desktopSource], { windowsHide: true });
-  const cliSource = path.join(root, "cli.cs");
-  writeFileSync(cliSource, String.raw`using System;
-class Cli { static void Main(string[] a) { string data = "{}"; for (int i=0;i<a.Length;i++) { if (a[i]=="catalog") data="{\"schema_version\":2,\"ports\":[]}"; else if (a[i]=="status" || a[i]=="activity" || (a[i]=="source" && i+1<a.Length && a[i+1]=="list")) data="[]"; } Console.Write("{\"ok\":true,\"data\":"+data+"}"); } }
-`);
+  copyFileSync(path.join(compiled, "desktop.exe"), desktop);
   const cli = path.join(artifacts, "cli.exe");
-  execFileSync(csc, ["/nologo", `/out:${cli}`, cliSource], { windowsHide: true });
+  copyFileSync(path.join(compiled, "cli.exe"), cli);
   const installer = path.join(artifacts, "installer.exe");
+  copyFileSync(path.join(compiled, "installer.exe"), installer);
   const predecessor = path.join(artifacts, "predecessor.exe");
-  copyFileSync(desktop, installer); copyFileSync(desktop, predecessor);
-  const uninstallerSource = path.join(root, "uninstaller.cs");
-  writeFileSync(uninstallerSource, String.raw`using System; using System.Diagnostics; using System.Reflection; using System.Threading;
-class Uninstaller { static int Main() { var delay = Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_UNINSTALL_DELAY_MS"); if (delay != null) Thread.Sleep(Int32.Parse(delay)); var requestedExit = Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_UNINSTALL_EXIT"); if (requestedExit != null) return Int32.Parse(requestedExit); if (Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_UNINSTALL_LEAVE") == "1") return 0; var self = Assembly.GetExecutingAssembly().Location; var command = "/c ping 127.0.0.1 -n 2 > nul & del /f /q \"" + self + "\""; Process.Start(new ProcessStartInfo("cmd.exe", command) { CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden }); return 0; } }
-`);
+  copyFileSync(path.join(compiled, "predecessor.exe"), predecessor);
   const uninstaller = path.join(artifacts, "uninstaller.exe");
-  execFileSync(csc, ["/nologo", `/out:${uninstaller}`, uninstallerSource], { windowsHide: true });
-  const sleeperSource = path.join(root, "sleeper.cs");
-  writeFileSync(sleeperSource, "using System; using System.Threading; class Sleeper { static void Main() { Thread.Sleep(Int32.Parse(Environment.GetEnvironmentVariable(\"PORTCOVE_FIXTURE_SLEEP_MS\") ?? \"10000\")); } }\n");
+  copyFileSync(path.join(compiled, "uninstaller.exe"), uninstaller);
   const sleeper = path.join(artifacts, "sleeper.exe");
-  execFileSync(csc, ["/nologo", `/out:${sleeper}`, sleeperSource], { windowsHide: true });
+  copyFileSync(path.join(compiled, "sleeper.exe"), sleeper);
   const record = path.join(root, "build-record.json");
   const result = JSON.parse(execFileSync(process.execPath, [recordTool, "--repository", repository, "--installer", installer, "--cli", cli, "--desktop", desktop, "--predecessor", predecessor, "--predecessor-version", "0.1.0-alpha.1", "--output", record], { encoding: "utf8", windowsHide: true }));
   return { root, repository, record, recordHash: result.sha256, session: path.join(root, "session"), uninstaller, sleeper };
@@ -363,7 +391,7 @@ test("launch-pending recovery rejects a matching process started before the requ
   try { execFileSync("taskkill.exe", ["/PID", String(state.process_runs[0].pid), "/T", "/F"], { windowsHide: true, stdio: "ignore" }); } catch {}
   const desktopPath = path.join(item.session, state.files.desktop.path);
   const older = spawn(desktopPath, [], { windowsHide: true, stdio: "ignore" });
-  await new Promise(resolve => setTimeout(resolve, 500));
+  await once(older, "spawn");
   state.process_runs[0].status = "exit_unobserved";
   const futureFiletime = (BigInt(Date.now() + 60_000 + 11644473600000) * 10000n).toString();
   const pending = { ...state.process_runs[0], id: "future-pending", requested_at: new Date(Date.now() + 60_000).toISOString(), requested_at_filetime: futureFiletime, status: "launch_pending", pid: null, start_time: null, start_time_filetime: null, window_title: null, exit_code: null, exit_observation: null };

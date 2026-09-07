@@ -4541,6 +4541,7 @@ mod tests {
         max_active: AtomicUsize,
         calls: Mutex<Vec<String>>,
         rate_limited_port: Option<String>,
+        first_batch: tokio::sync::Barrier,
     }
 
     impl ConcurrentReleaseProvider {
@@ -4550,6 +4551,7 @@ mod tests {
                 max_active: AtomicUsize::new(0),
                 calls: Mutex::new(Vec::new()),
                 rate_limited_port,
+                first_batch: tokio::sync::Barrier::new(4),
             }
         }
     }
@@ -4562,10 +4564,20 @@ mod tests {
             channel: ReleaseChannel,
             _platform: Platform,
         ) -> Result<ResolvedRelease> {
-            self.calls.lock().unwrap().push(port.id.clone());
+            let call_number = {
+                let mut calls = self.calls.lock().unwrap();
+                calls.push(port.id.clone());
+                calls.len()
+            };
             let active = self.active.fetch_add(1, Ordering::SeqCst) + 1;
             self.max_active.fetch_max(active, Ordering::SeqCst);
-            tokio::time::sleep(Duration::from_millis(15)).await;
+            // Prove four requests overlap without depending on wall-clock scheduling.
+            // Later batches can contain fewer than four requests.
+            if call_number <= 4 {
+                self.first_batch.wait().await;
+            } else {
+                tokio::task::yield_now().await;
+            }
             self.active.fetch_sub(1, Ordering::SeqCst);
             if self.rate_limited_port.as_deref() == Some(&port.id) {
                 return Err(PortcoveError::network("provider rate limit exhausted")
@@ -4898,54 +4910,70 @@ mod tests {
         }
     }
 
+    fn assert_external_adoption_recovers_after_every_publication_boundary(
+        point: LifecycleFaultPoint,
+    ) {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let source = temporary.path().join("existing-install");
+        fs::create_dir_all(&source).unwrap();
+        write_host_test_executable(&source, "zelda64-recomp");
+        fs::write(source.join("general.json"), b"adopted settings").unwrap();
+
+        let service = service_with_fault(library.clone(), point);
+        let output_root = temporary.path().join("external-output");
+        service
+            .set_output_directory("zelda64-recomp", &output_root)
+            .unwrap();
+        let preview = service
+            .preview_adoption(&source, Some("zelda64-recomp"))
+            .unwrap();
+        let authorization = service
+            .authorize_adoption(&source, Some("zelda64-recomp"), &preview.plan_sha256)
+            .unwrap();
+        let error = service
+            .adopt(&source, Some("zelda64-recomp"), &authorization.token)
+            .unwrap_err();
+        assert!(error.message.contains("injected lifecycle failure"));
+
+        let recovered = service_with_release(library.clone(), "v2");
+        let status = recovered.status("zelda64-recomp").unwrap();
+        assert!(
+            status
+                .active
+                .as_ref()
+                .is_some_and(|install| install.path.is_dir())
+        );
+        assert_eq!(
+            status.active.as_ref().unwrap().path.parent(),
+            Some(fs::canonicalize(&output_root).unwrap().as_path())
+        );
+        assert_eq!(
+            fs::read(library.user_dir("zelda64-recomp").join("general.json")).unwrap(),
+            b"adopted settings"
+        );
+        assert!(recovered.repair_plan().unwrap().items.is_empty());
+    }
+
     #[test]
-    fn external_adoption_recovers_after_every_publication_boundary() {
-        for point in [
+    fn recovers_adoption_prepared() {
+        assert_external_adoption_recovers_after_every_publication_boundary(
             LifecycleFaultPoint::AdoptionPrepared,
+        );
+    }
+
+    #[test]
+    fn recovers_adoption_published() {
+        assert_external_adoption_recovers_after_every_publication_boundary(
             LifecycleFaultPoint::AdoptionPublished,
+        );
+    }
+
+    #[test]
+    fn recovers_adoption_metadata_committed() {
+        assert_external_adoption_recovers_after_every_publication_boundary(
             LifecycleFaultPoint::AdoptionMetadataCommitted,
-        ] {
-            let temporary = tempfile::tempdir().unwrap();
-            let library = Library::open(temporary.path().join("library")).unwrap();
-            let source = temporary.path().join("existing-install");
-            fs::create_dir_all(&source).unwrap();
-            write_host_test_executable(&source, "zelda64-recomp");
-            fs::write(source.join("general.json"), b"adopted settings").unwrap();
-
-            let service = service_with_fault(library.clone(), point);
-            let output_root = temporary.path().join("external-output");
-            service
-                .set_output_directory("zelda64-recomp", &output_root)
-                .unwrap();
-            let preview = service
-                .preview_adoption(&source, Some("zelda64-recomp"))
-                .unwrap();
-            let authorization = service
-                .authorize_adoption(&source, Some("zelda64-recomp"), &preview.plan_sha256)
-                .unwrap();
-            let error = service
-                .adopt(&source, Some("zelda64-recomp"), &authorization.token)
-                .unwrap_err();
-            assert!(error.message.contains("injected lifecycle failure"));
-
-            let recovered = service_with_release(library.clone(), "v2");
-            let status = recovered.status("zelda64-recomp").unwrap();
-            assert!(
-                status
-                    .active
-                    .as_ref()
-                    .is_some_and(|install| install.path.is_dir())
-            );
-            assert_eq!(
-                status.active.as_ref().unwrap().path.parent(),
-                Some(fs::canonicalize(&output_root).unwrap().as_path())
-            );
-            assert_eq!(
-                fs::read(library.user_dir("zelda64-recomp").join("general.json")).unwrap(),
-                b"adopted settings"
-            );
-            assert!(recovered.repair_plan().unwrap().items.is_empty());
-        }
+        );
     }
 
     #[test]
@@ -5026,49 +5054,65 @@ mod tests {
         );
     }
 
-    #[test]
-    fn external_removal_recovers_after_quarantine_metadata_and_cleanup_boundaries() {
-        for point in [
-            LifecycleFaultPoint::RemovalQuarantined,
-            LifecycleFaultPoint::RemovalMetadataCommitted,
-            LifecycleFaultPoint::RemovalCleanup,
-        ] {
-            let temporary = tempfile::tempdir().unwrap();
-            let library = Library::open(temporary.path().join("library")).unwrap();
-            let default_install = register_zelda_install(&library, "v1", true);
-            let output_root = temporary.path().join("external-output");
-            crate::output_root::prepare_for_install(
-                &library,
-                "zelda64-recomp",
-                &output_root,
-                &Uuid::new_v4().to_string(),
-                0,
-            )
+    fn assert_external_removal_recovers_after_quarantine_metadata_and_cleanup_boundaries(
+        point: LifecycleFaultPoint,
+    ) {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let default_install = register_zelda_install(&library, "v1", true);
+        let output_root = temporary.path().join("external-output");
+        crate::output_root::prepare_for_install(
+            &library,
+            "zelda64-recomp",
+            &output_root,
+            &Uuid::new_v4().to_string(),
+            0,
+        )
+        .unwrap();
+        let install = fs::canonicalize(&output_root)
+            .unwrap()
+            .join(default_install.file_name().unwrap());
+        fs::rename(&default_install, &install).unwrap();
+        let mut record = library
+            .install_by_version("zelda64-recomp", "v1")
+            .unwrap()
             .unwrap();
-            let install = fs::canonicalize(&output_root)
-                .unwrap()
-                .join(default_install.file_name().unwrap());
-            fs::rename(&default_install, &install).unwrap();
-            let mut record = library
-                .install_by_version("zelda64-recomp", "v1")
-                .unwrap()
-                .unwrap();
-            record.path = install.clone();
-            library.register_install(&record, true).unwrap();
+        record.path = install.clone();
+        library.register_install(&record, true).unwrap();
 
-            let service = service_with_fault(library.clone(), point);
-            let authorization = removal_authorization(&service, "zelda64-recomp");
-            let error = service
-                .remove("zelda64-recomp", &authorization.token)
-                .unwrap_err();
-            assert!(error.message.contains("injected lifecycle failure"));
+        let service = service_with_fault(library.clone(), point);
+        let authorization = removal_authorization(&service, "zelda64-recomp");
+        let error = service
+            .remove("zelda64-recomp", &authorization.token)
+            .unwrap_err();
+        assert!(error.message.contains("injected lifecycle failure"));
 
-            let recovered = service_with_release(library.clone(), "v2");
-            assert!(recovered.status("zelda64-recomp").unwrap().active.is_none());
-            assert!(!install.exists());
-            assert!(output_root.join(".portcove-game-output.json").is_file());
-            assert!(recovered.repair_plan().unwrap().items.is_empty());
-        }
+        let recovered = service_with_release(library.clone(), "v2");
+        assert!(recovered.status("zelda64-recomp").unwrap().active.is_none());
+        assert!(!install.exists());
+        assert!(output_root.join(".portcove-game-output.json").is_file());
+        assert!(recovered.repair_plan().unwrap().items.is_empty());
+    }
+
+    #[test]
+    fn recovers_removal_quarantined() {
+        assert_external_removal_recovers_after_quarantine_metadata_and_cleanup_boundaries(
+            LifecycleFaultPoint::RemovalQuarantined,
+        );
+    }
+
+    #[test]
+    fn recovers_removal_metadata_committed() {
+        assert_external_removal_recovers_after_quarantine_metadata_and_cleanup_boundaries(
+            LifecycleFaultPoint::RemovalMetadataCommitted,
+        );
+    }
+
+    #[test]
+    fn recovers_removal_cleanup() {
+        assert_external_removal_recovers_after_quarantine_metadata_and_cleanup_boundaries(
+            LifecycleFaultPoint::RemovalCleanup,
+        );
     }
 
     #[test]
@@ -5250,103 +5294,134 @@ mod tests {
         }
     }
 
-    #[test]
-    fn restore_recovers_before_and_after_user_data_publication() {
-        for point in [
-            LifecycleFaultPoint::RestorePrepared,
-            LifecycleFaultPoint::RestorePublished,
-            LifecycleFaultPoint::RestoreVersionSynchronized,
-        ] {
-            let temporary = tempfile::tempdir().unwrap();
-            let library = Library::open(temporary.path().join("library")).unwrap();
-            let user_file = library.user_dir("zelda64-recomp").join("general.json");
-            fs::create_dir_all(user_file.parent().unwrap()).unwrap();
-            fs::write(&user_file, b"wanted").unwrap();
-            let original = service_with_release(library.clone(), "v2");
-            let backup = original.create_backup("zelda64-recomp").unwrap();
-            let versions = stale_restore_versions(&library, &original);
+    fn assert_restore_recovers_before_and_after_user_data_publication(point: LifecycleFaultPoint) {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let user_file = library.user_dir("zelda64-recomp").join("general.json");
+        fs::create_dir_all(user_file.parent().unwrap()).unwrap();
+        fs::write(&user_file, b"wanted").unwrap();
+        let original = service_with_release(library.clone(), "v2");
+        let backup = original.create_backup("zelda64-recomp").unwrap();
+        let versions = stale_restore_versions(&library, &original);
 
-            let service = service_with_fault(library.clone(), point);
-            let authorization = backup_authorization(
-                &service,
-                "zelda64-recomp",
-                &backup.id,
-                BackupAction::Restore,
-            );
-            let error = service
-                .restore_backup("zelda64-recomp", &backup.id, &authorization.token)
-                .unwrap_err();
-            assert!(error.message.contains("injected lifecycle failure"));
-            assert_eq!(
-                service
-                    .collect_user_data("zelda64-recomp")
-                    .unwrap_err()
-                    .code,
-                crate::ErrorCode::Conflict
-            );
-            assert_eq!(
-                service
-                    .launch_spec("zelda64-recomp", None)
-                    .unwrap_err()
-                    .code,
-                crate::ErrorCode::Conflict
-            );
+        let service = service_with_fault(library.clone(), point);
+        let authorization = backup_authorization(
+            &service,
+            "zelda64-recomp",
+            &backup.id,
+            BackupAction::Restore,
+        );
+        let error = service
+            .restore_backup("zelda64-recomp", &backup.id, &authorization.token)
+            .unwrap_err();
+        assert!(error.message.contains("injected lifecycle failure"));
+        assert_eq!(
+            service
+                .collect_user_data("zelda64-recomp")
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Conflict
+        );
+        assert_eq!(
+            service
+                .launch_spec("zelda64-recomp", None)
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Conflict
+        );
 
-            let recovered = service_with_release(library, "v2");
-            assert_eq!(fs::read(&user_file).unwrap(), b"wanted");
-            assert!(recovered.repair_plan().unwrap().items.is_empty());
-            assert_restored_versions(&recovered, &versions);
-        }
+        let recovered = service_with_release(library, "v2");
+        assert_eq!(fs::read(&user_file).unwrap(), b"wanted");
+        assert!(recovered.repair_plan().unwrap().items.is_empty());
+        assert_restored_versions(&recovered, &versions);
     }
 
     #[test]
-    fn restore_recovery_handles_each_unambiguous_half_published_state() {
-        for (activate, staged_exists, user_exists, previous_exists) in [
-            (true, true, false, true),
-            (true, false, true, true),
-            (false, true, false, false),
-            (false, false, true, false),
-        ] {
-            let temporary = tempfile::tempdir().unwrap();
-            let library = Library::open(temporary.path().join("library")).unwrap();
-            let service = service_with_release(library.clone(), "v2");
-            let store = OperationStore::new(library.clone());
-            let recovery_root = library.recovery_dir().join(format!(
-                "restore-{activate}-{staged_exists}-{user_exists}-{previous_exists}"
-            ));
-            let staged = recovery_root.join("staged-data");
-            let previous = recovery_root.join("previous-data");
-            let user_root = library.user_dir("zelda64-recomp");
-            if staged_exists {
-                fs::create_dir_all(&staged).unwrap();
-                fs::write(staged.join("general.json"), b"wanted").unwrap();
-            }
-            if user_exists {
-                fs::create_dir_all(&user_root).unwrap();
-                fs::write(user_root.join("general.json"), b"wanted").unwrap();
-            }
-            if previous_exists {
-                fs::create_dir_all(&previous).unwrap();
-                fs::write(previous.join("general.json"), b"previous").unwrap();
-            }
-            let mut operation = LifecycleOperation::new(
-                recovery_root.file_name().unwrap().to_string_lossy(),
-                LifecycleOperationKind::Restore,
-                "zelda64-recomp",
-            );
-            operation.phase = LifecyclePhase::Prepared;
-            operation.activate = activate;
-            operation.paths.staging = Some(recovery_root.clone());
-            operation.paths.final_path = Some(user_root.clone());
-            operation.paths.quarantine = Some(previous);
-            store.put(&mut operation).unwrap();
+    fn recovers_restore_prepared() {
+        assert_restore_recovers_before_and_after_user_data_publication(
+            LifecycleFaultPoint::RestorePrepared,
+        );
+    }
 
-            crate::recovery::recover_restore(&service, &store, &mut operation).unwrap();
+    #[test]
+    fn recovers_restore_published() {
+        assert_restore_recovers_before_and_after_user_data_publication(
+            LifecycleFaultPoint::RestorePublished,
+        );
+    }
 
-            assert_eq!(fs::read(user_root.join("general.json")).unwrap(), b"wanted");
-            assert!(!recovery_root.exists());
-            assert!(store.all().unwrap().is_empty());
+    #[test]
+    fn recovers_restore_version_synchronized() {
+        assert_restore_recovers_before_and_after_user_data_publication(
+            LifecycleFaultPoint::RestoreVersionSynchronized,
+        );
+    }
+
+    fn assert_half_published_restore(
+        activate: bool,
+        staged_exists: bool,
+        user_exists: bool,
+        previous_exists: bool,
+    ) {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = service_with_release(library.clone(), "v2");
+        let store = OperationStore::new(library.clone());
+        let recovery_root = library.recovery_dir().join(format!(
+            "restore-{activate}-{staged_exists}-{user_exists}-{previous_exists}"
+        ));
+        let staged = recovery_root.join("staged-data");
+        let previous = recovery_root.join("previous-data");
+        let user_root = library.user_dir("zelda64-recomp");
+        if staged_exists {
+            fs::create_dir_all(&staged).unwrap();
+            fs::write(staged.join("general.json"), b"wanted").unwrap();
         }
+        if user_exists {
+            fs::create_dir_all(&user_root).unwrap();
+            fs::write(user_root.join("general.json"), b"wanted").unwrap();
+        }
+        if previous_exists {
+            fs::create_dir_all(&previous).unwrap();
+            fs::write(previous.join("general.json"), b"previous").unwrap();
+        }
+        let mut operation = LifecycleOperation::new(
+            recovery_root.file_name().unwrap().to_string_lossy(),
+            LifecycleOperationKind::Restore,
+            "zelda64-recomp",
+        );
+        operation.phase = LifecyclePhase::Prepared;
+        operation.activate = activate;
+        operation.paths.staging = Some(recovery_root.clone());
+        operation.paths.final_path = Some(user_root.clone());
+        operation.paths.quarantine = Some(previous);
+        store.put(&mut operation).unwrap();
+
+        crate::recovery::recover_restore(&service, &store, &mut operation).unwrap();
+
+        assert_eq!(fs::read(user_root.join("general.json")).unwrap(), b"wanted");
+        assert!(!recovery_root.exists());
+        assert!(store.all().unwrap().is_empty());
+    }
+
+    #[test]
+    fn restore_recovery_replaces_previous_from_staging() {
+        assert_half_published_restore(true, true, false, true);
+    }
+
+    #[test]
+    fn restore_recovery_finishes_published_replacement() {
+        assert_half_published_restore(true, false, true, true);
+    }
+
+    #[test]
+    fn restore_recovery_publishes_initial_staging() {
+        assert_half_published_restore(false, true, false, false);
+    }
+
+    #[test]
+    fn restore_recovery_finishes_initial_publication() {
+        assert_half_published_restore(false, false, true, false);
     }
 
     #[test]
@@ -6202,44 +6277,69 @@ fn main() {
         );
     }
 
+    fn assert_backup_deletion_recovers_after_every_recorded_transition(point: LifecycleFaultPoint) {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let user_root = library.user_dir("zelda64-recomp");
+        fs::create_dir_all(&user_root).unwrap();
+        fs::write(user_root.join("save.dat"), b"live").unwrap();
+        let service = service_with_fault(library.clone(), point);
+        let backup = service.create_backup("zelda64-recomp").unwrap();
+
+        let error = delete_backup_authorized(&service, "zelda64-recomp", &backup.id).unwrap_err();
+        assert!(error.message.contains("injected lifecycle failure"));
+        let interrupted = service.list_backups("zelda64-recomp").unwrap();
+        assert_eq!(
+            interrupted.state,
+            BackupInventoryState::RecoveryRequired,
+            "{point:?}"
+        );
+
+        let recovered = service_with_release(library.clone(), "v1");
+        let inventory = recovered.list_backups("zelda64-recomp").unwrap();
+        assert_eq!(inventory.state, BackupInventoryState::Healthy, "{point:?}");
+        assert!(inventory.backups.is_empty(), "{point:?}");
+        assert!(inventory.problems.is_empty(), "{point:?}");
+        assert!(
+            recovered.repair_plan().unwrap().items.is_empty(),
+            "{point:?}"
+        );
+        assert_eq!(fs::read(user_root.join("save.dat")).unwrap(), b"live");
+    }
+
     #[test]
-    fn backup_deletion_recovers_after_every_recorded_transition() {
-        for point in [
+    fn recovers_delete_backup_prepared() {
+        assert_backup_deletion_recovers_after_every_recorded_transition(
             LifecycleFaultPoint::DeleteBackupPrepared,
+        );
+    }
+
+    #[test]
+    fn recovers_delete_backup_quarantined() {
+        assert_backup_deletion_recovers_after_every_recorded_transition(
             LifecycleFaultPoint::DeleteBackupQuarantined,
+        );
+    }
+
+    #[test]
+    fn recovers_delete_backup_deleting() {
+        assert_backup_deletion_recovers_after_every_recorded_transition(
             LifecycleFaultPoint::DeleteBackupDeleting,
+        );
+    }
+
+    #[test]
+    fn recovers_delete_backup_deleted() {
+        assert_backup_deletion_recovers_after_every_recorded_transition(
             LifecycleFaultPoint::DeleteBackupDeleted,
+        );
+    }
+
+    #[test]
+    fn recovers_delete_backup_metadata_committed() {
+        assert_backup_deletion_recovers_after_every_recorded_transition(
             LifecycleFaultPoint::DeleteBackupMetadataCommitted,
-        ] {
-            let temporary = tempfile::tempdir().unwrap();
-            let library = Library::open(temporary.path().join("library")).unwrap();
-            let user_root = library.user_dir("zelda64-recomp");
-            fs::create_dir_all(&user_root).unwrap();
-            fs::write(user_root.join("save.dat"), b"live").unwrap();
-            let service = service_with_fault(library.clone(), point);
-            let backup = service.create_backup("zelda64-recomp").unwrap();
-
-            let error =
-                delete_backup_authorized(&service, "zelda64-recomp", &backup.id).unwrap_err();
-            assert!(error.message.contains("injected lifecycle failure"));
-            let interrupted = service.list_backups("zelda64-recomp").unwrap();
-            assert_eq!(
-                interrupted.state,
-                BackupInventoryState::RecoveryRequired,
-                "{point:?}"
-            );
-
-            let recovered = service_with_release(library.clone(), "v1");
-            let inventory = recovered.list_backups("zelda64-recomp").unwrap();
-            assert_eq!(inventory.state, BackupInventoryState::Healthy, "{point:?}");
-            assert!(inventory.backups.is_empty(), "{point:?}");
-            assert!(inventory.problems.is_empty(), "{point:?}");
-            assert!(
-                recovered.repair_plan().unwrap().items.is_empty(),
-                "{point:?}"
-            );
-            assert_eq!(fs::read(user_root.join("save.dat")).unwrap(), b"live");
-        }
+        );
     }
 
     #[test]
@@ -8075,62 +8175,71 @@ fn main() {
         );
     }
 
+    fn assert_supervisor_crashes_after_spawn_or_during_collection_never_become_success(
+        point: LifecycleFaultPoint,
+    ) {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_launch_probe(&library, "v1", true);
+        let request_id = Uuid::new_v4().to_string();
+        let service = launch_service_with_faults(library.clone(), Arc::new(FailLaunchAt(point)));
+        let arguments = vec![
+            temporary.path().join("started").display().to_string(),
+            "50".into(),
+            "recovered".into(),
+            "0".into(),
+        ];
+
+        let error = service
+            .supervise_launch_identified(
+                IdentifiedLaunchRequest {
+                    request_id: &request_id,
+                    port_id: "zelda64-recomp",
+                    source_override: None,
+                    arguments: &arguments,
+                    stdio: LaunchStdio::Null,
+                },
+                |_| {},
+                |_| {},
+            )
+            .unwrap_err();
+        assert_eq!(error.message, "simulated supervisor crash");
+        assert_eq!(library.launch_sessions().unwrap().len(), 1);
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE launch_sessions
+                 SET supervisor_pid=?2, supervisor_identity=NULL
+                 WHERE id=?1",
+                rusqlite::params![request_id, u32::MAX],
+            )
+            .unwrap();
+
+        PortcoveService::new(library.clone())
+            .unwrap()
+            .recover_launch_session(&request_id)
+            .unwrap();
+        let request = library.launch_request(&request_id).unwrap().unwrap();
+        assert_eq!(request.outcome, Some(LaunchSessionOutcome::Failed));
+        assert_eq!(
+            fs::read(library.user_dir("zelda64-recomp").join("general.json")).unwrap(),
+            b"recovered"
+        );
+    }
+
     #[test]
-    fn supervisor_crashes_after_spawn_or_during_collection_never_become_success() {
-        for point in [
+    fn recovers_launch_child_started() {
+        assert_supervisor_crashes_after_spawn_or_during_collection_never_become_success(
             LifecycleFaultPoint::LaunchChildStarted,
+        );
+    }
+
+    #[test]
+    fn recovers_launch_collecting() {
+        assert_supervisor_crashes_after_spawn_or_during_collection_never_become_success(
             LifecycleFaultPoint::LaunchCollecting,
-        ] {
-            let temporary = tempfile::tempdir().unwrap();
-            let library = Library::open(temporary.path().join("library")).unwrap();
-            register_launch_probe(&library, "v1", true);
-            let request_id = Uuid::new_v4().to_string();
-            let service =
-                launch_service_with_faults(library.clone(), Arc::new(FailLaunchAt(point)));
-            let arguments = vec![
-                temporary.path().join("started").display().to_string(),
-                "50".into(),
-                "recovered".into(),
-                "0".into(),
-            ];
-
-            let error = service
-                .supervise_launch_identified(
-                    IdentifiedLaunchRequest {
-                        request_id: &request_id,
-                        port_id: "zelda64-recomp",
-                        source_override: None,
-                        arguments: &arguments,
-                        stdio: LaunchStdio::Null,
-                    },
-                    |_| {},
-                    |_| {},
-                )
-                .unwrap_err();
-            assert_eq!(error.message, "simulated supervisor crash");
-            assert_eq!(library.launch_sessions().unwrap().len(), 1);
-            library
-                .connection()
-                .unwrap()
-                .execute(
-                    "UPDATE launch_sessions
-                     SET supervisor_pid=?2, supervisor_identity=NULL
-                     WHERE id=?1",
-                    rusqlite::params![request_id, u32::MAX],
-                )
-                .unwrap();
-
-            PortcoveService::new(library.clone())
-                .unwrap()
-                .recover_launch_session(&request_id)
-                .unwrap();
-            let request = library.launch_request(&request_id).unwrap().unwrap();
-            assert_eq!(request.outcome, Some(LaunchSessionOutcome::Failed));
-            assert_eq!(
-                fs::read(library.user_dir("zelda64-recomp").join("general.json")).unwrap(),
-                b"recovered"
-            );
-        }
+        );
     }
 
     #[test]

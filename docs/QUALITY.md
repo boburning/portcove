@@ -145,8 +145,15 @@ they exercise compiled processes and installer lifecycle behavior using their
 existing integration deadlines. The static qualification contract runs with the
 unit budget. No integration coverage is removed.
 
-Rust tests run two at a time to limit filesystem contention. CLI free-space
+Rust tests run two at a time by default. Windows core lanes run one at a time
+in exhaustive hash partitions to avoid filesystem contention. CLI free-space
 snapshot contracts share a scheduling group because their existing in-process
 mutex cannot synchronize nextest's separate processes. This changes scheduling
 only; every Rust test retains the same deadline. CI caches compiled dependencies
 after test failures so fixing a failed assertion does not require a cold rebuild.
+
+The test profile optimizes the Ed25519 and Curve25519 dependencies because catalog
+fixtures validate real signatures repeatedly. Portcove code retains its normal
+test profile and debug assertions. Windows session integration compiles immutable
+fixture programs once per suite, then gives every case separate copies and state.
+Concurrency assertions use synchronization instead of elapsed-time assumptions.

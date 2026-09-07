@@ -33,11 +33,13 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
 test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () => {
   assert.match(rustTests, /^    name: rust-test \(\$\{\{ matrix\.shard \}\}\)$/m);
   assert.match(rustTests, /runs-on: windows-latest/);
-  assert.match(rustTests, /shard: \[core-service, core-recovery, core-other\]/);
+  assert.match(rustTests, /shard: \[core-service-1, core-service-2, core-recovery, core-other-1, core-other-2\]/);
   for (const shard of ["service::", "cancellation::", "database::", "import_execution::", "library_move::"]) {
     assert.match(rustTests, new RegExp(`"${shard.replaceAll("::", "::")}"`));
   }
   assert.match(rustTests, /"--skip", "service::", "--skip", "cancellation::", "--skip", "database::", "--skip", "import_execution::", "--skip", "library_move::"/);
+  assert.equal((rustTests.match(/"hash:1\/2"/g) ?? []).length, 2);
+  assert.equal((rustTests.match(/"hash:2\/2"/g) ?? []).length, 2);
   assert.doesNotMatch(rustTests, /workspace-other|pnpm|cargo check|cargo fmt|cargo clippy/);
 
   assert.match(rustWorkspaceTests, /^    name: rust-test \(workspace-other\)$/m);
@@ -195,7 +197,7 @@ test("Rust unit budgets fail at five seconds and documentation coverage remains"
   for (const override of config.split("[[profile.default.overrides]]").slice(1)) {
     assert.doesNotMatch(override, /slow-timeout|retries/);
   }
-  assert.match(rustTests, /cargo nextest run --locked @Arguments/);
+  assert.match(rustTests, /cargo nextest run --locked --test-threads 1 @Arguments/);
   for (const section of [rustWorkspaceTests, nativeRust]) {
     assert.match(section, /cargo test --locked --workspace --doc/);
   }

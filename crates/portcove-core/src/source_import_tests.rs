@@ -358,74 +358,115 @@ fn deletion_failure_reports_a_valid_copy_and_the_exact_retained_original() {
     );
 }
 
-#[test]
-fn every_durable_move_boundary_recovers_without_deleting_unverified_bytes() {
-    for point in [
-        LifecycleFaultPoint::SourceImportJournaled,
-        LifecycleFaultPoint::SourceImportCopyStarted,
-        LifecycleFaultPoint::SourceImportCopied,
-        LifecycleFaultPoint::SourceImportVerified,
-        LifecycleFaultPoint::SourceImportPublicationPrepared,
-        LifecycleFaultPoint::SourceImportBeforePublicationRecorded,
-        LifecycleFaultPoint::SourceImportBeforePublicationOwnershipRecorded,
-        LifecycleFaultPoint::SourceImportPublished,
-        LifecycleFaultPoint::SourceImportRegistered,
-        LifecycleFaultPoint::SourceImportOriginalQuarantined,
-        LifecycleFaultPoint::SourceImportCleanupCompleted,
-    ] {
-        let (_temporary, library, _service, source) = fixture();
-        let service =
-            PortcoveService::with_faults(library.clone(), Arc::new(FailAt(point))).unwrap();
-        let plan = service
-            .plan_source_import(PROFILE, &source, SourceImportMode::Move)
-            .unwrap();
-        let authorization = service
-            .authorize_source_move(PROFILE, &source, &plan.plan_sha256)
-            .unwrap();
-        let error = service
-            .import_source(
-                PROFILE,
-                &source,
-                SourceImportMode::Move,
-                &plan.plan_sha256,
-                Some(&authorization.token),
-            )
-            .unwrap_err();
-        assert_eq!(
-            error.message, "simulated source import interruption",
-            "{point:?}"
-        );
-        drop(service);
+fn assert_durable_move_recovery(point: LifecycleFaultPoint) {
+    let (_temporary, library, _service, source) = fixture();
+    let service = PortcoveService::with_faults(library.clone(), Arc::new(FailAt(point))).unwrap();
+    let plan = service
+        .plan_source_import(PROFILE, &source, SourceImportMode::Move)
+        .unwrap();
+    let authorization = service
+        .authorize_source_move(PROFILE, &source, &plan.plan_sha256)
+        .unwrap();
+    let error = service
+        .import_source(
+            PROFILE,
+            &source,
+            SourceImportMode::Move,
+            &plan.plan_sha256,
+            Some(&authorization.token),
+        )
+        .unwrap_err();
+    assert_eq!(
+        error.message, "simulated source import interruption",
+        "{point:?}"
+    );
+    drop(service);
 
-        let recovered = PortcoveService::new(library.clone()).unwrap();
-        let registered = recovered.library().source(PROFILE).unwrap().unwrap();
-        assert!(registered.path.exists(), "{point:?}");
-        assert!(!source.exists(), "{point:?}");
-        assert!(
-            OperationStore::new(library.clone())
-                .all()
-                .unwrap()
-                .is_empty()
-        );
-        let activity = recovered
-            .library()
-            .activities(20)
+    let recovered = PortcoveService::new(library.clone()).unwrap();
+    let registered = recovered.library().source(PROFILE).unwrap().unwrap();
+    assert!(registered.path.exists(), "{point:?}");
+    assert!(!source.exists(), "{point:?}");
+    assert!(
+        OperationStore::new(library.clone())
+            .all()
             .unwrap()
-            .into_iter()
-            .find(|activity| activity.operation == ActivityOperation::ImportSource)
-            .unwrap();
-        assert_eq!(activity.status, ActivityStatus::Succeeded, "{point:?}");
-        assert_eq!(
-            activity.message.as_deref(),
-            Some("Source copied, verified, registered, and original removed"),
-            "{point:?}"
-        );
-        drop(recovered);
-        let recovered_again = PortcoveService::new(library.clone()).unwrap();
-        let registered_again = recovered_again.library().source(PROFILE).unwrap().unwrap();
-        assert_eq!(registered_again.path, registered.path, "{point:?}");
-        assert_eq!(registered_again.sha256, registered.sha256, "{point:?}");
-    }
+            .is_empty()
+    );
+    let activity = recovered
+        .library()
+        .activities(20)
+        .unwrap()
+        .into_iter()
+        .find(|activity| activity.operation == ActivityOperation::ImportSource)
+        .unwrap();
+    assert_eq!(activity.status, ActivityStatus::Succeeded, "{point:?}");
+    assert_eq!(
+        activity.message.as_deref(),
+        Some("Source copied, verified, registered, and original removed"),
+        "{point:?}"
+    );
+    drop(recovered);
+    let recovered_again = PortcoveService::new(library.clone()).unwrap();
+    let registered_again = recovered_again.library().source(PROFILE).unwrap().unwrap();
+    assert_eq!(registered_again.path, registered.path, "{point:?}");
+    assert_eq!(registered_again.sha256, registered.sha256, "{point:?}");
+}
+
+#[test]
+fn recovers_journaled_without_deleting_unverified_bytes() {
+    assert_durable_move_recovery(LifecycleFaultPoint::SourceImportJournaled);
+}
+
+#[test]
+fn recovers_copy_started_without_deleting_unverified_bytes() {
+    assert_durable_move_recovery(LifecycleFaultPoint::SourceImportCopyStarted);
+}
+
+#[test]
+fn recovers_copied_without_deleting_unverified_bytes() {
+    assert_durable_move_recovery(LifecycleFaultPoint::SourceImportCopied);
+}
+
+#[test]
+fn recovers_verified_without_deleting_unverified_bytes() {
+    assert_durable_move_recovery(LifecycleFaultPoint::SourceImportVerified);
+}
+
+#[test]
+fn recovers_publication_prepared_without_deleting_unverified_bytes() {
+    assert_durable_move_recovery(LifecycleFaultPoint::SourceImportPublicationPrepared);
+}
+
+#[test]
+fn recovers_before_publication_recorded_without_deleting_unverified_bytes() {
+    assert_durable_move_recovery(LifecycleFaultPoint::SourceImportBeforePublicationRecorded);
+}
+
+#[test]
+fn recovers_before_publication_ownership_recorded_without_deleting_unverified_bytes() {
+    assert_durable_move_recovery(
+        LifecycleFaultPoint::SourceImportBeforePublicationOwnershipRecorded,
+    );
+}
+
+#[test]
+fn recovers_published_without_deleting_unverified_bytes() {
+    assert_durable_move_recovery(LifecycleFaultPoint::SourceImportPublished);
+}
+
+#[test]
+fn recovers_registered_without_deleting_unverified_bytes() {
+    assert_durable_move_recovery(LifecycleFaultPoint::SourceImportRegistered);
+}
+
+#[test]
+fn recovers_original_quarantined_without_deleting_unverified_bytes() {
+    assert_durable_move_recovery(LifecycleFaultPoint::SourceImportOriginalQuarantined);
+}
+
+#[test]
+fn recovers_cleanup_completed_without_deleting_unverified_bytes() {
+    assert_durable_move_recovery(LifecycleFaultPoint::SourceImportCleanupCompleted);
 }
 
 #[test]
@@ -584,95 +625,111 @@ fn copy_and_move_recover_when_publication_phase_write_fails() {
     }
 }
 
-#[test]
-fn prejournal_recovery_rejects_ambiguous_or_unowned_destinations() {
-    #[derive(Debug, Clone, Copy)]
-    enum Mutation {
-        BothPresent,
-        BothAbsent,
-        ChangedDestination,
-        MissingReceipt,
-        SameContentReplacement,
-    }
+#[derive(Debug, Clone, Copy)]
+enum PublicationMutation {
+    BothPresent,
+    BothAbsent,
+    ChangedDestination,
+    MissingReceipt,
+    SameContentReplacement,
+}
 
-    for mutation in [
-        Mutation::BothPresent,
-        Mutation::BothAbsent,
-        Mutation::ChangedDestination,
-        Mutation::MissingReceipt,
-        Mutation::SameContentReplacement,
-    ] {
-        let (_temporary, library, _service, source) = fixture();
-        let service = PortcoveService::with_faults(
-            library.clone(),
-            Arc::new(FailAt(
-                LifecycleFaultPoint::SourceImportBeforePublicationRecorded,
-            )),
-        )
+fn assert_prejournal_rejects(mutation: PublicationMutation) {
+    let (_temporary, library, _service, source) = fixture();
+    let service = PortcoveService::with_faults(
+        library.clone(),
+        Arc::new(FailAt(
+            LifecycleFaultPoint::SourceImportBeforePublicationRecorded,
+        )),
+    )
+    .unwrap();
+    let plan = service
+        .plan_source_import(PROFILE, &source, SourceImportMode::Move)
         .unwrap();
-        let plan = service
-            .plan_source_import(PROFILE, &source, SourceImportMode::Move)
-            .unwrap();
-        let authorization = service
-            .authorize_source_move(PROFILE, &source, &plan.plan_sha256)
-            .unwrap();
-        service
-            .import_source(
-                PROFILE,
-                &source,
-                SourceImportMode::Move,
-                &plan.plan_sha256,
-                Some(&authorization.token),
-            )
-            .unwrap_err();
-        let operation = OperationStore::new(library.clone())
-            .all()
-            .unwrap()
-            .remove(0);
-        let staging = operation.paths.staging.as_ref().unwrap();
-        match mutation {
-            Mutation::BothPresent => {
-                fs::copy(&plan.destination, staging).unwrap();
-            }
-            Mutation::BothAbsent => {
-                fs::remove_file(&plan.destination).unwrap();
-            }
-            Mutation::ChangedDestination => {
-                fs::write(&plan.destination, b"changed destination after publication").unwrap();
-            }
-            Mutation::MissingReceipt => {
-                fs::remove_file(publication_receipt_path(&operation, &plan).unwrap()).unwrap();
-            }
-            Mutation::SameContentReplacement => {
-                fs::remove_file(&plan.destination).unwrap();
-                fs::copy(&source, &plan.destination).unwrap();
-            }
+    let authorization = service
+        .authorize_source_move(PROFILE, &source, &plan.plan_sha256)
+        .unwrap();
+    service
+        .import_source(
+            PROFILE,
+            &source,
+            SourceImportMode::Move,
+            &plan.plan_sha256,
+            Some(&authorization.token),
+        )
+        .unwrap_err();
+    let operation = OperationStore::new(library.clone())
+        .all()
+        .unwrap()
+        .remove(0);
+    let staging = operation.paths.staging.as_ref().unwrap();
+    match mutation {
+        PublicationMutation::BothPresent => {
+            fs::copy(&plan.destination, staging).unwrap();
         }
-        drop(service);
-
-        let recovered = PortcoveService::new(library.clone()).unwrap();
-        assert!(recovered.library().source(PROFILE).unwrap().is_none());
-        assert!(source.exists());
-        let retained = OperationStore::new(library.clone()).all().unwrap();
-        assert_eq!(retained.len(), 1, "{mutation:?}");
-        assert_eq!(retained[0].phase, LifecyclePhase::Prepared, "{mutation:?}");
-        assert!(retained[0].last_error.is_some(), "{mutation:?}");
-        match mutation {
-            Mutation::BothPresent => {
-                assert!(staging.exists());
-                assert!(plan.destination.exists());
-            }
-            Mutation::BothAbsent => {
-                assert!(!staging.exists());
-                assert!(!plan.destination.exists());
-            }
-            Mutation::ChangedDestination
-            | Mutation::MissingReceipt
-            | Mutation::SameContentReplacement => {
-                assert!(plan.destination.exists());
-            }
+        PublicationMutation::BothAbsent => {
+            fs::remove_file(&plan.destination).unwrap();
+        }
+        PublicationMutation::ChangedDestination => {
+            fs::write(&plan.destination, b"changed destination after publication").unwrap();
+        }
+        PublicationMutation::MissingReceipt => {
+            fs::remove_file(publication_receipt_path(&operation, &plan).unwrap()).unwrap();
+        }
+        PublicationMutation::SameContentReplacement => {
+            fs::remove_file(&plan.destination).unwrap();
+            fs::copy(&source, &plan.destination).unwrap();
         }
     }
+    drop(service);
+
+    let recovered = PortcoveService::new(library.clone()).unwrap();
+    assert!(recovered.library().source(PROFILE).unwrap().is_none());
+    assert!(source.exists());
+    let retained = OperationStore::new(library.clone()).all().unwrap();
+    assert_eq!(retained.len(), 1, "{mutation:?}");
+    assert_eq!(retained[0].phase, LifecyclePhase::Prepared, "{mutation:?}");
+    assert!(retained[0].last_error.is_some(), "{mutation:?}");
+    match mutation {
+        PublicationMutation::BothPresent => {
+            assert!(staging.exists());
+            assert!(plan.destination.exists());
+        }
+        PublicationMutation::BothAbsent => {
+            assert!(!staging.exists());
+            assert!(!plan.destination.exists());
+        }
+        PublicationMutation::ChangedDestination
+        | PublicationMutation::MissingReceipt
+        | PublicationMutation::SameContentReplacement => {
+            assert!(plan.destination.exists());
+        }
+    }
+}
+
+#[test]
+fn prejournal_rejects_both_present() {
+    assert_prejournal_rejects(PublicationMutation::BothPresent);
+}
+
+#[test]
+fn prejournal_rejects_both_absent() {
+    assert_prejournal_rejects(PublicationMutation::BothAbsent);
+}
+
+#[test]
+fn prejournal_rejects_changed_destination() {
+    assert_prejournal_rejects(PublicationMutation::ChangedDestination);
+}
+
+#[test]
+fn prejournal_rejects_missing_receipt() {
+    assert_prejournal_rejects(PublicationMutation::MissingReceipt);
+}
+
+#[test]
+fn prejournal_rejects_same_content_replacement() {
+    assert_prejournal_rejects(PublicationMutation::SameContentReplacement);
 }
 
 #[test]

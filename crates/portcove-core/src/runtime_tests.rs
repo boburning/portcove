@@ -270,6 +270,7 @@ async fn named_save_restore_updates_every_version_and_preserves_import_policy() 
         b"older synthetic save"
     );
     fs::write(staged.path.join("profile_extra.sav"), b"second slot").unwrap();
+    fs::write(staged.path.join(LAUNCH_MARKER), b"1").unwrap();
     service.create_backup(PORT).unwrap();
     let preview = service
         .preview_backup_action(PORT, &backup.id, BackupAction::Restore)
@@ -565,7 +566,6 @@ async fn adopted_runtime_fixture() -> (
         RuntimeOrigin::AdoptedTree
     );
     assert_ne!(adopted.runtime, downloaded.runtime);
-    assert!(service.check_update(PORT).await.unwrap().update_available);
     assert!(
         Installer::new(original)
             .unwrap()
@@ -595,6 +595,7 @@ async fn metadata_import_preserves_adopted_runtime_provenance() {
 #[tokio::test]
 async fn adopted_runtime_remains_subject_to_critical_launch_policy() {
     let (_root, _library, service, adopted) = adopted_runtime_fixture().await;
+    assert!(service.check_update(PORT).await.unwrap().update_available);
     fs::remove_file(
         adopted
             .path
