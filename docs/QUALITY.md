@@ -142,7 +142,9 @@ The Rust cache key includes the root Cargo manifest so test-profile changes cann
 keep restoring an immutable cache containing only the previous profile's artifacts.
 
 The UI test command sets Vitest's five-second timeout and validates every passing
-test's recorded duration. Node unit commands use the same timeout plus a reporter
+test's recorded duration. Two isolated worker threads avoid repeated Node process
+startup for this JavaScript/DOM suite; file isolation remains enabled.
+Node unit commands use the same timeout plus a reporter
 that fails on recorded overruns, including synchronous work that blocks timeout
 callbacks. Suite aggregate durations are not individual test durations.
 
