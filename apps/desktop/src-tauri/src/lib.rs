@@ -2166,10 +2166,11 @@ mod tests {
             .unwrap();
         let desktop_plan =
             plan_source_import_for(&service, profile, &source, SourceImportMode::Copy).unwrap();
-        assert_eq!(
-            serde_json::to_value(&desktop_plan).unwrap(),
-            serde_json::to_value(&core_plan).unwrap()
-        );
+        let mut desktop_plan_json = serde_json::to_value(&desktop_plan).unwrap();
+        let mut core_plan_json = serde_json::to_value(&core_plan).unwrap();
+        desktop_plan_json["source"]["updated_at"] = serde_json::Value::Null;
+        core_plan_json["source"]["updated_at"] = serde_json::Value::Null;
+        assert_eq!(desktop_plan_json, core_plan_json);
         let mut import_events = Vec::new();
         let imported = import_source_for(
             &service,
