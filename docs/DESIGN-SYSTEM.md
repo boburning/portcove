@@ -74,6 +74,36 @@ Vertical navigation visits the nearest visual row before considering horizontal 
 
 Portcove targets dense desktop use and a minimum 960-pixel-wide Tauri window. At narrower supported widths, the shell reduces nonessential labels and column count before hiding technical data. Reduced-motion preference removes nonessential transitions and progress animation.
 
+## Planned game artwork
+
+[#208](https://github.com/boburning/portcove/issues/208) owns the shared artwork
+contract; [#206](https://github.com/boburning/portcove/issues/206) owns its desktop
+presentation. Start with consistent 2:3 portrait library/catalog covers unless
+current design evidence supports another established layout. Letterbox other
+ratios instead of silently cropping important content. Wide detail imagery is
+optional; titles, status and actions remain readable outside images, including
+generated fallback states. Logos, icons, animation and a crop editor are not
+required for this slice.
+
+Provide **Change artwork**, **Choose local image**, **Browse SteamGridDB** when
+configured, **Reset to default**, and source/author information. Reset affects
+only the selected slot's explicit choice; unavailable preferred art retains its
+selection with a fallback or actionable explanation. Keep provider configuration
+in Appearance or Integrations with contextual picker guidance, never first-play
+API-key onboarding. Keyboard/controller navigation, focus restoration, long
+titles, scaled layouts and text status must remain usable.
+
+Render cached display-sized thumbnails immediately and fetch asynchronously.
+Reject stale picker/library results and reconnect to shared selections after a
+frontend restart. Import local images by safe managed copy without moving or
+deleting originals; clearing cache cannot erase imports or preferences. The
+initial ingestion set is small, static and raster-only, with bounded decoding
+and no active content. Optional online access discloses requested game IDs or
+search terms and normal network metadata; it must not disclose ROMs, hashes,
+local paths, credentials or unrelated library data. Provider tags are not a
+content-safety guarantee. These requirements are prospective; exact scope and
+future evidence remain in the issues.
+
 ## Brand art
 
 The crab mascot and dimensional display wordmark follow the provenance, placement, accessibility, and derivative rules in [BRAND-ASSETS.md](BRAND-ASSETS.md). Brand art is deliberately rarer and more expressive than the working interface: use it to establish identity at startup, in an empty library, in About, or at a meaningful milestone—not as wallpaper for operational controls.
