@@ -202,8 +202,16 @@ authority. Engineering/policy/authority changes still require scoped review;
 neither an agent nor a candidate may change its own protected acceptance rules.
 Routine authorized work follows mandatory CI, an explicit separate review
 result, substantive finding repair, current-revision and authority confirmation,
-then normal auto-merge. A timeout, cancellation, or absence of comments is not
-a successful review. Administrator bypass is emergency-only. Protected
+then normal merge or auto-merge. An implementation or continuation request
+authorizes that routine workflow within its scope without repeated owner
+approval. Codex may perform the separate review as a distinct pass over the
+final diff, acceptance, and safety invariants, recording the commit, findings,
+repairs, and re-review result. It does not inherently require a human or second
+agent; additional trusted repository reviewer requirements still apply. Ask
+the owner only for an unresolved blocker, intrinsically required manual
+participation, or authority not already granted, and continue unrelated
+authorized work. A timeout, cancellation, or absence of comments is not a
+successful review. Administrator bypass is emergency-only. Protected
 acceptance, merge authority, signing/publication permission, credentials, and
 other meaningful boundaries require separate owner authorization; candidates
 cannot alter or self-authorize their own gate. Privileged handling treats

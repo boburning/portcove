@@ -28,7 +28,7 @@ pull request to the issue and update Project state as implementation changes.
 Codex owns implementation, execution of acceptance checks, failure
 investigation, bounded repair, review, and exact evidence within the authorized
 scope. The normal path is implement, execute checks, investigate, repair,
-independently review, record evidence, and complete the authorized workflow.
+review in a distinct pass, record evidence, and complete the authorized workflow.
 Do not ask the owner to repeat adequate automated checks. Acceptance specifies
 the observation, scope, and environment rather than naming a human actor unless
 human participation is intrinsic. Build the smallest reusable automation when
@@ -41,14 +41,33 @@ isolated integration, packaged execution, physical-device execution, and human
 observations distinct. A physical-device automated run is device evidence, not
 human gameplay or novice-comprehension evidence.
 
-Routine preauthorized work may use the normal PR and auto-merge path only after
-mandatory CI, an explicit separate review result, substantive finding repair,
-and current-revision/authority confirmation. Never use administrator bypass for
-the routine path. Changes to protected acceptance, merge authority, signing or
-publication permissions, credentials, or other meaningful boundaries require
-separate owner authorization. Candidate code cannot define, remove, or approve
-its own trusted gate, and privileged workflows must not execute untrusted
-candidate code or instructions.
+A user request to implement or continue work authorizes Codex to complete the
+routine issue, implementation, validation, review, PR, and normal merge workflow
+within that scope without another owner approval. A separate review means a
+distinct review pass after implementation; Codex may perform it autonomously.
+It does not inherently require a human reviewer or a second agent. Inspect the
+final diff against the current base, check acceptance and safety invariants,
+repair substantive findings, and record the reviewed commit, scope, findings,
+and re-review result. Passing tests alone is not a review.
+
+Merge routine work only after mandatory CI, that explicit review result,
+substantive finding repair, and current-revision/authority confirmation. Honor
+any additional reviewer or approval requirement enforced by the trusted
+repository rules. Never use administrator bypass for the routine path.
+
+Ask the owner only when a concrete blocker cannot be resolved within the
+authorized scope, evidence intrinsically requires their manual participation,
+or an action requires authority they have not already granted. Explain the
+specific missing input, observation, or authority and continue unrelated
+authorized work. Do not turn optional gameplay evidence or a review Codex can
+perform into an owner approval gate. Existing authorization persists; do not
+request it again.
+
+Changes to protected acceptance, merge authority, signing or publication
+permissions, credentials, or other meaningful boundaries require explicit
+owner authorization for that change. Candidate code cannot define, remove, or
+approve its own trusted gate, and privileged workflows must not execute
+untrusted candidate code or instructions.
 
 Do not create or maintain TODO documents, JSON work ledgers, mutable status
 files, milestone mirrors, or another planning authority. Repository docs own
