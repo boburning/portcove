@@ -91,7 +91,7 @@ the owner to rerun adequate automated checks. Keep packaged execution,
 physical-device automation, and intrinsically human observations distinct; a
 synthetic fixture or process start cannot establish gameplay or comprehension.
 
-After a successful Windows Tauri build, `scripts/package-local.ps1` refreshes the local installer, CLI, source archive, and prints their SHA-256 hashes. It refuses an output path outside the workspace and excludes build, dependency, test-library, and generated-schema directories from the source archive.
+After a successful Windows Tauri build, `scripts/package-local.ps1` refreshes the local installer, versioned standalone CLI archive, source archive, and prints their SHA-256 hashes. It smoke-tests the CLI from the final ZIP, refuses an output path outside the workspace, and excludes build, dependency, test-library, and generated-schema directories from the source archive.
 
 Link every pull request to its durable issue, describe the user outcome and
 non-goals, list exact validation commands, and move the Project item to In

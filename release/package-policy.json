@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "repository": "boburning/portcove",
+  "checksum_manifest": "SHA256SUMS.txt",
+  "packages": [
+    {
+      "id": "desktop-windows-x86_64-nsis",
+      "interface": "desktop",
+      "platform_label": "windows-x86_64",
+      "os": "windows",
+      "architecture": "x86_64",
+      "format": "nsis",
+      "format_label": "Setup installer",
+      "display_label": "Windows — Intel/AMD 64-bit",
+      "filename": "Portcove_{version}_x64-setup.exe",
+      "experimental": false
+    },
+    {
+      "id": "cli-windows-x86_64-zip",
+      "interface": "cli",
+      "platform_label": "windows-x86_64",
+      "os": "windows",
+      "architecture": "x86_64",
+      "format": "zip",
+      "format_label": "ZIP archive",
+      "display_label": "Windows — Intel/AMD 64-bit",
+      "filename": "portcove-cli-{version}-windows-x86_64.zip",
+      "experimental": false
+    },
+    {
+      "id": "desktop-linux-x86_64-appimage",
+      "interface": "desktop",
+      "platform_label": "linux-x86_64",
+      "os": "linux",
+      "architecture": "x86_64",
+      "format": "appimage",
+      "format_label": "AppImage",
+      "display_label": "Linux — Intel/AMD 64-bit",
+      "filename": "Portcove_{version}_amd64.AppImage",
+      "experimental": true
+    },
+    {
+      "id": "desktop-linux-x86_64-deb",
+      "interface": "desktop",
+      "platform_label": "linux-x86_64",
+      "os": "linux",
+      "architecture": "x86_64",
+      "format": "deb",
+      "format_label": "DEB package",
+      "display_label": "Linux — Intel/AMD 64-bit",
+      "filename": "Portcove_{version}_amd64.deb",
+      "experimental": true
+    },
+    {
+      "id": "desktop-linux-x86_64-rpm",
+      "interface": "desktop",
+      "platform_label": "linux-x86_64",
+      "os": "linux",
+      "architecture": "x86_64",
+      "format": "rpm",
+      "format_label": "RPM package",
+      "display_label": "Linux — Intel/AMD 64-bit",
+      "filename": "Portcove-{version}-1.x86_64.rpm",
+      "experimental": true
+    },
+    {
+      "id": "cli-linux-x86_64-tar-gz",
+      "interface": "cli",
+      "platform_label": "linux-x86_64",
+      "os": "linux",
+      "architecture": "x86_64",
+      "format": "tar.gz",
+      "format_label": "TAR.GZ archive",
+      "display_label": "Linux — Intel/AMD 64-bit",
+      "filename": "portcove-cli-{version}-linux-x86_64.tar.gz",
+      "experimental": true
+    },
+    {
+      "id": "desktop-macos-aarch64-dmg",
+      "interface": "desktop",
+      "platform_label": "macos-aarch64",
+      "os": "macos",
+      "architecture": "aarch64",
+      "format": "dmg",
+      "format_label": "DMG",
+      "display_label": "Mac — Apple silicon",
+      "filename": "Portcove_{version}_aarch64.dmg",
+      "experimental": true
+    },
+    {
+      "id": "cli-macos-aarch64-tar-gz",
+      "interface": "cli",
+      "platform_label": "macos-aarch64",
+      "os": "macos",
+      "architecture": "aarch64",
+      "format": "tar.gz",
+      "format_label": "TAR.GZ archive",
+      "display_label": "Mac — Apple silicon",
+      "filename": "portcove-cli-{version}-macos-aarch64.tar.gz",
+      "experimental": true
+    },
+    {
+      "id": "desktop-macos-x86_64-dmg",
+      "interface": "desktop",
+      "platform_label": "macos-x86_64",
+      "os": "macos",
+      "architecture": "x86_64",
+      "format": "dmg",
+      "format_label": "DMG",
+      "display_label": "Mac — Intel",
+      "filename": "Portcove_{version}_x64.dmg",
+      "experimental": true
+    },
+    {
+      "id": "cli-macos-x86_64-tar-gz",
+      "interface": "cli",
+      "platform_label": "macos-x86_64",
+      "os": "macos",
+      "architecture": "x86_64",
+      "format": "tar.gz",
+      "format_label": "TAR.GZ archive",
+      "display_label": "Mac — Intel",
+      "filename": "portcove-cli-{version}-macos-x86_64.tar.gz",
+      "experimental": true
+    }
+  ]
+}

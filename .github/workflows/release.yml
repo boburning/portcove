@@ -47,7 +47,7 @@ jobs:
         working-directory: apps/desktop
       - name: Verify release identity and required assets
         run: |
-          node --test scripts/check-release-metadata.test.mjs scripts/write-release-checksums.test.mjs scripts/reconcile-release-assets.test.mjs scripts/release-workflow.test.mjs
+          node --test scripts/check-release-metadata.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/reconcile-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/select-release-channel.test.mjs scripts/release-workflow.test.mjs
           node scripts/check-release-metadata.mjs
       - name: Verify release tag matches metadata
         if: github.event_name == 'push'
@@ -70,12 +70,16 @@ jobs:
         include:
           - os: windows-latest
             label: windows-x86_64
+            bundles: nsis
           - os: ubuntu-22.04
             label: linux-x86_64
+            bundles: appimage,deb,rpm
           - os: macos-15-intel
             label: macos-x86_64
+            bundles: dmg
           - os: macos-14
             label: macos-aarch64
+            bundles: dmg
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -98,16 +102,15 @@ jobs:
       - name: Package CLI
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path release-assets | Out-Null
-          if ($IsWindows) {
-            Copy-Item target/release/portcove.exe release-assets/portcove.exe
-            Compress-Archive release-assets/portcove.exe "release-assets/portcove-${{ matrix.label }}.zip"
-          } else {
-            Copy-Item target/release/portcove release-assets/portcove
-            tar -czf "release-assets/portcove-${{ matrix.label }}.tar.gz" -C release-assets portcove
-          }
+          ./scripts/package-cli.ps1 -PlatformLabel "${{ matrix.label }}"
+      - name: Smoke-test packaged CLI
+        shell: pwsh
+        run: |
+          $version = (& node scripts/check-release-metadata.mjs --print-version | Out-String).Trim()
+          $archive = (& node scripts/release-package-policy.mjs --platform "${{ matrix.label }}" --interface cli --version $version | Out-String).Trim()
+          ./scripts/smoke-test-cli-archive.ps1 -ArchivePath "release-assets/$archive" -PlatformLabel "${{ matrix.label }}" -Version $version
       - name: Build desktop bundles
-        run: pnpm tauri build
+        run: pnpm tauri build --bundles "${{ matrix.bundles }}"
         working-directory: apps/desktop
       - name: Stage checksummed release payload
         run: node scripts/write-release-checksums.mjs --label "${{ matrix.label }}" --stage-dir release-upload
@@ -138,7 +141,14 @@ jobs:
           path: release-matrix
           merge-multiple: false
       - name: Reconcile rehearsal release assets
-        run: node scripts/reconcile-release-assets.mjs --input release-matrix --output release-assets-aggregate
+        run: |
+          version="$(node scripts/check-release-metadata.mjs --print-version)"
+          node scripts/reconcile-release-assets.mjs \
+            --input release-matrix \
+            --output release-assets-aggregate \
+            --version "$version" \
+            --tag "v$version" \
+            --inventory release-metadata/release-inventory.json
       - name: Delete verified transient artifacts
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -173,26 +183,72 @@ jobs:
           path: release-matrix
           merge-multiple: false
       - name: Reconcile aggregate release assets
-        run: node scripts/reconcile-release-assets.mjs --input release-matrix --output release-assets-aggregate
+        run: |
+          version="$(node scripts/check-release-metadata.mjs --print-version)"
+          node scripts/reconcile-release-assets.mjs \
+            --input release-matrix \
+            --output release-assets-aggregate \
+            --version "$version" \
+            --tag "$RELEASE_TAG" \
+            --inventory release-metadata/release-inventory.json
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
       - name: Create or reconcile draft release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
+          assert_draft_release() {
+            local draft
+            draft="$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)"
+            if [[ "$draft" != "true" ]]; then
+              echo "Refusing to modify non-draft release $RELEASE_TAG" >&2
+              exit 1
+            fi
+          }
           if draft="$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft 2>/dev/null)"; then
             if [[ "$draft" != "true" ]]; then
               echo "Refusing to modify non-draft release $RELEASE_TAG" >&2
               exit 1
             fi
+            gh release view "$RELEASE_TAG" --json body --jq .body > release-metadata/reviewed-release-body.md
+            existing_draft=true
+          else
+            gh api --method POST \
+              "repos/${{ github.repository }}/releases/generate-notes" \
+              -f tag_name="$RELEASE_TAG" \
+              -f target_commitish="$GITHUB_SHA" \
+              --jq .body > release-metadata/reviewed-release-body.md
+            existing_draft=false
+          fi
+          node scripts/generate-release-downloads.mjs \
+            --inventory release-metadata/release-inventory.json \
+            --body release-metadata/reviewed-release-body.md \
+            --output release-metadata/generated-release-body.md
+          if [[ "$existing_draft" == "true" ]]; then
+            if ! cmp --silent release-metadata/reviewed-release-body.md release-metadata/generated-release-body.md; then
+              echo "Refusing to rewrite existing release notes; delete the unpublished draft and rerun" >&2
+              exit 1
+            fi
           else
             prerelease=()
             if [[ "$RELEASE_TAG" == *-* ]]; then prerelease+=(--prerelease); fi
-            gh release create "$RELEASE_TAG" --draft --generate-notes --title "Portcove $RELEASE_TAG" "${prerelease[@]}"
+            gh release create "$RELEASE_TAG" \
+              --draft \
+              --notes-file release-metadata/generated-release-body.md \
+              --title "Portcove $RELEASE_TAG" \
+              "${prerelease[@]}"
           fi
           while IFS= read -r asset; do
-            if [[ -n "$asset" ]]; then gh release delete-asset "$RELEASE_TAG" "$asset" --yes; fi
+            if [[ -n "$asset" ]]; then
+              assert_draft_release
+              gh release delete-asset "$RELEASE_TAG" "$asset" --yes
+            fi
           done < <(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')
-          gh release upload "$RELEASE_TAG" release-assets-aggregate/*
+          for asset in release-assets-aggregate/*; do
+            assert_draft_release
+            gh release upload "$RELEASE_TAG" "$asset"
+          done
       - name: Delete published transient artifacts
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="#project-status">Project status</a> ·
-  <a href="https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.2">Download Alpha 2</a> ·
+  <a href="https://github.com/boburning/portcove/releases">Download</a> ·
   <a href="#build-from-source">Build from source</a> ·
   <a href="docs/README.md">Documentation</a> ·
   <a href="https://github.com/users/boburning/projects/1">Roadmap</a>
@@ -57,21 +57,19 @@ Current priorities and blockers live in the public [Portcove Roadmap](https://gi
 
 ## Technical alpha downloads
 
-[Portcove 0.1.0-alpha.2](https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.2)
-is the current packaged technical preview. GitHub does not place prereleases in
-the repository's **Latest release** slot, so use this versioned link or the full
-[GitHub Releases](https://github.com/boburning/portcove/releases) index.
+[Choose your operating system and download Portcove Desktop from GitHub
+Releases](https://github.com/boburning/portcove/releases). Future releases made
+by the current pipeline start with generated, version-bound Desktop choices,
+then separately labeled standalone CLI archives and one `SHA256SUMS.txt`.
+Historical releases retain their original assets and notes. The release page is
+the source of current filenames; this README does not advertise an unreleased
+candidate or require a manual version/link update.
 
-| System | Desktop package | Separate CLI archive |
-|---|---|---|
-| Windows x64 | `Portcove_0.1.0-alpha.2_x64-setup.exe` | `portcove-windows-x86_64.zip` |
-| Linux x64 (experimental) | `Portcove_0.1.0-alpha.2_amd64.AppImage`, `Portcove_0.1.0-alpha.2_amd64.deb`, or `Portcove-0.1.0-alpha.2-1.x86_64.rpm` | `portcove-linux-x86_64.tar.gz` |
-| macOS Intel (experimental) | `Portcove_0.1.0-alpha.2_x64.dmg` | `portcove-macos-x86_64.tar.gz` |
-| macOS Apple silicon (experimental) | `Portcove_0.1.0-alpha.2_aarch64.dmg` | `portcove-macos-aarch64.tar.gz` |
-
-Use the package for your operating system and architecture. GitHub's **Source
-code** archives are not runnable desktop or CLI packages. Verify the downloaded
-file against its matching line in the release's SHA-256 manifest before use.
+The desktop app does not require the separate CLI. CLI archives contain the
+command-line tool, not a portable graphical app. GitHub's **Source code**
+archives require a development build. Choose the package for your operating
+system and processor, read its release-specific limitations, and verify only the
+file you selected against its exact line in the release checksum manifest.
 Windows packages lack Authenticode signing; macOS packages lack Developer ID
 signing/notarization. Linux and macOS have hosted build/test evidence, but not
 equivalent hands-on desktop package qualification. Application upgrades are
@@ -116,6 +114,14 @@ Build the CLI:
 ```powershell
 node scripts/dev-storage.mjs run -- cargo build -p portcove-cli --release
 ```
+
+This package-selecting Cargo build compiles `portcove-cli` and `portcove-core`;
+it does not build the desktop UI or require Node, pnpm, Tauri CLI, WebView, or
+frontend packages. A released CLI is still an operating-system-native program,
+not a dependency-free universal binary: use the archive matching Windows x64,
+GNU/Linux x64, Intel macOS, or Apple-silicon macOS. Linux hosts need their normal
+C runtime and D-Bus/secret-service support when saved credentials are used;
+macOS and Windows use their system credential facilities.
 
 For repository checks, packaging, and release work, see [CONTRIBUTING.md](CONTRIBUTING.md), [docs/QUALITY.md](docs/QUALITY.md), and [docs/RELEASING.md](docs/RELEASING.md).
 
