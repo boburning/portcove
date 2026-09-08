@@ -356,24 +356,7 @@ pub(crate) fn validate_install_path(
     port_id: &str,
     install_path: &Path,
 ) -> Result<PathBuf> {
-    crate::path::refuse_symlink_ancestors(install_path)?;
-    let install_path = fs::canonicalize(install_path)?;
-    let default_parent = fs::canonicalize(library.versions_dir().join(port_id))?;
-    if install_path.parent() == Some(default_parent.as_path()) {
-        return Ok(install_path);
-    }
-    let parent = install_path
-        .parent()
-        .ok_or_else(|| PortcoveError::conflict("registered install path has no output root"))?;
-    let record = library
-        .output_root(parent)?
-        .filter(|record| record.port_id == port_id)
-        .ok_or_else(|| {
-            PortcoveError::conflict("registered install path is outside an owned output root")
-        })?;
-    let current_volume = volume_identity(parent)?;
-    validate_claim(library, port_id, &record, &current_volume)?;
-    Ok(install_path)
+    validate_owned_install_path(library, port_id, install_path, None, "registered")
 }
 
 pub(crate) fn validate_retired_install_path(
@@ -382,29 +365,58 @@ pub(crate) fn validate_retired_install_path(
     install_path: &Path,
     retired_install_paths: &[PathBuf],
 ) -> Result<PathBuf> {
+    validate_owned_install_path(
+        library,
+        port_id,
+        install_path,
+        Some(retired_install_paths),
+        "retired",
+    )
+}
+
+fn validate_owned_install_path(
+    library: &Library,
+    port_id: &str,
+    install_path: &Path,
+    retired_install_paths: Option<&[PathBuf]>,
+    role: &str,
+) -> Result<PathBuf> {
     crate::path::refuse_symlink_ancestors(install_path)?;
     let install_path = fs::canonicalize(install_path)?;
-    let default_parent = fs::canonicalize(library.versions_dir().join(port_id))?;
-    if install_path.parent() == Some(default_parent.as_path()) {
-        return Ok(install_path);
+    let default_parent = library.versions_dir().join(port_id);
+    match fs::symlink_metadata(&default_parent) {
+        Ok(metadata) => {
+            if !metadata.is_dir() || metadata.file_type().is_symlink() {
+                return Err(PortcoveError::conflict(
+                    "default game output root must be a real directory",
+                ));
+            }
+            crate::path::refuse_symlink_ancestors(&default_parent)?;
+            if install_path.parent() == Some(fs::canonicalize(default_parent)?.as_path()) {
+                return Ok(install_path);
+            }
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.into()),
     }
-    let parent = install_path
-        .parent()
-        .ok_or_else(|| PortcoveError::conflict("retired install path has no output root"))?;
+    let parent = install_path.parent().ok_or_else(|| {
+        PortcoveError::conflict(format!("{role} install path has no output root"))
+    })?;
     let record = library
         .output_root(parent)?
         .filter(|record| record.port_id == port_id)
         .ok_or_else(|| {
-            PortcoveError::conflict("retired install path is outside an owned output root")
+            PortcoveError::conflict(format!(
+                "{role} install path is outside an owned output root"
+            ))
         })?;
     let current_volume = volume_identity(parent)?;
-    validate_claim_with_retired_paths(
-        library,
-        port_id,
-        &record,
-        &current_volume,
-        retired_install_paths,
-    )?;
+    match retired_install_paths {
+        Some(paths) => {
+            validate_claim_with_retired_paths(library, port_id, &record, &current_volume, paths)?
+        }
+        None => validate_claim(library, port_id, &record, &current_volume)?,
+    }
     Ok(install_path)
 }
 

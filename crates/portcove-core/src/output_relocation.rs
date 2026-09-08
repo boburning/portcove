@@ -915,12 +915,23 @@ mod tests {
         version: &str,
         active: bool,
     ) -> InstallRecord {
+        let root = library.versions_dir().join(port_id);
+        register_install_at_root(library, port_id, version, active, &root)
+    }
+
+    fn register_install_at_root(
+        library: &Library,
+        port_id: &str,
+        version: &str,
+        active: bool,
+        root: &Path,
+    ) -> InstallRecord {
         let artifact = ArtifactIdentity {
             asset_name: format!("{port_id}-{version}.zip"),
             sha256: hex::encode(Sha256::digest(format!("{port_id}:{version}"))),
             size: version.len() as u64,
         };
-        let path = library.versions_dir().join(port_id).join(&artifact.sha256);
+        let path = root.join(&artifact.sha256);
         fs::create_dir_all(&path).unwrap();
         let catalog = Catalog::embedded().unwrap();
         let port = catalog.port(port_id).unwrap();
@@ -952,6 +963,24 @@ mod tests {
         };
         library.register_install(&install, active).unwrap();
         install
+    }
+
+    fn register_external_install(
+        library: &Library,
+        port_id: &str,
+        version: &str,
+        active: bool,
+        root: &Path,
+    ) -> InstallRecord {
+        let prepared = crate::output_root::prepare_for_install(
+            library,
+            port_id,
+            root,
+            &Uuid::new_v4().to_string(),
+            0,
+        )
+        .unwrap();
+        register_install_at_root(library, port_id, version, active, &prepared.root)
     }
 
     fn authorize(service: &PortcoveService, destination: &Path) -> String {
@@ -1095,6 +1124,51 @@ mod tests {
                 .all(|install| install.path.starts_with(&expected_destination))
         );
         fixture.assert_protected_files_unchanged();
+    }
+
+    #[test]
+    fn direct_external_cleanup_recovers_without_default_port_directory() {
+        let temporary = TempDir::new().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let first_destination = temporary.path().join("first-external").join(PORT);
+        let install = register_external_install(&library, PORT, "active", true, &first_destination);
+        assert!(!library.versions_dir().join(PORT).exists());
+
+        let second_destination = temporary.path().join("second-external").join(PORT);
+        let interrupted = PortcoveService::with_faults(
+            library.clone(),
+            Arc::new(FailAt(LifecycleFaultPoint::RelocationMetadataCommitted)),
+        )
+        .unwrap();
+        let token = authorize(&interrupted, &second_destination);
+        let pending = interrupted
+            .relocate_output(PORT, &second_destination, &token)
+            .unwrap();
+        assert!(pending.cleanup_pending);
+        assert!(install.path.is_dir());
+        assert!(!library.versions_dir().join(PORT).exists());
+
+        let recovered = PortcoveService::new(library.clone()).unwrap();
+        assert!(recovered.output_relocation_status(PORT).unwrap().is_none());
+        assert!(!install.path.exists());
+        assert!(!library.versions_dir().join(PORT).exists());
+        let relocated = library
+            .status(PORT, ReleaseChannel::Stable)
+            .unwrap()
+            .active
+            .unwrap();
+        let expected_destination =
+            crate::path::normalized_absolute(&second_destination, "test relocation destination")
+                .unwrap();
+        assert!(relocated.path.starts_with(expected_destination));
+        assert_eq!(relocated.id, install.id);
+        assert!(
+            Installer::new(library)
+                .unwrap()
+                .verify(&relocated)
+                .unwrap()
+                .valid
+        );
     }
 
     #[test]
