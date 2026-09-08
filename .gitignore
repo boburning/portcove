@@ -9,6 +9,7 @@ semdup.sqlite*
 /.codex-remote-attachments/
 /work/
 /outputs/
+/release-assets/
 *.log
 *.blend1
 *.py[cod]

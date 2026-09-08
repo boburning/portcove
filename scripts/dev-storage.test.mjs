@@ -200,6 +200,19 @@ test("local packaging honors custom storage, produces a ZIP without generated da
   const root = workspace(t);
   copyFileSync(new URL("./package-local.ps1", import.meta.url), path.join(root, "scripts/package-local.ps1"));
   writeFileSync(path.join(root, "scripts/check-release-metadata.mjs"), "process.exit(0);\n");
+  writeFileSync(path.join(root, "scripts/package-cli.ps1"), `
+param([string]$PlatformLabel, [string]$ProjectRoot, [string]$TargetRoot, [switch]$Force)
+$assets = Join-Path $ProjectRoot "release-assets"
+[System.IO.Directory]::CreateDirectory($assets) | Out-Null
+$staging = Join-Path $ProjectRoot "cli-staging"
+[System.IO.Directory]::CreateDirectory($staging) | Out-Null
+Copy-Item -LiteralPath (Join-Path $TargetRoot "release/portcove.exe") -Destination (Join-Path $staging "portcove.exe")
+$archive = Join-Path $assets "portcove-cli-0.1.0-windows-x86_64.zip"
+Compress-Archive -LiteralPath (Join-Path $staging "portcove.exe") -DestinationPath $archive
+Remove-Item -LiteralPath $staging -Recurse -Force
+Write-Output $archive
+`);
+  writeFileSync(path.join(root, "scripts/smoke-test-cli-archive.ps1"), "param([string]$ArchivePath, [string]$PlatformLabel, [string]$Version)\n$global:LASTEXITCODE = 0\n");
   const target = path.join(root, "custom target");
   mkdirSync(path.join(target, "release/bundle/nsis"), { recursive: true });
   writeFileSync(path.join(target, "release/bundle/nsis/Portcove_0.1.0_x64-setup.exe"), "installer fixture");
@@ -229,6 +242,7 @@ if ($env:TEMP -ne $previousTemp -or $env:pnpm_config_store_dir -ne $previousStor
   assert.equal(listing.status, 0, listing.stderr);
   assert.match(listing.stdout, /src\/lib.rs/);
   assert.doesNotMatch(listing.stdout, /custom target|packages\/|scratch\/|package store/);
+  assert.equal(existsSync(path.join(root, "packages/portcove-cli-0.1.0-windows-x86_64.zip")), true);
   assert.equal(readFileSync(path.join(root, "packages/SHA256SUMS.txt"), "utf8").trim().split(/\r?\n/).length, 3);
 });
 

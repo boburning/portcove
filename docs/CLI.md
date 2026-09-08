@@ -31,6 +31,32 @@ Argument-parser failures also use the machine envelope when `--json` or `--jsonl
 
 The compiled-binary machine contract is exercised on both Windows and Linux CI. These tests treat stdout line count, envelope fields, nested command names, JSONL completion, parser behavior, and exit codes as public integration behavior rather than implementation details.
 
+## Standalone package and focused build
+
+Released CLI downloads are named `portcove-cli-<version>-<platform>` and contain
+one executable named `portcove` (`portcove.exe` on Windows). The CLI runs without
+Portcove Desktop, and Desktop runs without a separately installed CLI. Download
+the archive matching the host operating system and processor from the exact
+versioned release; a CLI archive is not a graphical or cross-platform portable
+application.
+
+From a source checkout, build only the public CLI and its shared core with:
+
+```text
+cargo build --release -p portcove-cli
+```
+
+That command does not build React/Tauri or require Node, pnpm, the Tauri CLI,
+WebView development packages, or the frontend dependency tree. It does require
+the repository's pinned Rust toolchain and the host prerequisites of the Rust
+dependency graph. Released binaries use native operating-system facilities;
+Linux requires the normal C runtime and D-Bus/secret-service integration when
+saved credentials are used, while Windows and macOS use their system credential
+stores. Standalone means independent of Desktop, not dependency-free.
+
+See [Releasing](RELEASING.md) for exact archive names, checksums, package limits,
+and the transition from Alpha 1 and Alpha 2's unversioned CLI archive names.
+
 ## Discovery
 
 API schema 13 exports `source_assessment`, the shared typed contract for source

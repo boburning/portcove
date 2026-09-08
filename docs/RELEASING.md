@@ -17,7 +17,7 @@ After changing them, run Cargo once so the three workspace package entries in `C
 ## Standalone CLI integration artifact
 
 Every released external-client claim points to an exact standalone CLI archive,
-its platform SHA-256 manifest, declared host prerequisites, and the applicable
+the aggregate SHA-256 manifest, declared host prerequisites, and the applicable
 CLI/schema compatibility documentation. The release matrix already produces
 separate Windows, Linux, Intel macOS, and Apple-silicon macOS CLI archives; an
 integrator need not compile Portcove or install/run the desktop application.
@@ -31,6 +31,54 @@ consumer exercise. A development exercise may use one exactly identified
 packaged candidate to avoid a release dependency cycle, but final author
 guidance must point to an available public release and may not describe the
 candidate as released.
+
+Beginning with the first release after Alpha 2, CLI archives use explicit,
+versioned names derived from the same metadata checked against the release tag:
+
+```text
+portcove-cli-<version>-windows-x86_64.zip
+portcove-cli-<version>-linux-x86_64.tar.gz
+portcove-cli-<version>-macos-aarch64.tar.gz
+portcove-cli-<version>-macos-x86_64.tar.gz
+```
+
+The executable inside remains `portcove.exe` on Windows and `portcove` on
+Linux/macOS. Alpha 1 and Alpha 2's unversioned archive names and platform
+manifests remain historical assets; do not rename, duplicate, or replace them. First-party future
+release tooling accepts only the versioned names.
+
+## Declared package policy
+
+`release/package-policy.json` is the single required-output definition. It
+declares interface, operating system, processor, format, native filename rule,
+display label, and experimental presentation independently of whatever a build
+happens to emit. The current exact matrix is:
+
+| Platform | Desktop | Standalone CLI |
+|---|---|---|
+| Windows x86_64 | NSIS setup installer | ZIP |
+| Linux x86_64 | AppImage, DEB, RPM (experimental) | TAR.GZ |
+| macOS aarch64 | DMG (experimental) | TAR.GZ |
+| macOS x86_64 | DMG (experimental) | TAR.GZ |
+
+Release jobs pass `--bundles nsis`, `--bundles appimage,deb,rpm`, or
+`--bundles dmg` to the installed Tauri 2 CLI as appropriate; they do not assume
+that every operating system accepts one common target list. The policy neither
+adds MSI, portable desktop ZIPs, new architectures, Flatpak, nor updater
+artifacts. Changing a required output is a protected release-policy change, not
+a way to make a failed build disappear.
+
+The builders derive the version from checked Cargo/Desktop/Tauri metadata,
+package the CLI, extract that final archive, verify the executable name and
+native architecture, run `--version`, and exercise a machine command against an
+isolated temporary library. `write-release-checksums.mjs` then accepts exactly
+the policy's platform outputs and creates an internal platform manifest. The
+cross-platform reconciler independently requires the complete policy matrix,
+recomputes every hash, rejects unsafe paths, missing/unexpected/case-colliding
+names and version/format mismatches, and produces the final inventory plus one
+public `SHA256SUMS.txt`. Filename checks identify the expected package; the
+extracted executable inspection is the practical architecture evidence for the
+CLI. Desktop runtime and installed-package qualification remain separate.
 
 ## Windows preflight
 
@@ -209,11 +257,30 @@ after publication; the repository setting alone is not that evidence.
 
 ## Tagged build
 
-Pushing `v*` starts `.github/workflows/release.yml`. Its preflight job repeats the identity, dependency, test, Fallow, and upstream gates before the Windows, Linux x64, Intel macOS, and Apple-silicon macOS matrix can build. Matrix jobs have read-only repository permission, stage only the CLI archive, native distributable packages, and platform SHA-256 manifest, and pass those exact files to the publisher as transient workflow artifacts. Only after every matrix job succeeds does one `publish` job receive `contents: write`, download all four artifacts, verify every declared hash and filename, reject missing or duplicate platform output, and create or reconcile one draft release. It refuses to change a published release. After the draft owns the verified files, the publisher deletes the transient workflow artifacts; a failed run retains them for no more than one day for diagnosis. GitHub generates categorized notes from merged pull requests using `.github/release.yml`; tags containing a SemVer prerelease suffix are marked as prereleases automatically. Tauri updater metadata remains disabled until Portcove has an explicit signed desktop self-update contract.
+Pushing `v*` starts `.github/workflows/release.yml`. Its preflight job repeats the identity, dependency, test, Fallow, and upstream gates before the Windows, Linux x64, Intel macOS, and Apple-silicon macOS matrix can build. Matrix jobs have read-only repository permission, stage only the versioned CLI archive, explicitly selected native distributable packages, and one internal platform SHA-256 manifest, and pass those exact files to the publisher as transient workflow artifacts. Only after every matrix job succeeds does one `publish` job receive `contents: write`, download all four artifacts, validate the exact independently declared matrix, recompute every checksum, and create or reconcile one draft release. It refuses to change a published release. The first run generates the complete body before creating the draft. A rerun verifies an existing draft body byte for byte and fails closed instead of editing it. The publisher rechecks draft state before each asset deletion or upload; repository-level immutable releases provide the server-side boundary if publication happens between that check and the asset mutation.
+
+The reconciler writes the public packages and one aggregate `SHA256SUMS.txt`;
+the four platform manifests remain internal validation inputs and are not
+uploaded as redundant public assets. It also writes a build-time inventory
+outside the public asset directory. The publisher uses that verified inventory
+to add or replace one marked desktop-first download section in the draft body,
+while preserving all reviewed prose and GitHub's categorized changes. Repeated
+generation cannot duplicate the section. Links are bound to the exact tag, and
+preview notes do not use GitHub's stable-only latest-release endpoint. After the
+draft owns the verified files, the publisher deletes the transient workflow
+artifacts; a failed run retains them for no more than one day for diagnosis.
+Tags containing a SemVer prerelease suffix are marked as prereleases
+automatically. Tauri updater metadata remains disabled until Portcove has an
+explicit signed desktop self-update contract.
+
+Release matrix, aggregate, inventory, checksum, and staging paths must be
+owned child paths of the checkout. Existing linked or reparse-point components
+are refused before release tooling reads, replaces, creates, or copies those
+outputs.
 
 ## Release rehearsal
 
-Run the **Release** workflow manually from GitHub Actions before the first v1 tag or after changing packaging. A manual run executes the same preflight and four-platform build matrix, but every GitHub Release mutation remains disabled. Its read-only rehearsal consumer downloads all four `release-build-*` artifacts, runs `scripts/reconcile-release-assets.mjs` against their containing directory, and deletes the transient copies only after the complete-matrix and checksum contract passes. A failed rehearsal retains its artifacts for no more than one day for diagnosis; a successful rehearsal keeps the run logs and verification result without consuming ongoing Actions artifact storage. A rehearsal never creates a tag, draft release, or published release.
+Run the **Release** workflow manually from GitHub Actions before the first v1 tag or after changing packaging. A manual run executes the same preflight and four-platform build matrix, but every GitHub Release mutation remains disabled. Its read-only rehearsal consumer downloads all four `release-build-*` artifacts, runs `scripts/reconcile-release-assets.mjs` against their containing directory, validates the exact matrix and internal manifests, and generates the aggregate checksum plus private build-time inventory. It deletes the transient copies only after that contract passes. A failed rehearsal retains its artifacts for no more than one day for diagnosis; a successful rehearsal keeps the run logs and verification result without consuming ongoing Actions artifact storage. A rehearsal never creates a tag, draft release, or published release.
 
 From an authenticated GitHub CLI, start and follow the rehearsal with:
 
@@ -234,14 +301,55 @@ The rehearsal proves that the current commit can produce packages on hosted buil
 
 Before publishing the draft:
 
-1. confirm the aggregate `SHA256SUMS.txt` and four platform manifests cover every CLI archive and desktop bundle;
+1. confirm the aggregate `SHA256SUMS.txt` covers every public CLI archive and desktop bundle and that the logs show all four internal manifests were accepted;
 2. verify the committed observation snapshot and external execution record both refer to the intended frozen candidate;
 3. compare release notes with live Blocked & Deferred items so manual or signing work is not overstated;
 4. keep unsigned artifacts clearly identified until the signing issue has matching completion evidence;
 5. perform the target-shell and hands-on checks appropriate to the release; and
 6. publish only after the draft contents, version, channel, snapshot, and Project readiness are correct.
 
+The generated draft begins with these sections before categorized changes:
+
+1. **Download the desktop app** — operating-system and processor choices, with
+   experimental status retained;
+2. **Command-line tools** — clearly separate standalone CLI archives;
+3. **Verify your download** — the one aggregate manifest and commands that check
+   a selected package without downloading the rest; and
+4. reviewed release changes, known limitations, upgrade guidance, and
+   troubleshooting.
+
+It states that Desktop needs no separate CLI, a CLI archive is not a graphical
+app, an AppImage is not universal Linux or Steam Deck evidence, and GitHub source
+archives require a development build. Checksums establish agreement with the
+published bytes, not independent publisher identity, malware freedom,
+operating-system signing, updater authorization, or gameplay/platform evidence.
+
 Creating a tag does not authorize weakening catalog integrity, embedding game data, or marking deferred gameplay and operating-system observations as complete.
+
+## Post-publication verification and release channels
+
+Only after separately authorized publication can public reachability and
+integrity be checked. Download `SHA256SUMS.txt` and one selected package, require
+exactly one matching manifest line, and use `Get-FileHash`, `sha256sum --check
+--strict`, or `shasum -a 256 --check` as shown in the generated release body.
+Then use `gh release verify-asset <tag> <asset>` for each public asset and record
+the immutable release/tag, exact commit/run, API size/digest, and HTTP result.
+Historical manifests stay untouched.
+
+Stable and preview discovery are separate. `scripts/select-release-channel.mjs`
+selects only published prereleases for `preview` and only published
+non-prereleases for `stable`; it rejects drafts and returns no stable result for
+a preview-only repository. Feed it a bounded releases API response when a later
+consumer needs discovery. Generated release download links do not need discovery:
+they always name their exact tag. Do not use `/releases/latest` or
+`releases/latest/download` as a preview resolver.
+
+Routine release preparation is designed to require no owner reconciliation of
+filenames, tables, or checksums. Current governance still separates ordinary
+merge authority, tag creation, and publication of the verified draft. Removing
+those per-release approvals requires a separately reviewed protected controller,
+bounded credentials, negative/recovery tests, and explicit authority; this
+packaging change does not grant it or introduce another manual gate.
 
 ## Upgrade acceptance and technical previews
 

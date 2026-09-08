@@ -12,9 +12,11 @@ function metadata(overrides = {}) {
   };
   return {
     packages: Object.entries(dependencies).map(([name, names]) => ({
+      id: name,
       name,
       dependencies: names.map((dependency) => ({ name: dependency })),
     })),
+    workspace_default_members: ["portcove-core", "portcove-cli"],
   };
 }
 
@@ -50,4 +52,12 @@ test("keeps catalog signature authority out of presentation adapters", () => {
   }));
   assert.equal(violations.length, 2);
   assert.ok(violations.every(item => item.dependencyName === "ed25519-dalek"));
+});
+
+test("keeps default Cargo builds independent of the desktop package", () => {
+  const input = metadata();
+  input.workspace_default_members.push("portcove-desktop");
+  const violations = validateArchitecture(input);
+  assert.equal(violations.length, 1);
+  assert.match(formatViolations(violations), /default Rust build stays independent/);
 });

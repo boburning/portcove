@@ -6,6 +6,8 @@
 
 The CLI and Tauri backend are thin adapters over `portcove-core`. Do not duplicate domain or lifecycle logic in either adapter. React owns presentation, interaction, and ephemeral UI state; it must not become an independent authority for installation, library, release, source, or launch state.
 
+Core, CLI, and Desktop remain in this repository while shipping as independently usable interfaces and separately packaged deliverables. Do not split the repository or make Desktop shell out to the standalone CLI to manufacture reuse; preserve CLI -> core, Tauri backend -> core, and React -> Tauri IPC.
+
 Prefer catalog data and existing generic adapters for port-specific facts. Do not add title-specific Rust behavior when the catalog can express the requirement.
 
 Preserve the existing safety invariants around source identity, checksums, archive extraction, symlinks, persistent data, per-port locking, atomic activation, rollback, credentials, and executable trust. Never weaken them to simplify an implementation or satisfy a quality tool.

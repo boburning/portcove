@@ -21,7 +21,7 @@ native desktop evidence harness, repository skills and targeted safety experimen
 |---|---|---|
 | Rust change | `just check-rust` | format, compile, Clippy, tests, unused dependencies/files, and crate boundaries |
 | UI change | `just check-ui` | production build, tests, and the existing Fallow gate |
-| Cross-stack or release change | `just check` | both fast loops plus deterministic release metadata and checksum-tool tests |
+| Cross-stack or release change | `just check` | both fast loops plus deterministic package-policy, staging, checksum, and release-note tests |
 | Substantial completion | `just audit` | fast loop plus dependency policy and rscheck |
 | Large structural change | `just deep` | audit plus advisory Hawk and semdup analysis |
 | Explicit cycle investigation | `just cycles` | optional advisory module-cycle report |
@@ -63,7 +63,7 @@ The workflow log is review evidence, not an instruction to rewrite code. Hawk an
 
 ## Architecture gate
 
-`scripts/check-rust-architecture.mjs` reads `cargo metadata --format-version 1 --no-deps`; it never scrapes manifests. It requires both adapters to depend on `portcove-core`, prevents core from depending on CLI/Tauri/desktop concerns, and prevents either adapter from depending on its peer. Add future layer rules to the checker data rather than writing a second checker.
+`scripts/check-rust-architecture.mjs` reads `cargo metadata --format-version 1 --no-deps`; it never scrapes manifests. It requires both adapters to depend on `portcove-core`, prevents core from depending on CLI/Tauri/desktop concerns, prevents either adapter from depending on its peer, and keeps the default Cargo member set limited to Core and CLI so a focused Rust build has no desktop frontend prerequisite. Add future layer rules to the checker data rather than writing a second checker.
 
 ## Dependency policy
 

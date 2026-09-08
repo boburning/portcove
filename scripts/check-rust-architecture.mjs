@@ -33,6 +33,17 @@ export function validateArchitecture(metadata, rules = RULES) {
   const packages = new Map(metadata.packages.map((pkg) => [pkg.name, pkg]));
   const violations = [];
 
+  const namesById = new Map(metadata.packages.map(pkg => [pkg.id, pkg.name]));
+  const defaultMembers = (metadata.workspace_default_members ?? []).map(id => namesById.get(id) ?? id).sort();
+  const expectedDefaultMembers = ["portcove-cli", "portcove-core"];
+  if (JSON.stringify(defaultMembers) !== JSON.stringify(expectedDefaultMembers)) {
+    violations.push({
+      packageName: "workspace default-members",
+      dependencyName: null,
+      message: "Cargo default-members must remain exactly portcove-core and portcove-cli so the default Rust build stays independent of the desktop frontend toolchain.",
+    });
+  }
+
   for (const [packageName, rule] of Object.entries(rules)) {
     const pkg = packages.get(packageName);
     if (!pkg) {

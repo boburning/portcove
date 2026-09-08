@@ -12,6 +12,10 @@ const semverPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]
 const requiredProjectFiles = [
   "LICENSE-MIT",
   "LICENSE-APACHE",
+  "release/package-policy.json",
+  "scripts/package-cli.ps1",
+  "scripts/smoke-test-cli-archive.ps1",
+  "scripts/generate-release-downloads.mjs",
   brandManifestRelativePath,
   modelManifestRelativePath,
   "apps/desktop/assets/brand/masters/portcove-logo-master.jpg",
