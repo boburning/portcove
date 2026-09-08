@@ -5686,6 +5686,20 @@
         "ghostship.cfg.json",
         "imgui.ini",
         "sm64.o2r"
+      ],
+      "runtime_mutable_paths": [
+        "torch.hash.yml",
+        "logs/Ghostship.log",
+        "logs/Ghostship.1.log",
+        "logs/Ghostship.2.log",
+        "logs/Ghostship.3.log",
+        "logs/Ghostship.4.log",
+        "logs/Ghostship.5.log",
+        "logs/Ghostship.6.log",
+        "logs/Ghostship.7.log",
+        "logs/Ghostship.8.log",
+        "logs/Ghostship.9.log",
+        "logs/Ghostship.10.log"
       ]
     },
     {

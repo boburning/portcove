@@ -116,6 +116,19 @@ gameplay, and real save/load evidence is complete.
 
 ## Adding or changing a port
 
+Ghostship 3.0.0 writes its disposable extraction cache to `torch.hash.yml` and
+rotates `logs/Ghostship.log` through `logs/Ghostship.10.log`. The catalog declares
+those exact runtime outputs through the existing nonpersistent runtime-path
+contract, now available to the libultraship portable adapter. Source, executable,
+Portcove metadata and persistent-path overlap checks still apply. Other files in
+`logs` remain subject to immutable
+verification. Generated `sm64.o2r`, configuration, saves, screenshots and mods keep
+their existing persistent ownership. This declaration does not grant gameplay
+or platform qualification. The paths come from the tagged
+[Ghostship engine](https://github.com/HarbourMasters/Ghostship/blob/deb091c29caff57dd986398087b058f16b11911e/src/port/Engine.cpp),
+its pinned [logger](https://github.com/Kenix3/libultraship/blob/6b861a64d29d9fe95d100be228eb6d190231cc0d/src/ship/log/Logger.cpp),
+and [Torch cache writer](https://github.com/HarbourMasters/Torch/blob/106621f0f0f9731b8739bec95227c2c5887492df/src/Companion.cpp).
+
 The procedure below describes the current repository workflow. Future automatic
 admission is owned by [#245](https://github.com/boburning/portcove/issues/245)
 and [#246](https://github.com/boburning/portcove/issues/246); this policy direction
