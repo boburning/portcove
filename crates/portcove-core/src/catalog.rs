@@ -537,11 +537,13 @@ impl Catalog {
                         .setup_marker
                         .as_ref()
                         .is_none_or(|marker| !crate::runtime::overlaps(relative, marker));
-                let managed_psx_path = port.adapter == AdapterKind::PsxRecompManaged
-                    && port
-                        .runtime_source_filename
-                        .as_ref()
-                        .is_none_or(|source| !crate::runtime::overlaps(relative, source));
+                let portable_runtime_path = matches!(
+                    port.adapter,
+                    AdapterKind::PsxRecompManaged | AdapterKind::LibultrashipPortable
+                ) && port
+                    .runtime_source_filename
+                    .as_ref()
+                    .is_none_or(|source| !crate::runtime::overlaps(relative, source));
                 let executable_overlap = port
                     .executable_hints
                     .values()
@@ -564,7 +566,7 @@ impl Catalog {
                     || (!staged_source_path
                         && !generated_cache_source_path
                         && !upstream_setup_path
-                        && !managed_psx_path)
+                        && !portable_runtime_path)
                     || executable_overlap
                     || portcove_metadata
                     || port
@@ -1005,9 +1007,22 @@ mod tests {
             serde_json::to_value(&migrated.document().source_profiles).unwrap(),
             serde_json::to_value(&legacy.document().source_profiles).unwrap()
         );
+        // Keep every frozen port fact except the explicitly reviewed Ghostship
+        // runtime-output declaration; source and persistence contracts stay exact.
+        let mut expected_ports = legacy.document().ports.clone();
+        let ghostship = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "ghostship")
+            .unwrap();
+        assert!(ghostship.runtime_mutable_paths.is_empty());
+        ghostship.runtime_mutable_paths =
+            vec!["torch.hash.yml".into(), "logs/Ghostship.log".into()];
+        ghostship
+            .runtime_mutable_paths
+            .extend((1..=10).map(|index| format!("logs/Ghostship.{index}.log")));
         assert_eq!(
             serde_json::to_value(&migrated.document().ports).unwrap(),
-            serde_json::to_value(&legacy.document().ports).unwrap()
+            serde_json::to_value(expected_ports).unwrap()
         );
         assert!(migrated.source_catalog().unwrap().qualification.is_empty());
         assert!(migrated.document().ports.iter().any(|port| {
@@ -1750,6 +1765,35 @@ mod tests {
 
         let error = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap_err();
         assert!(error.to_string().contains("unsafe runtime subdirectory"));
+    }
+
+    #[test]
+    fn libultraship_runtime_outputs_cannot_cover_owned_or_unsafe_paths() {
+        for (port_id, relative) in [
+            ("ghostship", "ghostship.exe"),
+            ("ghostship", "../outside.log"),
+            ("ghostship", ".portcove-launched"),
+            ("ghostship", "cache.portcove-source.json"),
+            ("ghostship", "saves"),
+            ("ghostship", "sm64.o2r"),
+            ("spaghetti-kart", "baserom.us.z64"),
+        ] {
+            let mut document: serde_json::Value = serde_json::from_str(EMBEDDED_CATALOG).unwrap();
+            let port = document["ports"]
+                .as_array_mut()
+                .unwrap()
+                .iter_mut()
+                .find(|port| port["id"] == port_id)
+                .unwrap();
+            port["runtime_mutable_paths"] = serde_json::json!([relative]);
+            let error = Catalog::from_json(&document.to_string()).unwrap_err();
+            assert!(
+                error
+                    .to_string()
+                    .contains("invalid nonpersistent runtime path"),
+                "{port_id}: {relative}: {error}"
+            );
+        }
     }
 
     #[test]

@@ -2227,6 +2227,55 @@ mod tests {
     }
 
     #[test]
+    fn ghostship_runtime_outputs_do_not_hide_unknown_files_or_executable_tampering() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("ghostship.exe"), b"verified executable").unwrap();
+        let port = crate::Catalog::embedded()
+            .unwrap()
+            .port("ghostship")
+            .unwrap()
+            .clone();
+        let qualification =
+            InstallQualification::from_port(&port, Platform::WindowsX86_64).unwrap();
+        let (installer, install) = create_test_install(&root, &qualification);
+        fs::create_dir_all(root.join("logs")).unwrap();
+        fs::write(root.join("torch.hash.yml"), b"generated extraction cache").unwrap();
+        fs::write(root.join("logs/Ghostship.log"), b"current log").unwrap();
+        for index in 1..=10 {
+            fs::write(
+                root.join(format!("logs/Ghostship.{index}.log")),
+                b"rotated log",
+            )
+            .unwrap();
+        }
+        assert!(
+            installer
+                .verify_managed(&install, &qualification)
+                .unwrap()
+                .valid
+        );
+        let unknown = root.join("logs/unexpected.dll");
+        fs::write(&unknown, b"unreviewed file").unwrap();
+        assert!(
+            !installer
+                .verify_managed(&install, &qualification)
+                .unwrap()
+                .valid
+        );
+        fs::remove_file(unknown).unwrap();
+        fs::write(root.join("ghostship.exe"), b"modified executable").unwrap();
+        assert!(
+            !installer
+                .verify_managed(&install, &qualification)
+                .unwrap()
+                .valid
+        );
+        assert!(installer.verify_critical(&install).is_err());
+    }
+
+    #[test]
     fn artifact_digests_are_canonical_collision_free_storage_keys() {
         let first = artifact_storage_key(&"A".repeat(64)).unwrap();
         let second = artifact_storage_key(&"b".repeat(64)).unwrap();

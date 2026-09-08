@@ -474,7 +474,16 @@ const migrated = {
   // not identify an artifact, variant, representation, or check version, so
   // migration must not manufacture exact qualification records from them.
   source_catalog: { evidence, identities, contracts, validators, qualification: [] },
-  ports: legacy.ports,
+  ports: legacy.ports.map(port => port.id === "ghostship" ? {
+    ...port,
+    // Ghostship 3.0.0 and its pinned libultraship/Torch dependencies write these
+    // disposable outputs. Preserve the frozen migration input and all user data.
+    runtime_mutable_paths: [
+      "torch.hash.yml",
+      "logs/Ghostship.log",
+      ...Array.from({ length: 10 }, (_, index) => `logs/Ghostship.${index + 1}.log`),
+    ],
+  } : port),
 };
 const output = `${JSON.stringify(migrated, null, 2)}\n`;
 if (process.argv.includes("--check")) {
