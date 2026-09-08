@@ -97,7 +97,7 @@ impl PortcoveService {
         let active = status.active.as_ref().map(|install| install.id.as_str());
         let previous = status.previous.as_ref().map(|install| install.id.as_str());
         let staged = status.staged.as_ref().map(|install| install.id.as_str());
-        InstallQualification::from_port(port, crate::Platform::current()?)?;
+        let qualification = InstallQualification::from_port(port, crate::Platform::current()?)?;
         let installer = Installer::new(self.library().clone())?;
         let mut records = self
             .library()
@@ -117,7 +117,7 @@ impl PortcoveService {
         let mut required_bytes = 0_u64;
         for install in records {
             crate::output_root::validate_install_path(self.library(), port_id, &install.path)?;
-            let report = installer.verify(&install)?;
+            let report = installer.verify_managed(&install, &qualification)?;
             if !report.valid {
                 return Err(PortcoveError::verification(
                     "an installed version failed verification before relocation",
@@ -125,7 +125,7 @@ impl PortcoveService {
                 .detail("install_id", &install.id)
                 .detail("failures", report.failures.join(", ")));
             }
-            installer.verify_critical(&install)?;
+            installer.verify_critical(&install, &qualification)?;
             let name = install.path.file_name().ok_or_else(|| {
                 PortcoveError::state("registered install path has no version directory name")
             })?;
@@ -468,6 +468,10 @@ fn verify_staged(
     operation_root: &Path,
 ) -> Result<()> {
     let installer = Installer::new(service.library().clone())?;
+    let qualification = InstallQualification::from_port(
+        service.catalog().port(&plan.port_id)?,
+        crate::Platform::current()?,
+    )?;
     for entry in &plan.installs {
         let path = operation_root.join(&entry.install.id);
         crate::transfer_copy::verify_reviewed_tree(&path, &entry.copy)?;
@@ -475,7 +479,7 @@ fn verify_staged(
             path,
             ..entry.install.clone()
         };
-        let report = installer.verify(&staged)?;
+        let report = installer.verify_managed(&staged, &qualification)?;
         if !report.valid {
             return Err(PortcoveError::verification(
                 "a staged relocation copy failed immutable verification",
@@ -483,7 +487,7 @@ fn verify_staged(
             .detail("install_id", &entry.install.id)
             .detail("failures", report.failures.join(", ")));
         }
-        installer.verify_critical(&staged)?;
+        installer.verify_critical(&staged, &qualification)?;
     }
     Ok(())
 }
@@ -495,6 +499,10 @@ fn verify_new_authority(service: &PortcoveService, plan: &OutputRelocationPlan) 
         ));
     }
     let installer = Installer::new(service.library().clone())?;
+    let qualification = InstallQualification::from_port(
+        service.catalog().port(&plan.port_id)?,
+        crate::Platform::current()?,
+    )?;
     for entry in &plan.installs {
         let relocated = InstallRecord {
             path: entry.destination_path.clone(),
@@ -505,7 +513,7 @@ fn verify_new_authority(service: &PortcoveService, plan: &OutputRelocationPlan) 
             &plan.port_id,
             &relocated.path,
         )?;
-        let report = installer.verify(&relocated)?;
+        let report = installer.verify_managed(&relocated, &qualification)?;
         if !report.valid {
             return Err(PortcoveError::verification(
                 "the authoritative relocated installation failed verification",
@@ -513,7 +521,7 @@ fn verify_new_authority(service: &PortcoveService, plan: &OutputRelocationPlan) 
             .detail("install_id", &entry.install.id)
             .detail("failures", report.failures.join(", ")));
         }
-        installer.verify_critical(&relocated)?;
+        installer.verify_critical(&relocated, &qualification)?;
     }
     Ok(())
 }

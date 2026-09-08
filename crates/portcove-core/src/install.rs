@@ -640,7 +640,12 @@ impl Installer {
         })
     }
 
-    pub(crate) fn verify_critical(&self, install: &InstallRecord) -> Result<PathBuf> {
+    pub(crate) fn verify_critical(
+        &self,
+        install: &InstallRecord,
+        qualification: &InstallQualification,
+    ) -> Result<PathBuf> {
+        let current_mutable = qualification.current_mutable_paths(install)?;
         let manifest = verified_manifest(install)?;
         let mut failures = Vec::new();
         if let Some(root) = &manifest.runtime_root {
@@ -678,6 +683,13 @@ impl Installer {
             if expected.contains(relative.as_str())
                 || manifest_path_is_mutable(&manifest, &relative)
             {
+                continue;
+            }
+            if current_mutable
+                .iter()
+                .any(|mutable| relative == *mutable || relative.starts_with(&format!("{mutable}/")))
+            {
+                refuse_symlink_path_within(&install.path, &candidate, "current mutable path")?;
                 continue;
             }
             let file_type = entry.file_type()?;
@@ -1774,7 +1786,9 @@ mod tests {
         ] {
             let candidate = root.join(name);
             fs::write(&candidate, b"unmanifested").unwrap();
-            let error = installer.verify_critical(&install).unwrap_err();
+            let error = installer
+                .verify_critical(&install, &qualification)
+                .unwrap_err();
             assert_eq!(error.code, crate::ErrorCode::Verification, "{name}");
             assert!(error.details["failures"].contains(name), "{name}");
             fs::remove_file(candidate).unwrap();
@@ -1783,7 +1797,7 @@ mod tests {
         fs::write(root.join("notes.txt"), b"benign untracked note").unwrap();
         fs::write(root.join("saves/engine.dll"), b"explicit mutable data").unwrap();
         assert_eq!(
-            installer.verify_critical(&install).unwrap(),
+            installer.verify_critical(&install, &qualification).unwrap(),
             root.join("game.exe")
         );
     }
@@ -1815,12 +1829,14 @@ mod tests {
         eprintln!("legacy companion manifest written; verifying trusted files");
 
         assert_eq!(
-            installer.verify_critical(&install).unwrap(),
+            installer.verify_critical(&install, &qualification).unwrap(),
             root.join("game.exe")
         );
         fs::write(root.join("helper.exe"), b"tampered helper").unwrap();
         eprintln!("companion changed; verifying tamper rejection");
-        let error = installer.verify_critical(&install).unwrap_err();
+        let error = installer
+            .verify_critical(&install, &qualification)
+            .unwrap_err();
         assert!(error.details["failures"].contains("changed: helper.exe"));
     }
 
@@ -1844,13 +1860,15 @@ mod tests {
 
         fs::remove_file(&executable).unwrap();
         symlink(&outside, &executable).unwrap();
-        assert!(installer.verify_critical(&install).is_err());
+        assert!(installer.verify_critical(&install, &qualification).is_err());
 
         fs::remove_file(&executable).unwrap();
         fs::write(&executable, b"trusted executable").unwrap();
         fs::set_permissions(&executable, fs::Permissions::from_mode(0o755)).unwrap();
         symlink(&outside, root.join("engine.so")).unwrap();
-        let error = installer.verify_critical(&install).unwrap_err();
+        let error = installer
+            .verify_critical(&install, &qualification)
+            .unwrap_err();
         assert!(error.details["failures"].contains("engine.so"));
     }
 
@@ -1932,7 +1950,10 @@ mod tests {
                 .unwrap()
                 .valid
         );
-        assert_eq!(installer.verify_critical(&install).unwrap(), executable);
+        assert_eq!(
+            installer.verify_critical(&install, &qualification).unwrap(),
+            executable
+        );
 
         set_mode(&executable, 0o644);
         let lost_execute = installer.verify_managed(&install, &qualification).unwrap();
@@ -1942,7 +1963,7 @@ mod tests {
                 .failures
                 .contains(&"permissions changed: run.sh".into())
         );
-        assert!(installer.verify_critical(&install).is_err());
+        assert!(installer.verify_critical(&install, &qualification).is_err());
 
         set_mode(&executable, 0o755);
         set_mode(&data, 0o755);
@@ -2011,7 +2032,7 @@ mod tests {
 
         assert_eq!(verified_manifest(&install).unwrap().schema_version, 4);
         assert!(installer.verify(&install).unwrap().valid);
-        assert!(installer.verify_critical(&install).is_ok());
+        assert!(installer.verify_critical(&install, &qualification).is_ok());
         installer
             .verify_import_contract(&install, &qualification)
             .unwrap();
@@ -2247,27 +2268,36 @@ mod tests {
         let (installer, install) = create_test_install(&root, &original);
         let mut current = original.clone();
         current.persistent_paths.push("preferences".into());
+        current.persistent_paths.push("disc.cfg".into());
+        current
+            .runtime_mutable_paths
+            .push("disc_verified.cfg".into());
+        fs::write(root.join("disc.cfg"), b"user disc preference").unwrap();
+        fs::write(root.join("disc_verified.cfg"), b"generated cache").unwrap();
         fs::create_dir(root.join("preferences")).unwrap();
         fs::write(root.join("preferences/settings.ini"), b"new preference").unwrap();
         assert!(installer.verify_managed(&install, &current).unwrap().valid);
+        assert!(installer.verify_critical(&install, &current).is_ok());
         installer
             .verify_import_contract(&install, &current)
             .unwrap();
         fs::write(root.join("unexpected.dll"), b"unreviewed file").unwrap();
         assert!(!installer.verify_managed(&install, &current).unwrap().valid);
+        assert!(installer.verify_critical(&install, &current).is_err());
         fs::remove_file(root.join("unexpected.dll")).unwrap();
         current.persistent_paths.push("engine.dll".into());
         fs::write(root.join("engine.dll"), b"changed engine").unwrap();
         let report = installer.verify_managed(&install, &current).unwrap();
         assert!(!report.valid);
         assert!(report.failures.contains(&"changed: engine.dll".into()));
+        assert!(installer.verify_critical(&install, &current).is_err());
         assert!(
             installer
                 .verify_import_contract(&install, &current)
                 .is_err()
         );
         fs::write(root.join("game.exe"), b"changed executable").unwrap();
-        assert!(installer.verify_critical(&install).is_err());
+        assert!(installer.verify_critical(&install, &current).is_err());
     }
 
     #[test]
@@ -2316,7 +2346,7 @@ mod tests {
                 .unwrap()
                 .valid
         );
-        assert!(installer.verify_critical(&install).is_err());
+        assert!(installer.verify_critical(&install, &qualification).is_err());
     }
 
     #[test]

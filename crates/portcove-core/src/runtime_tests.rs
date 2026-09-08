@@ -372,7 +372,15 @@ async fn named_saves_survive_reinstallation_without_weakening_executable_policy(
         b"changed executable",
     )
     .unwrap();
-    assert!(installer.verify_critical(&installed).is_err());
+    assert!(
+        installer
+            .verify_critical(
+                &installed,
+                &InstallQualification::from_port(&second.port, Platform::current().unwrap())
+                    .unwrap()
+            )
+            .is_err()
+    );
 }
 
 #[tokio::test]
@@ -450,7 +458,11 @@ async fn runtime_only_updates_stage_reuse_and_rollback_with_their_exact_bytes() 
     assert!(
         Installer::new(library.clone())
             .unwrap()
-            .verify_critical(&new)
+            .verify_critical(
+                &new,
+                &InstallQualification::from_port(&second.port, Platform::current().unwrap())
+                    .unwrap()
+            )
             .is_err()
     );
     fs::write(new.path.join("libs/game.jar"), b"synthetic game code").unwrap();
@@ -462,7 +474,11 @@ async fn runtime_only_updates_stage_reuse_and_rollback_with_their_exact_bytes() 
     assert!(
         Installer::new(library)
             .unwrap()
-            .verify_critical(&new)
+            .verify_critical(
+                &new,
+                &InstallQualification::from_port(&second.port, Platform::current().unwrap())
+                    .unwrap()
+            )
             .is_err()
     );
 }
