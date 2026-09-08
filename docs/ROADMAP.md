@@ -106,6 +106,39 @@ compatible submitted additions flow through the authorized path, and failures
 become isolated, deduplicated exceptions. This is an unproven operating target,
 not a new month-long V1 gate.
 
+## Planned local-first artwork
+
+Artwork should provide useful account-free defaults, explicit local choices and
+cached display that never delays installation or play. Existing owners
+[#208](https://github.com/boburning/portcove/issues/208) and
+[#206](https://github.com/boburning/portcove/issues/206) own the shared foundation
+and presentation within the flagship outcome. Start with recognizable covers,
+permitted defaults and generated fallbacks; optional wide imagery, a complete
+asset pipeline and artwork for every entry are not release gates.
+
+For each slot, prefer an explicit user choice, then a usable catalog default,
+then an automatic provider choice only when enabled, then generated fallback.
+Availability does not erase preference: catalog references cannot bypass provider
+setup, and refreshes or rankings cannot replace explicit selections. Shared Rust
+services own selection, sparse exact-port/original-game mappings, provenance,
+safe ingestion and cache policy; hosts own dialogs, secure credentials and display
+bridging. React presents that state. Public machine contracts must evolve
+compatibly without weakening strict catalog readers or depending on the broader
+game-centered discovery model.
+
+Durable choices, mapping corrections and library-owned local imports survive
+cache clearing and provider disconnection. Relocation and relevant backup/export
+contracts must preserve them explicitly, excluding credentials and any remote
+files without redistribution permission. Defaults need actual permission;
+attribution, public availability and local hashes are not rights evidence.
+
+[#527](https://github.com/boburning/portcove/issues/527) owns optional SteamGridDB
+access using a user-supplied credential, subject to verified application-use and
+retention conditions. Provider failure or unresolved access affects only that
+scope, never foundational artwork, compatible catalog delivery or V1. Steam
+entry management remains separate under #292. These are future requirements,
+not implemented artwork support or an activated provider.
+
 ## Finite V1 outcome contract
 
 The cumulative V1 finish line has seven outcomes. Canonical issues own their
