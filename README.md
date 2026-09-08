@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="#project-status">Project status</a> ·
-  <a href="#technical-alpha-downloads">Downloads</a> ·
+  <a href="https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.2">Download Alpha 2</a> ·
   <a href="#build-from-source">Build from source</a> ·
   <a href="docs/README.md">Documentation</a> ·
   <a href="https://github.com/users/boburning/projects/1">Roadmap</a>
@@ -41,11 +41,15 @@ Portcove keeps its library, source references, and application state local. A Gi
 ## Project status
 
 > [!WARNING]
-> **In development: Alpha 2 — onboarding and storage**
+> **Latest technical preview: Alpha 2 — onboarding and storage**
 >
 > Portcove is under active development. It is intended for maintainers and technically comfortable testers using disposable or fully backed-up libraries—not general users or irreplaceable setups.
 
-Alpha 1 is released. Alpha 2 development focuses on first-play source onboarding and storage controls. The published Alpha 1 packages and their frozen evidence remain available below; this development branch does not establish Alpha 2 implementation or qualification readiness.
+[Portcove 0.1.0-alpha.2](https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.2)
+is released as an immutable prerelease. It adds first-play source onboarding,
+safe Copy and authorized Move intake, shared tool setup, library and per-game
+storage controls, recoverable relocation, and the documented Alpha 1 upgrade
+path. Alpha 1 remains available with its frozen release evidence.
 
 A port appearing in the catalog does **not** mean every platform has completed hands-on testing. Upstream availability, automated checks, and Portcove's own manual testing are tracked separately for each port and platform.
 
@@ -53,16 +57,17 @@ Current priorities and blockers live in the public [Portcove Roadmap](https://gi
 
 ## Technical alpha downloads
 
-[GitHub Releases](https://github.com/boburning/portcove/releases) is the download
-route for packaged technical previews as they become available. Check the
-prerelease entry and its notes; source builds remain available below.
+[Portcove 0.1.0-alpha.2](https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.2)
+is the current packaged technical preview. GitHub does not place prereleases in
+the repository's **Latest release** slot, so use this versioned link or the full
+[GitHub Releases](https://github.com/boburning/portcove/releases) index.
 
 | System | Desktop package | Separate CLI archive |
 |---|---|---|
-| Windows x64 | `Portcove_<version>_x64-setup.exe` | `portcove-windows-x86_64.zip` |
-| Linux x64 (experimental) | AppImage, `.deb`, or `.rpm` | `portcove-linux-x86_64.tar.gz` |
-| macOS Intel (experimental) | `Portcove_<version>_x64.dmg` | `portcove-macos-x86_64.tar.gz` |
-| macOS Apple silicon (experimental) | `Portcove_<version>_aarch64.dmg` | `portcove-macos-aarch64.tar.gz` |
+| Windows x64 | `Portcove_0.1.0-alpha.2_x64-setup.exe` | `portcove-windows-x86_64.zip` |
+| Linux x64 (experimental) | `Portcove_0.1.0-alpha.2_amd64.AppImage`, `Portcove_0.1.0-alpha.2_amd64.deb`, or `Portcove-0.1.0-alpha.2-1.x86_64.rpm` | `portcove-linux-x86_64.tar.gz` |
+| macOS Intel (experimental) | `Portcove_0.1.0-alpha.2_x64.dmg` | `portcove-macos-x86_64.tar.gz` |
+| macOS Apple silicon (experimental) | `Portcove_0.1.0-alpha.2_aarch64.dmg` | `portcove-macos-aarch64.tar.gz` |
 
 Use the package for your operating system and architecture. GitHub's **Source
 code** archives are not runnable desktop or CLI packages. Verify the downloaded
@@ -71,7 +76,9 @@ Windows packages lack Authenticode signing; macOS packages lack Developer ID
 signing/notarization. Linux and macOS have hosted build/test evidence, but not
 equivalent hands-on desktop package qualification. Application upgrades are
 manual. Read the [Alpha 1 notes](docs/releases/0.1.0-alpha.1-release-notes.md)
-for setup, checksum examples, recovery scope, and known limitations.
+before upgrading an existing library, and read the
+[Alpha 2 notes](docs/releases/0.1.0-alpha.2-release-notes.md) for the current
+package scope, checksum guidance, and known limitations.
 
 ## Catalog and support
 

@@ -141,10 +141,11 @@ status checklist.
    observations; #246 owns the combined observation-to-client proof. Broad
    discovery in #177 remains outside this finite outcome.
 
-The sequence remains Alpha 2 onboarding/storage outcomes; Alpha 3 bounded
-integration and scale; Beta 1 required V1 capabilities and feature completeness;
-Beta 2 qualification; RC exact artifacts and rehearsal; and V1 the cumulative
-support contract. Tests influence development before qualification. If feature
+Alpha 2's onboarding and storage outcomes are released. The sequence continues
+with Alpha 3 bounded integration and scale; Beta 1 required V1 capabilities and
+feature completeness; Beta 2 qualification; RC exact artifacts and rehearsal;
+and V1 the cumulative support contract. Tests influence development before
+qualification. If feature
 development paused after V1, users could still set up, play, update, preserve
 progress, and recover while compatible routine catalog changes kept flowing.
 
@@ -177,23 +178,20 @@ identity and support results, with full actual/expected hashes accessible beneat
 them. Identified, unchanged, upstream-supported, admitted, and physically
 qualified remain independent; presentation must not tighten source admission.
 
-The existing source/storage issues share this scenario through
-[#15](https://github.com/boburning/portcove/issues/15). A narrowly qualified,
-clearly labeled packaged technical preview can exercise it outside a development
-checkout once applicable trust gates permit, using disposable or fully backed-up
-libraries. Preview planning can precede implementation readiness, but packaging
-requires a reviewed integrated-commit implementation and trust checkpoint for
-the required onboarding outcomes. Packaged first-play qualification in
-[#242](https://github.com/boburning/portcove/issues/242) then supplies evidence
-for those outcomes and final Alpha 2 closure; it must not depend on closing the
-workstream or outcome issues that still require that same preview evidence.
-It need not wait for universal coverage. Finding additional games
+The source/storage issues shared this scenario through
+[#15](https://github.com/boburning/portcove/issues/15). The released, narrowly
+qualified packaged technical preview exercises it outside a development
+checkout with disposable or fully backed-up libraries. Its reviewed integrated
+implementation, trust checkpoint, and packaged first-play qualification are
+recorded in [#242](https://github.com/boburning/portcove/issues/242), which
+supplied the evidence for the required outcomes and final Alpha 2 closure.
+Alpha 2 did not require universal coverage. Finding additional games
 compatible with already-selected files is an optional follow-on: discovery is
 opt-in and bounded, registration is explicit, and source compatibility alone
 does not establish full installation/platform readiness.
 
-Start #245 design alongside the remaining Alpha 2 qualification and continue
-compatible catalog work. Independent delivery, freshness and preparation-boundary
+With Alpha 2 qualification complete, start #245 design and continue compatible
+catalog work. Independent delivery, freshness and preparation-boundary
 migration add no Alpha 2 prerequisite and do not alter the exact package handoff.
 
 ## Alpha 3 — Integration and scale alpha
