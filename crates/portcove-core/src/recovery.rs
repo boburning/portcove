@@ -368,6 +368,13 @@ pub(crate) fn recover_activation(
             service.collect_active_user_data_if_launched(&operation.port_id)?;
             service
                 .restore_user_data_to(service.catalog().port(&operation.port_id)?, &install.path)?;
+            Installer::new(service.library.clone())?.verify_critical(
+                &install,
+                &crate::InstallQualification::from_port(
+                    service.catalog().port(&operation.port_id)?,
+                    crate::Platform::current()?,
+                )?,
+            )?;
             service.library.activate_staged(&operation.port_id)?;
         }
         operation.phase = LifecyclePhase::MetadataCommitted;

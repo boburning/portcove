@@ -615,9 +615,6 @@ impl Installer {
             if relative == ".portcove-manifest.json"
                 || relative == ".portcove-launched"
                 || generated_metadata.contains(&relative)
-                || current_mutable_paths.iter().any(|mutable| {
-                    relative == *mutable || relative.starts_with(&format!("{mutable}/"))
-                })
                 || manifest
                     .mutable_file_patterns
                     .iter()
@@ -626,6 +623,17 @@ impl Installer {
                     relative == *mutable || relative.starts_with(&format!("{mutable}/"))
                 })
             {
+                continue;
+            }
+            if current_mutable_paths
+                .iter()
+                .any(|mutable| relative == *mutable || relative.starts_with(&format!("{mutable}/")))
+            {
+                let executable = install.path.join(&manifest.selected_executable);
+                let platform = manifest.platform.unwrap_or(Platform::current()?);
+                if is_critical_companion(&candidate, &executable, platform)? {
+                    failures.push(format!("unexpected launch-sensitive file: {relative}"));
+                }
                 continue;
             }
             if !expected.contains(relative.as_str()) {
@@ -690,6 +698,11 @@ impl Installer {
                 .any(|mutable| relative == *mutable || relative.starts_with(&format!("{mutable}/")))
             {
                 refuse_symlink_path_within(&install.path, &candidate, "current mutable path")?;
+                let file_type = entry.file_type()?;
+                if file_type.is_file() && is_critical_companion(&candidate, &executable, platform)?
+                {
+                    failures.push(format!("unexpected launch-sensitive file: {relative}"));
+                }
                 continue;
             }
             let file_type = entry.file_type()?;
@@ -2268,12 +2281,12 @@ mod tests {
         let (installer, install) = create_test_install(&root, &original);
         let mut current = original.clone();
         current.persistent_paths.push("preferences".into());
-        current.persistent_paths.push("disc.cfg".into());
+        current.persistent_paths.push("state.json".into());
         current
             .runtime_mutable_paths
-            .push("disc_verified.cfg".into());
-        fs::write(root.join("disc.cfg"), b"user disc preference").unwrap();
-        fs::write(root.join("disc_verified.cfg"), b"generated cache").unwrap();
+            .push("disc_verified.json".into());
+        fs::write(root.join("state.json"), b"user state").unwrap();
+        fs::write(root.join("disc_verified.json"), b"generated cache").unwrap();
         fs::create_dir(root.join("preferences")).unwrap();
         fs::write(root.join("preferences/settings.ini"), b"new preference").unwrap();
         assert!(installer.verify_managed(&install, &current).unwrap().valid);
@@ -2285,6 +2298,17 @@ mod tests {
         assert!(!installer.verify_managed(&install, &current).unwrap().valid);
         assert!(installer.verify_critical(&install, &current).is_err());
         fs::remove_file(root.join("unexpected.dll")).unwrap();
+        current.persistent_paths.push("late.dll".into());
+        fs::write(root.join("late.dll"), b"unmanifested engine").unwrap();
+        let report = installer.verify_managed(&install, &current).unwrap();
+        assert!(!report.valid);
+        assert!(
+            report
+                .failures
+                .contains(&"unexpected launch-sensitive file: late.dll".into())
+        );
+        assert!(installer.verify_critical(&install, &current).is_err());
+        fs::remove_file(root.join("late.dll")).unwrap();
         current.persistent_paths.push("engine.dll".into());
         fs::write(root.join("engine.dll"), b"changed engine").unwrap();
         let report = installer.verify_managed(&install, &current).unwrap();
