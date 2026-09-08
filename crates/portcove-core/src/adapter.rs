@@ -30,6 +30,7 @@ pub struct LaunchSpecRequest<'a> {
     pub install_root: &'a Path,
     pub selected_executable: &'a Path,
     pub source: Option<&'a Path>,
+    pub source_record: Option<&'a SourceRecord>,
 }
 
 pub trait Adapter: Send + Sync {
@@ -111,6 +112,12 @@ impl Adapter for StandardAdapter {
         source: Option<&Path>,
     ) -> Result<LaunchSpec> {
         let executable = self.find_executable(port, platform, install_root)?;
+        let source_record = match (port.source_profile.as_deref(), source) {
+            (Some(profile_id), Some(source)) => library
+                .source(profile_id)?
+                .filter(|record| record.path == source),
+            _ => None,
+        };
         self.launch_spec_with_executable(
             LaunchSpecRequest {
                 library,
@@ -119,6 +126,7 @@ impl Adapter for StandardAdapter {
                 install_root,
                 selected_executable: &executable,
                 source,
+                source_record: source_record.as_ref(),
             },
             &|| Ok(()),
         )
@@ -136,6 +144,7 @@ impl Adapter for StandardAdapter {
             install_root,
             selected_executable,
             source,
+            source_record,
         } = request;
         checkpoint()?;
         if !selected_executable.starts_with(install_root) || !selected_executable.is_file() {
@@ -268,20 +277,78 @@ impl Adapter for StandardAdapter {
                 checkpoint()?;
             }
         }
-        let has_generated_archive = std::fs::read_dir(&user_data)
-            .into_iter()
-            .flatten()
-            .filter_map(std::result::Result::ok)
-            .any(|entry| {
-                entry
-                    .path()
+        let generated_archive_paths = port
+            .persistent_paths
+            .iter()
+            .filter(|path| {
+                Path::new(path)
                     .extension()
                     .and_then(|extension| extension.to_str())
                     .is_some_and(|extension| {
                         extension.eq_ignore_ascii_case("o2r")
                             || extension.eq_ignore_ascii_case("otr")
                     })
-            });
+            })
+            .collect::<Vec<_>>();
+        let has_generated_archive = if generated_archive_paths.is_empty() {
+            std::fs::read_dir(&user_data)
+                .into_iter()
+                .flatten()
+                .filter_map(std::result::Result::ok)
+                .any(|entry| {
+                    entry
+                        .path()
+                        .extension()
+                        .and_then(|extension| extension.to_str())
+                        .is_some_and(|extension| {
+                            extension.eq_ignore_ascii_case("o2r")
+                                || extension.eq_ignore_ascii_case("otr")
+                        })
+                })
+        } else {
+            generated_archive_paths.iter().any(|relative| {
+                [&user_data, &working_directory]
+                    .into_iter()
+                    .any(|directory| directory.join(relative).is_file())
+            })
+        };
+        let libultraship_source_argument = if self.0 == AdapterKind::LibultrashipPortable
+            && port.runtime_source_filename.is_none()
+            && !has_generated_archive
+        {
+            source
+                .map(|source| -> Result<PathBuf> {
+                    if !source
+                        .extension()
+                        .and_then(|extension| extension.to_str())
+                        .is_some_and(|extension| extension.eq_ignore_ascii_case("zip"))
+                    {
+                        return Ok(source.to_path_buf());
+                    }
+                    let materialized = library
+                        .runtime_sources_dir()
+                        .join(&port.id)
+                        .join("portcove-launch-source.z64");
+                    let admitted = source_record.ok_or_else(|| {
+                        PortcoveError::state(
+                            "archived Libultraship launch requires its admitted source identity",
+                        )
+                    })?;
+                    prepare_transient_n64_launch_source(
+                        source,
+                        admitted,
+                        &materialized,
+                        checkpoint,
+                    )?;
+                    Ok(materialized)
+                })
+                .transpose()?
+        } else {
+            None
+        };
+        if self.0 == AdapterKind::LibultrashipPortable && has_generated_archive {
+            cleanup_transient_n64_launch_sources(&library.runtime_sources_dir().join(&port.id))?;
+        }
         let adapter_arguments = match self.0 {
             AdapterKind::ReferencedDisc => match source {
                 Some(path) => vec![
@@ -295,7 +362,7 @@ impl Adapter for StandardAdapter {
             AdapterKind::LibultrashipPortable
                 if port.runtime_source_filename.is_none() && !has_generated_archive =>
             {
-                match source {
+                match libultraship_source_argument.as_deref() {
                     Some(path) => vec![crate::path::unicode(path, "source")?],
                     None => Vec::new(),
                 }
@@ -375,6 +442,104 @@ fn prepare_runtime_source(
     checkpoint()?;
     verify_runtime_source_hashes(destination, required_hashes, checkpoint)?;
     atomic_write_json(&marker_path, &expected)
+}
+
+fn prepare_transient_n64_launch_source(
+    source: &Path,
+    admitted: &SourceRecord,
+    destination: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    if admitted.path != source {
+        return Err(PortcoveError::verification(
+            "transient runtime source does not match its admitted source record",
+        ));
+    }
+    let parent = destination.parent().ok_or_else(|| {
+        PortcoveError::state("transient runtime source destination has no parent directory")
+    })?;
+    crate::path::refuse_symlink_ancestors(parent)?;
+    std::fs::create_dir_all(parent)?;
+    crate::path::refuse_symlink_ancestors(parent)?;
+    cleanup_transient_n64_launch_sources(parent)?;
+    std::fs::create_dir_all(parent)?;
+    let temporary = parent.join(format!(".portcove-launch-source-{}", Uuid::new_v4()));
+    let prepared = prepare_n64_source(source, &temporary)
+        .and_then(|()| checkpoint())
+        .and_then(|()| {
+            let (actual_sha256, actual_size) = hash_file_with_checkpoint(&temporary, checkpoint)?;
+            if !actual_sha256.eq_ignore_ascii_case(&admitted.sha256) || actual_size != admitted.size
+            {
+                return Err(PortcoveError::verification(
+                    "materialized runtime source does not match its admitted identity",
+                )
+                .detail("expected_sha256", &admitted.sha256)
+                .detail("actual_sha256", actual_sha256)
+                .detail("expected_size", admitted.size.to_string())
+                .detail("actual_size", actual_size.to_string()));
+            }
+            Ok(())
+        });
+    if let Err(error) = prepared {
+        let _ = std::fs::remove_file(&temporary);
+        return Err(error);
+    }
+    if let Err(error) = crate::durability::rename_noreplace(&temporary, destination) {
+        let _ = std::fs::remove_file(&temporary);
+        return Err(error);
+    }
+    Ok(())
+}
+
+fn cleanup_transient_n64_launch_sources(directory: &Path) -> Result<()> {
+    crate::path::refuse_symlink_ancestors(directory)?;
+    let metadata = match std::fs::symlink_metadata(directory) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(error.into()),
+    };
+    if !metadata.is_dir() || metadata.file_type().is_symlink() {
+        return Err(PortcoveError::conflict(
+            "transient runtime source root is not an owned directory",
+        )
+        .detail("directory", directory.display().to_string()));
+    }
+    let mut count = 0_usize;
+    for entry in std::fs::read_dir(directory)? {
+        count += 1;
+        if count > 4096 {
+            return Err(PortcoveError::state(
+                "transient runtime source cleanup exceeded its entry limit",
+            ));
+        }
+        let entry = entry?;
+        let name = entry.file_name();
+        let name = name.to_str().ok_or_else(|| {
+            PortcoveError::unsupported(
+                "transient runtime source cleanup requires Unicode filenames",
+            )
+        })?;
+        let owned = name == "portcove-launch-source.z64"
+            || name
+                .strip_prefix(".portcove-launch-source-")
+                .is_some_and(|suffix| Uuid::parse_str(suffix).is_ok())
+            || name
+                .strip_prefix("portcove-launch-source.backup-")
+                .is_some_and(|suffix| Uuid::parse_str(suffix).is_ok());
+        let file_type = entry.file_type()?;
+        if !owned || !file_type.is_file() || file_type.is_symlink() {
+            return Err(PortcoveError::conflict(
+                "transient runtime source root contains an unowned entry",
+            )
+            .detail("entry", entry.path().display().to_string()));
+        }
+        std::fs::remove_file(entry.path())?;
+    }
+    match std::fs::remove_dir(directory) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error.into()),
+    }
 }
 
 fn runtime_source_marker(
@@ -2531,7 +2696,9 @@ mod tests {
         std::fs::create_dir_all(&install).unwrap();
         std::fs::write(install.join("Lighthouse.exe"), b"test").unwrap();
         let source = temporary.path().join("banjo.z64");
-        std::fs::write(&source, b"source").unwrap();
+        let rom = [0x80, 0x37, 0x12, 0x40, 1, 2, 3, 4];
+        std::fs::write(&source, rom).unwrap();
+        std::fs::write(install.join("lighthouse.o2r"), b"bundled assets").unwrap();
         let catalog = Catalog::embedded().unwrap();
         let port = catalog.port("lighthouse").unwrap();
 
@@ -2546,12 +2713,115 @@ mod tests {
             )
             .unwrap();
 
-        assert_eq!(spec.arguments, vec![source.to_string_lossy()]);
         let expected_ship_home = library
             .user_dir("lighthouse")
             .to_string_lossy()
             .into_owned();
         assert_eq!(spec.environment.get("SHIP_HOME"), Some(&expected_ship_home));
+        assert_eq!(spec.arguments, vec![source.to_string_lossy()]);
+
+        // The service restores persistent data into the runtime directory before
+        // the adapter prepares a launch, so the generated archive can be here.
+        std::fs::write(install.join("bk.o2r"), b"archive").unwrap();
+        let next_spec = AdapterRegistry
+            .get(AdapterKind::LibultrashipPortable)
+            .launch_spec(
+                &library,
+                port,
+                Platform::WindowsX86_64,
+                &install,
+                Some(&source),
+            )
+            .unwrap();
+        assert!(next_spec.arguments.is_empty());
+    }
+
+    #[test]
+    fn libultraship_materializes_an_archived_source_before_first_launch() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = temporary.path().join("install");
+        std::fs::create_dir_all(&install).unwrap();
+        std::fs::write(install.join("Lighthouse.exe"), b"test").unwrap();
+        let source = temporary.path().join("banjo.zip");
+        let rom = [0x80, 0x37, 0x12, 0x40, 1, 2, 3, 4];
+        let file = File::create(&source).unwrap();
+        let mut archive = zip::ZipWriter::new(file);
+        archive
+            .start_file(
+                "Banjo-Kazooie (USA).z64",
+                zip::write::SimpleFileOptions::default(),
+            )
+            .unwrap();
+        archive.write_all(&rom).unwrap();
+        archive.finish().unwrap();
+        let source_before = std::fs::read(&source).unwrap();
+        let (storage_sha256, storage_size) = hash_file(&source).unwrap();
+        let source_record = SourceRecord {
+            profile_id: "banjo-kazooie".into(),
+            path: source.clone(),
+            sha256: hex::encode(Sha256::digest(rom)),
+            size: rom.len() as u64,
+            storage_sha256,
+            storage_size,
+            updated_at: 1,
+            observed_identity: None,
+        };
+        library.register_source(&source_record).unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("lighthouse").unwrap();
+        let user_collision = library
+            .user_dir("lighthouse")
+            .join("portcove-launch-source.z64");
+        let user_marker_collision = runtime_source_marker_path(&user_collision).unwrap();
+        std::fs::create_dir_all(library.user_dir("lighthouse")).unwrap();
+        std::fs::write(&user_collision, b"user bytes").unwrap();
+        std::fs::write(&user_marker_collision, b"user marker").unwrap();
+
+        let spec = AdapterRegistry
+            .get(AdapterKind::LibultrashipPortable)
+            .launch_spec(
+                &library,
+                port,
+                Platform::WindowsX86_64,
+                &install,
+                Some(&source),
+            )
+            .unwrap();
+
+        let materialized = library
+            .runtime_sources_dir()
+            .join("lighthouse")
+            .join("portcove-launch-source.z64");
+        assert_eq!(spec.arguments, vec![materialized.to_string_lossy()]);
+        assert_eq!(std::fs::read(&materialized).unwrap(), rom);
+        assert_eq!(std::fs::read(&source).unwrap(), source_before);
+        assert_eq!(std::fs::read(&user_collision).unwrap(), b"user bytes");
+        assert_eq!(
+            std::fs::read(&user_marker_collision).unwrap(),
+            b"user marker"
+        );
+
+        std::fs::write(&materialized, b"tampered cache").unwrap();
+        let stale = materialized
+            .parent()
+            .unwrap()
+            .join(format!(".portcove-launch-source-{}", Uuid::new_v4()));
+        std::fs::write(&stale, b"interrupted temporary").unwrap();
+        let retried_spec = AdapterRegistry
+            .get(AdapterKind::LibultrashipPortable)
+            .launch_spec(
+                &library,
+                port,
+                Platform::WindowsX86_64,
+                &install,
+                Some(&source),
+            )
+            .unwrap();
+        assert_eq!(retried_spec.arguments, vec![materialized.to_string_lossy()]);
+        assert_eq!(std::fs::read(&materialized).unwrap(), rom);
+        assert!(!stale.exists());
+        assert_eq!(std::fs::read(&source).unwrap(), source_before);
 
         std::fs::write(library.user_dir("lighthouse").join("bk.o2r"), b"archive").unwrap();
         let next_spec = AdapterRegistry
@@ -2565,6 +2835,62 @@ mod tests {
             )
             .unwrap();
         assert!(next_spec.arguments.is_empty());
+        assert!(!materialized.exists());
+        assert!(!materialized.parent().unwrap().exists());
+        assert_eq!(std::fs::read(&source).unwrap(), source_before);
+        assert_eq!(std::fs::read(user_collision).unwrap(), b"user bytes");
+        assert_eq!(
+            std::fs::read(user_marker_collision).unwrap(),
+            b"user marker"
+        );
+    }
+
+    #[test]
+    fn transient_n64_launch_rejects_bytes_outside_the_admitted_identity() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("banjo.zip");
+        let admitted_rom = [0x80, 0x37, 0x12, 0x40, 1, 2, 3, 4];
+        let replacement_rom = [0x80, 0x37, 0x12, 0x40, 5, 6, 7, 8];
+        let write_source = |rom: &[u8]| {
+            let file = File::create(&source).unwrap();
+            let mut archive = zip::ZipWriter::new(file);
+            archive
+                .start_file(
+                    "Banjo-Kazooie (USA).z64",
+                    zip::write::SimpleFileOptions::default(),
+                )
+                .unwrap();
+            archive.write_all(rom).unwrap();
+            archive.finish().unwrap();
+        };
+        write_source(&admitted_rom);
+        let admitted_storage = std::fs::read(&source).unwrap();
+        let (storage_sha256, storage_size) = hash_file(&source).unwrap();
+        let admitted = SourceRecord {
+            profile_id: "banjo-kazooie".into(),
+            path: source.clone(),
+            sha256: hex::encode(Sha256::digest(admitted_rom)),
+            size: admitted_rom.len() as u64,
+            storage_sha256,
+            storage_size,
+            updated_at: 1,
+            observed_identity: None,
+        };
+        write_source(&replacement_rom);
+        let destination = temporary
+            .path()
+            .join("library/runtime-sources/lighthouse/portcove-launch-source.z64");
+
+        let error = prepare_transient_n64_launch_source(&source, &admitted, &destination, &|| {
+            std::fs::write(&source, &admitted_storage)?;
+            Ok(())
+        })
+        .unwrap_err();
+
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert!(error.message.contains("admitted identity"));
+        assert_eq!(std::fs::read(&source).unwrap(), admitted_storage);
+        assert!(!destination.exists());
     }
 
     #[test]

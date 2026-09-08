@@ -129,8 +129,25 @@ library/
   source-inbox/<profile-id>/
   downloads/
   toolchains/
+  runtime-sources/<port-id>/
   logs/
 ```
+
+`runtime-sources` is a lazy, core-owned, rebuildable cache for source bytes that
+an upstream process needs only while creating its own persistent runtime data.
+It is outside authoritative `user` data. Before an archive-backed Libultraship
+first launch, core removes only its exact fixed or UUID-named cache files,
+normalizes into a private temporary file, verifies the result against the
+admitted source SHA-256 and size, and publishes it with an atomic no-replace
+rename. A restart removes an interrupted temporary; recognition of the
+catalog-declared generated archive removes the cached ROM. Unknown entries,
+links, and non-files fail closed.
+
+The cache is excluded from library metadata content roots, backup content,
+library import, and library move. A destination library rebuilds it from its
+still-registered source when required. The retained source directory from a
+library move may keep an old cache until that retained directory is removed by
+the owner; it is never treated as user data or recovery evidence.
 
 SQLite stores source references, settings, install records, active/previous version pointers, successful launch history, timestamped successful update-check snapshots, a typed activity ledger, durable launch requests, and the small set of incomplete cross-store lifecycle operations. An install record keeps its human-readable display version separately from the asset name, verified asset SHA-256 and size, manifest SHA-256, selected executable, and exact concrete path. Database opening takes a library-scoped operating-system migration lock before checking or changing the schema. Migrations are contiguous, individually transactional, postcondition-checked steps; a gap, a recorded partial step, or a schema newer than the running build fails with the affected versions instead of guessing. WAL and the busy timeout remain ordinary concurrency aids, not migration locks. Schema-8 migration leaves pre-identity installs explicitly unqualified rather than inventing provenance; they fail current-integrity gates until replaced or re-adopted. Schema 9 introduced active launch sessions. Schema 13 evolves them into retained request records with exact supervisor/child process-start identities, active phase, terminal outcome, child exit code, explanation, and timestamps; migrated sessions without start identity remain blocked for manual review rather than trusting a PID. Schema 14 adds an optional normalized absolute output directory to each port's settings. Core resolves a request override, then that saved setting, then the existing `versions/<port-id>` default. This preference controls future placement only; current installs, central user data, backups, sources, and shared tools keep their recorded locations. Schema 15 assigns the movable library a stable identity and records every claimed external game-output root with its port, marker identity, and filesystem-volume identity. The root marker and SQLite record must agree before core stages or publishes there. External installation preparation lives under that root's private `.staging` directory so verified publication remains a same-filesystem rename; missing or replaced volumes fail instead of falling back to the library drive.
 

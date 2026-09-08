@@ -356,6 +356,9 @@ impl Library {
     pub fn toolchains_dir(&self) -> PathBuf {
         self.root.join("toolchains")
     }
+    pub(crate) fn runtime_sources_dir(&self) -> PathBuf {
+        self.root.join("runtime-sources")
+    }
     pub fn user_dir(&self, port_id: &str) -> PathBuf {
         self.root.join("user").join(port_id)
     }
