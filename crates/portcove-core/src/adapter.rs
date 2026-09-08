@@ -316,14 +316,11 @@ impl Adapter for StandardAdapter {
                     {
                         return Ok(source.to_path_buf());
                     }
-                    let materialized = user_data.join("portcove-launch-source.z64");
-                    prepare_runtime_source(
-                        source,
-                        &materialized,
-                        RuntimeSourceMaterialization::N64BigEndian,
-                        &BTreeMap::new(),
-                        checkpoint,
-                    )?;
+                    let materialized = library
+                        .runtime_sources_dir()
+                        .join(&port.id)
+                        .join("portcove-launch-source.z64");
+                    prepare_transient_n64_launch_source(source, &materialized, checkpoint)?;
                     Ok(materialized)
                 })
                 .transpose()?
@@ -428,6 +425,33 @@ fn prepare_runtime_source(
     checkpoint()?;
     verify_runtime_source_hashes(destination, required_hashes, checkpoint)?;
     atomic_write_json(&marker_path, &expected)
+}
+
+fn prepare_transient_n64_launch_source(
+    source: &Path,
+    destination: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    let parent = destination.parent().ok_or_else(|| {
+        PortcoveError::state("transient runtime source destination has no parent directory")
+    })?;
+    crate::path::refuse_symlink_ancestors(parent)?;
+    std::fs::create_dir_all(parent)?;
+    crate::path::refuse_symlink_ancestors(parent)?;
+    if let Ok(metadata) = std::fs::symlink_metadata(destination)
+        && (!metadata.is_file() || metadata.file_type().is_symlink())
+    {
+        return Err(PortcoveError::conflict(
+            "transient runtime source destination is not an owned regular file",
+        )
+        .detail("destination", destination.display().to_string()));
+    }
+    let temporary = parent.join(format!(".portcove-launch-source-{}", Uuid::new_v4()));
+    if let Err(error) = prepare_n64_source(source, &temporary).and_then(|()| checkpoint()) {
+        let _ = std::fs::remove_file(&temporary);
+        return Err(error);
+    }
+    replace_atomic(&temporary, destination)
 }
 
 fn runtime_source_marker(
@@ -2617,6 +2641,13 @@ mod tests {
         let source_before = std::fs::read(&source).unwrap();
         let catalog = Catalog::embedded().unwrap();
         let port = catalog.port("lighthouse").unwrap();
+        let user_collision = library
+            .user_dir("lighthouse")
+            .join("portcove-launch-source.z64");
+        let user_marker_collision = runtime_source_marker_path(&user_collision).unwrap();
+        std::fs::create_dir_all(library.user_dir("lighthouse")).unwrap();
+        std::fs::write(&user_collision, b"user bytes").unwrap();
+        std::fs::write(&user_marker_collision, b"user marker").unwrap();
 
         let spec = AdapterRegistry
             .get(AdapterKind::LibultrashipPortable)
@@ -2630,12 +2661,32 @@ mod tests {
             .unwrap();
 
         let materialized = library
-            .user_dir("lighthouse")
+            .runtime_sources_dir()
+            .join("lighthouse")
             .join("portcove-launch-source.z64");
         assert_eq!(spec.arguments, vec![materialized.to_string_lossy()]);
         assert_eq!(std::fs::read(&materialized).unwrap(), rom);
         assert_eq!(std::fs::read(&source).unwrap(), source_before);
-        assert!(runtime_source_marker_path(&materialized).unwrap().is_file());
+        assert_eq!(std::fs::read(&user_collision).unwrap(), b"user bytes");
+        assert_eq!(
+            std::fs::read(&user_marker_collision).unwrap(),
+            b"user marker"
+        );
+
+        std::fs::write(&materialized, b"tampered cache").unwrap();
+        let retried_spec = AdapterRegistry
+            .get(AdapterKind::LibultrashipPortable)
+            .launch_spec(
+                &library,
+                port,
+                Platform::WindowsX86_64,
+                &install,
+                Some(&source),
+            )
+            .unwrap();
+        assert_eq!(retried_spec.arguments, vec![materialized.to_string_lossy()]);
+        assert_eq!(std::fs::read(&materialized).unwrap(), rom);
+        assert_eq!(std::fs::read(&source).unwrap(), source_before);
 
         std::fs::write(library.user_dir("lighthouse").join("bk.o2r"), b"archive").unwrap();
         let next_spec = AdapterRegistry
@@ -2650,6 +2701,11 @@ mod tests {
             .unwrap();
         assert!(next_spec.arguments.is_empty());
         assert_eq!(std::fs::read(&source).unwrap(), source_before);
+        assert_eq!(std::fs::read(user_collision).unwrap(), b"user bytes");
+        assert_eq!(
+            std::fs::read(user_marker_collision).unwrap(),
+            b"user marker"
+        );
     }
 
     #[test]
