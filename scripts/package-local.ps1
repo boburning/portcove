@@ -46,10 +46,14 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "CLI release build failed with exit code $LASTEXITCODE" }
 
     $installerName = "Portcove_${Version}_x64-setup.exe"
-    $cliName = "portcove-${Version}-windows-x86_64.exe"
     $sourceName = "portcove-${Version}-source.zip"
     Copy-Item -LiteralPath (Join-Path $targetRoot "release\bundle\nsis\$installerName") -Destination (Join-Path $outputRoot $installerName) -Force
-    Copy-Item -LiteralPath (Join-Path $targetRoot "release\portcove.exe") -Destination (Join-Path $outputRoot $cliName) -Force
+    $packagedCli = (& (Join-Path $PSScriptRoot "package-cli.ps1") -PlatformLabel windows-x86_64 -ProjectRoot $projectRoot -TargetRoot $targetRoot -Force | Select-Object -Last 1).Trim()
+    $cliName = [System.IO.Path]::GetFileName($packagedCli)
+    $cliArchive = Join-Path $outputRoot $cliName
+    Move-Item -LiteralPath $packagedCli -Destination $cliArchive -Force
+    & (Join-Path $PSScriptRoot "smoke-test-cli-archive.ps1") -ArchivePath $cliArchive -PlatformLabel windows-x86_64 -Version $Version
+    if ($LASTEXITCODE -ne 0) { throw "Packaged CLI smoke test failed with exit code $LASTEXITCODE" }
 
     $temporaryArchive = Join-Path $outputRoot "portcove-${Version}-source.next.zip"
     $sourceArchive = Join-Path $outputRoot $sourceName
@@ -81,7 +85,7 @@ try {
 
     $artifacts = @(
         (Join-Path $outputRoot $installerName),
-        (Join-Path $outputRoot $cliName),
+        $cliArchive,
         $sourceArchive
     )
     $hashes = Get-FileHash -Algorithm SHA256 $artifacts

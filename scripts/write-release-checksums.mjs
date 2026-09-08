@@ -4,15 +4,25 @@ import { copyFile, mkdir, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  artifactName,
+  assertExactArtifactNames,
+  loadPackagePolicy,
+  packagesForPlatform,
+  workspaceVersion,
+} from "./release-package-policy.mjs";
+import { assertOwnedUnlinkedPath } from "./release-path-safety.mjs";
+
 const scriptPath = fileURLToPath(import.meta.url);
 const defaultProjectRoot = path.resolve(path.dirname(scriptPath), "..");
-const packageExtensions = new Set([".appimage", ".deb", ".dmg", ".exe", ".msi", ".pkg", ".rpm"]);
+const desktopPackageExtensions = new Set([".appimage", ".deb", ".dmg", ".exe", ".msi", ".pkg", ".rpm"]);
 
 async function walkFiles(root) {
   const entries = await readdir(root, { withFileTypes: true });
   const files = [];
   for (const entry of entries) {
     const entryPath = path.join(root, entry.name);
+    if (entry.isSymbolicLink()) throw new Error(`release output contains a symbolic link: ${entryPath}`);
     if (entry.isDirectory()) files.push(...await walkFiles(entryPath));
     else if (entry.isFile()) files.push(entryPath);
   }
@@ -20,7 +30,7 @@ async function walkFiles(root) {
 }
 
 function isDesktopPackage(filePath) {
-  return packageExtensions.has(path.extname(filePath).toLowerCase());
+  return desktopPackageExtensions.has(path.extname(filePath).toLowerCase());
 }
 
 function validateLabel(label) {
@@ -50,35 +60,23 @@ function validateStageRoot(projectRoot, stageRoot) {
   return stage;
 }
 
-export async function collectReleaseArtifacts(projectRoot, label) {
+export async function collectReleaseArtifacts(projectRoot, label, requestedVersion) {
   validateLabel(label);
+  const policy = await loadPackagePolicy(projectRoot);
+  const version = requestedVersion ?? await workspaceVersion(projectRoot);
+  const expectedEntries = packagesForPlatform(policy, label);
+  const expectedNames = expectedEntries.map(entry => artifactName(entry, version));
   const releaseAssets = path.join(projectRoot, "release-assets");
-  const cliBase = `portcove-${label}`;
+  await assertOwnedUnlinkedPath(projectRoot, releaseAssets, "release CLI asset directory");
   const cliArchives = (await readdir(releaseAssets, { withFileTypes: true }))
-    .filter(entry => entry.isFile() && (
-      entry.name === `${cliBase}.zip` || entry.name === `${cliBase}.tar.gz`
-    ))
+    .filter(entry => entry.isFile() && (entry.name.endsWith(".zip") || entry.name.endsWith(".tar.gz")))
     .map(entry => path.join(releaseAssets, entry.name));
-  if (cliArchives.length !== 1) {
-    throw new Error(`expected exactly one CLI archive for ${label}; found ${cliArchives.length}`);
-  }
 
   const bundleRoot = path.join(projectRoot, "target", "release", "bundle");
+  await assertOwnedUnlinkedPath(projectRoot, bundleRoot, "release desktop bundle directory");
   const desktopPackages = (await walkFiles(bundleRoot)).filter(isDesktopPackage);
-  if (!desktopPackages.length) {
-    throw new Error(`expected at least one desktop package under ${bundleRoot}`);
-  }
-
   const artifacts = [...cliArchives, ...desktopPackages];
-  const names = new Map();
-  for (const artifact of artifacts) {
-    const name = path.basename(artifact);
-    const normalized = name.toLowerCase();
-    if (names.has(normalized)) {
-      throw new Error(`release artifacts contain duplicate filename: ${name}`);
-    }
-    names.set(normalized, artifact);
-  }
+  assertExactArtifactNames(expectedNames, artifacts.map(artifact => path.basename(artifact)), `${label} package set`);
   return artifacts.sort((left, right) => path.basename(left).localeCompare(path.basename(right)));
 }
 
@@ -88,21 +86,25 @@ async function sha256(filePath) {
   return hash.digest("hex");
 }
 
-export async function writeReleaseChecksums(projectRoot, label) {
-  const artifacts = await collectReleaseArtifacts(projectRoot, label);
+export async function writeReleaseChecksums(projectRoot, label, requestedVersion) {
+  const artifacts = await collectReleaseArtifacts(projectRoot, label, requestedVersion);
   const lines = [];
   for (const artifact of artifacts) {
     lines.push(`${await sha256(artifact)}  ${path.basename(artifact)}`);
   }
   const output = path.join(projectRoot, "release-assets", `SHA256SUMS-${label}.txt`);
+  await assertOwnedUnlinkedPath(projectRoot, output, "release checksum output");
   await writeFile(output, `${lines.join("\n")}\n`, "utf8");
   return { artifacts, output };
 }
 
-export async function stageReleaseArtifacts(projectRoot, label, stageRoot) {
+export async function stageReleaseArtifacts(projectRoot, label, stageRoot, requestedVersion) {
   const stage = validateStageRoot(projectRoot, stageRoot);
-  const result = await writeReleaseChecksums(projectRoot, label);
+  await assertOwnedUnlinkedPath(projectRoot, stage, "release staging output");
+  const result = await writeReleaseChecksums(projectRoot, label, requestedVersion);
+  await assertOwnedUnlinkedPath(projectRoot, stage, "release staging output");
   await mkdir(stage);
+  await assertOwnedUnlinkedPath(projectRoot, stage, "release staging output");
   const sources = [...result.artifacts, result.output];
   for (const source of sources) await copyFile(source, path.join(stage, path.basename(source)));
   return { ...result, staged: sources.map(source => path.join(stage, path.basename(source))) };
@@ -112,24 +114,25 @@ function parseArguments(argv) {
   const options = { projectRoot: defaultProjectRoot };
   for (let index = 0; index < argv.length; index += 1) {
     const name = argv[index];
-    if (!["--label", "--project-root", "--stage-dir"].includes(name)) throw new Error(`unknown argument: ${name}`);
+    if (!["--label", "--project-root", "--stage-dir", "--version"].includes(name)) throw new Error(`unknown argument: ${name}`);
     const value = argv[index + 1];
     if (!value || value.startsWith("--")) throw new Error(`${name} requires a value`);
     if (name === "--label") options.label = value;
     else if (name === "--project-root") options.projectRoot = path.resolve(value);
-    else options.stageRoot = path.resolve(value);
+    else if (name === "--stage-dir") options.stageRoot = path.resolve(value);
+    else options.version = value;
     index += 1;
   }
   return options;
 }
 
 async function main() {
-  const { projectRoot, label, stageRoot } = parseArguments(process.argv.slice(2));
+  const { projectRoot, label, stageRoot, version } = parseArguments(process.argv.slice(2));
   if (stageRoot) {
-    const { artifacts, output, staged } = await stageReleaseArtifacts(projectRoot, label, stageRoot);
+    const { artifacts, output, staged } = await stageReleaseArtifacts(projectRoot, label, stageRoot, version);
     console.log(`Wrote ${path.basename(output)} for ${artifacts.length} release artifacts and staged ${staged.length} files.`);
   } else {
-    const { artifacts, output } = await writeReleaseChecksums(projectRoot, label);
+    const { artifacts, output } = await writeReleaseChecksums(projectRoot, label, version);
     console.log(`Wrote ${path.basename(output)} for ${artifacts.length} release artifacts.`);
   }
 }

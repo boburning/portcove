@@ -62,7 +62,7 @@ try {
 
     Push-Location $desktopRoot
     try {
-        pnpm tauri build
+        pnpm tauri build --bundles nsis
         if ($LASTEXITCODE -ne 0) { throw "Tauri bundle build failed with exit code $LASTEXITCODE" }
     }
     finally {

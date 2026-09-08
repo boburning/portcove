@@ -24,6 +24,37 @@ Make such changes as one reviewed migration: explain the pressure and tradeoffs 
 
 In this document, “thin adapter” means that the CLI and desktop do not reimplement catalog, installation, release, source, or library policy. Adapters may own concerns that exist only at their boundary, including argument and IPC translation, native dialogs, credential-store access, process attachment, and presentation-shaped aggregation. If a boundary concern becomes reusable domain behavior, move it behind the shared authority instead of copying it.
 
+## Monorepo and deliverable decision
+
+Portcove Core, CLI, and Desktop remain in one repository. Shared core services
+own game-management behavior. CLI and Desktop are independently usable
+interfaces and separately packaged deliverables. Repository separation is not
+needed to provide standalone CLI downloads, focused builds, or independent
+release scheduling if that is eventually justified.
+
+The dependency direction remains CLI -> core, Tauri backend -> core, and React
+-> Tauri IPC. The official desktop application calls core through its Tauri
+backend; it does not shell out to a separately installed CLI. Catalog and source
+admission, installation, game updates, persistence, per-port locking, recovery,
+and launch policy retain one shared authority. Host argument parsing, native
+dialogs, process integration, IPC translation, and presentation remain at their
+appropriate boundaries. Interfaces need compatible domain outcomes, not
+identical presentation.
+
+Core, CLI, and Desktop keep coordinated product versions for now. Coordinated
+versions do not make arbitrary separately installed CLI and Desktop versions
+compatible: library-schema, locking, migration, and machine-contract protections
+still apply. This decision does not publish internal crates, promise a stable
+internal Rust API, introduce a daemon/RPC layer, or prevent a focused crate from
+being extracted when implementation evidence supports the evolution policy.
+
+Reconsider repository extraction only for demonstrated independent ownership,
+access-control requirements, or a genuinely independent product. Download-list
+clutter, implementation language, file counts, directory aesthetics, and a wish
+for different release timing are not sufficient. Community-maintained clients
+may live elsewhere and consume the public CLI contract without becoming official
+Portcove maintenance obligations.
+
 The same rule applies to third-party clients. A launch-only integration may
 translate a stable Portcove/library identity into its frontend's executable and
 argument fields. A library integration may map supported metadata. A lifecycle
