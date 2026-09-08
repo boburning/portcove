@@ -409,8 +409,18 @@ fn execute_relocation(
         if let Some(error) = cleanup_fault {
             cleanup_errors.push(error.message);
         } else {
+            let retired_install_paths = plan
+                .installs
+                .iter()
+                .map(|entry| entry.install.path.clone())
+                .collect::<Vec<_>>();
             for entry in &plan.installs {
-                if let Err(error) = remove_old_copy(service.library(), &plan.port_id, entry) {
+                if let Err(error) = remove_old_copy(
+                    service.library(),
+                    &plan.port_id,
+                    entry,
+                    &retired_install_paths,
+                ) {
                     cleanup_errors.push(format!("{}: {}", entry.install.path.display(), error));
                 }
             }
@@ -620,6 +630,7 @@ fn remove_old_copy(
     library: &Library,
     port_id: &str,
     entry: &OutputRelocationInstall,
+    retired_install_paths: &[PathBuf],
 ) -> Result<()> {
     match fs::symlink_metadata(&entry.install.path) {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
@@ -627,13 +638,16 @@ fn remove_old_copy(
             result?;
         }
     }
-    crate::output_root::validate_install_path(library, port_id, &entry.install.path)?;
-    verify_remaining_tree(&entry.install.path, &entry.copy)?;
-    fs::remove_dir_all(&entry.install.path)?;
+    let old_path = crate::output_root::validate_retired_install_path(
+        library,
+        port_id,
+        &entry.install.path,
+        retired_install_paths,
+    )?;
+    verify_remaining_tree(&old_path, &entry.copy)?;
+    fs::remove_dir_all(&old_path)?;
     crate::durability::sync_publication(
-        entry
-            .install
-            .path
+        old_path
             .parent()
             .ok_or_else(|| PortcoveError::state("old install path has no parent"))?,
     )
@@ -901,12 +915,23 @@ mod tests {
         version: &str,
         active: bool,
     ) -> InstallRecord {
+        let root = library.versions_dir().join(port_id);
+        register_install_at_root(library, port_id, version, active, &root)
+    }
+
+    fn register_install_at_root(
+        library: &Library,
+        port_id: &str,
+        version: &str,
+        active: bool,
+        root: &Path,
+    ) -> InstallRecord {
         let artifact = ArtifactIdentity {
             asset_name: format!("{port_id}-{version}.zip"),
             sha256: hex::encode(Sha256::digest(format!("{port_id}:{version}"))),
             size: version.len() as u64,
         };
-        let path = library.versions_dir().join(port_id).join(&artifact.sha256);
+        let path = root.join(&artifact.sha256);
         fs::create_dir_all(&path).unwrap();
         let catalog = Catalog::embedded().unwrap();
         let port = catalog.port(port_id).unwrap();
@@ -938,6 +963,24 @@ mod tests {
         };
         library.register_install(&install, active).unwrap();
         install
+    }
+
+    fn register_external_install(
+        library: &Library,
+        port_id: &str,
+        version: &str,
+        active: bool,
+        root: &Path,
+    ) -> InstallRecord {
+        let prepared = crate::output_root::prepare_for_install(
+            library,
+            port_id,
+            root,
+            &Uuid::new_v4().to_string(),
+            0,
+        )
+        .unwrap();
+        register_install_at_root(library, port_id, version, active, &prepared.root)
     }
 
     fn authorize(service: &PortcoveService, destination: &Path) -> String {
@@ -1025,6 +1068,163 @@ mod tests {
         let activity = fixture.library.activities(10).unwrap().remove(0);
         assert_eq!(activity.operation, ActivityOperation::RelocateOutput);
         assert_eq!(activity.status, crate::ActivityStatus::Succeeded);
+    }
+
+    #[test]
+    fn external_to_external_cleanup_recovers_after_authority_commit() {
+        let fixture = Fixture::new();
+        let first_service = PortcoveService::new(fixture.library.clone()).unwrap();
+        let first_token = authorize(&first_service, &fixture.destination);
+        let first = first_service
+            .relocate_output(PORT, &fixture.destination, &first_token)
+            .unwrap();
+        assert!(!first.cleanup_pending);
+        let old_external_paths = first
+            .relocated_installs
+            .iter()
+            .map(|install| install.path.clone())
+            .collect::<Vec<_>>();
+
+        let second_destination = fixture
+            ._temporary
+            .path()
+            .join("second-relocated")
+            .join(PORT);
+        let interrupted = PortcoveService::with_faults(
+            fixture.library.clone(),
+            Arc::new(FailAt(LifecycleFaultPoint::RelocationMetadataCommitted)),
+        )
+        .unwrap();
+        let second_token = authorize(&interrupted, &second_destination);
+        let pending = interrupted
+            .relocate_output(PORT, &second_destination, &second_token)
+            .unwrap();
+        assert!(pending.cleanup_pending);
+        assert!(old_external_paths.iter().all(|path| path.is_dir()));
+        assert!(
+            interrupted
+                .output_relocation_status(PORT)
+                .unwrap()
+                .is_some()
+        );
+
+        let recovered = PortcoveService::new(fixture.library.clone()).unwrap();
+        assert!(recovered.output_relocation_status(PORT).unwrap().is_none());
+        assert!(old_external_paths.iter().all(|path| !path.exists()));
+        let expected_destination =
+            crate::path::normalized_absolute(&second_destination, "test relocation destination")
+                .unwrap();
+        assert!(
+            fixture
+                .library
+                .all_installs()
+                .unwrap()
+                .iter()
+                .filter(|install| install.port_id == PORT)
+                .all(|install| install.path.starts_with(&expected_destination))
+        );
+        fixture.assert_protected_files_unchanged();
+    }
+
+    #[test]
+    fn direct_external_cleanup_recovers_without_default_port_directory() {
+        let temporary = TempDir::new().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let first_destination = temporary.path().join("first-external").join(PORT);
+        let install = register_external_install(&library, PORT, "active", true, &first_destination);
+        assert!(!library.versions_dir().join(PORT).exists());
+
+        let second_destination = temporary.path().join("second-external").join(PORT);
+        let interrupted = PortcoveService::with_faults(
+            library.clone(),
+            Arc::new(FailAt(LifecycleFaultPoint::RelocationMetadataCommitted)),
+        )
+        .unwrap();
+        let token = authorize(&interrupted, &second_destination);
+        let pending = interrupted
+            .relocate_output(PORT, &second_destination, &token)
+            .unwrap();
+        assert!(pending.cleanup_pending);
+        assert!(install.path.is_dir());
+        assert!(!library.versions_dir().join(PORT).exists());
+
+        let recovered = PortcoveService::new(library.clone()).unwrap();
+        assert!(recovered.output_relocation_status(PORT).unwrap().is_none());
+        assert!(!install.path.exists());
+        assert!(!library.versions_dir().join(PORT).exists());
+        let relocated = library
+            .status(PORT, ReleaseChannel::Stable)
+            .unwrap()
+            .active
+            .unwrap();
+        let expected_destination =
+            crate::path::normalized_absolute(&second_destination, "test relocation destination")
+                .unwrap();
+        assert!(relocated.path.starts_with(expected_destination));
+        assert_eq!(relocated.id, install.id);
+        assert!(
+            Installer::new(library)
+                .unwrap()
+                .verify(&relocated)
+                .unwrap()
+                .valid
+        );
+    }
+
+    #[test]
+    fn external_cleanup_preserves_unowned_sibling_after_authority_commit() {
+        let fixture = Fixture::new();
+        let first_service = PortcoveService::new(fixture.library.clone()).unwrap();
+        let first_token = authorize(&first_service, &fixture.destination);
+        let first = first_service
+            .relocate_output(PORT, &fixture.destination, &first_token)
+            .unwrap();
+        let old_external_paths = first
+            .relocated_installs
+            .iter()
+            .map(|install| install.path.clone())
+            .collect::<Vec<_>>();
+
+        let second_destination = fixture
+            ._temporary
+            .path()
+            .join("second-relocated")
+            .join(PORT);
+        let interrupted = PortcoveService::with_faults(
+            fixture.library.clone(),
+            Arc::new(FailAt(LifecycleFaultPoint::RelocationMetadataCommitted)),
+        )
+        .unwrap();
+        let second_token = authorize(&interrupted, &second_destination);
+        let pending = interrupted
+            .relocate_output(PORT, &second_destination, &second_token)
+            .unwrap();
+        assert!(pending.cleanup_pending);
+
+        let unrelated = fixture.destination.join("unrelated");
+        fs::create_dir(&unrelated).unwrap();
+        fs::write(unrelated.join("sentinel.bin"), b"preserve me").unwrap();
+        let recovered = PortcoveService::new(fixture.library.clone()).unwrap();
+
+        assert!(recovered.output_relocation_status(PORT).unwrap().is_some());
+        assert!(old_external_paths.iter().all(|path| path.is_dir()));
+        assert_eq!(
+            fs::read(unrelated.join("sentinel.bin")).unwrap(),
+            b"preserve me"
+        );
+        let expected_destination =
+            crate::path::normalized_absolute(&second_destination, "test relocation destination")
+                .unwrap();
+        assert!(
+            fixture
+                .library
+                .all_installs()
+                .unwrap()
+                .iter()
+                .filter(|install| install.port_id == PORT)
+                .all(|install| install.path.starts_with(&expected_destination))
+        );
+        fixture.assert_protected_files_unchanged();
     }
 
     fn status_record_ids(
