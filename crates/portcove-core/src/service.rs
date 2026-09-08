@@ -3642,6 +3642,7 @@ impl PortcoveService {
                     install_root: &active.path,
                     selected_executable: &selected_executable,
                     source: source.as_ref().map(|record| record.path.as_path()),
+                    source_record: source.as_ref(),
                 },
                 &checkpoint,
             )?;
