@@ -57,7 +57,7 @@ Portcove's GUI should be the clearest view of a stronger underlying contract:
 - Shared focus trapping, Escape behavior, focus restoration, reduced motion, semantic status labels, and responsive desktop breakpoints make the Tauri interface resilient without turning it into a mobile layout.
 - The long-term design, component, and product-vocabulary contract is recorded in [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md).
 
-## Follow-on slices
+## Follow-on slices at the 2026-09-01 baseline
 
 These are intentionally separate from this pass because they require new product data or backend contracts:
 
@@ -65,3 +65,75 @@ These are intentionally separate from this pass because they require new product
 - Resumable background jobs, pause/cancel semantics, and crash recovery if a later workflow needs work that must survive process exit; the current durable ledger records truthfully completed, failed, and still-running operations without pretending they are resumable.
 - Optional install-root selection after multi-root placement and free-space policy are defined in the core.
 - Mod discovery only after package integrity, ownership, conflict, and update semantics are modeled; it is not a decorative GUI feature.
+
+## PortForge evidence — 2026-09-08
+
+This bounded source and release review informs player workflows, not code or
+artwork reuse. Inspected revisions:
+
+- [PortForge app](https://github.com/zamiba/portforge-app/tree/a91f2ed5879753ef2b61d36d12b07477a7ca9ea7)
+  at `a91f2ed5879753ef2b61d36d12b07477a7ca9ea7`.
+- [MediaItems catalog](https://github.com/zamiba/portforge-mediaitems/tree/a721d8abd27552a38513bcc21eebfa6ff6ab8121)
+  at `a721d8abd27552a38513bcc21eebfa6ff6ab8121`.
+- [Forge engine](https://github.com/zamiba/forge/tree/5030b6d49e60aed79dfa56fa9b9622717932bd54)
+  at `5030b6d49e60aed79dfa56fa9b9622717932bd54`; the inspected app declares
+  Forge `v0.0.3-alpha`, so current engine source is not automatically evidence
+  for every shipped app behavior.
+
+The app's [v0.2.0-alpha release](https://github.com/zamiba/portforge-app/releases/tag/v0.2.0-alpha)
+was published on September 7 with Windows, Linux and macOS assets. Its tag
+resolves to `fd489ca2bb6a5acea6d1d60dc1aca06d45977b00`, distinct from inspected
+main. Release notes and assets establish publication, not tested functionality
+on those platforms. No application, recipe or game was run in this review.
+
+| Finding | Inspected implementation evidence | Portcove disposition |
+| --- | --- | --- |
+| Separately refreshed catalog | `app.go::SyncMediaItems` fetches the MediaItems archive, updates local metadata and rebuilds the index. | Reinforces #245/#397/#398/#246. Metadata refresh does not prove autonomous upstream observation, protected acceptance or exact publication. Format 1 still cannot deliver new Portcove definitions. |
+| File-first and catalog-relevant ROM discovery | `SelectROMFiles`, `GetROMLibrary`, ROM indexing and the ROMs surface expose multiple files, requirements and owned inputs. | #244 extends completed #36/#180 inspection and #37 intake. Keep source compatibility separate from operation readiness and preserve explicit registration/import. |
+| Covers and detail imagery | `thumbs.go` creates display-sized cached images; cards and details separate artwork from titles/status. | #208/#206 own reviewed/local artwork, bounded decoding/cache behavior, attribution, accessible fallbacks and stable geometry. Competitor cache behavior is not a Portcove resource-safety proof. |
+| Configurable preparation | Forge argument/dependency checks and MediaItems build specifications describe options, ordered preparation and declared targets. | #31 proves one useful typed preparation choice through shared core contracts. No unrestricted recipe runner, engine rewrite or cross-compilation claim follows. |
+| Defaults and named executables | `app.go` resolves a declared default version; `GameDetail.vue` presents versions and additional executables. | #206/#208 clarify current/default/recommended/installed states. #31 covers validated alternatives when needed by its bounded proof; #40 historical selection and #250 profiles remain separate. |
+| Storage and failed work | Storage source/tests expose unavailable locations; `App.vue` retains a bounded visible log and install banner, while `GameDetail.vue` points to `install.log` after failure. | Preserve #38 storage evidence; #206/#202/#203/#204 own visibility, phase wording, diagnostics and accurate recovery actions. No full #248 scheduler prerequisite. |
+| Local duration | `LaunchVersion` measures elapsed time around the child and adds it to `TotalPlaySeconds`; details display that counter. | #521 is an optional shared-session follow-on to completed #21. Observed process duration is not active gameplay; unknown/crashed/suspended accounting needs explicit semantics. |
+
+The inspected PortForge catalog contains nine `VideoGameFanPort` records. Exact recipe
+upstreams reconcile seven to existing owners: Ghostship #53, re:Blue #56, Ship
+of Harkinian #58, SpaghettiKart #60, Starship #61, Banjo: Recompiled #65 and
+Gen1Recomp #98. Different display names do not establish missing ports.
+Only the following two independent implementations needed new intake:
+
+- **Render96 (#519):** the recipe uses Render96ex
+  `cd02b8886e0a0498c23b0c1f1e58f0b7c70ccc66`, a Linux source build, optional
+  SM64-Reloaded textures and ModelPack 3.25. Direct
+  [Render96ex source](https://github.com/Render96/Render96ex/tree/48da5c491c8abfb2f5192b59278c1c269411e533)
+  exposes build/backend choices and `--savepath`. Toolchain acquisition,
+  generated versus persistent data, content rights and update behavior remain
+  research. The ModelPack asset API returned no digest; computing one locally
+  would not establish its initial trust. This is a candidate proof, not #31's
+  required title or a new support claim.
+- **Super Mario Bros. Remastered (#520):** exact upstream is
+  [JHDev2006/Super-Mario-Bros.-Remastered-Public](https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/tree/f379a3257ef1cf89cf4bf911f40c9262447da2c6).
+  The recipe offers 1.0.2/1.1 RC4, while direct releases already include
+  [1.1-stable](https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/releases/tag/1.1-stable).
+  RC4/RC5 API records have `prerelease=false`, requiring a deliberate channel
+  policy. Current source expects `portable.txt` beside the executable and
+  otherwise may fall back to `user://`; the Windows recipe puts it in `config/`.
+  The ROM validator hashes Base64 text of a header-stripped bounded input,
+  not the whole ROM bytes. Selected-release layout, identity, portable fallback
+  and persistent-data behavior need proof before admission.
+
+For **re:Blue (#56)**, the catalog names three required discs with per-disc
+alternatives and Windows normal/Vulkan executables. That does not prove safe
+region/revision mixing, isolated setup, shared registration, self-copy/relaunch
+or save ownership. Preserve existing operational holds while investigating a
+finite isolated or partial-management route; a safe local route need not await
+a special upstream release, and partial management is not full support.
+
+PortForge's MediaItems catalog is a future bounded discovery source under #177,
+with exact source revisions, canonical deduplication and explicit access gaps.
+It receives no admission or publication authority. Its artwork rights notice
+does not authorize redistribution by Portcove. The applied planning decisions
+and review belong to [#518](https://github.com/boburning/portcove/issues/518);
+current scheduling remains solely in the live Project. Alpha 2's package handoff
+and existing Required commitments are preserved. These observations add no
+product implementation, catalog admission or qualification evidence.
