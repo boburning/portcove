@@ -268,20 +268,68 @@ impl Adapter for StandardAdapter {
                 checkpoint()?;
             }
         }
-        let has_generated_archive = std::fs::read_dir(&user_data)
-            .into_iter()
-            .flatten()
-            .filter_map(std::result::Result::ok)
-            .any(|entry| {
-                entry
-                    .path()
+        let generated_archive_paths = port
+            .persistent_paths
+            .iter()
+            .filter(|path| {
+                Path::new(path)
                     .extension()
                     .and_then(|extension| extension.to_str())
                     .is_some_and(|extension| {
                         extension.eq_ignore_ascii_case("o2r")
                             || extension.eq_ignore_ascii_case("otr")
                     })
-            });
+            })
+            .collect::<Vec<_>>();
+        let has_generated_archive = if generated_archive_paths.is_empty() {
+            std::fs::read_dir(&user_data)
+                .into_iter()
+                .flatten()
+                .filter_map(std::result::Result::ok)
+                .any(|entry| {
+                    entry
+                        .path()
+                        .extension()
+                        .and_then(|extension| extension.to_str())
+                        .is_some_and(|extension| {
+                            extension.eq_ignore_ascii_case("o2r")
+                                || extension.eq_ignore_ascii_case("otr")
+                        })
+                })
+        } else {
+            generated_archive_paths.iter().any(|relative| {
+                [&user_data, &working_directory]
+                    .into_iter()
+                    .any(|directory| directory.join(relative).is_file())
+            })
+        };
+        let libultraship_source_argument = if self.0 == AdapterKind::LibultrashipPortable
+            && port.runtime_source_filename.is_none()
+            && !has_generated_archive
+        {
+            source
+                .map(|source| -> Result<PathBuf> {
+                    if !source
+                        .extension()
+                        .and_then(|extension| extension.to_str())
+                        .is_some_and(|extension| extension.eq_ignore_ascii_case("zip"))
+                    {
+                        return Ok(source.to_path_buf());
+                    }
+                    let materialized = user_data.join("portcove-launch-source.z64");
+                    prepare_runtime_source(
+                        source,
+                        &materialized,
+                        RuntimeSourceMaterialization::N64BigEndian,
+                        &BTreeMap::new(),
+                        checkpoint,
+                    )?;
+                    Ok(materialized)
+                })
+                .transpose()?
+        } else {
+            None
+        };
         let adapter_arguments = match self.0 {
             AdapterKind::ReferencedDisc => match source {
                 Some(path) => vec![
@@ -295,7 +343,7 @@ impl Adapter for StandardAdapter {
             AdapterKind::LibultrashipPortable
                 if port.runtime_source_filename.is_none() && !has_generated_archive =>
             {
-                match source {
+                match libultraship_source_argument.as_deref() {
                     Some(path) => vec![crate::path::unicode(path, "source")?],
                     None => Vec::new(),
                 }
@@ -2507,7 +2555,9 @@ mod tests {
         std::fs::create_dir_all(&install).unwrap();
         std::fs::write(install.join("Lighthouse.exe"), b"test").unwrap();
         let source = temporary.path().join("banjo.z64");
-        std::fs::write(&source, b"source").unwrap();
+        let rom = [0x80, 0x37, 0x12, 0x40, 1, 2, 3, 4];
+        std::fs::write(&source, rom).unwrap();
+        std::fs::write(install.join("lighthouse.o2r"), b"bundled assets").unwrap();
         let catalog = Catalog::embedded().unwrap();
         let port = catalog.port("lighthouse").unwrap();
 
@@ -2522,12 +2572,70 @@ mod tests {
             )
             .unwrap();
 
-        assert_eq!(spec.arguments, vec![source.to_string_lossy()]);
         let expected_ship_home = library
             .user_dir("lighthouse")
             .to_string_lossy()
             .into_owned();
         assert_eq!(spec.environment.get("SHIP_HOME"), Some(&expected_ship_home));
+        assert_eq!(spec.arguments, vec![source.to_string_lossy()]);
+
+        // The service restores persistent data into the runtime directory before
+        // the adapter prepares a launch, so the generated archive can be here.
+        std::fs::write(install.join("bk.o2r"), b"archive").unwrap();
+        let next_spec = AdapterRegistry
+            .get(AdapterKind::LibultrashipPortable)
+            .launch_spec(
+                &library,
+                port,
+                Platform::WindowsX86_64,
+                &install,
+                Some(&source),
+            )
+            .unwrap();
+        assert!(next_spec.arguments.is_empty());
+    }
+
+    #[test]
+    fn libultraship_materializes_an_archived_source_before_first_launch() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = temporary.path().join("install");
+        std::fs::create_dir_all(&install).unwrap();
+        std::fs::write(install.join("Lighthouse.exe"), b"test").unwrap();
+        let source = temporary.path().join("banjo.zip");
+        let rom = [0x80, 0x37, 0x12, 0x40, 1, 2, 3, 4];
+        let file = File::create(&source).unwrap();
+        let mut archive = zip::ZipWriter::new(file);
+        archive
+            .start_file(
+                "Banjo-Kazooie (USA).z64",
+                zip::write::SimpleFileOptions::default(),
+            )
+            .unwrap();
+        archive.write_all(&rom).unwrap();
+        archive.finish().unwrap();
+        let source_before = std::fs::read(&source).unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("lighthouse").unwrap();
+
+        let spec = AdapterRegistry
+            .get(AdapterKind::LibultrashipPortable)
+            .launch_spec(
+                &library,
+                port,
+                Platform::WindowsX86_64,
+                &install,
+                Some(&source),
+            )
+            .unwrap();
+
+        let materialized = library
+            .user_dir("lighthouse")
+            .join("portcove-launch-source.z64");
+        assert_eq!(spec.arguments, vec![materialized.to_string_lossy()]);
+        assert_eq!(std::fs::read(&materialized).unwrap(), rom);
+        assert_eq!(std::fs::read(&source).unwrap(), source_before);
+        assert!(runtime_source_marker_path(&materialized).unwrap().is_file());
 
         std::fs::write(library.user_dir("lighthouse").join("bk.o2r"), b"archive").unwrap();
         let next_spec = AdapterRegistry
@@ -2541,6 +2649,7 @@ mod tests {
             )
             .unwrap();
         assert!(next_spec.arguments.is_empty());
+        assert_eq!(std::fs::read(&source).unwrap(), source_before);
     }
 
     #[test]
