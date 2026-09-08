@@ -321,11 +321,12 @@ impl PortcoveService {
         let installs = self.library.all_installs()?;
         let registered_paths = installs
             .iter()
-            .map(|install| install.path.clone())
+            .map(|install| repair_path_identity(&install.path))
             .collect::<HashSet<_>>();
         let pending_final_paths = operations
             .iter()
             .filter_map(|operation| operation.paths.final_path.clone())
+            .map(|path| repair_path_identity(&path))
             .collect::<HashSet<_>>();
         let mut items = operations
             .iter()
@@ -373,7 +374,10 @@ impl PortcoveService {
                 for version_entry in fs::read_dir(port_entry.path())? {
                     let version_entry = version_entry?;
                     let path = version_entry.path();
-                    if !registered_paths.contains(&path) && !pending_final_paths.contains(&path) {
+                    let identity = repair_path_identity(&path);
+                    if !registered_paths.contains(&identity)
+                        && !pending_final_paths.contains(&identity)
+                    {
                         items.push(RepairItem {
                             kind: RepairItemKind::OrphanedFinalDirectory,
                             operation_id: None,
@@ -3947,6 +3951,27 @@ impl PortcoveService {
     }
 }
 
+fn repair_path_identity(path: &Path) -> PathBuf {
+    #[cfg(windows)]
+    {
+        use std::path::{Component, Prefix};
+
+        let Some(Component::Prefix(prefix)) = path.components().next() else {
+            return path.to_path_buf();
+        };
+        let Some(text) = path.to_str() else {
+            return path.to_path_buf();
+        };
+        match prefix.kind() {
+            Prefix::VerbatimDisk(_) => PathBuf::from(&text[4..]),
+            Prefix::VerbatimUNC(_, _) => PathBuf::from(format!("\\\\{}", &text[8..])),
+            _ => path.to_path_buf(),
+        }
+    }
+    #[cfg(not(windows))]
+    path.to_path_buf()
+}
+
 fn backup_record(manifest: BackupManifest, path: PathBuf) -> BackupRecord {
     BackupRecord {
         id: manifest.id,
@@ -5532,6 +5557,105 @@ mod tests {
                 .len(),
             1
         );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn repair_plan_matches_extended_registered_paths_without_hiding_real_orphans() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let active = library.versions_dir().join("zelda64-recomp").join("active");
+        fs::create_dir_all(&active).unwrap();
+        write_host_test_executable(&active, "zelda64-recomp");
+        fs::write(active.join("engine.dll"), b"critical library").unwrap();
+        let extended_active = PathBuf::from(format!(r"\\?\{}", active.display()));
+        register_existing_test_install(
+            &library,
+            "zelda64-recomp",
+            "extended-path",
+            &extended_active,
+            true,
+        );
+        let orphan = library.versions_dir().join("zelda64-recomp").join("orphan");
+        fs::create_dir_all(&orphan).unwrap();
+        let service = service_with_release(library, "v2");
+
+        let plan = service.repair_plan().unwrap();
+        let orphaned = plan
+            .items
+            .iter()
+            .filter(|item| item.kind == RepairItemKind::OrphanedFinalDirectory)
+            .collect::<Vec<_>>();
+
+        assert_eq!(orphaned.len(), 1);
+        assert_eq!(orphaned[0].path.as_deref(), Some(orphan.as_path()));
+        assert!(active.is_dir());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn repair_plan_reports_a_link_to_an_active_install_as_an_orphan() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let active = register_zelda_install(&library, "active", true);
+        let linked = library
+            .versions_dir()
+            .join("zelda64-recomp")
+            .join("linked-orphan");
+        std::os::unix::fs::symlink(&active, &linked).unwrap();
+        let service = service_with_release(library, "v2");
+
+        let plan = service.repair_plan().unwrap();
+
+        assert!(plan.items.iter().any(|item| {
+            item.kind == RepairItemKind::OrphanedFinalDirectory
+                && item.path.as_deref() == Some(linked.as_path())
+        }));
+        assert!(active.is_dir());
+        assert!(
+            fs::symlink_metadata(&linked)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn repair_plan_retains_missing_and_partial_items_for_unavailable_paths() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = register_zelda_install(&library, "unavailable", true);
+        let mut unavailable_text = String::from_iter(['\\', '\\', '?', '\\']);
+        unavailable_text.push_str(r"Volume{00000000-0000-0000-0000-000000000000}\portcove\missing");
+        let unavailable = PathBuf::from(unavailable_text);
+        rusqlite::Connection::open(library.root().join("portcove.sqlite3"))
+            .unwrap()
+            .execute(
+                "UPDATE installs SET path=?1 WHERE path=?2",
+                rusqlite::params![unavailable.to_string_lossy(), install.to_string_lossy()],
+            )
+            .unwrap();
+        let store = OperationStore::new(library.clone());
+        let mut operation = LifecycleOperation::new(
+            "unavailable-publication",
+            LifecycleOperationKind::Install,
+            "zelda64-recomp",
+        );
+        operation.paths.final_path = Some(unavailable.join("pending"));
+        store.put(&mut operation).unwrap();
+        let service = service_with_release(library, "v2");
+
+        let plan = service.repair_plan().unwrap();
+
+        assert!(plan.items.iter().any(|item| {
+            item.kind == RepairItemKind::MissingRegisteredPath
+                && item.path.as_deref() == Some(unavailable.as_path())
+        }));
+        assert!(plan.items.iter().any(|item| {
+            item.kind == RepairItemKind::PartialOperation
+                && item.operation_id.as_deref() == Some("unavailable-publication")
+        }));
     }
 
     #[tokio::test]
