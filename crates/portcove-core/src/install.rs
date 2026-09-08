@@ -111,14 +111,24 @@ impl InstallQualification {
             .collect()
     }
 
-    fn runtime_mutable_paths(&self, install: &InstallRecord) -> Result<Vec<String>> {
+    fn current_mutable_paths(&self, install: &InstallRecord) -> Result<Vec<String>> {
         let working = self.runtime_root(
+            &install.path,
+            &install.path.join(&install.selected_executable),
+        );
+        let persistent = self.persistence_root(
             &install.path,
             &install.path.join(&install.selected_executable),
         );
         self.runtime_mutable_paths
             .iter()
-            .map(|relative| manifest_relative(&install.path, &working.join(relative)))
+            .map(|relative| working.join(relative))
+            .chain(
+                self.persistent_paths
+                    .iter()
+                    .map(|relative| persistent.join(relative)),
+            )
+            .map(|path| manifest_relative(&install.path, &path))
             .collect()
     }
 
@@ -568,7 +578,7 @@ impl Installer {
         self.verify_with_metadata(
             install,
             &qualification.generated_metadata_paths(install)?,
-            &qualification.runtime_mutable_paths(install)?,
+            &qualification.current_mutable_paths(install)?,
         )
     }
 
@@ -576,7 +586,7 @@ impl Installer {
         &self,
         install: &InstallRecord,
         generated_metadata: &[String],
-        current_runtime_mutable_paths: &[String],
+        current_mutable_paths: &[String],
     ) -> Result<VerificationReport> {
         let manifest = verified_manifest(install)?;
         let mut failures = Vec::new();
@@ -605,7 +615,7 @@ impl Installer {
             if relative == ".portcove-manifest.json"
                 || relative == ".portcove-launched"
                 || generated_metadata.contains(&relative)
-                || current_runtime_mutable_paths.iter().any(|mutable| {
+                || current_mutable_paths.iter().any(|mutable| {
                     relative == *mutable || relative.starts_with(&format!("{mutable}/"))
                 })
                 || manifest
@@ -749,7 +759,7 @@ impl Installer {
         let generated_metadata = qualification.generated_metadata_paths(install)?;
         let mut expected_mutable = manifest.mutable_paths.clone();
         expected_mutable.extend(generated_metadata.iter().cloned());
-        expected_mutable.extend(qualification.runtime_mutable_paths(install)?);
+        expected_mutable.extend(qualification.current_mutable_paths(install)?);
         expected_mutable.sort();
         expected_mutable.dedup();
         let original_files: Vec<_> = manifest
@@ -2224,6 +2234,40 @@ mod tests {
                 .unwrap()
                 .valid
         );
+    }
+
+    #[test]
+    fn new_persistent_declarations_do_not_rewrite_recorded_immutable_identity() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("game.exe"), b"verified executable").unwrap();
+        fs::write(root.join("engine.dll"), b"verified engine").unwrap();
+        let original = InstallQualification::test("game.exe");
+        let (installer, install) = create_test_install(&root, &original);
+        let mut current = original.clone();
+        current.persistent_paths.push("preferences".into());
+        fs::create_dir(root.join("preferences")).unwrap();
+        fs::write(root.join("preferences/settings.ini"), b"new preference").unwrap();
+        assert!(installer.verify_managed(&install, &current).unwrap().valid);
+        installer
+            .verify_import_contract(&install, &current)
+            .unwrap();
+        fs::write(root.join("unexpected.dll"), b"unreviewed file").unwrap();
+        assert!(!installer.verify_managed(&install, &current).unwrap().valid);
+        fs::remove_file(root.join("unexpected.dll")).unwrap();
+        current.persistent_paths.push("engine.dll".into());
+        fs::write(root.join("engine.dll"), b"changed engine").unwrap();
+        let report = installer.verify_managed(&install, &current).unwrap();
+        assert!(!report.valid);
+        assert!(report.failures.contains(&"changed: engine.dll".into()));
+        assert!(
+            installer
+                .verify_import_contract(&install, &current)
+                .is_err()
+        );
+        fs::write(root.join("game.exe"), b"changed executable").unwrap();
+        assert!(installer.verify_critical(&install).is_err());
     }
 
     #[test]

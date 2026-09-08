@@ -1007,8 +1007,8 @@ mod tests {
             serde_json::to_value(&migrated.document().source_profiles).unwrap(),
             serde_json::to_value(&legacy.document().source_profiles).unwrap()
         );
-        // Keep every frozen port fact except the explicitly reviewed Ghostship
-        // runtime-output declaration; source and persistence contracts stay exact.
+        // Keep frozen port facts except the reviewed runtime/persistence
+        // declarations below. Every source contract remains exact.
         let mut expected_ports = legacy.document().ports.clone();
         let ghostship = expected_ports
             .iter_mut()
@@ -1020,6 +1020,21 @@ mod tests {
         ghostship
             .runtime_mutable_paths
             .extend((1..=10).map(|index| format!("logs/Ghostship.{index}.log")));
+        let ygofm = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "yu-gi-oh-forbidden-memories-recompiled")
+            .unwrap();
+        assert!(!ygofm.launch_environment.contains_key("PSX_PORTABLE"));
+        ygofm
+            .launch_environment
+            .insert("PSX_PORTABLE".into(), "1".into());
+        ygofm
+            .persistent_paths
+            .extend(["disc.cfg".into(), "bios.cfg".into()]);
+        ygofm.runtime_mutable_paths.extend([
+            "disc_verified.cfg".into(),
+            "diagnostics/psx_freeze_heartbeat.json".into(),
+        ]);
         assert_eq!(
             serde_json::to_value(&migrated.document().ports).unwrap(),
             serde_json::to_value(expected_ports).unwrap()

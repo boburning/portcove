@@ -7438,12 +7438,19 @@
         "input.json",
         "sound.json",
         "input.ini",
-        "keybinds.ini"
+        "keybinds.ini",
+        "disc.cfg",
+        "bios.cfg"
       ],
       "runtime_mutable_paths": [
-        "psx_last_run_report.json"
+        "psx_last_run_report.json",
+        "disc_verified.cfg",
+        "diagnostics/psx_freeze_heartbeat.json"
       ],
-      "runtime_subdirectory": "build-portcove"
+      "runtime_subdirectory": "build-portcove",
+      "launch_environment": {
+        "PSX_PORTABLE": "1"
+      }
     },
     {
       "id": "revelations-persona-recompiled",

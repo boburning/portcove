@@ -126,6 +126,26 @@ gameplay, and real save/load evidence is complete.
 
 ## Adding or changing a port
 
+Managed PS1 ports pass their reviewed runtime configuration with `--game` and
+an explicit `--memcard-dir` inside the managed runtime's `saves` directory.
+This applies both to referenced discs and to materialized raw disc sets. It
+keeps upstream defaults from moving player data into a Documents directory
+outside Portcove's backup, update and rollback ownership. For example,
+[Yu-Gi-Oh! v0.5.7's runtime](https://github.com/Unchiga/psxrecomp/blob/f003d3b9d76e8e54cb1e94957162c4e7de467f45/runtime/src/main.cpp)
+honors this explicit directory for memory cards, settings and mod data.
+Windows launch arguments use ordinary path spelling only when resolving the
+existing ancestors proves it identifies the same location as the extended path.
+Yu-Gi-Oh! additionally declares `PSX_PORTABLE=1`, because its launcher caches
+use a separate upstream data-directory resolver. Its source and BIOS selection
+files (`disc.cfg`, `bios.cfg`) are persistent preferences; the checked-disc
+cache (`disc_verified.cfg`) and exact
+[`diagnostics/psx_freeze_heartbeat.json`](https://github.com/Unchiga/psxrecomp/blob/f003d3b9d76e8e54cb1e94957162c4e7de467f45/runtime/src/freeze_heartbeat.c)
+are reproducible runtime outputs. Other files in `diagnostics` remain verified.
+New named persistent-path declarations also permit newly created preference
+files in existing installations. Verification still checks every file recorded
+as immutable in the original manifest; a later declaration cannot hide changes
+to those bytes or rewrite that recorded identity during library import.
+
 Ghostship 3.0.0 writes its disposable extraction cache to `torch.hash.yml` and
 rotates `logs/Ghostship.log` through `logs/Ghostship.10.log`. The catalog declares
 those exact runtime outputs through the existing nonpersistent runtime-path
