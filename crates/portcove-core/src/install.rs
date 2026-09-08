@@ -361,6 +361,7 @@ impl Installer {
                 emit,
             )
             .await?;
+        normalize_standalone_appimage(&payload_root, &artifact, &request.qualification)?;
         if let Some(runtime) = &request.qualification.runtime {
             let unpacked = lifecycle.operation_root.join("runtime");
             fs::create_dir_all(&unpacked)?;
@@ -1418,6 +1419,7 @@ fn extract_asset(
     if lower.ends_with(".zip") || lower.ends_with(".tar.gz") || lower.ends_with(".tgz") {
         extract_archive(source, destination, asset_name, expected_size)
     } else if lower.ends_with(".exe") || lower.ends_with(".appimage") {
+        crate::archive::validate_relative_path(asset_name, false)?;
         let target = destination.join(asset_name);
         fs::copy(source, &target)?;
         crate::permissions::normalize_archive_entry(&target, false, true)?;
@@ -1427,6 +1429,42 @@ fn extract_asset(
             "unsupported package format: {asset_name}"
         )))
     }
+}
+
+fn normalize_standalone_appimage(
+    root: &Path,
+    artifact: &ArtifactIdentity,
+    qualification: &InstallQualification,
+) -> Result<()> {
+    if qualification.platform != Platform::LinuxX86_64
+        || !artifact
+            .asset_name
+            .to_ascii_lowercase()
+            .ends_with(".appimage")
+        || qualification.runtime_subdirectory.is_some()
+    {
+        return Ok(());
+    }
+    let [hint] = qualification.executable_hints.as_slice() else {
+        return Ok(());
+    };
+    crate::archive::validate_relative_path(hint, false)?;
+    crate::archive::validate_relative_path(&artifact.asset_name, false)?;
+    if hint.contains(['/', '\\'])
+        || !hint.to_ascii_lowercase().ends_with(".appimage")
+        || hint.eq_ignore_ascii_case(&artifact.asset_name)
+    {
+        return Ok(());
+    }
+    let source = root.join(&artifact.asset_name);
+    refuse_symlink_path_within(root, &source, "standalone AppImage")?;
+    crate::permissions::require_platform_executable(
+        &source,
+        qualification.platform,
+        "standalone AppImage",
+    )?;
+    crate::durability::rename_noreplace(&source, &root.join(hint))?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -1482,6 +1520,127 @@ mod tests {
     struct FailOnce {
         point: LifecycleFaultPoint,
         fired: AtomicBool,
+    }
+
+    #[test]
+    fn standalone_appimage_versions_keep_artifact_identity_and_verified_manifests() {
+        let temporary = tempfile::tempdir().unwrap();
+        let port = crate::Catalog::embedded()
+            .unwrap()
+            .port("dkr-r")
+            .unwrap()
+            .clone();
+        let qualification = InstallQualification::from_port(&port, Platform::LinuxX86_64).unwrap();
+        let declared = Path::new("DKR-R-1.0.4-Linux-x86_64.AppImage");
+        for version in ["1.0.4", "1.0.5"] {
+            let root = temporary.path().join(version);
+            fs::create_dir_all(&root).unwrap();
+            let source = temporary.path().join(format!("{version}.download"));
+            fs::write(&source, version).unwrap();
+            let artifact = ArtifactIdentity {
+                asset_name: format!("DKR-R-{version}-Linux-x86_64.AppImage"),
+                sha256: hex::encode(Sha256::digest(version)),
+                size: version.len() as u64,
+            };
+            extract_asset(&source, &root, &artifact.asset_name, artifact.size).unwrap();
+            normalize_standalone_appimage(&root, &artifact, &qualification).unwrap();
+            if Path::new(&artifact.asset_name) != declared {
+                assert!(!root.join(&artifact.asset_name).exists());
+            }
+            assert_eq!(fs::read(root.join(declared)).unwrap(), version.as_bytes());
+            let (_, selected, _) =
+                write_manifest(version, "dkr-r", version, &artifact, &qualification, &root)
+                    .unwrap();
+            assert_eq!(selected, declared);
+            let manifest: InstallManifest =
+                serde_json::from_slice(&fs::read(root.join(".portcove-manifest.json")).unwrap())
+                    .unwrap();
+            assert_eq!(manifest.artifact.asset_name, artifact.asset_name);
+            assert_eq!(manifest.artifact.sha256, artifact.sha256);
+        }
+    }
+
+    #[test]
+    fn standalone_appimage_normalization_is_narrow_and_never_overwrites() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        let mut qualification = InstallQualification::test("game.AppImage");
+        qualification.platform = Platform::LinuxX86_64;
+        let mut artifact = ArtifactIdentity {
+            asset_name: "game-v2.AppImage".into(),
+            sha256: "a".repeat(64),
+            size: 7,
+        };
+        fs::write(root.join(&artifact.asset_name), b"payload").unwrap();
+        crate::permissions::normalize_archive_entry(&root.join(&artifact.asset_name), false, true)
+            .unwrap();
+        fs::write(root.join("game.AppImage"), b"preserve").unwrap();
+        assert!(normalize_standalone_appimage(root, &artifact, &qualification).is_err());
+        assert_eq!(fs::read(root.join("game.AppImage")).unwrap(), b"preserve");
+        assert_eq!(
+            fs::read(root.join(&artifact.asset_name)).unwrap(),
+            b"payload"
+        );
+        fs::remove_file(root.join("game.AppImage")).unwrap();
+
+        for hints in [
+            vec!["a.AppImage", "b.AppImage"],
+            vec!["nested/game.AppImage"],
+            vec!["game.exe"],
+        ] {
+            qualification.executable_hints = hints.into_iter().map(String::from).collect();
+            normalize_standalone_appimage(root, &artifact, &qualification).unwrap();
+            assert!(root.join(&artifact.asset_name).is_file());
+            assert!(resolve_declared_executable(root, &qualification).is_err());
+        }
+        qualification.executable_hints = vec!["../escape.AppImage".into()];
+        assert!(normalize_standalone_appimage(root, &artifact, &qualification).is_err());
+        qualification.executable_hints = vec!["game.AppImage".into()];
+        qualification.runtime_subdirectory = Some("nested".into());
+        normalize_standalone_appimage(root, &artifact, &qualification).unwrap();
+        qualification.runtime_subdirectory = None;
+        qualification.platform = Platform::WindowsX86_64;
+        normalize_standalone_appimage(root, &artifact, &qualification).unwrap();
+        qualification.platform = Platform::LinuxX86_64;
+        artifact.asset_name = "game.zip".into();
+        normalize_standalone_appimage(root, &artifact, &qualification).unwrap();
+        assert!(root.join("game-v2.AppImage").is_file());
+        assert!(!root.join("game.AppImage").exists());
+        assert!(
+            extract_asset(
+                &root.join("game-v2.AppImage"),
+                root,
+                "../escape.AppImage",
+                7
+            )
+            .is_err()
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn standalone_appimage_normalization_rejects_symlinks_and_non_executable_files() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        fs::create_dir_all(&root).unwrap();
+        let source = temporary.path().join("outside");
+        fs::write(&source, b"outside").unwrap();
+        let artifact = ArtifactIdentity {
+            asset_name: "version.AppImage".into(),
+            sha256: "a".repeat(64),
+            size: 7,
+        };
+        let mut qualification = InstallQualification::test("game.AppImage");
+        qualification.platform = Platform::LinuxX86_64;
+        std::os::unix::fs::symlink(&source, root.join(&artifact.asset_name)).unwrap();
+        assert!(normalize_standalone_appimage(&root, &artifact, &qualification).is_err());
+        fs::remove_file(root.join(&artifact.asset_name)).unwrap();
+        fs::copy(&source, root.join(&artifact.asset_name)).unwrap();
+        crate::permissions::normalize_archive_entry(&root.join(&artifact.asset_name), false, false)
+            .unwrap();
+        assert!(normalize_standalone_appimage(&root, &artifact, &qualification).is_err());
+        assert_eq!(fs::read(source).unwrap(), b"outside");
+        assert!(!root.join("game.AppImage").exists());
     }
 
     impl LifecycleFaultInjector for FailOnce {
