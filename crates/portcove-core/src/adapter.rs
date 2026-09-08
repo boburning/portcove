@@ -214,13 +214,6 @@ impl Adapter for StandardAdapter {
         }
         let immutable_managed_psx_source = self.0 == AdapterKind::PsxRecompManaged
             && port.runtime_source_materialization == Some(RuntimeSourceMaterialization::PsxRawSet);
-        if self.0 == AdapterKind::PsxRecompManaged
-            && !immutable_managed_psx_source
-            && let Some(source) = source
-        {
-            let sources = psx_runtime_source_paths(source)?;
-            crate::psx::rewrite_game_discs(&working_directory.join("game.toml"), &sources)?;
-        }
         if !immutable_managed_psx_source
             && let (Some(source), Some(filename)) = (source, &port.runtime_source_filename)
         {
@@ -244,8 +237,17 @@ impl Adapter for StandardAdapter {
                 );
             }
         }
-        let managed_psx_runtime_config = immutable_managed_psx_source
-            .then(|| prepare_managed_psx_runtime_config(port, &working_directory))
+        let managed_psx_runtime_config = (self.0 == AdapterKind::PsxRecompManaged)
+            .then(|| {
+                let discs = if immutable_managed_psx_source {
+                    managed_psx_materialized_discs(port, &working_directory)?
+                } else {
+                    psx_runtime_source_paths(source.ok_or_else(|| {
+                        PortcoveError::launch("managed PS1 launch requires its verified source")
+                    })?)?
+                };
+                prepare_managed_psx_runtime_config(&working_directory, &discs)
+            })
             .transpose()?;
         if self.0 == AdapterKind::UpstreamManagedSetup {
             let source_path = port
@@ -368,8 +370,9 @@ impl Adapter for StandardAdapter {
                 }
             }
             AdapterKind::PsxRecompManaged => {
-                let config = managed_psx_runtime_config
-                    .unwrap_or_else(|| working_directory.join("game.toml"));
+                let config = managed_psx_runtime_config.ok_or_else(|| {
+                    PortcoveError::state("managed PS1 launch configuration was not prepared")
+                })?;
                 vec![
                     "--game".into(),
                     psx_launch_path(&config)?,
@@ -704,7 +707,7 @@ pub(crate) fn generated_metadata(port: &PortDefinition) -> Result<Vec<String>> {
     if port.adapter == crate::AdapterKind::UpstreamManagedSetup {
         paths.push(UPSTREAM_SETUP_METADATA.into());
     }
-    if immutable_managed_psx_source {
+    if port.adapter == AdapterKind::PsxRecompManaged {
         paths.push(MANAGED_PSX_RUNTIME_CONFIG.into());
     }
     Ok(paths)
@@ -739,10 +742,10 @@ fn psx_launch_path(path: &Path) -> Result<String> {
     Ok(text)
 }
 
-fn prepare_managed_psx_runtime_config(
+fn managed_psx_materialized_discs(
     port: &PortDefinition,
     working_directory: &Path,
-) -> Result<PathBuf> {
+) -> Result<Vec<PathBuf>> {
     let runtime_source = port
         .runtime_source_filename
         .as_ref()
@@ -788,6 +791,13 @@ fn prepare_managed_psx_runtime_config(
         }
     }
 
+    Ok(cues)
+}
+
+fn prepare_managed_psx_runtime_config(
+    working_directory: &Path,
+    discs: &[PathBuf],
+) -> Result<PathBuf> {
     let base_config = working_directory.join("game.toml");
     if !base_config.is_file() {
         return Err(PortcoveError::launch(format!(
@@ -798,7 +808,7 @@ fn prepare_managed_psx_runtime_config(
     let runtime_config = working_directory.join(MANAGED_PSX_RUNTIME_CONFIG);
     let temporary = working_directory.join(format!(".portcove-psx-runtime-{}.tmp", Uuid::new_v4()));
     std::fs::copy(&base_config, &temporary)?;
-    if let Err(error) = crate::psx::rewrite_game_discs(&temporary, &cues) {
+    if let Err(error) = crate::psx::rewrite_game_discs(&temporary, discs) {
         let _ = std::fs::remove_file(&temporary);
         return Err(error);
     }
@@ -2986,7 +2996,12 @@ mod tests {
                 .unwrap();
             assert_eq!(spec.working_directory, runtime);
             assert_eq!(spec.arguments[0], "--game");
-            assert_eq!(Path::new(&spec.arguments[1]), config);
+            let generated_config = runtime.join(MANAGED_PSX_RUNTIME_CONFIG);
+            assert_eq!(Path::new(&spec.arguments[1]), generated_config);
+            assert_eq!(
+                std::fs::read_to_string(&config).unwrap(),
+                "[game]\nname = \"fixture\"\n"
+            );
             assert_eq!(spec.arguments[2], "--memcard-dir");
             assert_eq!(Path::new(&spec.arguments[3]), runtime.join("saves"));
             assert_eq!(
@@ -2994,9 +3009,28 @@ mod tests {
                 (id == "yu-gi-oh-forbidden-memories-recompiled").then_some("1")
             );
             assert!(
-                std::fs::read_to_string(config)
+                std::fs::read_to_string(&generated_config)
                     .unwrap()
                     .contains(&serde_json::to_string(&source.to_string_lossy()).unwrap())
+            );
+            std::fs::write(&generated_config, "[game]\ndisc = \"unverified.chd\"\n").unwrap();
+            AdapterRegistry
+                .get(AdapterKind::PsxRecompManaged)
+                .launch_spec(
+                    &library,
+                    port,
+                    Platform::WindowsX86_64,
+                    &install,
+                    Some(&source),
+                )
+                .unwrap();
+            let refreshed = std::fs::read_to_string(&generated_config).unwrap();
+            assert!(!refreshed.contains("unverified.chd"));
+            assert!(refreshed.contains(&serde_json::to_string(&source.to_string_lossy()).unwrap()));
+            assert!(
+                generated_metadata(port)
+                    .unwrap()
+                    .contains(&MANAGED_PSX_RUNTIME_CONFIG.into())
             );
         }
     }

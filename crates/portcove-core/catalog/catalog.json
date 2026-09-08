@@ -7496,10 +7496,14 @@
         "graphics.json",
         "input.json",
         "sound.json",
-        "input.ini"
+        "input.ini",
+        "keybinds.ini",
+        "disc.cfg",
+        "bios.cfg"
       ],
       "runtime_mutable_paths": [
-        "psx_last_run_report.json"
+        "psx_last_run_report.json",
+        "psx_freeze_heartbeat.json"
       ],
       "runtime_subdirectory": "build-portcove"
     },

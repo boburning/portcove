@@ -1048,6 +1048,18 @@ mod tests {
             "psx_freeze_heartbeat.json".into(),
             "psx_last_run_report.json".into(),
         ]);
+        let persona = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "revelations-persona-recompiled")
+            .unwrap();
+        persona.persistent_paths.extend([
+            "keybinds.ini".into(),
+            "disc.cfg".into(),
+            "bios.cfg".into(),
+        ]);
+        persona
+            .runtime_mutable_paths
+            .push("psx_freeze_heartbeat.json".into());
         assert_eq!(
             serde_json::to_value(&migrated.document().ports).unwrap(),
             serde_json::to_value(expected_ports).unwrap()

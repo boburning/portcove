@@ -506,6 +506,10 @@ const migrated = {
       "psx_freeze_heartbeat.json",
       "psx_last_run_report.json",
     ],
+  } : port.id === "revelations-persona-recompiled" ? {
+    ...port,
+    persistent_paths: [...port.persistent_paths, "keybinds.ini", "disc.cfg", "bios.cfg"],
+    runtime_mutable_paths: [...port.runtime_mutable_paths, "psx_freeze_heartbeat.json"],
   } : port),
 };
 const output = `${JSON.stringify(migrated, null, 2)}\n`;
