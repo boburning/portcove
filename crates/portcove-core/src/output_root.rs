@@ -376,6 +376,38 @@ pub(crate) fn validate_install_path(
     Ok(install_path)
 }
 
+pub(crate) fn validate_retired_install_path(
+    library: &Library,
+    port_id: &str,
+    install_path: &Path,
+    retired_install_paths: &[PathBuf],
+) -> Result<PathBuf> {
+    crate::path::refuse_symlink_ancestors(install_path)?;
+    let install_path = fs::canonicalize(install_path)?;
+    let default_parent = fs::canonicalize(library.versions_dir().join(port_id))?;
+    if install_path.parent() == Some(default_parent.as_path()) {
+        return Ok(install_path);
+    }
+    let parent = install_path
+        .parent()
+        .ok_or_else(|| PortcoveError::conflict("retired install path has no output root"))?;
+    let record = library
+        .output_root(parent)?
+        .filter(|record| record.port_id == port_id)
+        .ok_or_else(|| {
+            PortcoveError::conflict("retired install path is outside an owned output root")
+        })?;
+    let current_volume = volume_identity(parent)?;
+    validate_claim_with_retired_paths(
+        library,
+        port_id,
+        &record,
+        &current_volume,
+        retired_install_paths,
+    )?;
+    Ok(install_path)
+}
+
 pub(crate) fn removal_paths(
     library: &Library,
     port_id: &str,
@@ -523,17 +555,27 @@ fn validate_claim(
     record: &OutputRootRecord,
     current_volume: &str,
 ) -> Result<()> {
+    validate_claim_with_retired_paths(library, port_id, record, current_volume, &[])
+}
+
+fn validate_claim_with_retired_paths(
+    library: &Library,
+    port_id: &str,
+    record: &OutputRootRecord,
+    current_volume: &str,
+    retired_install_paths: &[PathBuf],
+) -> Result<()> {
     validate_marker(library, port_id, record, current_volume)?;
+    let current_installs = library.all_installs()?;
     for entry in fs::read_dir(&record.path)? {
         let entry = entry?;
         let name = entry.file_name();
         if name != MARKER_NAME && name != ".staging" && name != ".recovery" {
             let path = entry.path();
-            let registered = library
-                .all_installs()?
+            let registered = current_installs
                 .iter()
                 .any(|install| install.port_id == port_id && install.path == path);
-            if !registered {
+            if !registered && !retired_install_paths.iter().any(|retired| retired == &path) {
                 return Err(PortcoveError::conflict(
                     "game output folder contains data not owned by Portcove",
                 )
