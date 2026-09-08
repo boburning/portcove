@@ -604,106 +604,164 @@ fn deletion_failure_reports_a_valid_copy_and_the_exact_retained_original() {
 }
 
 #[test]
-fn optical_disc_equivalence_ignores_only_the_path_derived_component_name() {
-    let original = observed_optical_identity("game.chd");
+fn single_file_cleanup_accepts_only_the_quarantine_basename_change() {
+    let temporary = tempfile::tempdir().unwrap();
+    let quarantine = temporary
+        .path()
+        .join(".portcove-source-import-id.retained.chd");
+    fs::write(&quarantine, b"optical source").unwrap();
+    let original = observed_optical_record("game.chd");
     let mut quarantined = original.clone();
-    quarantined.components[0].name = Some(".portcove-source-import-id.retained.chd".into());
-    assert!(observed_identity_equivalent(
-        Some(&original),
-        Some(&quarantined)
-    ));
+    quarantined.observed_identity.as_mut().unwrap().components[0].name = Some(
+        quarantine
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned(),
+    );
 
-    let mut changed = quarantined.clone();
-    changed.components[0].volume_id = Some("SLUS_99999".into());
-    assert!(!observed_identity_equivalent(
-        Some(&original),
-        Some(&changed)
-    ));
-
-    let mut changed = quarantined.clone();
-    changed.components[0].track_count = Some(2);
-    assert!(!observed_identity_equivalent(
-        Some(&original),
-        Some(&changed)
-    ));
-
-    let mut changed = quarantined;
-    changed.components[0].digests[0].value = "0".repeat(64);
-    assert!(!observed_identity_equivalent(
-        Some(&original),
-        Some(&changed)
+    assert!(!equivalent(&original, &quarantined));
+    assert!(cleanup_source_equivalent(
+        &quarantine,
+        &original,
+        &quarantined
     ));
 }
 
 #[test]
-fn optical_disc_equivalence_keeps_every_material_observation_bound() {
-    let original = observed_optical_identity("game.chd");
+fn single_file_cleanup_keeps_every_material_observation_bound() {
+    let temporary = tempfile::tempdir().unwrap();
+    let quarantine = temporary
+        .path()
+        .join(".portcove-source-import-id.retained.chd");
+    fs::write(&quarantine, b"optical source").unwrap();
+    let original = observed_optical_record("game.chd");
+    let mut quarantined = original.clone();
+    quarantined.observed_identity.as_mut().unwrap().components[0].name = Some(
+        quarantine
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned(),
+    );
 
-    let mut changed = original.clone();
-    changed.components[0].id = "disc-2".into();
-    assert!(!observed_identity_equivalent(
-        Some(&original),
-        Some(&changed)
-    ));
+    let mut changed = quarantined.clone();
+    changed.observed_identity.as_mut().unwrap().components[0].id = "disc-2".into();
+    assert!(!cleanup_source_equivalent(&quarantine, &original, &changed));
 
-    let mut changed = original.clone();
-    changed.components[0].kind = SourceComponentKind::FileSetMember;
-    assert!(!observed_identity_equivalent(
-        Some(&original),
-        Some(&changed)
-    ));
+    let mut changed = quarantined.clone();
+    changed.observed_identity.as_mut().unwrap().components[0].kind =
+        SourceComponentKind::FileSetMember;
+    assert!(!cleanup_source_equivalent(&quarantine, &original, &changed));
 
-    let mut changed = original.clone();
-    changed.components[0].size += 1;
-    assert!(!observed_identity_equivalent(
-        Some(&original),
-        Some(&changed)
-    ));
+    let mut changed = quarantined.clone();
+    changed.observed_identity.as_mut().unwrap().components[0].size += 1;
+    assert!(!cleanup_source_equivalent(&quarantine, &original, &changed));
 
-    let mut changed = original.clone();
-    changed.digests[0].size += 1;
-    assert!(!observed_identity_equivalent(
-        Some(&original),
-        Some(&changed)
-    ));
+    let mut changed = quarantined.clone();
+    changed.observed_identity.as_mut().unwrap().components[0].track_count = Some(2);
+    assert!(!cleanup_source_equivalent(&quarantine, &original, &changed));
 
-    let mut changed = original.clone();
-    changed.schema_version += 1;
-    assert!(!observed_identity_equivalent(
-        Some(&original),
-        Some(&changed)
-    ));
+    let mut changed = quarantined.clone();
+    changed.observed_identity.as_mut().unwrap().components[0].volume_id = Some("SLUS_99999".into());
+    assert!(!cleanup_source_equivalent(&quarantine, &original, &changed));
 
-    let mut changed = original.clone();
-    changed.archive_member_name = Some("disc.chd".into());
-    assert!(!observed_identity_equivalent(
-        Some(&original),
-        Some(&changed)
-    ));
+    let mut changed = quarantined.clone();
+    changed.observed_identity.as_mut().unwrap().components[0].digests[0].value = "0".repeat(64);
+    assert!(!cleanup_source_equivalent(&quarantine, &original, &changed));
 
-    let mut changed = original.clone();
-    changed.validator = Some(ObservedSourceValidator {
+    let mut changed = quarantined.clone();
+    changed.observed_identity.as_mut().unwrap().digests[0].size += 1;
+    assert!(!cleanup_source_equivalent(&quarantine, &original, &changed));
+
+    let mut changed = quarantined.clone();
+    changed.observed_identity.as_mut().unwrap().schema_version += 1;
+    assert!(!cleanup_source_equivalent(&quarantine, &original, &changed));
+
+    let mut changed = quarantined.clone();
+    changed
+        .observed_identity
+        .as_mut()
+        .unwrap()
+        .archive_member_name = Some("disc.chd".into());
+    assert!(!cleanup_source_equivalent(&quarantine, &original, &changed));
+
+    let mut changed = quarantined;
+    changed.observed_identity.as_mut().unwrap().validator = Some(ObservedSourceValidator {
         contract_id: "disc-validator".into(),
         tool_id: "disc-tool".into(),
         protocol_version: "1".into(),
         result: SourceValidatorResult::Passed,
     });
-    assert!(!observed_identity_equivalent(
-        Some(&original),
-        Some(&changed)
-    ));
+    assert!(!cleanup_source_equivalent(&quarantine, &original, &changed));
 }
 
 #[test]
-fn file_set_component_names_remain_part_of_source_equivalence() {
-    let mut original = observed_optical_identity("disc.chd");
-    original.components[0].kind = SourceComponentKind::FileSetMember;
-    let mut renamed = original.clone();
-    renamed.components[0].name = Some("different-member.chd".into());
-    assert!(!observed_identity_equivalent(
-        Some(&original),
-        Some(&renamed)
+fn multi_disc_and_file_set_name_changes_remain_strict() {
+    let temporary = tempfile::tempdir().unwrap();
+    let quarantine_file = temporary.path().join("retained.chd");
+    fs::write(&quarantine_file, b"optical source").unwrap();
+
+    let original = observed_optical_record("disc-1.chd");
+    let mut file_set = original.clone();
+    file_set.observed_identity.as_mut().unwrap().components[0].kind =
+        SourceComponentKind::FileSetMember;
+    let mut renamed_file_set = file_set.clone();
+    renamed_file_set
+        .observed_identity
+        .as_mut()
+        .unwrap()
+        .components[0]
+        .name = Some("different-member.chd".into());
+    assert!(!cleanup_source_equivalent(
+        &quarantine_file,
+        &file_set,
+        &renamed_file_set
     ));
+
+    let quarantine_directory = temporary.path().join("retained-discs");
+    fs::create_dir(&quarantine_directory).unwrap();
+    let mut multi_disc = original.clone();
+    let mut disc_two = multi_disc.observed_identity.as_ref().unwrap().components[0].clone();
+    disc_two.id = "disc-2".into();
+    disc_two.name = Some("disc-2.chd".into());
+    multi_disc
+        .observed_identity
+        .as_mut()
+        .unwrap()
+        .components
+        .push(disc_two);
+    let mut renamed_multi_disc = multi_disc.clone();
+    renamed_multi_disc
+        .observed_identity
+        .as_mut()
+        .unwrap()
+        .components[0]
+        .name = Some("renamed-disc-1.chd".into());
+    assert!(!equivalent(&multi_disc, &renamed_multi_disc));
+    assert!(!cleanup_source_equivalent(
+        &quarantine_directory,
+        &multi_disc,
+        &renamed_multi_disc
+    ));
+    assert!(!cleanup_source_equivalent(
+        &quarantine_file,
+        &multi_disc,
+        &renamed_multi_disc
+    ));
+}
+
+fn observed_optical_record(name: &str) -> SourceRecord {
+    SourceRecord {
+        profile_id: "optical-profile".into(),
+        path: PathBuf::from(name),
+        sha256: "b".repeat(64),
+        size: 2_048,
+        storage_sha256: "c".repeat(64),
+        storage_size: 1_024,
+        updated_at: 1,
+        observed_identity: Some(observed_optical_identity(name)),
+    }
 }
 
 fn observed_optical_identity(name: &str) -> ObservedSourceIdentity {
