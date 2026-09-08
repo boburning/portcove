@@ -14,7 +14,7 @@ use sha2::{Digest, Sha256};
 use crate::{
     ActivityOperation, ActivityStatus, ActivityTargetKind, DestructiveAuthorization,
     OperationCoordinator, OperationEvent, OperationResult, PortcoveError, PortcoveService, Result,
-    SourceAdmission, SourceAdmissionMode, SourceDiscoveryLimits, SourceRecord,
+    SourceAdmission, SourceAdmissionMode, SourceComponentKind, SourceDiscoveryLimits, SourceRecord,
     operation::{LifecycleOperation, LifecycleOperationKind, LifecyclePhase, OperationStore},
 };
 
@@ -583,6 +583,16 @@ fn revalidate_source(
         )
         .detail("profile_id", &plan.profile_id));
     }
+    let record = inspect_admitted_source(service, plan, path)?;
+    require_equivalent(&plan.source, &record, "source")?;
+    Ok(record)
+}
+
+fn inspect_admitted_source(
+    service: &PortcoveService,
+    plan: &SourceImportPlan,
+    path: &Path,
+) -> Result<SourceRecord> {
     let inspection = service.inspect_source(&plan.profile_id, path)?;
     let admission = match inspection.assessment.admission {
         SourceAdmission::Admitted { mode } => mode,
@@ -593,9 +603,7 @@ fn revalidate_source(
             "source admission changed after import review",
         ));
     }
-    let record = inspection.require_admitted_record()?;
-    require_equivalent(&plan.source, &record, "source")?;
-    Ok(record)
+    inspection.require_admitted_record()
 }
 
 fn revalidate_destination(
@@ -845,9 +853,11 @@ fn cleanup_original(
     if !quarantine.try_exists()? {
         return Ok(None);
     }
-    if source_guard(&quarantine)?.sha256 != plan.source_guard_sha256
-        || revalidate_source(service, plan, &quarantine).is_err()
-    {
+    let guard_matches = source_guard(&quarantine)?.sha256 == plan.source_guard_sha256;
+    let identity_matches = guard_matches
+        && inspect_admitted_source(service, plan, &quarantine)
+            .is_ok_and(|record| cleanup_source_equivalent(&quarantine, &plan.source, &record));
+    if !identity_matches {
         return Ok(Some(quarantine));
     }
     if let Err(error) = service
@@ -1324,6 +1334,50 @@ fn equivalent(left: &SourceRecord, right: &SourceRecord) -> bool {
             .eq_ignore_ascii_case(&right.storage_sha256)
         && left.storage_size == right.storage_size
         && left.observed_identity == right.observed_identity
+}
+
+fn cleanup_source_equivalent(
+    quarantine: &Path,
+    expected: &SourceRecord,
+    actual: &SourceRecord,
+) -> bool {
+    if equivalent(expected, actual) {
+        return true;
+    }
+    let Ok(metadata) = fs::symlink_metadata(quarantine) else {
+        return false;
+    };
+    if !metadata.file_type().is_file() {
+        return false;
+    }
+    let (Some(expected_identity), Some(actual_identity)) =
+        (&expected.observed_identity, &actual.observed_identity)
+    else {
+        return false;
+    };
+    let ([expected_component], [actual_component]) = (
+        expected_identity.components.as_slice(),
+        actual_identity.components.as_slice(),
+    ) else {
+        return false;
+    };
+    if expected_component.kind != SourceComponentKind::OpticalDisc
+        || actual_component.kind != SourceComponentKind::OpticalDisc
+        || expected_component.name.is_none()
+        || actual_component.name.is_none()
+    {
+        return false;
+    }
+
+    let mut normalized = actual.clone();
+    normalized
+        .observed_identity
+        .as_mut()
+        .expect("observed identity was checked above")
+        .components[0]
+        .name
+        .clone_from(&expected_component.name);
+    equivalent(expected, &normalized)
 }
 
 fn cleanup_cancelled_import(store: &OperationStore, id: &str) -> Result<()> {
