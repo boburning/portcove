@@ -631,7 +631,7 @@ impl Installer {
             {
                 let executable = install.path.join(&manifest.selected_executable);
                 let platform = manifest.platform.unwrap_or(Platform::current()?);
-                if is_critical_companion(&candidate, &executable, platform)? {
+                if is_executable_companion(&candidate, &executable, platform)? {
                     failures.push(format!("unexpected launch-sensitive file: {relative}"));
                 }
                 continue;
@@ -699,7 +699,8 @@ impl Installer {
             {
                 refuse_symlink_path_within(&install.path, &candidate, "current mutable path")?;
                 let file_type = entry.file_type()?;
-                if file_type.is_file() && is_critical_companion(&candidate, &executable, platform)?
+                if file_type.is_file()
+                    && is_executable_companion(&candidate, &executable, platform)?
                 {
                     failures.push(format!("unexpected launch-sensitive file: {relative}"));
                 }
@@ -1427,7 +1428,29 @@ fn is_critical_companion(path: &Path, selected: &Path, platform: Platform) -> Re
     ) && crate::permissions::executable_intent(path)?)
 }
 
+fn is_executable_companion(path: &Path, selected: &Path, platform: Platform) -> Result<bool> {
+    if path.parent() != selected.parent() {
+        return Ok(false);
+    }
+    if is_executable_companion_name(path, platform) {
+        return Ok(true);
+    }
+    Ok(matches!(
+        platform,
+        Platform::LinuxX86_64 | Platform::MacosX86_64 | Platform::MacosAarch64
+    ) && crate::permissions::executable_intent(path)?)
+}
+
 fn is_critical_companion_name(path: &Path, platform: Platform) -> bool {
+    let extension = path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(str::to_ascii_lowercase);
+    is_executable_companion_name(path, platform)
+        || matches!(extension.as_deref(), Some("toml" | "ini" | "cfg"))
+}
+
+fn is_executable_companion_name(path: &Path, platform: Platform) -> bool {
     let name = path
         .file_name()
         .and_then(|name| name.to_str())
@@ -1439,7 +1462,7 @@ fn is_critical_companion_name(path: &Path, platform: Platform) -> bool {
         .map(str::to_ascii_lowercase);
     matches!(
         extension.as_deref(),
-        Some("dll" | "so" | "dylib" | "bat" | "cmd" | "ps1" | "sh" | "toml" | "ini" | "cfg")
+        Some("dll" | "so" | "dylib" | "bat" | "cmd" | "ps1" | "sh")
     ) || name.contains(".so.")
         || (platform == Platform::WindowsX86_64 && extension.as_deref() == Some("exe"))
 }
@@ -2281,12 +2304,10 @@ mod tests {
         let (installer, install) = create_test_install(&root, &original);
         let mut current = original.clone();
         current.persistent_paths.push("preferences".into());
-        current.persistent_paths.push("state.json".into());
-        current
-            .runtime_mutable_paths
-            .push("disc_verified.json".into());
-        fs::write(root.join("state.json"), b"user state").unwrap();
-        fs::write(root.join("disc_verified.json"), b"generated cache").unwrap();
+        current.persistent_paths.push("input.ini".into());
+        current.runtime_mutable_paths.push("disc.cfg".into());
+        fs::write(root.join("input.ini"), b"user input mapping").unwrap();
+        fs::write(root.join("disc.cfg"), b"generated disc cache").unwrap();
         fs::create_dir(root.join("preferences")).unwrap();
         fs::write(root.join("preferences/settings.ini"), b"new preference").unwrap();
         assert!(installer.verify_managed(&install, &current).unwrap().valid);
