@@ -494,6 +494,18 @@ const migrated = {
       "diagnostics/psx_freeze_heartbeat.json",
     ],
     launch_environment: { ...port.launch_environment, PSX_PORTABLE: "1" },
+  } : port.id === "bomberman-party-edition-recompiled" ? {
+    ...port,
+    // The managed runtime creates these player selections and disposable
+    // reports after the frozen schema-1 catalog was recorded.
+    persistent_paths: [...port.persistent_paths, "input.ini", "keybinds.ini"],
+    runtime_mutable_paths: [
+      ...(port.runtime_mutable_paths ?? []),
+      "bios.cfg",
+      "disc.cfg",
+      "psx_freeze_heartbeat.json",
+      "psx_last_run_report.json",
+    ],
   } : port),
 };
 const output = `${JSON.stringify(migrated, null, 2)}\n`;

@@ -1035,6 +1035,19 @@ mod tests {
             "disc_verified.cfg".into(),
             "diagnostics/psx_freeze_heartbeat.json".into(),
         ]);
+        let bomberman = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "bomberman-party-edition-recompiled")
+            .unwrap();
+        bomberman
+            .persistent_paths
+            .extend(["input.ini".into(), "keybinds.ini".into()]);
+        bomberman.runtime_mutable_paths.extend([
+            "bios.cfg".into(),
+            "disc.cfg".into(),
+            "psx_freeze_heartbeat.json".into(),
+            "psx_last_run_report.json".into(),
+        ]);
         assert_eq!(
             serde_json::to_value(&migrated.document().ports).unwrap(),
             serde_json::to_value(expected_ports).unwrap()
@@ -2504,6 +2517,24 @@ mod tests {
         assert_eq!(port.automated_tested_platforms, [Platform::WindowsX86_64]);
         assert_eq!(port.manually_validated_platforms, [Platform::WindowsX86_64]);
         for path in ["input.ini", "keybinds.ini"] {
+            assert!(port.persistent_paths.iter().any(|value| value == path));
+        }
+        for path in [
+            "bios.cfg",
+            "disc.cfg",
+            "psx_freeze_heartbeat.json",
+            "psx_last_run_report.json",
+        ] {
+            assert!(port.runtime_mutable_paths.iter().any(|value| value == path));
+        }
+    }
+
+    #[test]
+    fn bomberman_party_edition_declares_managed_runtime_player_data() {
+        let catalog = Catalog::embedded().expect("catalog should load");
+        let port = catalog.port("bomberman-party-edition-recompiled").unwrap();
+        assert_eq!(port.adapter, AdapterKind::PsxRecompManaged);
+        for path in ["saves", "input.ini", "keybinds.ini"] {
             assert!(port.persistent_paths.iter().any(|value| value == path));
         }
         for path in [

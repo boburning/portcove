@@ -2960,6 +2960,7 @@ mod tests {
         let library = Library::open(temporary.path().join("library")).unwrap();
         let catalog = Catalog::embedded().unwrap();
         for id in [
+            "bomberman-party-edition-recompiled",
             "yu-gi-oh-forbidden-memories-recompiled",
             "revelations-persona-recompiled",
         ] {

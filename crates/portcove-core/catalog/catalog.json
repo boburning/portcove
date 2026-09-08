@@ -6527,9 +6527,17 @@
         "game_options.json",
         "graphics.json",
         "input.json",
-        "sound.json"
+        "sound.json",
+        "input.ini",
+        "keybinds.ini"
       ],
-      "runtime_subdirectory": "build-portcove"
+      "runtime_subdirectory": "build-portcove",
+      "runtime_mutable_paths": [
+        "bios.cfg",
+        "disc.cfg",
+        "psx_freeze_heartbeat.json",
+        "psx_last_run_report.json"
+      ]
     },
     {
       "id": "bomberman-world-recompiled",
