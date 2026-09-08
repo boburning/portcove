@@ -3,6 +3,16 @@
 This map separates stable repository contracts from live planning and
 machine-readable product state.
 
+## Published technical previews
+
+- [Portcove 0.1.0-alpha.2](https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.2)
+  is the current immutable prerelease. Read its
+  [reviewed notes](releases/0.1.0-alpha.2-release-notes.md) and the
+  [Alpha 1 to Alpha 2 upgrade procedure](UPGRADING.md).
+- [Portcove 0.1.0-alpha.1](https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.1)
+  remains available with its [reviewed notes](releases/0.1.0-alpha.1-release-notes.md)
+  and frozen evidence.
+
 | Authority | Owns | Does not own |
 |---|---|---|
 | [Portcove Roadmap](https://github.com/users/boburning/projects/1) | Current work, priority, horizon, status, target release, blockers, deferred work, and new-port pipeline | Durable implementation details or actual catalog support |
