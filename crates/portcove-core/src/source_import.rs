@@ -13,8 +13,9 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     ActivityOperation, ActivityStatus, ActivityTargetKind, DestructiveAuthorization,
-    OperationCoordinator, OperationEvent, OperationResult, PortcoveError, PortcoveService, Result,
-    SourceAdmission, SourceAdmissionMode, SourceDiscoveryLimits, SourceRecord,
+    ObservedSourceComponent, ObservedSourceIdentity, OperationCoordinator, OperationEvent,
+    OperationResult, PortcoveError, PortcoveService, Result, SourceAdmission, SourceAdmissionMode,
+    SourceComponentKind, SourceDiscoveryLimits, SourceRecord,
     operation::{LifecycleOperation, LifecycleOperationKind, LifecyclePhase, OperationStore},
 };
 
@@ -1323,7 +1324,45 @@ fn equivalent(left: &SourceRecord, right: &SourceRecord) -> bool {
             .storage_sha256
             .eq_ignore_ascii_case(&right.storage_sha256)
         && left.storage_size == right.storage_size
-        && left.observed_identity == right.observed_identity
+        && observed_identity_equivalent(
+            left.observed_identity.as_ref(),
+            right.observed_identity.as_ref(),
+        )
+}
+
+fn observed_identity_equivalent(
+    left: Option<&ObservedSourceIdentity>,
+    right: Option<&ObservedSourceIdentity>,
+) -> bool {
+    match (left, right) {
+        (None, None) => true,
+        (Some(left), Some(right)) => {
+            left.schema_version == right.schema_version
+                && left.archive_member_name == right.archive_member_name
+                && left.digests == right.digests
+                && left.validator == right.validator
+                && left.components.len() == right.components.len()
+                && left
+                    .components
+                    .iter()
+                    .zip(&right.components)
+                    .all(|(left, right)| observed_component_equivalent(left, right))
+        }
+        _ => false,
+    }
+}
+
+fn observed_component_equivalent(
+    left: &ObservedSourceComponent,
+    right: &ObservedSourceComponent,
+) -> bool {
+    left.id == right.id
+        && left.kind == right.kind
+        && (left.kind == SourceComponentKind::OpticalDisc || left.name == right.name)
+        && left.digests == right.digests
+        && left.size == right.size
+        && left.track_count == right.track_count
+        && left.volume_id == right.volume_id
 }
 
 fn cleanup_cancelled_import(store: &OperationStore, id: &str) -> Result<()> {

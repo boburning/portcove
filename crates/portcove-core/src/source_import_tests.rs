@@ -12,7 +12,9 @@ use std::{
 use sha1::Sha1;
 
 use crate::{
-    Catalog, DigestIdentity, DigestScope, ErrorCode, Library, SourceRepresentationKind,
+    Catalog, DigestIdentity, DigestScope, ErrorCode, Library, ObservedSourceComponent,
+    ObservedSourceDigest, ObservedSourceIdentity, ObservedSourceValidator, SourceComponentKind,
+    SourceDigestAlgorithm, SourceRepresentationKind, SourceValidatorResult,
     operation::{LifecycleFaultInjector, LifecycleFaultPoint},
 };
 
@@ -599,6 +601,133 @@ fn deletion_failure_reports_a_valid_copy_and_the_exact_retained_original() {
             .unwrap()
             .is_empty()
     );
+}
+
+#[test]
+fn optical_disc_equivalence_ignores_only_the_path_derived_component_name() {
+    let original = observed_optical_identity("game.chd");
+    let mut quarantined = original.clone();
+    quarantined.components[0].name = Some(".portcove-source-import-id.retained.chd".into());
+    assert!(observed_identity_equivalent(
+        Some(&original),
+        Some(&quarantined)
+    ));
+
+    let mut changed = quarantined.clone();
+    changed.components[0].volume_id = Some("SLUS_99999".into());
+    assert!(!observed_identity_equivalent(
+        Some(&original),
+        Some(&changed)
+    ));
+
+    let mut changed = quarantined.clone();
+    changed.components[0].track_count = Some(2);
+    assert!(!observed_identity_equivalent(
+        Some(&original),
+        Some(&changed)
+    ));
+
+    let mut changed = quarantined;
+    changed.components[0].digests[0].value = "0".repeat(64);
+    assert!(!observed_identity_equivalent(
+        Some(&original),
+        Some(&changed)
+    ));
+}
+
+#[test]
+fn optical_disc_equivalence_keeps_every_material_observation_bound() {
+    let original = observed_optical_identity("game.chd");
+
+    let mut changed = original.clone();
+    changed.components[0].id = "disc-2".into();
+    assert!(!observed_identity_equivalent(
+        Some(&original),
+        Some(&changed)
+    ));
+
+    let mut changed = original.clone();
+    changed.components[0].kind = SourceComponentKind::FileSetMember;
+    assert!(!observed_identity_equivalent(
+        Some(&original),
+        Some(&changed)
+    ));
+
+    let mut changed = original.clone();
+    changed.components[0].size += 1;
+    assert!(!observed_identity_equivalent(
+        Some(&original),
+        Some(&changed)
+    ));
+
+    let mut changed = original.clone();
+    changed.digests[0].size += 1;
+    assert!(!observed_identity_equivalent(
+        Some(&original),
+        Some(&changed)
+    ));
+
+    let mut changed = original.clone();
+    changed.schema_version += 1;
+    assert!(!observed_identity_equivalent(
+        Some(&original),
+        Some(&changed)
+    ));
+
+    let mut changed = original.clone();
+    changed.archive_member_name = Some("disc.chd".into());
+    assert!(!observed_identity_equivalent(
+        Some(&original),
+        Some(&changed)
+    ));
+
+    let mut changed = original.clone();
+    changed.validator = Some(ObservedSourceValidator {
+        contract_id: "disc-validator".into(),
+        tool_id: "disc-tool".into(),
+        protocol_version: "1".into(),
+        result: SourceValidatorResult::Passed,
+    });
+    assert!(!observed_identity_equivalent(
+        Some(&original),
+        Some(&changed)
+    ));
+}
+
+#[test]
+fn file_set_component_names_remain_part_of_source_equivalence() {
+    let mut original = observed_optical_identity("disc.chd");
+    original.components[0].kind = SourceComponentKind::FileSetMember;
+    let mut renamed = original.clone();
+    renamed.components[0].name = Some("different-member.chd".into());
+    assert!(!observed_identity_equivalent(
+        Some(&original),
+        Some(&renamed)
+    ));
+}
+
+fn observed_optical_identity(name: &str) -> ObservedSourceIdentity {
+    let digest = ObservedSourceDigest {
+        algorithm: SourceDigestAlgorithm::Sha256,
+        scope: DigestScope::PsxNormalizedTrackSet,
+        value: "a".repeat(64),
+        size: 2_048,
+    };
+    ObservedSourceIdentity {
+        schema_version: 1,
+        archive_member_name: None,
+        digests: vec![digest.clone()],
+        components: vec![ObservedSourceComponent {
+            id: "disc-1".into(),
+            kind: SourceComponentKind::OpticalDisc,
+            name: Some(name.into()),
+            digests: vec![digest],
+            size: 2_048,
+            track_count: Some(1),
+            volume_id: Some("SLUS_01189".into()),
+        }],
+        validator: None,
+    }
 }
 
 fn assert_durable_move_recovery(point: LifecycleFaultPoint) {
