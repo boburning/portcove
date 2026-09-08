@@ -111,14 +111,24 @@ impl InstallQualification {
             .collect()
     }
 
-    fn runtime_mutable_paths(&self, install: &InstallRecord) -> Result<Vec<String>> {
+    fn current_mutable_paths(&self, install: &InstallRecord) -> Result<Vec<String>> {
         let working = self.runtime_root(
+            &install.path,
+            &install.path.join(&install.selected_executable),
+        );
+        let persistent = self.persistence_root(
             &install.path,
             &install.path.join(&install.selected_executable),
         );
         self.runtime_mutable_paths
             .iter()
-            .map(|relative| manifest_relative(&install.path, &working.join(relative)))
+            .map(|relative| working.join(relative))
+            .chain(
+                self.persistent_paths
+                    .iter()
+                    .map(|relative| persistent.join(relative)),
+            )
+            .map(|path| manifest_relative(&install.path, &path))
             .collect()
     }
 
@@ -568,7 +578,7 @@ impl Installer {
         self.verify_with_metadata(
             install,
             &qualification.generated_metadata_paths(install)?,
-            &qualification.runtime_mutable_paths(install)?,
+            &qualification.current_mutable_paths(install)?,
         )
     }
 
@@ -576,7 +586,7 @@ impl Installer {
         &self,
         install: &InstallRecord,
         generated_metadata: &[String],
-        current_runtime_mutable_paths: &[String],
+        current_mutable_paths: &[String],
     ) -> Result<VerificationReport> {
         let manifest = verified_manifest(install)?;
         let mut failures = Vec::new();
@@ -605,9 +615,6 @@ impl Installer {
             if relative == ".portcove-manifest.json"
                 || relative == ".portcove-launched"
                 || generated_metadata.contains(&relative)
-                || current_runtime_mutable_paths.iter().any(|mutable| {
-                    relative == *mutable || relative.starts_with(&format!("{mutable}/"))
-                })
                 || manifest
                     .mutable_file_patterns
                     .iter()
@@ -616,6 +623,17 @@ impl Installer {
                     relative == *mutable || relative.starts_with(&format!("{mutable}/"))
                 })
             {
+                continue;
+            }
+            if current_mutable_paths
+                .iter()
+                .any(|mutable| relative == *mutable || relative.starts_with(&format!("{mutable}/")))
+            {
+                let executable = install.path.join(&manifest.selected_executable);
+                let platform = manifest.platform.unwrap_or(Platform::current()?);
+                if is_executable_companion(&candidate, &executable, platform)? {
+                    failures.push(format!("unexpected launch-sensitive file: {relative}"));
+                }
                 continue;
             }
             if !expected.contains(relative.as_str()) {
@@ -630,7 +648,12 @@ impl Installer {
         })
     }
 
-    pub(crate) fn verify_critical(&self, install: &InstallRecord) -> Result<PathBuf> {
+    pub(crate) fn verify_critical(
+        &self,
+        install: &InstallRecord,
+        qualification: &InstallQualification,
+    ) -> Result<PathBuf> {
+        let current_mutable = qualification.current_mutable_paths(install)?;
         let manifest = verified_manifest(install)?;
         let mut failures = Vec::new();
         if let Some(root) = &manifest.runtime_root {
@@ -668,6 +691,19 @@ impl Installer {
             if expected.contains(relative.as_str())
                 || manifest_path_is_mutable(&manifest, &relative)
             {
+                continue;
+            }
+            if current_mutable
+                .iter()
+                .any(|mutable| relative == *mutable || relative.starts_with(&format!("{mutable}/")))
+            {
+                refuse_symlink_path_within(&install.path, &candidate, "current mutable path")?;
+                let file_type = entry.file_type()?;
+                if file_type.is_file()
+                    && is_executable_companion(&candidate, &executable, platform)?
+                {
+                    failures.push(format!("unexpected launch-sensitive file: {relative}"));
+                }
                 continue;
             }
             let file_type = entry.file_type()?;
@@ -749,7 +785,7 @@ impl Installer {
         let generated_metadata = qualification.generated_metadata_paths(install)?;
         let mut expected_mutable = manifest.mutable_paths.clone();
         expected_mutable.extend(generated_metadata.iter().cloned());
-        expected_mutable.extend(qualification.runtime_mutable_paths(install)?);
+        expected_mutable.extend(qualification.current_mutable_paths(install)?);
         expected_mutable.sort();
         expected_mutable.dedup();
         let original_files: Vec<_> = manifest
@@ -1392,7 +1428,29 @@ fn is_critical_companion(path: &Path, selected: &Path, platform: Platform) -> Re
     ) && crate::permissions::executable_intent(path)?)
 }
 
+fn is_executable_companion(path: &Path, selected: &Path, platform: Platform) -> Result<bool> {
+    if path.parent() != selected.parent() {
+        return Ok(false);
+    }
+    if is_executable_companion_name(path, platform) {
+        return Ok(true);
+    }
+    Ok(matches!(
+        platform,
+        Platform::LinuxX86_64 | Platform::MacosX86_64 | Platform::MacosAarch64
+    ) && crate::permissions::executable_intent(path)?)
+}
+
 fn is_critical_companion_name(path: &Path, platform: Platform) -> bool {
+    let extension = path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(str::to_ascii_lowercase);
+    is_executable_companion_name(path, platform)
+        || matches!(extension.as_deref(), Some("toml" | "ini" | "cfg"))
+}
+
+fn is_executable_companion_name(path: &Path, platform: Platform) -> bool {
     let name = path
         .file_name()
         .and_then(|name| name.to_str())
@@ -1404,7 +1462,7 @@ fn is_critical_companion_name(path: &Path, platform: Platform) -> bool {
         .map(str::to_ascii_lowercase);
     matches!(
         extension.as_deref(),
-        Some("dll" | "so" | "dylib" | "bat" | "cmd" | "ps1" | "sh" | "toml" | "ini" | "cfg")
+        Some("dll" | "so" | "dylib" | "bat" | "cmd" | "ps1" | "sh")
     ) || name.contains(".so.")
         || (platform == Platform::WindowsX86_64 && extension.as_deref() == Some("exe"))
 }
@@ -1764,7 +1822,9 @@ mod tests {
         ] {
             let candidate = root.join(name);
             fs::write(&candidate, b"unmanifested").unwrap();
-            let error = installer.verify_critical(&install).unwrap_err();
+            let error = installer
+                .verify_critical(&install, &qualification)
+                .unwrap_err();
             assert_eq!(error.code, crate::ErrorCode::Verification, "{name}");
             assert!(error.details["failures"].contains(name), "{name}");
             fs::remove_file(candidate).unwrap();
@@ -1773,7 +1833,7 @@ mod tests {
         fs::write(root.join("notes.txt"), b"benign untracked note").unwrap();
         fs::write(root.join("saves/engine.dll"), b"explicit mutable data").unwrap();
         assert_eq!(
-            installer.verify_critical(&install).unwrap(),
+            installer.verify_critical(&install, &qualification).unwrap(),
             root.join("game.exe")
         );
     }
@@ -1805,12 +1865,14 @@ mod tests {
         eprintln!("legacy companion manifest written; verifying trusted files");
 
         assert_eq!(
-            installer.verify_critical(&install).unwrap(),
+            installer.verify_critical(&install, &qualification).unwrap(),
             root.join("game.exe")
         );
         fs::write(root.join("helper.exe"), b"tampered helper").unwrap();
         eprintln!("companion changed; verifying tamper rejection");
-        let error = installer.verify_critical(&install).unwrap_err();
+        let error = installer
+            .verify_critical(&install, &qualification)
+            .unwrap_err();
         assert!(error.details["failures"].contains("changed: helper.exe"));
     }
 
@@ -1834,13 +1896,15 @@ mod tests {
 
         fs::remove_file(&executable).unwrap();
         symlink(&outside, &executable).unwrap();
-        assert!(installer.verify_critical(&install).is_err());
+        assert!(installer.verify_critical(&install, &qualification).is_err());
 
         fs::remove_file(&executable).unwrap();
         fs::write(&executable, b"trusted executable").unwrap();
         fs::set_permissions(&executable, fs::Permissions::from_mode(0o755)).unwrap();
         symlink(&outside, root.join("engine.so")).unwrap();
-        let error = installer.verify_critical(&install).unwrap_err();
+        let error = installer
+            .verify_critical(&install, &qualification)
+            .unwrap_err();
         assert!(error.details["failures"].contains("engine.so"));
     }
 
@@ -1922,7 +1986,10 @@ mod tests {
                 .unwrap()
                 .valid
         );
-        assert_eq!(installer.verify_critical(&install).unwrap(), executable);
+        assert_eq!(
+            installer.verify_critical(&install, &qualification).unwrap(),
+            executable
+        );
 
         set_mode(&executable, 0o644);
         let lost_execute = installer.verify_managed(&install, &qualification).unwrap();
@@ -1932,7 +1999,7 @@ mod tests {
                 .failures
                 .contains(&"permissions changed: run.sh".into())
         );
-        assert!(installer.verify_critical(&install).is_err());
+        assert!(installer.verify_critical(&install, &qualification).is_err());
 
         set_mode(&executable, 0o755);
         set_mode(&data, 0o755);
@@ -2001,7 +2068,7 @@ mod tests {
 
         assert_eq!(verified_manifest(&install).unwrap().schema_version, 4);
         assert!(installer.verify(&install).unwrap().valid);
-        assert!(installer.verify_critical(&install).is_ok());
+        assert!(installer.verify_critical(&install, &qualification).is_ok());
         installer
             .verify_import_contract(&install, &qualification)
             .unwrap();
@@ -2227,6 +2294,58 @@ mod tests {
     }
 
     #[test]
+    fn new_persistent_declarations_do_not_rewrite_recorded_immutable_identity() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("game.exe"), b"verified executable").unwrap();
+        fs::write(root.join("engine.dll"), b"verified engine").unwrap();
+        let original = InstallQualification::test("game.exe");
+        let (installer, install) = create_test_install(&root, &original);
+        let mut current = original.clone();
+        current.persistent_paths.push("preferences".into());
+        current.persistent_paths.push("input.ini".into());
+        current.runtime_mutable_paths.push("disc.cfg".into());
+        fs::write(root.join("input.ini"), b"user input mapping").unwrap();
+        fs::write(root.join("disc.cfg"), b"generated disc cache").unwrap();
+        fs::create_dir(root.join("preferences")).unwrap();
+        fs::write(root.join("preferences/settings.ini"), b"new preference").unwrap();
+        assert!(installer.verify_managed(&install, &current).unwrap().valid);
+        assert!(installer.verify_critical(&install, &current).is_ok());
+        installer
+            .verify_import_contract(&install, &current)
+            .unwrap();
+        fs::write(root.join("unexpected.dll"), b"unreviewed file").unwrap();
+        assert!(!installer.verify_managed(&install, &current).unwrap().valid);
+        assert!(installer.verify_critical(&install, &current).is_err());
+        fs::remove_file(root.join("unexpected.dll")).unwrap();
+        current.persistent_paths.push("late.dll".into());
+        fs::write(root.join("late.dll"), b"unmanifested engine").unwrap();
+        let report = installer.verify_managed(&install, &current).unwrap();
+        assert!(!report.valid);
+        assert!(
+            report
+                .failures
+                .contains(&"unexpected launch-sensitive file: late.dll".into())
+        );
+        assert!(installer.verify_critical(&install, &current).is_err());
+        fs::remove_file(root.join("late.dll")).unwrap();
+        current.persistent_paths.push("engine.dll".into());
+        fs::write(root.join("engine.dll"), b"changed engine").unwrap();
+        let report = installer.verify_managed(&install, &current).unwrap();
+        assert!(!report.valid);
+        assert!(report.failures.contains(&"changed: engine.dll".into()));
+        assert!(installer.verify_critical(&install, &current).is_err());
+        assert!(
+            installer
+                .verify_import_contract(&install, &current)
+                .is_err()
+        );
+        fs::write(root.join("game.exe"), b"changed executable").unwrap();
+        assert!(installer.verify_critical(&install, &current).is_err());
+    }
+
+    #[test]
     fn ghostship_runtime_outputs_do_not_hide_unknown_files_or_executable_tampering() {
         let temporary = tempfile::tempdir().unwrap();
         let root = temporary.path().join("payload");
@@ -2272,7 +2391,7 @@ mod tests {
                 .unwrap()
                 .valid
         );
-        assert!(installer.verify_critical(&install).is_err());
+        assert!(installer.verify_critical(&install, &qualification).is_err());
     }
 
     #[test]

@@ -2343,18 +2343,19 @@ impl PortcoveService {
         F: FnMut(OperationEvent),
     {
         let runtime = crate::runtime::required(port, Platform::current()?);
+        let qualification = InstallQualification::from_port(port, Platform::current()?)?;
         if let Some(active) = &status.active
             && artifact_matches_release(active, &release, runtime.as_ref())
         {
             self.managed_install_root(&port.id, &active.path)?;
-            Installer::new(self.library.clone())?.verify_critical(active)?;
+            Installer::new(self.library.clone())?.verify_critical(active, &qualification)?;
             return Ok(active.clone());
         }
         if let Some(staged) = &status.staged
             && artifact_matches_release(staged, &release, runtime.as_ref())
         {
             self.managed_install_root(&port.id, &staged.path)?;
-            Installer::new(self.library.clone())?.verify_critical(staged)?;
+            Installer::new(self.library.clone())?.verify_critical(staged, &qualification)?;
             reporter.operation.begin_publication()?;
             return if activate {
                 self.activate_staged_locked(&port.id, reporter.operation.operation_id())
@@ -2367,10 +2368,11 @@ impl PortcoveService {
                 .install_by_artifact(&port.id, &release.asset.sha256, runtime.as_ref())?
         {
             self.managed_install_root(&port.id, &existing.path)?;
-            Installer::new(self.library.clone())?.verify_critical(&existing)?;
+            Installer::new(self.library.clone())?.verify_critical(&existing, &qualification)?;
             reporter.operation.begin_publication()?;
             self.collect_active_user_data_if_launched(&port.id)?;
             self.restore_user_data_to(port, &existing.path)?;
+            Installer::new(self.library.clone())?.verify_critical(&existing, &qualification)?;
             self.library.register_install(&existing, activate)?;
             existing.staged = !activate;
             return Ok(existing);
@@ -2382,7 +2384,6 @@ impl PortcoveService {
         let bios = self.validate_and_remember_bios(port, overrides.bios, reporter.operation)?;
         reporter.operation.checkpoint()?;
         let platform = Platform::current()?;
-        let qualification = InstallQualification::from_port(port, platform)?;
         let managed = self
             .managed_preparation(
                 port,
@@ -2766,9 +2767,22 @@ impl PortcoveService {
                 &previous,
             )?;
             self.managed_install_root(port_id, &previous.path)?;
-            Installer::new(self.library.clone())?.verify_critical(&previous)?;
+            Installer::new(self.library.clone())?.verify_critical(
+                &previous,
+                &InstallQualification::from_port(
+                    self.catalog.port(port_id)?,
+                    Platform::current()?,
+                )?,
+            )?;
             self.collect_active_user_data_if_launched(port_id)?;
             self.restore_user_data_to(self.catalog.port(port_id)?, &previous.path)?;
+            Installer::new(self.library.clone())?.verify_critical(
+                &previous,
+                &InstallQualification::from_port(
+                    self.catalog.port(port_id)?,
+                    Platform::current()?,
+                )?,
+            )?;
             self.library.rollback(port_id)
         })();
         self.finish_activity(activity, result)
@@ -2795,7 +2809,10 @@ impl PortcoveService {
             .ok_or_else(|| PortcoveError::not_found(format!("{port_id} has no staged version")))?;
         crate::runtime::require_ready(self.catalog.port(port_id)?, Platform::current()?, &staged)?;
         self.managed_install_root(port_id, &staged.path)?;
-        Installer::new(self.library.clone())?.verify_critical(&staged)?;
+        Installer::new(self.library.clone())?.verify_critical(
+            &staged,
+            &InstallQualification::from_port(self.catalog.port(port_id)?, Platform::current()?)?,
+        )?;
         let store = OperationStore::new(self.library.clone());
         let mut lifecycle =
             LifecycleOperation::new(operation_id, LifecycleOperationKind::Activate, port_id);
@@ -2804,6 +2821,13 @@ impl PortcoveService {
         let result: Result<InstallRecord> = (|| {
             self.collect_active_user_data_if_launched(port_id)?;
             self.restore_user_data_to(self.catalog.port(port_id)?, &staged.path)?;
+            Installer::new(self.library.clone())?.verify_critical(
+                &staged,
+                &InstallQualification::from_port(
+                    self.catalog.port(port_id)?,
+                    Platform::current()?,
+                )?,
+            )?;
             let activated = self.library.activate_staged(port_id)?;
             lifecycle.phase = LifecyclePhase::MetadataCommitted;
             store.put(&mut lifecycle)?;
@@ -3607,7 +3631,10 @@ impl PortcoveService {
         checkpoint()?;
         self.managed_install_root(&port.id, &active.path)?;
         checkpoint()?;
-        let selected_executable = Installer::new(self.library.clone())?.verify_critical(active)?;
+        Installer::new(self.library.clone())?.verify_critical(
+            active,
+            &InstallQualification::from_port(port, Platform::current()?)?,
+        )?;
         checkpoint()?;
         let source = if let Some(path) = source_override {
             let profile_id = port.source_profile.as_deref().ok_or_else(|| {
@@ -3630,6 +3657,11 @@ impl PortcoveService {
             checkpoint()?;
         }
         self.restore_user_data_to(port, &active.path)?;
+        checkpoint()?;
+        let selected_executable = Installer::new(self.library.clone())?.verify_critical(
+            active,
+            &InstallQualification::from_port(port, Platform::current()?)?,
+        )?;
         checkpoint()?;
         let spec = self
             .adapters
@@ -3676,7 +3708,7 @@ impl PortcoveService {
         let qualification = InstallQualification::from_port(port, Platform::current()?)?;
         let installer = Installer::new(self.library.clone())?;
         let refreshed = installer.refresh_verified_manifest(active, &qualification)?;
-        if let Err(error) = installer.verify_critical(&refreshed) {
+        if let Err(error) = installer.verify_critical(&refreshed, &qualification) {
             return restore_setup_manifest(&manifest_path, &previous_manifest, active, error);
         }
         if let Err(error) = self.library.update_install_manifest(&refreshed) {
@@ -4736,6 +4768,26 @@ mod tests {
             }),
         )
         .unwrap()
+    }
+
+    fn service_with_added_persistent_path(
+        library: Library,
+        version: &str,
+        relative: &str,
+    ) -> PortcoveService {
+        let mut service = service_with_release(library, version);
+        let mut document = service.catalog().authoritative_document();
+        document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "zelda64-recomp")
+            .unwrap()
+            .persistent_paths
+            .push(relative.into());
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        );
+        service
     }
 
     fn library_file_snapshot(library: &Library) -> Vec<(PathBuf, String)> {
@@ -5984,6 +6036,95 @@ fn main() {
             b"new mod"
         );
         assert_restored_versions(&service, &versions);
+    }
+
+    #[test]
+    fn current_persistence_cannot_restore_an_unmanifested_companion_into_lifecycle_paths() {
+        const PORT: &str = "zelda64-recomp";
+        const COMPANION: &str = "late.dll";
+
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("launch-library")).unwrap();
+        let active = register_zelda_install(&library, "v1", true);
+        let user_companion = library.user_dir(PORT).join(COMPANION);
+        fs::create_dir_all(user_companion.parent().unwrap()).unwrap();
+        fs::write(&user_companion, b"untrusted companion").unwrap();
+        let service = service_with_added_persistent_path(library.clone(), "v2", COMPANION);
+
+        assert_eq!(
+            service.launch_spec(PORT, None).unwrap_err().code,
+            crate::ErrorCode::Verification
+        );
+        assert!(active.join(COMPANION).is_file());
+        assert_eq!(service.status(PORT).unwrap().active.unwrap().version, "v1");
+
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("activate-library")).unwrap();
+        register_zelda_install(&library, "v1", true);
+        let staged = register_zelda_install(&library, "v2", false);
+        let user_companion = library.user_dir(PORT).join(COMPANION);
+        fs::create_dir_all(user_companion.parent().unwrap()).unwrap();
+        fs::write(&user_companion, b"untrusted companion").unwrap();
+        let service = service_with_added_persistent_path(library, "v2", COMPANION);
+
+        assert_eq!(
+            service.activate_staged(PORT).unwrap_err().code,
+            crate::ErrorCode::Verification
+        );
+        assert!(staged.join(COMPANION).is_file());
+        let status = service.status(PORT).unwrap();
+        assert_eq!(status.active.unwrap().version, "v1");
+        assert_eq!(status.staged.unwrap().version, "v2");
+
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("rollback-library")).unwrap();
+        let previous = register_zelda_install(&library, "v1", true);
+        register_zelda_install(&library, "v2", true);
+        let user_companion = library.user_dir(PORT).join(COMPANION);
+        fs::create_dir_all(user_companion.parent().unwrap()).unwrap();
+        fs::write(&user_companion, b"untrusted companion").unwrap();
+        let service = service_with_added_persistent_path(library, "v2", COMPANION);
+
+        assert_eq!(
+            service.rollback(PORT).unwrap_err().code,
+            crate::ErrorCode::Verification
+        );
+        assert!(previous.join(COMPANION).is_file());
+        assert_eq!(service.status(PORT).unwrap().active.unwrap().version, "v2");
+
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("recovery-library")).unwrap();
+        register_zelda_install(&library, "v1", true);
+        let staged = register_zelda_install(&library, "v2", false);
+        let user_companion = library.user_dir(PORT).join(COMPANION);
+        fs::create_dir_all(user_companion.parent().unwrap()).unwrap();
+        fs::write(&user_companion, b"untrusted companion").unwrap();
+        let service = service_with_added_persistent_path(library.clone(), "v2", COMPANION);
+        let store = OperationStore::new(library);
+        let mut operation = LifecycleOperation::new(
+            "recover-current-persistence",
+            LifecycleOperationKind::Activate,
+            PORT,
+        );
+        operation.install = Some(service.status(PORT).unwrap().staged.unwrap());
+        store.put(&mut operation).unwrap();
+
+        assert_eq!(
+            service
+                .recover_activation(&store, &mut operation)
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Verification
+        );
+        assert!(staged.join(COMPANION).is_file());
+        assert_eq!(service.status(PORT).unwrap().active.unwrap().version, "v1");
+        assert!(!service.repair_plan().unwrap().items.is_empty());
+
+        fs::remove_file(user_companion).unwrap();
+        fs::remove_file(staged.join(COMPANION)).unwrap();
+        service.recover_activation(&store, &mut operation).unwrap();
+        assert_eq!(service.status(PORT).unwrap().active.unwrap().version, "v2");
+        assert!(service.repair_plan().unwrap().items.is_empty());
     }
 
     #[cfg(unix)]

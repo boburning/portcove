@@ -483,6 +483,29 @@ const migrated = {
       "logs/Ghostship.log",
       ...Array.from({ length: 10 }, (_, index) => `logs/Ghostship.${index + 1}.log`),
     ],
+  } : port.id === "yu-gi-oh-forbidden-memories-recompiled" ? {
+    ...port,
+    // v0.5.7 separates player data and launcher caches unless portable mode is
+    // explicit. Remember user selections and ignore only reproducible outputs.
+    persistent_paths: [...port.persistent_paths, "disc.cfg", "bios.cfg"],
+    runtime_mutable_paths: [
+      ...port.runtime_mutable_paths,
+      "disc_verified.cfg",
+      "diagnostics/psx_freeze_heartbeat.json",
+    ],
+    launch_environment: { ...port.launch_environment, PSX_PORTABLE: "1" },
+  } : port.id === "bomberman-party-edition-recompiled" ? {
+    ...port,
+    // The managed runtime creates these player selections and disposable
+    // reports after the frozen schema-1 catalog was recorded.
+    persistent_paths: [...port.persistent_paths, "input.ini", "keybinds.ini"],
+    runtime_mutable_paths: [
+      ...(port.runtime_mutable_paths ?? []),
+      "bios.cfg",
+      "disc.cfg",
+      "psx_freeze_heartbeat.json",
+      "psx_last_run_report.json",
+    ],
   } : port),
 };
 const output = `${JSON.stringify(migrated, null, 2)}\n`;

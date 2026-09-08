@@ -368,19 +368,14 @@ impl Adapter for StandardAdapter {
                 }
             }
             AdapterKind::PsxRecompManaged => {
-                if let Some(path) = managed_psx_runtime_config {
-                    vec![
-                        "--game".into(),
-                        crate::path::unicode(&path, "managed PS1 runtime config")?,
-                        "--memcard-dir".into(),
-                        crate::path::unicode(
-                            &working_directory.join("saves"),
-                            "managed PS1 memory-card directory",
-                        )?,
-                    ]
-                } else {
-                    Vec::new()
-                }
+                let config = managed_psx_runtime_config
+                    .unwrap_or_else(|| working_directory.join("game.toml"));
+                vec![
+                    "--game".into(),
+                    psx_launch_path(&config)?,
+                    "--memcard-dir".into(),
+                    psx_launch_path(&working_directory.join("saves"))?,
+                ]
             }
             _ => Vec::new(),
         };
@@ -713,6 +708,35 @@ pub(crate) fn generated_metadata(port: &PortDefinition) -> Result<Vec<String>> {
         paths.push(MANAGED_PSX_RUNTIME_CONFIG.into());
     }
     Ok(paths)
+}
+
+fn psx_launch_path(path: &Path) -> Result<String> {
+    let text = crate::path::unicode(path, "managed PS1 launch")?;
+    #[cfg(windows)]
+    {
+        use std::path::{Component, Prefix};
+        let Some(Component::Prefix(prefix)) = path.components().next() else {
+            return Ok(text);
+        };
+        // The upstream C++ runtime normalizes extended Windows paths incorrectly.
+        // Use the ordinary spelling only when it resolves to the same location,
+        // including a missing saves directory beneath an existing parent.
+        let ordinary = match prefix.kind() {
+            Prefix::VerbatimDisk(_) => text[4..].to_owned(),
+            Prefix::VerbatimUNC(_, _) => format!("\\\\{}", &text[8..]),
+            _ => return Ok(text),
+        };
+        if crate::path::resolve_existing_ancestor(Path::new(&ordinary))?
+            != crate::path::resolve_existing_ancestor(path)?
+        {
+            return Err(PortcoveError::unsupported(
+                "managed PS1 runtime cannot represent this Windows path without changing its identity",
+            ));
+        }
+        Ok(ordinary)
+    }
+    #[cfg(not(windows))]
+    Ok(text)
 }
 
 fn prepare_managed_psx_runtime_config(
@@ -2909,6 +2933,72 @@ mod tests {
             descriptor["customPath"],
             library.user_dir("dusklight").to_string_lossy().as_ref()
         );
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn managed_psx_launch_paths_preserve_identity_and_reject_windows_aliases() {
+        let temporary = tempfile::tempdir().unwrap();
+        let canonical = std::fs::canonicalize(temporary.path()).unwrap();
+        let saves = canonical.join("saves");
+        let argument = psx_launch_path(&saves).unwrap();
+        assert!(!argument.starts_with("\\\\?\\"));
+        assert_eq!(
+            crate::path::resolve_existing_ancestor(Path::new(&argument)).unwrap(),
+            saves
+        );
+        std::fs::create_dir(canonical.join("alias")).unwrap();
+        std::fs::create_dir(canonical.join("alias.")).unwrap();
+        let error = psx_launch_path(&canonical.join("alias.").join("saves")).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Unsupported);
+        assert!(error.message.contains("identity"));
+    }
+
+    #[test]
+    fn managed_psx_referenced_discs_keep_player_data_in_the_managed_runtime() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        for id in [
+            "bomberman-party-edition-recompiled",
+            "yu-gi-oh-forbidden-memories-recompiled",
+            "revelations-persona-recompiled",
+        ] {
+            let port = catalog.port(id).unwrap();
+            let install = temporary.path().join(id);
+            let runtime = install.join("build-portcove");
+            std::fs::create_dir_all(&runtime).unwrap();
+            let executable = &port.executable_hints[&Platform::WindowsX86_64][0];
+            std::fs::write(runtime.join(executable), b"fixture executable").unwrap();
+            let config = runtime.join("game.toml");
+            std::fs::write(&config, "[game]\nname = \"fixture\"\n").unwrap();
+            let source = temporary.path().join(format!("{id}.chd"));
+            std::fs::write(&source, b"adapter fixture; admission tested separately").unwrap();
+            let spec = AdapterRegistry
+                .get(AdapterKind::PsxRecompManaged)
+                .launch_spec(
+                    &library,
+                    port,
+                    Platform::WindowsX86_64,
+                    &install,
+                    Some(&source),
+                )
+                .unwrap();
+            assert_eq!(spec.working_directory, runtime);
+            assert_eq!(spec.arguments[0], "--game");
+            assert_eq!(Path::new(&spec.arguments[1]), config);
+            assert_eq!(spec.arguments[2], "--memcard-dir");
+            assert_eq!(Path::new(&spec.arguments[3]), runtime.join("saves"));
+            assert_eq!(
+                spec.environment.get("PSX_PORTABLE").map(String::as_str),
+                (id == "yu-gi-oh-forbidden-memories-recompiled").then_some("1")
+            );
+            assert!(
+                std::fs::read_to_string(config)
+                    .unwrap()
+                    .contains(&serde_json::to_string(&source.to_string_lossy()).unwrap())
+            );
+        }
     }
 
     #[test]

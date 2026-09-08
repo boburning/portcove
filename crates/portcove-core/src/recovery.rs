@@ -349,7 +349,13 @@ pub(crate) fn recover_activation(
         PortcoveError::state("recoverable activation is missing its staged install identity")
     })?;
     if operation.phase == LifecyclePhase::Preparing {
-        Installer::new(service.library.clone())?.verify_critical(&install)?;
+        Installer::new(service.library.clone())?.verify_critical(
+            &install,
+            &crate::InstallQualification::from_port(
+                service.catalog().port(&operation.port_id)?,
+                crate::Platform::current()?,
+            )?,
+        )?;
         let status = service
             .library
             .status(&operation.port_id, install.channel)?;
@@ -362,6 +368,13 @@ pub(crate) fn recover_activation(
             service.collect_active_user_data_if_launched(&operation.port_id)?;
             service
                 .restore_user_data_to(service.catalog().port(&operation.port_id)?, &install.path)?;
+            Installer::new(service.library.clone())?.verify_critical(
+                &install,
+                &crate::InstallQualification::from_port(
+                    service.catalog().port(&operation.port_id)?,
+                    crate::Platform::current()?,
+                )?,
+            )?;
             service.library.activate_staged(&operation.port_id)?;
         }
         operation.phase = LifecyclePhase::MetadataCommitted;

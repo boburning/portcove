@@ -1007,8 +1007,8 @@ mod tests {
             serde_json::to_value(&migrated.document().source_profiles).unwrap(),
             serde_json::to_value(&legacy.document().source_profiles).unwrap()
         );
-        // Keep every frozen port fact except the explicitly reviewed Ghostship
-        // runtime-output declaration; source and persistence contracts stay exact.
+        // Keep frozen port facts except the reviewed runtime/persistence
+        // declarations below. Every source contract remains exact.
         let mut expected_ports = legacy.document().ports.clone();
         let ghostship = expected_ports
             .iter_mut()
@@ -1020,6 +1020,34 @@ mod tests {
         ghostship
             .runtime_mutable_paths
             .extend((1..=10).map(|index| format!("logs/Ghostship.{index}.log")));
+        let ygofm = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "yu-gi-oh-forbidden-memories-recompiled")
+            .unwrap();
+        assert!(!ygofm.launch_environment.contains_key("PSX_PORTABLE"));
+        ygofm
+            .launch_environment
+            .insert("PSX_PORTABLE".into(), "1".into());
+        ygofm
+            .persistent_paths
+            .extend(["disc.cfg".into(), "bios.cfg".into()]);
+        ygofm.runtime_mutable_paths.extend([
+            "disc_verified.cfg".into(),
+            "diagnostics/psx_freeze_heartbeat.json".into(),
+        ]);
+        let bomberman = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "bomberman-party-edition-recompiled")
+            .unwrap();
+        bomberman
+            .persistent_paths
+            .extend(["input.ini".into(), "keybinds.ini".into()]);
+        bomberman.runtime_mutable_paths.extend([
+            "bios.cfg".into(),
+            "disc.cfg".into(),
+            "psx_freeze_heartbeat.json".into(),
+            "psx_last_run_report.json".into(),
+        ]);
         assert_eq!(
             serde_json::to_value(&migrated.document().ports).unwrap(),
             serde_json::to_value(expected_ports).unwrap()
@@ -2489,6 +2517,24 @@ mod tests {
         assert_eq!(port.automated_tested_platforms, [Platform::WindowsX86_64]);
         assert_eq!(port.manually_validated_platforms, [Platform::WindowsX86_64]);
         for path in ["input.ini", "keybinds.ini"] {
+            assert!(port.persistent_paths.iter().any(|value| value == path));
+        }
+        for path in [
+            "bios.cfg",
+            "disc.cfg",
+            "psx_freeze_heartbeat.json",
+            "psx_last_run_report.json",
+        ] {
+            assert!(port.runtime_mutable_paths.iter().any(|value| value == path));
+        }
+    }
+
+    #[test]
+    fn bomberman_party_edition_declares_managed_runtime_player_data() {
+        let catalog = Catalog::embedded().expect("catalog should load");
+        let port = catalog.port("bomberman-party-edition-recompiled").unwrap();
+        assert_eq!(port.adapter, AdapterKind::PsxRecompManaged);
+        for path in ["saves", "input.ini", "keybinds.ini"] {
             assert!(port.persistent_paths.iter().any(|value| value == path));
         }
         for path in [
