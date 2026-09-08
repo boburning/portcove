@@ -465,7 +465,6 @@ impl Library {
             self.source_inbox_dir(),
             self.backups_dir(),
             self.toolchains_dir(),
-            self.runtime_sources_dir(),
             self.root.join("user"),
             self.logs_dir(),
             self.recovery_dir(),
