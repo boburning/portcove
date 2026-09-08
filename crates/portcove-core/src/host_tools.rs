@@ -28,6 +28,7 @@ const MAX_EXECUTABLE_BYTES: u64 = 512 * 1024 * 1024;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct HostToolProbePolicy {
     pub arguments: Vec<String>,
+    pub accepted_exit_codes: Vec<i32>,
     pub expected_output: String,
     pub required_output_markers: Vec<String>,
     pub timeout_millis: u64,
@@ -94,6 +95,8 @@ fn fixed_definitions() -> Vec<HostToolDefinition> {
             supported_platforms: all.clone(),
             probe: HostToolProbePolicy {
                 arguments: vec!["-help".into()],
+                // chdman prints its complete help successfully but exits 1.
+                accepted_exit_codes: vec![0, 1],
                 expected_output: "chdman".into(),
                 required_output_markers: vec!["verify".into(), "extractdvd".into()],
                 timeout_millis: 5_000,
@@ -109,6 +112,7 @@ fn fixed_definitions() -> Vec<HostToolDefinition> {
             supported_platforms: all,
             probe: HostToolProbePolicy {
                 arguments: vec!["--help".into()],
+                accepted_exit_codes: vec![0],
                 expected_output: "DolphinTool".into(),
                 required_output_markers: vec!["convert".into(), "verify".into()],
                 timeout_millis: 5_000,
@@ -419,7 +423,10 @@ fn run_fixed_probe(
         });
     }
     let status = status.expect("an uninterrupted probe has an exit status");
-    if !status.success() {
+    if !status
+        .code()
+        .is_some_and(|code| definition.probe.accepted_exit_codes.contains(&code))
+    {
         return Err(ProbeFailure {
             state: HostToolProbeState::FailedProbe,
             message: format!("the fixed probe exited unsuccessfully: {status}"),
@@ -989,6 +996,7 @@ mod tests {
                     .iter()
                     .map(|argument| (*argument).into())
                     .collect(),
+                accepted_exit_codes: vec![0],
                 expected_output: "testtool".into(),
                 required_output_markers: vec!["verify".into(), "convert".into()],
                 timeout_millis: 200,
@@ -1007,6 +1015,14 @@ mod tests {
             assert!(definition.official_url.starts_with("https://"));
             assert!(!definition.supported_platforms.is_empty());
             assert!(!definition.probe.arguments.is_empty());
+            assert!(!definition.probe.accepted_exit_codes.is_empty());
+            assert!(
+                definition
+                    .probe
+                    .accepted_exit_codes
+                    .iter()
+                    .all(|code| *code >= 0)
+            );
             assert!(
                 definition
                     .probe
@@ -1046,6 +1062,9 @@ mod tests {
 
         let mut registry = definitions();
         registry[0].probe.arguments.clear();
+        assert!(validate_definitions(&registry).is_err());
+        let mut registry = definitions();
+        registry[0].probe.accepted_exit_codes.clear();
         assert!(validate_definitions(&registry).is_err());
         let mut registry = definitions();
         registry[0].probe.expected_output.clear();
@@ -1125,6 +1144,11 @@ mod tests {
     fn fixed_probe_reports_every_bounded_process_and_compatibility_outcome() {
         let temporary = tempfile::tempdir().unwrap();
         let helper = build_probe(temporary.path());
+        assert_eq!(
+            probe_definition(&definition("chdman").unwrap(), &helper, || {}).state,
+            HostToolProbeState::Success,
+            "chdman's complete help is valid even though the tool exits 1"
+        );
         for (argument, expected) in [
             ("--success", HostToolProbeState::Success),
             ("--nonzero", HostToolProbeState::FailedProbe),
@@ -1139,6 +1163,14 @@ mod tests {
                 "probe outcome for {argument}"
             );
         }
+
+        let mut accepted_nonzero = test_definition(&["--nonzero"]);
+        accepted_nonzero.probe.accepted_exit_codes.push(7);
+        assert_eq!(
+            probe_definition(&accepted_nonzero, &helper, || {}).state,
+            HostToolProbeState::Invalid,
+            "an accepted exit code still requires valid identity and command markers"
+        );
 
         let cancellations = std::sync::atomic::AtomicUsize::new(0);
         let cancelled = probe_definition_with_cancellation(
