@@ -3,7 +3,10 @@ use std::{env, fs, io::{self, Write}, process::Command, thread, time::Duration};
 fn main() {
     let args = env::args().skip(1).collect::<Vec<_>>();
     match args.first().map(String::as_str) {
-        Some("-help") => println!("chdman verify extractdvd"),
+        Some("-help") => {
+            println!("chdman verify extractdvd");
+            std::process::exit(1);
+        }
         Some("--success") => println!("testtool verify convert"),
         Some("--nonzero") => std::process::exit(7),
         Some("--sleep") => {
