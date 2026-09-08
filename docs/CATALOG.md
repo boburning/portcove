@@ -29,6 +29,16 @@ missing platform entries, duplicate hints, traversal, cross-platform filename
 aliases, and macOS bundle directories in place of the executable inside the
 bundle.
 
+A standalone Linux AppImage release may use a version-bearing asset filename.
+When its port declares exactly one AppImage basename and no runtime subdirectory,
+the installer gives the verified file that declared name before writing its
+manifest. This does not apply to archives, setup executables, or ambiguous hint
+lists. The original release filename, digest and size remain the artifact identity;
+the installed executable path remains recorded per installation, so existing
+installations and rollback retain their original paths. DKR-R retains its existing
+declared runtime filename for compatibility; that filename is not a release-version
+claim. Version displays and update selection use the recorded release identity.
+
 Hosted GitHub and GitLab providers inspect repository metadata before every
 resolution, including reuse of a five-minute in-memory release selection, and
 reject resolution when the host reports the repository as archived. A
