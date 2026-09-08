@@ -7,6 +7,7 @@ import { loadPackagePolicy, releaseLabels as policyReleaseLabels } from "./relea
 const releaseLabels = policyReleaseLabels(await loadPackagePolicy());
 
 const workflow = await readFile(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
+const cliPackager = await readFile(new URL("./package-cli.ps1", import.meta.url), "utf8");
 const buildSection = workflow.match(/^  build:\r?\n([\s\S]*?)(?=^  rehearse:)/m)?.[1] ?? "";
 const rehearseSection = workflow.match(/^  rehearse:\r?\n([\s\S]*?)(?=^  publish:)/m)?.[1] ?? "";
 const publishSection = workflow.match(/^  publish:\r?\n([\s\S]*)/m)?.[1] ?? "";
@@ -39,6 +40,11 @@ test("builders package the versioned CLI, smoke-test the archive, and request ex
   assert.equal((buildSection.match(/bundles: dmg/g) ?? []).length, 2);
   assert.match(buildSection, /pnpm tauri build --bundles "\$\{\{ matrix\.bundles \}\}"/);
   assert.doesNotMatch(buildSection, /portcove-\$\{\{ matrix\.label \}\}/);
+});
+
+test("CLI packaging uses the BSD-compatible chmod form required by macOS", () => {
+  assert.match(cliPackager, /& chmod \+x \$temporaryExecutable/);
+  assert.doesNotMatch(cliPackager, /& chmod \+x --/);
 });
 
 test("manual rehearsal reconciles the complete matrix before deleting transient artifacts", () => {

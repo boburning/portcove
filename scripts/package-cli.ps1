@@ -55,7 +55,7 @@ try {
         Compress-Archive -LiteralPath $temporaryExecutable -DestinationPath $archive
     }
     else {
-        & chmod +x -- $temporaryExecutable
+        & chmod +x $temporaryExecutable
         if ($LASTEXITCODE -ne 0) { throw "Could not preserve CLI executable permissions" }
         & tar -czf $archive -C $temporaryDirectory $executableName
         if ($LASTEXITCODE -ne 0) { throw "CLI TAR.GZ creation failed with exit code $LASTEXITCODE" }

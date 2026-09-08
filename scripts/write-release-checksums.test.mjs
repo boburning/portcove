@@ -20,10 +20,10 @@ async function fixture(t, label = "macos-aarch64") {
   await mkdir(path.join(root, "release-assets"), { recursive: true });
   await mkdir(path.join(root, "release"), { recursive: true });
   await copyFile(new URL("../release/package-policy.json", import.meta.url), path.join(root, "release/package-policy.json"));
-  await mkdir(path.join(root, "target/release/bundle/packages"), { recursive: true });
   await mkdir(path.join(root, "target/release/bundle/macos/Portcove.app/Contents/Resources"), { recursive: true });
   for (const entry of packagesForPlatform(policy, label)) {
-    const rootName = entry.interface === "cli" ? "release-assets" : "target/release/bundle/packages";
+    const rootName = entry.interface === "cli" ? "release-assets" : `target/release/bundle/${entry.format}`;
+    await mkdir(path.join(root, rootName), { recursive: true });
     await writeFile(path.join(root, rootName, artifactName(entry, fixtureVersion)), `${entry.interface}:${entry.id}`);
   }
   await writeFile(path.join(root, "target/release/bundle/macos/Portcove.app/Contents/Resources/icon.icns"), "internal");
@@ -54,6 +54,29 @@ test("stages only manifest-covered release files", async t => {
     "portcove-cli-0.1.0-alpha.2-macos-aarch64.tar.gz",
   ]);
   assert.equal(result.staged.length, 3);
+});
+
+test("ignores internal AppImage links while selecting direct policy-declared packages", async t => {
+  const root = await fixture(t, "linux-x86_64");
+  const appDirectory = path.join(root, "target/release/bundle/appimage/Portcove.AppDir");
+  await mkdir(appDirectory, { recursive: true });
+  const linkPath = path.join(appDirectory, ".DirIcon");
+  if (process.platform === "win32") {
+    const target = path.join(root, "internal-icon-target");
+    await mkdir(target);
+    await symlink(target, linkPath, "junction");
+  } else {
+    await writeFile(path.join(appDirectory, "portcove.png"), "icon");
+    await symlink("portcove.png", linkPath, "file");
+  }
+
+  const result = await collectReleaseArtifacts(root, "linux-x86_64", fixtureVersion);
+  assert.deepEqual(result.map(artifact => path.basename(artifact)).sort(), [
+    "Portcove-0.1.0-alpha.2-1.x86_64.rpm",
+    "Portcove_0.1.0-alpha.2_amd64.AppImage",
+    "Portcove_0.1.0-alpha.2_amd64.deb",
+    "portcove-cli-0.1.0-alpha.2-linux-x86_64.tar.gz",
+  ].sort());
 });
 
 test("refuses to overwrite an existing release staging directory", async t => {
@@ -98,8 +121,7 @@ test("refuses staging through linked ancestry without modifying the link target"
 
 test("rejects duplicate package filenames before publishing", async t => {
   const root = await fixture(t, "linux-x86_64");
-  await mkdir(path.join(root, "target/release/bundle/other"), { recursive: true });
-  await writeFile(path.join(root, "target/release/bundle/other/Portcove_0.1.0-alpha.2_amd64.deb"), "duplicate");
+  await writeFile(path.join(root, "target/release/bundle/rpm/Portcove_0.1.0-alpha.2_amd64.deb"), "duplicate");
   await assert.rejects(
     collectReleaseArtifacts(root, "linux-x86_64", fixtureVersion),
     /duplicate or case-colliding filename/,
@@ -113,9 +135,9 @@ test("fails closed for missing, unexpected, or wrong-version packages", async t 
   await assert.rejects(collectReleaseArtifacts(root, "windows-x86_64", fixtureVersion), /missing: portcove-cli/);
 
   await writeFile(cliArchive, "cli");
-  await writeFile(path.join(root, "target/release/bundle/packages/Portcove_0.1.0-alpha.2_x64.msi"), "unexpected");
+  await writeFile(path.join(root, "target/release/bundle/nsis/Portcove_0.1.0-alpha.2_x64.msi"), "unexpected");
   await assert.rejects(collectReleaseArtifacts(root, "windows-x86_64", fixtureVersion), /unexpected: .*\.msi/);
 
-  await rm(path.join(root, "target/release/bundle/packages/Portcove_0.1.0-alpha.2_x64.msi"));
+  await rm(path.join(root, "target/release/bundle/nsis/Portcove_0.1.0-alpha.2_x64.msi"));
   await assert.rejects(collectReleaseArtifacts(root, "windows-x86_64", "0.1.0-alpha.3"), /package set mismatch/);
 });
