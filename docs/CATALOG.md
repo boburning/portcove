@@ -146,6 +146,21 @@ files in existing installations. Verification still checks every file recorded
 as immutable in the original manifest; a later declaration cannot hide changes
 to those bytes or rewrite that recorded identity during library import.
 
+Managed PS1 launches regenerate `.portcove-psx-runtime.toml` from the verified
+`game.toml` template and current verified disc paths for both source modes.
+Upstream launcher writes therefore affect a disposable copy; the template and
+source identities remain checked. An edited generated copy is replaced before
+it can become the next launch's source authority. This also accommodates
+[Persona v0.1.1's controller-preference write](https://github.com/mstan/psxrecomp/blob/c0139b4538723ef1d297257f101db2958b8b39f3/runtime/src/main.cpp).
+Persona declares its exact `keybinds.ini`, `disc.cfg` and `bios.cfg` preferences
+as persistent, and `psx_freeze_heartbeat.json` as a disposable runtime output.
+Its older runtime keeps those launcher files beside the executable without a
+portable-mode environment override. Installations whose old manifests already
+recorded keyboard preferences as immutable need a clean reinstall before those
+bytes can be edited; an already modified immutable template also requires a
+clean reinstall. Current declarations never authorize silently accepting those
+changes to an existing manifest.
+
 Ghostship 3.0.0 writes its disposable extraction cache to `torch.hash.yml` and
 rotates `logs/Ghostship.log` through `logs/Ghostship.10.log`. The catalog declares
 those exact runtime outputs through the existing nonpersistent runtime-path

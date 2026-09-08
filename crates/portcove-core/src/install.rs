@@ -653,7 +653,8 @@ impl Installer {
         install: &InstallRecord,
         qualification: &InstallQualification,
     ) -> Result<PathBuf> {
-        let current_mutable = qualification.current_mutable_paths(install)?;
+        let mut current_mutable = qualification.current_mutable_paths(install)?;
+        current_mutable.extend(qualification.generated_metadata_paths(install)?);
         let manifest = verified_manifest(install)?;
         let mut failures = Vec::new();
         if let Some(root) = &manifest.runtime_root {
@@ -2308,6 +2309,14 @@ mod tests {
         current.runtime_mutable_paths.push("disc.cfg".into());
         fs::write(root.join("input.ini"), b"user input mapping").unwrap();
         fs::write(root.join("disc.cfg"), b"generated disc cache").unwrap();
+        current
+            .generated_metadata
+            .push(".portcove-psx-runtime.toml".into());
+        fs::write(
+            root.join(".portcove-psx-runtime.toml"),
+            b"generated configuration",
+        )
+        .unwrap();
         fs::create_dir(root.join("preferences")).unwrap();
         fs::write(root.join("preferences/settings.ini"), b"new preference").unwrap();
         assert!(installer.verify_managed(&install, &current).unwrap().valid);
