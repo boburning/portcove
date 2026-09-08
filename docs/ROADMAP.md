@@ -27,6 +27,14 @@ The intended experience is: “I choose a game, understand what files I need, us
 what I already have, get it running, and keep my setup usable when things
 change.”
 
+Discovery can also begin with “I have these files”: identify explicitly selected
+inputs, explain which independent ports can use them, and reuse existing sources
+through the same inspection and deliberate import contract. This optional
+file-first journey complements game-first onboarding without becoming another
+Alpha 2 or V1 gate. Recognizable reviewed or local artwork, clear version and
+setup choices, visible ongoing work and actionable failures should make those
+journeys easier; broad customization and historical selection remain separate.
+
 Portcove makes heterogeneous native ports feel like one coherent platform.
 Portcove Desktop is the flagship experience for discovery, setup, updates,
 everyday play, and controller use. Shared core services own each port's source,
@@ -220,6 +228,13 @@ stale inputs and resume only safe phases. No daemon, second job store or full
 #248 scheduler is required. #30 exposes core-owned operation actions/reasons;
 #206 owns presentation, focus and progressive disclosure. Consistent inputs must
 produce consistent supported actions across clients, never path-based readiness.
+
+The bounded preparation proof may expose a justified upstream-supported typed
+option with a sensible default. Bind options to the exact plan, validate outputs,
+and distinguish host execution, preparation target and qualified platform support.
+Optional content acquisition and broad profiles are not prerequisites. A named
+launch alternative requires the core's executable, argument, process and
+persistence contract; a target selector does not establish cross-compilation.
 
 #245/#397 define a small typed capability vocabulary with explicit inputs,
 outputs, permissions and supported combinations; existing adapters may implement
