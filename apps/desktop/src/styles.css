@@ -1609,6 +1609,7 @@ select { width: 100%; padding: 11px; }
 .backup-problem { display: grid; gap: 3px; margin-top: 10px; }
 .backup-problem span, .backup-problem small { overflow-wrap: anywhere; }
 
+.source-removal-details p, .source-removal-details li { overflow-wrap: anywhere; }
 .removal-review-details li, .removal-review-details p { overflow-wrap: anywhere; }
 .backup-review-details dd { margin: var(--space-1) 0 var(--space-3); overflow-wrap: anywhere; }
 

@@ -44,6 +44,24 @@ which revalidates under its port lock, collects saved data and journals quaranti
 before removing metadata. Dismissal makes no removal request; changed inventory
 requires a new review. The CLI and core machine contract remain unchanged.
 
+## Source-reference removal and shared review state
+
+Settings exposes the existing core source-removal preview with the original path,
+installed dependents and all catalog dependents. The review explains that only the
+library reference is removed, other files/state remain, and later use requires
+registration under current checks. Both preview and application use the selected
+library generation. The adapter checks the fingerprint before backend-owned native
+confirmation, then reacquires the current service and delegates authorization and
+locked deletion to core. A changed reference or dependency set requires a fresh
+review; no renderer request can bypass native consent.
+
+Backup, installed-game and source-removal dialogs share one presentation-only
+review lifecycle: stale request rejection, synchronous duplicate-apply exclusion,
+neutral native cancellation and renewed review after failure. Each domain keeps
+its own core preview, confirmation, action and detailed copy. Source-list refresh
+failure after a confirmed removal is reported as a stale view, never a failed
+removal that should be retried. No domain state or authorization moves into React.
+
 ## Failure and diagnostic authority
 
 Core owns failure presentation, observed mutation outcomes, recovery-action

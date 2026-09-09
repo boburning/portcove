@@ -192,7 +192,7 @@ function CurrentView({ data, ui, model, operations, github, updates, sourceHealt
 }) {
   if (ui.view === "updates") return <UpdateCenter generation={bootstrap.generation} ports={data.catalog?.ports ?? []} statuses={model.statusMap} activities={data.activities} outcomes={updates.outcomes} busy={operations.busy}
     checkAll={() => { void updates.checkAll(); }} onSelect={ui.setSelectedId} onOpenSources={() => ui.setView("settings")} />;
-  if (ui.view === "settings") return <SettingsView doctor={data.doctor} storage={data.storage} github={github} busy={operations.busy} sources={data.sources} appearance={appearance}
+  if (ui.view === "settings") return <SettingsView generation={bootstrap.generation} ports={data.catalog?.ports ?? []} doctor={data.doctor} storage={data.storage} github={github} busy={operations.busy} sources={data.sources} appearance={appearance}
     librarySelection={bootstrap.selection ?? undefined} chooseLibrary={pickLibraryFolder} switchLibrary={switchLibrary} resetLibrary={resetLibrary}
     sourceProfiles={data.catalog?.source_profiles ?? []} onSourceAdded={data.refresh} onCatalogChanged={data.refresh}
     hostToolActions={hostToolActions}

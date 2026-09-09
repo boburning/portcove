@@ -1,42 +1,21 @@
-import { useEffect, useRef, useState } from "react";
+import { useActionReview, type ReviewOutcome } from "../use-action-review";
 import { desktopApi } from "../api";
 import { useDialogFocus } from "../dialog";
 import type { BackupAction, BackupRecord, BackupReview } from "../types";
-import { errorText, formatBytes } from "../view-model";
+import { formatBytes } from "../view-model";
 
-export type ApplyBackupAction = (backup: BackupRecord, expectedPreview: string) => Promise<boolean | "cancelled">;
+export type ApplyBackupAction = (backup: BackupRecord, expectedPreview: string) => Promise<ReviewOutcome>;
 
 export function BackupReviewDialog({ backup, action, generation, apply, close }: {
   backup: BackupRecord; action: BackupAction; generation: number; apply: ApplyBackupAction; close: () => void;
 }) {
-  const [review, setReview] = useState<BackupReview>();
-  const [pending, setPending] = useState<"review" | "apply">();
-  const [error, setError] = useState<string>();
-  const request = useRef(0);
-  const dismiss = () => { if (pending !== "apply") close(); };
+  const { preview: review, pending, error, review: load, execute, dismiss } = useActionReview({
+    identity: `${backup.port_id}:${backup.id}:${action}:${generation}`,
+    load: () => desktopApi.previewBackupAction(backup.port_id, backup.id, action, generation),
+    apply: review => apply(review.preview.backup, review.preview.preview_sha256),
+    close, failureMessage: "The operation did not complete. Review the current backup and data before trying again.",
+  });
   const dialog = useDialogFocus(dismiss);
-  const load = async () => {
-    const current = ++request.current;
-    setPending("review"); setReview(undefined); setError(undefined);
-    try {
-      const result = await desktopApi.previewBackupAction(backup.port_id, backup.id, action, generation);
-      if (request.current === current) setReview(result);
-    } catch (value) { if (request.current === current) setError(errorText(value)); }
-    finally { if (request.current === current) setPending(undefined); }
-  };
-  useEffect(() => { void load(); return () => { request.current += 1; }; }, [backup.id, backup.port_id, action, generation]);
-  const execute = async () => {
-    if (!review || pending) return;
-    const current = ++request.current;
-    setPending("apply"); setError(undefined);
-    try {
-      const completed = await apply(review.preview.backup, review.preview.preview_sha256);
-      if (request.current !== current) return;
-      if (completed) close();
-      else setError("The operation did not complete. Review the current backup and data before trying again.");
-    } catch (value) { if (request.current === current) setError(errorText(value)); }
-    finally { if (request.current === current) { setPending(undefined); setReview(undefined); } }
-  };
   const restore = action === "restore";
   return <div className="scrim"><section ref={dialog} className="modal" role="dialog" aria-modal="true" aria-labelledby="backup-review-title" aria-describedby="backup-review-description">
     <h2 id="backup-review-title">{restore ? "Review backup restore" : "Review backup deletion"}</h2>
