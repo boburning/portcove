@@ -161,9 +161,11 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
     const generation = (await invoke("get_bootstrap_status")).value.generation;
     const stale = await invoke("set_channel", { portId: "re-blue", channel: "rolling", generation: generation + 1 });
     assert.equal(stale.ok, false);
+    assert.equal(stale.error.code, "conflict");
     assert.equal((await status("re-blue")).channel, "stable");
     const staleCheck = await invoke("check_port", { portId: "re-blue", generation: generation + 1 });
     assert.equal(staleCheck.ok, false);
+    assert.equal(staleCheck.error.code, "conflict");
     const trigger = await multi.findElement(By.css("button"));
     await trigger.click();
     await browser.findElement(button("Rolling")).click();

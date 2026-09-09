@@ -96,7 +96,7 @@ fn require_library_generation(actual: u64, expected: u64) -> DesktopResult<()> {
         return Ok(());
     }
     Err(DesktopError::from(PortcoveError::conflict(
-        "the open library changed; review this storage location again",
+        "the open library changed; review the current selection and try again",
     )))
 }
 
