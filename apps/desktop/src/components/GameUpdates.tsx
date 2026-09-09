@@ -77,8 +77,8 @@ export function GameUpdateControl({ portId, generation, policy, busy, perform }:
     {!plan && <button data-focusable disabled={busy || pending || !perform} onClick={() => { void review(); }}>{pending ? "Checking update…" : "Review game update"}</button>}
     {plan && <div className="install-plan">
       <p><strong>{plan.plan.release.version}</strong> · {plan.plan.channel}</p>
-      <p>{plan.plan.action === "download" ? `${formatBytes(plan.plan.download_bytes)} to download` : "No download; use the verified local release."}</p>
-      <p>{plan.activate ? "The verified update becomes active and the current version remains available for rollback." : "The update is staged for later. Your active version stays unchanged."} Saved update settings are unchanged.</p>
+      <p>{plan.plan.action === "download" ? `${formatBytes(plan.plan.download_bytes)} to download` : plan.plan.action === "blocked_unverified" ? "The local copy has not been verified." : "No download; use the verified local release."}</p>
+      {!blocked && <p>{plan.activate ? "The verified update becomes active and the current version remains available for rollback." : "The update is staged for later. Your active version stays unchanged."} Saved update settings are unchanged.</p>}
       {blocked ? <p role="status">{plan.plan.action === "already_active" ? "This verified release is already active." : "An unverified local copy blocks this update. Verify or repair it first."}</p> : <button ref={confirm} data-focusable className="primary" disabled={busy || pending} onClick={() => { void apply(); }}>{pending ? "Updating…" : label}</button>}
     </div>}
     {operation && <OperationCancellation key={operation} operationId={operation} label="Cancel game update" />}
