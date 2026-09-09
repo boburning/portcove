@@ -7,6 +7,9 @@ param(
     [string]$RetainedLibraryRoot,
     [string]$RetainExecutablePath,
     [string]$EvidencePath,
+    [ValidateSet("Silent", "Passive")]
+    [string]$InstallMode = "Silent",
+    [string]$ExpectedVersion,
     [ValidateRange(1, 600)]
     [int]$ProcessTimeoutSeconds = 120,
     [ValidateRange(1, 60)]
@@ -387,9 +390,10 @@ try {
     [System.IO.File]::WriteAllText($sentinel, [System.Guid]::NewGuid().ToString("N"))
     $sentinelHash = (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash
     Write-InstallerEvidence "candidate_installing"
-    $install = Invoke-JournaledProcess -Role "candidate_installer" -Executable $installer -Arguments @("/S", "/D=$installRoot") -AllowedRelocationRoot $runRoot
+    $installFlag = if ($InstallMode -eq "Passive") { "/P" } else { "/S" }
+    $install = Invoke-JournaledProcess -Role "candidate_installer" -Executable $installer -Arguments @($installFlag, "/D=$installRoot") -AllowedRelocationRoot $runRoot
     if ($install.ExitCode -ne 0) {
-        throw "Silent installer exited with code $($install.ExitCode)"
+        throw "$InstallMode installer exited with code $($install.ExitCode)"
     }
 
     if (-not [System.IO.File]::Exists($application)) {
@@ -410,6 +414,14 @@ try {
     $registryEntries = Get-UninstallEntries $installRoot
     if (@($registryEntries).Count -ne 1) {
         throw "Expected exactly one uninstall registration for the isolated installation"
+    }
+    if ($ExpectedVersion) {
+        if ($registryEntries[0].DisplayVersion -ne $ExpectedVersion) {
+            throw "Installed registration does not match expected version $ExpectedVersion"
+        }
+        if ($registryEntries[0].PSPath -notmatch 'HKEY_CURRENT_USER') {
+            throw "Expected current-user installation ownership"
+        }
     }
     $smoke = Invoke-ApplicationSmoke $application "candidate_smoke"
     if ((Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -ne $sentinelHash) {
@@ -475,6 +487,9 @@ try {
         installer_sha256 = $installerHash
         signature_status = $signature.Status.ToString()
         install_exit_code = $install.ExitCode
+        install_mode = $InstallMode
+        registered_version = $registryEntries[0].DisplayVersion
+        registration_path = $registryEntries[0].PSPath
         installed_executable_sha256 = $installedHash
         expected_executable = $expected
         uninstall_registration_count = $registryEntries.Count

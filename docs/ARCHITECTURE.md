@@ -26,6 +26,17 @@ In this document, “thin adapter” means that the CLI and desktop do not reimp
 
 ## Monorepo and deliverable decision
 
+`portcove-release-tools` is an unpublished, offline repository tool for checking
+application artifact signatures. It uses maintained Minisign verification with
+bounded streaming, independently of the desktop's GUI build dependencies. The
+existing JavaScript release tooling owns package selection and inventory; this
+tool only checks an exact file/signature/key/hash/size tuple. It neither signs
+nor publishes and has no catalog, installation or application replacement state.
+It is outside the default Cargo members and shipped packages. Architecture rules
+forbid dependencies in either direction between it and the player crates, so it
+cannot become a second domain authority or a runtime dependency. Disposable test
+signers are development dependencies only.
+
 The [application updater trust design](UPDATER-TRUST.md) assigns future application
 replacement/trust state to the Tauri host; core retains library/game authority.
 Disposable TUF fixtures are host integration tests with test-only dependencies,
