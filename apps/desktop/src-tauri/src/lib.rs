@@ -554,10 +554,12 @@ async fn verify_sources(
 async fn check_port(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
+    generation: u64,
 ) -> DesktopResult<UpdateCheck> {
     let state = state.inner().clone();
-    blocking_async_service(state, move |service| async move {
-        service.check_update(&port_id).await.map_err(Into::into)
+    blocking_worker(move || {
+        let service = service_at_generation(&state, generation)?;
+        tauri::async_runtime::block_on(service.check_update(&port_id)).map_err(Into::into)
     })
     .await
 }
@@ -954,10 +956,13 @@ async fn set_channel(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
     channel: ReleaseChannel,
+    generation: u64,
 ) -> DesktopResult<PortStatus> {
     let state = state.inner().clone();
-    blocking_service(state, move |service| {
-        service.set_channel(&port_id, channel).map_err(Into::into)
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .set_channel(&port_id, channel)
+            .map_err(Into::into)
     })
     .await
 }

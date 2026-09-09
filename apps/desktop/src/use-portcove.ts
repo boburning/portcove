@@ -287,7 +287,7 @@ export function detailActions(port: PortDefinition, status: PortStatus | undefin
     backup: async () => {
       if (await perform("back up data", () => desktopApi.backup(port.id))) await backupsChanged();
     },
-    check: () => perform("check", () => desktopApi.check(port.id)),
+    check: () => perform("check", () => desktopApi.check(port.id, libraryGeneration)),
     close,
     install: () => perform("install", () => desktopApi.install(port.id, status?.channel ?? port.channels[0], sourcePath, biosPath, false)),
     launch: () => perform("launch", () => desktopApi.launch(port.id, sourcePath)),
@@ -304,7 +304,7 @@ export function detailActions(port: PortDefinition, status: PortStatus | undefin
     restoreBackup: async backup => {
       if (await perform("restore backup", () => desktopApi.restoreBackup(port.id, backup.id))) await backupsChanged();
     },
-    setChannel: channel => perform("channel", () => desktopApi.setChannel(port.id, channel)),
+    setChannel: channel => perform("channel", () => desktopApi.setChannel(port.id, channel, libraryGeneration)),
     setPolicy: policy => perform("policy", () => desktopApi.setPolicy(port.id, policy, libraryGeneration)),
     verify: () => perform("verify", () => desktopApi.verify(port.id)),
   };

@@ -84,7 +84,7 @@ export const desktopApi = {
   inspectSource: (profileId: string) => invoke<SourceInspectionReport>("inspect_source", { profileId }),
   inspectSourceIntake: (profileId: string, paths: string[]) => invoke<SourceIntakeInspection>("inspect_source_intake", { profileId, paths }),
   openSourceEvidence: (evidenceId: string) => invoke<void>("open_source_evidence", { evidenceId }),
-  check: (portId: string) => invoke<UpdateCheck>("check_port", { portId }),
+  check: (portId: string, generation: number) => invoke<UpdateCheck>("check_port", { portId, generation }),
   checkInstalled: () => invoke<UpdateCheckOutcome[]>("check_installed"),
   doctor: () => invoke<DoctorReport>("get_doctor_report"),
   hostTools: () => invoke<HostToolStatus[]>("get_host_tools"),
@@ -104,7 +104,7 @@ export const desktopApi = {
   plan: (portId: string, channel: ReleaseChannel) => invoke<InstallPlan>("plan_port", { portId, channel }),
   openUserData: (portId: string) => invoke<string>("open_user_data", { portId }),
   openExternalUrl: (url: string) => invoke<void>("open_external_url", { url }),
-  setChannel: (portId: string, channel: ReleaseChannel) => invoke<PortStatus>("set_channel", { portId, channel }),
+  setChannel: (portId: string, channel: ReleaseChannel, generation: number) => invoke<PortStatus>("set_channel", { portId, channel, generation }),
   setPolicy: (portId: string, policy: UpdatePolicy, generation: number) => invoke<PortStatus>("set_policy", { portId, policy, generation }),
   install: (portId: string, channel: ReleaseChannel, source: string, bios: string, stage: boolean) =>
     invoke<InstallRecord>("install_port", { input: { portId, channel, source: source || null, bios: bios || null, stage } satisfies InstallInput }),

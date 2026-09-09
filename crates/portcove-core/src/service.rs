@@ -4656,6 +4656,145 @@ mod tests {
 
     use super::*;
 
+    #[test]
+    fn channel_choices_follow_catalog_and_survive_restart_without_installation_changes() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("library");
+        let service = PortcoveService::new(Library::open(&root).unwrap()).unwrap();
+        let cases = [
+            ("ghostship", vec![ReleaseChannel::Stable]),
+            (
+                "re-blue",
+                vec![ReleaseChannel::Stable, ReleaseChannel::Rolling],
+            ),
+            (
+                "g-diffuser",
+                vec![ReleaseChannel::Stable, ReleaseChannel::Beta],
+            ),
+        ];
+        for (port_id, channels) in cases {
+            assert_eq!(service.catalog.port(port_id).unwrap().channels, channels);
+            let before = service.status(port_id).unwrap();
+            for channel in &channels {
+                let changed = service.set_channel(port_id, *channel).unwrap();
+                assert_eq!(changed.channel, *channel);
+                assert_eq!(changed.active, before.active);
+                assert_eq!(changed.previous, before.previous);
+                assert_eq!(changed.staged, before.staged);
+                let reopened = PortcoveService::new(Library::open(&root).unwrap()).unwrap();
+                assert_eq!(reopened.status(port_id).unwrap().channel, *channel);
+            }
+            let selected = service.status(port_id).unwrap().channel;
+            for unsupported in [
+                ReleaseChannel::Stable,
+                ReleaseChannel::Beta,
+                ReleaseChannel::Rolling,
+            ] {
+                if !channels.contains(&unsupported) {
+                    assert_eq!(
+                        service.set_channel(port_id, unsupported).unwrap_err().code,
+                        crate::ErrorCode::Unsupported
+                    );
+                    assert_eq!(service.status(port_id).unwrap().channel, selected);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn beta_only_channel_comes_from_catalog_and_busy_changes_preserve_selection() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let mut service = PortcoveService::new(library.clone()).unwrap();
+        let mut document = service.catalog.authoritative_document();
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "ghostship")
+            .unwrap();
+        port.channels = vec![ReleaseChannel::Beta];
+        // A display name is not a provider classification.
+        port.name = "Stable-looking fixture name".into();
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        );
+        assert_eq!(
+            service.status("ghostship").unwrap().channel,
+            ReleaseChannel::Beta
+        );
+        assert_eq!(
+            service
+                .set_channel("ghostship", ReleaseChannel::Stable)
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Unsupported
+        );
+        service
+            .set_channel("g-diffuser", ReleaseChannel::Stable)
+            .unwrap();
+        let guard = library
+            .try_lock_port("g-diffuser", "fixture-operation")
+            .unwrap();
+        assert!(
+            service
+                .set_channel("g-diffuser", ReleaseChannel::Beta)
+                .is_err()
+        );
+        assert_eq!(
+            service.status("g-diffuser").unwrap().channel,
+            ReleaseChannel::Stable
+        );
+        drop(guard);
+        assert_eq!(
+            service
+                .set_channel("g-diffuser", ReleaseChannel::Beta)
+                .unwrap()
+                .channel,
+            ReleaseChannel::Beta
+        );
+    }
+
+    #[tokio::test]
+    async fn channel_change_refreshes_release_metadata_without_changing_active_installation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_zelda_install(&library, "v1", true);
+        let mut service = service_with_release(library, "v2");
+        let mut document = service.catalog.authoritative_document();
+        document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "zelda64-recomp")
+            .unwrap()
+            .channels = vec![ReleaseChannel::Stable, ReleaseChannel::Beta];
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        );
+        let before = service.status("zelda64-recomp").unwrap();
+        assert_eq!(
+            service
+                .check_update("zelda64-recomp")
+                .await
+                .unwrap()
+                .channel,
+            ReleaseChannel::Stable
+        );
+        service
+            .set_channel("zelda64-recomp", ReleaseChannel::Beta)
+            .unwrap();
+        let check = service.check_update("zelda64-recomp").await.unwrap();
+        assert_eq!(check.channel, ReleaseChannel::Beta);
+        assert_eq!(check.release.channel, ReleaseChannel::Beta);
+        let after = service.status("zelda64-recomp").unwrap();
+        assert_eq!(after.active, before.active);
+        assert_eq!(after.previous, before.previous);
+        assert_eq!(after.staged, before.staged);
+        assert_eq!(
+            after.last_update_check.unwrap().check.channel,
+            ReleaseChannel::Beta
+        );
+    }
+
     #[derive(Clone)]
     struct StaticReleaseProvider {
         version: String,

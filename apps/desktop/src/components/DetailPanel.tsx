@@ -1,3 +1,4 @@
+import { ReleaseChannelControl } from "./ReleaseChannel";
 import { useState } from "react";
 import { AlertTriangle, ArchiveX, CheckCircle2, ChevronDown, Clipboard, ClipboardCheck, Download, ExternalLink, FileArchive, FileSearch, FolderOpen, Gamepad2, HardDrive, RefreshCw, RotateCcw, Save, ShieldCheck, Trash2, Wrench, X } from "lucide-react";
 import { primaryCliCommand } from "../cli-command";
@@ -18,7 +19,7 @@ import { SourceIdentityPanel } from "./SourceIdentity";
 export interface DetailActions {
   activate: () => void;
   backup: () => void;
-  check: () => void;
+  check: () => Promise<unknown>;
   close: () => void;
   deleteBackup: (backup: BackupRecord) => void;
   install: () => void;
@@ -28,7 +29,7 @@ export interface DetailActions {
   restoreBackup: (backup: BackupRecord) => void;
   rollback: () => void;
   remove: () => Promise<void>;
-  setChannel: (channel: ReleaseChannel) => void;
+  setChannel: (channel: ReleaseChannel) => Promise<PortStatus | undefined>;
   setPolicy: (policy: UpdatePolicy) => Promise<PortStatus | undefined>;
   verify: () => void;
 }
@@ -115,7 +116,7 @@ function DetailBody({ perform, prepare, port, status, state, sources, installed,
     {installed && <GameUpdateControl key={`${port.id}:${libraryGeneration}:${status?.active?.id}:${status?.staged?.id}:${selectedChannel}:${policy}`} portId={port.id} generation={libraryGeneration} policy={policy} busy={Boolean(busy)} perform={perform} />}
     <TrustStrip status={status} />
     <OutputLocationControl portId={port.id} generation={libraryGeneration} busy={outputExternalBusy} onChanged={outputLocationChanged} onApplying={outputApplying} />
-    <AdvancedControls port={port} status={status} selectedChannel={selectedChannel} policy={policy} installed={installed} backups={backups} backupProblems={backupProblems} backupState={backupState} busy={busy} sources={sources} actions={actions} />
+    <AdvancedControls libraryGeneration={libraryGeneration} port={port} status={status} selectedChannel={selectedChannel} policy={policy} installed={installed} backups={backups} backupProblems={backupProblems} backupState={backupState} busy={busy} sources={sources} actions={actions} />
   </div>;
 }
 
@@ -190,15 +191,14 @@ function closeFromScrim(event: React.MouseEvent<HTMLDivElement>, close: () => vo
   if (event.currentTarget === event.target) close();
 }
 
-function AdvancedControls({ port, status, selectedChannel, policy, installed, backups, backupProblems, backupState, busy, sources, actions }: {
-  port: PortDefinition; status?: PortStatus; selectedChannel: ReleaseChannel; policy: UpdatePolicy; installed: boolean; backups: BackupRecord[]; backupProblems: BackupProblem[]; backupState: BackupInventory["state"]; busy?: string; sources: SourceControls; actions: DetailActions;
+function AdvancedControls({ libraryGeneration, port, status, selectedChannel, policy, installed, backups, backupProblems, backupState, busy, sources, actions }: {
+  libraryGeneration: number; port: PortDefinition; status?: PortStatus; selectedChannel: ReleaseChannel; policy: UpdatePolicy; installed: boolean; backups: BackupRecord[]; backupProblems: BackupProblem[]; backupState: BackupInventory["state"]; busy?: string; sources: SourceControls; actions: DetailActions;
 }) {
   const persistentFiles = [...port.persistent_paths, ...(port.persistent_file_patterns ?? []).map(pattern => `${pattern.prefix}*${pattern.suffix}`)].join(" · ");
   return <details className="advanced-settings">
     <summary data-focusable className="advanced-summary">Release, sources &amp; maintenance <span className="advanced-summary-meta">Advanced controls</span><Icon glyph={ChevronDown} /></summary>
     <div className="advanced-body">
-      <div className="detail-section"><label>Release channel</label><div className="segmented">{port.channels.map(channel =>
-        <button data-focusable disabled={Boolean(busy)} className={selectedChannel === channel ? "active" : ""} key={channel} onClick={() => actions.setChannel(channel)}>{channel}</button>)}</div></div>
+      <div className="detail-section"><ReleaseChannelControl key={`${port.id}:${libraryGeneration}`} channels={port.channels} selected={selectedChannel} busy={Boolean(busy)} change={actions.setChannel} refresh={actions.check} /></div>
       <div className="detail-section"><UpdatePolicyControl key={port.id} policy={policy} busy={Boolean(busy)} save={actions.setPolicy} /></div>
       <SourceFields mode="registered" controls={sources} />
       <div className="metadata"><span><small>Platforms</small>{port.platforms.map(value => platformLabels[value]).join(" · ")}</span><span><small>Installation method</small>{adapterPresentation[port.adapter]}</span><span><small>Automated evidence</small>{port.automated_tested_platforms.length ? port.automated_tested_platforms.map(value => platformLabels[value]).join(" · ") : "Qualification pending"}</span><span><small>Physical validation</small>{port.manually_validated_platforms.length ? port.manually_validated_platforms.map(value => platformLabels[value]).join(" · ") : "Deferred / not completed"}</span><span title={persistentFiles}><small>Persistent data root</small>{status?.user_data_root ?? "Created inside the selected library"}</span></div>
