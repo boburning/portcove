@@ -141,6 +141,7 @@ mod tests {
             setup_executable_hints: BTreeMap::new(),
             setup_arguments: vec![],
             setup_marker: None,
+            setup_output_paths: vec![],
             upstream_status: UpstreamStatus::Retired,
         };
         let release =

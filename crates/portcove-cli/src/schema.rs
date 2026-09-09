@@ -356,6 +356,18 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 serde_json::json!(schema_for_contract::<InstallPlan>(contract)),
             ),
             (
+                "preparation_plan",
+                serde_json::json!(schema_for_contract::<portcove_core::PreparationPlan>(
+                    contract
+                )),
+            ),
+            (
+                "preparation_options",
+                serde_json::json!(schema_for_contract::<portcove_core::PreparationOptions>(
+                    contract
+                )),
+            ),
+            (
                 "port_paths",
                 serde_json::json!(schema_for_contract::<PortPaths>(contract)),
             ),

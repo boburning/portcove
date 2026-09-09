@@ -56,6 +56,14 @@ not by itself prove complete command/readiness parity.
 
 ## Monorepo and deliverable decision
 
+The core preparation module owns exact input planning for the existing
+upstream-managed setup family. It reuses port locks, source assessment, installed
+manifest verification, host-tool selection and reviewed tree identity. The CLI
+only renders its result. Plans neither execute tools nor publish readiness;
+catalog output ownership is validated separately from existing artifact trust.
+This module introduces no job database, process runner, domain owner or crate
+dependency. Existing lifecycle execution remains unchanged by planning.
+
 `portcove-release-tools` is an unpublished, offline repository tool for checking
 application artifact signatures. It uses maintained Minisign verification with
 bounded streaming, independently of the desktop's GUI build dependencies. The

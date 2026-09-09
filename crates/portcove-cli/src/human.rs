@@ -633,6 +633,19 @@ pub(crate) fn plan(plan: &InstallPlan) -> String {
     )
 }
 
+pub(crate) fn preparation_plan(plan: &portcove_core::PreparationPlan) -> String {
+    format!(
+        "Preparation: {}\nInstalled version: {}\nSource: {}\nSource assessment: {}\nSetup tool: {}\nReviewed copy: {} bytes\nPlan: {}\nPlanning starts no setup process and does not change launch readiness.",
+        clean(&plan.port_id),
+        clean(&plan.inputs.install.version),
+        clean(&plan.inputs.source.path.display().to_string()),
+        clean(&plan.inputs.source_inspection.summary),
+        clean(&plan.inputs.setup_tool.path.display().to_string()),
+        plan.copy.total_bytes,
+        clean(&plan.plan_sha256),
+    )
+}
+
 pub(crate) fn paths(paths: &PortPaths) -> String {
     format!(
         "Paths for {}\nLibrary: {}\nPersistent data: {}\nFuture install folder: {} ({})\nActive: {}\nPrevious: {}\nStaged: {}",

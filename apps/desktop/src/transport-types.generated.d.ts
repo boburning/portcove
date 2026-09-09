@@ -251,7 +251,35 @@ export type OutputDestinationOwnership =
   | "unrelated_content"
   | "invalid"
   | "unknown";
-export type ReconcileAction = "up_to_date" | "notify" | "staged" | "activated";
+export type SourceContractResult =
+  | {
+      state: "not_evaluated";
+      [k: string]: unknown;
+    }
+  | {
+      state: "unreviewed_for_release";
+      [k: string]: unknown;
+    }
+  | {
+      contract_id: string;
+      state: "supported";
+      [k: string]: unknown;
+    }
+  | {
+      contract_id: string;
+      state: "recognized_not_listed";
+      [k: string]: unknown;
+    }
+  | {
+      contract_id: string;
+      state: "known_incompatible";
+      [k: string]: unknown;
+    }
+  | {
+      contract_id: string;
+      state: "informational";
+      [k: string]: unknown;
+    };
 export type SourceAdmission =
   | {
       state: "not_evaluated";
@@ -297,35 +325,7 @@ export type SourceClassification =
       state: "ambiguous";
       [k: string]: unknown;
     };
-export type SourceContractResult =
-  | {
-      state: "not_evaluated";
-      [k: string]: unknown;
-    }
-  | {
-      state: "unreviewed_for_release";
-      [k: string]: unknown;
-    }
-  | {
-      contract_id: string;
-      state: "supported";
-      [k: string]: unknown;
-    }
-  | {
-      contract_id: string;
-      state: "recognized_not_listed";
-      [k: string]: unknown;
-    }
-  | {
-      contract_id: string;
-      state: "known_incompatible";
-      [k: string]: unknown;
-    }
-  | {
-      contract_id: string;
-      state: "informational";
-      [k: string]: unknown;
-    };
+export type ReconcileAction = "up_to_date" | "notify" | "staged" | "activated";
 export type SourceDiscoveryLimit = "entries" | "depth" | "file_size" | "hash_bytes" | "candidates";
 export type SourceImportMode = "copy" | "move" | "use_current_location";
 export type SourceImportOutcome =
@@ -374,6 +374,8 @@ export interface TransportOutputs {
   port_output_location: PortOutputLocation;
   port_paths: OutputPortPaths;
   port_removal_preview: OutputPortRemovalPreview;
+  preparation_options: PreparationOptions;
+  preparation_plan: OutputPreparationPlan;
   reconcile_batch_outcome: OutputReconcileBatchOutcome;
   reconcile_result: ReconcileResult;
   restore_result: OutputRestoreResult;
@@ -392,7 +394,7 @@ export interface TransportOutputs {
   source_import_result: OutputSourceImportResult;
   source_inbox_paths: SourceInboxPaths;
   source_inbox_resolution: OutputSourceInboxResolution;
-  source_inspection: SourceInspectionReport1;
+  source_inspection: SourceInspectionReport;
   source_intake_inspection: OutputSourceIntakeInspection;
   source_relink_plan: OutputSourceRelinkPlan;
   source_removal_preview: OutputSourceRemovalPreview;
@@ -671,6 +673,7 @@ export interface PortDefinition {
     "windows-x86-64"?: string[];
   };
   setup_marker: string | null;
+  setup_output_paths: string[];
   source_environment: string | null;
   source_profile: string | null;
   summary: string;
@@ -1292,71 +1295,56 @@ export interface OutputPortRemovalPreview {
   preview_sha256: string;
   [k: string]: unknown;
 }
-export interface OutputReconcileBatchOutcome {
-  error: ApiError | null;
-  ok: boolean;
-  port_id: string;
-  result: ReconcileResult | null;
-  [k: string]: unknown;
-}
-export interface ReconcileResult {
-  action: ReconcileAction;
-  check: UpdateCheck;
-  install: InstallRecord | null;
-  policy: UpdatePolicy;
-  port_id: string;
-  [k: string]: unknown;
-}
-export interface OutputRestoreResult {
-  restored_backup: BackupRecord;
-  safety_backup: BackupRecord | null;
-  [k: string]: unknown;
-}
-export interface OutputSignedCatalogEnvelope {
-  format_version: number;
-  key_id: string;
+export interface PreparationOptions {
   /**
-   * Exact UTF-8 bytes are signed; consumers must not reserialize before verification.
+   * This family currently exposes the catalog's reviewed defaults only.
    */
-  payload: string;
-  signature: string;
+  mode: "default";
+  target: Platform;
 }
-export interface OutputSignedCatalogPayload {
-  catalog: CatalogDocument;
-  expires_at: number;
-  issued_at: number;
-  sequence: number;
-}
-export interface SourceAssessment {
-  admission: SourceAdmission;
-  classification: SourceClassification;
-  contract: SourceContractResult;
-  evidence: SourceEvidence[];
-  health: SourceHealth;
-  [k: string]: unknown;
-}
-export interface OutputSourceBatchOutcome {
-  error: ApiError | null;
-  ok: boolean;
-  profile_id: string;
-  result: SourceVerification | null;
-  [k: string]: unknown;
-}
-export interface SourceVerification {
-  inspection: SourceInspectionReport;
-  path: string;
-  profile_id: string;
-  registered_at: number;
-  sha256: string;
-  size: number;
-  storage_sha256: string;
-  storage_size: number;
-  verified_at: number;
+export interface OutputPreparationPlan {
+  copy: AdoptionCopyPlan1;
+  format_version: number;
+  inputs: PreparationInputs;
+  plan_sha256: string;
+  port_id: string;
   [k: string]: unknown;
 }
 /**
- * Complete current inspection under API schema 33. This is read-only and
- * never replaces the registration baseline.
+ * A copy identity, checked only after the existing install trust checks pass.
+ */
+export interface AdoptionCopyPlan1 {
+  directories: string[];
+  files: AdoptionCopyFile[];
+  skipped_entries: AdoptionSkippedEntry[];
+  total_bytes: number;
+  [k: string]: unknown;
+}
+export interface PreparationInputs {
+  conversion_tool: PreparationTool | null;
+  /**
+   * Binds the admitted port and source definitions; hashing does not admit a definition.
+   */
+  definition_sha256: string;
+  host: Platform;
+  install: InstallRecord;
+  options: PreparationOptions;
+  setup_tool: PreparationTool;
+  source: SourceRecord;
+  source_inspection: SourceInspectionReport;
+  [k: string]: unknown;
+}
+export interface PreparationTool {
+  path: string;
+  sha256: string;
+  size: number;
+  [k: string]: unknown;
+}
+/**
+ * A stable, complete explanation of selected source bytes. `state_code` is an
+ * open string so clients can preserve an unfamiliar future state instead of
+ * failing enum deserialization. Detailed enums remain versioned by the report
+ * and outer API schema boundaries.
  */
 export interface SourceInspectionReport {
   applications: SourceApplicationInspection[];
@@ -1431,6 +1419,14 @@ export interface SourceInspection {
   validator?: ObservedSourceValidator | null;
   [k: string]: unknown;
 }
+export interface SourceAssessment {
+  admission: SourceAdmission;
+  classification: SourceClassification;
+  contract: SourceContractResult;
+  evidence: SourceEvidence[];
+  health: SourceHealth;
+  [k: string]: unknown;
+}
 export interface SourceLegacyCoverage {
   /**
    * True for an Alpha 1 or other supported row that predates structured observations.
@@ -1453,6 +1449,82 @@ export interface SourceInspectionProblem {
    * matching shared readiness controls. Other error details remain private.
    */
   tool_id?: string | null;
+  [k: string]: unknown;
+}
+export interface OutputReconcileBatchOutcome {
+  error: ApiError | null;
+  ok: boolean;
+  port_id: string;
+  result: ReconcileResult | null;
+  [k: string]: unknown;
+}
+export interface ReconcileResult {
+  action: ReconcileAction;
+  check: UpdateCheck;
+  install: InstallRecord | null;
+  policy: UpdatePolicy;
+  port_id: string;
+  [k: string]: unknown;
+}
+export interface OutputRestoreResult {
+  restored_backup: BackupRecord;
+  safety_backup: BackupRecord | null;
+  [k: string]: unknown;
+}
+export interface OutputSignedCatalogEnvelope {
+  format_version: number;
+  key_id: string;
+  /**
+   * Exact UTF-8 bytes are signed; consumers must not reserialize before verification.
+   */
+  payload: string;
+  signature: string;
+}
+export interface OutputSignedCatalogPayload {
+  catalog: CatalogDocument;
+  expires_at: number;
+  issued_at: number;
+  sequence: number;
+}
+export interface OutputSourceBatchOutcome {
+  error: ApiError | null;
+  ok: boolean;
+  profile_id: string;
+  result: SourceVerification | null;
+  [k: string]: unknown;
+}
+export interface SourceVerification {
+  inspection: SourceInspectionReport1;
+  path: string;
+  profile_id: string;
+  registered_at: number;
+  sha256: string;
+  size: number;
+  storage_sha256: string;
+  storage_size: number;
+  verified_at: number;
+  [k: string]: unknown;
+}
+/**
+ * A stable, complete explanation of selected source bytes. `state_code` is an
+ * open string so clients can preserve an unfamiliar future state instead of
+ * failing enum deserialization. Detailed enums remain versioned by the report
+ * and outer API schema boundaries.
+ */
+export interface SourceInspectionReport1 {
+  applications: SourceApplicationInspection[];
+  evidence: SourceEvidenceLink[];
+  expected_identity?: SourceIdentityProfile | null;
+  health: SourceHealth;
+  inspection?: SourceInspection | null;
+  legacy: SourceLegacyCoverage;
+  next_action: string;
+  problem?: SourceInspectionProblem | null;
+  profile_id: string;
+  registered?: SourceRecord | null;
+  schema_version: number;
+  state_code: string;
+  summary: string;
   [k: string]: unknown;
 }
 export interface SourceDiscoveryIssue {
@@ -1563,28 +1635,6 @@ export interface SourceInboxScanStats {
   [k: string]: unknown;
 }
 /**
- * A stable, complete explanation of selected source bytes. `state_code` is an
- * open string so clients can preserve an unfamiliar future state instead of
- * failing enum deserialization. Detailed enums remain versioned by the report
- * and outer API schema boundaries.
- */
-export interface SourceInspectionReport1 {
-  applications: SourceApplicationInspection[];
-  evidence: SourceEvidenceLink[];
-  expected_identity?: SourceIdentityProfile | null;
-  health: SourceHealth;
-  inspection?: SourceInspection | null;
-  legacy: SourceLegacyCoverage;
-  next_action: string;
-  problem?: SourceInspectionProblem | null;
-  profile_id: string;
-  registered?: SourceRecord | null;
-  schema_version: number;
-  state_code: string;
-  summary: string;
-  [k: string]: unknown;
-}
-/**
  * Read-only result for paths offered through a host intake surface such as
  * native drag and drop. The core, rather than the host adapter, decides
  * whether the offered shape can be inspected for the requested profile.
@@ -1594,7 +1644,7 @@ export interface OutputSourceIntakeInspection {
   next_action: string;
   problem?: SourceInspectionProblem | null;
   profile_id: string;
-  report?: SourceInspectionReport1 | null;
+  report?: SourceInspectionReport | null;
   schema_version: number;
   /**
    * Open stable code. A successful single-path inspection reuses the nested

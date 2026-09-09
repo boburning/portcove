@@ -18,6 +18,36 @@ fn cli_binary() -> std::path::PathBuf {
 struct RunningCli(std::process::Child);
 
 #[test]
+fn preparation_plan_reports_missing_inputs_without_starting_work() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    for (port, code, exit) in [
+        ("opengoal-jak1", "not_found", 4),
+        ("zelda64-recomp", "unsupported", 3),
+    ] {
+        let output = portcove(
+            &library,
+            &["--json", "--non-interactive", "preparation", "plan", port],
+        );
+        assert_eq!(output.status.code(), Some(exit));
+        let response = json_stdout(&output);
+        assert_eq!(response["command"], "preparation.plan");
+        assert_eq!(response["error"]["code"], code);
+    }
+    let activities = json_stdout(&portcove(&library, &["--json", "activity"]));
+    assert!(activities["data"].as_array().unwrap().is_empty());
+    let schema = json_stdout(&portcove(
+        &library,
+        &["--json", "schema", "export", "--contract", "output"],
+    ));
+    assert!(schema["data"]["preparation_plan"]["properties"]["inputs"].is_object());
+    assert_eq!(
+        schema["data"]["preparation_options"]["additionalProperties"],
+        false
+    );
+}
+
+#[test]
 fn schema_contract_direction_is_explicit_compatible_and_library_free() {
     let temporary = tempfile::tempdir().unwrap();
     let library = temporary.path().join("unopened");

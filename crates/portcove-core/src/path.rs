@@ -2,6 +2,15 @@ use std::path::Path;
 
 use crate::{PortcoveError, Result};
 
+pub(crate) fn is_portcove_metadata(path: &Path) -> bool {
+    path.components().any(|component| {
+        component.as_os_str().to_str().is_some_and(|name| {
+            let name = name.to_ascii_lowercase();
+            name.starts_with(".portcove-") || name.ends_with(".portcove-source.json")
+        })
+    })
+}
+
 pub(crate) fn refuse_symlink_ancestors(path: &Path) -> Result<()> {
     for candidate in path.ancestors() {
         if std::fs::symlink_metadata(candidate)

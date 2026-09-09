@@ -12,7 +12,7 @@ export function portDefinition(): PortDefinition {
     launch_arguments: [], launch_environment: {}, launch_from_install_root: false, portable_marker: false,
     runtime_mutable_paths: [], runtime_source_filename: null, runtime_source_hashes: {},
     runtime_source_materialization: null, runtime_source_set: [], runtime_subdirectory: null,
-    setup_arguments: [], setup_executable_hints: {}, setup_marker: null, source_environment: null,
+    setup_arguments: [], setup_executable_hints: {}, setup_marker: null, setup_output_paths: [], source_environment: null,
     user_data_environment: null,
   };
 }

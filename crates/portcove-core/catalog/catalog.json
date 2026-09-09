@@ -9152,6 +9152,7 @@
         "--disable-ansi"
       ],
       "setup_marker": "data/out/jak1/iso/0COMMON.TXT",
+      "setup_output_paths": ["data/iso_data", "data/decompiler_out", "data/out"],
       "launch_arguments": [
         "--game",
         "jak1",
@@ -9245,6 +9246,7 @@
         "--disable-ansi"
       ],
       "setup_marker": "data/out/jak2/iso/0COMMON.TXT",
+      "setup_output_paths": ["data/iso_data", "data/decompiler_out", "data/out"],
       "launch_arguments": [
         "--game",
         "jak2",
@@ -9338,6 +9340,7 @@
         "--disable-ansi"
       ],
       "setup_marker": "data/out/jak3/iso/0COMMON.TXT",
+      "setup_output_paths": ["data/iso_data", "data/decompiler_out", "data/out"],
       "launch_arguments": [
         "--game",
         "jak3",

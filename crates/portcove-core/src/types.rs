@@ -330,6 +330,8 @@ pub struct PortDefinition {
     #[serde(default)]
     pub setup_marker: Option<String>,
     #[serde(default)]
+    pub setup_output_paths: Vec<String>,
+    #[serde(default)]
     pub upstream_status: UpstreamStatus,
 }
 
@@ -1166,6 +1168,7 @@ impl CapabilityDocument {
                 "doctor".into(),
                 "about".into(),
                 "plan".into(),
+                "preparation".into(),
                 "paths".into(),
                 "check".into(),
                 "reconcile".into(),

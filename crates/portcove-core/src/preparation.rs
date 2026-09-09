@@ -80,6 +80,11 @@ impl PortcoveService {
             )
             .detail("port_id", port_id));
         }
+        if port.setup_output_paths.is_empty() {
+            return Err(PortcoveError::unsupported(
+                "this definition has no reviewed managed preparation output contract",
+            ));
+        }
         if options.target != host || !port.platforms.contains(&host) {
             return Err(PortcoveError::unsupported(
                 "managed preparation requires an available artifact for this host; target selection does not enable cross-compilation",
@@ -162,6 +167,54 @@ fn tool_identity(path: PathBuf, class: ChildProcessClass) -> Result<PreparationT
     let _command = ChildProcessPolicy::native_command(class, &path)?;
     let (sha256, size) = crate::adapter::hash_file(&path)?;
     Ok(PreparationTool { path, sha256, size })
+}
+
+pub(crate) fn validate_output_contract(port: &crate::PortDefinition) -> Result<()> {
+    if !port.setup_output_paths.is_empty()
+        && (!port.launch_from_install_root || port.runtime_subdirectory.is_some())
+    {
+        return Err(PortcoveError::unsupported(
+            "managed preparation output contracts currently require an install-root working directory",
+        ));
+    }
+    for (index, output) in port.setup_output_paths.iter().enumerate() {
+        crate::archive::validate_relative_path(output, true)?;
+        let overlaps = |other: &String| crate::runtime::overlaps(output, other);
+        if crate::path::is_portcove_metadata(std::path::Path::new(output))
+            || port.setup_output_paths[..index].iter().any(overlaps)
+            || port.persistent_paths.iter().any(overlaps)
+            || port.runtime_mutable_paths.iter().any(overlaps)
+            || port.runtime_source_filename.iter().any(overlaps)
+            || port
+                .bundled_runtime
+                .values()
+                .any(|runtime| overlaps(&runtime.target_directory))
+            || port
+                .executable_hints
+                .values()
+                .chain(port.setup_executable_hints.values())
+                .flatten()
+                .any(overlaps)
+        {
+            return Err(PortcoveError::usage(
+                "setup output paths overlap another ownership contract",
+            )
+            .detail("port_id", &port.id)
+            .detail("path", output));
+        }
+    }
+    if !port.setup_output_paths.is_empty()
+        && !port.setup_marker.as_ref().is_some_and(|marker| {
+            port.setup_output_paths
+                .iter()
+                .any(|output| std::path::Path::new(marker).starts_with(output))
+        })
+    {
+        return Err(PortcoveError::usage(
+            "setup marker must belong to a declared generated output path",
+        ));
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -362,5 +415,56 @@ mod tests {
         let mut unknown = serde_json::to_value(fixture.options()).unwrap();
         unknown["renderer"] = serde_json::json!("unreviewed");
         assert!(serde_json::from_value::<PreparationOptions>(unknown).is_err());
+    }
+
+    #[test]
+    fn generated_outputs_cannot_claim_executables_sources_or_persistent_data() {
+        let fixture = Fixture::new();
+        let port = fixture.service.catalog().port(PORT).unwrap();
+        validate_output_contract(port).unwrap();
+        for outputs in [
+            vec!["../outside".into()],
+            vec![port.executable_hints[&Platform::current().unwrap()][0].clone()],
+            vec![port.runtime_source_filename.clone().unwrap()],
+            vec![port.persistent_paths[0].clone()],
+            vec!["data".into()],
+            vec!["data/out".into(), "data/out/jak1".into()],
+            vec!["unrelated-output".into()],
+            vec!["data/.PORTCOVE-hidden".into()],
+        ] {
+            let mut changed = port.clone();
+            changed.setup_output_paths = outputs;
+            assert!(validate_output_contract(&changed).is_err());
+        }
+        let mut nested = port.clone();
+        nested.runtime_subdirectory = Some("nested".into());
+        assert!(validate_output_contract(&nested).is_err());
+        let mut legacy = port.clone();
+        legacy.setup_output_paths.clear();
+        // Old definitions remain readable; they cannot acquire the new preparation capability.
+        validate_output_contract(&legacy).unwrap();
+        let mut document = fixture.service.catalog().document().clone();
+        *document
+            .ports
+            .iter_mut()
+            .find(|candidate| candidate.id == PORT)
+            .unwrap() = legacy;
+        let mut service = fixture.service;
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        );
+        assert_eq!(
+            service
+                .plan_preparation(
+                    PORT,
+                    PreparationOptions {
+                        target: Platform::current().unwrap(),
+                        mode: PreparationMode::Default
+                    }
+                )
+                .unwrap_err()
+                .code,
+            ErrorCode::Unsupported
+        );
     }
 }
