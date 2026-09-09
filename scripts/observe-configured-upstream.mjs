@@ -42,10 +42,12 @@ export async function advanceObservation(config, checkpoint, options) {
   const next = structuredClone(checkpoint ?? { format: 1, config_sha256: observationHash(config), completed_runs: 0, first_complete_at: null, last_complete: null, exception: null });
   let transition = "deferred";
   let changedException = false;
+  let failedPolicyInput = null;
   const retryClock = next.exception?.retry_at ? Date.parse(next.exception.retry_at) : 0;
   if (!retryClock || now() >= retryClock) {
     try {
       const result = await observeUpstream(config, { ...options, cache: next.last_complete?.cache });
+      failedPolicyInput = result.observation;
       const projection = await options.project(result.observation);
       if (projection.format !== 1 || projection.port_id !== config.port_id || projection.repository_id !== config.repository_id || projection.facts_sha256 !== result.observation.facts_sha256 || !Array.isArray(projection.projections)) throw new ObservationFailure("core-binding", "core policy output is not bound to the exact observed facts");
       transition = !next.last_complete ? "initial-baseline" : next.last_complete.observation.facts_sha256 === result.observation.facts_sha256 ? "unchanged" : "changed";
@@ -53,6 +55,7 @@ export async function advanceObservation(config, checkpoint, options) {
       next.first_complete_at ??= result.observation.completed_at;
       next.completed_runs++;
       next.exception = null;
+      failedPolicyInput = null;
     } catch (error) {
       const exception = exceptionFor(error, next.exception, config, new Date(now()).toISOString());
       changedException = exception.key !== next.exception?.key;
@@ -74,6 +77,7 @@ export async function advanceObservation(config, checkpoint, options) {
     observation: next.last_complete?.observation ?? null,
     policy: next.last_complete?.projection ?? null,
     exception: next.exception,
+    failed_policy_input: failedPolicyInput,
     exception_age_ms: next.exception ? Math.max(0, now() - Date.parse(next.exception.first_seen)) : null,
     fallback: next.exception && previousComplete ? { observed_at: previousComplete, facts_sha256: next.last_complete.observation.facts_sha256, scope: "last-complete-unverified-observation; current upstream state is unknown" } : null,
     clocks: { timezone: "UTC", first_complete_observation_at: next.first_complete_at, latest_complete_observation_at: previousComplete, protected_acceptance_at: null, definition_publication_at: null, compatible_client_availability_at: null },

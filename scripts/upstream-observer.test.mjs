@@ -190,6 +190,7 @@ test("deferred checkpoints honor retry clocks without requests and mismatched co
   assert.equal(good.report.transition, "initial-baseline");
   const mismatch = await advanceObservation(config, good.checkpoint, { ...options, fetch: fixture().fetch, project: async observation => ({ ...await project(observation), facts_sha256: "wrong" }) });
   assert.equal(mismatch.report.exception.rule, "core-binding");
+  assert.equal(mismatch.report.failed_policy_input.facts_sha256, observationHash(mismatch.report.failed_policy_input.facts));
   assert.deepEqual(mismatch.checkpoint.last_complete, good.checkpoint.last_complete);
   await assert.rejects(advanceObservation(config, { ...good.checkpoint, config_sha256: "wrong" }, options), error => error.rule === "invalid-checkpoint");
 });

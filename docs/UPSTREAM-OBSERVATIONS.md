@@ -96,6 +96,9 @@ clock, usable fallback and resume condition. A new exception produces one
 failed workflow run; repeats and deferred retries are quiet while retaining
 the failed/stale report. A successful observation clears the exception. This
 deduplication depends on the retained cache: eviction starts a new baseline.
+When core inspection rejects a complete observation, `failed_policy_input` in
+that run's report preserves the inert input for bounded offline reproduction;
+it never replaces the successful checkpoint or becomes an eligible candidate.
 All platform projections remain in the retained snapshot during a provider
 failure, and no catalog entry is removed.
 
