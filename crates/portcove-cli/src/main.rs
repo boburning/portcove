@@ -2015,7 +2015,7 @@ fn render_error(mode: OutputMode, command: &str, error: &PortcoveError) {
         }).unwrap_or_else(|_| "{\"ok\":false}".into())),
         OutputMode::Jsonl => println!("{}", serde_json::to_string(&serde_json::json!({
             "schema_version": API_SCHEMA_VERSION, "type": "result", "ok": false,
-            "command": command, "error": { "code": error.code, "message": error.message, "details": error.details }
+            "command": command, "error": api_error(error)
         })).unwrap_or_else(|_| "{\"ok\":false}".into())),
     }
 }
