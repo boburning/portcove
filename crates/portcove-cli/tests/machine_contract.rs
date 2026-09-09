@@ -18,6 +18,63 @@ fn cli_binary() -> std::path::PathBuf {
 struct RunningCli(std::process::Child);
 
 #[test]
+fn upstream_observation_is_offline_and_does_not_open_a_library() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("unopened");
+    let observation = temporary.path().join("observation.json");
+    std::fs::write(
+        &observation,
+        include_str!("fixtures/upstream-observation.json"),
+    )
+    .unwrap();
+    let arguments = [
+        "--json",
+        "catalog",
+        "inspect-observation",
+        "shipwright",
+        observation.to_str().unwrap(),
+        "--repository-id",
+        "472575717",
+    ];
+    let output = portcove(&library, &arguments);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let response = json_stdout(&output);
+    assert_eq!(response["command"], "catalog.inspect-observation");
+    assert_eq!(
+        response["data"]["facts_sha256"],
+        "cdbe83850467e64c075dc5c4f91089c7844c5375d21e14236b79adb8e0c571ca"
+    );
+    assert_eq!(
+        response["data"]["evidence"]["catalog_admission_assessed"],
+        false
+    );
+    assert!(
+        response["data"]["projections"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|entry| entry["latest_eligible"].is_null())
+    );
+    assert!(!library.exists());
+    std::fs::write(&observation, "{}").unwrap();
+    let rejected = portcove(&library, &arguments);
+    assert!(!rejected.status.success());
+    assert_eq!(
+        json_stdout(&rejected)["command"],
+        "catalog.inspect-observation"
+    );
+    assert!(!library.exists());
+    let missing_identity = portcove(&library, &arguments[..5]);
+    assert_eq!(missing_identity.status.code(), Some(2));
+    assert_eq!(json_stdout(&missing_identity)["error"]["code"], "usage");
+    assert!(!library.exists());
+}
+
+#[test]
 fn exported_source_assessment_separates_facts_without_opening_library() {
     let temporary = tempfile::tempdir().unwrap();
     let library = temporary.path().join("unopened");

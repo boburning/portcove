@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "authority": "provider-observation-only",
+  "port_id": "shipwright",
+  "started_at": "2026-09-09T12:00:00.000Z",
+  "completed_at": "2026-09-09T12:00:01.000Z",
+  "facts_sha256": "cdbe83850467e64c075dc5c4f91089c7844c5375d21e14236b79adb8e0c571ca",
+  "facts": {
+    "releases": [],
+    "repository": { "archived": false, "full_name": "HarbourMasters/Shipwright", "id": 472575717 }
+  }
+}
