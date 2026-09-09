@@ -9152,7 +9152,6 @@
         "--disable-ansi"
       ],
       "setup_marker": "data/out/jak1/iso/0COMMON.TXT",
-      "setup_output_paths": ["data/iso_data", "data/decompiler_out", "data/out"],
       "launch_arguments": [
         "--game",
         "jak1",
@@ -9178,6 +9177,11 @@
       ],
       "persistent_paths": [
         "OpenGOAL/jak1"
+      ],
+      "setup_output_paths": [
+        "data/iso_data",
+        "data/decompiler_out",
+        "data/out"
       ]
     },
     {
@@ -9246,7 +9250,6 @@
         "--disable-ansi"
       ],
       "setup_marker": "data/out/jak2/iso/0COMMON.TXT",
-      "setup_output_paths": ["data/iso_data", "data/decompiler_out", "data/out"],
       "launch_arguments": [
         "--game",
         "jak2",
@@ -9272,6 +9275,11 @@
       ],
       "persistent_paths": [
         "OpenGOAL/jak2"
+      ],
+      "setup_output_paths": [
+        "data/iso_data",
+        "data/decompiler_out",
+        "data/out"
       ]
     },
     {
@@ -9340,7 +9348,6 @@
         "--disable-ansi"
       ],
       "setup_marker": "data/out/jak3/iso/0COMMON.TXT",
-      "setup_output_paths": ["data/iso_data", "data/decompiler_out", "data/out"],
       "launch_arguments": [
         "--game",
         "jak3",
@@ -9366,6 +9373,11 @@
       ],
       "persistent_paths": [
         "OpenGOAL/jak3"
+      ],
+      "setup_output_paths": [
+        "data/iso_data",
+        "data/decompiler_out",
+        "data/out"
       ]
     },
     {

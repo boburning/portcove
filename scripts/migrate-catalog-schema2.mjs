@@ -510,6 +510,11 @@ const migrated = {
     ...port,
     persistent_paths: [...port.persistent_paths, "keybinds.ini", "disc.cfg", "bios.cfg"],
     runtime_mutable_paths: [...port.runtime_mutable_paths, "psx_freeze_heartbeat.json"],
+  } : ["opengoal-jak1", "opengoal-jak2", "opengoal-jak3"].includes(port.id) ? {
+    ...port,
+    // Reviewed extractor output ownership; this is not a manifest exclusion.
+    // Pinned upstream evidence is recorded in docs/CATALOG.md.
+    setup_output_paths: ["data/iso_data", "data/decompiler_out", "data/out"],
   } : port),
 };
 const output = `${JSON.stringify(migrated, null, 2)}\n`;
