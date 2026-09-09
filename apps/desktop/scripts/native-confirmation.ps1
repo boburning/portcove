@@ -38,6 +38,8 @@ $children = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants, 
 $names = @($children | ForEach-Object { $_.Current.Name })
 $text = $names -join "`n"
 if (-not $text.Contains($ExpectedText)) { throw 'Native confirmation did not name the expected reviewed target.' }
+$liveApplication = Get-CimInstance Win32_Process -Filter "ProcessId = $applicationId"
+if (-not $liveApplication -or $liveApplication.CreationDate -ne $applications[0].CreationDate -or $liveApplication.ExecutablePath -ne $applications[0].ExecutablePath) { throw 'Owned application identity changed while waiting for confirmation.' }
 if ($Button -ne '__observe__') {
     $buttons = @($children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and $_.Current.Name -eq $Button })
     if ($buttons.Count -ne 1 -or -not $buttons[0].Current.IsEnabled) { throw 'Expected one enabled native confirmation button.' }
