@@ -49,7 +49,7 @@ pub struct FailureReport {
     pub code: ErrorCode,
     pub message: String,
     pub details: BTreeMap<String, String>,
-    pub presentation: FailurePresentation,
+    pub presentation: Box<FailurePresentation>,
 }
 
 impl From<PortcoveError> for FailureReport {
@@ -71,7 +71,7 @@ impl PortcoveError {
             code: self.code,
             message: self.message.clone(),
             details: self.details.clone(),
-            presentation: self.presentation(),
+            presentation: Box::new(self.presentation()),
         }
     }
 
