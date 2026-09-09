@@ -31,6 +31,13 @@ pub(crate) enum CatalogCommand {
     Show {
         port_id: String,
     },
+    /// Interpret an inert upstream observation against the embedded catalog.
+    InspectObservation {
+        port_id: String,
+        file: PathBuf,
+        #[arg(long)]
+        repository_id: u64,
+    },
     /// Show effective provenance, public trust keys, and replay protection.
     Status,
     /// Trust a publisher's raw 32-byte Ed25519 public key, encoded as hex.
@@ -73,6 +80,7 @@ impl CatalogCommand {
             Self::List => "catalog.list",
             Self::Export => "catalog.export",
             Self::Show { .. } => "catalog.show",
+            Self::InspectObservation { .. } => "catalog.inspect-observation",
             Self::Status => "catalog.status",
             Self::TrustKey { .. } => "catalog.trust-key",
             Self::RevokeKey { .. } => "catalog.revoke-key",
@@ -106,6 +114,9 @@ pub(crate) async fn execute(
             human::catalog_show,
         ),
         CatalogCommand::Status => render_success(mode, name, library.catalog_status()?),
+        CatalogCommand::InspectObservation { .. } => {
+            unreachable!("observation inspection executes before opening a library")
+        }
         CatalogCommand::TrustKey { public_key, yes } => {
             let key = portcove_core::CatalogTrustKey::from_public_key(&public_key)?;
             require_confirmation(

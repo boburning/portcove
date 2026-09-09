@@ -1,0 +1,56 @@
+name: Configured upstream observer
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: configured-upstream-observer-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - uses: ./.github/actions/setup-rust
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: upstream-observer-cli
+      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            work/upstream-observer/*/checkpoint.json
+            work/upstream-observer/*/report.json
+          key: upstream-observer-${{ hashFiles('release/upstream-observer.json') }}-${{ github.ref }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: upstream-observer-${{ hashFiles('release/upstream-observer.json') }}-${{ github.ref }}-
+      - name: Build shared policy inspector
+        run: cargo build --locked -p portcove-cli
+      - name: Observe configured upstream
+        run: node scripts/observe-configured-upstream.mjs --cli target/debug/portcove
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Preserve complete checkpoint and deduplicated exception
+        if: ${{ !cancelled() && hashFiles('work/upstream-observer/*/checkpoint.json') != '' }}
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            work/upstream-observer/*/checkpoint.json
+            work/upstream-observer/*/report.json
+          key: upstream-observer-${{ hashFiles('release/upstream-observer.json') }}-${{ github.ref }}-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Retain observation evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: configured-upstream-observation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/upstream-observer/*/report.json
+          if-no-files-found: warn
+          retention-days: 7

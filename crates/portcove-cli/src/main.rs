@@ -700,6 +700,24 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         render_success(mode, "schema.export", schema_document())?;
         return Ok(ExitCode::SUCCESS);
     }
+    if let Commands::Catalog {
+        command:
+            CatalogCommand::InspectObservation {
+                port_id,
+                file,
+                repository_id,
+            },
+    } = &cli.command
+    {
+        let catalog = portcove_core::Catalog::embedded()?;
+        let report = portcove_core::inspect_upstream_observation(
+            catalog.port(port_id)?,
+            *repository_id,
+            file,
+        )?;
+        render_success(mode, "catalog.inspect-observation", report)?;
+        return Ok(ExitCode::SUCCESS);
+    }
     let preferences = host_preference_store()?;
     let platform_default = portcove_core::Library::default_root()?;
     if let Commands::Library { command } = &cli.command {
@@ -1663,6 +1681,10 @@ fn schema_document() -> serde_json::Value {
             ),
             ("about", serde_json::json!(schema_for!(AboutDocument))),
             ("catalog", serde_json::json!(schema_for!(CatalogDocument))),
+            (
+                "upstream_observation_report",
+                serde_json::json!(schema_for!(portcove_core::UpstreamObservationReport)),
+            ),
             (
                 "catalog_status",
                 serde_json::json!(schema_for!(portcove_core::CatalogStatus)),

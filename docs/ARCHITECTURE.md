@@ -89,6 +89,15 @@ the observation path around it. See [External frontend integration](INTEGRATIONS
 
 ## Library model
 
+The [configured upstream observer](UPSTREAM-OBSERVATIONS.md) owns bounded,
+read-only provider collection and factual operational checkpoints. It submits
+inert observations through the standalone CLI to core's existing release
+channel and asset policy. Core validates the exact scope and facts and exports
+metadata eligibility separately from authentication, integrity and admission.
+The CLI translates this offline command without opening a library. The
+observer neither writes catalog support nor owns installed/update state;
+existing crate dependency rules remain unchanged.
+
 `source_assessment` defines the shared source fact contract: existing
 `SourceHealth` (including selected bytes without a baseline), classification,
 reviewed release-contract result, actual admission/mode/reason, and scoped
