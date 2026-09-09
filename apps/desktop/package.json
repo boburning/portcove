@@ -5,6 +5,8 @@
   "packageManager": "pnpm@11.25.0",
   "type": "module",
   "scripts": {
+    "release:policy": "node scripts/release-version-policy.mjs",
+    "test:release-policy": "vitest run scripts/release-version-policy.test.mjs",
     "test:desktop": "node scripts/desktop-test.mjs",
     "dev": "vite --host 127.0.0.1 --port 1420",
     "build": "tsc && vite build",
@@ -32,6 +34,7 @@
     "fallow": "^3.22.0",
     "jsdom": "^30.0.1",
     "selenium-webdriver": "4.48.0",
+    "semver": "7.8.5",
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
     "vitest": "^4.1.11"

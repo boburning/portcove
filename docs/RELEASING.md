@@ -75,6 +75,25 @@ After changing them, run Cargo once so the workspace package entries in `Cargo.l
 
 `scripts/check-release-metadata.mjs` verifies those versions, the tag, package manager pin, repository/license metadata, Tauri identity, and the required master/runtime/platform brand assets. Local packaging derives its default version from that check and rejects an explicit mismatch.
 
+The offline `pnpm --dir apps/desktop release:policy` utility accepts `classify`,
+`select` or `propose` followed by one JSON input file. It shares the existing Node
+tooling workspace and maintained SemVer dependency; it is not renderer code.
+Classification defaults to Preview, including suffix-free 0.x and unapproved
+final versions. Stable requires separate explicit production eligibility for a
+final version at or beyond 1.0; approved finals are also eligible for Preview.
+Selection checks separately supplied eligibility and optional target/current
+version, rejects equal-precedence ambiguity, and orders by SemVer rather than date.
+Build metadata alone never requests reinstallation.
+
+Proposals require matching frozen source/review commits, complete published
+version history, and an explicit change/compatibility classification. They reject
+stale bases, implicit prerelease finalization, published precedence reuse, and
+compatibility breaks without the required version change and migration notes.
+A proposal does not allocate a version, edit metadata, authenticate its input,
+grant production approval or publish a release. Its caller must establish input
+authority. Existing publication and download-discovery invocation remain separate
+until their authorized integration; a proposal cannot activate those procedures.
+
 ## Standalone CLI integration artifact
 
 Every released external-client claim points to an exact standalone CLI archive,
