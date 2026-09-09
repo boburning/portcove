@@ -5,6 +5,7 @@ import { copyFile, mkdir, readFile, realpath, writeFile } from "node:fs/promises
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
 import axe from "axe-core";
 import { By, until } from "selenium-webdriver";
+import { reviewControls, assertCompactReview } from "./desktop-review-controls.mjs";
 
 export async function adoptionReviewScenario({ browser, invoke, scenario, library, output, artifacts, command, tool, host, confirmNative }) {
   await scenario("native-reviewed-existing-install-copy", async () => {
@@ -27,14 +28,7 @@ export async function adoptionReviewScenario({ browser, invoke, scenario, librar
     const otherInstall = command(["status", "opengoal-jak1"]).active;
     const sources = command(["source", "list"]);
     await browser.navigate().refresh();
-    const button = label => By.xpath(`//button[normalize-space(.)="${label}"]`);
-    const click = async locator => {
-      const element = await browser.wait(until.elementLocated(locator), 15_000);
-      await browser.executeScript('arguments[0].scrollIntoView({ block: "center" });', element);
-      await browser.wait(until.elementIsVisible(element), 5_000);
-      await browser.wait(until.elementIsEnabled(element), 5_000);
-      await element.click();
-    };
+    const { button, click } = reviewControls(browser);
     const dialog = By.css('[aria-labelledby="adopt-title"]');
     const open = async () => {
       await click(button("Adopt an install"));
@@ -71,13 +65,7 @@ export async function adoptionReviewScenario({ browser, invoke, scenario, librar
     const report = path.join(output, "adoption-review-accessibility.json");
     await writeFile(report, JSON.stringify(accessibility, null, 2), { flag: "wx" }); artifacts.push(report);
     assert.deepEqual(accessibility.violations.map(item => item.id), []);
-    await browser.manage().window().setRect({ width: 960, height: 640 });
-    const layout = await browser.executeScript(() => {
-      const review = document.querySelector('[aria-labelledby="adopt-title"]');
-      const bounds = review.getBoundingClientRect();
-      return { pageOverflow: document.documentElement.scrollWidth > window.innerWidth + 1, dialogOverflow: review.scrollWidth > review.clientWidth + 1, inView: bounds.left >= 0 && bounds.right <= window.innerWidth };
-    });
-    assert.deepEqual(layout, { pageOverflow: false, dialogOverflow: false, inView: true });
+    await assertCompactReview(browser, '[aria-labelledby="adopt-title"]');
     const screenshot = path.join(output, "native-adoption-review-compact.png");
     await writeFile(screenshot, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" }); artifacts.push(screenshot);
     await click(button("Continue to copy confirmation"));

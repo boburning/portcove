@@ -5,6 +5,7 @@ import { readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
 import axe from "axe-core";
 import { By, until } from "selenium-webdriver";
+import { reviewControls } from "./desktop-review-controls.mjs";
 
 export async function removalReviewScenario({ browser, invoke, scenario, library, output, artifacts, command, open, confirmNative }) {
   await scenario("native-reviewed-installed-game-removal", async () => {
@@ -19,14 +20,7 @@ export async function removalReviewScenario({ browser, invoke, scenario, library
     const beforeSave = await readFile(save);
     const preservedFiles = await Promise.all([save, path.join(output, `${port.id}.iso`), ...snapshots.backups.map(item => path.join(item.path, "data/owned-review-save.bin"))].map(fileIdentity));
     await open(port);
-    const click = async locator => {
-      const element = await browser.wait(until.elementLocated(locator), 15_000);
-      await browser.executeScript('arguments[0].scrollIntoView({ block: "center" });', element);
-      await browser.wait(until.elementIsVisible(element), 5_000);
-      await browser.wait(until.elementIsEnabled(element), 5_000);
-      await element.click();
-    };
-    const button = label => By.xpath(`//button[normalize-space(.)="${label}"]`);
+    const { button, click } = reviewControls(browser);
     const dialog = By.css('[aria-labelledby="removal-review-title"]');
     await click(By.css("summary.advanced-summary"));
     const review = async () => {
