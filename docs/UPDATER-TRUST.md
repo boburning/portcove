@@ -1,0 +1,245 @@
+# Application update trust and recovery design
+
+This contract implements the design scope of #223 under [Delivery](DELIVERY.md).
+It does not activate an updater or authorize production custody, signing or
+publication. Executable fixtures use fresh disposable keys and temporary local
+repositories. Installed-package and physical-platform qualification remain
+distinct from this design evidence.
+
+## Owners and independent trust claims
+
+The Tauri host owns application preferences, install ownership, trusted metadata,
+staging, replacement and its recovery journal. Core owns library schemas,
+migrations, game sessions, mutation locks and all game data. React presents typed
+host results; it supplies neither trusted URLs nor keys. Desktop never silently
+replaces a separately installed CLI. Catalog keys cannot authorize application code.
+
+| Claim | Mechanism | Limit |
+| --- | --- | --- |
+| Payload authenticity | Mandatory maintained Tauri updater signature | Does not authenticate feed JSON or current eligibility |
+| Exact bytes | Authenticated SHA-256 and length reconciled with final inventory | Adjacent unsigned checksums alone give no publisher authority |
+| Release and promotion authority | TUF authenticated metadata and targets with separate roles | Does not bypass compatibility or safe-apply checks |
+| OS publisher identity | Authenticode or Developer ID if separately provisioned | Ad-hoc signing has limited identity; signatures do not guarantee no prompts |
+| OS enforcement | Actual ownership/permissions, Defender and Gatekeeper | Passive installation is not a bypass |
+
+Select TUF 1.x with maintained Rust `tough`; the fixtures lock version 0.24.0.
+Its editor and client own canonicalization, signing and verification, with no
+Portcove crypto implementation. Select `tauri-plugin-updater` 2.11.0 or a later
+reviewed compatible version for payload verification and native replacement.
+Its source uses `minisign-verify`. The plugin is not installed by this design.
+Recheck current versions/advisories at integration; pins may change with validation.
+
+## Metadata and promotion
+
+Ship an application-specific trusted TUF root inside the installed package. The
+offline root role uses three distinct keys with a two-signature quorum. An offline
+top-level targets role delegates bounded paths to distinct online release, Preview
+and Stable roles. Timestamp and snapshot use separate online keys. Use consistent
+snapshots in production. Preserve this separation in credentials/job permissions,
+not just public key names. No catalog key participates in these roles.
+
+The release role controls immutable `releases/<version>/<target>/<package>.json`
+records binding schema, SemVer, commit/tree, qualified workflow/run/attempt,
+OS/architecture/execution context, package identity, immutable asset URL, SHA-256,
+length, Tauri signature and payload key ID. Include minimum OS, host capabilities,
+CLI protocol, catalog formats and library compatibility, plus exact evidence IDs.
+
+Channel roles separately control `channels/<channel>/<target>/<package>.json`,
+binding the path/digest of an authenticated release record, explicit eligibility
+or withdrawal, a bounded reason and any required bridge. Preview cannot promote
+Stable; promotion cannot alter release bytes, compatibility or signer keys.
+Require both authorities in one coherent verified snapshot. Stable eligibility
+requires the separately authorized production policy; all public 0.x is Preview.
+Promoting identical installed bytes never causes reinstallation. GitHub latest,
+release date and absence of a suffix are not eligibility authority.
+
+The offline targets authority also controls a payload-key registry. An ordinary
+release or promotion signer cannot add an executable key. The host selects the
+exact registered key from authenticated metadata and passes it to Tauri's verifier.
+Never accept a key from arbitrary feed JSON. Legacy single-key clients need an
+old-key-signed compatible bridge while that key is trustworthy, or an independently
+verified manual bootstrap. The plugin alone does not implement TUF or key rotation.
+
+Keep immutable release records after withdrawal for diagnosis. Increasing channel
+metadata excludes withdrawn versions from staging/application and normally offers
+a newer forward repair. Withdrawal neither deletes user data nor terminates an
+already installed offline application.
+
+## Freshness, replay and bounds
+
+Use safe expiration enforcement. Under one host OS lock, persist the latest verified
+root and timestamp/snapshot/targets replay state outside payloads and libraries.
+Pass the latest trusted root on subsequent loads: a datastore alone must not be
+assumed to select a newer root automatically. Persist root progression before using
+new authority. Preserve version floors across failed checks, channel changes and
+binary recovery. An interrupted update needs a fresh retry, not a replay reset.
+Deleting trust state is an explicit bootstrap/recovery trust operation.
+
+Maximum expiry windows are 48 hours for timestamp, seven days for snapshot/channel,
+90 days for release metadata and one year for root/delegation. Renew metadata
+independently of application releases without rewriting immutable application bytes.
+Check normally at most daily after a successful automatic check, and require fresh
+verification immediately before apply. Offline, expired, withdrawn and rate-limited
+candidates are held; local application use continues. Offline clients cannot learn
+immediate revocation. Freeze detection depends on trustworthy time and retained
+state: persist the greatest accepted time, detect clock regression and report a
+clock problem instead of disabling expiry. Administrator/host compromise is outside
+metadata attack resistance.
+
+Enforce transport caps in addition to library limits: 256 KiB/root, 32 KiB/timestamp,
+1 MiB/snapshot or targets role, 256 KiB/release or channel record, 8 MiB total metadata,
+32 sequential root transitions, and 16 delegated roles with depth two. Bound target
+counts and string sizes; reject unsupported record schemas and duplicate contract
+fields. `tough`'s `max_targets_size` is insufficient alone because signed declared
+lengths can override it. Absolute streaming caps must still apply. Stage one candidate
+and its immediately previous recovery payload, each at most 2 GiB, and check disk
+space for download, native replacement and recovery before beginning. Change a cap
+deliberately if a legitimate package exceeds it.
+
+Pin HTTPS metadata origins and path prefixes in trusted host configuration; reject
+metadata redirects. Payload URLs must identify immutable GitHub release assets from
+authenticated records. Permit at most five redirects to the exact reviewed GitHub
+asset-host allowlist, HTTPS port 443, without userinfo, credentials or authorization
+headers. Reject local/file URLs, private destinations, unapproved hosts and loops
+in production. Bound DNS, connect and idle time; metadata has a 120-second deadline.
+New production origins require a reviewed trusted configuration change. Local file
+transport belongs only to tests.
+
+Consume target streams fully before parsing or acting: early bytes are not verified.
+Verify final payload length/hash and Tauri signature before application. Use the
+maintained native installer/replacement route with explicit archive entry, expanded
+size and path/link limits; no arbitrary ZIP overwrite. Extraction grants no execution
+authority. Each platform must prove interruption and extraction bounds before use.
+
+## Key lifecycle
+
+Production keys are generated only during separately authorized provisioning. Keep
+offline keys and recovery copies in independently controlled storage with public
+fingerprints, custody inventory and tested restoration. No private key goes into
+Git, logs, releases or ordinary CI. Fixtures generate temporary disposable secrets.
+
+| Event | Required recovery |
+| --- | --- |
+| Planned root rotation | Every sequential bridge meets both old and new quorums; retain endpoints/bridges for supported skipped clients. |
+| One offline key lost or compromised | The remaining two uncompromised keys replace it; one key cannot appoint a new root. |
+| Online key lost | Its offline authority replaces it; reconstruct metadata from immutable identities and authenticated eligibility. |
+| Online key compromised | Stop the signer, rotate authority, withdraw affected candidates, refresh metadata and forward repair; assess other exposed roles. |
+| Payload key lost | Use a preprovisioned offline-authorized replacement and compatible host; legacy single-key clients need a prepared bridge or independently verified bootstrap. |
+| Payload key compromised | Revoke new use and staged intent, rotate through independent metadata authority and forward repair. A compromised sole key is insufficient recovery authority. |
+| Root quorum lost or compromised | In-band recovery is unavailable or untrustworthy; use a separately authenticated manual bootstrap with independently checked package/key identity. |
+
+A new root's self-signature does not establish continuity. Expired old roots may
+participate in TUF's sequential update, but final metadata/root must be fresh. A
+missing bridge or exhausted transition bound needs verified bootstrap. Never trust
+a later root merely because old keys are unavailable. Retain bridge artifacts and
+metadata for the declared client support window; no procedure magically recovers
+a sole lost secret without prior independent preparation.
+
+## Trusted signing boundary
+
+Production authority is a fixed trusted workflow/revision and protected environment,
+separate from candidate commits. Inputs bind exact eligible commit/tree, reviewed
+classification, trusted workflow ID, run ID/attempt, complete inventory, required
+checks/review and applicable qualification. Recheck repository identity, current
+eligibility, check conclusions and artifact hashes at signing; a candidate cannot
+assert its own passing gates.
+
+Build/test without production credentials. The signer receives inventory as inert
+bytes, verifies hashes/sizes with trusted tools and signs exact final distributed
+bytes. It never checks out or executes candidate scripts, binaries, local actions,
+package hooks or instructions with secrets. Native byte-changing steps precede final
+hashes and updater signatures. Provisioned native signing uses similarly trusted
+tools. Separate least-privilege signing, publication and promotion identities,
+serialize publication, make retries bind identical inputs and independently read
+back immutable assets/metadata.
+
+Current protected release gates remain effective. Candidate code cannot approve
+its own signer, secret access, production eligibility or bypass. Provisioning needs
+the concrete reviewed implementation, public fingerprints, custody/recovery rehearsal
+and refusal tests. Test keys provide no production authorization.
+
+## Ownership and compatibility
+
+Each install has one owner: Portcove for a qualified user-owned NSIS/AppImage/macOS
+bundle, package manager for DEB/RPM, or explicit manual. Inspect actual package,
+path, execution architecture and write permission. Never silently switch owner,
+package or location. Disk-image/translocated macOS and unsupported custom/system
+installs receive accurate bootstrap/manual guidance; user-owned updates must not
+silently require elevation.
+
+The release record declares CLI protocol range, catalog formats/capabilities,
+library read/write schema interval, migration start/end and lock protocol. Query
+core for actual schema and sessions/mutations. Probe an explicitly configured
+companion CLI's existing capabilities contract, never arbitrary search-path binaries.
+Unknown companions are not declared compatible.
+
+Initially support mixed CLI/Desktop only when both declare the same write schema
+and lock protocol with compatible machine protocols/capabilities. No cross-schema
+concurrent writers are implied. Core rejects newer or partial schemas under its
+migration lock. When Desktop advances schema, an incompatible old CLI must refuse
+access with repair guidance; Desktop does not overwrite the CLI. Stable/Preview
+share a library only under this compatibility/lock contract, otherwise use distinct
+user-selected libraries. Channel preference never copies mutable data.
+
+Normal updates strictly increase maintained SemVer precedence. Build metadata alone
+is no increment. Preview-to-Stable records preference and waits for compatible
+non-older Stable. Explicit recovery has a separate confirmation/compatibility gate.
+Skipped upgrades require a supported complete migration chain or authenticated
+compatible bridges; no silent downgrade or data discard.
+
+## Recovery without rolling back user data
+
+Host state records candidate identity, eligibility snapshot, owner/platform path,
+previous successful identity and replacement phase. At apply acquire the shared
+cross-process guard and recheck sessions/mutations, consent, ownership, links/paths,
+disk, compatibility and fresh eligibility. Races hold the candidate. Crash, shutdown
+and Steam Stop cannot guarantee exit hooks; next launch reconciles journal phase
+against actual installed identity.
+
+Journal staged -> verified -> applying -> awaiting health -> successful with
+recoverable writes. Retain the immediately previous successfully installed signed
+identity, manifest and payload where the platform permits safe recovery. Unhealthy
+or interrupted candidates never replace that previous slot. Health includes core
+open/migration postconditions and host bootstrap, not just executable startup.
+Qualify interruption at each phase per platform before claiming automatic recovery.
+
+Core migrations stay contiguous, transactional and postcondition checked under the
+existing OS migration lock. Cross-file/schema steps use core's recoverable journal
+and idempotent reconciliation; the host must not create a competing library restore
+authority. Keep libraries, sources, game installations, saves, backups, settings,
+artwork, trust state and credentials outside replaceable application payloads.
+
+Binary rollback is allowed only to the exact previous successful signed version
+when current eligibility, payload-key authority, owner/package, OS and actual current
+mutable schema remain compatible. Do not restore old database/save snapshots to
+make an old binary run. Missing freshness holds automatic rollback and offers
+independent data-preserving repair. Signed but withdrawn/incompatible binaries are
+not recovery targets. Prefer a newer eligible forward repair.
+
+Recovery must work without the new GUI: documented verified manual reinstall or a
+qualified recovery launcher reads the host journal, identifies the exact install
+and preserves every user path, without elevating the failed candidate. Updater-less
+alphas need verified manual bootstrap. Package/migration proofs must demonstrate
+newer saves survive forward repair/interrupted replacement/refused downgrade.
+TUF alone supplies none of these native installation guarantees.
+
+## Executable evidence and limits
+
+Run `cargo test --locked -p portcove-desktop --test updater_trust` through the existing
+development-storage wrapper; normal workspace checks include it. Test-only host
+dependencies use the actual Rust TUF editor/client and fresh Ed25519 PKCS#8 keys.
+No private-key fixture, production endpoint or updater plugin is shipped.
+
+Fixtures cover quorum and dual-root continuity, one-key loss, insufficient/online
+key rejection, skipped/missing bridges, revoked online signatures, persistent replay,
+expiry, equal-length target tamper and a separately signed channel delegation.
+The channel fixture refuses the release key and reads promotion bytes through the
+actual delegated verifier. Simplified local roles and non-consistent filenames keep
+the key-lifecycle scenarios bounded. A user-data sentinel establishes only that
+metadata failures preserve that file, not binary rollback or save migration.
+Network policy, full production role layout, payloads, compatibility/journal and
+physical platforms need their applicable implementation proofs before activation.
+
+References inspected 2026-09-08: [TUF specification](https://theupdateframework.github.io/specification/latest/),
+[`tough`](https://github.com/awslabs/tough), [Tauri updater](https://v2.tauri.app/plugin/updater/)
+and downloaded `tough` 0.24.0 / `tauri-plugin-updater` 2.11.0 registry sources.

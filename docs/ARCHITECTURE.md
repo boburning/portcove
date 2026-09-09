@@ -26,6 +26,12 @@ In this document, “thin adapter” means that the CLI and desktop do not reimp
 
 ## Monorepo and deliverable decision
 
+The [application updater trust design](UPDATER-TRUST.md) assigns future application
+replacement/trust state to the Tauri host; core retains library/game authority.
+Disposable TUF fixtures are host integration tests with test-only dependencies,
+not a production updater or alternative catalog verifier. Existing architecture
+metadata rules continue to forbid independent catalog verification in adapters.
+
 Portcove Core, CLI, and Desktop remain in one repository. Shared core services
 own game-management behavior. CLI and Desktop are independently usable
 interfaces and separately packaged deliverables. Repository separation is not
