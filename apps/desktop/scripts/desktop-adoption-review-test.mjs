@@ -27,6 +27,7 @@ export async function adoptionReviewScenario({ browser, invoke, scenario, librar
     const preserved = await Promise.all([incoming, unrelated, path.join(backup.path, "data/general.json"), path.join(previous.path, port.executable_hints[host][0])].map(fileIdentity));
     const otherInstall = command(["status", "opengoal-jak1"]).active;
     const sources = command(["source", "list"]);
+    await browser.manage().window().setRect({ width: 1440, height: 1000 });
     await browser.navigate().refresh();
     const { button, click } = reviewControls(browser);
     const dialog = By.css('[aria-labelledby="adopt-title"]');
@@ -65,7 +66,13 @@ export async function adoptionReviewScenario({ browser, invoke, scenario, librar
     const report = path.join(output, "adoption-review-accessibility.json");
     await writeFile(report, JSON.stringify(accessibility, null, 2), { flag: "wx" }); artifacts.push(report);
     assert.deepEqual(accessibility.violations.map(item => item.id), []);
+    const normal = path.join(output, "native-adoption-review.png");
+    await writeFile(normal, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" }); artifacts.push(normal);
     await assertCompactReview(browser, '[aria-labelledby="adopt-title"]');
+    assert.equal(await browser.executeScript(() => {
+      const plan = document.querySelector('.adoption-review');
+      return plan.scrollHeight > plan.clientHeight + 1;
+    }), false, "The copy plan uses the dialog scroll instead of nesting a second scrolling region");
     const screenshot = path.join(output, "native-adoption-review-compact.png");
     await writeFile(screenshot, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" }); artifacts.push(screenshot);
     await click(button("Continue to copy confirmation"));

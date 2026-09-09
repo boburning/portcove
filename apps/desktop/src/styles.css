@@ -1653,6 +1653,7 @@ select { width: 100%; padding: 11px; }
   border-radius: var(--radius-md);
   background: var(--color-bg-inset);
 }
+.adoption-review { max-height: none; overflow: visible; }
 .adoption-plan p { margin: 0 0 var(--space-2); color: var(--color-text-secondary); }
 .adoption-plan p:last-child { margin-bottom: 0; }
 .adoption-plan summary { color: var(--color-warning-text); cursor: pointer; }
