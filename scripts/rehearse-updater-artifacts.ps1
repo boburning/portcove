@@ -122,8 +122,14 @@ try {
         Move-RehearsalInput $bundleRoot "$version-bundles"
         Move-RehearsalInput $cliRoot "$version-cli-assets"
     }
+} catch {
+    [ordered]@{ source_commit = $revision; platform = $PlatformLabel; status = "failed"; failure = $_.Exception.Message } |
+        ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runRoot "rehearsal-result.json") -Encoding utf8
+    throw
 } finally {
     foreach ($relative in $metadataPaths) { [IO.File]::WriteAllBytes((Join-Path $root $relative), $original[$relative]) }
     foreach ($name in $environmentNames) { [Environment]::SetEnvironmentVariable($name, $previousEnvironment[$name], "Process") }
     if ([IO.File]::Exists($privateKey)) { [IO.File]::Delete($privateKey) }
 }
+[ordered]@{ source_commit = $revision; platform = $PlatformLabel; status = "passed"; fixture_versions = @("0.1.0", "0.3.0"); production_signing = $false } |
+    ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runRoot "rehearsal-result.json") -Encoding utf8
