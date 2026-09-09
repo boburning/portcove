@@ -112,6 +112,39 @@ fn cancellation_reaps_the_running_native_setup_before_returning() {
 }
 
 #[test]
+fn diagnostic_storage_failure_stops_the_owned_tool_before_returning() {
+    let temporary = fixture("wait");
+    let root = temporary.path();
+    let started = Instant::now();
+    let error = run_setup(
+        &std::env::current_exe().unwrap(),
+        &["--exact".into(), CHILD_TEST.into(), "--nocapture".into()],
+        &root.join("owned-fixture.iso"),
+        root,
+        &|| Ok(()),
+        "owned-storage-failure",
+        &mut |capture| {
+            if capture.stdout.observed_bytes > 0 {
+                Err(PortcoveError::state("owned diagnostic storage failure"))
+            } else {
+                Ok(())
+            }
+        },
+    )
+    .err()
+    .expect("storage failure must stop setup");
+    assert_eq!(error.code, crate::ErrorCode::State);
+    assert_eq!(error.message, "owned diagnostic storage failure");
+    assert!(started.elapsed() < Duration::from_secs(5));
+    let pid = fs::read_to_string(root.join("setup-fixture-ready"))
+        .unwrap()
+        .parse()
+        .unwrap();
+    assert!(crate::launch::process_identity(pid).unwrap().is_none());
+    assert!(!root.join("setup-fixture-unexpected-completion").exists());
+}
+
+#[test]
 fn cancellation_before_spawn_starts_no_process() {
     let temporary = fixture("success");
     let error = run_fixture(temporary.path(), &|| {
