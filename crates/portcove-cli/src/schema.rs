@@ -291,9 +291,9 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
             ),
             (
                 "activity_diagnostic",
-                serde_json::json!(schema_for_contract::<portcove_core::ActivityDiagnostic>(
-                    contract
-                )),
+                serde_json::json!(
+                    schema_for_contract::<Vec<portcove_core::ActivityDiagnostic>>(contract)
+                ),
             ),
             (
                 "cancellation_state",

@@ -97,12 +97,13 @@ pub fn create_support_bundle(service: &PortcoveService) -> Result<PathBuf> {
     archive.write_all(&serde_json::to_vec_pretty(&summary)?)?;
     archive.write_all(b"\n")?;
     for (index, activity) in activities.iter().enumerate() {
-        if let Some(capture) = service.library().activity_diagnostic(&activity.id)? {
+        let captures = service.library().activity_diagnostic(&activity.id)?;
+        if !captures.is_empty() {
             archive
                 .start_file(format!("logs/activity-{index}.json"), options)
                 .map_err(zip_error)?;
             // Fixed archive names cannot turn a stored activity ID into a path.
-            let mut value = serde_json::to_value(capture)?;
+            let mut value = serde_json::to_value(captures)?;
             redact_diagnostic_value(&mut value);
             serde_json::to_writer_pretty(&mut archive, &value)?;
             archive.write_all(b"\n")?;

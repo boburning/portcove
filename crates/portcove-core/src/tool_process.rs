@@ -5,7 +5,7 @@ mod tests;
 use std::{
     io::Read,
     path::Path,
-    process::{ExitStatus, Stdio},
+    process::{Command, ExitStatus, Stdio},
     sync::mpsc,
     time::{Duration, Instant},
 };
@@ -33,15 +33,50 @@ pub(crate) fn run_setup(
     activity_id: &str,
     record: &mut dyn FnMut(&ActivityDiagnostic) -> Result<()>,
 ) -> Result<SetupOutput> {
-    let capture = DiagnosticCapture::default();
-    record(&capture.snapshot(activity_id, false)?)?;
-    checkpoint()?;
     let mut command =
         ChildProcessPolicy::native_command(ChildProcessClass::UpstreamSetup, program)?;
     command
         .args(arguments)
         .arg(source)
-        .current_dir(working_directory)
+        .current_dir(working_directory);
+    run_tool(
+        &mut command,
+        checkpoint,
+        Some(ToolDiagnosticSink {
+            activity_id,
+            phase: "preparation.setup",
+            record,
+        }),
+    )
+}
+
+pub(crate) struct ToolDiagnosticSink<'a> {
+    pub activity_id: &'a str,
+    pub phase: &'a str,
+    pub record: &'a mut dyn FnMut(&ActivityDiagnostic) -> Result<()>,
+}
+
+/// Supervise an already policy-admitted command with bounded redacted output.
+/// The caller owns argument construction, phase identity and diagnostic storage.
+pub(crate) fn run_tool(
+    command: &mut Command,
+    checkpoint: &dyn Fn() -> Result<()>,
+    mut diagnostics: Option<ToolDiagnosticSink<'_>>,
+) -> Result<SetupOutput> {
+    let capture = DiagnosticCapture::default();
+    let mut snapshot = |final_capture| {
+        let (id, phase) = diagnostics
+            .as_ref()
+            .map_or(("", ""), |sink| (sink.activity_id, sink.phase));
+        let value = capture.snapshot(id, phase, final_capture)?;
+        if let Some(sink) = diagnostics.as_mut() {
+            (sink.record)(&value)?;
+        }
+        Ok::<_, PortcoveError>(value)
+    };
+    snapshot(false)?;
+    checkpoint()?;
+    command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
@@ -51,7 +86,7 @@ pub(crate) fn run_setup(
         command.process_group(0);
     }
     let mut child = command.spawn().map_err(|error| {
-        PortcoveError::launch(format!("could not start the admitted setup tool: {error}"))
+        PortcoveError::launch(format!("could not start the admitted tool: {error}"))
     })?;
     let group = match ToolProcessGroup::attach(&child) {
         Ok(group) => group,
@@ -78,7 +113,7 @@ pub(crate) fn run_setup(
     let result = loop {
         let observation = checkpoint().and_then(|()| {
             if last_snapshot.elapsed() >= Duration::from_millis(500) {
-                record(&capture.snapshot(activity_id, false)?)?;
+                snapshot(false)?;
                 last_snapshot = Instant::now();
             }
             Ok(())
@@ -102,7 +137,7 @@ pub(crate) fn run_setup(
                     let _ = child.wait();
                 }
                 break Err(PortcoveError::launch(format!(
-                    "could not observe setup completion: {error}"
+                    "could not observe tool completion: {error}"
                 )));
             }
         }
@@ -112,8 +147,7 @@ pub(crate) fn run_setup(
     drop(group);
     let diagnostic = (|| {
         let drained = drain_setup_output(&receiver);
-        let snapshot = capture.snapshot(activity_id, drained.is_ok())?;
-        record(&snapshot)?;
+        let snapshot = snapshot(drained.is_ok())?;
         drained?;
         Ok::<_, PortcoveError>(snapshot)
     })();

@@ -115,9 +115,9 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
     const generation = (await invoke("get_bootstrap_status")).value.generation;
     const retained = await invoke("get_activity_diagnostic", { activityId: activity.id, generation });
     assert.equal(retained.ok, true);
-    assert.equal(retained.value.complete, true);
-    assert.match(retained.value.stdout.text, /owned setup began/);
-    assert.match(retained.value.stderr.text, /owned setup diagnostic on stderr/);
+    assert.equal(retained.value[0].complete, true);
+    assert.match(retained.value[0].stdout.text, /owned setup began/);
+    assert.match(retained.value[0].stderr.text, /owned setup diagnostic on stderr/);
     assert.doesNotMatch(JSON.stringify(retained.value), /owned-fixture-private-value/);
     assert.deepEqual(command(["activity", "log", activity.id]), retained.value);
     const staleLog = await invoke("get_activity_diagnostic", { activityId: activity.id, generation: generation + 1 });

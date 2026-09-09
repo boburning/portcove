@@ -291,7 +291,7 @@ async fn get_activity_diagnostic(
     state: tauri::State<'_, DesktopState>,
     activity_id: String,
     generation: u64,
-) -> DesktopResult<Option<portcove_core::ActivityDiagnostic>> {
+) -> DesktopResult<Vec<portcove_core::ActivityDiagnostic>> {
     let state = state.inner().clone();
     blocking_worker(move || {
         service_at_generation(&state, generation)?

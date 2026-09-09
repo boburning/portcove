@@ -18,10 +18,18 @@ pub(crate) fn document<T: Serialize>(data: &T) -> serde_json::Result<String> {
     Ok(output.trim_end().to_owned())
 }
 
-pub(crate) fn activity_diagnostic(capture: &Option<portcove_core::ActivityDiagnostic>) -> String {
-    let Some(capture) = capture else {
+pub(crate) fn activity_diagnostic(captures: &[portcove_core::ActivityDiagnostic]) -> String {
+    if captures.is_empty() {
         return "No retained diagnostic capture is available for this activity.".into();
-    };
+    }
+    captures
+        .iter()
+        .map(diagnostic_phase)
+        .collect::<Vec<_>>()
+        .join("\n\n")
+}
+
+fn diagnostic_phase(capture: &portcove_core::ActivityDiagnostic) -> String {
     let status = if capture.complete {
         "Capture reached the end of both streams."
     } else {

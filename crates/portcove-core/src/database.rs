@@ -10,7 +10,7 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior};
 
 use crate::{PortcoveError, Result};
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 21;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 22;
 
 struct Migration {
     version: i64,
@@ -145,6 +145,12 @@ const MIGRATIONS: &[Migration] = &[
         name: "retained activity diagnostics",
         apply: migration_21,
         verify: verify_migration_21,
+    },
+    Migration {
+        version: 22,
+        name: "separate preparation phase diagnostics",
+        apply: migration_22,
+        verify: verify_migration_22,
     },
 ];
 
@@ -822,6 +828,36 @@ fn verify_migration_18(connection: &Connection) -> Result<()> {
     require_columns(connection, "lifecycle_operations", &["source_import_json"])
 }
 
+fn migration_22(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch("ALTER TABLE activity_diagnostics RENAME TO activity_diagnostics_v21;
+        CREATE TABLE activity_diagnostics (
+            activity_id TEXT NOT NULL REFERENCES activity_history(id) ON DELETE CASCADE,
+            phase TEXT NOT NULL,
+            payload TEXT NOT NULL,
+            updated_at INTEGER NOT NULL,
+            payload_bytes INTEGER NOT NULL CHECK(payload_bytes>=0),
+            PRIMARY KEY(activity_id,phase)
+        );
+        INSERT INTO activity_diagnostics(activity_id,phase,payload,updated_at,payload_bytes)
+            SELECT activity_id,'preparation.setup',payload,updated_at,payload_bytes FROM activity_diagnostics_v21;
+        DROP TABLE activity_diagnostics_v21;")?;
+    Ok(())
+}
+
+fn verify_migration_22(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "activity_diagnostics",
+        &[
+            "activity_id",
+            "phase",
+            "payload",
+            "updated_at",
+            "payload_bytes",
+        ],
+    )
+}
+
 fn migration_21(transaction: &Transaction<'_>) -> Result<()> {
     transaction.execute_batch(
         "CREATE TABLE IF NOT EXISTS activity_diagnostics (
@@ -1063,6 +1099,7 @@ mod tests {
         schema_18: 18,
         schema_19: 19,
         schema_20: 20,
+        schema_21: 21,
     }
 
     #[test]

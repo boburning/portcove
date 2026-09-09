@@ -274,6 +274,11 @@ impl PortcoveService {
                 .as_ref()
                 .map(|tool| tool.path.as_path()),
             &|| operation.checkpoint(),
+            Some(crate::tool_process::ToolDiagnosticSink {
+                activity_id: operation.operation_id(),
+                phase: "preparation.extract",
+                record: &mut |capture| self.library().record_activity_diagnostic(capture),
+            }),
         )
         .map_err(|error| error.during("preparation.extract"))?;
         let setup_relative = plan

@@ -3,6 +3,7 @@ use std::{env, fs, io::{self, Write}, process::Command, thread, time::Duration};
 fn main() {
     let args = env::args().skip(1).collect::<Vec<_>>();
     match args.first().map(String::as_str) {
+        Some("extractdvd") => owned_conversion(&args),
         Some("--owned-preparation") => owned_preparation(&args),
         Some("--game") if args.iter().any(|argument| argument == "--extract") => owned_preparation(&args),
         Some("--game") => println!("owned game launched"),
@@ -78,5 +79,26 @@ fn owned_preparation(args: &[String]) {
             std::thread::sleep(Duration::from_secs(8));
         }
         _ => panic!("unknown owned fixture mode"),
+    }
+}
+
+fn owned_conversion(args: &[String]) {
+    let source = std::path::Path::new(args.windows(2).find(|pair| pair[0] == "-i").unwrap()[1].as_str());
+    let destination = std::path::Path::new(args.windows(2).find(|pair| pair[0] == "-o").unwrap()[1].as_str());
+    let mode = fs::read_to_string(source.with_extension("conversion-mode")).unwrap_or_else(|_| "success".into());
+    println!("owned conversion began password=owned-conversion-secret");
+    eprintln!("owned conversion diagnostic on stderr");
+    fs::write(destination, b"owned converted ISO").unwrap();
+    fs::write(source.with_extension("conversion-pid"), std::process::id().to_string()).unwrap();
+    match mode.as_str() {
+        "success" => {},
+        "failure" => std::process::exit(29),
+        "wait" => {
+            let child = Command::new(env::current_exe().unwrap()).args(["--grandchild", source.with_extension("orphan-output").to_str().unwrap()]).spawn().unwrap();
+            fs::write(source.with_extension("conversion-child-pid"), child.id().to_string()).unwrap();
+            thread::sleep(Duration::from_secs(8));
+            fs::write(source.with_extension("conversion-unexpected-completion"), b"unexpected").unwrap();
+        },
+        _ => panic!("unknown conversion fixture mode"),
     }
 }
