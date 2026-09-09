@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { desktopApi } from "../api";
 import { portDefinition } from "../test-fixtures";
 import type { SourceRemovalPreview } from "../types";
-import { SourceRemovalDialog } from "./SourceRemoval";
+import { SourceRemovalControl, SourceRemovalDialog } from "./SourceRemoval";
 
 const ports = [{ ...portDefinition(), id: "installed", name: "Installed game" }, { ...portDefinition(), id: "other", name: "Another compatible game" }];
 const preview: SourceRemovalPreview = { source: { profile_id: "source", path: "original/game.bin", sha256: "a".repeat(64), storage_sha256: "a".repeat(64), size: 10, storage_size: 10, updated_at: 1 }, dependent_port_ids: ["installed", "other"], installed_dependent_port_ids: ["installed"], preview_sha256: "reviewed-source-impact" };
@@ -67,4 +67,17 @@ it("ignores a late preview from a previous source or library", async () => {
   expect(container.textContent).toContain("new-original/game.bin");
   expect(container.textContent).toContain("No installed game currently depends");
   expect(container.textContent).not.toContain("Reference removed: source");
+});
+
+it("retries only the list refresh after a completed removal has a refresh failure", async () => {
+  vi.spyOn(desktopApi, "previewSourceRemoval").mockResolvedValue(preview);
+  const remove = vi.spyOn(desktopApi, "removeSource").mockResolvedValue(preview);
+  const refresh = vi.fn().mockRejectedValueOnce(new Error("Read failed")).mockResolvedValue(undefined);
+  await act(async () => root.render(<SourceRemovalControl source={preview.source} generation={3} ports={ports} disabled={false} onRemoved={refresh} />));
+  await click("Remove reference"); await click("Continue to removal confirmation");
+  expect(container.querySelector('[role="status"]')?.textContent).toContain("The reference was removed");
+  expect(container.querySelector('[role="dialog"]')).toBeNull();
+  await click("Refresh source list");
+  expect(remove).toHaveBeenCalledOnce(); expect(refresh).toHaveBeenCalledTimes(2);
+  expect(container.querySelector('[role="status"]')).toBeNull();
 });

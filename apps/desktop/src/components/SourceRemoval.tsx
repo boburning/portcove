@@ -10,11 +10,11 @@ export function SourceRemovalControl({ source, generation, ports, disabled, onRe
   const [open, setOpen] = useState(false);
   const [refreshError, setRefreshError] = useState(false);
   const completed = async () => {
-    try { await onRemoved?.(); }
+    try { await onRemoved?.(); setRefreshError(false); }
     catch { setRefreshError(true); }
   };
   return <><button data-focusable className="small-control danger" disabled={disabled} onClick={() => setOpen(true)}>Remove reference</button>
-    {refreshError && <p role="status">The reference was removed. Refresh Settings to see the current source list.</p>}
+    {refreshError && <div><p role="status">The reference was removed. Refresh the list to see the current sources.</p><button data-focusable className="small-control" onClick={() => { void completed(); }}>Refresh source list</button></div>}
     {open && <SourceRemovalDialog profileId={source.profile_id} generation={generation} ports={ports} close={() => setOpen(false)} onRemoved={completed} />}</>;
 }
 
@@ -53,7 +53,7 @@ function SourceRemovalDetails({ preview, ports }: { preview: SourceRemovalPrevie
     <p>The registered file or folder, its contents, installed game versions, saves, backups and other source references are preserved. Only this library's reference is removed.</p>
     <h3>Installed games affected</h3>
     {preview.installed_dependent_port_ids.length ? <ul>{preview.installed_dependent_port_ids.map(id => <li key={id}>{name(id)}</li>)}</ul> : <p>No installed game currently depends on this reference.</p>}
-    <p>These installed games lose this source reference. Actions that need the original files may require registering them again.</p>
+    <p>Actions that need these original files may require registering them again.</p>
     <details><summary>All catalog games using this source ({preview.dependent_port_ids.length})</summary><ul>{preview.dependent_port_ids.map(id => <li key={id}>{name(id)}</li>)}</ul></details>
     <p>To use these files again, add them and pass the current source checks. There is no one-click undo or automatic re-registration.</p>
     <p>If interrupted, reopen Settings and check whether the reference remains before trying again. Removing a reference never schedules deletion of the original files.</p>
