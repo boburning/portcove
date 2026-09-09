@@ -85,9 +85,26 @@ function Invoke-ApplicationSmoke([string]$Application, [string]$Role) {
             throw "Installed application did not reach a responsive named window"
         }
         $title = $process.MainWindowTitle
-        $null = $process.CloseMainWindow()
+        $launch.run.close_request = [ordered]@{
+            requested_at = (Get-Date).ToUniversalTime().ToString("o")
+            window_title = $title
+            window_handle = $process.MainWindowHandle.ToInt64()
+            accepted = $process.CloseMainWindow()
+        }
+        Write-InstallerEvidence $evidence.phase
+        if (-not $launch.run.close_request.accepted) {
+            throw "Installed application did not accept the main-window close request"
+        }
         if (-not $process.WaitForExit(10000)) {
-            throw "Installed application did not exit cleanly after its window closed"
+            $process.Refresh()
+            $launch.run.close_timeout = [ordered]@{
+                observed_at = (Get-Date).ToUniversalTime().ToString("o")
+                window_title = $process.MainWindowTitle
+                window_handle = $process.MainWindowHandle.ToInt64()
+                responding = $process.Responding
+            }
+            Write-InstallerEvidence $evidence.phase
+            throw "Installed application did not exit within 10 seconds after accepting the close request"
         }
         Complete-JournaledProcess $launch.run $process "exit_observed"
         if ($process.ExitCode -ne 0) {

@@ -129,6 +129,7 @@ test("installer lifecycle behavior handles delayed, persistent, and hung uninsta
   const delayedEvidence = JSON.parse(readFileSync(path.join(item.root, "delayed", "evidence.json"), "utf8"));
   assert.equal(delayedEvidence.phase, "complete");
   assert.equal(delayedEvidence.details.registration_removed, true);
+  assert.equal(delayedEvidence.process_runs.find(run => run.role === "candidate_smoke").close_request.accepted, true);
 
   const persistent = runInstallerLifecycle(item, "persistent", { PORTCOVE_FIXTURE_KEEP_REGISTRATION: "1" });
   assert.notEqual(persistent.status, 0);
