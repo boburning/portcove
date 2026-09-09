@@ -48,7 +48,13 @@ while their activity outcomes remain. The per-stream limit applies to each phase
 
 Human error output now uses the core summary and explicit mutation outcome.
 `--technical-details` includes the redacted technical message and context when
-human output is requested. JSON and JSONL keep the original machine error fields.
+human output is requested, including retained activity history. Human activity
+entries show their stable ID, catalog-known target, shared failure summary and
+observed mutation outcome. Older entries without a structured report do not infer
+unchanged files or a resumable operation. Their recorded message and targets no
+longer in the current catalog are available only as requested redacted technical
+details. Use `activity log <activity-id>` to read any retained phase captures.
+JSON and JSONL keep the original machine error and activity fields.
 A new preparation always starts with fresh private work; it does not consume or
 automatically delete a failed attempt's retained files.
 

@@ -503,30 +503,82 @@ pub(crate) fn statuses(statuses: &[PortStatus]) -> String {
     )
 }
 
-pub(crate) fn activities(records: &[ActivityRecord]) -> String {
+pub(crate) fn activities(
+    records: &[ActivityRecord],
+    catalog: &portcove_core::Catalog,
+    technical: bool,
+) -> String {
     if records.is_empty() {
         return "No activity records.".into();
     }
-    let rows = records
+    let entries = records
         .iter()
-        .map(|record| {
-            vec![
-                record.status.to_string(),
-                record.operation.to_string(),
-                record.target_id.as_deref().unwrap_or("library").into(),
-                record.started_at.to_string(),
-                record.message.as_deref().unwrap_or("").into(),
-            ]
-        })
-        .collect();
+        .map(|record| activity(record, catalog, technical))
+        .collect::<Vec<_>>();
     format!(
-        "Recent activity ({})\n{}",
+        "Recent activity ({})\n\n{}",
         records.len(),
-        table(
-            &["STATUS", "OPERATION", "TARGET", "STARTED (UNIX)", "MESSAGE"],
-            rows,
-        )
+        entries.join("\n\n")
     )
+}
+
+fn activity(record: &ActivityRecord, catalog: &portcove_core::Catalog, technical: bool) -> String {
+    use portcove_core::{ActivityStatus, ActivityTargetKind, redact_diagnostic_text};
+    // Failed requests can record arbitrary input as a target. Only catalog-owned
+    // identities belong in primary copy; historical/unknown input is opt-in.
+    let target = record
+        .target_id
+        .as_deref()
+        .and_then(|id| match record.target_kind {
+            ActivityTargetKind::Port => catalog.port(id).ok().map(|port| port.id.as_str()),
+            ActivityTargetKind::Source => catalog
+                .source_profile(id)
+                .ok()
+                .map(|profile| profile.id.as_str()),
+            ActivityTargetKind::Library => None,
+        });
+    let mut output = format!(
+        "Activity: {}\nStatus: {}\nOperation: {}\nTarget: {}\nStarted (UNIX): {}",
+        clean(&record.id),
+        record.status,
+        record.operation,
+        clean(target.unwrap_or(match record.target_kind {
+            ActivityTargetKind::Port => "port (not in current catalog)",
+            ActivityTargetKind::Source => "source (not in current catalog)",
+            ActivityTargetKind::Library => "library",
+        })),
+        record.started_at,
+    );
+    output.push('\n');
+    if let Some(report) = &record.failure {
+        output.push_str(&failure(report, technical));
+    } else {
+        output.push_str(match record.status {
+            ActivityStatus::Running => "No terminal outcome has been recorded.",
+            ActivityStatus::Succeeded => "Completed.",
+            ActivityStatus::Failed | ActivityStatus::Cancelled =>
+                "No structured failure outcome was recorded. Review the current state before another attempt.",
+        });
+        if technical {
+            if let Some(message) = &record.message {
+                output.push_str("\nTechnical details (redacted):\n");
+                output.push_str(&clean(&redact_diagnostic_text(message)));
+            }
+        } else if record.message.is_some() || (target.is_none() && record.target_id.is_some()) {
+            output.push_str("\nUse --technical-details to include redacted recorded details.");
+        }
+    }
+    if technical {
+        if let Some(id) = &record.target_id {
+            output.push_str("\nRecorded target (redacted): ");
+            output.push_str(&clean(&redact_diagnostic_text(id)));
+        }
+    }
+    output.push_str(&format!(
+        "\nRetained logs: activity log {}",
+        clean(&record.id)
+    ));
+    output
 }
 
 pub(crate) fn storage(summary: &StorageSummary) -> String {
@@ -1106,6 +1158,97 @@ mod tests {
     use portcove_core::{BackupInventory, BackupInventoryState, BackupRecord, StorageSummary};
 
     use super::{backup_list, document, storage, table};
+
+    fn failed_activity() -> portcove_core::ActivityRecord {
+        portcove_core::ActivityRecord {
+            id: "owned-activity-id".into(),
+            operation: portcove_core::ActivityOperation::Prepare,
+            target_kind: portcove_core::ActivityTargetKind::Port,
+            target_id: Some("opengoal-jak1".into()),
+            status: portcove_core::ActivityStatus::Failed,
+            message: Some("C:/private/game failed with token=owned-secret\u{1b}[31m".into()),
+            failure: None,
+            started_at: 42,
+            finished_at: Some(43),
+            cancellation: None,
+        }
+    }
+
+    #[test]
+    fn activity_reports_use_core_outcomes_and_opt_in_redacted_details() {
+        use portcove_core::{ActivityStatus, Catalog, ErrorCode, MutationState, PortcoveError};
+        let catalog = Catalog::embedded().unwrap();
+        let mut record = failed_activity();
+        for (error, status, expected) in [
+            (
+                PortcoveError::state(record.message.clone().unwrap()),
+                ActivityStatus::Failed,
+                "The changes could not be confirmed.",
+            ),
+            (
+                PortcoveError::new(ErrorCode::Cancelled, "token=owned-secret")
+                    .with_mutation_state(MutationState::NoChanges),
+                ActivityStatus::Cancelled,
+                "No files were changed by this operation.",
+            ),
+        ] {
+            record.failure = Some(error.report());
+            record.status = status;
+            let plain = super::activities(&[record.clone()], &catalog, false);
+            assert!(plain.contains(expected));
+            assert!(plain.contains("Target: opengoal-jak1"));
+            assert!(plain.contains("activity log owned-activity-id"));
+            assert!(!plain.contains("C:/private"));
+            assert!(!plain.contains("owned-secret"));
+            assert!(!plain.contains("Technical details (redacted):"));
+            let technical = super::activities(&[record.clone()], &catalog, true);
+            assert!(technical.contains("Technical details (redacted):"));
+            assert!(technical.contains("[REDACTED]"));
+            assert!(!technical.contains("owned-secret"));
+            assert!(!technical.contains('\u{1b}'));
+            if status == ActivityStatus::Cancelled {
+                assert!(plain.contains("cancelled: The operation was cancelled."));
+                assert!(!plain.contains("error:"));
+            }
+        }
+    }
+
+    #[test]
+    fn legacy_activity_hides_raw_messages_and_unrecognized_targets_without_inventing_outcomes() {
+        use portcove_core::{ActivityStatus, ActivityTargetKind, Catalog};
+        let catalog = Catalog::embedded().unwrap();
+        let mut record = failed_activity();
+        record.target_id = Some("C:/private/token=owned-target".into());
+        for kind in [
+            ActivityTargetKind::Port,
+            ActivityTargetKind::Source,
+            ActivityTargetKind::Library,
+        ] {
+            record.target_kind = kind;
+            for status in [
+                ActivityStatus::Failed,
+                ActivityStatus::Cancelled,
+                ActivityStatus::Running,
+                ActivityStatus::Succeeded,
+            ] {
+                record.status = status;
+                let plain = super::activities(&[record.clone()], &catalog, false);
+                assert!(!plain.contains("C:/private"));
+                assert!(!plain.contains("owned-secret"));
+                assert!(!plain.contains("owned-target"));
+                assert!(!plain.contains("No files were changed"));
+                if matches!(status, ActivityStatus::Failed | ActivityStatus::Cancelled) {
+                    assert!(plain.contains("No structured failure outcome was recorded"));
+                }
+                let technical = super::activities(&[record.clone()], &catalog, true);
+                assert!(technical.contains("C:/private/game"));
+                assert!(technical.contains("[REDACTED]"));
+                assert!(!technical.contains("owned-secret"));
+                assert!(!technical.contains("owned-target"));
+                assert!(!technical.contains('\u{1b}'));
+            }
+        }
+    }
 
     #[test]
     fn read_renderers_have_stable_human_snapshots() {
