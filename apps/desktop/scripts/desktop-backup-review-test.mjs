@@ -20,11 +20,17 @@ export async function backupReviewScenario({ browser, invoke, scenario, library,
     const other = command(["backup", "create", port.id]);
     await writeFile(save, "current data before review");
     await open(port);
-    await browser.findElement(By.css("summary.advanced-summary")).click();
+    const clickVisible = async element => {
+      await browser.executeScript('arguments[0].scrollIntoView({ block: "center" });', element);
+      await browser.wait(until.elementIsVisible(element), 5_000);
+      await browser.wait(until.elementIsEnabled(element), 5_000);
+      await element.click();
+    };
+    await clickVisible(await browser.findElement(By.css("summary.advanced-summary")));
     const button = label => By.xpath(`//button[normalize-space(.)="${label}"]`);
     const row = id => browser.findElement(By.css(`[data-backup-id="${id}"]`));
     const list = () => command(["backup", "list", port.id]).backups;
-    const clickRestore = async () => (await row(selected.id)).findElement(By.xpath('.//button[normalize-space(.)="Restore"]')).click();
+    const clickRestore = async () => clickVisible(await (await row(selected.id)).findElement(By.xpath('.//button[normalize-space(.)="Restore"]')));
     const capture = async name => {
       const dialog = await browser.findElement(By.css('[aria-labelledby="backup-review-title"]'));
       await browser.executeScript('arguments[0].scrollIntoView({ block: "start" });', dialog);
@@ -71,7 +77,7 @@ export async function backupReviewScenario({ browser, invoke, scenario, library,
     const safety = afterRestore.find(item => item.id !== selected.id && item.id !== other.id);
     assert.ok(safety);
     assert.equal(await readFile(path.join(safety.path, "data/owned-review-save.bin"), "utf8"), "changed after review");
-    await (await row(selected.id)).findElement(By.css('button[aria-label^="Delete backup"]')).click();
+    await clickVisible(await (await row(selected.id)).findElement(By.css('button[aria-label^="Delete backup"]')));
     await browser.wait(until.elementLocated(button("Delete this backup permanently")), 15_000);
     await capture("native-backup-delete-review");
     await browser.findElement(button("Delete this backup permanently")).click();
