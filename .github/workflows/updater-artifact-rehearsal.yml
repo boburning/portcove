@@ -2,12 +2,18 @@ name: Updater artifact rehearsal
 
 on:
   workflow_dispatch:
+    inputs:
+      platform:
+        description: Platform to investigate; use all for complete-matrix evidence
+        type: choice
+        default: all
+        options: [all, windows-x86_64, linux-x86_64, macos-x86_64, macos-aarch64]
 
 permissions:
   contents: read
 
 concurrency:
-  group: updater-artifact-rehearsal-${{ github.ref }}
+  group: updater-artifact-rehearsal-${{ github.ref }}-${{ inputs.platform || 'all' }}
   cancel-in-progress: false
 
 env:
@@ -18,16 +24,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: windows-latest
-            label: windows-x86_64
-          - os: ubuntu-22.04
-            label: linux-x86_64
-          - os: macos-15-intel
-            label: macos-x86_64
-          - os: macos-14
-            label: macos-aarch64
-    runs-on: ${{ matrix.os }}
+        label: ${{ fromJSON('{"all":["windows-x86_64","linux-x86_64","macos-x86_64","macos-aarch64"],"windows-x86_64":["windows-x86_64"],"linux-x86_64":["linux-x86_64"],"macos-x86_64":["macos-x86_64"],"macos-aarch64":["macos-aarch64"]}')[inputs.platform || 'all'] }}
+    runs-on: ${{ fromJSON('{"windows-x86_64":"windows-latest","linux-x86_64":"ubuntu-22.04","macos-x86_64":"macos-15-intel","macos-aarch64":"macos-14"}')[matrix.label] }}
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

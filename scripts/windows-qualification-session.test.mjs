@@ -42,7 +42,9 @@ test("installer lifecycle waits for managed files and uninstall registration to 
     source.slice(wait, waitEnd),
     /if \(-not \$managedFilesRemain -and \$remainingRegistryEntries\.Count -eq 0\)/,
   );
-  assert.match(source, /WaitForExit\(\$ProcessTimeoutSeconds \* 1000\)/);
+  assert.match(source, /\$deadline = \[DateTime\]::UtcNow\.AddSeconds\(\$ProcessTimeoutSeconds\)/);
+  assert.match(source, /WaitForExit\(\$remaining\)/);
+  assert.match(source, /Wait-JournaledUninstallerChild \$launch\.run \$AllowedRelocationRoot \$deadline/);
   assert.match(source, /Stop-JournaledProcess \$launch\.run \$launch\.process "timed_out"/);
   const start = source.indexOf("function Start-JournaledProcess");
   const spawn = source.indexOf("$process = Start-Process", start);
