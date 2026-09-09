@@ -482,7 +482,7 @@ test("a killed real lifecycle runner leaves readable inner WAL and outer ambigui
     await new Promise(resolve => setTimeout(resolve, 100));
   }
   assert.equal(evidence?.process_runs?.[0]?.role, "predecessor_installer", JSON.stringify({ evidence, diagnostics, runner_exit: runner.exitCode }));
-  assert.equal(evidence.process_runs[0].status, "running");
+  assert.equal(evidence.process_runs[0].status, "running", JSON.stringify({ evidence, diagnostics, runner_exit: runner.exitCode }));
   assert.equal(Number(readFileSync(ready, "utf8")), evidence.process_runs[0].pid);
   assert.equal(evidence.process_runs[0].executable_sha256, sha256(ownedSleeper));
   execFileSync("taskkill.exe", ["/PID", String(runner.pid), "/F"], { windowsHide: true, stdio: "ignore" });
