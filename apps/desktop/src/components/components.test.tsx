@@ -7,6 +7,7 @@ import { DetailPanel, type DetailActions } from "./DetailPanel";
 import { PortBrowser } from "./PortBrowser";
 import { UpdateCenter } from "./UpdateCenter";
 import { AdoptionModal } from "./AdoptionModal";
+import { applyOperationEvent, mostRecentOperation } from "../operation-state";
 
 const port: PortDefinition = {
   id: "sample", name: "Sample Port", summary: "A sample native port", project_url: "https://example.com",
@@ -25,6 +26,17 @@ const installRecord = (overrides: Partial<InstallRecord> = {}): InstallRecord =>
 });
 
 describe("desktop components", () => {
+  it("shows ongoing parent progress after a child finishes while retaining failure notice", () => {
+    const parent: OperationEvent = { schema_version: 2, operation_id: "parent", sequence: 2, timestamp_ms: 1,
+      operation: "install", type: "progress", phase: "download", completed: 1, total: 2 };
+    const child: OperationEvent = { schema_version: 2, operation_id: "child", parent_operation_id: "parent", sequence: 3, timestamp_ms: 2,
+      operation: "verify", type: "finished", result: "failed" };
+    const state = applyOperationEvent(applyOperationEvent(new Map(), parent), child);
+    const html = renderToStaticMarkup(<StatusLayer error="Child verification failed" clearError={vi.fn()} operation={mostRecentOperation(state)} busy="install" />);
+    expect(html).toContain("width:50%");
+    expect(html).toContain("Child verification failed");
+  });
+
   it("labels a new non-streaming task without reusing completed update progress", () => {
     const finished: OperationEvent = { schema_version: 2, operation_id: "old-update", sequence: 4, timestamp_ms: 1,
       operation: "update", type: "finished", message: "Old update completed", completed: 100, total: 100 };
