@@ -570,6 +570,47 @@ impl Installer {
         self.verify_with_metadata(install, &[], &[])
     }
 
+    /// Read small immutable metadata only through the registered manifest identity.
+    pub(crate) fn read_verified_member(
+        &self,
+        install: &InstallRecord,
+        relative: &str,
+        limit: u64,
+    ) -> Result<Vec<u8>> {
+        let member = immutable_member(install, relative)?;
+        let bytes =
+            crate::path::read_bounded_regular(&manifest_member(&install.path, relative)?, limit)?;
+        if bytes.len() as u64 != member.size
+            || crate::signed_catalog::digest(&bytes) != member.sha256
+        {
+            return Err(PortcoveError::verification(
+                "prepared metadata differs from its admitted manifest",
+            ));
+        }
+        Ok(bytes)
+    }
+
+    pub(crate) fn verify_recorded_member(
+        &self,
+        install: &InstallRecord,
+        relative: &str,
+    ) -> Result<()> {
+        let member = immutable_member(install, relative)?;
+        let path = manifest_member(&install.path, relative)?;
+        if !is_regular_file_without_symlink(&path) {
+            return Err(PortcoveError::verification(
+                "prepared output is not a regular file",
+            ));
+        }
+        let (sha256, size) = hash_file(&path)?;
+        if size != member.size || sha256 != member.sha256 {
+            return Err(PortcoveError::verification(
+                "prepared output differs from its admitted manifest",
+            ));
+        }
+        Ok(())
+    }
+
     pub(crate) fn verify_managed(
         &self,
         install: &InstallRecord,
@@ -1087,6 +1128,22 @@ fn manifest_files(
     }
     files.sort_by(|left, right| left.path.cmp(&right.path));
     Ok((files, mutable_paths))
+}
+
+fn immutable_member(install: &InstallRecord, relative: &str) -> Result<ManifestFile> {
+    let manifest = verified_manifest(install)?;
+    if manifest_path_is_mutable(&manifest, relative) {
+        return Err(PortcoveError::verification(
+            "prepared metadata cannot be mutable",
+        ));
+    }
+    manifest
+        .files
+        .into_iter()
+        .find(|file| file.path == relative)
+        .ok_or_else(|| {
+            PortcoveError::not_found("prepared metadata is not in the admitted manifest")
+        })
 }
 
 fn verified_manifest(install: &InstallRecord) -> Result<InstallManifest> {

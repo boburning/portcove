@@ -224,6 +224,7 @@ impl Adapter for StandardAdapter {
         let immutable_managed_psx_source = self.0 == AdapterKind::PsxRecompManaged
             && port.runtime_source_materialization == Some(RuntimeSourceMaterialization::PsxRawSet);
         if !immutable_managed_psx_source
+            && !crate::preparation::managed(port)
             && let (Some(source), Some(filename)) = (source, &port.runtime_source_filename)
         {
             let stored_source = working_directory.join(filename);
@@ -258,7 +259,7 @@ impl Adapter for StandardAdapter {
                 prepare_managed_psx_runtime_config(&working_directory, &discs)
             })
             .transpose()?;
-        if self.0 == AdapterKind::UpstreamManagedSetup {
+        if self.0 == AdapterKind::UpstreamManagedSetup && !crate::preparation::managed(port) {
             let source_path = port
                 .runtime_source_filename
                 .as_ref()
@@ -1067,15 +1068,53 @@ pub(crate) fn record_prepared_setup(working_directory: &Path, source: &Path) -> 
     )
 }
 
+pub(crate) fn validate_completed_legacy_setup(
+    port: &PortDefinition,
+    install: &crate::InstallRecord,
+    source: Option<&SourceRecord>,
+) -> Result<()> {
+    if upstream_setup_manifest_needs_refresh(&install.path, &install.manifest_sha256)? {
+        return Err(PortcoveError::verification(
+            "existing setup has no completed manifest binding",
+        ));
+    }
+    if let Some(source) = source {
+        let destination = install.path.join(
+            port.runtime_source_filename
+                .as_deref()
+                .ok_or_else(|| PortcoveError::state("existing setup has no source destination"))?,
+        );
+        let marker: RuntimeSourceMarker =
+            serde_json::from_slice(&crate::path::read_bounded_regular(
+                &runtime_source_marker_path(&destination)?,
+                16 * 1024,
+            )?)?;
+        let canonical = std::fs::canonicalize(&source.path)?;
+        if marker.schema_version != 2
+            || marker.source != crate::path::unicode(&canonical, "source")?
+            || marker.source_member.is_some()
+            || marker.storage_sha256 != source.storage_sha256
+            || marker.storage_size != source.storage_size
+            || Some(marker.materialization) != port.runtime_source_materialization
+        {
+            return Err(PortcoveError::conflict(
+                "existing setup source changed; prepare game data again",
+            ));
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn upstream_setup_manifest_needs_refresh(
     working_directory: &Path,
     manifest_sha256: &str,
 ) -> Result<bool> {
     let path = working_directory.join(UPSTREAM_SETUP_METADATA);
-    let metadata: UpstreamSetupMetadata =
-        serde_json::from_slice(&std::fs::read(&path).map_err(|_| {
+    let metadata: UpstreamSetupMetadata = serde_json::from_slice(
+        &crate::path::read_bounded_regular(&path, 16 * 1024).map_err(|_| {
             PortcoveError::state("upstream setup completed without Portcove integrity metadata")
-        })?)?;
+        })?,
+    )?;
     if metadata.schema_version != 1
         || metadata.source_sha256.len() != 64
         || !metadata
@@ -1102,10 +1141,11 @@ pub(crate) fn bind_upstream_setup_manifest(
         ));
     }
     let path = working_directory.join(UPSTREAM_SETUP_METADATA);
-    let mut metadata: UpstreamSetupMetadata =
-        serde_json::from_slice(&std::fs::read(&path).map_err(|_| {
+    let mut metadata: UpstreamSetupMetadata = serde_json::from_slice(
+        &crate::path::read_bounded_regular(&path, 16 * 1024).map_err(|_| {
             PortcoveError::state("upstream setup completed without Portcove integrity metadata")
-        })?)?;
+        })?,
+    )?;
     metadata.manifest_sha256 = manifest_sha256.into();
     atomic_write_json(&path, &metadata)
 }

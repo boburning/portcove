@@ -1599,10 +1599,22 @@ impl PortcoveService {
             blockers.push(LaunchBlocker::MissingRuntime);
         }
         let pending_setup = status.active.as_ref().is_some_and(|active| {
+            if crate::preparation::managed(port) {
+                let source = port
+                    .source_profile
+                    .as_ref()
+                    .and_then(|profile| registered_sources.get(profile));
+                return self
+                    .validate_preparation_receipt(port, active, source)
+                    .is_err();
+            }
             port.setup_marker
                 .as_ref()
                 .is_some_and(|marker| !active.path.join(marker).is_file())
         });
+        if pending_setup && crate::preparation::managed(port) {
+            blockers.push(LaunchBlocker::PreparationRequired);
+        }
         status.readiness = Some(LaunchReadiness {
             launchable: installed && blockers.is_empty(),
             blockers,
@@ -3659,6 +3671,20 @@ impl PortcoveService {
         } else {
             None
         };
+        if crate::preparation::managed(port) {
+            self.validate_preparation_receipt(port, active, source.as_ref())?;
+            if !Installer::new(self.library.clone())?
+                .verify_managed(
+                    active,
+                    &InstallQualification::from_port(port, Platform::current()?)?,
+                )?
+                .valid
+            {
+                return Err(PortcoveError::verification(
+                    "prepared game data changed; repair or prepare it again",
+                ));
+            }
+        }
         if active.path.join(LAUNCH_MARKER).is_file() {
             self.collect_user_data_from(port, &active.path)?;
             checkpoint()?;

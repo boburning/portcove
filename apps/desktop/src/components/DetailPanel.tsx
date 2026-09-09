@@ -6,6 +6,7 @@ import { useDialogFocus } from "../dialog";
 import type { ActivityRecord, BackupInventory, BackupProblem, BackupRecord, InstallPlan, PortDefinition, PortStatus, ReleaseChannel, SourceHealth, SourceInspectionReport, SourceProfile, SourceRecord, UpdatePolicy } from "../types";
 import { OperationCancellation } from "./OperationCancellation";
 import { OutputLocationControl } from "./OutputLocation";
+import { PreparationControl, type RunPreparation } from "./Preparation";
 import { formatBytes, platformLabels } from "../view-model";
 import { BackupHistory } from "./BackupHistory";
 import { ChoiceMenu } from "./ChoiceMenu";
@@ -33,6 +34,7 @@ export interface DetailActions {
 }
 
 interface DetailPanelProps {
+  prepare?: RunPreparation;
   cancellableActivities?: ActivityRecord[];
   port: PortDefinition;
   status?: PortStatus;
@@ -84,7 +86,7 @@ function DetailDialog({ props, dialog }: { props: DetailPanelProps; dialog: Retu
       <button data-focusable className="close icon-button" aria-label="Close port details" onClick={actions.close}><Icon glyph={X} /></button>
       <DetailHero port={port} state={state} />
       {props.cancellableActivities?.map(activity => <OperationCancellation key={activity.id} operationId={activity.id} state={activity.cancellation ?? undefined} />)}
-      <DetailBody port={port} status={status} state={state} sources={sources} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} installPlan={installPlan} selectedChannel={selectedChannel} policy={policy} backups={backups} backupProblems={backupProblems} backupState={backupState} busy={effectiveBusy} outputExternalBusy={busy} libraryGeneration={props.libraryGeneration ?? 0} outputLocationChanged={props.outputLocationChanged} outputApplying={setOutputApplying} actions={actions} />
+      <DetailBody prepare={props.prepare} port={port} status={status} state={state} sources={sources} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} installPlan={installPlan} selectedChannel={selectedChannel} policy={policy} backups={backups} backupProblems={backupProblems} backupState={backupState} busy={effectiveBusy} outputExternalBusy={busy} libraryGeneration={props.libraryGeneration ?? 0} outputLocationChanged={props.outputLocationChanged} outputApplying={setOutputApplying} actions={actions} />
     </section>
   </div>;
 }
@@ -95,17 +97,19 @@ function DetailHero({ port, state }: { port: PortDefinition; state: DetailState 
   return <div className={`detail-hero art-${port.support_tier}`}><span>{port.name.slice(0, 2).toUpperCase()}</span><div><p className="eyebrow">{port.platforms.map(platform => platformLabels[platform]).join(" · ")}</p><h2 id="port-detail-title">{port.name}</h2><span className={`hero-state ${state.tone}`}>{state.title}</span></div></div>;
 }
 
-function DetailBody({ port, status, state, sources, installed, launchReady, pendingSetup, installPlan, selectedChannel, policy, backups, backupProblems, backupState, busy, outputExternalBusy, libraryGeneration, outputLocationChanged, outputApplying, actions }: {
-  port: PortDefinition; status?: PortStatus; state: DetailState; sources: SourceControls; installed: boolean; launchReady: boolean; pendingSetup: boolean;
+function DetailBody({ prepare, port, status, state, sources, installed, launchReady, pendingSetup, installPlan, selectedChannel, policy, backups, backupProblems, backupState, busy, outputExternalBusy, libraryGeneration, outputLocationChanged, outputApplying, actions }: {
+  prepare?: RunPreparation; port: PortDefinition; status?: PortStatus; state: DetailState; sources: SourceControls; installed: boolean; launchReady: boolean; pendingSetup: boolean;
   installPlan?: InstallPlan; selectedChannel: ReleaseChannel; policy: UpdatePolicy; backups: BackupRecord[]; backupProblems: BackupProblem[]; backupState: BackupInventory["state"]; busy?: string; outputExternalBusy?: string; libraryGeneration: number; outputLocationChanged?: () => void; outputApplying: (applying: boolean) => void; actions: DetailActions;
 }) {
+  const managedPreparation = Boolean(installed && port.adapter === "upstream-managed-setup" && port.setup_output_paths.length);
   return <div className="detail-body"><p className="summary">{port.summary}</p>
     <NavigationHints />
     <RetiredNotice port={port} />
     <ReadinessCard state={state} />
     <SourceFields mode="missing" controls={sources} />
     <SourceIntakeActions controls={sources} busy={Boolean(busy)} />
-    <PrimaryActions runtimeNeeded={Boolean(status?.readiness?.blockers.includes("missing_runtime"))} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} hasStaged={Boolean(status?.staged)} plan={installPlan} busy={busy} actions={actions} />
+    {managedPreparation && <PreparationControl key={`${port.id}:${libraryGeneration}:${status?.active?.id}`} portId={port.id} generation={libraryGeneration} disabled={Boolean(busy) || !sources.sourceReady || !sources.biosReady} run={prepare} />}
+    <PrimaryActions preparationRequired={managedPreparation && pendingSetup} runtimeNeeded={Boolean(status?.readiness?.blockers.includes("missing_runtime"))} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} hasStaged={Boolean(status?.staged)} plan={installPlan} busy={busy} actions={actions} />
     <TrustStrip status={status} />
     <OutputLocationControl portId={port.id} generation={libraryGeneration} busy={outputExternalBusy} onChanged={outputLocationChanged} onApplying={outputApplying} />
     <AdvancedControls port={port} status={status} selectedChannel={selectedChannel} policy={policy} installed={installed} backups={backups} backupProblems={backupProblems} backupState={backupState} busy={busy} sources={sources} actions={actions} />
@@ -252,11 +256,11 @@ function sourceFieldCopy(profile?: SourceProfile) {
   return { placeholder: "Choose or paste the full source file path", note: "Referenced in place; never uploaded." };
 }
 
-function PrimaryActions({ runtimeNeeded, installed, launchReady, pendingSetup, hasStaged, plan, busy, actions }: { runtimeNeeded: boolean; installed: boolean; launchReady: boolean; pendingSetup: boolean; hasStaged: boolean; plan?: InstallPlan; busy?: string; actions: DetailActions }) {
+function PrimaryActions({ preparationRequired, runtimeNeeded, installed, launchReady, pendingSetup, hasStaged, plan, busy, actions }: { preparationRequired: boolean; runtimeNeeded: boolean; installed: boolean; launchReady: boolean; pendingSetup: boolean; hasStaged: boolean; plan?: InstallPlan; busy?: string; actions: DetailActions }) {
   if (runtimeNeeded) return <InstallAction ready plan={plan} busy={busy} install={actions.update} review={actions.reviewInstall} />;
   if (!installed) return <InstallAction ready={launchReady} plan={plan} busy={busy} install={actions.install} review={actions.reviewInstall} />;
   return <div className="actions primary-actions">
-    <button data-focusable className="primary wide button-with-icon" title={launchReady ? "Launch this port" : "Register every required source before launching"} disabled={!launchReady || Boolean(busy)} onClick={actions.launch}><Icon glyph={!launchReady ? AlertTriangle : pendingSetup ? Wrench : Gamepad2} />{!launchReady ? "Choose required source" : pendingSetup ? "Complete setup and play" : "Play now"}</button>
+    <button data-focusable className="primary wide button-with-icon" title={preparationRequired ? "Prepare game data before playing" : launchReady ? "Launch this port" : "Register every required source before launching"} disabled={!launchReady || Boolean(busy)} onClick={actions.launch}><Icon glyph={!launchReady ? AlertTriangle : pendingSetup ? Wrench : Gamepad2} />{preparationRequired ? "Prepare game data first" : !launchReady ? "Choose required source" : pendingSetup ? "Complete setup and play" : "Play now"}</button>
     {hasStaged && <button data-focusable className="staged-action button-with-icon" disabled={Boolean(busy)} onClick={actions.activate}><Icon glyph={PackageCheck} />Activate staged update</button>}
   </div>;
 }
@@ -326,6 +330,7 @@ function detailState(installed: boolean, launchReady: boolean, staged: boolean, 
   if (sourceIssue) return sourceIssue;
   const biosIssue = sourceHealthState("Required BIOS", biosHealth);
   if (biosIssue) return biosIssue;
+  if (pendingSetup && !launchReady) return { title: "Prepare game data", description: "Review the default setup below. Play becomes available after preparation succeeds.", tone: "setup", icon: Wrench };
   if (!launchReady) return { title: "Finish setup", description: "Register the required original source or BIOS to unlock Play.", tone: "setup", icon: Wrench };
   if (selectedPath) return { title: "Game files need checking", description: "The selected path has not been checked. Portcove validates it before starting the game.", tone: "setup", icon: Wrench };
   if (pendingSetup) return { title: "First launch setup", description: "The source is registered. Portcove will run and verify the upstream setup before play.", tone: "setup", icon: Wrench };

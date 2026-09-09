@@ -3,6 +3,7 @@ mod diagnostics;
 mod library_selection;
 mod library_transfer;
 mod output_location;
+mod preparation;
 mod transport;
 
 use transport::{
@@ -1854,6 +1855,8 @@ pub fn run() {
             catalog::use_cached_catalog,
             get_statuses,
             output_location::get_output_location,
+            preparation::plan_preparation,
+            preparation::prepare_port,
             output_location::preview_output_location,
             output_location::set_output_location,
             output_location::reset_output_location,

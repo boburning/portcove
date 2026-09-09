@@ -1,7 +1,10 @@
 //! Exact, read-only plans for the existing upstream-managed setup family.
 #[path = "preparation_execution.rs"]
 mod execution;
+#[path = "preparation_readiness.rs"]
+mod readiness;
 pub(crate) use execution::recover;
+pub(crate) use readiness::managed;
 pub(crate) const RECEIPT_FILE: &str = ".portcove-preparation.json";
 use std::path::PathBuf;
 
