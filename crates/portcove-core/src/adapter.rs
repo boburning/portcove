@@ -19,7 +19,7 @@ use crate::{
     Result, RuntimeSourceMaterialization, SourceKind, SourceProfile, SourceRecord,
 };
 
-const UPSTREAM_SETUP_METADATA: &str = ".portcove-upstream-setup.json";
+pub(crate) const UPSTREAM_SETUP_METADATA: &str = ".portcove-upstream-setup.json";
 const MANAGED_PSX_RUNTIME_CONFIG: &str = ".portcove-psx-runtime.toml";
 
 #[derive(Debug, Clone, Copy)]
@@ -422,6 +422,24 @@ fn prepare_runtime_source(
     required_hashes: &BTreeMap<String, String>,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
+    prepare_runtime_source_with_tool(
+        source,
+        destination,
+        materialization,
+        required_hashes,
+        None,
+        checkpoint,
+    )
+}
+
+pub(crate) fn prepare_runtime_source_with_tool(
+    source: &Path,
+    destination: &Path,
+    materialization: RuntimeSourceMaterialization,
+    required_hashes: &BTreeMap<String, String>,
+    chdman: Option<&Path>,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
     let marker_path = runtime_source_marker_path(destination)?;
     let expected = runtime_source_marker(source, None, materialization, checkpoint)?;
     let destination_ready = match materialization {
@@ -446,7 +464,7 @@ fn prepare_runtime_source(
         RuntimeSourceMaterialization::GamecubeIso => materialize_gamecube_iso(source, destination)?,
         RuntimeSourceMaterialization::PsxBinCue => materialize_psx_bin_cue(source, destination)?,
         RuntimeSourceMaterialization::PsxRawSet => materialize_psx_raw_set(source, destination)?,
-        RuntimeSourceMaterialization::Ps2Iso => materialize_ps2_iso(source, destination)?,
+        RuntimeSourceMaterialization::Ps2Iso => materialize_ps2_iso(source, destination, chdman)?,
         RuntimeSourceMaterialization::StfsDirectory => {
             materialize_stfs_directory(source, destination, required_hashes, checkpoint)?
         }
@@ -901,7 +919,11 @@ fn copy_runtime_source(source: &Path, destination: &Path) -> Result<()> {
     replace_atomic(&temporary, destination)
 }
 
-fn materialize_ps2_iso(source: &Path, destination: &Path) -> Result<()> {
+fn materialize_ps2_iso(
+    source: &Path,
+    destination: &Path,
+    pinned_tool: Option<&Path>,
+) -> Result<()> {
     let extension = source
         .extension()
         .and_then(|value| value.to_str())
@@ -916,7 +938,9 @@ fn materialize_ps2_iso(source: &Path, destination: &Path) -> Result<()> {
         )));
     }
     let temporary = destination.with_extension(format!("tmp-{}.iso", Uuid::new_v4()));
-    let program = resolve_chdman()?;
+    let program = pinned_tool
+        .map(Path::to_path_buf)
+        .map_or_else(resolve_chdman, Ok)?;
     let output = ChildProcessPolicy::native_command(ChildProcessClass::HostTool, &program)?
         .arg("extractdvd")
         .arg("-i")
@@ -997,25 +1021,20 @@ fn run_upstream_setup(
         hints,
         "setup executable",
     )?;
-    let output = crate::tool_process::run_setup(
-        &setup,
-        &port.setup_arguments,
-        source,
-        working_directory,
-        checkpoint,
-    )?;
-    tracing::info!(
-        port_id = port.id,
-        output = output.output,
-        truncated = output.truncated,
-        "managed setup diagnostics"
-    );
+    let status = ChildProcessPolicy::native_command(ChildProcessClass::UpstreamSetup, &setup)?
+        .args(&port.setup_arguments)
+        .arg(source)
+        .current_dir(working_directory)
+        .status()
+        .map_err(|error| {
+            PortcoveError::launch(format!("could not run {} setup ({error})", port.name))
+        })?;
     checkpoint()?;
-    if !output.status.success() {
+    if !status.success() {
         return Err(PortcoveError::source(format!(
             "{} rejected or could not prepare the registered source (exit {})",
             port.name,
-            output.status.code().unwrap_or(-1)
+            status.code().unwrap_or(-1)
         )));
     }
     if !marker_path.is_file() {
@@ -1026,6 +1045,19 @@ fn run_upstream_setup(
     }
     atomic_write_json(
         &metadata_path,
+        &UpstreamSetupMetadata {
+            schema_version: 1,
+            source_sha256,
+            source_size,
+            manifest_sha256: String::new(),
+        },
+    )
+}
+
+pub(crate) fn record_prepared_setup(working_directory: &Path, source: &Path) -> Result<()> {
+    let (source_sha256, source_size) = hash_file(source)?;
+    atomic_write_json(
+        &working_directory.join(UPSTREAM_SETUP_METADATA),
         &UpstreamSetupMetadata {
             schema_version: 1,
             source_sha256,

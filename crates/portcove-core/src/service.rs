@@ -482,6 +482,9 @@ impl PortcoveService {
         operation: &mut LifecycleOperation,
     ) -> Result<Option<String>> {
         match operation.kind {
+            LifecycleOperationKind::Prepare => {
+                crate::preparation::recover(self, store, operation).map(|()| None)
+            }
             LifecycleOperationKind::Install | LifecycleOperationKind::Adopt => self
                 .recover_published_install(store, operation)
                 .map(|()| None),

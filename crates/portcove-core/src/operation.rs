@@ -22,6 +22,7 @@ pub const OPERATION_EVENT_SCHEMA_VERSION: u32 = 2;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LifecycleOperationKind {
     Install,
+    Prepare,
     Adopt,
     Remove,
     Restore,
@@ -35,6 +36,7 @@ impl fmt::Display for LifecycleOperationKind {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {
             Self::Install => "install",
+            Self::Prepare => "prepare",
             Self::Adopt => "adopt",
             Self::Remove => "remove",
             Self::Restore => "restore",
@@ -52,6 +54,7 @@ impl FromStr for LifecycleOperationKind {
     fn from_str(value: &str) -> Result<Self> {
         let kind = match value {
             "install" => Some(Self::Install),
+            "prepare" => Some(Self::Prepare),
             "adopt" => Some(Self::Adopt),
             "remove" => Some(Self::Remove),
             "restore" => Some(Self::Restore),
@@ -122,6 +125,7 @@ pub(crate) struct LifecycleOperation {
     pub install: Option<InstallRecord>,
     pub relocation: Option<OutputRelocationPlan>,
     pub source_import: Option<SourceImportPlan>,
+    pub preparation: Option<crate::PreparationPlan>,
     pub original_paths: Vec<PathBuf>,
     pub activate: bool,
     pub last_error: Option<String>,
@@ -149,6 +153,7 @@ impl LifecycleOperation {
             install: None,
             relocation: None,
             source_import: None,
+            preparation: None,
             original_paths: Vec::new(),
             activate: false,
             last_error: None,
@@ -196,11 +201,16 @@ impl OperationStore {
             .map(serde_json::to_string)
             .transpose()?;
         let original_paths_json = serde_json::to_string(&operation.original_paths)?;
+        let preparation_json = operation
+            .preparation
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()?;
         database::connect(self.library.root())?.execute(
             "INSERT INTO lifecycle_operations(
                id, kind, port_id, phase, staging_path, final_path, quarantine_path,
-               install_json, relocation_json, source_import_json, original_paths_json, activate, last_error, created_at, updated_at
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
+               install_json, relocation_json, source_import_json, original_paths_json, activate, last_error, created_at, updated_at, preparation_json
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
              ON CONFLICT(id) DO UPDATE SET
                kind=excluded.kind,
                port_id=excluded.port_id,
@@ -212,6 +222,7 @@ impl OperationStore {
                 relocation_json=excluded.relocation_json,
                 source_import_json=excluded.source_import_json,
                original_paths_json=excluded.original_paths_json,
+               preparation_json=excluded.preparation_json,
                activate=excluded.activate,
                last_error=excluded.last_error,
                updated_at=excluded.updated_at",
@@ -231,6 +242,7 @@ impl OperationStore {
                 operation.last_error,
                 operation.created_at,
                 operation.updated_at,
+                preparation_json,
             ],
         )?;
         Ok(())
@@ -246,7 +258,7 @@ impl OperationStore {
         let connection = database::connect(self.library.root())?;
         let mut statement = connection.prepare(
             "SELECT id, kind, port_id, phase, staging_path, final_path, quarantine_path,
-                    install_json, relocation_json, source_import_json, original_paths_json, activate, last_error, created_at, updated_at
+                    install_json, relocation_json, source_import_json, original_paths_json, activate, last_error, created_at, updated_at, preparation_json
              FROM lifecycle_operations
              ORDER BY created_at, rowid",
         )?;
@@ -267,6 +279,7 @@ impl OperationStore {
                 row.get::<_, Option<String>>(12)?,
                 row.get::<_, i64>(13)?,
                 row.get::<_, i64>(14)?,
+                row.get::<_, Option<String>>(15)?,
             ))
         })?;
         rows.map(|row| {
@@ -286,6 +299,7 @@ impl OperationStore {
                 last_error,
                 created_at,
                 updated_at,
+                preparation_json,
             ) = row?;
             Ok(LifecycleOperation {
                 id,
@@ -307,6 +321,9 @@ impl OperationStore {
                     .map(|value| serde_json::from_str(&value))
                     .transpose()?,
                 original_paths: serde_json::from_str(&original_paths_json)?,
+                preparation: preparation_json
+                    .map(|value| serde_json::from_str(&value))
+                    .transpose()?,
                 activate: activate != 0,
                 last_error,
                 created_at,
@@ -324,6 +341,13 @@ fn path_string(path: Option<&PathBuf>) -> Result<Option<String>> {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LifecycleFaultPoint {
+    PreparationJournaled,
+    PreparationCopied,
+    PreparationToolCompleted,
+    PreparationOutputsValidated,
+    PreparationPrepared,
+    PreparationPublished,
+    PreparationRegistered,
     SourcePrepared,
     LaunchReadyToSpawn,
     LaunchChildStarted,

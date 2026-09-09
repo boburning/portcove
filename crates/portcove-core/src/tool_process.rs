@@ -79,21 +79,26 @@ pub(crate) fn run_setup(
             let _ = child.wait();
             return Err(error);
         }
-        match child.try_wait() {
+        match poll_setup(&mut child, &group) {
             Ok(Some(status)) => break status,
             Ok(None) => std::thread::sleep(Duration::from_millis(25)),
             Err(error) => {
-                group.terminate(&child);
-                let _ = child.kill();
-                let _ = child.wait();
+                // On Unix an unexpected reaper can invalidate PID ownership.
+                // Retain private work rather than signal an unverified PID.
+                #[cfg(windows)]
+                {
+                    group.terminate(&child);
+                    let _ = child.kill();
+                    let _ = child.wait();
+                }
                 return Err(PortcoveError::launch(format!(
                     "could not observe setup completion: {error}"
                 )));
             }
         }
     };
-    // Windows closes this exact job's descendants. Do not signal a reaped Unix
-    // PID: it may have been reused. An inherited pipe cannot hang publication.
+    // Windows closes this exact job's descendants. Unix poll_setup stops the
+    // group before reaping its leader, while its PID still cannot be reused.
     drop(group);
     let mut output = Vec::new();
     for _ in 0..2 {
@@ -112,6 +117,47 @@ pub(crate) fn run_setup(
         output: String::from_utf8_lossy(&output).into_owned(),
         truncated: total.load(Ordering::Relaxed) > SETUP_OUTPUT_LIMIT,
     })
+}
+
+#[cfg(windows)]
+fn poll_setup(
+    child: &mut std::process::Child,
+    _group: &ToolProcessGroup,
+) -> std::io::Result<Option<ExitStatus>> {
+    child.try_wait()
+}
+
+#[cfg(unix)]
+fn poll_setup(
+    child: &mut std::process::Child,
+    group: &ToolProcessGroup,
+) -> std::io::Result<Option<ExitStatus>> {
+    // SAFETY: info is initialized writable siginfo_t storage; P_PID selects
+    // this owned child. WNOWAIT observes exit without releasing its PID.
+    let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
+    let result = unsafe {
+        libc::waitid(
+            libc::P_PID,
+            child.id() as libc::id_t,
+            &mut info,
+            libc::WEXITED | libc::WNOHANG | libc::WNOWAIT,
+        )
+    };
+    if result != 0 {
+        let error = std::io::Error::last_os_error();
+        return if error.kind() == std::io::ErrorKind::Interrupted {
+            Ok(None)
+        } else {
+            Err(error)
+        };
+    }
+    // SAFETY: waitid initializes the SIGCHLD fields, or leaves the zero PID
+    // when no requested event is ready. No other thread owns this Child.
+    if unsafe { info.si_pid() } == 0 {
+        return Ok(None);
+    }
+    group.terminate(child);
+    child.wait().map(Some)
 }
 
 fn capture_setup_output(
