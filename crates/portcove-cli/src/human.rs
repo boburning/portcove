@@ -1159,14 +1159,17 @@ mod tests {
 
     use super::{backup_list, document, storage, table};
 
-    fn failed_activity() -> portcove_core::ActivityRecord {
+    fn failed_activity(private_path: &std::path::Path) -> portcove_core::ActivityRecord {
         portcove_core::ActivityRecord {
             id: "owned-activity-id".into(),
             operation: portcove_core::ActivityOperation::Prepare,
             target_kind: portcove_core::ActivityTargetKind::Port,
             target_id: Some("opengoal-jak1".into()),
             status: portcove_core::ActivityStatus::Failed,
-            message: Some("C:/private/game failed with token=owned-secret\u{1b}[31m".into()),
+            message: Some(format!(
+                "{} failed with token=owned-secret\u{1b}[31m",
+                private_path.display()
+            )),
             failure: None,
             started_at: 42,
             finished_at: Some(43),
@@ -1178,7 +1181,9 @@ mod tests {
     fn activity_reports_use_core_outcomes_and_opt_in_redacted_details() {
         use portcove_core::{ActivityStatus, Catalog, ErrorCode, MutationState, PortcoveError};
         let catalog = Catalog::embedded().unwrap();
-        let mut record = failed_activity();
+        let temporary = tempfile::tempdir().unwrap();
+        let private_path = temporary.path().join("owned-private-game");
+        let mut record = failed_activity(&private_path);
         for (error, status, expected) in [
             (
                 PortcoveError::state(record.message.clone().unwrap()),
@@ -1198,7 +1203,7 @@ mod tests {
             assert!(plain.contains(expected));
             assert!(plain.contains("Target: opengoal-jak1"));
             assert!(plain.contains("activity log owned-activity-id"));
-            assert!(!plain.contains("C:/private"));
+            assert!(!plain.contains(&temporary.path().display().to_string()));
             assert!(!plain.contains("owned-secret"));
             assert!(!plain.contains("Technical details (redacted):"));
             let technical = super::activities(&[record.clone()], &catalog, true);
@@ -1217,8 +1222,16 @@ mod tests {
     fn legacy_activity_hides_raw_messages_and_unrecognized_targets_without_inventing_outcomes() {
         use portcove_core::{ActivityStatus, ActivityTargetKind, Catalog};
         let catalog = Catalog::embedded().unwrap();
-        let mut record = failed_activity();
-        record.target_id = Some("C:/private/token=owned-target".into());
+        let temporary = tempfile::tempdir().unwrap();
+        let private_path = temporary.path().join("owned-private-game");
+        let mut record = failed_activity(&private_path);
+        record.target_id = Some(
+            temporary
+                .path()
+                .join("token=owned-target")
+                .display()
+                .to_string(),
+        );
         for kind in [
             ActivityTargetKind::Port,
             ActivityTargetKind::Source,
@@ -1233,7 +1246,7 @@ mod tests {
             ] {
                 record.status = status;
                 let plain = super::activities(&[record.clone()], &catalog, false);
-                assert!(!plain.contains("C:/private"));
+                assert!(!plain.contains(&temporary.path().display().to_string()));
                 assert!(!plain.contains("owned-secret"));
                 assert!(!plain.contains("owned-target"));
                 assert!(!plain.contains("No files were changed"));
@@ -1241,7 +1254,7 @@ mod tests {
                     assert!(plain.contains("No structured failure outcome was recorded"));
                 }
                 let technical = super::activities(&[record.clone()], &catalog, true);
-                assert!(technical.contains("C:/private/game"));
+                assert!(technical.contains(&private_path.display().to_string()));
                 assert!(technical.contains("[REDACTED]"));
                 assert!(!technical.contains("owned-secret"));
                 assert!(!technical.contains("owned-target"));
