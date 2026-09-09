@@ -36,6 +36,17 @@ does not remove a field from emitted output. This host-facing export performs
 no domain validation and opens no library. Crate ownership and architecture
 metadata rules remain unchanged.
 
+React's domain transport types are generated from these Rust schemas. The Rust
+quality check compares complete output schemas and the explicitly consumed
+request input schemas with committed generated snapshots. The frontend check
+regenerates TypeScript declarations with a pinned schema compiler and checks
+the application against them, including nested arrays, nullable fields and
+discriminated variants. Requests retain input defaults; responses retain emitted
+presence. Type-only imports add no schema data or validator to the application.
+Rust continues to validate runtime values and domain constraints. Tauri-owned
+bootstrap/error/batch envelopes remain explicit adapter contracts; this does
+not claim complete command parity or generate those host-only envelopes.
+
 ## Monorepo and deliverable decision
 
 `portcove-release-tools` is an unpublished, offline repository tool for checking

@@ -1,3 +1,4 @@
+import { sourceProfile } from "./test-fixtures";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { open } from "@tauri-apps/plugin-dialog";
 import { pickGameOutputFolder, pickHostToolExecutable, pickInstallFolder, pickSourceArchivePath, pickSourcePath } from "./file-picker";
@@ -10,7 +11,7 @@ describe("native path pickers", () => {
 
   it("includes supported cartridge ZIPs alongside the profile extensions", async () => {
     openMock.mockResolvedValue("D:/Sources/game.z64");
-    await expect(pickSourcePath({ id: "game", label: "Game", accepted_extensions: [".z64", "n64"] }, "D:/Sources/old.z64")).resolves.toBe("D:/Sources/game.z64");
+    await expect(pickSourcePath({ ...sourceProfile(), id: "game", label: "Game", accepted_extensions: [".z64", "n64"] }, "D:/Sources/old.z64")).resolves.toBe("D:/Sources/game.z64");
     expect(openMock).toHaveBeenCalledWith({
       multiple: false,
       directory: false,
@@ -20,7 +21,7 @@ describe("native path pickers", () => {
   });
 
   it("keeps single-disc selection limited to the declared disc formats", async () => {
-    await pickSourcePath({ id: "disc", label: "Disc", kind: "psx-disc", accepted_extensions: ["CHD"] }, "");
+    await pickSourcePath({ ...sourceProfile(), id: "disc", label: "Disc", kind: "psx-disc", accepted_extensions: ["CHD"] }, "");
     expect(openMock).toHaveBeenCalledWith({
       multiple: false, directory: false, defaultPath: undefined,
       filters: [{ name: "Original game source", extensions: ["chd"] }],
@@ -30,6 +31,7 @@ describe("native path pickers", () => {
   it("selects one folder for a multi-disc PSX source", async () => {
     openMock.mockResolvedValue("D:/Sources/Final Fantasy VII");
     const profile = {
+      ...sourceProfile(),
       id: "final-fantasy-vii-psx",
       label: "Final Fantasy VII three-disc set",
       kind: "psx-disc" as const,
@@ -37,9 +39,9 @@ describe("native path pickers", () => {
       disc: {
         track_counts: [1],
         discs: [
-          { label: "Disc 1", track_counts: [1] },
-          { label: "Disc 2", track_counts: [1] },
-          { label: "Disc 3", track_counts: [1] },
+          { accepted_sha1: [], accepted_sha256: [], accepted_volume_ids: [], label: "Disc 1", track_counts: [1] },
+          { accepted_sha1: [], accepted_sha256: [], accepted_volume_ids: [], label: "Disc 2", track_counts: [1] },
+          { accepted_sha1: [], accepted_sha256: [], accepted_volume_ids: [], label: "Disc 3", track_counts: [1] },
         ],
       },
     };
@@ -56,6 +58,7 @@ describe("native path pickers", () => {
   it("selects one folder for an exact file-set source", async () => {
     openMock.mockResolvedValue("D:/Sources/G-Diffuser");
     const profile = {
+      ...sourceProfile(),
       id: "g-diffuser-set",
       label: "G-Diffuser source set",
       kind: "file-set" as const,

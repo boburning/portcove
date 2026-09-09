@@ -11,13 +11,15 @@ function event(
   return {
     schema_version: 2,
     operation_id: operationId,
-    parent_operation_id: parentOperationId,
+    parent_operation_id: parentOperationId ?? null,
+    target: null,
     sequence,
     timestamp_ms: timestampMs,
     operation: "synthetic",
     type: "progress",
     phase: "test",
     completed: sequence,
+    total: null,
   };
 }
 

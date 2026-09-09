@@ -93,7 +93,7 @@ export function requiredSourceNeeds(ports: PortDefinition[], profiles: SourcePro
   return [...requirements.values()].sort((left, right) => left.profile.label.localeCompare(right.profile.label));
 }
 
-function addSourceNeed(requirements: Map<string, SourceRequirement>, profiles: ReadonlyMap<string, SourceProfile>, registered: ReadonlySet<string>, port: PortDefinition, profileId: string | undefined, role: "Game source" | "BIOS") {
+function addSourceNeed(requirements: Map<string, SourceRequirement>, profiles: ReadonlyMap<string, SourceProfile>, registered: ReadonlySet<string>, port: PortDefinition, profileId: string | null | undefined, role: "Game source" | "BIOS") {
   if (!profileId || registered.has(profileId)) return;
   const profile = profiles.get(profileId);
   if (!profile) return;

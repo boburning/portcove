@@ -52,6 +52,10 @@ transport-contract:
 check-rust: fmt rust-check clippy rust-test shear architecture process-policy transport-contract
 
 # Frontend fast loop
+ui-transport:
+    {{storage}} node apps/desktop/scripts/generate-transport-types.mjs
+    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/transport-types.test.mjs
+
 ui-build:
     {{storage}} pnpm --dir apps/desktop build
 
@@ -62,7 +66,7 @@ fallow:
     {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-fallow-report.test.mjs
     {{storage}} node scripts/run-fallow.mjs
 
-check-ui: ui-build ui-test fallow
+check-ui: ui-transport ui-build ui-test fallow
 
 # Deterministic release metadata and artifact tooling
 release-tools:

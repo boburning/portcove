@@ -10,7 +10,7 @@ const defaultLocation = (portId: string, custom?: string): PortOutputLocation =>
   port_id: portId,
   library_root: "E:/Portcove",
   default_output_directory: `E:/Portcove/versions/${portId}`,
-  configured_output_directory: custom,
+  configured_output_directory: custom ?? null,
   effective_output_directory: custom ?? `E:/Portcove/versions/${portId}`,
   selection_source: custom ? "port_setting" : "library_default",
   user_data_root: `E:/Portcove/user/${portId}`,
