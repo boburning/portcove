@@ -75,6 +75,43 @@ After changing them, run Cargo once so the workspace package entries in `Cargo.l
 
 `scripts/check-release-metadata.mjs` verifies those versions, the tag, package manager pin, repository/license metadata, Tauri identity, and the required master/runtime/platform brand assets. Local packaging derives its default version from that check and rejects an explicit mismatch.
 
+The offline `pnpm --dir apps/desktop release:policy` utility accepts `classify`,
+`select` or `propose` followed by one JSON input file. It shares the existing Node
+tooling workspace and maintained SemVer dependency; it is not renderer code.
+Classification defaults to Preview, including suffix-free 0.x and unapproved
+final versions. Stable requires separate explicit production eligibility for a
+final version at or beyond 1.0; approved finals are also eligible for Preview.
+Selection checks separately supplied eligibility and optional target/current
+version, rejects equal-precedence ambiguity, and orders by SemVer rather than date.
+Build metadata alone never requests reinstallation.
+
+Proposals require matching frozen source/review commits, complete published
+version history, and an explicit change/compatibility classification. They reject
+stale bases, implicit prerelease finalization, published precedence reuse, and
+compatibility breaks without the required version change and migration notes.
+A proposal does not allocate a version, edit metadata, authenticate its input,
+grant production approval or publish a release. Its caller must establish input
+authority. Existing production publication remains separately protected; a
+proposal cannot activate that procedure. Download selection uses the same policy.
+
+`pnpm --dir apps/desktop release:prepare REPOSITORY INPUT.json` accepts
+`classification` and `published_versions` using the proposal schema. It reads
+only the frozen commit, updates the coordinated Cargo/Desktop/Tauri versions and
+workspace lock entries in a temporary index, and creates a prepared child commit.
+It leaves the working files, real index, current branch and public tags unchanged.
+Two custom refs, `refs/portcove/prepared-versions/vVERSION` and
+`refs/portcove/prepared-commits/SOURCE`, are created in one Git transaction. Their
+commit binds the source, tree and classification digest. Identical retries return
+that same commit; conflicting intent, version reuse and incomplete receipts fail
+closed. Prepared bytes require their own validation and review before publication.
+
+Allocation is serialized within one coordinating Git repository and its linked
+worktrees. These immutable preparation receipts are not a live roadmap or a
+production authorization. A future protected controller must retain that single
+coordinator, refresh the complete published inventory, and validate input
+authority; separate clones do not constitute a global allocator. The tool neither
+pushes refs nor chooses credentials. Never delete a receipt to recycle a version.
+
 ## Standalone CLI integration artifact
 
 Every released external-client claim points to an exact standalone CLI archive,
@@ -399,11 +436,14 @@ Then use `gh release verify-asset <tag> <asset>` for each public asset and recor
 the immutable release/tag, exact commit/run, API size/digest, and HTTP result.
 Historical manifests stay untouched.
 
-Stable and preview discovery are separate. `scripts/select-release-channel.mjs`
-selects only published prereleases for `preview` and only published
-non-prereleases for `stable`; it rejects drafts and returns no stable result for
-a preview-only repository. Feed it a bounded releases API response when a later
-consumer needs discovery. Generated release download links do not need discovery:
+`scripts/select-release-channel.mjs --channel preview|stable --input releases.json`
+selects the highest eligible SemVer from a complete published release inventory.
+It excludes drafts, keeps public 0.x in Preview, and requires separate production
+eligibility for Stable. Preview also includes eligible final releases. Optional
+`--eligibility evidence.json`, `--current-version VERSION` and `--target TARGET`
+apply explicit eligibility, increasing-version and target constraints. The caller
+must authenticate eligibility evidence; a local JSON file is not a trust root.
+Publication dates and GitHub latest never rank versions. Generated download links do not need discovery:
 they always name their exact tag. Do not use `/releases/latest` or
 `releases/latest/download` as a preview resolver.
 
