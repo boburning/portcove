@@ -213,6 +213,10 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
         .unwrap()
         .change_delegated_targets("stable")
         .unwrap()
+        .targets_version(nz(1))
+        .unwrap()
+        .targets_expires(expiration())
+        .unwrap()
         .add_target_path(&record)
         .await
         .unwrap();
@@ -228,6 +232,10 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
         .await
         .unwrap()
         .change_delegated_targets("targets")
+        .unwrap()
+        .targets_version(nz(1))
+        .unwrap()
+        .targets_expires(expiration())
         .unwrap();
     editor
         .sign(&[f.online.source()])
