@@ -133,6 +133,10 @@ test("installer lifecycle behavior handles delayed, persistent, and hung uninsta
   const persistent = runInstallerLifecycle(item, "persistent", { PORTCOVE_FIXTURE_KEEP_REGISTRATION: "1" });
   assert.notEqual(persistent.status, 0);
   assert.match(persistent.stderr, /Uninstall left registration entries behind/);
+  const persistentEvidence = JSON.parse(readFileSync(path.join(item.root, "persistent", "evidence.json"), "utf8"));
+  assert.equal(persistentEvidence.details.application_present, false);
+  assert.equal(persistentEvidence.details.uninstaller_present, false);
+  assert.equal(persistentEvidence.details.remaining_registration_paths.length, 1);
   removeInstallerLifecycleRegistration(item);
 
   const hung = runInstallerLifecycle(item, "hung", { PORTCOVE_FIXTURE_HANG_UNINSTALLER: "1" }, "1");

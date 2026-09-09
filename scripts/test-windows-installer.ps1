@@ -335,13 +335,15 @@ function Invoke-JournaledProcess([string]$Role, [string]$Executable, [object[]]$
             throw "$Role did not exit within $ProcessTimeoutSeconds seconds"
         }
         Complete-JournaledProcess $launch.run $launch.process "exit_observed"
-        $launch.process
+        [pscustomobject]@{ ExitCode = $launch.process.ExitCode }
     } catch {
         if ($launch.run.status -ne "timed_out" -and $launch.run.status -ne "process_wait_failed") {
             $failure = $_.Exception.Message
             Stop-JournaledProcess $launch.run $launch.process "process_wait_failed" "Retained-handle wait or completion failed: $failure"
         }
         throw
+    } finally {
+        $launch.process.Dispose()
     }
 }
 
@@ -465,6 +467,13 @@ try {
     $managedFilesRemain = [System.IO.File]::Exists($application) -or
         [System.IO.File]::Exists($uninstaller)
     $remainingRegistryEntries = @(Get-UninstallEntries $installRoot)
+    Write-InstallerEvidence "cleanup_observed" ([ordered]@{
+        application_present = [System.IO.File]::Exists($application)
+        uninstaller_present = [System.IO.File]::Exists($uninstaller)
+        remaining_registration_paths = @($remainingRegistryEntries | ForEach-Object { $_.PSPath })
+        preservation_manifest = Get-PreservationManifest $libraryRoot
+        observed_at = (Get-Date).ToUniversalTime().ToString("o")
+    })
     if ($managedFilesRemain) {
         throw "Uninstall left managed application files behind in $installRoot"
     }
