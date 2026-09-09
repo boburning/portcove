@@ -54,7 +54,7 @@ export function useOperationState(refresh: () => Promise<void>) {
   const [pendingOperations, setPendingOperations] = useState<ReadonlyMap<number, string>>(new Map());
   const nextPendingId = useRef(0);
   const busy = mostRecentPendingOperation(pendingOperations);
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<unknown>();
   const [operationEvents, setOperationEvents] = useState<ReadonlyMap<string, OperationEvent>>(new Map());
   const operation = mostRecentOperation(operationEvents);
   useEffect(() => {
@@ -68,19 +68,19 @@ export function useOperationState(refresh: () => Promise<void>) {
     setPendingOperations(current => addPendingOperation(current, pendingId, name));
     setError(undefined);
     const runningRefresh = window.setTimeout(() => {
-      void refresh().catch(value => setError(current => current ?? errorText(value)));
+      void refresh().catch(value => setError((current: unknown) => current ?? value));
     }, 250);
     try {
       const result = await task();
       return result;
     } catch (value) {
-      if (!isCancellation(value)) setError(errorText(value));
+      if (!isCancellation(value)) setError(value);
     } finally {
       window.clearTimeout(runningRefresh);
       try {
         await refresh();
       } catch (value) {
-        setError(current => current ?? errorText(value));
+        setError((current: unknown) => current ?? value);
       }
       setPendingOperations(current => removePendingOperation(current, pendingId));
     }

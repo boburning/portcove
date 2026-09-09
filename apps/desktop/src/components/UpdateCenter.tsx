@@ -1,3 +1,5 @@
+import { FailureDetails } from "./FailureDetails";
+import { errorText } from "../view-model";
 import { useState } from "react";
 import { OperationCancellation } from "./OperationCancellation";
 import type { LucideIcon } from "lucide-react";
@@ -39,13 +41,13 @@ export function UpdateCenter({ ports, statuses, activities, outcomes, busy, chec
         const status = statuses.get(port.id)!;
         const outcome = byPort.get(port.id);
         const state = updateState(status, outcome);
-        return <button data-focusable className="update-row" key={port.id} title={outcome?.error?.message} onClick={() => onSelect(port.id)}>
+        return <button data-focusable className="update-row" key={port.id} title={outcome?.error ? errorText(outcome.error) : undefined} onClick={() => onSelect(port.id)}>
           <div className={`update-mark ${state.tone}`}>{port.name.slice(0, 2).toUpperCase()}</div>
           <div className="update-title"><strong>{port.name}</strong><small>{status.channel} · {policyLabel(status.update_policy)}</small></div>
           <div className="update-version"><small>Installed</small><span>{status.active?.version}</span></div>
           <div className="update-version"><small>Latest</small><span>{releaseLabel(outcome?.result)}</span></div>
           <span className={`update-state ${state.tone}`}>{state.label}</span>
-          {outcome?.error && <small className="update-error">{outcome.error.message}</small>}
+          {outcome?.error && <small className="update-error">{errorText(outcome.error)}</small>}
         </button>;
       })}</div>}
     <ActivityHistory ports={ports} activities={activities} onSelect={onSelect} onOpenSources={onOpenSources} />
@@ -86,7 +88,7 @@ function ActivityRow({ activity, names, onSelect, onOpenSources }: {
 }) {
   const target = activityTarget(activity, names);
   const presentation = activityPresentation(activity);
-  const title = activity.message ?? (presentation.state === "unfinished" ? "No completion was recorded. Review the source or port before retrying." : undefined);
+  const title = activity.failure?.presentation.summary ?? (presentation.state === "unfinished" ? "No completion was recorded. Review the source or port before retrying." : undefined);
   return <div className={`activity-row ${presentation.state}`} title={title} data-focus-group>
     <span className="activity-indicator" aria-hidden="true"><Icon glyph={presentation.icon} size="sm" /></span>
     <div className="activity-main"><strong>{operationLabel(activity.operation)}</strong>
@@ -95,7 +97,11 @@ function ActivityRow({ activity, names, onSelect, onOpenSources }: {
     <span className="activity-time" title={activity.finished_at ? `Finished ${formatActivityTime(activity.finished_at)}` : undefined}>{presentation.time}</span>
     <span className="activity-status">{presentation.label}</span>
     {activity.cancellation && <OperationCancellation operationId={activity.id} state={activity.cancellation} />}
-    {activity.message && <ActivityDetails message={activity.message} />}
+    {activity.failure ? <div className="activity-details">
+      <p>{activity.failure.presentation.summary}</p>
+      {activity.failure.presentation.recovery_actions.includes("review_preparation") && target.portId && <button data-focusable onClick={() => onSelect(target.portId!)}>Review game preparation</button>}
+      <FailureDetails presentation={activity.failure.presentation} code={activity.failure.code} />
+    </div> : activity.message && <ActivityDetails message={activity.message} />}
   </div>;
 }
 

@@ -72,7 +72,7 @@ pub use catalog_update::{CatalogUpdatePlan, CatalogUpdateSource};
 pub use error::{ErrorCode, PortcoveError, Result};
 pub use failure::{
     FailurePresentation, FailureReport, FailureTone, MutationState, RecoveryAction,
-    redact_diagnostic_text, sensitive_diagnostic_field,
+    redact_diagnostic_text, redact_diagnostic_value, sensitive_diagnostic_field,
 };
 pub use gitlab::GitlabReleaseProvider;
 pub use host_preferences::{

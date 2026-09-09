@@ -126,8 +126,20 @@ function searchableText(port: PortDefinition) {
 }
 
 export function errorText(error: unknown) {
+  const presentation = failurePresentation(error);
+  if (presentation) return presentation.summary;
   if (typeof error === "object" && error && "message" in error) return String((error as DesktopError).message);
   return String(error);
+}
+
+export function failurePresentation(error: unknown): DesktopError["presentation"] | undefined {
+  if (typeof error !== "object" || !error || !("presentation" in error)) return undefined;
+  const value = error.presentation as Partial<DesktopError["presentation"]> | null;
+  if (!value || typeof value.summary !== "string" || typeof value.technical_message !== "string"
+    || !value.technical_context || !Array.isArray(value.recovery_actions)
+    || !["neutral", "error"].includes(value.tone ?? "")
+    || !["not_started", "no_changes", "committed", "recovery_required", "unknown"].includes(value.mutation_state ?? "")) return undefined;
+  return value as DesktopError["presentation"];
 }
 
 export function isCancellation(error: unknown) {

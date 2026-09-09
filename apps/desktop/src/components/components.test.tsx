@@ -1,4 +1,4 @@
-import { portDefinition, portStatus, sourceProfile } from "../test-fixtures";
+import { failureReport, portDefinition, portStatus, sourceProfile } from "../test-fixtures";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { InstallRecord, OperationEvent, PortDefinition, PortStatus, SourceInspectionReport } from "../types";
@@ -264,7 +264,7 @@ describe("desktop components", () => {
       profile_id: source.profile_id, ok: true, error: null, result: { ...source, registered_at: 1, verified_at: 2, inspection },
     }]} sourceInspections={new Map([[source.profile_id, inspection]])} verifySources={vi.fn()} replaceSource={vi.fn()} />);
     const failed = renderToStaticMarkup(<SettingsView libraryRoot="C:/Portcove" sources={[source]} sourceOutcomes={[{
-      profile_id: source.profile_id, ok: false, result: null, error: { code: "source_invalid", message: "source changed since registration", details: {} },
+      profile_id: source.profile_id, ok: false, result: null, error: failureReport(),
     }]} verifySources={vi.fn()} />);
     expect(verified).toContain("Exact match");
     expect(verified).toContain("Full identity and evidence");
@@ -507,11 +507,11 @@ describe("desktop components", () => {
     const install = installRecord();
     const status: PortStatus = { ...portStatus(), port_id: port.id, channel: "stable", update_policy: "notify", active: install };
     const html = renderToStaticMarkup(<UpdateCenter ports={[port]} statuses={new Map([[port.id, status]])} activities={[{
-      id: "activity-1", cancellation: null, message: null, operation: "update", target_kind: "port", target_id: port.id, status: "succeeded", started_at: 1, finished_at: 2,
+      id: "activity-1", failure: null, cancellation: null, message: null, operation: "update", target_kind: "port", target_id: port.id, status: "succeeded", started_at: 1, finished_at: 2,
     }, {
-      id: "activity-2", cancellation: null, operation: "verify_source", target_kind: "source", target_id: "sample-rom", status: "failed", message: "source changed", started_at: 3, finished_at: 4,
+      id: "activity-2", failure: null, cancellation: null, operation: "verify_source", target_kind: "source", target_id: "sample-rom", status: "failed", message: "source changed", started_at: 3, finished_at: 4,
     }, {
-      id: "activity-3", cancellation: null, message: null, finished_at: null, operation: "install", target_kind: "port", target_id: port.id, status: "running", started_at: 1,
+      id: "activity-3", failure: null, cancellation: null, message: null, finished_at: null, operation: "install", target_kind: "port", target_id: port.id, status: "running", started_at: 1,
     }]} busy={undefined}
       checkAll={vi.fn()} onSelect={vi.fn()} onOpenSources={vi.fn()} outcomes={[{ port_id: port.id, ok: true, error: null, result: {
         port_id: port.id, channel: "stable", installed_version: "1.0", installed_runtime: null, required_runtime: null, installed_artifact: null, update_available: true,

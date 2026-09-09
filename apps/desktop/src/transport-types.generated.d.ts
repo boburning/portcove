@@ -2,6 +2,21 @@
 // Regenerate: node apps/desktop/scripts/generate-transport-types.mjs --write
 
 export type CancellationPhase = "preparing" | "finishing";
+export type ErrorCode =
+  | "usage"
+  | "unsupported"
+  | "not_found"
+  | "source_invalid"
+  | "network"
+  | "verification"
+  | "install"
+  | "state"
+  | "launch"
+  | "conflict"
+  | "cancelled";
+export type MutationState = "not_started" | "no_changes" | "committed" | "recovery_required" | "unknown";
+export type RecoveryAction = "review_current_state" | "review_preparation" | "view_technical_details";
+export type FailureTone = "neutral" | "error";
 export type ActivityOperation =
   | "prepare"
   | "update_catalog"
@@ -48,18 +63,6 @@ export type LaunchBlocker =
   | "missing_runtime"
   | "preparation_required";
 export type UpdatePolicy = "notify" | "stage" | "automatic";
-export type ErrorCode =
-  | "usage"
-  | "unsupported"
-  | "not_found"
-  | "source_invalid"
-  | "network"
-  | "verification"
-  | "install"
-  | "state"
-  | "launch"
-  | "conflict"
-  | "cancelled";
 export type BackupAction = "restore" | "delete";
 export type BackupProblemKind =
   | "missing_manifest"
@@ -409,11 +412,11 @@ export interface TransportOutputs {
   update_snapshot: UpdateSnapshot;
   upstream_observation_report: OutputUpstreamObservationReport;
   desktop_bootstrap_status: OutputDesktopBootstrapStatus;
-  desktop_desktop_error: ApiError;
+  desktop_desktop_error: FailureReport;
   desktop_launch_result: OutputDesktopLaunchResult;
-  desktop_reconcile_outcome: OutputDesktopReconcileOutcome;
-  desktop_source_verification_outcome: OutputDesktopSourceVerificationOutcome;
-  desktop_update_check_outcome: OutputDesktopUpdateCheckOutcome;
+  desktop_reconcile_outcome: OutputReconcileBatchOutcome;
+  desktop_source_verification_outcome: OutputSourceBatchOutcome;
+  desktop_update_check_outcome: OutputCheckBatchOutcome;
 }
 export interface OutputAbout {
   description: string;
@@ -425,6 +428,7 @@ export interface OutputAbout {
 }
 export interface OutputActivity {
   cancellation: CancellationState | null;
+  failure: FailureReport | null;
   finished_at: number | null;
   id: string;
   message: string | null;
@@ -438,6 +442,28 @@ export interface OutputActivity {
 export interface CancellationState {
   phase: CancellationPhase;
   requested: boolean;
+  [k: string]: unknown;
+}
+export interface FailureReport {
+  code: ErrorCode;
+  details: {
+    [k: string]: string;
+  };
+  message: string;
+  presentation: FailurePresentation;
+  [k: string]: unknown;
+}
+export interface FailurePresentation {
+  mutation_state: MutationState;
+  phase: string | null;
+  presentation_key: string;
+  recovery_actions: RecoveryAction[];
+  summary: string;
+  technical_context: {
+    [k: string]: string;
+  };
+  technical_message: string;
+  tone: FailureTone;
   [k: string]: unknown;
 }
 export interface OutputAdoptionPreview {
@@ -471,7 +497,7 @@ export interface AdoptionSkippedEntry {
 export interface OutputApiResponsePortStatus {
   command: string;
   data: PortStatus | null;
-  error: ApiError | null;
+  error: FailureReport | null;
   ok: boolean;
   schema_version: number;
   [k: string]: unknown;
@@ -561,14 +587,6 @@ export interface LaunchReadiness {
   launchable: boolean;
   pending_setup: boolean;
   source?: SourceHealth | null;
-  [k: string]: unknown;
-}
-export interface ApiError {
-  code: ErrorCode;
-  details: {
-    [k: string]: string;
-  };
-  message: string;
   [k: string]: unknown;
 }
 export interface BackupRecord {
@@ -943,7 +961,7 @@ export interface OutputCatalogUpdatePlan {
   [k: string]: unknown;
 }
 export interface OutputCheckBatchOutcome {
-  error: ApiError | null;
+  error: FailureReport | null;
   ok: boolean;
   port_id: string;
   result: UpdateCheck | null;
@@ -1464,7 +1482,7 @@ export interface SourceInspectionProblem {
   [k: string]: unknown;
 }
 export interface OutputReconcileBatchOutcome {
-  error: ApiError | null;
+  error: FailureReport | null;
   ok: boolean;
   port_id: string;
   result: ReconcileResult | null;
@@ -1499,7 +1517,7 @@ export interface OutputSignedCatalogPayload {
   sequence: number;
 }
 export interface OutputSourceBatchOutcome {
-  error: ApiError | null;
+  error: FailureReport | null;
   ok: boolean;
   profile_id: string;
   result: SourceVerification | null;
@@ -1680,7 +1698,7 @@ export interface OutputSourceRemovalPreview {
   [k: string]: unknown;
 }
 export interface OutputUpdateBatchOutcome {
-  error: ApiError | null;
+  error: FailureReport | null;
   ok: boolean;
   port_id: string;
   result: InstallRecord | null;
@@ -1729,44 +1747,15 @@ export interface ObservedResolution {
   [k: string]: unknown;
 }
 export interface OutputDesktopBootstrapStatus {
-  error: DesktopError | null;
+  error: FailureReport | null;
   generation: number;
   library_root: string | null;
   ready: boolean;
   selection: LibrarySelection | null;
   [k: string]: unknown;
 }
-export interface DesktopError {
-  code: ErrorCode;
-  details: {
-    [k: string]: string;
-  };
-  message: string;
-  [k: string]: unknown;
-}
 export interface OutputDesktopLaunchResult {
   processId: number | null;
   sessionId: string;
-  [k: string]: unknown;
-}
-export interface OutputDesktopReconcileOutcome {
-  error: DesktopError | null;
-  ok: boolean;
-  port_id: string;
-  result: ReconcileResult | null;
-  [k: string]: unknown;
-}
-export interface OutputDesktopSourceVerificationOutcome {
-  error: DesktopError | null;
-  ok: boolean;
-  profile_id: string;
-  result: SourceVerification | null;
-  [k: string]: unknown;
-}
-export interface OutputDesktopUpdateCheckOutcome {
-  error: DesktopError | null;
-  ok: boolean;
-  port_id: string;
-  result: UpdateCheck | null;
   [k: string]: unknown;
 }

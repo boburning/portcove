@@ -1116,6 +1116,12 @@ h2 { letter-spacing: -0.025em; line-height: var(--leading-tight); }
 }
 
 .error-banner strong { display: block; color: var(--color-danger-strong); }
+.error-banner > div { min-width: 0; }
+.error-banner[role="status"] { border-color: var(--color-border); background: var(--color-bg-elevated); }
+.error-banner[role="status"] strong { color: var(--color-text); }
+.failure-details pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-xs); }
+.failure-details summary { cursor: pointer; }
+.activity-details > .failure-details { display: block; }
 .error-banner p { margin: var(--space-1) 0 0; color: var(--color-text-secondary); line-height: var(--leading-normal); }
 .error-icon { width: 2rem; height: 2rem; display: grid; place-items: center; color: var(--color-danger-text); }
 .error-actions { display: flex; gap: var(--space-1); }

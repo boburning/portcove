@@ -8,6 +8,7 @@ import { DetailPanel } from "./components/DetailPanel";
 import { PortBrowser } from "./components/PortBrowser";
 import { SourceIntakeDialog, type SourceIntakeRequest } from "./components/SourceIntake";
 import { UpdateCenter } from "./components/UpdateCenter";
+import { FailureDetails } from "./components/FailureDetails";
 import { pickHostToolExecutable, pickInstallFolder, pickLibraryFolder, pickMetadataExportPath, pickSourceArchivePath, pickSourcePath } from "./file-picker";
 import { desktopApi } from "./api";
 import { useWorkspaceScroll } from "./keyboard-shortcuts";
@@ -23,7 +24,7 @@ import { currentUpdateSnapshot, errorText, filterPorts, indexStatuses, mostRecen
 
 export default function App() {
   const [bootstrap, setBootstrap] = useState<BootstrapStatus>();
-  const [bootstrapError, setBootstrapError] = useState<DesktopError>();
+  const [bootstrapError, setBootstrapError] = useState<StartupFailure>();
   useEffect(() => {
     desktopApi.bootstrapStatus().then(setBootstrap).catch(value => {
       setBootstrapError({ code: "state", message: errorText(value), details: {} });
@@ -57,7 +58,9 @@ function BootstrapLoading() {
   </main>;
 }
 
-export function BootstrapRecovery({ error, chooseLibrary, resetLibrary }: { error: DesktopError; chooseLibrary?: () => Promise<void>; resetLibrary?: () => Promise<void> }) {
+type StartupFailure = Pick<DesktopError, "code" | "message" | "details"> & Partial<Pick<DesktopError, "presentation">>;
+
+export function BootstrapRecovery({ error, chooseLibrary, resetLibrary }: { error: StartupFailure; chooseLibrary?: () => Promise<void>; resetLibrary?: () => Promise<void> }) {
   const [actionError, setActionError] = useState<string>();
   useGamepadNavigation(() => {});
   const recoveryRoot = transferRecoveryRoot(error);
@@ -65,11 +68,11 @@ export function BootstrapRecovery({ error, chooseLibrary, resetLibrary }: { erro
   return <main className="bootstrap-state bootstrap-error" role="alert">
     <p className="eyebrow">Portcove could not start</p>
     <h1>Your library needs attention</h1>
-    <p>{error.message}</p>
-    <dl>
+    <p>{errorText(error)}</p>
+    {error.presentation ? <FailureDetails presentation={error.presentation} code={error.code} /> : <dl>
       <div><dt>Error code</dt><dd>{error.code}</dd></div>
       {Object.entries(error.details).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{value}</dd></div>)}
-    </dl>
+    </dl>}
     <p>Check the configured library path, access permissions, and available space, then retry. Portcove will run recovery checks again before enabling library actions.</p>
     <div className="button-row">
       <button type="button" onClick={() => window.location.reload()}>Retry startup</button>

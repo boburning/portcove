@@ -9,7 +9,7 @@ use std::{
 
 use portcove_core::{
     PortcoveError, PortcoveService, Result, redact_diagnostic_text as redact_text,
-    sensitive_diagnostic_field as is_sensitive_field,
+    redact_diagnostic_value, sensitive_diagnostic_field as is_sensitive_field,
 };
 use serde_json::{Value, json};
 use tracing::{
@@ -65,7 +65,7 @@ pub fn create_support_bundle(service: &PortcoveService) -> Result<PathBuf> {
     let output = logs_dir.join(format!("portcove-support-{timestamp}.zip"));
     let doctor = service.doctor()?;
     let activities = service.library().activities(100)?;
-    let summary = json!({
+    let mut summary = json!({
         "schema_version": 1,
         "created_at_ms": timestamp,
         "platform": doctor.platform,
@@ -93,7 +93,8 @@ pub fn create_support_bundle(service: &PortcoveService) -> Result<PathBuf> {
     archive
         .start_file("diagnostics.json", options)
         .map_err(zip_error)?;
-    archive.write_all(redact_text(&serde_json::to_string_pretty(&summary)?).as_bytes())?;
+    redact_diagnostic_value(&mut summary);
+    archive.write_all(&serde_json::to_vec_pretty(&summary)?)?;
     archive.write_all(b"\n")?;
     for path in log_files {
         let name = path
@@ -107,7 +108,17 @@ pub fn create_support_bundle(service: &PortcoveService) -> Result<PathBuf> {
         archive
             .start_file(format!("logs/{name}"), options)
             .map_err(zip_error)?;
-        archive.write_all(redact_text(&contents).as_bytes())?;
+        for line in contents.lines() {
+            let redacted = match serde_json::from_str::<Value>(line) {
+                Ok(mut value) => {
+                    redact_diagnostic_value(&mut value);
+                    serde_json::to_string(&value)?
+                }
+                Err(_) => redact_text(line),
+            };
+            archive.write_all(redacted.as_bytes())?;
+            archive.write_all(b"\n")?;
+        }
     }
     archive.finish().map_err(zip_error)?.sync_all()?;
     Ok(output)
@@ -151,7 +162,9 @@ impl DiagnosticLog {
             .lock
             .lock()
             .map_err(|_| PortcoveError::state("diagnostic log lock is unavailable"))?;
-        let mut line = redact_text(&serde_json::to_string(event)?);
+        let mut event = event.clone();
+        redact_diagnostic_value(&mut event);
+        let mut line = serde_json::to_string(&event)?;
         line.push('\n');
         if self.inner.path.metadata().is_ok_and(|metadata| {
             metadata.len().saturating_add(line.len() as u64) > self.inner.max_bytes

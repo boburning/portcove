@@ -200,6 +200,28 @@ pub fn sensitive_diagnostic_field(name: &str) -> bool {
     .any(|part| name.contains(part))
 }
 
+/// Redact values before JSON encoding so malformed tool text cannot damage the document.
+pub fn redact_diagnostic_value(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Object(fields) => {
+            for (key, value) in fields {
+                if sensitive_diagnostic_field(key) {
+                    *value = serde_json::Value::String("[REDACTED]".into());
+                } else {
+                    redact_diagnostic_value(value);
+                }
+            }
+        }
+        serde_json::Value::Array(values) => {
+            for value in values {
+                redact_diagnostic_value(value);
+            }
+        }
+        serde_json::Value::String(text) => *text = redact_diagnostic_text(text),
+        _ => {}
+    }
+}
+
 /// Shared redaction for human diagnostics. Original machine error fields are not rewritten.
 pub fn redact_diagnostic_text(input: &str) -> String {
     let mut output = input.to_owned();
@@ -260,6 +282,24 @@ fn diagnostic_secret_length(after: &str) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn diagnostic_documents_redact_nested_fields_without_corrupting_json() {
+        let mut document = serde_json::json!({
+            "activities": [{"details": {"access_token": "private-value"},
+                "message": "setup rejected password=\"unterminated secret"}],
+            "safe": "retained evidence"
+        });
+        redact_diagnostic_value(&mut document);
+        let text = serde_json::to_string(&document).unwrap();
+        assert!(!text.contains("private-value"));
+        assert!(!text.contains("unterminated secret"));
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&text).unwrap(),
+            document
+        );
+        assert_eq!(document["safe"], "retained evidence");
+    }
 
     #[test]
     fn unknown_mutation_is_not_reinterpreted_as_no_changes() {

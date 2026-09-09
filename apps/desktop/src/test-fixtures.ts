@@ -1,4 +1,4 @@
-import type { PortDefinition, PortStatus, SourceProfile } from "./types";
+import type { DesktopError, PortDefinition, PortStatus, SourceProfile } from "./types";
 
 // Complete serialized values; tests override only the behavior they exercise.
 export function portDefinition(): PortDefinition {
@@ -23,4 +23,11 @@ export function portStatus(): PortStatus {
 
 export function sourceProfile(): SourceProfile {
   return { id: "sample", label: "Sample", kind: "file", accepted_extensions: [], accepted_sha1: [], accepted_sha256: [], disc: null, members: [] };
+}
+
+export function failureReport(): DesktopError {
+  return { code: "source_invalid", message: "source changed since registration", details: {},
+    presentation: { presentation_key: "source_not_accepted", summary: "The required game files could not be accepted or prepared.",
+      tone: "error", mutation_state: "unknown", phase: null, recovery_actions: ["review_current_state", "view_technical_details"],
+      technical_message: "source changed since registration", technical_context: {} } };
 }

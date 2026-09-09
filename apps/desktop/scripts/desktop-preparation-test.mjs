@@ -98,6 +98,28 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
     }, 5_000);
     assert.equal((await status(port.id)).active.id, install.id);
     assert.equal((await status(port.id)).readiness.launchable, false);
+    const recorded = (await invoke("get_activities")).value.find(item => item.id === activity.id);
+    assert.equal(recorded.failure.code, "cancelled");
+    assert.equal(recorded.failure.presentation.tone, "neutral");
+    assert.equal(recorded.failure.presentation.mutation_state, "recovery_required");
+    assert.equal(recorded.failure.presentation.phase, "preparation.setup");
+    await browser.navigate().refresh();
+    await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 15_000);
+    assert.deepEqual((await invoke("get_activities")).value.find(item => item.id === activity.id).failure, recorded.failure);
+    await browser.findElement(By.xpath('//nav//button[contains(., "Updates")]')).click();
+    await browser.wait(until.elementLocated(By.css(".activity-row.cancelled .failure-details")), 15_000);
+    const row = await browser.findElement(By.css(".activity-row.cancelled"));
+    assert.match(await row.getText(), /Retained work needs recovery review/);
+    assert.doesNotMatch(await row.getText(), /No files were changed/);
+    await row.findElement(By.css("summary")).click();
+    await browser.executeScript(axe.source);
+    const accessibility = await browser.executeAsyncScript(done => window.axe.run().then(done));
+    const report = path.join(output, "recovery-details-accessibility.json");
+    await writeFile(report, JSON.stringify(accessibility, null, 2), { flag: "wx" }); artifacts.push(report);
+    assert.deepEqual(accessibility.violations.map(item => item.id), []);
+    await browser.executeScript('arguments[0].scrollIntoView({ block: "center" });', row);
+    const screenshot = path.join(output, "native-preparation-retained-outcome.png");
+    await writeFile(screenshot, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" }); artifacts.push(screenshot);
   });
   await scenario("native-update-settings-save-without-execution", async () => {
     const port = command(["catalog", "show", "opengoal-jak1"]);
