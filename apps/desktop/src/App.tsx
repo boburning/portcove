@@ -187,8 +187,8 @@ function CurrentView({ data, ui, model, operations, github, updates, sourceHealt
   nativeSourceDrag: ReturnType<typeof useNativeSourceDrop>;
   hostToolActions: HostToolActions;
 }) {
-  if (ui.view === "updates") return <UpdateCenter ports={data.catalog?.ports ?? []} statuses={model.statusMap} activities={data.activities} outcomes={updates.outcomes} actions={updates.actions} busy={operations.busy}
-    checkAll={() => { void updates.checkAll(); }} applyPolicies={() => { void updates.applyPolicies(); }} onSelect={ui.setSelectedId} onOpenSources={() => ui.setView("settings")} />;
+  if (ui.view === "updates") return <UpdateCenter ports={data.catalog?.ports ?? []} statuses={model.statusMap} activities={data.activities} outcomes={updates.outcomes} busy={operations.busy}
+    checkAll={() => { void updates.checkAll(); }} onSelect={ui.setSelectedId} onOpenSources={() => ui.setView("settings")} />;
   if (ui.view === "settings") return <SettingsView doctor={data.doctor} storage={data.storage} github={github} busy={operations.busy} sources={data.sources} appearance={appearance}
     librarySelection={bootstrap.selection ?? undefined} chooseLibrary={pickLibraryFolder} switchLibrary={switchLibrary} resetLibrary={resetLibrary}
     sourceProfiles={data.catalog?.source_profiles ?? []} onSourceAdded={data.refresh} onCatalogChanged={data.refresh}
@@ -214,12 +214,12 @@ function SelectedPortPanel({ model, ui, operations, sourceHealth, installPlannin
   const pickSource = model.sourceProfile ? () => { void applyPathChoice(pickSourcePath(model.sourceProfile!, ui.sourcePath), ui.setSourcePath, operations.setError); } : undefined;
   const pickArchive = model.sourceProfile?.kind === "file-set" ? () => { void applyPathChoice(pickSourceArchivePath(ui.sourcePath), ui.setSourcePath, operations.setError); } : undefined;
   const pickBios = model.biosProfile ? () => { void applyPathChoice(pickSourcePath(model.biosProfile!, ui.biosPath), ui.setBiosPath, operations.setError); } : undefined;
-  return <DetailPanel prepare={(expectedPlan, onEvent) => operations.perform("prepare game data", () => desktopApi.prepare(model.port!.id, expectedPlan, libraryGeneration, onEvent))} port={model.port} status={model.status} installPlan={installPlanning.plan} backups={backups.backups} backupProblems={backups.inventory.problems} backupState={backups.inventory.state} source={model.source} sourceInspection={model.port.source_profile ? sourceHealth.inspections.get(model.port.source_profile) : undefined} sourceProfile={model.sourceProfile} sourcePath={ui.sourcePath} setSourcePath={ui.setSourcePath}
+  return <DetailPanel perform={operations.perform} prepare={(expectedPlan, onEvent) => operations.perform("prepare game data", () => desktopApi.prepare(model.port!.id, expectedPlan, libraryGeneration, onEvent))} port={model.port} status={model.status} installPlan={installPlanning.plan} backups={backups.backups} backupProblems={backups.inventory.problems} backupState={backups.inventory.state} source={model.source} sourceInspection={model.port.source_profile ? sourceHealth.inspections.get(model.port.source_profile) : undefined} sourceProfile={model.sourceProfile} sourcePath={ui.sourcePath} setSourcePath={ui.setSourcePath}
     cancellableActivities={activities.filter(activity => activity.target_id === model.port?.id && activity.cancellation)} libraryGeneration={libraryGeneration} outputLocationChanged={installPlanning.invalidate}
     pickSource={pickSource} pickSourceArchive={pickArchive} busy={operations.busy} bios={model.bios} biosInspection={model.port.bios_source_profile ? sourceHealth.inspections.get(model.port.bios_source_profile) : undefined} biosProfile={model.biosProfile} biosPath={ui.biosPath} setBiosPath={ui.setBiosPath} pickBios={pickBios}
     openSourceEvidence={evidenceId => { void operations.perform("open source evidence", () => desktopApi.openSourceEvidence(evidenceId)); }}
     inspectSource={profile => openSourceIntake(model.port!.id, profile.id)}
-    actions={detailActions(model.port, model.status, ui.sourcePath, ui.biosPath, operations.perform, () => ui.setSelectedId(undefined), installPlanning.review, backups.refresh)} />;
+    actions={detailActions(model.port, model.status, ui.sourcePath, ui.biosPath, operations.perform, () => ui.setSelectedId(undefined), installPlanning.review, backups.refresh, libraryGeneration)} />;
 }
 
 function AdoptionOverlay({ ui, operations }: { ui: UiState; operations: OperationState }) {

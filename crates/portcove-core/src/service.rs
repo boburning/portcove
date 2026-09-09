@@ -38,6 +38,9 @@ const LAUNCH_MARKER: &str = ".portcove-launched";
 const BULK_PROVIDER_CONCURRENCY: usize = 4;
 const BACKUP_MANIFEST_MAX_BYTES: u64 = 64 * 1024;
 
+#[path = "game_update_review.rs"]
+mod game_update_review;
+
 fn add_source_blocker(blockers: &mut Vec<LaunchBlocker>, health: Option<SourceHealth>, bios: bool) {
     let blocker = match (health, bios) {
         (Some(SourceHealth::Unregistered | SourceHealth::Missing), false) => {

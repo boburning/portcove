@@ -1,11 +1,11 @@
 import type { InstallInput, LaunchResult } from "./types";
-import type { PreparationPlan } from "./types";
+import type { GameUpdatePlan, PreparationPlan } from "./types";
 import type { CatalogStatus, CatalogUpdatePlan, CatalogUpdateSource } from "./types";
 import { Channel, invoke } from "@tauri-apps/api/core";
 import type { CancellationState, OperationEvent } from "./types";
 import type { LibraryImportPlan, LibraryImportResult, LibraryMovePlan, LibraryMoveResult } from "./types";
 import type { SourceDiscoveryLimits, SourceDiscoveryRequest, SourceDiscoveryReport, SourceImportMode, SourceImportPlan, SourceImportResult, SourceInboxPaths, SourceInboxResolution } from "./types";
-import type { ActivityRecord, AdoptionPreview, BackupInventory, BackupRecord, BootstrapStatus, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, HostToolProbeResult, HostToolStatus, InstallPlan, InstallRecord, LibraryMetadataFile, OutputDestinationPreview, OutputRelocationPlan, OutputRelocationResult, OutputRelocationStatus, PortOutputLocation, PortStatus, ReconcileOutcome, ReleaseChannel, RestoreResult, SourceInspectionReport, SourceIntakeInspection, SourceRecord, SourceRelinkPlan, SourceRemovalPreview, SourceVerificationOutcome, UpdateCheck, UpdateCheckOutcome, UpdatePolicy } from "./types";
+import type { ActivityRecord, AdoptionPreview, BackupInventory, BackupRecord, BootstrapStatus, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, HostToolProbeResult, HostToolStatus, InstallPlan, InstallRecord, LibraryMetadataFile, OutputDestinationPreview, OutputRelocationPlan, OutputRelocationResult, OutputRelocationStatus, PortOutputLocation, PortStatus, ReleaseChannel, RestoreResult, SourceInspectionReport, SourceIntakeInspection, SourceRecord, SourceRelinkPlan, SourceRemovalPreview, SourceVerificationOutcome, UpdateCheck, UpdateCheckOutcome, UpdatePolicy } from "./types";
 
 export const desktopApi = {
   catalogStatus: () => invoke<CatalogStatus>("get_catalog_status"),
@@ -32,6 +32,12 @@ export const desktopApi = {
   catalog: () => invoke<CatalogDocument>("get_catalog"),
   statuses: () => invoke<PortStatus[]>("get_statuses"),
   planPreparation: (portId: string, generation: number) => invoke<PreparationPlan>("plan_preparation", { portId, generation }),
+  planGameUpdate: (portId: string, activate: boolean, generation: number) => invoke<GameUpdatePlan>("plan_game_update", { portId, activate, generation }),
+  applyGameUpdate: (portId: string, activate: boolean, expectedPlan: string, generation: number, onEvent: (event: OperationEvent) => void) => {
+    const channel = new Channel<OperationEvent>();
+    channel.onmessage = onEvent;
+    return invoke<InstallRecord>("apply_game_update", { portId, activate, expectedPlan, generation, onEvent: channel });
+  },
   prepare: (portId: string, expectedPlan: string, generation: number, onEvent: (event: OperationEvent) => void) => {
     const channel = new Channel<OperationEvent>();
     channel.onmessage = onEvent;
@@ -80,7 +86,6 @@ export const desktopApi = {
   openSourceEvidence: (evidenceId: string) => invoke<void>("open_source_evidence", { evidenceId }),
   check: (portId: string) => invoke<UpdateCheck>("check_port", { portId }),
   checkInstalled: () => invoke<UpdateCheckOutcome[]>("check_installed"),
-  reconcileInstalled: () => invoke<ReconcileOutcome[]>("reconcile_installed"),
   doctor: () => invoke<DoctorReport>("get_doctor_report"),
   hostTools: () => invoke<HostToolStatus[]>("get_host_tools"),
   setHostToolPath: (toolId: string, path: string) => invoke<HostToolProbeResult>("set_host_tool_path", { toolId, path }),
@@ -100,13 +105,10 @@ export const desktopApi = {
   openUserData: (portId: string) => invoke<string>("open_user_data", { portId }),
   openExternalUrl: (url: string) => invoke<void>("open_external_url", { url }),
   setChannel: (portId: string, channel: ReleaseChannel) => invoke<PortStatus>("set_channel", { portId, channel }),
-  setPolicy: (portId: string, policy: UpdatePolicy) => invoke<PortStatus>("set_policy", { portId, policy }),
+  setPolicy: (portId: string, policy: UpdatePolicy, generation: number) => invoke<PortStatus>("set_policy", { portId, policy, generation }),
   install: (portId: string, channel: ReleaseChannel, source: string, bios: string, stage: boolean) =>
     invoke<InstallRecord>("install_port", { input: { portId, channel, source: source || null, bios: bios || null, stage } satisfies InstallInput }),
-  update: (portId: string, source: string, bios: string, stage: boolean) =>
-    invoke<InstallRecord>("update_port", { portId, source: source || null, bios: bios || null, stage }),
   verify: (portId: string) => invoke("verify_port", { portId }),
-  activate: (portId: string) => invoke("activate_port", { portId }),
   rollback: (portId: string) => invoke("rollback_port", { portId }),
   remove: (portId: string) => invoke<string[] | null>("remove_port", { portId }),
   launch: (portId: string, source: string) => invoke<LaunchResult>("launch_port", { portId, source: source || null, arguments: [] }),

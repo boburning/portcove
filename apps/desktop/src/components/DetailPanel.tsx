@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertTriangle, ArchiveX, CheckCircle2, ChevronDown, Clipboard, ClipboardCheck, Download, ExternalLink, FileArchive, FileSearch, FolderOpen, Gamepad2, HardDrive, PackageCheck, RefreshCw, RotateCcw, Save, ShieldCheck, Trash2, Wrench, X } from "lucide-react";
+import { AlertTriangle, ArchiveX, CheckCircle2, ChevronDown, Clipboard, ClipboardCheck, Download, ExternalLink, FileArchive, FileSearch, FolderOpen, Gamepad2, HardDrive, RefreshCw, RotateCcw, Save, ShieldCheck, Trash2, Wrench, X } from "lucide-react";
 import { primaryCliCommand } from "../cli-command";
 import { copyText } from "../clipboard";
 import { useDialogFocus } from "../dialog";
@@ -9,13 +9,13 @@ import { OutputLocationControl } from "./OutputLocation";
 import { PreparationControl, type RunPreparation } from "./Preparation";
 import { formatBytes, platformLabels } from "../view-model";
 import { BackupHistory } from "./BackupHistory";
-import { ChoiceMenu } from "./ChoiceMenu";
+import { GameUpdateControl, UpdatePolicyControl } from "./GameUpdates";
+import type { Perform } from "../use-portcove";
 import { ExternalLink as ProjectLink } from "./ExternalLink";
 import { Icon, NavigationHints, Shortcut } from "./ui";
 import { SourceIdentityPanel } from "./SourceIdentity";
 
 export interface DetailActions {
-  activate: () => void;
   backup: () => void;
   check: () => void;
   close: () => void;
@@ -28,12 +28,12 @@ export interface DetailActions {
   rollback: () => void;
   remove: () => Promise<void>;
   setChannel: (channel: ReleaseChannel) => void;
-  setPolicy: (policy: UpdatePolicy) => void;
-  update: () => void;
+  setPolicy: (policy: UpdatePolicy) => Promise<PortStatus | undefined>;
   verify: () => void;
 }
 
 interface DetailPanelProps {
+  perform?: Perform;
   prepare?: RunPreparation;
   cancellableActivities?: ActivityRecord[];
   port: PortDefinition;
@@ -86,7 +86,7 @@ function DetailDialog({ props, dialog }: { props: DetailPanelProps; dialog: Retu
       <button data-focusable className="close icon-button" aria-label="Close port details" onClick={actions.close}><Icon glyph={X} /></button>
       <DetailHero port={port} state={state} />
       {props.cancellableActivities?.map(activity => <OperationCancellation key={activity.id} operationId={activity.id} state={activity.cancellation ?? undefined} />)}
-      <DetailBody prepare={props.prepare} port={port} status={status} state={state} sources={sources} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} installPlan={installPlan} selectedChannel={selectedChannel} policy={policy} backups={backups} backupProblems={backupProblems} backupState={backupState} busy={effectiveBusy} outputExternalBusy={busy} libraryGeneration={props.libraryGeneration ?? 0} outputLocationChanged={props.outputLocationChanged} outputApplying={setOutputApplying} actions={actions} />
+      <DetailBody perform={props.perform} prepare={props.prepare} port={port} status={status} state={state} sources={sources} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} installPlan={installPlan} selectedChannel={selectedChannel} policy={policy} backups={backups} backupProblems={backupProblems} backupState={backupState} busy={effectiveBusy} outputExternalBusy={busy} libraryGeneration={props.libraryGeneration ?? 0} outputLocationChanged={props.outputLocationChanged} outputApplying={setOutputApplying} actions={actions} />
     </section>
   </div>;
 }
@@ -97,8 +97,8 @@ function DetailHero({ port, state }: { port: PortDefinition; state: DetailState 
   return <div className={`detail-hero art-${port.support_tier}`}><span>{port.name.slice(0, 2).toUpperCase()}</span><div><p className="eyebrow">{port.platforms.map(platform => platformLabels[platform]).join(" · ")}</p><h2 id="port-detail-title">{port.name}</h2><span className={`hero-state ${state.tone}`}>{state.title}</span></div></div>;
 }
 
-function DetailBody({ prepare, port, status, state, sources, installed, launchReady, pendingSetup, installPlan, selectedChannel, policy, backups, backupProblems, backupState, busy, outputExternalBusy, libraryGeneration, outputLocationChanged, outputApplying, actions }: {
-  prepare?: RunPreparation; port: PortDefinition; status?: PortStatus; state: DetailState; sources: SourceControls; installed: boolean; launchReady: boolean; pendingSetup: boolean;
+function DetailBody({ perform, prepare, port, status, state, sources, installed, launchReady, pendingSetup, installPlan, selectedChannel, policy, backups, backupProblems, backupState, busy, outputExternalBusy, libraryGeneration, outputLocationChanged, outputApplying, actions }: {
+  perform?: Perform; prepare?: RunPreparation; port: PortDefinition; status?: PortStatus; state: DetailState; sources: SourceControls; installed: boolean; launchReady: boolean; pendingSetup: boolean;
   installPlan?: InstallPlan; selectedChannel: ReleaseChannel; policy: UpdatePolicy; backups: BackupRecord[]; backupProblems: BackupProblem[]; backupState: BackupInventory["state"]; busy?: string; outputExternalBusy?: string; libraryGeneration: number; outputLocationChanged?: () => void; outputApplying: (applying: boolean) => void; actions: DetailActions;
 }) {
   const managedPreparation = Boolean(installed && port.adapter === "upstream-managed-setup" && port.setup_output_paths.length);
@@ -109,7 +109,8 @@ function DetailBody({ prepare, port, status, state, sources, installed, launchRe
     <SourceFields mode="missing" controls={sources} />
     <SourceIntakeActions controls={sources} busy={Boolean(busy)} />
     {managedPreparation && pendingSetup && <PreparationControl key={`${port.id}:${libraryGeneration}:${status?.active?.id}`} portId={port.id} generation={libraryGeneration} disabled={Boolean(busy) || !sources.sourceReady || !sources.biosReady} run={prepare} />}
-    <PrimaryActions preparationRequired={managedPreparation && pendingSetup} runtimeNeeded={Boolean(status?.readiness?.blockers.includes("missing_runtime"))} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} hasStaged={Boolean(status?.staged)} plan={installPlan} busy={busy} actions={actions} />
+    <PrimaryActions preparationRequired={managedPreparation && pendingSetup} runtimeNeeded={Boolean(status?.readiness?.blockers.includes("missing_runtime"))} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} plan={installPlan} busy={busy} actions={actions} />
+    {installed && <GameUpdateControl key={`${port.id}:${libraryGeneration}:${status?.active?.id}:${status?.staged?.id}:${selectedChannel}:${policy}`} portId={port.id} generation={libraryGeneration} policy={policy} busy={Boolean(busy)} perform={perform} />}
     <TrustStrip status={status} />
     <OutputLocationControl portId={port.id} generation={libraryGeneration} busy={outputExternalBusy} onChanged={outputLocationChanged} onApplying={outputApplying} />
     <AdvancedControls port={port} status={status} selectedChannel={selectedChannel} policy={policy} installed={installed} backups={backups} backupProblems={backupProblems} backupState={backupState} busy={busy} sources={sources} actions={actions} />
@@ -196,8 +197,7 @@ function AdvancedControls({ port, status, selectedChannel, policy, installed, ba
     <div className="advanced-body">
       <div className="detail-section"><label>Release channel</label><div className="segmented">{port.channels.map(channel =>
         <button data-focusable disabled={Boolean(busy)} className={selectedChannel === channel ? "active" : ""} key={channel} onClick={() => actions.setChannel(channel)}>{channel}</button>)}</div></div>
-      <div className="detail-section"><ChoiceMenu label="Update policy" value={policy} disabled={Boolean(busy)} onChange={actions.setPolicy}
-        options={[{ value: "notify", label: "Notify me" }, { value: "stage", label: "Download and stage" }, { value: "automatic", label: "Install automatically" }]} /></div>
+      <div className="detail-section"><UpdatePolicyControl key={port.id} policy={policy} busy={Boolean(busy)} save={actions.setPolicy} /></div>
       <SourceFields mode="registered" controls={sources} />
       <div className="metadata"><span><small>Platforms</small>{port.platforms.map(value => platformLabels[value]).join(" · ")}</span><span><small>Installation method</small>{adapterPresentation[port.adapter]}</span><span><small>Automated evidence</small>{port.automated_tested_platforms.length ? port.automated_tested_platforms.map(value => platformLabels[value]).join(" · ") : "Qualification pending"}</span><span><small>Physical validation</small>{port.manually_validated_platforms.length ? port.manually_validated_platforms.map(value => platformLabels[value]).join(" · ") : "Deferred / not completed"}</span><span title={persistentFiles}><small>Persistent data root</small>{status?.user_data_root ?? "Created inside the selected library"}</span></div>
       <div className="upstream-link"><ProjectLink href={port.project_url}>Open upstream project <Icon glyph={ExternalLink} size="sm" /></ProjectLink><span>Portcove resolves releases from this reviewed upstream.</span></div>
@@ -256,12 +256,11 @@ function sourceFieldCopy(profile?: SourceProfile) {
   return { placeholder: "Choose or paste the full source file path", note: "Referenced in place; never uploaded." };
 }
 
-function PrimaryActions({ preparationRequired, runtimeNeeded, installed, launchReady, pendingSetup, hasStaged, plan, busy, actions }: { preparationRequired: boolean; runtimeNeeded: boolean; installed: boolean; launchReady: boolean; pendingSetup: boolean; hasStaged: boolean; plan?: InstallPlan; busy?: string; actions: DetailActions }) {
-  if (runtimeNeeded) return <InstallAction ready plan={plan} busy={busy} install={actions.update} review={actions.reviewInstall} />;
+function PrimaryActions({ preparationRequired, runtimeNeeded, installed, launchReady, pendingSetup, plan, busy, actions }: { preparationRequired: boolean; runtimeNeeded: boolean; installed: boolean; launchReady: boolean; pendingSetup: boolean; plan?: InstallPlan; busy?: string; actions: DetailActions }) {
+  if (runtimeNeeded) return <p>Review the game update below to install the required runtime.</p>;
   if (!installed) return <InstallAction ready={launchReady} plan={plan} busy={busy} install={actions.install} review={actions.reviewInstall} />;
   return <div className="actions primary-actions">
     <button data-focusable className="primary wide button-with-icon" title={preparationRequired ? "Prepare game data before playing" : launchReady ? "Launch this port" : "Register every required source before launching"} disabled={preparationRequired || !launchReady || Boolean(busy)} onClick={actions.launch}><Icon glyph={!launchReady ? AlertTriangle : pendingSetup ? Wrench : Gamepad2} />{preparationRequired ? "Prepare game data first" : !launchReady ? "Choose required source" : pendingSetup ? "Complete setup and play" : "Play now"}</button>
-    {hasStaged && <button data-focusable className="staged-action button-with-icon" disabled={Boolean(busy)} onClick={actions.activate}><Icon glyph={PackageCheck} />Activate staged update</button>}
   </div>;
 }
 
@@ -305,7 +304,6 @@ function MaintenanceActions({ canRollback, busy, actions }: { canRollback: boole
     <button data-focusable className="button-with-icon" title="Create a versioned snapshot of persistent data" disabled={Boolean(busy)} onClick={actions.backup}><Icon glyph={Save} />Back up data</button>
     <button data-focusable className="button-with-icon" disabled={Boolean(busy)} onClick={actions.openUserData}><Icon glyph={FolderOpen} />Open data folder</button>
     <button data-focusable className="button-with-icon" disabled={Boolean(busy)} onClick={actions.check}><Icon glyph={RefreshCw} />Check update</button>
-    <button data-focusable className="button-with-icon" disabled={Boolean(busy)} onClick={actions.update}><Icon glyph={Download} />Update</button>
     <button data-focusable className="button-with-icon" disabled={Boolean(busy)} onClick={actions.verify}><Icon glyph={ShieldCheck} />Verify</button>
     <button data-focusable className="button-with-icon" disabled={!canRollback || Boolean(busy)} onClick={actions.rollback}><Icon glyph={RotateCcw} />Rollback</button>
     <button data-focusable className="danger button-with-icon" disabled={Boolean(busy)} onClick={() => { void actions.remove(); }}><Icon glyph={Trash2} />Remove managed files</button>
