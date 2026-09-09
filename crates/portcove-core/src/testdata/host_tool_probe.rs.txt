@@ -3,6 +3,7 @@ use std::{env, fs, io::{self, Write}, process::Command, thread, time::Duration};
 fn main() {
     let args = env::args().skip(1).collect::<Vec<_>>();
     match args.first().map(String::as_str) {
+        Some("--owned-preparation") => owned_preparation(),
         Some("-help") => {
             println!("chdman verify extractdvd");
             std::process::exit(1);
@@ -28,10 +29,48 @@ fn main() {
                 .unwrap();
             thread::sleep(Duration::from_secs(2));
         }
+        Some("--setup-tree") => {
+            let child = Command::new(env::current_exe().unwrap())
+                .args(["--grandchild", &args[1]])
+                .spawn().unwrap();
+            fs::write("descendant-pid", child.id().to_string()).unwrap();
+            if args.get(2).is_some_and(|arg| arg == "wait") {
+                thread::sleep(Duration::from_secs(8));
+            }
+        }
         Some("--grandchild") => {
             thread::sleep(Duration::from_secs(1));
             fs::write(&args[1], b"orphaned").unwrap();
         }
         _ => println!("wrong program"),
+    }
+}
+
+fn owned_preparation() {
+    let Ok(mode) = fs::read_to_string("owned-setup-mode") else {
+        return;
+    };
+    fs::create_dir_all("data/out/jak1/iso").unwrap();
+    if mode == "missing-marker" {
+        return;
+    }
+    fs::write("data/out/jak1/iso/0COMMON.TXT", b"owned validated output").unwrap();
+    fs::create_dir_all("data/log").unwrap();
+    fs::write("data/log/setup.log", b"disposable diagnostic").unwrap();
+    match mode.as_str() {
+        "success" => {}
+        "unowned-output" => fs::write("unexpected-output", b"outside contract").unwrap(),
+        "save-change" => fs::write("OpenGOAL/jak1/save.bin", b"bad save change").unwrap(),
+        "executable-change" => fs::write(
+            if cfg!(windows) { "gk.exe" } else { "gk" },
+            b"bad executable change",
+        )
+        .unwrap(),
+        "failure" => std::process::exit(23),
+        "wait" => {
+            fs::write("data/out/setup-ready", b"ready").unwrap();
+            std::thread::sleep(Duration::from_secs(8));
+        }
+        _ => panic!("unknown owned fixture mode"),
     }
 }

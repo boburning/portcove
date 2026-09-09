@@ -67,6 +67,11 @@ pub(crate) fn recover_published_install(
         operation.phase = LifecyclePhase::PayloadPublished;
         operation.last_error = None;
         store.put(operation)?;
+        if operation.kind == LifecycleOperationKind::Prepare {
+            service.check_lifecycle_fault(
+                crate::operation::LifecycleFaultPoint::PreparationPublished,
+            )?;
+        }
     }
     if operation.phase == LifecyclePhase::PayloadPublished {
         if !Installer::new(service.library.clone())?
@@ -77,12 +82,26 @@ pub(crate) fn recover_published_install(
                 "published payload no longer matches its manifest",
             ));
         }
-        service
-            .library
-            .register_install(&install, operation.activate)?;
+        if operation.kind == LifecycleOperationKind::Prepare {
+            let plan = operation.preparation.as_ref().ok_or_else(|| {
+                PortcoveError::state("prepared publication is missing its reviewed inputs")
+            })?;
+            service
+                .library
+                .register_prepared_install(&install, &plan.inputs.install.id)?;
+        } else {
+            service
+                .library
+                .register_install(&install, operation.activate)?;
+        }
         operation.phase = LifecyclePhase::MetadataCommitted;
         operation.last_error = None;
         store.put(operation)?;
+        if operation.kind == LifecycleOperationKind::Prepare {
+            service.check_lifecycle_fault(
+                crate::operation::LifecycleFaultPoint::PreparationRegistered,
+            )?;
+        }
     }
     if matches!(
         operation.phase,

@@ -379,12 +379,15 @@ fn run_fixed_probe(
         state: spawn_error_state(error.kind()),
         message: format!("could not start the fixed probe: {error}"),
     })?;
-    let process_group = match ProbeProcessGroup::attach(&child) {
+    let process_group = match crate::tool_process::ToolProcessGroup::attach(&child) {
         Ok(process_group) => process_group,
         Err(failure) => {
             let _ = child.kill();
             let _ = child.wait();
-            return Err(failure);
+            return Err(ProbeFailure {
+                state: HostToolProbeState::Blocked,
+                message: failure.message,
+            });
         }
     };
     let total = Arc::new(AtomicU64::new(0));
@@ -437,7 +440,7 @@ fn run_fixed_probe(
 
 fn wait_for_probe(
     child: &mut std::process::Child,
-    process_group: &ProbeProcessGroup,
+    process_group: &crate::tool_process::ToolProcessGroup,
     deadline: Instant,
     exceeded: &mpsc::Receiver<()>,
     cancelled: impl Fn() -> bool,
@@ -682,103 +685,13 @@ fn spawn_output_reader(
     })
 }
 
-fn terminate_probe(child: &mut std::process::Child, process_group: &ProbeProcessGroup) {
+fn terminate_probe(
+    child: &mut std::process::Child,
+    process_group: &crate::tool_process::ToolProcessGroup,
+) {
     process_group.terminate(child);
     let _ = child.kill();
     let _ = child.wait();
-}
-
-#[cfg(unix)]
-struct ProbeProcessGroup;
-
-#[cfg(unix)]
-impl ProbeProcessGroup {
-    fn attach(_child: &std::process::Child) -> std::result::Result<Self, ProbeFailure> {
-        Ok(Self)
-    }
-
-    fn terminate(&self, child: &std::process::Child) {
-        unsafe {
-            libc::kill(-(child.id() as i32), libc::SIGKILL);
-        }
-    }
-}
-
-#[cfg(windows)]
-struct ProbeProcessGroup {
-    job: windows_sys::Win32::Foundation::HANDLE,
-}
-
-#[cfg(windows)]
-impl ProbeProcessGroup {
-    fn attach(child: &std::process::Child) -> std::result::Result<Self, ProbeFailure> {
-        use std::os::windows::io::AsRawHandle;
-        use windows_sys::Win32::System::JobObjects::{
-            AssignProcessToJobObject, CreateJobObjectW, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
-            JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JobObjectExtendedLimitInformation,
-            SetInformationJobObject,
-        };
-
-        unsafe {
-            let candidate = CreateJobObjectW(std::ptr::null(), std::ptr::null());
-            if candidate.is_null() {
-                return Err(process_group_failure());
-            }
-            let mut limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
-            limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-            let configured = SetInformationJobObject(
-                candidate,
-                JobObjectExtendedLimitInformation,
-                (&raw const limits).cast(),
-                std::mem::size_of_val(&limits) as u32,
-            );
-            if configured == 0 {
-                let failure = process_group_failure();
-                windows_sys::Win32::Foundation::CloseHandle(candidate);
-                return Err(failure);
-            }
-            if AssignProcessToJobObject(
-                candidate,
-                child.as_raw_handle() as windows_sys::Win32::Foundation::HANDLE,
-            ) == 0
-            {
-                let failure = process_group_failure();
-                windows_sys::Win32::Foundation::CloseHandle(candidate);
-                return Err(failure);
-            }
-            Ok(Self { job: candidate })
-        }
-    }
-
-    fn terminate(&self, _child: &std::process::Child) {
-        if !self.job.is_null() {
-            unsafe {
-                windows_sys::Win32::System::JobObjects::TerminateJobObject(self.job, 1);
-            }
-        }
-    }
-}
-
-#[cfg(windows)]
-fn process_group_failure() -> ProbeFailure {
-    ProbeFailure {
-        state: HostToolProbeState::Blocked,
-        message: format!(
-            "could not contain the fixed probe process tree: {}",
-            std::io::Error::last_os_error()
-        ),
-    }
-}
-
-#[cfg(windows)]
-impl Drop for ProbeProcessGroup {
-    fn drop(&mut self) {
-        if !self.job.is_null() {
-            unsafe {
-                windows_sys::Win32::Foundation::CloseHandle(self.job);
-            }
-        }
-    }
 }
 
 fn probe_result(
@@ -955,33 +868,7 @@ mod tests {
         );
     }
 
-    fn build_probe(directory: &Path) -> PathBuf {
-        let executable = directory.join(if cfg!(windows) {
-            "host_tool_probe.exe"
-        } else {
-            "host_tool_probe"
-        });
-        if let Some(prepared) = std::env::var_os("PORTCOVE_HOST_TOOL_FIXTURE") {
-            fs::copy(prepared, &executable).unwrap();
-            crate::permissions::normalize_archive_entry(&executable, false, true).unwrap();
-            return executable;
-        }
-        let source = directory.join("host_tool_probe.rs");
-        fs::write(&source, include_str!("testdata/host_tool_probe.rs.txt")).unwrap();
-        let mut rustc =
-            ChildProcessPolicy::native_command(ChildProcessClass::ManagedBuilder, "rustc").unwrap();
-        assert!(
-            rustc
-                .arg(&source)
-                .arg("-o")
-                .arg(&executable)
-                .status()
-                .unwrap()
-                .success()
-        );
-        crate::permissions::normalize_archive_entry(&executable, false, true).unwrap();
-        executable
-    }
+    use crate::test_fixture::build_probe;
 
     fn test_definition(arguments: &[&str]) -> HostToolDefinition {
         HostToolDefinition {

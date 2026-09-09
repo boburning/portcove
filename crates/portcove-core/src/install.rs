@@ -863,6 +863,41 @@ impl Installer {
         refreshed.runtime = runtime;
         Ok(refreshed)
     }
+
+    pub(crate) fn create_prepared_manifest(
+        &self,
+        original: &InstallRecord,
+        operation_id: &str,
+        qualification: &InstallQualification,
+        root: &Path,
+    ) -> Result<InstallRecord> {
+        let mut qualification = qualification.clone();
+        if let Some(runtime) = &original.runtime {
+            qualification.runtime_origin = runtime.origin;
+        }
+        qualification
+            .critical_paths
+            .push(crate::preparation::RECEIPT_FILE.into());
+        let (manifest_sha256, selected_executable, runtime) = write_manifest(
+            operation_id,
+            &original.port_id,
+            &original.version,
+            &original.artifact,
+            &qualification,
+            root,
+        )?;
+        Ok(InstallRecord {
+            id: operation_id.into(),
+            path: root.into(),
+            installed_at: Library::now(),
+            verified: true,
+            staged: false,
+            manifest_sha256,
+            selected_executable,
+            runtime,
+            ..original.clone()
+        })
+    }
 }
 
 fn write_manifest(

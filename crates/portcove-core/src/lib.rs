@@ -50,6 +50,9 @@ mod source_inbox;
 mod source_inspection;
 mod source_report;
 mod stfs;
+#[cfg(test)]
+mod test_fixture;
+mod tool_process;
 mod transfer_copy;
 mod transfer_journal;
 mod types;
@@ -136,4 +139,4 @@ pub use source_report::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 34;
+pub const API_SCHEMA_VERSION: u32 = 35;

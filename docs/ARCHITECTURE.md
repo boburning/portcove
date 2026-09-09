@@ -62,6 +62,24 @@ catalog output ownership is validated separately from existing artifact trust.
 This module introduces no job database, process runner, domain owner or crate
 dependency. Existing lifecycle execution remains unchanged by planning.
 
+Explicit core preparation copies a fully verified installation to a unique
+private directory, materializes its reviewed source, and runs only the admitted
+native setup executable with catalog arguments. It checks the declared generated
+output ownership and preserves executable, source and save identities before
+creating a derivative manifest and receipt. The existing lifecycle journal owns
+publication and recovery; no second job database or state owner is introduced.
+Publication preserves a separately staged update and retains the original
+installation as the previous version. Interrupted private work is retained for
+inspection; retry creates a new directory. Validated publication can recover only
+while its original inputs and operation identity still match.
+
+Native setup shares process-group handling with fixed host probes. Private
+preparation captures bounded diagnostics and observes cancellation while setup
+runs. The working directory and process group are not a sandbox. The legacy
+launch adapter is unchanged until explicit preparation is connected to launch
+readiness and both interfaces. This intermediate core API does not establish the
+complete prepare/launch user workflow or platform qualification.
+
 ## Monorepo and deliverable decision
 
 `portcove-release-tools` is an unpublished, offline repository tool for checking

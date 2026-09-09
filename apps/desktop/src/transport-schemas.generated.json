@@ -32,6 +32,7 @@
     "$defs": {
       "ActivityOperation": {
         "enum": [
+          "prepare",
           "update_catalog",
           "discover_sources",
           "import_source",

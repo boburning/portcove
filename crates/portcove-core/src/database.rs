@@ -10,7 +10,7 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior};
 
 use crate::{PortcoveError, Result};
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 18;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 19;
 
 struct Migration {
     version: i64,
@@ -127,6 +127,12 @@ const MIGRATIONS: &[Migration] = &[
         name: "recoverable source import",
         apply: migration_18,
         verify: verify_migration_18,
+    },
+    Migration {
+        version: 19,
+        name: "managed preparation journal",
+        apply: migration_19,
+        verify: verify_migration_19,
     },
 ];
 
@@ -804,6 +810,23 @@ fn verify_migration_18(connection: &Connection) -> Result<()> {
     require_columns(connection, "lifecycle_operations", &["source_import_json"])
 }
 
+fn migration_19(transaction: &Transaction<'_>) -> Result<()> {
+    if !table_columns(transaction, "lifecycle_operations")?
+        .iter()
+        .any(|column| column == "preparation_json")
+    {
+        transaction.execute(
+            "ALTER TABLE lifecycle_operations ADD COLUMN preparation_json TEXT",
+            [],
+        )?;
+    }
+    Ok(())
+}
+
+fn verify_migration_19(connection: &Connection) -> Result<()> {
+    require_columns(connection, "lifecycle_operations", &["preparation_json"])
+}
+
 fn verify_migration_11(connection: &Connection) -> Result<()> {
     require_columns(connection, "catalog_trust", &["key_id", "public_key"])?;
     require_columns(
@@ -988,6 +1011,7 @@ mod tests {
         schema_15: 15,
         schema_16: 16,
         schema_17: 17,
+        schema_18: 18,
     }
 
     #[test]

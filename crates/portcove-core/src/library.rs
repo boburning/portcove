@@ -1173,6 +1173,38 @@ impl Library {
         Ok(())
     }
 
+    /// Publish a prepared derivative without discarding a separately staged update.
+    pub(crate) fn register_prepared_install(
+        &self,
+        install: &InstallRecord,
+        original_id: &str,
+    ) -> Result<()> {
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction()?;
+        let current: Option<String> = transaction.query_row(
+            "SELECT active_install_id FROM port_settings WHERE port_id=?1",
+            [&install.port_id],
+            |row| row.get(0),
+        )?;
+        if !current
+            .as_deref()
+            .is_some_and(|id| id == original_id || id == install.id)
+        {
+            return Err(PortcoveError::conflict(
+                "active installation changed before preparation publication",
+            ));
+        }
+        Self::write_install(&transaction, install, false)?;
+        transaction.execute(
+            "UPDATE port_settings SET
+               previous_install_id=CASE WHEN active_install_id=?2 THEN previous_install_id ELSE active_install_id END,
+               active_install_id=?2 WHERE port_id=?1",
+            params![install.port_id, install.id],
+        )?;
+        transaction.commit()?;
+        Ok(())
+    }
+
     pub fn status(&self, port_id: &str, default_channel: ReleaseChannel) -> Result<PortStatus> {
         self.statuses_with_metrics(&[(port_id.to_owned(), default_channel)])?
             .0

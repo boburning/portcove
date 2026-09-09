@@ -3,6 +3,7 @@
 
 export type CancellationPhase = "preparing" | "finishing";
 export type ActivityOperation =
+  | "prepare"
   | "update_catalog"
   | "discover_sources"
   | "import_source"
