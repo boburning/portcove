@@ -43,8 +43,7 @@ export function ActivityDiagnostic({ activityId, generation }: { activityId: str
         void copyText(JSON.stringify(capture, null, 2))
           .then(() => { if (request.current === current) setCopied(true); })
           .catch(() => { if (request.current === current) setCopied(false); });
-      }}>{copied ? "Copied" : "Copy retained log"}</button>
-    </>}
+      }}>{copied ? "Copied" : "Copy retained log"}</button>}
     <button data-focusable disabled={pending} onClick={() => { void load(); }}>Refresh captured log</button>
   </details>;
 }

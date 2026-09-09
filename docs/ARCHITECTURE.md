@@ -72,8 +72,9 @@ The caller constructs a policy-admitted command and supplies cancellation and,
 for managed preparation, a phase-bound diagnostic sink. Host-tool and upstream
 setup executable policies remain distinct. Cancellation or diagnostic failure
 stops the owned process tree before returning. Failed conversion keeps its
-temporary output private; the destination and source identity marker are only
-published after successful conversion, cancellation checks and verification.
+temporary output private. The private destination is replaced only after successful
+conversion and a cancellation check; its source identity marker is written after
+required output-hash verification.
 This extends an existing core responsibility without introducing another runner,
 scheduler, domain owner, dependency or trust grant.
 

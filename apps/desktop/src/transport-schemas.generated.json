@@ -289,6 +289,45 @@
   },
   "activity_diagnostic": {
     "$defs": {
+      "ActivityDiagnostic": {
+        "properties": {
+          "activity_id": {
+            "type": "string"
+          },
+          "complete": {
+            "description": "Both streams reached EOF and the process owner recorded the final capture.",
+            "type": "boolean"
+          },
+          "phase": {
+            "type": "string"
+          },
+          "stderr": {
+            "$ref": "#/$defs/DiagnosticStream"
+          },
+          "stdout": {
+            "$ref": "#/$defs/DiagnosticStream"
+          },
+          "stream_limit_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "activity_id",
+          "phase",
+          "stdout",
+          "stderr",
+          "complete",
+          "updated_at",
+          "stream_limit_bytes"
+        ],
+        "type": "object"
+      },
       "DiagnosticStream": {
         "properties": {
           "observed_bytes": {
@@ -312,44 +351,11 @@
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "properties": {
-      "activity_id": {
-        "type": "string"
-      },
-      "complete": {
-        "description": "Both streams reached EOF and the process owner recorded the final capture.",
-        "type": "boolean"
-      },
-      "phase": {
-        "type": "string"
-      },
-      "stderr": {
-        "$ref": "#/$defs/DiagnosticStream"
-      },
-      "stdout": {
-        "$ref": "#/$defs/DiagnosticStream"
-      },
-      "stream_limit_bytes": {
-        "format": "uint64",
-        "minimum": 0,
-        "type": "integer"
-      },
-      "updated_at": {
-        "format": "int64",
-        "type": "integer"
-      }
+    "items": {
+      "$ref": "#/$defs/ActivityDiagnostic"
     },
-    "required": [
-      "activity_id",
-      "phase",
-      "stdout",
-      "stderr",
-      "complete",
-      "updated_at",
-      "stream_limit_bytes"
-    ],
-    "title": "ActivityDiagnostic",
-    "type": "object"
+    "title": "Array_of_ActivityDiagnostic",
+    "type": "array"
   },
   "adoption_preview": {
     "$defs": {

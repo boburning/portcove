@@ -43,6 +43,7 @@ export type ActivityOperation =
   | "verify_source";
 export type ActivityStatus = "running" | "succeeded" | "failed" | "cancelled";
 export type ActivityTargetKind = "port" | "source" | "library";
+export type OutputActivityDiagnostic = ActivityDiagnostic[];
 export type ReleaseChannel = "stable" | "beta" | "rolling";
 export type RuntimeOrigin = "verified_download" | "adopted_tree";
 /**
@@ -467,7 +468,7 @@ export interface FailurePresentation {
   tone: FailureTone;
   [k: string]: unknown;
 }
-export interface OutputActivityDiagnostic {
+export interface ActivityDiagnostic {
   activity_id: string;
   /**
    * Both streams reached EOF and the process owner recorded the final capture.
