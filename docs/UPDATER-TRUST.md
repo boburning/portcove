@@ -232,7 +232,9 @@ No private-key fixture, production endpoint or updater plugin is shipped.
 
 Fixtures cover quorum and dual-root continuity, one-key loss, insufficient/online
 key rejection, skipped/missing bridges, revoked online signatures, persistent replay,
-expiry and target tamper. Simplified local roles and non-consistent filenames keep
+expiry, equal-length target tamper and a separately signed channel delegation.
+The channel fixture refuses the release key and reads promotion bytes through the
+actual delegated verifier. Simplified local roles and non-consistent filenames keep
 the key-lifecycle scenarios bounded. A user-data sentinel establishes only that
 metadata failures preserve that file, not binary rollback or save migration.
 Network policy, full production role layout, payloads, compatibility/journal and

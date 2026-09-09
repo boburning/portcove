@@ -21,7 +21,12 @@ async fn rotation_survives_one_lost_offline_key_and_revokes_old_online_key() {
     let stolen_timestamp = fs::read(f.metadata.join("timestamp.json")).unwrap();
 
     let replacement = Key::new(f.directory.path()).await;
-    let new = f.root(2, &f.offline, &replacement).await;
+    let replacement_offline = [
+        Key::new(f.directory.path()).await,
+        f.offline[1].clone(),
+        f.offline[2].clone(),
+    ];
+    let new = f.root(2, &replacement_offline, &replacement).await;
     // One offline key is unavailable. The remaining two satisfy the old and new quorum.
     let bridge = f.sign_root(&new, &old, &f.offline[1..]).await;
     fs::write(f.metadata.join("2.root.json"), &bridge).unwrap();
@@ -31,7 +36,13 @@ async fn rotation_survives_one_lost_offline_key_and_revokes_old_online_key() {
 
     fs::write(f.metadata.join("timestamp.json"), stolen_timestamp).unwrap();
     assert!(
-        f.load(&bridge).await.is_err(),
+        matches!(
+            f.load(&bridge).await,
+            Err(Error::VerifyMetadata {
+                role: RoleType::Timestamp,
+                ..
+            })
+        ),
         "revoked online signatures must fail"
     );
 }
@@ -163,9 +174,14 @@ async fn release_record_tampering_is_rejected_before_consumption() {
         .await
         .unwrap();
     assert!(!bytes.is_empty());
-    fs::write(f.targets.join("release.json"), b"untrusted replacement").unwrap();
+    let mut tampered = bytes.concat();
+    tampered[0] ^= 1;
+    fs::write(f.targets.join("release.json"), tampered).unwrap();
     let stream = repo.read_target(&name).await.unwrap().unwrap();
-    assert!(stream.try_collect::<Vec<_>>().await.is_err());
+    assert!(matches!(
+        stream.try_collect::<Vec<_>>().await,
+        Err(Error::HashMismatch { .. })
+    ));
 }
 
 #[tokio::test]
