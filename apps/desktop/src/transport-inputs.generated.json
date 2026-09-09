@@ -1,0 +1,151 @@
+{
+  "catalog_update_source": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "oneOf": [
+      {
+        "properties": {
+          "kind": {
+            "const": "file",
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "value"
+        ],
+        "type": "object"
+      },
+      {
+        "properties": {
+          "kind": {
+            "const": "https",
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "value"
+        ],
+        "type": "object"
+      }
+    ],
+    "title": "CatalogUpdateSource"
+  },
+  "source_discovery_limits": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "max_candidates": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "max_depth": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "max_entries": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "max_file_bytes": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "max_hash_bytes": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "max_entries",
+      "max_depth",
+      "max_file_bytes",
+      "max_hash_bytes",
+      "max_candidates"
+    ],
+    "title": "SourceDiscoveryLimits",
+    "type": "object"
+  },
+  "source_discovery_request": {
+    "$defs": {
+      "SourceDiscoveryLimits": {
+        "properties": {
+          "max_candidates": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "max_depth": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "max_entries": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "max_file_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "max_hash_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "max_entries",
+          "max_depth",
+          "max_file_bytes",
+          "max_hash_bytes",
+          "max_candidates"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "limits": {
+        "$ref": "#/$defs/SourceDiscoveryLimits",
+        "default": {
+          "max_candidates": 64,
+          "max_depth": 6,
+          "max_entries": 10000,
+          "max_file_bytes": 2147483648,
+          "max_hash_bytes": 17179869184
+        }
+      },
+      "profile_ids": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "roots": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "roots",
+      "profile_ids"
+    ],
+    "title": "SourceDiscoveryRequest",
+    "type": "object"
+  }
+}

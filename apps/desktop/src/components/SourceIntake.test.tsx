@@ -7,7 +7,7 @@ import * as picker from "../file-picker";
 import type { HostToolStatus, SourceInspectionReport, SourceIntakeInspection, SourceProfile, SourceRecord } from "../types";
 import { SourceIntakeDialog, type SourceIntakeRequest } from "./SourceIntake";
 
-const profile: SourceProfile = { id: "game", label: "Owned game source", kind: "file", accepted_extensions: ["z64"], accepted_sha1: [], accepted_sha256: [], members: [] };
+const profile: SourceProfile = { id: "game", label: "Owned game source", kind: "file", accepted_extensions: ["z64"], accepted_sha1: [], accepted_sha256: [], disc: null, members: [] };
 const record = (path: string): SourceRecord => ({ profile_id: profile.id, path, sha256: "a".repeat(64), size: 64, storage_sha256: "a".repeat(64), storage_size: 64, updated_at: 1 });
 const report = (path: string): SourceInspectionReport => ({
   schema_version: 1,
@@ -91,7 +91,7 @@ describe("source intake dialog", () => {
     const tool: HostToolStatus = {
       id: "chdman",
       display_name: "chdman",
-      state: "missing",
+      state: "missing", path: null, source: null,
       configuration_variable: "PORTCOVE_CHDMAN",
       purpose: "CHD validation and disc-image materialization",
       official_url: "https://docs.mamedev.org/tools/chdman.html",

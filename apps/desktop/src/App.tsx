@@ -91,7 +91,7 @@ function Workspace({ bootstrap, switchLibrary, resetLibrary }: { bootstrap: Boot
   const [sourceIntake, setSourceIntake] = useState<SourceIntakeRequest>();
   const openSourceIntake = useCallback((portId: string, profileId: string, paths: string[] = []) => {
     const port = data.catalog?.ports.find(candidate => candidate.id === portId);
-    const profile = data.catalog?.source_profiles.find(candidate => candidate.id === profileId);
+    const profile = data.catalog?.source_profiles?.find(candidate => candidate.id === profileId);
     if (port && profile) setSourceIntake({ portId, portName: port.name, profile, paths });
   }, [data.catalog]);
   const nativeSourceDrag = useNativeSourceDrop(drop => openSourceIntake(drop.portId, drop.profileId, drop.paths));
@@ -175,9 +175,9 @@ function selectedPort(data: DataState, selectedId: string | undefined, statuses:
     port,
     status: statuses.get(port.id),
     source: data.sources.find(source => source.profile_id === port.source_profile),
-    sourceProfile: data.catalog?.source_profiles.find(profile => profile.id === port.source_profile),
+    sourceProfile: data.catalog?.source_profiles?.find(profile => profile.id === port.source_profile),
     bios: data.sources.find(source => source.profile_id === port.bios_source_profile),
-    biosProfile: data.catalog?.source_profiles.find(profile => profile.id === port.bios_source_profile),
+    biosProfile: data.catalog?.source_profiles?.find(profile => profile.id === port.bios_source_profile),
   };
 }
 
@@ -190,7 +190,7 @@ function CurrentView({ data, ui, model, operations, github, updates, sourceHealt
   if (ui.view === "updates") return <UpdateCenter ports={data.catalog?.ports ?? []} statuses={model.statusMap} activities={data.activities} outcomes={updates.outcomes} actions={updates.actions} busy={operations.busy}
     checkAll={() => { void updates.checkAll(); }} applyPolicies={() => { void updates.applyPolicies(); }} onSelect={ui.setSelectedId} onOpenSources={() => ui.setView("settings")} />;
   if (ui.view === "settings") return <SettingsView doctor={data.doctor} storage={data.storage} github={github} busy={operations.busy} sources={data.sources} appearance={appearance}
-    librarySelection={bootstrap.selection} chooseLibrary={pickLibraryFolder} switchLibrary={switchLibrary} resetLibrary={resetLibrary}
+    librarySelection={bootstrap.selection ?? undefined} chooseLibrary={pickLibraryFolder} switchLibrary={switchLibrary} resetLibrary={resetLibrary}
     sourceProfiles={data.catalog?.source_profiles ?? []} onSourceAdded={data.refresh} onCatalogChanged={data.refresh}
     hostToolActions={hostToolActions}
     createSupportBundle={() => operations.perform("support bundle", desktopApi.createSupportBundle)}
@@ -199,7 +199,7 @@ function CurrentView({ data, ui, model, operations, github, updates, sourceHealt
       return path ? desktopApi.exportLibraryMetadata(path) : undefined;
     })}
     sourceOutcomes={sourceHealth.outcomes} sourceInspections={sourceHealth.inspections} verifySources={() => { void sourceHealth.verifyAll(); }} openSourceEvidence={evidenceId => { void operations.perform("open source evidence", () => desktopApi.openSourceEvidence(evidenceId)); }} replaceSource={source => {
-      const profile = data.catalog?.source_profiles.find(candidate => candidate.id === source.profile_id);
+      const profile = data.catalog?.source_profiles?.find(candidate => candidate.id === source.profile_id);
       void replaceRegisteredSource(profile, source, operations.perform, operations.setError);
     }} sourceNeeds={model.sourceNeeds} addSource={(profile, archive) => {
       void addRequiredSource(profile, archive, operations.perform, operations.setError);

@@ -90,9 +90,9 @@ function ErrorNotice({ error, clearError }: { error: string; clearError: () => v
 }
 
 function OperationProgress({ operation, busy }: { operation?: OperationEvent; busy: string }) {
-  const label = operation?.message ?? operation?.phase ?? operation?.operation ?? busy;
-  if (operation?.total && operation.total > 0 && operation.completed !== undefined) {
-    return <DeterminateProgress operation={operation} label={label} total={operation.total} completed={operation.completed} />;
+  const label = operation?.type === "message" ? operation.message : operation?.type === "progress" ? operation.phase : operation?.operation ?? busy;
+  if (operation?.type === "progress" && operation.total !== null && operation.total > 0) {
+    return <DeterminateProgress label={label} total={operation.total} completed={operation.completed} />;
   }
   return <div className="operation-bar" aria-live="polite">
     <span className="operation-icon"><Icon glyph={LoaderCircle} /></span>
@@ -101,12 +101,12 @@ function OperationProgress({ operation, busy }: { operation?: OperationEvent; bu
   </div>;
 }
 
-function DeterminateProgress({ operation, label, total, completed }: { operation: OperationEvent; label: string; total: number; completed: number }) {
+function DeterminateProgress({ label, total, completed }: { label: string; total: number; completed: number }) {
   const progress = Math.min(100, (completed / total) * 100);
   return <div className="operation-bar" aria-live="polite">
       <span className="operation-icon"><Icon glyph={LoaderCircle} /></span>
       <div className="operation-copy"><strong>{operationLabel(label)}</strong><span>{completed.toLocaleString()} of {total.toLocaleString()}</span></div>
-      <div className="progress-track" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={operation.total} aria-valuenow={operation.completed}><i style={{ width: `${progress}%` }} /></div>
+      <div className="progress-track" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={total} aria-valuenow={completed}><i style={{ width: `${progress}%` }} /></div>
     </div>;
 }
 

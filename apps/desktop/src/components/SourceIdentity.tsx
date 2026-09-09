@@ -119,7 +119,7 @@ function Qualification({ report }: { report: SourceInspectionReport }) {
 }
 
 function expectedGroups(representation: SourceRepresentation): Array<{ label: string; identities: DigestIdentity[] }> {
-  if ("identities" in representation) return [{ label: representation.id, identities: representation.identities }];
+  if (representation.kind === "raw-file" || representation.kind === "canonical-n64" || representation.kind === "archive-member" || representation.kind === "gamecube-normalized-iso" || representation.kind === "optical-track-set" || representation.kind === "compound") return [{ label: representation.id, identities: representation.identities }];
   if (representation.kind === "file-set") return representation.members.map(member => ({ label: `${member.label} · ${member.filenames.join(", ")}`, identities: member.identities }));
   if (representation.kind === "multi-disc-set") return representation.discs.map(disc => ({ label: `${disc.label} · ${disc.track_counts.join("/")} tracks`, identities: disc.identities }));
   return [];

@@ -41,7 +41,7 @@ function report(stateCode = "recognized_exact"): SourceInspectionReport {
         { id: "disc-1", kind: "optical_disc", name: "Disc 1", digests: [{ algorithm: "sha1", scope: "disc-set-member", value: "e".repeat(40), size: 2048 }], size: 2048, track_count: 12, volume_id: "GAME_DISC_1" },
       ],
       assessment: { health: "current", classification, contract: { state: "supported", contract_id: "game-port" }, admission, evidence: [] },
-      message: "Checked locally",
+      message: "Checked locally", record: null,
     },
     problem: stateCode === "source_missing" ? { code: "not_found", message: "The registered file is missing." } : undefined,
     expected_identity: {

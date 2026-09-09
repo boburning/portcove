@@ -56,7 +56,7 @@ export function UpdateCenter({ ports, statuses, activities, outcomes, actions, b
   </section>;
 }
 
-function releaseLabel(check?: UpdateCheck) {
+function releaseLabel(check?: UpdateCheck | null) {
   if (!check) return "—";
   const runtimeOnly = check.update_available && check.installed_artifact?.sha256 === check.release.asset.sha256
     && JSON.stringify(check.installed_runtime ?? null) !== JSON.stringify(check.required_runtime ?? null);
