@@ -36,7 +36,12 @@ export function ActivityDiagnostic({ activityId, generation }: { activityId: str
       <p>Last saved: {new Date(capture.updated_at * 1000).toLocaleString()}</p>
       <h3>Standard output</h3><pre tabIndex={0} aria-label="Preparation standard output">{capture.stdout.text || "No standard output was captured."}</pre>
       <h3>Standard error</h3><pre tabIndex={0} aria-label="Preparation standard error">{capture.stderr.text || "No standard error was captured."}</pre>
-      <button data-focusable onClick={() => { void copyText(JSON.stringify(capture, null, 2)).then(() => setCopied(true)).catch(() => setCopied(false)); }}>{copied ? "Copied" : "Copy retained log"}</button>
+      <button data-focusable onClick={() => {
+        const current = request.current;
+        void copyText(JSON.stringify(capture, null, 2))
+          .then(() => { if (request.current === current) setCopied(true); })
+          .catch(() => { if (request.current === current) setCopied(false); });
+      }}>{copied ? "Copied" : "Copy retained log"}</button>
     </>}
     <button data-focusable disabled={pending} onClick={() => { void load(); }}>Refresh captured log</button>
   </details>;
