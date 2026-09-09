@@ -51,6 +51,9 @@ importers:
       selenium-webdriver:
         specifier: 4.48.0
         version: 4.48.0
+      semver:
+        specifier: 7.8.5
+        version: 7.8.5
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -977,6 +980,11 @@ packages:
     resolution: {integrity: sha512-rKM9uXFRWcF9aThrZQDNQH2/9Et/WvMZbg3/x1rnSYWoXiwJuShYeH0IAli8Cuw+c3lEV0UWPfUz88H+fvW9Hg==}
     engines: {node: '>= 22.0.0'}
 
+  semver@7.8.5:
+    resolution: {integrity: sha512-Y7/KDsb8LjooZpwaqGyulO6DQlksgCncchHGk+sZIY4SBvUocMBEFH5Ur1fI4dV+Jvl0w6cjvucaIi40puRioA==}
+    engines: {node: '>=10'}
+    hasBin: true
+
   setimmediate@1.0.5:
     resolution: {integrity: sha512-MATJdZp8sLqDl/68LfQmbP8zKPLQNV6BIZoIgrscFDQ+RsvK/BxeDQOgyxKKoh0y/8h3BqVFnCqQ/gd+reiIXA==}
 
@@ -1868,6 +1876,8 @@ snapshots:
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
+
+  semver@7.8.5: {}
 
   setimmediate@1.0.5: {}
 
