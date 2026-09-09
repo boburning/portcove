@@ -4,6 +4,16 @@ Without a machine-output flag, Portcove renders concise human output. Catalog, s
 
 `--json` and `--jsonl` remain the stable automation surfaces and are byte-shape independent from human rendering. Use `--json catalog export` and `--json schema export` when consuming their full documents programmatically.
 
+`schema export --contract input` describes values accepted by Rust deserialization,
+including omitted fields with defaults. `schema export --contract output`
+describes serialized values, including required emitted fields, nullable values
+and fields omitted by serialization rules. The default remains `input` for
+compatibility. Both modes export the same named schema inventory through
+`schema.export`, and neither opens a library. Use the output contract when
+checking response consumers; an input default does not mean an output field
+will be absent. These are JSON shape contracts, not operation authorization or
+validation of filesystem/network state.
+
 The public CLI is the supported boundary for external frontends; the desktop is
 not required to run it. [External frontend integration](INTEGRATIONS.md) defines
 the launch-only, library, and lifecycle capability vocabulary, maintenance and
