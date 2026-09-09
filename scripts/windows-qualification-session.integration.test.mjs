@@ -53,9 +53,10 @@ class Uninstaller { static int Main() { var delay = Environment.GetEnvironmentVa
   const uninstaller = path.join(artifacts, "uninstaller.exe");
   execFileSync(csc, ["/nologo", `/out:${uninstaller}`, uninstallerSource], { windowsHide: true });
   const sleeperSource = path.join(root, "sleeper.cs");
-  writeFileSync(sleeperSource, "using System; using System.Threading; class Sleeper { static void Main() { Thread.Sleep(Int32.Parse(Environment.GetEnvironmentVariable(\"PORTCOVE_FIXTURE_SLEEP_MS\") ?? \"10000\")); } }\n");
+  writeFileSync(sleeperSource, "using System; using System.IO; using System.Diagnostics; using System.Threading; class Sleeper { static void Main() { var ready = Environment.GetEnvironmentVariable(\"PORTCOVE_FIXTURE_READY\"); if (ready != null) File.WriteAllText(ready, Process.GetCurrentProcess().Id.ToString()); Thread.Sleep(Int32.Parse(Environment.GetEnvironmentVariable(\"PORTCOVE_FIXTURE_SLEEP_MS\") ?? \"10000\")); } }\n");
   const sleeper = path.join(artifacts, "sleeper.exe");
-  execFileSync(csc, ["/nologo", `/out:${sleeper}`, sleeperSource], { windowsHide: true });
+  // This process must outlive its launcher, independently of console teardown.
+  execFileSync(csc, ["/nologo", "/target:winexe", `/out:${sleeper}`, sleeperSource], { windowsHide: true });
   return root;
 }
 
@@ -466,18 +467,23 @@ test("a killed real lifecycle runner leaves readable inner WAL and outer ambigui
   rmSync(evidencePath);
   const ownedSleeper = path.join(item.session, "inputs", "lifecycle-sleeper.exe");
   copyFileSync(item.sleeper, ownedSleeper);
-  const runner = spawn("pwsh.exe", ["-NoLogo", "-NoProfile", "-File", installerLifecycleTool, "-InstallerPath", ownedSleeper, "-UpgradeFromInstallerPath", ownedSleeper, "-TestBase", path.join(item.session, "installer-work"), "-EvidencePath", evidencePath], { windowsHide: true, env: { ...process.env, PORTCOVE_FIXTURE_SLEEP_MS: "12000", PORTCOVE_PREFERENCES: path.join(item.session, "state", "preferences.json") }, stdio: "ignore" });
+  const ready = path.join(item.root, "sleeper-ready.txt");
+  const runner = spawn("pwsh.exe", ["-NoLogo", "-NoProfile", "-File", installerLifecycleTool, "-InstallerPath", ownedSleeper, "-UpgradeFromInstallerPath", ownedSleeper, "-TestBase", path.join(item.session, "installer-work"), "-EvidencePath", evidencePath], { windowsHide: true, env: { ...process.env, PORTCOVE_FIXTURE_SLEEP_MS: "12000", PORTCOVE_FIXTURE_READY: ready, PORTCOVE_PREFERENCES: path.join(item.session, "state", "preferences.json") }, stdio: ["ignore", "ignore", "pipe"] });
+  let diagnostics = "";
+  runner.stderr.on("data", chunk => { diagnostics = (diagnostics + chunk).slice(-8192); });
   let evidence;
   const deadline = Date.now() + 15_000;
   while (Date.now() < deadline) {
     if (existsSync(evidencePath)) {
       try { evidence = JSON.parse(readFileSync(evidencePath, "utf8")); } catch {}
-      if (evidence?.process_runs?.[0]?.status === "running") break;
+      if (evidence?.process_runs?.[0]?.status === "running" && evidence.process_runs[0].image_observation && existsSync(ready)) break;
     }
+    if (runner.exitCode !== null) break;
     await new Promise(resolve => setTimeout(resolve, 100));
   }
-  assert.equal(evidence.process_runs[0].role, "predecessor_installer");
+  assert.equal(evidence?.process_runs?.[0]?.role, "predecessor_installer", JSON.stringify({ evidence, diagnostics, runner_exit: runner.exitCode }));
   assert.equal(evidence.process_runs[0].status, "running");
+  assert.equal(Number(readFileSync(ready, "utf8")), evidence.process_runs[0].pid);
   assert.equal(evidence.process_runs[0].executable_sha256, sha256(ownedSleeper));
   execFileSync("taskkill.exe", ["/PID", String(runner.pid), "/F"], { windowsHide: true, stdio: "ignore" });
   const ambiguous = runPowerShell(["-Action", "abort", "-SessionRoot", item.session]);
