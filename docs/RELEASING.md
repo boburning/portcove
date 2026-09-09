@@ -104,6 +104,13 @@ Two custom refs, `refs/portcove/prepared-versions/vVERSION` and
 commit binds the source, tree and classification digest. Identical retries return
 that same commit; conflicting intent, version reuse and incomplete receipts fail
 closed. Prepared bytes require their own validation and review before publication.
+Receipt verification holds both Git ref locks, so concurrent publication of the
+receipt pair cannot be mistaken for an incomplete allocation. Lock acquisition
+is bounded to one second per Git attempt; a still-locked coordinator fails and
+can be retried after the owning operation finishes. Git object creation uses
+hard links to preserve existing objects during concurrent identical writes.
+The coordinator filesystem must support that operation; unsupported filesystems
+fail instead of switching to overwriting existing objects.
 
 Allocation is serialized within one coordinating Git repository and its linked
 worktrees. These immutable preparation receipts are not a live roadmap or a
