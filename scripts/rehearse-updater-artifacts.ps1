@@ -27,7 +27,7 @@ $privateKey = Join-Path $runRoot "disposable.key"
 $publicKey = "$privateKey.pub"
 $bundleRoot = Join-Path $root "target/release/bundle"
 $cliRoot = Join-Path $root "release-assets"
-$bundles = if ($IsWindows) { "nsis" } elseif ($IsLinux) { "appimage,deb,rpm" } else { "dmg" }
+$bundles = if ($IsWindows) { "nsis" } elseif ($IsLinux) { "appimage,deb,rpm" } else { "app,dmg" }
 $suffix = if ($IsWindows) { ".exe" } else { "" }
 $verifier = Join-Path $root "target/release/portcove-release-tools$suffix"
 

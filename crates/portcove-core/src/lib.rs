@@ -7,6 +7,8 @@ mod catalog;
 mod catalog_store;
 mod catalog_update;
 mod database;
+#[cfg(test)]
+mod definition_policy_tests;
 mod durability;
 mod error;
 mod gitlab;
@@ -91,7 +93,11 @@ pub use portability::{
 pub use process::{ChildProcessClass, ChildProcessPolicy, GameProcessSpec, LaunchKind, LaunchSpec};
 pub use providers::CompositeReleaseProvider;
 pub use psx::PsxManagedPreparation;
-pub use release::{GithubReleaseProvider, ReleaseProvider};
+pub use release::{
+    GithubReleaseProvider, ObservationEvidence, ObservedReleaseIdentity, ObservedResolution,
+    ReleaseProvider, UpstreamChannelObservation, UpstreamObservationReport,
+    inspect_upstream_observation,
+};
 pub use service::{
     AdoptionCopyFile, AdoptionCopyPlan, AdoptionPreview, AdoptionSkippedEntry, BackupAction,
     BackupActionPreview, IdentifiedLaunchRequest, InstallOverrides, PortRemovalPreview,

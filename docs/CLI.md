@@ -4,6 +4,16 @@ Without a machine-output flag, Portcove renders concise human output. Catalog, s
 
 `--json` and `--jsonl` remain the stable automation surfaces and are byte-shape independent from human rendering. Use `--json catalog export` and `--json schema export` when consuming their full documents programmatically.
 
+`schema export --contract input` describes values accepted by Rust deserialization,
+including omitted fields with defaults. `schema export --contract output`
+describes serialized values, including required emitted fields, nullable values
+and fields omitted by serialization rules. The default remains `input` for
+compatibility. Both modes export the same named schema inventory through
+`schema.export`, and neither opens a library. Use the output contract when
+checking response consumers; an input default does not mean an output field
+will be absent. These are JSON shape contracts, not operation authorization or
+validation of filesystem/network state.
+
 The public CLI is the supported boundary for external frontends; the desktop is
 not required to run it. [External frontend integration](INTEGRATIONS.md) defines
 the launch-only, library, and lifecycle capability vocabulary, maintenance and
@@ -32,6 +42,15 @@ Argument-parser failures also use the machine envelope when `--json` or `--jsonl
 The compiled-binary machine contract is exercised on both Windows and Linux CI. These tests treat stdout line count, envelope fields, nested command names, JSONL completion, parser behavior, and exit codes as public integration behavior rather than implementation details.
 
 ## Standalone package and focused build
+
+`catalog inspect-observation <port-id> <file> --repository-id <numeric-id>`
+inspects an inert format-1 GitHub observation using the embedded catalog and
+shared core release policy, without network access or opening a library. Its
+machine command is `catalog.inspect-observation`; `schema export` includes the
+additive `upstream_observation_report` format-1 contract. Results distinguish
+observed facts, metadata eligibility and unassessed trust/admission. See
+[Configured upstream observations](UPSTREAM-OBSERVATIONS.md) for bounds,
+comparison inputs, hold reasons and operational evidence.
 
 Released CLI downloads are named `portcove-cli-<version>-<platform>` and contain
 one executable named `portcove` (`portcove.exe` on Windows). The CLI runs without

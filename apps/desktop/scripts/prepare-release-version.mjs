@@ -11,7 +11,9 @@ function repositoryGit(repository, environment = {}) {
   // Candidate contents are read as blobs. No checkout, hooks, filters, build
   // scripts, real index or caller-controlled Git environment is executed.
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_")));
-  return (args, input) => execFileSync("git", ["-C", repository, "-c", `core.hooksPath=${process.platform === "win32" ? "NUL" : "/dev/null"}`, "-c", "core.fsmonitor=false", "-c", "commit.gpgSign=false", "-c", "i18n.commitEncoding=UTF-8", ...args], {
+  // Link-based object creation preserves existing content when simultaneous
+  // preparations write identical objects (including on Windows).
+  return (args, input) => execFileSync("git", ["-C", repository, "-c", `core.hooksPath=${process.platform === "win32" ? "NUL" : "/dev/null"}`, "-c", "core.fsmonitor=false", "-c", "core.createObject=link", "-c", "commit.gpgSign=false", "-c", "i18n.commitEncoding=UTF-8", ...args], {
     encoding: "utf8", input, env: { ...env, GIT_NO_REPLACE_OBJECTS: "1", ...environment },
     windowsHide: true, timeout: 30_000, maxBuffer: 8 * 1024 * 1024, stdio: ["pipe", "pipe", "pipe"],
   });
@@ -84,11 +86,11 @@ function allocationRefs(proposal) {
   return [`refs/portcove/prepared-versions/v${proposal.version}`, `refs/portcove/prepared-commits/${proposal.source_commit}`];
 }
 
-function readAllocation(git, refs, preparedCommit) {
-  const values = refs.map(ref => git(["for-each-ref", "--format=%(objectname)", ref]).trim());
-  if (values.every(value => !value)) return false;
-  if (values.some(value => value !== preparedCommit)) throw new Error("version or source commit already allocated to a different preparation");
-  return true;
+function allocationTransaction(git, refs, preparedCommit, operation) {
+  // Readers of multiple loose refs can observe part of a committed transaction.
+  // Verify under the same locks used for creation, with bounded lock contention.
+  git(["-c", "core.filesRefLockTimeout=1000", "update-ref", "--no-deref", "--stdin"],
+    `start\n${refs.map(ref => `${operation} ${ref} ${preparedCommit}`).join("\n")}\nprepare\ncommit\n`);
 }
 
 async function preparedTree(repository, proposal) {
@@ -127,16 +129,19 @@ export async function prepareReleaseVersion(repository, classification, publishe
   });
   const preparedCommit = commitGit(["commit-tree", tree, "-p", proposal.source_commit], `Prepare application ${proposal.version}\n\nPortcove-Preparation-SHA256: ${intentHash}\n${intent}\n`).trim();
   const refs = allocationRefs(proposal);
-  if (!readAllocation(git, refs, preparedCommit)) {
+  try {
+    allocationTransaction(git, refs, preparedCommit, "create");
+  } catch (creationError) {
     try {
-      git(["update-ref", "--no-deref", "--stdin"], `start\n${refs.map(ref => `create ${ref} ${preparedCommit}`).join("\n")}\nprepare\ncommit\n`);
+      // A concurrent identical request can create both receipts first. Verify
+      // both together; never fill in a partial receipt or overwrite a conflict.
+      allocationTransaction(git, refs, preparedCommit, "verify");
     } catch (error) {
-      // Concurrent identical requests may win the same transaction. A conflict,
-      // interrupted/partial receipt or different intent must remain a failure.
-      if (!readAllocation(git, refs, preparedCommit)) throw error;
+      throw new Error("version or source commit already allocated differently, incomplete, or locked", {
+        cause: new AggregateError([creationError, error], "receipt creation and verification failed"),
+      });
     }
   }
-  if (!readAllocation(git, refs, preparedCommit)) throw new Error("preparation readback failed");
   return { ...proposal, prepared_commit: preparedCommit, prepared_tree: tree, intent_sha256: intentHash, allocation_refs: refs };
 }
 

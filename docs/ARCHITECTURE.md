@@ -1,5 +1,10 @@
 # Architecture
 
+The [independent definition delivery contract](DEFINITION-DELIVERY.md) keeps
+successor definition admission, retained source/execution/persistence contracts
+and operation eligibility in core. Its executable examples are test-only design
+fixtures; the implemented format-1 loader and lifecycle boundaries are unchanged.
+
 Portcove currently has one authority for catalog, source, release, installation, update, rollback, persistence, recovery, and launch behavior: `portcove-core`. The CLI and Tauri backend are thin adapters around it. The React frontend invokes Tauri commands and never owns installation state. External frontends use the public CLI and own only their presentation and platform-facing translation; they do not become another game-management authority.
 
 ```text
@@ -23,6 +28,13 @@ This document records the architecture Portcove tests today; it is not a promise
 Make such changes as one reviewed migration: explain the pressure and tradeoffs here, assign one owner to every durable state transition, update `scripts/check-rust-architecture.mjs` and its tests, and remove the superseded route. Safety invariants, machine-readable CLI compatibility, and rollback behavior remain hard constraints. File size, a complexity score, or a desire to make a tool green is not sufficient evidence by itself.
 
 In this document, “thin adapter” means that the CLI and desktop do not reimplement catalog, installation, release, source, or library policy. Adapters may own concerns that exist only at their boundary, including argument and IPC translation, native dialogs, credential-store access, process attachment, and presentation-shaped aggregation. If a boundary concern becomes reusable domain behavior, move it behind the shared authority instead of copying it.
+
+The CLI's schema module assembles the transport schema inventory from existing
+Rust `JsonSchema`/Serde definitions. Explicit input and output contracts use
+Schemars' deserialization and serialization modes; a default accepted on input
+does not remove a field from emitted output. This host-facing export performs
+no domain validation and opens no library. Crate ownership and architecture
+metadata rules remain unchanged.
 
 ## Monorepo and deliverable decision
 
@@ -83,6 +95,15 @@ status to the game; structured management calls and durable core activity remain
 the observation path around it. See [External frontend integration](INTEGRATIONS.md).
 
 ## Library model
+
+The [configured upstream observer](UPSTREAM-OBSERVATIONS.md) owns bounded,
+read-only provider collection and factual operational checkpoints. It submits
+inert observations through the standalone CLI to core's existing release
+channel and asset policy. Core validates the exact scope and facts and exports
+metadata eligibility separately from authentication, integrity and admission.
+The CLI translates this offline command without opening a library. The
+observer neither writes catalog support nor owns installed/update state;
+existing crate dependency rules remain unchanged.
 
 `source_assessment` defines the shared source fact contract: existing
 `SourceHealth` (including selected bytes without a baseline), classification,
