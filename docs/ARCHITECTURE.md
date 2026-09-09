@@ -62,6 +62,13 @@ catalog output ownership is validated separately from existing artifact trust.
 This module introduces no job database, process runner, domain owner or crate
 dependency. Existing lifecycle execution remains unchanged by planning.
 
+Native upstream setup now shares tool process-group handling with fixed host
+probes. Core captures bounded diagnostic output instead of inheriting a machine
+client's streams and observes cancellation while the tool runs. The directory
+and process group are not a sandbox. This changes process supervision only;
+explicit preparation publication and the preparation/launch caller migration
+remain separate from the read-only planning boundary.
+
 ## Monorepo and deliverable decision
 
 `portcove-release-tools` is an unpublished, offline repository tool for checking

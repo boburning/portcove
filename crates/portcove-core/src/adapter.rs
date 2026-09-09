@@ -997,20 +997,25 @@ fn run_upstream_setup(
         hints,
         "setup executable",
     )?;
-    let status = ChildProcessPolicy::native_command(ChildProcessClass::UpstreamSetup, &setup)?
-        .args(&port.setup_arguments)
-        .arg(source)
-        .current_dir(working_directory)
-        .status()
-        .map_err(|error| {
-            PortcoveError::launch(format!("could not run {} setup ({error})", port.name))
-        })?;
+    let output = crate::tool_process::run_setup(
+        &setup,
+        &port.setup_arguments,
+        source,
+        working_directory,
+        checkpoint,
+    )?;
+    tracing::info!(
+        port_id = port.id,
+        output = output.output,
+        truncated = output.truncated,
+        "managed setup diagnostics"
+    );
     checkpoint()?;
-    if !status.success() {
+    if !output.status.success() {
         return Err(PortcoveError::source(format!(
             "{} rejected or could not prepare the registered source (exit {})",
             port.name,
-            status.code().unwrap_or(-1)
+            output.status.code().unwrap_or(-1)
         )));
     }
     if !marker_path.is_file() {
