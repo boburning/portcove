@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { LatestRequestGeneration } from "./concurrency-state";
 import { errorText } from "./view-model";
 
@@ -13,21 +13,22 @@ export function useActionReview<T>({ identity, load, apply, close, failureMessag
   callbacks.current = { load, apply, close, failureMessage };
   const requests = useRef(new LatestRequestGeneration());
   const inFlight = useRef<"review" | "apply">(undefined);
-  const [preview, setPreview] = useState<T>();
+  const [reviewed, setReviewed] = useState<{ identity: string; value: T }>();
+  const preview = reviewed?.identity === identity ? reviewed.value : undefined;
   const [pending, setPending] = useState<"review" | "apply">();
   const [error, setError] = useState<string>();
   const dismiss = () => { if (inFlight.current !== "apply") callbacks.current.close(); };
   const review = async () => {
     if (inFlight.current === "apply") return;
     const request = requests.current.begin();
-    inFlight.current = "review"; setPending("review"); setPreview(undefined); setError(undefined);
+    inFlight.current = "review"; setPending("review"); setReviewed(undefined); setError(undefined);
     try {
       const value = await callbacks.current.load();
-      if (requests.current.isCurrent(request)) setPreview(value);
+      if (requests.current.isCurrent(request)) setReviewed({ identity, value });
     } catch (value) { if (requests.current.isCurrent(request)) setError(errorText(value)); }
     finally { if (requests.current.isCurrent(request)) { inFlight.current = undefined; setPending(undefined); } }
   };
-  useEffect(() => { void review(); return () => { requests.current.begin(); inFlight.current = undefined; }; }, [identity]);
+  useLayoutEffect(() => { void review(); return () => { requests.current.begin(); inFlight.current = undefined; }; }, [identity]);
   const execute = async () => {
     if (!preview || inFlight.current) return;
     const request = requests.current.begin();
@@ -38,7 +39,7 @@ export function useActionReview<T>({ identity, load, apply, close, failureMessag
       if (result) callbacks.current.close();
       else setError(callbacks.current.failureMessage);
     } catch (value) { if (requests.current.isCurrent(request)) setError(errorText(value)); }
-    finally { if (requests.current.isCurrent(request)) { inFlight.current = undefined; setPending(undefined); setPreview(undefined); } }
+    finally { if (requests.current.isCurrent(request)) { inFlight.current = undefined; setPending(undefined); setReviewed(undefined); } }
   };
   return { preview, pending, error, review, execute, dismiss };
 }

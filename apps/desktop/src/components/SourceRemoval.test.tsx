@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act } from "react";
+import { act, useLayoutEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { desktopApi } from "../api";
@@ -80,4 +80,19 @@ it("retries only the list refresh after a completed removal has a refresh failur
   await click("Refresh source list");
   expect(remove).toHaveBeenCalledOnce(); expect(refresh).toHaveBeenCalledTimes(2);
   expect(container.querySelector('[role="status"]')).toBeNull();
+});
+
+it("never commits an old source preview under a new identity", async () => {
+  vi.spyOn(desktopApi, "previewSourceRemoval").mockResolvedValueOnce(preview).mockImplementation(() => new Promise(() => {}));
+  const observations: string[] = [];
+  const close = vi.fn(); const removed = vi.fn();
+  function Context({ profileId }: { profileId: string }) {
+    useLayoutEffect(() => { observations.push(container.textContent ?? ""); }, [profileId]);
+    return <SourceRemovalDialog profileId={profileId} generation={3} ports={ports} close={close} onRemoved={removed} />;
+  }
+  await act(async () => root.render(<Context profileId="source" />));
+  expect(container.textContent).toContain("original/game.bin");
+  await act(async () => root.render(<Context profileId="new" />));
+  expect(observations.at(-1)).not.toContain("original/game.bin");
+  expect(container.textContent).not.toContain("Continue to removal confirmation");
 });
