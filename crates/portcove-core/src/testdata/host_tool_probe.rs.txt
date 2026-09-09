@@ -4,6 +4,8 @@ fn main() {
     let args = env::args().skip(1).collect::<Vec<_>>();
     match args.first().map(String::as_str) {
         Some("--owned-preparation") => owned_preparation(),
+        Some("--game") if args.iter().any(|argument| argument == "--extract") => owned_preparation(),
+        Some("--game") => println!("owned game launched"),
         Some("-help") => {
             println!("chdman verify extractdvd");
             std::process::exit(1);

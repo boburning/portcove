@@ -3623,7 +3623,7 @@ impl PortcoveService {
     }
 
     #[cfg(test)]
-    fn launch_spec(
+    pub(crate) fn launch_spec(
         &self,
         port_id: &str,
         source_override: Option<&Path>,

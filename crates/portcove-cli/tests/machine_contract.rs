@@ -5,6 +5,9 @@ use std::{
 
 use serde_json::Value;
 
+#[path = "machine_contract/preparation.rs"]
+mod preparation_contract;
+
 static CAPACITY_SENSITIVE_TEST: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn cli_binary() -> std::path::PathBuf {
@@ -435,7 +438,7 @@ fn portcove_tool(
         .expect("Portcove CLI should start")
 }
 
-fn compile_chdman_fixture(directory: &std::path::Path) -> std::path::PathBuf {
+fn compile_native_fixture(directory: &std::path::Path) -> std::path::PathBuf {
     if let Some(prepared) = std::env::var_os("PORTCOVE_HOST_TOOL_FIXTURE") {
         let executable = directory.join(if cfg!(windows) {
             "chdman-fixture.exe"
@@ -448,14 +451,7 @@ fn compile_chdman_fixture(directory: &std::path::Path) -> std::path::PathBuf {
     let source = directory.join("chdman_fixture.rs");
     std::fs::write(
         &source,
-        r#"fn main() {
-    if std::env::args().nth(1).as_deref() == Some("-help") {
-        println!("chdman verify extractdvd");
-    } else {
-        println!("unexpected arguments");
-        std::process::exit(7);
-    }
-}"#,
+        include_str!("../../portcove-core/src/testdata/host_tool_probe.rs.txt"),
     )
     .unwrap();
     let executable = directory.join(if cfg!(windows) {
@@ -482,7 +478,7 @@ fn disc_tool_commands_are_library_free_restart_safe_and_machine_readable() {
     let temporary = tempfile::tempdir().unwrap();
     let preferences = temporary.path().join("config/preferences.json");
     let library = temporary.path().join("must-not-be-opened");
-    let helper = compile_chdman_fixture(temporary.path());
+    let helper = compile_native_fixture(temporary.path());
     let helper_text = helper.to_str().unwrap();
 
     let listed = portcove_tool(&preferences, &library, &["--json", "tool", "list"]);

@@ -56,8 +56,7 @@ not by itself prove complete command/readiness parity.
 
 The core preparation module owns exact input planning for the existing
 upstream-managed setup family. It reuses port locks, source assessment, installed
-manifest verification, host-tool selection and reviewed tree identity. The CLI
-only renders its result. Plans neither execute tools nor publish readiness;
+manifest verification, host-tool selection and reviewed tree identity. The CLI and Tauri transport its result and state-bound execution. Plans neither execute tools nor publish readiness;
 catalog output ownership is validated separately from existing artifact trust.
 This module introduces no job database, process runner, domain owner or crate
 dependency. Existing lifecycle execution remains unchanged by planning.
@@ -75,10 +74,20 @@ while its original inputs and operation identity still match.
 
 Native setup shares process-group handling with fixed host probes. Private
 preparation captures bounded diagnostics and observes cancellation while setup
-runs. The working directory and process group are not a sandbox. The legacy
-launch adapter is unchanged until explicit preparation is connected to launch
-readiness and both interfaces. This intermediate core API does not establish the
-complete prepare/launch user workflow or platform qualification.
+runs. The working directory and process group are not a sandbox. The reviewed
+family now prepares through explicit CLI/Tauri operations. Its launch path checks
+manifest-bound readiness and full immutable output, then restores user data and
+supervises the game; it does not materialize sources or run setup. React owns the
+review screen and transient progress only. Tauri rejects a review from another
+library generation and translates events through its existing channel transport.
+
+Preparation receipts bind the generating definition, source, artifact/runtime,
+host and default options. Changed identities require a new preparation review.
+Already completed legacy installations retain the existing manifest/setup/source
+binding without synthesizing historical definition evidence. Missing new receipts
+cannot be treated as legacy installs. Tools recorded as generation provenance need
+not remain installed to play immutable output. Other adapter families retain their
+existing behavior. No crate or durable state ownership boundary changes.
 
 ## Monorepo and deliverable decision
 

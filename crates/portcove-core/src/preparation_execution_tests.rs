@@ -329,3 +329,131 @@ fn running_setup_cancellation_preserves_the_active_tree() {
         original
     );
 }
+
+#[test]
+fn preparation_is_explicit_and_play_never_runs_setup_or_recreates_inputs() {
+    let fixture = Fixture::native("success");
+    let original = crate::library_transfer::reviewed_tree(&fixture.install.path).unwrap();
+    assert!(fixture.service.launch_spec(PORT, None).is_err());
+    assert_eq!(
+        crate::library_transfer::reviewed_tree(&fixture.install.path).unwrap(),
+        original
+    );
+    assert!(
+        fixture
+            .service
+            .status(PORT)
+            .unwrap()
+            .readiness
+            .unwrap()
+            .blockers
+            .contains(&crate::LaunchBlocker::PreparationRequired)
+    );
+    let prepared = fixture.run(|_| {}).unwrap();
+    let log = prepared.path.join("data/log/setup.log");
+    fs::write(&log, b"setup must not run during Play").unwrap();
+    fixture.service.launch_spec(PORT, None).unwrap();
+    assert_eq!(fs::read(&log).unwrap(), b"setup must not run during Play");
+    let port = fixture.service.catalog().port(PORT).unwrap();
+    let materialized = prepared
+        .path
+        .join(port.runtime_source_filename.as_ref().unwrap());
+    fs::remove_file(&materialized).unwrap();
+    assert!(fixture.service.launch_spec(PORT, None).is_err());
+    assert!(!materialized.exists());
+}
+
+#[test]
+fn changed_definition_and_missing_receipt_invalidate_prepared_readiness() {
+    let mut fixture = Fixture::native("success");
+    let prepared = fixture.run(|_| {}).unwrap();
+    assert!(
+        fixture
+            .service
+            .status(PORT)
+            .unwrap()
+            .readiness
+            .unwrap()
+            .launchable
+    );
+    let original_catalog = fixture.service.catalog().clone();
+    let mut document = original_catalog.document().clone();
+    document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == PORT)
+        .unwrap()
+        .setup_arguments
+        .push("--changed-option".into());
+    fixture.service.replace_catalog_for_test(
+        Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+    );
+    assert!(
+        !fixture
+            .service
+            .status(PORT)
+            .unwrap()
+            .readiness
+            .unwrap()
+            .launchable
+    );
+    assert!(fixture.service.launch_spec(PORT, None).is_err());
+    fixture.service.replace_catalog_for_test(original_catalog);
+    fs::remove_file(prepared.path.join(RECEIPT_FILE)).unwrap();
+    assert!(
+        !fixture
+            .service
+            .status(PORT)
+            .unwrap()
+            .readiness
+            .unwrap()
+            .launchable
+    );
+    assert!(fixture.service.launch_spec(PORT, None).is_err());
+}
+
+#[test]
+fn completed_legacy_setup_keeps_working_without_repeating_setup() {
+    let fixture = Fixture::native("success");
+    let mut prepared = fixture.run(|_| {}).unwrap();
+    fs::remove_file(prepared.path.join(RECEIPT_FILE)).unwrap();
+    let port = fixture.service.catalog().port(PORT).unwrap();
+    let qualification =
+        InstallQualification::from_port(port, Platform::current().unwrap()).unwrap();
+    let installer = Installer::new(fixture.service.library().clone()).unwrap();
+    let (hash, selected, runtime) = installer
+        .create_manifest(
+            &prepared.id,
+            PORT,
+            &prepared.version,
+            &prepared.artifact,
+            &qualification,
+            &prepared.path,
+        )
+        .unwrap();
+    prepared.manifest_sha256 = hash;
+    prepared.selected_executable = selected;
+    prepared.runtime = runtime;
+    fixture
+        .service
+        .library()
+        .update_install_manifest(&prepared)
+        .unwrap();
+    crate::adapter::bind_upstream_setup_manifest(&prepared.path, &prepared.manifest_sha256)
+        .unwrap();
+    fs::write(prepared.path.join("data/log/setup.log"), b"legacy sentinel").unwrap();
+    assert!(
+        fixture
+            .service
+            .status(PORT)
+            .unwrap()
+            .readiness
+            .unwrap()
+            .launchable
+    );
+    fixture.service.launch_spec(PORT, None).unwrap();
+    assert_eq!(
+        fs::read(prepared.path.join("data/log/setup.log")).unwrap(),
+        b"legacy sentinel"
+    );
+}

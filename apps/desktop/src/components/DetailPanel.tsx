@@ -108,7 +108,7 @@ function DetailBody({ prepare, port, status, state, sources, installed, launchRe
     <ReadinessCard state={state} />
     <SourceFields mode="missing" controls={sources} />
     <SourceIntakeActions controls={sources} busy={Boolean(busy)} />
-    {managedPreparation && <PreparationControl key={`${port.id}:${libraryGeneration}:${status?.active?.id}`} portId={port.id} generation={libraryGeneration} disabled={Boolean(busy) || !sources.sourceReady || !sources.biosReady} run={prepare} />}
+    {managedPreparation && pendingSetup && <PreparationControl key={`${port.id}:${libraryGeneration}:${status?.active?.id}`} portId={port.id} generation={libraryGeneration} disabled={Boolean(busy) || !sources.sourceReady || !sources.biosReady} run={prepare} />}
     <PrimaryActions preparationRequired={managedPreparation && pendingSetup} runtimeNeeded={Boolean(status?.readiness?.blockers.includes("missing_runtime"))} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} hasStaged={Boolean(status?.staged)} plan={installPlan} busy={busy} actions={actions} />
     <TrustStrip status={status} />
     <OutputLocationControl portId={port.id} generation={libraryGeneration} busy={outputExternalBusy} onChanged={outputLocationChanged} onApplying={outputApplying} />
@@ -330,7 +330,7 @@ function detailState(installed: boolean, launchReady: boolean, staged: boolean, 
   if (sourceIssue) return sourceIssue;
   const biosIssue = sourceHealthState("Required BIOS", biosHealth);
   if (biosIssue) return biosIssue;
-  if (pendingSetup && !launchReady) return { title: "Prepare game data", description: "Review the default setup below. Play becomes available after preparation succeeds.", tone: "setup", icon: Wrench };
+  if (pendingSetup && !launchReady && sourceHealth !== "unregistered" && biosHealth !== "unregistered") return { title: "Prepare game data", description: "Review the default setup below. Play becomes available after preparation succeeds.", tone: "setup", icon: Wrench };
   if (!launchReady) return { title: "Finish setup", description: "Register the required original source or BIOS to unlock Play.", tone: "setup", icon: Wrench };
   if (selectedPath) return { title: "Game files need checking", description: "The selected path has not been checked. Portcove validates it before starting the game.", tone: "setup", icon: Wrench };
   if (pendingSetup) return { title: "First launch setup", description: "The source is registered. Portcove will run and verify the upstream setup before play.", tone: "setup", icon: Wrench };
