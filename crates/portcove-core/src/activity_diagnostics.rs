@@ -425,11 +425,6 @@ mod tests {
         let denied = activity(&library);
         for id in [&first, &second] {
             snapshot.activity_id = id.clone();
-            library
-                .record_activity_diagnostic(
-                    &small.snapshot(&id, "preparation.extract", true).unwrap(),
-                )
-                .unwrap();
             library.record_activity_diagnostic(&snapshot).unwrap();
         }
         snapshot.activity_id = denied.clone();
