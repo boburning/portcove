@@ -133,6 +133,7 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
     await writeFile(report, JSON.stringify(accessibility, null, 2), { flag: "wx" });
     artifacts.push(report);
     assert.deepEqual(accessibility.violations.map(item => item.id), []);
+    await browser.executeScript('arguments[0].scrollIntoView({ block: "center" });', await browser.findElement(By.css('section[aria-label="Game update settings"]')));
     const screenshot = path.join(output, "native-update-settings-saved.png");
     await writeFile(screenshot, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
     artifacts.push(screenshot);
