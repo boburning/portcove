@@ -55,6 +55,10 @@ try {
     Invoke-Checked "pnpm" @("--dir", "apps/desktop", "tauri", "signer", "generate", "--ci", "--write-keys", $privateKey) | Out-Null
     $env:TAURI_SIGNING_PRIVATE_KEY = $privateKey
     $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = ""
+    $configuration = Get-Content (Join-Path $root "release/tauri.updater.conf.json") -Raw | ConvertFrom-Json -AsHashtable
+    $configuration.plugins.updater.pubkey = [IO.File]::ReadAllText($publicKey).Trim()
+    $configPath = Join-Path $runRoot "rehearsal-config.json"
+    $configuration | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $configPath -Encoding utf8
     Move-RehearsalInput $bundleRoot "previous-bundles"
     Move-RehearsalInput $cliRoot "previous-cli-assets"
     foreach ($version in @("0.1.0", "0.3.0")) {
@@ -72,7 +76,7 @@ try {
         $cliName = (& node scripts/release-package-policy.mjs --platform $PlatformLabel --interface cli --version $version | Out-String).Trim()
         if ($LASTEXITCODE -ne 0) { throw "Cannot select packaged CLI" }
         & (Join-Path $PSScriptRoot "smoke-test-cli-archive.ps1") -ArchivePath (Join-Path $cliRoot $cliName) -PlatformLabel $PlatformLabel -Version $version
-        Invoke-Checked "pnpm" @("--dir", "apps/desktop", "tauri", "build", "--bundles", $bundles, "--config", (Join-Path $root "release/tauri.updater.conf.json"), "--ci")
+        Invoke-Checked "pnpm" @("--dir", "apps/desktop", "tauri", "build", "--bundles", $bundles, "--config", $configPath, "--ci")
         $stage = Join-Path $runRoot "$version-$PlatformLabel"
         Invoke-Checked "node" @("scripts/updater-artifact-inventory.mjs", "stage", "--output", $stage, "--label", $PlatformLabel, "--public-key", $publicKey, "--verifier", $verifier, "--revision", $revision)
         Invoke-Checked "node" @("scripts/updater-artifact-inventory.mjs", "verify", "--input", $stage, "--label", $PlatformLabel, "--public-key", $publicKey, "--verifier", $verifier, "--revision", $revision)

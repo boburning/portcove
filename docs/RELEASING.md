@@ -23,6 +23,10 @@ Tauri v2 updater artifacts, current-user NSIS with passive updater installation,
 and ad-hoc macOS signing. Ordinary configuration still disables updater artifacts;
 no endpoint, runtime updater plugin, or production key is installed by this overlay.
 An updater signature is distinct from Authenticode, notarization, and catalog trust.
+Tauri's bundler requires the corresponding public key in its merged updater
+configuration. The rehearsal creates a temporary copy of the overlay containing
+its disposable public key; a bare overlay without that key deliberately cannot
+produce an updater package.
 
 The manual **Updater artifact rehearsal** workflow generates disposable keys on
 each runner and builds every required Windows, Linux, Intel Mac and Apple Silicon
