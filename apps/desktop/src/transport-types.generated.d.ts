@@ -364,7 +364,7 @@ export interface TransportOutputs {
   library_metadata_file: LibraryMetadataFile;
   library_move_plan: OutputLibraryMovePlan;
   library_move_result: OutputLibraryMoveResult;
-  library_selection: OutputLibrarySelection;
+  library_selection: LibrarySelection;
   operation_event: OutputOperationEvent;
   output_destination_preview: OutputOutputDestinationPreview;
   output_relocation_plan: OutputOutputRelocationPlan;
@@ -403,6 +403,12 @@ export interface TransportOutputs {
   update_check: UpdateCheck;
   update_snapshot: UpdateSnapshot;
   upstream_observation_report: OutputUpstreamObservationReport;
+  desktop_bootstrap_status: OutputDesktopBootstrapStatus;
+  desktop_desktop_error: ApiError;
+  desktop_launch_result: OutputDesktopLaunchResult;
+  desktop_reconcile_outcome: OutputDesktopReconcileOutcome;
+  desktop_source_verification_outcome: OutputDesktopSourceVerificationOutcome;
+  desktop_update_check_outcome: OutputDesktopUpdateCheckOutcome;
 }
 export interface OutputAbout {
   description: string;
@@ -1186,7 +1192,7 @@ export interface OutputLibraryMoveResult {
   transfer_id: string;
   [k: string]: unknown;
 }
-export interface OutputLibrarySelection {
+export interface LibrarySelection {
   root: string;
   source: LibrarySelectionSource;
   [k: string]: unknown;
@@ -1658,5 +1664,47 @@ export interface ObservedResolution {
   asset_id: number;
   release: ResolvedRelease;
   release_id: number;
+  [k: string]: unknown;
+}
+export interface OutputDesktopBootstrapStatus {
+  error: DesktopError | null;
+  generation: number;
+  library_root: string | null;
+  ready: boolean;
+  selection: LibrarySelection | null;
+  [k: string]: unknown;
+}
+export interface DesktopError {
+  code: ErrorCode;
+  details: {
+    [k: string]: string;
+  };
+  message: string;
+  [k: string]: unknown;
+}
+export interface OutputDesktopLaunchResult {
+  processId: number | null;
+  sessionId: string;
+  [k: string]: unknown;
+}
+export interface OutputDesktopReconcileOutcome {
+  error: DesktopError | null;
+  ok: boolean;
+  port_id: string;
+  result: ReconcileResult | null;
+  [k: string]: unknown;
+}
+export interface OutputDesktopSourceVerificationOutcome {
+  error: DesktopError | null;
+  ok: boolean;
+  profile_id: string;
+  result: SourceVerification | null;
+  [k: string]: unknown;
+}
+export interface OutputDesktopUpdateCheckOutcome {
+  error: DesktopError | null;
+  ok: boolean;
+  port_id: string;
+  result: UpdateCheck | null;
   [k: string]: unknown;
 }
