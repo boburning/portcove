@@ -24,5 +24,8 @@
   {"name":"interrupted refresh has no authority", "scenario":{"refresh_interrupted":true}, "outcome":"hold", "reason":"refresh_incomplete"},
   {"name":"interrupted refresh does not replace retained ownership", "scenario":{"operation":"launch","retained_contract":true,"refresh_interrupted":true}, "outcome":"eligible", "reason":"mandatory_checks_passed"},
   {"name":"exact refresh retry succeeds once committed", "scenario":{"refresh_interrupted":false}, "outcome":"eligible", "reason":"mandatory_checks_passed"},
-  {"name":"popular or gameplay-qualified content still needs mandatory integrity", "scenario":{"gameplay_observed":true,"expected_integrity":false}, "outcome":"hold", "reason":"authenticated_integrity_required"}
+  {"name":"popular or gameplay-qualified content still needs mandatory integrity", "scenario":{"gameplay_observed":true,"expected_integrity":false}, "outcome":"hold", "reason":"authenticated_integrity_required"},
+  {"name":"explicitly authorized retained local adoption preserves permitted launch without claiming authenticated acquisition", "scenario":{"operation":"launch","retained_contract":true,"retained_local_authorization":true,"expected_integrity":false}, "outcome":"eligible", "reason":"mandatory_checks_passed"},
+  {"name":"local launch authorization cannot authorize downloading unauthenticated bytes", "scenario":{"operation":"install","retained_contract":true,"retained_local_authorization":true,"expected_integrity":false}, "outcome":"hold", "reason":"authenticated_integrity_required"},
+  {"name":"retained local authorization cannot override corruption", "scenario":{"operation":"launch","retained_contract":true,"retained_local_authorization":true,"expected_integrity":false,"local_integrity_valid":false}, "outcome":"hold", "reason":"local_integrity_failed"}
 ]

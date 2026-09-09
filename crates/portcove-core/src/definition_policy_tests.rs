@@ -34,6 +34,7 @@ struct Scenario {
     replayed_metadata: bool,
     refresh_interrupted: bool,
     retained_contract: bool,
+    retained_local_authorization: bool,
 }
 
 impl Default for Scenario {
@@ -56,6 +57,7 @@ impl Default for Scenario {
             replayed_metadata: false,
             refresh_interrupted: false,
             retained_contract: false,
+            retained_local_authorization: false,
         }
     }
 }
@@ -98,7 +100,10 @@ fn operation_inputs(scenario: &Scenario) -> Option<Decision> {
     if scenario.same_identity_changed {
         return Some(("hold", "recorded_identity_changed"));
     }
-    if !scenario.expected_integrity {
+    let retained_local_launch = scenario.operation == Operation::Launch
+        && scenario.retained_contract
+        && scenario.retained_local_authorization;
+    if !scenario.expected_integrity && !retained_local_launch {
         return Some(("hold", "authenticated_integrity_required"));
     }
     if !scenario.local_integrity_valid {

@@ -176,6 +176,11 @@ rollback-retained versions reference these records transactionally. Neither a UR
 nor a current catalog lookup can reconstruct an old version's ownership. Adopted
 content records what was verified and what remains unverified; adoption is not a
 downloaded-artifact trust upgrade.
+An existing explicitly authorized local/adopted launch may remain permitted
+against its retained local identity and valid bytes without claiming authenticated
+upstream acquisition. That local execution authorization cannot authorize a new
+unauthenticated download, suppress corruption/revocation, or silently become an
+official publisher grant.
 
 Refresh may update discoverable definitions, but must not reinterpret an existing
 install's mutable paths, source mapping or launch contract. Compatible migrations
