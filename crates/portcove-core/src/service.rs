@@ -348,15 +348,19 @@ impl PortcoveService {
                     .or_else(|| operation.paths.final_path.clone())
                     .or_else(|| operation.paths.staging.clone()),
                 message: operation.last_error.clone().unwrap_or_else(|| {
-                    format!(
+                    if operation.kind == LifecycleOperationKind::Prepare
+                        && operation.phase == LifecyclePhase::Preparing
+                    {
+                        "preparation is in its private phase; check its current activity".into()
+                    } else { format!(
                         "{} operation is paused at {}",
                         operation.kind, operation.phase
-                    )
+                    ) }
                 }),
                 proposed_action: if operation.kind == LifecycleOperationKind::Prepare
                     && operation.phase == LifecyclePhase::Preparing
                 {
-                    "review retained work and current inputs, then start a new preparation; this attempt cannot be resumed"
+                    "review the current activity; an interrupted private attempt cannot be resumed, so review retained work and current inputs before starting a new preparation"
                 } else {
                     "retry the recorded idempotent recovery step"
                 }.into(),

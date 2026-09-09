@@ -470,6 +470,19 @@ fn preparation_recovery_preserves_existing_outcomes_and_rejects_an_owned_activit
         .try_lock_port(PORT, "owned recovery fixture")
         .unwrap();
     let guard = library.try_lock_activity(&journal.id).unwrap();
+    journal.last_error = None;
+    store.put(&mut journal).unwrap();
+    let review = fixture.service.repair_plan().unwrap();
+    let item = review
+        .items
+        .iter()
+        .find(|item| item.operation_id.as_deref() == Some(journal.id.as_str()))
+        .unwrap();
+    assert!(!item.message.contains("paused"));
+    assert!(
+        item.proposed_action
+            .starts_with("review the current activity")
+    );
     let error = super::super::recover(&fixture.service, &store, &mut journal).unwrap_err();
     assert_eq!(error.code, ErrorCode::Conflict);
     assert_eq!(
