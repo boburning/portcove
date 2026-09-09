@@ -143,6 +143,10 @@ Never make disabling Defender/Gatekeeper or stripping quarantine the normal path
 
 ## Trust, ownership and recovery
 
+[Updater trust and recovery](UPDATER-TRUST.md) specifies the maintained metadata
+format, key lifecycle, bounded transport, compatibility and recovery design with
+disposable test-key fixtures. It does not activate production update behavior.
+
 Every artifact has a mandatory Tauri signature. A small separately authenticated
 metadata contract binds immutable release/hash/version/target/package/compatibility
 identity and channel eligibility. Authenticate promotion separately so existing

@@ -1,5 +1,10 @@
 # Security policy
 
+The [application update trust design](docs/UPDATER-TRUST.md) separates authenticated
+metadata, Tauri payload signatures, OS trust and catalog authority. Its tests use
+temporary disposable keys; current protected production release procedures remain
+effective and application updater behavior is not activated by the design.
+
 Please report vulnerabilities through [GitHub's private vulnerability reporting form](https://github.com/boburning/portcove/security/advisories/new) rather than opening a public issue. Include the affected version, operating system, reproduction steps, expected impact, and any proof-of-concept files needed to reproduce the issue safely. If GitHub cannot show the form, contact a repository maintainer without disclosing the vulnerability publicly.
 
 Portcove treats upstream release metadata, archive paths, filenames, and adopted directories as untrusted. Important security invariants include:

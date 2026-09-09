@@ -34,7 +34,7 @@ impl Key {
         Self(path)
     }
 
-    fn source(&self) -> Box<dyn KeySource> {
+    pub fn source(&self) -> Box<dyn KeySource> {
         Box::new(LocalKeySource {
             path: self.0.clone(),
         })
