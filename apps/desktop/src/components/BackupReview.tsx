@@ -44,7 +44,7 @@ export function BackupReviewDialog({ backup, action, generation, apply, close }:
     {pending === "review" && <p role="status">Checking the backup and current saved data…</p>}
     {review && <BackupReviewDetails review={review} />}
     {error && <p role="alert">{error}</p>}
-    <div className="modal-actions">
+    <div className="actions">
       <button data-autofocus data-focusable disabled={pending === "apply"} onClick={dismiss}>Keep current state</button>
       {!review && <button data-focusable disabled={Boolean(pending)} onClick={() => { void load(); }}>Review again</button>}
       {review && <button data-focusable className={restore ? "primary" : "danger"} disabled={Boolean(pending)} onClick={() => { void execute(); }}>{pending === "apply" ? "Applying reviewed change…" : restore ? "Restore this backup" : "Delete this backup permanently"}</button>}
