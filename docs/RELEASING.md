@@ -369,23 +369,23 @@ packaging change does not grant it or introduce another manual gate.
 
 ## Upgrade acceptance and technical previews
 
-Every declared V1 platform needs a tested, understandable, verified application
-upgrade and recovery path. The preferred Windows desktop mechanism is the
-bounded signed in-app updater owned by
-[#52](https://github.com/boburning/portcove/issues/52); final package, signing,
-upgrade, and rehearsal evidence belongs to
-[#46](https://github.com/boburning/portcove/issues/46). Feature implementation
-precedes the feature freeze, qualification runs in beta, and RC rehearses the
-exact artifact/feed/signature and previous signed rollback identities.
-This is an acceptance contract, not a claim that updater artifacts, feeds, key
-custody, or runtime support are already implemented.
+Public beta requires the complete verified application updater under
+[#52](https://github.com/boburning/portcove/issues/52): Windows per-user NSIS,
+Linux AppImage, that same Linux application on Steam Deck, and installed macOS
+bundles on Intel and Apple Silicon. Shared mechanisms are implemented
+incrementally, with actual platform upgrade/recovery proof before the beta
+declaration. [#46](https://github.com/boburning/portcove/issues/46) retains later
+exact production package/upgrade/rehearsal evidence for 1.0; #52 does not wait
+for its post-beta closure. RC stabilizes one exact candidate, not all development.
 
-Keep application updates separate from catalog/game updates. Require trusted
-origins, exact artifact identity, explicit approval, busy-state exclusion,
-stable default/beta opt-in, version rules, protected keys, and failed-update
-recovery. Tauri updater signatures, SHA-256 artifact identity, and operating-system
-publisher trust are distinct. Neither updater signing nor this plan establishes
-Authenticode/SmartScreen or macOS signing/notarization acceptance.
+The [delivery contract](DELIVERY.md) separates application/catalog/game updates,
+Stable/Preview eligibility, updater authenticity, SHA-256 reconciliation, OS
+publisher identity and OS enforcement. Automatic mode uses one-time consent,
+busy-state exclusion and safe-time application without recurring release-note
+approval. Pre-1.0 public releases remain Preview-only; Stable becomes the default
+after production approval. Paid publisher signing is optional. These are planned
+contracts, not evidence that updater behavior, custody or unattended publication
+has already been implemented or activated.
 
 Early technical previews may use a documented, verified manual upgrade path.
 Use a small explicitly qualified scope after applicable trust gates permit;
@@ -394,12 +394,11 @@ backed-up libraries. Record package hashes and the unassisted first-play/recover
 scenario outside the development checkout. A preview is not evidence of universal
 catalog or platform qualification, and its plan does not authorize publication.
 
-Qualify Linux, Steam Deck, and macOS upgrades according to the selected package
-and platform. All-platform automatic updating and standalone-CLI self-updating
-are not V1 requirements. If a named external prerequisite blocks safe Windows
-in-app delivery, record its exact resume condition and an explicit reviewed
-scope/Project-target decision while retaining the required verified upgrade
-outcome. A successful manual upgrade never completes the in-app updater tickets.
+Missing required platform evidence keeps Public beta open; it does not block
+independent implementation or an otherwise eligible incremental preview. A
+successful manual reinstall cannot complete the baseline updater. DEB/RPM remain
+package-manager-mediated; standalone CLI self-updating and optional extra formats
+remain outside the baseline. Record exact unsupported paths and recovery limits.
 
 ## Optional signed catalog publication
 

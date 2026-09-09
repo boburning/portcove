@@ -269,7 +269,7 @@ Required outcomes and genuine transitive `blocked by` relationships. They report
 unclassified targeted work, dependency classification/target conflicts, safety
 conflicts, missing Project dependencies, and cycles. Parentage and related-work
 links alone never block a release. Unrelated unscheduled intake is not a gate.
-Keep optional work Opportunistic at the release where it may ship or Post-V1
+Keep optional work Opportunistic at the release where it may ship or Post-1.0
 where that is its real target; do not distort forecasts merely to avoid a gate.
 
 Public beta requires the complete #52 Windows/Linux/Steam Deck/macOS updater,
