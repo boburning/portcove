@@ -28,7 +28,7 @@ export async function backupReviewScenario({ browser, invoke, scenario, library,
     };
     await clickVisible(await browser.findElement(By.css("summary.advanced-summary")));
     const button = label => By.xpath(`//button[normalize-space(.)="${label}"]`);
-    const row = id => browser.findElement(By.css(`[data-backup-id="${id}"]`));
+    const row = id => browser.wait(until.elementLocated(By.css(`[data-backup-id="${id}"]`)), 15_000);
     const list = () => command(["backup", "list", port.id]).backups;
     const clickRestore = async () => clickVisible(await (await row(selected.id)).findElement(By.xpath('.//button[normalize-space(.)="Restore"]')));
     const capture = async name => {
