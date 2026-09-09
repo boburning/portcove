@@ -66,7 +66,8 @@ function eligibleChannels(candidate, evidence) {
 }
 
 function supportsTarget(evidence, target) {
-  if (!target) return true;
+  if (target === undefined) return true;
+  if (typeof target !== "string" || !target.trim()) throw new Error("target must be an explicit nonempty identity");
   return Array.isArray(evidence?.targets) && evidence.targets.includes(target);
 }
 
@@ -111,7 +112,7 @@ function reviewedClassification(classification) {
   if (classification.reviewed_commit !== classification.source_commit) throw new Error("classification review does not match the frozen source commit");
   const base = exactVersion(classification.base_version);
   const change = classification.change;
-  if (!["patch", "minor", "major", "prerelease", "finalize"].includes(change)) throw new Error("unknown reviewed change classification");
+  if (!["patch", "minor", "major", "prepatch", "preminor", "premajor", "prerelease", "finalize"].includes(change)) throw new Error("unknown reviewed change classification");
   if (!["compatible", "breaking"].includes(classification.compatibility)) throw new Error("compatibility classification is required");
   return { base, change };
 }
@@ -127,7 +128,7 @@ function publishedHistory(classification, publishedVersions) {
 function compatibilityChange(classification, publishedVersions, base, change) {
   if (classification.compatibility !== "breaking") return;
   if (typeof classification.migration_notes !== "string" || !classification.migration_notes.trim()) throw new Error("breaking changes require migration notes");
-  const required = base.major === 0 ? ["minor", "major", "prerelease"] : ["major", "prerelease"];
+  const required = base.major === 0 ? ["minor", "major", "preminor", "premajor", "prerelease"] : ["major", "premajor", "prerelease"];
   if (!required.includes(change)) throw new Error("change classification cannot carry this compatibility break");
   if (base.major > 0 && change === "prerelease"
       && publishedVersions.some(version => !semver.prerelease(version) && semver.major(version) >= base.major)) {
@@ -135,7 +136,7 @@ function compatibilityChange(classification, publishedVersions, base, change) {
   }
 }
 
-function advanceVersion(base, change) {
+function advanceVersion(base, change, identifier) {
   if (change === "finalize") {
     if (!base.prerelease.length) throw new Error("only a prerelease can be finalized");
     return `${base.major}.${base.minor}.${base.patch}`;
@@ -145,6 +146,10 @@ function advanceVersion(base, change) {
     return semver.inc(base, "prerelease");
   }
   if (base.prerelease.length) throw new Error("explicitly finalize or progress the existing prerelease train");
+  if (["prepatch", "preminor", "premajor"].includes(change)) {
+    if (typeof identifier !== "string" || !/^[A-Za-z][A-Za-z0-9-]*$/.test(identifier)) throw new Error("a new prerelease train requires an explicit identifier");
+    return semver.inc(base, change, identifier, "1");
+  }
   return semver.inc(base, change);
 }
 
@@ -155,7 +160,7 @@ export function proposeApplicationVersion(classification, publishedVersions) {
   const { base, change } = reviewedClassification(classification);
   publishedHistory(classification, publishedVersions);
   compatibilityChange(classification, publishedVersions, base, change);
-  const version = advanceVersion(base, change);
+  const version = advanceVersion(base, change, classification.prerelease_identifier);
   if (!version || !semver.gt(version, classification.base_version)) throw new Error("prepared version must increase");
   if (publishedVersions.some(published => semver.eq(version, published))) throw new Error("published version precedence cannot be reused");
   return { schema_version: 1, source_commit: classification.source_commit, base_version: classification.base_version, version, change, ...classifyApplicationVersion(version) };

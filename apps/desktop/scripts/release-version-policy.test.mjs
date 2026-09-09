@@ -87,3 +87,11 @@ test("classification rejects stale review/history, silent compatibility breaks a
   assert.throws(() => proposeApplicationVersion(classification("1.1.0-rc.1", "prerelease", { compatibility: "breaking", migration_notes: "Migrate the API" }), ["1.0.0", "1.1.0-rc.1"]), /public major version/);
   assert.throws(() => proposeApplicationVersion(classification("0.1.0+one", "patch"), ["0.1.0+one", "0.1.0+two"]), /duplicate version precedence/);
 });
+
+test("review explicitly starts new prerelease trains and preserves compatibility rules", () => {
+  assert.equal(proposeApplicationVersion(classification("0.3.0", "premajor", { prerelease_identifier: "rc" }), ["0.3.0"]).version, "1.0.0-rc.1");
+  assert.equal(proposeApplicationVersion(classification("1.0.0", "premajor", { prerelease_identifier: "beta", compatibility: "breaking", migration_notes: "Migrate the public contract" }), ["1.0.0"]).version, "2.0.0-beta.1");
+  assert.throws(() => proposeApplicationVersion(classification("0.3.0", "preminor"), ["0.3.0"]), /explicit identifier/);
+  assert.throws(() => proposeApplicationVersion(classification("1.0.0", "preminor", { prerelease_identifier: "beta", compatibility: "breaking", migration_notes: "Migrate the public contract" }), ["1.0.0"]), /cannot carry/);
+  assert.throws(() => selectApplicationRelease([released("0.3.0")], "preview", { target: "" }), /target must be/);
+});
