@@ -32,8 +32,16 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":36,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":37,"ok":true,"command":"status","data":{},"error":null}
 ```
+
+Schema 37 adds core-owned failure presentation to error objects and an optional
+structured failure report to activity records. Existing machine `code`, `message`
+and `details` fields retain their values; JSON and JSONL use the same report.
+Presentation supplies a stable key, human summary, phase, explicit mutation state,
+recovery actions and redacted technical context. Unknown outcomes are not treated
+as no changes, and cancellation has neutral presentation. SQLite schema 20 stores
+these reports alongside terminal activity status; older records have no report.
 
 Schema 35 added `prepare` to the activity vocabulary and SQLite schema 19 added
 reviewed preparation plans to the existing lifecycle journal. Schema 36 adds the

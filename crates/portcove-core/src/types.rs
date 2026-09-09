@@ -753,6 +753,8 @@ pub struct ActivityRecord {
     pub target_id: Option<String>,
     pub status: ActivityStatus,
     pub message: Option<String>,
+    #[serde(default)]
+    pub failure: Option<crate::FailureReport>,
     pub started_at: i64,
     pub finished_at: Option<i64>,
     pub cancellation: Option<crate::CancellationState>,

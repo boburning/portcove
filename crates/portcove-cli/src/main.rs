@@ -589,12 +589,7 @@ struct ApiResponse<T: JsonSchema> {
     error: Option<ApiError>,
 }
 
-#[derive(Debug, Serialize, JsonSchema)]
-struct ApiError {
-    code: ErrorCode,
-    message: String,
-    details: std::collections::BTreeMap<String, String>,
-}
+type ApiError = portcove_core::FailureReport;
 
 #[derive(Debug, Serialize, JsonSchema)]
 struct AboutDocument {
@@ -2014,23 +2009,30 @@ where
 fn render_error(mode: OutputMode, command: &str, error: &PortcoveError) {
     match mode {
         OutputMode::Human => eprintln!("error: {error}"),
-        OutputMode::Json => println!("{}", serde_json::to_string(&ApiResponse::<serde_json::Value> {
-            schema_version: API_SCHEMA_VERSION, ok: false, command: command.into(), data: None,
-            error: Some(api_error(error)),
-        }).unwrap_or_else(|_| "{\"ok\":false}".into())),
-        OutputMode::Jsonl => println!("{}", serde_json::to_string(&serde_json::json!({
-            "schema_version": API_SCHEMA_VERSION, "type": "result", "ok": false,
-            "command": command, "error": { "code": error.code, "message": error.message, "details": error.details }
-        })).unwrap_or_else(|_| "{\"ok\":false}".into())),
+        OutputMode::Json => println!(
+            "{}",
+            serde_json::to_string(&ApiResponse::<serde_json::Value> {
+                schema_version: API_SCHEMA_VERSION,
+                ok: false,
+                command: command.into(),
+                data: None,
+                error: Some(api_error(error)),
+            })
+            .unwrap_or_else(|_| "{\"ok\":false}".into())
+        ),
+        OutputMode::Jsonl => println!(
+            "{}",
+            serde_json::to_string(&serde_json::json!({
+                "schema_version": API_SCHEMA_VERSION, "type": "result", "ok": false,
+                "command": command, "error": api_error(error)
+            }))
+            .unwrap_or_else(|_| "{\"ok\":false}".into())
+        ),
     }
 }
 
 fn api_error(error: &PortcoveError) -> ApiError {
-    ApiError {
-        code: error.code,
-        message: error.message.clone(),
-        details: error.details.clone(),
-    }
+    error.report()
 }
 
 fn require_confirmation(prompt: &str, yes: bool, non_interactive: bool) -> Result<()> {
@@ -2501,7 +2503,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 36);
+        assert_eq!(capabilities.schema_version, 37);
         assert_eq!(
             capabilities.failure_isolated_batches,
             ["check", "reconcile", "update", "source.verify"]

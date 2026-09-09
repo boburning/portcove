@@ -7,6 +7,7 @@ const RULES = {
     forbidden: {
       tauri: "portcove-core must remain independent of presentation-layer dependencies.",
       clap: "portcove-core must remain independent of command-line presentation dependencies.",
+      "tracing-subscriber": "Host tracing subscribers and rotation belong in adapters; core returns structured failure reports and shared redaction.",
       "portcove-cli": "portcove-core cannot depend on an adapter that consumes it.",
       "portcove-desktop": "portcove-core cannot depend on an adapter that consumes it.",
       "portcove-release-tools": "Repository release verification is not game-management authority.",

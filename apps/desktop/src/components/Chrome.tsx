@@ -1,10 +1,10 @@
 import { useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { AlertTriangle, Boxes, Check, CheckCircle2, CircleMinus, CircleUserRound, Command, Download, FolderInput, HardDrive, Library, LoaderCircle, Search, Settings, ShieldCheck, Wrench, X } from "lucide-react";
 import desktopPackage from "../../package.json";
-import { copyText } from "../clipboard";
 import type { ThemeState, ThemePreference } from "../theme";
 import type { DoctorReport, GithubAuthStatus, GithubDeviceLogin, HostToolProbeResult, HostToolStatus, LibraryMetadataFile, LibrarySelection, OperationEvent, SourceInspectionReport, SourceProfile, SourceRecord, SourceVerificationOutcome, StorageSummary } from "../types";
-import { errorText, formatBytes, type SourceRequirement, type View } from "../view-model";
+import { errorText, failurePresentation, formatBytes, type SourceRequirement, type View } from "../view-model";
+import { FailureDetails } from "./FailureDetails";
 import { BrandAvatar, BrandMascot, BrandWordmark } from "./Brand";
 import { ExternalLink } from "./ExternalLink";
 import { LibraryMoveButton } from "./LibraryMove";
@@ -64,28 +64,22 @@ function pageCopy(view: View, portCount: number) {
 }
 
 export function StatusLayer({ error, clearError, operation, busy }: {
-  error?: string; clearError: () => void; operation?: OperationEvent; busy?: string;
+  error?: unknown; clearError: () => void; operation?: OperationEvent; busy?: string;
 }) {
   return <>
-    {error && <ErrorNotice error={error} clearError={clearError} />}
+    {error != null && <ErrorNotice error={error} clearError={clearError} />}
     {busy && <OperationProgress operation={operation?.type === "finished" ? undefined : operation} busy={busy} />}
   </>;
 }
 
-function ErrorNotice({ error, clearError }: { error: string; clearError: () => void }) {
-  const [copied, setCopied] = useState(false);
-  const copyError = () => {
-    void copyText(error)
-      .then(() => {
-        setCopied(true);
-        window.setTimeout(() => setCopied(false), 1600);
-      })
-      .catch(() => setCopied(false));
-  };
-  return <section className="error-banner" role="alert">
-      <span className="error-icon"><Icon glyph={AlertTriangle} /></span>
-      <div><strong>Portcove couldn’t finish that action</strong><p>{error}</p></div>
-      <div className="error-actions"><button data-focusable onClick={copyError}>{copied ? "Copied" : "Copy details"}</button><button data-focusable className="icon-button" aria-label="Dismiss error" onClick={clearError}><Icon glyph={X} /></button></div>
+function ErrorNotice({ error, clearError }: { error: unknown; clearError: () => void }) {
+  const presentation = failurePresentation(error);
+  const code = typeof error === "object" && error && "code" in error ? String(error.code) : undefined;
+  return <section className="error-banner" role={presentation?.tone === "neutral" ? "status" : "alert"}>
+      <span className="error-icon"><Icon glyph={presentation?.tone === "neutral" ? CircleMinus : AlertTriangle} /></span>
+      <div><strong>{presentation?.tone === "neutral" ? "Operation cancelled" : "Portcove couldn’t finish that action"}</strong><p>{errorText(error)}</p>
+        {presentation && <FailureDetails presentation={presentation} code={code} />}</div>
+      <div className="error-actions"><button data-focusable className="icon-button" aria-label="Dismiss error" onClick={clearError}><Icon glyph={X} /></button></div>
     </section>;
 }
 
@@ -222,7 +216,7 @@ function SourceHealthRow({ source, report, outcome, busy, replace, openEvidence 
     <div><strong>{report?.expected_identity?.label ?? source.profile_id}</strong><code>{source.path}</code></div>
     <div className="source-health-actions"><SourceState report={report} outcome={outcome} />
       <button data-focusable className="small-control" disabled={Boolean(busy)} onClick={() => replace?.(source)}>Relink source</button></div>
-    {outcome?.error && <small>{outcome.error.message}</small>}
+    {outcome?.error && <div><p>{errorText(outcome.error)}</p><FailureDetails presentation={outcome.error.presentation} code={outcome.error.code} /></div>}
     {report ? <SourceIdentityPanel report={report} openEvidence={openEvidence} /> : <p className="source-inspection-loading" role="status">Checking identity…</p>}
   </div>;
 }

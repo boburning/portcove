@@ -21,6 +21,25 @@ React UI ── Tauri IPC ───┤
                  SQLite + library tree
 ```
 
+## Failure and diagnostic authority
+
+Core owns failure presentation, observed mutation outcomes, recovery-action
+vocabulary and terminal activity reports. CLI and Tauri serialize the same core
+report while preserving original machine error fields. React presents this
+information; it does not infer successful rollback or unchanged files from a
+failed operation or a particular error code. Unannotated outcomes remain Unknown.
+Not started, no requested changes, committed and recovery-required observations
+must be assigned where the operation owner has matching evidence. These states
+do not make blanket claims about diagnostic or lock-file bookkeeping.
+
+SQLite schema 20 records structured failure reports in the existing activity
+history update, atomically with terminal status. Older rows remain readable with
+no report. Corrupt optional failure details are reported as unreadable without
+hiding the activity or preventing ordinary library access. Shared text/field
+redaction now lives in core so activity presentation and desktop diagnostic
+bundles use one policy; host tracing, rotation and support-bundle packaging stay
+in the desktop adapter. Raw machine error fields retain their established meaning.
+
 ## Evolution policy
 
 This document records the architecture Portcove tests today; it is not a promise to preserve the initial crate graph forever. The durable requirement is unambiguous ownership, not the name or number of crates. A real implementation need may justify splitting a coherent domain from `portcove-core`, adding a boundary service, or keeping genuinely host-specific orchestration in an adapter.

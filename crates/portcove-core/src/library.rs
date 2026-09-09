@@ -506,6 +506,7 @@ impl Library {
             target_id: target_id.map(str::to_owned),
             status: ActivityStatus::Running,
             message: None,
+            failure: None,
             started_at: Self::now(),
             finished_at: None,
             cancellation: None,
@@ -541,6 +542,26 @@ impl Library {
         status: ActivityStatus,
         message: Option<&str>,
     ) -> Result<()> {
+        Self::finish_activity_report_on(connection, id, status, message, None)
+    }
+
+    pub(crate) fn finish_activity_report(
+        &self,
+        id: &str,
+        status: ActivityStatus,
+        message: Option<&str>,
+        failure: Option<&crate::FailureReport>,
+    ) -> Result<()> {
+        Self::finish_activity_report_on(&self.connection()?, id, status, message, failure)
+    }
+
+    fn finish_activity_report_on(
+        connection: &Connection,
+        id: &str,
+        status: ActivityStatus,
+        message: Option<&str>,
+        failure: Option<&crate::FailureReport>,
+    ) -> Result<()> {
         if status == ActivityStatus::Running {
             return Err(PortcoveError::usage(
                 "an activity cannot be finished with running status",
@@ -548,9 +569,9 @@ impl Library {
         }
         let changed = connection.execute(
             "UPDATE activity_history
-             SET status=?2, message=?3, finished_at=?4, cancellation_phase=NULL, cancellation_owner=NULL
+             SET status=?2, message=?3, finished_at=?4, failure_json=?5, cancellation_phase=NULL, cancellation_owner=NULL
              WHERE id=?1 AND status='running'",
-            params![id, status.to_string(), message, Self::now()],
+            params![id, status.to_string(), message, Self::now(), failure.map(serde_json::to_string).transpose()?],
         )?;
         if changed == 0 {
             return Err(PortcoveError::state(format!(
@@ -595,7 +616,7 @@ impl Library {
     pub fn activities(&self, limit: usize) -> Result<Vec<ActivityRecord>> {
         let connection = self.connection()?;
         let mut statement = connection.prepare(
-            "SELECT id, operation, target_kind, target_id, status, message, started_at, finished_at, cancellation_phase, cancel_requested
+            "SELECT id, operation, target_kind, target_id, status, message, started_at, finished_at, cancellation_phase, cancel_requested, failure_json
              FROM activity_history
              ORDER BY started_at DESC, rowid DESC
              LIMIT ?1",
@@ -612,6 +633,7 @@ impl Library {
                 row.get::<_, Option<i64>>(7)?,
                 row.get::<_, Option<String>>(8)?,
                 row.get::<_, bool>(9)?,
+                row.get::<_, Option<String>>(10)?,
             ))
         })?;
         rows.map(|row| {
@@ -626,7 +648,16 @@ impl Library {
                 finished_at,
                 phase,
                 requested,
+                failure_json,
             ) = row?;
+            let failure = failure_json.map(|json| {
+                serde_json::from_str::<crate::FailureReport>(&json).unwrap_or_else(|_| {
+                    PortcoveError::state("Stored failure details could not be read")
+                        .detail("activity_id", &id)
+                        .detail("report_state", "unreadable")
+                        .report()
+                })
+            });
             Ok(ActivityRecord {
                 id,
                 operation: operation.parse()?,
@@ -634,6 +665,7 @@ impl Library {
                 target_id,
                 status: status.parse()?,
                 message,
+                failure,
                 started_at,
                 finished_at,
                 cancellation: crate::CancellationState::from_columns(phase, requested)?,
@@ -1669,6 +1701,61 @@ fn parse_launch_session(row: StoredLaunchSession) -> Result<LaunchSessionRecord>
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn structured_failure_survives_restart_and_corrupt_details_do_not_hide_activity() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let activity = library
+            .begin_activity(
+                ActivityOperation::Prepare,
+                ActivityTargetKind::Port,
+                Some("ghostship"),
+            )
+            .unwrap();
+        let report = PortcoveError::source("owned setup exit 23")
+            .detail("exit_code", "23")
+            .with_mutation_state(crate::MutationState::RecoveryRequired)
+            .during("preparation.setup")
+            .report();
+        library
+            .finish_activity_report(
+                &activity.id,
+                ActivityStatus::Failed,
+                Some(&report.message),
+                Some(&report),
+            )
+            .unwrap();
+        let reopened = Library::open(temporary.path()).unwrap();
+        let stored = reopened.activities(10).unwrap();
+        assert_eq!(stored[0].status, ActivityStatus::Failed);
+        assert_eq!(stored[0].failure.as_ref(), Some(&report));
+        reopened
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE activity_history SET failure_json='invalid' WHERE id=?1",
+                [&activity.id],
+            )
+            .unwrap();
+        let damaged = reopened.activities(10).unwrap();
+        assert_eq!(damaged[0].id, activity.id);
+        assert_eq!(damaged[0].status, ActivityStatus::Failed);
+        assert_eq!(
+            damaged[0].failure.as_ref().unwrap().details["report_state"],
+            "unreadable"
+        );
+        assert_eq!(
+            damaged[0]
+                .failure
+                .as_ref()
+                .unwrap()
+                .presentation
+                .mutation_state,
+            crate::MutationState::Unknown
+        );
+        assert!(reopened.status("ghostship", ReleaseChannel::Stable).is_ok());
+    }
 
     #[test]
     fn relative_library_roots_store_absolute_managed_paths() {

@@ -7,7 +7,10 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use portcove_core::{PortcoveError, PortcoveService, Result};
+use portcove_core::{
+    PortcoveError, PortcoveService, Result, redact_diagnostic_text as redact_text,
+    redact_diagnostic_value, sensitive_diagnostic_field as is_sensitive_field,
+};
 use serde_json::{Value, json};
 use tracing::{
     Event, Subscriber,
@@ -62,7 +65,7 @@ pub fn create_support_bundle(service: &PortcoveService) -> Result<PathBuf> {
     let output = logs_dir.join(format!("portcove-support-{timestamp}.zip"));
     let doctor = service.doctor()?;
     let activities = service.library().activities(100)?;
-    let summary = json!({
+    let mut summary = json!({
         "schema_version": 1,
         "created_at_ms": timestamp,
         "platform": doctor.platform,
@@ -90,7 +93,8 @@ pub fn create_support_bundle(service: &PortcoveService) -> Result<PathBuf> {
     archive
         .start_file("diagnostics.json", options)
         .map_err(zip_error)?;
-    archive.write_all(redact_text(&serde_json::to_string_pretty(&summary)?).as_bytes())?;
+    redact_diagnostic_value(&mut summary);
+    archive.write_all(&serde_json::to_vec_pretty(&summary)?)?;
     archive.write_all(b"\n")?;
     for path in log_files {
         let name = path
@@ -104,7 +108,17 @@ pub fn create_support_bundle(service: &PortcoveService) -> Result<PathBuf> {
         archive
             .start_file(format!("logs/{name}"), options)
             .map_err(zip_error)?;
-        archive.write_all(redact_text(&contents).as_bytes())?;
+        for line in contents.lines() {
+            let redacted = match serde_json::from_str::<Value>(line) {
+                Ok(mut value) => {
+                    redact_diagnostic_value(&mut value);
+                    serde_json::to_string(&value)?
+                }
+                Err(_) => redact_text(line),
+            };
+            archive.write_all(redacted.as_bytes())?;
+            archive.write_all(b"\n")?;
+        }
     }
     archive.finish().map_err(zip_error)?.sync_all()?;
     Ok(output)
@@ -148,7 +162,9 @@ impl DiagnosticLog {
             .lock
             .lock()
             .map_err(|_| PortcoveError::state("diagnostic log lock is unavailable"))?;
-        let mut line = redact_text(&serde_json::to_string(event)?);
+        let mut event = event.clone();
+        redact_diagnostic_value(&mut event);
+        let mut line = serde_json::to_string(&event)?;
         line.push('\n');
         if self.inner.path.metadata().is_ok_and(|metadata| {
             metadata.len().saturating_add(line.len() as u64) > self.inner.max_bytes
@@ -203,62 +219,6 @@ impl FieldVisitor {
         self.fields
             .insert(field.name().to_owned(), Value::String(value));
     }
-}
-
-fn is_sensitive_field(name: &str) -> bool {
-    let name = name.to_ascii_lowercase();
-    [
-        "token",
-        "secret",
-        "password",
-        "credential",
-        "authorization",
-        "device_code",
-        "user_code",
-    ]
-    .iter()
-    .any(|part| name.contains(part))
-}
-
-fn redact_text(input: &str) -> String {
-    let mut output = input.to_owned();
-    for marker in [
-        "Bearer ",
-        "ghp_",
-        "github_pat_",
-        "glpat-",
-        "token=",
-        "password=",
-        "secret=",
-        "authorization=",
-    ] {
-        output = redact_after_marker(&output, marker);
-    }
-    output
-}
-
-fn redact_after_marker(input: &str, marker: &str) -> String {
-    let mut output = String::with_capacity(input.len());
-    let mut remaining = input;
-    let marker_lower = marker.to_ascii_lowercase();
-    while let Some(index) = remaining.to_ascii_lowercase().find(&marker_lower) {
-        let (before, matched) = remaining.split_at(index);
-        output.push_str(before);
-        output.push_str(&matched[..marker.len()]);
-        output.push_str("[REDACTED]");
-        let after = &matched[marker.len()..];
-        let secret_len = after
-            .char_indices()
-            .take_while(|(_, character)| {
-                character.is_ascii_alphanumeric() || matches!(character, '_' | '-')
-            })
-            .map(|(index, character)| index + character.len_utf8())
-            .last()
-            .unwrap_or_default();
-        remaining = &after[secret_len..];
-    }
-    output.push_str(remaining);
-    output
 }
 
 fn rotate_logs(path: &Path, retained_files: usize) -> Result<()> {

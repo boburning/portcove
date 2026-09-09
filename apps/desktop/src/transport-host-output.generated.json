@@ -1,28 +1,6 @@
 {
   "bootstrap_status": {
     "$defs": {
-      "DesktopError": {
-        "properties": {
-          "code": {
-            "$ref": "#/$defs/ErrorCode"
-          },
-          "details": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "type": "object"
-          },
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "message",
-          "details"
-        ],
-        "type": "object"
-      },
       "ErrorCode": {
         "enum": [
           "usage",
@@ -36,6 +14,87 @@
           "launch",
           "conflict",
           "cancelled"
+        ],
+        "type": "string"
+      },
+      "FailurePresentation": {
+        "properties": {
+          "mutation_state": {
+            "$ref": "#/$defs/MutationState"
+          },
+          "phase": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "presentation_key": {
+            "type": "string"
+          },
+          "recovery_actions": {
+            "items": {
+              "$ref": "#/$defs/RecoveryAction"
+            },
+            "type": "array"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "technical_context": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "technical_message": {
+            "type": "string"
+          },
+          "tone": {
+            "$ref": "#/$defs/FailureTone"
+          }
+        },
+        "required": [
+          "presentation_key",
+          "summary",
+          "tone",
+          "mutation_state",
+          "phase",
+          "recovery_actions",
+          "technical_message",
+          "technical_context"
+        ],
+        "type": "object"
+      },
+      "FailureReport": {
+        "properties": {
+          "code": {
+            "$ref": "#/$defs/ErrorCode"
+          },
+          "details": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "message": {
+            "type": "string"
+          },
+          "presentation": {
+            "$ref": "#/$defs/FailurePresentation"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "details",
+          "presentation"
+        ],
+        "type": "object"
+      },
+      "FailureTone": {
+        "enum": [
+          "neutral",
+          "error"
         ],
         "type": "string"
       },
@@ -61,6 +120,24 @@
           "platform_default"
         ],
         "type": "string"
+      },
+      "MutationState": {
+        "enum": [
+          "not_started",
+          "no_changes",
+          "committed",
+          "recovery_required",
+          "unknown"
+        ],
+        "type": "string"
+      },
+      "RecoveryAction": {
+        "enum": [
+          "review_current_state",
+          "review_preparation",
+          "view_technical_details"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -68,7 +145,7 @@
       "error": {
         "anyOf": [
           {
-            "$ref": "#/$defs/DesktopError"
+            "$ref": "#/$defs/FailureReport"
           },
           {
             "type": "null"
@@ -127,6 +204,79 @@
           "cancelled"
         ],
         "type": "string"
+      },
+      "FailurePresentation": {
+        "properties": {
+          "mutation_state": {
+            "$ref": "#/$defs/MutationState"
+          },
+          "phase": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "presentation_key": {
+            "type": "string"
+          },
+          "recovery_actions": {
+            "items": {
+              "$ref": "#/$defs/RecoveryAction"
+            },
+            "type": "array"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "technical_context": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "technical_message": {
+            "type": "string"
+          },
+          "tone": {
+            "$ref": "#/$defs/FailureTone"
+          }
+        },
+        "required": [
+          "presentation_key",
+          "summary",
+          "tone",
+          "mutation_state",
+          "phase",
+          "recovery_actions",
+          "technical_message",
+          "technical_context"
+        ],
+        "type": "object"
+      },
+      "FailureTone": {
+        "enum": [
+          "neutral",
+          "error"
+        ],
+        "type": "string"
+      },
+      "MutationState": {
+        "enum": [
+          "not_started",
+          "no_changes",
+          "committed",
+          "recovery_required",
+          "unknown"
+        ],
+        "type": "string"
+      },
+      "RecoveryAction": {
+        "enum": [
+          "review_current_state",
+          "review_preparation",
+          "view_technical_details"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -142,14 +292,18 @@
       },
       "message": {
         "type": "string"
+      },
+      "presentation": {
+        "$ref": "#/$defs/FailurePresentation"
       }
     },
     "required": [
       "code",
       "message",
-      "details"
+      "details",
+      "presentation"
     ],
-    "title": "DesktopError",
+    "title": "FailureReport",
     "type": "object"
   },
   "launch_result": {
@@ -197,28 +351,6 @@
         ],
         "type": "object"
       },
-      "DesktopError": {
-        "properties": {
-          "code": {
-            "$ref": "#/$defs/ErrorCode"
-          },
-          "details": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "type": "object"
-          },
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "message",
-          "details"
-        ],
-        "type": "object"
-      },
       "ErrorCode": {
         "enum": [
           "usage",
@@ -232,6 +364,87 @@
           "launch",
           "conflict",
           "cancelled"
+        ],
+        "type": "string"
+      },
+      "FailurePresentation": {
+        "properties": {
+          "mutation_state": {
+            "$ref": "#/$defs/MutationState"
+          },
+          "phase": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "presentation_key": {
+            "type": "string"
+          },
+          "recovery_actions": {
+            "items": {
+              "$ref": "#/$defs/RecoveryAction"
+            },
+            "type": "array"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "technical_context": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "technical_message": {
+            "type": "string"
+          },
+          "tone": {
+            "$ref": "#/$defs/FailureTone"
+          }
+        },
+        "required": [
+          "presentation_key",
+          "summary",
+          "tone",
+          "mutation_state",
+          "phase",
+          "recovery_actions",
+          "technical_message",
+          "technical_context"
+        ],
+        "type": "object"
+      },
+      "FailureReport": {
+        "properties": {
+          "code": {
+            "$ref": "#/$defs/ErrorCode"
+          },
+          "details": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "message": {
+            "type": "string"
+          },
+          "presentation": {
+            "$ref": "#/$defs/FailurePresentation"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "details",
+          "presentation"
+        ],
+        "type": "object"
+      },
+      "FailureTone": {
+        "enum": [
+          "neutral",
+          "error"
         ],
         "type": "string"
       },
@@ -306,6 +519,16 @@
         ],
         "type": "object"
       },
+      "MutationState": {
+        "enum": [
+          "not_started",
+          "no_changes",
+          "committed",
+          "recovery_required",
+          "unknown"
+        ],
+        "type": "string"
+      },
       "ReconcileAction": {
         "enum": [
           "up_to_date",
@@ -348,6 +571,14 @@
           "install"
         ],
         "type": "object"
+      },
+      "RecoveryAction": {
+        "enum": [
+          "review_current_state",
+          "review_preparation",
+          "view_technical_details"
+        ],
+        "type": "string"
       },
       "ReleaseAsset": {
         "properties": {
@@ -522,7 +753,7 @@
       "error": {
         "anyOf": [
           {
-            "$ref": "#/$defs/DesktopError"
+            "$ref": "#/$defs/FailureReport"
           },
           {
             "type": "null"
@@ -578,28 +809,6 @@
           "stfs-live"
         ],
         "type": "string"
-      },
-      "DesktopError": {
-        "properties": {
-          "code": {
-            "$ref": "#/$defs/ErrorCode"
-          },
-          "details": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "type": "object"
-          },
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "message",
-          "details"
-        ],
-        "type": "object"
       },
       "DigestIdentity": {
         "additionalProperties": false,
@@ -662,6 +871,97 @@
           "launch",
           "conflict",
           "cancelled"
+        ],
+        "type": "string"
+      },
+      "FailurePresentation": {
+        "properties": {
+          "mutation_state": {
+            "$ref": "#/$defs/MutationState"
+          },
+          "phase": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "presentation_key": {
+            "type": "string"
+          },
+          "recovery_actions": {
+            "items": {
+              "$ref": "#/$defs/RecoveryAction"
+            },
+            "type": "array"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "technical_context": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "technical_message": {
+            "type": "string"
+          },
+          "tone": {
+            "$ref": "#/$defs/FailureTone"
+          }
+        },
+        "required": [
+          "presentation_key",
+          "summary",
+          "tone",
+          "mutation_state",
+          "phase",
+          "recovery_actions",
+          "technical_message",
+          "technical_context"
+        ],
+        "type": "object"
+      },
+      "FailureReport": {
+        "properties": {
+          "code": {
+            "$ref": "#/$defs/ErrorCode"
+          },
+          "details": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "message": {
+            "type": "string"
+          },
+          "presentation": {
+            "$ref": "#/$defs/FailurePresentation"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "details",
+          "presentation"
+        ],
+        "type": "object"
+      },
+      "FailureTone": {
+        "enum": [
+          "neutral",
+          "error"
+        ],
+        "type": "string"
+      },
+      "MutationState": {
+        "enum": [
+          "not_started",
+          "no_changes",
+          "committed",
+          "recovery_required",
+          "unknown"
         ],
         "type": "string"
       },
@@ -921,6 +1221,14 @@
         "enum": [
           "game",
           "bios"
+        ],
+        "type": "string"
+      },
+      "RecoveryAction": {
+        "enum": [
+          "review_current_state",
+          "review_preparation",
+          "view_technical_details"
         ],
         "type": "string"
       },
@@ -2296,7 +2604,7 @@
       "error": {
         "anyOf": [
           {
-            "$ref": "#/$defs/DesktopError"
+            "$ref": "#/$defs/FailureReport"
           },
           {
             "type": "null"
@@ -2352,28 +2660,6 @@
         ],
         "type": "object"
       },
-      "DesktopError": {
-        "properties": {
-          "code": {
-            "$ref": "#/$defs/ErrorCode"
-          },
-          "details": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "type": "object"
-          },
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "message",
-          "details"
-        ],
-        "type": "object"
-      },
       "ErrorCode": {
         "enum": [
           "usage",
@@ -2387,6 +2673,105 @@
           "launch",
           "conflict",
           "cancelled"
+        ],
+        "type": "string"
+      },
+      "FailurePresentation": {
+        "properties": {
+          "mutation_state": {
+            "$ref": "#/$defs/MutationState"
+          },
+          "phase": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "presentation_key": {
+            "type": "string"
+          },
+          "recovery_actions": {
+            "items": {
+              "$ref": "#/$defs/RecoveryAction"
+            },
+            "type": "array"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "technical_context": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "technical_message": {
+            "type": "string"
+          },
+          "tone": {
+            "$ref": "#/$defs/FailureTone"
+          }
+        },
+        "required": [
+          "presentation_key",
+          "summary",
+          "tone",
+          "mutation_state",
+          "phase",
+          "recovery_actions",
+          "technical_message",
+          "technical_context"
+        ],
+        "type": "object"
+      },
+      "FailureReport": {
+        "properties": {
+          "code": {
+            "$ref": "#/$defs/ErrorCode"
+          },
+          "details": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "message": {
+            "type": "string"
+          },
+          "presentation": {
+            "$ref": "#/$defs/FailurePresentation"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "details",
+          "presentation"
+        ],
+        "type": "object"
+      },
+      "FailureTone": {
+        "enum": [
+          "neutral",
+          "error"
+        ],
+        "type": "string"
+      },
+      "MutationState": {
+        "enum": [
+          "not_started",
+          "no_changes",
+          "committed",
+          "recovery_required",
+          "unknown"
+        ],
+        "type": "string"
+      },
+      "RecoveryAction": {
+        "enum": [
+          "review_current_state",
+          "review_preparation",
+          "view_technical_details"
         ],
         "type": "string"
       },
@@ -2555,7 +2940,7 @@
       "error": {
         "anyOf": [
           {
-            "$ref": "#/$defs/DesktopError"
+            "$ref": "#/$defs/FailureReport"
           },
           {
             "type": "null"

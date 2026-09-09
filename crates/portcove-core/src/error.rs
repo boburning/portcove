@@ -28,6 +28,7 @@ pub struct PortcoveError {
     pub code: ErrorCode,
     pub message: String,
     pub details: BTreeMap<String, String>,
+    pub(crate) failure: crate::failure::FailureContext,
 }
 
 impl PortcoveError {
@@ -36,6 +37,7 @@ impl PortcoveError {
             code,
             message: message.into(),
             details: BTreeMap::new(),
+            failure: crate::failure::FailureContext::default(),
         }
     }
 

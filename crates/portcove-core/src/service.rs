@@ -555,7 +555,12 @@ impl PortcoveService {
         if result.is_ok() {
             if let Err(error) = crate::cancellation::close_preparation(&self.library, &activity.id)
             {
-                result = Err(error);
+                result = Err(if activity.operation == ActivityOperation::Prepare {
+                    // A successful preparation result is returned only after its derivative is published.
+                    error.with_mutation_state(crate::MutationState::Committed)
+                } else {
+                    error
+                });
             }
         }
         let (status, message) = match &result {
@@ -565,7 +570,11 @@ impl PortcoveService {
             }
             Err(error) => (ActivityStatus::Failed, Some(error.message.as_str())),
         };
-        if let Err(error) = self.library.finish_activity(&activity.id, status, message) {
+        let failure = result.as_ref().err().map(PortcoveError::report);
+        if let Err(error) =
+            self.library
+                .finish_activity_report(&activity.id, status, message, failure.as_ref())
+        {
             if status == ActivityStatus::Cancelled {
                 return Err(
                     PortcoveError::state("Cancellation could not be recorded durably")

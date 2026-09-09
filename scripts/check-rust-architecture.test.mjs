@@ -70,3 +70,9 @@ test("isolates offline release verification from player and library authority", 
   }));
   assert.equal(violations.length, 3);
 });
+
+test("keeps host tracing collectors outside the core failure authority", () => {
+  const violations = validateArchitecture(metadata({ "portcove-core": ["serde", "tracing-subscriber"] }));
+  assert.equal(violations.length, 1);
+  assert.equal(violations[0].dependencyName, "tracing-subscriber");
+});

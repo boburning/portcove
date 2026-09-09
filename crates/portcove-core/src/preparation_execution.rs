@@ -3,9 +3,9 @@ use std::{collections::BTreeMap, fs, path::Path};
 use super::{PreparationInputs, PreparationOptions, PreparationPlan, RECEIPT_FILE, tool_identity};
 use crate::{
     ActivityOperation, ActivityTargetKind, AdoptionCopyPlan, ChildProcessClass,
-    DestructiveAuthorization, InstallQualification, InstallRecord, Installer, OperationCoordinator,
-    OperationEvent, OperationResult, PortDefinition, PortcoveError, PortcoveService, Result,
-    RuntimeSourceMaterialization,
+    DestructiveAuthorization, InstallQualification, InstallRecord, Installer, MutationState,
+    OperationCoordinator, OperationEvent, OperationResult, PortDefinition, PortcoveError,
+    PortcoveService, RecoveryAction, Result, RuntimeSourceMaterialization,
     operation::{
         LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind, LifecyclePhase,
         OperationStore,
@@ -30,7 +30,9 @@ impl PortcoveService {
         if plan.plan_sha256 != expected_plan {
             return Err(PortcoveError::conflict(
                 "preparation inputs changed; review the plan again",
-            ));
+            )
+            .with_mutation_state(MutationState::NoChanges)
+            .during("preparation.review"));
         }
         self.library()
             .issue_authorization("prepare", port_id, expected_plan)
@@ -45,7 +47,13 @@ impl PortcoveService {
         mut emit: impl FnMut(OperationEvent),
     ) -> Result<InstallRecord> {
         let _guard = self.library().try_lock_port(port_id, "prepare")?;
-        let plan = self.plan_preparation_locked(port_id, options)?;
+        let plan = self
+            .plan_preparation_locked(port_id, options)
+            .map_err(|error| {
+                error
+                    .with_mutation_state(MutationState::NotStarted)
+                    .during("preparation.review")
+            })?;
         let port = self.catalog().port(port_id)?;
         if port.runtime_source_materialization != Some(RuntimeSourceMaterialization::Ps2Iso)
             || !port.runtime_source_set.is_empty()
@@ -67,8 +75,10 @@ impl PortcoveService {
             Some(port_id),
         )?;
         emit(operation.started());
-        let result = self.prepare_derivative(&plan, &operation, &mut emit);
-        if let Err(error) = &result {
+        let mut result = self
+            .prepare_derivative(&plan, &operation, &mut emit)
+            .map_err(|error| error.offer_recovery(RecoveryAction::ReviewPreparation));
+        if let Err(error) = &mut result {
             let store = OperationStore::new(self.library().clone());
             let recorded = (|| -> Result<()> {
                 if let Some(mut journal) = store
@@ -79,6 +89,7 @@ impl PortcoveService {
                     // Private work is retained on failure, including when a hard
                     // interruption leaves a tool's lifetime uncertain. A retry uses
                     // another operation ID; it never reuses or removes partial work.
+                    error.failure.mutation_state = MutationState::RecoveryRequired;
                     journal.last_error = Some(error.message.clone());
                     store.put(&mut journal)?;
                 }
@@ -263,7 +274,8 @@ impl PortcoveService {
                 .as_ref()
                 .map(|tool| tool.path.as_path()),
             &|| operation.checkpoint(),
-        )?;
+        )
+        .map_err(|error| error.during("preparation.setup"))?;
         let setup_relative = plan
             .inputs
             .setup_tool
@@ -299,7 +311,8 @@ impl PortcoveService {
             &source,
             payload,
             &|| operation.checkpoint(),
-        )?;
+        )
+        .map_err(|error| error.during("preparation.setup"))?;
         tracing::info!(
             port_id = port.id,
             output = output.output,
@@ -310,10 +323,13 @@ impl PortcoveService {
             return Err(PortcoveError::source(format!(
                 "upstream setup rejected or could not prepare the source (exit {})",
                 output.status.code().unwrap_or(-1)
-            )));
+            ))
+            .during("preparation.setup")
+            .detail("exit_code", output.status.code().unwrap_or(-1).to_string()));
         }
         self.check_lifecycle_fault(LifecycleFaultPoint::PreparationToolCompleted)?;
-        validate_outputs(port, payload, &before, &permissions)?;
+        validate_outputs(port, payload, &before, &permissions)
+            .map_err(|error| error.during("preparation.verify"))?;
         let marker = port
             .setup_marker
             .as_deref()
