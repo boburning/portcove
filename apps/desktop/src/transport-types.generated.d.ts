@@ -341,6 +341,7 @@ export type SourceInboxResolutionState =
 export interface TransportOutputs {
   about: OutputAbout;
   activity: OutputActivity;
+  activity_diagnostic: OutputActivityDiagnostic;
   adoption_preview: OutputAdoptionPreview;
   api_response_port_status: OutputApiResponsePortStatus;
   backup: BackupRecord;
@@ -464,6 +465,25 @@ export interface FailurePresentation {
   };
   technical_message: string;
   tone: FailureTone;
+  [k: string]: unknown;
+}
+export interface OutputActivityDiagnostic {
+  activity_id: string;
+  /**
+   * Both streams reached EOF and the process owner recorded the final capture.
+   */
+  complete: boolean;
+  phase: string;
+  stderr: DiagnosticStream;
+  stdout: DiagnosticStream;
+  stream_limit_bytes: number;
+  updated_at: number;
+  [k: string]: unknown;
+}
+export interface DiagnosticStream {
+  observed_bytes: number;
+  text: string;
+  truncated: boolean;
   [k: string]: unknown;
 }
 export interface OutputAdoptionPreview {

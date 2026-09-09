@@ -57,7 +57,7 @@ describe("core-owned failure presentation", () => {
     error.presentation.mutation_state = "recovery_required";
     error.presentation.recovery_actions.unshift("review_preparation");
     const onSelect = vi.fn(); const port = portDefinition();
-    const props = { ports: [port], statuses: new Map(), outcomes: [], checkAll: vi.fn(), onSelect, onOpenSources: vi.fn(),
+    const props = { generation: 1, ports: [port], statuses: new Map(), outcomes: [], checkAll: vi.fn(), onSelect, onOpenSources: vi.fn(),
       activities: [{ id: "recorded", operation: "prepare" as const, target_kind: "port" as const, target_id: port.id,
         status: "failed" as const, started_at: 1, finished_at: 2, cancellation: null, failure: error, message: "raw-machine-secret" }] };
     for (let mount = 0; mount < 2; mount++) {

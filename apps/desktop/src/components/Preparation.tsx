@@ -38,10 +38,10 @@ export function PreparationControl({ portId, generation, disabled, run }: {
         if (event.type === "started") setOperationId(event.operation_id);
         if (event.type === "message") setMessage(event.message);
       });
-      if (request.current === current) setMessage(result ? "Game data is prepared. You can now play." : "Preparation did not complete. Review the inputs before retrying.");
+      if (request.current === current) setMessage(result ? "Game data is prepared. You can now play." : "Preparation did not complete. Review the current inputs before starting a new preparation.");
     } catch (value) {
       if (request.current === current) {
-        if (isCancellation(value)) setMessage("Preparation cancelled. Your previous installation is preserved.");
+        if (isCancellation(value)) setMessage("Preparation cancelled. Review its retained outcome in Recent activity.");
         else setError(errorText(value));
       }
     } finally {
@@ -56,7 +56,8 @@ export function PreparationControl({ portId, generation, disabled, run }: {
       <p>Original source: {plan.inputs.source.path}</p>
       <p>A private copy needs at least {formatBytes(plan.copy.total_bytes + plan.inputs.source.storage_size)} before generated output. The final space needed depends on the game.</p>
       <p>The verified result becomes active. Your previous version remains available for rollback.</p>
-      <button ref={applyButton} data-focusable className="primary wide" disabled={disabled || Boolean(pending)} onClick={() => { void prepare(); }}>Prepare game data</button>
+      <p>Each attempt starts from the reviewed inputs in a new private copy and retains earlier partial work.</p>
+      <button ref={applyButton} data-focusable className="primary wide" disabled={disabled || Boolean(pending)} onClick={() => { void prepare(); }}>Start new preparation</button>
     </>}
     {message && <p role="status">{message}</p>}
     {operationId && <OperationCancellation key={operationId} operationId={operationId} label="Cancel preparation" />}

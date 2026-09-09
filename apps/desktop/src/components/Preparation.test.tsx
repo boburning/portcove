@@ -38,8 +38,8 @@ it("reviews without executing and binds explicit confirmation to the returned pl
   expect(review).toHaveBeenCalledWith("sample", 7);
   expect(run).not.toHaveBeenCalled();
   expect(container.textContent).toContain("E:/owned.iso");
-  expect(document.activeElement?.textContent).toBe("Prepare game data");
-  await click("Prepare game data");
+  expect(document.activeElement?.textContent).toBe("Start new preparation");
+  await click("Start new preparation");
   expect(run).toHaveBeenCalledWith("reviewed-plan", expect.any(Function));
   expect(container.textContent).toContain("Game data is prepared");
 });
@@ -48,7 +48,7 @@ it("requires a fresh review after an execution error and reports no success", as
   vi.spyOn(desktopApi, "planPreparation").mockResolvedValue(plan);
   const run = vi.fn().mockRejectedValue(new Error("Inputs changed"));
   await act(async () => root.render(<PreparationControl portId="sample" generation={7} disabled={false} run={run} />));
-  await click("Review game preparation"); await click("Prepare game data");
+  await click("Review game preparation"); await click("Start new preparation");
   expect(container.querySelector('[role="alert"]')?.textContent).toContain("Inputs changed");
   expect(container.textContent).not.toContain("Game data is prepared");
   expect([...container.querySelectorAll("button")].map(button => button.textContent)).toContain("Review game preparation");

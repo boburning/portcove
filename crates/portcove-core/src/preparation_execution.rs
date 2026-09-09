@@ -275,7 +275,7 @@ impl PortcoveService {
                 .map(|tool| tool.path.as_path()),
             &|| operation.checkpoint(),
         )
-        .map_err(|error| error.during("preparation.setup"))?;
+        .map_err(|error| error.during("preparation.extract"))?;
         let setup_relative = plan
             .inputs
             .setup_tool
@@ -311,6 +311,8 @@ impl PortcoveService {
             &source,
             payload,
             &|| operation.checkpoint(),
+            operation.operation_id(),
+            &mut |capture| self.library().record_activity_diagnostic(capture),
         )
         .map_err(|error| error.during("preparation.setup"))?;
         tracing::info!(
@@ -337,7 +339,8 @@ impl PortcoveService {
         if !payload.join(marker).is_file() {
             return Err(PortcoveError::verification(
                 "setup completed without its declared output marker",
-            ));
+            )
+            .during("preparation.verify"));
         }
         crate::adapter::record_prepared_setup(payload, &source)?;
         operation.checkpoint()

@@ -108,6 +108,36 @@ fn reviewed_preparation_runs_through_jsonl_and_a_fresh_cli_plays_without_setup()
             .any(|event| event["type"] == "started" && event["operation"] == "prepare")
     );
     assert!(events.iter().any(|event| event["type"] == "finished"));
+    let id = events
+        .iter()
+        .find(|event| event["type"] == "started" && event["operation"] == "prepare")
+        .unwrap()["operation_id"]
+        .as_str()
+        .unwrap();
+    let log_json = portcove(&library, &["--json", "activity", "log", id]);
+    let log_jsonl = portcove(&library, &["--jsonl", "activity", "log", id]);
+    assert!(log_json.status.success() && log_jsonl.status.success());
+    let log_json = json_stdout(&log_json);
+    let log_jsonl = json_stdout(&log_jsonl);
+    assert_eq!(log_json["command"], "activity.log");
+    assert_eq!(log_json["data"], log_jsonl["data"]);
+    assert_eq!(log_json["data"]["complete"], true);
+    assert!(
+        log_json["data"]["stdout"]["text"]
+            .as_str()
+            .unwrap()
+            .contains("owned setup began")
+    );
+    assert!(!log_json.to_string().contains("owned-fixture-private-value"));
+    let capture = portcove_core::Library::open(&library)
+        .unwrap()
+        .activity_diagnostic(id)
+        .unwrap();
+    assert_eq!(log_json["data"], serde_json::to_value(capture).unwrap());
+    let human_log = portcove(&library, &["activity", "log", id]);
+    let human_log = String::from_utf8(human_log.stdout).unwrap();
+    assert!(human_log.contains("Capture reached the end of both streams."));
+    assert!(!human_log.contains("owned-fixture-private-value"));
     assert_eq!(events.last().unwrap()["command"], "preparation.run");
     let status = json_stdout(&portcove(&library, &["--json", "status", &port.id]));
     assert_eq!(status["data"]["previous"]["id"], original_id);

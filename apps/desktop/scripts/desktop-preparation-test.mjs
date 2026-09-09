@@ -55,7 +55,7 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
     await open(port);
     assert.equal((await status(port.id)).readiness.launchable, false);
     await browser.findElement(button("Review game preparation")).click();
-    await browser.wait(until.elementLocated(button("Prepare game data")), 15_000);
+    await browser.wait(until.elementLocated(button("Start new preparation")), 15_000);
     assert.equal((await status(port.id)).active.id, install.id, "review must not prepare");
     const reviewImage = path.join(output, "native-preparation-review.png");
     await writeFile(reviewImage, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
@@ -66,7 +66,7 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
     await writeFile(accessibilityReport, JSON.stringify(accessibility, null, 2), { flag: "wx" });
     artifacts.push(accessibilityReport);
     assert.deepEqual(accessibility.violations.map(item => item.id), []);
-    await browser.findElement(button("Prepare game data")).click();
+    await browser.findElement(button("Start new preparation")).click();
     await browser.wait(async () => (await status(port.id)).readiness.launchable, 15_000);
     const prepared = await status(port.id);
     assert.notEqual(prepared.active.id, install.id);
@@ -83,8 +83,8 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
     const { port, install } = await seed("opengoal-jak2", "wait");
     await open(port);
     await browser.findElement(button("Review game preparation")).click();
-    await browser.wait(until.elementLocated(button("Prepare game data")), 15_000);
-    await browser.findElement(button("Prepare game data")).click();
+    await browser.wait(until.elementLocated(button("Start new preparation")), 15_000);
+    await browser.findElement(button("Start new preparation")).click();
     let activity;
     await browser.wait(async () => {
       const result = await invoke("get_activities");
@@ -112,6 +112,25 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
     assert.match(await row.getText(), /Retained work needs recovery review/);
     assert.doesNotMatch(await row.getText(), /No files were changed/);
     await row.findElement(By.css("summary")).click();
+    const generation = (await invoke("get_bootstrap_status")).value.generation;
+    const retained = await invoke("get_activity_diagnostic", { activityId: activity.id, generation });
+    assert.equal(retained.ok, true);
+    assert.equal(retained.value.complete, true);
+    assert.match(retained.value.stdout.text, /owned setup began/);
+    assert.match(retained.value.stderr.text, /owned setup diagnostic on stderr/);
+    assert.doesNotMatch(JSON.stringify(retained.value), /owned-fixture-private-value/);
+    assert.deepEqual(command(["activity", "log", activity.id]), retained.value);
+    const staleLog = await invoke("get_activity_diagnostic", { activityId: activity.id, generation: generation + 1 });
+    assert.equal(staleLog.ok, false); assert.equal(staleLog.error.code, "conflict");
+    await row.findElement(By.xpath('.//summary[normalize-space(.)="View preparation log"]')).click();
+    await browser.wait(async () => (await row.getText()).includes("owned setup diagnostic on stderr"), 5_000);
+    assert.doesNotMatch(await row.getText(), /owned-fixture-private-value/);
+    const bundle = await invoke("create_support_bundle");
+    assert.equal(bundle.ok, true);
+    artifacts.push(bundle.value);
+    const capture = path.join(output, "retained-preparation-log.json");
+    await writeFile(capture, JSON.stringify(retained.value, null, 2), { flag: "wx" }); artifacts.push(capture);
+
     await browser.executeScript(axe.source);
     const accessibility = await browser.executeAsyncScript(done => window.axe.run().then(done));
     const report = path.join(output, "recovery-details-accessibility.json");

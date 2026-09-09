@@ -174,7 +174,17 @@ fn assert_private_failure(mode: &str) {
         .into_iter()
         .find(|activity| activity.operation == crate::ActivityOperation::Prepare)
         .unwrap();
-    assert_eq!(activity.failure.unwrap(), error.report());
+    assert_eq!(activity.failure.as_ref().unwrap(), &error.report());
+    let capture = reopened.activity_diagnostic(&activity.id).unwrap().unwrap();
+    assert!(capture.complete);
+    assert!(capture.stdout.text.contains("owned setup began"));
+    assert!(
+        capture
+            .stderr
+            .text
+            .contains("owned setup diagnostic on stderr")
+    );
+    assert!(!capture.stdout.text.contains("owned-fixture-private-value"));
     assert_eq!(
         error.presentation().mutation_state,
         crate::MutationState::RecoveryRequired
@@ -327,7 +337,20 @@ fn running_setup_cancellation_preserves_the_active_tree() {
                     let deadline = Instant::now() + Duration::from_secs(5);
                     while Instant::now() < deadline {
                         if ready.is_file() {
-                            return service.request_cancellation(&id).is_ok();
+                            if let Some(capture) =
+                                service.library().activity_diagnostic(&id).unwrap()
+                            {
+                                if capture.stdout.text.contains("owned setup began") {
+                                    assert!(!capture.complete);
+                                    assert!(
+                                        !capture
+                                            .stdout
+                                            .text
+                                            .contains("owned-fixture-private-value")
+                                    );
+                                    return service.request_cancellation(&id).is_ok();
+                                }
+                            }
                         }
                         std::thread::sleep(Duration::from_millis(10));
                     }

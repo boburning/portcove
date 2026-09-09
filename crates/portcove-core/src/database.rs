@@ -10,7 +10,7 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior};
 
 use crate::{PortcoveError, Result};
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 20;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 21;
 
 struct Migration {
     version: i64,
@@ -139,6 +139,12 @@ const MIGRATIONS: &[Migration] = &[
         name: "structured activity failures",
         apply: migration_20,
         verify: verify_migration_20,
+    },
+    Migration {
+        version: 21,
+        name: "retained activity diagnostics",
+        apply: migration_21,
+        verify: verify_migration_21,
     },
 ];
 
@@ -816,6 +822,26 @@ fn verify_migration_18(connection: &Connection) -> Result<()> {
     require_columns(connection, "lifecycle_operations", &["source_import_json"])
 }
 
+fn migration_21(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE IF NOT EXISTS activity_diagnostics (
+            activity_id TEXT PRIMARY KEY REFERENCES activity_history(id) ON DELETE CASCADE,
+            payload TEXT NOT NULL,
+            updated_at INTEGER NOT NULL,
+            payload_bytes INTEGER NOT NULL CHECK(payload_bytes>=0)
+        );",
+    )?;
+    Ok(())
+}
+
+fn verify_migration_21(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "activity_diagnostics",
+        &["activity_id", "payload", "updated_at", "payload_bytes"],
+    )
+}
+
 fn migration_20(transaction: &Transaction<'_>) -> Result<()> {
     if !table_columns(transaction, "activity_history")?
         .iter()
@@ -1036,6 +1062,7 @@ mod tests {
         schema_17: 17,
         schema_18: 18,
         schema_19: 19,
+        schema_20: 20,
     }
 
     #[test]

@@ -1,3 +1,4 @@
+mod activity_diagnostics;
 mod adapter;
 mod archive;
 mod auth;
@@ -58,6 +59,7 @@ mod transfer_copy;
 mod transfer_journal;
 mod types;
 
+pub use activity_diagnostics::{ActivityDiagnostic, DiagnosticStream};
 pub use adapter::{Adapter, AdapterRegistry, LaunchSpecRequest};
 pub use adapter::{host_tool_statuses, recheck_host_tool};
 pub use auth::{
@@ -144,4 +146,4 @@ pub use source_report::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 37;
+pub const API_SCHEMA_VERSION: u32 = 38;

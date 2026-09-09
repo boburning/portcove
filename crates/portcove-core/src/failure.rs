@@ -258,25 +258,30 @@ fn redact_after_marker(input: &str, marker: &str) -> String {
 }
 
 fn diagnostic_secret_length(after: &str) -> usize {
-    if after.starts_with("[REDACTED]") {
-        return "[REDACTED]".len();
+    let mut after = after;
+    let mut prefix_len = 0;
+    while let Some(tail) = after.strip_prefix("[REDACTED]") {
+        prefix_len += "[REDACTED]".len();
+        after = tail;
     }
     for quote in ["\\\"", "\"", "'"] {
         if let Some(value) = after.strip_prefix(quote) {
-            return value
-                .find(quote)
-                .map_or(after.len(), |index| quote.len() + index + quote.len());
+            return prefix_len
+                + value
+                    .find(quote)
+                    .map_or(after.len(), |index| quote.len() + index + quote.len());
         }
     }
-    after
-        .char_indices()
-        .take_while(|(_, character)| {
-            !character.is_whitespace()
-                && !matches!(character, '"' | '\'' | ',' | ';' | '}' | ']' | '<' | '>')
-        })
-        .map(|(index, character)| index + character.len_utf8())
-        .last()
-        .unwrap_or_default()
+    prefix_len
+        + after
+            .char_indices()
+            .take_while(|(_, character)| {
+                !character.is_whitespace()
+                    && !matches!(character, '"' | '\'' | ',' | ';' | '}' | ']' | '<' | '>')
+            })
+            .map(|(index, character)| index + character.len_utf8())
+            .last()
+            .unwrap_or_default()
 }
 
 #[cfg(test)]
@@ -378,5 +383,9 @@ mod tests {
         let redacted = redact_diagnostic_text(&serde_json::to_string(&document).unwrap());
         let parsed: serde_json::Value = serde_json::from_str(&redacted).unwrap();
         assert!(!parsed["message"].as_str().unwrap().contains("secret"));
+        assert!(
+            !redact_diagnostic_text("token=[REDACTED]still-private next=visible")
+                .contains("still-private")
+        );
     }
 }
