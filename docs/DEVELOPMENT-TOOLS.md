@@ -62,6 +62,12 @@ a selection stays local until Save, and saving leaves active/staged/previous
 installations and the activity ledger unchanged. This does not download a game
 update or establish live upstream update compatibility.
 
+The optional native channel scenario checks Ghostship's read-only channel and
+re:Blue's explicit Stable/Rolling selection, rejects stale library requests, and
+verifies persistence after frontend restart. Selecting a different channel may
+request reviewed upstream release metadata; it never downloads or installs game
+artifacts. Failed metadata retrieval remains separate from a saved channel.
+
 The smoke scenarios exercise native IPC/bootstrap, an empty library, a rejected
 operation with usable state afterward, keyboard focus/compact layout, appearance
 persistence over a real process restart, and automated accessibility checks.
