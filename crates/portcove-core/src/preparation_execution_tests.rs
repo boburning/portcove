@@ -7,12 +7,15 @@ use std::{
     time::{Duration, Instant},
 };
 
-const CHILD: &str = "preparation::tests::execution_tests::native_setup_fixture_child";
-
 impl Fixture {
     fn native(mode: &str) -> Self {
         let mut fixture = Self::new();
-        fs::copy(std::env::current_exe().unwrap(), &fixture.setup).unwrap();
+        let native = tempfile::tempdir().unwrap();
+        fs::copy(
+            crate::test_fixture::build_probe(native.path()),
+            &fixture.setup,
+        )
+        .unwrap();
         crate::permissions::normalize_archive_entry(&fixture.setup, false, true).unwrap();
         fs::write(fixture.install.path.join("owned-setup-mode"), mode).unwrap();
         let save = fixture.install.path.join("OpenGOAL/jak1/save.bin");
@@ -24,7 +27,7 @@ impl Fixture {
             .iter_mut()
             .find(|port| port.id == PORT)
             .unwrap();
-        port.setup_arguments = vec!["--exact".into(), CHILD.into(), "--nocapture".into()];
+        port.setup_arguments = vec!["--owned-preparation".into()];
         let qualification =
             InstallQualification::from_port(port, Platform::current().unwrap()).unwrap();
         let (manifest, selected, runtime) = Installer::new(fixture.service.library().clone())
@@ -67,36 +70,6 @@ impl Fixture {
             PortcoveService::with_faults(self.service.library().clone(), faults).unwrap();
         service.replace_catalog_for_test(catalog);
         self.service = service;
-    }
-}
-
-#[test]
-fn native_setup_fixture_child() {
-    let Ok(mode) = fs::read_to_string("owned-setup-mode") else {
-        return;
-    };
-    fs::create_dir_all("data/out/jak1/iso").unwrap();
-    if mode == "missing-marker" {
-        return;
-    }
-    fs::write("data/out/jak1/iso/0COMMON.TXT", b"owned validated output").unwrap();
-    fs::create_dir_all("data/log").unwrap();
-    fs::write("data/log/setup.log", b"disposable diagnostic").unwrap();
-    match mode.as_str() {
-        "success" => {}
-        "unowned-output" => fs::write("unexpected-output", b"outside contract").unwrap(),
-        "save-change" => fs::write("OpenGOAL/jak1/save.bin", b"bad save change").unwrap(),
-        "executable-change" => fs::write(
-            if cfg!(windows) { "gk.exe" } else { "gk" },
-            b"bad executable change",
-        )
-        .unwrap(),
-        "failure" => std::process::exit(23),
-        "wait" => {
-            fs::write("data/out/setup-ready", b"ready").unwrap();
-            std::thread::sleep(Duration::from_secs(8));
-        }
-        _ => panic!("unknown owned fixture mode"),
     }
 }
 
@@ -185,7 +158,15 @@ fn preparation_publishes_a_verified_derivative_and_preserves_the_staged_update()
 fn assert_private_failure(mode: &str) {
     let fixture = Fixture::native(mode);
     let before = crate::library_transfer::reviewed_tree(&fixture.install.path).unwrap();
-    assert!(fixture.run(|_| {}).is_err());
+    let error = fixture.run(|_| {}).unwrap_err();
+    let expected = match mode {
+        "missing-marker" => "setup completed without its declared output marker",
+        "failure" => "upstream setup rejected or could not prepare the source (exit 23)",
+        _ => {
+            "setup changed files outside its declared output ownership; active installation was preserved"
+        }
+    };
+    assert_eq!(error.message, expected);
     assert_eq!(
         fixture.service.status(PORT).unwrap().active.unwrap().id,
         fixture.install.id
@@ -228,7 +209,10 @@ fn assert_recovery(point: LifecycleFaultPoint, publishable: bool) {
     let mut fixture = Fixture::native("success");
     let original = crate::library_transfer::reviewed_tree(&fixture.install.path).unwrap();
     fixture.set_faults(Arc::new(Fault(point)));
-    assert!(fixture.run(|_| {}).is_err());
+    assert_eq!(
+        fixture.run(|_| {}).unwrap_err().message,
+        "owned preparation interruption"
+    );
     fixture.set_faults(Arc::new(NoLifecycleFaults));
     let store = OperationStore::new(fixture.service.library().clone());
     let mut journal = store.all().unwrap().remove(0);
@@ -282,7 +266,10 @@ recovery_cases! {
 fn source_change_blocks_prepared_recovery_without_switching_versions() {
     let mut fixture = Fixture::native("success");
     fixture.set_faults(Arc::new(Fault(LifecycleFaultPoint::PreparationPrepared)));
-    assert!(fixture.run(|_| {}).is_err());
+    assert_eq!(
+        fixture.run(|_| {}).unwrap_err().message,
+        "owned preparation interruption"
+    );
     fixture.set_faults(Arc::new(NoLifecycleFaults));
     fs::write(&fixture.source, b"changed original source").unwrap();
     let store = OperationStore::new(fixture.service.library().clone());

@@ -32,8 +32,13 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":34,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":35,"ok":true,"command":"status","data":{},"error":null}
 ```
+
+Schema 35 adds `prepare` to the activity operation vocabulary. Core preparation
+uses SQLite schema 19 to retain its reviewed plan in the existing lifecycle
+journal. This intermediate API does not add a CLI execution command; the
+read-only `preparation plan` command remains available.
 
 Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for success, failure, or cancellation. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
 

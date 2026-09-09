@@ -123,3 +123,44 @@ fn cancellation_before_spawn_starts_no_process() {
     assert_eq!(error.code, crate::ErrorCode::Cancelled);
     assert!(!temporary.path().join("setup-fixture-ready").exists());
 }
+
+#[test]
+fn setup_descendants_cannot_keep_writing_after_completion_or_cancellation() {
+    let native = tempfile::tempdir().unwrap();
+    let program = crate::test_fixture::build_probe(native.path());
+    for cancel in [false, true] {
+        let working = tempfile::tempdir().unwrap();
+        let marker = working.path().join("orphan-output");
+        let arguments = vec![
+            "--setup-tree".into(),
+            marker.display().to_string(),
+            if cancel { "wait" } else { "exit" }.into(),
+        ];
+        let result = run_setup(
+            &program,
+            &arguments,
+            &working.path().join("owned.iso"),
+            working.path(),
+            &|| {
+                if cancel && working.path().join("descendant-pid").is_file() {
+                    Err(PortcoveError::new(
+                        crate::ErrorCode::Cancelled,
+                        "owned cancellation",
+                    ))
+                } else {
+                    Ok(())
+                }
+            },
+        );
+        if cancel {
+            assert_eq!(result.err().unwrap().code, crate::ErrorCode::Cancelled);
+        } else {
+            assert!(result.unwrap().status.success());
+        }
+        std::thread::sleep(Duration::from_millis(1200));
+        assert!(
+            !marker.exists(),
+            "setup descendant wrote after its operation returned"
+        );
+    }
+}

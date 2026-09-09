@@ -50,6 +50,8 @@ mod source_inbox;
 mod source_inspection;
 mod source_report;
 mod stfs;
+#[cfg(test)]
+mod test_fixture;
 mod tool_process;
 mod transfer_copy;
 mod transfer_journal;

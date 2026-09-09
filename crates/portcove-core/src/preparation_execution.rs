@@ -70,16 +70,23 @@ impl PortcoveService {
         let result = self.prepare_derivative(&plan, &operation, &mut emit);
         if let Err(error) = &result {
             let store = OperationStore::new(self.library().clone());
-            if let Some(mut journal) = store
-                .all()?
-                .into_iter()
-                .find(|entry| entry.id == activity.id)
-            {
-                // Private work is retained on failure, including when a hard
-                // interruption leaves a tool's lifetime uncertain. A retry uses
-                // another operation ID; it never reuses or removes partial work.
-                journal.last_error = Some(error.message.clone());
-                store.put(&mut journal)?;
+            let recorded = (|| -> Result<()> {
+                if let Some(mut journal) = store
+                    .all()?
+                    .into_iter()
+                    .find(|entry| entry.id == activity.id)
+                {
+                    // Private work is retained on failure, including when a hard
+                    // interruption leaves a tool's lifetime uncertain. A retry uses
+                    // another operation ID; it never reuses or removes partial work.
+                    journal.last_error = Some(error.message.clone());
+                    store.put(&mut journal)?;
+                }
+                Ok(())
+            })();
+            if let Err(record_error) = recorded {
+                tracing::error!(operation_id = activity.id, error = %record_error,
+                    "could not record preparation failure; retaining the existing journal");
             }
         }
         let result = self.finish_activity(activity, result);
@@ -129,6 +136,15 @@ impl PortcoveService {
         let store = OperationStore::new(self.library().clone());
         store.put(&mut journal)?;
         self.check_lifecycle_fault(LifecycleFaultPoint::PreparationJournaled)?;
+        crate::path::refuse_symlink_ancestors(&prepared.operation_root)?;
+        fs::create_dir_all(
+            prepared
+                .operation_root
+                .parent()
+                .ok_or_else(|| PortcoveError::state("preparation staging has no parent"))?,
+        )?;
+        // A new attempt must never reuse an existing private working directory.
+        fs::create_dir(&prepared.operation_root)?;
         let payload = prepared.operation_root.join("payload");
         emit(operation.message(
             "info",
@@ -143,7 +159,8 @@ impl PortcoveService {
         operation.checkpoint()?;
         crate::transfer_copy::verify_reviewed_tree(&payload, &plan.copy)?;
         self.check_lifecycle_fault(LifecycleFaultPoint::PreparationCopied)?;
-        self.prepare_private_inputs(plan, &payload, operation, emit)?;
+        self.prepare_private_inputs(plan, &payload, operation, emit)
+            .map_err(|error| error.detail("preparation_phase", "private inputs"))?;
         if self
             .plan_preparation_locked(&plan.port_id, plan.inputs.options)?
             .plan_sha256
@@ -168,19 +185,19 @@ impl PortcoveService {
         let port = self.catalog().port(&plan.port_id)?;
         let qualification = InstallQualification::from_port(port, plan.inputs.host)?;
         let installer = Installer::new(self.library().clone())?;
-        let mut install = installer.create_prepared_manifest(
-            original,
-            operation.operation_id(),
-            &qualification,
-            &payload,
-        )?;
-        installer.verify_critical(&install, &qualification)?;
+        let mut install = installer
+            .create_prepared_manifest(original, operation.operation_id(), &qualification, &payload)
+            .map_err(|error| error.detail("preparation_phase", "create manifest"))?;
+        installer
+            .verify_critical(&install, &qualification)
+            .map_err(|error| error.detail("preparation_phase", "verify critical"))?;
         if !installer.verify_managed(&install, &qualification)?.valid {
             return Err(PortcoveError::verification(
                 "prepared output failed its immutable manifest check",
             ));
         }
-        crate::adapter::bind_upstream_setup_manifest(&payload, &install.manifest_sha256)?;
+        crate::adapter::bind_upstream_setup_manifest(&payload, &install.manifest_sha256)
+            .map_err(|error| error.detail("preparation_phase", "bind manifest"))?;
         self.check_lifecycle_fault(LifecycleFaultPoint::PreparationOutputsValidated)?;
         install.path = destination;
         journal.install = Some(install.clone());
@@ -409,7 +426,30 @@ pub(crate) fn recover(
             "prepared publication does not match its reviewed operation identity",
         ));
     }
-    crate::output_root::validate_install_path(service.library(), &journal.port_id, &install.path)?;
+    let mut bound_plan = plan.clone();
+    bound_plan.plan_sha256.clear();
+    let original = crate::output_root::validate_install_path(
+        service.library(),
+        &journal.port_id,
+        &plan.inputs.install.path,
+    )?;
+    let expected = original
+        .parent()
+        .ok_or_else(|| PortcoveError::state("preparation original has no managed parent"))?
+        .join(crate::signed_catalog::digest(&serde_json::to_vec(&(
+            "Portcove prepared derivative v1",
+            &plan.plan_sha256,
+            &journal.id,
+        ))?));
+    crate::path::refuse_symlink_ancestors(&install.path)?;
+    if plan.format_version != 1
+        || crate::signed_catalog::digest(&serde_json::to_vec(&bound_plan)?) != plan.plan_sha256
+        || crate::path::resolve_existing_ancestor(&install.path)? != expected
+    {
+        return Err(PortcoveError::verification(
+            "prepared destination or plan changed identity",
+        ));
+    }
     if matches!(
         journal.phase,
         LifecyclePhase::Prepared | LifecyclePhase::PayloadPublished
