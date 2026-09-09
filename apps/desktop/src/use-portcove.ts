@@ -326,4 +326,3 @@ export function detailActions(port: PortDefinition, status: PortStatus | undefin
     verify: () => perform("verify", () => desktopApi.verify(port.id)),
   };
 }
-

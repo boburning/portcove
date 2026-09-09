@@ -114,10 +114,10 @@ function Workspace({ bootstrap, switchLibrary, resetLibrary }: { bootstrap: Boot
       detailOpen: Boolean(ui.selectedId),
     });
     if (action === "close-palette") commandSurface.setOpen(false);
-    else if (action === "close-adoption") ui.setAdoptOpen(false);
+    else if (action === "close-adoption") { if (operations.busy !== "adopt") ui.setAdoptOpen(false); }
     else if (action === "close-detail") ui.setSelectedId(undefined);
     else focusRegion("sidebar");
-  }, [commandSurface.open, commandSurface.setOpen, ui.adoptOpen, ui.selectedId, ui.setAdoptOpen, ui.setSelectedId]);
+  }, [commandSurface.open, commandSurface.setOpen, ui.adoptOpen, ui.selectedId, ui.setAdoptOpen, ui.setSelectedId, operations.busy]);
   const controller = useGamepadNavigation(handleBack);
   const hostToolActions: HostToolActions = {
     locate: async (tool: HostToolStatus) => {
