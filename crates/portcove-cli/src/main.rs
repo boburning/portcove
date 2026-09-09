@@ -32,6 +32,9 @@ use schema::SchemaContract;
     after_help = "Native ports. Verified releases. Local sources."
 )]
 struct Cli {
+    /// Include redacted technical error details in human-readable output.
+    #[arg(long, global = true)]
+    technical_details: bool,
     #[arg(long, global = true, env = "PORTCOVE_LIBRARY")]
     library: Option<PathBuf>,
     #[arg(long, global = true, conflicts_with = "jsonl")]
@@ -77,6 +80,8 @@ enum Commands {
         port_id: Option<String>,
     },
     Activity {
+        #[command(subcommand)]
+        command: Option<ActivityCommand>,
         #[arg(long, default_value_t = 50, value_parser = clap::value_parser!(u16).range(1..=200))]
         limit: u16,
     },
@@ -139,6 +144,12 @@ enum Commands {
         #[command(subcommand)]
         command: SchemaCommand,
     },
+}
+
+#[derive(Debug, Subcommand)]
+enum ActivityCommand {
+    /// Read the retained, redacted diagnostic capture for one activity.
+    Log { activity_id: String },
 }
 
 #[derive(Debug, Subcommand)]
@@ -654,7 +665,7 @@ async fn main() -> ExitCode {
         }
         Err(error) if requested_mode != OutputMode::Human => {
             let error = PortcoveError::usage(error.to_string().trim());
-            render_error(requested_mode, "cli", &error);
+            render_error(requested_mode, "cli", &error, false);
             return ExitCode::from(exit_code(&error));
         }
         Err(error) => {
@@ -680,10 +691,11 @@ async fn main() -> ExitCode {
         OutputMode::Human
     };
     let command_name = command_name(&cli.command).to_owned();
+    let technical_details = cli.technical_details;
     match execute(cli, mode).await {
         Ok(exit) => exit,
         Err(error) => {
-            render_error(mode, &command_name, &error);
+            render_error(mode, &command_name, &error, technical_details);
             ExitCode::from(exit_code(&error))
         }
     }
@@ -1133,12 +1145,26 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 })?;
             }
         }
-        Commands::Activity { limit } => {
+        Commands::Activity {
+            command: None,
+            limit,
+        } => {
             render_read_success(
                 mode,
                 "activity",
                 service.library().activities(limit as usize)?,
                 |records| human::activities(records),
+            )?;
+        }
+        Commands::Activity {
+            command: Some(ActivityCommand::Log { activity_id }),
+            ..
+        } => {
+            render_read_success(
+                mode,
+                "activity.log",
+                service.library().activity_diagnostic(&activity_id)?,
+                human::activity_diagnostic,
             )?;
         }
         Commands::Storage => {
@@ -2006,9 +2032,9 @@ where
     Ok(())
 }
 
-fn render_error(mode: OutputMode, command: &str, error: &PortcoveError) {
+fn render_error(mode: OutputMode, command: &str, error: &PortcoveError, technical_details: bool) {
     match mode {
-        OutputMode::Human => eprintln!("error: {error}"),
+        OutputMode::Human => eprintln!("{}", human::failure(&error.report(), technical_details)),
         OutputMode::Json => println!(
             "{}",
             serde_json::to_string(&ApiResponse::<serde_json::Value> {
@@ -2122,6 +2148,10 @@ fn command_name(command: &Commands) -> &'static str {
             ToolCommand::ClearPath { .. } => "tool.clear-path",
         },
         Commands::Status { .. } => "status",
+        Commands::Activity {
+            command: Some(ActivityCommand::Log { .. }),
+            ..
+        } => "activity.log",
         Commands::Activity { .. } => "activity",
         Commands::Cancel { .. } => "cancel",
         Commands::Storage => "storage",
@@ -2267,7 +2297,7 @@ mod tests {
     #[test]
     fn activity_limit_is_bounded_for_automation_callers() {
         let cli = Cli::try_parse_from(["portcove", "activity", "--limit", "25"]).unwrap();
-        let Commands::Activity { limit } = cli.command else {
+        let Commands::Activity { limit, .. } = cli.command else {
             panic!("expected activity command");
         };
         assert_eq!(limit, 25);
@@ -2503,7 +2533,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 37);
+        assert_eq!(capabilities.schema_version, 38);
         assert_eq!(
             capabilities.failure_isolated_batches,
             ["check", "reconcile", "update", "source.verify"]

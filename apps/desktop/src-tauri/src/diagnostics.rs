@@ -82,7 +82,7 @@ pub fn create_support_bundle(service: &PortcoveService) -> Result<PathBuf> {
             "configuration_variable": tool.configuration_variable,
             "purpose": tool.purpose,
         })).collect::<Vec<_>>(),
-        "activities": activities,
+        "activities": &activities,
     });
 
     let log_files = support_log_files(&logs_dir)?;
@@ -96,6 +96,18 @@ pub fn create_support_bundle(service: &PortcoveService) -> Result<PathBuf> {
     redact_diagnostic_value(&mut summary);
     archive.write_all(&serde_json::to_vec_pretty(&summary)?)?;
     archive.write_all(b"\n")?;
+    for (index, activity) in activities.iter().enumerate() {
+        if let Some(capture) = service.library().activity_diagnostic(&activity.id)? {
+            archive
+                .start_file(format!("logs/activity-{index}.json"), options)
+                .map_err(zip_error)?;
+            // Fixed archive names cannot turn a stored activity ID into a path.
+            let mut value = serde_json::to_value(capture)?;
+            redact_diagnostic_value(&mut value);
+            serde_json::to_writer_pretty(&mut archive, &value)?;
+            archive.write_all(b"\n")?;
+        }
+    }
     for path in log_files {
         let name = path
             .file_name()

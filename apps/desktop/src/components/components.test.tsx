@@ -506,7 +506,7 @@ describe("desktop components", () => {
   it("summarizes update checks and exposes policy reconciliation", () => {
     const install = installRecord();
     const status: PortStatus = { ...portStatus(), port_id: port.id, channel: "stable", update_policy: "notify", active: install };
-    const html = renderToStaticMarkup(<UpdateCenter ports={[port]} statuses={new Map([[port.id, status]])} activities={[{
+    const html = renderToStaticMarkup(<UpdateCenter generation={1} ports={[port]} statuses={new Map([[port.id, status]])} activities={[{
       id: "activity-1", failure: null, cancellation: null, message: null, operation: "update", target_kind: "port", target_id: port.id, status: "succeeded", started_at: 1, finished_at: 2,
     }, {
       id: "activity-2", failure: null, cancellation: null, operation: "verify_source", target_kind: "source", target_id: "sample-rom", status: "failed", message: "source changed", started_at: 3, finished_at: 4,
@@ -523,7 +523,8 @@ describe("desktop components", () => {
     expect(html).toContain("Recent activity");
     expect(html).toContain("Updated port");
     expect(html).toContain("Verified source");
-    expect(html).toContain("source changed");
+    expect(html).toContain("Older activity details are available in a redacted support bundle");
+    expect(html).not.toContain("source changed");
     expect(html).toContain("unfinished");
     expect(html).toContain("No completion recorded");
     expect(html).toContain("<button data-focusable=\"true\">sample-rom</button>");

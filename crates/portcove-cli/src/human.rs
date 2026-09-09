@@ -18,6 +18,68 @@ pub(crate) fn document<T: Serialize>(data: &T) -> serde_json::Result<String> {
     Ok(output.trim_end().to_owned())
 }
 
+pub(crate) fn activity_diagnostic(capture: &Option<portcove_core::ActivityDiagnostic>) -> String {
+    let Some(capture) = capture else {
+        return "No retained diagnostic capture is available for this activity.".into();
+    };
+    let status = if capture.complete {
+        "Capture reached the end of both streams."
+    } else {
+        "Capture is incomplete. Only output saved before the last observation is available."
+    };
+    let truncation = if capture.stdout.truncated || capture.stderr.truncated {
+        "\nOutput exceeded the capture limit; some output was omitted."
+    } else {
+        ""
+    };
+    format!(
+        "Activity: {}\nPhase: {}\n{status}{truncation}\n\nStandard output:\n{}\n\nStandard error:\n{}",
+        capture.activity_id, capture.phase, capture.stdout.text, capture.stderr.text
+    )
+}
+
+pub(crate) fn failure(error: &portcove_core::FailureReport, technical: bool) -> String {
+    use portcove_core::{FailureTone, MutationState, RecoveryAction};
+    let presentation = &error.presentation;
+    let tone = if presentation.tone == FailureTone::Neutral {
+        "cancelled"
+    } else {
+        "error"
+    };
+    let outcome = match presentation.mutation_state {
+        MutationState::NotStarted => "This operation did not start.",
+        MutationState::NoChanges => "No files were changed by this operation.",
+        MutationState::Committed => {
+            "The change was committed. Review the current state before another operation."
+        }
+        MutationState::RecoveryRequired => {
+            "Retained work needs recovery review before another attempt."
+        }
+        MutationState::Unknown => {
+            "The changes could not be confirmed. Review the current state before another attempt."
+        }
+    };
+    let mut output = format!("{tone}: {}\n{outcome}", presentation.summary);
+    if presentation
+        .recovery_actions
+        .contains(&RecoveryAction::ReviewPreparation)
+    {
+        output.push_str("\nReview game preparation before starting a new attempt.");
+    }
+    if technical {
+        let details = serde_json::json!({"code": error.code, "phase": presentation.phase,
+            "message": presentation.technical_message, "context": presentation.technical_context});
+        output.push_str("\nTechnical details (redacted):\n");
+        output.push_str(
+            &serde_json::to_string_pretty(&details)
+                .unwrap_or_else(|_| "Details could not be formatted.".into()),
+        );
+    } else {
+        output.push_str("\nUse --technical-details when requesting human output to include redacted technical error details.");
+    }
+    output
+}
+
 pub(crate) fn auth_status(status: &GithubAuthStatus) -> String {
     let source = match status.source {
         GithubAuthSource::Anonymous => "anonymous",

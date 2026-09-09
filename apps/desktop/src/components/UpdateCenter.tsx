@@ -1,14 +1,14 @@
 import { FailureDetails } from "./FailureDetails";
+import { ActivityDiagnostic } from "./ActivityDiagnostic";
 import { errorText } from "../view-model";
-import { useState } from "react";
 import { OperationCancellation } from "./OperationCancellation";
 import type { LucideIcon } from "lucide-react";
-import { AlertTriangle, Check, CircleMinus, Clipboard, ClipboardCheck, Download, History, LoaderCircle, PackageCheck, RefreshCw, ShieldCheck } from "lucide-react";
-import { copyText } from "../clipboard";
+import { AlertTriangle, Check, CircleMinus, Download, History, LoaderCircle, PackageCheck, RefreshCw, ShieldCheck } from "lucide-react";
 import type { ActivityOperation, ActivityRecord, PortDefinition, PortStatus, UpdateCheck, UpdateCheckOutcome } from "../types";
 import { EmptyState, Icon } from "./ui";
 
-export function UpdateCenter({ ports, statuses, activities, outcomes, busy, checkAll, onSelect, onOpenSources }: {
+export function UpdateCenter({ ports, statuses, activities, outcomes, busy, checkAll, onSelect, onOpenSources, generation }: {
+  generation: number;
   ports: PortDefinition[];
   statuses: Map<string, PortStatus>;
   activities: ActivityRecord[];
@@ -50,7 +50,7 @@ export function UpdateCenter({ ports, statuses, activities, outcomes, busy, chec
           {outcome?.error && <small className="update-error">{errorText(outcome.error)}</small>}
         </button>;
       })}</div>}
-    <ActivityHistory ports={ports} activities={activities} onSelect={onSelect} onOpenSources={onOpenSources} />
+    <ActivityHistory ports={ports} activities={activities} onSelect={onSelect} onOpenSources={onOpenSources} generation={generation} />
   </section>;
 }
 
@@ -61,7 +61,8 @@ function releaseLabel(check?: UpdateCheck | null) {
   return `${check.release.version}${runtimeOnly ? " · Runtime update" : ""}`;
 }
 
-function ActivityHistory({ ports, activities, onSelect, onOpenSources }: {
+function ActivityHistory({ ports, activities, onSelect, onOpenSources, generation }: {
+  generation: number;
   ports: PortDefinition[];
   activities: ActivityRecord[];
   onSelect: (portId: string) => void;
@@ -75,12 +76,13 @@ function ActivityHistory({ ports, activities, onSelect, onOpenSources }: {
     </div>
     {activities.length === 0 ? <div className="activity-empty"><Icon glyph={History} /><div><strong>No operations recorded yet</strong><span>Installs, updates, verification, rollback, adoption, and failures will appear here.</span></div></div> :
       <div className="activity-list">{activities.slice(0, 8).map(activity =>
-        <ActivityRow activity={activity} names={names} onSelect={onSelect} onOpenSources={onOpenSources} key={activity.id} />
+        <ActivityRow activity={activity} names={names} onSelect={onSelect} onOpenSources={onOpenSources} key={activity.id} generation={generation} />
       )}</div>}
   </section>;
 }
 
-function ActivityRow({ activity, names, onSelect, onOpenSources }: {
+function ActivityRow({ activity, names, onSelect, onOpenSources, generation }: {
+  generation: number;
   activity: ActivityRecord;
   names: ReadonlyMap<string, string>;
   onSelect: (portId: string) => void;
@@ -101,13 +103,9 @@ function ActivityRow({ activity, names, onSelect, onOpenSources }: {
       <p>{activity.failure.presentation.summary}</p>
       {activity.failure.presentation.recovery_actions.includes("review_preparation") && target.portId && <button data-focusable onClick={() => onSelect(target.portId!)}>Review game preparation</button>}
       <FailureDetails presentation={activity.failure.presentation} code={activity.failure.code} />
-    </div> : activity.message && <ActivityDetails message={activity.message} />}
+    </div> : activity.message && <p className="activity-details">Older activity details are available in a redacted support bundle in Settings.</p>}
+    {activity.operation === "prepare" && <ActivityDiagnostic key={`${generation}:${activity.id}`} activityId={activity.id} generation={generation} />}
   </div>;
-}
-
-function ActivityDetails({ message }: { message: string }) {
-  const [copied, setCopied] = useState(false);
-  return <details className="activity-details"><summary data-focusable>View technical details</summary><div><code>{message}</code><button data-focusable className="icon-button" aria-label="Copy technical details" onClick={() => { void copyText(message).then(() => { setCopied(true); window.setTimeout(() => setCopied(false), 1600); }).catch(() => setCopied(false)); }}><Icon glyph={copied ? ClipboardCheck : Clipboard} /></button></div></details>;
 }
 
 function ActivityTargetLink({ activity, target, onSelect, onOpenSources }: {

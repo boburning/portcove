@@ -299,11 +299,11 @@ mod tests {
         large.close(0).unwrap();
         large.close(1).unwrap();
         let mut ids = Vec::new();
+        let mut snapshot = large.snapshot("retention-fixture", true).unwrap();
         for _ in 0..17 {
             let id = activity(&library);
-            library
-                .record_activity_diagnostic(&large.snapshot(&id, true).unwrap())
-                .unwrap();
+            snapshot.activity_id = id.clone();
+            library.record_activity_diagnostic(&snapshot).unwrap();
             library
                 .finish_activity(&id, ActivityStatus::Failed, Some("failed setup"))
                 .unwrap();

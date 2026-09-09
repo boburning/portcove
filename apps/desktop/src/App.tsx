@@ -190,7 +190,7 @@ function CurrentView({ data, ui, model, operations, github, updates, sourceHealt
   nativeSourceDrag: ReturnType<typeof useNativeSourceDrop>;
   hostToolActions: HostToolActions;
 }) {
-  if (ui.view === "updates") return <UpdateCenter ports={data.catalog?.ports ?? []} statuses={model.statusMap} activities={data.activities} outcomes={updates.outcomes} busy={operations.busy}
+  if (ui.view === "updates") return <UpdateCenter generation={bootstrap.generation} ports={data.catalog?.ports ?? []} statuses={model.statusMap} activities={data.activities} outcomes={updates.outcomes} busy={operations.busy}
     checkAll={() => { void updates.checkAll(); }} onSelect={ui.setSelectedId} onOpenSources={() => ui.setView("settings")} />;
   if (ui.view === "settings") return <SettingsView doctor={data.doctor} storage={data.storage} github={github} busy={operations.busy} sources={data.sources} appearance={appearance}
     librarySelection={bootstrap.selection ?? undefined} chooseLibrary={pickLibraryFolder} switchLibrary={switchLibrary} resetLibrary={resetLibrary}

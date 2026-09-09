@@ -287,6 +287,22 @@ async fn get_activities(
 }
 
 #[tauri::command]
+async fn get_activity_diagnostic(
+    state: tauri::State<'_, DesktopState>,
+    activity_id: String,
+    generation: u64,
+) -> DesktopResult<Option<portcove_core::ActivityDiagnostic>> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .library()
+            .activity_diagnostic(&activity_id)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
 async fn cancel_operation(
     state: tauri::State<'_, DesktopState>,
     operation_id: String,
@@ -1879,6 +1895,7 @@ pub fn run() {
             output_location::get_output_relocation_status,
             get_sources,
             get_activities,
+            get_activity_diagnostic,
             cancel_operation,
             get_backups,
             create_backup,
