@@ -54,6 +54,8 @@ fn owned_preparation(args: &[String]) {
     let Ok(mode) = fs::read_to_string("owned-setup-mode") else {
         return;
     };
+    println!("owned setup began token=owned-fixture-private-value");
+    eprintln!("owned setup diagnostic on stderr");
     fs::create_dir_all(format!("data/out/{game}/iso")).unwrap();
     if mode == "missing-marker" {
         return;

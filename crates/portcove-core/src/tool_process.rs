@@ -6,15 +6,12 @@ use std::{
     io::Read,
     path::Path,
     process::{ExitStatus, Stdio},
-    sync::{
-        Arc,
-        atomic::{AtomicUsize, Ordering},
-        mpsc,
-    },
-    time::Duration,
+    sync::mpsc,
+    time::{Duration, Instant},
 };
 
-use crate::{ChildProcessClass, ChildProcessPolicy, PortcoveError, Result};
+use crate::activity_diagnostics::DiagnosticCapture;
+use crate::{ActivityDiagnostic, ChildProcessClass, ChildProcessPolicy, PortcoveError, Result};
 
 const SETUP_OUTPUT_LIMIT: usize = 64 * 1024;
 
@@ -33,7 +30,11 @@ pub(crate) fn run_setup(
     source: &Path,
     working_directory: &Path,
     checkpoint: &dyn Fn() -> Result<()>,
+    activity_id: &str,
+    record: &mut dyn FnMut(&ActivityDiagnostic) -> Result<()>,
 ) -> Result<SetupOutput> {
+    let capture = DiagnosticCapture::default();
+    record(&capture.snapshot(activity_id, false)?)?;
     checkpoint()?;
     let mut command =
         ChildProcessPolicy::native_command(ChildProcessClass::UpstreamSetup, program)?;
@@ -60,27 +61,36 @@ pub(crate) fn run_setup(
             return Err(error);
         }
     };
-    let total = Arc::new(AtomicUsize::new(0));
     let (sender, receiver) = mpsc::channel();
     capture_setup_output(
         child.stdout.take().expect("piped setup stdout"),
-        total.clone(),
+        capture.clone(),
+        0,
         sender.clone(),
     );
     capture_setup_output(
         child.stderr.take().expect("piped setup stderr"),
-        total.clone(),
+        capture.clone(),
+        1,
         sender,
     );
-    let status = loop {
-        if let Err(error) = checkpoint() {
+    let mut last_snapshot = Instant::now();
+    let result = loop {
+        let observation = checkpoint().and_then(|()| {
+            if last_snapshot.elapsed() >= Duration::from_millis(500) {
+                record(&capture.snapshot(activity_id, false)?)?;
+                last_snapshot = Instant::now();
+            }
+            Ok(())
+        });
+        if let Err(error) = observation {
             group.terminate(&child);
             let _ = child.kill();
             let _ = child.wait();
-            return Err(error);
+            break Err(error);
         }
         match poll_setup(&mut child, &group) {
-            Ok(Some(status)) => break status,
+            Ok(Some(status)) => break Ok(status),
             Ok(None) => std::thread::sleep(Duration::from_millis(25)),
             Err(error) => {
                 // On Unix an unexpected reaper can invalidate PID ownership.
@@ -91,7 +101,7 @@ pub(crate) fn run_setup(
                     let _ = child.kill();
                     let _ = child.wait();
                 }
-                return Err(PortcoveError::launch(format!(
+                break Err(PortcoveError::launch(format!(
                     "could not observe setup completion: {error}"
                 )));
             }
@@ -100,23 +110,51 @@ pub(crate) fn run_setup(
     // Windows closes this exact job's descendants. Unix poll_setup stops the
     // group before reaping its leader, while its PID still cannot be reused.
     drop(group);
-    let mut output = Vec::new();
+    let diagnostic = (|| {
+        let drained = drain_setup_output(&receiver);
+        let snapshot = capture.snapshot(activity_id, drained.is_ok())?;
+        record(&snapshot)?;
+        drained?;
+        Ok::<_, PortcoveError>(snapshot)
+    })();
+    let status = result.map_err(|error| match &diagnostic {
+        Err(capture_error) => error.detail("diagnostic_error", &capture_error.message),
+        Ok(_) => error,
+    })?;
+    let diagnostic = diagnostic?;
+    checkpoint()?;
+    let mut output = format!("{}\n{}", diagnostic.stdout.text, diagnostic.stderr.text);
+    let truncated = diagnostic.stdout.truncated
+        || diagnostic.stderr.truncated
+        || output.len() > SETUP_OUTPUT_LIMIT;
+    let mut end = SETUP_OUTPUT_LIMIT.min(output.len());
+    while !output.is_char_boundary(end) {
+        end -= 1;
+    }
+    output.truncate(end);
+    Ok(SetupOutput {
+        status,
+        output,
+        truncated,
+    })
+}
+
+fn drain_setup_output(receiver: &mpsc::Receiver<Result<()>>) -> Result<()> {
+    let mut result = Ok(());
     for _ in 0..2 {
-        let bytes = receiver
+        let stream = receiver
             .recv_timeout(Duration::from_secs(1))
             .map_err(|_| {
                 PortcoveError::launch(
                     "setup exited without closing its output streams; preparation was not accepted",
                 )
-            })??;
-        output.extend(bytes);
+            })
+            .and_then(|value| value);
+        if result.is_ok() {
+            result = stream;
+        }
     }
-    checkpoint()?;
-    Ok(SetupOutput {
-        status,
-        output: String::from_utf8_lossy(&output).into_owned(),
-        truncated: total.load(Ordering::Relaxed) > SETUP_OUTPUT_LIMIT,
-    })
+    result
 }
 
 #[cfg(windows)]
@@ -162,23 +200,20 @@ fn poll_setup(
 
 fn capture_setup_output(
     mut reader: impl Read + Send + 'static,
-    total: Arc<AtomicUsize>,
-    sender: mpsc::Sender<std::io::Result<Vec<u8>>>,
+    capture: DiagnosticCapture,
+    stream: usize,
+    sender: mpsc::Sender<Result<()>>,
 ) {
     std::thread::spawn(move || {
         let result = (|| {
-            let mut output = Vec::new();
             let mut buffer = [0_u8; 8192];
             loop {
                 let count = reader.read(&mut buffer)?;
                 if count == 0 {
-                    break;
+                    return capture.close(stream);
                 }
-                let previous = total.fetch_add(count, Ordering::Relaxed);
-                let retain = count.min(SETUP_OUTPUT_LIMIT.saturating_sub(previous));
-                output.extend_from_slice(&buffer[..retain]);
+                capture.record(stream, &buffer[..count])?;
             }
-            Ok(output)
         })();
         let _ = sender.send(result);
     });

@@ -18,6 +18,8 @@ fn run_fixture(root: &Path, checkpoint: &dyn Fn() -> Result<()>) -> Result<Setup
         &root.join("owned-fixture.iso"),
         root,
         checkpoint,
+        "owned-fixture",
+        &mut |_| Ok(()),
     )
 }
 
