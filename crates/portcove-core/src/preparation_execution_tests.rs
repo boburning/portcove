@@ -374,6 +374,126 @@ fn running_setup_cancellation_preserves_the_active_tree() {
 }
 
 #[test]
+fn interrupted_private_preparation_gets_a_truthful_terminal_report_after_reconnect() {
+    for requested in [false, true] {
+        let fixture = Fixture::native("failure");
+        fixture.run(|_| {}).unwrap_err();
+        let library = fixture.service.library();
+        let journal = OperationStore::new(library.clone())
+            .all()
+            .unwrap()
+            .remove(0);
+        let private = journal.paths.staging.as_ref().unwrap();
+        let before = crate::library_transfer::reviewed_tree(private).unwrap();
+        let original = crate::library_transfer::reviewed_tree(&fixture.install.path).unwrap();
+        // Recreate the durable state left by a worker exiting before its final
+        // activity update. This is an isolated interruption fixture, not a claim
+        // about how a physical host terminates an upstream process tree.
+        library.connection().unwrap().execute(
+            "UPDATE activity_history SET status='running',finished_at=NULL,message=NULL,failure_json=NULL,cancellation_phase='preparing',cancel_requested=?2 WHERE id=?1",
+            rusqlite::params![journal.id, requested],
+        ).unwrap();
+        let capture = crate::activity_diagnostics::DiagnosticCapture::default();
+        capture
+            .record(0, b"last saved output token=owned-interruption-secret")
+            .unwrap();
+        let partial = capture
+            .snapshot(&journal.id, "preparation.setup", false)
+            .unwrap();
+        library.record_activity_diagnostic(&partial).unwrap();
+        let reopened = PortcoveService::new(Library::open(library.root()).unwrap()).unwrap();
+        let activity = reopened.library().activities(1).unwrap().remove(0);
+        assert_eq!(activity.id, journal.id);
+        assert_eq!(activity.status, crate::ActivityStatus::Failed);
+        let failure = activity.failure.as_ref().unwrap();
+        assert_eq!(failure.code, ErrorCode::State);
+        assert_eq!(
+            failure.presentation.presentation_key,
+            "preparation_interrupted"
+        );
+        assert_eq!(failure.presentation.tone, crate::FailureTone::Error);
+        assert_eq!(
+            failure.presentation.mutation_state,
+            crate::MutationState::RecoveryRequired
+        );
+        assert!(
+            failure
+                .presentation
+                .recovery_actions
+                .contains(&crate::RecoveryAction::ReviewPreparation)
+        );
+        assert_eq!(failure.details["cancel_requested"], requested.to_string());
+        assert!(!failure.presentation.summary.contains("cancelled"));
+        assert_eq!(
+            reopened.library().activity_diagnostic(&journal.id).unwrap(),
+            vec![partial]
+        );
+        assert_eq!(
+            crate::library_transfer::reviewed_tree(private).unwrap(),
+            before
+        );
+        assert_eq!(
+            crate::library_transfer::reviewed_tree(&fixture.install.path).unwrap(),
+            original
+        );
+        assert_eq!(
+            reopened.status(PORT).unwrap().active.unwrap().id,
+            fixture.install.id
+        );
+        let repair = reopened.repair_plan().unwrap();
+        let item = repair
+            .items
+            .iter()
+            .find(|item| item.operation_id.as_deref() == Some(journal.id.as_str()))
+            .unwrap();
+        assert!(item.proposed_action.contains("cannot be resumed"));
+        assert!(!item.proposed_action.contains("idempotent"));
+        let again = PortcoveService::new(Library::open(library.root()).unwrap()).unwrap();
+        assert_eq!(again.library().activities(1).unwrap()[0], activity);
+    }
+}
+
+#[test]
+fn preparation_recovery_preserves_existing_outcomes_and_rejects_an_owned_activity_lock() {
+    let fixture = Fixture::native("failure");
+    let failure = fixture.run(|_| {}).unwrap_err();
+    let library = fixture.service.library();
+    let store = OperationStore::new(library.clone());
+    let mut journal = store.all().unwrap().remove(0);
+    let reopened = PortcoveService::new(Library::open(library.root()).unwrap()).unwrap();
+    assert_eq!(
+        reopened.library().activities(1).unwrap()[0].failure,
+        Some(failure.report())
+    );
+    library.connection().unwrap().execute("UPDATE activity_history SET status='running',cancellation_phase='preparing',failure_json=NULL WHERE id=?1", [&journal.id]).unwrap();
+    let _port_guard = library
+        .try_lock_port(PORT, "owned recovery fixture")
+        .unwrap();
+    let guard = library.try_lock_activity(&journal.id).unwrap();
+    let error = super::super::recover(&fixture.service, &store, &mut journal).unwrap_err();
+    assert_eq!(error.code, ErrorCode::Conflict);
+    assert_eq!(
+        library.activities(1).unwrap()[0].status,
+        crate::ActivityStatus::Running
+    );
+    drop(guard);
+    library
+        .connection()
+        .unwrap()
+        .execute(
+            "UPDATE activity_history SET target_id='different-port' WHERE id=?1",
+            [&journal.id],
+        )
+        .unwrap();
+    let error = super::super::recover(&fixture.service, &store, &mut journal).unwrap_err();
+    assert_eq!(error.code, ErrorCode::Verification);
+    assert_eq!(
+        library.activities(1).unwrap()[0].status,
+        crate::ActivityStatus::Running
+    );
+}
+
+#[test]
 fn preparation_is_explicit_and_play_never_runs_setup_or_recreates_inputs() {
     let fixture = Fixture::native("success");
     let original = crate::library_transfer::reviewed_tree(&fixture.install.path).unwrap();

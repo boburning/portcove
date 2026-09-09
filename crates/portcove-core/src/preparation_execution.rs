@@ -428,9 +428,37 @@ pub(crate) fn recover(
         ));
     }
     if journal.phase == LifecyclePhase::Preparing {
-        return Err(PortcoveError::state(
-            "private preparation was interrupted; retained for inspection, and retry will start a new private attempt",
-        ));
+        let _activity_guard = service.library().try_lock_activity(&journal.id)?;
+        let mut error = PortcoveError::state(
+            "private preparation cannot be resumed; review its retained work and current inputs before starting a new preparation",
+        )
+        .with_mutation_state(MutationState::RecoveryRequired)
+        .during("preparation.interrupted")
+        .offer_recovery(RecoveryAction::ReviewPreparation);
+        if let Some(state) =
+            crate::cancellation::cancellation_state(service.library(), &journal.id)?
+        {
+            let belongs: bool = service.library().connection()?.query_row(
+                "SELECT EXISTS(SELECT 1 FROM activity_history WHERE id=?1 AND operation='prepare' AND target_kind='port' AND target_id=?2)",
+                rusqlite::params![journal.id, journal.port_id], |row| row.get(0),
+            )?;
+            if !belongs {
+                return Err(PortcoveError::verification(
+                    "preparation recovery does not own the recorded activity",
+                ));
+            }
+            // The port and activity locks prove that no preparation worker owns
+            // this attempt. They do not prove that every native child stopped,
+            // so a requested cancellation is not reported as successful.
+            error = error.detail("cancel_requested", state.requested.to_string());
+            service.library().finish_activity_report(
+                &journal.id,
+                crate::ActivityStatus::Failed,
+                Some(&error.message),
+                Some(&error.report()),
+            )?;
+        }
+        return Err(error);
     }
     let plan = journal
         .preparation

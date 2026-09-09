@@ -122,6 +122,14 @@ impl PortcoveError {
                 "installation_failed",
                 "The installation could not be completed.",
             ),
+            ErrorCode::State
+                if self.failure.phase.as_deref() == Some("preparation.interrupted") =>
+            {
+                (
+                    "preparation_interrupted",
+                    "Game preparation stopped before its outcome could be recorded. Review the retained work before starting a new preparation.",
+                )
+            }
             ErrorCode::State => (
                 "state_unavailable",
                 "The current operation state could not be confirmed.",

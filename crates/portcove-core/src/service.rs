@@ -353,7 +353,13 @@ impl PortcoveService {
                         operation.kind, operation.phase
                     )
                 }),
-                proposed_action: "retry the recorded idempotent recovery step".into(),
+                proposed_action: if operation.kind == LifecycleOperationKind::Prepare
+                    && operation.phase == LifecyclePhase::Preparing
+                {
+                    "review retained work and current inputs, then start a new preparation; this attempt cannot be resumed"
+                } else {
+                    "retry the recorded idempotent recovery step"
+                }.into(),
             })
             .collect::<Vec<_>>();
         for install in &installs {
