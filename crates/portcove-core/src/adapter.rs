@@ -430,6 +430,7 @@ fn prepare_runtime_source(
         required_hashes,
         None,
         checkpoint,
+        None,
     )
 }
 
@@ -440,6 +441,7 @@ pub(crate) fn prepare_runtime_source_with_tool(
     required_hashes: &BTreeMap<String, String>,
     chdman: Option<&Path>,
     checkpoint: &dyn Fn() -> Result<()>,
+    diagnostics: Option<crate::tool_process::ToolDiagnosticSink<'_>>,
 ) -> Result<()> {
     let marker_path = runtime_source_marker_path(destination)?;
     let expected = runtime_source_marker(source, None, materialization, checkpoint)?;
@@ -465,7 +467,9 @@ pub(crate) fn prepare_runtime_source_with_tool(
         RuntimeSourceMaterialization::GamecubeIso => materialize_gamecube_iso(source, destination)?,
         RuntimeSourceMaterialization::PsxBinCue => materialize_psx_bin_cue(source, destination)?,
         RuntimeSourceMaterialization::PsxRawSet => materialize_psx_raw_set(source, destination)?,
-        RuntimeSourceMaterialization::Ps2Iso => materialize_ps2_iso(source, destination, chdman)?,
+        RuntimeSourceMaterialization::Ps2Iso => {
+            materialize_ps2_iso(source, destination, chdman, checkpoint, diagnostics)?
+        }
         RuntimeSourceMaterialization::StfsDirectory => {
             materialize_stfs_directory(source, destination, required_hashes, checkpoint)?
         }
@@ -920,10 +924,16 @@ fn copy_runtime_source(source: &Path, destination: &Path) -> Result<()> {
     replace_atomic(&temporary, destination)
 }
 
+#[cfg(test)]
+#[path = "source_conversion_tests.rs"]
+mod source_conversion_tests;
+
 fn materialize_ps2_iso(
     source: &Path,
     destination: &Path,
     pinned_tool: Option<&Path>,
+    checkpoint: &dyn Fn() -> Result<()>,
+    diagnostics: Option<crate::tool_process::ToolDiagnosticSink<'_>>,
 ) -> Result<()> {
     let extension = source
         .extension()
@@ -942,29 +952,23 @@ fn materialize_ps2_iso(
     let program = pinned_tool
         .map(Path::to_path_buf)
         .map_or_else(resolve_chdman, Ok)?;
-    let output = ChildProcessPolicy::native_command(ChildProcessClass::HostTool, &program)?
+    let mut command = ChildProcessPolicy::native_command(ChildProcessClass::HostTool, &program)?;
+    command
         .arg("extractdvd")
         .arg("-i")
         .arg(source)
         .arg("-o")
-        .arg(&temporary)
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped())
-        .output()
-        .map_err(|error| {
-            PortcoveError::source(format!(
-                "could not run chdman at {} ({error})",
-                program.display()
-            ))
-        })?;
+        .arg(&temporary);
+    let output = crate::tool_process::run_tool(&mut command, checkpoint, diagnostics)?;
     if !output.status.success() {
-        let _ = std::fs::remove_file(&temporary);
-        return Err(PortcoveError::source(format!(
-            "chdman could not extract {}: {}",
-            source.display(),
-            String::from_utf8_lossy(&output.stderr).trim()
-        )));
+        // Retain the private partial output for the lifecycle owner to review.
+        return Err(
+            PortcoveError::source("the conversion tool could not prepare the source")
+                .detail("exit_code", output.status.code().unwrap_or(-1).to_string())
+                .detail("tool_output", output.output),
+        );
     }
+    checkpoint()?;
     if !temporary.is_file() {
         return Err(PortcoveError::source(
             "chdman completed without producing a PS2 ISO",

@@ -19,7 +19,7 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
   };
   const host = process.platform === "win32" ? "windows-x86-64"
     : process.platform === "darwin" ? (process.arch === "arm64" ? "macos-aarch64" : "macos-x86-64") : "linux-x86-64";
-  async function seed(portId, mode) {
+  async function seed(portId, mode, chd = false) {
     const port = command(["catalog", "show", portId]);
     const original = path.join(output, `owned-${portId}`);
     await mkdir(original);
@@ -30,7 +30,8 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
     }
     await writeFile(path.join(original, "owned-setup-mode"), mode);
     const install = command(["adopt", original, "--port", portId, "--yes"]);
-    const source = path.join(output, `${portId}.iso`);
+    if (chd) command(["tool", "set-path", "chdman", tool]);
+    const source = path.join(output, `${portId}.${chd ? "chd" : "iso"}`);
     await writeFile(source, "owned source awaiting upstream validation");
     command(["source", "add", port.source_profile, source]);
     return { port, install };
@@ -80,7 +81,7 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
     assert.equal(await readFile(log, "utf8"), "setup must not run during desktop Play");
   });
   await scenario("native-preparation-cancellation", async () => {
-    const { port, install } = await seed("opengoal-jak2", "wait");
+    const { port, install } = await seed("opengoal-jak2", "wait", true);
     await open(port);
     await browser.findElement(button("Review game preparation")).click();
     await browser.wait(until.elementLocated(button("Start new preparation")), 15_000);
@@ -115,16 +116,22 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
     const generation = (await invoke("get_bootstrap_status")).value.generation;
     const retained = await invoke("get_activity_diagnostic", { activityId: activity.id, generation });
     assert.equal(retained.ok, true);
-    assert.equal(retained.value.complete, true);
-    assert.match(retained.value.stdout.text, /owned setup began/);
-    assert.match(retained.value.stderr.text, /owned setup diagnostic on stderr/);
+    assert.deepEqual(retained.value.map(item => item.phase), ["preparation.extract", "preparation.setup"]);
+    assert.equal(retained.value[0].complete, true);
+    assert.match(retained.value[0].stdout.text, /owned conversion began/);
+    assert.doesNotMatch(JSON.stringify(retained.value), /owned-conversion-secret/);
+    assert.equal(retained.value[1].complete, true);
+    assert.match(retained.value[1].stdout.text, /owned setup began/);
+    assert.match(retained.value[1].stderr.text, /owned setup diagnostic on stderr/);
     assert.doesNotMatch(JSON.stringify(retained.value), /owned-fixture-private-value/);
     assert.deepEqual(command(["activity", "log", activity.id]), retained.value);
     const staleLog = await invoke("get_activity_diagnostic", { activityId: activity.id, generation: generation + 1 });
     assert.equal(staleLog.ok, false); assert.equal(staleLog.error.code, "conflict");
     await row.findElement(By.xpath('.//summary[normalize-space(.)="View preparation log"]')).click();
     await browser.wait(async () => (await row.getText()).includes("owned setup diagnostic on stderr"), 5_000);
-    assert.doesNotMatch(await row.getText(), /owned-fixture-private-value/);
+    assert.match(await row.getText(), /Preparing source data/);
+    assert.match(await row.getText(), /owned conversion began/);
+    assert.doesNotMatch(await row.getText(), /owned-fixture-private-value|owned-conversion-secret/);
     const bundle = await invoke("create_support_bundle");
     assert.equal(bundle.ok, true);
     artifacts.push(bundle.value);

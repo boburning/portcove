@@ -175,7 +175,8 @@ fn assert_private_failure(mode: &str) {
         .find(|activity| activity.operation == crate::ActivityOperation::Prepare)
         .unwrap();
     assert_eq!(activity.failure.as_ref().unwrap(), &error.report());
-    let capture = reopened.activity_diagnostic(&activity.id).unwrap().unwrap();
+    let captures = reopened.activity_diagnostic(&activity.id).unwrap();
+    let capture = captures.last().unwrap();
     assert!(capture.complete);
     assert!(capture.stdout.text.contains("owned setup began"));
     assert!(
@@ -338,7 +339,7 @@ fn running_setup_cancellation_preserves_the_active_tree() {
                     while Instant::now() < deadline {
                         if ready.is_file() {
                             if let Some(capture) =
-                                service.library().activity_diagnostic(&id).unwrap()
+                                service.library().activity_diagnostic(&id).unwrap().last()
                             {
                                 if capture.stdout.text.contains("owned setup began") {
                                     assert!(!capture.complete);

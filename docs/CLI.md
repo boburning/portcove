@@ -32,16 +32,19 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":38,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":39,"ok":true,"command":"status","data":{},"error":null}
 ```
 
-Schema 38 adds `activity_diagnostic`, available through `activity log <activity-id>`.
-This read-only command returns a retained, redacted setup capture without loading
-logs in the normal activity list. `complete` records observed stream closure;
+Schema 39 changes `activity_diagnostic`, available through `activity log <activity-id>`,
+to an array of retained, redacted phase captures in phase-start order. An empty
+array means no capture remains. Schema 38 returned one setup capture or `null`;
+consumers must use the envelope version when interpreting this change.
+The command does not load logs in the normal activity list. Each capture's
+`phase` distinguishes source conversion and game setup. `complete` records observed stream closure;
 each stream separately reports truncation and observed input bytes. An interrupted
 capture stays incomplete. The first 2 MiB per stream are retained within a shared
-64 MiB library budget; older terminal captures may expire while their activity
-outcomes remain. No retained capture is represented by `null` in JSON/JSONL.
+64 MiB library budget; older terminal activities' captures may expire together
+while their activity outcomes remain. The per-stream limit applies to each phase.
 
 Human error output now uses the core summary and explicit mutation outcome.
 `--technical-details` includes the redacted technical message and context when

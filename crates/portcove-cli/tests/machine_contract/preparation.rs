@@ -3,6 +3,15 @@ use std::fs;
 
 #[test]
 fn reviewed_preparation_runs_through_jsonl_and_a_fresh_cli_plays_without_setup() {
+    preparation_roundtrip(false);
+}
+
+#[test]
+fn reviewed_chd_conversion_retains_both_phases_through_fresh_cli_and_play() {
+    preparation_roundtrip(true);
+}
+
+fn preparation_roundtrip(chd: bool) {
     let temporary = tempfile::tempdir().unwrap();
     let library = temporary.path().join("library");
     let original = temporary.path().join("owned-installation");
@@ -11,6 +20,22 @@ fn reviewed_preparation_runs_through_jsonl_and_a_fresh_cli_plays_without_setup()
     let port = catalog.port("opengoal-jak1").unwrap();
     let platform = portcove_core::Platform::current().unwrap();
     let executable = compile_native_fixture(temporary.path());
+    let preferences = temporary.path().join("preferences.json");
+    let portcove =
+        |library: &std::path::Path, args: &[&str]| portcove_tool(&preferences, library, args);
+    if chd {
+        let configured = portcove(
+            &library,
+            &[
+                "--json",
+                "tool",
+                "set-path",
+                "chdman",
+                executable.to_str().unwrap(),
+            ],
+        );
+        assert!(configured.status.success(), "{configured:?}");
+    }
     for relative in [
         &port.executable_hints[&platform][0],
         &port.setup_executable_hints[&platform][0],
@@ -37,7 +62,9 @@ fn reviewed_preparation_runs_through_jsonl_and_a_fresh_cli_plays_without_setup()
         .as_str()
         .unwrap()
         .to_owned();
-    let source = temporary.path().join("owned.iso");
+    let source = temporary
+        .path()
+        .join(if chd { "owned.chd" } else { "owned.iso" });
     fs::write(&source, b"owned source awaiting upstream validation").unwrap();
     let added = portcove(
         &library,
@@ -121,9 +148,24 @@ fn reviewed_preparation_runs_through_jsonl_and_a_fresh_cli_plays_without_setup()
     let log_jsonl = json_stdout(&log_jsonl);
     assert_eq!(log_json["command"], "activity.log");
     assert_eq!(log_json["data"], log_jsonl["data"]);
-    assert_eq!(log_json["data"]["complete"], true);
+    let captures = log_json["data"].as_array().unwrap();
+    assert_eq!(captures.len(), if chd { 2 } else { 1 });
+    if chd {
+        assert_eq!(captures[0]["phase"], "preparation.extract");
+        assert_eq!(captures[0]["complete"], true);
+        assert!(
+            captures[0]["stdout"]["text"]
+                .as_str()
+                .unwrap()
+                .contains("owned conversion began")
+        );
+        assert!(!log_json.to_string().contains("owned-conversion-secret"));
+    }
+    let setup = captures.last().unwrap();
+    assert_eq!(setup["phase"], "preparation.setup");
+    assert_eq!(setup["complete"], true);
     assert!(
-        log_json["data"]["stdout"]["text"]
+        setup["stdout"]["text"]
             .as_str()
             .unwrap()
             .contains("owned setup began")

@@ -59,6 +59,25 @@ core; desktop requests also bind the selected library generation. Support bundle
 include the retained redacted captures, with fixed archive entry names. Source
 files and private setup output directories are not copied into the bundle.
 
+SQLite schema 22 keys captures by activity and phase, preserving schema-21 setup
+payloads without changing their bytes. Phase snapshots update only their own row;
+source conversion output survives later setup execution. Retention removes all
+captures for an expired terminal activity together. Explicit reads return phase
+captures in their original start order, and reject mismatched stored identities.
+CLI schema 39 versions this array response; Desktop and support bundles consume
+the same core data.
+
+PS2 CHD conversion and upstream setup share the existing owned tool supervisor.
+The caller constructs a policy-admitted command and supplies cancellation and,
+for managed preparation, a phase-bound diagnostic sink. Host-tool and upstream
+setup executable policies remain distinct. Cancellation or diagnostic failure
+stops the owned process tree before returning. Failed conversion keeps its
+temporary output private. The private destination is replaced only after successful
+conversion and a cancellation check; its source identity marker is written after
+required output-hash verification.
+This extends an existing core responsibility without introducing another runner,
+scheduler, domain owner, dependency or trust grant.
+
 ## Evolution policy
 
 This document records the architecture Portcove tests today; it is not a promise to preserve the initial crate graph forever. The durable requirement is unambiguous ownership, not the name or number of crates. A real implementation need may justify splitting a coherent domain from `portcove-core`, adding a boundary service, or keeping genuinely host-specific orchestration in an adapter.

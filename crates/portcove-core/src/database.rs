@@ -10,7 +10,7 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior};
 
 use crate::{PortcoveError, Result};
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 21;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 22;
 
 struct Migration {
     version: i64,
@@ -145,6 +145,12 @@ const MIGRATIONS: &[Migration] = &[
         name: "retained activity diagnostics",
         apply: migration_21,
         verify: verify_migration_21,
+    },
+    Migration {
+        version: 22,
+        name: "separate preparation phase diagnostics",
+        apply: migration_22,
+        verify: verify_migration_22,
     },
 ];
 
@@ -822,6 +828,36 @@ fn verify_migration_18(connection: &Connection) -> Result<()> {
     require_columns(connection, "lifecycle_operations", &["source_import_json"])
 }
 
+fn migration_22(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch("ALTER TABLE activity_diagnostics RENAME TO activity_diagnostics_v21;
+        CREATE TABLE activity_diagnostics (
+            activity_id TEXT NOT NULL REFERENCES activity_history(id) ON DELETE CASCADE,
+            phase TEXT NOT NULL,
+            payload TEXT NOT NULL,
+            updated_at INTEGER NOT NULL,
+            payload_bytes INTEGER NOT NULL CHECK(payload_bytes>=0),
+            PRIMARY KEY(activity_id,phase)
+        );
+        INSERT INTO activity_diagnostics(activity_id,phase,payload,updated_at,payload_bytes)
+            SELECT activity_id,'preparation.setup',payload,updated_at,payload_bytes FROM activity_diagnostics_v21;
+        DROP TABLE activity_diagnostics_v21;")?;
+    Ok(())
+}
+
+fn verify_migration_22(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "activity_diagnostics",
+        &[
+            "activity_id",
+            "phase",
+            "payload",
+            "updated_at",
+            "payload_bytes",
+        ],
+    )
+}
+
 fn migration_21(transaction: &Transaction<'_>) -> Result<()> {
     transaction.execute_batch(
         "CREATE TABLE IF NOT EXISTS activity_diagnostics (
@@ -1030,6 +1066,41 @@ mod tests {
         }
     }
 
+    #[test]
+    fn phase_diagnostic_migration_preserves_legacy_payload_and_cascade() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 21).unwrap();
+        let connection = connect(root).unwrap();
+        connection.execute("INSERT INTO activity_history(id,operation,target_kind,status,started_at) VALUES('owned','prepare','port','failed',1)", []).unwrap();
+        let payload = "{\"owned\":\"legacy bytes retained exactly\"}";
+        connection.execute("INSERT INTO activity_diagnostics(activity_id,payload,updated_at,payload_bytes) VALUES('owned',?1,2,?2)", rusqlite::params![payload,payload.len()]).unwrap();
+        drop(connection);
+        migrate(root).unwrap();
+        let connection = connect(root).unwrap();
+        let actual: (String,String,i64,i64) = connection.query_row("SELECT phase,payload,updated_at,payload_bytes FROM activity_diagnostics WHERE activity_id='owned'", [], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?))).unwrap();
+        assert_eq!(
+            actual,
+            (
+                "preparation.setup".into(),
+                payload.into(),
+                2,
+                payload.len() as i64
+            )
+        );
+        connection.execute("INSERT INTO activity_diagnostics(activity_id,phase,payload,updated_at,payload_bytes) VALUES('owned','preparation.extract',?1,3,?2)", rusqlite::params![payload,payload.len()]).unwrap();
+        connection
+            .execute("DELETE FROM activity_history WHERE id='owned'", [])
+            .unwrap();
+        let remaining: i64 = connection
+            .query_row("SELECT count(*) FROM activity_diagnostics", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(remaining, 0);
+    }
+
     macro_rules! historical_schema_tests {
         ($($name:ident: $version:literal),+ $(,)?) => {
             #[test]
@@ -1063,6 +1134,7 @@ mod tests {
         schema_18: 18,
         schema_19: 19,
         schema_20: 20,
+        schema_21: 21,
     }
 
     #[test]
