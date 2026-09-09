@@ -5495,9 +5495,8 @@ mod tests {
         assert_eq!(
             adopted.path.parent(),
             Some(
-                destination
-                    .output_location
-                    .effective_output_directory
+                fs::canonicalize(&destination.output_location.effective_output_directory)
+                    .unwrap()
                     .as_path()
             )
         );
