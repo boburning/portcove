@@ -90,17 +90,32 @@ try {
             if ($LASTEXITCODE -ne 0 -or $native.deb_version -ne $version) { throw "DEB version mismatch" }
             $native.rpm_version = (& rpm -qp --qf '%{VERSION}-%{RELEASE}' (Join-Path $stage "Portcove-$version-1.x86_64.rpm") | Out-String).Trim()
             if ($LASTEXITCODE -ne 0 -or $native.rpm_version -ne "$version-1") { throw "RPM version mismatch" }
-            Invoke-Checked "test" @("-x", (Join-Path $bundleRoot "appimage/Portcove_${version}_amd64.AppImage"))
+            Invoke-Checked "test" @("-x", (Join-Path $stage "Portcove_${version}_amd64.AppImage"))
+            $debExtract = Join-Path $runRoot "$version-deb-extracted"
+            Invoke-Checked "dpkg-deb" @("--extract", (Join-Path $stage "Portcove_${version}_amd64.deb"), $debExtract)
+            Invoke-Checked "test" @("-x", (Join-Path $debExtract "usr/bin/portcove-desktop"))
+            $rpmFiles = (& rpm -qp --dump (Join-Path $stage "Portcove-$version-1.x86_64.rpm") | Out-String)
+            if ($LASTEXITCODE -ne 0 -or $rpmFiles -notmatch '(?m)^/usr/bin/portcove-desktop\s+\d+\s+\d+\s+\S+\s+0100755\s') { throw "RPM executable permissions mismatch" }
+            $native.executable_permissions_verified = $true
         } else {
-            $app = Join-Path $bundleRoot "macos/Portcove.app"
+            $macExtract = Join-Path $runRoot "$version-mac-extracted"
+            New-Item -ItemType Directory -Path $macExtract | Out-Null
+            $architecture = $PlatformLabel.Replace("macos-", "")
+            Invoke-Checked "tar" @("-xzf", (Join-Path $stage "Portcove_${version}_${architecture}.app.tar.gz"), "-C", $macExtract)
+            $app = Join-Path $macExtract "Portcove.app"
             $plist = Join-Path $app "Contents/Info.plist"
             $native.bundle_version = (& /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' $plist | Out-String).Trim()
             if ($LASTEXITCODE -ne 0 -or $native.bundle_version -ne $version) { throw "macOS bundle version mismatch" }
             $native.bundle_identifier = (& /usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' $plist | Out-String).Trim()
             if ($LASTEXITCODE -ne 0 -or $native.bundle_identifier -ne 'io.github.portcove.portcove') { throw "macOS bundle identity mismatch" }
+            $native.bundle_build_version = (& /usr/libexec/PlistBuddy -c 'Print CFBundleVersion' $plist | Out-String).Trim()
+            if ($LASTEXITCODE -ne 0 -or $native.bundle_build_version -ne $version) { throw "macOS build version mismatch" }
             Invoke-Checked "codesign" @("--verify", "--deep", "--strict", $app)
+            $signingDetails = (& codesign -dv $app 2>&1 | Out-String)
+            if ($LASTEXITCODE -ne 0 -or $signingDetails -notmatch 'Signature=adhoc') { throw "Expected ad-hoc signing on final macOS updater payload" }
             Invoke-Checked "test" @("-x", (Join-Path $app "Contents/MacOS/portcove-desktop"))
             $native.native_signing = "ad-hoc"
+            $native.executable_permissions_verified = $true
         }
         $native | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $runRoot "$version-native.json") -Encoding utf8
         & git diff --binary -- Cargo.toml Cargo.lock apps/desktop/package.json apps/desktop/src-tauri/tauri.conf.json | Set-Content -LiteralPath (Join-Path $runRoot "$version-fixture.patch") -Encoding utf8
