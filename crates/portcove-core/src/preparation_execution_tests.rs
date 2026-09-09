@@ -167,6 +167,25 @@ fn assert_private_failure(mode: &str) {
         }
     };
     assert_eq!(error.message, expected);
+    let reopened = Library::open(fixture.service.library().root()).unwrap();
+    let activity = reopened
+        .activities(10)
+        .unwrap()
+        .into_iter()
+        .find(|activity| activity.operation == crate::ActivityOperation::Prepare)
+        .unwrap();
+    assert_eq!(activity.failure.unwrap(), error.report());
+    assert_eq!(
+        error.presentation().mutation_state,
+        crate::MutationState::RecoveryRequired
+    );
+    if mode == "failure" {
+        assert_eq!(
+            error.presentation().phase.as_deref(),
+            Some("preparation.setup")
+        );
+        assert_eq!(error.details["exit_code"], "23");
+    }
     assert_eq!(
         fixture.service.status(PORT).unwrap().active.unwrap().id,
         fixture.install.id

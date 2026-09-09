@@ -71,8 +71,8 @@ pub use catalog_store::CatalogStatus;
 pub use catalog_update::{CatalogUpdatePlan, CatalogUpdateSource};
 pub use error::{ErrorCode, PortcoveError, Result};
 pub use failure::{
-    FailurePresentation, FailureTone, MutationState, RecoveryAction, redact_diagnostic_text,
-    sensitive_diagnostic_field,
+    FailurePresentation, FailureReport, FailureTone, MutationState, RecoveryAction,
+    redact_diagnostic_text, sensitive_diagnostic_field,
 };
 pub use gitlab::GitlabReleaseProvider;
 pub use host_preferences::{
@@ -144,4 +144,4 @@ pub use source_report::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 36;
+pub const API_SCHEMA_VERSION: u32 = 37;

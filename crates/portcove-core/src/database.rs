@@ -10,7 +10,7 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior};
 
 use crate::{PortcoveError, Result};
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 19;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 20;
 
 struct Migration {
     version: i64,
@@ -133,6 +133,12 @@ const MIGRATIONS: &[Migration] = &[
         name: "managed preparation journal",
         apply: migration_19,
         verify: verify_migration_19,
+    },
+    Migration {
+        version: 20,
+        name: "structured activity failures",
+        apply: migration_20,
+        verify: verify_migration_20,
     },
 ];
 
@@ -808,6 +814,23 @@ fn migration_18(transaction: &Transaction<'_>) -> Result<()> {
 
 fn verify_migration_18(connection: &Connection) -> Result<()> {
     require_columns(connection, "lifecycle_operations", &["source_import_json"])
+}
+
+fn migration_20(transaction: &Transaction<'_>) -> Result<()> {
+    if !table_columns(transaction, "activity_history")?
+        .iter()
+        .any(|column| column == "failure_json")
+    {
+        transaction.execute(
+            "ALTER TABLE activity_history ADD COLUMN failure_json TEXT",
+            [],
+        )?;
+    }
+    Ok(())
+}
+
+fn verify_migration_20(connection: &Connection) -> Result<()> {
+    require_columns(connection, "activity_history", &["failure_json"])
 }
 
 fn migration_19(transaction: &Transaction<'_>) -> Result<()> {

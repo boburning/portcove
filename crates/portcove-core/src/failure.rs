@@ -44,6 +44,20 @@ pub struct FailurePresentation {
     pub technical_context: BTreeMap<String, String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct FailureReport {
+    pub code: ErrorCode,
+    pub message: String,
+    pub details: BTreeMap<String, String>,
+    pub presentation: FailurePresentation,
+}
+
+impl From<PortcoveError> for FailureReport {
+    fn from(error: PortcoveError) -> Self {
+        error.report()
+    }
+}
+
 #[derive(Debug, Default)]
 pub(crate) struct FailureContext {
     pub(crate) mutation_state: MutationState,
@@ -52,6 +66,15 @@ pub(crate) struct FailureContext {
 }
 
 impl PortcoveError {
+    pub fn report(&self) -> FailureReport {
+        FailureReport {
+            code: self.code,
+            message: self.message.clone(),
+            details: self.details.clone(),
+            presentation: self.presentation(),
+        }
+    }
+
     /// Attach an outcome observed by the operation owner, never inferred from an error code.
     pub fn with_mutation_state(mut self, state: MutationState) -> Self {
         self.failure.mutation_state = state;
@@ -205,19 +228,33 @@ fn redact_after_marker(input: &str, marker: &str) -> String {
         output.push_str(&matched[..marker.len()]);
         output.push_str("[REDACTED]");
         let after = &matched[marker.len()..];
-        let secret_len = after
-            .char_indices()
-            .take_while(|(_, character)| {
-                !character.is_whitespace()
-                    && !matches!(character, '"' | '\'' | ',' | ';' | '}' | ']' | '<' | '>')
-            })
-            .map(|(index, character)| index + character.len_utf8())
-            .last()
-            .unwrap_or_default();
+        let secret_len = diagnostic_secret_length(after);
         remaining = &after[secret_len..];
     }
     output.push_str(remaining);
     output
+}
+
+fn diagnostic_secret_length(after: &str) -> usize {
+    if after.starts_with("[REDACTED]") {
+        return "[REDACTED]".len();
+    }
+    for quote in ["\\\"", "\"", "'"] {
+        if let Some(value) = after.strip_prefix(quote) {
+            return value
+                .find(quote)
+                .map_or(after.len(), |index| quote.len() + index + quote.len());
+        }
+    }
+    after
+        .char_indices()
+        .take_while(|(_, character)| {
+            !character.is_whitespace()
+                && !matches!(character, '"' | '\'' | ',' | ';' | '}' | ']' | '<' | '>')
+        })
+        .map(|(index, character)| index + character.len_utf8())
+        .last()
+        .unwrap_or_default()
 }
 
 #[cfg(test)]
@@ -289,5 +326,17 @@ mod tests {
         }
         assert!(text.contains("safe=visible"));
         assert!(text.contains(","));
+    }
+    #[test]
+    fn quoted_credentials_are_redacted_and_repeated_redaction_is_stable() {
+        let input = r#"password="secret with spaces!" token='quoted secret' safe=visible"#;
+        let once = redact_diagnostic_text(input);
+        assert!(!once.contains("secret"));
+        assert!(once.contains("safe=visible"));
+        assert_eq!(redact_diagnostic_text(&once), once);
+        let document = serde_json::json!({ "message": input });
+        let redacted = redact_diagnostic_text(&serde_json::to_string(&document).unwrap());
+        let parsed: serde_json::Value = serde_json::from_str(&redacted).unwrap();
+        assert!(!parsed["message"].as_str().unwrap().contains("secret"));
     }
 }

@@ -575,6 +575,7 @@ mod tests {
             target_id: Some("lighthouse".into()),
             status: ActivityStatus::Running,
             message: None,
+            failure: None,
             started_at: 1,
             finished_at: None,
             cancellation: None,

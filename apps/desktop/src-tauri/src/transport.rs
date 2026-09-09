@@ -1,15 +1,10 @@
 use std::path::PathBuf;
 
-use portcove_core::{LibrarySelection, PortcoveError, ReleaseChannel, SourceVerification};
+use portcove_core::{LibrarySelection, ReleaseChannel, SourceVerification};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(crate) struct DesktopError {
-    pub(crate) code: portcove_core::ErrorCode,
-    pub(crate) message: String,
-    pub(crate) details: std::collections::BTreeMap<String, String>,
-}
+pub(crate) type DesktopError = portcove_core::FailureReport;
 
 #[derive(Debug, Serialize, JsonSchema)]
 pub(crate) struct BatchOutcome<T> {
@@ -25,16 +20,6 @@ pub(crate) struct SourceBatchOutcome {
     pub(crate) ok: bool,
     pub(crate) result: Option<SourceVerification>,
     pub(crate) error: Option<DesktopError>,
-}
-
-impl From<PortcoveError> for DesktopError {
-    fn from(error: PortcoveError) -> Self {
-        Self {
-            code: error.code,
-            message: error.message,
-            details: error.details,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
@@ -66,6 +51,7 @@ pub(crate) struct LaunchResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use portcove_core::PortcoveError;
     use serde_json::{Value, json};
 
     #[test]

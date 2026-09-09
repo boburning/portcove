@@ -565,7 +565,11 @@ impl PortcoveService {
             }
             Err(error) => (ActivityStatus::Failed, Some(error.message.as_str())),
         };
-        if let Err(error) = self.library.finish_activity(&activity.id, status, message) {
+        let failure = result.as_ref().err().map(PortcoveError::report);
+        if let Err(error) =
+            self.library
+                .finish_activity_report(&activity.id, status, message, failure.as_ref())
+        {
             if status == ActivityStatus::Cancelled {
                 return Err(
                     PortcoveError::state("Cancellation could not be recorded durably")

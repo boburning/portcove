@@ -589,12 +589,7 @@ struct ApiResponse<T: JsonSchema> {
     error: Option<ApiError>,
 }
 
-#[derive(Debug, Serialize, JsonSchema)]
-struct ApiError {
-    code: ErrorCode,
-    message: String,
-    details: std::collections::BTreeMap<String, String>,
-}
+type ApiError = portcove_core::FailureReport;
 
 #[derive(Debug, Serialize, JsonSchema)]
 struct AboutDocument {
@@ -2026,11 +2021,7 @@ fn render_error(mode: OutputMode, command: &str, error: &PortcoveError) {
 }
 
 fn api_error(error: &PortcoveError) -> ApiError {
-    ApiError {
-        code: error.code,
-        message: error.message.clone(),
-        details: error.details.clone(),
-    }
+    error.report()
 }
 
 fn require_confirmation(prompt: &str, yes: bool, non_interactive: bool) -> Result<()> {
