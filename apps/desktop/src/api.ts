@@ -1,3 +1,4 @@
+import type { BackupAction, BackupReview } from "./types";
 import type { InstallInput, LaunchResult } from "./types";
 import type { GameUpdatePlan, PreparationPlan } from "./types";
 import type { CatalogStatus, CatalogUpdatePlan, CatalogUpdateSource } from "./types";
@@ -56,8 +57,9 @@ export const desktopApi = {
   cancelOperation: (operationId: string) => invoke<CancellationState>("cancel_operation", { operationId }),
   backups: (portId: string) => invoke<BackupInventory>("get_backups", { portId }),
   backup: (portId: string) => invoke<BackupRecord>("create_backup", { portId }),
-  restoreBackup: (portId: string, backupId: string) => invoke<RestoreResult | null>("restore_backup", { portId, backupId }),
-  deleteBackup: (portId: string, backupId: string) => invoke<BackupRecord | null>("delete_backup", { portId, backupId }),
+  previewBackupAction: (portId: string, backupId: string, action: BackupAction, generation: number) => invoke<BackupReview>("preview_backup_action", { portId, backupId, action, generation }),
+  restoreBackup: (portId: string, backupId: string, expectedPreview: string, generation: number) => invoke<RestoreResult>("restore_backup", { portId, backupId, expectedPreview, generation }),
+  deleteBackup: (portId: string, backupId: string, expectedPreview: string, generation: number) => invoke<BackupRecord>("delete_backup", { portId, backupId, expectedPreview, generation }),
   addSource: (profileId: string, path: string, expectedSha256?: string) => invoke<SourceRecord>("add_source", { profileId, path, expectedSha256 }),
   discoverSources: (request: SourceDiscoveryRequest, onEvent?: (event: OperationEvent) => void) => {
     const channel = new Channel<OperationEvent>();

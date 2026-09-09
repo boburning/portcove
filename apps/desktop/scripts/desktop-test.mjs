@@ -31,6 +31,7 @@ if (values["preparation-cli"] || values["preparation-tool"]) {
   }
   inputs.push(await fileIdentity(fileURLToPath(new URL("./desktop-preparation-test.mjs", import.meta.url))));
   inputs.push(await fileIdentity(fileURLToPath(new URL("./desktop-preparation-recovery-test.mjs", import.meta.url))));
+  inputs.push(await fileIdentity(fileURLToPath(new URL("./desktop-backup-review-test.mjs", import.meta.url))));
 }
 const revision = spawnCommand("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8", windowsHide: true }).stdout.trim();
 const output = path.resolve(values.output);

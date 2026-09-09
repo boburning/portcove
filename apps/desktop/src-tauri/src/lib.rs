@@ -1,3 +1,4 @@
+mod backup_review;
 mod catalog;
 mod diagnostics;
 mod game_updates;
@@ -21,14 +22,14 @@ use std::{
 };
 
 use portcove_core::{
-    ActivityRecord, AdoptionPreview, BackupAction, BackupInventory, BackupRecord, CatalogDocument,
+    ActivityRecord, AdoptionPreview, BackupInventory, BackupRecord, CatalogDocument,
     ChildProcessClass, ChildProcessPolicy, CompositeReleaseProvider, DoctorReport,
     GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, GithubReleaseProvider,
     HostPreferenceStore, HostToolProbeResult, HostToolStatus, IdentifiedLaunchRequest, InstallPlan,
     InstallRecord, LaunchStdio, Library, LibraryMetadataFile, LibrarySelection,
     LibrarySelectionSource, OperationCoordinator, OperationEvent, OperationResult, PortStatus,
     PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel, ReleaseProvider,
-    RestoreResult, SourceDiscoveryLimits, SourceImportMode, SourceImportPlan, SourceImportResult,
+    SourceDiscoveryLimits, SourceImportMode, SourceImportPlan, SourceImportResult,
     SourceInboxPaths, SourceInboxResolution, SourceInspectionReport, SourceIntakeInspection,
     SourceRecord, SourceRelinkPlan, SourceRemovalPreview, SourceVerification, UpdateCheck,
     UpdatePolicy, VerificationReport,
@@ -335,96 +336,6 @@ async fn create_backup(
     let state = state.inner().clone();
     blocking_service(state, move |service| {
         service.create_backup(&port_id).map_err(Into::into)
-    })
-    .await
-}
-
-#[tauri::command]
-async fn restore_backup(
-    app: tauri::AppHandle,
-    state: tauri::State<'_, DesktopState>,
-    port_id: String,
-    backup_id: String,
-) -> DesktopResult<Option<RestoreResult>> {
-    let worker_state = state.inner().clone();
-    let preview = blocking_service(worker_state, {
-        let port_id = port_id.clone();
-        let backup_id = backup_id.clone();
-        move |service| {
-            service
-                .preview_backup_action(&port_id, &backup_id, BackupAction::Restore)
-                .map_err(Into::into)
-        }
-    })
-    .await?;
-    let message = if preview.safety_backup_will_be_created {
-        format!(
-            "Restore backup {backup_id} for {port_id}?\n\nPortcove will preserve the current persistent data as a safety backup first."
-        )
-    } else {
-        format!("Restore backup {backup_id} for {port_id}?")
-    };
-    if !confirm_destructive(&app, "Confirm backup restore", message, "Restore backup").await {
-        return Ok(None);
-    }
-    let state = state.inner().clone();
-    blocking_service(state, move |service| {
-        let authorization = service.authorize_backup_action(
-            &port_id,
-            &backup_id,
-            BackupAction::Restore,
-            &preview.preview_sha256,
-        )?;
-        service
-            .restore_backup(&port_id, &backup_id, &authorization.token)
-            .map(Some)
-            .map_err(Into::into)
-    })
-    .await
-}
-
-#[tauri::command]
-async fn delete_backup(
-    app: tauri::AppHandle,
-    state: tauri::State<'_, DesktopState>,
-    port_id: String,
-    backup_id: String,
-) -> DesktopResult<Option<BackupRecord>> {
-    let worker_state = state.inner().clone();
-    let preview = blocking_service(worker_state, {
-        let port_id = port_id.clone();
-        let backup_id = backup_id.clone();
-        move |service| {
-            service
-                .preview_backup_action(&port_id, &backup_id, BackupAction::Delete)
-                .map_err(Into::into)
-        }
-    })
-    .await?;
-    if !confirm_destructive(
-        &app,
-        "Confirm backup deletion",
-        format!(
-            "Permanently delete backup {backup_id} for {port_id}?\n\nThis backup cannot be recovered after deletion."
-        ),
-        "Delete backup",
-    )
-    .await
-    {
-        return Ok(None);
-    }
-    let state = state.inner().clone();
-    blocking_service(state, move |service| {
-        let authorization = service.authorize_backup_action(
-            &port_id,
-            &backup_id,
-            BackupAction::Delete,
-            &preview.preview_sha256,
-        )?;
-        service
-            .delete_backup(&port_id, &backup_id, &authorization.token)
-            .map(Some)
-            .map_err(Into::into)
     })
     .await
 }
@@ -1899,8 +1810,9 @@ pub fn run() {
             cancel_operation,
             get_backups,
             create_backup,
-            restore_backup,
-            delete_backup,
+            backup_review::preview_backup_action,
+            backup_review::restore_backup,
+            backup_review::delete_backup,
             verify_source,
             inspect_source,
             inspect_source_intake,

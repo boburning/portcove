@@ -21,6 +21,17 @@ React UI ── Tauri IPC ───┤
                  SQLite + library tree
 ```
 
+## Backup review presentation
+
+Core owns backup selection, payload/user-data fingerprints, single-use authorization,
+per-port exclusion and journal recovery. Desktop exposes a generation-bound review
+that combines the existing core preview with its saved-data path. Its custom restore
+and deletion dialogs show affected paths, preserved data, safety-backup behavior,
+reversibility and interruption semantics. Only explicit application submits the
+reviewed fingerprint; changed data or library selection requires another review.
+Closing a review makes no backup mutation. CLI backup review and authorization keep
+their existing core implementation and machine contract.
+
 ## Failure and diagnostic authority
 
 Core owns failure presentation, observed mutation outcomes, recovery-action

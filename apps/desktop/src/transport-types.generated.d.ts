@@ -346,7 +346,7 @@ export interface TransportOutputs {
   adoption_preview: OutputAdoptionPreview;
   api_response_port_status: OutputApiResponsePortStatus;
   backup: BackupRecord;
-  backup_action_preview: OutputBackupActionPreview;
+  backup_action_preview: BackupActionPreview;
   backup_inventory: OutputBackupInventory;
   cancellation_phase: CancellationPhase;
   cancellation_state: CancellationState;
@@ -413,6 +413,7 @@ export interface TransportOutputs {
   update_check: UpdateCheck;
   update_snapshot: UpdateSnapshot;
   upstream_observation_report: OutputUpstreamObservationReport;
+  desktop_backup_review: OutputDesktopBackupReview;
   desktop_bootstrap_status: OutputDesktopBootstrapStatus;
   desktop_desktop_error: FailureReport;
   desktop_launch_result: OutputDesktopLaunchResult;
@@ -620,7 +621,7 @@ export interface BackupRecord {
   size: number;
   [k: string]: unknown;
 }
-export interface OutputBackupActionPreview {
+export interface BackupActionPreview {
   action: BackupAction;
   backup: BackupRecord;
   current_user_data_exists: boolean;
@@ -1765,6 +1766,11 @@ export interface ObservedResolution {
   asset_id: number;
   release: ResolvedRelease;
   release_id: number;
+  [k: string]: unknown;
+}
+export interface OutputDesktopBackupReview {
+  persistent_data_path: string;
+  preview: BackupActionPreview;
   [k: string]: unknown;
 }
 export interface OutputDesktopBootstrapStatus {

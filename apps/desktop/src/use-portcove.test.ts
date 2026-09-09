@@ -89,9 +89,9 @@ describe("detail actions", () => {
     const perform = vi.fn(async (_name: string, task: () => Promise<unknown>) => task()) as unknown as Perform;
     const refresh = vi.fn().mockResolvedValue(undefined);
 
-    await detailActions(port, undefined, "", "", perform, vi.fn(), undefined, refresh).restoreBackup(backup);
+    await detailActions(port, undefined, "", "", perform, vi.fn(), undefined, refresh, 7).restoreBackup(backup, "reviewed-restore");
 
-    expect(desktopApi.restoreBackup).toHaveBeenCalledWith(port.id, backup.id);
+    expect(desktopApi.restoreBackup).toHaveBeenCalledWith(port.id, backup.id, "reviewed-restore", 7);
     expect(refresh).toHaveBeenCalledOnce();
   });
 
@@ -104,9 +104,9 @@ describe("detail actions", () => {
     const perform = vi.fn(async (_name: string, task: () => Promise<unknown>) => task()) as unknown as Perform;
     const refresh = vi.fn().mockResolvedValue(undefined);
 
-    await detailActions(port, undefined, "", "", perform, vi.fn(), undefined, refresh).deleteBackup(backup);
+    await detailActions(port, undefined, "", "", perform, vi.fn(), undefined, refresh, 8).deleteBackup(backup, "reviewed-delete");
 
-    expect(desktopApi.deleteBackup).toHaveBeenCalledWith(port.id, backup.id);
+    expect(desktopApi.deleteBackup).toHaveBeenCalledWith(port.id, backup.id, "reviewed-delete", 8);
     expect(refresh).toHaveBeenCalledOnce();
   });
 
