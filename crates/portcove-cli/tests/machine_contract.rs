@@ -18,6 +18,58 @@ fn cli_binary() -> std::path::PathBuf {
 struct RunningCli(std::process::Child);
 
 #[test]
+fn schema_contract_direction_is_explicit_compatible_and_library_free() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("unopened");
+    let implicit = json_stdout(&portcove(&library, &["--json", "schema", "export"]));
+    let input = json_stdout(&portcove(
+        &library,
+        &["--json", "schema", "export", "--contract", "input"],
+    ));
+    assert_eq!(implicit, input);
+    let output = json_stdout(&portcove(
+        &library,
+        &["--json", "schema", "export", "--contract", "output"],
+    ));
+    assert_eq!(output["command"], "schema.export");
+    assert_eq!(
+        input["data"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .collect::<Vec<_>>(),
+        output["data"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .collect::<Vec<_>>()
+    );
+    let input_install = &input["data"]["status"]["$defs"]["InstallRecord"];
+    let output_install = &output["data"]["status"]["$defs"]["InstallRecord"];
+    for field in ["artifact", "manifest_sha256", "selected_executable"] {
+        assert!(
+            !input_install["required"]
+                .as_array()
+                .unwrap()
+                .contains(&Value::String(field.into()))
+        );
+        assert!(
+            output_install["required"]
+                .as_array()
+                .unwrap()
+                .contains(&Value::String(field.into()))
+        );
+    }
+    let invalid = portcove(
+        &library,
+        &["--json", "schema", "export", "--contract", "unknown"],
+    );
+    assert_eq!(invalid.status.code(), Some(2));
+    assert_eq!(json_stdout(&invalid)["error"]["code"], "usage");
+    assert!(!library.exists());
+}
+
+#[test]
 fn upstream_observation_is_offline_and_does_not_open_a_library() {
     let temporary = tempfile::tempdir().unwrap();
     let library = temporary.path().join("unopened");
