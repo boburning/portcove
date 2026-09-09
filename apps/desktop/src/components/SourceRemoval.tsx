@@ -49,7 +49,7 @@ export function SourceRemovalDialog({ profileId, generation, ports, close, onRem
 function SourceRemovalDetails({ preview, ports }: { preview: SourceRemovalPreview; ports: PortDefinition[] }) {
   const name = (id: string) => ports.find(port => port.id === id)?.name ?? id;
   return <section className="source-removal-details" aria-label="Affected games and preserved files">
-    <p><strong>Reference removed:</strong> {preview.source.profile_id}</p><p>{preview.source.path}</p>
+    <p><strong>Reference to remove:</strong> {preview.source.profile_id}</p><p>{preview.source.path}</p>
     <p>The registered file or folder, its contents, installed game versions, saves, backups and other source references are preserved. Only this library's reference is removed.</p>
     <h3>Installed games affected</h3>
     {preview.installed_dependent_port_ids.length ? <ul>{preview.installed_dependent_port_ids.map(id => <li key={id}>{name(id)}</li>)}</ul> : <p>No installed game currently depends on this reference.</p>}

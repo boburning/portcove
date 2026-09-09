@@ -73,6 +73,15 @@ export async function sourceRemovalScenario({ browser, invoke, scenario, library
     assert.deepEqual(accessibility.violations.map(item => item.id), []);
     const screenshot = path.join(output, "native-source-removal-review.png");
     await writeFile(screenshot, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" }); artifacts.push(screenshot);
+    await browser.manage().window().setRect({ width: 960, height: 640 });
+    const layout = await browser.executeScript(() => {
+      const review = document.querySelector('[aria-labelledby="source-removal-title"]');
+      const bounds = review.getBoundingClientRect();
+      return { pageOverflow: document.documentElement.scrollWidth > window.innerWidth + 1, dialogOverflow: review.scrollWidth > review.clientWidth + 1, inView: bounds.left >= 0 && bounds.right <= window.innerWidth };
+    });
+    assert.deepEqual(layout, { pageOverflow: false, dialogOverflow: false, inView: true });
+    const compact = path.join(output, "native-source-removal-compact.png");
+    await writeFile(compact, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" }); artifacts.push(compact);
     await click(button("Continue to removal confirmation"));
     await confirmNative("Confirm source removal", "Remove source reference", replacement, "source-native-confirmed");
     await browser.wait(async () => (await browser.findElements(row)).length === 0, 15_000);

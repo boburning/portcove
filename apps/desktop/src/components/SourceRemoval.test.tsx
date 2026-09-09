@@ -66,7 +66,7 @@ it("ignores a late preview from a previous source or library", async () => {
   await act(async () => finish(preview));
   expect(container.textContent).toContain("new-original/game.bin");
   expect(container.textContent).toContain("No installed game currently depends");
-  expect(container.textContent).not.toContain("Reference removed: source");
+  expect(container.textContent).not.toContain("Reference to remove: source");
 });
 
 it("retries only the list refresh after a completed removal has a refresh failure", async () => {
