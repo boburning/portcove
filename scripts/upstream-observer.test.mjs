@@ -102,6 +102,24 @@ test("partial reads and concurrent collection changes never advance the previous
   await assert.rejects(observeUpstream(config, { fetch: changing.fetch }), error => error.rule === "concurrent-change");
 });
 
+test("unrelated GitHub counters do not invalidate exact observed release facts", async () => {
+  const baseline = await observeUpstream(config, { fetch: fixture().fetch });
+  const changing = fixture({ intercept: (_url, _options, count, replies) => {
+    if (count === 4) {
+      replies.get(root).body.stargazers_count = 123;
+      replies.get(`${root}/releases?per_page=100&page=1`).body[0].body = "untrusted release prose changed";
+      replies.get(`${root}/releases/1/assets?per_page=100&page=1`).body[0].download_count = 456;
+    }
+  } });
+  const result = await observeUpstream(config, { fetch: changing.fetch });
+  assert.equal(result.observation.facts_sha256, baseline.observation.facts_sha256);
+  assert.equal(result.cache.pages[root].body.stargazers_count, 123);
+  const changedAsset = fixture({ intercept: (_url, _options, count, replies) => {
+    if (count === 4) replies.get(`${root}/releases/1/assets?per_page=100&page=1`).body[0] = asset(2, "changed artifact bytes");
+  } });
+  await assert.rejects(observeUpstream(config, { fetch: changedAsset.fetch }), error => error.rule === "concurrent-change");
+});
+
 test("rate limits defer to provider clocks and transport retries stay bounded", async () => {
   const limited = fixture({ intercept: () => new Response(null, { status: 429, headers: { "retry-after": "120" } }) });
   await assert.rejects(observeUpstream(config, { fetch: limited.fetch, now: () => Date.parse(time) }), error => error instanceof ObservationFailure && error.rule === "rate-limit" && error.retryAt === "2026-09-09T12:02:00.000Z");

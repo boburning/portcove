@@ -86,6 +86,11 @@ function releaseFact(release) {
   };
 }
 
+function repositoryFact(repository, config) {
+  requireFact(repository?.id === config.repository_id && repository.full_name === config.repository && typeof repository.archived === "boolean", "repository-identity", "configured repository identity changed");
+  return { id: repository.id, full_name: repository.full_name, archived: repository.archived };
+}
+
 function nextPage(link, pathname, page, config) {
   if (!link) return false;
   const paths = [pathname, pathname.replace(`/repos/${config.repository}`, `/repositories/${config.repository_id}`)];
@@ -187,19 +192,22 @@ export async function observeUpstream(config, options = {}) {
     }
   }
 
-  async function read(pathname, page = null) {
+  async function read(pathname, page, normalize) {
     const result = await request(pathname, page);
     pages[result.url] = result.value;
-    requestOrder.push({ pathname, page, ...result });
+    requestOrder.push({ pathname, page, normalize, ...result });
     return result.value;
   }
 
-  async function collection(pathname) {
+  async function collection(pathname, normalizeItem) {
     const all = [];
     const ids = new Set();
     for (let page = 1; ; page++) {
       requireFact(page <= config.budget.pages_per_collection, "budget", "collection exceeded the complete-pagination budget");
-      const response = await read(pathname, page);
+      const response = await read(pathname, page, body => {
+        requireFact(Array.isArray(body) && body.length <= 100, "invalid-metadata", "collection page must contain at most 100 objects");
+        return body.map(normalizeItem);
+      });
       requireFact(Array.isArray(response.body) && response.body.length <= 100, "invalid-metadata", "collection page must contain at most 100 objects");
       for (const item of response.body) {
         const id = identity(item?.id, "collection item");
@@ -213,13 +221,13 @@ export async function observeUpstream(config, options = {}) {
   }
 
   const repositoryPath = `/repos/${config.repository}`;
-  const repository = (await read(repositoryPath)).body;
-  requireFact(repository.id === config.repository_id && repository.full_name === config.repository && typeof repository.archived === "boolean", "repository-identity", "configured repository identity changed");
+  const repository = repositoryFact((await read(repositoryPath, null, value => repositoryFact(value, config))).body, config);
   const releases = [];
   const assetIds = new Set();
-  for (const raw of await collection(`${repositoryPath}/releases`)) {
+  for (const raw of await collection(`${repositoryPath}/releases`, releaseFact)) {
     const release = releaseFact(raw);
-    release.assets = (await collection(`${repositoryPath}/releases/${release.id}/assets`)).map(asset => assetFact(asset, config, release.tag_name));
+    const normalizeAsset = asset => assetFact(asset, config, release.tag_name);
+    release.assets = (await collection(`${repositoryPath}/releases/${release.id}/assets`, normalizeAsset)).map(normalizeAsset);
     for (const asset of release.assets) {
       requireFact(!assetIds.has(asset.id), "invalid-metadata", "asset identity appears in multiple releases");
       assetIds.add(asset.id);
@@ -230,11 +238,12 @@ export async function observeUpstream(config, options = {}) {
   // page and preserve the observation interval; any detected change aborts.
   for (const entry of requestOrder) {
     const current = await request(entry.pathname, entry.page, entry.value);
-    requireFact(current.value.sha256 === entry.value.sha256 && current.value.link === entry.value.link, "concurrent-change", "provider collection changed during observation");
+    requireFact(observationHash(entry.normalize(current.value.body)) === observationHash(entry.normalize(entry.value.body)) && current.value.link === entry.value.link, "concurrent-change", `provider collection changed during observation: ${entry.pathname}`);
+    pages[entry.url] = current.value;
   }
   const completed = now();
   requireFact(completed >= started && completed - started <= config.budget.duration_ms, "clock-or-budget", "observation clock moved backwards or exceeded its deadline");
-  const facts = { repository: { id: repository.id, full_name: repository.full_name, archived: repository.archived }, releases };
+  const facts = { repository, releases };
   return {
     observation: { format: 1, config_sha256: configHash, port_id: config.port_id, started_at: new Date(started).toISOString(), completed_at: new Date(completed).toISOString(), facts_sha256: observationHash(facts), facts, consumed, authority: "provider-observation-only" },
     cache: { format: 1, config_sha256: configHash, pages },

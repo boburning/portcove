@@ -30,7 +30,11 @@ clocks, asset names, URLs, sizes and provider digest claims. It discards prose
 and recommendations. GitHub API redirects are refused; pagination links must
 stay inside the exact collection, and asset URLs inside the configured
 repository and release. Duplicate IDs, malformed data and partial pagination
-fail the run. Every consumed page is revalidated after collection. GitHub offers
+fail the run. Every consumed page is revalidated after collection against its
+normalized observed facts and pagination links. Unrelated counters and prose
+cannot invalidate an otherwise unchanged release observation. The cache still
+binds each complete raw API response to its own digest and conditional header.
+GitHub offers
 no atomic repository snapshot: evidence therefore records the observation's
 start/end interval, and any detected change invalidates the entire attempt.
 
