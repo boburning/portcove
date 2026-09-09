@@ -1066,6 +1066,41 @@ mod tests {
         }
     }
 
+    #[test]
+    fn phase_diagnostic_migration_preserves_legacy_payload_and_cascade() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 21).unwrap();
+        let connection = connect(root).unwrap();
+        connection.execute("INSERT INTO activity_history(id,operation,target_kind,status,started_at) VALUES('owned','prepare','port','failed',1)", []).unwrap();
+        let payload = "{\"owned\":\"legacy bytes retained exactly\"}";
+        connection.execute("INSERT INTO activity_diagnostics(activity_id,payload,updated_at,payload_bytes) VALUES('owned',?1,2,?2)", rusqlite::params![payload,payload.len()]).unwrap();
+        drop(connection);
+        migrate(root).unwrap();
+        let connection = connect(root).unwrap();
+        let actual: (String,String,i64,i64) = connection.query_row("SELECT phase,payload,updated_at,payload_bytes FROM activity_diagnostics WHERE activity_id='owned'", [], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?))).unwrap();
+        assert_eq!(
+            actual,
+            (
+                "preparation.setup".into(),
+                payload.into(),
+                2,
+                payload.len() as i64
+            )
+        );
+        connection.execute("INSERT INTO activity_diagnostics(activity_id,phase,payload,updated_at,payload_bytes) VALUES('owned','preparation.extract',?1,3,?2)", rusqlite::params![payload,payload.len()]).unwrap();
+        connection
+            .execute("DELETE FROM activity_history WHERE id='owned'", [])
+            .unwrap();
+        let remaining: i64 = connection
+            .query_row("SELECT count(*) FROM activity_diagnostics", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(remaining, 0);
+    }
+
     macro_rules! historical_schema_tests {
         ($($name:ident: $version:literal),+ $(,)?) => {
             #[test]

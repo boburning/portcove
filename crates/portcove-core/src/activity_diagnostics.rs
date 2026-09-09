@@ -360,6 +360,11 @@ mod tests {
         for _ in 0..17 {
             let id = activity(&library);
             snapshot.activity_id = id.clone();
+            library
+                .record_activity_diagnostic(
+                    &small.snapshot(&id, "preparation.extract", true).unwrap(),
+                )
+                .unwrap();
             library.record_activity_diagnostic(&snapshot).unwrap();
             library
                 .finish_activity(&id, ActivityStatus::Failed, Some("failed setup"))
@@ -372,6 +377,13 @@ mod tests {
                 .activity_diagnostic(ids.last().unwrap())
                 .unwrap()
                 .is_empty()
+        );
+        assert_eq!(
+            library
+                .activity_diagnostic(ids.last().unwrap())
+                .unwrap()
+                .len(),
+            2
         );
         assert!(!library.activity_diagnostic(&running).unwrap().is_empty());
         assert_eq!(library.activities(50).unwrap().len(), 18);
@@ -413,6 +425,11 @@ mod tests {
         let denied = activity(&library);
         for id in [&first, &second] {
             snapshot.activity_id = id.clone();
+            library
+                .record_activity_diagnostic(
+                    &small.snapshot(&id, "preparation.extract", true).unwrap(),
+                )
+                .unwrap();
             library.record_activity_diagnostic(&snapshot).unwrap();
         }
         snapshot.activity_id = denied.clone();
