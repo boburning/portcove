@@ -1,5 +1,10 @@
 # Architecture
 
+The [independent definition delivery contract](DEFINITION-DELIVERY.md) keeps
+successor definition admission, retained source/execution/persistence contracts
+and operation eligibility in core. Its executable examples are test-only design
+fixtures; the implemented format-1 loader and lifecycle boundaries are unchanged.
+
 Portcove currently has one authority for catalog, source, release, installation, update, rollback, persistence, recovery, and launch behavior: `portcove-core`. The CLI and Tauri backend are thin adapters around it. The React frontend invokes Tauri commands and never owns installation state. External frontends use the public CLI and own only their presentation and platform-facing translation; they do not become another game-management authority.
 
 ```text

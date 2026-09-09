@@ -7,6 +7,8 @@ mod catalog;
 mod catalog_store;
 mod catalog_update;
 mod database;
+#[cfg(test)]
+mod definition_policy_tests;
 mod durability;
 mod error;
 mod gitlab;
