@@ -7,7 +7,10 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use portcove_core::{PortcoveError, PortcoveService, Result};
+use portcove_core::{
+    PortcoveError, PortcoveService, Result, redact_diagnostic_text as redact_text,
+    sensitive_diagnostic_field as is_sensitive_field,
+};
 use serde_json::{Value, json};
 use tracing::{
     Event, Subscriber,
@@ -203,62 +206,6 @@ impl FieldVisitor {
         self.fields
             .insert(field.name().to_owned(), Value::String(value));
     }
-}
-
-fn is_sensitive_field(name: &str) -> bool {
-    let name = name.to_ascii_lowercase();
-    [
-        "token",
-        "secret",
-        "password",
-        "credential",
-        "authorization",
-        "device_code",
-        "user_code",
-    ]
-    .iter()
-    .any(|part| name.contains(part))
-}
-
-fn redact_text(input: &str) -> String {
-    let mut output = input.to_owned();
-    for marker in [
-        "Bearer ",
-        "ghp_",
-        "github_pat_",
-        "glpat-",
-        "token=",
-        "password=",
-        "secret=",
-        "authorization=",
-    ] {
-        output = redact_after_marker(&output, marker);
-    }
-    output
-}
-
-fn redact_after_marker(input: &str, marker: &str) -> String {
-    let mut output = String::with_capacity(input.len());
-    let mut remaining = input;
-    let marker_lower = marker.to_ascii_lowercase();
-    while let Some(index) = remaining.to_ascii_lowercase().find(&marker_lower) {
-        let (before, matched) = remaining.split_at(index);
-        output.push_str(before);
-        output.push_str(&matched[..marker.len()]);
-        output.push_str("[REDACTED]");
-        let after = &matched[marker.len()..];
-        let secret_len = after
-            .char_indices()
-            .take_while(|(_, character)| {
-                character.is_ascii_alphanumeric() || matches!(character, '_' | '-')
-            })
-            .map(|(index, character)| index + character.len_utf8())
-            .last()
-            .unwrap_or_default();
-        remaining = &after[secret_len..];
-    }
-    output.push_str(remaining);
-    output
 }
 
 fn rotate_logs(path: &Path, retained_files: usize) -> Result<()> {

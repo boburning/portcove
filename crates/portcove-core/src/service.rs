@@ -555,7 +555,7 @@ impl PortcoveService {
         if result.is_ok() {
             if let Err(error) = crate::cancellation::close_preparation(&self.library, &activity.id)
             {
-                result = Err(error);
+                result = Err(error.with_mutation_state(crate::MutationState::Committed));
             }
         }
         let (status, message) = match &result {

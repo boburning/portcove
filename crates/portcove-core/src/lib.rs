@@ -11,6 +11,7 @@ mod database;
 mod definition_policy_tests;
 mod durability;
 mod error;
+mod failure;
 mod gitlab;
 mod host_preferences;
 mod host_tools;
@@ -69,6 +70,10 @@ pub use catalog::Catalog;
 pub use catalog_store::CatalogStatus;
 pub use catalog_update::{CatalogUpdatePlan, CatalogUpdateSource};
 pub use error::{ErrorCode, PortcoveError, Result};
+pub use failure::{
+    FailurePresentation, FailureTone, MutationState, RecoveryAction, redact_diagnostic_text,
+    sensitive_diagnostic_field,
+};
 pub use gitlab::GitlabReleaseProvider;
 pub use host_preferences::{
     HostPreferenceStore, HostPreferences, HostToolPreference, LibrarySelection,
