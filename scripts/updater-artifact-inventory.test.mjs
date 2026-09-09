@@ -137,4 +137,8 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(lifecycle, /\$InstallMode -eq "Passive".*"\/P"/);
   assert.match(lifecycle, /DisplayVersion -ne \$ExpectedVersion/);
   assert.match(lifecycle, /HKEY_CURRENT_USER/);
+  const rehearsal = await readFile(new URL("./rehearse-updater-artifacts.ps1", import.meta.url), "utf8");
+  // A DMG-only Tauri build creates the bootstrap disk image but does not return
+  // an app bundle target for updater archive/signature generation.
+  assert.match(rehearsal, /else \{ "app,dmg" \}/);
 });
