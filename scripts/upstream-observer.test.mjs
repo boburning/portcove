@@ -13,6 +13,18 @@ test("the compiled CLI fixture uses the same canonical facts digest", async () =
   const fixture = JSON.parse(await readFile(new URL("../crates/portcove-cli/tests/fixtures/upstream-observation.json", import.meta.url), "utf8"));
   assert.equal(observationHash(fixture.facts), fixture.facts_sha256);
 });
+
+test("scheduled observation keeps the configured cadence, read-only authority and bounded recovery cache", async () => {
+  const workflow = await readFile(new URL("../.github/workflows/configured-upstream-observer.yml", import.meta.url), "utf8");
+  assert.ok(workflow.includes(`cron: '17 */${config.cadence_hours} * * *'`));
+  assert.match(workflow, /permissions:\s+contents: read/);
+  assert.doesNotMatch(workflow, /pull_request_target|contents: write|id-token: write|actions: write|secrets\.(?!GITHUB_TOKEN\b)/);
+  assert.match(workflow, /timeout-minutes: 10/);
+  assert.match(workflow, /cancel-in-progress: false/);
+  assert.match(workflow, /if:.*!cancelled\(\).*hashFiles\('work\/upstream-observer\/\*\/checkpoint.json'\)/);
+  assert.doesNotMatch(workflow, /upstream-observer\/\*\*|\.lock|\.next/);
+  assert.match(workflow, /retention-days: 7/);
+});
 const root = `https://api.github.com/repos/${config.repository}`;
 const time = "2026-09-09T12:00:00Z";
 const release = (id = 1, extra = {}) => ({ id, tag_name: `v${id}.0.0`, draft: false, prerelease: false, created_at: time, published_at: time, ...extra });
