@@ -3,8 +3,8 @@ use std::path::Path;
 use crate::{PortcoveError, Result};
 
 pub(crate) fn is_portcove_metadata(path: &Path) -> bool {
-    path.components().any(|component| {
-        component.as_os_str().to_str().is_some_and(|name| {
+    path.to_str().is_some_and(|relative| {
+        relative.split(['/', '\\']).any(|name| {
             let name = name.to_ascii_lowercase();
             name.starts_with(".portcove-") || name.ends_with(".portcove-source.json")
         })

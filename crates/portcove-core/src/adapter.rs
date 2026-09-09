@@ -60,6 +60,28 @@ pub trait Adapter: Send + Sync {
 #[derive(Debug, Clone, Copy)]
 struct StandardAdapter(AdapterKind);
 
+pub(crate) fn launch_working_directory(
+    kind: AdapterKind,
+    port: &PortDefinition,
+    install_root: &Path,
+    executable: &Path,
+) -> Result<PathBuf> {
+    if let Some(relative) = &port.runtime_subdirectory {
+        let directory = install_root.join(relative);
+        if !directory.is_dir() || !executable.starts_with(&directory) {
+            return Err(PortcoveError::launch(format!(
+                "runtime subdirectory {} was not found for {}",
+                relative, port.name
+            )));
+        }
+        Ok(directory)
+    } else if port.launch_from_install_root || kind == AdapterKind::N64RecompPortable {
+        Ok(install_root.to_path_buf())
+    } else {
+        Ok(executable.parent().unwrap_or(install_root).to_path_buf())
+    }
+}
+
 impl Adapter for StandardAdapter {
     fn kind(&self) -> AdapterKind {
         self.0
@@ -184,20 +206,7 @@ impl Adapter for StandardAdapter {
         if self.0 == AdapterKind::LibultrashipPortable {
             environment.insert("SHIP_HOME".into(), user_data_path.clone());
         }
-        let working_directory = if let Some(relative) = &port.runtime_subdirectory {
-            let directory = install_root.join(relative);
-            if !directory.is_dir() || !executable.starts_with(&directory) {
-                return Err(PortcoveError::launch(format!(
-                    "runtime subdirectory {} was not found for {}",
-                    relative, port.name
-                )));
-            }
-            directory
-        } else if port.launch_from_install_root || self.0 == AdapterKind::N64RecompPortable {
-            install_root.to_path_buf()
-        } else {
-            executable.parent().unwrap_or(install_root).to_path_buf()
-        };
+        let working_directory = launch_working_directory(self.0, port, install_root, &executable)?;
         if self.0 == AdapterKind::ReferencedDisc {
             let descriptor = serde_json::json!({
                 "version": 1,

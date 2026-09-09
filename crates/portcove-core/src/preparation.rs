@@ -97,7 +97,14 @@ impl PortcoveService {
         crate::output_root::validate_install_path(self.library(), port_id, &install.path)?;
         let qualification = InstallQualification::from_port(port, host)?;
         let installer = Installer::new(self.library().clone())?;
-        installer.verify_critical(&install, &qualification)?;
+        let selected = installer.verify_critical(&install, &qualification)?;
+        let working =
+            crate::adapter::launch_working_directory(port.adapter, port, &install.path, &selected)?;
+        if working != install.path {
+            return Err(PortcoveError::unsupported(
+                "managed preparation currently requires an install-root working directory",
+            ));
+        }
         if !installer.verify_managed(&install, &qualification)?.valid {
             return Err(PortcoveError::verification(
                 "installed setup inputs do not match their admitted manifest; repair the installation before preparation",
@@ -114,10 +121,6 @@ impl PortcoveService {
         })?;
         self.verify_source_record(&source)?;
         let source_inspection = self.inspect_registered_source(profile_id)?;
-        let working = port.runtime_subdirectory.as_ref().map_or_else(
-            || install.path.clone(),
-            |relative| install.path.join(relative),
-        );
         let hints = port.setup_executable_hints.get(&host).ok_or_else(|| {
             PortcoveError::unsupported("this host has no declared setup executable")
         })?;
@@ -170,17 +173,12 @@ fn tool_identity(path: PathBuf, class: ChildProcessClass) -> Result<PreparationT
 }
 
 pub(crate) fn validate_output_contract(port: &crate::PortDefinition) -> Result<()> {
-    if !port.setup_output_paths.is_empty()
-        && (!port.launch_from_install_root || port.runtime_subdirectory.is_some())
-    {
-        return Err(PortcoveError::unsupported(
-            "managed preparation output contracts currently require an install-root working directory",
-        ));
-    }
+    let generated_metadata = crate::adapter::generated_metadata(port)?;
     for (index, output) in port.setup_output_paths.iter().enumerate() {
         crate::archive::validate_relative_path(output, true)?;
         let overlaps = |other: &String| crate::runtime::overlaps(output, other);
         if crate::path::is_portcove_metadata(std::path::Path::new(output))
+            || generated_metadata.iter().any(overlaps)
             || port.setup_output_paths[..index].iter().any(overlaps)
             || port.persistent_paths.iter().any(overlaps)
             || port.runtime_mutable_paths.iter().any(overlaps)
@@ -314,6 +312,15 @@ mod tests {
     #[test]
     fn planning_is_stable_and_preserves_preliminary_source_and_unprepared_state() {
         let fixture = Fixture::new();
+        // The real definitions use the executable's parent, not an explicit root override.
+        assert!(
+            !fixture
+                .service
+                .catalog()
+                .port(PORT)
+                .unwrap()
+                .launch_from_install_root
+        );
         let before = crate::library_transfer::reviewed_tree(&fixture.install.path).unwrap();
         let first = fixture
             .service
@@ -438,7 +445,20 @@ mod tests {
         }
         let mut nested = port.clone();
         nested.runtime_subdirectory = Some("nested".into());
-        assert!(validate_output_contract(&nested).is_err());
+        validate_output_contract(&nested).unwrap();
+        let mut portable = port.clone();
+        portable.portable_marker = true;
+        portable.setup_output_paths.push("portable.txt".into());
+        assert!(validate_output_contract(&portable).is_err());
+        for reserved in [
+            r"data\.PORTCOVE-hidden",
+            "data/.portcove-hidden",
+            r"data\source.PORTCOVE-source.json",
+        ] {
+            assert!(crate::path::is_portcove_metadata(std::path::Path::new(
+                reserved
+            )));
+        }
         let mut legacy = port.clone();
         legacy.setup_output_paths.clear();
         // Old definitions remain readable; they cannot acquire the new preparation capability.
