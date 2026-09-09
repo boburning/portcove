@@ -9,7 +9,16 @@ const configPath = path.join(projectRoot, ".github", "roadmap.json");
 const catalogPath = path.join(projectRoot, "crates", "portcove-core", "catalog", "catalog.json");
 
 const layouts = new Set(["TABLE_LAYOUT", "BOARD_LAYOUT", "ROADMAP_LAYOUT"]);
-export const releaseSequence = ["Alpha 1", "Alpha 2", "Alpha 3", "Beta 1", "Beta 2", "RC", "V1"];
+const legacyReleaseSequence = ["Alpha 1", "Alpha 2", "Alpha 3", "Beta 1", "Beta 2", "RC", "V1"];
+export const releaseSequence = [...legacyReleaseSequence, "Public beta", "1.0"];
+
+function includedReleaseTargets(release) {
+  if (release === "Public beta") return ["Alpha 1", "Alpha 2", "Public beta"];
+  if (release === "1.0") return [...legacyReleaseSequence, "Public beta", "1.0"];
+  const index = legacyReleaseSequence.indexOf(release);
+  if (index < 0) throw new Error(`unknown target release: ${release}`);
+  return legacyReleaseSequence.slice(0, index + 1);
+}
 const durableIssueHeadings = [
   "User outcome", "Current behavior and evidence", "Scope", "Non-goals",
   "Acceptance criteria", "Required tests", "Documentation impact",
@@ -664,6 +673,7 @@ Usage:
   node scripts/roadmap.mjs move <item> --before <item>
   node scripts/roadmap.mjs next
   node scripts/roadmap.mjs readiness --release <release>
+  node scripts/roadmap.mjs candidate-scope --issues <issue,issue,...>
   node scripts/roadmap.mjs snapshot --release <release> --output <docs/releases/path>
 
 Use capture-port for direct maintainer intake. Use normalize-port for a public
@@ -756,12 +766,23 @@ export function dependencyCycles(items) {
   return cycles;
 }
 
-export function analyzeReleaseReadiness(items, release) {
-  const releaseIndex = releaseSequence.indexOf(release);
-  if (releaseIndex < 0) throw new Error(`unknown target release: ${release}`);
-  const includedReleases = releaseSequence.slice(0, releaseIndex + 1);
-  const targeted = items.filter(item => includedReleases.includes(fieldValue(item, "Target release")));
-  const requiredRoots = targeted.filter(item => fieldValue(item, "Release commitment") === "Required");
+export function analyzeReleaseReadiness(items, release, { candidateIssues = null } = {}) {
+  if (candidateIssues !== null && (!Array.isArray(candidateIssues) || !candidateIssues.length
+    || candidateIssues.some(number => !Number.isSafeInteger(number) || number < 1))) {
+    throw new Error("candidate scope requires explicit positive issue numbers");
+  }
+  if (candidateIssues?.some(number => !items.some(item => issueNumber(item) === number))) {
+    throw new Error("candidate scope includes an issue missing from the Project");
+  }
+  const includedReleases = includedReleaseTargets(release);
+  const milestone = !candidateIssues && ["Public beta", "1.0"].includes(release);
+  const migrationConflicts = milestone ? items.filter(item => !itemDone(item)
+    && legacyReleaseSequence.includes(fieldValue(item, "Target release"))) : [];
+  let unassignedRequired = items.filter(item => fieldValue(item, "Release commitment") === "Required"
+    && ![...releaseSequence, "Post-V1", "Post-1.0"].includes(fieldValue(item, "Target release")));
+  const targeted = items.filter(item => candidateIssues
+    ? candidateIssues.includes(issueNumber(item)) : includedReleases.includes(fieldValue(item, "Target release")));
+  const requiredRoots = candidateIssues ? targeted : targeted.filter(item => fieldValue(item, "Release commitment") === "Required");
   const relevantUnclassified = targeted.filter(item => !fieldValue(item, "Release commitment"));
   const safetyConflicts = targeted.filter(item => !itemDone(item)
     && fieldValue(item, "Status") === "Blocked"
@@ -797,7 +818,7 @@ export function analyzeReleaseReadiness(items, release) {
       }
       const commitment = fieldValue(projectItem, "Release commitment");
       const target = fieldValue(projectItem, "Target release");
-      if (commitment !== "Required" || !includedReleases.includes(target)) {
+      if (candidateIssues ? !commitment : (commitment !== "Required" || !includedReleases.includes(target))) {
         dependencyConflicts.push({ item, dependency: projectItem, commitment, target });
       }
       visit(projectItem);
@@ -805,10 +826,15 @@ export function analyzeReleaseReadiness(items, release) {
   };
   for (const item of uniqueItems([...requiredRoots, ...safetyConflicts])) visit(item);
   const effectiveRequired = [...effective.values()];
+  if (candidateIssues) unassignedRequired = unassignedRequired.filter(item => effectiveRequired.includes(item));
   const cycles = dependencyCycles(effectiveRequired.filter(item => !item.missingProject));
   const unfinishedRequired = effectiveRequired.filter(item => !itemDone(item));
+  const statusConflicts = uniqueItems([...targeted, ...effectiveRequired]).filter(item => {
+    const state = repositoryState(item);
+    return (state === "open" && itemDone(item)) || (["closed", "merged"].includes(state) && !itemDone(item));
+  });
   return {
-    release,
+    release: candidateIssues ? "Candidate implementation scope (not publication approval)" : release,
     includedReleases,
     targeted,
     requiredRoots,
@@ -821,13 +847,19 @@ export function analyzeReleaseReadiness(items, release) {
     missingProjectDependencies,
     truncatedDependencies,
     cycles,
+    migrationConflicts,
+    unassignedRequired,
+    statusConflicts,
     ready: unfinishedRequired.length === 0
       && relevantUnclassified.length === 0
       && safetyConflicts.length === 0
       && dependencyConflicts.length === 0
       && missingProjectDependencies.length === 0
       && truncatedDependencies.length === 0
-      && cycles.length === 0,
+      && cycles.length === 0
+      && migrationConflicts.length === 0
+      && unassignedRequired.length === 0
+      && statusConflicts.length === 0,
   };
 }
 
@@ -840,6 +872,9 @@ export function renderReadinessSummary(analysis) {
   const cycles = analysis.cycles.map(cycle => `- ${cycle.map(number => `#${number}`).join(" -> ")}`);
   const truncated = analysis.truncatedDependencies.map(item =>
     `- ${markdownLink(item)} has more blocking dependencies than the bounded query returned.`);
+  dependencyConflicts.push(...analysis.migrationConflicts.map(item => `- Unmigrated active target: ${itemLine(item)}`),
+    ...analysis.unassignedRequired.map(item => `- Required work has no target: ${itemLine(item)}`),
+    ...analysis.statusConflicts.map(item => `- Repository/Project status mismatch: ${itemLine(item)}`));
   return `# ${analysis.release} readiness\n\n- Result: ${analysis.ready ? "READY" : "NOT READY"}\n- Required outcomes including blocking dependencies: ${analysis.effectiveRequired.length}\n- Unfinished required outcomes: ${analysis.unfinishedRequired.length}\n\n## Unfinished required outcomes\n\n${section(analysis.unfinishedRequired)}\n\n## Relevant unclassified work\n\n${section(analysis.relevantUnclassified)}\n\n## Safety commitment conflicts\n\n${section(analysis.safetyConflicts)}\n\n## Dependency classification conflicts\n\n${[...dependencyConflicts, ...missing, ...truncated].join("\n") || "- None recorded."}\n\n## Dependency cycles\n\n${cycles.join("\n") || "- None recorded."}\n\n## Opportunistic work through this release\n\n${section(analysis.opportunistic)}\n`;
 }
 
@@ -912,13 +947,16 @@ export function renderSnapshot({ release, generatedAt, commit, projectUrl, items
       || (state === "open" && itemDone(item));
   });
   const deferred = items.filter(item => fieldValue(item, "Status") === "Deferred"
-    || fieldValue(item, "Target release") === "Post-V1");
+    || ["Post-V1", "Post-1.0"].includes(fieldValue(item, "Target release")));
   const summary = catalogQualificationSummary(catalog);
   const tiers = Object.entries(summary.byTier).sort().map(([name, count]) => `  - ${name}: ${count}`).join("\n") || "  - none";
   const section = values => values.length ? values.map(itemLine).join("\n") : "- None recorded.";
   const links = completionEvidenceLinks(matching);
   const conflictLines = readiness.dependencyConflicts.map(({ item, dependency, commitment, target }) =>
     `- ${markdownLink(item)} depends on ${markdownLink(dependency)}, classified ${commitment ?? "Unclassified"} / ${target ?? "Unscheduled"}.`);
+  conflictLines.push(...readiness.migrationConflicts.map(item => `- Unmigrated active target: ${itemLine(item)}`),
+    ...readiness.unassignedRequired.map(item => `- Required work has no target: ${itemLine(item)}`),
+    ...readiness.statusConflicts.map(item => `- Repository/Project status mismatch: ${itemLine(item)}`));
   conflictLines.push(...readiness.missingProjectDependencies.map(({ item, dependency }) =>
     `- ${markdownLink(item)} depends on ${markdownLink(dependency)}, which has no Project item.`));
   conflictLines.push(...readiness.truncatedDependencies.map(item =>
@@ -1588,6 +1626,9 @@ async function main(argv) {
     const stage = validatePortStageSemantics(catalog, items);
     const readiness = analyzeReleaseReadiness(items, config.active_release);
     const roadmapErrors = [
+      ...readiness.migrationConflicts.map(item => `${itemUrl(item)} retains an unmigrated active target`),
+      ...readiness.unassignedRequired.map(item => `${itemUrl(item)} is Required without a target`),
+      ...readiness.statusConflicts.map(item => `${itemUrl(item)} has inconsistent repository/Project status`),
       ...validatePortIssueCoverage(catalog, items, config.repository, repositoryIssues),
       ...stage.errors,
       ...validateUxAuditOriginCoverage(repositoryIssues),
@@ -1706,6 +1747,16 @@ async function main(argv) {
       release,
     );
     console.log(renderReadinessSummary(analysis));
+    if (!analysis.ready) process.exitCode = 1;
+    return;
+  }
+  if (parsed.command === "candidate-scope") {
+    const value = requiredOption(parsed.options, "--issues");
+    if (!/^\d+(,\d+)*$/.test(value)) throw new Error("--issues must be comma-separated positive issue numbers");
+    const items = client.itemList(config.project.number, { includeDependencies: true });
+    const analysis = analyzeReleaseReadiness(items, "Public beta", { candidateIssues: value.split(",").map(Number) });
+    console.log(renderReadinessSummary(analysis));
+    console.log("This checks only the explicit candidate implementation scope and its genuine blockers. Required CI/review, exact package/signature/feed checks and current publication authority remain separate. It does not declare Public beta or 1.0 readiness.");
     if (!analysis.ready) process.exitCode = 1;
     return;
   }

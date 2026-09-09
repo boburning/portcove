@@ -1,9 +1,9 @@
 # Product roadmap
 
-Portcove release stages are cumulative product-maturity contracts. They are
+Public beta and 1.0 are cumulative product-readiness commitments. They are
 not frozen port lists and have no catalog-count requirement. The catalog may
 grow continuously; each port carries its own channel, platform, and
-qualification state without automatically becoming a global V1 blocker.
+qualification state without automatically becoming a global 1.0 blocker.
 
 Current priority, horizon, target release, blockers, and detailed scope live in
 the [Portcove Roadmap](https://github.com/users/boburning/projects/1).
@@ -31,7 +31,7 @@ Discovery can also begin with “I have these files”: identify explicitly sele
 inputs, explain which independent ports can use them, and reuse existing sources
 through the same inspection and deliberate import contract. This optional
 file-first journey complements game-first onboarding without becoming another
-Alpha 2 or V1 gate. Recognizable reviewed or local artwork, clear version and
+Alpha 2 or 1.0 gate. Recognizable reviewed or local artwork, clear version and
 setup choices, visible ongoing work and actionable failures should make those
 journeys easier; broad customization and historical selection remain separate.
 
@@ -104,7 +104,7 @@ The long-term operating test is an extended absence from routine maintainer
 work: installed libraries remain usable, accepted routine releases keep arriving,
 compatible submitted additions flow through the authorized path, and failures
 become isolated, deduplicated exceptions. This is an unproven operating target,
-not a new month-long V1 gate.
+not a new month-long 1.0 gate.
 
 ## Planned local-first artwork
 
@@ -135,13 +135,13 @@ attribution, public availability and local hashes are not rights evidence.
 [#527](https://github.com/boburning/portcove/issues/527) owns optional SteamGridDB
 access using a user-supplied credential, subject to verified application-use and
 retention conditions. Provider failure or unresolved access affects only that
-scope, never foundational artwork, compatible catalog delivery or V1. Steam
+scope, never foundational artwork, compatible catalog delivery or 1.0. Steam
 entry management remains separate under #292. These are future requirements,
 not implemented artwork support or an activated provider.
 
-## Finite V1 outcome contract
+## Finite 1.0 outcome contract
 
-The cumulative V1 finish line has seven outcomes. Canonical issues own their
+The cumulative 1.0 finish line has seven outcomes. Canonical issues own their
 executable details and evidence; this map is stable direction, not another live
 status checklist.
 
@@ -154,7 +154,7 @@ status checklist.
    removal, interruption, capacity, busy-session, and failed-update semantics.
 3. **A user-controlled library:** #37 and #38 own coherent default/per-game
    destinations, safe copy versus authorized move, relocation, and currently
-   committed adoption/portability. Broad importer coverage in #249 is Post-V1.
+   committed adoption/portability. Broad importer coverage in #249 is Post-1.0.
 4. **A finished flagship experience:** #200 and its active UX owners cover
    understandable setup, progress, errors, cancellation, interrupted recovery,
    return from play, accessibility, and declared keyboard/mouse/controller use.
@@ -174,16 +174,15 @@ status checklist.
    observations; #246 owns the combined observation-to-client proof. Broad
    discovery in #177 remains outside this finite outcome.
 
-Alpha 2's onboarding and storage outcomes are released. The sequence continues
-with Alpha 3 bounded integration and scale; Beta 1 required V1 capabilities and
-feature completeness; Beta 2 qualification; RC exact artifacts and rehearsal;
-and V1 the cumulative support contract. Tests influence development before
-qualification. If feature
-development paused after V1, users could still set up, play, update, preserve
-progress, and recover while compatible routine catalog changes kept flowing.
+Alpha 2's onboarding and storage outcomes are released. Subsequent delivery is
+capability-based: small safe previews may ship while cumulative Public beta or
+1.0 commitments remain incomplete. Versions, Stable/Preview channels, workstreams
+and readiness are separate. The complete Windows/Linux/Steam Deck/macOS updater
+is required for Public beta; independent catalog delivery and production
+qualification remain required for 1.0. See [Continuous verified delivery](DELIVERY.md).
 
-General autonomous engineering is separately owned by #284. It is a Post-V1
-extension, not a V1, Alpha 2, #243, or #246 dependency. Repository auto-merge
+General autonomous engineering is separately owned by #284. It is a Post-1.0
+extension, not a 1.0, Alpha 2, #243, or #246 dependency. Repository auto-merge
 capability and zero required approvals do not establish unattended operation;
 the trusted controller, least-privilege trigger, durable resume/evidence model,
 budgeting, separate review gate, and end-to-end refusal/recovery scenarios must
@@ -227,178 +226,85 @@ With Alpha 2 qualification complete, start #245 design and continue compatible
 catalog work. Independent delivery, freshness and preparation-boundary
 migration add no Alpha 2 prerequisite and do not alter the exact package handoff.
 
-## Alpha 3 — Integration and scale alpha
+## Integration and scale
 
-Close stale asynchronous behavior, machine-contract and transport gaps,
-provider/data-access scaling problems, controller performance issues, and
-internal boundary work justified by proven transaction seams. Prove the shared
-machine contract through one bounded real reference client: catalog/installed
-discovery, prerequisites/readiness, install/update progress, actionable errors,
-supervised launch, and recovery without copied per-port rules. Stable identities
-and supported launch entry points must survive game updates. Complete a compact
-integration-author path with tested schemas/examples, conformance fixtures and
-redistributable synthetic assets. A fresh client workspace must consume only a
-released CLI artifact and public material; an exactly identified packaged
-candidate may stand in during development, with that limitation disclosed.
-External marketplace acceptance, partnerships, third-party adoption, and an
-integration count are not release gates.
+#14 retains the former Alpha 3 workstream identity and finite outcomes: scoped
+reads/provider scaling (#24), controller performance/polish (#29/#44), shared
+transport authority (#30), one justified preparation/launch improvement (#31),
+bounded operation-event state (#32), and the real reference-client proof (#243).
+The Project maps their readiness commitments explicitly; no numbered Alpha 3
+release is required. #31 starts with one setup-heavy family and reuses core
+journals, locks, activity, cancellation and recovery without a daemon or second
+job store. Inspect inputs, resolve a plan, prepare, publish readiness and
+supervise launch; necessary upstream interactive setup stays a visible handoff.
 
-After accepted #245 design, #397 schedules #246's first independently verifiable
-phase: compatible client loading, capability negotiation and exact retained
-contracts. The complete delivery outcome remains Beta 1. Begin #398's bounded
-configured-upstream observation, independently testable without a publisher.
-Neither full adapter migration nor broad #177 discovery closes this alpha.
+#245 design, #397 compatible loading/retained contracts, #398 configured upstream
+observation and #246 protected acceptance/delivery form the independent catalog
+workstream, prioritized during beta and required for 1.0. Preserve existing
+adapters, stable identity, local SQLite, available ports and installed/source/save
+state. Typed capabilities need redistributable success/failure/interruption
+fixtures; unknown safety semantics fail closed. One official feed and bounded
+accepted upstream suffice; full adapter migration and broad #177 discovery are
+not prerequisites. #246 must prove a new definition, its next routine artifact
+and safe correction reaching an unchanged compatible client with zero routine
+owner actions after provisioning. Format-1 clients do not already support this.
 
-#31 owns one justified preparation/launch improvement, starting with one
-setup-heavy family: inspect requirements, resolve an exact plan, perform managed
-preparation, publish readiness, then validate/supervise launch and preserve data.
-Substantial extraction, conversion, builds and tool setup should be explicit
-preparation; necessary upstream interactive first-run work remains a visible
-handoff. Reuse the journal, locks, activity, cancellation and recovery; revalidate
-stale inputs and resume only safe phases. No daemon, second job store or full
-#248 scheduler is required. #30 exposes core-owned operation actions/reasons;
-#206 owns presentation, focus and progressive disclosure. Consistent inputs must
-produce consistent supported actions across clients, never path-based readiness.
+Observation retains explicit upstream stable/preview/rolling policies where
+supported, full pagination, validated caching, backoff and interrupted recovery.
+Latest observed, eligible per platform/channel/capability and installed are
+distinct; show stale/unmonitored/held reasons. Same-day availability is a measured
+engineering objective within accepted scope, not an existing guarantee. No
+automatic game installation or application-channel coupling follows.
 
-The bounded preparation proof may expose a justified upstream-supported typed
-option with a sensible default. Bind options to the exact plan, validate outputs,
-and distinguish host execution, preparation target and qualified platform support.
-Optional content acquisition and broad profiles are not prerequisites. A named
-launch alternative requires the core's executable, argument, process and
-persistence contract; a target selector does not establish cross-compilation.
+## Public beta
 
-#245/#397 define a small typed capability vocabulary with explicit inputs,
-outputs, permissions and supported combinations; existing adapters may implement
-it incrementally. Simple binaries, generated data, disc inputs and awkward
-runtime/persistence cases guide proof selection without shrinking coverage. Each
-new capability needs redistributable success, malformed/missing-input, output,
-interruption/retry and preservation fixtures. Synthetic evidence is not gameplay.
+Broader testing is appropriate when representative first-play and recovery are
+usable; fundamental safety, honest limitations and the complete baseline
+application updater are proven. #52 includes Windows per-user NSIS, Linux
+AppImage, that same application on Steam Deck, and installed macOS bundles on
+Intel and Apple Silicon. Require real updater-enabled release-to-release and
+skipped-version evidence, safe failure/data preservation, and a provisioned
+bounded release/feed pipeline. Manual reinstall or compiled packages alone do
+not satisfy the gate. Missing platform evidence keeps the milestone open.
 
-Complete the planned Windows desktop updater feature work before the V1 feature
-freeze, after trust and onboarding priorities. Exact historical game-release
-pinning and reproducible profiles remain independent of required onboarding.
+#51/#213–#217 retain the package/controller/Gamescope/storage/device baseline and
+#290 retains plugin-free application and individual-game Steam launch routes.
+No automatic entries, Decky, root modification or separate Deck binary/channel
+is required. Qualification starts during implementation, including actual
+Gaming Mode, normal Exit versus Steam Stop, suspend and removable storage.
 
-## Beta 1 — V1 feature-complete beta
+Safety-critical UX, clear game-channel controls and existing early safety
+commitments stay visible. Public beta does not freeze every 1.0 capability or
+require paid certificates, every Linux distro/format, every port or flawless
+first-download OS trust. Automatic mode uses one-time consent and safe-time
+application with a single restart action when apply-on-exit is not safely
+supported. [Delivery](DELIVERY.md) defines acceptance and platform limits.
 
-All required V1 capabilities are present. Application feature scope freezes
-except for blocker-driven changes; compatible independent catalog growth
-continues after that capability ships. The initial Steam Deck baseline target is
-Beta 1; qualification determines whether ordinary Linux packaging is sufficient
-rather than assuming a separate build. #290 adds a required documented
-plugin-free Steam route for Portcove itself and individual already-installed
-games, coordinated with #51's packaging, controller, Gamescope, storage, and
-physical-evidence owners. Desktop Steam and Steam Deck evidence remain separate.
-Automatic entry management in #292 and a Decky client in #293 are optional
-Post-V1 work, not prerequisites.
+## 1.0 and exact production candidates
 
-The minimum sustainable catalog path is a required V1 capability: an existing
-adapter and scoped accepted upstream deliver a new untested definition to a
-client built before that definition, then make its routine next release
-available, with protected validation, exact signed publication and recoverable
-last-known-good state. Both routine scenarios require zero per-candidate owner
-actions. Application updates and automatic game installation are separate.
-The design and complete delivery owners are
-[#245](https://github.com/boburning/portcove/issues/245) and
-[#246](https://github.com/boburning/portcove/issues/246).
+Complete the finite seven outcomes above and every Required Project outcome and
+genuine transitive blocker. #46 owns later exact-artifact distribution, upgrade,
+recovery and production rehearsal across declared platforms, preserving earlier
+#52 beta evidence without making #52 depend on a post-beta closure. Broader
+representative usability/platform qualification continues throughout beta;
+fundamental updater safety is already required at beta.
 
-The bounded feature proof remains Beta 1, with design and the #397 client phase
-ahead of it. One official feed, shared local loading and #398's configured
-accepted-upstream observation suffice. #398 begins during Alpha 3 and completes
-for Beta 1; #246 depends on its observation contract for final integration, while
-both components develop with fixtures independently. Broad discovery, authoring,
-community reports, legacy acquisition and feed networks are not prerequisites.
-Optional social-preview/exporter work yields to this path. Live targets remain
-in the Project. No Alpha 2 preview prerequisite is added.
+RC is stabilization of a frozen candidate scope/commit. Qualified routine fixes
+may ship while another capability remains unfinished. Bind production evidence
+to exact final packages and catalog inputs; an RC with different embedded
+metadata cannot be renamed into its final artifact. Compatible independent
+catalog updates may continue; unsupported capabilities cannot enter a client
+silently. Production declaration requires cumulative readiness and existing
+authority, not a tag suffix alone.
 
-The freshness proof connects observation, candidate, protected acceptance, exact
-publication and compatible-client availability. It covers complete pagination,
-validated caching, rate limits/backoff, bounded retry, interrupted recovery and
-explicit stable/preview/rolling policies where supported. Verify provider
-semantics during implementation; a latest endpoint need not include previews.
-Prerelease-only projects remain discoverable. Distinguish latest observed,
-latest eligible per platform/channel/capabilities and installed version; show
-newer held releases and reasons instead of calling an older version fully
-current. Availability never overrides update settings, sessions or consent.
+The public CLI and #243 bounded real reference remain independently consumable
+without private repository knowledge or per-port rules. Marketplace acceptance,
+community adoption, a universal frontend list, catalog counts, automatic Steam
+entries, Decky and standalone CLI self-updating are not gates.
 
-Use deterministic fixtures, a scheduled actual configured-upstream observation
-and controlled redistributable/test-upstream artifact changes. Keep synthetic,
-live observation, real-artifact lifecycle and gameplay evidence distinct.
-Same-day availability within accepted scope is an initial measured engineering
-objective, not existing performance or a universal guarantee. Declare cadence,
-clocks, scope, exclusions and unknown baseline; expose unmonitored/stale entries.
+## Post-1.0 principles
 
-The flagship client lets a player find something playable, finish setup,
-understand progress/errors, return to running or interrupted work, and launch
-again using keyboard, mouse, and controller. Required setup stays visible;
-optional maintenance is secondary. Current core state and evidence support
-readiness and trust claims, never a nonempty selected path alone. Consistent game
-pages, recognizable reviewed or local artwork, upstream attribution, readability,
-and accessibility matter more than a branding redesign or elaborate asset pipeline.
 
-Representative real Steam Deck checks begin during development soon enough to
-affect design; beta records completion evidence for controller-first operation,
-Desktop handoff, Gamescope focus/process behavior, suspend/interruption recovery,
-removable storage, and return from a game. Hardware and human observations remain
-unverified until performed. Automatic per-game Steam shortcut management is a
-separate optional feature. The baseline must work with Decky absent and remain
-usable when an optional plugin is disabled, removed, broken, or incompatible.
-
-## Beta 2 — Qualification beta
-
-Physical platform, controller, representative-port, installer, migration,
-backup/restore, and user-experience qualification is substantially complete.
-
-Qualify the Windows upgrade mechanism, reference-client outcome, and claimed
-plugin-free Steam/Steam Deck launch environments. Required
-migration safety means core adoption, backup/restore, and schema migration;
-experimental imports from other launchers and broad importer coverage are
-separate. Voluntary comparative sessions may inform development, but recruitment,
-external participation, and sample size are not release gates. Reproducible
-first-play, recovery, and return-after-update acceptance remains required.
-
-Qualify the bounded independent-delivery path and its migration/recovery as well
-as application packages and declared controls/platforms. Compatible catalog work
-continues; a failure limits the affected scope rather than freezing the inventory.
-
-## RC — Release candidate
-
-Exact release artifacts, upgrade paths, packaging, signing requirements for
-claimed platforms, and the release rehearsal pass with no known release blocker.
-Rehearse exact installer, feed, signature, failed-update recovery, and previous
-signed rollback identities for the Windows updater when included. Qualify
-package-appropriate Linux, Steam Deck, and macOS upgrade paths separately.
-
-Bind qualification to exact application artifacts and exact catalog inputs.
-Compatible independent catalog updates may continue during RC/V1 application
-freezes; new engine capabilities or unsafe contract changes cannot silently
-enter the candidate. Requalify inputs relevant to each changed claim.
-
-## V1
-
-Ordinary users can safely use the declared V1 platforms and understand every
-port's support state. All cumulative required gates are complete. Representative
-canary ports and platform evidence may be release gates; the total number of
-catalog entries is never a V1 gate.
-
-A tested, understandable, verified application-upgrade path is required.
-Signed Windows desktop in-app updates are the preferred delivery mechanism;
-[#52](https://github.com/boburning/portcove/issues/52) preserves its bounded host
-scope, explicit approval, busy-state guards, trusted origins, version rules,
-separate app/game channels, key custody, and exact previous signed rollback.
-Early previews may use a clearly communicated verified manual path. An actual
-external prerequisite preventing safe in-app delivery requires a recorded
-blocker and explicit reviewed scope/Project-target decision. Manual upgrading
-does not complete an in-app updater ticket. All-platform automatic updating and
-standalone-CLI self-updating are not V1 gates. See [Releasing](RELEASING.md).
-
-The public interface at V1 is documented, tested, independently consumable, and
-proven by one real reference client. V1 does not require a universal frontend
-list, a community-contribution or adoption quota, a plugin matrix, automatic
-Steam entry management, or Decky. Launch-only, library, and lifecycle claims
-remain distinct, as do planned, implemented, automated-tested,
-frontend-tested, and physically qualified evidence.
-
-## Post-V1 principles
 
 Initial value order is:
 
@@ -433,7 +339,7 @@ Initial value order is:
 
 These are ordered themes, not new epics, dated promises, or simultaneous
 commitments. Dependencies override display order. Keep them Opportunistic and
-outside the active Now/Next queue unless a narrow existing V1 prerequisite
+outside the active Now/Next queue unless a narrow existing 1.0 prerequisite
 actually requires otherwise.
 
 Expand the bounded delivery path through local/community import, conservative

@@ -152,8 +152,8 @@ interventions—not a minimum integration count.
 
 | Environment | Intended first claim | Owner and target | Boundary |
 |---|---|---|---|
-| Playnite | Real lifecycle reference client | #243; Alpha 3 proof and beta qualification | Small Portcove-maintained example/regression client, not feature parity or an endlessly expanding plugin commitment. |
-| Desktop Steam / Big Picture and Steam Deck Gaming Mode | Generic/manual launch-only route | #290; required Beta 1 qualification | Plugin-free baseline. Automatic game entries and Decky are separate. |
+| Playnite | Real lifecycle reference client | #243; integration workstream and 1.0 qualification | Small Portcove-maintained example/regression client, not feature parity or an endlessly expanding plugin commitment. |
+| Desktop Steam / Big Picture and Steam Deck Gaming Mode | Generic/manual launch-only route | #290; required Public beta qualification | Plugin-free baseline. Automatic game entries and Decky are separate. |
 | ES-DE | First reusable library-export profile | #291; opportunistic early Post-V1 | Thin profile over supported library/launch data, not a second manager. |
 | Steam automatic entry management | Optional launch convenience | #292; opportunistic early Post-V1 | May remain manual if safe supported reconciliation is unavailable. |
 | LaunchBox / Big Box and RetroBat | Next Windows candidates | #291 evaluation sequence | Proceed only for demonstrated friction, demand, reuse, and maintenance fit. |
@@ -262,14 +262,13 @@ plugin execution, packaging, permission, or bridge design.
 
 ## Evidence and release sequence
 
-Alpha 3 closes the bounded public-contract and author-usability gaps and proves
-the real Playnite feature slice. Beta completes required reference and claimed
-platform qualification, including the plugin-free Steam Deck baseline under
-#51 and #290. V1 requires a documented, tested, independently consumable public
-interface and one real reference proof—not a universal frontend list, community
-quota, automatic Steam entries, or Decky. ES-DE export and Steam entry
-convenience are first optional evaluations after V1; other profiles are
-demand-led, and Decky stays a separate optional/community opportunity.
+The integration workstream closes bounded public-contract and author-usability
+gaps and proves the real Playnite slice for 1.0. Public beta includes the
+plugin-free Steam Deck baseline under #51/#290 and the same Linux application's
+updater proof under #52. Broader reference/platform qualification continues
+during beta. 1.0 needs one independently consumable public interface and real
+reference, not a universal frontend list, community quota, automatic entries or
+Decky. Optional frontend profiles remain Post-1.0.
 
 Acceptance reuses representative adapter shapes and the smallest real
 frontend/device set that supports each claim. Evidence identifies exact

@@ -18,8 +18,8 @@ The Project uses these single-select fields:
   Deferred.
 - **Priority:** Urgent, High, Medium, Low, None.
 - **Horizon:** Now, Next, Later, Someday.
-- **Target release:** Alpha 1, Alpha 2, Alpha 3, Beta 1, Beta 2, RC, V1,
-  Post-V1, Unscheduled.
+- **Target release:** Public beta, 1.0, Post-1.0, Unscheduled for active work.
+  Alpha 1, Alpha 2, Alpha 3, Beta 1, Beta 2, RC, V1 and Post-V1 remain historical options.
 - **Release commitment:** Required, Opportunistic. An unset value is explicitly
   unclassified.
 - **Work type:** Workstream, Product feature, Port, Platform, Bug, Security,
@@ -232,9 +232,9 @@ global V1 scope.
 Use Priority Stack for ordered Now/Next execution, Now Board for active flow,
 Port Pipeline for the full port inventory, Active Port Work for unfinished
 non-deferred port work, Product Roadmap for non-port work,
-Current Release for the earliest active target, Blocked & Deferred for resume
+Current Release for the active readiness commitment, Blocked & Deferred for resume
 conditions, Inbox & Triage for intake, Steam Deck for that platform, and V1
-Readiness for cumulative required gates through V1. The checked-in view schema
+Readiness (retained view identity) for cumulative required gates through 1.0. The checked-in view schema
 records machine-applied layout, filter, and visible fields separately from the
 `manual_group_by` and `manual_sort_by` UI requirements. `bootstrap` cannot claim
 those manual settings or the built-in workflows are configured.
@@ -242,7 +242,8 @@ those manual settings or the built-in workflows are configured.
 `.github/roadmap.json` names `active_release`. Advancing Current Release is a
 reviewed repository change: update that value, run `bootstrap`, confirm the view
 filter and all configured manual grouping/sorting rules in the UI, run `doctor`, and
-record the change in the release pull request.
+record the change in the planning pull request. This selects a readiness commitment,
+not the next application version or a publication authorization.
 
 Within the same horizon, address release blockers and safety failures before
 optional scope. Manual order is the final tie-breaker. A dependency may move an
@@ -262,24 +263,42 @@ does not block component development. Use one-way final-integration dependencies
 and fixture-based component proofs; do not make an optional broad parent a
 transitive release gate or mark planned phases complete.
 
-V1 Readiness shows work targeted through V1 with commitment visible. The
+V1 Readiness retains its historical view name and shows work targeted through 1.0 with commitment visible. The
 derived `readiness` command and immutable snapshot compute the actual gate from
 Required outcomes and genuine transitive `blocked by` relationships. They report
 unclassified targeted work, dependency classification/target conflicts, safety
 conflicts, missing Project dependencies, and cycles. Parentage and related-work
 links alone never block a release. Unrelated unscheduled intake is not a gate.
-Keep optional work Opportunistic at the release where it may ship or Post-V1
+Keep optional work Opportunistic at the release where it may ship or Post-1.0
 where that is its real target; do not distort forecasts merely to avoid a gate.
 
-The required verified application-upgrade outcome and the preferred Windows
-in-app mechanism have separate scope. While the mechanism is planned pre-V1,
-its unfinished issues remain visible in readiness. If an actual external
-prerequisite prevents safe delivery, record the blocker and a reviewed explicit
-scope/target decision on the canonical updater and release-engineering issues,
-then retarget the affected mechanism issues together. A manual upgrade path
-cannot close those in-app implementation issues. Package-appropriate upgrade
-qualification stays required for declared platforms; cross-platform automatic
-updating does not become a gate through association.
+Public beta requires the complete #52 Windows/Linux/Steam Deck/macOS updater,
+including actual beta platform safety evidence. #46 owns later production
+requalification for 1.0; it is not a reverse dependency of #52. Independent
+catalog delivery remains a 1.0 gate prioritized during beta. Paid signing and
+optional package integrations do not become blockers. See [Delivery](DELIVERY.md).
+
+Migrations are additive: retain historical options and completed targets, capture
+a dated before-state, map affected active identities explicitly, read back each
+change and preserve concurrent edits. Switch active views only after consistent
+mapping. New milestone readiness refuses active legacy targets, Required work
+without a target, status mismatches, unclassified targeted work and dependency
+conflicts. A partial migration must not appear READY. Legacy stage invocations
+retain historical cumulative semantics; they cannot declare new beta/1.0 readiness.
+
+Candidate safety uses the existing metadata, package, CI/review and exact-byte
+release checks. Cumulative milestone readiness is an additional requirement only
+when declaring Public beta or 1.0; incomplete future capabilities do not block
+an otherwise eligible development preview. This planning distinction does not
+activate new publication authority or change current release invocations.
+
+`roadmap.mjs candidate-scope --issues 123,456` evaluates an explicitly frozen
+candidate's implementation scope and genuine transitive blockers independently
+of cumulative milestones. Selected optional work still has to be complete when
+included in that candidate; missing/unclassified dependencies fail closed. A
+READY scope result never substitutes for package, CI, review, signature/feed or
+publication-authority checks. Use `readiness --release "Public beta"` or
+`readiness --release "1.0"` additionally for a maturity declaration.
 
 ## Tools and snapshots
 

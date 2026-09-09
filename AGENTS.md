@@ -76,6 +76,15 @@ files, milestone mirrors, or another planning authority. Repository docs own
 stable contracts and dated release snapshots; `catalog.json` owns actual port
 support and qualification evidence.
 
+### Delivery planning
+
+Public beta and 1.0 are readiness commitments, separate from versions and the
+Stable/Preview application channels. Keep legacy targets for historical evidence;
+active migrations must preserve every Required identity and genuine dependency.
+Read docs/DELIVERY.md for the approved future delivery contract. Planning does
+not activate the updater or unattended signing/publication; existing protected
+release procedures remain effective until separately authorized and proven.
+
 ### Architecture evolution
 
 This is the current tested design, not a permanent crate map. Early development may expose a better boundary, a host concern that should remain in an adapter, or a domain that deserves its own focused crate. Change the contract deliberately when implementation evidence supports it.
