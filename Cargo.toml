@@ -3,6 +3,7 @@ resolver = "2"
 members = [
   "crates/portcove-core",
   "crates/portcove-cli",
+  "crates/portcove-release-tools",
   "apps/desktop/src-tauri",
 ]
 default-members = [

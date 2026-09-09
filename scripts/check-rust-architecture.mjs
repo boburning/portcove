@@ -9,6 +9,7 @@ const RULES = {
       clap: "portcove-core must remain independent of command-line presentation dependencies.",
       "portcove-cli": "portcove-core cannot depend on an adapter that consumes it.",
       "portcove-desktop": "portcove-core cannot depend on an adapter that consumes it.",
+      "portcove-release-tools": "Repository release verification is not game-management authority.",
     },
   },
   "portcove-cli": {
@@ -17,6 +18,7 @@ const RULES = {
       "ed25519-dalek": "Catalog signature verification and trust policy belong to portcove-core.",
       tauri: "CLI behavior belongs behind portcove-core APIs, not Tauri.",
       "portcove-desktop": "The CLI and desktop are peer adapters and must not depend on each other.",
+      "portcove-release-tools": "The player CLI must not depend on repository release tooling.",
     },
   },
   "portcove-desktop": {
@@ -25,6 +27,16 @@ const RULES = {
       "ed25519-dalek": "Catalog signature verification and trust policy belong to portcove-core.",
       clap: "Desktop commands should call portcove-core directly rather than parse CLI arguments.",
       "portcove-cli": "The desktop and CLI are peer adapters and must not depend on each other.",
+      "portcove-release-tools": "Application runtime verification uses its host verifier, not repository tooling.",
+    },
+  },
+  "portcove-release-tools": {
+    forbidden: {
+      "portcove-core": "Offline application artifact verification must not open or mutate game libraries.",
+      "portcove-cli": "Repository release tooling cannot invoke the player CLI as a domain authority.",
+      "portcove-desktop": "Repository release verification must remain independent of the GUI runtime.",
+      tauri: "Offline verification does not require a desktop runtime.",
+      "ed25519-dalek": "Release tooling cannot become a parallel catalog signing authority.",
     },
   },
 };

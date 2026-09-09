@@ -8,6 +8,7 @@ function metadata(overrides = {}) {
     "portcove-core": ["serde"],
     "portcove-cli": ["clap", "portcove-core"],
     "portcove-desktop": ["portcove-core", "serde", "tauri"],
+    "portcove-release-tools": ["minisign-verify"],
     ...overrides,
   };
   return {
@@ -60,4 +61,12 @@ test("keeps default Cargo builds independent of the desktop package", () => {
   const violations = validateArchitecture(input);
   assert.equal(violations.length, 1);
   assert.match(formatViolations(violations), /default Rust build stays independent/);
+});
+
+test("isolates offline release verification from player and library authority", () => {
+  const violations = validateArchitecture(metadata({
+    "portcove-release-tools": ["portcove-core", "tauri"],
+    "portcove-desktop": ["portcove-core", "tauri", "portcove-release-tools"],
+  }));
+  assert.equal(violations.length, 3);
 });

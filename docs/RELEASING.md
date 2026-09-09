@@ -16,6 +16,53 @@ below. Declaring Public beta or 1.0 also requires the corresponding cumulative
 `readiness` and snapshot evidence. #532/#533/#534 own classification, bounded
 automation and separately authorized one-time provisioning respectively.
 
+## Offline updater artifact rehearsal
+
+`release/tauri.updater.conf.json` is an explicit packaging overlay. It enables
+Tauri v2 updater artifacts, current-user NSIS with passive updater installation,
+and ad-hoc macOS signing. Ordinary configuration still disables updater artifacts;
+no endpoint, runtime updater plugin, or production key is installed by this overlay.
+An updater signature is distinct from Authenticode, notarization, and catalog trust.
+Tauri's bundler requires the corresponding public key in its merged updater
+configuration. The rehearsal creates a temporary copy of the overlay containing
+its disposable public key; a bare overlay without that key deliberately cannot
+produce an updater package.
+
+The manual **Updater artifact rehearsal** workflow generates disposable keys on
+each runner and builds every required Windows, Linux, Intel Mac and Apple Silicon
+package at fixture versions 0.1.0 and 0.3.0. It checks native package versions and
+executable permissions; Windows also runs the existing isolated installer harness
+through a passive skipped-version upgrade and uninstall with data preservation.
+These are fixture versions, never publication or release-readiness declarations.
+The script requires a clean tracked checkout, records the exact source commit and
+version-only source patch, restores metadata, and deletes its disposable private
+key. Prior build outputs are preserved under its new evidence directory.
+
+`scripts/updater-artifact-inventory.mjs stage` selects the complete existing package
+matrix, copies final distributed bytes into a new directory, hashes them, verifies
+the updater signature, and writes `updater-inventory.json` last. Windows and Linux
+reuse NSIS/AppImage bytes. Mac updater archives are copied without rebuilding to
+versioned architecture-specific filenames, avoiding the shared `Portcove.app.tar.gz`
+name. CLI, DEB/RPM and DMG remain inventoried companions with their existing owners;
+they are not activated as alternate updater formats.
+
+The `verify` operation rechecks exact commit/version/platform/package identities,
+the complete staged file set, every hash and size, and the signature against an
+independently supplied public-key file. Both operations require `--label`,
+`--revision`, `--public-key` and `--verifier`; use `stage --output PATH` or
+`verify --input PATH`. The verifier is the built `portcove-release-tools` binary.
+Only verification accepts `--version` to check a historical fixture explicitly.
+Inventories are evidence, not trust roots or executable feeds. Altered/rebuilt
+packages require new verification and cannot inherit previous package evidence.
+
+Payload verification streams at most 2 GiB; key and signature metadata are bounded
+to 16 KiB. Only prehashed Minisign signatures emitted by current Tauri tooling are
+accepted. The Rust verifier has no private-key or publication operation. The
+workflow retains public keys, exact packages, inventories, patches and observations
+for one day; it never uploads private keys or changes published releases. Download
+required evidence before expiry. Deterministic fixtures, package inspection,
+installed execution, physical devices and human observations remain distinct.
+
 ## Version authority
 
 The release version must match in exactly three places:
@@ -24,7 +71,7 @@ The release version must match in exactly three places:
 - `version` in `apps/desktop/package.json`;
 - `version` in `apps/desktop/src-tauri/tauri.conf.json`.
 
-After changing them, run Cargo once so the three workspace package entries in `Cargo.lock` are refreshed. A release tag is always the exact version with a `v` prefix, such as `v0.1.0` or `v0.2.0-beta.1`.
+After changing them, run Cargo once so the workspace package entries in `Cargo.lock` are refreshed (including the unpublished release verification tool). A release tag is always the exact version with a `v` prefix, such as `v0.1.0` or `v0.2.0-beta.1`.
 
 `scripts/check-release-metadata.mjs` verifies those versions, the tag, package manager pin, repository/license metadata, Tauri identity, and the required master/runtime/platform brand assets. Local packaging derives its default version from that check and rejects an explicit mismatch.
 

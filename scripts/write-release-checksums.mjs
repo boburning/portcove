@@ -49,7 +49,7 @@ function contains(parent, child) {
   return relative === "" || (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative));
 }
 
-function validateStageRoot(projectRoot, stageRoot) {
+export function validateStageRoot(projectRoot, stageRoot) {
   const project = path.resolve(projectRoot);
   const stage = path.resolve(stageRoot);
   const sourceRoots = [
