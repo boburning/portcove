@@ -81,7 +81,11 @@ try {
         Invoke-Checked "node" @("scripts/updater-artifact-inventory.mjs", "stage", "--output", $stage, "--label", $PlatformLabel, "--public-key", $publicKey, "--verifier", $verifier, "--revision", $revision)
         Invoke-Checked "node" @("scripts/updater-artifact-inventory.mjs", "verify", "--input", $stage, "--label", $PlatformLabel, "--public-key", $publicKey, "--verifier", $verifier, "--revision", $revision)
         $native = [ordered]@{ source_commit = $revision; version = $version; platform = $PlatformLabel; signing = "disposable test key" }
+        $native.os_version = [Runtime.InteropServices.RuntimeInformation]::OSDescription
+        $native.process_architecture = [Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString()
         if ($IsWindows) {
+            $principal = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
+            $native.elevated_administrator = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
             $installer = Join-Path $stage "Portcove_${version}_x64-setup.exe"
             $native.installer_product_version = (Get-Item -LiteralPath $installer).VersionInfo.ProductVersion
             if ($native.installer_product_version -notin @($version, "$version.0")) { throw "NSIS product version mismatch" }
