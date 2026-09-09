@@ -19,12 +19,14 @@ export async function interruptedPreparationScenario({ browser, invoke, scenario
     const database = new DatabaseSync(path.join(library, "portcove.sqlite3"));
     try {
       database.exec("PRAGMA busy_timeout=1000");
+      database.exec("BEGIN IMMEDIATE");
       const changed = database.prepare("UPDATE activity_history SET status='running',finished_at=NULL,message=NULL,failure_json=NULL,cancellation_phase='preparing',cancel_requested=1 WHERE id=? AND operation='prepare' AND status='cancelled'").run(activity.id);
       assert.equal(changed.changes, 1);
       for (const capture of retained) {
         const payload = JSON.stringify(capture);
         assert.equal(database.prepare("UPDATE activity_diagnostics SET payload=?,payload_bytes=? WHERE activity_id=? AND phase=?").run(payload, Buffer.byteLength(payload), activity.id, capture.phase).changes, 1);
       }
+      database.exec("COMMIT");
     } finally { database.close(); }
     const doctor = command(["doctor"]); // A fresh CLI executes real core startup recovery.
     const recovered = command(["activity"]).find(item => item.id === activity.id);
