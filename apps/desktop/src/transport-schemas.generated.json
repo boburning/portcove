@@ -3796,6 +3796,289 @@
     "title": "DoctorReport",
     "type": "object"
   },
+  "game_update_plan": {
+    "$defs": {
+      "BundledRuntime": {
+        "properties": {
+          "archive_root": {
+            "type": "string"
+          },
+          "asset": {
+            "$ref": "#/$defs/ReleaseAsset"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "target_directory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "asset",
+          "archive_root",
+          "target_directory",
+          "executable"
+        ],
+        "type": "object"
+      },
+      "InstallPlan": {
+        "properties": {
+          "action": {
+            "$ref": "#/$defs/InstallPlanAction"
+          },
+          "bundled_runtime": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BundledRuntime"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "download_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "output_location": {
+            "$ref": "#/$defs/PortOutputLocation"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "release": {
+            "$ref": "#/$defs/ResolvedRelease"
+          },
+          "source_requirements": {
+            "items": {
+              "$ref": "#/$defs/InstallSourceRequirement"
+            },
+            "type": "array"
+          },
+          "storage": {
+            "$ref": "#/$defs/StorageSummary"
+          }
+        },
+        "required": [
+          "port_id",
+          "channel",
+          "platform",
+          "release",
+          "bundled_runtime",
+          "download_bytes",
+          "action",
+          "source_requirements",
+          "storage",
+          "output_location"
+        ],
+        "type": "object"
+      },
+      "InstallPlanAction": {
+        "enum": [
+          "already_active",
+          "use_staged",
+          "reuse_retained",
+          "blocked_unverified",
+          "download"
+        ],
+        "type": "string"
+      },
+      "InstallSourceRequirement": {
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "profile_id": {
+            "type": "string"
+          },
+          "registered": {
+            "type": "boolean"
+          },
+          "role": {
+            "$ref": "#/$defs/SourceRequirementRole"
+          }
+        },
+        "required": [
+          "profile_id",
+          "label",
+          "role",
+          "registered"
+        ],
+        "type": "object"
+      },
+      "OutputLocationSource": {
+        "enum": [
+          "request_override",
+          "port_setting",
+          "library_default"
+        ],
+        "type": "string"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "PortOutputLocation": {
+        "properties": {
+          "configured_output_directory": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "default_output_directory": {
+            "type": "string"
+          },
+          "effective_output_directory": {
+            "type": "string"
+          },
+          "library_root": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "selection_source": {
+            "$ref": "#/$defs/OutputLocationSource"
+          },
+          "user_data_root": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "library_root",
+          "default_output_directory",
+          "configured_output_directory",
+          "effective_output_directory",
+          "selection_source",
+          "user_data_root"
+        ],
+        "type": "object"
+      },
+      "ReleaseAsset": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "url",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
+      },
+      "ResolvedRelease": {
+        "properties": {
+          "asset": {
+            "$ref": "#/$defs/ReleaseAsset"
+          },
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "published_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "channel",
+          "published_at",
+          "asset"
+        ],
+        "type": "object"
+      },
+      "SourceRequirementRole": {
+        "enum": [
+          "game_source",
+          "bios"
+        ],
+        "type": "string"
+      },
+      "StorageSummary": {
+        "properties": {
+          "library_root": {
+            "type": "string"
+          },
+          "volume_available_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "volume_total_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "library_root",
+          "volume_total_bytes",
+          "volume_available_bytes"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "A reviewed game update, independent of the saved automatic-update policy.",
+    "properties": {
+      "activate": {
+        "type": "boolean"
+      },
+      "plan": {
+        "$ref": "#/$defs/InstallPlan"
+      },
+      "plan_sha256": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "plan",
+      "activate",
+      "plan_sha256"
+    ],
+    "title": "GameUpdatePlan",
+    "type": "object"
+  },
   "github_auth_status": {
     "$defs": {
       "GithubAuthSource": {

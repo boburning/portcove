@@ -186,6 +186,9 @@ export type RepairItemKind =
   | "missing_registered_path"
   | "degraded_backup"
   | "backup_recovery_required";
+export type InstallPlanAction = "already_active" | "use_staged" | "reuse_retained" | "blocked_unverified" | "download";
+export type OutputLocationSource = "request_override" | "port_setting" | "library_default";
+export type SourceRequirementRole = "game_source" | "bios";
 export type GithubAuthSource = "anonymous" | "environment" | "credential_store";
 export type GithubDeviceLoginState = "pending" | "complete";
 export type HostToolProbeState =
@@ -198,9 +201,6 @@ export type HostToolProbeState =
   | "incompatible_version"
   | "cancelled"
   | "success";
-export type InstallPlanAction = "already_active" | "use_staged" | "reuse_retained" | "blocked_unverified" | "download";
-export type OutputLocationSource = "request_override" | "port_setting" | "library_default";
-export type SourceRequirementRole = "game_source" | "bios";
 export type LibraryContentKind = "application_versions" | "user_data" | "source_inbox" | "backups" | "toolchains";
 export type SourceDigestAlgorithm = "sha1" | "sha256" | "crc32";
 export type SourceComponentKind = "file_set_member" | "optical_disc";
@@ -354,12 +354,13 @@ export interface TransportOutputs {
   catalog_update_source: CatalogUpdateSource;
   check_batch_outcome: OutputCheckBatchOutcome;
   doctor: OutputDoctor;
+  game_update_plan: OutputGameUpdatePlan;
   github_auth_status: GithubAuthStatus;
   github_device_login: OutputGithubDeviceLogin;
   github_device_login_result: OutputGithubDeviceLoginResult;
   host_tool_probe_result: OutputHostToolProbeResult;
   host_tool_status: HostToolStatus;
-  install_plan: OutputInstallPlan;
+  install_plan: InstallPlan;
   library_import_plan: OutputLibraryImportPlan;
   library_import_result: OutputLibraryImportResult;
   library_metadata: LibraryMetadata;
@@ -990,6 +991,45 @@ export interface RepairItem {
   proposed_action: string;
   [k: string]: unknown;
 }
+/**
+ * A reviewed game update, independent of the saved automatic-update policy.
+ */
+export interface OutputGameUpdatePlan {
+  activate: boolean;
+  plan: InstallPlan;
+  plan_sha256: string;
+  [k: string]: unknown;
+}
+export interface InstallPlan {
+  action: InstallPlanAction;
+  bundled_runtime: BundledRuntime | null;
+  channel: ReleaseChannel;
+  download_bytes: number;
+  output_location: PortOutputLocation;
+  platform: Platform;
+  port_id: string;
+  release: ResolvedRelease;
+  source_requirements: InstallSourceRequirement[];
+  storage: StorageSummary;
+  [k: string]: unknown;
+}
+export interface PortOutputLocation {
+  configured_output_directory: string | null;
+  default_output_directory: string;
+  effective_output_directory: string;
+  library_root: string;
+  port_id: string;
+  selection_source: OutputLocationSource;
+  user_data_root: string;
+  [k: string]: unknown;
+}
+export interface InstallSourceRequirement {
+  label: string;
+  profile_id: string;
+  registered: boolean;
+  role: SourceRequirementRole;
+  [k: string]: unknown;
+}
 export interface GithubAuthStatus {
   authenticated: boolean;
   device_login_available: boolean;
@@ -1026,36 +1066,6 @@ export interface OutputHostToolProbeResult {
   sha256: string | null;
   state: HostToolProbeState;
   tool_id: string;
-  [k: string]: unknown;
-}
-export interface OutputInstallPlan {
-  action: InstallPlanAction;
-  bundled_runtime: BundledRuntime | null;
-  channel: ReleaseChannel;
-  download_bytes: number;
-  output_location: PortOutputLocation;
-  platform: Platform;
-  port_id: string;
-  release: ResolvedRelease;
-  source_requirements: InstallSourceRequirement[];
-  storage: StorageSummary;
-  [k: string]: unknown;
-}
-export interface PortOutputLocation {
-  configured_output_directory: string | null;
-  default_output_directory: string;
-  effective_output_directory: string;
-  library_root: string;
-  port_id: string;
-  selection_source: OutputLocationSource;
-  user_data_root: string;
-  [k: string]: unknown;
-}
-export interface InstallSourceRequirement {
-  label: string;
-  profile_id: string;
-  registered: boolean;
-  role: SourceRequirementRole;
   [k: string]: unknown;
 }
 /**

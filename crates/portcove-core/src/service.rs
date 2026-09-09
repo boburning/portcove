@@ -4817,7 +4817,7 @@ mod tests {
         }
     }
 
-    fn service_with_release(library: Library, version: &str) -> PortcoveService {
+    pub(super) fn service_with_release(library: Library, version: &str) -> PortcoveService {
         PortcoveService::with_provider(
             library,
             Arc::new(StaticReleaseProvider {
@@ -5898,7 +5898,11 @@ mod tests {
         install
     }
 
-    fn register_zelda_install(library: &Library, version: &str, active: bool) -> PathBuf {
+    pub(super) fn register_zelda_install(
+        library: &Library,
+        version: &str,
+        active: bool,
+    ) -> PathBuf {
         register_zelda_install_with_executable(library, version, active, b"test")
     }
 
