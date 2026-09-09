@@ -138,4 +138,53 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
     await writeFile(screenshot, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
     artifacts.push(screenshot);
   });
+  await scenario("native-release-channel-selection-and-restart", async () => {
+    await browser.findElement(By.css('button[aria-label="Close port details"]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+    const openCatalogPort = async id => {
+      const port = command(["catalog", "show", id]);
+      const search = await browser.findElement(By.id("port-search"));
+      await search.clear(); await search.sendKeys(port.name);
+      const card = By.xpath(`//button[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`);
+      await browser.wait(until.elementLocated(card), 15_000);
+      await browser.findElement(card).click();
+      await browser.findElement(By.css("details.advanced-settings > summary")).click();
+      return browser.findElement(By.css('section[aria-label="Game release channel"]'));
+    };
+    const single = await openCatalogPort("ghostship");
+    assert.ok((await single.getText()).includes("Stable only"));
+    assert.equal((await single.findElements(By.css("button"))).length, 0);
+    await browser.findElement(By.css('button[aria-label="Close port details"]')).click();
+    command(["channel", "set", "re-blue", "stable"]);
+    const multi = await openCatalogPort("re-blue");
+    const before = await status("re-blue");
+    const generation = (await invoke("get_bootstrap_status")).value.generation;
+    const stale = await invoke("set_channel", { portId: "re-blue", channel: "rolling", generation: generation + 1 });
+    assert.equal(stale.ok, false);
+    assert.equal((await status("re-blue")).channel, "stable");
+    const staleCheck = await invoke("check_port", { portId: "re-blue", generation: generation + 1 });
+    assert.equal(staleCheck.ok, false);
+    const trigger = await multi.findElement(By.css("button"));
+    await trigger.click();
+    await browser.findElement(button("Rolling")).click();
+    await browser.wait(async () => (await status("re-blue")).channel === "rolling", 15_000);
+    await browser.wait(until.elementIsEnabled(trigger), 90_000);
+    const after = command(["status", "re-blue"]);
+    for (const key of ["active", "staged", "previous"]) assert.deepEqual(after[key], before[key]);
+    assert.equal(after.channel, "rolling");
+    await browser.navigate().refresh();
+    await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 15_000);
+    await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+    const restarted = await openCatalogPort("re-blue");
+    assert.ok((await restarted.getText()).includes("Rolling"));
+    await browser.executeScript('arguments[0].scrollIntoView({ block: "center" });', restarted);
+    await browser.executeScript(axe.source);
+    const accessibility = await browser.executeAsyncScript(done => window.axe.run().then(done));
+    const report = path.join(output, "release-channel-accessibility.json");
+    await writeFile(report, JSON.stringify(accessibility, null, 2), { flag: "wx" }); artifacts.push(report);
+    assert.deepEqual(accessibility.violations.map(item => item.id), []);
+    const screenshot = path.join(output, "native-release-channel-restarted.png");
+    await writeFile(screenshot, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" }); artifacts.push(screenshot);
+  });
+
 }

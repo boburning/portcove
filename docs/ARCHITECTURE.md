@@ -483,6 +483,15 @@ Native game executables receive catalog-owned arguments plus literal caller argu
 
 Supervised native games run in their own process group. The CLI intercepts Ctrl-C and, on Unix, termination. Before child creation it durably cancels its known request ID; if the core has already closed cancellation, the CLI forwards the pending signal after the exact child is recorded and continues waiting so core can complete exact-install save collection. A nonzero exit or signal is a failed launch outcome and never advances successful-launch history, but it does not skip collection. The desktop supervisor is detached from the UI process and uses null standard streams; closing the window therefore cannot become a save-lifecycle decision. Desktop completion observation queries only its exact request primary key and emits one refresh after the durable terminal outcome; it never polls the complete launch-session table per launch.
 
+Game release-channel choices come from catalog/provider classification, not title
+or release-name words. A single available channel is read-only in Desktop; multiple
+channels use the existing accessible choice dialog. Core rejects unsupported
+choices and persists settings under the per-port lock. Desktop binds channel
+saving and release checks to the selected library generation, refreshes metadata
+after a successful change, and distinguishes a saved choice from a failed release
+refresh. Changing channel does not install or activate a version. Current channel
+identity invalidates old install/update reviews and mismatched update snapshots.
+
 Desktop install and adoption reviews are ephemeral, generation-bound presentation state. Port/channel changes invalidate install plans; adoption path, target, dialog closure and newer reviews invalidate copy previews. Late results and request errors cannot replace newer review intent, and an older adoption completion cannot close a reopened dialog. Core still revalidates the content-bound adoption plan before copying.
 
 ## External frontend contract

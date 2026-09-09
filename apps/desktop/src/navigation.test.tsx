@@ -1,3 +1,5 @@
+import { ReleaseChannelControl } from "./components/ReleaseChannel";
+import { portStatus } from "./test-fixtures";
 // @vitest-environment jsdom
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -78,6 +80,24 @@ afterEach(async () => {
 });
 
 describe("controller and modal integration", () => {
+  it("selects a game channel with the controller and restores focus after saving", async () => {
+    const save = vi.fn(async () => ({ ...portStatus(), channel: "rolling" as const }));
+    function ChannelFixture() {
+      useGamepadNavigation(() => undefined);
+      return <ReleaseChannelControl channels={["stable", "rolling"]} selected="stable" busy={false} change={save} refresh={async () => ({})} />;
+    }
+    await act(async () => root.render(<ChannelFixture />));
+    const trigger = control("Release channelStable"); trigger.focus();
+    await frame([0]); await frame();
+    expect(document.activeElement).toBe(control("Stable"));
+    await act(async () => { control("Stable").dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true })); });
+    expect(document.activeElement).toBe(control("Rolling"));
+    await frame([0]); await frame();
+    expect(save).toHaveBeenCalledExactlyOnceWith("rolling");
+    expect(document.querySelector("[role=dialog]")).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
   it("keeps focus in a dialog when async work removes or disables the focused control", async () => {
     let transition!: (phase: string) => void;
     function ChangingDialog() {

@@ -4788,9 +4788,21 @@ mod tests {
                 .channel,
             ReleaseChannel::Stable
         );
+        let reviewed = service
+            .plan_game_update("zelda64-recomp", false)
+            .await
+            .unwrap();
         service
             .set_channel("zelda64-recomp", ReleaseChannel::Beta)
             .unwrap();
+        assert_eq!(
+            service
+                .authorize_game_update("zelda64-recomp", false, &reviewed.plan_sha256)
+                .await
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Conflict
+        );
         let check = service.check_update("zelda64-recomp").await.unwrap();
         assert_eq!(check.channel, ReleaseChannel::Beta);
         assert_eq!(check.release.channel, ReleaseChannel::Beta);
