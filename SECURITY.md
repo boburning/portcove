@@ -33,6 +33,26 @@ declared platform, and normal download, archive, executable, source, install,
 and rollback protections still apply. A roadmap proposal alone never grants
 catalog eligibility.
 
+GitHub release SHA-256 authority has three ordered levels: a valid provider
+asset digest, otherwise exact `<asset-name>.sha256` sidecars, otherwise recognized
+`SHA256SUMS`, `SHA256SUMS.txt` and `checksums.txt` manifests. Lower levels are
+intentionally not consulted, even when they might contradict the selected level;
+an unreadable or empty exact sidecar never falls through to an aggregate. Within
+the selected sidecar level, every well-formed value bound to the chosen filename
+must agree, including repeated lines and duplicate sidecar assets. Equal values
+are normalized to lowercase; conflicts fail with `verification` and the bounded
+`checksum_ambiguity` reason, without echoing untrusted manifest contents.
+
+Sidecar names are matched without ASCII case sensitivity. Manifest filenames
+remain case-sensitive after the existing leading `*` and `./` normalization.
+Only exact sidecars may supply a bare digest. Unrelated names and malformed hash
+lines supply no authority. Selection permits at most eight sidecar assets before
+any download (`checksum_source_limit` on excess), downloads sequentially with a
+30-second timeout per response, and retains the existing credential-free client
+and five-redirect ceiling. Each body is limited to 1 MiB, bounding total body
+processing to 8 MiB; network, encoding and size failures never return a partially
+collected digest. None of these values are derived from the downloaded payload.
+
 Every production child process is created through the core-owned typed child-process policy. It starts from a reviewed operating-system/session allowlist, removes GitHub credentials plus credential-shaped token, secret, password, API-key, cloud-key, SSH-agent, and askpass variables, and then adds only the operation's checked Portcove/upstream variables. Native executables may receive literal caller arguments. Windows batch launchers receive only fixed, metacharacter-checked catalog arguments and reject caller-supplied arguments before process creation.
 
 Launch supervision is parent-independent in the desktop. A detached native helper holds the per-port lock, persists the supervisor/child/exact-install identity, waits for game exit, and collects saves before clearing the session. The Tauri process only observes this state. A crashed helper leaves a fail-closed row that startup recovery resolves against the recorded process and install; it is never reinterpreted as a successful launch. CLI interrupts are forwarded to the child's process group while Portcove remains alive to collect saves.

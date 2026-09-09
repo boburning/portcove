@@ -72,6 +72,7 @@ struct CachedRelease {
 const RELEASE_CACHE_TTL: Duration = Duration::from_secs(5 * 60);
 pub(crate) const PROVIDER_JSON_MAX_BYTES: usize = 4 * 1024 * 1024;
 const CHECKSUM_MAX_BYTES: usize = 1024 * 1024;
+const CHECKSUM_MAX_SIDECARS: usize = 8;
 const PROVIDER_PAGE_SIZE: usize = 100;
 const GITHUB_MAX_RELEASE_PAGES: usize = 10;
 
@@ -461,54 +462,87 @@ impl GithubReleaseProvider {
         target: &GithubAsset,
     ) -> Result<Option<String>> {
         let exact_name = format!("{}.sha256", target.name);
-        let sidecar = assets
+        let exact = assets
             .iter()
-            .find(|asset| asset.name.eq_ignore_ascii_case(&exact_name))
-            .or_else(|| {
-                assets.iter().find(|asset| {
-                    let name = asset.name.to_ascii_lowercase();
-                    name == "sha256sums" || name == "sha256sums.txt" || name == "checksums.txt"
-                })
-            });
-        let Some(sidecar) = sidecar else {
-            return Ok(None);
-        };
-        let response = self
-            .download_client
-            .get(&sidecar.browser_download_url)
-            .send()
-            .await
-            .map_err(|error| PortcoveError::network(error.to_string()))?;
-        if !response.status().is_success() {
-            return Err(PortcoveError::network(format!(
-                "checksum download returned {}",
-                response.status()
-            )));
+            .any(|asset| asset.name.eq_ignore_ascii_case(&exact_name));
+        let sidecars = assets
+            .iter()
+            .filter(|asset| {
+                if exact {
+                    asset.name.eq_ignore_ascii_case(&exact_name)
+                } else {
+                    ["sha256sums", "sha256sums.txt", "checksums.txt"]
+                        .iter()
+                        .any(|name| asset.name.eq_ignore_ascii_case(name))
+                }
+            })
+            .take(CHECKSUM_MAX_SIDECARS + 1)
+            .collect::<Vec<_>>();
+        if sidecars.len() > CHECKSUM_MAX_SIDECARS {
+            return Err(PortcoveError::verification(
+                "selected checksum authority exceeds the 8-sidecar limit",
+            )
+            .detail("reason", "checksum_source_limit"));
         }
-        let body =
-            bounded_response_bytes(response, CHECKSUM_MAX_BYTES, "checksum response").await?;
-        let body = std::str::from_utf8(&body)
-            .map_err(|error| PortcoveError::network(error.to_string()))?;
-        let exact_sidecar = sidecar.name.eq_ignore_ascii_case(&exact_name);
-        for line in body.lines() {
-            let mut fields = line.split_whitespace();
-            let Some(hash) = fields.next() else { continue };
-            let file = fields
-                .next()
-                .unwrap_or_default()
-                .trim_start_matches('*')
-                .trim_start_matches("./");
-            let identity_matches = if exact_sidecar {
-                file.is_empty() || file == target.name
-            } else {
-                !file.is_empty() && file == target.name
-            };
-            if identity_matches && is_sha256(hash) {
-                return Ok(Some(hash.to_ascii_lowercase()));
+        let mut checksum = None;
+        for sidecar in sidecars {
+            let response = self
+                .download_client
+                .get(&sidecar.browser_download_url)
+                .timeout(Duration::from_secs(30))
+                .send()
+                .await
+                .map_err(|error| PortcoveError::network(error.to_string()))?;
+            if !response.status().is_success() {
+                return Err(PortcoveError::network(format!(
+                    "checksum download returned {}",
+                    response.status()
+                )));
             }
+            let body =
+                bounded_response_bytes(response, CHECKSUM_MAX_BYTES, "checksum response").await?;
+            let body = std::str::from_utf8(&body)
+                .map_err(|error| PortcoveError::network(error.to_string()))?;
+            merge_checksum_entries(body, &target.name, exact, &mut checksum)?;
         }
-        Ok(None)
+        Ok(checksum)
     }
+}
+
+fn merge_checksum_entries(
+    body: &str,
+    target: &str,
+    exact: bool,
+    checksum: &mut Option<String>,
+) -> Result<()> {
+    for line in body.lines() {
+        let mut fields = line.split_whitespace();
+        let Some(hash) = fields.next() else { continue };
+        let file = fields
+            .next()
+            .unwrap_or_default()
+            .trim_start_matches('*')
+            .trim_start_matches("./");
+        let identity_matches = if exact {
+            file.is_empty() || file == target
+        } else {
+            !file.is_empty() && file == target
+        };
+        if !identity_matches || !is_sha256(hash) {
+            continue;
+        }
+        if let Some(previous) = checksum.as_ref() {
+            if !previous.eq_ignore_ascii_case(hash) {
+                return Err(PortcoveError::verification(
+                    "conflicting SHA-256 values for the selected release asset",
+                )
+                .detail("reason", "checksum_ambiguity"));
+            }
+        } else {
+            *checksum = Some(hash.to_ascii_lowercase());
+        }
+    }
+    Ok(())
 }
 
 #[async_trait]
@@ -1858,5 +1892,253 @@ mod tests {
             redirect_target.accept().unwrap_err().kind(),
             std::io::ErrorKind::WouldBlock
         );
+    }
+    async fn checksum_fixture(names: &[&str], bodies: &[String]) -> Result<Option<String>> {
+        let responses = bodies.iter().map(|body| ok_json(body, "")).collect();
+        checksum_http_fixture(names, responses).await
+    }
+
+    async fn checksum_http_fixture(
+        names: &[&str],
+        responses: Vec<String>,
+    ) -> Result<Option<String>> {
+        let response_count = responses.len();
+        let (root, requests, server) = serve_http(responses);
+        let provider = GithubReleaseProvider::with_api_root("https://api.example.invalid").unwrap();
+        let target = GithubAsset {
+            name: "game-windows.zip".into(),
+            browser_download_url: "https://example.invalid/game-windows.zip".into(),
+            size: 1,
+            digest: None,
+        };
+        let assets = names
+            .iter()
+            .enumerate()
+            .map(|(index, name)| GithubAsset {
+                name: (*name).into(),
+                browser_download_url: format!("{root}/{index}"),
+                size: 1,
+                digest: None,
+            })
+            .collect::<Vec<_>>();
+        let result = provider.checksum_from_sidecar(&assets, &target).await;
+        // Check before joining so a regression that skips a response fails promptly.
+        assert_eq!(requests.try_iter().count(), response_count);
+        server.join().unwrap();
+        result
+    }
+
+    #[tokio::test]
+    async fn contradictory_checksum_lines_fail_in_both_orders() {
+        let a = "a".repeat(64);
+        let b = "b".repeat(64);
+        for (first, second) in [(&a, &b), (&b, &a)] {
+            let body = format!("{first}  game-windows.zip\n{second}  game-windows.zip\n");
+            let error = checksum_fixture(&["SHA256SUMS"], &[body])
+                .await
+                .unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Verification);
+            assert_eq!(
+                error.details.get("reason").map(String::as_str),
+                Some("checksum_ambiguity")
+            );
+            assert_eq!(error.details.len(), 1);
+            assert!(error.message.len() < 160);
+            let error = checksum_fixture(
+                &["game-windows.zip.sha256"],
+                &[format!("{first}\n{second}\n")],
+            )
+            .await
+            .unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Verification);
+            assert_eq!(error.details["reason"], "checksum_ambiguity");
+        }
+    }
+
+    #[tokio::test]
+    async fn later_invalid_checksum_responses_never_return_an_earlier_digest() {
+        let valid = ok_json(&format!("{} game-windows.zip\n", "a".repeat(64)), "");
+        for (response, code) in [
+            (
+                // One declared byte truncates the two-byte character: invalid UTF-8.
+                "HTTP/1.1 200 OK\r\nContent-Length: 1\r\nConnection: close\r\n\r\né".into(),
+                crate::ErrorCode::Network,
+            ),
+            (
+                format!(
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    CHECKSUM_MAX_BYTES + 1
+                ),
+                crate::ErrorCode::Verification,
+            ),
+            (
+                "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".into(),
+                crate::ErrorCode::Network,
+            ),
+        ] {
+            let error = checksum_http_fixture(
+                &["SHA256SUMS", "checksums.txt"],
+                vec![valid.clone(), response],
+            )
+            .await
+            .unwrap_err();
+            assert_eq!(error.code, code);
+        }
+    }
+
+    #[tokio::test]
+    async fn checksum_manifests_agree_or_fail_independently_of_asset_order() {
+        let a = "a".repeat(64);
+        let b = "b".repeat(64);
+        for names in [
+            ["SHA256SUMS", "checksums.txt"],
+            ["checksums.txt", "SHA256SUMS"],
+        ] {
+            for hashes in [[&a, &b], [&b, &a]] {
+                let bodies = hashes.map(|hash| format!("{hash} *./game-windows.zip\n"));
+                let error = checksum_fixture(&names, &bodies).await.unwrap_err();
+                assert_eq!(error.code, crate::ErrorCode::Verification);
+                assert_eq!(error.details["reason"], "checksum_ambiguity");
+            }
+            let bodies = [
+                format!("{a} game-windows.zip\n"),
+                format!("{} game-windows.zip\n", a.to_uppercase()),
+            ];
+            assert_eq!(
+                checksum_fixture(&names, &bodies).await.unwrap(),
+                Some(a.clone())
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn checksum_identity_and_consistent_duplicate_lines_are_preserved() {
+        let a = "a".repeat(64);
+        let b = "b".repeat(64);
+        for exact in [false, true] {
+            let name = if exact {
+                "GAME-WINDOWS.ZIP.SHA256"
+            } else {
+                "sHa256SuMs.TxT"
+            };
+            let matching = if exact {
+                format!("{a}\n")
+            } else {
+                format!("{a} ./game-windows.zip\n")
+            };
+            let unrelated =
+                format!("{b} Game-windows.zip\n{b} other.zip\nnot-a-hash game-windows.zip\n");
+            for body in [
+                format!(
+                    "{unrelated}{matching}{} *game-windows.zip\n",
+                    a.to_uppercase()
+                ),
+                format!(
+                    "{} *game-windows.zip\n{matching}{unrelated}",
+                    a.to_uppercase()
+                ),
+            ] {
+                assert_eq!(
+                    checksum_fixture(&[name], &[body]).await.unwrap(),
+                    Some(a.clone())
+                );
+            }
+        }
+        let body = format!("{a}\n{b} Game-windows.zip\nnot-a-hash game-windows.zip\n");
+        assert_eq!(
+            checksum_fixture(&["SHA256SUMS"], &[body]).await.unwrap(),
+            None
+        );
+    }
+
+    #[tokio::test]
+    async fn exact_checksum_authority_ignores_aggregates_and_compares_duplicate_sidecars() {
+        let a = "a".repeat(64);
+        let b = "b".repeat(64);
+        for names in [
+            ["SHA256SUMS", "game-windows.zip.sha256"],
+            ["game-windows.zip.sha256", "SHA256SUMS"],
+        ] {
+            assert_eq!(
+                checksum_fixture(&names, std::slice::from_ref(&a))
+                    .await
+                    .unwrap(),
+                Some(a.clone())
+            );
+            assert_eq!(
+                checksum_fixture(&names, &["malformed".into()])
+                    .await
+                    .unwrap(),
+                None
+            );
+        }
+        let names = ["game-windows.zip.sha256", "GAME-WINDOWS.ZIP.SHA256"];
+        assert_eq!(
+            checksum_fixture(&names, &[a.clone(), a.to_uppercase()])
+                .await
+                .unwrap(),
+            Some(a.clone())
+        );
+        for bodies in [[a.clone(), b.clone()], [b, a]] {
+            let error = checksum_fixture(&names, &bodies).await.unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Verification);
+            assert_eq!(error.details["reason"], "checksum_ambiguity");
+        }
+    }
+
+    #[tokio::test]
+    async fn checksum_request_budget_rejects_before_any_download() {
+        let a = "a".repeat(64);
+        let names = vec!["SHA256SUMS"; CHECKSUM_MAX_SIDECARS];
+        let bodies = vec![format!("{a} game-windows.zip\n"); CHECKSUM_MAX_SIDECARS];
+        assert_eq!(
+            checksum_fixture(&names, &bodies).await.unwrap(),
+            Some(a.clone())
+        );
+        for name in ["SHA256SUMS", "game-windows.zip.sha256"] {
+            let error = checksum_fixture(&[name; CHECKSUM_MAX_SIDECARS + 1], &[])
+                .await
+                .unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Verification);
+            assert_eq!(error.details["reason"], "checksum_source_limit");
+        }
+        let mut names = vec!["SHA256SUMS"; CHECKSUM_MAX_SIDECARS + 1];
+        names.push("game-windows.zip.sha256");
+        assert_eq!(
+            checksum_fixture(&names, std::slice::from_ref(&a))
+                .await
+                .unwrap(),
+            Some(a)
+        );
+    }
+
+    #[tokio::test]
+    async fn provider_digest_precedes_even_excessive_conflicting_sidecars() {
+        let mut release = github_release("v1.0.0", false, "game-windows.zip");
+        for index in 0..CHECKSUM_MAX_SIDECARS + 1 {
+            release["assets"].as_array_mut().unwrap().push(serde_json::json!({
+                "name": "game-windows.zip.sha256",
+                "browser_download_url": format!("https://example.invalid/never-requested-{index}"),
+                "size": 1
+            }));
+        }
+        let responses = vec![
+            ok_json(r#"{"archived":false}"#, ""),
+            ok_json(&serde_json::to_string(&vec![release]).unwrap(), ""),
+        ];
+        let (root, requests, server) = serve_http(responses);
+        let provider = GithubReleaseProvider::with_api_root(root).unwrap();
+        let catalog = crate::Catalog::embedded().unwrap();
+        let resolved = provider
+            .resolve(
+                catalog.port("re-blue").unwrap(),
+                ReleaseChannel::Stable,
+                Platform::WindowsX86_64,
+            )
+            .await
+            .unwrap();
+        assert_eq!(requests.try_iter().count(), 2);
+        server.join().unwrap();
+        assert_eq!(resolved.asset.sha256, "a".repeat(64));
     }
 }
