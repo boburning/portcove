@@ -3389,6 +3389,7 @@ dependencies = [
  "futures-util",
  "jiff",
  "portcove-core",
+ "schemars 1.2.2",
  "serde",
  "serde_json",
  "tauri",

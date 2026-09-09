@@ -3,6 +3,11 @@ mod diagnostics;
 mod library_selection;
 mod library_transfer;
 mod output_location;
+mod transport;
+
+use transport::{
+    BatchOutcome, BootstrapStatus, DesktopError, InstallInput, LaunchResult, SourceBatchOutcome,
+};
 
 use std::{
     fs,
@@ -58,39 +63,6 @@ struct DesktopState {
     launch_observer: LaunchObserver,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct DesktopError {
-    code: portcove_core::ErrorCode,
-    message: String,
-    details: std::collections::BTreeMap<String, String>,
-}
-
-#[derive(Debug, Serialize)]
-struct BatchOutcome<T> {
-    port_id: String,
-    ok: bool,
-    result: Option<T>,
-    error: Option<DesktopError>,
-}
-
-#[derive(Debug, Serialize)]
-struct SourceBatchOutcome {
-    profile_id: String,
-    ok: bool,
-    result: Option<SourceVerification>,
-    error: Option<DesktopError>,
-}
-
-impl From<PortcoveError> for DesktopError {
-    fn from(error: PortcoveError) -> Self {
-        Self {
-            code: error.code,
-            message: error.message,
-            details: error.details,
-        }
-    }
-}
-
 type DesktopResult<T> = std::result::Result<T, DesktopError>;
 
 fn ready(state: &DesktopState) -> DesktopResult<ReadyDesktopState> {
@@ -124,15 +96,6 @@ fn require_library_generation(actual: u64, expected: u64) -> DesktopResult<()> {
     Err(DesktopError::from(PortcoveError::conflict(
         "the open library changed; review this storage location again",
     )))
-}
-
-#[derive(Debug, Clone, Serialize)]
-struct BootstrapStatus {
-    ready: bool,
-    library_root: Option<PathBuf>,
-    selection: Option<LibrarySelection>,
-    generation: u64,
-    error: Option<DesktopError>,
 }
 
 #[tauri::command]
@@ -1012,16 +975,6 @@ async fn set_policy(
     .await
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct InstallInput {
-    port_id: String,
-    channel: Option<ReleaseChannel>,
-    source: Option<PathBuf>,
-    bios: Option<PathBuf>,
-    stage: bool,
-}
-
 #[tauri::command]
 async fn install_port(
     app: tauri::AppHandle,
@@ -1214,13 +1167,6 @@ async fn remove_port(
             .map_err(Into::into)
     })
     .await
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct LaunchResult {
-    process_id: Option<u32>,
-    session_id: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

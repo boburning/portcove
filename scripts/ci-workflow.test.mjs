@@ -153,6 +153,8 @@ test("Linux Rust quality keeps its platform-specific and policy gates without pn
   assert.match(rustQuality, /cargo deny check/);
   assert.match(rustQuality, /check-rust-architecture\.mjs/);
   assert.match(rustQuality, /run-rscheck\.mjs/);
+  const desktopPrerequisites = rustQuality.indexOf("libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf");
+  assert.ok(desktopPrerequisites >= 0 && desktopPrerequisites < rustQuality.indexOf("node scripts/check-transport-contract.mjs"));
   assert.match(rustQuality, /--test-skip-pattern "pnpm uses\|direct just recipes"/);
   assert.doesNotMatch(rustQuality, /pnpm\/action-setup|pnpm install/);
 });
