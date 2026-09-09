@@ -1,0 +1,51 @@
+{
+  "install_input": {
+    "$defs": {
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "bios": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "channel": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "portId": {
+        "type": "string"
+      },
+      "source": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "stage": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "portId",
+      "stage"
+    ],
+    "title": "InstallInput",
+    "type": "object"
+  }
+}

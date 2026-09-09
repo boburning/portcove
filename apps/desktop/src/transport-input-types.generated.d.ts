@@ -12,11 +12,13 @@ export type InputCatalogUpdateSource =
       value: string;
       [k: string]: unknown;
     };
+export type ReleaseChannel = "stable" | "beta" | "rolling";
 
 export interface TransportInputs {
   catalog_update_source: InputCatalogUpdateSource;
   source_discovery_limits: SourceDiscoveryLimits;
   source_discovery_request: InputSourceDiscoveryRequest;
+  desktop_install_input: InputDesktopInstallInput;
 }
 export interface SourceDiscoveryLimits {
   max_candidates: number;
@@ -38,5 +40,13 @@ export interface SourceDiscoveryLimits1 {
   max_entries: number;
   max_file_bytes: number;
   max_hash_bytes: number;
+  [k: string]: unknown;
+}
+export interface InputDesktopInstallInput {
+  bios?: string | null;
+  channel?: ReleaseChannel | null;
+  portId: string;
+  source?: string | null;
+  stage: boolean;
   [k: string]: unknown;
 }

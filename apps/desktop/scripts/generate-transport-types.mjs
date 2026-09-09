@@ -45,14 +45,26 @@ export async function renderTransportTypes(schemas, contract = "output") {
   });
 }
 
+function withHostSchemas(core, host) {
+  const combined = { ...core };
+  for (const [name, schema] of Object.entries(host)) {
+    const key = `desktop_${name}`;
+    if (Object.hasOwn(combined, key)) throw new Error(`Desktop schema key collides with core: ${key}`);
+    combined[key] = schema;
+  }
+  return combined;
+}
+
 async function main() {
   const { values } = parseArgs({ options: { write: { type: "boolean", default: false } } });
   const source = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../src");
   const schemas = JSON.parse(fs.readFileSync(path.join(source, "transport-schemas.generated.json"), "utf8"));
   const inputs = JSON.parse(fs.readFileSync(path.join(source, "transport-inputs.generated.json"), "utf8"));
+  const hostInput = JSON.parse(fs.readFileSync(path.join(source, "transport-host-input.generated.json"), "utf8"));
+  const hostOutput = JSON.parse(fs.readFileSync(path.join(source, "transport-host-output.generated.json"), "utf8"));
   for (const [name, expected] of [
-    ["transport-types.generated.d.ts", await renderTransportTypes(schemas)],
-    ["transport-input-types.generated.d.ts", await renderTransportTypes(inputs, "input")],
+    ["transport-types.generated.d.ts", await renderTransportTypes(withHostSchemas(schemas, hostOutput))],
+    ["transport-input-types.generated.d.ts", await renderTransportTypes(withHostSchemas(inputs, hostInput), "input")],
   ]) {
     const target = path.join(source, name);
     if (values.write) fs.writeFileSync(target, expected);

@@ -365,6 +365,16 @@ jobs:
       - run: cargo deny check --hide-inclusion-graph -W unmaintained
       - run: node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-rust-architecture.test.mjs
       - run: node scripts/check-rust-architecture.mjs
+      - name: Install Linux desktop schema-export prerequisites
+        timeout-minutes: 2
+        run: |
+          for source in /etc/apt/sources.list /etc/apt/apt-mirrors.txt; do
+            if [ -f "$source" ]; then
+              sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$source"
+            fi
+          done
+          sudo apt-get -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 -o Acquire::Retries=0 update
+          sudo apt-get -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 -o Acquire::Retries=0 install -y --no-install-recommends libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
       - name: Check child-process policy and live transport contracts
         run: |
           node scripts/check-child-process-policy.mjs

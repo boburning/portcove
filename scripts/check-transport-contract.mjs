@@ -29,9 +29,20 @@ function exportSchemas(root, contract) {
   return envelope.data;
 }
 
+function exportDesktopSchemas(root) {
+  const command = spawnSync("cargo", ["run", "--locked", "--quiet", "-p", "portcove-desktop", "--example", "export_transport"], {
+    cwd: root, encoding: "utf8", maxBuffer: 16 * 1024 * 1024, windowsHide: true,
+  });
+  if (command.status !== 0) {
+    process.stderr.write(command.stderr || command.stdout);
+    process.exit(command.status ?? 1);
+  }
+  return JSON.parse(command.stdout.trim());
+}
+
 function main() {
-  const { values } = parseArgs({ options: { write: { type: "boolean", default: false }, types: { type: "string" } } });
-  if (values.write && values.types) throw new Error("--write only updates the repository generated contract");
+  const { values } = parseArgs({ options: { write: { type: "boolean", default: false }, types: { type: "string" }, "host-types": { type: "string" } } });
+  if (values.write && (values.types || values["host-types"])) throw new Error("--write only updates the repository generated contract");
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
   const schemas = exportSchemas(root, "output");
   const typesPath = values.types
@@ -48,6 +59,14 @@ function main() {
   const inputPath = path.join(root, "apps", "desktop", "src", "transport-inputs.generated.json");
   if (values.write) fs.writeFileSync(inputPath, renderTransportSchemas(requests));
   failures.push(...checkTransportContract(requests, fs.readFileSync(inputPath, "utf8")).map(message => `Request inputs: ${message}`));
+  const desktop = exportDesktopSchemas(root);
+  for (const contract of ["input", "output"]) {
+    const target = contract === "output" && values["host-types"]
+      ? path.resolve(values["host-types"])
+      : path.join(root, "apps", "desktop", "src", `transport-host-${contract}.generated.json`);
+    if (values.write) fs.writeFileSync(target, renderTransportSchemas(desktop[contract]));
+    failures.push(...checkTransportContract(desktop[contract], fs.readFileSync(target, "utf8")).map(message => `Desktop ${contract}: ${message}`));
+  }
   if (failures.length > 0) {
     process.stderr.write(`Transport contract drift:\n- ${failures.join("\n- ")}\n`);
     process.exit(1);
