@@ -251,7 +251,8 @@ mod tests {
             assert_eq!(error.code, portcove_core::ErrorCode::Conflict);
             assert!(
                 crate::ready(&state)
-                    .unwrap_err()
+                    .err()
+                    .unwrap()
                     .details
                     .contains_key(marker)
             );

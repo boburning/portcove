@@ -275,7 +275,8 @@ mod tests {
         assert!(!called.get());
         assert!(
             crate::ready(&state)
-                .unwrap_err()
+                .err()
+                .unwrap()
                 .details
                 .contains_key("library_switch_in_progress")
         );
