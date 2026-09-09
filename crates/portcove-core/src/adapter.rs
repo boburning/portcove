@@ -2078,7 +2078,7 @@ pub(crate) fn materialize_psx_chd(source: &Path, destination: &Path) -> Result<P
     Ok(cue)
 }
 
-fn resolve_chdman() -> Result<PathBuf> {
+pub(crate) fn resolve_chdman() -> Result<PathBuf> {
     let candidates = chdman_candidates();
     resolve_host_tool_path(
         "chdman",
