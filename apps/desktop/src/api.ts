@@ -1,3 +1,4 @@
+import type { InstallInput, LaunchResult } from "./types";
 import type { CatalogStatus, CatalogUpdatePlan, CatalogUpdateSource } from "./types";
 import { Channel, invoke } from "@tauri-apps/api/core";
 import type { CancellationState, OperationEvent } from "./types";
@@ -94,14 +95,14 @@ export const desktopApi = {
   setChannel: (portId: string, channel: ReleaseChannel) => invoke<PortStatus>("set_channel", { portId, channel }),
   setPolicy: (portId: string, policy: UpdatePolicy) => invoke<PortStatus>("set_policy", { portId, policy }),
   install: (portId: string, channel: ReleaseChannel, source: string, bios: string, stage: boolean) =>
-    invoke<InstallRecord>("install_port", { input: { portId, channel, source: source || null, bios: bios || null, stage } }),
+    invoke<InstallRecord>("install_port", { input: { portId, channel, source: source || null, bios: bios || null, stage } satisfies InstallInput }),
   update: (portId: string, source: string, bios: string, stage: boolean) =>
     invoke<InstallRecord>("update_port", { portId, source: source || null, bios: bios || null, stage }),
   verify: (portId: string) => invoke("verify_port", { portId }),
   activate: (portId: string) => invoke("activate_port", { portId }),
   rollback: (portId: string) => invoke("rollback_port", { portId }),
   remove: (portId: string) => invoke<string[] | null>("remove_port", { portId }),
-  launch: (portId: string, source: string) => invoke("launch_port", { portId, source: source || null, arguments: [] }),
+  launch: (portId: string, source: string) => invoke<LaunchResult>("launch_port", { portId, source: source || null, arguments: [] }),
   previewAdoption: (path: string, portId?: string) => invoke<AdoptionPreview>("preview_adoption", { path, portId: portId ?? null }),
   adopt: (path: string, planSha256: string, portId?: string) => invoke<InstallRecord | null>("adopt_port", { path, portId: portId ?? null, planSha256 }),
 };

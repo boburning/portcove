@@ -1,5 +1,5 @@
 import type * as Requests from "./transport-input-types.generated";
-import type { ErrorCode, SourceVerification, PortStatus, UpdateCheck, ReconcileResult } from "./transport-types.generated";
+import type { PortStatus } from "./transport-types.generated";
 import type * as Generated from "./transport-types.generated";
 
 export type { ReleaseChannel } from "./transport-types.generated";
@@ -58,19 +58,12 @@ export type SourceRemovalPreview = Generated.TransportOutputs["source_removal_pr
 
 export type SourceRelinkPlan = Generated.TransportOutputs["source_relink_plan"];
 
-export type { SourceVerification } from "./transport-types.generated";
-
 export type { SourceInspectionReport } from "./transport-types.generated";
 
 export type SourceIntakeInspection = Generated.TransportOutputs["source_intake_inspection"];
 
-// Tauri-owned response envelopes; domain payloads above come from core.
-export interface SourceVerificationOutcome {
-  profile_id: string;
-  ok: boolean;
-  result: SourceVerification | null;
-  error: DesktopError | null;
-}
+// These envelopes are generated from the exact Tauri-owned Rust definitions.
+export type SourceVerificationOutcome = Generated.TransportOutputs["desktop_source_verification_outcome"];
 
 export type { UpdateCheck } from "./transport-types.generated";
 
@@ -90,36 +83,15 @@ export type { UpdateSnapshot } from "./transport-types.generated";
 
 export type { ReconcileAction } from "./transport-types.generated";
 
-export type { ReconcileResult } from "./transport-types.generated";
+export type UpdateCheckOutcome = Generated.TransportOutputs["desktop_update_check_outcome"];
 
-export interface BatchOutcome<T> {
-  port_id: string;
-  ok: boolean;
-  result: T | null;
-  error: DesktopError | null;
-}
-
-export type UpdateCheckOutcome = BatchOutcome<UpdateCheck>;
-
-export type ReconcileOutcome = BatchOutcome<ReconcileResult>;
+export type ReconcileOutcome = Generated.TransportOutputs["desktop_reconcile_outcome"];
 
 export type OperationEvent = Generated.TransportOutputs["operation_event"];
 
-export interface DesktopError {
-  code: ErrorCode;
-  message: string;
-  details: Record<string, string>;
-}
+export type DesktopError = Generated.TransportOutputs["desktop_desktop_error"];
 
-export type { ErrorCode } from "./transport-types.generated";
-
-export interface BootstrapStatus {
-  ready: boolean;
-  library_root: string | null;
-  selection: LibrarySelection | null;
-  generation: number;
-  error: DesktopError | null;
-}
+export type BootstrapStatus = Generated.TransportOutputs["desktop_bootstrap_status"];
 
 export type LibrarySelection = Generated.TransportOutputs["library_selection"];
 
@@ -162,3 +134,6 @@ export type CatalogProvenance = Generated.TransportOutputs["catalog_provenance"]
 export type CatalogStatus = Generated.TransportOutputs["catalog_status"];
 
 export type CatalogUpdatePlan = Generated.TransportOutputs["catalog_update_plan"];
+
+export type InstallInput = Requests.TransportInputs["desktop_install_input"];
+export type LaunchResult = Generated.TransportOutputs["desktop_launch_result"];

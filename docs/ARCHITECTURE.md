@@ -43,9 +43,16 @@ regenerates TypeScript declarations with a pinned schema compiler and checks
 the application against them, including nested arrays, nullable fields and
 discriminated variants. Requests retain input defaults; responses retain emitted
 presence. Type-only imports add no schema data or validator to the application.
-Rust continues to validate runtime values and domain constraints. Tauri-owned
-bootstrap/error/batch envelopes remain explicit adapter contracts; this does
-not claim complete command parity or generate those host-only envelopes.
+Rust continues to validate runtime values and domain constraints. Tauri owns
+bootstrap/error/batch/launch envelopes and its install request in its private
+transport module. The desktop package's repository-only schema export example
+compiles that exact source module; it does not initialize Tauri, open a library,
+or become a product API. Repository tooling checks those schemas independently
+and combines their declarations with core types for the frontend. Matching
+nested definitions must agree before reuse. Both adapters still call core
+directly; neither adapter depends on or executes the other. The module split
+changes no domain owner, crate boundary, or architecture metadata rule and does
+not by itself prove complete command/readiness parity.
 
 ## Monorepo and deliverable decision
 

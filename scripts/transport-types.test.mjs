@@ -27,10 +27,12 @@ test("the frontend compiler rejects real nested, nullable, optional, array and u
     const fixture = path.join(temporary, "fixture.ts");
     const config = path.join(temporary, "tsconfig.json");
     fs.writeFileSync(config, JSON.stringify({ compilerOptions: { strict: true, noEmit: true, skipLibCheck: true, target: "ES2022", module: "ESNext", moduleResolution: "Bundler" }, files: [fixture] }));
-    const prelude = `import type { InstallRecord, PortStatus, SourceDiscoveryRequest, SourceInspectionReport, OperationEvent } from ${JSON.stringify(types)};
+    const prelude = `import type { InstallRecord, PortStatus, SourceDiscoveryRequest, SourceInspectionReport, OperationEvent, BootstrapStatus, InstallInput, LaunchResult } from ${JSON.stringify(types)};
 declare const install: InstallRecord;
 declare const status: PortStatus;
+declare const bootstrap: BootstrapStatus;
 declare const inspection: NonNullable<SourceInspectionReport["inspection"]>;
+const installRequest: InstallInput = { portId: "port", stage: false };
 const request: SourceDiscoveryRequest = { roots: ["owned/source"], profile_ids: [] };
 const nullable: PortStatus = { ...status, active: null };
 const valid: InstallRecord = { ...install, artifact: { ...install.artifact, size: 2 } };
@@ -46,7 +48,11 @@ const valid: InstallRecord = { ...install, artifact: { ...install.artifact, size
     }
     const valid = compile(prelude);
     assert.equal(valid.status, 0, valid.stdout + valid.stderr);
+    const failureLine = prelude.split("\n").length;
     const cases = [
+      'const { error, ...missingError } = bootstrap; const badHostPresence: BootstrapStatus = missingError;',
+      'const badHostCasing: LaunchResult = { process_id: null, session_id: "session" };',
+      'const badRequest: InstallInput = { portId: "port", stage: "false" };',
       'const badScalar: InstallRecord = { ...install, artifact: { ...install.artifact, size: "2" } };',
       'const badNull: InstallRecord = { ...install, selected_executable: null };',
       'const { active, ...missingActive } = status; const badPresence: PortStatus = missingActive;',
@@ -57,7 +63,7 @@ const valid: InstallRecord = { ...install, artifact: { ...install.artifact, size
     for (const source of cases) {
       const invalid = compile(prelude + source + "\n");
       assert.notEqual(invalid.status, 0, `Compiler accepted ${source}`);
-      assert.match(invalid.stdout, /fixture\.ts\(8,\d+\): error TS\d+/);
+      assert.match(invalid.stdout, new RegExp(`fixture\\.ts\\(${failureLine},\\d+\\): error TS\\d+`));
       assert.doesNotMatch(invalid.stdout + invalid.stderr, /Cannot find module|excessively deep/);
     }
   } finally {

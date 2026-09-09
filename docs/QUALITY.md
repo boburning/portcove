@@ -267,3 +267,8 @@ The declarations contain no executable code, use type-only imports, and reuse
 identical root/nested schema bodies. There are no new quality exclusions or
 dependency exceptions. The frontend facade exposes the types its callers use;
 the complete exported Rust inventory remains in the generated declarations.
+The same command also runs the desktop package's `export_transport` example,
+which uses the exact private host transport declarations. Its input and output
+snapshots remain separate from core's export. Strict compiler fixtures cover
+the desktop's required nullable envelope fields, camelCase launch identity and
+typed install request; Rust fixtures check actual Serde output/input behavior.
