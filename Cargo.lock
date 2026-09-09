@@ -3324,7 +3324,6 @@ dependencies = [
  "aws-lc-rs",
  "futures-util",
  "jiff",
- "pem",
  "portcove-core",
  "serde",
  "serde_json",
