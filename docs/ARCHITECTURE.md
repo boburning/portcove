@@ -29,6 +29,13 @@ Make such changes as one reviewed migration: explain the pressure and tradeoffs 
 
 In this document, “thin adapter” means that the CLI and desktop do not reimplement catalog, installation, release, source, or library policy. Adapters may own concerns that exist only at their boundary, including argument and IPC translation, native dialogs, credential-store access, process attachment, and presentation-shaped aggregation. If a boundary concern becomes reusable domain behavior, move it behind the shared authority instead of copying it.
 
+The CLI's schema module assembles the transport schema inventory from existing
+Rust `JsonSchema`/Serde definitions. Explicit input and output contracts use
+Schemars' deserialization and serialization modes; a default accepted on input
+does not remove a field from emitted output. This host-facing export performs
+no domain validation and opens no library. Crate ownership and architecture
+metadata rules remain unchanged.
+
 ## Monorepo and deliverable decision
 
 `portcove-release-tools` is an unpublished, offline repository tool for checking
