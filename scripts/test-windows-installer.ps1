@@ -344,14 +344,71 @@ function Complete-JournaledProcess($Run, $Process, [string]$Status) {
     if ($evidence) { Write-InstallerEvidence $evidence.phase }
 }
 
+function Wait-JournaledUninstallerChild($ParentRun, [string]$TemporaryRoot, [DateTime]$Deadline) {
+    # NSIS's initial process starts an exact temporary self-copy and exits.
+    # Its launcher's exit code does not establish completion of that child.
+    $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId = $($ParentRun.pid)" -OperationTimeoutSec 2)
+    foreach ($child in $children) {
+        $process = try { [System.Diagnostics.Process]::GetProcessById([int]$child.ProcessId) } catch { $null }
+        if (-not $process) { continue }
+        $verified = $false
+        try {
+            $null = $process.Handle
+            if ($process.HasExited) { continue }
+            $started = $process.StartTime.ToUniversalTime()
+            if ($started -lt [DateTime]::Parse($ParentRun.start_time).ToUniversalTime() -or
+                [Math]::Abs(($started - $child.CreationDate.ToUniversalTime()).TotalMilliseconds) -gt 1) {
+                throw "Uninstaller child process identity changed before observation"
+            }
+            $exact = [System.IO.Path]::GetFullPath($process.Path)
+            $prefix = [System.IO.Path]::GetFullPath($TemporaryRoot).TrimEnd('\') + '\'
+            if (-not $exact.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase) -or
+                -not $exact.Equals($child.ExecutablePath, [System.StringComparison]::OrdinalIgnoreCase)) {
+                throw "Uninstaller child is outside its owned temporary root"
+            }
+            Assert-NoReparseAncestry $exact
+            $hash = (Get-FileHash -LiteralPath $exact -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($hash -ne $ParentRun.executable_sha256) { throw "Uninstaller child differs from the exact self-copy" }
+            $run = [ordered]@{
+                id = [System.Guid]::NewGuid().ToString("N"); role = "candidate_uninstaller_child";
+                parent_run_id = $ParentRun.id; parent_pid = $ParentRun.pid;
+                requested_at = $ParentRun.requested_at; requested_at_filetime = $ParentRun.requested_at_filetime;
+                executable_path = $exact; executable_sha256 = $hash; arguments = @();
+                status = "running"; pid = $process.Id; start_time = $started.ToString("o"); start_time_filetime = $started.ToFileTimeUtc();
+                exit_code = $null; exit_observation = $null;
+                image_observation = "Observed the retained child handle, parent PID, start time and exact self-copy in the owned temporary root"
+            }
+            $verified = $true
+            if ($evidence) { $evidence.process_runs += $run; Write-InstallerEvidence $evidence.phase }
+            $remaining = [Math]::Max(0, [int]($Deadline - [DateTime]::UtcNow).TotalMilliseconds)
+            if (-not $process.WaitForExit($remaining)) {
+                Stop-JournaledProcess $run $process "timed_out" "Uninstaller child exceeded the operation's $ProcessTimeoutSeconds second deadline"
+                throw "candidate_uninstaller_child did not exit within $ProcessTimeoutSeconds seconds"
+            }
+            Complete-JournaledProcess $run $process "exit_observed"
+            if ($process.ExitCode -ne 0) { throw "Uninstaller child exited with code $($process.ExitCode)" }
+        } catch {
+            if ($verified -and $run.status -eq "running") {
+                Stop-JournaledProcess $run $process "process_wait_failed" "Uninstaller child observation failed"
+            }
+            throw
+        } finally { $process.Dispose() }
+    }
+}
+
 function Invoke-JournaledProcess([string]$Role, [string]$Executable, [object[]]$Arguments, [string]$AllowedRelocationRoot = "") {
+    $deadline = [DateTime]::UtcNow.AddSeconds($ProcessTimeoutSeconds)
     $launch = Start-JournaledProcess -Role $Role -Executable $Executable -Arguments $Arguments -AllowedRelocationRoot $AllowedRelocationRoot
     try {
-        if (-not $launch.process.WaitForExit($ProcessTimeoutSeconds * 1000)) {
+        $remaining = [Math]::Max(0, [int]($deadline - [DateTime]::UtcNow).TotalMilliseconds)
+        if (-not $launch.process.WaitForExit($remaining)) {
             Stop-JournaledProcess $launch.run $launch.process "timed_out" "No exit was observed within $ProcessTimeoutSeconds seconds"
             throw "$Role did not exit within $ProcessTimeoutSeconds seconds"
         }
         Complete-JournaledProcess $launch.run $launch.process "exit_observed"
+        if ($Role -eq "candidate_uninstaller" -and $launch.process.ExitCode -eq 0) {
+            Wait-JournaledUninstallerChild $launch.run $AllowedRelocationRoot $deadline
+        }
         [pscustomobject]@{ ExitCode = $launch.process.ExitCode }
     } catch {
         if ($launch.run.status -ne "timed_out" -and $launch.run.status -ne "process_wait_failed") {

@@ -79,16 +79,31 @@ class Desktop { [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr w
   const desktop = path.join(root, "desktop.exe");
   execFileSync(csc, ["/nologo", "/target:winexe", "/reference:System.Windows.Forms.dll", `/out:${desktop}`, desktopSource], { windowsHide: true });
 
-  const cleanerSource = path.join(root, "cleaner.cs");
-  writeFileSync(cleanerSource, `using System; using System.IO; using System.Threading; using Microsoft.Win32;
-class Cleaner { static void Main(string[] args) { var install = args[0]; Thread.Sleep(100); for (var i = 0; i < 100; i++) { try { File.Delete(Path.Combine(install, "portcove-desktop.exe")); File.Delete(Path.Combine(install, "uninstall.exe")); } catch {} if (!File.Exists(Path.Combine(install, "portcove-desktop.exe")) && !File.Exists(Path.Combine(install, "uninstall.exe"))) break; Thread.Sleep(25); } var delay = Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_REGISTRATION_DELAY_MS"); if (delay != null) Thread.Sleep(Int32.Parse(delay)); if (Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_KEEP_REGISTRATION") != "1") Registry.CurrentUser.DeleteSubKeyTree(${csharpLiteral(keyPath)}, false); } }
-`);
-  const cleaner = path.join(root, "cleaner.exe");
-  execFileSync(csc, ["/nologo", `/out:${cleaner}`, cleanerSource], { windowsHide: true });
-
   const uninstallerSource = path.join(root, "uninstaller.cs");
-  writeFileSync(uninstallerSource, `using System; using System.Diagnostics; using System.IO; using System.Threading;
-class Uninstaller { static void Main() { if (Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_HANG_UNINSTALLER") == "1") Thread.Sleep(60000); var install = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName); var target = Path.Combine(Path.GetTempPath(), "cleanup-" + Guid.NewGuid().ToString("N") + ".exe"); File.Copy(${csharpLiteral(cleaner)}, target); Process.Start(new ProcessStartInfo(target, "\\\"" + install + "\\\"") { CreateNoWindow = true, UseShellExecute = false }); } }
+  writeFileSync(uninstallerSource, `using System; using System.Diagnostics; using System.IO; using System.Threading; using Microsoft.Win32;
+class Uninstaller {
+  static void Main(string[] args) {
+    if (args.Length == 2 && args[0] == "--cleanup") {
+      if (Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_HANG_CHILD") == "1") Thread.Sleep(60000);
+      var install = args[1];
+      Thread.Sleep(100);
+      for (var i = 0; i < 100; i++) {
+        try { File.Delete(Path.Combine(install, "portcove-desktop.exe")); File.Delete(Path.Combine(install, "uninstall.exe")); } catch {}
+        if (!File.Exists(Path.Combine(install, "portcove-desktop.exe")) && !File.Exists(Path.Combine(install, "uninstall.exe"))) break;
+        Thread.Sleep(25);
+      }
+      var delay = Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_REGISTRATION_DELAY_MS");
+      if (delay != null) Thread.Sleep(Int32.Parse(delay));
+      if (Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_KEEP_REGISTRATION") != "1") Registry.CurrentUser.DeleteSubKeyTree(${csharpLiteral(keyPath)}, false);
+      return;
+    }
+    if (Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_HANG_UNINSTALLER") == "1") Thread.Sleep(60000);
+    var self = Process.GetCurrentProcess().MainModule.FileName;
+    var target = Path.Combine(Path.GetTempPath(), "cleanup-" + Guid.NewGuid().ToString("N") + ".exe");
+    File.Copy(self, target);
+    Process.Start(new ProcessStartInfo(target, "--cleanup \\\"" + Path.GetDirectoryName(self) + "\\\"") { CreateNoWindow = true, UseShellExecute = false });
+  }
+}
 `);
   const uninstaller = path.join(root, "uninstaller.exe");
   execFileSync(csc, ["/nologo", `/out:${uninstaller}`, uninstallerSource], { windowsHide: true });
@@ -124,11 +139,24 @@ function removeInstallerLifecycleRegistration(item) {
 test("installer lifecycle behavior handles delayed, persistent, and hung uninstall cleanup", { skip: process.platform !== "win32", timeout: 120_000 }, t => {
   const item = makeInstallerLifecycleFixture(t);
 
-  const delayed = runInstallerLifecycle(item, "delayed", { PORTCOVE_FIXTURE_REGISTRATION_DELAY_MS: "750" });
+  const delayed = runInstallerLifecycle(item, "delayed", { PORTCOVE_FIXTURE_REGISTRATION_DELAY_MS: "3000" }, "8");
   assert.equal(delayed.status, 0, delayed.stderr);
   const delayedEvidence = JSON.parse(readFileSync(path.join(item.root, "delayed", "evidence.json"), "utf8"));
   assert.equal(delayedEvidence.phase, "complete");
   assert.equal(delayedEvidence.details.registration_removed, true);
+  const childRun = delayedEvidence.process_runs.find(run => run.role === "candidate_uninstaller_child");
+  assert.equal(childRun.status, "exit_observed");
+  assert.equal(childRun.exit_code, 0);
+  assert.equal(childRun.executable_sha256, delayedEvidence.uninstaller_sha256);
+
+  const hungChild = runInstallerLifecycle(item, "hung-child", { PORTCOVE_FIXTURE_HANG_CHILD: "1" }, "3");
+  assert.notEqual(hungChild.status, 0);
+  assert.match(hungChild.stderr, /candidate_uninstaller_child did not exit within 3 seconds/);
+  const hungChildEvidence = JSON.parse(readFileSync(path.join(item.root, "hung-child", "evidence.json"), "utf8"));
+  const timedOutChild = hungChildEvidence.process_runs.find(run => run.role === "candidate_uninstaller_child");
+  assert.equal(timedOutChild.status, "timed_out");
+  assert.match(timedOutChild.exit_observation, /retained parent exit was observed after the termination request/);
+  removeInstallerLifecycleRegistration(item);
   assert.equal(delayedEvidence.process_runs.find(run => run.role === "candidate_smoke").close_request.accepted, true);
 
   const persistent = runInstallerLifecycle(item, "persistent", { PORTCOVE_FIXTURE_KEEP_REGISTRATION: "1" });
