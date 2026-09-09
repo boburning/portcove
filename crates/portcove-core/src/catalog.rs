@@ -1058,6 +1058,20 @@ mod tests {
         persona
             .runtime_mutable_paths
             .push("psx_freeze_heartbeat.json".into());
+        for id in ["opengoal-jak1", "opengoal-jak2", "opengoal-jak3"] {
+            let port = expected_ports
+                .iter_mut()
+                .find(|port| port.id == id)
+                .unwrap();
+            // Legacy definitions remain readable without preparation output ownership.
+            // Only these reviewed additions are expected in the current catalog.
+            assert!(port.setup_output_paths.is_empty());
+            port.setup_output_paths = vec![
+                "data/iso_data".into(),
+                "data/decompiler_out".into(),
+                "data/out".into(),
+            ];
+        }
         assert_eq!(
             serde_json::to_value(&migrated.document().ports).unwrap(),
             serde_json::to_value(expected_ports).unwrap()
