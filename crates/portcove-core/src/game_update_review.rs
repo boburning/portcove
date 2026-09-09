@@ -73,6 +73,11 @@ impl PortcoveService {
                 "update inputs changed; review the update again",
             ));
         }
+        if reviewed.plan.action == crate::InstallPlanAction::BlockedUnverified {
+            return Err(PortcoveError::verification(
+                "an unverified retained copy blocks the update; verify or repair it first",
+            ));
+        }
         self.library
             .issue_authorization("game-update", port_id, expected_plan)
     }
@@ -137,6 +142,36 @@ mod tests {
     };
 
     const PORT: &str = "zelda64-recomp";
+
+    #[tokio::test]
+    async fn an_unverified_retained_plan_cannot_authorize_execution() {
+        let (_temporary, service) = fixture();
+        service.activate_staged(PORT).unwrap();
+        service
+            .library
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE installs SET verified=0 WHERE port_id=?1 AND version='v1'",
+                [PORT],
+            )
+            .unwrap();
+        let previous = service_with_release(service.library.clone(), "v1");
+        let review = previous.plan_game_update(PORT, true).await.unwrap();
+        assert_eq!(
+            review.plan.action,
+            crate::InstallPlanAction::BlockedUnverified
+        );
+        assert_eq!(
+            previous
+                .authorize_game_update(PORT, true, &review.plan_sha256)
+                .await
+                .unwrap_err()
+                .code,
+            ErrorCode::Verification
+        );
+        assert_eq!(previous.status(PORT).unwrap().active.unwrap().version, "v2");
+    }
 
     #[test]
     fn staged_activation_needs_no_release_request_and_refuses_replaced_versions() {
