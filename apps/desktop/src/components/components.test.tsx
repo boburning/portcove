@@ -325,6 +325,15 @@ describe("desktop components", () => {
     expect(html).not.toContain("Ready to launch");
   });
 
+  it("treats null and omitted source health equally while preserving the core launch block", () => {
+    const render = (health: null | undefined) => renderToStaticMarkup(<DetailPanel port={port} sourcePath="selected.z64" setSourcePath={vi.fn()} actions={actions}
+      status={{ ...portStatus(), port_id: port.id, active: installRecord(), readiness: { launchable: false, blockers: ["missing_source"], pending_setup: false, source: health } }} />);
+    const html = render(null);
+    expect(html).toBe(render(undefined));
+    expect(html).toContain("Selected path has not been checked");
+    expect(html).not.toContain("Ready to launch");
+  });
+
   it("does not turn a selected override into registered-source readiness", () => {
     const source = { profile_id: "sample-rom", path: "registered.z64", sha256: "a".repeat(64), size: 12, storage_sha256: "a".repeat(64), storage_size: 12, updated_at: 1 };
     const html = renderToStaticMarkup(<DetailPanel port={port} source={source} sourcePath="new.z64" setSourcePath={vi.fn()} actions={actions}

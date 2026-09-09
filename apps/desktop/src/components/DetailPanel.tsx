@@ -136,7 +136,7 @@ function detailReadiness(port: PortDefinition, status: PortStatus | undefined, s
 
 function sourceRequirementReady(required: boolean, installed: boolean, health: SourceHealth | null | undefined, selected: boolean) {
   if (!required) return true;
-  if (!installed || health === undefined) return selected;
+  if (!installed || health == null) return selected;
   return health === "current";
 }
 
