@@ -2096,7 +2096,7 @@ mod tests {
             Some(a.clone())
         );
         for name in ["SHA256SUMS", "game-windows.zip.sha256"] {
-            let error = checksum_fixture(&vec![name; CHECKSUM_MAX_SIDECARS + 1], &[])
+            let error = checksum_fixture(&[name; CHECKSUM_MAX_SIDECARS + 1], &[])
                 .await
                 .unwrap_err();
             assert_eq!(error.code, crate::ErrorCode::Verification);
