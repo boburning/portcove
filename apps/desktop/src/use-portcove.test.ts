@@ -1,4 +1,4 @@
-import { portDefinition } from "./test-fixtures";
+import { portDefinition, portStatus } from "./test-fixtures";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { desktopApi } from "./api";
 import type { PortDefinition } from "./types";
@@ -22,9 +22,27 @@ const port: PortDefinition = {
   executable_hints: {},
 };
 
-describe("detail removal action", () => {
+describe("detail actions", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("saves policy in the selected library without invoking install or update", async () => {
+    const saved = { ...portStatus(), update_policy: "automatic" as const };
+    vi.spyOn(desktopApi, "setPolicy").mockResolvedValue(saved);
+    const install = vi.spyOn(desktopApi, "install");
+    const update = vi.spyOn(desktopApi, "applyGameUpdate");
+    const perform: Perform = async (_name, task) => task();
+    await detailActions(port, saved, "", "", perform, vi.fn(), vi.fn(), async () => {}, 12).setPolicy("automatic");
+    expect(desktopApi.setPolicy).toHaveBeenCalledExactlyOnceWith(port.id, "automatic", 12);
+    expect(install).not.toHaveBeenCalled(); expect(update).not.toHaveBeenCalled();
+  });
+
+  it("the explicit Install action does not silently stage because of saved policy", async () => {
+    const install = vi.spyOn(desktopApi, "install").mockResolvedValue(undefined!);
+    const perform: Perform = async (_name, task) => task();
+    await detailActions(port, { ...portStatus(), update_policy: "stage" }, "source.z64", "", perform, vi.fn()).install();
+    expect(install).toHaveBeenCalledExactlyOnceWith(port.id, "stable", "source.z64", "", false);
   });
 
   it("backs up through the shared operation boundary", async () => {

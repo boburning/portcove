@@ -57,6 +57,11 @@ Play without setup, and cancel an active native setup through the UI. They do no
 acquire upstream artifacts or establish game compatibility. CLI/tool hashes and
 the additional harness source are retained in the evidence inputs.
 
+The same owned fixture also checks the desktop's game-update settings: changing
+a selection stays local until Save, and saving leaves active/staged/previous
+installations and the activity ledger unchanged. This does not download a game
+update or establish live upstream update compatibility.
+
 The smoke scenarios exercise native IPC/bootstrap, an empty library, a rejected
 operation with usable state afterward, keyboard focus/compact layout, appearance
 persistence over a real process restart, and automated accessibility checks.
