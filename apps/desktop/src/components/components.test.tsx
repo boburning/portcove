@@ -19,7 +19,7 @@ const port: PortDefinition = {
   release: portDefinition().release, executable_hints: {},
 };
 const actions: DetailActions = {
-  activate: vi.fn(), backup: vi.fn(), check: vi.fn(), close: vi.fn(), deleteBackup: vi.fn(), install: vi.fn(), launch: vi.fn(), openUserData: vi.fn(), reviewInstall: vi.fn(), remove: vi.fn(), restoreBackup: vi.fn(), rollback: vi.fn(), setChannel: vi.fn(), setPolicy: vi.fn(), update: vi.fn(), verify: vi.fn(),
+  activate: vi.fn(), backup: vi.fn(), check: vi.fn(), close: vi.fn(), deleteBackup: vi.fn(), install: vi.fn(), launch: vi.fn(), openUserData: vi.fn(), reviewInstall: vi.fn(), remove: vi.fn(), restoreBackup: vi.fn(), rollback: vi.fn(), setChannel: vi.fn(), setPolicy: vi.fn(), verify: vi.fn(),
 };
 const installRecord = (overrides: Partial<InstallRecord> = {}): InstallRecord => ({
   id: "1", port_id: port.id, version: "1.0", path: "sample/1.0", channel: "stable", installed_at: 1, verified: true, staged: false,
@@ -55,7 +55,7 @@ describe("desktop components", () => {
     const html = renderToStaticMarkup(<DetailPanel port={{ ...port, source_profile: null }} sourcePath="" setSourcePath={vi.fn()} actions={actions}
       status={{ ...portStatus(), port_id: port.id, channel: "stable", update_policy: "notify", active: installRecord(), readiness: { launchable: false, blockers: ["missing_runtime"], pending_setup: false } }} />);
     expect(html).toContain("Verified runtime required");
-    expect(html).toContain("Review install");
+    expect(html).toContain("Review game update");
     expect(html).not.toContain("Play now");
     expect(html).not.toContain("Choose required source");
   });
@@ -512,14 +512,14 @@ describe("desktop components", () => {
       id: "activity-2", cancellation: null, operation: "verify_source", target_kind: "source", target_id: "sample-rom", status: "failed", message: "source changed", started_at: 3, finished_at: 4,
     }, {
       id: "activity-3", cancellation: null, message: null, finished_at: null, operation: "install", target_kind: "port", target_id: port.id, status: "running", started_at: 1,
-    }]} actions={new Map()} busy={undefined}
-      checkAll={vi.fn()} applyPolicies={vi.fn()} onSelect={vi.fn()} onOpenSources={vi.fn()} outcomes={[{ port_id: port.id, ok: true, error: null, result: {
+    }]} busy={undefined}
+      checkAll={vi.fn()} onSelect={vi.fn()} onOpenSources={vi.fn()} outcomes={[{ port_id: port.id, ok: true, error: null, result: {
         port_id: port.id, channel: "stable", installed_version: "1.0", installed_runtime: null, required_runtime: null, installed_artifact: null, update_available: true,
         release: { published_at: null, version: "2.0", channel: "stable", asset: { name: "sample.zip", url: "https://example.com/sample.zip", size: 1, sha256: "a".repeat(64) } },
       } }]} />);
     expect(html).toContain("Available");
     expect(html).toContain("2.0");
-    expect(html).toContain("Apply update policies");
+    expect(html).toContain("Checking only looks for updates");
     expect(html).toContain("Recent activity");
     expect(html).toContain("Updated port");
     expect(html).toContain("Verified source");

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { desktopApi } from "./api";
-import type { ActivityRecord, BackupInventory, BackupRecord, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, OperationEvent, PortDefinition, PortStatus, ReconcileAction, SourceInspectionReport, SourceRecord, SourceVerificationOutcome, UpdateCheckOutcome } from "./types";
+import type { ActivityRecord, BackupInventory, BackupRecord, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, OperationEvent, PortDefinition, PortStatus, SourceInspectionReport, SourceRecord, SourceVerificationOutcome, UpdateCheckOutcome } from "./types";
 import type { DetailActions } from "./components/DetailPanel";
 import { errorText, isCancellation, type Filter, type View } from "./view-model";
 import { currentUpdateSnapshot } from "./view-model";
@@ -90,7 +90,6 @@ export function useOperationState(refresh: () => Promise<void>) {
 
 export function useUpdateCenter(perform: Perform, statuses: PortStatus[]) {
   const [outcomes, setOutcomes] = useState<UpdateCheckOutcome[]>([]);
-  const [actions, setActions] = useState<Map<string, ReconcileAction>>(new Map());
   const snapshots = statuses.flatMap(status => {
     const snapshot = currentUpdateSnapshot(status);
     return snapshot ? [{ port_id: status.port_id, ok: true, error: null, result: snapshot.check } satisfies UpdateCheckOutcome] : [];
@@ -98,28 +97,14 @@ export function useUpdateCenter(perform: Perform, statuses: PortStatus[]) {
   const snapshotBaseline = snapshots.map(outcome => `${outcome.port_id}:${outcome.result?.release.asset.sha256}:${outcome.result?.installed_artifact?.sha256}:${JSON.stringify(outcome.result?.required_runtime)}:${JSON.stringify(outcome.result?.installed_runtime)}`).join("|");
   useEffect(() => {
     setOutcomes(snapshots);
-    setActions(new Map());
   }, [snapshotBaseline]);
   const checkAll = useCallback(async () => {
     const result = await perform("check installed", desktopApi.checkInstalled);
     if (result) {
       setOutcomes(result);
-      setActions(new Map());
     }
   }, [perform]);
-  const applyPolicies = useCallback(async () => {
-    const result = await perform("apply policies", desktopApi.reconcileInstalled);
-    if (result) {
-      setOutcomes(result.map(outcome => ({
-        port_id: outcome.port_id,
-        ok: outcome.ok,
-        result: outcome.result?.check ?? null,
-        error: outcome.error,
-      })));
-      setActions(new Map(result.flatMap(outcome => outcome.result ? [[outcome.port_id, outcome.result.action] as const] : [])));
-    }
-  }, [perform]);
-  return { outcomes, actions, checkAll, applyPolicies };
+  return { outcomes, checkAll };
 }
 
 // Review data is ephemeral UI intent; core still authorizes every mutation.
@@ -296,15 +281,15 @@ export function usePortcoveUi() {
 
 export type Perform = <T>(name: string, task: () => Promise<T>) => Promise<T | undefined>;
 
-export function detailActions(port: PortDefinition, status: PortStatus | undefined, sourcePath: string, biosPath: string, perform: Perform, close: () => void, reviewInstall: () => void = () => undefined, backupsChanged: () => Promise<void> = async () => undefined): DetailActions {
+export function detailActions(port: PortDefinition, status: PortStatus | undefined, sourcePath: string, biosPath: string, perform: Perform, close: () => void, reviewInstall: () => void = () => undefined, backupsChanged: () => Promise<void> = async () => undefined, libraryGeneration = 0): DetailActions {
   return {
-    activate: () => perform("activate", () => desktopApi.activate(port.id)),
+    activate: () => status?.staged ? perform("activate staged update", () => desktopApi.activate(port.id, status.active?.id ?? null, status.staged!.id, libraryGeneration)) : undefined,
     backup: async () => {
       if (await perform("back up data", () => desktopApi.backup(port.id))) await backupsChanged();
     },
     check: () => perform("check", () => desktopApi.check(port.id)),
     close,
-    install: () => perform("install", () => desktopApi.install(port.id, status?.channel ?? port.channels[0], sourcePath, biosPath, status?.update_policy === "stage")),
+    install: () => perform("install", () => desktopApi.install(port.id, status?.channel ?? port.channels[0], sourcePath, biosPath, false)),
     launch: () => perform("launch", () => desktopApi.launch(port.id, sourcePath)),
     openUserData: () => perform("open data folder", () => desktopApi.openUserData(port.id)),
     reviewInstall,
@@ -320,8 +305,7 @@ export function detailActions(port: PortDefinition, status: PortStatus | undefin
       if (await perform("restore backup", () => desktopApi.restoreBackup(port.id, backup.id))) await backupsChanged();
     },
     setChannel: channel => perform("channel", () => desktopApi.setChannel(port.id, channel)),
-    setPolicy: policy => perform("policy", () => desktopApi.setPolicy(port.id, policy)),
-    update: () => perform("update", () => desktopApi.update(port.id, sourcePath, biosPath, status?.update_policy === "stage")),
+    setPolicy: policy => perform("policy", () => desktopApi.setPolicy(port.id, policy, libraryGeneration)),
     verify: () => perform("verify", () => desktopApi.verify(port.id)),
   };
 }

@@ -19,6 +19,7 @@ export type CatalogDocument = Generated.TransportOutputs["catalog"];
 export type { InstallRecord } from "./transport-types.generated";
 
 export type PreparationPlan = Generated.TransportOutputs["preparation_plan"];
+export type GameUpdatePlan = Generated.TransportOutputs["game_update_plan"];
 
 export type { SourceHealth } from "./transport-types.generated";
 
@@ -83,11 +84,9 @@ export type InstallPlan = Generated.TransportOutputs["install_plan"];
 
 export type { UpdateSnapshot } from "./transport-types.generated";
 
-export type { ReconcileAction } from "./transport-types.generated";
 
 export type UpdateCheckOutcome = Generated.TransportOutputs["desktop_update_check_outcome"];
 
-export type ReconcileOutcome = Generated.TransportOutputs["desktop_reconcile_outcome"];
 
 export type OperationEvent = Generated.TransportOutputs["operation_event"];
 

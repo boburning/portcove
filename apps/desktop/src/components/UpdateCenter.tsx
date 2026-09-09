@@ -3,18 +3,16 @@ import { OperationCancellation } from "./OperationCancellation";
 import type { LucideIcon } from "lucide-react";
 import { AlertTriangle, Check, Clipboard, ClipboardCheck, Download, History, LoaderCircle, PackageCheck, RefreshCw, ShieldCheck } from "lucide-react";
 import { copyText } from "../clipboard";
-import type { ActivityOperation, ActivityRecord, PortDefinition, PortStatus, ReconcileAction, UpdateCheck, UpdateCheckOutcome } from "../types";
+import type { ActivityOperation, ActivityRecord, PortDefinition, PortStatus, UpdateCheck, UpdateCheckOutcome } from "../types";
 import { EmptyState, Icon } from "./ui";
 
-export function UpdateCenter({ ports, statuses, activities, outcomes, actions, busy, checkAll, applyPolicies, onSelect, onOpenSources }: {
+export function UpdateCenter({ ports, statuses, activities, outcomes, busy, checkAll, onSelect, onOpenSources }: {
   ports: PortDefinition[];
   statuses: Map<string, PortStatus>;
   activities: ActivityRecord[];
   outcomes: UpdateCheckOutcome[];
-  actions: Map<string, ReconcileAction>;
   busy?: string;
   checkAll: () => void;
-  applyPolicies: () => void;
   onSelect: (portId: string) => void;
   onOpenSources: () => void;
 }) {
@@ -33,16 +31,14 @@ export function UpdateCenter({ ports, statuses, activities, outcomes, actions, b
       </div>
       <div className="update-buttons">
         <button data-focusable className="button-with-icon" disabled={Boolean(busy) || installed.length === 0} onClick={checkAll}><Icon glyph={RefreshCw} />{busy === "check installed" ? "Checking installed ports…" : "Check all ports"}</button>
-        <button data-focusable className="primary button-with-icon" disabled={Boolean(busy) || installed.length === 0} onClick={applyPolicies}><Icon glyph={Download} />{busy === "apply policies" ? "Applying policies…" : "Apply update policies"}</button>
       </div>
     </div>
-    <p className="update-explainer">Notify reports an update, Stage downloads it for later activation, and Automatic switches to the verified release while retaining rollback.</p>
+    <p className="update-explainer">Checking only looks for updates. Open a game below to review a download or installation. Saving its update settings runs no update.</p>
     {installed.length === 0 ? <EmptyState icon={RefreshCw} eyebrow="UPDATE CENTER" title="No installed ports to check" description="Install or adopt a port first. Portcove will then track its channel, update policy, verified releases, and rollback state here." /> :
       <div className="update-list" data-focus-group>{installed.map(port => {
         const status = statuses.get(port.id)!;
         const outcome = byPort.get(port.id);
-        const action = actions.get(port.id);
-        const state = updateState(status, outcome, action);
+        const state = updateState(status, outcome);
         return <button data-focusable className="update-row" key={port.id} title={outcome?.error?.message} onClick={() => onSelect(port.id)}>
           <div className={`update-mark ${state.tone}`}>{port.name.slice(0, 2).toUpperCase()}</div>
           <div className="update-title"><strong>{port.name}</strong><small>{status.channel} · {policyLabel(status.update_policy)}</small></div>
@@ -189,11 +185,10 @@ function policyLabel(policy: PortStatus["update_policy"]) {
   return policy === "automatic" ? "Automatic" : policy === "stage" ? "Stage" : "Notify";
 }
 
-function updateState(status: PortStatus, outcome?: UpdateCheckOutcome, action?: ReconcileAction) {
+function updateState(status: PortStatus, outcome?: UpdateCheckOutcome) {
   if (!outcome) return status.staged ? { label: "Staged", tone: "staged" } : { label: "Not checked", tone: "muted" };
   if (!outcome.ok) return { label: "Check failed", tone: "failed" };
-  if (action === "activated") return { label: "Updated", tone: "current" };
-  if (action === "staged" || status.staged) return { label: "Staged", tone: "staged" };
+  if (status.staged) return { label: "Staged", tone: "staged" };
   if (outcome.result?.update_available) return { label: "Available", tone: "available" };
   return { label: "Current", tone: "current" };
 }

@@ -926,6 +926,14 @@ pub struct InstallPlan {
     pub output_location: PortOutputLocation,
 }
 
+/// A reviewed game update, independent of the saved automatic-update policy.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct GameUpdatePlan {
+    pub plan: InstallPlan,
+    pub activate: bool,
+    pub plan_sha256: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum OutputLocationSource {

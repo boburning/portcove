@@ -1,5 +1,6 @@
 mod catalog;
 mod diagnostics;
+mod game_updates;
 mod library_selection;
 mod library_transfer;
 mod output_location;
@@ -966,10 +967,11 @@ async fn set_policy(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
     policy: UpdatePolicy,
+    generation: u64,
 ) -> DesktopResult<PortStatus> {
     let state = state.inner().clone();
-    blocking_service(state, move |service| {
-        service
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
             .set_update_policy(&port_id, policy)
             .map_err(Into::into)
     })
@@ -1056,10 +1058,15 @@ async fn rollback_port(
 async fn activate_port(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
+    expected_active: Option<String>,
+    expected_staged: String,
+    generation: u64,
 ) -> DesktopResult<InstallRecord> {
     let state = state.inner().clone();
-    blocking_service(state, move |service| {
-        service.activate_staged(&port_id).map_err(Into::into)
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .activate_staged_reviewed(&port_id, expected_active.as_deref(), &expected_staged)
+            .map_err(Into::into)
     })
     .await
 }
@@ -1857,6 +1864,8 @@ pub fn run() {
             output_location::get_output_location,
             preparation::plan_preparation,
             preparation::prepare_port,
+            game_updates::plan_game_update,
+            game_updates::apply_game_update,
             output_location::preview_output_location,
             output_location::set_output_location,
             output_location::reset_output_location,

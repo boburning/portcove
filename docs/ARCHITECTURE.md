@@ -89,6 +89,18 @@ cannot be treated as legacy installs. Tools recorded as generation provenance ne
 not remain installed to play immutable output. Other adapter families retain their
 existing behavior. No crate or durable state ownership boundary changes.
 
+Game-update settings and execution are separate. Saving a policy only persists
+that setting through core. The desktop uses explicit reviewed updates rather
+than bulk reconciliation disguised as a settings action. Core binds each review
+to its release, definition, destination, source records, installed/retained state,
+host and chosen stage/activate mode. A single-use authorization is revalidated
+under the port lock before the existing release-application transaction runs.
+Checks, downloads and activation have distinct visible actions; a staged local
+copy can be activated offline with its expected active/staged identities. CLI
+reconciliation remains an explicit policy-execution operation. Host library
+generation checks prevent a desktop review or settings save from crossing into
+another selected library. No new durable job or installation authority is added.
+
 ## Monorepo and deliverable decision
 
 `portcove-release-tools` is an unpublished, offline repository tool for checking
