@@ -1024,6 +1024,7 @@ pub enum LaunchBlocker {
     UnreadableBios,
     ChangedBios,
     MissingRuntime,
+    PreparationRequired,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

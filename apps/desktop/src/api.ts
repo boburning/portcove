@@ -1,4 +1,5 @@
 import type { InstallInput, LaunchResult } from "./types";
+import type { PreparationPlan } from "./types";
 import type { CatalogStatus, CatalogUpdatePlan, CatalogUpdateSource } from "./types";
 import { Channel, invoke } from "@tauri-apps/api/core";
 import type { CancellationState, OperationEvent } from "./types";
@@ -30,6 +31,12 @@ export const desktopApi = {
   pollGithubDeviceLogin: (sessionId: string) => invoke<GithubDeviceLoginResult>("poll_github_device_login", { sessionId }),
   catalog: () => invoke<CatalogDocument>("get_catalog"),
   statuses: () => invoke<PortStatus[]>("get_statuses"),
+  planPreparation: (portId: string, generation: number) => invoke<PreparationPlan>("plan_preparation", { portId, generation }),
+  prepare: (portId: string, expectedPlan: string, generation: number, onEvent: (event: OperationEvent) => void) => {
+    const channel = new Channel<OperationEvent>();
+    channel.onmessage = onEvent;
+    return invoke<InstallRecord>("prepare_port", { portId, expectedPlan, generation, onEvent: channel });
+  },
   outputLocation: (portId: string, generation: number) => invoke<PortOutputLocation>("get_output_location", { portId, generation }),
   previewOutputLocation: (portId: string, path: string | null, generation: number) => invoke<OutputDestinationPreview>("preview_output_location", { portId, path, generation }),
   setOutputLocation: (portId: string, path: string, expectedPreview: string, generation: number) => invoke<PortOutputLocation>("set_output_location", { portId, path, expectedPreview, generation }),

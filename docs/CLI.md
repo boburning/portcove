@@ -32,13 +32,12 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":35,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":36,"ok":true,"command":"status","data":{},"error":null}
 ```
 
-Schema 35 adds `prepare` to the activity operation vocabulary. Core preparation
-uses SQLite schema 19 to retain its reviewed plan in the existing lifecycle
-journal. This intermediate API does not add a CLI execution command; the
-read-only `preparation plan` command remains available.
+Schema 35 added `prepare` to the activity vocabulary and SQLite schema 19 added
+reviewed preparation plans to the existing lifecycle journal. Schema 36 adds the
+`preparation_required` launch blocker and the `preparation.run` command.
 
 Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for success, failure, or cancellation. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
 
@@ -452,6 +451,30 @@ needing its upstream validator. The copy digest is an identity after existing
 trust checks, never initial artifact admission or permission to execute a plan.
 The exported `preparation_plan` and `preparation_options` schemas describe this
 additive machine contract; unknown setup options are rejected.
+
+`portcove --library <path> --jsonl --non-interactive preparation run <port-id>
+--expected-plan <plan_sha256> --yes` applies the unchanged reviewed plan. Without
+`--yes`, an interactive terminal asks for confirmation; non-interactive callers
+receive a usage error. The core operation produces ordinary activity/events,
+retains failed private work, and publishes only after output validation. `cancel
+<operation-id>` uses the existing cancellation contract; source conversion can
+finish its current step before acknowledging cancellation. A retry requires a
+new review and uses another private directory.
+
+For definitions with reviewed managed output ownership, `exec` validates the
+prepared installation and launches it without materializing sources or starting
+setup. New receipts bind definition, source, artifact/runtime, host and default
+options. A changed definition or source requires preparation again; missing or
+modified immutable output fails launch validation. Small readiness metadata is
+checked against its registered manifest, and launch verifies the complete managed
+output before restoring saves. Existing completed installations without a new
+receipt retain their manifest-bound setup/source compatibility path; a missing
+receipt that was previously recorded cannot fall back to legacy readiness.
+Preparation tools are retained as production provenance, not prerequisites for
+playing already verified output. Unmigrated definitions retain existing adapter
+behavior. Desktop exposes the same core plan, confirmation, events and operation
+cancellation, with reviews scoped to the selected library generation.
+
 
 Save managers and launcher integrations should ask Portcove for its canonical roots rather than constructing internal paths:
 

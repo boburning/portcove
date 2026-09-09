@@ -46,6 +46,17 @@ contains an isolated library, host preference file, WebView2 profile on Windows,
 screenshots, bounded driver logs, accessibility results and `evidence.json`.
 Never reuse a failed run directory or point this harness at an existing library.
 
+To exercise explicit preparation, additionally pass `--preparation-cli
+<absolute-CLI-executable> --preparation-tool <absolute-owned-probe>`. Build the CLI
+from the same source and compile the repository's
+`crates/portcove-core/src/testdata/host_tool_probe.rs.txt` with `rustc --crate-name
+portcove_host_tool_fixture -o <absolute-owned-probe>`. These optional scenarios
+adopt copies of that redistributable fixture into the new test library, register
+synthetic sources, review and confirm preparation through the actual UI, exercise
+Play without setup, and cancel an active native setup through the UI. They do not
+acquire upstream artifacts or establish game compatibility. CLI/tool hashes and
+the additional harness source are retained in the evidence inputs.
+
 The smoke scenarios exercise native IPC/bootstrap, an empty library, a rejected
 operation with usable state afterward, keyboard focus/compact layout, appearance
 persistence over a real process restart, and automated accessibility checks.

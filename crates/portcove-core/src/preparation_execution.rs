@@ -13,10 +13,10 @@ use crate::{
 };
 
 #[derive(serde::Serialize, serde::Deserialize)]
-struct PreparationReceipt {
-    format_version: u32,
-    plan_sha256: String,
-    inputs: PreparationInputs,
+pub(super) struct PreparationReceipt {
+    pub(super) format_version: u32,
+    pub(super) plan_sha256: String,
+    pub(super) inputs: PreparationInputs,
 }
 
 impl PortcoveService {

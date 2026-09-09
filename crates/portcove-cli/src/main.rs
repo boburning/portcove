@@ -93,7 +93,7 @@ enum Commands {
         #[arg(long)]
         output_dir: Option<PathBuf>,
     },
-    /// Inspect exact inputs for managed source preparation.
+    /// Inspect and prepare exact managed game inputs.
     Preparation {
         #[command(subcommand)]
         command: PreparationCommand,
@@ -221,6 +221,14 @@ enum LibraryCommand {
 enum PreparationCommand {
     /// Review the installed artifact, registered source, tools and default host setup.
     Plan { port_id: String },
+    /// Prepare a private installation from an unchanged reviewed plan.
+    Run {
+        port_id: String,
+        #[arg(long)]
+        expected_plan: String,
+        #[arg(long)]
+        yes: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -1185,6 +1193,41 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 human::preparation_plan,
             )?;
         }
+        Commands::Preparation {
+            command:
+                PreparationCommand::Run {
+                    port_id,
+                    expected_plan,
+                    yes,
+                },
+        } => {
+            let options = portcove_core::PreparationOptions {
+                target: portcove_core::Platform::current()?,
+                mode: portcove_core::PreparationMode::Default,
+            };
+            let plan = service.plan_preparation(&port_id, options)?;
+            if plan.plan_sha256 != expected_plan {
+                return Err(PortcoveError::conflict(
+                    "preparation inputs changed; review the plan again",
+                ));
+            }
+            if mode == OutputMode::Human {
+                println!("{}", human::preparation_plan(&plan));
+            }
+            require_confirmation(
+                "Prepare game data in a private copy and activate the verified result?",
+                yes,
+                cli.non_interactive,
+            )?;
+            let authorization = service.authorize_preparation(&port_id, options, &expected_plan)?;
+            let prepared = service.prepare(
+                &port_id,
+                options,
+                &authorization.token,
+                progress_renderer(mode),
+            )?;
+            render_success(mode, "preparation.run", prepared)?;
+        }
         Commands::Paths { port_id } => {
             render_read_success(mode, "paths", service.port_paths(&port_id)?, human::paths)?;
         }
@@ -2087,6 +2130,9 @@ fn command_name(command: &Commands) -> &'static str {
         Commands::Preparation {
             command: PreparationCommand::Plan { .. },
         } => "preparation.plan",
+        Commands::Preparation {
+            command: PreparationCommand::Run { .. },
+        } => "preparation.run",
         Commands::Paths { .. } => "paths",
         Commands::Output { command } => match command {
             OutputCommand::Show { .. } => "output.show",
@@ -2455,7 +2501,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 35);
+        assert_eq!(capabilities.schema_version, 36);
         assert_eq!(
             capabilities.failure_isolated_batches,
             ["check", "reconcile", "update", "source.verify"]

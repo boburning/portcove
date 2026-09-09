@@ -3,7 +3,9 @@ use std::{env, fs, io::{self, Write}, process::Command, thread, time::Duration};
 fn main() {
     let args = env::args().skip(1).collect::<Vec<_>>();
     match args.first().map(String::as_str) {
-        Some("--owned-preparation") => owned_preparation(),
+        Some("--owned-preparation") => owned_preparation(&args),
+        Some("--game") if args.iter().any(|argument| argument == "--extract") => owned_preparation(&args),
+        Some("--game") => println!("owned game launched"),
         Some("-help") => {
             println!("chdman verify extractdvd");
             std::process::exit(1);
@@ -46,21 +48,23 @@ fn main() {
     }
 }
 
-fn owned_preparation() {
+fn owned_preparation(args: &[String]) {
+    let game = args.windows(2).find(|pair| pair[0] == "--game").map(|pair| pair[1].as_str()).unwrap_or("jak1");
+    assert!(["jak1", "jak2", "jak3"].contains(&game));
     let Ok(mode) = fs::read_to_string("owned-setup-mode") else {
         return;
     };
-    fs::create_dir_all("data/out/jak1/iso").unwrap();
+    fs::create_dir_all(format!("data/out/{game}/iso")).unwrap();
     if mode == "missing-marker" {
         return;
     }
-    fs::write("data/out/jak1/iso/0COMMON.TXT", b"owned validated output").unwrap();
+    fs::write(format!("data/out/{game}/iso/0COMMON.TXT"), b"owned validated output").unwrap();
     fs::create_dir_all("data/log").unwrap();
     fs::write("data/log/setup.log", b"disposable diagnostic").unwrap();
     match mode.as_str() {
         "success" => {}
         "unowned-output" => fs::write("unexpected-output", b"outside contract").unwrap(),
-        "save-change" => fs::write("OpenGOAL/jak1/save.bin", b"bad save change").unwrap(),
+        "save-change" => fs::write(format!("OpenGOAL/{game}/save.bin"), b"bad save change").unwrap(),
         "executable-change" => fs::write(
             if cfg!(windows) { "gk.exe" } else { "gk" },
             b"bad executable change",

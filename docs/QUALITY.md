@@ -51,6 +51,12 @@ pnpm 11's default one-day minimum release age remains active. The workspace cont
 
 The committed Cargo lockfile is part of that MSRV contract across every supported host. Tauri's Linux credential-store graph currently resolves `aes 0.9.2`, the newest release in that line compatible with Rust 1.88; `aes 0.9.3` raises its compiler floor to 1.89. Required Ubuntu CI compiles and tests the locked Linux graph with the pinned toolchain, so a future transitive update that exceeds Portcove's declared MSRV fails before merge.
 
+Required Linux CI installs desktop prerequisites from the runner's Ubuntu source
+list only (traditional or deb822 layout). All prerequisite packages come from
+Ubuntu; unrelated preconfigured vendor repositories do not take part in that
+resolution. Repository signatures, package checksums, bounded acquisition and
+every required test remain enforced.
+
 CI installs the small prebuilt tool set through the commit-pinned installer action, restores source-built rscheck from an exact-version cache when available, and verifies every exact version before running a gate. An rscheck cache miss falls back to the same pinned installer. The local bootstrap scripts use cargo-binstall when available and exact, locked Cargo installs otherwise; optional deep tools remain outside required PR CI.
 
 Required CI cancels an older in-progress run when a newer commit reaches the same branch or pull request. This keeps obsolete Windows builds from occupying the queue while preserving a complete run for the newest commit.

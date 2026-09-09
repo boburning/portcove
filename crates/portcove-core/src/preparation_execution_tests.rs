@@ -329,3 +329,170 @@ fn running_setup_cancellation_preserves_the_active_tree() {
         original
     );
 }
+
+#[test]
+fn preparation_is_explicit_and_play_never_runs_setup_or_recreates_inputs() {
+    let fixture = Fixture::native("success");
+    let original = crate::library_transfer::reviewed_tree(&fixture.install.path).unwrap();
+    assert!(fixture.service.launch_spec(PORT, None).is_err());
+    assert_eq!(
+        crate::library_transfer::reviewed_tree(&fixture.install.path).unwrap(),
+        original
+    );
+    assert!(
+        fixture
+            .service
+            .status(PORT)
+            .unwrap()
+            .readiness
+            .unwrap()
+            .blockers
+            .contains(&crate::LaunchBlocker::PreparationRequired)
+    );
+    let prepared = fixture.run(|_| {}).unwrap();
+    let log = prepared.path.join("data/log/setup.log");
+    fs::write(&log, b"setup must not run during Play").unwrap();
+    fixture.service.launch_spec(PORT, None).unwrap();
+    assert_eq!(fs::read(&log).unwrap(), b"setup must not run during Play");
+    let port = fixture.service.catalog().port(PORT).unwrap();
+    let materialized = prepared
+        .path
+        .join(port.runtime_source_filename.as_ref().unwrap());
+    fs::remove_file(&materialized).unwrap();
+    assert!(fixture.service.launch_spec(PORT, None).is_err());
+    assert!(!materialized.exists());
+}
+
+#[test]
+fn changed_definition_and_missing_receipt_invalidate_prepared_readiness() {
+    let mut fixture = Fixture::native("success");
+    let prepared = fixture.run(|_| {}).unwrap();
+    assert!(
+        fixture
+            .service
+            .status(PORT)
+            .unwrap()
+            .readiness
+            .unwrap()
+            .launchable
+    );
+    let original_catalog = fixture.service.catalog().clone();
+    let mut document = original_catalog.document().clone();
+    document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == PORT)
+        .unwrap()
+        .setup_arguments
+        .push("--changed-option".into());
+    fixture.service.replace_catalog_for_test(
+        Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+    );
+    assert!(
+        !fixture
+            .service
+            .status(PORT)
+            .unwrap()
+            .readiness
+            .unwrap()
+            .launchable
+    );
+    assert!(fixture.service.launch_spec(PORT, None).is_err());
+    fixture.service.replace_catalog_for_test(original_catalog);
+    fs::remove_file(prepared.path.join(RECEIPT_FILE)).unwrap();
+    assert!(
+        !fixture
+            .service
+            .status(PORT)
+            .unwrap()
+            .readiness
+            .unwrap()
+            .launchable
+    );
+    assert!(fixture.service.launch_spec(PORT, None).is_err());
+}
+
+#[test]
+fn completed_legacy_setup_keeps_working_without_repeating_setup() {
+    assert_legacy_setup(false);
+}
+
+#[test]
+fn completed_nested_legacy_setup_keeps_its_working_directory() {
+    assert_legacy_setup(true);
+}
+
+fn assert_legacy_setup(nested: bool) {
+    let fixture = Fixture::native("success");
+    let mut prepared = fixture.run(|_| {}).unwrap();
+    fs::remove_file(prepared.path.join(RECEIPT_FILE)).unwrap();
+    let working = if nested {
+        let entries = fs::read_dir(&prepared.path)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .collect::<Vec<_>>();
+        let working = prepared.path.join("existing-game");
+        fs::create_dir(&working).unwrap();
+        for path in entries {
+            if path.file_name().unwrap() != ".portcove-manifest.json" {
+                fs::rename(&path, working.join(path.file_name().unwrap())).unwrap();
+            }
+        }
+        working
+    } else {
+        prepared.path.clone()
+    };
+
+    let port = fixture.service.catalog().port(PORT).unwrap();
+    let qualification =
+        InstallQualification::from_port(port, Platform::current().unwrap()).unwrap();
+    let installer = Installer::new(fixture.service.library().clone()).unwrap();
+    let (hash, selected, runtime) = installer
+        .create_manifest(
+            &prepared.id,
+            PORT,
+            &prepared.version,
+            &prepared.artifact,
+            &qualification,
+            &prepared.path,
+        )
+        .unwrap();
+    prepared.manifest_sha256 = hash;
+    prepared.selected_executable = selected;
+    prepared.runtime = runtime;
+    fixture
+        .service
+        .library()
+        .update_install_manifest(&prepared)
+        .unwrap();
+    crate::adapter::bind_upstream_setup_manifest(&working, &prepared.manifest_sha256).unwrap();
+    fs::write(working.join("data/log/setup.log"), b"legacy sentinel").unwrap();
+    assert!(
+        fixture
+            .service
+            .status(PORT)
+            .unwrap()
+            .readiness
+            .unwrap()
+            .launchable
+    );
+    fixture.service.launch_spec(PORT, None).unwrap();
+    assert_eq!(
+        fs::read(working.join("data/log/setup.log")).unwrap(),
+        b"legacy sentinel"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn readiness_rejects_a_symlink_redirect_even_when_marker_bytes_match() {
+    let fixture = Fixture::native("success");
+    let prepared = fixture.run(|_| {}).unwrap();
+    let marker_root = prepared.path.join("data/out/jak1/iso");
+    let redirected = fixture._temporary.path().join("redirected-marker");
+    fs::rename(&marker_root, &redirected).unwrap();
+    std::os::unix::fs::symlink(&redirected, &marker_root).unwrap();
+    let readiness = fixture.service.status(PORT).unwrap().readiness.unwrap();
+    assert!(readiness.pending_setup);
+    assert!(!readiness.launchable);
+}

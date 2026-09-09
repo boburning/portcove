@@ -210,7 +210,7 @@
   --color-art-indigo: var(--n64-controller-blue);
   --color-art-detail: rgba(245, 243, 238, 0.16);
   --color-art-text: rgba(245, 243, 238, 0.9);
-  --color-art-text-muted: rgba(245, 243, 238, 0.74);
+  --color-art-text-muted: var(--color-art-text);
   --color-motif-red: var(--n64-red-500);
   --color-motif-blue: var(--n64-blue-500);
   --color-motif-green: var(--n64-green-500);
@@ -1222,7 +1222,8 @@ h2 { letter-spacing: -0.025em; line-height: var(--leading-tight); }
 }
 
 .detail-hero > span { color: var(--color-art-text); font-size: var(--text-display); font-weight: var(--font-weight-black); }
-.detail-hero h2 { margin-bottom: 0; font-size: var(--text-2xl); }
+.detail-hero h2 { margin-bottom: 0; font-size: var(--text-2xl); color: var(--color-art-text); }
+.detail-hero .eyebrow { color: var(--color-art-text-muted); }
 
 .hero-state {
   display: inline-block;

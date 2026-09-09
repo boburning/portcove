@@ -45,7 +45,8 @@ export type LaunchBlocker =
   | "missing_bios"
   | "unreadable_bios"
   | "changed_bios"
-  | "missing_runtime";
+  | "missing_runtime"
+  | "preparation_required";
 export type UpdatePolicy = "notify" | "stage" | "automatic";
 export type ErrorCode =
   | "usage"

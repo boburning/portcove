@@ -972,6 +972,7 @@ fn readiness(status: &PortStatus) -> String {
             LaunchBlocker::UnreadableBios => "unreadable BIOS",
             LaunchBlocker::ChangedBios => "changed BIOS",
             LaunchBlocker::MissingRuntime => "needs verified runtime (update port)",
+            LaunchBlocker::PreparationRequired => "needs game data preparation",
         })
         .collect::<Vec<_>>()
         .join(", ")
