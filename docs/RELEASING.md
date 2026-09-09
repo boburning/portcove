@@ -211,6 +211,15 @@ To qualify replacement of an earlier local build, retain its installer before re
 
 The test refuses to replace an existing registered Portcove installation. In a new isolated directory it installs and cleanly closes the predecessor, replaces it with the candidate, checks the candidate executable hash and responsive window, then uninstalls. Expected executable hashing reproduces Tauri's single fixed bundle-type marker substitution from `UNK` to `NSS` in memory; it compares the entire resulting file, and reports both raw and bundled hashes. The library database and a clearly labeled test data marker must survive replacement and uninstall. Forced termination is a failed smoke result. Same-version build replacement is recorded separately from a future version-number upgrade, signed production validation, and interactive shell observations.
 
+The [NSIS uninstaller launcher returns before its temporary self-copy finishes](https://nsis.sourceforge.io/When_I_use_ExecWait_uninstaller.exe_it_doesn%27t_wait_for_the_uninstaller).
+The harness retains the launcher handle and observes any live direct child using
+its parent PID, start time, exact executable hash and owned temporary path. It
+retains the verified child handle and waits within the original operation
+deadline before checking managed-file and registration removal. An unverified
+child is never terminated by this path; a timed-out verified child is a failed
+run. A child that already exited is not assigned an invented exit code, and
+absence of a live child never replaces the final cleanup and preservation checks.
+
 Prepare a reproducible hands-on session for an existing qualification library with:
 
 ```text
