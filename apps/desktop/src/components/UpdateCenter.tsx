@@ -127,6 +127,7 @@ function activityTarget(activity: ActivityRecord, names: ReadonlyMap<string, str
 
 function operationLabel(operation: ActivityOperation) {
   const labels: Record<ActivityOperation, string> = {
+    prepare: "Prepared game data",
     launch: "Launched port",
     check_update: "Checked for update",
     backup: "Backed up data",
