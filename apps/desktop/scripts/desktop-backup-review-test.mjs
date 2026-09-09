@@ -21,7 +21,8 @@ export async function backupReviewScenario({ browser, invoke, scenario, library,
     const other = command(["backup", "create", port.id]);
     await writeFile(save, "current data before review");
     await open(port);
-    const clickVisible = element => clickReviewControl(browser, element);    await clickVisible(await browser.findElement(By.css("summary.advanced-summary")));
+    const clickVisible = element => clickReviewControl(browser, element);
+    await clickVisible(await browser.findElement(By.css("summary.advanced-summary")));
     const button = label => By.xpath(`//button[normalize-space(.)="${label}"]`);
     const row = id => browser.wait(until.elementLocated(By.css(`[data-backup-id="${id}"]`)), 15_000);
     const list = () => command(["backup", "list", port.id]).backups;

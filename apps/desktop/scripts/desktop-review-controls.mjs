@@ -3,10 +3,24 @@ import assert from "node:assert/strict";
 import { By, until } from "selenium-webdriver";
 
 export async function clickVisible(browser, element) {
-  await browser.executeScript('arguments[0].scrollIntoView({ block: "center" });', element);
-  await browser.wait(until.elementIsVisible(element), 5_000);
-  await browser.wait(until.elementIsEnabled(element), 5_000);
-  await element.click();
+  try {
+    await browser.executeScript('arguments[0].focus({ preventScroll: true }); arguments[0].scrollIntoView({ block: "center" });', element);
+    await browser.wait(until.elementIsVisible(element), 5_000);
+    await browser.wait(until.elementIsEnabled(element), 5_000);
+    await browser.wait(() => browser.executeScript(element => {
+      const bounds = element.getBoundingClientRect();
+      const hit = document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+      return hit === element || element.contains(hit);
+    }, element), 5_000, "The reviewed control must receive the pointer before clicking");
+    await element.click();
+  } catch (error) {
+    const context = await browser.executeScript(element => ({
+      target: element.outerHTML,
+      expanded: element.closest("details")?.open,
+      focused: document.activeElement?.outerHTML,
+    }), element);
+    throw new Error(`${error.message}\nReview control: ${JSON.stringify(context)}`, { cause: error });
+  }
 }
 
 export function reviewControls(browser) {
