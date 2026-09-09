@@ -5,6 +5,7 @@ import { copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { By, until } from "selenium-webdriver";
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
+import { interruptedPreparationScenario } from "./desktop-preparation-recovery-test.mjs";
 
 export async function preparationScenarios({ browser, invoke, scenario, library, output, artifacts, cli, tool }) {
   const command = args => {
@@ -147,6 +148,7 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
     const screenshot = path.join(output, "native-preparation-retained-outcome.png");
     await writeFile(screenshot, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" }); artifacts.push(screenshot);
   });
+  await interruptedPreparationScenario({ browser, invoke, scenario, library, output, artifacts, command });
   await scenario("native-update-settings-save-without-execution", async () => {
     const port = command(["catalog", "show", "opengoal-jak1"]);
     const cliBefore = command(["status", port.id]);

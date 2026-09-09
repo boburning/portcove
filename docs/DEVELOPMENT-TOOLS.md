@@ -63,6 +63,15 @@ in the activity view, and exports a redacted support bundle. Incomplete capture
 and quota behavior are separate core fixtures. These logs contain owned synthetic
 output, not evidence of actual game compatibility.
 
+The optional interruption scenario deliberately resets only its owned test
+activity to the durable state preceding a terminal update. Node's built-in SQLite
+API is confined to a separate fixture module, whose hash is included in the run's
+inputs. A fresh CLI then executes real core recovery; Tauri and the native UI
+must show the same retained failure and incomplete log. The fixture verifies
+that an unconfirmed cancellation is not reported as successful and that the
+active installation remains unchanged. This is simulated durable interruption
+with native adapter observation, not a physical process-crash qualification.
+
 The same owned fixture also checks the desktop's game-update settings: changing
 a selection stays local until Save, and saving leaves active/staged/previous
 installations and the activity ledger unchanged. This does not download a game

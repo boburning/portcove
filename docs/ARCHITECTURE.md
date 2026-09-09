@@ -78,6 +78,17 @@ required output-hash verification.
 This extends an existing core responsibility without introducing another runner,
 scheduler, domain owner, dependency or trust grant.
 
+Startup recovery closes an interrupted, unpublished preparation's running
+activity only after acquiring its port and activity ownership locks and checking
+the recorded activity's operation and port identity. The report preserves private
+work, describes the interrupted outcome and offers review before a new attempt.
+A stored cancellation request does not prove that every native child stopped,
+so recovery does not manufacture a successful cancellation. Existing terminal
+reports and incomplete phase captures remain unchanged. The original private
+attempt cannot resume; repair guidance names starting a new preparation after
+reviewing current inputs. Later validated publication recovery keeps its existing
+idempotent behavior.
+
 ## Evolution policy
 
 This document records the architecture Portcove tests today; it is not a promise to preserve the initial crate graph forever. The durable requirement is unambiguous ownership, not the name or number of crates. A real implementation need may justify splitting a coherent domain from `portcove-core`, adding a boundary service, or keeping genuinely host-specific orchestration in an adapter.
