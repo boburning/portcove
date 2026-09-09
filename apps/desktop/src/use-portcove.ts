@@ -297,12 +297,16 @@ export function detailActions(port: PortDefinition, status: PortStatus | undefin
       const removed = await perform("remove", () => desktopApi.remove(port.id));
       if (removed) close();
     },
-    deleteBackup: async backup => {
-      if (await perform("delete backup", () => desktopApi.deleteBackup(port.id, backup.id))) await backupsChanged();
+    deleteBackup: async (backup, expectedPreview) => {
+      const completed = Boolean(await perform("delete backup", () => desktopApi.deleteBackup(port.id, backup.id, expectedPreview, libraryGeneration)));
+      if (completed) await backupsChanged();
+      return completed;
     },
     rollback: () => perform("rollback", () => desktopApi.rollback(port.id)),
-    restoreBackup: async backup => {
-      if (await perform("restore backup", () => desktopApi.restoreBackup(port.id, backup.id))) await backupsChanged();
+    restoreBackup: async (backup, expectedPreview) => {
+      const completed = Boolean(await perform("restore backup", () => desktopApi.restoreBackup(port.id, backup.id, expectedPreview, libraryGeneration)));
+      if (completed) await backupsChanged();
+      return completed;
     },
     setChannel: channel => perform("channel", () => desktopApi.setChannel(port.id, channel, libraryGeneration)),
     setPolicy: policy => perform("policy", () => desktopApi.setPolicy(port.id, policy, libraryGeneration)),

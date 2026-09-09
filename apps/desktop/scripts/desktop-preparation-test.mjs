@@ -5,6 +5,7 @@ import { copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { By, until } from "selenium-webdriver";
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
+import { backupReviewScenario } from "./desktop-backup-review-test.mjs";
 import { interruptedPreparationScenario } from "./desktop-preparation-recovery-test.mjs";
 
 export async function preparationScenarios({ browser, invoke, scenario, library, output, artifacts, cli, tool }) {
@@ -238,5 +239,7 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
     const screenshot = path.join(output, "native-release-channel-restarted.png");
     await writeFile(screenshot, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" }); artifacts.push(screenshot);
   });
+
+  await backupReviewScenario({ browser, invoke, scenario, library, output, artifacts, command, seed, open });
 
 }

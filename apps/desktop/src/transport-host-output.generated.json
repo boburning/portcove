@@ -1,4 +1,97 @@
 {
+  "backup_review": {
+    "$defs": {
+      "BackupAction": {
+        "enum": [
+          "restore",
+          "delete"
+        ],
+        "type": "string"
+      },
+      "BackupActionPreview": {
+        "properties": {
+          "action": {
+            "$ref": "#/$defs/BackupAction"
+          },
+          "backup": {
+            "$ref": "#/$defs/BackupRecord"
+          },
+          "current_user_data_exists": {
+            "type": "boolean"
+          },
+          "preview_sha256": {
+            "type": "string"
+          },
+          "safety_backup_will_be_created": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "action",
+          "backup",
+          "current_user_data_exists",
+          "safety_backup_will_be_created",
+          "preview_sha256"
+        ],
+        "type": "object"
+      },
+      "BackupRecord": {
+        "properties": {
+          "created_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "file_count": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "port_id",
+          "path",
+          "created_at",
+          "file_count",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "persistent_data_path": {
+        "type": "string"
+      },
+      "preview": {
+        "$ref": "#/$defs/BackupActionPreview"
+      }
+    },
+    "required": [
+      "preview",
+      "persistent_data_path"
+    ],
+    "title": "BackupReview",
+    "type": "object"
+  },
   "bootstrap_status": {
     "$defs": {
       "ErrorCode": {

@@ -127,3 +127,10 @@ execution with full host access or rely on skill prose to restrict its commands.
 Issue #284 owns the separate feasibility/authority proof. No paid API fallback,
 credential migration, signing permission or standing merge authority is implied
 by these development tools.
+
+The owned preparation harness also exercises backup restore/deletion reviews with
+synthetic saved data in its isolated library. It verifies review dismissal,
+stale library generation, data changed after review, safety-backup contents,
+selected-only deletion, preserved current data/other backups/install identity,
+and accessibility of both review dialogs. These are native automated backup
+lifecycle observations, not gameplay or human comprehension evidence.

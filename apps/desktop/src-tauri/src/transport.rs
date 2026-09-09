@@ -31,6 +31,12 @@ pub(crate) struct BootstrapStatus {
     pub(crate) error: Option<DesktopError>,
 }
 
+#[derive(Debug, Serialize, JsonSchema)]
+pub(crate) struct BackupReview {
+    pub(crate) preview: portcove_core::BackupActionPreview,
+    pub(crate) persistent_data_path: PathBuf,
+}
+
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct InstallInput {

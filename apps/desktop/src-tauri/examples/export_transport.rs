@@ -6,7 +6,8 @@ use portcove_core::{ReconcileResult, UpdateCheck};
 use schemars::{JsonSchema, generate::SchemaSettings};
 use serde_json::{Value, json};
 use transport::{
-    BatchOutcome, BootstrapStatus, DesktopError, InstallInput, LaunchResult, SourceBatchOutcome,
+    BackupReview, BatchOutcome, BootstrapStatus, DesktopError, InstallInput, LaunchResult,
+    SourceBatchOutcome,
 };
 
 fn output<T: JsonSchema>() -> Value {
@@ -24,6 +25,7 @@ fn main() {
         json!({
             "output": {
                 "bootstrap_status": output::<BootstrapStatus>(),
+                "backup_review": output::<BackupReview>(),
                 "desktop_error": output::<DesktopError>(),
                 "update_check_outcome": output::<BatchOutcome<UpdateCheck>>(),
                 "reconcile_outcome": output::<BatchOutcome<ReconcileResult>>(),
