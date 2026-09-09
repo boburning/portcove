@@ -19,7 +19,7 @@ const port: PortDefinition = {
   release: portDefinition().release, executable_hints: {},
 };
 const actions: DetailActions = {
-  backup: vi.fn(), check: vi.fn(), close: vi.fn(), deleteBackup: vi.fn(), install: vi.fn(), launch: vi.fn(), openUserData: vi.fn(), reviewInstall: vi.fn(), remove: vi.fn(), restoreBackup: vi.fn(), rollback: vi.fn(), setChannel: vi.fn(), setPolicy: vi.fn(), verify: vi.fn(),
+  activate: vi.fn(), backup: vi.fn(), check: vi.fn(), close: vi.fn(), deleteBackup: vi.fn(), install: vi.fn(), launch: vi.fn(), openUserData: vi.fn(), reviewInstall: vi.fn(), remove: vi.fn(), restoreBackup: vi.fn(), rollback: vi.fn(), setChannel: vi.fn(), setPolicy: vi.fn(), verify: vi.fn(),
 };
 const installRecord = (overrides: Partial<InstallRecord> = {}): InstallRecord => ({
   id: "1", port_id: port.id, version: "1.0", path: "sample/1.0", channel: "stable", installed_at: 1, verified: true, staged: false,
@@ -55,7 +55,7 @@ describe("desktop components", () => {
     const html = renderToStaticMarkup(<DetailPanel port={{ ...port, source_profile: null }} sourcePath="" setSourcePath={vi.fn()} actions={actions}
       status={{ ...portStatus(), port_id: port.id, channel: "stable", update_policy: "notify", active: installRecord(), readiness: { launchable: false, blockers: ["missing_runtime"], pending_setup: false } }} />);
     expect(html).toContain("Verified runtime required");
-    expect(html).toContain("Review install");
+    expect(html).toContain("Review game update");
     expect(html).not.toContain("Play now");
     expect(html).not.toContain("Choose required source");
   });

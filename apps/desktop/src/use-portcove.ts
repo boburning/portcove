@@ -102,7 +102,7 @@ export function useUpdateCenter(perform: Perform, statuses: PortStatus[]) {
     const result = await perform("check installed", desktopApi.checkInstalled);
     if (result) {
       setOutcomes(result);
-      }
+    }
   }, [perform]);
   return { outcomes, checkAll };
 }
@@ -283,12 +283,13 @@ export type Perform = <T>(name: string, task: () => Promise<T>) => Promise<T | u
 
 export function detailActions(port: PortDefinition, status: PortStatus | undefined, sourcePath: string, biosPath: string, perform: Perform, close: () => void, reviewInstall: () => void = () => undefined, backupsChanged: () => Promise<void> = async () => undefined, libraryGeneration = 0): DetailActions {
   return {
+    activate: () => status?.staged ? perform("activate staged update", () => desktopApi.activate(port.id, status.active?.id ?? null, status.staged!.id, libraryGeneration)) : undefined,
     backup: async () => {
       if (await perform("back up data", () => desktopApi.backup(port.id))) await backupsChanged();
     },
     check: () => perform("check", () => desktopApi.check(port.id)),
     close,
-    install: () => perform("install", () => desktopApi.install(port.id, status?.channel ?? port.channels[0], sourcePath, biosPath, status?.update_policy === "stage")),
+    install: () => perform("install", () => desktopApi.install(port.id, status?.channel ?? port.channels[0], sourcePath, biosPath, false)),
     launch: () => perform("launch", () => desktopApi.launch(port.id, sourcePath)),
     openUserData: () => perform("open data folder", () => desktopApi.openUserData(port.id)),
     reviewInstall,

@@ -16,6 +16,7 @@ import { Icon, NavigationHints, Shortcut } from "./ui";
 import { SourceIdentityPanel } from "./SourceIdentity";
 
 export interface DetailActions {
+  activate: () => void;
   backup: () => void;
   check: () => void;
   close: () => void;
@@ -110,6 +111,7 @@ function DetailBody({ perform, prepare, port, status, state, sources, installed,
     <SourceIntakeActions controls={sources} busy={Boolean(busy)} />
     {managedPreparation && pendingSetup && <PreparationControl key={`${port.id}:${libraryGeneration}:${status?.active?.id}`} portId={port.id} generation={libraryGeneration} disabled={Boolean(busy) || !sources.sourceReady || !sources.biosReady} run={prepare} />}
     <PrimaryActions preparationRequired={managedPreparation && pendingSetup} runtimeNeeded={Boolean(status?.readiness?.blockers.includes("missing_runtime"))} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} plan={installPlan} busy={busy} actions={actions} />
+    {status?.staged && <section aria-label="Activate staged update"><p>Staged update: <strong>{status.staged.version}</strong>. Activation uses this verified local copy without downloading and keeps the current version for rollback.</p><button data-focusable disabled={Boolean(busy)} onClick={actions.activate}>Activate staged update · {status.staged.version}</button></section>}
     {installed && <GameUpdateControl key={`${port.id}:${libraryGeneration}:${status?.active?.id}:${status?.staged?.id}:${selectedChannel}:${policy}`} portId={port.id} generation={libraryGeneration} policy={policy} busy={Boolean(busy)} perform={perform} />}
     <TrustStrip status={status} />
     <OutputLocationControl portId={port.id} generation={libraryGeneration} busy={outputExternalBusy} onChanged={outputLocationChanged} onApplying={outputApplying} />

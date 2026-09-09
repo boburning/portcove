@@ -109,6 +109,7 @@ export const desktopApi = {
   install: (portId: string, channel: ReleaseChannel, source: string, bios: string, stage: boolean) =>
     invoke<InstallRecord>("install_port", { input: { portId, channel, source: source || null, bios: bios || null, stage } satisfies InstallInput }),
   verify: (portId: string) => invoke("verify_port", { portId }),
+  activate: (portId: string, expectedActive: string | null, expectedStaged: string, generation: number) => invoke<InstallRecord>("activate_port", { portId, expectedActive, expectedStaged, generation }),
   rollback: (portId: string) => invoke("rollback_port", { portId }),
   remove: (portId: string) => invoke<string[] | null>("remove_port", { portId }),
   launch: (portId: string, source: string) => invoke<LaunchResult>("launch_port", { portId, source: source || null, arguments: [] }),

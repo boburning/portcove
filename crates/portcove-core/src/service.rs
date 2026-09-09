@@ -2811,6 +2811,23 @@ impl PortcoveService {
     }
 
     pub fn activate_staged(&self, port_id: &str) -> Result<InstallRecord> {
+        self.activate_staged_with_review(port_id, None)
+    }
+
+    pub fn activate_staged_reviewed(
+        &self,
+        port_id: &str,
+        expected_active: Option<&str>,
+        expected_staged: &str,
+    ) -> Result<InstallRecord> {
+        self.activate_staged_with_review(port_id, Some((expected_active, expected_staged)))
+    }
+
+    fn activate_staged_with_review(
+        &self,
+        port_id: &str,
+        expected: Option<(Option<&str>, &str)>,
+    ) -> Result<InstallRecord> {
         let activity = self.library.begin_activity(
             ActivityOperation::Activate,
             ActivityTargetKind::Port,
@@ -2819,6 +2836,16 @@ impl PortcoveService {
         let result = (|| {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "activate")?;
+            if let Some((active, staged)) = expected {
+                let status = self.status(port_id)?;
+                if status.active.as_ref().map(|install| install.id.as_str()) != active
+                    || status.staged.as_ref().map(|install| install.id.as_str()) != Some(staged)
+                {
+                    return Err(PortcoveError::conflict(
+                        "installed versions changed; review staged activation again",
+                    ));
+                }
+            }
             self.activate_staged_locked(port_id, &activity.id)
         })();
         self.finish_activity(activity, result)

@@ -1058,10 +1058,15 @@ async fn rollback_port(
 async fn activate_port(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
+    expected_active: Option<String>,
+    expected_staged: String,
+    generation: u64,
 ) -> DesktopResult<InstallRecord> {
     let state = state.inner().clone();
-    blocking_service(state, move |service| {
-        service.activate_staged(&port_id).map_err(Into::into)
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .activate_staged_reviewed(&port_id, expected_active.as_deref(), &expected_staged)
+            .map_err(Into::into)
     })
     .await
 }

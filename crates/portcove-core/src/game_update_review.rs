@@ -138,6 +138,40 @@ mod tests {
 
     const PORT: &str = "zelda64-recomp";
 
+    #[test]
+    fn staged_activation_needs_no_release_request_and_refuses_replaced_versions() {
+        let (_temporary, service) = fixture();
+        let before = service.status(PORT).unwrap();
+        let active = before.active.as_ref().map(|install| install.id.as_str());
+        let staged = before.staged.as_ref().unwrap();
+        assert_eq!(
+            service
+                .activate_staged_reviewed(PORT, active, "stale-staged-id")
+                .unwrap_err()
+                .code,
+            ErrorCode::Conflict
+        );
+        assert_eq!(
+            service
+                .activate_staged_reviewed(PORT, Some("stale-active-id"), &staged.id)
+                .unwrap_err()
+                .code,
+            ErrorCode::Conflict
+        );
+        assert_eq!(service.status(PORT).unwrap().active.unwrap().version, "v1");
+        // The ordinary provider has no test release endpoint. Local activation
+        // succeeds without attempting to resolve the current upstream release.
+        let offline = PortcoveService::new(Library::open(service.library.root()).unwrap()).unwrap();
+        let activated = offline
+            .activate_staged_reviewed(PORT, active, &staged.id)
+            .unwrap();
+        assert_eq!(activated.version, "v2");
+        assert_eq!(
+            offline.status(PORT).unwrap().previous.unwrap().version,
+            "v1"
+        );
+    }
+
     fn fixture() -> (tempfile::TempDir, PortcoveService) {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
