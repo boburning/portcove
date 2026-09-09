@@ -32,6 +32,13 @@ test("every Node test file is included in required CI and the local quality work
   }
 });
 
+test("release selection runs after the maintained SemVer dependency is installed", () => {
+  const installation = frontend.indexOf("pnpm install --frozen-lockfile");
+  const selection = frontend.indexOf("scripts/select-release-channel.test.mjs");
+  assert.ok(installation >= 0 && selection > installation);
+  assert.ok(!catalog.includes("scripts/select-release-channel.test.mjs"));
+});
+
 test("required CI keeps its cancellation and least-privilege contracts", () => {
   assert.match(workflow, /^permissions:\r?\n  contents: read$/m);
   assert.match(workflow, /^concurrency:\r?\n  group: ci-\$\{\{ github\.event\.pull_request\.number \|\| github\.ref \}\}\r?\n  cancel-in-progress: true$/m);

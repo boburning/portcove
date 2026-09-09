@@ -75,8 +75,19 @@ test("rejects changed intent, reused version, stale history and partial receipts
   git("commit", "--allow-empty", "-qm", "another frozen source");
   const source = git("rev-parse", "HEAD").trim();
   await assert.rejects(prepareReleaseVersion(root, { ...classification, source_commit: source, reviewed_commit: source }, ["0.1.0"]), /already allocated/);
+  assert.equal(git("for-each-ref", "--format=%(refname)", `refs/portcove/prepared-commits/${source}`), "");
   git("update-ref", "-d", result.allocation_refs[1]);
   await assert.rejects(prepareReleaseVersion(root, classification, ["0.1.0"]), /already allocated/);
+}, 30_000);
+
+test("version preparation does not execute repository hooks", async () => {
+  const { root, classification, git } = await fixture();
+  const hooks = path.join(root, "hooks");
+  await mkdir(hooks);
+  await writeFile(path.join(hooks, "reference-transaction"), '#!/bin/sh\necho executed > hook-executed\nexit 1\n', { mode: 0o755 });
+  git("config", "core.hooksPath", hooks);
+  await prepareReleaseVersion(root, classification, ["0.1.0"]);
+  await assert.rejects(readFile(path.join(root, "hook-executed")), { code: "ENOENT" });
 }, 30_000);
 
 test("invalid source metadata cannot reserve a version or silently update a dependency", async () => {
