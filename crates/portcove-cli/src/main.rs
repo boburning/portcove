@@ -2009,14 +2009,25 @@ where
 fn render_error(mode: OutputMode, command: &str, error: &PortcoveError) {
     match mode {
         OutputMode::Human => eprintln!("error: {error}"),
-        OutputMode::Json => println!("{}", serde_json::to_string(&ApiResponse::<serde_json::Value> {
-            schema_version: API_SCHEMA_VERSION, ok: false, command: command.into(), data: None,
-            error: Some(api_error(error)),
-        }).unwrap_or_else(|_| "{\"ok\":false}".into())),
-        OutputMode::Jsonl => println!("{}", serde_json::to_string(&serde_json::json!({
-            "schema_version": API_SCHEMA_VERSION, "type": "result", "ok": false,
-            "command": command, "error": api_error(error)
-        })).unwrap_or_else(|_| "{\"ok\":false}".into())),
+        OutputMode::Json => println!(
+            "{}",
+            serde_json::to_string(&ApiResponse::<serde_json::Value> {
+                schema_version: API_SCHEMA_VERSION,
+                ok: false,
+                command: command.into(),
+                data: None,
+                error: Some(api_error(error)),
+            })
+            .unwrap_or_else(|_| "{\"ok\":false}".into())
+        ),
+        OutputMode::Jsonl => println!(
+            "{}",
+            serde_json::to_string(&serde_json::json!({
+                "schema_version": API_SCHEMA_VERSION, "type": "result", "ok": false,
+                "command": command, "error": api_error(error)
+            }))
+            .unwrap_or_else(|_| "{\"ok\":false}".into())
+        ),
     }
 }
 
