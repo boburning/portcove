@@ -7648,7 +7648,7 @@ fn main() {
     }
 
     #[test]
-    fn status_distinguishes_launch_blockers_from_pending_upstream_setup() {
+    fn status_requires_explicit_preparation_as_well_as_current_sources() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let install = library.versions_dir().join("opengoal-jak1").join("v1");
@@ -7659,7 +7659,13 @@ fn main() {
 
         let blocked = service.status("opengoal-jak1").unwrap().readiness.unwrap();
         assert!(!blocked.launchable);
-        assert_eq!(blocked.blockers, [LaunchBlocker::MissingSource]);
+        assert_eq!(
+            blocked.blockers,
+            [
+                LaunchBlocker::MissingSource,
+                LaunchBlocker::PreparationRequired
+            ]
+        );
         assert_eq!(blocked.source, Some(SourceHealth::Unregistered));
         assert!(blocked.pending_setup);
 
@@ -7679,21 +7685,33 @@ fn main() {
             })
             .unwrap();
         let pending = service.status("opengoal-jak1").unwrap().readiness.unwrap();
-        assert!(pending.launchable);
-        assert!(pending.blockers.is_empty());
+        assert!(!pending.launchable);
+        assert_eq!(pending.blockers, [LaunchBlocker::PreparationRequired]);
         assert_eq!(pending.source, Some(SourceHealth::Current));
         assert!(pending.pending_setup);
 
         fs::write(&source_path, b"registered sourcf").unwrap();
         let changed = service.status("opengoal-jak1").unwrap().readiness.unwrap();
         assert!(!changed.launchable);
-        assert_eq!(changed.blockers, [LaunchBlocker::ChangedSource]);
+        assert_eq!(
+            changed.blockers,
+            [
+                LaunchBlocker::ChangedSource,
+                LaunchBlocker::PreparationRequired
+            ]
+        );
         assert_eq!(changed.source, Some(SourceHealth::Changed));
 
         fs::remove_file(&source_path).unwrap();
         let missing = service.status("opengoal-jak1").unwrap().readiness.unwrap();
         assert!(!missing.launchable);
-        assert_eq!(missing.blockers, [LaunchBlocker::MissingSource]);
+        assert_eq!(
+            missing.blockers,
+            [
+                LaunchBlocker::MissingSource,
+                LaunchBlocker::PreparationRequired
+            ]
+        );
         assert_eq!(missing.source, Some(SourceHealth::Missing));
 
         let marker = install.join("data/out/jak1/iso/0COMMON.TXT");
@@ -7701,7 +7719,8 @@ fn main() {
         fs::write(marker, b"ready").unwrap();
         let still_missing = service.status("opengoal-jak1").unwrap().readiness.unwrap();
         assert!(!still_missing.launchable);
-        assert!(!still_missing.pending_setup);
+        // An unadmitted marker alone cannot establish prepared readiness.
+        assert!(still_missing.pending_setup);
     }
 
     #[test]

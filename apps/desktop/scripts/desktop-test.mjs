@@ -9,11 +9,13 @@ import axe from "axe-core";
 import { Builder, By, Key, until } from "selenium-webdriver";
 import { writeEvidence, fileIdentity } from "../../../scripts/development-evidence.mjs";
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
+import { preparationScenarios } from "./desktop-preparation-test.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const { values } = parseArgs({ options: {
   app: { type: "string" }, driver: { type: "string" }, "native-driver": { type: "string" },
   output: { type: "string" }, port: { type: "string", default: "4444" },
+  "preparation-cli": { type: "string" }, "preparation-tool": { type: "string" },
 } });
 for (const name of ["app", "driver", "native-driver", "output"]) {
   if (!values[name] || !path.isAbsolute(values[name])) throw new Error(`--${name} requires an absolute path`);
@@ -22,6 +24,13 @@ const port = Number(values.port);
 if (!Number.isInteger(port) || port < 1024 || port > 65533) throw new Error("--port must be 1024..65533");
 const inputs = await Promise.all(["app", "driver", "native-driver"].map(name => fileIdentity(values[name])));
 inputs.push(await fileIdentity(fileURLToPath(import.meta.url)));
+if (values["preparation-cli"] || values["preparation-tool"]) {
+  for (const name of ["preparation-cli", "preparation-tool"]) {
+    if (!values[name] || !path.isAbsolute(values[name])) throw new Error(`--${name} requires an absolute path`);
+    inputs.push(await fileIdentity(values[name]));
+  }
+  inputs.push(await fileIdentity(fileURLToPath(new URL("./desktop-preparation-test.mjs", import.meta.url))));
+}
 const revision = spawnCommand("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8", windowsHide: true }).stdout.trim();
 const output = path.resolve(values.output);
 await mkdir(output); // Existing output is never reused, including after failed runs.
@@ -143,6 +152,10 @@ try {
     assert.deepEqual(result.violations.map(item => item.id), []);
   });
   checks.push({ scenario: "install-progress-cancellation", outcome: "not-run", reason: "Requires a reviewed install fixture; the smoke harness does not download or execute upstream games." });
+  if (values["preparation-cli"]) {
+    await preparationScenarios({ browser, invoke, scenario, library, output, artifacts,
+      cli: values["preparation-cli"], tool: values["preparation-tool"] });
+  }
 } catch (error) {
   checks.push({ scenario: "harness", outcome: "failed", message: error.message });
   if (browser) {

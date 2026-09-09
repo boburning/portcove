@@ -14,7 +14,7 @@ const plan: PreparationPlan = {
     conversion_tool: null, setup_tool: { path: "E:/sample/setup.exe", sha256: "tool", size: 512 },
     install: { id: "original", port_id: "sample", path: "E:/sample", version: "1.2", channel: "stable", installed_at: 1, verified: true, staged: false, artifact: { asset_name: "owned.zip", sha256: "artifact", size: 512 }, manifest_sha256: "manifest", selected_executable: "game.exe", runtime: null },
     source: { profile_id: "source", path: "E:/owned.iso", sha256: "source", size: 512, storage_sha256: "source", storage_size: 512, updated_at: 1 },
-    source_inspection: { schema_version: 1, profile_id: "source", health: "valid", state_code: "selected_needs_checking", summary: "Owned source", next_action: "Prepare", applications: [], evidence: [], legacy: { registration_identity_not_recorded: true, variant_unspecified_records: [] } },
+    source_inspection: { schema_version: 1, profile_id: "source", health: "current", state_code: "selected_needs_checking", summary: "Owned source", next_action: "Prepare", applications: [], evidence: [], legacy: { registration_identity_not_recorded: true, variant_unspecified_records: [] } },
   },
 };
 let root: Root;

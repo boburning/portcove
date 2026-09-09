@@ -1131,6 +1131,12 @@ fn manifest_files(
 }
 
 fn immutable_member(install: &InstallRecord, relative: &str) -> Result<ManifestFile> {
+    crate::path::refuse_symlink_ancestors(&install.path)?;
+    refuse_symlink_path_within(
+        &install.path,
+        &manifest_member(&install.path, relative)?,
+        "prepared metadata",
+    )?;
     let manifest = verified_manifest(install)?;
     if manifest_path_is_mutable(&manifest, relative) {
         return Err(PortcoveError::verification(

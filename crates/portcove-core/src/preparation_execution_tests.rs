@@ -457,3 +457,17 @@ fn completed_legacy_setup_keeps_working_without_repeating_setup() {
         b"legacy sentinel"
     );
 }
+
+#[cfg(unix)]
+#[test]
+fn readiness_rejects_a_symlink_redirect_even_when_marker_bytes_match() {
+    let fixture = Fixture::native("success");
+    let prepared = fixture.run(|_| {}).unwrap();
+    let marker_root = prepared.path.join("data/out/jak1/iso");
+    let redirected = fixture._temporary.path().join("redirected-marker");
+    fs::rename(&marker_root, &redirected).unwrap();
+    std::os::unix::fs::symlink(&redirected, &marker_root).unwrap();
+    let readiness = fixture.service.status(PORT).unwrap().readiness.unwrap();
+    assert!(readiness.pending_setup);
+    assert!(!readiness.launchable);
+}

@@ -260,7 +260,7 @@ function PrimaryActions({ preparationRequired, runtimeNeeded, installed, launchR
   if (runtimeNeeded) return <InstallAction ready plan={plan} busy={busy} install={actions.update} review={actions.reviewInstall} />;
   if (!installed) return <InstallAction ready={launchReady} plan={plan} busy={busy} install={actions.install} review={actions.reviewInstall} />;
   return <div className="actions primary-actions">
-    <button data-focusable className="primary wide button-with-icon" title={preparationRequired ? "Prepare game data before playing" : launchReady ? "Launch this port" : "Register every required source before launching"} disabled={!launchReady || Boolean(busy)} onClick={actions.launch}><Icon glyph={!launchReady ? AlertTriangle : pendingSetup ? Wrench : Gamepad2} />{preparationRequired ? "Prepare game data first" : !launchReady ? "Choose required source" : pendingSetup ? "Complete setup and play" : "Play now"}</button>
+    <button data-focusable className="primary wide button-with-icon" title={preparationRequired ? "Prepare game data before playing" : launchReady ? "Launch this port" : "Register every required source before launching"} disabled={preparationRequired || !launchReady || Boolean(busy)} onClick={actions.launch}><Icon glyph={!launchReady ? AlertTriangle : pendingSetup ? Wrench : Gamepad2} />{preparationRequired ? "Prepare game data first" : !launchReady ? "Choose required source" : pendingSetup ? "Complete setup and play" : "Play now"}</button>
     {hasStaged && <button data-focusable className="staged-action button-with-icon" disabled={Boolean(busy)} onClick={actions.activate}><Icon glyph={PackageCheck} />Activate staged update</button>}
   </div>;
 }
