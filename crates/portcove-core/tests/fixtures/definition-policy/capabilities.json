@@ -1,0 +1,10 @@
+[
+  {"family":"simple portable binary", "port_id":"zelda64-recomp", "adapter":"n64-recomp-portable"},
+  {"family":"generated game data", "port_id":"gen1recomp", "adapter":"generated-cache"},
+  {"family":"source-driven portable launch", "port_id":"shipwright", "adapter":"libultraship-portable"},
+  {"family":"exact referenced disc", "port_id":"re-blue", "adapter":"referenced-disc"},
+  {"family":"managed disc preparation", "port_id":"bomberman-party-edition-recompiled", "adapter":"psx-recomp-managed"},
+  {"family":"staged file-set source", "port_id":"perfect-dark", "adapter":"staged-source-portable"},
+  {"family":"bounded upstream-managed setup", "port_id":"opengoal-jak1", "adapter":"upstream-managed-setup"},
+  {"family":"bundled runtime and named persistent saves", "port_id":"severed-chains", "adapter":"staged-source-portable"}
+]

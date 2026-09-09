@@ -2,7 +2,9 @@
 
 This optional local-first contract updates metadata for the embedded catalog. No publisher key, production private key, server, account, or scheduled fetch is configured by default. Local files work without a network; an explicitly requested HTTPS fetch carries no Portcove/GitHub credential and follows no redirects. The optional advisory relay and desktop self-updater are separate features.
 
-This is the implemented format-1 contract. The planned successor in
+This is the implemented format-1 contract. The [independent definition delivery
+contract](DEFINITION-DELIVERY.md) specifies the successor's authority, admission,
+retention and recovery boundaries. The planned successor in
 [#245](https://github.com/boburning/portcove/issues/245) and
 [#246](https://github.com/boburning/portcove/issues/246) adds policy-based new
 definitions and routine automatic publication to already-capable clients.
