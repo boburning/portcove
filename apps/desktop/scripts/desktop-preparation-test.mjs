@@ -101,6 +101,12 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
   });
   await scenario("native-update-settings-save-without-execution", async () => {
     const port = command(["catalog", "show", "opengoal-jak1"]);
+    const cliBefore = command(["status", port.id]);
+    const cliActivities = command(["activity"]);
+    const cliSaved = command(["policy", "set", port.id, "stage"]);
+    assert.equal(cliSaved.update_policy, "stage");
+    for (const key of ["active", "staged", "previous"]) assert.deepEqual(cliSaved[key], cliBefore[key]);
+    assert.deepEqual(command(["activity"]), cliActivities);
     await browser.navigate().refresh();
     await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 15_000);
     await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
@@ -120,6 +126,13 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
     assert.deepEqual(after.staged, before.staged);
     assert.deepEqual(after.previous, before.previous);
     assert.deepEqual((await invoke("get_activities")).value, activities.value);
+    await browser.wait(until.elementLocated(By.xpath('//p[@role="status" and contains(., "Update settings saved. No update was run.")]')), 15_000);
+    await browser.executeScript(axe.source);
+    const accessibility = await browser.executeAsyncScript(done => window.axe.run().then(done));
+    const report = path.join(output, "update-settings-accessibility.json");
+    await writeFile(report, JSON.stringify(accessibility, null, 2), { flag: "wx" });
+    artifacts.push(report);
+    assert.deepEqual(accessibility.violations.map(item => item.id), []);
     const screenshot = path.join(output, "native-update-settings-saved.png");
     await writeFile(screenshot, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
     artifacts.push(screenshot);
