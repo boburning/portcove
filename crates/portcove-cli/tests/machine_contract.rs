@@ -97,6 +97,55 @@ fn human_failures_keep_paths_and_credentials_out_of_primary_copy() {
 }
 
 #[test]
+fn activity_history_keeps_human_details_opt_in_and_machine_records_unchanged() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    let private_id = "fixture-token=owned-private";
+    let failed = portcove(&library, &["--json", "verify", private_id]);
+    assert!(!failed.status.success());
+    let before = json_stdout(&portcove(&library, &["--json", "activity"]));
+    let record = &before["data"][0];
+    assert_eq!(record["target_id"], private_id);
+    assert_eq!(record["status"], "failed");
+    assert!(record["failure"].is_object());
+    let id = record["id"].as_str().unwrap();
+    let plain = portcove(&library, &["activity"]);
+    let plain = human_stdout(&plain);
+    assert!(plain.contains(id));
+    assert!(
+        plain.contains(
+            record["failure"]["presentation"]["summary"]
+                .as_str()
+                .unwrap()
+        )
+    );
+    assert!(!plain.contains("owned-private"));
+    assert!(!plain.contains("No files were changed"));
+    let technical = portcove(&library, &["--technical-details", "activity"]);
+    let technical = human_stdout(&technical);
+    assert!(technical.contains("Technical details (redacted):"));
+    assert!(technical.contains("[REDACTED]"));
+    assert!(!technical.contains("owned-private"));
+    let after = json_stdout(&portcove(
+        &library,
+        &["--technical-details", "--json", "activity"],
+    ));
+    assert_eq!(before["data"], after["data"]);
+    let stream = portcove(&library, &["--technical-details", "--jsonl", "activity"]);
+    assert!(stream.status.success());
+    let result: Value = serde_json::from_str(
+        String::from_utf8_lossy(&stream.stdout)
+            .lines()
+            .last()
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(before["data"], result["data"]);
+    let logs = json_stdout(&portcove(&library, &["--json", "activity", "log", id]));
+    assert_eq!(logs["data"], serde_json::json!([]));
+}
+
+#[test]
 fn preparation_plan_reports_missing_inputs_without_starting_work() {
     let temporary = tempfile::tempdir().unwrap();
     let library = temporary.path().join("library");

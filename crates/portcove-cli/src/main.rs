@@ -32,7 +32,7 @@ use schema::SchemaContract;
     after_help = "Native ports. Verified releases. Local sources."
 )]
 struct Cli {
-    /// Include redacted technical error details in human-readable output.
+    /// Include redacted technical error and activity details in human-readable output.
     #[arg(long, global = true)]
     technical_details: bool,
     #[arg(long, global = true, env = "PORTCOVE_LIBRARY")]
@@ -1153,7 +1153,7 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 mode,
                 "activity",
                 service.library().activities(limit as usize)?,
-                |records| human::activities(records),
+                |records| human::activities(records, service.catalog(), cli.technical_details),
             )?;
         }
         Commands::Activity {
