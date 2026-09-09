@@ -20,7 +20,7 @@ New-Item -ItemType Directory -Path $runRoot | Out-Null
 $metadataPaths = @("Cargo.toml", "Cargo.lock", "apps/desktop/package.json", "apps/desktop/src-tauri/tauri.conf.json")
 $original = @{}
 foreach ($relative in $metadataPaths) { $original[$relative] = [IO.File]::ReadAllBytes((Join-Path $root $relative)) }
-$environmentNames = @("TAURI_SIGNING_PRIVATE_KEY", "TAURI_SIGNING_PRIVATE_KEY_PASSWORD", "CARGO_TARGET_DIR")
+$environmentNames = @("TAURI_SIGNING_PRIVATE_KEY", "TAURI_SIGNING_PRIVATE_KEY_PASSWORD", "CARGO_TARGET_DIR", "PORTCOVE_PREFERENCES", "WEBVIEW2_USER_DATA_FOLDER")
 $previousEnvironment = @{}
 foreach ($name in $environmentNames) { $previousEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, "Process") }
 $privateKey = Join-Path $runRoot "disposable.key"
@@ -51,6 +51,10 @@ function Move-RehearsalInput([string]$Source, [string]$Name) {
 
 try {
     $env:CARGO_TARGET_DIR = Join-Path $root "target"
+    $env:PORTCOVE_PREFERENCES = Join-Path $runRoot "preferences.json"
+    $env:WEBVIEW2_USER_DATA_FOLDER = Join-Path $runRoot "webview"
+    [IO.File]::WriteAllText($env:PORTCOVE_PREFERENCES, '{"format_version":1,"library_root":null,"qualification_marker":"updater-package-rehearsal"}')
+    $preferencesHash = (Get-FileHash -LiteralPath $env:PORTCOVE_PREFERENCES -Algorithm SHA256).Hash
     # Suppress signer output: only the disposable public key belongs in evidence.
     Invoke-Checked "pnpm" @("--dir", "apps/desktop", "tauri", "signer", "generate", "--ci", "--write-keys", $privateKey) | Out-Null
     $env:TAURI_SIGNING_PRIVATE_KEY = $privateKey
@@ -92,6 +96,7 @@ try {
             if ($version -eq "0.3.0") {
                 $predecessor = Join-Path $runRoot "0.1.0-$PlatformLabel/Portcove_0.1.0_x64-setup.exe"
                 & (Join-Path $PSScriptRoot "test-windows-installer.ps1") -InstallerPath $installer -UpgradeFromInstallerPath $predecessor -ExpectedExecutablePath (Join-Path $root "target/release/portcove-desktop.exe") -TestBase (Join-Path $runRoot "installer-test") -EvidencePath (Join-Path $runRoot "windows-passive-upgrade.json") -InstallMode Passive -ExpectedVersion $version
+                if ((Get-FileHash -LiteralPath $env:PORTCOVE_PREFERENCES -Algorithm SHA256).Hash -ne $preferencesHash) { throw "Installer rehearsal changed isolated host preferences" }
             }
         } elseif ($IsLinux) {
             $native.deb_version = (& dpkg-deb --field (Join-Path $stage "Portcove_${version}_amd64.deb") Version | Out-String).Trim()
