@@ -178,10 +178,18 @@ async fn release_record_tampering_is_rejected_before_consumption() {
     tampered[0] ^= 1;
     fs::write(f.targets.join("release.json"), tampered).unwrap();
     let stream = repo.read_target(&name).await.unwrap().unwrap();
-    assert!(matches!(
-        stream.try_collect::<Vec<_>>().await,
-        Err(Error::HashMismatch { .. })
-    ));
+    let failure = stream.try_collect::<Vec<_>>().await.unwrap_err();
+    // Streaming errors retain the digest mismatch inside the transport wrapper.
+    let mut cause: Option<&(dyn std::error::Error + 'static)> = Some(&failure);
+    let mut hash_mismatch = false;
+    while let Some(error) = cause {
+        hash_mismatch |= matches!(
+            error.downcast_ref::<Error>(),
+            Some(Error::HashMismatch { .. })
+        );
+        cause = error.source();
+    }
+    assert!(hash_mismatch, "expected a hash mismatch: {failure}");
 }
 
 #[tokio::test]
