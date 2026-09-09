@@ -57,7 +57,7 @@ function BackupReviewDetails({ review }: { review: BackupReview }) {
   const { backup, action } = preview;
   return <section className="backup-review-details" aria-label="Backup changes and preserved data">
     <p><strong>{backup.port_id} · {new Date(backup.created_at * 1000).toLocaleString()}</strong></p>
-    <p>{backup.file_count} files · {formatBytes(backup.size)}</p>
+    <p>{backup.file_count} {backup.file_count === 1 ? "file" : "files"} · {formatBytes(backup.size)}</p>
     <dl><div><dt>Selected snapshot</dt><dd>{backup.path}</dd></div><div><dt>Saved-data folder</dt><dd>{dataPath}</dd></div></dl>
     {action === "restore" ? <>
       <p>The saved-data folder will contain this snapshot's data. The selected backup, other backups and installed game versions are preserved.</p>
