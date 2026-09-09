@@ -152,3 +152,11 @@ observed native dialog and tests that renderer application alone leaves the file
 unchanged, cancellation preserves them, and explicit native consent admits core
 authorization. It changes no product confirmation behavior or test bypass setting.
 Other platforms need their own native confirmation observation before qualification.
+
+The owned source-removal scenario uses Settings to review installed-game impact,
+cancel both detailed and native consent without removing a reference, reject a
+changed registration and old library generation, then remove the freshly reviewed
+reference. It verifies unchanged original/replacement bytes, saves, backup content,
+other references and the installed game. The same run re-exercises backup and
+installed-game reviews through their shared presentation lifecycle. Native Windows
+confirmation evidence remains scoped separately from other physical platforms.

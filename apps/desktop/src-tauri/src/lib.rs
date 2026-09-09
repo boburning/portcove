@@ -7,6 +7,7 @@ mod library_transfer;
 mod output_location;
 mod preparation;
 mod removal;
+mod source_removal;
 mod transport;
 
 use transport::{
@@ -32,8 +33,8 @@ use portcove_core::{
     PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel, ReleaseProvider,
     SourceDiscoveryLimits, SourceImportMode, SourceImportPlan, SourceImportResult,
     SourceInboxPaths, SourceInboxResolution, SourceInspectionReport, SourceIntakeInspection,
-    SourceRecord, SourceRelinkPlan, SourceRemovalPreview, SourceVerification, UpdateCheck,
-    UpdatePolicy, VerificationReport,
+    SourceRecord, SourceRelinkPlan, SourceVerification, UpdateCheck, UpdatePolicy,
+    VerificationReport,
 };
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
@@ -809,74 +810,6 @@ where
             emit,
         )
         .map_err(Into::into)
-}
-
-#[tauri::command]
-async fn preview_source_removal(
-    state: tauri::State<'_, DesktopState>,
-    profile_id: String,
-) -> DesktopResult<SourceRemovalPreview> {
-    let state = state.inner().clone();
-    blocking_service(state, move |service| {
-        service
-            .preview_source_removal(&profile_id)
-            .map_err(Into::into)
-    })
-    .await
-}
-
-#[tauri::command]
-async fn remove_source(
-    app: tauri::AppHandle,
-    state: tauri::State<'_, DesktopState>,
-    profile_id: String,
-    preview_sha256: String,
-) -> DesktopResult<Option<SourceRemovalPreview>> {
-    let worker_state = state.inner().clone();
-    let preview = blocking_service(worker_state, {
-        let profile_id = profile_id.clone();
-        move |service| {
-            service
-                .preview_source_removal(&profile_id)
-                .map_err(Into::into)
-        }
-    })
-    .await?;
-    if preview.preview_sha256 != preview_sha256 {
-        return Err(PortcoveError::conflict(
-            "the source or its installed dependents changed after the removal preview",
-        )
-        .into());
-    }
-    let impact = if preview.installed_dependent_port_ids.is_empty() {
-        "No installed port currently depends on it.".to_owned()
-    } else {
-        format!(
-            "Installed ports will lose this source dependency: {}.",
-            preview.installed_dependent_port_ids.join(", ")
-        )
-    };
-    if !confirm_destructive(
-        &app,
-        "Confirm source removal",
-        format!(
-            "Remove registered source {profile_id}?\n\n{impact} The source file itself will not be deleted."
-        ),
-        "Remove source reference",
-    )
-    .await
-    {
-        return Ok(None);
-    }
-    let state = state.inner().clone();
-    blocking_service(state, move |service| {
-        let authorization = service.authorize_source_removal(&profile_id, &preview_sha256)?;
-        service
-            .remove_source(&profile_id, &authorization.token)
-            .map(Some)
-            .map_err(Into::into)
-    })
-    .await
 }
 
 #[tauri::command]
@@ -1786,8 +1719,8 @@ pub fn run() {
             scan_source_inbox,
             plan_source_import,
             import_source,
-            preview_source_removal,
-            remove_source,
+            source_removal::preview_source_removal,
+            source_removal::remove_source,
             set_channel,
             set_policy,
             install_port,

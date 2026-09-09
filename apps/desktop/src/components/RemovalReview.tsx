@@ -1,12 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { desktopApi } from "../api";
 import { useDialogFocus } from "../dialog";
-import type { PortDefinition, PortRemovalPreview } from "../types";
-import { errorText } from "../view-model";
+import type { PortDefinition } from "../types";
+import { useActionReview, type ReviewOutcome } from "../use-action-review";
 import { Icon } from "./ui";
 
-export type ApplyRemoval = (expectedPreview: string) => Promise<boolean | "cancelled">;
+export type ApplyRemoval = (expectedPreview: string) => Promise<ReviewOutcome>;
 
 export function RemovalControl({ port, generation, busy, apply }: {
   port: PortDefinition; generation: number; busy: boolean; apply: ApplyRemoval;
@@ -19,34 +19,13 @@ export function RemovalControl({ port, generation, busy, apply }: {
 export function RemovalReviewDialog({ port, generation, apply, close }: {
   port: PortDefinition; generation: number; apply: ApplyRemoval; close: () => void;
 }) {
-  const [preview, setPreview] = useState<PortRemovalPreview>();
-  const [pending, setPending] = useState<"review" | "apply">();
-  const [error, setError] = useState<string>();
-  const request = useRef(0);
-  const dismiss = () => { if (pending !== "apply") close(); };
+  const { preview, pending, error, review, execute: remove, dismiss } = useActionReview({
+    identity: `${port.id}:${generation}`,
+    load: () => desktopApi.previewRemoval(port.id, generation),
+    apply: preview => apply(preview.preview_sha256),
+    close, failureMessage: "Removal did not complete. Review the current installation and any recovery notice before trying again.",
+  });
   const dialog = useDialogFocus(dismiss);
-  const review = async () => {
-    const current = ++request.current;
-    setPending("review"); setPreview(undefined); setError(undefined);
-    try {
-      const result = await desktopApi.previewRemoval(port.id, generation);
-      if (current === request.current) setPreview(result);
-    } catch (value) { if (current === request.current) setError(errorText(value)); }
-    finally { if (current === request.current) setPending(undefined); }
-  };
-  useEffect(() => { void review(); return () => { request.current += 1; }; }, [port.id, generation]);
-  const remove = async () => {
-    if (!preview || pending) return;
-    const current = ++request.current;
-    setPending("apply"); setError(undefined);
-    try {
-      const completed = await apply(preview.preview_sha256);
-      if (current !== request.current) return;
-      if (completed) close();
-      else setError("Removal did not complete. Review the current installation and any recovery notice before trying again.");
-    } catch (value) { if (current === request.current) setError(errorText(value)); }
-    finally { if (current === request.current) { setPending(undefined); setPreview(undefined); } }
-  };
   return <div className="scrim"><section ref={dialog} className="modal" role="dialog" aria-modal="true" aria-labelledby="removal-review-title" aria-describedby="removal-review-description">
     <h2 id="removal-review-title">Review installed-game removal</h2>
     <p id="removal-review-description">Remove the managed versions of {port.name} listed below.</p>
