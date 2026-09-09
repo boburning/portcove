@@ -14,6 +14,16 @@ Pass `-IncludeDeep` or `--include-deep` to also install cargo-modules, semdup, c
 
 ## Canonical commands
 
+Routine CI and maintenance must not require additional paid services, runners,
+storage expansion, metered AI APIs, new hardware, or an always-on personal PC/NAS.
+Preserve the existing fast-CI target, measurement definition, required checks,
+platform coverage, and validation and safety contracts. Resource limits must
+result in a reported limitation, not enabled spending or bypassed checks.
+An existing ChatGPT/Codex subscription does not establish free unattended API
+execution. This policy does not enforce account billing limits: verify applicable
+GitHub storage allowances and spending controls separately; free standard-runner
+execution in public repositories does not imply unlimited free storage.
+
 See [Development tools](DEVELOPMENT-TOOLS.md) for the read-only host doctor,
 native desktop evidence harness, repository skills and targeted safety experiments.
 

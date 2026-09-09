@@ -17,20 +17,25 @@ const scriptPath = fileURLToPath(import.meta.url);
 const defaultProjectRoot = path.resolve(path.dirname(scriptPath), "..");
 const desktopPackageExtensions = new Set([".appimage", ".deb", ".dmg", ".exe", ".msi", ".pkg", ".rpm"]);
 
-async function walkFiles(root) {
-  const entries = await readdir(root, { withFileTypes: true });
-  const files = [];
-  for (const entry of entries) {
-    const entryPath = path.join(root, entry.name);
-    if (entry.isSymbolicLink()) throw new Error(`release output contains a symbolic link: ${entryPath}`);
-    if (entry.isDirectory()) files.push(...await walkFiles(entryPath));
-    else if (entry.isFile()) files.push(entryPath);
-  }
-  return files;
-}
-
 function isDesktopPackage(filePath) {
   return desktopPackageExtensions.has(path.extname(filePath).toLowerCase());
+}
+
+async function collectDesktopPackages(projectRoot, bundleRoot, expectedEntries) {
+  const packages = [];
+  const formats = [...new Set(expectedEntries
+    .filter(entry => entry.interface === "desktop")
+    .map(entry => entry.format))];
+  for (const format of formats) {
+    const formatRoot = path.join(bundleRoot, format);
+    await assertOwnedUnlinkedPath(projectRoot, formatRoot, `release ${format} bundle directory`);
+    for (const entry of await readdir(formatRoot, { withFileTypes: true })) {
+      const entryPath = path.join(formatRoot, entry.name);
+      if (entry.isSymbolicLink()) throw new Error(`release package is a symbolic link: ${entryPath}`);
+      if (entry.isFile() && isDesktopPackage(entryPath)) packages.push(entryPath);
+    }
+  }
+  return packages;
 }
 
 function validateLabel(label) {
@@ -74,7 +79,7 @@ export async function collectReleaseArtifacts(projectRoot, label, requestedVersi
 
   const bundleRoot = path.join(projectRoot, "target", "release", "bundle");
   await assertOwnedUnlinkedPath(projectRoot, bundleRoot, "release desktop bundle directory");
-  const desktopPackages = (await walkFiles(bundleRoot)).filter(isDesktopPackage);
+  const desktopPackages = await collectDesktopPackages(projectRoot, bundleRoot, expectedEntries);
   const artifacts = [...cliArchives, ...desktopPackages];
   assertExactArtifactNames(expectedNames, artifacts.map(artifact => path.basename(artifact)), `${label} package set`);
   return artifacts.sort((left, right) => path.basename(left).localeCompare(path.basename(right)));
