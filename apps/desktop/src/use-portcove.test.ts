@@ -1,9 +1,11 @@
+import { portDefinition } from "./test-fixtures";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { desktopApi } from "./api";
 import type { PortDefinition } from "./types";
 import { detailActions, type Perform } from "./use-portcove";
 
 const port: PortDefinition = {
+  ...portDefinition(),
   id: "lighthouse",
   name: "Lighthouse",
   summary: "Native port",
@@ -16,7 +18,7 @@ const port: PortDefinition = {
   adapter: "libultraship-portable",
   persistent_paths: ["saves"],
   upstream_status: "active",
-  release: {},
+  release: portDefinition().release,
   executable_hints: {},
 };
 
@@ -54,7 +56,7 @@ describe("detail removal action", () => {
       id: "backup-1", port_id: port.id, path: "library/backups/lighthouse/backup-1",
       created_at: 1, file_count: 2, size: 3, sha256: "a".repeat(64),
     };
-    vi.spyOn(desktopApi, "restoreBackup").mockResolvedValue({ restored_backup: backup });
+    vi.spyOn(desktopApi, "restoreBackup").mockResolvedValue({ restored_backup: backup, safety_backup: null });
     const perform = vi.fn(async (_name: string, task: () => Promise<unknown>) => task()) as unknown as Perform;
     const refresh = vi.fn().mockResolvedValue(undefined);
 

@@ -93,7 +93,7 @@ export function useUpdateCenter(perform: Perform, statuses: PortStatus[]) {
   const [actions, setActions] = useState<Map<string, ReconcileAction>>(new Map());
   const snapshots = statuses.flatMap(status => {
     const snapshot = currentUpdateSnapshot(status);
-    return snapshot ? [{ port_id: status.port_id, ok: true, result: snapshot.check } satisfies UpdateCheckOutcome] : [];
+    return snapshot ? [{ port_id: status.port_id, ok: true, error: null, result: snapshot.check } satisfies UpdateCheckOutcome] : [];
   });
   const snapshotBaseline = snapshots.map(outcome => `${outcome.port_id}:${outcome.result?.release.asset.sha256}:${outcome.result?.installed_artifact?.sha256}:${JSON.stringify(outcome.result?.required_runtime)}:${JSON.stringify(outcome.result?.installed_runtime)}`).join("|");
   useEffect(() => {
@@ -113,7 +113,7 @@ export function useUpdateCenter(perform: Perform, statuses: PortStatus[]) {
       setOutcomes(result.map(outcome => ({
         port_id: outcome.port_id,
         ok: outcome.ok,
-        result: outcome.result?.check,
+        result: outcome.result?.check ?? null,
         error: outcome.error,
       })));
       setActions(new Map(result.flatMap(outcome => outcome.result ? [[outcome.port_id, outcome.result.action] as const] : [])));
@@ -248,7 +248,7 @@ export function useGithubAuth(perform: Perform, setError: (error?: string) => vo
         const result = await desktopApi.pollGithubDeviceLogin(deviceLogin.session_id);
         if (cancelled) return;
         if (result.state === "complete") {
-          setStatus(result.status);
+          setStatus(result.status ?? undefined);
           setDeviceLogin(undefined);
         } else {
           timer = window.setTimeout(() => { void poll(); }, delay);

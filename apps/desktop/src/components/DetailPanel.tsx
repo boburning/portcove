@@ -83,7 +83,7 @@ function DetailDialog({ props, dialog }: { props: DetailPanelProps; dialog: Retu
     <section ref={dialog} className="detail-panel" role="dialog" aria-modal="true" aria-labelledby="port-detail-title">
       <button data-focusable className="close icon-button" aria-label="Close port details" onClick={actions.close}><Icon glyph={X} /></button>
       <DetailHero port={port} state={state} />
-      {props.cancellableActivities?.map(activity => <OperationCancellation key={activity.id} operationId={activity.id} state={activity.cancellation} />)}
+      {props.cancellableActivities?.map(activity => <OperationCancellation key={activity.id} operationId={activity.id} state={activity.cancellation ?? undefined} />)}
       <DetailBody port={port} status={status} state={state} sources={sources} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} installPlan={installPlan} selectedChannel={selectedChannel} policy={policy} backups={backups} backupProblems={backupProblems} backupState={backupState} busy={effectiveBusy} outputExternalBusy={busy} libraryGeneration={props.libraryGeneration ?? 0} outputLocationChanged={props.outputLocationChanged} outputApplying={setOutputApplying} actions={actions} />
     </section>
   </div>;
@@ -134,7 +134,7 @@ function detailReadiness(port: PortDefinition, status: PortStatus | undefined, s
   };
 }
 
-function sourceRequirementReady(required: boolean, installed: boolean, health: SourceHealth | undefined, selected: boolean) {
+function sourceRequirementReady(required: boolean, installed: boolean, health: SourceHealth | null | undefined, selected: boolean) {
   if (!required) return true;
   if (!installed || health === undefined) return selected;
   return health === "current";
@@ -146,8 +146,8 @@ type SourceControls = Pick<DetailPanelProps,
 > & {
   sourceReady: boolean;
   biosReady: boolean;
-  sourceHealth?: SourceHealth;
-  biosHealth?: SourceHealth;
+  sourceHealth?: SourceHealth | null;
+  biosHealth?: SourceHealth | null;
 };
 
 function SourceFields({ mode, controls }: { mode: "missing" | "registered"; controls: SourceControls }) {
@@ -214,7 +214,7 @@ const adapterPresentation: Record<PortDefinition["adapter"], string> = {
   "psx-recomp-managed": "Managed PS1 recompilation",
 };
 
-function SourceField({ heading, profileId, profile, source, inspection, health, path, setPath, pick, pickArchive, openEvidence }: { heading: string; profileId: string; profile?: SourceProfile; source?: SourceRecord; inspection?: SourceInspectionReport; health?: SourceHealth; path: string; setPath: (path: string) => void; pick?: () => void; pickArchive?: () => void; openEvidence?: (evidenceId: string) => void }) {
+function SourceField({ heading, profileId, profile, source, inspection, health, path, setPath, pick, pickArchive, openEvidence }: { heading: string; profileId: string; profile?: SourceProfile; source?: SourceRecord; inspection?: SourceInspectionReport; health?: SourceHealth | null; path: string; setPath: (path: string) => void; pick?: () => void; pickArchive?: () => void; openEvidence?: (evidenceId: string) => void }) {
   const copy = sourceFieldCopy(profile);
   const selectedOverride = Boolean(path.trim()) && (!source || path !== source.path);
   const sourceNote = selectedOverride ? "Selected path has not been checked. Portcove validates these files when you continue." : source ? sourceHealthNote(inspection?.health ?? health, source) : copy.note;
@@ -229,7 +229,7 @@ function SourceField({ heading, profileId, profile, source, inspection, health, 
   </div>;
 }
 
-function sourceHealthNote(health: SourceHealth | undefined, source: SourceRecord) {
+function sourceHealthNote(health: SourceHealth | null | undefined, source: SourceRecord) {
   const hash = `${source.sha256.slice(0, 12)}…`;
   if (health === "current") return `Current registered bytes checked · ${hash}`;
   if (health === "changed") return "Registered source changed since it was added.";
@@ -319,7 +319,7 @@ function CliContinuity({ port, status, channel, sourcePath, biosPath }: { port: 
   </div>;
 }
 
-function detailState(installed: boolean, launchReady: boolean, staged: boolean, pendingSetup: boolean, runtimeNeeded: boolean, sourceHealth?: SourceHealth, biosHealth?: SourceHealth, selectedPath = false) {
+function detailState(installed: boolean, launchReady: boolean, staged: boolean, pendingSetup: boolean, runtimeNeeded: boolean, sourceHealth?: SourceHealth | null, biosHealth?: SourceHealth | null, selectedPath = false) {
   if (!installed) return { title: "Available to install", description: selectedPath ? "Selected game files have not been checked. Portcove validates them when you continue installation." : "Portcove will check required game files and verify the release before it becomes active.", tone: "available", icon: Download };
   if (runtimeNeeded) return { title: "Verified runtime required", description: "Review the update to install this port with its required runtime. Existing saves stay in your library.", tone: "setup", icon: Wrench };
   const sourceIssue = sourceHealthState("Original source", sourceHealth);
@@ -333,7 +333,7 @@ function detailState(installed: boolean, launchReady: boolean, staged: boolean, 
   return { title: "Ready to launch", description: "The active version and every required local source are available.", tone: "ready", icon: CheckCircle2 };
 }
 
-function sourceHealthState(label: string, health?: SourceHealth) {
+function sourceHealthState(label: string, health?: SourceHealth | null) {
   if (health === "changed") return { title: `${label} changed`, description: `Choose and register ${label.toLowerCase()} again before play.`, tone: "setup", icon: AlertTriangle };
   if (health === "missing") return { title: `${label} missing`, description: `Choose and register ${label.toLowerCase()} again before play.`, tone: "setup", icon: AlertTriangle };
   if (health === "unreadable") return { title: `${label} unreadable`, description: `Restore access to ${label.toLowerCase()} or register it again before play.`, tone: "setup", icon: AlertTriangle };

@@ -250,4 +250,20 @@ Concurrency assertions use synchronization instead of elapsed-time assumptions.
 Every Node test file is explicitly covered by required CI and local quality
 recipes; the workflow contract checks this inventory. Transport comparator unit
 tests use fixed inputs, while a separate required integration test mutates the
-real TypeScript contract and checks it against the CLI's live Rust schema export.
+generated nested scalar and checks it against the CLI's live Rust schema export.
+The required frontend job verifies generated declarations and runs strict compiler
+fixtures that reject incorrect nested types, nulls, missing required fields,
+arrays, enums and discriminated event variants. No TypeScript suppression is
+used for negative fixtures. Request schemas retain accepted defaults separately
+from required serialized response fields.
+
+After changing a Rust transport type, run
+`node scripts/check-transport-contract.mjs --write`, followed by
+`node apps/desktop/scripts/generate-transport-types.mjs --write`. Commit the
+generated JSON snapshots and declaration files with the caller changes.
+`json-schema-to-typescript` is pinned as a development dependency; generation
+resolves only local schema references and rejects inconsistent named definitions.
+The declarations contain no executable code, use type-only imports, and reuse
+identical root/nested schema bodies. There are no new quality exclusions or
+dependency exceptions. The frontend facade exposes the types its callers use;
+the complete exported Rust inventory remains in the generated declarations.

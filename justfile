@@ -53,6 +53,8 @@ check-rust: fmt rust-check clippy rust-test shear architecture process-policy tr
 
 # Frontend fast loop
 ui-build:
+    {{storage}} node apps/desktop/scripts/generate-transport-types.mjs
+    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/transport-types.test.mjs
     {{storage}} pnpm --dir apps/desktop build
 
 ui-test:

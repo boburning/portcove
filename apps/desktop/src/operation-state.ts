@@ -24,7 +24,7 @@ export function applyOperationEvent(
   const activeContext = new Set<string>();
   for (const operation of next.values()) {
     if (operation.type === "finished") continue;
-    let id: string | undefined = operation.operation_id;
+    let id: string | null | undefined = operation.operation_id;
     while (id && !activeContext.has(id)) {
       activeContext.add(id);
       id = next.get(id)?.parent_operation_id;
