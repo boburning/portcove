@@ -1117,7 +1117,10 @@ h2 { letter-spacing: -0.025em; line-height: var(--leading-tight); }
 
 .error-banner strong { display: block; color: var(--color-danger-strong); }
 .error-banner > div { min-width: 0; }
-.error-banner[role="status"] { border-color: var(--color-border); background: var(--color-bg-elevated); }
+.error-banner[role="status"] { color: var(--color-text); border-color: var(--color-border); background: var(--color-bg-elevated); }
+.error-banner[role="status"] .error-icon,
+.error-banner[role="status"] .error-actions button,
+.activity-row.cancelled .activity-details summary { color: var(--color-text-secondary); }
 .error-banner[role="status"] strong { color: var(--color-text); }
 .failure-details pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-xs); }
 .failure-details summary { cursor: pointer; }

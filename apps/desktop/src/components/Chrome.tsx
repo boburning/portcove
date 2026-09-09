@@ -76,7 +76,7 @@ function ErrorNotice({ error, clearError }: { error: unknown; clearError: () => 
   const presentation = failurePresentation(error);
   const code = typeof error === "object" && error && "code" in error ? String(error.code) : undefined;
   return <section className="error-banner" role={presentation?.tone === "neutral" ? "status" : "alert"}>
-      <span className="error-icon"><Icon glyph={AlertTriangle} /></span>
+      <span className="error-icon"><Icon glyph={presentation?.tone === "neutral" ? CircleMinus : AlertTriangle} /></span>
       <div><strong>{presentation?.tone === "neutral" ? "Operation cancelled" : "Portcove couldn’t finish that action"}</strong><p>{errorText(error)}</p>
         {presentation && <FailureDetails presentation={presentation} code={code} />}</div>
       <div className="error-actions"><button data-focusable className="icon-button" aria-label="Dismiss error" onClick={clearError}><Icon glyph={X} /></button></div>

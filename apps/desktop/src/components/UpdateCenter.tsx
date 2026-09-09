@@ -3,7 +3,7 @@ import { errorText } from "../view-model";
 import { useState } from "react";
 import { OperationCancellation } from "./OperationCancellation";
 import type { LucideIcon } from "lucide-react";
-import { AlertTriangle, Check, Clipboard, ClipboardCheck, Download, History, LoaderCircle, PackageCheck, RefreshCw, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Check, CircleMinus, Clipboard, ClipboardCheck, Download, History, LoaderCircle, PackageCheck, RefreshCw, ShieldCheck } from "lucide-react";
 import { copyText } from "../clipboard";
 import type { ActivityOperation, ActivityRecord, PortDefinition, PortStatus, UpdateCheck, UpdateCheckOutcome } from "../types";
 import { EmptyState, Icon } from "./ui";
@@ -172,7 +172,7 @@ function activityPresentation(activity: ActivityRecord) {
     state: activity.status,
     label: activity.status,
     time: `Started ${formatActivityTime(activity.started_at)}`,
-    icon: activity.status === "succeeded" ? Check : AlertTriangle,
+    icon: activity.status === "succeeded" ? Check : activity.status === "cancelled" ? CircleMinus : AlertTriangle,
   };
   if (Date.now() / 1000 - activity.started_at >= unfinishedAfterSeconds) return {
     state: "unfinished",

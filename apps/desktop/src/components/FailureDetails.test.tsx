@@ -30,6 +30,7 @@ describe("core-owned failure presentation", () => {
     error.presentation.mutation_state = "no_changes";
     const html = renderToStaticMarkup(<StatusLayer error={error} clearError={vi.fn()} />);
     expect(html).toContain('role="status"'); expect(html).not.toContain('role="alert"');
+    expect(html).toContain("lucide-circle-minus");
     expect(html).toContain("No files were changed by this operation.");
   });
 
