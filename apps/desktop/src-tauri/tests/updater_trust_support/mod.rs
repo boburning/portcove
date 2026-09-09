@@ -30,11 +30,7 @@ impl Key {
         let document = Ed25519KeyPair::generate_pkcs8(&SystemRandom::new()).unwrap();
         let file = tempfile::NamedTempFile::new_in(directory).unwrap();
         let (_, path) = file.keep().unwrap();
-        fs::write(
-            &path,
-            pem::encode(&pem::Pem::new("PRIVATE KEY", document.as_ref())),
-        )
-        .unwrap();
+        fs::write(&path, document.as_ref()).unwrap();
         Self(path)
     }
 

@@ -44,8 +44,9 @@ async fn root_rotation_requires_both_quorums_and_all_intermediate_bridges() {
         Key::new(f.directory.path()).await,
         Key::new(f.directory.path()).await,
     ];
-    let middle = f.root(2, &replacement, &f.online).await;
-    let latest = f.root(3, &replacement, &f.online).await;
+    let new_online = Key::new(f.directory.path()).await;
+    let middle = f.root(2, &replacement, &new_online).await;
+    let latest = f.root(3, &replacement, &new_online).await;
     let mut union = old.clone();
     union.keys.extend(middle.keys.clone());
     union
@@ -58,11 +59,11 @@ async fn root_rotation_requires_both_quorums_and_all_intermediate_bridges() {
     let bridge = f.sign_root(&middle, &union, &signers).await;
     let current = f.sign_root(&latest, &middle, &replacement).await;
     fs::write(f.metadata.join("3.root.json"), &current).unwrap();
-    f.publish(&current, &f.online, 3, expiration()).await;
+    f.publish(&current, &new_online, 3, expiration()).await;
 
     // Rotate the online key too: an old client cannot authenticate current metadata
     // until it receives the continuous root chain (a version jump is insufficient).
-    assert_eq!(f.load(&trusted).await.unwrap().root().signed.version, nz(1));
+    assert!(f.load(&trusted).await.is_err());
     fs::write(f.metadata.join("2.root.json"), &bridge).unwrap();
     assert_eq!(f.load(&trusted).await.unwrap().root().signed.version, nz(3));
 
