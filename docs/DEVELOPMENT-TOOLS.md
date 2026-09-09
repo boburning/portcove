@@ -143,3 +143,12 @@ saved data, backup contents, source references and bytes, adoption originals and
 another game's installation. It records accessibility, a screenshot and exact
 removed/preserved identities. Physical interruption remains separate core fault
 and platform qualification evidence.
+
+The backup/removal native confirmation scenarios currently require Windows. Their
+bounded UI Automation helper selects exactly one application with the reviewed
+executable path, verifies its ancestry under this harness's live driver, and only
+interacts with the expected title, target text and enabled button. It records the
+observed native dialog and tests that renderer application alone leaves the files
+unchanged, cancellation preserves them, and explicit native consent admits core
+authorization. It changes no product confirmation behavior or test bypass setting.
+Other platforms need their own native confirmation observation before qualification.

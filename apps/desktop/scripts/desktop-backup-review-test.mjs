@@ -5,7 +5,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import axe from "axe-core";
 import { By, until } from "selenium-webdriver";
 
-export async function backupReviewScenario({ browser, invoke, scenario, library, output, artifacts, command, seed, open }) {
+export async function backupReviewScenario({ browser, invoke, scenario, library, output, artifacts, command, seed, open, confirmNative }) {
   await scenario("native-reviewed-backup-restore-and-delete", async () => {
     assert.equal(path.resolve(library), path.resolve(output, "library"));
     const { port, install } = await seed("opengoal-jak3", "success");
@@ -53,6 +53,15 @@ export async function backupReviewScenario({ browser, invoke, scenario, library,
     await browser.findElement(button("Keep current state")).click();
     assert.equal(await readFile(save, "utf8"), "current data before review");
     assert.equal(list().length, 2);
+    await clickRestore();
+    await browser.wait(until.elementLocated(button("Restore this backup")), 15_000);
+    await browser.findElement(button("Restore this backup")).click();
+    await confirmNative("Confirm backup restore", "__observe__", selected.path, "backup-native-restore-before-consent");
+    assert.equal(await readFile(save, "utf8"), "current data before review");
+    assert.equal(list().length, 2);
+    await confirmNative("Confirm backup restore", "Cancel", selected.path, "backup-native-restore-cancelled");
+    await browser.wait(async () => (await browser.findElements(By.css('[aria-labelledby="backup-review-title"]'))).length === 0, 15_000);
+    assert.equal(await readFile(save, "utf8"), "current data before review");
     const generation = (await invoke("get_bootstrap_status")).value.generation;
     for (const [commandName, action] of [["restore_backup", "restore"], ["delete_backup", "delete"]]) {
       const preview = await invoke("preview_backup_action", { portId: port.id, backupId: selected.id, action, generation });
@@ -70,6 +79,7 @@ export async function backupReviewScenario({ browser, invoke, scenario, library,
     await browser.findElement(button("Review again")).click();
     await browser.wait(until.elementLocated(button("Restore this backup")), 15_000);
     await browser.findElement(button("Restore this backup")).click();
+    await confirmNative("Confirm backup restore", "Restore reviewed backup", selected.path, "backup-native-restore-confirmed");
     await browser.wait(async () => (await browser.findElements(By.css('[aria-labelledby="backup-review-title"]'))).length === 0, 15_000);
     assert.equal(await readFile(save, "utf8"), "selected snapshot data");
     const afterRestore = list();
@@ -81,6 +91,9 @@ export async function backupReviewScenario({ browser, invoke, scenario, library,
     await browser.wait(until.elementLocated(button("Delete this backup permanently")), 15_000);
     await capture("native-backup-delete-review");
     await browser.findElement(button("Delete this backup permanently")).click();
+    await confirmNative("Confirm backup deletion", "__observe__", selected.path, "backup-native-delete-before-consent");
+    assert.equal(list().length, 3);
+    await confirmNative("Confirm backup deletion", "Delete reviewed backup", selected.path, "backup-native-delete-confirmed");
     await browser.wait(async () => (await browser.findElements(By.css('[aria-labelledby="backup-review-title"]'))).length === 0, 15_000);
     assert.deepEqual(list().map(item => item.id).sort(), [other.id, safety.id].sort());
     assert.equal(await readFile(save, "utf8"), "selected snapshot data");

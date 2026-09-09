@@ -10,6 +10,7 @@ import { Builder, By, Key, until } from "selenium-webdriver";
 import { writeEvidence, fileIdentity } from "../../../scripts/development-evidence.mjs";
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 import { preparationScenarios } from "./desktop-preparation-test.mjs";
+import { nativeConfirmation } from "./desktop-native-confirmation.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const { values } = parseArgs({ options: {
@@ -33,6 +34,8 @@ if (values["preparation-cli"] || values["preparation-tool"]) {
   inputs.push(await fileIdentity(fileURLToPath(new URL("./desktop-preparation-recovery-test.mjs", import.meta.url))));
   inputs.push(await fileIdentity(fileURLToPath(new URL("./desktop-backup-review-test.mjs", import.meta.url))));
   inputs.push(await fileIdentity(fileURLToPath(new URL("./desktop-removal-review-test.mjs", import.meta.url))));
+  inputs.push(await fileIdentity(fileURLToPath(new URL("./desktop-native-confirmation.mjs", import.meta.url))));
+  inputs.push(await fileIdentity(fileURLToPath(new URL("./native-confirmation.ps1", import.meta.url))));
 }
 const revision = spawnCommand("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8", windowsHide: true }).stdout.trim();
 const output = path.resolve(values.output);
@@ -157,6 +160,7 @@ try {
   checks.push({ scenario: "install-progress-cancellation", outcome: "not-run", reason: "Requires a reviewed install fixture; the smoke harness does not download or execute upstream games." });
   if (values["preparation-cli"]) {
     await preparationScenarios({ browser, invoke, scenario, library, output, artifacts,
+      confirmNative: nativeConfirmation({ application: values.app, driverPid: driver.pid, output, artifacts }),
       cli: values["preparation-cli"], tool: values["preparation-tool"] });
   }
 } catch (error) {

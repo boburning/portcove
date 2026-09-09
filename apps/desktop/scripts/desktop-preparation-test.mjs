@@ -9,7 +9,7 @@ import { backupReviewScenario } from "./desktop-backup-review-test.mjs";
 import { removalReviewScenario } from "./desktop-removal-review-test.mjs";
 import { interruptedPreparationScenario } from "./desktop-preparation-recovery-test.mjs";
 
-export async function preparationScenarios({ browser, invoke, scenario, library, output, artifacts, cli, tool }) {
+export async function preparationScenarios({ browser, invoke, scenario, library, output, artifacts, cli, tool, confirmNative }) {
   const command = args => {
     const result = spawnCommand(cli, ["--library", library, "--json", "--non-interactive", ...args], {
       encoding: "utf8", windowsHide: true, timeout: 15_000,
@@ -241,7 +241,7 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
     await writeFile(screenshot, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" }); artifacts.push(screenshot);
   });
 
-  await backupReviewScenario({ browser, invoke, scenario, library, output, artifacts, command, seed, open });
-  await removalReviewScenario({ browser, invoke, scenario, library, output, artifacts, command, open });
+  await backupReviewScenario({ browser, invoke, scenario, library, output, artifacts, command, seed, open, confirmNative });
+  await removalReviewScenario({ browser, invoke, scenario, library, output, artifacts, command, open, confirmNative });
 
 }

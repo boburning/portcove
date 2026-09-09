@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
 import axe from "axe-core";
 import { By, until } from "selenium-webdriver";
 
-export async function removalReviewScenario({ browser, invoke, scenario, library, output, artifacts, command, open }) {
+export async function removalReviewScenario({ browser, invoke, scenario, library, output, artifacts, command, open, confirmNative }) {
   await scenario("native-reviewed-installed-game-removal", async () => {
     assert.equal(path.resolve(library), path.resolve(output, "library"));
     const port = command(["catalog", "show", "opengoal-jak3"]);
@@ -43,6 +43,13 @@ export async function removalReviewScenario({ browser, invoke, scenario, library
     for (const affected of initial.value.managed_paths) assert.ok((await stat(affected)).isDirectory());
     assert.deepEqual(await readFile(save), beforeSave);
     await review();
+    await click(button("Remove these managed folders"));
+    await confirmNative("Confirm port removal", "__observe__", paths.user_data_root, "removal-native-before-consent");
+    for (const affected of initial.value.managed_paths) assert.ok((await stat(affected)).isDirectory());
+    await confirmNative("Confirm port removal", "Cancel", paths.user_data_root, "removal-native-cancelled");
+    await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 15_000);
+    for (const affected of initial.value.managed_paths) assert.ok((await stat(affected)).isDirectory());
+    await review();
     // A real new adoption changes the reviewed inventory; the old review must fail.
     await writeFile(path.join(original, "owned-new-version.bin"), "second reviewed version", { flag: "wx" });
     const added = command(["adopt", original, "--port", port.id, "--yes"]);
@@ -73,6 +80,7 @@ export async function removalReviewScenario({ browser, invoke, scenario, library
     const screenshot = path.join(output, "native-installed-game-removal-review.png");
     await writeFile(screenshot, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" }); artifacts.push(screenshot);
     await click(button("Remove these managed folders"));
+    await confirmNative("Confirm port removal", "Remove reviewed folders", paths.user_data_root, "removal-native-confirmed");
     await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 15_000);
     for (const affected of current.value.managed_paths) await assert.rejects(stat(affected), { code: "ENOENT" });
     assert.equal(command(["status", port.id]).active, null);

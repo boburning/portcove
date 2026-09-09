@@ -4,7 +4,7 @@ import { useDialogFocus } from "../dialog";
 import type { BackupAction, BackupRecord, BackupReview } from "../types";
 import { errorText, formatBytes } from "../view-model";
 
-export type ApplyBackupAction = (backup: BackupRecord, expectedPreview: string) => Promise<boolean>;
+export type ApplyBackupAction = (backup: BackupRecord, expectedPreview: string) => Promise<boolean | "cancelled">;
 
 export function BackupReviewDialog({ backup, action, generation, apply, close }: {
   backup: BackupRecord; action: BackupAction; generation: number; apply: ApplyBackupAction; close: () => void;

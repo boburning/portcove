@@ -296,16 +296,20 @@ export function detailActions(port: PortDefinition, status: PortStatus | undefin
     remove: async expectedPreview => {
       const removed = await perform("remove", () => desktopApi.remove(port.id, expectedPreview, libraryGeneration));
       if (removed) close();
-      return Boolean(removed);
+      return removed === null ? "cancelled" : Boolean(removed);
     },
     deleteBackup: async (backup, expectedPreview) => {
-      const completed = Boolean(await perform("delete backup", () => desktopApi.deleteBackup(port.id, backup.id, expectedPreview, libraryGeneration)));
+      const result = await perform("delete backup", () => desktopApi.deleteBackup(port.id, backup.id, expectedPreview, libraryGeneration));
+      if (result === null) return "cancelled";
+      const completed = Boolean(result);
       if (completed) await backupsChanged();
       return completed;
     },
     rollback: () => perform("rollback", () => desktopApi.rollback(port.id)),
     restoreBackup: async (backup, expectedPreview) => {
-      const completed = Boolean(await perform("restore backup", () => desktopApi.restoreBackup(port.id, backup.id, expectedPreview, libraryGeneration)));
+      const result = await perform("restore backup", () => desktopApi.restoreBackup(port.id, backup.id, expectedPreview, libraryGeneration));
+      if (result === null) return "cancelled";
+      const completed = Boolean(result);
       if (completed) await backupsChanged();
       return completed;
     },

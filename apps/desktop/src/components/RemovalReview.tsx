@@ -6,7 +6,7 @@ import type { PortDefinition, PortRemovalPreview } from "../types";
 import { errorText } from "../view-model";
 import { Icon } from "./ui";
 
-export type ApplyRemoval = (expectedPreview: string) => Promise<boolean>;
+export type ApplyRemoval = (expectedPreview: string) => Promise<boolean | "cancelled">;
 
 export function RemovalControl({ port, generation, busy, apply }: {
   port: PortDefinition; generation: number; busy: boolean; apply: ApplyRemoval;

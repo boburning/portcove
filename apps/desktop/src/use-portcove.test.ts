@@ -122,4 +122,18 @@ describe("detail actions", () => {
     expect(desktopApi.remove).toHaveBeenCalledWith(port.id, "reviewed-removal", 9);
     expect(close).toHaveBeenCalledOnce();
   });
+
+  it("keeps native cancellation distinct from failure or a completed mutation", async () => {
+    vi.spyOn(desktopApi, "remove").mockResolvedValue(null);
+    vi.spyOn(desktopApi, "restoreBackup").mockResolvedValue(null);
+    vi.spyOn(desktopApi, "deleteBackup").mockResolvedValue(null);
+    const perform: Perform = async (_name, task) => task();
+    const close = vi.fn(); const refresh = vi.fn();
+    const actions = detailActions(port, undefined, "", "", perform, close, undefined, refresh, 9);
+    const backup = { id: "snapshot", port_id: port.id, path: "library/backup", created_at: 1, file_count: 1, size: 1, sha256: "a".repeat(64) };
+    expect(await actions.remove("reviewed")).toBe("cancelled");
+    expect(await actions.restoreBackup(backup, "reviewed")).toBe("cancelled");
+    expect(await actions.deleteBackup(backup, "reviewed")).toBe("cancelled");
+    expect(close).not.toHaveBeenCalled(); expect(refresh).not.toHaveBeenCalled();
+  });
 });

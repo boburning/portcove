@@ -42,6 +42,14 @@ it("dismisses a removal review without applying it", async () => {
   expect(close).toHaveBeenCalledOnce(); expect(apply).not.toHaveBeenCalled();
 });
 
+it("closes the review without an error when final native consent is declined", async () => {
+  vi.spyOn(desktopApi, "previewRemoval").mockResolvedValue(review);
+  const apply = vi.fn().mockResolvedValue("cancelled"); const close = vi.fn();
+  await act(async () => root.render(<RemovalReviewDialog port={port} generation={7} apply={apply} close={close} />));
+  await click("Remove these managed folders");
+  expect(close).toHaveBeenCalledOnce(); expect(container.querySelector('[role="alert"]')).toBeNull();
+});
+
 it("blocks duplicate removal and requires a new review after failure", async () => {
   const preview = vi.spyOn(desktopApi, "previewRemoval").mockResolvedValue(review);
   let finish!: (result: boolean) => void;
