@@ -17,7 +17,7 @@ export function AdoptionModal({ path, setPath, preview, busy, applying = false, 
     <NavigationHints />
     <label htmlFor="adopt-path">Existing installation folder</label><div className="path-entry"><input data-autofocus data-focusable id="adopt-path" value={path} disabled={Boolean(busy) || applying} onChange={event => setPath(event.target.value)} placeholder="Choose or paste the full folder path" />
       {pickFolder && <button data-focusable className="button-with-icon" type="button" disabled={Boolean(busy) || applying} onClick={pickFolder}><Icon glyph={FolderOpen} />Browse</button>}</div>
-    {preview && <section className="adoption-plan" aria-label="Adoption copy plan">
+    {preview && <section className="adoption-plan" aria-label="Adoption copy plan" tabIndex={0} data-focusable>
       <p><strong>{preview.selected_port_id ?? (preview.detected_port_ids.join(", ") || "No port detected")}</strong></p>
       <p>{preview.copy_plan.files.length.toLocaleString()} {preview.copy_plan.files.length === 1 ? "file" : "files"} · {formatBytes(preview.copy_plan.total_bytes)} will be copied into the managed library.</p>
       {preview.copy_plan.skipped_entries.length > 0 && <details><summary>{preview.copy_plan.skipped_entries.length} skipped {preview.copy_plan.skipped_entries.length === 1 ? "entry" : "entries"}</summary><ul>
