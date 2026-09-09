@@ -20,14 +20,14 @@ import { useNativeSourceDrop } from "./native-source-drop";
 import { useCommandSurface } from "./use-command-surface";
 import { useAdoptionPlanning, detailActions, type Perform, useGithubAuth, useInstallPlanning, useOperationState, usePortBackups, usePortcoveData, usePortcoveUi, useSourceHealth, useUpdateCenter } from "./use-portcove";
 import type { ActivityRecord, BootstrapStatus, DesktopError, HostToolStatus, SourceProfile, SourceRecord } from "./types";
-import { currentUpdateSnapshot, errorText, filterPorts, indexStatuses, mostRecentPort, requiredSourceNeeds, summarizeLibrary } from "./view-model";
+import { currentUpdateSnapshot, errorText, failurePresentation, filterPorts, indexStatuses, mostRecentPort, requiredSourceNeeds, summarizeLibrary } from "./view-model";
 
 export default function App() {
   const [bootstrap, setBootstrap] = useState<BootstrapStatus>();
   const [bootstrapError, setBootstrapError] = useState<StartupFailure>();
   useEffect(() => {
     desktopApi.bootstrapStatus().then(setBootstrap).catch(value => {
-      setBootstrapError({ code: "state", message: errorText(value), details: {} });
+      setBootstrapError(failurePresentation(value) ? value as DesktopError : { code: "state", message: errorText(value), details: {} });
     });
   }, []);
   const switchLibrary = async (path: string) => {
