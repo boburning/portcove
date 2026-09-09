@@ -4,10 +4,9 @@ import { useDialogFocus } from "../dialog";
 import { Icon, NavigationHints } from "./ui";
 import type { AdoptionPreview } from "../types";
 
-export function AdoptionModal({ path, setPath, preview, busy, close, review, adopt, pickFolder }: {
-  path: string; setPath: (path: string) => void; preview?: AdoptionPreview; busy?: string; close: () => void; review: () => void; adopt: () => void; pickFolder?: () => void;
+export function AdoptionModal({ path, setPath, preview, busy, applying = false, copyFailed, close, review, adopt, pickFolder }: {
+  path: string; setPath: (path: string) => void; preview?: AdoptionPreview; busy?: string; applying?: boolean; copyFailed?: boolean; close: () => void; review: () => void; adopt: () => void; pickFolder?: () => void;
 }) {
-  const applying = busy === "adopt";
   const dismiss = () => { if (!applying) close(); };
   const dialog = useDialogFocus(dismiss);
   return <div className="scrim"><section ref={dialog} className="modal" role="dialog" aria-modal="true" aria-labelledby="adopt-title" aria-describedby="adopt-description">
@@ -16,8 +15,8 @@ export function AdoptionModal({ path, setPath, preview, busy, close, review, ado
     <p className="modal-description" id="adopt-description">Portcove previews the folder, identifies the port, and copies application files into its managed library. The original folder is never changed or deleted.</p>
     <p className="inline-assurance"><Icon glyph={ShieldCheck} /> Review first, then confirm before copying.</p>
     <NavigationHints />
-    <label htmlFor="adopt-path">Existing installation folder</label><div className="path-entry"><input data-autofocus data-focusable id="adopt-path" value={path} disabled={Boolean(busy)} onChange={event => setPath(event.target.value)} placeholder="Choose or paste the full folder path" />
-      {pickFolder && <button data-focusable className="button-with-icon" type="button" disabled={Boolean(busy)} onClick={pickFolder}><Icon glyph={FolderOpen} />Browse</button>}</div>
+    <label htmlFor="adopt-path">Existing installation folder</label><div className="path-entry"><input data-autofocus data-focusable id="adopt-path" value={path} disabled={Boolean(busy) || applying} onChange={event => setPath(event.target.value)} placeholder="Choose or paste the full folder path" />
+      {pickFolder && <button data-focusable className="button-with-icon" type="button" disabled={Boolean(busy) || applying} onClick={pickFolder}><Icon glyph={FolderOpen} />Browse</button>}</div>
     {preview && <section className="adoption-plan" aria-label="Adoption copy plan">
       <p><strong>{preview.selected_port_id ?? (preview.detected_port_ids.join(", ") || "No port detected")}</strong></p>
       <p>{preview.copy_plan.files.length.toLocaleString()} {preview.copy_plan.files.length === 1 ? "file" : "files"} · {formatBytes(preview.copy_plan.total_bytes)} will be copied into the managed library.</p>
@@ -28,11 +27,12 @@ export function AdoptionModal({ path, setPath, preview, busy, close, review, ado
       {preview.destination && <AdoptionConsequences destination={preview.destination} />}
       <p>The original folder, registered sources, existing backups and other games remain unchanged. Skipped entries stay only in the original folder.</p>
       <p>There is no single undo action. Removing the managed copy later does not restore overwritten saved files. Create a backup first if you need those files.</p>
-      <p>Once copying starts, this dialog cannot cancel it. If interrupted, recovery may finish a verified copy; check the library and saved data before retrying.</p>
+      <p>Stop the game before copying. Once copying starts, this dialog cannot cancel it. If interrupted, recovery may finish a verified copy; check the library and saved data before retrying.</p>
     </section>}
+    {copyFailed && <p role="alert">The copy could not be confirmed. Check the library and activity history before retrying, then review the current copy plan.</p>}
     <div className="actions"><button data-focusable onClick={dismiss} disabled={applying}>Keep original setup</button>{preview
-      ? <button data-focusable className="primary button-with-icon" disabled={Boolean(busy) || !preview.selected_port_id || !preview.destination} onClick={adopt}><Icon glyph={FolderInput} />{busy === "adopt" ? "Copying…" : "Continue to copy confirmation"}</button>
-      : <button data-focusable className="primary button-with-icon" disabled={!path.trim() || Boolean(busy)} onClick={review}><Icon glyph={FolderInput} />{busy === "preview adoption" ? "Reviewing…" : "Review copy plan"}</button>}</div>
+      ? <button data-focusable className="primary button-with-icon" disabled={Boolean(busy) || applying || !preview.selected_port_id || !preview.destination} onClick={adopt}><Icon glyph={FolderInput} />{applying ? "Waiting for copy…" : "Continue to copy confirmation"}</button>
+      : <button data-focusable className="primary button-with-icon" disabled={!path.trim() || Boolean(busy) || applying} onClick={review}><Icon glyph={FolderInput} />{busy === "preview adoption" ? "Reviewing…" : "Review copy plan"}</button>}</div>
   </section></div>;
 }
 

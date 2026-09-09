@@ -107,6 +107,7 @@ function Workspace({ bootstrap, switchLibrary, resetLibrary }: { bootstrap: Boot
   const backups = usePortBackups(model.port?.id, operations.setError);
   const workspace = useWorkspaceScroll(ui.view);
   const commandSurface = useCommandSurface({ recent: model.recent, installedCount: model.overview.installed, busy: Boolean(operations.busy), setView: ui.setView, setAdoptOpen: ui.setAdoptOpen, setSelectedId: ui.setSelectedId, checkAll: updates.checkAll });
+  const adopting = [...operations.pendingOperations.values()].includes("adopt");
   const handleBack = useCallback(() => {
     const action = overlayBackAction({
       paletteOpen: commandSurface.open,
@@ -114,10 +115,10 @@ function Workspace({ bootstrap, switchLibrary, resetLibrary }: { bootstrap: Boot
       detailOpen: Boolean(ui.selectedId),
     });
     if (action === "close-palette") commandSurface.setOpen(false);
-    else if (action === "close-adoption") { if (operations.busy !== "adopt") ui.setAdoptOpen(false); }
+    else if (action === "close-adoption") { if (!adopting) ui.setAdoptOpen(false); }
     else if (action === "close-detail") ui.setSelectedId(undefined);
     else focusRegion("sidebar");
-  }, [commandSurface.open, commandSurface.setOpen, ui.adoptOpen, ui.selectedId, ui.setAdoptOpen, ui.setSelectedId, operations.busy]);
+  }, [commandSurface.open, commandSurface.setOpen, ui.adoptOpen, ui.selectedId, ui.setAdoptOpen, ui.setSelectedId, adopting]);
   const controller = useGamepadNavigation(handleBack);
   const hostToolActions: HostToolActions = {
     locate: async (tool: HostToolStatus) => {
@@ -229,7 +230,7 @@ function AdoptionOverlay({ ui, operations, libraryGeneration }: { ui: UiState; o
   const finish = () => { ui.setAdoptOpen(false); ui.setAdoptPath(""); };
   const planning = useAdoptionPlanning(ui.adoptPath, ui.selectedId, ui.adoptOpen, libraryGeneration, operations.perform, finish);
   if (!ui.adoptOpen) return null;
-  return <AdoptionModal path={ui.adoptPath} setPath={ui.setAdoptPath} preview={planning.preview} busy={operations.busy} close={() => ui.setAdoptOpen(false)}
+  return <AdoptionModal path={ui.adoptPath} setPath={ui.setAdoptPath} preview={planning.preview} copyFailed={planning.copyFailed} applying={planning.applying} busy={operations.busy} close={() => ui.setAdoptOpen(false)}
     pickFolder={() => { void applyPathChoice(pickInstallFolder(ui.adoptPath), ui.setAdoptPath, operations.setError); }}
     review={() => { void planning.review(); }}
     adopt={() => { void planning.adopt(); }} />;

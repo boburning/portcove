@@ -123,6 +123,7 @@ describe("current review intent", () => {
     await act(async () => { await adoption.adopt(); });
     expect(adoption.preview).toBeUndefined();
     expect(done).toHaveBeenCalledTimes(result === null ? 1 : 0);
+    expect(adoption.copyFailed).toBe(result === undefined);
     await act(async () => { await adoption.adopt(); });
     expect(desktopApi.adopt).toHaveBeenCalledTimes(1);
   });

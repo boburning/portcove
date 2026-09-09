@@ -146,24 +146,31 @@ export function useInstallPlanning(portId: string | undefined, channel: PortStat
 }
 
 export function useAdoptionPlanning(path: string, portId: string | undefined, open: boolean, generation: number, perform: Perform, done: () => void) {
-  const request = useReviewRequest<Awaited<ReturnType<typeof desktopApi.previewAdoption>>>(JSON.stringify([path, portId, open, generation]), perform);
+  const identity = JSON.stringify([path, portId, open, generation]);
+  const request = useReviewRequest<Awaited<ReturnType<typeof desktopApi.previewAdoption>>>(identity, perform);
+  const [failedIdentity, setFailedIdentity] = useState<string>();
+  useLayoutEffect(() => { setFailedIdentity(undefined); }, [identity]);
   const review = async () => {
+    setFailedIdentity(undefined);
     if (open && path.trim()) await request.review("preview adoption", () => desktopApi.previewAdoption(path, generation, portId));
   };
   const inFlight = useRef(false);
+  const [applying, setApplying] = useState(false);
   const adopt = async () => {
     if (!open || !request.value?.selected_port_id || inFlight.current) return;
     inFlight.current = true;
+    setApplying(true);
     const current = request.guard();
     try {
       const adopted = await perform("adopt", () => desktopApi.adopt(path, request.value!.plan_sha256, generation, portId));
       if (current()) {
         request.invalidate();
         if (adopted !== undefined) done();
+        else setFailedIdentity(identity);
       }
-    } finally { inFlight.current = false; }
+    } finally { inFlight.current = false; setApplying(false); }
   };
-  return { preview: request.value, review, adopt };
+  return { preview: request.value, review, adopt, applying, copyFailed: failedIdentity === identity };
 }
 
 export function useSourceHealth(perform: Perform, sources: SourceRecord[], requestedProfileIds: readonly string[] = [], catalogIdentity = "") {
