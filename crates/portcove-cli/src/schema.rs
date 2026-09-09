@@ -42,6 +42,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 serde_json::json!(schema_for_contract::<CatalogDocument>(contract)),
             ),
             (
+                "upstream_observation_report",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::UpstreamObservationReport,
+                >(contract)),
+            ),
+            (
                 "catalog_status",
                 serde_json::json!(schema_for_contract::<portcove_core::CatalogStatus>(
                     contract

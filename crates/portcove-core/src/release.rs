@@ -21,6 +21,12 @@ use crate::{
     library::HttpCacheEntry,
 };
 
+mod observation;
+pub use observation::{
+    ChannelObservation as UpstreamChannelObservation, ObservationEvidence, ObservedReleaseIdentity,
+    ObservedResolution, UpstreamObservationReport, inspect_upstream_observation,
+};
+
 #[async_trait]
 pub trait ReleaseProvider: Send + Sync {
     async fn resolve(

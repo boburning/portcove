@@ -43,6 +43,15 @@ The compiled-binary machine contract is exercised on both Windows and Linux CI. 
 
 ## Standalone package and focused build
 
+`catalog inspect-observation <port-id> <file> --repository-id <numeric-id>`
+inspects an inert format-1 GitHub observation using the embedded catalog and
+shared core release policy, without network access or opening a library. Its
+machine command is `catalog.inspect-observation`; `schema export` includes the
+additive `upstream_observation_report` format-1 contract. Results distinguish
+observed facts, metadata eligibility and unassessed trust/admission. See
+[Configured upstream observations](UPSTREAM-OBSERVATIONS.md) for bounds,
+comparison inputs, hold reasons and operational evidence.
+
 Released CLI downloads are named `portcove-cli-<version>-<platform>` and contain
 one executable named `portcove` (`portcove.exe` on Windows). The CLI runs without
 Portcove Desktop, and Desktop runs without a separately installed CLI. Download
