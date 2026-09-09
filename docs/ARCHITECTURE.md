@@ -21,6 +21,25 @@ React UI ── Tauri IPC ───┤
                  SQLite + library tree
 ```
 
+## Existing-install adoption review
+
+Core's adoption preview binds both the source copy plan and the destination:
+output preference, current active installation, copied persistent paths and current
+saved-data identity. It reuses catalog persistence rules and reviewed tree hashing.
+Authorization is checked under the existing port lock; the reviewed output root is
+used for copying, and destination/saved-data identity is checked again before
+publication. Catalog-selected saved data is merged with matching files replaced;
+there is no automatic safety backup. Original folders and retained versions remain.
+Existing journal recovery may finish verified publication and saved-data transfer.
+
+Desktop transports this core preview under the selected library generation and
+retains backend-owned native confirmation. Its detailed review names destination,
+preserved state, saved-file replacement, lack of a single undo and interruption
+behavior. Once applying, dismissal and path editing are disabled because adoption
+has no supported cancellation. React owns only the review request and pending UI;
+core remains the only copy/persistence/authorization authority. CLI schema 40
+versions the extended preview; no crate boundary or dependency changes.
+
 ## Backup review presentation
 
 Core owns backup selection, payload/user-data fingerprints, single-use authorization,

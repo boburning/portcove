@@ -29,10 +29,18 @@ evidence must not collapse into one supported flag. Missing gameplay is not a
 source mismatch. Observable schema changes require explicit versioning and
 legacy/unknown-value handling; this planning contract adds no command or field.
 
+Schema 40 extends adoption previews with the selected output destination, current
+active installation, imported persistent paths and current saved-data identity.
+Review authorization binds these values as well as the source copy plan. A changed
+destination, active installation or saved-data tree requires a fresh review. Copying
+merges catalog-selected saved data and replaces matching files without creating an
+automatic safety backup; originals and retained installations remain. The final
+version folder is named only after verification of the private copy.
+
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":39,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":40,"ok":true,"command":"status","data":{},"error":null}
 ```
 
 Schema 39 changes `activity_diagnostic`, available through `activity log <activity-id>`,

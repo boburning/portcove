@@ -46,6 +46,7 @@ export type ActivityTargetKind = "port" | "source" | "library";
 export type OutputActivityDiagnostic = ActivityDiagnostic[];
 export type ReleaseChannel = "stable" | "beta" | "rolling";
 export type RuntimeOrigin = "verified_download" | "adopted_tree";
+export type OutputLocationSource = "request_override" | "port_setting" | "library_default";
 /**
  * Current relationship between a registered source path and its saved storage identity.
  * `Current` means the bytes are unchanged since registration; it does not strengthen the
@@ -191,7 +192,6 @@ export type RepairItemKind =
   | "degraded_backup"
   | "backup_recovery_required";
 export type InstallPlanAction = "already_active" | "use_staged" | "reuse_retained" | "blocked_unverified" | "download";
-export type OutputLocationSource = "request_override" | "port_setting" | "library_default";
 export type SourceRequirementRole = "game_source" | "bios";
 export type GithubAuthSource = "anonymous" | "environment" | "credential_store";
 export type GithubDeviceLoginState = "pending" | "complete";
@@ -491,6 +491,7 @@ export interface DiagnosticStream {
 export interface OutputAdoptionPreview {
   application_files_will_be_copied: boolean;
   copy_plan: AdoptionCopyPlan;
+  destination: AdoptionDestinationPreview | null;
   detected_port_ids: string[];
   original_will_be_modified: boolean;
   plan_sha256: string;
@@ -516,26 +517,12 @@ export interface AdoptionSkippedEntry {
   relative_path: string;
   [k: string]: unknown;
 }
-export interface OutputApiResponsePortStatus {
-  command: string;
-  data: PortStatus | null;
-  error: FailureReport | null;
-  ok: boolean;
-  schema_version: number;
-  [k: string]: unknown;
-}
-export interface PortStatus {
-  active: InstallRecord | null;
-  channel: ReleaseChannel;
-  last_launched_at: number | null;
-  last_update_check?: UpdateSnapshot | null;
-  port_id: string;
-  previous: InstallRecord | null;
-  readiness?: LaunchReadiness | null;
-  staged: InstallRecord | null;
-  successful_launches: number;
-  update_policy: UpdatePolicy;
-  user_data_root?: string | null;
+export interface AdoptionDestinationPreview {
+  active_install: InstallRecord | null;
+  current_user_data_files: number;
+  current_user_data_sha256: string | null;
+  imported_user_data_paths: string[];
+  output_location: PortOutputLocation;
   [k: string]: unknown;
 }
 export interface InstallRecord {
@@ -571,6 +558,38 @@ export interface ArtifactIdentity1 {
   asset_name: string;
   sha256: string;
   size: number;
+  [k: string]: unknown;
+}
+export interface PortOutputLocation {
+  configured_output_directory: string | null;
+  default_output_directory: string;
+  effective_output_directory: string;
+  library_root: string;
+  port_id: string;
+  selection_source: OutputLocationSource;
+  user_data_root: string;
+  [k: string]: unknown;
+}
+export interface OutputApiResponsePortStatus {
+  command: string;
+  data: PortStatus | null;
+  error: FailureReport | null;
+  ok: boolean;
+  schema_version: number;
+  [k: string]: unknown;
+}
+export interface PortStatus {
+  active: InstallRecord | null;
+  channel: ReleaseChannel;
+  last_launched_at: number | null;
+  last_update_check?: UpdateSnapshot | null;
+  port_id: string;
+  previous: InstallRecord | null;
+  readiness?: LaunchReadiness | null;
+  staged: InstallRecord | null;
+  successful_launches: number;
+  update_policy: UpdatePolicy;
+  user_data_root?: string | null;
   [k: string]: unknown;
 }
 export interface UpdateSnapshot {
@@ -1051,16 +1070,6 @@ export interface InstallPlan {
   release: ResolvedRelease;
   source_requirements: InstallSourceRequirement[];
   storage: StorageSummary;
-  [k: string]: unknown;
-}
-export interface PortOutputLocation {
-  configured_output_directory: string | null;
-  default_output_directory: string;
-  effective_output_directory: string;
-  library_root: string;
-  port_id: string;
-  selection_source: OutputLocationSource;
-  user_data_root: string;
   [k: string]: unknown;
 }
 export interface InstallSourceRequirement {

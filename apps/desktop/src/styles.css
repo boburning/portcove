@@ -1657,7 +1657,7 @@ select { width: 100%; padding: 11px; }
 .adoption-plan p:last-child { margin-bottom: 0; }
 .adoption-plan summary { color: var(--color-warning-text); cursor: pointer; }
 .adoption-plan ul { padding-left: var(--space-5); }
-.adoption-plan code { overflow-wrap: anywhere; }
+.adoption-plan :is(code, p, li) { overflow-wrap: anywhere; }
 
 .settings-grid {
   display: grid;

@@ -117,6 +117,6 @@ export const desktopApi = {
   previewRemoval: (portId: string, generation: number) => invoke<PortRemovalPreview>("preview_removal", { portId, generation }),
   remove: (portId: string, expectedPreview: string, generation: number) => invoke<string[] | null>("remove_port", { portId, expectedPreview, generation }),
   launch: (portId: string, source: string) => invoke<LaunchResult>("launch_port", { portId, source: source || null, arguments: [] }),
-  previewAdoption: (path: string, portId?: string) => invoke<AdoptionPreview>("preview_adoption", { path, portId: portId ?? null }),
-  adopt: (path: string, planSha256: string, portId?: string) => invoke<InstallRecord | null>("adopt_port", { path, portId: portId ?? null, planSha256 }),
+  previewAdoption: (path: string, generation: number, portId?: string) => invoke<AdoptionPreview>("preview_adoption", { path, generation, portId: portId ?? null }),
+  adopt: (path: string, planSha256: string, generation: number, portId?: string) => invoke<InstallRecord | null>("adopt_port", { path, generation, portId: portId ?? null, planSha256 }),
 };
