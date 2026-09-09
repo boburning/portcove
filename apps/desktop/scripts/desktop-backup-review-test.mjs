@@ -48,9 +48,9 @@ export async function backupReviewScenario({ browser, invoke, scenario, library,
     assert.equal(await readFile(save, "utf8"), "current data before review");
     assert.equal(list().length, 2);
     const generation = (await invoke("get_bootstrap_status")).value.generation;
-    const preview = await invoke("preview_backup_action", { portId: port.id, backupId: selected.id, action: "restore", generation });
-    assert.equal(preview.ok, true);
-    for (const commandName of ["restore_backup", "delete_backup"]) {
+    for (const [commandName, action] of [["restore_backup", "restore"], ["delete_backup", "delete"]]) {
+      const preview = await invoke("preview_backup_action", { portId: port.id, backupId: selected.id, action, generation });
+      assert.equal(preview.ok, true);
       const rejected = await invoke(commandName, { portId: port.id, backupId: selected.id, expectedPreview: preview.value.preview.preview_sha256, generation: generation + 1 });
       assert.equal(rejected.ok, false); assert.equal(rejected.error.code, "conflict");
     }
@@ -78,6 +78,8 @@ export async function backupReviewScenario({ browser, invoke, scenario, library,
     await browser.wait(async () => (await browser.findElements(By.css('[aria-labelledby="backup-review-title"]'))).length === 0, 15_000);
     assert.deepEqual(list().map(item => item.id).sort(), [other.id, safety.id].sort());
     assert.equal(await readFile(save, "utf8"), "selected snapshot data");
+    assert.equal(await readFile(path.join(other.path, "data/owned-review-save.bin"), "utf8"), "other snapshot data");
+    assert.equal(await readFile(path.join(safety.path, "data/owned-review-save.bin"), "utf8"), "changed after review");
     assert.equal(command(["status", port.id]).active.id, install.id);
     const report = path.join(output, "backup-review-result.json");
     await writeFile(report, JSON.stringify({ port_id: port.id, selected, other, safety, unchanged_install_id: install.id, stale_generation_rejected: true, changed_data_rejected: true, evidence: "owned fixture backup lifecycle through native review UI and actual core authorization" }, null, 2), { flag: "wx" }); artifacts.push(report);
