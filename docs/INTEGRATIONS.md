@@ -152,7 +152,7 @@ interventions—not a minimum integration count.
 
 | Environment | Intended first claim | Owner and target | Boundary |
 |---|---|---|---|
-| Playnite | Real lifecycle reference client | #243; integration workstream and 1.0 qualification | Small Portcove-maintained example/regression client, not feature parity or an endlessly expanding plugin commitment. |
+| Playnite | Real lifecycle reference client | #243; integration workstream and Public beta qualification | Small Portcove-maintained example/regression client, not feature parity or an endlessly expanding plugin commitment. |
 | Desktop Steam / Big Picture and Steam Deck Gaming Mode | Generic/manual launch-only route | #290; required Public beta qualification | Plugin-free baseline. Automatic game entries and Decky are separate. |
 | ES-DE | First reusable library-export profile | #291; opportunistic early Post-V1 | Thin profile over supported library/launch data, not a second manager. |
 | Steam automatic entry management | Optional launch convenience | #292; opportunistic early Post-V1 | May remain manual if safe supported reconciliation is unavailable. |
@@ -263,10 +263,12 @@ plugin execution, packaging, permission, or bridge design.
 ## Evidence and release sequence
 
 The integration workstream closes bounded public-contract and author-usability
-gaps and proves the real Playnite slice for 1.0. Public beta includes the
-plugin-free Steam Deck baseline under #51/#290 and the same Linux application's
-updater proof under #52. Broader reference/platform qualification continues
-during beta. 1.0 needs one independently consumable public interface and real
+gaps and proves the real Playnite slice for Public beta. Public beta also includes
+the plugin-free Steam Deck baseline under #51/#290, the same Linux application's
+updater proof under #52, and unchanged-reference-client compatibility with
+independent catalog delivery under #246. Exact production/platform
+requalification continues toward 1.0. The cumulative 1.0 contract needs one
+independently consumable public interface and real
 reference, not a universal frontend list, community quota, automatic entries or
 Decky. Optional frontend profiles remain Post-1.0.
 

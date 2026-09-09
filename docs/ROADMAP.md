@@ -178,8 +178,10 @@ Alpha 2's onboarding and storage outcomes are released. Subsequent delivery is
 capability-based: small safe previews may ship while cumulative Public beta or
 1.0 commitments remain incomplete. Versions, Stable/Preview channels, workstreams
 and readiness are separate. The complete Windows/Linux/Steam Deck/macOS updater
-is required for Public beta; independent catalog delivery and production
-qualification remain required for 1.0. See [Continuous verified delivery](DELIVERY.md).
+is required for Public beta, together with independent catalog delivery and the
+finite preparation, artwork and real reference-client outcomes. These remain
+cumulative 1.0 requirements; exact production qualification stays at 1.0.
+See [Continuous verified delivery](DELIVERY.md).
 
 General autonomous engineering is separately owned by #284. It is a Post-1.0
 extension, not a 1.0, Alpha 2, #243, or #246 dependency. Repository auto-merge
@@ -240,7 +242,7 @@ supervise launch; necessary upstream interactive setup stays a visible handoff.
 
 #245 design, #397 compatible loading/retained contracts, #398 configured upstream
 observation and #246 protected acceptance/delivery form the independent catalog
-workstream, prioritized during beta and required for 1.0. Preserve existing
+workstream, required for Public beta and cumulative through 1.0. Preserve existing
 adapters, stable identity, local SQLite, available ports and installed/source/save
 state. Typed capabilities need redistributable success/failure/interruption
 fixtures; unknown safety semantics fail closed. One official feed and bounded
@@ -266,6 +268,15 @@ Intel and Apple Silicon. Require real updater-enabled release-to-release and
 skipped-version evidence, safe failure/data preservation, and a provisioned
 bounded release/feed pipeline. Manual reinstall or compiled packages alone do
 not satisfy the gate. Missing platform evidence keeps the milestone open.
+
+The expanded commitment includes the complete finite preparation-boundary proof
+in #31, structured presentation and local-first artwork in #208/#206, the real
+Playnite reference and independent-consumer proof in #243, and the protected
+unchanged-client catalog path in #245/#397/#398/#246. Preserve their full scoped
+acceptance, existing owners and completed contributions. Optional artwork
+providers, full adapter migration, broad discovery, additional frontends and
+general autonomous engineering are not implied. Application updater and catalog
+delivery are independent Required outcomes, with no reciprocal parent blocker.
 
 #51/#213–#217 retain the package/controller/Gamescope/storage/device baseline and
 #290 retains plugin-free application and individual-game Steam launch routes.
