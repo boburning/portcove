@@ -27,10 +27,22 @@ Core owns backup selection, payload/user-data fingerprints, single-use authoriza
 per-port exclusion and journal recovery. Desktop exposes a generation-bound review
 that combines the existing core preview with its saved-data path. Its custom restore
 and deletion dialogs show affected paths, preserved data, safety-backup behavior,
-reversibility and interruption semantics. Only explicit application submits the
-reviewed fingerprint; changed data or library selection requires another review.
+reversibility and interruption semantics. Explicit application submits the reviewed fingerprint to a final backend-owned
+native confirmation; changed data or library selection requires another review.
 Closing a review makes no backup mutation. CLI backup review and authorization keep
 their existing core implementation and machine contract.
+
+## Installed-game removal review
+
+Desktop lists every managed version path returned by core before removal,
+including retained versions and external output paths. The review names saved
+settings that are removed, saved data and backups that remain, original source
+and adoption-folder preservation, and the irreversible/interruption behavior.
+An explicit apply request is bound to the reviewed install fingerprint and current
+library generation, followed by final backend-owned native confirmation. The adapter delegates authorization and removal to core,
+which revalidates under its port lock, collects saved data and journals quarantine
+before removing metadata. Dismissal makes no removal request; changed inventory
+requires a new review. The CLI and core machine contract remain unchanged.
 
 ## Failure and diagnostic authority
 
@@ -490,7 +502,7 @@ Core owns opt-in discovery requests, traversal and hashing budgets, candidate va
 8. Atomically claim the vacant version path without replacement, record `payload_published`, commit activation or staging metadata, and record `metadata_committed`. A late destination remains untouched and blocks recovery until the conflict is explicitly resolved.
 9. Remove only the operation-private staging tree. Failed cleanup remains `cleanup_pending` for retry; completed journals are removed because the activity ledger owns terminal history.
 
-Adoption uses the same publication state machine and never copies into a final version path directly. Its first step recursively hashes every regular file into a deterministic copy plan, preserves empty directories, and reports symlinks or special entries that will be skipped. The reviewed plan fingerprint is authorized for five minutes and one use; core recomputes it under the port lock and verifies the private copied tree before activation. Persistent data is taken from that verified private copy, never from a source path that can change after copying. Removal runs the publication state machine in reverse: every registered managed version is renamed under `recovery/<operation-id>/` before SQLite metadata is deleted, then quarantine cleanup is retried. Port removal, backup restore, backup deletion, adoption, and source-reference removal all consume action-, target-, and state-bound core authorizations. Desktop issuance occurs only after a native backend-owned confirmation dialog; renderer state cannot authorize a destructive command. Startup advances only recorded states whose payload, manifest, and path layout are unambiguous. It never deletes an untracked final directory. The read-only doctor repair plan reports incomplete journals, cleanup-pending trees, registered paths that are missing, and orphaned final directories with proposed review actions.
+Adoption uses the same publication state machine and never copies into a final version path directly. Its first step recursively hashes every regular file into a deterministic copy plan, preserves empty directories, and reports symlinks or special entries that will be skipped. The reviewed plan fingerprint is authorized for five minutes and one use; core recomputes it under the port lock and verifies the private copied tree before activation. Persistent data is taken from that verified private copy, never from a source path that can change after copying. Removal runs the publication state machine in reverse: every registered managed version is renamed under `recovery/<operation-id>/` before SQLite metadata is deleted, then quarantine cleanup is retried. Port removal, backup restore, backup deletion, adoption, and source-reference removal all consume action-, target-, and state-bound core authorizations. Desktop issuance occurs only after a native backend-owned confirmation dialog; renderer state cannot authorize a destructive command. Backup and installed-game removal also provide detailed custom reviews before this final confirmation. Core still revalidates the selected action and reviewed state under its operation lock. Startup advances only recorded states whose payload, manifest, and path layout are unambiguous. It never deletes an untracked final directory. The read-only doctor repair plan reports incomplete journals, cleanup-pending trees, registered paths that are missing, and orphaned final directories with proposed review actions.
 
 Staged activation and rollback collect user data from the version being deactivated only when its per-version launch marker proves it has actually run, then change active/previous pointers transactionally. The same guard applies before install, update, removal, and retained-version reuse, so a verified but never-launched release cannot propagate absent files as user-requested deletions. Adoption copies files into a new managed version and leaves the source directory untouched.
 

@@ -1,7 +1,8 @@
+import { RemovalControl, type ApplyRemoval } from "./RemovalReview";
 import type { ApplyBackupAction } from "./BackupReview";
 import { ReleaseChannelControl } from "./ReleaseChannel";
 import { useState } from "react";
-import { AlertTriangle, ArchiveX, CheckCircle2, ChevronDown, Clipboard, ClipboardCheck, Download, ExternalLink, FileArchive, FileSearch, FolderOpen, Gamepad2, HardDrive, RefreshCw, RotateCcw, Save, ShieldCheck, Trash2, Wrench, X } from "lucide-react";
+import { AlertTriangle, ArchiveX, CheckCircle2, ChevronDown, Clipboard, ClipboardCheck, Download, ExternalLink, FileArchive, FileSearch, FolderOpen, Gamepad2, HardDrive, RefreshCw, RotateCcw, Save, ShieldCheck, Wrench, X } from "lucide-react";
 import { primaryCliCommand } from "../cli-command";
 import { copyText } from "../clipboard";
 import { useDialogFocus } from "../dialog";
@@ -29,7 +30,7 @@ export interface DetailActions {
   reviewInstall: () => void;
   restoreBackup: ApplyBackupAction;
   rollback: () => void;
-  remove: () => Promise<void>;
+  remove: ApplyRemoval;
   setChannel: (channel: ReleaseChannel) => Promise<PortStatus | undefined>;
   setPolicy: (policy: UpdatePolicy) => Promise<PortStatus | undefined>;
   verify: () => void;
@@ -206,7 +207,7 @@ function AdvancedControls({ libraryGeneration, port, status, selectedChannel, po
       <div className="upstream-link"><ProjectLink href={port.project_url}>Open upstream project <Icon glyph={ExternalLink} size="sm" /></ProjectLink><span>Portcove resolves releases from this reviewed upstream.</span></div>
       <CliContinuity port={port} status={status} channel={selectedChannel} sourcePath={sources.sourcePath} biosPath={sources.biosPath} />
       {(installed || backups.length > 0 || backupProblems.length > 0) && <BackupHistory key={`${port.id}:${libraryGeneration}`} generation={libraryGeneration} backups={backups} problems={backupProblems} state={backupState} busy={busy} restore={actions.restoreBackup} remove={actions.deleteBackup} />}
-      {installed && <MaintenanceActions canRollback={Boolean(status?.previous)} busy={busy} actions={actions} />}
+      {installed && <MaintenanceActions port={port} libraryGeneration={libraryGeneration} canRollback={Boolean(status?.previous)} busy={busy} actions={actions} />}
     </div>
   </details>;
 }
@@ -302,14 +303,14 @@ function installPlanActionLabel(action: InstallPlan["action"]) {
   return labels[action];
 }
 
-function MaintenanceActions({ canRollback, busy, actions }: { canRollback: boolean; busy?: string; actions: DetailActions }) {
+function MaintenanceActions({ port, libraryGeneration, canRollback, busy, actions }: { port: PortDefinition; libraryGeneration: number; canRollback: boolean; busy?: string; actions: DetailActions }) {
   return <div className="actions maintenance-actions">
     <button data-focusable className="button-with-icon" title="Create a versioned snapshot of persistent data" disabled={Boolean(busy)} onClick={actions.backup}><Icon glyph={Save} />Back up data</button>
     <button data-focusable className="button-with-icon" disabled={Boolean(busy)} onClick={actions.openUserData}><Icon glyph={FolderOpen} />Open data folder</button>
     <button data-focusable className="button-with-icon" disabled={Boolean(busy)} onClick={actions.check}><Icon glyph={RefreshCw} />Check update</button>
     <button data-focusable className="button-with-icon" disabled={Boolean(busy)} onClick={actions.verify}><Icon glyph={ShieldCheck} />Verify</button>
     <button data-focusable className="button-with-icon" disabled={!canRollback || Boolean(busy)} onClick={actions.rollback}><Icon glyph={RotateCcw} />Rollback</button>
-    <button data-focusable className="danger button-with-icon" disabled={Boolean(busy)} onClick={() => { void actions.remove(); }}><Icon glyph={Trash2} />Remove managed files</button>
+    <RemovalControl key={`${port.id}:${libraryGeneration}`} port={port} generation={libraryGeneration} busy={Boolean(busy)} apply={actions.remove} />
   </div>;
 }
 

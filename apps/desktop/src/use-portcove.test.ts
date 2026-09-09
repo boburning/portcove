@@ -69,14 +69,15 @@ describe("detail actions", () => {
     expect(desktopApi.backup).toHaveBeenCalledWith(port.id);
   });
 
-  it("does not close when the backend-owned removal confirmation is cancelled", async () => {
-    vi.spyOn(desktopApi, "remove").mockResolvedValue(null);
-    const perform = vi.fn(async (_name: string, task: () => Promise<unknown>) => task()) as unknown as Perform;
+  it("does not close when reviewed removal fails in the shared operation boundary", async () => {
+    vi.spyOn(desktopApi, "remove").mockRejectedValue(new Error("Installation changed"));
+    const perform = vi.fn(async (_name: string, task: () => Promise<unknown>) => { try { return await task(); } catch { return undefined; } }) as unknown as Perform;
     const close = vi.fn();
 
-    await detailActions(port, undefined, "", "", perform, close).remove();
+    await detailActions(port, undefined, "", "", perform, close, undefined, undefined, 9).remove("reviewed-removal");
 
     expect(perform).toHaveBeenCalledWith("remove", expect.any(Function));
+    expect(desktopApi.remove).toHaveBeenCalledWith(port.id, "reviewed-removal", 9);
     expect(close).not.toHaveBeenCalled();
   });
 
@@ -115,10 +116,24 @@ describe("detail actions", () => {
     const perform = vi.fn(async (_name: string, task: () => Promise<unknown>) => task()) as unknown as Perform;
     const close = vi.fn();
 
-    await detailActions(port, undefined, "", "", perform, close).remove();
+    await detailActions(port, undefined, "", "", perform, close, undefined, undefined, 9).remove("reviewed-removal");
 
     expect(perform).toHaveBeenCalledWith("remove", expect.any(Function));
-    expect(desktopApi.remove).toHaveBeenCalledWith(port.id);
+    expect(desktopApi.remove).toHaveBeenCalledWith(port.id, "reviewed-removal", 9);
     expect(close).toHaveBeenCalledOnce();
+  });
+
+  it("keeps native cancellation distinct from failure or a completed mutation", async () => {
+    vi.spyOn(desktopApi, "remove").mockResolvedValue(null);
+    vi.spyOn(desktopApi, "restoreBackup").mockResolvedValue(null);
+    vi.spyOn(desktopApi, "deleteBackup").mockResolvedValue(null);
+    const perform: Perform = async (_name, task) => task();
+    const close = vi.fn(); const refresh = vi.fn();
+    const actions = detailActions(port, undefined, "", "", perform, close, undefined, refresh, 9);
+    const backup = { id: "snapshot", port_id: port.id, path: "library/backup", created_at: 1, file_count: 1, size: 1, sha256: "a".repeat(64) };
+    expect(await actions.remove("reviewed")).toBe("cancelled");
+    expect(await actions.restoreBackup(backup, "reviewed")).toBe("cancelled");
+    expect(await actions.deleteBackup(backup, "reviewed")).toBe("cancelled");
+    expect(close).not.toHaveBeenCalled(); expect(refresh).not.toHaveBeenCalled();
   });
 });

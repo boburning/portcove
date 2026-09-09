@@ -50,6 +50,14 @@ it("explains permanent deletion and can dismiss without authorizing it", async (
   expect(close).toHaveBeenCalledOnce(); expect(apply).not.toHaveBeenCalled();
 });
 
+it("closes without reporting failure when native consent is declined", async () => {
+  vi.spyOn(desktopApi, "previewBackupAction").mockResolvedValue(review);
+  const apply = vi.fn().mockResolvedValue("cancelled"); const close = vi.fn();
+  await act(async () => root.render(<BackupReviewDialog backup={review.preview.backup} action="restore" generation={7} apply={apply} close={close} />));
+  await click("Restore this backup");
+  expect(close).toHaveBeenCalledOnce(); expect(container.querySelector('[role="alert"]')).toBeNull();
+});
+
 it("requires a fresh review after a changed selection fails and rejects duplicate application", async () => {
   const preview = vi.spyOn(desktopApi, "previewBackupAction").mockResolvedValue(review);
   let finish!: (result: boolean) => void;
