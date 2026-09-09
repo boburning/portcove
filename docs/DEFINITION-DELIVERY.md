@@ -159,6 +159,22 @@ stable identity, revision, capability requirements, exact source/execution/
 persistence contracts and referenced artifact/evidence identities. Bound entry
 count, individual and total bytes, depth, path lengths and fetched references;
 reject cycles and missing references. No reference can become an executable URL.
+The initial content contract uses a 4 MiB index, at most 4,096 entries, 4 MiB per
+entry, 32 MiB total fetched definition/contract content, depth 32, at most 1,024
+references per entry, and 255 UTF-8 bytes per relative path component. Existing
+stricter core path/archive limits still apply. TUF metadata retains the maintained
+client's own separate limits. An unsupported larger document cannot evict the
+current catalog; raising a client resource bound is a reviewed engine change.
+
+Each entry's required fields are `definition_schema`, `namespace`, `stable_id`,
+`revision`, `required_capabilities`, `port`, `source_contracts`,
+`execution_contract`, `persistence_contract`, `artifact_bindings` and
+`evidence_references`. `port` projects through the existing core `PortDefinition`
+schema. Every referenced record is content-addressed and carries its exact bytes,
+schema version and identity; a relative target reference must resolve inside the
+authenticated index. Capability requirements identify an installed template and
+an exact supported version interval, not a candidate-provided implementation.
+Presentation extensions are explicitly segregated from these required fields.
 
 | Client/content combination | Required behavior |
 | --- | --- |
