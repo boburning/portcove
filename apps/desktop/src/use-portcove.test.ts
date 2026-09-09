@@ -69,14 +69,15 @@ describe("detail actions", () => {
     expect(desktopApi.backup).toHaveBeenCalledWith(port.id);
   });
 
-  it("does not close when the backend-owned removal confirmation is cancelled", async () => {
-    vi.spyOn(desktopApi, "remove").mockResolvedValue(null);
-    const perform = vi.fn(async (_name: string, task: () => Promise<unknown>) => task()) as unknown as Perform;
+  it("does not close when reviewed removal fails in the shared operation boundary", async () => {
+    vi.spyOn(desktopApi, "remove").mockRejectedValue(new Error("Installation changed"));
+    const perform = vi.fn(async (_name: string, task: () => Promise<unknown>) => { try { return await task(); } catch { return undefined; } }) as unknown as Perform;
     const close = vi.fn();
 
-    await detailActions(port, undefined, "", "", perform, close).remove();
+    await detailActions(port, undefined, "", "", perform, close, undefined, undefined, 9).remove("reviewed-removal");
 
     expect(perform).toHaveBeenCalledWith("remove", expect.any(Function));
+    expect(desktopApi.remove).toHaveBeenCalledWith(port.id, "reviewed-removal", 9);
     expect(close).not.toHaveBeenCalled();
   });
 
@@ -115,10 +116,10 @@ describe("detail actions", () => {
     const perform = vi.fn(async (_name: string, task: () => Promise<unknown>) => task()) as unknown as Perform;
     const close = vi.fn();
 
-    await detailActions(port, undefined, "", "", perform, close).remove();
+    await detailActions(port, undefined, "", "", perform, close, undefined, undefined, 9).remove("reviewed-removal");
 
     expect(perform).toHaveBeenCalledWith("remove", expect.any(Function));
-    expect(desktopApi.remove).toHaveBeenCalledWith(port.id);
+    expect(desktopApi.remove).toHaveBeenCalledWith(port.id, "reviewed-removal", 9);
     expect(close).toHaveBeenCalledOnce();
   });
 });

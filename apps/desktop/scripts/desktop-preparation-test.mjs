@@ -6,6 +6,7 @@ import path from "node:path";
 import { By, until } from "selenium-webdriver";
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 import { backupReviewScenario } from "./desktop-backup-review-test.mjs";
+import { removalReviewScenario } from "./desktop-removal-review-test.mjs";
 import { interruptedPreparationScenario } from "./desktop-preparation-recovery-test.mjs";
 
 export async function preparationScenarios({ browser, invoke, scenario, library, output, artifacts, cli, tool }) {
@@ -241,5 +242,6 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
   });
 
   await backupReviewScenario({ browser, invoke, scenario, library, output, artifacts, command, seed, open });
+  await removalReviewScenario({ browser, invoke, scenario, library, output, artifacts, command, open });
 
 }

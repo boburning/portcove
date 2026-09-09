@@ -134,3 +134,12 @@ stale library generation, data changed after review, safety-backup contents,
 selected-only deletion, preserved current data/other backups/install identity,
 and accessibility of both review dialogs. These are native automated backup
 lifecycle observations, not gameplay or human comprehension evidence.
+
+The subsequent owned removal scenario reviews all installed versions, dismisses
+without deleting, introduces another real adopted version to reject stale intent,
+and rejects an otherwise-valid removal in an old library generation. It then
+removes the freshly reviewed paths through the native UI and verifies preserved
+saved data, backup contents, source references and bytes, adoption originals and
+another game's installation. It records accessibility, a screenshot and exact
+removed/preserved identities. Physical interruption remains separate core fault
+and platform qualification evidence.

@@ -293,9 +293,10 @@ export function detailActions(port: PortDefinition, status: PortStatus | undefin
     launch: () => perform("launch", () => desktopApi.launch(port.id, sourcePath)),
     openUserData: () => perform("open data folder", () => desktopApi.openUserData(port.id)),
     reviewInstall,
-    remove: async () => {
-      const removed = await perform("remove", () => desktopApi.remove(port.id));
+    remove: async expectedPreview => {
+      const removed = await perform("remove", () => desktopApi.remove(port.id, expectedPreview, libraryGeneration));
       if (removed) close();
+      return Boolean(removed);
     },
     deleteBackup: async (backup, expectedPreview) => {
       const completed = Boolean(await perform("delete backup", () => desktopApi.deleteBackup(port.id, backup.id, expectedPreview, libraryGeneration)));

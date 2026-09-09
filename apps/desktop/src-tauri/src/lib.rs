@@ -6,6 +6,7 @@ mod library_selection;
 mod library_transfer;
 mod output_location;
 mod preparation;
+mod removal;
 mod transport;
 
 use transport::{
@@ -1065,50 +1066,6 @@ async fn adopt_port(
     .await
 }
 
-#[tauri::command]
-async fn remove_port(
-    app: tauri::AppHandle,
-    state: tauri::State<'_, DesktopState>,
-    port_id: String,
-) -> DesktopResult<Option<Vec<PathBuf>>> {
-    let worker_state = state.inner().clone();
-    let preview = blocking_service(worker_state, {
-        let port_id = port_id.clone();
-        move |service| service.preview_removal(&port_id).map_err(Into::into)
-    })
-    .await?;
-    let message = format!(
-        "Remove {} managed version director{} for {}?\n\nPersistent data at {} will be preserved.",
-        preview.managed_paths.len(),
-        if preview.managed_paths.len() == 1 {
-            "y"
-        } else {
-            "ies"
-        },
-        port_id,
-        preview.persistent_data_path.display(),
-    );
-    if !confirm_destructive(
-        &app,
-        "Confirm port removal",
-        message,
-        "Remove managed versions",
-    )
-    .await
-    {
-        return Ok(None);
-    }
-    let state = state.inner().clone();
-    blocking_service(state, move |service| {
-        let authorization = service.authorize_removal(&port_id, &preview.preview_sha256)?;
-        service
-            .remove(&port_id, &authorization.token)
-            .map(Some)
-            .map_err(Into::into)
-    })
-    .await
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 struct LaunchSupervisorRequest {
     request_id: String,
@@ -1840,7 +1797,8 @@ pub fn run() {
             rollback_port,
             preview_adoption,
             adopt_port,
-            remove_port,
+            removal::preview_removal,
+            removal::remove_port,
             launch_port,
             get_doctor_report,
             get_host_tools,

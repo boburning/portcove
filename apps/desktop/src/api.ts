@@ -1,4 +1,4 @@
-import type { BackupAction, BackupReview } from "./types";
+import type { BackupAction, BackupReview, PortRemovalPreview } from "./types";
 import type { InstallInput, LaunchResult } from "./types";
 import type { GameUpdatePlan, PreparationPlan } from "./types";
 import type { CatalogStatus, CatalogUpdatePlan, CatalogUpdateSource } from "./types";
@@ -114,7 +114,8 @@ export const desktopApi = {
   verify: (portId: string) => invoke("verify_port", { portId }),
   activate: (portId: string, expectedActive: string | null, expectedStaged: string, generation: number) => invoke<InstallRecord>("activate_port", { portId, expectedActive, expectedStaged, generation }),
   rollback: (portId: string) => invoke("rollback_port", { portId }),
-  remove: (portId: string) => invoke<string[] | null>("remove_port", { portId }),
+  previewRemoval: (portId: string, generation: number) => invoke<PortRemovalPreview>("preview_removal", { portId, generation }),
+  remove: (portId: string, expectedPreview: string, generation: number) => invoke<string[]>("remove_port", { portId, expectedPreview, generation }),
   launch: (portId: string, source: string) => invoke<LaunchResult>("launch_port", { portId, source: source || null, arguments: [] }),
   previewAdoption: (path: string, portId?: string) => invoke<AdoptionPreview>("preview_adoption", { path, portId: portId ?? null }),
   adopt: (path: string, planSha256: string, portId?: string) => invoke<InstallRecord | null>("adopt_port", { path, portId: portId ?? null, planSha256 }),

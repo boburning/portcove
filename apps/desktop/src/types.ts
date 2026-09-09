@@ -142,3 +142,5 @@ export type LaunchResult = Generated.TransportOutputs["desktop_launch_result"];
 
 export type BackupReview = Generated.TransportOutputs["desktop_backup_review"];
 export type BackupAction = BackupReview["preview"]["action"];
+
+export type PortRemovalPreview = Generated.TransportOutputs["port_removal_preview"];
