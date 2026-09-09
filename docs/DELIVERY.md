@@ -60,6 +60,15 @@ pipeline needed to keep testers current. Compiling packages or manual reinstall
 instructions cannot complete this updater commitment. Incremental previews need
 their applicable candidate safety checks; they need not complete the milestone.
 
+The expanded beta commitment also includes the complete finite preparation
+boundary (#31), structured presentation/artwork foundation (#208), public CLI
+and real Playnite reference proof (#30/#243), and independent catalog delivery
+(#245/#397/#398/#246). These are existing owners with their full scoped acceptance,
+not requirements to migrate every adapter, provide every artwork asset or build
+a marketplace. Application and catalog publishers retain separate authority and
+component dependencies; neither parent waits for the other's closure. The later
+production package requalification in #46 remains a 1.0 commitment.
+
 1.0 requires the finite outcomes in [Roadmap](ROADMAP.md): unassisted first play,
 management/recovery, a user-controlled library, accessible flagship UX, qualified
 distribution/upgrades, independently consumable CLI/reference proof, and proven
@@ -177,8 +186,8 @@ new GUI cannot start.
 #245/#397 own accepted design and compatible loading; #398 observes configured
 upstreams; #246 proves a new compatible definition, its next routine artifact
 and a safe correction reaching an unchanged compatible client with zero
-per-candidate owner actions after provisioning. This is an explicit 1.0 gate,
-prioritized during beta, not a dependency of the updater. Keep embedded catalog
+per-candidate owner actions after provisioning. This is an explicit Public beta
+gate, cumulative through 1.0, not a dependency of the updater. Keep embedded catalog
 delivery until its successor ships. Definitions requiring new capabilities are
 held clearly; they cannot introduce arbitrary execution or updater trust.
 Never reduce catalog breadth or require personal gameplay for every entry.
