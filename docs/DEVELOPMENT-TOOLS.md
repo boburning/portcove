@@ -57,6 +57,12 @@ Play without setup, and cancel an active native setup through the UI. They do no
 acquire upstream artifacts or establish game compatibility. CLI/tool hashes and
 the additional harness source are retained in the evidence inputs.
 
+The cancellation scenario also verifies the retained setup log through CLI and
+Tauri after reconnect, rejects stale-library log reads, opens both output streams
+in the activity view, and exports a redacted support bundle. Incomplete capture
+and quota behavior are separate core fixtures. These logs contain owned synthetic
+output, not evidence of actual game compatibility.
+
 The same owned fixture also checks the desktop's game-update settings: changing
 a selection stays local until Save, and saving leaves active/staged/previous
 installations and the activity ledger unchanged. This does not download a game

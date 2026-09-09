@@ -339,4 +339,35 @@ mod tests {
             .unwrap();
         assert_eq!(count, 0);
     }
+
+    #[test]
+    fn running_capture_quota_failure_preserves_all_prior_snapshots() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let capture = DiagnosticCapture::default();
+        // JSON escaping makes this a large but valid bounded stream capture.
+        capture.record(0, &vec![0; STREAM_LIMIT]).unwrap();
+        capture.record(1, &vec![0; STREAM_LIMIT]).unwrap();
+        let mut snapshot = capture.snapshot("quota-fixture", false).unwrap();
+        let first = activity(&library);
+        let second = activity(&library);
+        let denied = activity(&library);
+        for id in [&first, &second] {
+            snapshot.activity_id = id.clone();
+            library.record_activity_diagnostic(&snapshot).unwrap();
+        }
+        snapshot.activity_id = denied.clone();
+        assert!(library.record_activity_diagnostic(&snapshot).is_err());
+        assert!(library.activity_diagnostic(&denied).unwrap().is_none());
+        assert!(library.activity_diagnostic(&first).unwrap().is_some());
+        assert!(library.activity_diagnostic(&second).unwrap().is_some());
+        let count: i64 = library
+            .connection()
+            .unwrap()
+            .query_row("SELECT count(*) FROM activity_diagnostics", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(count, 2);
+    }
 }

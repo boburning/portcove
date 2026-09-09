@@ -32,8 +32,22 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":37,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":38,"ok":true,"command":"status","data":{},"error":null}
 ```
+
+Schema 38 adds `activity_diagnostic`, available through `activity log <activity-id>`.
+This read-only command returns a retained, redacted setup capture without loading
+logs in the normal activity list. `complete` records observed stream closure;
+each stream separately reports truncation and observed input bytes. An interrupted
+capture stays incomplete. The first 2 MiB per stream are retained within a shared
+64 MiB library budget; older terminal captures may expire while their activity
+outcomes remain. No retained capture is represented by `null` in JSON/JSONL.
+
+Human error output now uses the core summary and explicit mutation outcome.
+`--technical-details` includes the redacted technical message and context when
+human output is requested. JSON and JSONL keep the original machine error fields.
+A new preparation always starts with fresh private work; it does not consume or
+automatically delete a failed attempt's retained files.
 
 Schema 37 adds core-owned failure presentation to error objects and an optional
 structured failure report to activity records. Existing machine `code`, `message`

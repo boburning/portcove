@@ -40,6 +40,25 @@ redaction now lives in core so activity presentation and desktop diagnostic
 bundles use one policy; host tracing, rotation and support-bundle packaging stay
 in the desktop adapter. Raw machine error fields retain their established meaning.
 
+SQLite schema 21 adds lazy, per-activity diagnostic captures. Core owns two
+bounded output streams, shared redaction, periodic and terminal snapshots, and
+retention. Existing setup supervision records snapshots at most every 500 ms;
+there is no new scheduler. Raw tool bytes stay in bounded memory and are redacted
+as complete retained streams before SQLite writes. The original stream boundary
+and byte counts remain distinct. A final capture is complete only after both
+streams close; truncation is a separate observation. An interrupted process can
+leave an explicitly incomplete snapshot, never an invented complete log.
+
+Each stream retains its first 2 MiB of input bytes. SQLite diagnostic payloads
+share a 64 MiB budget: only older terminal captures may be pruned, while their
+activity outcomes and retained preparation files remain intact. If running
+captures exhaust that budget, setup stops safely and preserves partial work.
+Deleting an expired activity cascades to its diagnostic row. Normal activity
+lists do not load tool output. CLI and Tauri request one activity ID through
+core; desktop requests also bind the selected library generation. Support bundles
+include the retained redacted captures, with fixed archive entry names. Source
+files and private setup output directories are not copied into the bundle.
+
 ## Evolution policy
 
 This document records the architecture Portcove tests today; it is not a promise to preserve the initial crate graph forever. The durable requirement is unambiguous ownership, not the name or number of crates. A real implementation need may justify splitting a coherent domain from `portcove-core`, adding a boundary service, or keeping genuinely host-specific orchestration in an adapter.
