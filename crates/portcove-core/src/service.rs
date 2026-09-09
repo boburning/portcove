@@ -4678,9 +4678,18 @@ mod tests {
             for channel in &channels {
                 let changed = service.set_channel(port_id, *channel).unwrap();
                 assert_eq!(changed.channel, *channel);
-                assert_eq!(changed.active, before.active);
-                assert_eq!(changed.previous, before.previous);
-                assert_eq!(changed.staged, before.staged);
+                assert_eq!(
+                    serde_json::to_value(&changed.active).unwrap(),
+                    serde_json::to_value(&before.active).unwrap()
+                );
+                assert_eq!(
+                    serde_json::to_value(&changed.previous).unwrap(),
+                    serde_json::to_value(&before.previous).unwrap()
+                );
+                assert_eq!(
+                    serde_json::to_value(&changed.staged).unwrap(),
+                    serde_json::to_value(&before.staged).unwrap()
+                );
                 let reopened = PortcoveService::new(Library::open(&root).unwrap()).unwrap();
                 assert_eq!(reopened.status(port_id).unwrap().channel, *channel);
             }
@@ -4786,9 +4795,18 @@ mod tests {
         assert_eq!(check.channel, ReleaseChannel::Beta);
         assert_eq!(check.release.channel, ReleaseChannel::Beta);
         let after = service.status("zelda64-recomp").unwrap();
-        assert_eq!(after.active, before.active);
-        assert_eq!(after.previous, before.previous);
-        assert_eq!(after.staged, before.staged);
+        assert_eq!(
+            serde_json::to_value(&after.active).unwrap(),
+            serde_json::to_value(&before.active).unwrap()
+        );
+        assert_eq!(
+            serde_json::to_value(&after.previous).unwrap(),
+            serde_json::to_value(&before.previous).unwrap()
+        );
+        assert_eq!(
+            serde_json::to_value(&after.staged).unwrap(),
+            serde_json::to_value(&before.staged).unwrap()
+        );
         assert_eq!(
             after.last_update_check.unwrap().check.channel,
             ReleaseChannel::Beta
