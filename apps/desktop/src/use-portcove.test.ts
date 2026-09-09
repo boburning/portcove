@@ -27,6 +27,17 @@ describe("detail actions", () => {
     vi.restoreAllMocks();
   });
 
+  it("binds channel saving and subsequent checks to the selected library", async () => {
+    const saved = { ...portStatus(), channel: "beta" as const };
+    vi.spyOn(desktopApi, "setChannel").mockResolvedValue(saved);
+    vi.spyOn(desktopApi, "check").mockResolvedValue(undefined!);
+    const perform: Perform = async (_name, task) => task();
+    const actions = detailActions(port, saved, "", "", perform, vi.fn(), vi.fn(), async () => {}, 17);
+    await actions.setChannel("beta"); await actions.check();
+    expect(desktopApi.setChannel).toHaveBeenCalledExactlyOnceWith(port.id, "beta", 17);
+    expect(desktopApi.check).toHaveBeenCalledExactlyOnceWith(port.id, 17);
+  });
+
   it("saves policy in the selected library without invoking install or update", async () => {
     const saved = { ...portStatus(), update_policy: "automatic" as const };
     vi.spyOn(desktopApi, "setPolicy").mockResolvedValue(saved);
