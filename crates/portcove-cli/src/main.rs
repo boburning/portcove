@@ -93,6 +93,11 @@ enum Commands {
         #[arg(long)]
         output_dir: Option<PathBuf>,
     },
+    /// Inspect exact inputs for managed source preparation.
+    Preparation {
+        #[command(subcommand)]
+        command: PreparationCommand,
+    },
     Paths {
         port_id: String,
     },
@@ -210,6 +215,12 @@ enum LibraryCommand {
     ResumeMove,
     /// Reactivate an unpublished original while retaining all copied data.
     AbortMove,
+}
+
+#[derive(Debug, Subcommand)]
+enum PreparationCommand {
+    /// Review the installed artifact, registered source, tools and default host setup.
+    Plan { port_id: String },
 }
 
 #[derive(Debug, Subcommand)]
@@ -1158,6 +1169,22 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 human::plan,
             )?;
         }
+        Commands::Preparation {
+            command: PreparationCommand::Plan { port_id },
+        } => {
+            render_read_success(
+                mode,
+                "preparation.plan",
+                service.plan_preparation(
+                    &port_id,
+                    portcove_core::PreparationOptions {
+                        target: portcove_core::Platform::current()?,
+                        mode: portcove_core::PreparationMode::Default,
+                    },
+                )?,
+                human::preparation_plan,
+            )?;
+        }
         Commands::Paths { port_id } => {
             render_read_success(mode, "paths", service.port_paths(&port_id)?, human::paths)?;
         }
@@ -2057,6 +2084,9 @@ fn command_name(command: &Commands) -> &'static str {
         Commands::Doctor => "doctor",
         Commands::About => "about",
         Commands::Plan { .. } => "plan",
+        Commands::Preparation {
+            command: PreparationCommand::Plan { .. },
+        } => "preparation.plan",
         Commands::Paths { .. } => "paths",
         Commands::Output { command } => match command {
             OutputCommand::Show { .. } => "output.show",

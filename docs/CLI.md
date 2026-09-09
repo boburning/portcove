@@ -434,6 +434,20 @@ portcove --library <path> --json plan <port-id> [--channel stable|beta|rolling]
 
 The plan reports the resolved release and asset size, current platform and channel, registered game-source and BIOS requirements, containing-volume capacity, and one typed action: `already_active`, `use_staged`, `reuse_retained`, `blocked_unverified`, or `download`. These actions compare immutable artifact identity, not display version, so an upstream republish under the same tag is still an update. Planning may perform a normal conditional network lookup and update Portcove's HTTP response cache, but it does not download a release, change source registrations, switch versions, or create an activity record. `use_staged` does not imply activation: the following install's `--stage` choice still controls whether that verified release remains staged. Asset size is the upstream download size; callers must not present it as a guarantee of final extracted footprint.
 
+`portcove --library <path> --json preparation plan <port-id>` inspects the
+upstream-managed setup family's already installed artifact and registered source
+using the current host, install-root working layout and reviewed default options.
+It starts no setup process,
+downloads nothing, creates no activity and changes no launch readiness. Missing
+installation/source/tool inputs and unsupported families return the normal typed
+errors. The result binds the install/manifest/runtime, admitted definition, exact
+source and its core assessment, setup and required conversion tools, host/target,
+options and copied tree to `plan_sha256`. A preliminary source remains marked as
+needing its upstream validator. The copy digest is an identity after existing
+trust checks, never initial artifact admission or permission to execute a plan.
+The exported `preparation_plan` and `preparation_options` schemas describe this
+additive machine contract; unknown setup options are rejected.
+
 Save managers and launcher integrations should ask Portcove for its canonical roots rather than constructing internal paths:
 
 ```bash

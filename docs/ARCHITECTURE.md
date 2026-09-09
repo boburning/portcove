@@ -54,6 +54,14 @@ directly; neither adapter depends on or executes the other. The module split
 changes no domain owner, crate boundary, or architecture metadata rule and does
 not by itself prove complete command/readiness parity.
 
+The core preparation module owns exact input planning for the existing
+upstream-managed setup family. It reuses port locks, source assessment, installed
+manifest verification, host-tool selection and reviewed tree identity. The CLI
+only renders its result. Plans neither execute tools nor publish readiness;
+catalog output ownership is validated separately from existing artifact trust.
+This module introduces no job database, process runner, domain owner or crate
+dependency. Existing lifecycle execution remains unchanged by planning.
+
 ## Monorepo and deliverable decision
 
 `portcove-release-tools` is an unpublished, offline repository tool for checking

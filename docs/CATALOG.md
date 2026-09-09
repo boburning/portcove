@@ -1,5 +1,19 @@
 # Catalog policy
 
+For upstream-managed setup, `setup_output_paths` declares safe relative generated
+directories. They cannot overlap game/setup executables, persistent data,
+disposable runtime state, the materialized source, or one another. The completion
+marker must belong to a declared output directory. Older definitions may omit
+the field and remain readable, but cannot acquire the explicit preparation-plan
+capability without a reviewed output contract. These paths add no manifest
+exclusion or permission to trust newly hashed files.
+
+The OpenGOAL family declares `data/iso_data`, `data/decompiler_out` and `data/out`,
+following the [extractor](https://github.com/open-goal/jak-project/blob/ce97ce959b8c773097f593bf42f470555f6a6e2b/decompiler/extractor/main.cpp)
+and its [decompilation output](https://github.com/open-goal/jak-project/blob/ce97ce959b8c773097f593bf42f470555f6a6e2b/decompiler/decompilation_process.cpp)
+contract. Saves and `data/log` remain separately owned. These declarations are
+implementation facts, not new artifact or platform qualification.
+
 `crates/portcove-core/catalog/catalog.json` is the machine-readable authority
 for actual ports, platforms, upstream sources, release channels, adapters,
 source contracts, and qualification evidence. The catalog grows continuously

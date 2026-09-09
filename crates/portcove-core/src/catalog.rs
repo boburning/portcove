@@ -550,12 +550,8 @@ impl Catalog {
                     .chain(port.setup_executable_hints.values())
                     .flatten()
                     .any(|executable| crate::runtime::overlaps(relative, executable));
-                let portcove_metadata = Path::new(relative).components().any(|component| {
-                    component.as_os_str().to_str().is_some_and(|name| {
-                        name.starts_with(".portcove-") || name.ends_with(".portcove-source.json")
-                    })
-                }) || (port.portable_marker
-                    && crate::runtime::overlaps(relative, "portable.txt"))
+                let portcove_metadata = crate::path::is_portcove_metadata(Path::new(relative))
+                    || (port.portable_marker && crate::runtime::overlaps(relative, "portable.txt"))
                     || (port.adapter == AdapterKind::ReferencedDisc
                         && crate::runtime::overlaps(relative, "data_location.json"));
                 if relative.is_empty()
@@ -811,6 +807,7 @@ impl Catalog {
             }
             let has_setup_contract = !port.setup_executable_hints.is_empty()
                 || !port.setup_arguments.is_empty()
+                || !port.setup_output_paths.is_empty()
                 || port.setup_marker.is_some();
             if port.adapter == AdapterKind::UpstreamManagedSetup {
                 let valid_marker = port.setup_marker.as_ref().is_some_and(|marker| {
@@ -846,6 +843,7 @@ impl Catalog {
                         port.id
                     )));
                 }
+                crate::preparation::validate_output_contract(port)?;
             } else if has_setup_contract {
                 return Err(PortcoveError::usage(format!(
                     "{} declares setup behavior on an incompatible adapter",
@@ -1060,6 +1058,20 @@ mod tests {
         persona
             .runtime_mutable_paths
             .push("psx_freeze_heartbeat.json".into());
+        for id in ["opengoal-jak1", "opengoal-jak2", "opengoal-jak3"] {
+            let port = expected_ports
+                .iter_mut()
+                .find(|port| port.id == id)
+                .unwrap();
+            // Legacy definitions remain readable without preparation output ownership.
+            // Only these reviewed additions are expected in the current catalog.
+            assert!(port.setup_output_paths.is_empty());
+            port.setup_output_paths = vec![
+                "data/iso_data".into(),
+                "data/decompiler_out".into(),
+                "data/out".into(),
+            ];
+        }
         assert_eq!(
             serde_json::to_value(&migrated.document().ports).unwrap(),
             serde_json::to_value(expected_ports).unwrap()

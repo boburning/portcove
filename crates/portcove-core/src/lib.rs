@@ -31,6 +31,7 @@ mod path;
 mod permissions;
 mod persistence;
 mod portability;
+mod preparation;
 mod process;
 mod providers;
 mod psx;
@@ -89,6 +90,9 @@ pub use output_relocation::{
 pub use portability::{
     LibraryContentKind, LibraryContentRoot, LibraryLaunchHistory, LibraryMetadata,
     LibraryMetadataFile, LibraryPortSettings,
+};
+pub use preparation::{
+    PreparationInputs, PreparationMode, PreparationOptions, PreparationPlan, PreparationTool,
 };
 pub use process::{ChildProcessClass, ChildProcessPolicy, GameProcessSpec, LaunchKind, LaunchSpec};
 pub use providers::CompositeReleaseProvider;
