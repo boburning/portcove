@@ -1452,7 +1452,7 @@ fn capabilities_has_human_output_snapshot() {
     let root = tempfile::tempdir().unwrap();
     let capabilities = human_stdout(&portcove(root.path(), &["capabilities"])).to_owned();
     assert!(capabilities.starts_with("Portcove "));
-    assert!(capabilities.contains(" capabilities\nSchema: 39"));
+    assert!(capabilities.contains(" capabilities\nSchema: 40"));
 }
 
 struct OutputFixture {
