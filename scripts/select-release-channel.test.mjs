@@ -15,7 +15,9 @@ test("selects the newest published preview without returning a draft or older st
 });
 
 test("selects stable independently when a newer preview exists", () => {
-  assert.equal(selectReleaseForChannel(releases, "stable").tag_name, "v1.5.0");
+  assert.equal(selectReleaseForChannel(releases, "stable"), null);
+  const eligibility = { "v1.5.0": { version: "1.5.0", preview_eligible: true, production_eligible: true } };
+  assert.equal(selectReleaseForChannel(releases, "stable", { eligibility }).tag_name, "v1.5.0");
 });
 
 test("supports preview-only repositories and reports absent stable", () => {

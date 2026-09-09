@@ -51,7 +51,9 @@ commit, serializes version allocation, and never guesses a version with AI
 during publication. Release classification and download-selection implementation
 must be corrected and tested before any suffix-free beta ships. Current
 suffix-only publication classification and date-ordered download selection are
-transitional behavior, not the policy above.
+transitional behavior, not the policy above. Offline preparation and download
+selection now implement this policy as documented in [Releasing](RELEASING.md);
+protected production classification activation remains separate.
 
 Public beta requires usable representative first play/recovery, all four baseline
 updater paths, a real updater-enabled release-to-release proof, safe failure and
