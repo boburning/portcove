@@ -216,10 +216,13 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
         .add_target_path(&record)
         .await
         .unwrap();
-    assert!(matches!(
-        editor.sign_targets_editor(&[f.online.source()]).await,
-        Err(Error::SigningKeysNotFound { .. })
-    ));
+    match editor.sign_targets_editor(&[f.online.source()]).await {
+        Err(error) => assert!(
+            matches!(error, Error::SigningKeysNotFound { .. }),
+            "{error}"
+        ),
+        Ok(_) => panic!("release key must not sign the promotion role"),
+    }
     editor
         .sign_targets_editor(&[promotion.source()])
         .await
