@@ -1,5 +1,6 @@
 // Optional owned-fixture scenarios; all state stays under desktop-test's new output directory.
 import assert from "node:assert/strict";
+import axe from "axe-core";
 import { copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { By, until } from "selenium-webdriver";
@@ -59,6 +60,12 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
     const reviewImage = path.join(output, "native-preparation-review.png");
     await writeFile(reviewImage, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
     artifacts.push(reviewImage);
+    await browser.executeScript(axe.source);
+    const accessibility = await browser.executeAsyncScript(done => window.axe.run().then(done));
+    const accessibilityReport = path.join(output, "preparation-accessibility.json");
+    await writeFile(accessibilityReport, JSON.stringify(accessibility, null, 2), { flag: "wx" });
+    artifacts.push(accessibilityReport);
+    assert.deepEqual(accessibility.violations.map(item => item.id), []);
     await browser.findElement(button("Prepare game data")).click();
     await browser.wait(async () => (await status(port.id)).readiness.launchable, 15_000);
     const prepared = await status(port.id);
