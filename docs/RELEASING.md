@@ -2,6 +2,20 @@
 
 Portcove releases fail closed when the product version, Git tag, required identity assets, tests, or catalog ownership checks disagree. Tagged builds remain draft releases until their platform artifacts and checksums have been reviewed.
 
+See [Continuous verified delivery](DELIVERY.md) for the approved future
+version/channel, platform-updater and zero-cost automation policy. Current
+protected publication remains effective until separately authorized activation.
+In particular, suffix-free 0.x publication is blocked by the required release
+classification implementation: the current suffix-only workflow would classify
+it incorrectly. Do not invoke it for a suffix-free beta.
+
+For a routine preview, `roadmap.mjs candidate-scope --issues <issue,issue,...>`
+checks the frozen implementation scope without waiting for unrelated milestone
+capabilities. It grants no publication authority and replaces none of the gates
+below. Declaring Public beta or 1.0 also requires the corresponding cumulative
+`readiness` and snapshot evidence. #532/#533/#534 own classification, bounded
+automation and separately authorized one-time provisioning respectively.
+
 ## Version authority
 
 The release version must match in exactly three places:
@@ -203,8 +217,10 @@ qualification state. Then generate a new immutable snapshot under
 node scripts/roadmap.mjs snapshot --release "Alpha 1" --output docs/releases/0.1.0-alpha.1-readiness.md
 ```
 
-Snapshots are cumulative: an Alpha 2 snapshot includes Alpha 1 and Alpha 2,
-and every later stage includes all earlier Required outcomes. `Target release`
+Legacy snapshots retain historical cumulative stages. New Public beta snapshots
+include completed Alpha 1/2 history and Public beta; 1.0 includes all historical
+stages and both current milestones. Active legacy targets are migration conflicts.
+These cumulative declarations are separate from routine candidate safety checks. `Target release`
 is a forecast; `Release commitment` controls the gate. The generator follows
 genuine transitive blocking relationships and reports later, Opportunistic,
 unclassified, or Project-missing dependencies as conflicts. Parentage and

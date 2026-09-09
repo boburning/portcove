@@ -41,6 +41,41 @@ import {
 const config = JSON.parse(await readFile(new URL("../.github/roadmap.json", import.meta.url)));
 const newPortForm = await readFile(new URL("../.github/ISSUE_TEMPLATE/new-port.yml", import.meta.url), "utf8");
 
+test("capability milestones preserve history and fail closed during partial migration", () => {
+  const item = (number, target, status = "Done", commitment = "Required", state = "CLOSED", dependencies = []) => ({
+    id: `item-${number}`, status, "target release": target, "release commitment": commitment,
+    content: { number, state, title: `Outcome ${number}`, blockedBy: { totalCount: dependencies.length, nodes: dependencies.map(n => ({ number: n })) } },
+  });
+  const history = item(1, "Alpha 2");
+  const beta = item(2, "Public beta");
+  const production = item(3, "1.0", "Ready", "Required", "OPEN");
+  assert.equal(analyzeReleaseReadiness([history, beta, production], "Public beta").ready, true);
+  assert.equal(analyzeReleaseReadiness([history, beta, production], "1.0").ready, false);
+  assert.equal(analyzeReleaseReadiness([history, beta, production], "Public beta", { candidateIssues: [1] }).ready, true);
+  assert.equal(analyzeReleaseReadiness([history, beta, production], "Public beta", { candidateIssues: [3] }).ready, false);
+  assert.throws(() => analyzeReleaseReadiness([history], "Public beta", { candidateIssues: [] }), /explicit positive/);
+  assert.throws(() => analyzeReleaseReadiness([history], "Public beta", { candidateIssues: [999] }), /missing from the Project/);
+  assert.equal(analyzeReleaseReadiness([history], "Alpha 2").ready, true);
+  const unmigrated = item(4, "Alpha 3", "Ready", "Opportunistic", "OPEN");
+  assert.equal(analyzeReleaseReadiness([history, beta, unmigrated], "Public beta").migrationConflicts.length, 1);
+  assert.equal(analyzeReleaseReadiness([history, beta, unmigrated], "Public beta").ready, false);
+  const missingTarget = item(5, undefined);
+  assert.equal(analyzeReleaseReadiness([history, beta, missingTarget], "Public beta").ready, false);
+  assert.equal(analyzeReleaseReadiness([item(5, "Unscheduled")], "Public beta").ready, false);
+  assert.equal(analyzeReleaseReadiness([item(5, "Typo")], "1.0").ready, false);
+  assert.equal(analyzeReleaseReadiness([item(6, "Public beta", "Done", "Required", "OPEN")], "Public beta").ready, false);
+  assert.equal(analyzeReleaseReadiness([item(7, "Public beta", "Done", "Required", "CLOSED", [3]), production], "Public beta").dependencyConflicts.length, 1);
+  assert.equal(analyzeReleaseReadiness([item(8, "Public beta", "Done", "")], "Public beta").ready, false);
+  const selected = item(9, "1.0", "Done", "Opportunistic", "CLOSED", [10]);
+  const blocker = item(10, "Post-1.0", "Ready", "Opportunistic", "OPEN");
+  assert.equal(analyzeReleaseReadiness([selected, blocker], "Public beta", { candidateIssues: [9] }).ready, false);
+  blocker.status = "Done";
+  blocker.content.state = "CLOSED";
+  assert.equal(analyzeReleaseReadiness([selected, blocker], "Public beta", { candidateIssues: [9] }).ready, true);
+  blocker['release commitment'] = '';
+  assert.equal(analyzeReleaseReadiness([selected, blocker], "Public beta", { candidateIssues: [9] }).ready, false);
+});
+
 test("checked-in configuration contains schema rather than volatile item state", () => {
   assert.doesNotThrow(() => validateConfig(config));
   const invalid = structuredClone(config);

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "owner": "boburning",
   "repository": "boburning/portcove",
-  "active_release": "Alpha 2",
+  "active_release": "Public beta",
   "project": {
     "number": 1,
     "title": "Portcove Roadmap",
@@ -14,7 +14,7 @@
     { "name": "Status", "options": ["Inbox", "Triage", "Ready", "In progress", "Blocked", "Validating", "Done", "Deferred"] },
     { "name": "Priority", "options": ["Urgent", "High", "Medium", "Low", "None"] },
     { "name": "Horizon", "options": ["Now", "Next", "Later", "Someday"] },
-    { "name": "Target release", "options": ["Alpha 1", "Alpha 2", "Alpha 3", "Beta 1", "Beta 2", "RC", "V1", "Post-V1", "Unscheduled"] },
+    { "name": "Target release", "options": ["Alpha 1", "Alpha 2", "Alpha 3", "Beta 1", "Beta 2", "RC", "V1", "Post-V1", "Unscheduled", "Public beta", "1.0", "Post-1.0"] },
     { "name": "Release commitment", "options": ["Required", "Opportunistic"] },
     { "name": "Work type", "options": ["Workstream", "Product feature", "Port", "Platform", "Bug", "Security", "Research", "Qualification", "Technical debt", "Documentation"] },
     { "name": "Workstream", "options": ["Core trust and recovery", "Sources and ROM validation", "Storage and library", "Installation and updates", "Desktop UX", "CLI and integrations", "Platform support", "Port catalog", "Release engineering", "Documentation and governance"] },
@@ -32,6 +32,6 @@
     { "name": "Blocked & Deferred", "layout": "TABLE_LAYOUT", "filter": "status:Blocked,Deferred", "fields": ["Title", "Status", "Priority", "Target release", "Workstream", "Platform", "Assignees"], "manual_group_by": "Status", "manual_sort_by": "Priority,manual" },
     { "name": "Inbox & Triage", "layout": "TABLE_LAYOUT", "filter": "status:Inbox,Triage", "fields": ["Title", "Status", "Work type", "Priority", "Platform", "Assignees"], "manual_group_by": "Status", "manual_sort_by": "manual" },
     { "name": "Steam Deck", "layout": "TABLE_LAYOUT", "filter": "platform:\"Steam Deck\"", "fields": ["Title", "Priority", "Horizon", "Status", "Target release", "Release commitment", "Work type", "Port stage"], "manual_group_by": "Status", "manual_sort_by": "Priority,manual" },
-    { "name": "V1 Readiness", "layout": "TABLE_LAYOUT", "filter": "-status:Done target-release:\"Alpha 1\",\"Alpha 2\",\"Alpha 3\",\"Beta 1\",\"Beta 2\",RC,V1", "fields": ["Title", "Priority", "Status", "Target release", "Release commitment", "Work type", "Workstream", "Platform", "Assignees"], "manual_group_by": "Target release", "manual_sort_by": "Priority,manual" }
+    { "name": "V1 Readiness", "layout": "TABLE_LAYOUT", "filter": "-status:Done target-release:\"Alpha 1\",\"Alpha 2\",\"Alpha 3\",\"Beta 1\",\"Beta 2\",RC,V1,\"Public beta\",\"1.0\"", "fields": ["Title", "Priority", "Status", "Target release", "Release commitment", "Work type", "Workstream", "Platform", "Assignees"], "manual_group_by": "Target release", "manual_sort_by": "Priority,manual" }
   ]
 }
