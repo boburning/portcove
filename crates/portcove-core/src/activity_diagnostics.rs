@@ -127,10 +127,10 @@ impl Library {
         let transaction =
             connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let changed = transaction.execute(
-            "INSERT INTO activity_diagnostics(activity_id,payload,updated_at)
-             SELECT id,?2,?3 FROM activity_history WHERE id=?1 AND status='running' AND operation='prepare'
-             ON CONFLICT(activity_id) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at",
-            params![capture.activity_id, payload, capture.updated_at],
+            "INSERT INTO activity_diagnostics(activity_id,payload,updated_at,payload_bytes)
+             SELECT id,?2,?3,?4 FROM activity_history WHERE id=?1 AND status='running' AND operation='prepare'
+             ON CONFLICT(activity_id) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at,payload_bytes=excluded.payload_bytes",
+            params![capture.activity_id, payload, capture.updated_at, payload.len() as i64],
         )?;
         if changed != 1 {
             return Err(PortcoveError::conflict(
@@ -138,14 +138,14 @@ impl Library {
             ));
         }
         let mut retained: i64 = transaction.query_row(
-            "SELECT coalesce(sum(length(CAST(payload AS BLOB))),0) FROM activity_diagnostics",
+            "SELECT coalesce(sum(payload_bytes),0) FROM activity_diagnostics",
             [],
             |row| row.get(0),
         )?;
         if retained > RETAINED_LIMIT {
             let candidates = {
                 let mut statement = transaction.prepare(
-                    "SELECT d.activity_id,length(CAST(d.payload AS BLOB)) FROM activity_diagnostics AS d
+                    "SELECT d.activity_id,d.payload_bytes FROM activity_diagnostics AS d
                      JOIN activity_history AS a ON a.id=d.activity_id
                      WHERE a.status!='running' AND d.activity_id!=?1 ORDER BY d.updated_at,d.rowid",
                 )?;
@@ -173,5 +173,170 @@ impl Library {
         }
         transaction.commit()?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{ActivityOperation, ActivityStatus, ActivityTargetKind};
+
+    fn activity(library: &Library) -> String {
+        library
+            .begin_activity(
+                ActivityOperation::Prepare,
+                ActivityTargetKind::Port,
+                Some("owned"),
+            )
+            .unwrap()
+            .id
+    }
+
+    #[test]
+    fn capture_redacts_split_markers_quoted_lines_and_utf8_before_every_snapshot() {
+        let capture = DiagnosticCapture::default();
+        let input = "safe password=\"fixture-private\nsecond-secret-line\" tail \u{03bb}\nBearer fixture-bearer\n";
+        for byte in input.as_bytes() {
+            capture.record(0, &[*byte]).unwrap();
+            let view = capture.snapshot("owned", false).unwrap();
+            assert!(!view.stdout.text.contains("fixture-private"));
+            assert!(!view.stdout.text.contains("second-secret-line"));
+            assert!(!view.stdout.text.contains("fixture-bearer"));
+            assert!(!view.complete);
+        }
+        capture.record(1, b"separate stderr").unwrap();
+        capture.close(0).unwrap();
+        capture.close(1).unwrap();
+        let view = capture.snapshot("owned", true).unwrap();
+        assert!(view.complete);
+        assert!(!view.stdout.truncated);
+        assert!(view.stdout.text.contains("tail \u{03bb}"));
+        assert_eq!(view.stderr.text, "separate stderr");
+        assert_eq!(view.stdout.observed_bytes, input.len() as u64);
+    }
+
+    #[test]
+    fn bounded_capture_drains_and_reports_omitted_output_without_losing_the_other_stream() {
+        let capture = DiagnosticCapture::default();
+        capture.record(0, &vec![b'x'; STREAM_LIMIT + 100]).unwrap();
+        capture.record(1, b"stderr after a verbose stdout").unwrap();
+        capture.close(0).unwrap();
+        capture.close(1).unwrap();
+        let view = capture.snapshot("owned", true).unwrap();
+        assert!(view.complete && view.stdout.truncated);
+        assert_eq!(view.stdout.text.len(), STREAM_LIMIT);
+        assert_eq!(view.stdout.observed_bytes, (STREAM_LIMIT + 100) as u64);
+        assert_eq!(view.stderr.text, "stderr after a verbose stdout");
+        assert!(!view.stderr.truncated);
+    }
+
+    #[test]
+    fn incomplete_and_completed_diagnostics_survive_reconnect_without_eager_activity_payloads() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let id = activity(&library);
+        let capture = DiagnosticCapture::default();
+        capture
+            .record(0, b"retained progress token=fixture-private")
+            .unwrap();
+        let partial = capture.snapshot(&id, false).unwrap();
+        library.record_activity_diagnostic(&partial).unwrap();
+        let reopened = Library::open(temporary.path()).unwrap();
+        assert_eq!(reopened.activity_diagnostic(&id).unwrap(), Some(partial));
+        let stored: String = reopened
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT payload FROM activity_diagnostics WHERE activity_id=?1",
+                [&id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(!stored.contains("fixture-private"));
+        assert!(
+            !serde_json::to_string(&reopened.activities(1).unwrap())
+                .unwrap()
+                .contains("retained progress")
+        );
+        capture.record(1, b"exit 23").unwrap();
+        capture.close(0).unwrap();
+        capture.close(1).unwrap();
+        let final_capture = capture.snapshot(&id, true).unwrap();
+        reopened.record_activity_diagnostic(&final_capture).unwrap();
+        reopened
+            .finish_activity(&id, ActivityStatus::Failed, Some("setup failed"))
+            .unwrap();
+        assert_eq!(
+            Library::open(temporary.path())
+                .unwrap()
+                .activity_diagnostic(&id)
+                .unwrap(),
+            Some(final_capture.clone())
+        );
+        assert!(reopened.record_activity_diagnostic(&final_capture).is_err());
+        assert_eq!(
+            reopened.activity_diagnostic(&id).unwrap(),
+            Some(final_capture)
+        );
+        let no_capture = activity(&reopened);
+        assert_eq!(reopened.activity_diagnostic(&no_capture).unwrap(), None);
+        assert!(reopened.activity_diagnostic("../arbitrary-path").is_err());
+    }
+
+    #[test]
+    fn retention_removes_only_old_terminal_logs_and_follows_activity_deletion() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let running = activity(&library);
+        let small = DiagnosticCapture::default();
+        small.record(0, b"running work must remain").unwrap();
+        library
+            .record_activity_diagnostic(&small.snapshot(&running, false).unwrap())
+            .unwrap();
+        let large = DiagnosticCapture::default();
+        large.record(0, &vec![b'x'; STREAM_LIMIT]).unwrap();
+        large.record(1, &vec![b'y'; STREAM_LIMIT]).unwrap();
+        large.close(0).unwrap();
+        large.close(1).unwrap();
+        let mut ids = Vec::new();
+        for _ in 0..17 {
+            let id = activity(&library);
+            library
+                .record_activity_diagnostic(&large.snapshot(&id, true).unwrap())
+                .unwrap();
+            library
+                .finish_activity(&id, ActivityStatus::Failed, Some("failed setup"))
+                .unwrap();
+            ids.push(id);
+        }
+        assert!(library.activity_diagnostic(&ids[0]).unwrap().is_none());
+        assert!(
+            library
+                .activity_diagnostic(ids.last().unwrap())
+                .unwrap()
+                .is_some()
+        );
+        assert!(library.activity_diagnostic(&running).unwrap().is_some());
+        assert_eq!(library.activities(50).unwrap().len(), 18);
+        let connection = library.connection().unwrap();
+        let retained: i64 = connection
+            .query_row(
+                "SELECT sum(payload_bytes) FROM activity_diagnostics",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(retained <= RETAINED_LIMIT);
+        connection
+            .execute("DELETE FROM activity_history WHERE id=?1", [&running])
+            .unwrap();
+        let count: i64 = connection
+            .query_row(
+                "SELECT count(*) FROM activity_diagnostics WHERE activity_id=?1",
+                [&running],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 0);
     }
 }

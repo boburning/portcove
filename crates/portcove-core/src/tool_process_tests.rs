@@ -153,6 +153,8 @@ fn setup_descendants_cannot_keep_writing_after_completion_or_cancellation() {
                     Ok(())
                 }
             },
+            "owned-descendant-fixture",
+            &mut |_| Ok(()),
         );
         if cancel {
             assert_eq!(result.err().unwrap().code, crate::ErrorCode::Cancelled);
