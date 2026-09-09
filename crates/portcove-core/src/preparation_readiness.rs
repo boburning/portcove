@@ -20,17 +20,25 @@ impl PortcoveService {
             return Ok(());
         }
         let installer = Installer::new(self.library().clone())?;
+        let working = crate::adapter::launch_working_directory(
+            port.adapter,
+            port,
+            &install.path,
+            &install.path.join(&install.selected_executable),
+        )?;
         let marker = port
             .setup_marker
             .as_deref()
             .ok_or_else(|| PortcoveError::state("preparation has no output marker"))?;
         // A manually created marker cannot establish readiness. Both legacy and
         // new prepared installations must have admitted this exact output.
-        installer.verify_recorded_member(install, marker)?;
+        installer.verify_recorded_member(install, &working.join(marker))?;
         let bytes = match installer.read_verified_member(install, RECEIPT_FILE, 1024 * 1024) {
             Ok(bytes) => bytes,
             Err(error) if error.code == crate::ErrorCode::NotFound => {
-                return crate::adapter::validate_completed_legacy_setup(port, install, source);
+                return crate::adapter::validate_completed_legacy_setup(
+                    port, install, &working, source,
+                );
             }
             Err(error) => return Err(error),
         };

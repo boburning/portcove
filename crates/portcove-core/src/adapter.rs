@@ -1071,15 +1071,16 @@ pub(crate) fn record_prepared_setup(working_directory: &Path, source: &Path) -> 
 pub(crate) fn validate_completed_legacy_setup(
     port: &PortDefinition,
     install: &crate::InstallRecord,
+    working: &Path,
     source: Option<&SourceRecord>,
 ) -> Result<()> {
-    if upstream_setup_manifest_needs_refresh(&install.path, &install.manifest_sha256)? {
+    if upstream_setup_manifest_needs_refresh(working, &install.manifest_sha256)? {
         return Err(PortcoveError::verification(
             "existing setup has no completed manifest binding",
         ));
     }
     if let Some(source) = source {
-        let destination = install.path.join(
+        let destination = working.join(
             port.runtime_source_filename
                 .as_deref()
                 .ok_or_else(|| PortcoveError::state("existing setup has no source destination"))?,

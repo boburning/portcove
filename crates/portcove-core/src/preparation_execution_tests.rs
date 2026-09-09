@@ -414,9 +414,35 @@ fn changed_definition_and_missing_receipt_invalidate_prepared_readiness() {
 
 #[test]
 fn completed_legacy_setup_keeps_working_without_repeating_setup() {
+    assert_legacy_setup(false);
+}
+
+#[test]
+fn completed_nested_legacy_setup_keeps_its_working_directory() {
+    assert_legacy_setup(true);
+}
+
+fn assert_legacy_setup(nested: bool) {
     let fixture = Fixture::native("success");
     let mut prepared = fixture.run(|_| {}).unwrap();
     fs::remove_file(prepared.path.join(RECEIPT_FILE)).unwrap();
+    let working = if nested {
+        let entries = fs::read_dir(&prepared.path)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .collect::<Vec<_>>();
+        let working = prepared.path.join("existing-game");
+        fs::create_dir(&working).unwrap();
+        for path in entries {
+            if path.file_name().unwrap() != ".portcove-manifest.json" {
+                fs::rename(&path, working.join(path.file_name().unwrap())).unwrap();
+            }
+        }
+        working
+    } else {
+        prepared.path.clone()
+    };
+
     let port = fixture.service.catalog().port(PORT).unwrap();
     let qualification =
         InstallQualification::from_port(port, Platform::current().unwrap()).unwrap();
@@ -439,9 +465,8 @@ fn completed_legacy_setup_keeps_working_without_repeating_setup() {
         .library()
         .update_install_manifest(&prepared)
         .unwrap();
-    crate::adapter::bind_upstream_setup_manifest(&prepared.path, &prepared.manifest_sha256)
-        .unwrap();
-    fs::write(prepared.path.join("data/log/setup.log"), b"legacy sentinel").unwrap();
+    crate::adapter::bind_upstream_setup_manifest(&working, &prepared.manifest_sha256).unwrap();
+    fs::write(working.join("data/log/setup.log"), b"legacy sentinel").unwrap();
     assert!(
         fixture
             .service
@@ -453,7 +478,7 @@ fn completed_legacy_setup_keeps_working_without_repeating_setup() {
     );
     fixture.service.launch_spec(PORT, None).unwrap();
     assert_eq!(
-        fs::read(prepared.path.join("data/log/setup.log")).unwrap(),
+        fs::read(working.join("data/log/setup.log")).unwrap(),
         b"legacy sentinel"
     );
 }

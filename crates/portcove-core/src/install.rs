@@ -593,10 +593,11 @@ impl Installer {
     pub(crate) fn verify_recorded_member(
         &self,
         install: &InstallRecord,
-        relative: &str,
+        path: &Path,
     ) -> Result<()> {
-        let member = immutable_member(install, relative)?;
-        let path = manifest_member(&install.path, relative)?;
+        let relative = manifest_relative(&install.path, path)?;
+        let member = immutable_member(install, &relative)?;
+        let path = manifest_member(&install.path, &relative)?;
         if !is_regular_file_without_symlink(&path) {
             return Err(PortcoveError::verification(
                 "prepared output is not a regular file",
