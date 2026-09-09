@@ -130,11 +130,18 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(workflow, /workflow_dispatch:/);
   assert.match(workflow, /contents: read/);
   assert.doesNotMatch(workflow, /secrets\.|contents: write|actions: write|gh release|pull_request_target/);
-  for (const label of releaseLabels(policy)) assert.ok(workflow.includes(`label: ${label}`));
+  assert.match(workflow, /default: all/);
+  const matrix = JSON.parse(workflow.match(/label:.*fromJSON\('([^']+)'\)/)[1]);
+  assert.deepEqual(matrix.all.toSorted(), releaseLabels(policy).toSorted());
+  for (const label of releaseLabels(policy)) assert.deepEqual(matrix[label], [label]);
   assert.match(workflow, /retention-days: 1/);
   assert.doesNotMatch(workflow, /updater-rehearsal\/\*\*|\.key\b/);
   const lifecycle = await readFile(new URL("./test-windows-installer.ps1", import.meta.url), "utf8");
   assert.match(lifecycle, /\$InstallMode -eq "Passive".*"\/P"/);
   assert.match(lifecycle, /DisplayVersion -ne \$ExpectedVersion/);
   assert.match(lifecycle, /HKEY_CURRENT_USER/);
+  const rehearsal = await readFile(new URL("./rehearse-updater-artifacts.ps1", import.meta.url), "utf8");
+  // A DMG-only Tauri build creates the bootstrap disk image but does not return
+  // an app bundle target for updater archive/signature generation.
+  assert.match(rehearsal, /else \{ "app,dmg" \}/);
 });

@@ -53,9 +53,10 @@ class Uninstaller { static int Main() { var delay = Environment.GetEnvironmentVa
   const uninstaller = path.join(artifacts, "uninstaller.exe");
   execFileSync(csc, ["/nologo", `/out:${uninstaller}`, uninstallerSource], { windowsHide: true });
   const sleeperSource = path.join(root, "sleeper.cs");
-  writeFileSync(sleeperSource, "using System; using System.Threading; class Sleeper { static void Main() { Thread.Sleep(Int32.Parse(Environment.GetEnvironmentVariable(\"PORTCOVE_FIXTURE_SLEEP_MS\") ?? \"10000\")); } }\n");
+  writeFileSync(sleeperSource, "using System; using System.IO; using System.Diagnostics; using System.Threading; class Sleeper { static void Main() { var ready = Environment.GetEnvironmentVariable(\"PORTCOVE_FIXTURE_READY\"); if (ready != null) File.WriteAllText(ready, Process.GetCurrentProcess().Id.ToString()); Thread.Sleep(Int32.Parse(Environment.GetEnvironmentVariable(\"PORTCOVE_FIXTURE_SLEEP_MS\") ?? \"10000\")); } }\n");
   const sleeper = path.join(artifacts, "sleeper.exe");
-  execFileSync(csc, ["/nologo", `/out:${sleeper}`, sleeperSource], { windowsHide: true });
+  // This process must outlive its launcher, independently of console teardown.
+  execFileSync(csc, ["/nologo", "/target:winexe", `/out:${sleeper}`, sleeperSource], { windowsHide: true });
   return root;
 }
 
@@ -79,16 +80,31 @@ class Desktop { [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr w
   const desktop = path.join(root, "desktop.exe");
   execFileSync(csc, ["/nologo", "/target:winexe", "/reference:System.Windows.Forms.dll", `/out:${desktop}`, desktopSource], { windowsHide: true });
 
-  const cleanerSource = path.join(root, "cleaner.cs");
-  writeFileSync(cleanerSource, `using System; using System.IO; using System.Threading; using Microsoft.Win32;
-class Cleaner { static void Main(string[] args) { var install = args[0]; Thread.Sleep(100); for (var i = 0; i < 100; i++) { try { File.Delete(Path.Combine(install, "portcove-desktop.exe")); File.Delete(Path.Combine(install, "uninstall.exe")); } catch {} if (!File.Exists(Path.Combine(install, "portcove-desktop.exe")) && !File.Exists(Path.Combine(install, "uninstall.exe"))) break; Thread.Sleep(25); } var delay = Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_REGISTRATION_DELAY_MS"); if (delay != null) Thread.Sleep(Int32.Parse(delay)); if (Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_KEEP_REGISTRATION") != "1") Registry.CurrentUser.DeleteSubKeyTree(${csharpLiteral(keyPath)}, false); } }
-`);
-  const cleaner = path.join(root, "cleaner.exe");
-  execFileSync(csc, ["/nologo", `/out:${cleaner}`, cleanerSource], { windowsHide: true });
-
   const uninstallerSource = path.join(root, "uninstaller.cs");
-  writeFileSync(uninstallerSource, `using System; using System.Diagnostics; using System.IO; using System.Threading;
-class Uninstaller { static void Main() { if (Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_HANG_UNINSTALLER") == "1") Thread.Sleep(60000); var install = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName); var target = Path.Combine(Path.GetTempPath(), "cleanup-" + Guid.NewGuid().ToString("N") + ".exe"); File.Copy(${csharpLiteral(cleaner)}, target); Process.Start(new ProcessStartInfo(target, "\\\"" + install + "\\\"") { CreateNoWindow = true, UseShellExecute = false }); } }
+  writeFileSync(uninstallerSource, `using System; using System.Diagnostics; using System.IO; using System.Threading; using Microsoft.Win32;
+class Uninstaller {
+  static void Main(string[] args) {
+    if (args.Length == 2 && args[0] == "--cleanup") {
+      if (Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_HANG_CHILD") == "1") Thread.Sleep(60000);
+      var install = args[1];
+      Thread.Sleep(100);
+      for (var i = 0; i < 100; i++) {
+        try { File.Delete(Path.Combine(install, "portcove-desktop.exe")); File.Delete(Path.Combine(install, "uninstall.exe")); } catch {}
+        if (!File.Exists(Path.Combine(install, "portcove-desktop.exe")) && !File.Exists(Path.Combine(install, "uninstall.exe"))) break;
+        Thread.Sleep(25);
+      }
+      var delay = Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_REGISTRATION_DELAY_MS");
+      if (delay != null) Thread.Sleep(Int32.Parse(delay));
+      if (Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_KEEP_REGISTRATION") != "1") Registry.CurrentUser.DeleteSubKeyTree(${csharpLiteral(keyPath)}, false);
+      return;
+    }
+    if (Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_HANG_UNINSTALLER") == "1") Thread.Sleep(60000);
+    var self = Process.GetCurrentProcess().MainModule.FileName;
+    var target = Path.Combine(Path.GetTempPath(), "cleanup-" + Guid.NewGuid().ToString("N") + ".exe");
+    File.Copy(self, target);
+    Process.Start(new ProcessStartInfo(target, "--cleanup \\\"" + Path.GetDirectoryName(self) + "\\\"") { CreateNoWindow = true, UseShellExecute = false });
+  }
+}
 `);
   const uninstaller = path.join(root, "uninstaller.exe");
   execFileSync(csc, ["/nologo", `/out:${uninstaller}`, uninstallerSource], { windowsHide: true });
@@ -124,15 +140,33 @@ function removeInstallerLifecycleRegistration(item) {
 test("installer lifecycle behavior handles delayed, persistent, and hung uninstall cleanup", { skip: process.platform !== "win32", timeout: 120_000 }, t => {
   const item = makeInstallerLifecycleFixture(t);
 
-  const delayed = runInstallerLifecycle(item, "delayed", { PORTCOVE_FIXTURE_REGISTRATION_DELAY_MS: "750" });
+  const delayed = runInstallerLifecycle(item, "delayed", { PORTCOVE_FIXTURE_REGISTRATION_DELAY_MS: "3000" }, "8");
   assert.equal(delayed.status, 0, delayed.stderr);
   const delayedEvidence = JSON.parse(readFileSync(path.join(item.root, "delayed", "evidence.json"), "utf8"));
   assert.equal(delayedEvidence.phase, "complete");
   assert.equal(delayedEvidence.details.registration_removed, true);
+  const childRun = delayedEvidence.process_runs.find(run => run.role === "candidate_uninstaller_child");
+  assert.equal(childRun.status, "exit_observed");
+  assert.equal(childRun.exit_code, 0);
+  assert.equal(childRun.executable_sha256, delayedEvidence.uninstaller_sha256);
+
+  const hungChild = runInstallerLifecycle(item, "hung-child", { PORTCOVE_FIXTURE_HANG_CHILD: "1" }, "3");
+  assert.notEqual(hungChild.status, 0);
+  assert.match(hungChild.stderr, /candidate_uninstaller_child did not exit within 3 seconds/);
+  const hungChildEvidence = JSON.parse(readFileSync(path.join(item.root, "hung-child", "evidence.json"), "utf8"));
+  const timedOutChild = hungChildEvidence.process_runs.find(run => run.role === "candidate_uninstaller_child");
+  assert.equal(timedOutChild.status, "timed_out");
+  assert.match(timedOutChild.exit_observation, /retained parent exit was observed after the termination request/);
+  removeInstallerLifecycleRegistration(item);
+  assert.equal(delayedEvidence.process_runs.find(run => run.role === "candidate_smoke").close_request.accepted, true);
 
   const persistent = runInstallerLifecycle(item, "persistent", { PORTCOVE_FIXTURE_KEEP_REGISTRATION: "1" });
   assert.notEqual(persistent.status, 0);
   assert.match(persistent.stderr, /Uninstall left registration entries behind/);
+  const persistentEvidence = JSON.parse(readFileSync(path.join(item.root, "persistent", "evidence.json"), "utf8"));
+  assert.equal(persistentEvidence.details.application_present, false);
+  assert.equal(persistentEvidence.details.uninstaller_present, false);
+  assert.equal(persistentEvidence.details.remaining_registration_paths.length, 1);
   removeInstallerLifecycleRegistration(item);
 
   const hung = runInstallerLifecycle(item, "hung", { PORTCOVE_FIXTURE_HANG_UNINSTALLER: "1" }, "1");
@@ -433,18 +467,23 @@ test("a killed real lifecycle runner leaves readable inner WAL and outer ambigui
   rmSync(evidencePath);
   const ownedSleeper = path.join(item.session, "inputs", "lifecycle-sleeper.exe");
   copyFileSync(item.sleeper, ownedSleeper);
-  const runner = spawn("pwsh.exe", ["-NoLogo", "-NoProfile", "-File", installerLifecycleTool, "-InstallerPath", ownedSleeper, "-UpgradeFromInstallerPath", ownedSleeper, "-TestBase", path.join(item.session, "installer-work"), "-EvidencePath", evidencePath], { windowsHide: true, env: { ...process.env, PORTCOVE_FIXTURE_SLEEP_MS: "12000", PORTCOVE_PREFERENCES: path.join(item.session, "state", "preferences.json") }, stdio: "ignore" });
+  const ready = path.join(item.root, "sleeper-ready.txt");
+  const runner = spawn("pwsh.exe", ["-NoLogo", "-NoProfile", "-File", installerLifecycleTool, "-InstallerPath", ownedSleeper, "-UpgradeFromInstallerPath", ownedSleeper, "-TestBase", path.join(item.session, "installer-work"), "-EvidencePath", evidencePath], { windowsHide: true, env: { ...process.env, PORTCOVE_FIXTURE_SLEEP_MS: "12000", PORTCOVE_FIXTURE_READY: ready, PORTCOVE_PREFERENCES: path.join(item.session, "state", "preferences.json") }, stdio: ["ignore", "ignore", "pipe"] });
+  let diagnostics = "";
+  runner.stderr.on("data", chunk => { diagnostics = (diagnostics + chunk).slice(-8192); });
   let evidence;
   const deadline = Date.now() + 15_000;
   while (Date.now() < deadline) {
     if (existsSync(evidencePath)) {
       try { evidence = JSON.parse(readFileSync(evidencePath, "utf8")); } catch {}
-      if (evidence?.process_runs?.[0]?.status === "running") break;
+      if (evidence?.process_runs?.[0]?.status === "running" && evidence.process_runs[0].image_observation && existsSync(ready)) break;
     }
+    if (runner.exitCode !== null) break;
     await new Promise(resolve => setTimeout(resolve, 100));
   }
-  assert.equal(evidence.process_runs[0].role, "predecessor_installer");
+  assert.equal(evidence?.process_runs?.[0]?.role, "predecessor_installer", JSON.stringify({ evidence, diagnostics, runner_exit: runner.exitCode }));
   assert.equal(evidence.process_runs[0].status, "running");
+  assert.equal(Number(readFileSync(ready, "utf8")), evidence.process_runs[0].pid);
   assert.equal(evidence.process_runs[0].executable_sha256, sha256(ownedSleeper));
   execFileSync("taskkill.exe", ["/PID", String(runner.pid), "/F"], { windowsHide: true, stdio: "ignore" });
   const ambiguous = runPowerShell(["-Action", "abort", "-SessionRoot", item.session]);

@@ -6,19 +6,14 @@ use std::{
 
 use clap::{Args, Parser, Subcommand, ValueEnum, error::ErrorKind};
 use portcove_core::{
-    API_SCHEMA_VERSION, ActivityRecord, AdoptionPreview, BackupAction, BackupActionPreview,
-    BackupInventory, BackupRecord, CapabilityDocument, CatalogDocument, ChildProcessClass,
-    ChildProcessPolicy, DoctorReport, ErrorCode, GithubAuthStatus, GithubDeviceLogin,
-    GithubDeviceLoginResult, GithubDeviceLoginState, GithubReleaseProvider, HostPreferenceStore,
-    IdentifiedLaunchRequest, InstallOverrides, InstallPlan, InstallRecord, LaunchSignal,
-    LaunchStdio, LibraryMetadata, LibraryMetadataFile, OperationCoordinator, OperationEvent,
-    OperationEventKind, PortDefinition, PortPaths, PortRemovalPreview, PortStatus, PortcoveError,
-    PortcoveService, ReconcileResult, ReleaseChannel, RestoreResult, Result, SourceImportMode,
-    SourceInspectionReport, SourceRecord, SourceRelinkPlan, SourceRemovalPreview,
-    SourceVerification, StorageSummary, UpdateCheck, UpdatePolicy, UpdateSnapshot,
+    API_SCHEMA_VERSION, BackupAction, CapabilityDocument, ChildProcessClass, ChildProcessPolicy,
+    ErrorCode, GithubDeviceLogin, GithubDeviceLoginState, GithubReleaseProvider,
+    HostPreferenceStore, IdentifiedLaunchRequest, InstallOverrides, LaunchSignal, LaunchStdio,
+    OperationCoordinator, OperationEvent, OperationEventKind, PortcoveError, PortcoveService,
+    ReleaseChannel, Result, SourceImportMode, SourceVerification, UpdatePolicy,
     forward_launch_signal,
 };
-use schemars::{JsonSchema, schema_for};
+use schemars::JsonSchema;
 use serde::Serialize;
 use tracing_subscriber::EnvFilter;
 
@@ -26,6 +21,8 @@ mod cancellation;
 mod catalog;
 use catalog::CatalogCommand;
 mod human;
+mod schema;
+use schema::SchemaContract;
 
 #[derive(Debug, Parser)]
 #[command(
@@ -517,7 +514,10 @@ enum PolicyCommand {
 
 #[derive(Debug, Subcommand)]
 enum SchemaCommand {
-    Export,
+    Export {
+        #[arg(long, value_enum, default_value = "input")]
+        contract: SchemaContract,
+    },
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -691,13 +691,29 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         render_about(mode)?;
         return Ok(ExitCode::SUCCESS);
     }
-    if matches!(
-        &cli.command,
-        Commands::Schema {
-            command: SchemaCommand::Export
-        }
-    ) {
-        render_success(mode, "schema.export", schema_document())?;
+    if let Commands::Schema {
+        command: SchemaCommand::Export { contract },
+    } = &cli.command
+    {
+        render_success(mode, "schema.export", schema::document(*contract))?;
+        return Ok(ExitCode::SUCCESS);
+    }
+    if let Commands::Catalog {
+        command:
+            CatalogCommand::InspectObservation {
+                port_id,
+                file,
+                repository_id,
+            },
+    } = &cli.command
+    {
+        let catalog = portcove_core::Catalog::embedded()?;
+        let report = portcove_core::inspect_upstream_observation(
+            catalog.port(port_id)?,
+            *repository_id,
+            file,
+        )?;
+        render_success(mode, "catalog.inspect-observation", report)?;
         return Ok(ExitCode::SUCCESS);
     }
     let preferences = host_preference_store()?;
@@ -1466,9 +1482,9 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
             human::capabilities,
         )?,
         Commands::Schema {
-            command: SchemaCommand::Export,
+            command: SchemaCommand::Export { contract },
         } => {
-            render_success(mode, "schema.export", schema_document())?;
+            render_success(mode, "schema.export", schema::document(contract))?;
         }
     }
     Ok(ExitCode::SUCCESS)
@@ -1652,248 +1668,6 @@ fn execute_library(
         }
     }
     Ok(())
-}
-
-fn schema_document() -> serde_json::Value {
-    serde_json::Value::Object(
-        [
-            (
-                "api_response_port_status",
-                serde_json::json!(schema_for!(ApiResponse<PortStatus>)),
-            ),
-            ("about", serde_json::json!(schema_for!(AboutDocument))),
-            ("catalog", serde_json::json!(schema_for!(CatalogDocument))),
-            (
-                "catalog_status",
-                serde_json::json!(schema_for!(portcove_core::CatalogStatus)),
-            ),
-            (
-                "catalog_provenance",
-                serde_json::json!(schema_for!(portcove_core::CatalogProvenance)),
-            ),
-            (
-                "catalog_trust_key",
-                serde_json::json!(schema_for!(portcove_core::CatalogTrustKey)),
-            ),
-            (
-                "catalog_update_plan",
-                serde_json::json!(schema_for!(portcove_core::CatalogUpdatePlan)),
-            ),
-            (
-                "catalog_update_source",
-                serde_json::json!(schema_for!(portcove_core::CatalogUpdateSource)),
-            ),
-            (
-                "signed_catalog_envelope",
-                serde_json::json!(schema_for!(portcove_core::SignedCatalogEnvelope)),
-            ),
-            (
-                "signed_catalog_payload",
-                serde_json::json!(schema_for!(portcove_core::SignedCatalogPayload)),
-            ),
-            ("port", serde_json::json!(schema_for!(PortDefinition))),
-            ("status", serde_json::json!(schema_for!(PortStatus))),
-            (
-                "port_output_location",
-                serde_json::json!(schema_for!(portcove_core::PortOutputLocation)),
-            ),
-            (
-                "output_destination_preview",
-                serde_json::json!(schema_for!(portcove_core::OutputDestinationPreview)),
-            ),
-            ("update_check", serde_json::json!(schema_for!(UpdateCheck))),
-            (
-                "update_snapshot",
-                serde_json::json!(schema_for!(UpdateSnapshot)),
-            ),
-            (
-                "check_batch_outcome",
-                serde_json::json!(schema_for!(PortBatchOutcome<UpdateCheck>)),
-            ),
-            (
-                "reconcile_result",
-                serde_json::json!(schema_for!(ReconcileResult)),
-            ),
-            (
-                "reconcile_batch_outcome",
-                serde_json::json!(schema_for!(PortBatchOutcome<ReconcileResult>)),
-            ),
-            (
-                "update_batch_outcome",
-                serde_json::json!(schema_for!(PortBatchOutcome<InstallRecord>)),
-            ),
-            ("source", serde_json::json!(schema_for!(SourceRecord))),
-            (
-                "source_relink_plan",
-                serde_json::json!(schema_for!(SourceRelinkPlan)),
-            ),
-            (
-                "library_metadata",
-                serde_json::json!(schema_for!(LibraryMetadata)),
-            ),
-            (
-                "library_metadata_file",
-                serde_json::json!(schema_for!(LibraryMetadataFile)),
-            ),
-            (
-                "library_move_plan",
-                serde_json::json!(schema_for!(portcove_core::LibraryMovePlan)),
-            ),
-            (
-                "library_move_result",
-                serde_json::json!(schema_for!(portcove_core::LibraryMoveResult)),
-            ),
-            (
-                "library_import_plan",
-                serde_json::json!(schema_for!(portcove_core::LibraryImportPlan)),
-            ),
-            (
-                "library_import_result",
-                serde_json::json!(schema_for!(portcove_core::LibraryImportResult)),
-            ),
-            (
-                "library_selection",
-                serde_json::json!(schema_for!(portcove_core::LibrarySelection)),
-            ),
-            (
-                "source_discovery_request",
-                serde_json::json!(schema_for!(portcove_core::SourceDiscoveryRequest)),
-            ),
-            (
-                "source_discovery_limits",
-                serde_json::json!(schema_for!(portcove_core::SourceDiscoveryLimits)),
-            ),
-            (
-                "source_discovery_report",
-                serde_json::json!(schema_for!(portcove_core::SourceDiscoveryReport)),
-            ),
-            (
-                "source_discovery_issue",
-                serde_json::json!(schema_for!(portcove_core::SourceDiscoveryIssue)),
-            ),
-            (
-                "source_discovery_limit",
-                serde_json::json!(schema_for!(portcove_core::SourceDiscoveryLimit)),
-            ),
-            (
-                "source_inbox_paths",
-                serde_json::json!(schema_for!(portcove_core::SourceInboxPaths)),
-            ),
-            (
-                "source_inbox_resolution",
-                serde_json::json!(schema_for!(portcove_core::SourceInboxResolution)),
-            ),
-            (
-                "source_import_plan",
-                serde_json::json!(schema_for!(portcove_core::SourceImportPlan)),
-            ),
-            (
-                "source_import_result",
-                serde_json::json!(schema_for!(portcove_core::SourceImportResult)),
-            ),
-            (
-                "source_removal_preview",
-                serde_json::json!(schema_for!(SourceRemovalPreview)),
-            ),
-            (
-                "source_verification",
-                serde_json::json!(schema_for!(SourceVerification)),
-            ),
-            (
-                "source_assessment",
-                serde_json::json!(schema_for!(portcove_core::SourceAssessment)),
-            ),
-            (
-                "source_inspection",
-                serde_json::json!(schema_for!(SourceInspectionReport)),
-            ),
-            (
-                "source_catalog",
-                serde_json::json!(schema_for!(portcove_core::SourceCatalog)),
-            ),
-            (
-                "source_batch_outcome",
-                serde_json::json!(schema_for!(SourceBatchOutcome)),
-            ),
-            (
-                "host_tool_status",
-                serde_json::json!(schema_for!(portcove_core::HostToolStatus)),
-            ),
-            (
-                "host_tool_probe_result",
-                serde_json::json!(schema_for!(portcove_core::HostToolProbeResult)),
-            ),
-            ("activity", serde_json::json!(schema_for!(ActivityRecord))),
-            (
-                "cancellation_state",
-                serde_json::json!(schema_for!(portcove_core::CancellationState)),
-            ),
-            (
-                "cancellation_phase",
-                serde_json::json!(schema_for!(portcove_core::CancellationPhase)),
-            ),
-            ("backup", serde_json::json!(schema_for!(BackupRecord))),
-            (
-                "backup_inventory",
-                serde_json::json!(schema_for!(BackupInventory)),
-            ),
-            (
-                "backup_action_preview",
-                serde_json::json!(schema_for!(BackupActionPreview)),
-            ),
-            (
-                "restore_result",
-                serde_json::json!(schema_for!(RestoreResult)),
-            ),
-            (
-                "adoption_preview",
-                serde_json::json!(schema_for!(AdoptionPreview)),
-            ),
-            (
-                "port_removal_preview",
-                serde_json::json!(schema_for!(PortRemovalPreview)),
-            ),
-            ("storage", serde_json::json!(schema_for!(StorageSummary))),
-            (
-                "output_relocation_plan",
-                serde_json::json!(schema_for!(portcove_core::OutputRelocationPlan)),
-            ),
-            (
-                "output_relocation_result",
-                serde_json::json!(schema_for!(portcove_core::OutputRelocationResult)),
-            ),
-            (
-                "output_relocation_status",
-                serde_json::json!(schema_for!(portcove_core::OutputRelocationStatus)),
-            ),
-            ("doctor", serde_json::json!(schema_for!(DoctorReport))),
-            ("install_plan", serde_json::json!(schema_for!(InstallPlan))),
-            ("port_paths", serde_json::json!(schema_for!(PortPaths))),
-            (
-                "operation_event",
-                serde_json::json!(schema_for!(OperationEvent)),
-            ),
-            (
-                "github_auth_status",
-                serde_json::json!(schema_for!(GithubAuthStatus)),
-            ),
-            (
-                "github_device_login",
-                serde_json::json!(schema_for!(GithubDeviceLogin)),
-            ),
-            (
-                "github_device_login_result",
-                serde_json::json!(schema_for!(GithubDeviceLoginResult)),
-            ),
-            (
-                "capabilities",
-                serde_json::json!(schema_for!(CapabilityDocument)),
-            ),
-        ]
-        .into_iter()
-        .map(|(name, schema)| (name.to_owned(), schema))
-        .collect(),
-    )
 }
 
 fn read_token(stdin: bool, non_interactive: bool) -> Result<String> {
