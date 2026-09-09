@@ -1,7 +1,7 @@
 //! Native handle handoff; copy, verification, and authority remain in core.
 use crate::{
     DesktopError, DesktopResult, DesktopState, blocking_service, blocking_worker,
-    initialize_desktop_at,
+    initialize_desktop_at, require_no_library_handoff,
 };
 use portcove_core::{PortcoveError, PortcoveService};
 use std::path::{Path, PathBuf};
@@ -150,15 +150,7 @@ where
         let mut initialization = state.initialization.lock().map_err(|_| {
             DesktopError::from(PortcoveError::state("desktop state lock was poisoned"))
         })?;
-        if initialization
-            .as_ref()
-            .err()
-            .is_some_and(|error| error.details.contains_key("transfer_in_progress"))
-        {
-            return Err(
-                PortcoveError::conflict("a library transfer is already in progress").into(),
-            );
-        }
+        require_no_library_handoff(&initialization)?;
         let root = if let Some(root) = recovery_root {
             root
         } else {
@@ -187,9 +179,17 @@ where
         }
         error
     });
-    *state.initialization.lock().map_err(|_| {
-        DesktopError::from(PortcoveError::state("desktop state lock was poisoned"))
-    })? = reopened;
+    {
+        let mut initialization = state.initialization.lock().map_err(|_| {
+            DesktopError::from(PortcoveError::state("desktop state lock was poisoned"))
+        })?;
+        *initialization = reopened;
+        if result.is_ok() {
+            state
+                .generation
+                .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+        }
+    }
     result
 }
 
@@ -237,9 +237,49 @@ mod tests {
         )
         .unwrap();
         assert!(moved.completed);
+        assert_eq!(bootstrap_status(&state).generation, 2);
+        assert!(crate::service_at_generation(&state, 1).is_err());
+        assert!(crate::service_at_generation(&state, 2).is_ok());
         assert_eq!(
             bootstrap_status(&state).library_root.unwrap(),
             fs::canonicalize(destination).unwrap()
         );
+    }
+    #[test]
+    fn recovery_transfer_cannot_replace_an_inflight_library_switch() {
+        let temporary = tempfile::tempdir().unwrap();
+        let state = DesktopState {
+            initialization: std::sync::Arc::new(std::sync::Mutex::new(Err(
+                PortcoveError::conflict("owned switch")
+                    .detail("library_switch_in_progress", "true")
+                    .into(),
+            ))),
+            preferences: portcove_core::HostPreferenceStore::new(
+                temporary.path().join("preferences.json"),
+            )
+            .map_err(DesktopError::from),
+            generation: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(7)),
+            launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        };
+        let called = std::cell::Cell::new(false);
+        let result = transfer_desktop_library(
+            &state,
+            Some(temporary.path().join("recovery")),
+            |_| {
+                called.set(true);
+                Ok(())
+            },
+            |_| temporary.path().join("destination"),
+        );
+        assert!(result.is_err());
+        assert!(!called.get());
+        assert!(
+            crate::ready(&state)
+                .unwrap_err()
+                .details
+                .contains_key("library_switch_in_progress")
+        );
+        assert_eq!(bootstrap_status(&state).generation, 7);
+        assert_eq!(fs::read_dir(temporary.path()).unwrap().count(), 0);
     }
 }

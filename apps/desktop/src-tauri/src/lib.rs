@@ -70,12 +70,30 @@ struct DesktopState {
 
 type DesktopResult<T> = std::result::Result<T, DesktopError>;
 
+fn initialization_snapshot(state: &DesktopState) -> (DesktopResult<ReadyDesktopState>, u64) {
+    match state.initialization.lock() {
+        Ok(initialization) => (initialization.clone(), state_generation(state)),
+        Err(_) => (
+            Err(PortcoveError::state("desktop state lock was poisoned").into()),
+            state_generation(state),
+        ),
+    }
+}
+
 fn ready(state: &DesktopState) -> DesktopResult<ReadyDesktopState> {
-    state
-        .initialization
-        .lock()
-        .map_err(|_| DesktopError::from(PortcoveError::state("desktop state lock was poisoned")))?
-        .clone()
+    initialization_snapshot(state).0
+}
+
+fn require_no_library_handoff(
+    initialization: &DesktopResult<ReadyDesktopState>,
+) -> DesktopResult<()> {
+    if initialization.as_ref().err().is_some_and(|error| {
+        error.details.contains_key("transfer_in_progress")
+            || error.details.contains_key("library_switch_in_progress")
+    }) {
+        return Err(PortcoveError::conflict("a library handoff is already in progress").into());
+    }
+    Ok(())
 }
 
 fn service(state: &DesktopState) -> DesktopResult<PortcoveService> {
@@ -109,19 +127,20 @@ fn get_bootstrap_status(state: tauri::State<'_, DesktopState>) -> BootstrapStatu
 }
 
 fn bootstrap_status(state: &DesktopState) -> BootstrapStatus {
-    match ready(state) {
+    let (initialization, generation) = initialization_snapshot(state);
+    match initialization {
         Ok(ready_state) => BootstrapStatus {
             ready: true,
             library_root: Some(ready_state.library.root().to_path_buf()),
             selection: Some(ready_state.selection),
-            generation: state_generation(state),
+            generation,
             error: None,
         },
         Err(error) => BootstrapStatus {
             ready: false,
             library_root: None,
             selection: None,
-            generation: state_generation(state),
+            generation,
             error: Some(error),
         },
     }
