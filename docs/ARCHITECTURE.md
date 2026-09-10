@@ -97,7 +97,14 @@ status list. Actual launch still performs immutable-file verification.
 Retained content is not a new admission authority. Metadata import continues to
 check the current platform contract and compares retained execution semantics
 with the existing frozen admission rules; a self-consistent hash cannot authorize
-new launch arguments. Source validation still uses the admitted current catalog.
+new launch arguments. Source registration and preparation still use the admitted
+current catalog. Installed launch resolves both registered and explicit source
+inputs through the verified version-owned catalog, then rechecks their complete
+payload/storage identity after adapter preparation. Legacy manifests retain their
+current-catalog fallback. The shared source inspector takes an explicit catalog;
+this does not register a new source, replace its baseline or authorize a new
+publisher. Broader retained-source status/preparation and successor admission
+remain part of the independent definition delivery work.
 Authenticated successor definitions, independent operation eligibility, historical
 admission proofs, and explicit revocation handling remain in the independent
 definition delivery work. No new publisher, signing grant, or updater is enabled.
