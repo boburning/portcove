@@ -17,6 +17,10 @@ describe("gamepad focus movement", () => {
     expect(keyboardNavigationAction("Enter")).toBeUndefined();
   });
 
+  it.each(["future_key", "constructor", "__proto__"])("ignores unrecognized navigation key %s", key => {
+    expect(keyboardNavigationAction(key)).toBeUndefined();
+  });
+
   it.each([
     [pad([0, 0], [12]), "up"], [pad([0, 0], [13]), "down"], [pad([0, 0], [14]), "left"], [pad([0, 0], [15]), "right"],
     [pad([0, -0.8]), "up"], [pad([0, 0.8]), "down"], [pad([-0.8, 0]), "left"], [pad([0.8, 0]), "right"], [pad([0, 0]), undefined],

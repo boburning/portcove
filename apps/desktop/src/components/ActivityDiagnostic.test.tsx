@@ -71,6 +71,17 @@ it("explains missing retained logs and allows a new read after a failure", async
   expect(read).toHaveBeenCalledTimes(3);
 });
 
+it("keeps an unfamiliar phase neutral and preserves its exact copied log", async () => {
+  const capture = fixture(); capture[0].phase = "preparation.future-phase";
+  vi.spyOn(desktopApi, "activityDiagnostic").mockResolvedValue(capture);
+  await act(async () => root.render(<ActivityDiagnostic activityId="owned" generation={1} />));
+  await open();
+  expect(host.querySelector("h3")?.textContent).toBe("Preparation log");
+  expect(host.textContent).not.toContain("Running game setup");
+  await click("Copy retained log");
+  expect(JSON.parse(vi.mocked(copyText).mock.calls.at(-1)![0])).toEqual(capture);
+});
+
 it("discards a delayed log from the previous activity and library", async () => {
   let resolve!: (value: Diagnostic) => void;
   const old = new Promise<Diagnostic>(done => { resolve = done; });

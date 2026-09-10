@@ -31,7 +31,7 @@ export function ActivityDiagnostic({ activityId, generation }: { activityId: str
     {error && <p role="alert">{error}</p>}
     {capture?.length === 0 && <p>No retained diagnostic capture is available. Older activity details may be available in a redacted support bundle in Settings.</p>}
     {capture?.map(phase => <section key={phase.phase}>
-      <h3>{phase.phase === "preparation.extract" ? "Preparing source data" : "Running game setup"}</h3>
+      <h3>{phase.phase === "preparation.extract" ? "Preparing source data" : phase.phase === "preparation.setup" ? "Running game setup" : "Preparation log"}</h3>
       <p>{phase.complete ? "Capture reached the end of both output streams." : "Capture is incomplete. Only the output saved before the last observation is available."}</p>
       {(phase.stdout.truncated || phase.stderr.truncated) && <p>Some output was omitted because it exceeded the {formatBytes(phase.stream_limit_bytes)} capture limit per stream.</p>}
       <p>Last saved: {new Date(phase.updated_at * 1000).toLocaleString()}</p>

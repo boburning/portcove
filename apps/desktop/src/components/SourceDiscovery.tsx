@@ -25,11 +25,17 @@ const inboxLimits: SourceDiscoveryLimits = {
   max_candidates: 64,
 };
 
-export const sourceImportModeLabel: Record<SourceImportMode, string> = {
-  copy: "Copy to Inbox",
-  move: "Move to Inbox",
-  use_current_location: "Use current location",
+const importModes: Record<SourceImportMode, { label: string; explanation: string }> = {
+  copy: { label: "Copy to Inbox", explanation: "The original stays in place after the verified Inbox copy is registered." },
+  move: { label: "Move to Inbox", explanation: "The original is removed only after the Inbox copy is verified and registered." },
+  use_current_location: { label: "Use current location", explanation: "No source bytes are copied or removed." },
 };
+
+export function sourceImportModePresentation(mode: string) {
+  return Object.hasOwn(importModes, mode)
+    ? { ...importModes[mode as SourceImportMode], known: true }
+    : { label: "Import method unavailable", explanation: "This source import method is unavailable in this version. Cancel this review before choosing another method.", known: false };
+}
 
 export function SourceDiscoveryButton({ profiles, disabled, onAdded }: { profiles: SourceProfile[]; disabled: boolean; onAdded?: () => Promise<void> }) {
   const [open, setOpen] = useState(false);
@@ -42,7 +48,9 @@ export function sourceImportNotice(result: SourceImportResult) {
     case "copied_original_retained": return `Inbox copy registered. The original remains at ${result.retained_original_path ?? "its prior location"}.`;
     case "moved": return "Inbox copy verified and registered; the original was removed.";
     case "registered_current_location": return "Source registered at its current location.";
-    default: return "Inbox copy verified and registered; the original was retained.";
+    case "copied": return "Inbox copy verified and registered; the original was retained.";
+    case "reused_existing": return "Existing Inbox copy verified and registered; the original was retained.";
+    default: return "Source import outcome is unavailable in this version. Review the current registration before another attempt.";
   }
 }
 
@@ -96,7 +104,9 @@ function useSourceDiscoveryWorkflow(onAdded?: () => Promise<void>) {
   });
   const applyImport = () => {
     if (!plan) return Promise.resolve();
-    return run(`${sourceImportModeLabel[plan.mode]}…`, async () => {
+    const presentation = sourceImportModePresentation(plan.mode);
+    if (!presentation.known) { setError(presentation.explanation); return Promise.resolve(); }
+    return run(`${presentation.label}…`, async () => {
       const result = await desktopApi.importSource(plan.profile_id, plan.source.path, plan.mode, plan.plan_sha256, trackStart);
       if (!result) {
         setNotice("Move cancelled. The original and registration were left unchanged.");
@@ -139,14 +149,12 @@ function DiscoveryResults({ workflow }: { workflow: Workflow }) {
 
 export function SourceImportReview({ plan, busy, onCancel, onApply }: { plan?: SourceImportPlan; busy: boolean; onCancel: () => void; onApply: () => Promise<void> }) {
   if (!plan) return null;
-  const explanation = plan.mode === "move"
-    ? "The original is removed only after the Inbox copy is verified and registered."
-    : plan.mode === "copy" ? "The original stays in place after the verified Inbox copy is registered." : "No source bytes are copied or removed.";
+  const presentation = sourceImportModePresentation(plan.mode);
   return <section className="source-discovery-results" aria-label="Source import review">
-    <h3>{sourceImportModeLabel[plan.mode]}</h3><p>{explanation}</p>
+    <h3>{presentation.label}</h3><p>{presentation.explanation}</p>
     <p>Source: <code>{plan.source.path}</code></p><p>Registration: <code>{plan.destination}</code></p>
     {plan.existing_registration && <p>This replaces the current registration after the selected source is rechecked.</p>}
-    <div className="actions"><button data-focusable disabled={busy} onClick={onCancel}>Cancel review</button><button data-focusable className="primary" disabled={busy} onClick={() => { void onApply(); }}>{sourceImportModeLabel[plan.mode]}</button></div>
+    <div className="actions"><button data-focusable disabled={busy} onClick={onCancel}>Cancel review</button>{presentation.known && <button data-focusable className="primary" disabled={busy} onClick={() => { void onApply(); }}>{presentation.label}</button>}</div>
   </section>;
 }
 
