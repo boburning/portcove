@@ -8,6 +8,19 @@ use portcove_core::{Library, LibrarySelection, LibrarySelectionSource, PortcoveE
 use std::path::PathBuf;
 
 #[tauri::command]
+pub(crate) async fn get_library_identity(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+) -> DesktopResult<portcove_core::LibraryIdentity> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let service = crate::service_at_generation(&state, generation)?;
+        service.library().identity_record().map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
 pub(crate) async fn set_default_library(
     app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,

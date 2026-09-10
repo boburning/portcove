@@ -56,8 +56,8 @@ fn json_and_jsonl_preserve_machine_error_fields_and_share_core_presentation() {
             .unwrap(),
     )
     .unwrap();
-    assert_eq!(plain["schema_version"], 40);
-    assert_eq!(stream["schema_version"], 40);
+    assert_eq!(plain["schema_version"], 41);
+    assert_eq!(stream["schema_version"], 41);
     assert_eq!(plain["error"], stream["error"]);
     assert_eq!(plain["error"]["code"], "unsupported");
     assert!(
@@ -291,7 +291,7 @@ fn exported_source_assessment_separates_facts_without_opening_library() {
     let output = portcove(&library, &["--json", "schema", "export"]);
     assert!(output.status.success());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 40);
+    assert_eq!(response["schema_version"], 41);
     let schema = &response["data"]["source_assessment"];
     for field in [
         "health",
@@ -786,10 +786,50 @@ fn human_stdout(output: &Output) -> &str {
 }
 
 #[test]
+fn library_identity_is_stable_across_processes_and_distinct_from_selection() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("first library");
+    let selected = portcove(&library, &["--json", "library", "show"]);
+    assert!(selected.status.success());
+    assert!(
+        !library.exists(),
+        "selection inspection must remain library-free"
+    );
+    let first = json_stdout(&portcove(&library, &["--json", "library", "identity"]));
+    assert_eq!(first["command"], "library.identity");
+    assert!(
+        first["data"]["id"]
+            .as_str()
+            .is_some_and(|id| !id.is_empty())
+    );
+    assert_eq!(
+        first,
+        json_stdout(&portcove(&library, &["--json", "library", "identity"]))
+    );
+    let stream = json_stdout(&portcove(&library, &["--jsonl", "library", "identity"]));
+    assert_eq!(stream["type"], "result");
+    assert_eq!(stream["data"], first["data"]);
+    let other = json_stdout(&portcove(
+        &temporary.path().join("other"),
+        &["--json", "library", "identity"],
+    ));
+    assert_ne!(first["data"]["id"], other["data"]["id"]);
+    let schema = json_stdout(&portcove(
+        &library,
+        &["--json", "schema", "export", "--contract", "output"],
+    ));
+    assert_eq!(
+        schema["data"]["library_identity"]["required"],
+        serde_json::json!(["id", "root"])
+    );
+}
+
+#[test]
 fn library_move_requires_review_and_redirects_later_cli_processes() {
     let temporary = tempfile::tempdir().unwrap();
     let source = temporary.path().join("source");
     let destination = temporary.path().join("destination");
+    let identity = json_stdout(&portcove(&source, &["--json", "library", "identity"]));
     let reviewed = portcove(
         &source,
         &["--json", "library", "move", destination.to_str().unwrap()],
@@ -823,6 +863,14 @@ fn library_move_requires_review_and_redirects_later_cli_processes() {
     );
     assert!(moved.status.success(), "{moved:?}");
     assert_eq!(json_stdout(&moved)["data"]["completed"], true);
+    for root in [&source, &destination] {
+        let observed = json_stdout(&portcove(root, &["--json", "library", "identity"]));
+        assert_eq!(observed["data"]["id"], identity["data"]["id"]);
+        assert_eq!(
+            std::fs::canonicalize(observed["data"]["root"].as_str().unwrap()).unwrap(),
+            std::fs::canonicalize(&destination).unwrap()
+        );
+    }
     let exported = portcove(&source, &["--json", "library", "export"]);
     assert!(exported.status.success());
     assert_eq!(
@@ -926,7 +974,18 @@ fn library_import_is_read_only_until_reviewed() {
 #[test]
 fn reviewed_library_import_is_usable_by_a_fresh_cli() {
     let fixture = CliImportFixture::new();
+    let original = fixture._temporary.path().join("source");
+    let before = json_stdout(&portcove(&original, &["--json", "library", "identity"]));
     fixture.apply();
+    let after = json_stdout(&portcove(
+        &fixture.destination,
+        &["--json", "library", "identity"],
+    ));
+    assert_ne!(before["data"]["id"], after["data"]["id"]);
+    assert_eq!(
+        before,
+        json_stdout(&portcove(&original, &["--json", "library", "identity"]))
+    );
     let fresh = portcove(&fixture.destination, &["--json", "library", "export"]);
     assert!(fresh.status.success());
 }
@@ -1082,7 +1141,7 @@ fn source_inspect_is_read_only_complete_and_equivalent_across_output_modes() {
         &library,
         &["--json", "source", "inspect", "star-fox-64"],
     ));
-    assert_eq!(json["schema_version"], 40);
+    assert_eq!(json["schema_version"], 41);
     assert_eq!(json["command"], "source.inspect");
     assert_eq!(json["data"]["schema_version"], 1);
     assert_eq!(json["data"]["health"], "current");
@@ -1239,7 +1298,7 @@ fn source_inbox_controls_share_stable_scan_and_import_activity_ids() {
         &library,
         &["--json", "source", "inbox", "scan", profile],
     ));
-    assert_eq!(scan["schema_version"], 40);
+    assert_eq!(scan["schema_version"], 41);
     assert_eq!(scan["command"], "source.inbox.scan");
     assert_eq!(scan["data"]["state"], "unresolved");
     let scan_id = scan["data"]["operation_id"].as_str().unwrap();
@@ -1452,7 +1511,7 @@ fn capabilities_has_human_output_snapshot() {
     let root = tempfile::tempdir().unwrap();
     let capabilities = human_stdout(&portcove(root.path(), &["capabilities"])).to_owned();
     assert!(capabilities.starts_with("Portcove "));
-    assert!(capabilities.contains(" capabilities\nSchema: 40"));
+    assert!(capabilities.contains(" capabilities\nSchema: 41"));
 }
 
 struct OutputFixture {
@@ -1753,11 +1812,17 @@ fn capabilities_are_one_clean_versioned_json_document() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 40);
+    assert_eq!(response["schema_version"], 41);
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");
     assert!(response["error"].is_null());
-    assert_eq!(response["data"]["schema_version"], 40);
+    assert_eq!(response["data"]["schema_version"], 41);
+    assert!(
+        response["data"]["commands"]
+            .as_array()
+            .unwrap()
+            .contains(&serde_json::json!("library.identity"))
+    );
     assert_eq!(
         response["data"]["raw_stream_commands"],
         serde_json::json!(["exec"])
@@ -1779,7 +1844,7 @@ fn command_errors_keep_the_machine_envelope_and_stable_exit_code() {
     assert_eq!(output.status.code(), Some(4));
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 40);
+    assert_eq!(response["schema_version"], 41);
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "catalog.show");
     assert!(response["data"].is_null());
@@ -1796,7 +1861,7 @@ fn parser_errors_are_structured_for_machine_callers() {
     assert!(output.stderr.is_empty());
     assert!(!library.exists());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 40);
+    assert_eq!(response["schema_version"], 41);
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "cli");
     assert_eq!(response["error"]["code"], "usage");
@@ -1816,7 +1881,7 @@ fn jsonl_read_commands_end_with_one_result_event() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 40);
+    assert_eq!(response["schema_version"], 41);
     assert_eq!(response["type"], "result");
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");

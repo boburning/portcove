@@ -1037,6 +1037,14 @@ impl Library {
         Ok(())
     }
 
+    /// Read the existing durable identity and effective root under this library's lease.
+    pub fn identity_record(&self) -> Result<crate::LibraryIdentity> {
+        Ok(crate::LibraryIdentity {
+            id: self.identity()?,
+            root: self.root().to_path_buf(),
+        })
+    }
+
     pub(crate) fn identity(&self) -> Result<String> {
         self.connection()?
             .query_row(

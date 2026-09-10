@@ -5,6 +5,15 @@ use serde::{Deserialize, Serialize};
 
 use crate::{PortcoveError, Result};
 
+/// Durable library identity and its current effective location.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct LibraryIdentity {
+    /// Opaque identity, preserved by managed moves; not an authentication token.
+    pub id: String,
+    /// Current location, which may differ from the root originally requested.
+    pub root: PathBuf,
+}
+
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,
 )]
@@ -1179,6 +1188,7 @@ impl CapabilityDocument {
                 "activity".into(),
                 "storage".into(),
                 "library".into(),
+                "library.identity".into(),
                 "doctor".into(),
                 "about".into(),
                 "plan".into(),
