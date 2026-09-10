@@ -69,6 +69,12 @@ describe("desktop components", () => {
     }
   });
 
+  it.each(["future-method", "constructor", "__proto__"])("renders unknown installation method %s without assuming support", adapter => {
+    const html = renderToStaticMarkup(<DetailPanel port={{ ...port, adapter: adapter as PortDefinition["adapter"], source_profile: null }} sourcePath="" setSourcePath={vi.fn()} actions={actions} />);
+    expect(html).toContain("Installation method unavailable");
+    expect(html).not.toContain("[object Object]");
+  });
+
   it("routes a missing verified runtime to reviewed installation instead of Play", () => {
     const html = renderToStaticMarkup(<DetailPanel port={{ ...port, source_profile: null }} sourcePath="" setSourcePath={vi.fn()} actions={actions}
       status={{ ...portStatus(), port_id: port.id, channel: "stable", update_policy: "notify", active: installRecord(), readiness: { launchable: false, blockers: ["missing_runtime"], pending_setup: false } }} />);
@@ -525,7 +531,8 @@ describe("desktop components", () => {
       overview={{ installed: 1, ready: 1, needsSetup: 0, staged: 0 }} filter="ready" setFilter={vi.fn()} onSelect={vi.fn()} loading={false} />);
     expect(html).toContain("Launch ready");
     expect(html).toContain("Update available");
-    expect(html).toContain("Sources stay local");
+    expect(html).toContain("setup and recovery options");
+    expect(html).not.toContain("rollback-safe");
   });
 
   it("offers Continue only from a recorded successful launch", () => {

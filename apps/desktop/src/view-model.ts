@@ -61,10 +61,21 @@ export interface SourceRequirement {
   requiredBy: Array<{ portId: string; portName: string; role: "Game source" | "BIOS" }>;
 }
 
-export const platformLabels: Record<string, string> = {
+const platformLabels: Record<string, string> = {
   "windows-x86-64": "Windows", "linux-x86-64": "Linux",
   "macos-x86-64": "macOS Intel", "macos-aarch64": "Apple silicon",
 };
+
+export function platformLabel(value: string) {
+  return Object.hasOwn(platformLabels, value) ? platformLabels[value] : "Unknown platform";
+}
+
+const channelLabels: Record<string, string> = { stable: "Stable", beta: "Beta", rolling: "Rolling" };
+
+export function releaseChannelPresentation(value: string) {
+  const known = Object.hasOwn(channelLabels, value);
+  return { known, label: known ? channelLabels[value] : "Unknown channel", tone: known ? value : "unknown" };
+}
 
 export function indexStatuses(statuses: PortStatus[]) {
   return new Map(statuses.map(status => [status.port_id, status]));
@@ -188,6 +199,7 @@ export function isCancellation(error: unknown) {
 }
 
 export function formatBytes(bytes: number) {
+  if (!Number.isSafeInteger(bytes) || bytes < 0) return "Size unknown";
   if (bytes === 0) return "0 B";
   const units = ["B", "KiB", "MiB", "GiB", "TiB", "PiB"];
   const unit = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);

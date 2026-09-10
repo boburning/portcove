@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AlertTriangle, Check, Clipboard, ClipboardCheck, ExternalLink, HelpCircle, ShieldAlert } from "lucide-react";
 import { copyText } from "../clipboard";
 import type { DigestIdentity, ObservedSourceComponent, ObservedSourceDigest, SourceInspectionReport, SourceRepresentation } from "../types";
-import { platformLabels } from "../view-model";
+import { platformLabel } from "../view-model";
 import { Icon } from "./ui";
 
 export function SourceIdentityPanel({ report, openEvidence }: { report: SourceInspectionReport; openEvidence?: (evidenceId: string) => void }) {
@@ -203,11 +203,11 @@ function variantLabel(variant: NonNullable<SourceInspectionReport["expected_iden
 }
 
 function evidencePlatforms(records: SourceInspectionReport["applications"][number]["qualification"]["exact_records"]) {
-  return [...new Set(records.map(record => platformLabels[record.scope.platform]))].join(" · ");
+  return [...new Set(records.map(record => platformLabel(record.scope.platform)))].join(" · ");
 }
 
-function platformList(platforms: Set<keyof typeof platformLabels>) {
-  return [...platforms].map(platform => platformLabels[platform]).join(" · ");
+function platformList(platforms: Set<string>) {
+  return [...platforms].map(platform => platformLabel(platform)).join(" · ");
 }
 
 function formatLabel(value: string) {

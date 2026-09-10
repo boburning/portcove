@@ -10,7 +10,7 @@ import type { ActivityRecord, BackupInventory, BackupProblem, BackupRecord, Inst
 import { OperationCancellation } from "./OperationCancellation";
 import { OutputLocationControl } from "./OutputLocation";
 import { PreparationControl, type RunPreparation } from "./Preparation";
-import { formatBytes, platformLabels } from "../view-model";
+import { formatBytes, platformLabel } from "../view-model";
 import { BackupHistory } from "./BackupHistory";
 import { GameUpdateControl, UpdatePolicyControl } from "./GameUpdates";
 import type { Perform } from "../use-portcove";
@@ -99,7 +99,7 @@ function DetailDialog({ props, dialog }: { props: DetailPanelProps; dialog: Retu
 type DetailState = ReturnType<typeof detailState>;
 
 function DetailHero({ port, state }: { port: PortDefinition; state: DetailState }) {
-  return <div className={`detail-hero art-${port.support_tier}`}><ArtworkImage port={port} className="detail-cover" /><div><p className="eyebrow">{port.platforms.map(platform => platformLabels[platform]).join(" · ")}</p><h2 id="port-detail-title">{port.name}</h2><span className={`hero-state ${state.tone}`}>{state.title}</span></div></div>;
+  return <div className={`detail-hero art-${port.support_tier}`}><ArtworkImage port={port} className="detail-cover" /><div><p className="eyebrow">{port.platforms.map(platform => platformLabel(platform)).join(" · ")}</p><h2 id="port-detail-title">{port.name}</h2><span className={`hero-state ${state.tone}`}>{state.title}</span></div></div>;
 }
 
 function DetailBody({ perform, prepare, port, status, state, sources, installed, launchReady, pendingSetup, installPlan, selectedChannel, policy, backups, backupProblems, backupState, busy, outputExternalBusy, libraryGeneration, outputLocationChanged, outputApplying, actions }: {
@@ -205,7 +205,7 @@ function AdvancedControls({ libraryGeneration, port, status, selectedChannel, po
       <div className="detail-section"><ReleaseChannelControl key={`${port.id}:${libraryGeneration}`} channels={port.channels} selected={selectedChannel} busy={Boolean(busy)} change={actions.setChannel} refresh={actions.check} /></div>
       <div className="detail-section"><UpdatePolicyControl key={port.id} policy={policy} busy={Boolean(busy)} save={actions.setPolicy} /></div>
       <SourceFields mode="registered" controls={sources} />
-      <div className="metadata"><span><small>Platforms</small>{port.platforms.map(value => platformLabels[value]).join(" · ")}</span><span><small>Installation method</small>{adapterPresentation[port.adapter]}</span><span><small>Automated evidence</small>{port.automated_tested_platforms.length ? port.automated_tested_platforms.map(value => platformLabels[value]).join(" · ") : "Not yet tested"}</span><span><small>Physical validation</small>{port.manually_validated_platforms.length ? port.manually_validated_platforms.map(value => platformLabels[value]).join(" · ") : "Deferred / not completed"}</span><span title={persistentFiles}><small>Saves and settings folder</small>{status?.user_data_root ?? "Created inside the selected library"}</span></div>
+      <div className="metadata"><span><small>Platforms</small>{port.platforms.map(value => platformLabel(value)).join(" · ")}</span><span><small>Installation method</small>{Object.hasOwn(adapterPresentation, port.adapter) ? adapterPresentation[port.adapter] : "Installation method unavailable"}</span><span><small>Automated evidence</small>{port.automated_tested_platforms.length ? port.automated_tested_platforms.map(value => platformLabel(value)).join(" · ") : "Not yet tested"}</span><span><small>Physical validation</small>{port.manually_validated_platforms.length ? port.manually_validated_platforms.map(value => platformLabel(value)).join(" · ") : "Deferred / not completed"}</span><span title={persistentFiles}><small>Saves and settings folder</small>{status?.user_data_root ?? "Created inside the selected library"}</span></div>
       <div className="upstream-link"><ProjectLink href={port.project_url}>Open upstream project <Icon glyph={ExternalLink} size="sm" /></ProjectLink><span>Portcove resolves releases from this reviewed upstream.</span></div>
       <CliContinuity key={`${port.id}:${libraryGeneration}`} generation={libraryGeneration} port={port} status={status} channel={selectedChannel} sourcePath={sources.sourcePath || sources.source?.path || ""} biosPath={sources.biosPath || sources.bios?.path || ""} />
       {(installed || backups.length > 0 || backupProblems.length > 0) && <BackupHistory key={`${port.id}:${libraryGeneration}`} generation={libraryGeneration} backups={backups} problems={backupProblems} state={backupState} busy={busy} restore={actions.restoreBackup} remove={actions.deleteBackup} />}
