@@ -17,12 +17,17 @@ function technicalDisclosure(node) {
   return /^(?:view )?technical details$|^full identity and evidence$/iu.test(label.trim());
 }
 
+function codeLiteral(node, parent) {
+  if (!parent) return false;
+  if (parent.key === node && !parent.computed) return true;
+  if (parent.source === node) return true;
+  if (["TSLiteralType", "SwitchCase"].includes(parent.type)) return true;
+  if (parent.type === "BinaryExpression") return ["===", "!==", "==", "!="].includes(parent.operator);
+  return ["MemberExpression", "OptionalMemberExpression"].includes(parent.type) && parent.property === node;
+}
+
 function excludedContext(node, ancestors) {
-  const parent = ancestors.at(-1);
-  if (parent?.key === node && !parent.computed) return true;
-  if (parent?.source === node || parent?.type === "TSLiteralType") return true;
-  if (parent?.type === "BinaryExpression" && ["===", "!==", "==", "!="].includes(parent.operator)) return true;
-  if (parent?.type === "SwitchCase" || (["MemberExpression", "OptionalMemberExpression"].includes(parent?.type) && parent.property === node)) return true;
+  if (codeLiteral(node, ancestors.at(-1))) return true;
   const attribute = ancestors.findLast(ancestor => ancestor.type === "JSXAttribute");
   if (attribute && !copyAttributes.has(attribute.name.name)) return true;
   return ancestors.some(technicalDisclosure);
@@ -36,14 +41,12 @@ export function inspectCopy(source, filename = "fixture.tsx") {
     const text = node.type === "TemplateElement" ? node.value.cooked
       : ["JSXText", "StringLiteral"].includes(node.type) ? node.value : undefined;
     if (typeof text === "string" && !excludedContext(node, ancestors)) {
-      for (const rule of rules) {
-        if (rule.pattern.test(text.trim())) findings.push({ file: filename, line: node.loc.start.line, column: node.loc.start.column + 1, rule: rule.id, message: rule.message, text: text.trim().replace(/\s+/gu, " ").slice(0, 120) });
+      for (const rule of rules.filter(rule => rule.pattern.test(text.trim()))) {
+        findings.push({ file: filename, line: node.loc.start.line, column: node.loc.start.column + 1, rule: rule.id, message: rule.message, text: text.trim().replace(/\s+/gu, " ").slice(0, 120) });
       }
     }
-    for (const value of Object.values(node)) {
-      for (const child of Array.isArray(value) ? value : [value]) {
-        if (child && typeof child === "object" && typeof child.type === "string") visit(child, [...ancestors, node]);
-      }
+    for (const child of Object.values(node).flat()) {
+      if (typeof child?.type === "string") visit(child, [...ancestors, node]);
     }
   };
   visit(ast, []);
