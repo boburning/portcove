@@ -14,8 +14,8 @@ function ConvertTo-QualityTool([object]$Definition) {
     }
 }
 
-$requiredTools = @($qualityManifest.tools | Where-Object { $_.tier -eq "required" } | ForEach-Object { ConvertTo-QualityTool $_ })
-$optionalTools = @($qualityManifest.tools | Where-Object { $_.tier -eq "deep" -and $_.id -ne "cargo-hawk" } | ForEach-Object { ConvertTo-QualityTool $_ })
+$requiredTools = @($qualityManifest.tools | Where-Object { $_.tier -eq "required" -and -not $_.install } | ForEach-Object { ConvertTo-QualityTool $_ })
+$optionalTools = @($qualityManifest.tools | Where-Object { $_.tier -eq "deep" -and $_.id -ne "cargo-hawk" -and -not $_.install } | ForEach-Object { ConvertTo-QualityTool $_ })
 $hawkDefinition = $qualityManifest.tools | Where-Object { $_.id -eq "cargo-hawk" }
 
 function Get-QualityToolVersion([hashtable]$Tool) {
@@ -60,6 +60,9 @@ function Install-QualityTool([hashtable]$Tool) {
 foreach ($tool in $requiredTools) {
     Install-QualityTool $tool
 }
+
+& node scripts/quality-tools.mjs --install-managed required
+if ($LASTEXITCODE -ne 0) { throw "managed quality-tool installation failed" }
 
 $optionalFailures = @()
 if ($IncludeDeep) {

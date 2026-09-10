@@ -60,7 +60,8 @@ describe("core-owned failure presentation", () => {
 
   it("treats a missing outcome as unknown without changing the retained report", () => {
     const error = failureReport();
-    const { mutation_state: _outcome, ...presentation } = error.presentation;
+    const presentation = { ...error.presentation };
+    Reflect.deleteProperty(presentation, "mutation_state");
     const incomplete = { ...error, presentation };
     expect(failurePresentation(incomplete)?.mutation_state).toBe("unknown");
     expect(errorText(incomplete)).toBe(error.presentation.summary);
@@ -116,17 +117,15 @@ describe("core-owned failure presentation", () => {
       });
       const error = failureReport();
       await act(async () => {
-        await state.perform("prepare", async () => {
-          throw error;
-        });
+        await state.perform("prepare", () => Promise.reject(error));
       });
       expect(state.error).toBe(error);
       expect(state.busy).toBeUndefined();
       refresh.mockResolvedValue(undefined);
       await act(async () => {
-        await state.perform("prepare", async () => {
-          throw { ...error, code: "cancelled" };
-        });
+        await state.perform("prepare", () =>
+          Promise.reject({ ...error, code: "cancelled" }),
+        );
       });
       expect(state.error).toBeUndefined();
     } finally {

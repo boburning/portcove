@@ -10,7 +10,6 @@ import { desktopApi } from "./api";
 import type {
   ActivityRecord,
   BackupInventory,
-  BackupRecord,
   CatalogDocument,
   DoctorReport,
   GithubAuthStatus,
@@ -91,13 +90,15 @@ export function usePortcoveData() {
     }
   }, [refresh]);
   useEffect(() => {
+    const refreshRequests = refreshGeneration.current;
+    const activityRequests = activityGeneration.current;
     const unlisten = listen<string>("portcove://library-changed", () => {
       void retryRefresh();
     });
     return () => {
-      refreshGeneration.current.begin();
-      activityGeneration.current.begin();
-      unlisten.then((dispose) => dispose());
+      refreshRequests.begin();
+      activityRequests.begin();
+      void unlisten.then((dispose) => dispose());
     };
   }, [retryRefresh]);
   useEffect(() => {
@@ -157,7 +158,7 @@ export function useOperationState(refresh: () => Promise<void>) {
       );
     });
     return () => {
-      unlisten.then((dispose) => dispose());
+      void unlisten.then((dispose) => dispose());
     };
   }, []);
   const perform = useCallback(
@@ -168,7 +169,7 @@ export function useOperationState(refresh: () => Promise<void>) {
       );
       setError(undefined);
       const runningRefresh = window.setTimeout(() => {
-        void refresh().catch((value) =>
+        void refresh().catch((value: unknown) =>
           setError((current: unknown) => current ?? value),
         );
       }, 250);
@@ -209,6 +210,8 @@ export function useUpdateCenter(perform: Perform, statuses: PortStatus[]) {
         ]
       : [];
   });
+  const snapshotsRef = useRef(snapshots);
+  snapshotsRef.current = snapshots;
   const snapshotBaseline = snapshots
     .map(
       (outcome) =>
@@ -216,7 +219,7 @@ export function useUpdateCenter(perform: Perform, statuses: PortStatus[]) {
     )
     .join("|");
   useEffect(() => {
-    setOutcomes(snapshots);
+    setOutcomes(snapshotsRef.current);
   }, [snapshotBaseline]);
   const checkAll = useCallback(async () => {
     const result = await perform("check installed", desktopApi.checkInstalled);
@@ -232,10 +235,11 @@ function useReviewRequest<T>(identity: string, perform: Perform) {
   const generation = useRef(new LatestRequestGeneration());
   const [reviewed, setReviewed] = useState<{ identity: string; value: T }>();
   useLayoutEffect(() => {
-    generation.current.begin();
+    const requests = generation.current;
+    requests.begin();
     setReviewed(undefined);
     return () => {
-      generation.current.begin();
+      requests.begin();
     };
   }, [identity]);
   const review = async (name: string, task: () => Promise<T>) => {
@@ -355,11 +359,14 @@ export function useSourceHealth(
   const inspectionSources = sources.filter((source) =>
     requested.has(source.profile_id),
   );
+  const inspectionSourcesRef = useRef(inspectionSources);
+  inspectionSourcesRef.current = inspectionSources;
   const baseline = `${catalogIdentity}|${JSON.stringify(inspectionSources)}`;
   const inspectAll = useCallback(async () => {
+    const currentSources = inspectionSourcesRef.current;
     const request = generation.current.begin();
     const results = await Promise.allSettled(
-      inspectionSources.map((source) =>
+      currentSources.map((source) =>
         desktopApi.inspectSource(source.profile_id),
       ),
     );
@@ -368,21 +375,22 @@ export function useSourceHealth(
       new Map(
         results.flatMap((result, index) =>
           result.status === "fulfilled"
-            ? [[inspectionSources[index].profile_id, result.value] as const]
+            ? [[currentSources[index].profile_id, result.value] as const]
             : [],
         ),
       ),
     );
-  }, [baseline]);
+  }, []);
   useEffect(() => {
-    generation.current.begin();
+    const requests = generation.current;
+    requests.begin();
     setOutcomes([]);
     setInspections(new Map());
     void inspectAll();
     return () => {
-      generation.current.begin();
+      requests.begin();
     };
-  }, [inspectAll]);
+  }, [baseline, inspectAll]);
   const verifyAll = useCallback(async () => {
     const result = await perform("verify sources", desktopApi.verifySources);
     if (result) setOutcomes(result);
@@ -556,8 +564,8 @@ export function detailActions(
   biosPath: string,
   perform: Perform,
   close: () => void,
-  reviewInstall: () => void = () => undefined,
-  backupsChanged: () => Promise<void> = async () => undefined,
+  reviewInstall: DetailActions["reviewInstall"] = () => undefined,
+  backupsChanged: () => Promise<void> = () => Promise.resolve(),
   libraryGeneration = 0,
 ): DetailActions {
   return {

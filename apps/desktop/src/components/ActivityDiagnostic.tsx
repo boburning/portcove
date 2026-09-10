@@ -81,13 +81,17 @@ export function ActivityDiagnostic({
             Last saved: {new Date(phase.updated_at * 1000).toLocaleString()}
           </p>
           <h4>Standard output</h4>
-          <pre tabIndex={0} aria-label="Preparation standard output">
-            {phase.stdout.text || "No standard output was captured."}
-          </pre>
+          <textarea
+            readOnly
+            aria-label="Preparation standard output"
+            value={phase.stdout.text || "No standard output was captured."}
+          />
           <h4>Standard error</h4>
-          <pre tabIndex={0} aria-label="Preparation standard error">
-            {phase.stderr.text || "No standard error was captured."}
-          </pre>
+          <textarea
+            readOnly
+            aria-label="Preparation standard error"
+            value={phase.stderr.text || "No standard error was captured."}
+          />
         </section>
       ))}
       {!!capture?.length && (

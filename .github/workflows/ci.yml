@@ -150,6 +150,11 @@ jobs:
         run: node --test scripts/windows-qualification-session.integration.test.mjs
       - name: Test development diagnostics and evidence
         run: node scripts/dev-storage.mjs run -- node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/dev-doctor.test.mjs scripts/development-evidence.test.mjs scripts/native-session.test.mjs
+      - name: Lint PowerShell scripts
+        run: |
+          node scripts/quality-tools.mjs --install-managed psscriptanalyzer
+          node scripts/run-powershell-lint.mjs
+          node scripts/lint-tools.integration.mjs psscriptanalyzer
 
   native_rust:
     name: native-rust (${{ matrix.platform }}, ${{ matrix.partition }})
@@ -395,6 +400,12 @@ jobs:
           tool: ${{ steps.quality-pins.outputs.rscheck_spec }}
       - name: Verify exact Rust quality-tool versions
         run: ./scripts/bootstrap-quality-tools.sh
+      - name: Lint repository scripts and workflows
+        run: |
+          node scripts/quality-tools.mjs --run ruff -- check apps/desktop/assets/brand/models/v2
+          node scripts/quality-tools.mjs --run shellcheck -- --severity=warning scripts/bootstrap-quality-tools.sh
+          node scripts/quality-tools.mjs --run actionlint --
+          node scripts/lint-tools.integration.mjs ruff shellcheck actionlint
       - name: Test machine CLI contract on Linux
         run: cargo nextest run --locked -p portcove-cli --test machine_contract
       - name: Test backup durability contract on Linux
@@ -460,6 +471,10 @@ jobs:
       - name: Check repository formatting
         working-directory: .
         run: pnpm --dir apps/desktop format:check
+      - run: pnpm lint
+      - name: Prove frontend lint rules reject invalid fixtures
+        working-directory: .
+        run: node scripts/lint-tools.integration.mjs eslint stylelint
       - name: Test development storage tool integration
         working-directory: .
         run: node scripts/dev-storage.mjs run -- node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs --test-name-pattern "pnpm uses|direct just recipes" scripts/dev-storage.test.mjs

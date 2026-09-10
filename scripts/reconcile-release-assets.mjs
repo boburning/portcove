@@ -48,7 +48,7 @@ function parseManifest(contents, label) {
     .split(/\r?\n/)
     .filter(Boolean)
     .map((line) => {
-      const match = line.match(/^([a-f0-9]{64})  ([^/\\]+)$/);
+      const match = line.match(/^([a-f0-9]{64}) {2}([^/\\]+)$/);
       if (!match)
         throw new Error(`invalid checksum line for ${label}: ${line}`);
       return { sha256: match[1], name: match[2] };

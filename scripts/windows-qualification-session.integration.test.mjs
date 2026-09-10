@@ -187,7 +187,7 @@ class Uninstaller {
     var self = Process.GetCurrentProcess().MainModule.FileName;
     var target = Path.Combine(Path.GetTempPath(), "cleanup-" + Guid.NewGuid().ToString("N") + ".exe");
     File.Copy(self, target);
-    Process.Start(new ProcessStartInfo(target, "--cleanup \\\"" + Path.GetDirectoryName(self) + "\\\"") { CreateNoWindow = true, UseShellExecute = false });
+    Process.Start(new ProcessStartInfo(target, "--cleanup \\"" + Path.GetDirectoryName(self) + "\\"") { CreateNoWindow = true, UseShellExecute = false });
   }
 }
 `,
@@ -201,7 +201,7 @@ class Uninstaller {
   writeFileSync(
     installerSource,
     `using System; using System.IO; using System.Threading; using Microsoft.Win32;
-class Installer { static void Main(string[] args) { if (Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_HANG_INSTALLER") == "1") Thread.Sleep(60000); string install = null; foreach (var arg in args) if (arg.StartsWith("/D=")) install = arg.Substring(3); if (install == null) Environment.Exit(2); Directory.CreateDirectory(install); File.Copy(${csharpLiteral(desktop)}, Path.Combine(install, "portcove-desktop.exe"), true); File.Copy(${csharpLiteral(uninstaller)}, Path.Combine(install, "uninstall.exe"), true); using (var key = Registry.CurrentUser.CreateSubKey(${csharpLiteral(keyPath)})) { key.SetValue("DisplayName", "Portcove"); key.SetValue("InstallLocation", install); key.SetValue("UninstallString", "\\\"" + Path.Combine(install, "uninstall.exe") + "\\\""); } } }
+class Installer { static void Main(string[] args) { if (Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_HANG_INSTALLER") == "1") Thread.Sleep(60000); string install = null; foreach (var arg in args) if (arg.StartsWith("/D=")) install = arg.Substring(3); if (install == null) Environment.Exit(2); Directory.CreateDirectory(install); File.Copy(${csharpLiteral(desktop)}, Path.Combine(install, "portcove-desktop.exe"), true); File.Copy(${csharpLiteral(uninstaller)}, Path.Combine(install, "uninstall.exe"), true); using (var key = Registry.CurrentUser.CreateSubKey(${csharpLiteral(keyPath)})) { key.SetValue("DisplayName", "Portcove"); key.SetValue("InstallLocation", install); key.SetValue("UninstallString", "\\"" + Path.Combine(install, "uninstall.exe") + "\\""); } } }
 `,
   );
   const installer = path.join(root, "installer.exe");
@@ -1186,7 +1186,9 @@ test(
       if (existsSync(evidencePath)) {
         try {
           evidence = JSON.parse(readFileSync(evidencePath, "utf8"));
-        } catch {}
+        } catch {
+          /* The writer may still be replacing this observation. */
+        }
         if (
           evidence?.process_runs?.[0]?.status === "running" &&
           evidence.process_runs[0].image_observation &&
@@ -1244,7 +1246,9 @@ test(
         ["/PID", String(evidence.process_runs[0].pid), "/F"],
         { windowsHide: true, stdio: "ignore" },
       );
-    } catch {}
+    } catch {
+      /* The owned fixture may already have exited. */
+    }
   },
 );
 
@@ -1263,7 +1267,9 @@ test(
         windowsHide: true,
         stdio: "ignore",
       });
-    } catch {}
+    } catch {
+      /* The owned fixture may already have exited. */
+    }
     running.status = "exit_unobserved";
     const pending = {
       ...running,
@@ -1313,7 +1319,9 @@ test(
         ["/PID", String(state.process_runs[0].pid), "/T", "/F"],
         { windowsHide: true, stdio: "ignore" },
       );
-    } catch {}
+    } catch {
+      /* The owned fixture may already have exited. */
+    }
     const desktopPath = path.join(item.session, state.files.desktop.path);
     const older = spawn(desktopPath, [], {
       windowsHide: true,
@@ -1355,7 +1363,9 @@ test(
           windowsHide: true,
           stdio: "ignore",
         });
-      } catch {}
+      } catch {
+        /* The owned fixture may already have exited. */
+      }
     }
   },
 );

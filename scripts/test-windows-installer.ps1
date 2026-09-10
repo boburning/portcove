@@ -19,6 +19,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$null = $ProcessTimeoutSeconds, $TestFault
 
 if ([string]::IsNullOrWhiteSpace($TestBase)) {
     $storageJson = & node (Join-Path $PSScriptRoot "dev-storage.mjs") preflight --json

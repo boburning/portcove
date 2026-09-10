@@ -109,11 +109,17 @@ export function validateObserverConfig(config) {
 }
 
 function textFact(value, label, maximum = 1024) {
+  const hasControlCharacter =
+    typeof value === "string" &&
+    [...value].some((character) => {
+      const code = character.charCodeAt(0);
+      return code <= 0x1f || code === 0x7f;
+    });
   requireFact(
     typeof value === "string" &&
       value.length > 0 &&
       Buffer.byteLength(value) <= maximum &&
-      !/[\u0000-\u001f\u007f]/u.test(value),
+      !hasControlCharacter,
     "invalid-metadata",
     `invalid ${label}`,
   );

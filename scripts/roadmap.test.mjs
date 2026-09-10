@@ -1922,7 +1922,7 @@ test("promotion validation happens before any GitHub mutation", () => {
 test("move refuses ambiguous item references", () => {
   const mockedConfig = structuredClone(config);
   mockedConfig.project.number = 7;
-  const runner = (args, input) => {
+  const runner = (args) => {
     if (args[1] === "view") return JSON.stringify({ id: "PVT_project" });
     if (args[1] === "graphql")
       return JSON.stringify({
