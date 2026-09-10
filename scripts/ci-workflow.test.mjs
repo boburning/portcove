@@ -261,7 +261,7 @@ test(
       "utf8",
     );
     const body = setup.match(
-      /- name: Select Windows test temporary storage[\s\S]*?run: \|\r?\n([\s\S]*?)(?=    - name:)/,
+      /- name: Select Windows test temporary storage[\s\S]*?run: \|\r?\n([\s\S]*?)(?= {4}- name:)/,
     )?.[1];
     assert.ok(body);
     const script = body.replace(/^ {8}/gm, "");
