@@ -33,6 +33,7 @@ if (!Number.isInteger(port) || port < 1024 || port > 65533) throw new Error("--p
 const inputs = await Promise.all(["app", "driver", "native-driver"].map(name => fileIdentity(values[name])));
 inputs.push(await fileIdentity(fileURLToPath(import.meta.url)));
 inputs.push(await fileIdentity(fileURLToPath(new URL("./desktop-controller-test.mjs", import.meta.url))));
+for (const name of ["native-session.ps1", "native-process-tree.ps1"]) inputs.push(await fileIdentity(fileURLToPath(new URL(name, import.meta.url))));
 if (values["preparation-cli"] || values["preparation-tool"]) {
   for (const name of ["preparation-cli", "preparation-tool"]) {
     if (!values[name] || !path.isAbsolute(values[name])) throw new Error(`--${name} requires an absolute path`);
@@ -117,6 +118,13 @@ async function connect() {
   await browser.wait(async () => (await browser.findElements(By.css(".loading-state"))).length === 0, 30_000);
 }
 
+function observeNativeSession(mode, snapshot) {
+  const result = spawnCommand("pwsh", ["-NoProfile", "-File", fileURLToPath(new URL("./native-session.ps1", import.meta.url)), "-Mode", mode,
+    "-DriverProcessId", String(driver.pid), "-ApplicationPath", values.app, "-SnapshotPath", snapshot], { encoding: "utf8", windowsHide: true, timeout: 10_000 });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  return JSON.parse(result.stdout);
+}
+
 try {
   await requireUnusedPort(port);
   await requireUnusedPort(port + 1);
@@ -170,9 +178,12 @@ try {
       for (let cycle = 0; cycle < restartCycles; cycle++) {
         const observation = { cycle: cycle + 1, quit_started: new Date().toISOString() };
         observations.push(observation);
+        const snapshot = path.join(output, `restart-${cycle + 1}-processes.json`);
+        if (process.platform === "win32") { observeNativeSession("Snapshot", snapshot); artifacts.push(snapshot); }
         await browser.quit();
         browser = undefined;
         observation.quit_completed = new Date().toISOString();
+        if (process.platform === "win32") observation.shutdown = observeNativeSession("Wait", snapshot);
         await connect();
         observation.connected = new Date().toISOString();
         assert.equal(await browser.executeScript(() => document.documentElement.dataset.theme), "light");
