@@ -47,6 +47,7 @@ if (values["preparation-cli"] || values["preparation-tool"]) {
     inputs.push(await fileIdentity(values[name]));
   }
   inputs.push(await fileIdentity(fileURLToPath(new URL("./desktop-preparation-test.mjs", import.meta.url))));
+  inputs.push(await fileIdentity(fileURLToPath(new URL("./desktop-artwork-observations.mjs", import.meta.url))));
   inputs.push(await fileIdentity(fileURLToPath(new URL("./desktop-preparation-recovery-test.mjs", import.meta.url))));
   inputs.push(await fileIdentity(fileURLToPath(new URL("./desktop-backup-review-test.mjs", import.meta.url))));
   inputs.push(await fileIdentity(fileURLToPath(new URL("./desktop-removal-review-test.mjs", import.meta.url))));

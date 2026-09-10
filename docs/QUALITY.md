@@ -111,6 +111,19 @@ The workflow log is review evidence, not an instruction to rewrite code. Hawk an
 
 `deny.toml` allows only the permissive licenses currently required by the resolved graph. It denies wildcard registry versions and unknown registry or Git sources. Local workspace path dependencies are intentionally permitted because all three workspace packages are private. Duplicate versions remain warnings until their upstream dependency chains converge.
 
+The reviewed `rusqlite/rusqlite` upstream repository is the sole permitted Git
+dependency source, and Git dependencies require an explicit revision. The workspace
+pins `b2b2592ecf40dcce20641aeb94af82e7d3a0b26d`, which supports Rust 1.88 and bundles
+SQLite 3.53.4. Published rusqlite 0.40.2/libsqlite3-sys 0.38.2 still bundle 3.53.2,
+whose Windows VFS mistakes canonical local drive paths for network paths. Repeated
+concurrent connections can then fail with `SQLITE_PROTOCOL`. SQLite corrected
+that classification in [3.53.3's upstream history](https://sqlite.org/src/timeline?from=version-3.53.0&to=version-3.53.3&to2=branch-3.53&y=ci).
+The core concurrency regression uses canonical paths, independent connections,
+committed writes and a final integrity check. Return to a registry release with
+the fix after equivalent qualification and remove the Git-source allowance. This
+pin changes neither library path identity nor WAL, busy-timeout, migration or
+operation-lock behavior.
+
 GitHub vulnerability alerts and automated Dependabot security fixes are enabled for `boburning/portcove`. Weekly Cargo, npm, and GitHub Actions updates remain configured in `.github/dependabot.yml`; major versions are no longer blanket-ignored and related ecosystems are grouped for coherent review.
 
 Current Tauri Linux dependencies transitively include the unmaintained GTK3 binding family; other transitive build paths include `proc-macro-error` and the `unic-*` family. `cargo deny check --hide-inclusion-graph -W unmaintained` keeps these visible while continuing to deny security advisories, while omitting thousands of lines of repeated transitive paths from the normal audit. There is no safe direct Portcove upgrade that removes the GTK3 set without changing Tauri's Linux webview architecture.

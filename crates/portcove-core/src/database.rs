@@ -10,6 +10,10 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior};
 
 use crate::{PortcoveError, Result};
 
+#[cfg(test)]
+#[path = "database_concurrency_tests.rs"]
+mod concurrency_tests;
+
 pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 24;
 
 struct Migration {
