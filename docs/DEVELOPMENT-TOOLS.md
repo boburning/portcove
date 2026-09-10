@@ -46,6 +46,13 @@ contains an isolated library, host preference file, WebView2 profile on Windows,
 screenshots, bounded driver logs, accessibility results and `evidence.json`.
 Never reuse a failed run directory or point this harness at an existing library.
 
+The native harness opens application windows, takes focus and sends keyboard
+input in the current desktop session. Its isolated files do not isolate the
+keyboard or pointer. Run it in a dedicated graphical session or an agreed window
+when the desktop is not in use. If concurrent input interferes, retain the failed
+evidence and defer the native rerun; background unit tests and builds can continue.
+Do not qualify a native run from a session with uncontrolled input.
+
 To exercise explicit preparation, additionally pass `--preparation-cli
 <absolute-CLI-executable> --preparation-tool <absolute-owned-probe>`. Build the CLI
 from the same source and compile the repository's
