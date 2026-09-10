@@ -84,6 +84,48 @@ afterEach(async () => {
 });
 
 describe("per-game Export / install folder", () => {
+  it("keeps an unknown destination availability blocked", async () => {
+    vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(defaultLocation("sample"));
+    vi.spyOn(desktopApi, "previewOutputLocation").mockResolvedValue(destinationPreview("sample", "F:/Games/Sample", { availability: "future_availability" as OutputDestinationPreview["availability"] }));
+    await render(<OutputLocationControl portId="sample" generation={7} />);
+    await changePath("F:/Games/Sample"); await click("Review future folder");
+    expect(container.textContent).toContain("Availability result unavailable");
+    expect(button("Use this folder for future installs").disabled).toBe(true);
+  });
+
+  it("does not relocate installations using an unknown ownership result", async () => {
+    vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(defaultLocation("sample"));
+    const affected = { install_id: "install-1", version: "1.0", path: "E:/Portcove/versions/sample/old", active: true, previous: false, staged: false };
+    vi.spyOn(desktopApi, "previewOutputLocation").mockResolvedValue(destinationPreview("sample", "F:/Games/Sample", { affected_installs: [affected] }));
+    vi.spyOn(desktopApi, "planOutputRelocation").mockResolvedValue({
+      port_id: "sample", current: defaultLocation("sample"), channel: "stable", destination_root: "F:/Games/Sample", installs: [],
+      required_bytes: 0, available_bytes: 1024, total_bytes: 2048, volume_identity: "owned-volume", availability: "available",
+      ownership: "future_ownership" as OutputRelocationPlan["ownership"], validation_errors: [], sources_will_move: false,
+      user_data_will_move: false, backups_will_move: false, plan_sha256: "b".repeat(64),
+    });
+    const move = vi.spyOn(desktopApi, "relocateOutput");
+    await render(<OutputLocationControl portId="sample" generation={7} />);
+    await changePath("F:/Games/Sample"); await click("Review future folder"); await click("Review moving existing versions");
+    expect(container.textContent).toContain("Ownership result unavailable");
+    expect(button("Move existing versions").disabled).toBe(true);
+    await click("Move existing versions"); expect(move).not.toHaveBeenCalled();
+  });
+
+  it.each(["future_ownership", "constructor", "__proto__"])("does not apply an unfamiliar destination ownership %s", async ownership => {
+    vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(defaultLocation("sample"));
+    const preview = destinationPreview("sample", "F:/Games/Sample", { ownership: ownership as OutputDestinationPreview["ownership"] });
+    preview.proposed.selection_source = "future_location_origin" as typeof preview.proposed.selection_source;
+    vi.spyOn(desktopApi, "previewOutputLocation").mockResolvedValue(preview);
+    const apply = vi.spyOn(desktopApi, "setOutputLocation");
+    await render(<OutputLocationControl portId="sample" generation={7} />);
+    await changePath("F:/Games/Sample"); await click("Review future folder");
+    expect(container.textContent).toContain("Ownership result unavailable");
+    expect(container.textContent).toContain("Location origin unavailable");
+    expect(button("Use this folder for future installs").disabled).toBe(true);
+    await click("Use this folder for future installs");
+    expect(apply).not.toHaveBeenCalled();
+  });
+
   it("renders inherited, unavailable, full, and validation-error states without offering an unsafe apply", async () => {
     vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(defaultLocation("sample"));
     vi.spyOn(desktopApi, "previewOutputLocation")

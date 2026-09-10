@@ -151,7 +151,7 @@ function operationLabel(operation: ActivityOperation) {
     discover_sources: "Searched for sources",
     update_catalog: "Updated catalog",
   };
-  return labels[operation];
+  return Object.hasOwn(labels, operation) ? labels[operation] : "Recorded activity";
 }
 
 function formatActivityTime(timestamp: number) {
@@ -186,7 +186,8 @@ function UpdateStat({ label, value, icon, accent, warning }: { label: string; va
 }
 
 function policyLabel(policy: PortStatus["update_policy"]) {
-  return policy === "automatic" ? "Automatic" : policy === "stage" ? "Stage" : "Notify";
+  const labels = { automatic: "Automatic", stage: "Stage", notify: "Notify" };
+  return Object.hasOwn(labels, policy) ? labels[policy] : "Update policy unavailable";
 }
 
 function updateState(status: PortStatus, outcome?: UpdateCheckOutcome) {

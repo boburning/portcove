@@ -64,6 +64,27 @@ function report(stateCode = "recognized_exact"): SourceInspectionReport {
 }
 
 describe("source identity presentation", () => {
+  it.each(["future_check_result", "constructor", "__proto__", "toString"])("renders unknown result %s without claiming a match", state => {
+    const value = report(state);
+    value.applications[0].contract_result.state = state as typeof value.applications[0].contract_result.state;
+    value.applications[0].release_applicability.state_code = state;
+    if (value.inspection?.assessment.admission.state === "admitted") value.inspection.assessment.admission.mode = state as typeof value.inspection.assessment.admission.mode;
+    const html = renderToStaticMarkup(<SourceIdentityPanel report={value} />);
+    for (const label of ["Result unavailable", "Admission result unavailable", "Requirement result unavailable", "Release applicability unavailable"]) expect(html).toContain(label);
+    expect(html).not.toContain("Source result: Exact match");
+  });
+
+  it("does not treat unknown digest algorithms as a match or call inherited properties", () => {
+    const value = report();
+    for (const component of value.inspection!.components) {
+      for (const digest of component.digests) digest.algorithm = "constructor" as typeof digest.algorithm;
+    }
+    const html = renderToStaticMarkup(<SourceIdentityPanel report={value} />);
+    expect(html).not.toContain("Exact member match");
+    expect(html).toContain("Digest comparison unavailable");
+    expect(html).toContain("CONSTRUCTOR"); // The raw algorithm remains only in technical evidence.
+  });
+
   it.each([
     ["recognized_exact", "Exact match"],
     ["accepted_identity_unknown", "Accepted · identity unknown"],

@@ -274,6 +274,10 @@ function PrimaryActions({ invalidInstallation, preparationRequired, runtimeNeede
 function InstallAction({ ready, plan, busy, install, review }: { ready: boolean; plan?: InstallPlan; busy?: string; install: () => void; review: () => void }) {
   if (!ready) return <div className="actions primary-actions"><button data-focusable className="primary wide button-with-icon" title="Choose every required source before installing" disabled><Icon glyph={AlertTriangle} />Choose required source</button></div>;
   if (!plan) return <div className="actions primary-actions"><button data-focusable className="primary wide button-with-icon" disabled={Boolean(busy)} onClick={review}><Icon glyph={ShieldCheck} />{busy === "review install" ? "Checking release…" : "Review install"}</button></div>;
+  if (!installPlanActionLabel(plan.action)) return <div className="actions primary-actions">
+    <p role="alert">This version of Portcove cannot display the installation plan. Review it again, or update Portcove if this continues.</p>
+    <button data-focusable disabled={Boolean(busy)} onClick={review}>Review install again</button>
+  </div>;
   return <><InstallPlanSummary plan={plan} /><PlannedInstallButton plan={plan} busy={busy} install={install} /></>;
 }
 
@@ -303,7 +307,7 @@ function installPlanActionLabel(action: InstallPlan["action"]) {
     blocked_unverified: "Unverified local copy",
     download: "Download verified release",
   };
-  return labels[action];
+  return Object.hasOwn(labels, action) ? labels[action] : undefined;
 }
 
 function MaintenanceActions({ port, libraryGeneration, canRollback, busy, actions }: { port: PortDefinition; libraryGeneration: number; canRollback: boolean; busy?: string; actions: DetailActions }) {

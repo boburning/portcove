@@ -135,7 +135,13 @@ function expectedComponentIdentities(report: SourceInspectionReport, componentId
 
 function componentMatch(component: ObservedSourceComponent, expected: DigestIdentity[]) {
   if (expected.length === 0) return { label: "Expected identity missing", tone: "contract-unreviewed_for_release" };
-  const match = component.digests.some(observed => expected.some(identity => identity.scope === observed.scope && ({ sha1: identity.sha1, sha256: identity.sha256, crc32: identity.crc32 })[observed.algorithm]?.toLowerCase() === observed.value.toLowerCase()));
+  const digests = component.digests.filter(observed => ["sha1", "sha256", "crc32"].includes(observed.algorithm));
+  if (digests.length === 0) return { label: "Digest comparison unavailable", tone: "contract-not_evaluated" };
+  const match = digests.some(observed => expected.some(identity => {
+    const values = { sha1: identity.sha1, sha256: identity.sha256, crc32: identity.crc32 };
+    const value = Object.hasOwn(values, observed.algorithm) ? values[observed.algorithm] : undefined;
+    return identity.scope === observed.scope && typeof value === "string" && value.toLowerCase() === observed.value.toLowerCase();
+  }));
   return match ? { label: "Exact member match", tone: "contract-supported" } : { label: "Member doesn't match", tone: "contract-known_incompatible" };
 }
 
@@ -158,7 +164,8 @@ function sourceDisplayState(report: SourceInspectionReport) {
     source_could_not_be_checked: { label: "Couldn't check", tone: "danger", icon: AlertTriangle },
     not_evaluated: { label: "Not evaluated", tone: "neutral", icon: HelpCircle },
   } as const;
-  return known[report.state_code as keyof typeof known] ?? { label: formatLabel(report.state_code), tone: "neutral", icon: HelpCircle };
+  return Object.hasOwn(known, report.state_code) ? known[report.state_code as keyof typeof known]
+    : { label: "Result unavailable", tone: "neutral", icon: HelpCircle };
 }
 
 function classificationLabel(report: SourceInspectionReport) {
@@ -174,17 +181,20 @@ function admissionLabel(report: SourceInspectionReport) {
   const admission = report.inspection?.assessment.admission;
   if (!admission || admission.state === "not_evaluated") return "Not evaluated";
   if (admission.state === "rejected") return `Refused · ${formatLabel(admission.reason)}`;
+  if (admission.state !== "admitted") return "Not evaluated";
   const labels = { exact_identity: "Admitted · exact identity", structural_checks: "Admitted · structural checks", informational_consent: "Admitted · informational consent", upstream_validator: "Admitted · upstream validator" };
-  return labels[admission.mode];
+  return Object.hasOwn(labels, admission.mode) ? labels[admission.mode] : "Admission result unavailable";
 }
 
 function contractLabel(state: SourceInspectionReport["applications"][number]["contract_result"]["state"]) {
-  return ({ supported: "Supported", recognized_not_listed: "Recognized · not listed", known_incompatible: "Known mismatch · refused", informational: "Informational requirement", unreviewed_for_release: "Not reviewed for this release", not_evaluated: "Not evaluated" })[state];
+  const labels = { supported: "Supported", recognized_not_listed: "Recognized · not listed", known_incompatible: "Known mismatch · refused", informational: "Informational requirement", unreviewed_for_release: "Not reviewed for this release", not_evaluated: "Not evaluated" };
+  return Object.hasOwn(labels, state) ? labels[state] : "Requirement result unavailable";
 }
 
 function applicabilityLabel(state: string, contract: SourceInspectionReport["applications"][number]["contract_result"]["state"]) {
   if (contract === "unreviewed_for_release") return "Not applicable to this release";
-  return ({ artifact_bound: "Bound to this exact release artifact", upstream_release_bound: "Bound to the reviewed upstream release", not_rebound: "No release-specific binding is recorded" } as Record<string, string>)[state] ?? formatLabel(state);
+  const labels: Record<string, string> = { artifact_bound: "Bound to this exact release artifact", upstream_release_bound: "Bound to the reviewed upstream release", not_rebound: "No release-specific binding is recorded" };
+  return Object.hasOwn(labels, state) ? labels[state] : "Release applicability unavailable";
 }
 
 function variantLabel(variant: NonNullable<SourceInspectionReport["expected_identity"]>["variants"][number]) {
