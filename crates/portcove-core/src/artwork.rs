@@ -178,7 +178,6 @@ impl PortcoveService {
         // Choices publish only after validated originals. Disposable thumbnails
         // are generated on demand; a cache fault cannot prevent selection.
         transaction.commit()?;
-        drop(_guard);
         self.artwork(port_id, slot)
     }
 
@@ -195,7 +194,6 @@ impl PortcoveService {
         crate::artwork_store::require_revision(&transaction, port_id, slot, expected_revision)?;
         crate::artwork_store::write_choice(&transaction, port_id, slot, expected_revision, None)?;
         transaction.commit()?;
-        drop(_guard);
         self.artwork(port_id, slot)
     }
 
@@ -259,7 +257,10 @@ impl PortcoveService {
     }
 
     pub fn unused_local_artwork(&self) -> Result<Vec<LocalArtworkAsset>> {
-        let metadata = crate::artwork_store::snapshot(&self.library().connection()?)?;
+        let mut connection = self.library().connection()?;
+        let transaction = connection.transaction()?;
+        let metadata = crate::artwork_store::snapshot(&transaction)?;
+        transaction.commit()?;
         Ok(metadata
             .assets
             .into_iter()
@@ -290,7 +291,8 @@ impl PortcoveService {
         let original = original_path(self.library(), asset_sha256)?;
         if original.exists() {
             original_bytes(self.library(), &asset)?;
-            fs::remove_file(original)?;
+            fs::remove_file(&original)?;
+            crate::durability::sync_publication(&self.library().root().join("artwork"))?;
         }
         let thumbnail = thumbnail_path(self.library(), asset_sha256)?;
         if thumbnail.exists() {

@@ -279,3 +279,36 @@ pub(crate) fn restore(connection: &Connection, metadata: &ArtworkMetadata) -> Re
     }
     Ok(())
 }
+
+pub(crate) fn validate_transfer_inventory(
+    metadata: &crate::LibraryMetadata,
+    content: &[crate::LibraryTreePlan],
+) -> Result<()> {
+    let Some(artwork) = &metadata.artwork else {
+        return Ok(());
+    };
+    let tree = content
+        .iter()
+        .find(|tree| tree.kind == crate::LibraryContentKind::LocalArtwork)
+        .ok_or_else(|| PortcoveError::verification("artwork payload root is missing"))?;
+    let assets = artwork
+        .assets
+        .iter()
+        .map(|asset| (asset.sha256.as_str(), asset))
+        .collect::<std::collections::BTreeMap<_, _>>();
+    if !tree.copy.directories.is_empty()
+        || !tree.copy.skipped_entries.is_empty()
+        || tree.copy.files.len() != assets.len()
+        || tree.copy.files.iter().any(|file| {
+            file.relative_path
+                .to_str()
+                .and_then(|name| assets.get(name))
+                .is_none_or(|asset| file.sha256 != asset.sha256 || file.size != asset.byte_size)
+        })
+    {
+        return Err(PortcoveError::verification(
+            "artwork payload inventory differs from its metadata; unexpected or missing originals were retained",
+        ));
+    }
+    Ok(())
+}

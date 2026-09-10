@@ -70,6 +70,7 @@ impl PortcoveService {
                 })
             })
             .collect::<Result<Vec<_>>>()?;
+        crate::artwork_store::validate_transfer_inventory(&metadata, &content)?;
         let required_bytes = content.iter().try_fold(
             metadata_file
                 .size
@@ -134,7 +135,7 @@ pub(crate) fn import_fingerprint(plan: &LibraryImportPlan) -> Result<String> {
 }
 
 pub(crate) fn validate_metadata(metadata: &LibraryMetadata, catalog: &Catalog) -> Result<()> {
-    if !matches!(metadata.schema_version, 1 | 2 | 3) {
+    if !matches!(metadata.schema_version, 1..=3) {
         return Err(PortcoveError::unsupported(
             "unsupported library metadata schema",
         ));

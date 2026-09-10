@@ -527,3 +527,26 @@ fn local_inventory_capacity_includes_unfinished_imports() {
         .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &png, 0)
         .unwrap();
 }
+
+#[test]
+fn transfer_review_rejects_untracked_artwork_payloads_before_copying() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("source");
+    let service = open_service(&root);
+    let png = image_file(temp.path(), "cover.png", image::ImageFormat::Png);
+    service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &png, 0)
+        .unwrap();
+    let unexpected = root.join("artwork/untracked.txt");
+    fs::write(&unexpected, b"retain this unexpected file").unwrap();
+    let export = temp.path().join("metadata.json");
+    service.write_library_metadata(&export).unwrap();
+    let destination = temp.path().join("destination");
+    assert!(service.plan_library_move(&destination).is_err());
+    assert!(PortcoveService::plan_library_import(&export, &root, &destination).is_err());
+    assert!(!destination.exists());
+    assert_eq!(
+        fs::read(unexpected).unwrap(),
+        b"retain this unexpected file"
+    );
+}

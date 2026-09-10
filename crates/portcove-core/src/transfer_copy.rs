@@ -146,6 +146,7 @@ pub(crate) fn verify_destination(
     content: &[LibraryTreePlan],
 ) -> Result<()> {
     let destination_root = library.root();
+    crate::artwork_store::validate_transfer_inventory(expected_metadata, content)?;
     for tree in content {
         let copy =
             crate::library_transfer::reviewed_tree(&destination_root.join(&tree.relative_path))?;
