@@ -52,6 +52,11 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
+    /// Import and select local artwork independently of game installation.
+    Artwork {
+        #[command(subcommand)]
+        command: ArtworkCommand,
+    },
     Library {
         #[command(subcommand)]
         command: LibraryCommand,
@@ -156,6 +161,65 @@ enum Commands {
 enum ActivityCommand {
     /// Read the retained, redacted diagnostic capture for one activity.
     Log { activity_id: String },
+}
+
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+enum ArtworkSlotArg {
+    Cover,
+    Detail,
+}
+
+impl From<ArtworkSlotArg> for portcove_core::ArtworkSlot {
+    fn from(slot: ArtworkSlotArg) -> Self {
+        match slot {
+            ArtworkSlotArg::Cover => Self::Cover,
+            ArtworkSlotArg::Detail => Self::Detail,
+        }
+    }
+}
+
+#[derive(Debug, Subcommand)]
+enum ArtworkCommand {
+    Show {
+        port_id: String,
+        #[arg(long, value_enum, default_value = "cover")]
+        slot: ArtworkSlotArg,
+    },
+    Import {
+        port_id: String,
+        path: PathBuf,
+        #[arg(long, value_enum, default_value = "cover")]
+        slot: ArtworkSlotArg,
+        #[arg(long)]
+        expected_revision: Option<u64>,
+    },
+    Reset {
+        port_id: String,
+        #[arg(long, value_enum, default_value = "cover")]
+        slot: ArtworkSlotArg,
+        #[arg(long)]
+        expected_revision: Option<u64>,
+    },
+    ClearCache,
+    Unused,
+    RemoveUnused {
+        asset_sha256: String,
+        #[arg(long)]
+        yes: bool,
+    },
+}
+
+impl ArtworkCommand {
+    fn name(&self) -> &'static str {
+        match self {
+            Self::Show { .. } => "artwork.show",
+            Self::Import { .. } => "artwork.import",
+            Self::Reset { .. } => "artwork.reset",
+            Self::ClearCache => "artwork.clear-cache",
+            Self::Unused => "artwork.unused",
+            Self::RemoveUnused { .. } => "artwork.remove-unused",
+        }
+    }
 }
 
 #[derive(Debug, Subcommand)]
@@ -806,6 +870,9 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
     .then(|| cancellation::CancellationSignals::start(service.clone()))
     .transpose()?;
     match cli.command {
+        Commands::Artwork { command } => {
+            execute_artwork(&service, command, mode, cli.non_interactive)?
+        }
         Commands::Cancel { operation_id } => {
             render_success(mode, "cancel", service.request_cancellation(&operation_id)?)?;
         }
@@ -2108,6 +2175,64 @@ fn require_confirmation(prompt: &str, yes: bool, non_interactive: bool) -> Resul
     }
 }
 
+fn execute_artwork(
+    service: &PortcoveService,
+    command: ArtworkCommand,
+    mode: OutputMode,
+    non_interactive: bool,
+) -> Result<()> {
+    let name = command.name();
+    match command {
+        ArtworkCommand::Show { port_id, slot } => {
+            render_success(mode, name, service.artwork(&port_id, slot.into())?)
+        }
+        ArtworkCommand::Import {
+            port_id,
+            path,
+            slot,
+            expected_revision,
+        } => {
+            let slot = slot.into();
+            let revision = match expected_revision {
+                Some(value) => value,
+                None => service.artwork(&port_id, slot)?.choice.revision,
+            };
+            render_success(
+                mode,
+                name,
+                service.import_artwork(&port_id, slot, &path, revision)?,
+            )
+        }
+        ArtworkCommand::Reset {
+            port_id,
+            slot,
+            expected_revision,
+        } => {
+            let slot = slot.into();
+            let revision = match expected_revision {
+                Some(value) => value,
+                None => service.artwork(&port_id, slot)?.choice.revision,
+            };
+            render_success(mode, name, service.reset_artwork(&port_id, slot, revision)?)
+        }
+        ArtworkCommand::ClearCache => render_success(mode, name, service.clear_artwork_cache()?),
+        ArtworkCommand::Unused => render_success(mode, name, service.unused_local_artwork()?),
+        ArtworkCommand::RemoveUnused { asset_sha256, yes } => {
+            require_confirmation(
+                "Remove this unused managed local image? The original file outside the library is retained.",
+                yes,
+                non_interactive,
+            )?;
+            service.remove_unused_local_artwork(&asset_sha256)?;
+            render_success(
+                mode,
+                name,
+                serde_json::json!({"removed":true,"asset_sha256":asset_sha256}),
+            )
+        }
+    }
+}
+
 fn confirmation(prompt: &str, yes: bool, non_interactive: bool) -> Result<bool> {
     if yes {
         return Ok(true);
@@ -2181,6 +2306,7 @@ fn command_name(command: &Commands) -> &'static str {
             SourceCommand::Verify(_) => "source.verify",
             SourceCommand::Remove { .. } => "source.remove",
         },
+        Commands::Artwork { command } => command.name(),
         Commands::Tool { command } => match command {
             ToolCommand::List => "tool.list",
             ToolCommand::SetPath { .. } => "tool.set-path",
@@ -2573,7 +2699,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 43);
+        assert_eq!(capabilities.schema_version, 44);
         assert_eq!(
             capabilities.failure_isolated_batches,
             ["check", "reconcile", "update", "source.verify"]
@@ -2582,6 +2708,7 @@ mod tests {
         assert!(capabilities.commands.contains(&"storage".to_owned()));
         assert!(capabilities.commands.contains(&"doctor".to_owned()));
         assert!(capabilities.commands.contains(&"backup".to_owned()));
+        assert!(capabilities.commands.contains(&"artwork".to_owned()));
         assert!(capabilities.commands.contains(&"tool".to_owned()));
         assert!(capabilities.commands.contains(&"plan".to_owned()));
         assert!(capabilities.commands.contains(&"paths".to_owned()));

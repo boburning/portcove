@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { closeSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test, { after } from "node:test";
@@ -456,6 +456,54 @@ test("an observed nonzero abort attempt remains failed and is not relaunched", {
   assert.equal(state.abort_attempts.length, 1);
   assert.equal(state.abort_attempts[0].status, "exit_observed");
   assert.equal(state.abort_attempts[0].exit_code, 7);
+});
+
+test("installer evidence waits for a reader and preserves the previous journal on persistent contention", { skip: process.platform !== "win32", timeout: 30_000 }, async t => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-journal-contention-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const quote = value => `'${value.replaceAll("'", "''")}'`;
+  for (const releaseReader of [true, false]) {
+    const evidencePath = path.join(root, `${releaseReader}.json`);
+    const runnerPath = path.join(root, `${releaseReader}.ps1`);
+    writeFileSync(evidencePath, '{"phase":"previous"}');
+    writeFileSync(runnerPath, `$ErrorActionPreference = "Stop"
+$ast = [System.Management.Automation.Language.Parser]::ParseFile(${quote(installerLifecycleTool)}, [ref]$null, [ref]$null)
+$function = $ast.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq "Write-InstallerEvidence" }, $true)
+if (-not $function) { throw "Missing evidence writer" }
+Invoke-Expression $function.Extent.Text
+$evidenceFull = ${quote(evidencePath)}
+$evidence = [ordered]@{ phase = "previous" }
+[Console]::Out.WriteLine("writer-ready")
+Write-InstallerEvidence "updated"
+`);
+    let reader = openSync(evidencePath, "r");
+    const runner = spawn("pwsh.exe", ["-NoLogo", "-NoProfile", "-File", runnerPath], { windowsHide: true, timeout: 10_000 });
+    let output = "", errors = "", releaseTimer;
+    runner.stdout.on("data", chunk => {
+      output += chunk;
+      if (releaseReader && !releaseTimer && output.includes("writer-ready")) {
+        releaseTimer = setTimeout(() => { closeSync(reader); reader = undefined; }, 150);
+      }
+    });
+    runner.stderr.on("data", chunk => { errors += chunk; });
+    try {
+      const [code] = await once(runner, "close");
+      assert.match(output, /writer-ready/);
+      if (releaseReader) {
+        assert.equal(code, 0, errors);
+        assert.equal(JSON.parse(readFileSync(evidencePath, "utf8")).phase, "updated");
+        assert.equal(existsSync(`${evidencePath}.next`), false);
+      } else {
+        assert.notEqual(code, 0);
+        assert.match(errors, /Access to the path is denied|being used by another process/);
+        assert.equal(JSON.parse(readFileSync(evidencePath, "utf8")).phase, "previous");
+        assert.equal(JSON.parse(readFileSync(`${evidencePath}.next`, "utf8")).phase, "updated");
+      }
+    } finally {
+      clearTimeout(releaseTimer);
+      if (reader !== undefined) closeSync(reader);
+    }
+  }
 });
 
 test("a killed real lifecycle runner leaves readable inner WAL and outer ambiguity fails closed", { skip: process.platform !== "win32", timeout: 180_000 }, async t => {

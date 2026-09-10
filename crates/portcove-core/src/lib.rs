@@ -1,6 +1,12 @@
 mod activity_diagnostics;
 mod adapter;
 mod archive;
+mod artwork;
+mod artwork_image;
+mod artwork_ingestion;
+mod artwork_store;
+#[cfg(test)]
+mod artwork_tests;
 mod auth;
 mod authorization;
 mod cancellation;
@@ -63,6 +69,10 @@ mod types;
 pub use activity_diagnostics::{ActivityDiagnostic, DiagnosticStream};
 pub use adapter::{Adapter, AdapterRegistry, LaunchSpecRequest};
 pub use adapter::{host_tool_statuses, recheck_host_tool};
+pub use artwork::{
+    ArtworkAvailability, ArtworkCacheClear, ArtworkChoice, ArtworkImageFormat, ArtworkMetadata,
+    ArtworkSlot, ArtworkState, ArtworkThumbnail, LocalArtworkAsset,
+};
 pub use auth::{
     GithubAuthSource, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult,
     GithubDeviceLoginState, GithubRateLimit,
@@ -147,4 +157,4 @@ pub use source_report::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 43;
+pub const API_SCHEMA_VERSION: u32 = 44;

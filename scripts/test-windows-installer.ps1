@@ -241,7 +241,20 @@ function Write-InstallerEvidence([string]$Phase, $Details = $null) {
     if ($Details) { $evidence.details = $Details }
     $next = "$evidenceFull.next"
     $evidence | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $next -Encoding utf8
-    [System.IO.File]::Move($next, $evidenceFull, $true)
+    # Windows can deny replacing a file while a delete-sharing reader holds it.
+    # Retain the previous journal and the staged update until the move succeeds.
+    $wait = [System.Diagnostics.Stopwatch]::StartNew()
+    while ($true) {
+        try {
+            [System.IO.File]::Move($next, $evidenceFull, $true)
+            break
+        } catch {
+            $cause = $_.Exception.GetBaseException()
+            $windowsError = $cause.HResult -band 0xffff
+            if (-not $IsWindows -or $windowsError -notin @(5, 32, 33) -or $wait.ElapsedMilliseconds -ge 2000) { throw }
+            Start-Sleep -Milliseconds 20
+        }
+    }
 }
 Write-InstallerEvidence "initialized"
 

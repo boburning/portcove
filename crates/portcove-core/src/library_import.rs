@@ -70,6 +70,7 @@ impl PortcoveService {
                 })
             })
             .collect::<Result<Vec<_>>>()?;
+        crate::artwork_store::validate_transfer_inventory(&metadata, &content)?;
         let required_bytes = content.iter().try_fold(
             metadata_file
                 .size
@@ -134,7 +135,7 @@ pub(crate) fn import_fingerprint(plan: &LibraryImportPlan) -> Result<String> {
 }
 
 pub(crate) fn validate_metadata(metadata: &LibraryMetadata, catalog: &Catalog) -> Result<()> {
-    if !matches!(metadata.schema_version, 1 | 2) {
+    if !matches!(metadata.schema_version, 1..=3) {
         return Err(PortcoveError::unsupported(
             "unsupported library metadata schema",
         ));
@@ -152,11 +153,28 @@ pub(crate) fn validate_metadata(metadata: &LibraryMetadata, catalog: &Catalog) -
         (LibraryContentKind::Backups, "backups"),
         (LibraryContentKind::Toolchains, "toolchains"),
     ];
-    let expected = if metadata.schema_version == 1 {
-        legacy_expected.as_slice()
-    } else {
-        current_expected.as_slice()
+    let artwork_expected = [
+        (LibraryContentKind::ApplicationVersions, "versions"),
+        (LibraryContentKind::UserData, "user"),
+        (LibraryContentKind::SourceInbox, "source-inbox"),
+        (LibraryContentKind::Backups, "backups"),
+        (LibraryContentKind::Toolchains, "toolchains"),
+        (LibraryContentKind::LocalArtwork, "artwork"),
+    ];
+    let expected = match metadata.schema_version {
+        1 => legacy_expected.as_slice(),
+        2 => current_expected.as_slice(),
+        _ => artwork_expected.as_slice(),
     };
+    match (&metadata.artwork, metadata.schema_version) {
+        (Some(artwork), 3) => crate::artwork_store::validate_metadata(artwork, catalog)?,
+        (None, 1 | 2) => {}
+        _ => {
+            return Err(PortcoveError::verification(
+                "artwork metadata does not match the export schema",
+            ));
+        }
+    }
     if metadata.content_roots.len() != expected.len()
         || metadata
             .content_roots
@@ -349,11 +367,15 @@ mod tests {
         let destination = temporary.path().join("destination");
         let service = PortcoveService::new(Library::open(&source).unwrap()).unwrap();
         let mut metadata = service.export_library_metadata().unwrap();
-        assert_eq!(metadata.schema_version, 2);
+        assert_eq!(metadata.schema_version, 3);
         metadata.schema_version = 1;
-        metadata
-            .content_roots
-            .retain(|root| root.kind != LibraryContentKind::SourceInbox);
+        metadata.artwork = None;
+        metadata.content_roots.retain(|root| {
+            !matches!(
+                root.kind,
+                LibraryContentKind::SourceInbox | LibraryContentKind::LocalArtwork
+            )
+        });
         validate_metadata(&metadata, &Catalog::embedded().unwrap()).unwrap();
 
         for root in &metadata.content_roots {

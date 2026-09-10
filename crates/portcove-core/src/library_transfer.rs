@@ -51,6 +51,7 @@ impl PortcoveService {
                 })
             })
             .collect::<Result<Vec<_>>>()?;
+        crate::artwork_store::validate_transfer_inventory(&metadata, &content)?;
         let copied_bytes = content.iter().try_fold(0_u64, |total, tree| {
             total
                 .checked_add(tree.copy.total_bytes)

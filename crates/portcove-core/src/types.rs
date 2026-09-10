@@ -1182,6 +1182,7 @@ impl CapabilityDocument {
             commands: vec![
                 "auth".into(),
                 "backup".into(),
+                "artwork".into(),
                 "catalog".into(),
                 "source".into(),
                 "tool".into(),

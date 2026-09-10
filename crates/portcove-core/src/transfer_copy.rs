@@ -146,6 +146,7 @@ pub(crate) fn verify_destination(
     content: &[LibraryTreePlan],
 ) -> Result<()> {
     let destination_root = library.root();
+    crate::artwork_store::validate_transfer_inventory(expected_metadata, content)?;
     for tree in content {
         let copy =
             crate::library_transfer::reviewed_tree(&destination_root.join(&tree.relative_path))?;
@@ -157,6 +158,20 @@ pub(crate) fn verify_destination(
         }
     }
     verify_metadata(library, expected_metadata)?;
+    if let Some(artwork) = &expected_metadata.artwork {
+        for asset in &artwork.assets {
+            let bytes = crate::artwork::original_bytes(library, asset)?;
+            let decoded = crate::artwork_image::decode(&bytes)?;
+            if decoded.format != asset.format
+                || decoded.width != asset.width
+                || decoded.height != asset.height
+            {
+                return Err(PortcoveError::verification(
+                    "artwork payload differs from its declared image contract",
+                ));
+            }
+        }
+    }
     let database = library.connection()?;
     let integrity: String = database.query_row("PRAGMA integrity_check", [], |row| row.get(0))?;
     let foreign_keys: u64 =
@@ -197,6 +212,27 @@ pub(crate) fn verify_metadata(
     metadata.original_root = expected.original_root.clone();
     metadata.exported_at = 0;
     expected.exported_at = 0;
+    if expected.schema_version < 3 {
+        if metadata
+            .artwork
+            .as_ref()
+            .is_some_and(|artwork| !artwork.assets.is_empty() || !artwork.choices.is_empty())
+        {
+            return Err(PortcoveError::verification(
+                "legacy import gained unreviewed artwork",
+            ));
+        }
+        metadata.artwork = None;
+        metadata
+            .content_roots
+            .retain(|root| root.kind != crate::LibraryContentKind::LocalArtwork);
+        if expected.schema_version == 1 {
+            metadata
+                .content_roots
+                .retain(|root| root.kind != crate::LibraryContentKind::SourceInbox);
+        }
+        metadata.schema_version = expected.schema_version;
+    }
     if serde_json::to_value(metadata)? != serde_json::to_value(expected)? {
         return Err(PortcoveError::verification(
             "destination metadata differs from the reviewed library copy",

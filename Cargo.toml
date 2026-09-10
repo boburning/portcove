@@ -29,6 +29,7 @@ filetime = "0.2.29"
 futures-util = "0.3.34"
 fs2 = "0.4.3"
 hex = "0.4.3"
+image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg"] }
 keyring = "4.2.0"
 libc = "0.2.189"
 reqwest = { version = "0.13.4", default-features = false, features = ["form", "json", "rustls", "stream"] }
