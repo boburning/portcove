@@ -19,7 +19,9 @@ test("declares the exact supported desktop and CLI package matrix", () => {
     "macos-x86_64",
   ]);
   assert.deepEqual(
-    policy.packages.map(entry => `${entry.interface}:${entry.platform_label}:${entry.format}`),
+    policy.packages.map(
+      (entry) => `${entry.interface}:${entry.platform_label}:${entry.format}`,
+    ),
     [
       "desktop:windows-x86_64:nsis",
       "cli:windows-x86_64:zip",
@@ -43,7 +45,9 @@ test("resolves versioned CLI names without changing executable identity", () => 
     ["macos-x86_64", "portcove-cli-1.2.3-beta.4-macos-x86_64.tar.gz"],
   ]);
   for (const [platform, name] of expected) {
-    const cli = packagesForPlatform(policy, platform).filter(entry => entry.interface === "cli");
+    const cli = packagesForPlatform(policy, platform).filter(
+      (entry) => entry.interface === "cli",
+    );
     assert.equal(cli.length, 1);
     assert.equal(artifactName(cli[0], "1.2.3-beta.4"), name);
   }
@@ -55,7 +59,10 @@ test("rejects duplicate, unsafe, and incomplete package policy entries", () => {
   invalid.packages[1].filename = "../portcove-{version}.zip";
   invalid.packages[0].os = "linux";
   invalid.packages[0].format = "dmg";
-  invalid.packages = invalid.packages.filter(entry => entry.platform_label !== "macos-x86_64" || entry.interface !== "cli");
+  invalid.packages = invalid.packages.filter(
+    (entry) =>
+      entry.platform_label !== "macos-x86_64" || entry.interface !== "cli",
+  );
   const errors = validatePackagePolicy(invalid).join("\n");
   assert.match(errors, /duplicate package id/);
   assert.match(errors, /safe \{version\} filename/);
@@ -74,5 +81,8 @@ test("rejects filename and identifier characters that could alter shells or gene
 });
 
 test("rejects malformed versions before resolving filenames", () => {
-  assert.throws(() => artifactName(policy.packages[0], "0.1"), /invalid release version/);
+  assert.throws(
+    () => artifactName(policy.packages[0], "0.1"),
+    /invalid release version/,
+  );
 });

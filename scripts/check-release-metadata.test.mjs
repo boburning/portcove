@@ -58,16 +58,18 @@ function validBrandManifest() {
   return {
     schema_version: 1,
     brand_version: 2,
-    assets: [{
-      id: "logo-v2",
-      path: "apps/desktop/assets/brand/generated/v2/logo.png",
-      category: "canonical_master",
-      role: "Canonical logo",
-      width: 1024,
-      height: 512,
-      color_mode: "RGBA",
-      sha256: "a".repeat(64),
-    }],
+    assets: [
+      {
+        id: "logo-v2",
+        path: "apps/desktop/assets/brand/generated/v2/logo.png",
+        category: "canonical_master",
+        role: "Canonical logo",
+        width: 1024,
+        height: 512,
+        color_mode: "RGBA",
+        sha256: "a".repeat(64),
+      },
+    ],
   };
 }
 
@@ -131,10 +133,13 @@ serde = "1"
 });
 
 test("accepts one matching semantic version and tag across every surface", () => {
-  assert.deepEqual(validateReleaseMetadata(validMetadata(), {
-    tag: "v1.2.3-beta.1",
-    expectedVersion: "1.2.3-beta.1",
-  }), []);
+  assert.deepEqual(
+    validateReleaseMetadata(validMetadata(), {
+      tag: "v1.2.3-beta.1",
+      expectedVersion: "1.2.3-beta.1",
+    }),
+    [],
+  );
 });
 
 test("reports every mismatched release identity in one pass", () => {
@@ -143,7 +148,10 @@ test("reports every mismatched release identity in one pass", () => {
   metadata.tauri.version = "1.2.4";
   metadata.tauri.bundle.homepage = "https://example.invalid/portcove";
   metadata.missingFiles = ["apps/desktop/src-tauri/icons/icon.ico"];
-  const errors = validateReleaseMetadata(metadata, { tag: "v1.2.3", expectedVersion: "1.2.4" });
+  const errors = validateReleaseMetadata(metadata, {
+    tag: "v1.2.3",
+    expectedVersion: "1.2.4",
+  });
   assert.equal(errors.length, 6);
   assert.match(errors.join("\n"), /desktop package version 1\.2\.2/);
   assert.match(errors.join("\n"), /Tauri bundle version 1\.2\.4/);
@@ -200,22 +208,40 @@ test("locks model anatomy, materials, and repository-contained files", () => {
 
 test("reports brand asset integrity failures with release metadata", () => {
   const metadata = validMetadata();
-  metadata.brandManifestErrors = ["brand asset logo-v2 SHA-256 does not match manifest"];
-  assert.match(validateReleaseMetadata(metadata).join("\n"), /brand asset logo-v2 SHA-256/);
+  metadata.brandManifestErrors = [
+    "brand asset logo-v2 SHA-256 does not match manifest",
+  ];
+  assert.match(
+    validateReleaseMetadata(metadata).join("\n"),
+    /brand asset logo-v2 SHA-256/,
+  );
 });
 
 test("reports model integrity failures with release metadata", () => {
   const metadata = validMetadata();
-  metadata.modelManifestErrors = ["model file mascot-v2-glb-exchange SHA-256 does not match manifest"];
-  assert.match(validateReleaseMetadata(metadata).join("\n"), /model file mascot-v2-glb-exchange SHA-256/);
+  metadata.modelManifestErrors = [
+    "model file mascot-v2-glb-exchange SHA-256 does not match manifest",
+  ];
+  assert.match(
+    validateReleaseMetadata(metadata).join("\n"),
+    /model file mascot-v2-glb-exchange SHA-256/,
+  );
 });
 
 test("parses inline and positional release options", () => {
-  assert.deepEqual(parseArguments(["--tag=v1.2.3", "--expect-version", "1.2.3", "--print-version"]), {
-    printVersion: true,
-    tag: "v1.2.3",
-    expectedVersion: "1.2.3",
-  });
+  assert.deepEqual(
+    parseArguments([
+      "--tag=v1.2.3",
+      "--expect-version",
+      "1.2.3",
+      "--print-version",
+    ]),
+    {
+      printVersion: true,
+      tag: "v1.2.3",
+      expectedVersion: "1.2.3",
+    },
+  );
   assert.throws(() => parseArguments(["--tag"]), /requires a value/);
   assert.throws(() => parseArguments(["--unknown"]), /unknown argument/);
 });

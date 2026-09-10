@@ -1,14 +1,32 @@
 import { useEffect, useRef, useState } from "react";
-import { activateFocusedControl, cyclePrimaryNavigation, dismissActiveDialog, fieldOwnsArrows, focusAndReveal, focusRegion, focusableControls, navigationScope } from "./focus";
+import {
+  activateFocusedControl,
+  cyclePrimaryNavigation,
+  dismissActiveDialog,
+  fieldOwnsArrows,
+  focusAndReveal,
+  focusRegion,
+  focusableControls,
+  navigationScope,
+} from "./focus";
 
 export type NavigationDirection = "up" | "down" | "left" | "right";
-export interface FocusRect { left: number; top: number; width: number; height: number }
-
-export function pressedButtons(buttons: readonly GamepadButton[]) {
-  return new Set(buttons.flatMap((button, index) => button.pressed ? [index] : []));
+export interface FocusRect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
 }
 
-export function navigationDirection(pad: Gamepad): NavigationDirection | undefined {
+export function pressedButtons(buttons: readonly GamepadButton[]) {
+  return new Set(
+    buttons.flatMap((button, index) => (button.pressed ? [index] : [])),
+  );
+}
+
+export function navigationDirection(
+  pad: Gamepad,
+): NavigationDirection | undefined {
   if (pad.buttons[12]?.pressed || pad.axes[1] < -0.65) return "up";
   if (pad.buttons[13]?.pressed || pad.axes[1] > 0.65) return "down";
   if (pad.buttons[14]?.pressed || pad.axes[0] < -0.65) return "left";
@@ -16,40 +34,79 @@ export function navigationDirection(pad: Gamepad): NavigationDirection | undefin
   return undefined;
 }
 
-export function keyboardNavigationAction(key: string): NavigationDirection | "back" | undefined {
+export function keyboardNavigationAction(
+  key: string,
+): NavigationDirection | "back" | undefined {
   if (key === "Escape") return "back";
   const directions: Record<string, NavigationDirection> = {
-    ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
+    ArrowUp: "up",
+    ArrowDown: "down",
+    ArrowLeft: "left",
+    ArrowRight: "right",
   };
   return Object.hasOwn(directions, key) ? directions[key] : undefined;
 }
 
-export function spatialTargetIndex(rects: FocusRect[], current: number, direction: NavigationDirection, groups: readonly unknown[] = []) {
+export function spatialTargetIndex(
+  rects: FocusRect[],
+  current: number,
+  direction: NavigationDirection,
+  groups: readonly unknown[] = [],
+) {
   if (rects.length === 0) return -1;
   if (current < 0 || current >= rects.length) return 0;
   const origin = rects[current];
   const vertical = direction === "up" || direction === "down";
-  const candidates = rects.map((rect, index) => ({ index, rect, distance: directionalGap(origin, rect, direction) }))
-    .filter(item => item.index !== current && item.distance >= -1 && (vertical || overlapsRow(origin, item.rect)));
+  const candidates = rects
+    .map((rect, index) => ({
+      index,
+      rect,
+      distance: directionalGap(origin, rect, direction),
+    }))
+    .filter(
+      (item) =>
+        item.index !== current &&
+        item.distance >= -1 &&
+        (vertical || overlapsRow(origin, item.rect)),
+    );
   if (candidates.length === 0) return -1;
-  const nearest = Math.min(...candidates.map(item => item.distance));
+  const nearest = Math.min(...candidates.map((item) => item.distance));
   // Visit the nearest visual row/column before considering alignment. A short
   // filter row must never lose to a large card farther down the page.
-  const band = candidates.filter(item => item.distance <= nearest + 3);
-  const enteringGroup = vertical && groups.length > 0 && band.every(item => groups[item.index] !== groups[current]);
-  const crossDistance = (rect: FocusRect) => vertical ? Math.abs(center(rect).x - center(origin).x) : Math.abs(center(rect).y - center(origin).y);
-  band.sort((a, b) => enteringGroup ? a.rect.left - b.rect.left : crossDistance(a.rect) - crossDistance(b.rect));
+  const band = candidates.filter((item) => item.distance <= nearest + 3);
+  const enteringGroup =
+    vertical &&
+    groups.length > 0 &&
+    band.every((item) => groups[item.index] !== groups[current]);
+  const crossDistance = (rect: FocusRect) =>
+    vertical
+      ? Math.abs(center(rect).x - center(origin).x)
+      : Math.abs(center(rect).y - center(origin).y);
+  band.sort((a, b) =>
+    enteringGroup
+      ? a.rect.left - b.rect.left
+      : crossDistance(a.rect) - crossDistance(b.rect),
+  );
   return band[0].index;
 }
 
 function overlapsRow(origin: FocusRect, candidate: FocusRect) {
-  return candidate.top < origin.top + origin.height && candidate.top + candidate.height > origin.top;
+  return (
+    candidate.top < origin.top + origin.height &&
+    candidate.top + candidate.height > origin.top
+  );
 }
 
-function directionalGap(origin: FocusRect, candidate: FocusRect, direction: NavigationDirection) {
+function directionalGap(
+  origin: FocusRect,
+  candidate: FocusRect,
+  direction: NavigationDirection,
+) {
   if (direction === "down") return candidate.top - (origin.top + origin.height);
-  if (direction === "up") return origin.top - (candidate.top + candidate.height);
-  if (direction === "right") return candidate.left - (origin.left + origin.width);
+  if (direction === "up")
+    return origin.top - (candidate.top + candidate.height);
+  if (direction === "right")
+    return candidate.left - (origin.left + origin.width);
   return origin.left - (candidate.left + candidate.width);
 }
 
@@ -63,15 +120,32 @@ class ControllerInput {
   sample(pad: Gamepad | undefined, timestamp: number) {
     const identity = pad ? `${pad.index}:${pad.id}` : "";
     const connectionChanged = identity !== this.identity;
-    if (connectionChanged) { this.previous.clear(); this.previousDirection = undefined; this.identity = identity; }
+    if (connectionChanged) {
+      this.previous.clear();
+      this.previousDirection = undefined;
+      this.identity = identity;
+    }
     const pressed = pad ? pressedButtons(pad.buttons) : new Set<number>();
-    const buttons = new Set([...pressed].filter(button => !this.previous.has(button)));
+    const buttons = new Set(
+      [...pressed].filter((button) => !this.previous.has(button)),
+    );
     const direction = pad ? navigationDirection(pad) : undefined;
-    const move = direction && (direction !== this.previousDirection || timestamp >= this.nextMoveAt) ? direction : undefined;
-    if (move) this.nextMoveAt = timestamp + (direction !== this.previousDirection ? 350 : 140);
+    const move =
+      direction &&
+      (direction !== this.previousDirection || timestamp >= this.nextMoveAt)
+        ? direction
+        : undefined;
+    if (move)
+      this.nextMoveAt =
+        timestamp + (direction !== this.previousDirection ? 350 : 140);
     this.previousDirection = direction;
     this.previous = pressed;
-    return { connectionChanged, buttons, move, active: Boolean(direction || pressed.size) };
+    return {
+      connectionChanged,
+      buttons,
+      move,
+      active: Boolean(direction || pressed.size),
+    };
   }
 }
 
@@ -94,12 +168,17 @@ export function useGamepadNavigation(onBack: () => void) {
     const poll = (timestamp: number) => {
       const pad = Array.from(navigator.getGamepads()).find(Boolean);
       const state = input.sample(pad ?? undefined, timestamp);
-      if (state.connectionChanged) setController(pad ? "Controller connected" : undefined);
+      if (state.connectionChanged)
+        setController(pad ? "Controller connected" : undefined);
       frame = requestAnimationFrame(poll);
       // Games and native file pickers must own their controller input while
       // Portcove is in the background. Still consume edges to avoid replay.
       if (!document.hasFocus()) return;
-      if (state.active && document.documentElement.dataset.inputMode !== "controller") document.documentElement.dataset.inputMode = "controller";
+      if (
+        state.active &&
+        document.documentElement.dataset.inputMode !== "controller"
+      )
+        document.documentElement.dataset.inputMode = "controller";
       if (state.move) moveFocus(state.move);
       controllerButton(state.buttons, () => back.current());
     };
@@ -118,7 +197,9 @@ export function useGamepadNavigation(onBack: () => void) {
       if (fieldOwnsArrows(target)) return;
       if (moveFocus(direction)) event.preventDefault();
     };
-    const pointerdown = () => { document.documentElement.dataset.inputMode = "pointer"; };
+    const pointerdown = () => {
+      document.documentElement.dataset.inputMode = "pointer";
+    };
     window.addEventListener("keydown", keydown);
     window.addEventListener("pointerdown", pointerdown);
     frame = requestAnimationFrame(poll);
@@ -133,15 +214,30 @@ export function useGamepadNavigation(onBack: () => void) {
 
 function moveFocus(direction: NavigationDirection) {
   const scope = navigationScope();
-  const origin = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
+  const origin =
+    document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : undefined;
   const containingRegion = origin?.closest<HTMLElement>("[data-focus-region]");
-  const region = containingRegion && scope.contains(containingRegion) ? containingRegion : undefined;
+  const region =
+    containingRegion && scope.contains(containingRegion)
+      ? containingRegion
+      : undefined;
   const horizontal = direction === "left" || direction === "right";
-  const candidates = focusableControls(region ?? scope).filter(item => !region || item.closest("[data-focus-region]") === region);
-  const target = spatialTargetIndex(candidates.map(item => item.getBoundingClientRect()), origin ? candidates.indexOf(origin) : -1, direction, candidates.map(item => item.closest("[data-focus-group]")));
+  const candidates = focusableControls(region ?? scope).filter(
+    (item) => !region || item.closest("[data-focus-region]") === region,
+  );
+  const target = spatialTargetIndex(
+    candidates.map((item) => item.getBoundingClientRect()),
+    origin ? candidates.indexOf(origin) : -1,
+    direction,
+    candidates.map((item) => item.closest("[data-focus-group]")),
+  );
   if (target < 0 && horizontal && region) {
-    if (direction === "left" && region.dataset.focusRegion === "workspace") return focusRegion("sidebar");
-    if (direction === "right" && region.dataset.focusRegion === "sidebar") return focusRegion("workspace");
+    if (direction === "left" && region.dataset.focusRegion === "workspace")
+      return focusRegion("sidebar");
+    if (direction === "right" && region.dataset.focusRegion === "sidebar")
+      return focusRegion("workspace");
   }
   if (target < 0) return false;
   focusAndReveal(candidates[target]);

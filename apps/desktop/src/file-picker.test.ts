@@ -1,7 +1,13 @@
 import { sourceProfile } from "./test-fixtures";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { open } from "@tauri-apps/plugin-dialog";
-import { pickGameOutputFolder, pickHostToolExecutable, pickInstallFolder, pickSourceArchivePath, pickSourcePath } from "./file-picker";
+import {
+  pickGameOutputFolder,
+  pickHostToolExecutable,
+  pickInstallFolder,
+  pickSourceArchivePath,
+  pickSourcePath,
+} from "./file-picker";
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn() }));
 const openMock = vi.mocked(open);
@@ -11,19 +17,42 @@ describe("native path pickers", () => {
 
   it("includes supported cartridge ZIPs alongside the profile extensions", async () => {
     openMock.mockResolvedValue("D:/Sources/game.z64");
-    await expect(pickSourcePath({ ...sourceProfile(), id: "game", label: "Game", accepted_extensions: [".z64", "n64"] }, "D:/Sources/old.z64")).resolves.toBe("D:/Sources/game.z64");
+    await expect(
+      pickSourcePath(
+        {
+          ...sourceProfile(),
+          id: "game",
+          label: "Game",
+          accepted_extensions: [".z64", "n64"],
+        },
+        "D:/Sources/old.z64",
+      ),
+    ).resolves.toBe("D:/Sources/game.z64");
     expect(openMock).toHaveBeenCalledWith({
       multiple: false,
       directory: false,
       defaultPath: "D:/Sources/old.z64",
-      filters: [{ name: "Original game source", extensions: ["z64", "n64", "zip"] }],
+      filters: [
+        { name: "Original game source", extensions: ["z64", "n64", "zip"] },
+      ],
     });
   });
 
   it("keeps single-disc selection limited to the declared disc formats", async () => {
-    await pickSourcePath({ ...sourceProfile(), id: "disc", label: "Disc", kind: "psx-disc", accepted_extensions: ["CHD"] }, "");
+    await pickSourcePath(
+      {
+        ...sourceProfile(),
+        id: "disc",
+        label: "Disc",
+        kind: "psx-disc",
+        accepted_extensions: ["CHD"],
+      },
+      "",
+    );
     expect(openMock).toHaveBeenCalledWith({
-      multiple: false, directory: false, defaultPath: undefined,
+      multiple: false,
+      directory: false,
+      defaultPath: undefined,
       filters: [{ name: "Original game source", extensions: ["chd"] }],
     });
   });
@@ -39,14 +68,34 @@ describe("native path pickers", () => {
       disc: {
         track_counts: [1],
         discs: [
-          { accepted_sha1: [], accepted_sha256: [], accepted_volume_ids: [], label: "Disc 1", track_counts: [1] },
-          { accepted_sha1: [], accepted_sha256: [], accepted_volume_ids: [], label: "Disc 2", track_counts: [1] },
-          { accepted_sha1: [], accepted_sha256: [], accepted_volume_ids: [], label: "Disc 3", track_counts: [1] },
+          {
+            accepted_sha1: [],
+            accepted_sha256: [],
+            accepted_volume_ids: [],
+            label: "Disc 1",
+            track_counts: [1],
+          },
+          {
+            accepted_sha1: [],
+            accepted_sha256: [],
+            accepted_volume_ids: [],
+            label: "Disc 2",
+            track_counts: [1],
+          },
+          {
+            accepted_sha1: [],
+            accepted_sha256: [],
+            accepted_volume_ids: [],
+            label: "Disc 3",
+            track_counts: [1],
+          },
         ],
       },
     };
 
-    await expect(pickSourcePath(profile, "D:/Sources/Final Fantasy VII")).resolves.toBe("D:/Sources/Final Fantasy VII");
+    await expect(
+      pickSourcePath(profile, "D:/Sources/Final Fantasy VII"),
+    ).resolves.toBe("D:/Sources/Final Fantasy VII");
     expect(openMock).toHaveBeenCalledWith({
       multiple: false,
       directory: true,
@@ -66,7 +115,9 @@ describe("native path pickers", () => {
       members: [],
     };
 
-    await expect(pickSourcePath(profile, "")).resolves.toBe("D:/Sources/G-Diffuser");
+    await expect(pickSourcePath(profile, "")).resolves.toBe(
+      "D:/Sources/G-Diffuser",
+    );
     expect(openMock).toHaveBeenCalledWith({
       multiple: false,
       directory: true,
@@ -77,7 +128,9 @@ describe("native path pickers", () => {
 
   it("selects a ZIP for a compressed exact file set", async () => {
     openMock.mockResolvedValue("D:/Sources/outrun.zip");
-    await expect(pickSourceArchivePath("")).resolves.toBe("D:/Sources/outrun.zip");
+    await expect(pickSourceArchivePath("")).resolves.toBe(
+      "D:/Sources/outrun.zip",
+    );
     expect(openMock).toHaveBeenCalledWith({
       multiple: false,
       directory: false,
@@ -89,12 +142,18 @@ describe("native path pickers", () => {
   it("opens a single directory picker and preserves cancellation", async () => {
     openMock.mockResolvedValue(null);
     await expect(pickInstallFolder("")).resolves.toBeNull();
-    expect(openMock).toHaveBeenCalledWith({ multiple: false, directory: true, defaultPath: undefined });
+    expect(openMock).toHaveBeenCalledWith({
+      multiple: false,
+      directory: true,
+      defaultPath: undefined,
+    });
   });
 
   it("names the per-game output picker without implying a library move", async () => {
     openMock.mockResolvedValue("F:/Games/Sample");
-    await expect(pickGameOutputFolder("F:/Games")).resolves.toBe("F:/Games/Sample");
+    await expect(pickGameOutputFolder("F:/Games")).resolves.toBe(
+      "F:/Games/Sample",
+    );
     expect(openMock).toHaveBeenCalledWith({
       title: "Choose Export / install folder",
       multiple: false,
@@ -105,7 +164,9 @@ describe("native path pickers", () => {
 
   it("uses a neutral native executable picker without accepting probe arguments", async () => {
     openMock.mockResolvedValue(null);
-    await expect(pickHostToolExecutable("DolphinTool", "D:/Tools/DolphinTool.exe")).resolves.toBeNull();
+    await expect(
+      pickHostToolExecutable("DolphinTool", "D:/Tools/DolphinTool.exe"),
+    ).resolves.toBeNull();
     expect(openMock).toHaveBeenCalledWith({
       title: "Locate DolphinTool executable",
       multiple: false,

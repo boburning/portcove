@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { addPendingOperation, LatestRequestGeneration, mostRecentPendingOperation, removePendingOperation } from "./concurrency-state";
+import {
+  addPendingOperation,
+  LatestRequestGeneration,
+  mostRecentPendingOperation,
+  removePendingOperation,
+} from "./concurrency-state";
 
 describe("overlapping desktop work", () => {
   it("accepts only the newest refresh when requests finish in reverse order", () => {

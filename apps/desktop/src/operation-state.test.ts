@@ -38,7 +38,9 @@ describe("operation event state", () => {
   it("retains nested operation correlation", () => {
     let state = new Map<string, OperationEvent>();
     state = new Map(applyOperationEvent(state, event("parent", 0, 10)));
-    state = new Map(applyOperationEvent(state, event("child", 0, 11, "parent")));
+    state = new Map(
+      applyOperationEvent(state, event("child", 0, 11, "parent")),
+    );
 
     expect(state.get("child")?.parent_operation_id).toBe("parent");
   });
@@ -50,7 +52,8 @@ describe("operation event state", () => {
     for (let index = 0; index < 5_000; index++) {
       state = applyOperationEvent(state, {
         ...event(`finished-${index}`, 3, 100 + index),
-        type: "finished", result: "succeeded",
+        type: "finished",
+        result: "succeeded",
       });
     }
     expect(state.size).toBeLessThanOrEqual(34);
@@ -65,14 +68,26 @@ describe("operation event state", () => {
     let state: ReadonlyMap<string, OperationEvent> = new Map();
     state = applyOperationEvent(state, event("parent", 0, 10));
     state = applyOperationEvent(state, event("child", 0, 11, "parent"));
-    state = applyOperationEvent(state, { ...event("parent", 1, 12), type: "finished", result: "failed" });
+    state = applyOperationEvent(state, {
+      ...event("parent", 1, 12),
+      type: "finished",
+      result: "failed",
+    });
     for (let index = 0; index < 64; index++) {
-      state = applyOperationEvent(state, { ...event(`other-${index}`, 1, 100 + index), type: "finished", result: "succeeded" });
+      state = applyOperationEvent(state, {
+        ...event(`other-${index}`, 1, 100 + index),
+        type: "finished",
+        result: "succeeded",
+      });
     }
     expect(state.size).toBe(34);
     expect(state.get("parent")?.result).toBe("failed");
     expect(mostRecentOperation(state)?.operation_id).toBe("child");
-    state = applyOperationEvent(state, { ...event("child", 1, 200, "parent"), type: "finished", result: "cancelled" });
+    state = applyOperationEvent(state, {
+      ...event("child", 1, 200, "parent"),
+      type: "finished",
+      result: "cancelled",
+    });
     expect(state.size).toBe(32);
     expect(state.has("parent")).toBe(false);
     expect(mostRecentOperation(state)?.result).toBe("cancelled");
@@ -80,13 +95,27 @@ describe("operation event state", () => {
 
   it("keeps recent success, failure and cancellation without reviving completed work", () => {
     const initial = new Map<string, OperationEvent>();
-    const completed = applyOperationEvent(initial, { ...event("completed", 4, 40), type: "finished", result: "failed" });
+    const completed = applyOperationEvent(initial, {
+      ...event("completed", 4, 40),
+      type: "finished",
+      result: "failed",
+    });
     expect(initial.size).toBe(0);
-    expect(applyOperationEvent(completed, event("completed", 3, 50))).toBe(completed);
-    expect(applyOperationEvent(completed, event("completed", 5, 60))).toBe(completed);
+    expect(applyOperationEvent(completed, event("completed", 3, 50))).toBe(
+      completed,
+    );
+    expect(applyOperationEvent(completed, event("completed", 5, 60))).toBe(
+      completed,
+    );
     let state = completed;
-    for (const [index, result] of (["succeeded", "failed", "cancelled"] as const).entries()) {
-      state = applyOperationEvent(state, { ...event(result, 1, 100 + index), type: "finished", result });
+    for (const [index, result] of (
+      ["succeeded", "failed", "cancelled"] as const
+    ).entries()) {
+      state = applyOperationEvent(state, {
+        ...event(result, 1, 100 + index),
+        type: "finished",
+        result,
+      });
     }
     expect(state.get("succeeded")?.result).toBe("succeeded");
     expect(state.get("failed")?.result).toBe("failed");
@@ -99,7 +128,11 @@ describe("operation event state", () => {
     state = applyOperationEvent(state, event("cycle-a", 0, 10, "cycle-b"));
     state = applyOperationEvent(state, event("cycle-b", 0, 11, "cycle-a"));
     for (let index = 63; index >= 0; index--) {
-      state = applyOperationEvent(state, { ...event(`finished-${index}`, 1, 100 + index), type: "finished", result: "succeeded" });
+      state = applyOperationEvent(state, {
+        ...event(`finished-${index}`, 1, 100 + index),
+        type: "finished",
+        result: "succeeded",
+      });
     }
     expect(state.size).toBe(34);
     expect(state.has("finished-63")).toBe(true);

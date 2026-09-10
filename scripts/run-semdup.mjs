@@ -3,9 +3,15 @@ import { mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
-mkdirSync(fileURLToPath(new URL("../.semdup/", import.meta.url)), { recursive: true });
+mkdirSync(fileURLToPath(new URL("../.semdup/", import.meta.url)), {
+  recursive: true,
+});
 const command = process.platform === "win32" ? "semdup.exe" : "semdup";
-const result = spawnSync(command, ["scan"], { cwd: repositoryRoot, encoding: "utf8", stdio: "inherit" });
+const result = spawnSync(command, ["scan"], {
+  cwd: repositoryRoot,
+  encoding: "utf8",
+  stdio: "inherit",
+});
 const requireExecution = process.env.PORTCOVE_REQUIRE_DEEP_TOOLS === "1";
 
 function reportExecutionFailure(message) {
