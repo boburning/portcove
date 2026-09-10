@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import axe from "axe-core";
 import { copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { By, until } from "selenium-webdriver";
+import { By, Key, until } from "selenium-webdriver";
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 import { backupReviewScenario } from "./desktop-backup-review-test.mjs";
 import { removalReviewScenario } from "./desktop-removal-review-test.mjs";
@@ -200,7 +200,8 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
     const openCatalogPort = async id => {
       const port = command(["catalog", "show", id]);
       const search = await browser.findElement(By.id("port-search"));
-      await search.clear(); await search.sendKeys(port.name);
+      await search.sendKeys(Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"), Key.BACK_SPACE, port.name);
+      await browser.wait(async () => await search.getAttribute("value") === port.name, 5_000);
       const card = By.xpath(`//button[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`);
       await browser.wait(until.elementLocated(card), 15_000);
       await browser.findElement(card).click();
