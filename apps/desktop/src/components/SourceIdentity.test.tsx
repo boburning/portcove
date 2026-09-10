@@ -68,7 +68,8 @@ describe("source identity presentation", () => {
     const value = report(state);
     value.applications[0].contract_result.state = state as SourceInspectionReport["applications"][number]["contract_result"]["state"];
     value.applications[0].release_applicability.state_code = state;
-    if (value.inspection?.assessment.admission.state === "admitted") value.inspection.assessment.admission.mode = state as typeof value.inspection.assessment.admission.mode;
+    const admission = value.inspection?.assessment.admission;
+    if (admission?.state === "admitted") admission.mode = state as typeof admission.mode;
     const html = renderToStaticMarkup(<SourceIdentityPanel report={value} />);
     for (const label of ["Result unavailable", "Admission result unavailable", "Requirement result unavailable", "Release applicability unavailable"]) expect(html).toContain(label);
     expect(html).not.toContain("Source result: Exact match");
