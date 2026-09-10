@@ -16,6 +16,9 @@ avoids a second mutable database or a missing sidecar during moves and exports.
 This trades repeated catalog bytes per version for a single atomic payload and
 an independently readable contract. The retained catalog uses the existing 4 MiB
 catalog limit and rejects unknown or discarded semantics.
+Core memoizes pure decoding of the most recently validated exact content string,
+bounded to one catalog. Each read still verifies the current manifest bytes and
+digest; the cache contains no filesystem, source-admission, or revocation decision.
 
 Launch, preparation, rollback, staged activation, recovery, verification, output
 relocation, and save synchronization resolve each registered version's execution

@@ -5,8 +5,14 @@
 //! evidence records from a later catalog. This records semantics, not new trust.
 
 use serde::{Deserialize, Serialize};
+use std::sync::Mutex;
 
 use crate::{Catalog, PortcoveError, Result};
+
+// Cache only pure decoding of one exact bounded content string. Installation
+// reads still verify the current manifest bytes and digest first;
+// source admission, revocation policy and filesystem integrity are not cached.
+static DECODED_CATALOG: Mutex<Option<(String, Catalog)>> = Mutex::new(None);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -43,6 +49,13 @@ impl InstalledContract {
                 "retained definition contract exceeds the supported content bound",
             ));
         }
+        if let Ok(cache) = DECODED_CATALOG.lock()
+            && let Some((content, catalog)) = cache.as_ref()
+            && content == &self.catalog_json
+        {
+            catalog.port(port_id)?;
+            return Ok(catalog.clone());
+        }
         let catalog = Catalog::from_json(&self.catalog_json)?;
         catalog.port(port_id)?;
         // This version stores a canonical legacy projection, not arbitrary future
@@ -53,6 +66,9 @@ impl InstalledContract {
             return Err(PortcoveError::verification(
                 "retained definition contains unsupported or noncanonical semantics",
             ));
+        }
+        if let Ok(mut cache) = DECODED_CATALOG.lock() {
+            *cache = Some((self.catalog_json.clone(), catalog.clone()));
         }
         Ok(catalog)
     }
