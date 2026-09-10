@@ -21,7 +21,6 @@ describe("catalog and capacity presentation", () => {
           view="catalog"
           ports={[port]}
           statuses={new Map()}
-          registeredSources={new Set()}
           overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
           filter="all"
           setFilter={vi.fn()}

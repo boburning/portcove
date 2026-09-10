@@ -141,17 +141,26 @@ function DetailDialog({
   const policy = status?.update_policy ?? "notify";
   const { sourceReady, biosReady, launchReady, installed, pendingSetup } =
     detailReadiness(port, status, source, sourcePath, bios, biosPath);
-  const state = detailState(
-    installed,
-    launchReady,
-    Boolean(status?.staged),
-    pendingSetup,
-    Boolean(status?.readiness?.blockers.includes("missing_runtime")),
-    status?.readiness?.source,
-    status?.readiness?.bios,
-    Boolean(sourcePath.trim() || biosPath?.trim()),
-    Boolean(status?.readiness?.blockers.includes("invalid_installation")),
-  );
+  const state =
+    installed && typeof status?.readiness?.launchable !== "boolean"
+      ? {
+          title: "Readiness unavailable",
+          description:
+            "Current launch readiness is unavailable. Reopen Portcove to check again.",
+          tone: "setup",
+          icon: AlertTriangle,
+        }
+      : detailState(
+          installed,
+          launchReady,
+          Boolean(status?.staged),
+          pendingSetup,
+          Boolean(status?.readiness?.blockers.includes("missing_runtime")),
+          status?.readiness?.source,
+          status?.readiness?.bios,
+          Boolean(sourcePath.trim() || biosPath?.trim()),
+          Boolean(status?.readiness?.blockers.includes("invalid_installation")),
+        );
   const sources: SourceControls = {
     port,
     source,
@@ -446,16 +455,12 @@ function detailReadiness(
     status?.readiness?.bios,
     Boolean(bios || biosPath?.trim()),
   );
-  const fallbackLaunchable =
-    sourceReady &&
-    biosReady &&
-    !status?.readiness?.blockers.includes("missing_runtime");
   return {
     sourceReady,
     biosReady,
     launchReady: installed
-      ? (status?.readiness?.launchable ?? fallbackLaunchable)
-      : fallbackLaunchable,
+      ? status?.readiness?.launchable === true
+      : sourceReady && biosReady,
     installed,
     pendingSetup: Boolean(status?.readiness?.pending_setup),
   };
@@ -930,7 +935,7 @@ function PrimaryActions({
             ? "Prepare game data before playing"
             : launchReady
               ? "Launch this port"
-              : "Register every required source before launching"
+              : "Review the current launch requirements"
         }
         disabled={preparationRequired || !launchReady || Boolean(busy)}
         onClick={actions.launch}
@@ -943,7 +948,7 @@ function PrimaryActions({
         {preparationRequired
           ? "Prepare game data first"
           : !launchReady
-            ? "Choose required source"
+            ? "Play unavailable"
             : pendingSetup
               ? "Complete setup and play"
               : "Play now"}
@@ -1221,9 +1226,9 @@ function detailState(
     };
   if (!launchReady)
     return {
-      title: "Finish setup",
+      title: "Launch unavailable",
       description:
-        "Register the required original source or BIOS to unlock Play.",
+        "Review the game's current requirements and recovery information before playing.",
       tone: "setup",
       icon: Wrench,
     };

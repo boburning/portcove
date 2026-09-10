@@ -31,7 +31,6 @@ export function PortBrowser({
   view,
   ports,
   statuses,
-  registeredSources,
   overview,
   recent,
   filter,
@@ -46,7 +45,6 @@ export function PortBrowser({
   view: View;
   ports: PortDefinition[];
   statuses: Map<string, PortStatus>;
-  registeredSources: ReadonlySet<string>;
   overview: LibraryOverview;
   filter: Filter;
   recent?: RecentPort;
@@ -95,7 +93,6 @@ export function PortBrowser({
         view={view}
         ports={ports}
         statuses={statuses}
-        registeredSources={registeredSources}
         onSelect={onSelect}
         onBrowseCatalog={onBrowseCatalog}
         clearFilters={clearFilters}
@@ -110,7 +107,6 @@ function BrowserResults({
   view,
   ports,
   statuses,
-  registeredSources,
   onSelect,
   onBrowseCatalog,
   clearFilters,
@@ -120,7 +116,6 @@ function BrowserResults({
   view: View;
   ports: PortDefinition[];
   statuses: Map<string, PortStatus>;
-  registeredSources: ReadonlySet<string>;
   onSelect: (portId: string) => void;
   onBrowseCatalog?: () => void;
   clearFilters?: () => void;
@@ -143,11 +138,7 @@ function BrowserResults({
           key={port.id}
           port={port}
           status={statuses.get(port.id)}
-          readiness={portReadiness(
-            port,
-            statuses.get(port.id),
-            registeredSources,
-          )}
+          readiness={portReadiness(statuses.get(port.id))}
           onSelect={onSelect}
           nativeSourceDrag={nativeSourceDrag}
         />
@@ -238,6 +229,7 @@ function ContinueCard({
   details: (portId: string) => void;
 }) {
   const { port, status } = recent;
+  const launchable = status.readiness?.launchable === true;
   return (
     <section
       className="continue-card"
@@ -262,16 +254,10 @@ function ContinueCard({
         <button
           data-focusable
           className="primary button-with-icon"
-          onClick={() =>
-            status.readiness?.launchable === false
-              ? details(port.id)
-              : launch(port.id)
-          }
+          onClick={() => (launchable ? launch(port.id) : details(port.id))}
         >
           <Icon glyph={Gamepad2} />
-          {status.readiness?.launchable === false
-            ? "Finish setup"
-            : "Play again"}
+          {launchable ? "Play again" : "Review launch"}
         </button>
       </div>
     </section>
@@ -296,7 +282,7 @@ function LibrarySummary({ overview }: { overview: LibraryOverview }) {
         </span>
         <p>
           <strong className="summary-value">{overview.needsSetup}</strong>
-          <small>Need setup</small>
+          <small>Need attention</small>
         </p>
       </div>
       <div>
@@ -400,7 +386,7 @@ function PortCard({
 function filterLabel(filter: Filter) {
   if (filter === "all") return "All";
   if (filter === "ready") return "Ready";
-  if (filter === "setup") return "Needs setup";
+  if (filter === "setup") return "Needs attention";
   return filter;
 }
 
@@ -426,6 +412,16 @@ function readinessPresentation(readiness: PortReadiness) {
     bios: { label: "BIOS required", action: "Finish setup", tone: "setup" },
     setup: { label: "Setup required", action: "Finish setup", tone: "setup" },
     staged: { label: "Update staged", action: "Review update", tone: "staged" },
+    unknown: {
+      label: "Readiness unavailable",
+      action: "Review game",
+      tone: "setup",
+    },
+    blocked: {
+      label: "Launch unavailable",
+      action: "Review game",
+      tone: "setup",
+    },
   } as const;
   return values[readiness];
 }

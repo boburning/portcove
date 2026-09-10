@@ -325,7 +325,7 @@ describe("desktop components", () => {
     );
     expect(html).toContain("Original source changed");
     expect(html).toContain("Registered source changed since it was added");
-    expect(html).toContain("Choose required source");
+    expect(html).toContain("Play unavailable");
     expect(html).not.toContain("Play now");
   });
   it("shows the reviewed adoption copy plan and skipped entries before copying", () => {
@@ -986,6 +986,12 @@ describe("desktop components", () => {
       channel: "stable",
       update_policy: "notify",
       active: installRecord(),
+      readiness: {
+        launchable: true,
+        blockers: [],
+        pending_setup: false,
+        source: "current",
+      },
     };
     const installed = renderToStaticMarkup(
       <DetailPanel
@@ -1195,7 +1201,6 @@ describe("desktop components", () => {
         view="catalog"
         ports={[port]}
         statuses={new Map()}
-        registeredSources={new Set()}
         overview={overview}
         filter="all"
         setFilter={vi.fn()}
@@ -1208,7 +1213,6 @@ describe("desktop components", () => {
         view="catalog"
         ports={[]}
         statuses={new Map()}
-        registeredSources={new Set()}
         overview={overview}
         filter="all"
         setFilter={vi.fn()}
@@ -1221,7 +1225,6 @@ describe("desktop components", () => {
         view="library"
         ports={[]}
         statuses={new Map()}
-        registeredSources={new Set()}
         overview={overview}
         filter="all"
         setFilter={vi.fn()}
@@ -1234,7 +1237,6 @@ describe("desktop components", () => {
         view="library"
         ports={[]}
         statuses={new Map()}
-        registeredSources={new Set()}
         overview={overview}
         filter="all"
         setFilter={vi.fn()}
@@ -1278,7 +1280,6 @@ describe("desktop components", () => {
         view="catalog"
         ports={[port]}
         statuses={new Map()}
-        registeredSources={new Set()}
         overview={overview}
         filter="all"
         setFilter={vi.fn()}
@@ -1291,7 +1292,6 @@ describe("desktop components", () => {
         view="catalog"
         ports={[port]}
         statuses={new Map()}
-        registeredSources={new Set()}
         overview={overview}
         filter="all"
         setFilter={vi.fn()}
@@ -1366,7 +1366,6 @@ describe("desktop components", () => {
         view="library"
         ports={[port]}
         statuses={new Map([[port.id, status]])}
-        registeredSources={new Set(["sample-rom"])}
         overview={{ installed: 1, ready: 1, needsSetup: 0, staged: 0 }}
         filter="ready"
         setFilter={vi.fn()}
@@ -1390,13 +1389,18 @@ describe("desktop components", () => {
       active: install,
       last_launched_at: 100,
       successful_launches: 1,
+      readiness: {
+        launchable: true,
+        blockers: [],
+        pending_setup: false,
+        source: "current",
+      },
     };
     const html = renderToStaticMarkup(
       <PortBrowser
         view="library"
         ports={[port]}
         statuses={new Map([[port.id, recentStatus]])}
-        registeredSources={new Set(["sample-rom"])}
         overview={{ installed: 1, ready: 1, needsSetup: 0, staged: 0 }}
         recent={{ port, status: recentStatus }}
         filter="all"
@@ -1433,7 +1437,6 @@ describe("desktop components", () => {
         view="library"
         ports={[port]}
         statuses={new Map([[port.id, recentStatus]])}
-        registeredSources={new Set(["sample-rom"])}
         overview={{ installed: 1, ready: 0, needsSetup: 1, staged: 0 }}
         recent={{ port, status: recentStatus }}
         filter="all"
@@ -1443,7 +1446,7 @@ describe("desktop components", () => {
         loading={false}
       />,
     );
-    expect(html).toContain("Finish setup");
+    expect(html).toContain("Review launch");
     expect(html).not.toContain("Play again");
   });
 

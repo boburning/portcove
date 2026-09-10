@@ -89,6 +89,11 @@ if (values["preparation-cli"] || values["preparation-tool"]) {
   );
   inputs.push(
     await fileIdentity(
+      fileURLToPath(new URL("./desktop-readiness-test.mjs", import.meta.url)),
+    ),
+  );
+  inputs.push(
+    await fileIdentity(
       fileURLToPath(
         new URL("./desktop-artwork-observations.mjs", import.meta.url),
       ),

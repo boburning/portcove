@@ -16,6 +16,7 @@ import {
   captureAccessibilityReport,
   clickVisible,
 } from "./desktop-review-controls.mjs";
+import { readinessScenario } from "./desktop-readiness-test.mjs";
 
 export async function preparationScenarios({
   browser,
@@ -163,6 +164,14 @@ export async function preparationScenarios({
       await readFile(log, "utf8"),
       "setup must not run during desktop Play",
     );
+  });
+  await readinessScenario({
+    browser,
+    scenario,
+    output,
+    artifacts,
+    command,
+    open,
   });
   await scenario("native-retained-contract-repair-state", async () => {
     const port = command(["catalog", "show", "opengoal-jak1"]);

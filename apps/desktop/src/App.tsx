@@ -435,10 +435,6 @@ function useAppModel(data: DataState, ui: UiState) {
     () => indexStatuses(data.statuses),
     [data.statuses],
   );
-  const registeredSources = useMemo(
-    () => new Set(data.sources.map((source) => source.profile_id)),
-    [data.sources],
-  );
   const visible = useMemo(
     () =>
       filterPorts(
@@ -447,14 +443,12 @@ function useAppModel(data: DataState, ui: UiState) {
         ui.view,
         ui.filter,
         ui.query,
-        registeredSources,
       ),
-    [data.catalog, statusMap, ui.view, ui.filter, ui.query, registeredSources],
+    [data.catalog, statusMap, ui.view, ui.filter, ui.query],
   );
   const overview = useMemo(
-    () =>
-      summarizeLibrary(data.catalog?.ports ?? [], statusMap, registeredSources),
-    [data.catalog, statusMap, registeredSources],
+    () => summarizeLibrary(data.catalog?.ports ?? [], statusMap),
+    [data.catalog, statusMap],
   );
   const recent = useMemo(
     () => mostRecentPort(data.catalog?.ports ?? [], statusMap),
@@ -480,15 +474,7 @@ function useAppModel(data: DataState, ui: UiState) {
   useEffect(() => {
     ui.setBiosPath(selection.bios?.path ?? "");
   }, [ui.selectedId, selection.bios?.path]);
-  return {
-    statusMap,
-    registeredSources,
-    visible,
-    overview,
-    recent,
-    sourceNeeds,
-    ...selection,
-  };
+  return { statusMap, visible, overview, recent, sourceNeeds, ...selection };
 }
 
 function selectedPort(
@@ -638,7 +624,6 @@ function CurrentView({
       view={ui.view}
       ports={model.visible}
       statuses={model.statusMap}
-      registeredSources={model.registeredSources}
       overview={model.overview}
       recent={model.recent}
       filter={ui.filter}
