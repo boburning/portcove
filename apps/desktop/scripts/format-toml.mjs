@@ -3,17 +3,8 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = fileURLToPath(new URL("..", import.meta.url));
-const taploCli = path.join(
-  root,
-  "apps",
-  "desktop",
-  "node_modules",
-  "@taplo",
-  "cli",
-  "dist",
-  "cli.js",
-);
+const root = fileURLToPath(new URL("../../..", import.meta.url));
+const taploCli = fileURLToPath(import.meta.resolve("@taplo/cli/dist/cli.js"));
 const config = path.join(root, "taplo.toml");
 const check = process.argv.slice(2).includes("--check");
 
