@@ -3,6 +3,7 @@ mod adapter;
 mod archive;
 mod artwork;
 mod artwork_image;
+mod artwork_ingestion;
 mod artwork_store;
 #[cfg(test)]
 mod artwork_tests;

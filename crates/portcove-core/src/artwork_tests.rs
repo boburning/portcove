@@ -550,3 +550,79 @@ fn transfer_review_rejects_untracked_artwork_payloads_before_copying() {
         b"retain this unexpected file"
     );
 }
+
+#[test]
+fn interrupted_original_staging_retries_once_or_is_explicitly_retired() {
+    let temp = tempfile::tempdir().unwrap();
+    let service = open_service(&temp.path().join("library"));
+    let png = image_file(temp.path(), "cover.png", image::ImageFormat::Png);
+    let bytes = fs::read(&png).unwrap();
+    let id = crate::signed_catalog::digest(&bytes);
+    // Reserve the inventory using the real failure path, before any payload copy.
+    let originals = service.library().root().join("artwork");
+    fs::write(&originals, b"obstruction").unwrap();
+    assert!(
+        service
+            .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &png, 0)
+            .is_err()
+    );
+    fs::remove_file(&originals).unwrap();
+    let staged = crate::artwork_ingestion::staging_path(service.library(), &id).unwrap();
+    fs::create_dir_all(staged.parent().unwrap()).unwrap();
+    fs::write(&staged, &bytes[..bytes.len() / 2]).unwrap();
+    service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &png, 0)
+        .unwrap();
+    assert!(!staged.exists());
+    assert_eq!(fs::read(originals.join(&id)).unwrap(), bytes);
+    assert_eq!(fs::read_dir(staged.parent().unwrap()).unwrap().count(), 0);
+    service
+        .reset_artwork("zelda64-recomp", ArtworkSlot::Cover, 1)
+        .unwrap();
+    fs::remove_file(originals.join(&id)).unwrap();
+    fs::write(&staged, b"changed incomplete copy").unwrap();
+    assert!(
+        service
+            .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &png, 2)
+            .is_err()
+    );
+    assert_eq!(fs::read(&staged).unwrap(), b"changed incomplete copy");
+    service.remove_unused_local_artwork(&id).unwrap();
+    assert!(!staged.exists());
+    assert!(service.unused_local_artwork().unwrap().is_empty());
+    assert_eq!(fs::read(png).unwrap(), bytes);
+}
+
+#[test]
+fn interrupted_thumbnail_staging_can_be_cleared_or_rebuilt_without_losing_choice() {
+    let temp = tempfile::tempdir().unwrap();
+    let service = open_service(&temp.path().join("library"));
+    let png = image_file(temp.path(), "cover.png", image::ImageFormat::Png);
+    let selected = service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &png, 0)
+        .unwrap()
+        .choice;
+    let pending = service
+        .library()
+        .root()
+        .join("artwork-cache/pending-thumbnail");
+    fs::create_dir_all(pending.parent().unwrap()).unwrap();
+    fs::write(&pending, b"incomplete thumbnail").unwrap();
+    assert_eq!(service.clear_artwork_cache().unwrap().removed_files, 1);
+    fs::write(&pending, b"another incomplete thumbnail").unwrap();
+    assert!(
+        !service
+            .artwork_thumbnail("zelda64-recomp", ArtworkSlot::Cover, 1)
+            .unwrap()
+            .png
+            .is_empty()
+    );
+    assert!(!pending.exists());
+    assert_eq!(
+        service
+            .artwork("zelda64-recomp", ArtworkSlot::Cover)
+            .unwrap()
+            .choice,
+        selected
+    );
+}

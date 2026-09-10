@@ -22,10 +22,16 @@ Imports reserve tracked inventory before atomically publishing copied bytes, the
 commit the choice. Interruption retains the previous choice and may leave an unused
 record or original; retrying the import or explicitly removing that unused asset
 resolves it. Inventory includes interrupted imports and is bounded to 4096 assets
-and 1 GiB. Originals remain until explicit unused-image removal. Thumbnail failures
+and 1 GiB. Each reserved image has at most one fixed file in `artwork-staging`;
+retry replaces only a matching partial copy, and explicit unused-image removal
+also discards that bounded incomplete copy. No random temporary-file accumulation
+is possible across repeated import interruptions. Staging is excluded from payload
+exports. Originals remain until explicit unused-image removal. Thumbnail failures
 cannot prevent choosing a validated original. On-demand PNG thumbnails fit within
 384 by 576 pixels and 1 MiB each. Their separate 64 MiB cache verifies content hashes,
 rebuilds missing/corrupt entries, and evicts entries in deterministic filename order.
+One bounded pending thumbnail is recognized for interrupted-write retry or cache
+clearing; publication may require up to 1 MiB of temporary working space.
 Unexpected files or symlink paths are retained and rejected, never traversed.
 
 Library metadata format 3 exports logical choices and local asset identities with

@@ -164,7 +164,12 @@ impl PortcoveService {
                 ));
             }
         } else {
-            crate::durability::write_bytes_atomically(&path, &bytes, false)?;
+            crate::artwork_ingestion::publish_original(
+                self.library(),
+                &proposed.sha256,
+                &path,
+                &bytes,
+            )?;
         }
         let transaction = connection.transaction()?;
         crate::artwork_store::require_revision(&transaction, port_id, slot, expected_revision)?;
@@ -294,6 +299,7 @@ impl PortcoveService {
             fs::remove_file(&original)?;
             crate::durability::sync_publication(&self.library().root().join("artwork"))?;
         }
+        crate::artwork_ingestion::remove_staged_original(self.library(), &asset)?;
         let thumbnail = thumbnail_path(self.library(), asset_sha256)?;
         if thumbnail.exists() {
             fs::remove_file(thumbnail)?;
@@ -334,7 +340,17 @@ fn publish_thumbnail(
         }
     }
     ensure_parent(&path)?;
-    crate::durability::write_bytes_atomically(&path, bytes, true)?;
+    let pending = library.root().join("artwork-cache/pending-thumbnail");
+    crate::path::refuse_symlink_ancestors(&pending)?;
+    if pending.exists() {
+        crate::path::read_bounded_regular(&pending, crate::artwork_image::MAX_THUMBNAIL_BYTES)?;
+        fs::remove_file(&pending)?;
+    }
+    crate::artwork_ingestion::write_staged_file(&pending, bytes)?;
+    tempfile::TempPath::try_from_path(pending)?
+        .persist(&path)
+        .map_err(|error| PortcoveError::from(error.error))?;
+    crate::durability::sync_publication(&library.root().join("artwork-cache"))?;
     crate::artwork_store::write_thumbnail(connection, id, bytes)
 }
 
@@ -352,12 +368,16 @@ fn cache_files(library: &Library) -> Result<Vec<(PathBuf, u64)>> {
             .file_stem()
             .and_then(|name| name.to_str())
             .ok_or_else(|| PortcoveError::verification("unexpected artwork cache entry"))?;
-        crate::artwork_store::validate_hash(stem)?;
+        let pending = path.file_name().and_then(|name| name.to_str()) == Some("pending-thumbnail");
+        if !pending {
+            crate::artwork_store::validate_hash(stem)?;
+        }
         let metadata = fs::symlink_metadata(&path)?;
-        if path.extension().and_then(|extension| extension.to_str()) != Some("png")
+        if (!pending && path.extension().and_then(|extension| extension.to_str()) != Some("png"))
             || !metadata.is_file()
             || metadata.file_type().is_symlink()
-            || files.len() >= 4096
+            || (pending && metadata.len() > crate::artwork_image::MAX_THUMBNAIL_BYTES)
+            || files.len() >= 4097
         {
             return Err(PortcoveError::verification(
                 "artwork cache contains an unexpected entry; it was retained",
