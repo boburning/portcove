@@ -38,6 +38,9 @@ fn choices_are_per_slot_and_reset_cache_and_retirement_are_separate() {
         .artwork_thumbnail("zelda64-recomp", ArtworkSlot::Cover, 1)
         .unwrap();
     assert_eq!(&thumbnail.png[..8], b"\x89PNG\r\n\x1a\n");
+    service
+        .artwork_thumbnail("zelda64-recomp", ArtworkSlot::Detail, 1)
+        .unwrap();
     let before = service.export_library_metadata().unwrap().artwork;
     assert_eq!(service.clear_artwork_cache().unwrap().removed_files, 2);
     assert_eq!(service.export_library_metadata().unwrap().artwork, before);
@@ -284,4 +287,166 @@ fn legacy_metadata_cannot_smuggle_new_artwork_and_new_payloads_are_decoded_befor
         PortcoveService::import_library(&export, &root, &destination, &plan.plan_sha256).is_err()
     );
     assert!(Library::open(&destination).is_err());
+}
+
+#[test]
+fn interrupted_publication_is_tracked_without_replacing_the_previous_choice() {
+    let temp = tempfile::tempdir().unwrap();
+    let service = open_service(&temp.path().join("library"));
+    let png = image_file(temp.path(), "cover.png", image::ImageFormat::Png);
+    let path = service.library().root().join("artwork");
+    fs::write(&path, b"unexpected retained entry").unwrap();
+    assert!(
+        service
+            .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &png, 0)
+            .is_err()
+    );
+    assert_eq!(
+        service
+            .artwork("zelda64-recomp", ArtworkSlot::Cover)
+            .unwrap()
+            .choice
+            .revision,
+        0
+    );
+    let unused = service.unused_local_artwork().unwrap();
+    assert_eq!(unused.len(), 1);
+    assert_eq!(fs::read(&path).unwrap(), b"unexpected retained entry");
+    fs::remove_file(&path).unwrap();
+    service
+        .remove_unused_local_artwork(&unused[0].sha256)
+        .unwrap();
+    assert!(service.unused_local_artwork().unwrap().is_empty());
+    // Cache faults do not prevent selecting a validated original.
+    fs::write(
+        service.library().root().join("artwork-cache"),
+        b"retained cache obstruction",
+    )
+    .unwrap();
+    let choice = service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &png, 0)
+        .unwrap();
+    assert_eq!(choice.availability, ArtworkAvailability::Available);
+    assert!(
+        service
+            .artwork_thumbnail("zelda64-recomp", ArtworkSlot::Cover, 1)
+            .is_err()
+    );
+    assert!(!service.statuses().unwrap().is_empty());
+}
+
+#[test]
+fn corrupted_thumbnails_are_rebuilt_and_cache_capacity_is_bounded() {
+    let temp = tempfile::tempdir().unwrap();
+    let service = open_service(&temp.path().join("library"));
+    let png = image_file(temp.path(), "cover.png", image::ImageFormat::Png);
+    let selected = service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &png, 0)
+        .unwrap();
+    let expected = service
+        .artwork_thumbnail("zelda64-recomp", ArtworkSlot::Cover, 1)
+        .unwrap()
+        .png;
+    let cache = service.library().root().join("artwork-cache");
+    let selected_cache = cache.join(format!("{}.png", selected.choice.asset_sha256.unwrap()));
+    fs::write(&selected_cache, b"corrupt cached data").unwrap();
+    for name in ["a", "b"] {
+        fs::File::create(cache.join(format!("{}.png", name.repeat(64))))
+            .unwrap()
+            .set_len(40 * 1024 * 1024)
+            .unwrap();
+    }
+    assert_eq!(
+        service
+            .artwork_thumbnail("zelda64-recomp", ArtworkSlot::Cover, 1)
+            .unwrap()
+            .png,
+        expected
+    );
+    let cleared = service.clear_artwork_cache().unwrap();
+    assert!(cleared.removed_bytes <= 64 * 1024 * 1024);
+    assert_eq!(
+        service
+            .artwork("zelda64-recomp", ArtworkSlot::Cover)
+            .unwrap()
+            .availability,
+        ArtworkAvailability::Available
+    );
+}
+
+#[test]
+fn decoded_dimensions_are_bounded_before_pixel_allocation() {
+    let temp = tempfile::tempdir().unwrap();
+    let png = image_file(temp.path(), "cover.png", image::ImageFormat::Png);
+    for (width, height) in [(8193_u32, 1_u32), (4096, 4096)] {
+        let mut bytes = fs::read(&png).unwrap();
+        bytes[16..20].copy_from_slice(&width.to_be_bytes());
+        bytes[20..24].copy_from_slice(&height.to_be_bytes());
+        let checksum = crc32fast::hash(&bytes[12..29]);
+        bytes[29..33].copy_from_slice(&checksum.to_be_bytes());
+        assert!(crate::artwork_image::decode(&bytes).is_err());
+    }
+}
+
+#[test]
+fn legacy_metadata_imports_execute_without_manufacturing_artwork() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("source");
+    let service = open_service(&root);
+    for version in [1, 2] {
+        let mut metadata = service.export_library_metadata().unwrap();
+        metadata.schema_version = version;
+        metadata.artwork = None;
+        metadata.content_roots.retain(|root| {
+            root.kind != LibraryContentKind::LocalArtwork
+                && (version != 1 || root.kind != LibraryContentKind::SourceInbox)
+        });
+        let export = temp.path().join(format!("version-{version}.json"));
+        fs::write(&export, serde_json::to_vec(&metadata).unwrap()).unwrap();
+        let destination = temp.path().join(format!("destination-{version}"));
+        let plan = PortcoveService::plan_library_import(&export, &root, &destination).unwrap();
+        PortcoveService::import_library(&export, &root, &destination, &plan.plan_sha256).unwrap();
+        assert_eq!(
+            open_service(&destination)
+                .artwork("zelda64-recomp", ArtworkSlot::Cover)
+                .unwrap()
+                .availability,
+            ArtworkAvailability::Fallback
+        );
+    }
+}
+
+#[test]
+fn managed_move_preserves_artwork_and_excludes_cached_payloads() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("source");
+    let destination = temp.path().join("destination");
+    let service = open_service(&root);
+    let png = image_file(temp.path(), "cover.png", image::ImageFormat::Png);
+    let choice = service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &png, 0)
+        .unwrap()
+        .choice;
+    service
+        .artwork_thumbnail("zelda64-recomp", ArtworkSlot::Cover, 1)
+        .unwrap();
+    let plan = service.plan_library_move(&destination).unwrap();
+    drop(service);
+    PortcoveService::move_library(&root, &destination, &plan.plan_sha256).unwrap();
+    assert!(!destination.join("artwork-cache").exists());
+    let moved = open_service(&destination);
+    assert_eq!(
+        moved
+            .artwork("zelda64-recomp", ArtworkSlot::Cover)
+            .unwrap()
+            .choice,
+        choice
+    );
+    assert!(
+        !moved
+            .artwork_thumbnail("zelda64-recomp", ArtworkSlot::Cover, 1)
+            .unwrap()
+            .png
+            .is_empty()
+    );
 }

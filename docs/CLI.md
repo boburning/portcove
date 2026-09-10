@@ -33,6 +33,11 @@ Schema 42 adds `exec --request-id <uuid>` and `launch show <uuid>` for exact dur
 launch observation, plus the nullable `launch_request` output schema. `exec`
 continues to own raw game streams and supervise through game exit/save collection.
 
+Schema 44 adds `artwork` commands and the `artwork_state`, `artwork_thumbnail`,
+`artwork_cache_clear` and `artwork_assets` machine schemas. It also versions library
+metadata exports to format 3 with a separate local artwork payload root. Existing
+launch/status fields are unchanged from schema 43.
+
 Schema 41 adds `library identity`, the `library_identity` schema and the
 `library.identity` capability entry. It exposes the existing core-owned identity
 with its effective location; no database or metadata format changes are required.
@@ -48,7 +53,7 @@ version folder is named only after verification of the private copy.
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":42,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":44,"ok":true,"command":"status","data":{},"error":null}
 ```
 
 Schema 39 changes `activity_diagnostic`, available through `activity log <activity-id>`,
@@ -174,7 +179,7 @@ installation contract cannot be verified remains visible but cannot launch;
 other games remain readable. New installations retain their execution and
 persistence definitions in manifest schema 6. Libraries opened by this client
 use writer protocol 23, which older clients refuse to modify. The Playnite
-reference accepts API schemas 42 and 43 with event schema 2.
+reference accepts API schemas 42 through 44 with event schema 2.
 
 API schema 22 adds the core-resolved per-game output location to install plans
 and path results. It distinguishes a one-request override, the saved port
@@ -432,6 +437,13 @@ stale requests. Tauri's `get_library_identity(generation)` reads the same core r
 under the current generation and lease; Desktop continues to call core directly.
 
 ## Library metadata
+
+Format 3 includes local artwork choices and copied-image identities. Include the
+`artwork` tree when copying the separate payload backup; `artwork-cache` contains
+disposable derived thumbnails and is excluded. Formats 1 and 2 remain importable
+without artwork. Clients that do not understand format 3 must reject it; SQLite
+schema 24 also prevents older clients from writing the upgraded library. Per-game
+saved-data backups keep their existing scope.
 
 ```text
 portcove --library <path> --json library export

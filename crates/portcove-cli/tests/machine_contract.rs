@@ -1022,7 +1022,7 @@ fn library_metadata_export_is_versioned_and_does_not_replace_an_existing_file() 
     assert!(output.status.success());
     let metadata = json_stdout(&output);
     assert_eq!(metadata["command"], "library.export");
-    assert_eq!(metadata["data"]["schema_version"], 2);
+    assert_eq!(metadata["data"]["schema_version"], 3);
     assert_eq!(
         metadata["data"]["content_roots"].as_array().unwrap().len(),
         5

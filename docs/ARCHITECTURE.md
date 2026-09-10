@@ -1,5 +1,47 @@
 # Architecture
 
+## Local artwork ownership
+
+Core owns independent cover/detail choices, copied local originals, bounded raster
+decoding and disposable thumbnails. SQLite schema 24 records assets and monotonic
+choice revisions; older writers refuse the upgraded library. API schema 44 exposes
+selection and integrity metadata through the CLI. Catalog and signed-envelope
+formats are unchanged. Local filenames, hashes and import times record provenance;
+they establish neither copyright permission nor upstream authenticity.
+
+Imports accept static PNG/JPEG files with at most 16 MiB encoded bytes, 8192 pixels
+per dimension, 8 megapixels and 32 MiB decoded pixel storage. Decoder allocation
+limits also apply; destination pixel allocation is checked explicitly. A separate
+library artwork lock bounds concurrent decoding and serializes import, reset,
+thumbnail generation, cache clearing and unused-original removal without holding
+a game's operation lock. Expected slot revisions reject stale changes, including
+reset/reselect cycles. Missing or changed originals retain the selection and report
+unavailability through the artwork API; ordinary lifecycle reads do not read images.
+
+Imports reserve tracked inventory before atomically publishing copied bytes, then
+commit the choice. Interruption retains the previous choice and may leave an unused
+record or original; retrying the import or explicitly removing that unused asset
+resolves it. Inventory includes interrupted imports and is bounded to 4096 assets
+and 1 GiB. Originals remain until explicit unused-image removal. Thumbnail failures
+cannot prevent choosing a validated original. On-demand PNG thumbnails fit within
+384 by 576 pixels and 1 MiB each. Their separate 64 MiB cache verifies content hashes,
+rebuilds missing/corrupt entries, and evicts entries in deterministic filename order.
+Unexpected files or symlink paths are retained and rejected, never traversed.
+
+Library metadata format 3 exports logical choices and local asset identities with
+an explicit `artwork` payload root. Moves and metadata/content imports use existing
+reviewed copy, exclusive ownership and recovery machinery, verifying both original
+hashes and decoded dimensions before publication. Metadata alone contains no image
+payload. Formats 1 and 2 remain importable with empty artwork state and reject
+artwork fields; disposable `artwork-cache` files are excluded. Per-game save backups
+continue to cover saved data; whole-library backup copies include the artwork root.
+
+This foundation has no provider, network fetch, catalog artwork default or Desktop
+picker. Hosts will own native file selection and display bridging, and React will
+render core results without owning a second selection store. Deterministic fallback
+remains available when there is no local choice. Provider access and redistribution
+permissions remain separate from this account-free storage contract.
+
 The [independent definition delivery contract](DEFINITION-DELIVERY.md) keeps
 successor definition admission, retained source/execution/persistence contracts
 and operation eligibility in core. Successor admission and capability examples

@@ -78,6 +78,9 @@ internal static class ContractTests
         ProtocolStream.Negotiate(bad);
         Check(true, "retained-contract API schema negotiated");
         bad["schema_version"] = 44;
+        ProtocolStream.Negotiate(bad);
+        Check(true, "additive artwork API schema negotiated");
+        bad["schema_version"] = 45;
         Reject(() => ProtocolStream.Negotiate(bad), "future schema rejected with migration guidance");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");

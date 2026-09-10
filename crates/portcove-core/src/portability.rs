@@ -294,7 +294,7 @@ mod tests {
             serde_json::to_value(&before).unwrap()
         );
         assert_eq!(metadata.schema_version, 3);
-        assert_eq!(metadata.content_roots.len(), 5);
+        assert_eq!(metadata.content_roots.len(), 6);
         assert_eq!(
             metadata.content_roots[2].kind,
             LibraryContentKind::SourceInbox

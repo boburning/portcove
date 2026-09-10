@@ -149,6 +149,10 @@ impl PortcoveService {
         let transaction = connection.transaction()?;
         crate::artwork_store::require_revision(&transaction, port_id, slot, expected_revision)?;
         crate::artwork_store::check_capacity(&transaction, &proposed)?;
+        // Reserve durable inventory before publishing bytes. Interruption leaves
+        // a tracked unused asset that can be retried or explicitly removed.
+        crate::artwork_store::write_asset(&transaction, &proposed)?;
+        transaction.commit()?;
         let path = original_path(self.library(), &proposed.sha256)?;
         ensure_parent(&path)?;
         if path.exists() {
@@ -162,13 +166,8 @@ impl PortcoveService {
         } else {
             crate::durability::write_bytes_atomically(&path, &bytes, false)?;
         }
-        crate::artwork_store::write_asset(&transaction, &proposed)?;
-        publish_thumbnail(
-            self.library(),
-            &transaction,
-            &proposed.sha256,
-            &decoded.thumbnail,
-        )?;
+        let transaction = connection.transaction()?;
+        crate::artwork_store::require_revision(&transaction, port_id, slot, expected_revision)?;
         crate::artwork_store::write_choice(
             &transaction,
             port_id,
@@ -176,8 +175,8 @@ impl PortcoveService {
             expected_revision,
             Some(&proposed.sha256),
         )?;
-        // Original publication precedes the transaction. Interruption can leave
-        // an unused original, never a choice pointing at unpublished bytes.
+        // Choices publish only after validated originals. Disposable thumbnails
+        // are generated on demand; a cache fault cannot prevent selection.
         transaction.commit()?;
         drop(_guard);
         self.artwork(port_id, slot)

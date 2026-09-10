@@ -55,6 +55,16 @@ test("keeps catalog signature authority out of presentation adapters", () => {
   assert.ok(violations.every(item => item.dependencyName === "ed25519-dalek"));
 });
 
+test("keeps artwork decoding in core while hosts bridge display and file selection", () => {
+  const violations = validateArchitecture(metadata({
+    "portcove-core": ["serde", "image"],
+    "portcove-cli": ["clap", "portcove-core", "image"],
+    "portcove-desktop": ["portcove-core", "tauri", "image"],
+  }));
+  assert.equal(violations.length, 2);
+  assert.ok(violations.every(item => item.dependencyName === "image"));
+});
+
 test("keeps default Cargo builds independent of the desktop package", () => {
   const input = metadata();
   input.workspace_default_members.push("portcove-desktop");

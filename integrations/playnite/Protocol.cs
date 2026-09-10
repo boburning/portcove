@@ -101,8 +101,8 @@ namespace Portcove.ReferenceClient
 
     internal sealed class ProtocolStream
     {
-        internal const int Schema = 43;
-        private static bool SupportedSchema(long version) => version == 42 || version == Schema;
+        internal const int Schema = 44;
+        private static bool SupportedSchema(long version) => version >= 42 && version <= Schema;
         private readonly string command;
         private readonly Action<Dictionary<string, object>> progress;
         private readonly Dictionary<string, long> sequences = new Dictionary<string, long>(StringComparer.Ordinal);
@@ -126,7 +126,7 @@ namespace Portcove.ReferenceClient
             if (type == null || (type as string) == "result")
             {
                 if (!SupportedSchema(Json.Number(record, "schema_version")) || Json.Text(record, "command") != command)
-                    throw new InvalidOperationException("Unsupported Portcove response. This client requires API schema 42 or 43; install a matching CLI/client pair.");
+                    throw new InvalidOperationException("Unsupported Portcove response. This client requires API schema 42 through 44; install a matching CLI/client pair.");
                 Json.Boolean(record, "ok");
                 result = record;
                 return;
@@ -164,7 +164,7 @@ namespace Portcove.ReferenceClient
         internal static void Negotiate(object capabilities)
         {
             if (!SupportedSchema(Json.Number(capabilities, "schema_version")) || Json.Text(capabilities, "product") != "Portcove")
-                throw new InvalidOperationException("This reference client requires Portcove API schema 42 or 43. Select a compatible CLI or update the client.");
+                throw new InvalidOperationException("This reference client requires Portcove API schema 42 through 44. Select a compatible CLI or update the client.");
             var commands = Json.Array(Json.Field(capabilities, "commands")).OfType<string>().ToArray();
             foreach (var required in new[] { "catalog", "source", "status", "activity", "cancel", "library.identity", "launch.show", "exec", "ensure", "update", "preparation" })
                 if (!commands.Contains(required)) throw new InvalidOperationException("The CLI lacks " + required + ". Select a compatible standalone Portcove CLI.");
