@@ -81,11 +81,11 @@ test("hashes distributable packages and ignores internal application files", asy
   const manifest = await readFile(result.output, "utf8");
   assert.match(
     manifest,
-    /^[a-f0-9]{64}  portcove-cli-0\.1\.0-alpha\.2-macos-aarch64\.tar\.gz$/m,
+    /^[a-f0-9]{64} {2}portcove-cli-0\.1\.0-alpha\.2-macos-aarch64\.tar\.gz$/m,
   );
   assert.match(
     manifest,
-    /^[a-f0-9]{64}  Portcove_0\.1\.0-alpha\.2_aarch64\.dmg$/m,
+    /^[a-f0-9]{64} {2}Portcove_0\.1\.0-alpha\.2_aarch64\.dmg$/m,
   );
   assert.doesNotMatch(manifest, /icon\.icns/);
 });

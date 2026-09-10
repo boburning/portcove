@@ -1673,7 +1673,7 @@ export class RoadmapClient {
     const cursors = new Set();
     let after = null;
     let totalCount;
-    do {
+    for (;;) {
       const page = connection(this.graphql(query, { ...variables, after }));
       if (
         !Array.isArray(page?.nodes) ||
@@ -1720,7 +1720,7 @@ export class RoadmapClient {
         );
       }
       cursors.add(after);
-    } while (true);
+    }
     if (nodes.length !== totalCount)
       throw new Error(
         "incomplete GitHub inventory: record count does not match total",

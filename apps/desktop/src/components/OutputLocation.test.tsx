@@ -91,7 +91,7 @@ async function changePath(path: string, within: ParentNode = container) {
       HTMLInputElement.prototype,
       "value",
     )?.set;
-    setter?.call(input, path);
+    if (setter) Reflect.apply(setter, input, [path]);
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
 }

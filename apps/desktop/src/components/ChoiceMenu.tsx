@@ -38,6 +38,7 @@ export function ChoiceMenu<T extends string>({
         createPortal(
           <div
             className="scrim choice-scrim"
+            role="presentation"
             onMouseDown={(event) => {
               if (event.target === event.currentTarget) setOpen(false);
             }}

@@ -251,13 +251,21 @@ function Workspace({
   const selectedPort = data.catalog?.ports.find(
     (port) => port.id === ui.selectedId,
   );
-  const inspectionProfiles =
-    ui.view === "settings"
-      ? data.sources.map((source) => source.profile_id)
-      : [
-          selectedPort?.source_profile,
-          selectedPort?.bios_source_profile,
-        ].filter((profile): profile is string => Boolean(profile));
+  const inspectionProfiles = useMemo(
+    () =>
+      ui.view === "settings"
+        ? data.sources.map((source) => source.profile_id)
+        : [
+            selectedPort?.source_profile,
+            selectedPort?.bios_source_profile,
+          ].filter((profile): profile is string => Boolean(profile)),
+    [
+      data.sources,
+      selectedPort?.bios_source_profile,
+      selectedPort?.source_profile,
+      ui.view,
+    ],
+  );
   const sourceHealth = useSourceHealth(
     operations.perform,
     data.sources,
@@ -283,25 +291,27 @@ function Workspace({
     checkAll: updates.checkAll,
   });
   const adopting = [...operations.pendingOperations.values()].includes("adopt");
+  const { open: commandOpen, setOpen: setCommandOpen } = commandSurface;
+  const { adoptOpen, selectedId, setAdoptOpen, setSelectedId } = ui;
   const handleBack = useCallback(() => {
     const action = overlayBackAction({
-      paletteOpen: commandSurface.open,
-      adoptionOpen: ui.adoptOpen,
-      detailOpen: Boolean(ui.selectedId),
+      paletteOpen: commandOpen,
+      adoptionOpen: adoptOpen,
+      detailOpen: Boolean(selectedId),
     });
-    if (action === "close-palette") commandSurface.setOpen(false);
+    if (action === "close-palette") setCommandOpen(false);
     else if (action === "close-adoption") {
-      if (!adopting) ui.setAdoptOpen(false);
-    } else if (action === "close-detail") ui.setSelectedId(undefined);
+      if (!adopting) setAdoptOpen(false);
+    } else if (action === "close-detail") setSelectedId(undefined);
     else focusRegion("sidebar");
   }, [
-    commandSurface.open,
-    commandSurface.setOpen,
-    ui.adoptOpen,
-    ui.selectedId,
-    ui.setAdoptOpen,
-    ui.setSelectedId,
+    adoptOpen,
     adopting,
+    commandOpen,
+    selectedId,
+    setAdoptOpen,
+    setCommandOpen,
+    setSelectedId,
   ]);
   const controller = useGamepadNavigation(handleBack);
   const hostToolActions: HostToolActions = {
@@ -428,9 +438,11 @@ type InstallPlanningState = ReturnType<typeof useInstallPlanning>;
 type BackupState = ReturnType<typeof usePortBackups>;
 
 function useAppModel(data: DataState, ui: UiState) {
+  const { retryRefresh } = data;
+  const { selectedId, setBiosPath, setSourcePath } = ui;
   useEffect(() => {
-    void data.retryRefresh();
-  }, [data.retryRefresh]);
+    void retryRefresh();
+  }, [retryRefresh]);
   const statusMap = useMemo(
     () => indexStatuses(data.statuses),
     [data.statuses],
@@ -465,15 +477,15 @@ function useAppModel(data: DataState, ui: UiState) {
     [data.catalog, data.sources, statusMap],
   );
   const selection = useMemo(
-    () => selectedPort(data, ui.selectedId, statusMap),
-    [data, ui.selectedId, statusMap],
+    () => selectedPort(data, selectedId, statusMap),
+    [data, selectedId, statusMap],
   );
   useEffect(() => {
-    ui.setSourcePath(selection.source?.path ?? "");
-  }, [ui.selectedId, selection.source?.path]);
+    setSourcePath(selection.source?.path ?? "");
+  }, [selectedId, selection.source?.path, setSourcePath]);
   useEffect(() => {
-    ui.setBiosPath(selection.bios?.path ?? "");
-  }, [ui.selectedId, selection.bios?.path]);
+    setBiosPath(selection.bios?.path ?? "");
+  }, [selectedId, selection.bios?.path, setBiosPath]);
   return { statusMap, visible, overview, recent, sourceNeeds, ...selection };
 }
 
@@ -703,7 +715,7 @@ function SelectedPortPanel({
       prepare={(expectedPlan, onEvent) =>
         operations.perform("prepare game data", () =>
           desktopApi.prepare(
-            model.port!.id,
+            model.port.id,
             expectedPlan,
             libraryGeneration,
             onEvent,
@@ -749,7 +761,7 @@ function SelectedPortPanel({
           desktopApi.openSourceEvidence(evidenceId),
         );
       }}
-      inspectSource={(profile) => openSourceIntake(model.port!.id, profile.id)}
+      inspectSource={(profile) => openSourceIntake(model.port.id, profile.id)}
       actions={detailActions(
         model.port,
         model.status,

@@ -84,7 +84,7 @@ export function OutputLocationControl({
         onApplying?.(false);
       }
     };
-  }, [generation, portId]);
+  }, [generation, onApplying, portId]);
 
   useEffect(() => {
     if (preview || relocation) applyButton.current?.focus();

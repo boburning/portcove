@@ -78,6 +78,120 @@
       "command": ["cargo", "nextest", "--version"],
       "tier": "required",
       "ci_install": "prebuilt"
+    },
+    {
+      "id": "ruff",
+      "version": "0.16.6",
+      "command": ["ruff", "--version"],
+      "tier": "required",
+      "ci_install": "managed",
+      "install": {
+        "kind": "github-release",
+        "assets": {
+          "win32-x64": {
+            "url": "https://github.com/astral-sh/ruff/releases/download/0.16.6/ruff-x86_64-pc-windows-msvc.zip",
+            "sha256": "d968cbf82bcb42042a59e9478a48f9a00db88cceaa2eeaa86c4834c02a70eaf6",
+            "entry": "ruff.exe"
+          },
+          "linux-x64": {
+            "url": "https://github.com/astral-sh/ruff/releases/download/0.16.6/ruff-x86_64-unknown-linux-gnu.tar.gz",
+            "sha256": "0696335ef16615d8c7445ad438750eb0f55b3da6f153df21265a7c6d5750254f",
+            "entry": "ruff"
+          },
+          "darwin-x64": {
+            "url": "https://github.com/astral-sh/ruff/releases/download/0.16.6/ruff-x86_64-apple-darwin.tar.gz",
+            "sha256": "87cce7e591603efa979be9044ac00835638a5d9052947070b6e2e7c0cdb21940",
+            "entry": "ruff"
+          },
+          "darwin-arm64": {
+            "url": "https://github.com/astral-sh/ruff/releases/download/0.16.6/ruff-aarch64-apple-darwin.tar.gz",
+            "sha256": "77513748c833b435b82453ba20e07db808ef6c5121945ede80a6cf21bee468a4",
+            "entry": "ruff"
+          }
+        }
+      }
+    },
+    {
+      "id": "actionlint",
+      "version": "1.7.12",
+      "command": ["actionlint", "-version"],
+      "tier": "required",
+      "ci_install": "managed",
+      "install": {
+        "kind": "github-release",
+        "assets": {
+          "win32-x64": {
+            "url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_windows_amd64.zip",
+            "sha256": "6e7241b51e6817ea6a047693d8e6fed13b31819c9a0dd6c5a726e1592d22f6e9",
+            "entry": "actionlint.exe"
+          },
+          "linux-x64": {
+            "url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz",
+            "sha256": "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8",
+            "entry": "actionlint"
+          },
+          "darwin-x64": {
+            "url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_darwin_amd64.tar.gz",
+            "sha256": "5b44c3bc2255115c9b69e30efc0fecdf498fdb63c5d58e17084fd5f16324c644",
+            "entry": "actionlint"
+          },
+          "darwin-arm64": {
+            "url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_darwin_arm64.tar.gz",
+            "sha256": "aba9ced2dee8d27fecca3dc7feb1a7f9a52caefa1eb46f3271ea66b6e0e6953f",
+            "entry": "actionlint"
+          }
+        }
+      }
+    },
+    {
+      "id": "shellcheck",
+      "version": "0.11.0",
+      "command": ["shellcheck", "--version"],
+      "tier": "required",
+      "ci_install": "managed",
+      "install": {
+        "kind": "github-release",
+        "assets": {
+          "win32-x64": {
+            "url": "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.zip",
+            "sha256": "8a4e35ab0b331c85d73567b12f2a444df187f483e5079ceffa6bda1faa2e740e",
+            "entry": "shellcheck.exe"
+          },
+          "linux-x64": {
+            "url": "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.gz",
+            "sha256": "b7af85e41cc99489dcc21d66c6d5f3685138f06d34651e6d34b42ec6d54fe6f6",
+            "entry": "shellcheck-v0.11.0/shellcheck"
+          },
+          "darwin-x64": {
+            "url": "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.darwin.x86_64.tar.gz",
+            "sha256": "c2c15e08df0e8fbc374c335b230a7ee958c313fa5714817a59aa59f1aa594f51",
+            "entry": "shellcheck-v0.11.0/shellcheck"
+          },
+          "darwin-arm64": {
+            "url": "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.darwin.aarch64.tar.gz",
+            "sha256": "339b930feb1ea764467013cc1f72d09cd6b869ebf1013296ba9055ab2ffbd26f",
+            "entry": "shellcheck-v0.11.0/shellcheck"
+          }
+        }
+      }
+    },
+    {
+      "id": "psscriptanalyzer",
+      "version": "1.25.0",
+      "command": ["pwsh", "-NoProfile", "-Command"],
+      "tier": "required",
+      "ci_install": "managed",
+      "install": {
+        "kind": "powershell-gallery",
+        "platform_limited": true,
+        "assets": {
+          "win32-x64": {
+            "url": "https://www.powershellgallery.com/api/v2/package/PSScriptAnalyzer/1.25.0",
+            "sha256": "14e634c828eb98efb9f40b2918ba90f139ed5eccdf663a2a747736d996995d60",
+            "entry": "PSScriptAnalyzer.psd1"
+          }
+        }
+      }
     }
   ]
 }
