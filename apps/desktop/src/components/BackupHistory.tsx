@@ -31,7 +31,7 @@ export function BackupHistory({
   return (
     <div className="backup-history">
       <div className="backup-heading">
-        <label>Data backups</label>
+        <span>Data backups</span>
         <small>{backupSummary(backups.length)}</small>
       </div>
       {state !== "healthy" && (

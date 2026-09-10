@@ -41,9 +41,9 @@ native rendering evidence, not physical-controller or human-navigation evidence.
 | Format supported files              | `just fmt`            | rewrite Rust, frontend, configuration, and active documentation with the repository-pinned formatters                                         |
 | Verify formatting                   | `just fmt-check`      | check the same formatting contract without changing files                                                                                     |
 | Rust change                         | `just check-rust`     | format, compile, Clippy, tests, unused dependencies/files, and crate boundaries                                                               |
-| UI change                           | `just check-ui`       | formatting, production build, tests, and the existing Fallow gate                                                                             |
+| UI change                           | `just check-ui`       | formatting, typed ESLint, Stylelint, production build, tests, and the existing Fallow gate                                                    |
 | Playnite reference change (Windows) | `just playnite-check` | locked SDK/reference-assembly builds, literal process arguments and public protocol regression fixtures; optional isolated compiled-CLI reads |
-| Cross-stack or release change       | `just check`          | both fast loops plus deterministic package-policy, staging, checksum, and release-note tests                                                  |
+| Cross-stack or release change       | `just check`          | both fast loops, script/workflow lint, and deterministic package-policy, staging, checksum, and release-note tests                            |
 | Substantial completion              | `just audit`          | fast loop plus dependency policy and rscheck                                                                                                  |
 | Large structural change             | `just deep`           | audit plus advisory Hawk and semdup analysis                                                                                                  |
 | Explicit cycle investigation        | `just cycles`         | optional advisory module-cycle report                                                                                                         |
@@ -64,12 +64,46 @@ Generated files, catalogs, fixtures, dependency lockfiles, archived documents,
 and dated release evidence are outside the bulk-format boundary so a formatter
 cannot rewrite their content or invalidate historical evidence. This includes
 the Playnite integration and contract tests' `bin` and `obj` directories, which
-MSBuild and NuGet own. Secondary
-languages and scripts remain intentionally unchanged until the repository has a
-specific need and a supported formatter for them. The two initial mechanical
-format commits are listed in `.git-blame-ignore-revs`.
+MSBuild and NuGet own. Secondary languages and scripts remain outside the
+bulk-format boundary; their lint contracts are specified below. The two initial
+mechanical format commits are listed in `.git-blame-ignore-revs`.
 
-Deterministic failures block: rustfmt, Cargo compilation, Clippy, tests, cargo-shear, cargo-deny security/license/source policy, the Cargo-metadata architecture checker, Fallow, and rscheck's absolute-path rule outside reviewed exceptions.
+Deterministic failures block: rustfmt, Cargo compilation, Clippy, tests, typed ESLint, Stylelint, Ruff, ShellCheck, actionlint, PSScriptAnalyzer, cargo-shear, cargo-deny security/license/source policy, the Cargo-metadata architecture checker, Fallow, and rscheck's absolute-path rule outside reviewed exceptions.
+
+ESLint uses a root flat configuration for the desktop TypeScript/TSX and the
+repository's JavaScript modules. Production UI code receives type-aware
+`typescript-eslint`, React Hooks correctness, and jsx-a11y rules. Test fixtures
+may use async mocks and intentionally exercise structured non-Error Tauri
+rejections; those two test-only contracts are documented directly in the flat
+configuration. The linter accepts no warnings and rejects unused suppression
+comments. ESLint 9 is pinned because the current jsx-a11y plugin's declared peer
+range does not yet include ESLint 10.
+
+The package keeps two deliberate TypeScript compiler identities. `pnpm
+typecheck` invokes the `tsc` binary supplied by `@typescript/native` (the
+TypeScript 7 native compiler), while the `typescript` package name resolves to
+the latest compatible TypeScript 6 implementation used by ESLint's project
+service and Vite ecosystem tooling. Do not replace one with the other without
+revalidating both build and typed-lint contracts. Fallow's dependency graph does
+not associate a package-manager binary with its aliased package, so
+`.fallowrc.json` names `@typescript/native` as the single intentional dependency
+exception; the build and transport compiler tests verify that binary
+independently.
+
+Stylelint applies its recommended correctness rules to the existing stylesheet.
+The documented descending-specificity exception preserves the stylesheet's
+intentional later-override structure; it does not disable formatting coverage.
+Ruff checks the tracked Python asset scripts; ShellCheck checks the tracked shell
+bootstrap; actionlint checks every GitHub Actions workflow and uses the same
+managed ShellCheck binary; PSScriptAnalyzer checks all tracked PowerShell scripts.
+The PowerShell profile omits only cmdlet naming rules that do not apply to private
+script helpers.
+
+The Playnite C# projects intentionally rely on the SDK compiler analyzers and set
+`TreatWarningsAsErrors` in both the extension and contract-test projects.
+`just playnite-check` is therefore the C# warning gate. Portcove does not add a
+separate Roslyn analyzer package or repository-wide `.editorconfig`; any compiler
+warning exposed by that required build must be fixed rather than suppressed.
 
 The UI test command also runs `apps/desktop/scripts/check-copy.mjs`. It parses
 production TypeScript/TSX with the development-only Babel parser and rejects
@@ -93,7 +127,7 @@ pnpm 11's default one-day minimum release age remains active. The workspace cont
 
 ## Tool and Rust version authority
 
-`.github/quality-tools.json` is the sole quality-tool pin manifest. It records every required and deep tool, exact version, install tier, version command, and any tool-private Rust requirement. The bootstrap scripts and all required, release, and deep workflows consume that manifest. `scripts/quality-tools.mjs --validate` rejects copied tool pins in those consumers.
+`.github/quality-tools.json` is the sole quality-tool pin manifest. It records every required and deep tool, exact version, install tier, version command, managed download asset and checksum, and any tool-private Rust requirement. The bootstrap scripts and all required, release, and deep workflows consume that manifest. Managed installs validate archive paths, reject links, verify SHA-256 before extraction, verify the staged executable's exact version, and atomically activate it below `work/quality-tools`. `scripts/quality-tools.mjs --validate` rejects copied tool pins in governed consumers.
 
 `rust-toolchain.toml` pins normal development and CI to the workspace MSRV recorded in `Cargo.toml`; the manifest validator requires those two declarations and the quality contract to agree. An MSRV increase therefore requires one reviewed update across the workspace metadata, pinned toolchain, and machine contract instead of an implicit move with the latest stable compiler.
 

@@ -106,6 +106,12 @@ On Linux or macOS, use `./scripts/bootstrap-quality-tools.sh`. Pass `-IncludeDee
 
 Do not suppress deterministic findings without a narrow, reviewable reason. Treat structural findings as evidence rather than instructions for speculative refactors. Follow [AGENTS.md](AGENTS.md) and [docs/QUALITY.md](docs/QUALITY.md). Catalog changes must pass the live repository audit and must not add archived repositories.
 
+Frontend work is checked by typed ESLint and Stylelint. Python asset scripts,
+the shell bootstrap, GitHub Actions workflows and PowerShell scripts are checked
+by the pinned tools installed by the quality bootstrap. The Playnite C# projects
+retain their SDK compiler warnings-as-errors gate through `just playnite-check`;
+no additional Roslyn analyzer package is required.
+
 Keep commits free of source game data, signing secrets, generated build output, local libraries, and Fallow caches.
 
 Codex and deterministic automation own feasible acceptance execution, failure

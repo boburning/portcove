@@ -25,7 +25,20 @@ updates:
     open-pull-requests-limit: 5
     groups:
       frontend-toolchain:
-        patterns: ["typescript", "vite", "vitest", "@vitejs/plugin-react"]
+        patterns:
+          [
+            "typescript",
+            "@typescript/*",
+            "vite",
+            "vitest",
+            "@vitejs/plugin-react",
+            "eslint",
+            "@eslint/*",
+            "eslint-plugin-*",
+            "globals",
+            "stylelint",
+            "stylelint-config-*",
+          ]
       react:
         patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
       tauri-javascript:

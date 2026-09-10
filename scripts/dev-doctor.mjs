@@ -7,7 +7,7 @@ import {
   preflight,
   minimumFreeGiB,
 } from "./dev-storage.mjs";
-import { loadQualityManifest } from "./quality-tools.mjs";
+import { loadQualityManifest, managedToolPath } from "./quality-tools.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 
@@ -119,6 +119,24 @@ export async function collectDoctor() {
   const desktop = JSON.parse(
     readFileSync(path.join(root, "apps/desktop/package.json"), "utf8"),
   );
+  const managedDefinitions = manifest.tools
+    .filter((tool) => tool.tier === "required")
+    .map((tool) => {
+      if (!tool.install) return tool;
+      const installedPath = managedToolPath(tool);
+      return installedPath
+        ? {
+            ...tool,
+            command: [
+              process.execPath,
+              path.join(root, "scripts", "quality-tools.mjs"),
+              "--verify",
+              tool.id,
+            ],
+            reportedPath: installedPath,
+          }
+        : { ...tool, applicable: false, required: false };
+    });
   const definitions = [
     {
       id: "node",
@@ -127,7 +145,7 @@ export async function collectDoctor() {
     },
     {
       id: "pnpm",
-      command: ["pnpm", "--version"],
+      command: ["corepack", "pnpm", "--version"],
       version: desktop.packageManager.split("@")[1],
     },
     {
@@ -138,17 +156,30 @@ export async function collectDoctor() {
     { id: "cargo", command: ["cargo", "--version"] },
     { id: "git", command: ["git", "--version"] },
     { id: "gh", command: ["gh", "--version"], required: false },
-    ...manifest.tools.filter((tool) => tool.tier === "required"),
+    ...managedDefinitions,
     {
       id: "tauri-driver",
       command: ["tauri-driver", "--help"],
       required: false,
     },
   ];
-  const tools = definitions.map((definition) => ({
-    ...probeTool(definition),
-    paths: executablePaths(definition.command[0]),
-  }));
+  const tools = definitions.map((definition) =>
+    definition.applicable === false
+      ? {
+          id: definition.id,
+          required: false,
+          expected: definition.version,
+          observed: null,
+          status: "not-applicable",
+          paths: [],
+        }
+      : {
+          ...probeTool(definition),
+          paths: definition.reportedPath
+            ? [definition.reportedPath]
+            : executablePaths(definition.command[0]),
+        },
+  );
   let storage;
   try {
     storage = { status: "ok", ...preflight(getPaths(), minimumFreeGiB()) };

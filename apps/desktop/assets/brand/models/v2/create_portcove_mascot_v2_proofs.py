@@ -2,7 +2,6 @@ from pathlib import Path
 
 from PIL import Image
 
-
 ROOT = Path(__file__).resolve().parent
 REPO_ROOT = ROOT.parents[5]
 TRANSPARENT = (

@@ -60,6 +60,7 @@ export function CommandPalette({
   return (
     <div
       className="scrim palette-scrim"
+      role="presentation"
       onMouseDown={(event) => {
         if (event.currentTarget === event.target) close();
       }}

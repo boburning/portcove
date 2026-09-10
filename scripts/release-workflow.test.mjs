@@ -18,22 +18,23 @@ const cliPackager = await readFile(
   "utf8",
 );
 const buildSection =
-  workflow.match(/^  build:\r?\n([\s\S]*?)(?=^  rehearse:)/m)?.[1] ?? "";
+  workflow.match(/^ {2}build:\r?\n([\s\S]*?)(?=^ {2}rehearse:)/m)?.[1] ?? "";
 const rehearseSection =
-  workflow.match(/^  rehearse:\r?\n([\s\S]*?)(?=^  publish:)/m)?.[1] ?? "";
-const publishSection = workflow.match(/^  publish:\r?\n([\s\S]*)/m)?.[1] ?? "";
+  workflow.match(/^ {2}rehearse:\r?\n([\s\S]*?)(?=^ {2}publish:)/m)?.[1] ?? "";
+const publishSection =
+  workflow.match(/^ {2}publish:\r?\n([\s\S]*)/m)?.[1] ?? "";
 
 test("only the final publisher receives release write permission", () => {
-  assert.match(workflow, /^permissions:\r?\n  contents: read$/m);
-  assert.match(buildSection, /^    permissions:\r?\n      contents: read$/m);
+  assert.match(workflow, /^permissions:\r?\n {2}contents: read$/m);
+  assert.match(buildSection, /^ {4}permissions:\r?\n {6}contents: read$/m);
   assert.equal((workflow.match(/contents: write/g) ?? []).length, 1);
   assert.match(
     rehearseSection,
-    /^    permissions:\r?\n      actions: write\r?\n      contents: read$/m,
+    /^ {4}permissions:\r?\n {6}actions: write\r?\n {6}contents: read$/m,
   );
   assert.match(
     publishSection,
-    /^    permissions:\r?\n      actions: write\r?\n      contents: write$/m,
+    /^ {4}permissions:\r?\n {6}actions: write\r?\n {6}contents: write$/m,
   );
   assert.doesNotMatch(buildSection, /GH_TOKEN|gh release|tauri-action/);
   assert.doesNotMatch(rehearseSection, /gh release/);
@@ -71,9 +72,9 @@ test("CLI packaging uses the BSD-compatible chmod form required by macOS", () =>
 test("manual rehearsal reconciles the complete matrix before deleting transient artifacts", () => {
   assert.match(
     rehearseSection,
-    /^    if: github\.event_name == 'workflow_dispatch'$/m,
+    /^ {4}if: github\.event_name == 'workflow_dispatch'$/m,
   );
-  assert.match(rehearseSection, /^    needs: build$/m);
+  assert.match(rehearseSection, /^ {4}needs: build$/m);
   assert.match(rehearseSection, /pattern: release-build-\*/);
   const reconcile = rehearseSection.indexOf("reconcile-release-assets.mjs");
   const cleanup = rehearseSection.indexOf("actions/artifacts/$artifact_id");
@@ -81,8 +82,8 @@ test("manual rehearsal reconciles the complete matrix before deleting transient 
 });
 
 test("publisher waits for every builder and reconciles before draft mutation", () => {
-  assert.match(publishSection, /^    if: github\.event_name == 'push'$/m);
-  assert.match(publishSection, /^    needs: build$/m);
+  assert.match(publishSection, /^ {4}if: github\.event_name == 'push'$/m);
+  assert.match(publishSection, /^ {4}needs: build$/m);
   assert.match(publishSection, /pattern: release-build-\*/);
   const reconcile = publishSection.indexOf("reconcile-release-assets.mjs");
   const mutate = publishSection.indexOf("gh release");

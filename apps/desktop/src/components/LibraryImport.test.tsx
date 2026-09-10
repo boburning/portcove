@@ -145,10 +145,10 @@ it.each(["move", "import"] as const)(
     vi.stubGlobal(
       "window",
       new Proxy(originalWindow, {
-        get(target, key, receiver) {
+        get(target, key, receiver): unknown {
           return key === "location"
             ? { reload }
-            : Reflect.get(target, key, receiver);
+            : (Reflect.get(target, key, receiver) as unknown);
         },
       }),
     );

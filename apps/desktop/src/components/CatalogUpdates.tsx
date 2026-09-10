@@ -264,7 +264,7 @@ function CatalogReview({
         ]}
         disabled={Boolean(busy)}
         onChange={(value) => {
-          setKind(value as CatalogUpdateSource["kind"]);
+          setKind(value);
           setLocation("");
           setPlan(undefined);
         }}

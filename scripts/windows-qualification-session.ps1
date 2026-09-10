@@ -13,6 +13,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$null = $CandidateCheckout, $BuildRecordPath, $ExpectedBuildRecordSha256
 $SessionFormat = 2
 # Windows exposes process start time through a different clock conversion path.
 # Five seconds covers its observed timestamp granularity without admitting an old run.
@@ -157,9 +158,9 @@ function Invoke-WithEnvironment($Environment, [scriptblock]$Operation) {
 
 function Get-ActiveRun($Session) {
     if (-not $Session.active_run_id) { return $null }
-    $matches = @($Session.process_runs | Where-Object { $_.id -eq $Session.active_run_id })
-    if ($matches.Count -ne 1) { throw "Session active run identity is ambiguous" }
-    $matches[0]
+    $matchingRuns = @($Session.process_runs | Where-Object { $_.id -eq $Session.active_run_id })
+    if ($matchingRuns.Count -ne 1) { throw "Session active run identity is ambiguous" }
+    $matchingRuns[0]
 }
 
 function Assert-ProcessIdentity($Process, $Run, [string]$Root) {
@@ -183,9 +184,9 @@ function Resolve-ActiveProcess($Session, [string]$Root) {
         return $process
     }
     $expectedPath = Resolve-ContainedPath $Root $run.executable "File"
-    $matches = @(Get-Process | ForEach-Object { try { if ($_.Path -and [System.IO.Path]::GetFullPath($_.Path).Equals($expectedPath, [System.StringComparison]::OrdinalIgnoreCase)) { $_ } } catch {} })
-    if ($matches.Count -ne 1) { throw "A launch-pending run could not be bound to one exact desktop process; refusing recovery" }
-    $process = $matches[0]; Assert-ProcessIdentity $process $run $Root
+    $matchingProcesses = @(Get-Process | ForEach-Object { try { if ($_.Path -and [System.IO.Path]::GetFullPath($_.Path).Equals($expectedPath, [System.StringComparison]::OrdinalIgnoreCase)) { $_ } } catch { $null = $_ } })
+    if ($matchingProcesses.Count -ne 1) { throw "A launch-pending run could not be bound to one exact desktop process; refusing recovery" }
+    $process = $matchingProcesses[0]; Assert-ProcessIdentity $process $run $Root
     $run.pid = $process.Id; $run.start_time = $process.StartTime.ToUniversalTime().ToString("o"); $run.start_time_filetime = $process.StartTime.ToFileTimeUtc(); $run.status = "running_recovered"; Write-Session $Session $Root
     $process
 }
@@ -364,15 +365,15 @@ function Resume-AbortAttempt($Session, [string]$Root, $Context) {
         $temporaryRoot = Resolve-ContainedPath $Root $Session.paths.temp "Directory"
         $temporaryPrefix = $temporaryRoot.TrimEnd('\') + '\'
         $earliest = [DateTime]::FromFileTimeUtc([long]$attempt.requested_at_filetime).AddSeconds(-$LaunchStartToleranceSeconds)
-        $matches = @(Get-Process | Where-Object {
+        $matchingAborts = @(Get-Process | Where-Object {
             try {
                 $actual = [System.IO.Path]::GetFullPath($_.Path)
                 $pathAllowed = $actual.Equals($expected, [System.StringComparison]::OrdinalIgnoreCase) -or $actual.StartsWith($temporaryPrefix, [System.StringComparison]::OrdinalIgnoreCase)
                 $pathAllowed -and $_.StartTime.ToUniversalTime() -ge $earliest -and (Get-Sha256 $actual) -eq $attempt.executable_sha256
             } catch { $false }
         })
-        if ($matches.Count -gt 1) { throw "Abort launch-pending state matches multiple processes" }
-        if ($matches.Count -eq 1) { $process = $matches[0]; Assert-AbortProcessIdentity $process $attempt $Session $Root; $attempt.pid = $process.Id; $attempt.start_time = $process.StartTime.ToUniversalTime().ToString("o"); $attempt.start_time_filetime = $process.StartTime.ToFileTimeUtc(); $attempt.status = "running_recovered"; Write-Session $Session $Root }
+        if ($matchingAborts.Count -gt 1) { throw "Abort launch-pending state matches multiple processes" }
+        if ($matchingAborts.Count -eq 1) { $process = $matchingAborts[0]; Assert-AbortProcessIdentity $process $attempt $Session $Root; $attempt.pid = $process.Id; $attempt.start_time = $process.StartTime.ToUniversalTime().ToString("o"); $attempt.start_time_filetime = $process.StartTime.ToFileTimeUtc(); $attempt.status = "running_recovered"; Write-Session $Session $Root }
     }
     if ($process) { Assert-AbortProcessIdentity $process $attempt $Session $Root; throw "A journaled abort process is still running; retry after it exits" }
     try { Assert-AbortQuiescent $Session $Root $Context } catch { throw "Abort process outcome is ambiguous and cleanup is incomplete: $($_.Exception.Message)" }

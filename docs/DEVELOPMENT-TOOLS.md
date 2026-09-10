@@ -13,6 +13,13 @@ this is not proof of Cargo's auto-selected linker. Inspect a verbose native buil
 when compiler selection matters. Keep each worktree's Cargo target separate and
 use the existing development-storage wrapper for heavy commands.
 
+The quality bootstrap also installs the checksum-pinned Ruff, actionlint and
+ShellCheck binaries for the current Windows, Linux or macOS architecture.
+PSScriptAnalyzer is installed from its pinned PowerShell Gallery package on
+Windows; other hosts report it as not applicable because required PowerShell
+coverage runs in Windows CI. Run `just check-ui` for ESLint and Stylelint, or
+`just script-lint` for Python, shell, workflow and PowerShell lint as a group.
+
 ## Skills
 
 Repository-local skills under `.agents/skills` describe port qualification,
