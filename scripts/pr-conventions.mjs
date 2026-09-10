@@ -337,10 +337,27 @@ export function evaluatePullRequest(pull, unvalidatedConfig) {
 }
 
 export function flattenCommitPages(value, expectedCount) {
-  if (!Array.isArray(value) || value.some((page) => !Array.isArray(page))) {
+  if (
+    !Array.isArray(value) ||
+    value.some((page) => {
+      const connection = page?.data?.repository?.pullRequest?.commits;
+      return !connection || !Array.isArray(connection.nodes);
+    })
+  ) {
     throw new Error("GitHub commit pagination returned an invalid response");
   }
-  const commits = value.flat();
+  const commits = value.flatMap((page) =>
+    page.data.repository.pullRequest.commits.nodes.map((node) => {
+      const commit = node?.commit;
+      if (
+        typeof commit?.oid !== "string" ||
+        typeof commit?.message !== "string"
+      ) {
+        throw new Error("GitHub commit pagination returned an invalid commit");
+      }
+      return { sha: commit.oid, message: commit.message };
+    }),
+  );
   if (commits.length !== expectedCount) {
     throw new Error(
       `GitHub returned ${commits.length} of ${expectedCount} pull request commits`,
@@ -373,9 +390,8 @@ export function parsePullRequestReference(value, repository) {
   return Number(parts[3]);
 }
 
-function ghApi(endpoint, { paginate = false } = {}) {
+function ghApi(endpoint) {
   const args = ["api", endpoint];
-  if (paginate) args.push("--paginate", "--slurp");
   const result = spawnSync("gh", args, {
     cwd: projectRoot,
     encoding: "utf8",
@@ -394,17 +410,63 @@ function ghApi(endpoint, { paginate = false } = {}) {
   }
 }
 
+function ghCommitPages(repository, number) {
+  const [owner, name] = repository.split("/");
+  const query = `
+    query($owner: String!, $name: String!, $number: Int!, $endCursor: String) {
+      repository(owner: $owner, name: $name) {
+        pullRequest(number: $number) {
+          commits(first: 100, after: $endCursor) {
+            nodes { commit { oid message } }
+            pageInfo { hasNextPage endCursor }
+          }
+        }
+      }
+    }
+  `;
+  const result = spawnSync(
+    "gh",
+    [
+      "api",
+      "graphql",
+      "--paginate",
+      "--slurp",
+      "-f",
+      `query=${query}`,
+      "-f",
+      `owner=${owner}`,
+      "-f",
+      `name=${name}`,
+      "-F",
+      `number=${number}`,
+    ],
+    {
+      cwd: projectRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+    },
+  );
+  if (result.error) throw result.error;
+  if (result.status !== 0)
+    throw new Error(
+      result.stderr.trim() ||
+        `gh api graphql failed with exit ${result.status}`,
+    );
+  try {
+    return JSON.parse(result.stdout);
+  } catch (error) {
+    throw new Error(`gh api graphql returned invalid JSON: ${error.message}`);
+  }
+}
+
 export async function loadLivePullRequest(reference, config) {
   const number = parsePullRequestReference(reference, config.repository);
   const pull = ghApi(`repos/${config.repository}/pulls/${number}`);
-  const pages = ghApi(
-    `repos/${config.repository}/pulls/${number}/commits?per_page=100`,
-    { paginate: true },
+  const commits = flattenCommitPages(
+    ghCommitPages(config.repository, number),
+    pull.commits,
   );
-  const commits = flattenCommitPages(pages, pull.commits).map((commit) => ({
-    sha: commit.sha,
-    message: commit.commit?.message ?? "",
-  }));
   return {
     number,
     url: pull.html_url,

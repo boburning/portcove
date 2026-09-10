@@ -186,15 +186,32 @@ test("Git-generated merge and revert subjects are exempt", () => {
 });
 
 test("commit pagination must be structured and complete", () => {
-  assert.deepEqual(flattenCommitPages([[{ sha: "a" }], [{ sha: "b" }]], 2), [
-    { sha: "a" },
-    { sha: "b" },
-  ]);
+  const pages = Array.from({ length: 3 }, (_, page) => ({
+    data: {
+      repository: {
+        pullRequest: {
+          commits: {
+            nodes: Array.from({ length: page < 2 ? 100 : 51 }, (_, index) => ({
+              commit: {
+                oid: `${page}-${index}`,
+                message: `chore(repo): paginated commit ${page}-${index}`,
+              },
+            })),
+          },
+        },
+      },
+    },
+  }));
+  assert.equal(flattenCommitPages(pages, 251).length, 251);
   assert.throws(
-    () => flattenCommitPages([{ sha: "a" }], 1),
+    () => flattenCommitPages([{ data: {} }], 1),
     /invalid response/,
   );
-  assert.throws(() => flattenCommitPages([[{ sha: "a" }]], 2), /1 of 2/);
+  assert.throws(() => flattenCommitPages(pages, 252), /251 of 252/);
+  const malformed = structuredClone(pages);
+  delete malformed[0].data.repository.pullRequest.commits.nodes[0].commit
+    .message;
+  assert.throws(() => flattenCommitPages(malformed, 251), /invalid commit/);
 });
 
 test("pull request references accept repository numbers and URLs only", () => {
@@ -263,7 +280,10 @@ test("advisory workflow executes only trusted base metadata with read permission
     /pull_request_target:\s+types:\s+\[([\s\S]*?)\]\s+workflow_dispatch:/,
   )?.[1];
   assert.deepEqual(
-    triggerList?.split(",").map((value) => value.trim()).filter(Boolean),
+    triggerList
+      ?.split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
     [
       "opened",
       "edited",
