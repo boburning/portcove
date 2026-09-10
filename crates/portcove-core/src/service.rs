@@ -257,7 +257,7 @@ impl PortcoveService {
     }
 
     #[cfg(test)]
-    fn with_provider_and_faults(
+    pub(crate) fn with_provider_and_faults(
         library: Library,
         releases: Arc<dyn ReleaseProvider>,
         faults: Arc<dyn LifecycleFaultInjector>,

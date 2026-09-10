@@ -40,8 +40,22 @@ fn traced<T>(stage: &str, run: impl FnOnce() -> Result<T>) -> Result<T> {
 #[track_caller]
 fn traced_service(library: Library) -> Result<PortcoveService> {
     traced("service initialization and recovery", || {
-        PortcoveService::new(library)
+        PortcoveService::with_provider(library, Arc::new(NoUpstreamReleases))
     })
+}
+
+struct NoUpstreamReleases;
+
+#[async_trait::async_trait]
+impl crate::ReleaseProvider for NoUpstreamReleases {
+    async fn resolve(
+        &self,
+        _port: &crate::PortDefinition,
+        _channel: crate::ReleaseChannel,
+        _platform: crate::Platform,
+    ) -> Result<crate::ResolvedRelease> {
+        panic!("source-import fixtures must not resolve upstream releases")
+    }
 }
 
 struct TracedFaults {
@@ -65,14 +79,79 @@ fn traced_service_with_faults(
     faults: Arc<dyn LifecycleFaultInjector>,
 ) -> Result<PortcoveService> {
     traced("fault service initialization", || {
-        PortcoveService::with_faults(
+        PortcoveService::with_provider_and_faults(
             library,
+            Arc::new(NoUpstreamReleases),
             Arc::new(TracedFaults {
                 inner: faults,
                 start: Instant::now(),
             }),
         )
     })
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn source_import_fixture_never_contacts_the_host_credential_service() {
+    use std::{os::unix::net::UnixListener, process::Stdio, time::Duration};
+
+    let temporary = tempfile::tempdir().unwrap();
+    let socket = temporary.path().join("owned-bus");
+    let listener = UnixListener::bind(&socket).unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let log_path = temporary.path().join("child.log");
+    let log = File::create(&log_path).unwrap();
+    let mut command = crate::ChildProcessPolicy::native_command(
+        crate::ChildProcessClass::HostTool,
+        std::env::current_exe().unwrap(),
+    )
+    .unwrap();
+    command
+        .args([
+            "--exact",
+            "source_import::tests::recovers_copy_started_without_deleting_unverified_bytes",
+            "--nocapture",
+        ])
+        .env(
+            "DBUS_SESSION_BUS_ADDRESS",
+            format!("unix:path={}", socket.display()),
+        )
+        .env_remove("PORTCOVE_GITHUB_TOKEN")
+        .env_remove("GH_TOKEN")
+        .env_remove("GITHUB_TOKEN")
+        .stdin(Stdio::null())
+        .stdout(log.try_clone().unwrap())
+        .stderr(log);
+    let mut child = command.spawn().unwrap();
+    let start = Instant::now();
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) => {}
+            Err(error) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                panic!("could not observe owned source-import fixture: {error}");
+            }
+        }
+        // Leave time to reap the exact owned child before the outer hang guard.
+        if start.elapsed() >= Duration::from_secs(15) {
+            let _ = child.kill();
+            let _ = child.wait();
+            panic!(
+                "source-import fixture stalled: {}",
+                fs::read_to_string(&log_path).unwrap()
+            );
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    let output = fs::read_to_string(log_path).unwrap();
+    assert!(status.success(), "{output}");
+    assert!(output.contains("1 passed; 0 failed"), "{output}");
+    assert_eq!(
+        listener.accept().unwrap_err().kind(),
+        std::io::ErrorKind::WouldBlock
+    );
 }
 
 #[derive(Debug)]
