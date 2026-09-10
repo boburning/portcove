@@ -54,6 +54,11 @@ export async function artworkScenario({ browser, invoke, scenario, output, artif
       await click(control(slot, "Choose local image"));
       await confirmNative("Choose local artwork", "Open", "File name:", `artwork-picker-${slot}`, source);
       await browser.wait(async () => (await state(slot)).choice.asset_sha256 === digest, 10_000);
+      const picker = await browser.findElement(control(slot, "Choose local image"));
+      // Core commits before the renderer finishes its preview and returns focus.
+      // Observe completion before scrolling to a different image surface.
+      await browser.wait(until.elementIsEnabled(picker), 10_000);
+      await browser.wait(() => browser.executeScript(element => document.activeElement === element, picker), 5000);
     }
     await waitImage(".wide-artwork img"); await waitImage(".detail-cover img");
     const cover = await state("cover"), detail = await state("detail");
