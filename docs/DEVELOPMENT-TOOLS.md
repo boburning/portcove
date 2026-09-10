@@ -232,6 +232,16 @@ fixtures do not change core admission policy or claim that current typed core
 outputs emit those future values. Core still validates every mutation and stale
 review; ordinary known-state behavior remains part of the native regression.
 
+`pnpm --dir apps/desktop test:copy` exercises the static-copy checker and complete
+count-message formatter. The ordinary UI test command also runs the checker.
+Count messages provide full zero, plural-category and unknown variants, with
+number formatting in the selected message language (currently English by default).
+Invalid, fractional or unsafe counts select the unknown message. Relocation copy
+keeps pending cleanup explicit even when its recorded old-folder list is empty.
+Fixtures cover large counts, unavailable counts and additional plural categories;
+they do not claim that translated application content has been supplied or that
+all existing copy has been migrated to the formatter.
+
 ### Command-line handoff verification
 
 The command details surface binds the effective library and names the shell whose

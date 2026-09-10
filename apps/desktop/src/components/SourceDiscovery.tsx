@@ -155,12 +155,12 @@ function SourceDiscoveryDialog({ profiles, onAdded, close }: { profiles: SourceP
   const { root, profile, report, inbox, plan, busy, error, registered, operationId, notice } = workflow;
   const dismiss = () => { if (!busy) close(); };
   const dialog = useDialogFocus(dismiss);
-  const choices = [{ value: "", label: "Choose a source profile" }, ...[...profiles].sort((left, right) => left.label.localeCompare(right.label)).map(item => ({ value: item.id, label: item.label }))];
+  const choices = [{ value: "", label: "Choose the source you need" }, ...[...profiles].sort((left, right) => left.label.localeCompare(right.label)).map(item => ({ value: item.id, label: item.label }))];
   return <div className="scrim"><section className="modal wide-modal" ref={dialog} role="dialog" aria-modal="true" aria-labelledby="source-discovery-title">
     <p className="eyebrow">LOCAL SOURCES</p><h2 id="source-discovery-title">Find source files</h2>
     <p className="modal-description">Choose the source you need. Portcove can scan its private Inbox or a folder you select, then review a safe copy, an explicit move, or registration at the current location. Source contents stay local.</p>
     <NavigationHints />
-    <ChoiceMenu label="Source profile" value={profile} options={choices} disabled={Boolean(busy)} onChange={workflow.selectProfile} />
+    <ChoiceMenu label="Required source" value={profile} options={choices} disabled={Boolean(busy)} onChange={workflow.selectProfile} />
     <div className="actions source-inbox-actions">
       <button data-focusable disabled={Boolean(busy) || !profile} onClick={() => { void workflow.openInbox(); }}>Open Source Inbox</button>
       <button data-focusable disabled={Boolean(busy) || !profile} onClick={() => { void workflow.scanInbox(); }}>Scan Source Inbox</button>
