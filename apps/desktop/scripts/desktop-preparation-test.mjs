@@ -153,7 +153,6 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
     const screenshot = path.join(output, "native-preparation-retained-outcome.png");
     await writeFile(screenshot, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" }); artifacts.push(screenshot);
   });
-  await interruptedPreparationScenario({ browser, invoke, scenario, library, output, artifacts, command });
   await scenario("native-update-settings-save-without-execution", async () => {
     const port = command(["catalog", "show", "opengoal-jak1"]);
     const cliBefore = command(["status", port.id]);
@@ -249,5 +248,7 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
   await sourceRemovalScenario({ browser, invoke, scenario, library, output, artifacts, command, confirmNative });
   await adoptionReviewScenario({ browser, invoke, scenario, library, output, artifacts, command, tool, host, confirmNative });
   await libraryHandoffScenario({ browser, invoke, scenario, library, output, artifacts, command });
+  // Leave the deliberately unrecoverable preparation fixture until after the idle-library move.
+  await interruptedPreparationScenario({ browser, invoke, scenario, library, output, artifacts, command });
 
 }
