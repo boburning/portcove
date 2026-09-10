@@ -16,6 +16,48 @@ pub(crate) struct InstalledContract {
     catalog_json: String,
 }
 
+impl InstalledContract {
+    pub(crate) fn port_id(&self) -> &str {
+        &self.port_id
+    }
+
+    pub(crate) fn capture(catalog: &Catalog, port_id: &str) -> Result<Self> {
+        catalog.port(port_id)?;
+        let contract = Self {
+            format: 1,
+            port_id: port_id.into(),
+            catalog_json: serde_json::to_string(&catalog.authoritative_document())?,
+        };
+        contract.catalog(port_id)?;
+        Ok(contract)
+    }
+
+    pub(crate) fn catalog(&self, port_id: &str) -> Result<Catalog> {
+        if self.format != 1 || self.port_id != port_id {
+            return Err(PortcoveError::verification(
+                "retained definition contract does not match this installation",
+            ));
+        }
+        if self.catalog_json.len() > crate::signed_catalog::MAX_CATALOG_BYTES {
+            return Err(PortcoveError::verification(
+                "retained definition contract exceeds the supported content bound",
+            ));
+        }
+        let catalog = Catalog::from_json(&self.catalog_json)?;
+        catalog.port(port_id)?;
+        // This version stores a canonical legacy projection, not arbitrary future
+        // definition bytes. Do not silently drop a field we cannot interpret.
+        if serde_json::from_str::<serde_json::Value>(&self.catalog_json)?
+            != serde_json::to_value(catalog.authoritative_document())?
+        {
+            return Err(PortcoveError::verification(
+                "retained definition contains unsupported or noncanonical semantics",
+            ));
+        }
+        Ok(catalog)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -76,47 +118,5 @@ mod tests {
                 .message
                 .contains("bound")
         );
-    }
-}
-
-impl InstalledContract {
-    pub(crate) fn port_id(&self) -> &str {
-        &self.port_id
-    }
-
-    pub(crate) fn capture(catalog: &Catalog, port_id: &str) -> Result<Self> {
-        catalog.port(port_id)?;
-        let contract = Self {
-            format: 1,
-            port_id: port_id.into(),
-            catalog_json: serde_json::to_string(&catalog.authoritative_document())?,
-        };
-        contract.catalog(port_id)?;
-        Ok(contract)
-    }
-
-    pub(crate) fn catalog(&self, port_id: &str) -> Result<Catalog> {
-        if self.format != 1 || self.port_id != port_id {
-            return Err(PortcoveError::verification(
-                "retained definition contract does not match this installation",
-            ));
-        }
-        if self.catalog_json.len() > crate::signed_catalog::MAX_CATALOG_BYTES {
-            return Err(PortcoveError::verification(
-                "retained definition contract exceeds the supported content bound",
-            ));
-        }
-        let catalog = Catalog::from_json(&self.catalog_json)?;
-        catalog.port(port_id)?;
-        // This version stores a canonical legacy projection, not arbitrary future
-        // definition bytes. Do not silently drop a field we cannot interpret.
-        if serde_json::from_str::<serde_json::Value>(&self.catalog_json)?
-            != serde_json::to_value(catalog.authoritative_document())?
-        {
-            return Err(PortcoveError::verification(
-                "retained definition contains unsupported or noncanonical semantics",
-            ));
-        }
-        Ok(catalog)
     }
 }
