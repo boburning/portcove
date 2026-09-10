@@ -1167,6 +1167,8 @@ pub struct CapabilityDocument {
     pub commands: Vec<String>,
     pub platforms: Vec<Platform>,
     pub adapters: Vec<AdapterKind>,
+    /// Installed engine contracts; these do not grant definition admission.
+    pub engine_templates: Vec<crate::EngineTemplateCapability>,
     pub machine_formats: Vec<String>,
     pub raw_stream_commands: Vec<String>,
     pub failure_isolated_batches: Vec<String>,
@@ -1184,6 +1186,7 @@ impl CapabilityDocument {
                 "backup".into(),
                 "artwork".into(),
                 "catalog".into(),
+                "catalog.check-capabilities".into(),
                 "source".into(),
                 "tool".into(),
                 "status".into(),
@@ -1222,6 +1225,7 @@ impl CapabilityDocument {
                 Platform::MacosAarch64,
             ],
             adapters: AdapterKind::ALL.to_vec(),
+            engine_templates: crate::EngineTemplateCapability::current(),
             machine_formats: vec!["json".into(), "jsonl".into()],
             raw_stream_commands: vec!["exec".into()],
             failure_isolated_batches: vec![

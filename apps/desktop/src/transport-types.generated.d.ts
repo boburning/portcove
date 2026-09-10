@@ -187,6 +187,7 @@ export type CatalogUpdateSource =
       value: string;
       [k: string]: unknown;
     };
+export type DefinitionCapabilityOutcome = "supported" | "unsupported_template" | "unsupported_version";
 export type HostToolSource = "environment" | "saved" | "discovery";
 export type HostToolState = "available" | "missing" | "misconfigured" | "unsupported";
 export type RepairItemKind =
@@ -371,6 +372,8 @@ export interface TransportOutputs {
   catalog_update_plan: OutputCatalogUpdatePlan;
   catalog_update_source: CatalogUpdateSource;
   check_batch_outcome: OutputCheckBatchOutcome;
+  definition_capability_report: OutputDefinitionCapabilityReport;
+  definition_capability_request: OutputDefinitionCapabilityRequest;
   doctor: OutputDoctor;
   game_update_plan: OutputGameUpdatePlan;
   github_auth_status: GithubAuthStatus;
@@ -719,6 +722,10 @@ export interface BackupProblem {
 export interface OutputCapabilities {
   adapters: AdapterKind[];
   commands: string[];
+  /**
+   * Installed engine contracts; these do not grant definition admission.
+   */
+  engine_templates: EngineTemplateCapability[];
   failure_isolated_batches: string[];
   machine_formats: string[];
   platforms: Platform[];
@@ -728,6 +735,10 @@ export interface OutputCapabilities {
   raw_stream_commands: string[];
   schema_version: number;
   [k: string]: unknown;
+}
+export interface EngineTemplateCapability {
+  contract_version: number;
+  template: AdapterKind;
 }
 export interface CatalogDocument {
   ports: PortDefinition[];
@@ -1059,6 +1070,27 @@ export interface OutputCheckBatchOutcome {
   port_id: string;
   result: UpdateCheck | null;
   [k: string]: unknown;
+}
+export interface OutputDefinitionCapabilityReport {
+  capability_contract_schema: number;
+  checks: DefinitionCapabilityResult[];
+  compatible: boolean;
+  [k: string]: unknown;
+}
+export interface DefinitionCapabilityResult {
+  installed_version: number | null;
+  outcome: DefinitionCapabilityOutcome;
+  requirement: DefinitionCapabilityRequirement;
+  [k: string]: unknown;
+}
+export interface DefinitionCapabilityRequirement {
+  maximum_version: number;
+  minimum_version: number;
+  template: string;
+}
+export interface OutputDefinitionCapabilityRequest {
+  capability_contract_schema: number;
+  required_capabilities: DefinitionCapabilityRequirement[];
 }
 export interface OutputDoctor {
   catalog_port_count: number;

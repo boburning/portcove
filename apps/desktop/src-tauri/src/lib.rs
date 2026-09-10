@@ -1636,6 +1636,8 @@ pub fn run() {
             poll_github_device_login,
             get_catalog,
             catalog::get_catalog_status,
+            catalog::get_engine_capabilities,
+            catalog::check_definition_capabilities,
             catalog::trust_catalog_key,
             catalog::revoke_catalog_key,
             catalog::plan_catalog_update,

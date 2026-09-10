@@ -14,6 +14,7 @@ mod catalog;
 mod catalog_store;
 mod catalog_update;
 mod database;
+mod definition_capabilities;
 #[cfg(test)]
 mod definition_policy_tests;
 mod durability;
@@ -82,6 +83,11 @@ pub use cancellation::{CancellationPhase, CancellationState};
 pub use catalog::Catalog;
 pub use catalog_store::CatalogStatus;
 pub use catalog_update::{CatalogUpdatePlan, CatalogUpdateSource};
+pub use definition_capabilities::{
+    DefinitionCapabilityOutcome, DefinitionCapabilityReport, DefinitionCapabilityRequest,
+    DefinitionCapabilityRequirement, DefinitionCapabilityResult, EngineTemplateCapability,
+    check_definition_capabilities, inspect_definition_capabilities,
+};
 pub use error::{ErrorCode, PortcoveError, Result};
 pub use failure::{
     FailurePresentation, FailureReport, FailureTone, MutationState, RecoveryAction,
@@ -157,4 +163,4 @@ pub use source_report::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 44;
+pub const API_SCHEMA_VERSION: u32 = 45;

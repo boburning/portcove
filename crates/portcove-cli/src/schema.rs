@@ -30,6 +30,18 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
     serde_json::Value::Object(
         [
             (
+                "definition_capability_request",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::DefinitionCapabilityRequest,
+                >(contract)),
+            ),
+            (
+                "definition_capability_report",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::DefinitionCapabilityReport,
+                >(contract)),
+            ),
+            (
                 "artwork_state",
                 serde_json::json!(schema_for_contract::<portcove_core::ArtworkState>(contract)),
             ),

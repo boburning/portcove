@@ -55,7 +55,7 @@ function main() {
 
   const failures = checkTransportContract(schemas, sourceText);
   const inputSchemas = exportSchemas(root, "input");
-  const requests = Object.fromEntries(["source_discovery_request", "source_discovery_limits", "catalog_update_source"].map(key => [key, inputSchemas[key]]));
+  const requests = Object.fromEntries(["source_discovery_request", "source_discovery_limits", "catalog_update_source", "definition_capability_request"].map(key => [key, inputSchemas[key]]));
   const inputPath = path.join(root, "apps", "desktop", "src", "transport-inputs.generated.json");
   if (values.write) fs.writeFileSync(inputPath, renderTransportSchemas(requests));
   failures.push(...checkTransportContract(requests, fs.readFileSync(inputPath, "utf8")).map(message => `Request inputs: ${message}`));

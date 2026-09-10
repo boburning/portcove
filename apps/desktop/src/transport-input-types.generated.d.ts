@@ -16,9 +16,19 @@ export type ReleaseChannel = "stable" | "beta" | "rolling";
 
 export interface TransportInputs {
   catalog_update_source: InputCatalogUpdateSource;
+  definition_capability_request: InputDefinitionCapabilityRequest;
   source_discovery_limits: SourceDiscoveryLimits;
   source_discovery_request: InputSourceDiscoveryRequest;
   desktop_install_input: InputDesktopInstallInput;
+}
+export interface InputDefinitionCapabilityRequest {
+  capability_contract_schema: number;
+  required_capabilities: DefinitionCapabilityRequirement[];
+}
+export interface DefinitionCapabilityRequirement {
+  maximum_version: number;
+  minimum_version: number;
+  template: string;
 }
 export interface SourceDiscoveryLimits {
   max_candidates: number;

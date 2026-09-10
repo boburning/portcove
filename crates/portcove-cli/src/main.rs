@@ -794,6 +794,14 @@ fn requested_output_mode(args: &[std::ffi::OsString]) -> OutputMode {
 }
 
 async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
+    if let Commands::Catalog {
+        command: CatalogCommand::CheckCapabilities { file },
+    } = &cli.command
+    {
+        let report = portcove_core::inspect_definition_capabilities(file)?;
+        render_success(mode, "catalog.check-capabilities", report)?;
+        return Ok(ExitCode::SUCCESS);
+    }
     if matches!(&cli.command, Commands::About) {
         render_about(mode)?;
         return Ok(ExitCode::SUCCESS);
@@ -2699,7 +2707,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 44);
+        assert_eq!(capabilities.schema_version, 45);
         assert_eq!(
             capabilities.failure_isolated_batches,
             ["check", "reconcile", "update", "source.verify"]
