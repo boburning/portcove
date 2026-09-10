@@ -196,6 +196,36 @@ Existing direct-manifest pins and permitted installed use survive this design.
 
 ## Delivery, compatibility and retention
 
+Core's `DefinitionContentIndex` implements the first structural boundary for the
+successor index. Schema 1 has exactly `index_schema`, `definitions` and `contents`.
+Each definition has `namespace`, `stable_id`, positive `revision` and `target`;
+each content record has `target`, lowercase `sha256` and positive byte `length`.
+Namespace and stable ID use 1–255 lowercase ASCII letters, digits or hyphens.
+One namespace/stable-ID pair occurs once per snapshot, regardless of revision.
+Official stable IDs remain unchanged. Other namespaces cannot acquire official
+authority merely by appearing in this inventory.
+
+The initial target spelling is exactly `sha256/<64 lowercase hex digits>.json`,
+bound to the record's digest. URLs, aliases and traversal components cannot be
+target references. Duplicate content records and definition targets absent from
+the content inventory are rejected. Shared contracts may be referenced repeatedly
+but occur once in the inventory. Empty snapshots are structurally valid; parsing
+one cannot remove catalog availability. Unknown or duplicate fields at every
+index boundary fail closed. Index bytes are retained exactly, not reserialized.
+
+The parser enforces the 4 MiB index, 4,096 definitions, 4 MiB per content target
+and 32 MiB aggregate bounds below before exposing an immutable inventory. This
+first representation conservatively bounds all listed content, including records
+not referenced by a definition. A transport can obtain each target's validated
+length before its bounded read and then check supplied bytes against that length
+and SHA-256. Repeated reads remain the transport's responsibility.
+
+This pure inspector neither authenticates the index nor interprets entries,
+fetches targets, grants publisher scope or changes the selected catalog. Entry
+semantics, reference-graph depth/cycle checks, identity agreement with entry
+content, replay/revocation policy and transactional loading remain separate
+required boundaries. A byte match alone cannot turn a target into a usable port.
+
 The successor target bundle has its own versioned schema, independent of source
 catalog schema 2 and signed envelope format 1. Its outer index is bounded and
 strictly validated before entry processing. Each content-addressed entry includes
