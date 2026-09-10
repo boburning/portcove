@@ -165,7 +165,7 @@ namespace Portcove.ReferenceClient
             if (Json.Number(capabilities, "schema_version") != Schema || Json.Text(capabilities, "product") != "Portcove")
                 throw new InvalidOperationException("This reference client requires Portcove API schema 42. Select a compatible CLI or update the client.");
             var commands = Json.Array(Json.Field(capabilities, "commands")).OfType<string>().ToArray();
-            foreach (var required in new[] { "catalog", "status", "activity", "library.identity", "launch.show", "exec", "ensure", "update", "preparation" })
+            foreach (var required in new[] { "catalog", "source", "status", "activity", "cancel", "library.identity", "launch.show", "exec", "ensure", "update", "preparation" })
                 if (!commands.Contains(required)) throw new InvalidOperationException("The CLI lacks " + required + ". Select a compatible standalone Portcove CLI.");
             var formats = Json.Array(Json.Field(capabilities, "machine_formats")).OfType<string>();
             if (!formats.Contains("json") || !formats.Contains("jsonl") || !Json.Array(Json.Field(capabilities, "raw_stream_commands")).Contains("exec"))

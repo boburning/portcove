@@ -48,7 +48,7 @@ internal static class ContractTests
     private static object Capabilities() => new
     {
         schema_version = 42, product = "Portcove",
-        commands = new[] { "catalog", "status", "activity", "library.identity", "launch.show", "exec", "ensure", "update", "preparation" },
+        commands = new[] { "catalog", "source", "status", "activity", "cancel", "library.identity", "launch.show", "exec", "ensure", "update", "preparation" },
         machine_formats = new[] { "json", "jsonl" }, raw_stream_commands = new[] { "exec" }
     };
     private static async Task Run(string[] args)
@@ -78,6 +78,9 @@ internal static class ContractTests
         Reject(() => ProtocolStream.Negotiate(bad), "future schema rejected with migration guidance");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
+        bad = Json.Object(Json.Parse(Json.Print(Capabilities())));
+        bad["commands"] = Json.Array(Json.Field(bad, "commands")).Where(command => !Equals(command, "cancel")).ToArray();
+        Reject(() => ProtocolStream.Negotiate(bad), "missing cancellation capability rejected before management");
         var absent = new ProtocolStream("launch.show"); absent.Line(Result("launch.show", null));
         Check(absent.Finish(0) == null, "absent launch remains unknown/null");
         var stream = new ProtocolStream("ensure"); stream.Line(Event(0)); stream.Line(Event(1)); stream.Line(Result("ensure", new { id = "owned" }));

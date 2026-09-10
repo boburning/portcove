@@ -1186,6 +1186,7 @@ impl CapabilityDocument {
                 "tool".into(),
                 "status".into(),
                 "activity".into(),
+                "cancel".into(),
                 "storage".into(),
                 "library".into(),
                 "library.identity".into(),
