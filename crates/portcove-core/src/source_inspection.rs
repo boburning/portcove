@@ -2172,3 +2172,61 @@ mod tests {
         );
     }
 }
+
+pub(crate) fn inspect(
+    catalog: &Catalog,
+    profile_id: &str,
+    path: &Path,
+) -> Result<SourceInspection> {
+    crate::path::unicode(path, "source")?;
+    let absolute = std::path::absolute(path)?;
+    let path = absolute.as_path();
+    let profile = catalog.source_profile(profile_id)?;
+    if matches!(
+        profile.kind,
+        SourceKind::File | SourceKind::UpstreamValidatedDisc
+    ) {
+        let mut budget = HashBudget {
+            operation: None,
+            limit: u64::MAX,
+            hashed: 0,
+            max_zip_entries: 4096,
+        };
+        if profile.kind == SourceKind::UpstreamValidatedDisc {
+            return inspect_pinned_validator(catalog, profile_id, path, u64::MAX, &mut budget);
+        }
+        return inspect_file(catalog, profile_id, path, u64::MAX, &mut budget);
+    }
+    if profile.kind == SourceKind::FileSet {
+        return inspect_file_set(catalog, profile_id, path);
+    }
+    if matches!(profile.kind, SourceKind::GamecubeDisc | SourceKind::PsxDisc) {
+        return inspect_disc(catalog, profile_id, path);
+    }
+    unreachable!("all source kinds have a shared inspection path")
+}
+
+pub(crate) fn verify_registered(catalog: &Catalog, registered: &SourceRecord) -> Result<()> {
+    let profile_id = &registered.profile_id;
+    let actual = inspect(catalog, profile_id, &registered.path)?.require_admitted_record()?;
+    if actual.sha256 != registered.sha256
+        || actual.size != registered.size
+        || actual.storage_sha256 != registered.storage_sha256
+        || actual.storage_size != registered.storage_size
+    {
+        return Err(PortcoveError::source(format!(
+            "source changed since registration: {}",
+            registered.path.display()
+        ))
+        .detail("profile_id", profile_id)
+        .detail("recorded_sha256", registered.sha256.clone())
+        .detail("actual_sha256", actual.sha256)
+        .detail("recorded_size", registered.size.to_string())
+        .detail("actual_size", actual.size.to_string())
+        .detail("recorded_storage_sha256", registered.storage_sha256.clone())
+        .detail("actual_storage_sha256", actual.storage_sha256)
+        .detail("recorded_storage_size", registered.storage_size.to_string())
+        .detail("actual_storage_size", actual.storage_size.to_string()));
+    }
+    Ok(())
+}
