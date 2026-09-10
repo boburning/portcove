@@ -26,10 +26,11 @@ function Assert-LiveApplication {
     $live = Get-CimInstance Win32_Process -Filter "ProcessId = $applicationId"
     if (-not $live -or $live.CreationDate -ne $applications[0].CreationDate -or $live.ExecutablePath -ne $applications[0].ExecutablePath) { throw 'Owned application identity changed while waiting for confirmation.' }
 }
-$condition = [System.Windows.Automation.AndCondition]::new(
+$condition = [System.Windows.Automation.AndCondition]::new([System.Windows.Automation.Condition[]]@(
     [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $applicationId),
-    [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, $Title)
-)
+    [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, $Title),
+    [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Window)
+))
 $deadline = [DateTime]::UtcNow.AddSeconds(10)
 $window = $null
 while ([DateTime]::UtcNow -lt $deadline) {
@@ -41,7 +42,10 @@ while ([DateTime]::UtcNow -lt $deadline) {
         $roots = [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $ownedCondition)
         $windows = @($roots | ForEach-Object { $_.FindAll([System.Windows.Automation.TreeScope]::Descendants, $condition) })
     }
-    if ($windows.Count -gt 1) { throw 'Ambiguous native confirmation.' }
+    if ($windows.Count -gt 1) {
+        $observed = @($windows | ForEach-Object { [pscustomobject]@{ name = $_.Current.Name; class = $_.Current.ClassName; handle = $_.Current.NativeWindowHandle } }) | ConvertTo-Json -Compress
+        throw "Ambiguous native confirmation: $observed"
+    }
     if ($windows.Count -eq 1) { $window = $windows[0]; break }
     Start-Sleep -Milliseconds 100
 }
