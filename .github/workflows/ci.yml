@@ -440,6 +440,9 @@ jobs:
         with:
           tool: ${{ steps.quality-pins.outputs.just }}
       - run: pnpm install --frozen-lockfile
+      - name: Check repository formatting
+        working-directory: .
+        run: pnpm --dir apps/desktop format:check
       - name: Test development storage tool integration
         working-directory: .
         run: node scripts/dev-storage.mjs run -- node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs --test-name-pattern "pnpm uses|direct just recipes" scripts/dev-storage.test.mjs

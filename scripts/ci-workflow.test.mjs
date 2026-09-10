@@ -163,6 +163,10 @@ test("frontend keeps deterministic product gates and delegates vulnerability cha
   assert.match(frontend, /^    env:\r?\n      npm_config_audit: "false"$/m);
   assert.match(frontend, /pnpm install --frozen-lockfile/);
   assert.match(frontend, /Install pinned recipe runner/);
+  const install = frontend.indexOf("pnpm install --frozen-lockfile");
+  const formatting = frontend.indexOf("pnpm --dir apps/desktop format:check");
+  const build = frontend.indexOf("pnpm build");
+  assert.ok(install >= 0 && formatting > install && build > formatting);
   assert.match(frontend, /--test-name-pattern "pnpm uses\|direct just recipes" scripts\/dev-storage\.test\.mjs/);
   assert.match(frontend, /pnpm build/);
   assert.match(frontend, /pnpm test/);
