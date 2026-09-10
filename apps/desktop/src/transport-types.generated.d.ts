@@ -338,7 +338,6 @@ export type SourceImportOutcome =
   "copied" | "moved" | "reused_existing" | "registered_current_location" | "copied_original_retained";
 export type SourceInboxResolutionState =
   "registered" | "exact_match" | "approval_required" | "unresolved" | "conflict" | "incomplete";
-export type CommandShell = "powershell" | "posix";
 
 export interface TransportOutputs {
   about: OutputAbout;
@@ -1795,7 +1794,7 @@ export interface OutputDesktopBootstrapStatus {
 export interface OutputDesktopCliCommandContext {
   executable: string | null;
   library_root: string;
-  shell: CommandShell;
+  platform: Platform;
   [k: string]: unknown;
 }
 export interface OutputDesktopLaunchResult {

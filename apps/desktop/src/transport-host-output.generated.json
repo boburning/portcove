@@ -282,10 +282,12 @@
   },
   "cli_command_context": {
     "$defs": {
-      "CommandShell": {
+      "Platform": {
         "enum": [
-          "powershell",
-          "posix"
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
         ],
         "type": "string"
       }
@@ -301,14 +303,14 @@
       "library_root": {
         "type": "string"
       },
-      "shell": {
-        "$ref": "#/$defs/CommandShell"
+      "platform": {
+        "$ref": "#/$defs/Platform"
       }
     },
     "required": [
       "library_root",
       "executable",
-      "shell"
+      "platform"
     ],
     "title": "CliCommandContext",
     "type": "object"
