@@ -180,6 +180,18 @@ location so Windows extended-length path spelling does not create adapter drift.
 Its accessibility and native evidence remain distinct
 from core interruption and physical-platform qualification.
 
+The owned artwork scenario opens the actual Windows file picker, cancels without
+changing a choice, selects a generated local PNG independently for cover/detail,
+and resets only the cover. The same bounded native-dialog helper may populate the
+exact file-name field only in this artwork picker, using a fixture below the new
+test output directory. It checks stale library/slot requests, rendered letterboxing,
+compact long-title layout, keyboard opening and picker focus return. Temporarily
+withholding the owned managed original must retain its choice and leave ordinary
+status reads usable; restoring it, clearing thumbnails and restarting the renderer
+must rediscover the authoritative selection. The combined smoke harness is bounded
+to three minutes. These are automated native observations, not human comprehension,
+physical controller ergonomics or artwork-rights evidence.
+
 ### Command-line handoff verification
 
 The command details surface binds the effective library and names the shell whose

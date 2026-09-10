@@ -62,7 +62,8 @@ function stopDriver() {
     try { process.kill(-driver.pid, "SIGTERM"); } catch { /* Already stopped. */ }
   }
 }
-const deadline = setTimeout(() => { stopDriver(); }, 120_000);
+// Includes owned native artwork picker/restart coverage in addition to lifecycle reviews.
+const deadline = setTimeout(() => { stopDriver(); }, 180_000);
 deadline.unref();
 
 async function requireUnusedPort(number) {

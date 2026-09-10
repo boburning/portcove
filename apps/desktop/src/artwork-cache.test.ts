@@ -7,6 +7,21 @@ import type { ArtworkState } from "./types";
 afterEach(() => vi.restoreAllMocks());
 
 describe("disposable artwork display cache", () => {
+  it("updates subscribed views for their slot and stops notifying a closed view", async () => {
+    vi.spyOn(desktopApi, "artwork").mockImplementation(async (port, slot) => artworkState(port, slot));
+    const cache = new ArtworkCache(7);
+    const card = vi.fn(), editor = vi.fn(), detail = vi.fn();
+    const closeCard = cache.subscribe("sample", "cover", card);
+    const closeEditor = cache.subscribe("sample", "cover", editor);
+    const closeDetail = cache.subscribe("sample", "detail", detail);
+    await cache.load("sample", "cover");
+    expect(card).toHaveBeenCalled(); expect(editor).toHaveBeenCalled(); expect(detail).not.toHaveBeenCalled();
+    closeCard(); card.mockClear(); editor.mockClear();
+    await cache.load("sample", "cover", true);
+    expect(card).not.toHaveBeenCalled(); expect(editor).toHaveBeenCalled();
+    closeEditor(); closeDetail();
+  });
+
   it("deduplicates requests and serializes slots without making a second choice authority", async () => {
     let active = 0, maximum = 0;
     const read = vi.spyOn(desktopApi, "artwork").mockImplementation(async (port, slot) => {

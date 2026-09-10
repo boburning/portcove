@@ -4,7 +4,6 @@ import type { ArtworkSlot } from "./types";
 
 const ArtworkContext = createContext<ArtworkCache | undefined>(undefined);
 const unavailable: ArtworkDisplay = { loading: false };
-const noSubscription = () => () => {};
 
 export function ArtworkProvider({ generation, children }: { generation: number; children: ReactNode }) {
   const cache = useMemo(() => new ArtworkCache(generation), [generation]);
@@ -13,7 +12,10 @@ export function ArtworkProvider({ generation, children }: { generation: number; 
 
 export function useArtwork(portId: string, slot: ArtworkSlot, visible = true) {
   const cache = useContext(ArtworkContext);
-  const subscribe = useCallback((listener: () => void) => cache?.subscribe(portId, slot, listener) ?? noSubscription(), [cache, portId, slot]);
+  const subscribe = useCallback((listener: () => void) => {
+    if (cache) return cache.subscribe(portId, slot, listener);
+    return () => {};
+  }, [cache, portId, slot]);
   const read = useCallback(() => cache?.read(portId, slot) ?? unavailable, [cache, portId, slot]);
   const display = useSyncExternalStore(subscribe, read, () => unavailable);
   useEffect(() => { if (visible) void cache?.load(portId, slot, true); }, [cache, portId, slot, visible]);

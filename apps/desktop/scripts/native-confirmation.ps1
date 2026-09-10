@@ -3,7 +3,8 @@ param(
     [Parameter(Mandatory)][string]$ApplicationPath,
     [Parameter(Mandatory)][string]$Title,
     [Parameter(Mandatory)][string]$ExpectedText,
-    [Parameter(Mandatory)][string]$Button
+    [Parameter(Mandatory)][string]$Button,
+    [string]$FilePath
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient
@@ -55,7 +56,15 @@ if ($Button -ne '__observe__') {
 }
 $liveApplication = Get-CimInstance Win32_Process -Filter "ProcessId = $applicationId"
 if (-not $liveApplication -or $liveApplication.CreationDate -ne $applications[0].CreationDate -or $liveApplication.ExecutablePath -ne $applications[0].ExecutablePath) { throw 'Owned application identity changed while waiting for confirmation.' }
+if ($FilePath) {
+    if ($Button -ne 'Open' -or $Title -ne 'Choose local artwork') { throw 'File input is limited to the owned artwork picker.' }
+    $selected = (Resolve-Path -LiteralPath $FilePath).Path
+    if (-not [IO.File]::Exists($selected)) { throw 'Owned picker fixture is not a file.' }
+    $fields = @($children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit -and $_.Current.Name -eq 'File name:' })
+    if ($fields.Count -ne 1) { throw 'Expected one exact file-name field in the owned artwork picker.' }
+    $fields[0].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($selected)
+}
 if ($Button -ne '__observe__') {
     $buttons[0].GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
 }
-[pscustomobject]@{ application_pid = $applicationId; driver_pid = $DriverProcessId; application_path = $applicationFull; title = $Title; button = $Button; text = $text } | ConvertTo-Json -Compress
+[pscustomobject]@{ application_pid = $applicationId; driver_pid = $DriverProcessId; application_path = $applicationFull; title = $Title; button = $Button; text = $text; selected_file = $FilePath } | ConvertTo-Json -Compress
