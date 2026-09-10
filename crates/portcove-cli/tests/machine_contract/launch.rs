@@ -60,24 +60,28 @@ pub(super) fn observe_prepared_launch(library: &Path, preferences: &Path, port_i
         ))
     };
     assert!(read()["data"].is_null());
-    let child = Command::new(cli_binary())
-        .env("PORTCOVE_PREFERENCES", preferences)
-        .arg("--library")
-        .arg(library)
-        .args([
-            "--non-interactive",
-            "exec",
-            port_id,
-            "--request-id",
-            REQUEST,
-            "--",
-            "--owned-wait",
-        ])
-        .arg(&release)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
+    let child = portcove_core::ChildProcessPolicy::native_command(
+        portcove_core::ChildProcessClass::HostIntegration,
+        cli_binary(),
+    )
+    .unwrap()
+    .env("PORTCOVE_PREFERENCES", preferences)
+    .arg("--library")
+    .arg(library)
+    .args([
+        "--non-interactive",
+        "exec",
+        port_id,
+        "--request-id",
+        REQUEST,
+        "--",
+        "--owned-wait",
+    ])
+    .arg(&release)
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .spawn()
+    .unwrap();
     let mut owned = OwnedLaunch {
         child: Some(child),
         release,
