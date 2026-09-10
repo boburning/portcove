@@ -47,9 +47,10 @@ impl PortcoveService {
             .source_profile
             .as_deref()
             .ok_or_else(|| PortcoveError::state("preparation has no source profile"))?;
+        let catalog = self.installed_catalog(install)?;
         let definition = crate::signed_catalog::digest(&serde_json::to_vec(&(
             port,
-            self.catalog().source_profile(profile)?,
+            catalog.source_profile(profile)?,
         ))?);
         let inputs = &receipt.inputs;
         let source_matches = source.is_some_and(|source| {

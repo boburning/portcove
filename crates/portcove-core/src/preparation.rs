@@ -80,13 +80,12 @@ impl PortcoveService {
         options: PreparationOptions,
     ) -> Result<PreparationPlan> {
         let active = self.status(port_id)?.active;
-        let retained_port = active
+        let retained_catalog = active
             .as_ref()
-            .map(|install| self.installed_port(install))
+            .map(|install| self.installed_catalog(install))
             .transpose()?;
-        let port = retained_port
-            .as_ref()
-            .unwrap_or(self.catalog().port(port_id)?);
+        let catalog = retained_catalog.as_ref().unwrap_or(self.catalog());
+        let port = catalog.port(port_id)?;
         let host = Platform::current()?;
         if port.adapter != AdapterKind::UpstreamManagedSetup {
             return Err(PortcoveError::unsupported(
@@ -133,8 +132,8 @@ impl PortcoveService {
             PortcoveError::source("register the required source before preparation")
                 .detail("profile_id", profile_id)
         })?;
-        self.verify_source_record(&source)?;
-        let source_inspection = self.inspect_registered_source(profile_id)?;
+        crate::source_inspection::verify_registered(catalog, &source)?;
+        let source_inspection = crate::source_report::registered_report(catalog, source.clone())?;
         let hints = port.setup_executable_hints.get(&host).ok_or_else(|| {
             PortcoveError::unsupported("this host has no declared setup executable")
         })?;
@@ -155,7 +154,7 @@ impl PortcoveService {
         };
         let definition_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&(
             port,
-            self.catalog().source_profile(profile_id)?,
+            catalog.source_profile(profile_id)?,
         ))?);
         let copy = crate::library_transfer::reviewed_tree(&install.path)?;
         let mut plan = PreparationPlan {

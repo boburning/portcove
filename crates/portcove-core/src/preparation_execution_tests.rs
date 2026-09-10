@@ -601,7 +601,24 @@ fn retained_definition_survives_catalog_changes_but_missing_receipt_blocks_play(
             .launchable
     );
     let original_catalog = fixture.service.catalog().clone();
-    let mut document = original_catalog.document().clone();
+    let mut document = original_catalog.authoritative_document();
+    let profile_id = fixture
+        .service
+        .catalog()
+        .port(PORT)
+        .unwrap()
+        .source_profile
+        .as_ref()
+        .unwrap();
+    document
+        .source_catalog
+        .as_mut()
+        .unwrap()
+        .identities
+        .iter_mut()
+        .find(|profile| &profile.id == profile_id)
+        .unwrap()
+        .label = "Changed after preparation".into();
     document
         .ports
         .iter_mut()
