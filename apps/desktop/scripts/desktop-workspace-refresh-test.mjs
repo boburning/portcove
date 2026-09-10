@@ -47,13 +47,20 @@ export async function workspaceRefreshScenario({ browser, scenario, output, arti
       observations.commands = await browser.executeScript(() => window.__portcoveRefreshProbe.calls);
       assert.equal(observations.commands.filter(command => command === "get_catalog").length, 2);
       assert.ok(observations.commands.every(command => command.startsWith("get_") || command.startsWith("plugin:")), JSON.stringify(observations.commands));
+    } catch (error) {
+      observations.failure = error.message;
+      throw error;
     } finally {
-      await browser.executeScript(() => {
-        const probe = window.__portcoveRefreshProbe;
-        if (probe) { window.__TAURI_INTERNALS__.invoke = probe.original; delete window.__portcoveRefreshProbe; }
-      });
-      const report = path.join(output, "workspace-refresh-observations.json");
-      await writeFile(report, JSON.stringify(observations, null, 2), { flag: "wx" }); artifacts.push(report);
+      try {
+        await browser.executeScript(() => {
+          const probe = window.__portcoveRefreshProbe;
+          if (probe) { window.__TAURI_INTERNALS__.invoke = probe.original; delete window.__portcoveRefreshProbe; }
+        });
+        observations.interception_restored = true;
+      } finally {
+        const report = path.join(output, "workspace-refresh-observations.json");
+        await writeFile(report, JSON.stringify(observations, null, 2), { flag: "wx" }); artifacts.push(report);
+      }
     }
   });
 }
