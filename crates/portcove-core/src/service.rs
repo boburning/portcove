@@ -2413,8 +2413,6 @@ impl PortcoveService {
         F: FnMut(OperationEvent),
     {
         let runtime = crate::runtime::required(port, Platform::current()?);
-        let qualification =
-            InstallQualification::from_catalog(&self.catalog, &port.id, Platform::current()?)?;
         if let Some(active) = &status.active
             && artifact_matches_release(active, &release, runtime.as_ref())
         {
@@ -2463,6 +2461,8 @@ impl PortcoveService {
             existing.staged = !activate;
             return Ok(existing);
         }
+        let qualification =
+            InstallQualification::from_catalog(&self.catalog, &port.id, Platform::current()?)?;
         self.collect_active_user_data_if_launched(&port.id)?;
         let source =
             self.validate_and_remember_source(port, overrides.source, reporter.operation)?;

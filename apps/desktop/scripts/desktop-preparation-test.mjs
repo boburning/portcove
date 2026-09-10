@@ -45,14 +45,14 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
     return { port, install };
   }
   const button = label => By.xpath(`//button[normalize-space(.)="${label}"]`);
-  async function open(port) {
+  async function open(port, waitForPreparation = true) {
     await browser.navigate().refresh();
     await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 15_000);
     await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
     const card = By.xpath(`//button[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`);
     await browser.wait(until.elementLocated(card), 15_000);
     await browser.findElement(card).click();
-    await browser.wait(until.elementLocated(button("Review game preparation")), 15_000);
+    if (waitForPreparation) await browser.wait(until.elementLocated(button("Review game preparation")), 15_000);
   }
   async function status(portId) {
     const result = await invoke("get_statuses");
@@ -96,7 +96,7 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
     assert.equal(JSON.parse(original).schema_version, 6);
     try {
       await writeFile(manifest, "owned corrupt contract fixture");
-      await open(port);
+      await open(port, false);
       const damaged = await status(port.id);
       assert.equal(damaged.readiness.launchable, false);
       assert.deepEqual(damaged.readiness.blockers, ["invalid_installation"]);
@@ -114,7 +114,7 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
     } finally {
       await writeFile(manifest, original);
     }
-    await open(port);
+    await open(port, false);
     assert.equal((await status(port.id)).readiness.launchable, true);
   });
 
