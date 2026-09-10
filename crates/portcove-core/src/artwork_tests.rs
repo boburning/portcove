@@ -450,3 +450,80 @@ fn managed_move_preserves_artwork_and_excludes_cached_payloads() {
             .is_empty()
     );
 }
+
+#[cfg(unix)]
+#[test]
+fn artwork_symlinks_cannot_redirect_import_cache_or_original_removal() {
+    use std::os::unix::fs::symlink;
+    let temp = tempfile::tempdir().unwrap();
+    let service = open_service(&temp.path().join("library"));
+    let png = image_file(temp.path(), "cover.png", image::ImageFormat::Png);
+    let bytes = fs::read(&png).unwrap();
+    let link = temp.path().join("redirect.png");
+    symlink(&png, &link).unwrap();
+    assert!(
+        service
+            .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &link, 0)
+            .is_err()
+    );
+    let choice = service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &png, 0)
+        .unwrap()
+        .choice;
+    let id = choice.asset_sha256.unwrap();
+    service
+        .artwork_thumbnail("zelda64-recomp", ArtworkSlot::Cover, 1)
+        .unwrap();
+    let cache = service
+        .library()
+        .root()
+        .join("artwork-cache")
+        .join(format!("{id}.png"));
+    fs::remove_file(&cache).unwrap();
+    symlink(&png, &cache).unwrap();
+    assert!(service.clear_artwork_cache().is_err());
+    assert!(
+        service
+            .artwork_thumbnail("zelda64-recomp", ArtworkSlot::Cover, 1)
+            .is_err()
+    );
+    let original = crate::artwork::original_path(service.library(), &id).unwrap();
+    fs::remove_file(&original).unwrap();
+    symlink(&png, &original).unwrap();
+    service
+        .reset_artwork("zelda64-recomp", ArtworkSlot::Cover, 1)
+        .unwrap();
+    assert!(service.remove_unused_local_artwork(&id).is_err());
+    assert_eq!(fs::read(&png).unwrap(), bytes);
+}
+
+#[test]
+fn local_inventory_capacity_includes_unfinished_imports() {
+    let temp = tempfile::tempdir().unwrap();
+    let service = open_service(&temp.path().join("library"));
+    let png = image_file(temp.path(), "cover.png", image::ImageFormat::Png);
+    let connection = service.library().connection().unwrap();
+    for index in 0..64 {
+        let asset = crate::LocalArtworkAsset {
+            sha256: format!("{index:064x}"),
+            original_name: "reserved.png".into(),
+            format: crate::ArtworkImageFormat::Png,
+            byte_size: crate::artwork_image::MAX_ORIGINAL_BYTES,
+            width: 1,
+            height: 1,
+            imported_at: 1,
+        };
+        crate::artwork_store::write_asset(&connection, &asset).unwrap();
+    }
+    let failed = service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &png, 0)
+        .unwrap_err();
+    assert_eq!(failed.code, crate::ErrorCode::Conflict);
+    assert_eq!(service.unused_local_artwork().unwrap().len(), 64);
+    service
+        .remove_unused_local_artwork(&format!("{:064x}", 0))
+        .unwrap();
+    service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &png, 0)
+        .unwrap();
+}

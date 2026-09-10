@@ -66,6 +66,10 @@ export type LaunchBlocker =
   | "preparation_required"
   | "invalid_installation";
 export type UpdatePolicy = "notify" | "stage" | "automatic";
+export type ArtworkImageFormat = "png" | "jpeg";
+export type OutputArtworkAssets = LocalArtworkAsset[];
+export type ArtworkAvailability = "fallback" | "available" | "unavailable";
+export type ArtworkSlot = "cover" | "detail";
 export type BackupAction = "restore" | "delete";
 export type BackupProblemKind =
   | "missing_manifest"
@@ -209,7 +213,8 @@ export type HostToolProbeState =
 export type OutputLaunchRequest = LaunchSessionRecord | null;
 export type LaunchSessionOutcome = "succeeded" | "failed" | "cancelled";
 export type LaunchSessionPhase = "preparing" | "spawning" | "running" | "collecting" | "recovering";
-export type LibraryContentKind = "application_versions" | "user_data" | "source_inbox" | "backups" | "toolchains";
+export type LibraryContentKind =
+  "application_versions" | "user_data" | "source_inbox" | "backups" | "toolchains" | "local_artwork";
 export type SourceDigestAlgorithm = "sha1" | "sha256" | "crc32";
 export type SourceComponentKind = "file_set_member" | "optical_disc";
 export type SourceValidatorResult = "not_run" | "passed" | "failed" | "missing_tool";
@@ -349,6 +354,10 @@ export interface TransportOutputs {
   activity_diagnostic: OutputActivityDiagnostic;
   adoption_preview: OutputAdoptionPreview;
   api_response_port_status: OutputApiResponsePortStatus;
+  artwork_assets: OutputArtworkAssets;
+  artwork_cache_clear: OutputArtworkCacheClear;
+  artwork_state: OutputArtworkState;
+  artwork_thumbnail: OutputArtworkThumbnail;
   backup: BackupRecord;
   backup_action_preview: BackupActionPreview;
   backup_inventory: OutputBackupInventory;
@@ -635,6 +644,42 @@ export interface LaunchReadiness {
   launchable: boolean;
   pending_setup: boolean;
   source?: SourceHealth | null;
+  [k: string]: unknown;
+}
+/**
+ * Local integrity and user selection do not establish copyright permission.
+ */
+export interface LocalArtworkAsset {
+  byte_size: number;
+  format: ArtworkImageFormat;
+  height: number;
+  imported_at: number;
+  original_name: string;
+  sha256: string;
+  width: number;
+}
+export interface OutputArtworkCacheClear {
+  removed_bytes: number;
+  removed_files: number;
+  [k: string]: unknown;
+}
+export interface OutputArtworkState {
+  availability: ArtworkAvailability;
+  choice: ArtworkChoice;
+  reason: string | null;
+  selection: LocalArtworkAsset | null;
+  [k: string]: unknown;
+}
+export interface ArtworkChoice {
+  asset_sha256: string | null;
+  port_id: string;
+  revision: number;
+  slot: ArtworkSlot;
+}
+export interface OutputArtworkThumbnail {
+  asset_sha256: string;
+  choice_revision: number;
+  png: number[];
   [k: string]: unknown;
 }
 export interface BackupRecord {
@@ -1182,6 +1227,7 @@ export interface LibraryTreePlan {
  */
 export interface LibraryMetadata {
   application_versions: InstallRecord[];
+  artwork?: ArtworkMetadata | null;
   content_roots: LibraryContentRoot[];
   exported_at: number;
   launch_history: LibraryLaunchHistory[];
@@ -1190,6 +1236,10 @@ export interface LibraryMetadata {
   schema_version: number;
   source_references: SourceRecord[];
   [k: string]: unknown;
+}
+export interface ArtworkMetadata {
+  assets: LocalArtworkAsset[];
+  choices: ArtworkChoice[];
 }
 export interface LibraryContentRoot {
   kind: LibraryContentKind;

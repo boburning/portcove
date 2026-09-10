@@ -11,6 +11,9 @@ mod preparation_contract;
 #[path = "machine_contract/launch.rs"]
 mod launch_contract;
 
+#[path = "machine_contract/artwork.rs"]
+mod artwork_contract;
+
 static CAPACITY_SENSITIVE_TEST: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn cli_binary() -> std::path::PathBuf {

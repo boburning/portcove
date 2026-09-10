@@ -436,6 +436,33 @@ ID does not replace operation/session IDs or the Desktop generation used to reje
 stale requests. Tauri's `get_library_identity(generation)` reads the same core record
 under the current generation and lease; Desktop continues to call core directly.
 
+## Local artwork
+
+```text
+portcove --json artwork show <port-id> --slot cover
+portcove --json artwork import <port-id> <image.png> --slot cover --expected-revision <revision>
+portcove --json artwork reset <port-id> --slot cover --expected-revision <revision>
+portcove --json artwork clear-cache
+portcove --json artwork unused
+portcove --json --non-interactive artwork remove-unused <asset-sha256> --yes
+```
+
+Slots are `cover` (default) and `detail`; their selections are independent. Read the
+current choice revision before changing it. Omitted `--expected-revision` captures
+the current revision at command execution; interactive clients should pass their
+reviewed revision so stale selections fail explicitly. Reset increments the
+revision and returns to fallback, retaining copied originals. Removal requires an
+unused asset and explicit confirmation; external source images are never removed.
+
+Core copies static PNG/JPEG images into library-owned storage, preserves the first
+filename/import time for deduplicated content and reports `available`, `unavailable`
+or `fallback`. Missing/changed images retain the explicit choice. Local hashes
+describe integrity, not rights or authenticity; copyright permission remains
+unknown. Artwork errors do not block normal catalog or game lifecycle operations.
+The [architecture limits](ARCHITECTURE.md#local-artwork-ownership) apply to both
+encoded input and decoding. Clear-cache affects only disposable thumbnails, which
+are rebuilt when requested by a client. These commands activate no online provider.
+
 ## Library metadata
 
 Format 3 includes local artwork choices and copied-image identities. Include the

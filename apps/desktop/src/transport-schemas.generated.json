@@ -1305,6 +1305,249 @@
     "title": "ApiResponse",
     "type": "object"
   },
+  "artwork_assets": {
+    "$defs": {
+      "ArtworkImageFormat": {
+        "enum": [
+          "png",
+          "jpeg"
+        ],
+        "type": "string"
+      },
+      "LocalArtworkAsset": {
+        "additionalProperties": false,
+        "description": "Local integrity and user selection do not establish copyright permission.",
+        "properties": {
+          "byte_size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "format": {
+            "$ref": "#/$defs/ArtworkImageFormat"
+          },
+          "height": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "imported_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "original_name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "width": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sha256",
+          "original_name",
+          "format",
+          "byte_size",
+          "width",
+          "height",
+          "imported_at"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "items": {
+      "$ref": "#/$defs/LocalArtworkAsset"
+    },
+    "title": "Array_of_LocalArtworkAsset",
+    "type": "array"
+  },
+  "artwork_cache_clear": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "removed_bytes": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "removed_files": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "removed_files",
+      "removed_bytes"
+    ],
+    "title": "ArtworkCacheClear",
+    "type": "object"
+  },
+  "artwork_state": {
+    "$defs": {
+      "ArtworkAvailability": {
+        "enum": [
+          "fallback",
+          "available",
+          "unavailable"
+        ],
+        "type": "string"
+      },
+      "ArtworkChoice": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "slot": {
+            "$ref": "#/$defs/ArtworkSlot"
+          }
+        },
+        "required": [
+          "port_id",
+          "slot",
+          "revision",
+          "asset_sha256"
+        ],
+        "type": "object"
+      },
+      "ArtworkImageFormat": {
+        "enum": [
+          "png",
+          "jpeg"
+        ],
+        "type": "string"
+      },
+      "ArtworkSlot": {
+        "enum": [
+          "cover",
+          "detail"
+        ],
+        "type": "string"
+      },
+      "LocalArtworkAsset": {
+        "additionalProperties": false,
+        "description": "Local integrity and user selection do not establish copyright permission.",
+        "properties": {
+          "byte_size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "format": {
+            "$ref": "#/$defs/ArtworkImageFormat"
+          },
+          "height": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "imported_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "original_name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "width": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sha256",
+          "original_name",
+          "format",
+          "byte_size",
+          "width",
+          "height",
+          "imported_at"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "availability": {
+        "$ref": "#/$defs/ArtworkAvailability"
+      },
+      "choice": {
+        "$ref": "#/$defs/ArtworkChoice"
+      },
+      "reason": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "selection": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/LocalArtworkAsset"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "required": [
+      "choice",
+      "selection",
+      "availability",
+      "reason"
+    ],
+    "title": "ArtworkState",
+    "type": "object"
+  },
+  "artwork_thumbnail": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "asset_sha256": {
+        "type": "string"
+      },
+      "choice_revision": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "png": {
+        "items": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "asset_sha256",
+      "choice_revision",
+      "png"
+    ],
+    "title": "ArtworkThumbnail",
+    "type": "object"
+  },
   "backup": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
@@ -5512,6 +5755,71 @@
         ],
         "type": "object"
       },
+      "ArtworkChoice": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "slot": {
+            "$ref": "#/$defs/ArtworkSlot"
+          }
+        },
+        "required": [
+          "port_id",
+          "slot",
+          "revision",
+          "asset_sha256"
+        ],
+        "type": "object"
+      },
+      "ArtworkImageFormat": {
+        "enum": [
+          "png",
+          "jpeg"
+        ],
+        "type": "string"
+      },
+      "ArtworkMetadata": {
+        "additionalProperties": false,
+        "properties": {
+          "assets": {
+            "items": {
+              "$ref": "#/$defs/LocalArtworkAsset"
+            },
+            "type": "array"
+          },
+          "choices": {
+            "items": {
+              "$ref": "#/$defs/ArtworkChoice"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "assets",
+          "choices"
+        ],
+        "type": "object"
+      },
+      "ArtworkSlot": {
+        "enum": [
+          "cover",
+          "detail"
+        ],
+        "type": "string"
+      },
       "DigestScope": {
         "enum": [
           "original-file",
@@ -5603,7 +5911,8 @@
           "user_data",
           "source_inbox",
           "backups",
-          "toolchains"
+          "toolchains",
+          "local_artwork"
         ],
         "type": "string"
       },
@@ -5652,6 +5961,16 @@
               "$ref": "#/$defs/InstallRecord"
             },
             "type": "array"
+          },
+          "artwork": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ArtworkMetadata"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "content_roots": {
             "items": {
@@ -5778,6 +6097,50 @@
           "kind",
           "relative_path",
           "copy"
+        ],
+        "type": "object"
+      },
+      "LocalArtworkAsset": {
+        "additionalProperties": false,
+        "description": "Local integrity and user selection do not establish copyright permission.",
+        "properties": {
+          "byte_size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "format": {
+            "$ref": "#/$defs/ArtworkImageFormat"
+          },
+          "height": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "imported_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "original_name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "width": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sha256",
+          "original_name",
+          "format",
+          "byte_size",
+          "width",
+          "height",
+          "imported_at"
         ],
         "type": "object"
       },
@@ -6149,6 +6512,71 @@
         ],
         "type": "object"
       },
+      "ArtworkChoice": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "slot": {
+            "$ref": "#/$defs/ArtworkSlot"
+          }
+        },
+        "required": [
+          "port_id",
+          "slot",
+          "revision",
+          "asset_sha256"
+        ],
+        "type": "object"
+      },
+      "ArtworkImageFormat": {
+        "enum": [
+          "png",
+          "jpeg"
+        ],
+        "type": "string"
+      },
+      "ArtworkMetadata": {
+        "additionalProperties": false,
+        "properties": {
+          "assets": {
+            "items": {
+              "$ref": "#/$defs/LocalArtworkAsset"
+            },
+            "type": "array"
+          },
+          "choices": {
+            "items": {
+              "$ref": "#/$defs/ArtworkChoice"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "assets",
+          "choices"
+        ],
+        "type": "object"
+      },
+      "ArtworkSlot": {
+        "enum": [
+          "cover",
+          "detail"
+        ],
+        "type": "string"
+      },
       "DigestScope": {
         "enum": [
           "original-file",
@@ -6240,7 +6668,8 @@
           "user_data",
           "source_inbox",
           "backups",
-          "toolchains"
+          "toolchains",
+          "local_artwork"
         ],
         "type": "string"
       },
@@ -6317,6 +6746,50 @@
           "update_policy",
           "active_install_id",
           "previous_install_id"
+        ],
+        "type": "object"
+      },
+      "LocalArtworkAsset": {
+        "additionalProperties": false,
+        "description": "Local integrity and user selection do not establish copyright permission.",
+        "properties": {
+          "byte_size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "format": {
+            "$ref": "#/$defs/ArtworkImageFormat"
+          },
+          "height": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "imported_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "original_name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "width": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sha256",
+          "original_name",
+          "format",
+          "byte_size",
+          "width",
+          "height",
+          "imported_at"
         ],
         "type": "object"
       },
@@ -6597,6 +7070,16 @@
         },
         "type": "array"
       },
+      "artwork": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ArtworkMetadata"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
       "content_roots": {
         "items": {
           "$ref": "#/$defs/LibraryContentRoot"
@@ -6763,6 +7246,71 @@
         ],
         "type": "object"
       },
+      "ArtworkChoice": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "slot": {
+            "$ref": "#/$defs/ArtworkSlot"
+          }
+        },
+        "required": [
+          "port_id",
+          "slot",
+          "revision",
+          "asset_sha256"
+        ],
+        "type": "object"
+      },
+      "ArtworkImageFormat": {
+        "enum": [
+          "png",
+          "jpeg"
+        ],
+        "type": "string"
+      },
+      "ArtworkMetadata": {
+        "additionalProperties": false,
+        "properties": {
+          "assets": {
+            "items": {
+              "$ref": "#/$defs/LocalArtworkAsset"
+            },
+            "type": "array"
+          },
+          "choices": {
+            "items": {
+              "$ref": "#/$defs/ArtworkChoice"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "assets",
+          "choices"
+        ],
+        "type": "object"
+      },
+      "ArtworkSlot": {
+        "enum": [
+          "cover",
+          "detail"
+        ],
+        "type": "string"
+      },
       "DigestScope": {
         "enum": [
           "original-file",
@@ -6854,7 +7402,8 @@
           "user_data",
           "source_inbox",
           "backups",
-          "toolchains"
+          "toolchains",
+          "local_artwork"
         ],
         "type": "string"
       },
@@ -6903,6 +7452,16 @@
               "$ref": "#/$defs/InstallRecord"
             },
             "type": "array"
+          },
+          "artwork": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ArtworkMetadata"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "content_roots": {
             "items": {
@@ -7008,6 +7567,50 @@
           "kind",
           "relative_path",
           "copy"
+        ],
+        "type": "object"
+      },
+      "LocalArtworkAsset": {
+        "additionalProperties": false,
+        "description": "Local integrity and user selection do not establish copyright permission.",
+        "properties": {
+          "byte_size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "format": {
+            "$ref": "#/$defs/ArtworkImageFormat"
+          },
+          "height": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "imported_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "original_name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "width": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sha256",
+          "original_name",
+          "format",
+          "byte_size",
+          "width",
+          "height",
+          "imported_at"
         ],
         "type": "object"
       },
