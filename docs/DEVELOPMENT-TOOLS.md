@@ -70,6 +70,13 @@ in the activity view, and exports a redacted support bundle. Incomplete capture
 and quota behavior are separate core fixtures. These logs contain owned synthetic
 output, not evidence of actual game compatibility.
 
+The owned readiness scenario temporarily omits one prepared fixture's assessment
+from the renderer's actual status responses. It verifies disabled Play and Continue
+routing to review, while the CLI independently confirms unchanged launch counts
+and positive core readiness. Restoring actual responses restores Play. This is a
+synthetic transport-omission check, not evidence that core emits missing readiness.
+The harness records the injection, restoration, accessibility scan, and screenshot.
+
 The optional interruption scenario deliberately resets only its owned test
 activity to the durable state preceding a terminal update. Node's built-in SQLite
 API is confined to a separate fixture module, whose hash is included in the run's

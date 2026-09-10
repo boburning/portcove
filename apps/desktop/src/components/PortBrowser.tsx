@@ -7,8 +7,8 @@ import { BrandMotif, EmptyState, Icon } from "./ui";
 import type { NativeSourceDragState } from "../native-source-drop";
 import { ArtworkImage } from "./Artwork";
 
-export function PortBrowser({ view, ports, statuses, registeredSources, overview, recent, filter, setFilter, onSelect, onContinue, onBrowseCatalog, clearFilters, loading, nativeSourceDrag = { active: false, pathCount: 0 } }: {
-  view: View; ports: PortDefinition[]; statuses: Map<string, PortStatus>; registeredSources: ReadonlySet<string>; overview: LibraryOverview; filter: Filter;
+export function PortBrowser({ view, ports, statuses, overview, recent, filter, setFilter, onSelect, onContinue, onBrowseCatalog, clearFilters, loading, nativeSourceDrag = { active: false, pathCount: 0 } }: {
+  view: View; ports: PortDefinition[]; statuses: Map<string, PortStatus>; overview: LibraryOverview; filter: Filter;
   recent?: RecentPort; setFilter: Dispatch<SetStateAction<Filter>>; onSelect: (portId: string) => void; onContinue?: (portId: string) => void;
   onBrowseCatalog?: () => void; clearFilters?: () => void; loading: boolean;
   nativeSourceDrag?: NativeSourceDragState;
@@ -21,18 +21,18 @@ export function PortBrowser({ view, ports, statuses, registeredSources, overview
       <button data-focusable aria-pressed={filter === item} key={item} className={filter === item ? "filter active" : "filter"} onClick={() => setFilter(item)}>{filterLabel(item)}</button>)}
       <span>{ports.length} {ports.length === 1 ? "port" : "ports"}</span>
     </div>
-    <BrowserResults view={view} ports={ports} statuses={statuses} registeredSources={registeredSources} onSelect={onSelect} onBrowseCatalog={onBrowseCatalog} clearFilters={clearFilters} loading={loading} nativeSourceDrag={nativeSourceDrag} />
+    <BrowserResults view={view} ports={ports} statuses={statuses} onSelect={onSelect} onBrowseCatalog={onBrowseCatalog} clearFilters={clearFilters} loading={loading} nativeSourceDrag={nativeSourceDrag} />
   </>;
 }
 
-function BrowserResults({ view, ports, statuses, registeredSources, onSelect, onBrowseCatalog, clearFilters, loading, nativeSourceDrag }: {
-  view: View; ports: PortDefinition[]; statuses: Map<string, PortStatus>; registeredSources: ReadonlySet<string>;
+function BrowserResults({ view, ports, statuses, onSelect, onBrowseCatalog, clearFilters, loading, nativeSourceDrag }: {
+  view: View; ports: PortDefinition[]; statuses: Map<string, PortStatus>;
   onSelect: (portId: string) => void; onBrowseCatalog?: () => void; clearFilters?: () => void; loading: boolean;
   nativeSourceDrag: NativeSourceDragState;
 }) {
   if (loading) return <LoadingState />;
   if (ports.length === 0) return <BrowserEmptyState view={view} clearFilters={clearFilters} onBrowseCatalog={onBrowseCatalog} />;
-  return <section className="port-grid" data-focus-group>{ports.map(port => <PortCard key={port.id} port={port} status={statuses.get(port.id)} readiness={portReadiness(port, statuses.get(port.id), registeredSources)} onSelect={onSelect} nativeSourceDrag={nativeSourceDrag} />)}</section>;
+  return <section className="port-grid" data-focus-group>{ports.map(port => <PortCard key={port.id} port={port} status={statuses.get(port.id)} readiness={portReadiness(statuses.get(port.id))} onSelect={onSelect} nativeSourceDrag={nativeSourceDrag} />)}</section>;
 }
 
 function LoadingState() {
@@ -48,17 +48,18 @@ function BrowserEmptyState({ view, clearFilters, onBrowseCatalog }: { view: View
 
 function ContinueCard({ recent, launch, details }: { recent: RecentPort; launch: (portId: string) => void; details: (portId: string) => void }) {
   const { port, status } = recent;
+  const launchable = status.readiness?.launchable === true;
   return <section className="continue-card" data-focus-group aria-label={`Continue ${port.name}`}>
     <ArtworkImage port={port} className={`continue-art art-${port.support_tier}`} />
     <div><p className="eyebrow">CONTINUE</p><h2>{port.name}</h2><p className="continue-meta">Last successful session · {status.active?.version}</p></div>
-    <div className="continue-actions"><button data-focusable onClick={() => details(port.id)}>View details</button><button data-focusable className="primary button-with-icon" onClick={() => status.readiness?.launchable === false ? details(port.id) : launch(port.id)}><Icon glyph={Gamepad2} />{status.readiness?.launchable === false ? "Finish setup" : "Play again"}</button></div>
+    <div className="continue-actions"><button data-focusable onClick={() => details(port.id)}>View details</button><button data-focusable className="primary button-with-icon" onClick={() => launchable ? launch(port.id) : details(port.id)}><Icon glyph={Gamepad2} />{launchable ? "Play again" : "Review launch"}</button></div>
   </section>;
 }
 
 function LibrarySummary({ overview }: { overview: LibraryOverview }) {
   return <section className="library-summary" aria-label="Library readiness">
     <div><span className="summary-icon ready"><Icon glyph={CheckCircle2} /></span><p><strong className="summary-value">{overview.ready}</strong><small>Launch ready</small></p></div>
-    <div><span className="summary-icon setup"><Icon glyph={Wrench} /></span><p><strong className="summary-value">{overview.needsSetup}</strong><small>Need setup</small></p></div>
+    <div><span className="summary-icon setup"><Icon glyph={Wrench} /></span><p><strong className="summary-value">{overview.needsSetup}</strong><small>Need attention</small></p></div>
     <div><span className="summary-icon staged"><Icon glyph={Download} /></span><p><strong className="summary-value">{overview.staged}</strong><small>Staged updates</small></p></div>
     <p className="summary-note"><strong>{overview.installed} installed</strong><span>View a game's details for setup and recovery options.</span></p>
   </section>;
@@ -87,7 +88,7 @@ function PortCard({ port, status, readiness, onSelect, nativeSourceDrag }: { por
 function filterLabel(filter: Filter) {
   if (filter === "all") return "All";
   if (filter === "ready") return "Ready";
-  if (filter === "setup") return "Needs setup";
+  if (filter === "setup") return "Needs attention";
   return filter;
 }
 
@@ -101,6 +102,8 @@ function readinessPresentation(readiness: PortReadiness) {
     bios: { label: "BIOS required", action: "Finish setup", tone: "setup" },
     setup: { label: "Setup required", action: "Finish setup", tone: "setup" },
     staged: { label: "Update staged", action: "Review update", tone: "staged" },
+    unknown: { label: "Readiness unavailable", action: "Review game", tone: "setup" },
+    blocked: { label: "Launch unavailable", action: "Review game", tone: "setup" },
   } as const;
   return values[readiness];
 }

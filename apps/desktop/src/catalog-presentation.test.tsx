@@ -10,7 +10,7 @@ import { formatBytes, platformLabel } from "./view-model";
 describe("catalog and capacity presentation", () => {
   it.each(["future-platform", "constructor", "__proto__", "toString"])("renders explicit fallback for %s without treating it as a supported channel", value => {
     const port = { ...portDefinition(), platforms: [value], support_tier: value } as PortDefinition;
-    const html = renderToStaticMarkup(<PortBrowser view="catalog" ports={[port]} statuses={new Map()} registeredSources={new Set()} overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
+    const html = renderToStaticMarkup(<PortBrowser view="catalog" ports={[port]} statuses={new Map()} overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
       filter="all" setFilter={vi.fn()} onSelect={vi.fn()} loading={false} />);
     expect(html).toContain("Unknown platform");
     expect(html).toContain("Unknown channel");

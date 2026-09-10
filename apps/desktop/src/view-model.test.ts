@@ -19,7 +19,7 @@ const installRecord = (overrides: Partial<InstallRecord> = {}): InstallRecord =>
 
 describe("catalog view model", () => {
   const ports = [port("alpha", ["stable"]), port("beta", ["beta", "rolling"])];
-  const status: PortStatus = { ...portStatus(), port_id: "alpha", channel: "stable", update_policy: "notify", active: installRecord() };
+  const status: PortStatus = { ...portStatus(), port_id: "alpha", channel: "stable", update_policy: "notify", active: installRecord(), readiness: { launchable: true, blockers: [], pending_setup: false } };
 
   it("indexes statuses and restricts the library to installed ports", () => {
     const statuses = indexStatuses([status]);
@@ -33,11 +33,12 @@ describe("catalog view model", () => {
 
   it("distinguishes playable installs from missing-source setup", () => {
     const withSource = { ...ports[0], source_profile: "alpha-source" };
-    const statuses = indexStatuses([status]);
-    expect(portReadiness(withSource, status, new Set())).toBe("source");
-    expect(portReadiness(withSource, status, new Set(["alpha-source"]))).toBe("ready");
-    expect(filterPorts([withSource], statuses, "library", "setup", "", new Set()).map(value => value.id)).toEqual(["alpha"]);
-    expect(summarizeLibrary([withSource], statuses, new Set())).toEqual({ installed: 1, ready: 0, needsSetup: 1, staged: 0 });
+    const blocked: PortStatus = { ...status, readiness: { launchable: false, blockers: ["missing_source"], pending_setup: false, source: "unregistered" } };
+    const statuses = indexStatuses([blocked]);
+    expect(portReadiness(blocked)).toBe("source");
+    expect(portReadiness(status)).toBe("ready");
+    expect(filterPorts([withSource], statuses, "library", "setup", "").map(value => value.id)).toEqual(["alpha"]);
+    expect(summarizeLibrary([withSource], statuses)).toEqual({ installed: 1, ready: 0, needsSetup: 1, staged: 0 });
     expect(filterOptions("library")).toEqual(["all", "ready", "setup"]);
     expect(filterOptions("catalog")).toEqual(["all", "stable", "beta", "rolling"]);
   });
@@ -45,14 +46,13 @@ describe("catalog view model", () => {
   it("keeps damaged installations visible in the needs-setup filter", () => {
     const damaged: PortStatus = { ...status, readiness: { launchable: false, blockers: ["invalid_installation"], pending_setup: false } };
     const statuses = indexStatuses([damaged]);
-    expect(portReadiness(ports[0], damaged, new Set())).toBe("repair");
+    expect(portReadiness(damaged)).toBe("repair");
     expect(filterPorts(ports, statuses, "library", "setup", "").map(port => port.id)).toEqual(["alpha"]);
     expect(filterPorts(ports, statuses, "library", "ready", "")).toEqual([]);
-    expect(summarizeLibrary(ports, statuses, new Set()).needsSetup).toBe(1);
+    expect(summarizeLibrary(ports, statuses).needsSetup).toBe(1);
   });
 
   it("treats changed and unreadable registered bytes as setup blockers", () => {
-    const withSources = { ...ports[0], source_profile: "alpha-source", bios_source_profile: "alpha-bios" };
     const changed: PortStatus = {
       ...status,
       readiness: { launchable: false, blockers: ["changed_source"], pending_setup: false, source: "changed", bios: "current" },
@@ -61,23 +61,22 @@ describe("catalog view model", () => {
       ...status,
       readiness: { launchable: false, blockers: ["unreadable_bios"], pending_setup: false, source: "current", bios: "unreadable" },
     };
-    expect(portReadiness(withSources, changed, new Set(["alpha-source", "alpha-bios"]))).toBe("source");
-    expect(portReadiness(withSources, unreadableBios, new Set(["alpha-source", "alpha-bios"]))).toBe("bios");
+    expect(portReadiness(changed)).toBe("source");
+    expect(portReadiness(unreadableBios)).toBe("bios");
   });
 
   it("keeps one-time upstream setup separate from missing sources", () => {
-    const withSetup = { ...ports[0], source_profile: "alpha-source", setup_marker: "data/ready.txt" };
     const pending: PortStatus = {
       ...status,
       readiness: { launchable: true, blockers: [], pending_setup: true },
     };
-    expect(portReadiness(withSetup, pending, new Set(["alpha-source"]))).toBe("setup");
+    expect(portReadiness(pending)).toBe("setup");
 
     const blocked: PortStatus = {
       ...pending,
       readiness: { launchable: false, blockers: ["missing_source"], pending_setup: true },
     };
-    expect(portReadiness(withSetup, blocked, new Set(["alpha-source"]))).toBe("source");
+    expect(portReadiness(blocked)).toBe("source");
   });
 
   it("selects Continue from successful launch history only", () => {

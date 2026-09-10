@@ -99,7 +99,7 @@ describe("desktop components", () => {
       status={{ ...portStatus(), port_id: port.id, channel: "stable", update_policy: "notify", active: installRecord(), readiness: { launchable: false, blockers: ["changed_source"], pending_setup: false, source: "changed" } }} />);
     expect(html).toContain("Original source changed");
     expect(html).toContain("Registered source changed since it was added");
-    expect(html).toContain("Choose required source");
+    expect(html).toContain("Play unavailable");
     expect(html).not.toContain("Play now");
   });
   it("shows the reviewed adoption copy plan and skipped entries before copying", () => {
@@ -390,7 +390,7 @@ describe("desktop components", () => {
   it("renders installed and uninstalled detail actions", () => {
     const uninstalled = renderToStaticMarkup(<DetailPanel port={port} sourcePath="" setSourcePath={vi.fn()} pickSource={vi.fn()} actions={actions} />);
     const sourceFree = renderToStaticMarkup(<DetailPanel port={{ ...port, source_profile: null }} sourcePath="" setSourcePath={vi.fn()} actions={actions} />);
-    const status: PortStatus = { ...portStatus(), port_id: port.id, user_data_root: "C:/Portcove/user/sample", channel: "stable", update_policy: "notify", active: installRecord() };
+    const status: PortStatus = { ...portStatus(), port_id: port.id, user_data_root: "C:/Portcove/user/sample", channel: "stable", update_policy: "notify", active: installRecord(), readiness: { launchable: true, blockers: [], pending_setup: false, source: "current" } };
     const installed = renderToStaticMarkup(<DetailPanel port={port} status={status} sourcePath="source.z64" setSourcePath={vi.fn()} actions={actions} backups={[{
       id: "backup-1", port_id: port.id, path: "backups/sample/backup-1", created_at: 1,
       file_count: 2, size: 1024, sha256: "a".repeat(64),
@@ -476,10 +476,10 @@ describe("desktop components", () => {
 
   it("renders port cards and empty states", () => {
     const overview = { installed: 0, ready: 0, needsSetup: 0, staged: 0 };
-    const cards = renderToStaticMarkup(<PortBrowser view="catalog" ports={[port]} statuses={new Map()} registeredSources={new Set()} overview={overview} filter="all" setFilter={vi.fn()} onSelect={vi.fn()} loading={false} />);
-    const empty = renderToStaticMarkup(<PortBrowser view="catalog" ports={[]} statuses={new Map()} registeredSources={new Set()} overview={overview} filter="all" setFilter={vi.fn()} onSelect={vi.fn()} loading={false} />);
-    const emptyLibrary = renderToStaticMarkup(<PortBrowser view="library" ports={[]} statuses={new Map()} registeredSources={new Set()} overview={overview} filter="all" setFilter={vi.fn()} onSelect={vi.fn()} loading={false} />);
-    const loading = renderToStaticMarkup(<PortBrowser view="library" ports={[]} statuses={new Map()} registeredSources={new Set()} overview={overview} filter="all" setFilter={vi.fn()} onSelect={vi.fn()} loading />);
+    const cards = renderToStaticMarkup(<PortBrowser view="catalog" ports={[port]} statuses={new Map()} overview={overview} filter="all" setFilter={vi.fn()} onSelect={vi.fn()} loading={false} />);
+    const empty = renderToStaticMarkup(<PortBrowser view="catalog" ports={[]} statuses={new Map()} overview={overview} filter="all" setFilter={vi.fn()} onSelect={vi.fn()} loading={false} />);
+    const emptyLibrary = renderToStaticMarkup(<PortBrowser view="library" ports={[]} statuses={new Map()} overview={overview} filter="all" setFilter={vi.fn()} onSelect={vi.fn()} loading={false} />);
+    const loading = renderToStaticMarkup(<PortBrowser view="library" ports={[]} statuses={new Map()} overview={overview} filter="all" setFilter={vi.fn()} onSelect={vi.fn()} loading />);
     expect(cards).toContain("Sample Port");
     expect(cards).toContain("Available");
     expect(cards).toContain("Windows");
@@ -502,8 +502,8 @@ describe("desktop components", () => {
 
   it("reveals eligible card targets only during native file drag and keeps a keyboard check in details", () => {
     const overview = { installed: 0, ready: 0, needsSetup: 1, staged: 0 };
-    const idle = renderToStaticMarkup(<PortBrowser view="catalog" ports={[port]} statuses={new Map()} registeredSources={new Set()} overview={overview} filter="all" setFilter={vi.fn()} onSelect={vi.fn()} loading={false} />);
-    const dragging = renderToStaticMarkup(<PortBrowser view="catalog" ports={[port]} statuses={new Map()} registeredSources={new Set()} overview={overview} filter="all" setFilter={vi.fn()} onSelect={vi.fn()} loading={false} nativeSourceDrag={{ active: true, pathCount: 1, targetPortId: port.id }} />);
+    const idle = renderToStaticMarkup(<PortBrowser view="catalog" ports={[port]} statuses={new Map()} overview={overview} filter="all" setFilter={vi.fn()} onSelect={vi.fn()} loading={false} />);
+    const dragging = renderToStaticMarkup(<PortBrowser view="catalog" ports={[port]} statuses={new Map()} overview={overview} filter="all" setFilter={vi.fn()} onSelect={vi.fn()} loading={false} nativeSourceDrag={{ active: true, pathCount: 1, targetPortId: port.id }} />);
     expect(idle).not.toContain("data-source-drop-profile-id");
     expect(idle).not.toContain("Drop to check");
     expect(dragging).toContain('data-source-drop-profile-id="sample-rom"');
@@ -527,7 +527,7 @@ describe("desktop components", () => {
         },
       },
     };
-    const html = renderToStaticMarkup(<PortBrowser view="library" ports={[port]} statuses={new Map([[port.id, status]])} registeredSources={new Set(["sample-rom"])}
+    const html = renderToStaticMarkup(<PortBrowser view="library" ports={[port]} statuses={new Map([[port.id, status]])}
       overview={{ installed: 1, ready: 1, needsSetup: 0, staged: 0 }} filter="ready" setFilter={vi.fn()} onSelect={vi.fn()} loading={false} />);
     expect(html).toContain("Launch ready");
     expect(html).toContain("Update available");
@@ -537,8 +537,8 @@ describe("desktop components", () => {
 
   it("offers Continue only from a recorded successful launch", () => {
     const install = installRecord();
-    const recentStatus: PortStatus = { ...portStatus(), port_id: port.id, channel: "stable", update_policy: "notify", active: install, last_launched_at: 100, successful_launches: 1 };
-    const html = renderToStaticMarkup(<PortBrowser view="library" ports={[port]} statuses={new Map([[port.id, recentStatus]])} registeredSources={new Set(["sample-rom"])}
+    const recentStatus: PortStatus = { ...portStatus(), port_id: port.id, channel: "stable", update_policy: "notify", active: install, last_launched_at: 100, successful_launches: 1, readiness: { launchable: true, blockers: [], pending_setup: false, source: "current" } };
+    const html = renderToStaticMarkup(<PortBrowser view="library" ports={[port]} statuses={new Map([[port.id, recentStatus]])}
       overview={{ installed: 1, ready: 1, needsSetup: 0, staged: 0 }} recent={{ port, status: recentStatus }} filter="all" setFilter={() => undefined} onSelect={() => undefined} onContinue={() => undefined} loading={false} />);
     expect(html).toContain("CONTINUE");
     expect(html).toContain("Play again");
@@ -551,9 +551,9 @@ describe("desktop components", () => {
       ...portStatus(),      port_id: port.id, channel: "stable", update_policy: "notify", active: install, last_launched_at: 100, successful_launches: 1,
       readiness: { launchable: false, blockers: ["changed_source"], pending_setup: false, source: "changed" },
     };
-    const html = renderToStaticMarkup(<PortBrowser view="library" ports={[port]} statuses={new Map([[port.id, recentStatus]])} registeredSources={new Set(["sample-rom"])}
+    const html = renderToStaticMarkup(<PortBrowser view="library" ports={[port]} statuses={new Map([[port.id, recentStatus]])}
       overview={{ installed: 1, ready: 0, needsSetup: 1, staged: 0 }} recent={{ port, status: recentStatus }} filter="all" setFilter={() => undefined} onSelect={() => undefined} onContinue={() => undefined} loading={false} />);
-    expect(html).toContain("Finish setup");
+    expect(html).toContain("Review launch");
     expect(html).not.toContain("Play again");
   });
 

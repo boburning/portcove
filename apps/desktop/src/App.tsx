@@ -164,15 +164,14 @@ type BackupState = ReturnType<typeof usePortBackups>;
 function useAppModel(data: DataState, ui: UiState) {
   useEffect(() => { void data.retryRefresh(); }, [data.retryRefresh]);
   const statusMap = useMemo(() => indexStatuses(data.statuses), [data.statuses]);
-  const registeredSources = useMemo(() => new Set(data.sources.map(source => source.profile_id)), [data.sources]);
-  const visible = useMemo(() => filterPorts(data.catalog?.ports ?? [], statusMap, ui.view, ui.filter, ui.query, registeredSources), [data.catalog, statusMap, ui.view, ui.filter, ui.query, registeredSources]);
-  const overview = useMemo(() => summarizeLibrary(data.catalog?.ports ?? [], statusMap, registeredSources), [data.catalog, statusMap, registeredSources]);
+  const visible = useMemo(() => filterPorts(data.catalog?.ports ?? [], statusMap, ui.view, ui.filter, ui.query), [data.catalog, statusMap, ui.view, ui.filter, ui.query]);
+  const overview = useMemo(() => summarizeLibrary(data.catalog?.ports ?? [], statusMap), [data.catalog, statusMap]);
   const recent = useMemo(() => mostRecentPort(data.catalog?.ports ?? [], statusMap), [data.catalog, statusMap]);
   const sourceNeeds = useMemo(() => requiredSourceNeeds(data.catalog?.ports ?? [], data.catalog?.source_profiles ?? [], statusMap, data.sources), [data.catalog, data.sources, statusMap]);
   const selection = useMemo(() => selectedPort(data, ui.selectedId, statusMap), [data, ui.selectedId, statusMap]);
   useEffect(() => { ui.setSourcePath(selection.source?.path ?? ""); }, [ui.selectedId, selection.source?.path]);
   useEffect(() => { ui.setBiosPath(selection.bios?.path ?? ""); }, [ui.selectedId, selection.bios?.path]);
-  return { statusMap, registeredSources, visible, overview, recent, sourceNeeds, ...selection };
+  return { statusMap, visible, overview, recent, sourceNeeds, ...selection };
 }
 
 function selectedPort(data: DataState, selectedId: string | undefined, statuses: ReturnType<typeof indexStatuses>) {
@@ -212,7 +211,7 @@ function CurrentView({ data, ui, model, operations, github, updates, sourceHealt
       void addRequiredSource(profile, archive, operations.perform, operations.setError);
     }} />;
   if (!data.catalog && data.refreshFailure) return null;
-  return <PortBrowser view={ui.view} ports={model.visible} statuses={model.statusMap} registeredSources={model.registeredSources} overview={model.overview} recent={model.recent}
+  return <PortBrowser view={ui.view} ports={model.visible} statuses={model.statusMap} overview={model.overview} recent={model.recent}
     filter={ui.filter} setFilter={ui.setFilter} onSelect={ui.setSelectedId} onContinue={portId => { void operations.perform("launch", () => desktopApi.launch(portId, "")); }}
     onBrowseCatalog={() => ui.setView("catalog")} clearFilters={() => { ui.setFilter("all"); ui.setQuery(""); }} loading={!data.catalog} nativeSourceDrag={nativeSourceDrag} />;
 }
