@@ -50,7 +50,7 @@ export function fieldOwnsArrows(target: HTMLElement | null) {
   return Boolean(target?.closest("input, textarea, select, [contenteditable=true], [role=combobox]"));
 }
 
-export function activateControl(item: HTMLElement) {
+function activateControl(item: HTMLElement) {
   item.click();
 }
 
