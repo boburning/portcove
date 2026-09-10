@@ -119,7 +119,7 @@ export interface HostToolActions {
 function GithubConnection({ status }: { status?: GithubAuthStatus }) {
   const labels = { anonymous: "Anonymous", environment: "Environment variable", credential_store: "Operating-system credential store" };
   const connected = Boolean(status?.authenticated);
-  const source = labels[status?.source ?? "anonymous"];
+  const source = status && Object.hasOwn(labels, status.source) ? labels[status.source] : "Sign-in source unavailable";
   const title = connected ? `Connected as ${status?.login}` : "Optional authentication";
   const stateClass = connected ? "auth-state connected" : "auth-state";
   const StateIcon = connected ? CheckCircle2 : CircleUserRound;

@@ -4,7 +4,7 @@ import { SettingsView } from "./components/Chrome";
 import { PortBrowser } from "./components/PortBrowser";
 import { ReleaseChannelControl } from "./components/ReleaseChannel";
 import { portDefinition } from "./test-fixtures";
-import type { PortDefinition, ReleaseChannel } from "./types";
+import type { GithubAuthStatus, PortDefinition, ReleaseChannel } from "./types";
 import { formatBytes, platformLabel } from "./view-model";
 
 describe("catalog and capacity presentation", () => {
@@ -23,6 +23,16 @@ describe("catalog and capacity presentation", () => {
     expect(platformLabel("linux-x86-64")).toBe("Linux");
     expect(platformLabel("macos-x86-64")).toBe("macOS Intel");
     expect(platformLabel("macos-aarch64")).toBe("Apple silicon");
+  });
+
+  it.each(["future-source", "constructor", "__proto__"])("does not invent sign-in provenance for %s", value => {
+    const html = renderToStaticMarkup(<SettingsView github={{
+      status: { source: value as GithubAuthStatus["source"], authenticated: false, login: null, rate_limit: null, device_login_available: false },
+      token: "", setToken: vi.fn(), saveToken: vi.fn(), logout: vi.fn(), beginDeviceLogin: vi.fn(), refresh: vi.fn(),
+    }} />);
+    expect(html).toContain("Sign-in source unavailable");
+    expect(html).not.toContain("Operating-system credential store");
+    expect(html).not.toContain("Environment variable");
   });
 
   it.each([
