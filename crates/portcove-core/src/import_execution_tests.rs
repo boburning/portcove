@@ -6,7 +6,7 @@ fn fixture_library(root: &Path, installs: &[(&str, bool)]) -> Library {
     let catalog = Catalog::embedded().unwrap();
     let port = catalog.port("starship").unwrap();
     let platform = Platform::current().unwrap();
-    let qualification = InstallQualification::from_port(port, platform).unwrap();
+    let qualification = crate::test_fixture::retained_qualification(port, platform).unwrap();
     for &(id, staged) in installs {
         let path = root.join("versions/starship").join(id);
         fs::create_dir_all(&path).unwrap();

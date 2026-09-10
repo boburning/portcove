@@ -19,6 +19,7 @@ mod host_tools;
 mod import_execution;
 mod import_journal;
 mod install;
+mod installed_contract;
 mod launch;
 mod library;
 mod library_access;

@@ -29,7 +29,8 @@ impl Fixture {
             .unwrap();
         port.setup_arguments = vec!["--owned-preparation".into()];
         let qualification =
-            InstallQualification::from_port(port, Platform::current().unwrap()).unwrap();
+            crate::test_fixture::retained_qualification(port, Platform::current().unwrap())
+                .unwrap();
         let (manifest, selected, runtime) = Installer::new(fixture.service.library().clone())
             .unwrap()
             .create_manifest(
@@ -87,7 +88,7 @@ fn preparation_publishes_a_verified_derivative_and_preserves_the_staged_update()
     staged.version = "next-fixture".into();
     staged.staged = true;
     crate::service::copy_tree(&fixture.install.path, &staged.path).unwrap();
-    let qualification = InstallQualification::from_port(
+    let qualification = crate::test_fixture::retained_qualification(
         fixture.service.catalog().port(PORT).unwrap(),
         Platform::current().unwrap(),
     )
@@ -621,7 +622,7 @@ fn assert_legacy_setup(nested: bool) {
 
     let port = fixture.service.catalog().port(PORT).unwrap();
     let qualification =
-        InstallQualification::from_port(port, Platform::current().unwrap()).unwrap();
+        crate::test_fixture::retained_qualification(port, Platform::current().unwrap()).unwrap();
     let installer = Installer::new(fixture.service.library().clone()).unwrap();
     let (hash, selected, runtime) = installer
         .create_manifest(

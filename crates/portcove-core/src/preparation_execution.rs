@@ -193,8 +193,8 @@ impl PortcoveService {
             &serde_json::to_vec(&receipt)?,
             false,
         )?;
-        let port = self.catalog().port(&plan.port_id)?;
-        let qualification = InstallQualification::from_port(port, plan.inputs.host)?;
+        let qualification =
+            InstallQualification::from_catalog(self.catalog(), &plan.port_id, plan.inputs.host)?;
         let installer = Installer::new(self.library().clone())?;
         let mut install = installer
             .create_prepared_manifest(original, operation.operation_id(), &qualification, &payload)

@@ -2394,7 +2394,8 @@ impl PortcoveService {
         F: FnMut(OperationEvent),
     {
         let runtime = crate::runtime::required(port, Platform::current()?);
-        let qualification = InstallQualification::from_port(port, Platform::current()?)?;
+        let qualification =
+            InstallQualification::from_catalog(&self.catalog, &port.id, Platform::current()?)?;
         if let Some(active) = &status.active
             && artifact_matches_release(active, &release, runtime.as_ref())
         {
@@ -3095,7 +3096,8 @@ impl PortcoveService {
         let result = (|| {
             let port = self.catalog.port(&port_id)?;
             let platform = Platform::current()?;
-            let qualification = InstallQualification::from_port(port, platform)?;
+            let qualification =
+                InstallQualification::from_catalog(&self.catalog, &port_id, platform)?;
             let _operation = self.library.try_lock_port(&port_id, "adopt")?;
             let locked_preview = self.preview_adoption(source, selected_port_id)?;
             let target = adoption_authorization_target(source, selected_port_id)?;
@@ -3866,7 +3868,8 @@ impl PortcoveService {
         }
         let manifest_path = active.path.join(".portcove-manifest.json");
         let previous_manifest = fs::read(&manifest_path)?;
-        let qualification = InstallQualification::from_port(port, Platform::current()?)?;
+        let qualification =
+            InstallQualification::from_catalog(&self.catalog, &port.id, Platform::current()?)?;
         let installer = Installer::new(self.library.clone())?;
         let refreshed = installer.refresh_verified_manifest(active, &qualification)?;
         if let Err(error) = installer.verify_critical(&refreshed, &qualification) {
@@ -6304,7 +6307,8 @@ mod tests {
         let catalog = Catalog::embedded().unwrap();
         let port = catalog.port(port_id).unwrap();
         let qualification =
-            InstallQualification::from_port(port, Platform::current().unwrap()).unwrap();
+            crate::test_fixture::retained_qualification(port, Platform::current().unwrap())
+                .unwrap();
         let (manifest_sha256, selected_executable, runtime) = Installer::new(library.clone())
             .unwrap()
             .create_manifest(&id, port_id, version, &artifact, &qualification, path)
@@ -6360,7 +6364,8 @@ mod tests {
             .unwrap()
             .clone();
         let qualification =
-            InstallQualification::from_port(&port, Platform::current().unwrap()).unwrap();
+            crate::test_fixture::retained_qualification(&port, Platform::current().unwrap())
+                .unwrap();
         let (manifest_sha256, selected_executable, runtime) = Installer::new(library.clone())
             .unwrap()
             .create_manifest(&id, &port.id, version, &artifact, &qualification, &path)
@@ -6455,7 +6460,8 @@ fn main() {
             .unwrap()
             .clone();
         let qualification =
-            InstallQualification::from_port(&port, Platform::current().unwrap()).unwrap();
+            crate::test_fixture::retained_qualification(&port, Platform::current().unwrap())
+                .unwrap();
         let (manifest_sha256, selected_executable, runtime) = Installer::new(library.clone())
             .unwrap()
             .create_manifest(&id, &port.id, version, &artifact, &qualification, &path)

@@ -942,7 +942,7 @@ mod tests {
         crate::permissions::normalize_archive_entry(&executable, false, true).unwrap();
         fs::write(path.join("engine.dll"), format!("engine-{version}")).unwrap();
         let id = Uuid::new_v4().to_string();
-        let qualification = InstallQualification::from_port(port, platform).unwrap();
+        let qualification = crate::test_fixture::retained_qualification(port, platform).unwrap();
         let (manifest_sha256, selected_executable, runtime) = Installer::new(library.clone())
             .unwrap()
             .create_manifest(&id, port_id, version, &artifact, &qualification, &path)

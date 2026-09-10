@@ -156,7 +156,7 @@ impl Fixture {
             output_root: library.versions_dir().join(PORT),
             activate,
             managed: None,
-            qualification: InstallQualification::from_port(
+            qualification: crate::test_fixture::retained_qualification(
                 &self.port,
                 Platform::current().unwrap(),
             )
@@ -321,8 +321,11 @@ async fn named_save_restore_updates_every_version_and_preserves_import_policy() 
             installer
                 .verify_import_contract(
                     install,
-                    &InstallQualification::from_port(&changed, Platform::current().unwrap())
-                        .unwrap()
+                    &crate::test_fixture::retained_qualification(
+                        &changed,
+                        Platform::current().unwrap()
+                    )
+                    .unwrap()
                 )
                 .is_err()
         );
@@ -376,8 +379,11 @@ async fn named_saves_survive_reinstallation_without_weakening_executable_policy(
         installer
             .verify_critical(
                 &installed,
-                &InstallQualification::from_port(&second.port, Platform::current().unwrap())
-                    .unwrap()
+                &crate::test_fixture::retained_qualification(
+                    &second.port,
+                    Platform::current().unwrap()
+                )
+                .unwrap()
             )
             .is_err()
     );
@@ -460,8 +466,11 @@ async fn runtime_only_updates_stage_reuse_and_rollback_with_their_exact_bytes() 
             .unwrap()
             .verify_critical(
                 &new,
-                &InstallQualification::from_port(&second.port, Platform::current().unwrap())
-                    .unwrap()
+                &crate::test_fixture::retained_qualification(
+                    &second.port,
+                    Platform::current().unwrap()
+                )
+                .unwrap()
             )
             .is_err()
     );
@@ -476,8 +485,11 @@ async fn runtime_only_updates_stage_reuse_and_rollback_with_their_exact_bytes() 
             .unwrap()
             .verify_critical(
                 &new,
-                &InstallQualification::from_port(&second.port, Platform::current().unwrap())
-                    .unwrap()
+                &crate::test_fixture::retained_qualification(
+                    &second.port,
+                    Platform::current().unwrap()
+                )
+                .unwrap()
             )
             .is_err()
     );

@@ -39,7 +39,7 @@ impl Fixture {
             fs::write(&path, b"owned inert fixture").unwrap();
             crate::permissions::normalize_archive_entry(&path, false, true).unwrap();
         }
-        let qualification = InstallQualification::from_port(port, platform).unwrap();
+        let qualification = crate::test_fixture::retained_qualification(port, platform).unwrap();
         let id = uuid::Uuid::new_v4().to_string();
         let (manifest_sha256, selected_executable, runtime) = Installer::new(library.clone())
             .unwrap()
