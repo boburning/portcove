@@ -36,7 +36,9 @@ continues to own raw game streams and supervise through game exit/save collectio
 Schema 45 adds `capabilities.engine_templates`, `catalog.check-capabilities`, and
 the `definition_capability_request` / `definition_capability_report` schemas.
 This reports installed template contract versions independently from definition
-admission, trust, and operation eligibility. Schema 44 adds `artwork` commands and the `artwork_state`, `artwork_thumbnail`,
+admission, trust, and operation eligibility.
+
+Schema 44 adds `artwork` commands and the `artwork_state`, `artwork_thumbnail`,
 `artwork_cache_clear` and `artwork_assets` machine schemas. It also versions library
 metadata exports to format 3 with a separate local artwork payload root. Existing
 launch/status fields are unchanged from schema 43.

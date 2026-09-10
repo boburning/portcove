@@ -3,6 +3,9 @@
 This is the successor design for #245. It does not extend signed catalog format
 1, admit a new port, provision a publisher, or activate automatic delivery.
 `portcove-core` remains the sole definition, admission and lifecycle authority.
+The CLI and Tauri expose its outcomes; React and external clients present them.
+The Project owns scheduling, #397 owns client implementation, #398 observes
+upstreams, and #246 owns the protected publication and unchanged-client proof.
 
 ## Implemented engine capability negotiation
 
@@ -47,9 +50,6 @@ CLI exits successfully after a valid check even when `compatible` is false;
 callers must inspect that value. Malformed requests use the normal error envelope.
 Neither successful negotiation nor a supported adapter establishes publisher
 trust, source admission, artifact integrity, or permission to install or launch.
-The CLI and Tauri expose its outcomes; React and external clients present them.
-The Project owns scheduling, #397 owns client implementation, #398 observes
-upstreams, and #246 owns the protected publication and unchanged-client proof.
 
 ## Decision and threat model
 
