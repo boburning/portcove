@@ -104,6 +104,13 @@ jobs:
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - run: cargo nextest run --locked --workspace --exclude portcove-core
+      - name: Build and test the public Playnite reference consumer
+        shell: pwsh
+        run: |
+          cargo build --locked -p portcove-cli
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:PORTCOVE_PREFERENCES = Join-Path $env:RUNNER_TEMP 'playnite-contract-preferences.json'
+          ./integrations/playnite/check.ps1 -Cli (Join-Path $PWD 'target/debug/portcove.exe') -Library (Join-Path $env:RUNNER_TEMP 'playnite-contract-library')
 
   rust_clippy:
     name: rust-clippy

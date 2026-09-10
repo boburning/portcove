@@ -26,6 +26,7 @@ machine-readable product state.
 - [Catalog admission and qualification](CATALOG.md)
 - [CLI machine contract](CLI.md)
 - [External frontend integration](INTEGRATIONS.md)
+- [Integration author guide and reference client](INTEGRATION-AUTHOR.md)
 - [Project governance](PROJECT-GOVERNANCE.md)
 - [September 2 comprehensive independent re-audit (historical evidence)](archive/2026-09-02-comprehensive-independent-reaudit.md)
 - [September 4 supported-source/provenance plan (historical evidence)](archive/2026-09-04-supported-source-provenance-implementation-plan.md)
