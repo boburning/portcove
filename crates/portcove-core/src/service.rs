@@ -343,7 +343,10 @@ impl PortcoveService {
             .collect::<HashSet<_>>();
         let mut items = operations
             .iter()
-            .map(|operation| RepairItem {
+            .map(|operation| {
+                let private_preparation = operation.kind == LifecycleOperationKind::Prepare
+                    && operation.phase == LifecyclePhase::Preparing;
+                RepairItem {
                 kind: if operation.phase == LifecyclePhase::CleanupPending {
                     RepairItemKind::CleanupPending
                 } else {
@@ -351,29 +354,30 @@ impl PortcoveService {
                 },
                 operation_id: Some(operation.id.clone()),
                 port_id: Some(operation.port_id.clone()),
-                path: operation
-                    .paths
-                    .quarantine
-                    .clone()
-                    .or_else(|| operation.paths.final_path.clone())
-                    .or_else(|| operation.paths.staging.clone()),
+                path: if private_preparation {
+                    operation.paths.staging.clone()
+                } else {
+                    operation
+                        .paths
+                        .quarantine
+                        .clone()
+                        .or_else(|| operation.paths.final_path.clone())
+                        .or_else(|| operation.paths.staging.clone())
+                },
                 message: operation.last_error.clone().unwrap_or_else(|| {
-                    if operation.kind == LifecycleOperationKind::Prepare
-                        && operation.phase == LifecyclePhase::Preparing
-                    {
+                    if private_preparation {
                         "preparation is in its private phase; check its current activity".into()
                     } else { format!(
                         "{} operation is paused at {}",
                         operation.kind, operation.phase
                     ) }
                 }),
-                proposed_action: if operation.kind == LifecycleOperationKind::Prepare
-                    && operation.phase == LifecyclePhase::Preparing
-                {
+                proposed_action: if private_preparation {
                     "review the current activity; an interrupted private attempt cannot be resumed, so review retained work and current inputs before starting a new preparation"
                 } else {
                     "retry the recorded idempotent recovery step"
                 }.into(),
+                }
             })
             .collect::<Vec<_>>();
         for install in &installs {

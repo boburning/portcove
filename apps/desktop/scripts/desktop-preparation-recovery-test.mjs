@@ -17,8 +17,13 @@ export async function interruptedPreparationScenario({ browser, invoke, scenario
     // Simulate the durable state left before a worker's terminal update, only
     // in this harness's owned library. This is not a physical process-crash test.
     const database = new DatabaseSync(path.join(library, "portcove.sqlite3"));
+    let privatePath;
     try {
       database.exec("PRAGMA busy_timeout=1000");
+      const operation = database.prepare("SELECT staging_path,final_path FROM lifecycle_operations WHERE id=? AND kind='prepare' AND phase='preparing'").get(activity.id);
+      assert.ok(operation?.staging_path);
+      assert.notEqual(operation.staging_path, operation.final_path);
+      privatePath = operation.staging_path;
       database.exec("BEGIN IMMEDIATE");
       const changed = database.prepare("UPDATE activity_history SET status='running',finished_at=NULL,message=NULL,failure_json=NULL,cancellation_phase='preparing',cancel_requested=1 WHERE id=? AND operation='prepare' AND status='cancelled'").run(activity.id);
       assert.equal(changed.changes, 1);
@@ -35,7 +40,9 @@ export async function interruptedPreparationScenario({ browser, invoke, scenario
     assert.equal(recovered.failure.presentation.tone, "error");
     assert.equal(recovered.failure.presentation.mutation_state, "recovery_required");
     assert.equal(recovered.failure.details.cancel_requested, "true");
-    assert.match(doctor.repair.items.find(item => item.operation_id === activity.id).proposed_action, /cannot be resumed/);
+    const repair = doctor.repair.items.find(item => item.operation_id === activity.id);
+    assert.match(repair.proposed_action, /cannot be resumed/);
+    assert.equal(repair.path, privatePath);
     assert.deepEqual(command(["status", before.port_id]).active, before.active);
     assert.deepEqual(command(["activity", "log", activity.id]), retained);
     await browser.navigate().refresh();
@@ -53,7 +60,7 @@ export async function interruptedPreparationScenario({ browser, invoke, scenario
     await writeFile(report, JSON.stringify(accessibility, null, 2), { flag: "wx" }); artifacts.push(report);
     assert.deepEqual(accessibility.violations.map(item => item.id), []);
     const evidence = path.join(output, "interrupted-preparation-recovery.json");
-    await writeFile(evidence, JSON.stringify({ method: "simulated durable interruption with real CLI recovery and native UI", activity: recovered, captures: retained }, null, 2), { flag: "wx" }); artifacts.push(evidence);
+    await writeFile(evidence, JSON.stringify({ method: "simulated durable interruption with real CLI recovery and native UI", activity: recovered, repair, captures: retained }, null, 2), { flag: "wx" }); artifacts.push(evidence);
     await browser.executeScript('arguments[0].scrollIntoView({ block: "start" });', row);
   });
 }

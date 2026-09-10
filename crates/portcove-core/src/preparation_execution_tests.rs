@@ -1,6 +1,7 @@
 use super::*;
 use crate::operation::{
-    LifecycleFaultInjector, LifecycleFaultPoint, LifecyclePhase, NoLifecycleFaults, OperationStore,
+    LifecycleFaultInjector, LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind,
+    LifecyclePhase, NoLifecycleFaults, OperationStore,
 };
 use std::{
     sync::Arc,
@@ -375,6 +376,49 @@ fn running_setup_cancellation_preserves_the_active_tree() {
 }
 
 #[test]
+fn private_preparation_review_does_not_substitute_a_planned_destination() {
+    let fixture = Fixture::new();
+    let library = fixture.service.library();
+    let store = OperationStore::new(library.clone());
+    let id = uuid::Uuid::new_v4().to_string();
+    let private = library.staging_dir().join(&id);
+    let planned = fixture
+        .install
+        .path
+        .parent()
+        .unwrap()
+        .join("planned-output");
+    let mut journal = LifecycleOperation::new(&id, LifecycleOperationKind::Prepare, PORT);
+    journal.paths.final_path = Some(planned.clone());
+    for (phase, staging, expected) in [
+        (
+            LifecyclePhase::Preparing,
+            Some(private.clone()),
+            Some(private.clone()),
+        ),
+        (LifecyclePhase::Preparing, None, None),
+        (
+            LifecyclePhase::Prepared,
+            Some(private),
+            Some(planned.clone()),
+        ),
+    ] {
+        journal.phase = phase;
+        journal.paths.staging = staging;
+        store.put(&mut journal).unwrap();
+        let report = fixture.service.repair_plan().unwrap();
+        let item = report
+            .items
+            .iter()
+            .find(|item| item.operation_id.as_deref() == Some(&id))
+            .unwrap();
+        assert_eq!(item.path, expected);
+        assert!(!planned.exists());
+        assert_eq!(store.all().unwrap().remove(0).phase, phase);
+    }
+}
+
+#[test]
 fn interrupted_private_preparation_gets_a_truthful_terminal_report_after_reconnect() {
     for requested in [false, true] {
         let fixture = Fixture::native("failure");
@@ -449,6 +493,8 @@ fn interrupted_private_preparation_gets_a_truthful_terminal_report_after_reconne
             .unwrap();
         assert!(item.proposed_action.contains("cannot be resumed"));
         assert!(!item.proposed_action.contains("idempotent"));
+        assert_eq!(item.path.as_ref(), Some(private));
+        assert_ne!(item.path, journal.paths.final_path);
         let again = PortcoveService::new(Library::open(library.root()).unwrap()).unwrap();
         assert_eq!(again.library().activities(1).unwrap()[0], activity);
     }
@@ -480,6 +526,7 @@ fn preparation_recovery_preserves_existing_outcomes_and_rejects_an_owned_activit
         .find(|item| item.operation_id.as_deref() == Some(journal.id.as_str()))
         .unwrap();
     assert!(!item.message.contains("paused"));
+    assert_eq!(item.path, journal.paths.staging);
     assert!(
         item.proposed_action
             .starts_with("review the current activity")
