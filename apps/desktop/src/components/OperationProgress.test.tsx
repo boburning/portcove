@@ -59,8 +59,8 @@ describe("accessible operation progress", () => {
     if (now === null) expect(progress.hasAttribute("aria-valuemax")).toBe(false);
   });
 
-  it("does not manufacture a human label or successful outcome for an unknown phase", async () => {
-    await render(event(1, 2, "future_internal_operation_code"));
+  it.each(["future_internal_operation_code", "constructor", "__proto__", "toString"])("safely handles unknown phase %s", async phase => {
+    await render(event(1, 2, phase));
     expect(container.querySelector('[role="status"]')?.textContent).toBe("Working");
     expect(container.textContent).not.toContain("future_internal");
     expect(container.textContent).not.toContain("complete");

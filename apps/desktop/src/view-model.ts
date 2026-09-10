@@ -27,7 +27,7 @@ function operationLabel(value: string) {
     move_library: "Moving library", import_library: "Importing library", import_source: "Copying game files",
     discover_sources: "Searching for game files", update_catalog: "Updating port catalog", "check installed": "Checking for updates",
   };
-  return labels[value] ?? "Working";
+  return Object.hasOwn(labels, value) ? labels[value] : "Working";
 }
 
 export type View = "library" | "catalog" | "updates" | "settings";
