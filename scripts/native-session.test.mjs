@@ -55,6 +55,159 @@ async function temporaryRoot() {
   return root;
 }
 
+function processRecord(id, parent, seconds) {
+  return {
+    ProcessId: id,
+    ParentProcessId: parent,
+    CreationDate: new Date(Date.UTC(2026, 0, 1) + seconds * 1000).toISOString(),
+    ExecutablePath: process.execPath,
+  };
+}
+
+async function inspectProcessGraph(records) {
+  const root = await temporaryRoot();
+  try {
+    const fixture = path.join(root, "graph.ps1");
+    const data = path.join(root, "records.json");
+    await writeFile(data, JSON.stringify(records));
+    await writeFile(
+      fixture,
+      `param([string]$Helper, [string]$Data, [string]$Application)
+$ErrorActionPreference = 'Stop'
+$script:records = @(Get-Content -LiteralPath $Data -Raw | ConvertFrom-Json)
+foreach ($record in $script:records) {
+    if ($null -ne $record.CreationDate) { $record.CreationDate = [DateTime]$record.CreationDate }
+}
+function Get-CimInstance { $script:records }
+. $Helper
+$tree = Get-OwnedNativeProcessTree 100 $Application
+[pscustomobject]@{application_pid=$tree.application.ProcessId; processes=@($tree.processes.ProcessId)} | ConvertTo-Json -Compress
+`,
+    );
+    return spawnSync(
+      "pwsh",
+      [
+        "-NoProfile",
+        "-File",
+        fixture,
+        "-Helper",
+        path.join(path.dirname(script), "native-process-tree.ps1"),
+        "-Data",
+        data,
+        "-Application",
+        process.execPath,
+      ],
+      { encoding: "utf8", windowsHide: true, timeout: 10_000 },
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}
+
+test(
+  "native ancestry rejects a reused driver PID without selecting the old process",
+  windows,
+  async () => {
+    const result = await inspectProcessGraph([
+      processRecord(100, 0, 10),
+      processRecord(200, 100, 0),
+    ]);
+    assert.notEqual(result.status, 0, result.stdout);
+    assert.match(result.stderr, /exactly one owned application/);
+  },
+);
+
+test(
+  "native ancestry ignores stale parent references beside the real application",
+  windows,
+  async () => {
+    const result = await inspectProcessGraph([
+      processRecord(100, 0, 10),
+      processRecord(200, 100, 20),
+      processRecord(300, 100, 0),
+    ]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout), {
+      application_pid: 200,
+      processes: [200],
+    });
+  },
+);
+
+test(
+  "native ancestry checks each intermediate parent and child creation time",
+  windows,
+  async () => {
+    const broker = {
+      ...processRecord(150, 100, 20),
+      ExecutablePath: "owned-broker",
+    };
+    const helper = {
+      ...processRecord(201, 200, 40),
+      ExecutablePath: "owned-helper",
+    };
+    const staleHelper = {
+      ...processRecord(301, 200, 25),
+      ExecutablePath: "old-helper",
+    };
+    const result = await inspectProcessGraph([
+      processRecord(100, 0, 10),
+      broker,
+      processRecord(200, 150, 30),
+      helper,
+      processRecord(300, 150, 15),
+      staleHelper,
+    ]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout), {
+      application_pid: 200,
+      processes: [200, 201],
+    });
+  },
+);
+
+test(
+  "native ancestry refuses missing parent timestamps and cyclic metadata",
+  windows,
+  async () => {
+    for (const records of [
+      [
+        { ...processRecord(100, 0, 10), CreationDate: null },
+        processRecord(200, 100, 20),
+      ],
+      [
+        processRecord(100, 0, 10),
+        { ...processRecord(200, 100, 20), CreationDate: null },
+      ],
+      [
+        processRecord(100, 0, 10),
+        processRecord(200, 300, 20),
+        processRecord(300, 200, 20),
+      ],
+    ]) {
+      const result = await inspectProcessGraph(records);
+      assert.notEqual(result.status, 0, result.stdout);
+      assert.match(result.stderr, /exactly one owned application/);
+    }
+  },
+);
+
+test(
+  "native ancestry accepts equal timestamps without treating the driver as its own child",
+  windows,
+  async () => {
+    const result = await inspectProcessGraph([
+      processRecord(100, 0, 10),
+      processRecord(200, 100, 10),
+    ]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout), {
+      application_pid: 200,
+      processes: [200],
+    });
+  },
+);
+
 test(
   "native shutdown wait is bounded, preserves a live process, and accepts its later exit",
   windows,

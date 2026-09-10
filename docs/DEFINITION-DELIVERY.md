@@ -7,6 +7,50 @@ The CLI and Tauri expose its outcomes; React and external clients present them.
 The Project owns scheduling, #397 owns client implementation, #398 observes
 upstreams, and #246 owns the protected publication and unchanged-client proof.
 
+## Implemented engine capability negotiation
+
+Core advertises each of the seven installed `AdapterKind` templates with contract
+version 1. These versions describe the implemented combinations below; they do
+not imply support for loading successor definition bundles. A new incompatible
+template contract must receive a new version alongside its implementation and
+compatibility evidence. Definitions cannot supply engine implementations.
+
+API schema 45 exposes the inventory as `capabilities.engine_templates`. The CLI
+`catalog check-capabilities <file>` and Tauri `check_definition_capabilities`
+delegate to the same core negotiation. Tauri `get_engine_capabilities` returns
+the core capability document. No library, network, trust grant, or lifecycle
+mutation is involved in the requirement check.
+
+The standalone requirement document is deliberately smaller than a definition
+bundle: at most 64 KiB, with 1–64 unique requirements. Contract schema 1 accepts
+only `capability_contract_schema` and `required_capabilities`. Each requirement
+has `template` (1–255 lowercase ASCII letters, digits or hyphens),
+`minimum_version` and `maximum_version` (positive inclusive integers, ordered).
+Unknown fields, duplicate templates, invalid ranges and unsupported request
+schema versions are rejected. For example:
+
+```json
+{
+  "capability_contract_schema": 1,
+  "required_capabilities": [
+    {
+      "template": "n64-recomp-portable",
+      "minimum_version": 1,
+      "maximum_version": 1
+    }
+  ]
+}
+```
+
+A valid request returns one result per requirement: `supported`,
+`unsupported_template`, or `unsupported_version`, retaining the requested range
+and the installed version (null for an unknown template). `compatible` means all
+requirements matched. Unsupported entries do not erase the other results. The
+CLI exits successfully after a valid check even when `compatible` is false;
+callers must inspect that value. Malformed requests use the normal error envelope.
+Neither successful negotiation nor a supported adapter establishes publisher
+trust, source admission, artifact integrity, or permission to install or launch.
+
 ## Decision and threat model
 
 Use a catalog-specific TUF repository with maintained Rust `tough`, consistent

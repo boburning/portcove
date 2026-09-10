@@ -1846,6 +1846,24 @@
         ],
         "type": "string"
       },
+      "EngineTemplateCapability": {
+        "additionalProperties": false,
+        "properties": {
+          "contract_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "template": {
+            "$ref": "#/$defs/AdapterKind"
+          }
+        },
+        "required": [
+          "template",
+          "contract_version"
+        ],
+        "type": "object"
+      },
       "Platform": {
         "enum": [
           "windows-x86-64",
@@ -1867,6 +1885,13 @@
       "commands": {
         "items": {
           "type": "string"
+        },
+        "type": "array"
+      },
+      "engine_templates": {
+        "description": "Installed engine contracts; these do not grant definition admission.",
+        "items": {
+          "$ref": "#/$defs/EngineTemplateCapability"
         },
         "type": "array"
       },
@@ -1916,6 +1941,7 @@
       "commands",
       "platforms",
       "adapters",
+      "engine_templates",
       "machine_formats",
       "raw_stream_commands",
       "failure_isolated_batches",
@@ -4349,6 +4375,139 @@
       "error"
     ],
     "title": "PortBatchOutcome",
+    "type": "object"
+  },
+  "definition_capability_report": {
+    "$defs": {
+      "DefinitionCapabilityOutcome": {
+        "enum": [
+          "supported",
+          "unsupported_template",
+          "unsupported_version"
+        ],
+        "type": "string"
+      },
+      "DefinitionCapabilityRequirement": {
+        "additionalProperties": false,
+        "properties": {
+          "maximum_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "minimum_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "template": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "template",
+          "minimum_version",
+          "maximum_version"
+        ],
+        "type": "object"
+      },
+      "DefinitionCapabilityResult": {
+        "properties": {
+          "installed_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "outcome": {
+            "$ref": "#/$defs/DefinitionCapabilityOutcome"
+          },
+          "requirement": {
+            "$ref": "#/$defs/DefinitionCapabilityRequirement"
+          }
+        },
+        "required": [
+          "requirement",
+          "installed_version",
+          "outcome"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "capability_contract_schema": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "checks": {
+        "items": {
+          "$ref": "#/$defs/DefinitionCapabilityResult"
+        },
+        "type": "array"
+      },
+      "compatible": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "capability_contract_schema",
+      "compatible",
+      "checks"
+    ],
+    "title": "DefinitionCapabilityReport",
+    "type": "object"
+  },
+  "definition_capability_request": {
+    "$defs": {
+      "DefinitionCapabilityRequirement": {
+        "additionalProperties": false,
+        "properties": {
+          "maximum_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "minimum_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "template": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "template",
+          "minimum_version",
+          "maximum_version"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "capability_contract_schema": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "required_capabilities": {
+        "items": {
+          "$ref": "#/$defs/DefinitionCapabilityRequirement"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "capability_contract_schema",
+      "required_capabilities"
+    ],
+    "title": "DefinitionCapabilityRequest",
     "type": "object"
   },
   "doctor": {

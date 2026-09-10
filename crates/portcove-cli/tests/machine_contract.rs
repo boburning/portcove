@@ -14,6 +14,9 @@ mod launch_contract;
 #[path = "machine_contract/artwork.rs"]
 mod artwork_contract;
 
+#[path = "machine_contract/definition_capabilities.rs"]
+mod definition_capability_contract;
+
 static CAPACITY_SENSITIVE_TEST: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn cli_binary() -> std::path::PathBuf {
@@ -62,8 +65,8 @@ fn json_and_jsonl_preserve_machine_error_fields_and_share_core_presentation() {
             .unwrap(),
     )
     .unwrap();
-    assert_eq!(plain["schema_version"], 44);
-    assert_eq!(stream["schema_version"], 44);
+    assert_eq!(plain["schema_version"], 45);
+    assert_eq!(stream["schema_version"], 45);
     assert_eq!(plain["error"], stream["error"]);
     assert_eq!(plain["error"]["code"], "unsupported");
     assert!(
@@ -297,7 +300,7 @@ fn exported_source_assessment_separates_facts_without_opening_library() {
     let output = portcove(&library, &["--json", "schema", "export"]);
     assert!(output.status.success());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 44);
+    assert_eq!(response["schema_version"], 45);
     let schema = &response["data"]["source_assessment"];
     for field in [
         "health",
@@ -1151,7 +1154,7 @@ fn source_inspect_is_read_only_complete_and_equivalent_across_output_modes() {
         &library,
         &["--json", "source", "inspect", "star-fox-64"],
     ));
-    assert_eq!(json["schema_version"], 44);
+    assert_eq!(json["schema_version"], 45);
     assert_eq!(json["command"], "source.inspect");
     assert_eq!(json["data"]["schema_version"], 1);
     assert_eq!(json["data"]["health"], "current");
@@ -1308,7 +1311,7 @@ fn source_inbox_controls_share_stable_scan_and_import_activity_ids() {
         &library,
         &["--json", "source", "inbox", "scan", profile],
     ));
-    assert_eq!(scan["schema_version"], 44);
+    assert_eq!(scan["schema_version"], 45);
     assert_eq!(scan["command"], "source.inbox.scan");
     assert_eq!(scan["data"]["state"], "unresolved");
     let scan_id = scan["data"]["operation_id"].as_str().unwrap();
@@ -1521,7 +1524,7 @@ fn capabilities_has_human_output_snapshot() {
     let root = tempfile::tempdir().unwrap();
     let capabilities = human_stdout(&portcove(root.path(), &["capabilities"])).to_owned();
     assert!(capabilities.starts_with("Portcove "));
-    assert!(capabilities.contains(" capabilities\nSchema: 44"));
+    assert!(capabilities.contains(" capabilities\nSchema: 45"));
 }
 
 struct OutputFixture {
@@ -1822,11 +1825,11 @@ fn capabilities_are_one_clean_versioned_json_document() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 44);
+    assert_eq!(response["schema_version"], 45);
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");
     assert!(response["error"].is_null());
-    assert_eq!(response["data"]["schema_version"], 44);
+    assert_eq!(response["data"]["schema_version"], 45);
     assert!(
         response["data"]["commands"]
             .as_array()
@@ -1854,7 +1857,7 @@ fn command_errors_keep_the_machine_envelope_and_stable_exit_code() {
     assert_eq!(output.status.code(), Some(4));
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 44);
+    assert_eq!(response["schema_version"], 45);
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "catalog.show");
     assert!(response["data"].is_null());
@@ -1871,7 +1874,7 @@ fn parser_errors_are_structured_for_machine_callers() {
     assert!(output.stderr.is_empty());
     assert!(!library.exists());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 44);
+    assert_eq!(response["schema_version"], 45);
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "cli");
     assert_eq!(response["error"]["code"], "usage");
@@ -1891,7 +1894,7 @@ fn jsonl_read_commands_end_with_one_result_event() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 44);
+    assert_eq!(response["schema_version"], 45);
     assert_eq!(response["type"], "result");
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");

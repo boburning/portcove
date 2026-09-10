@@ -33,6 +33,11 @@ Schema 42 adds `exec --request-id <uuid>` and `launch show <uuid>` for exact dur
 launch observation, plus the nullable `launch_request` output schema. `exec`
 continues to own raw game streams and supervise through game exit/save collection.
 
+Schema 45 adds `capabilities.engine_templates`, `catalog.check-capabilities`, and
+the `definition_capability_request` / `definition_capability_report` schemas.
+This reports installed template contract versions independently from definition
+admission, trust, and operation eligibility.
+
 Schema 44 adds `artwork` commands and the `artwork_state`, `artwork_thumbnail`,
 `artwork_cache_clear` and `artwork_assets` machine schemas. It also versions library
 metadata exports to format 3 with a separate local artwork payload root. Existing
@@ -54,7 +59,7 @@ The CLI API schema version is independent of the Portcove release version. Every
 
 ```json
 {
-  "schema_version": 44,
+  "schema_version": 45,
   "ok": true,
   "command": "status",
   "data": {},
@@ -185,7 +190,7 @@ installation contract cannot be verified remains visible but cannot launch;
 other games remain readable. New installations retain their execution and
 persistence definitions in manifest schema 6. Libraries opened by this client
 use writer protocol 23, which older clients refuse to modify. The Playnite
-reference accepts API schemas 42 through 44 with event schema 2.
+reference accepts API schemas 42 through 45 with event schema 2.
 
 API schema 22 adds the core-resolved per-game output location to install plans
 and path results. It distinguishes a one-request override, the saved port
@@ -280,6 +285,7 @@ classification and admission are recomputed against the active catalog.
 
 ```text
 portcove --json capabilities
+portcove --json catalog check-capabilities requirements.json
 portcove --json schema export
 portcove --json catalog export
 portcove --json catalog list
@@ -322,6 +328,13 @@ portcove --json auth logout
 Automated frontends normally provide `PORTCOVE_GITHUB_TOKEN` in the child-process environment and avoid interactive auth commands. `auth status` reports only the credential source, GitHub login, and rate-limit headers; it never returns the token.
 
 Call `capabilities` rather than assuming commands or platforms. It reports both the machine `schema_version` and the running `product_version`; integrations should branch on advertised capabilities instead of parsing either version string. `raw_stream_commands` identifies commands such as `exec` that intentionally cannot use the advertised machine formats. Generate bindings from `schema export` when useful, and tolerate additive object fields within a schema version. Portcove's own desktop declarations are checked against that export by `just check-rust`, including all catalog adapters, shared enum values, and the top-level fields of transported DTOs.
+
+`catalog check-capabilities <file>` reads a bounded local requirements document
+without opening the library or making network requests. Its report distinguishes
+unknown templates from unsupported contract versions. A valid check exits 0 even
+when `data.compatible` is false; invalid requests fail normally. Matching installed
+template versions does not authorize loading, installation or execution. See the
+[request format and limits](DEFINITION-DELIVERY.md#implemented-engine-capability-negotiation).
 
 The current capability and schema mechanisms are an implemented foundation, not
 an eternal compatibility promise. Before V1, #30 must record and test the

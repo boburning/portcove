@@ -4,6 +4,16 @@ use std::{
     path::{Path, PathBuf},
 };
 
+/// Preserve the last entered test phase when nextest terminates a slow process.
+/// Labels contain fixture operations, never user paths or source contents.
+pub(crate) fn phase<T>(label: &str, action: impl FnOnce() -> T) -> T {
+    let started = std::time::Instant::now();
+    eprintln!("test phase started: {label}");
+    let result = action();
+    eprintln!("test phase finished: {label} ({:?})", started.elapsed());
+    result
+}
+
 /// Give synthetic installer fixtures the same complete retention input as a
 /// production catalog operation, with their explicitly modified port contract.
 pub(crate) fn retained_qualification(

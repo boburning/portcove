@@ -37,6 +37,55 @@
     ],
     "title": "CatalogUpdateSource"
   },
+  "definition_capability_request": {
+    "$defs": {
+      "DefinitionCapabilityRequirement": {
+        "additionalProperties": false,
+        "properties": {
+          "maximum_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "minimum_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "template": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "template",
+          "minimum_version",
+          "maximum_version"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "capability_contract_schema": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "required_capabilities": {
+        "items": {
+          "$ref": "#/$defs/DefinitionCapabilityRequirement"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "capability_contract_schema",
+      "required_capabilities"
+    ],
+    "title": "DefinitionCapabilityRequest",
+    "type": "object"
+  },
   "source_discovery_limits": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {

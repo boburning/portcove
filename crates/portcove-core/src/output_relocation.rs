@@ -1442,11 +1442,17 @@ mod tests {
     }
 
     fn assert_relocation_recovers(point: LifecycleFaultPoint) {
-        let fixture = Fixture::new();
-        let service =
-            PortcoveService::with_faults(fixture.library.clone(), Arc::new(FailAt(point))).unwrap();
-        let token = authorize(&service, &fixture.destination);
-        let result = service.relocate_output(PORT, &fixture.destination, &token);
+        use crate::test_fixture::phase;
+        let fixture = phase("relocation recovery: fixture", Fixture::new);
+        let service = phase("relocation recovery: open fault-injected service", || {
+            PortcoveService::with_faults(fixture.library.clone(), Arc::new(FailAt(point))).unwrap()
+        });
+        let token = phase("relocation recovery: authorize", || {
+            authorize(&service, &fixture.destination)
+        });
+        let result = phase("relocation recovery: interrupt", || {
+            service.relocate_output(PORT, &fixture.destination, &token)
+        });
         match point {
             LifecycleFaultPoint::RelocationMetadataCommitted
             | LifecycleFaultPoint::RelocationCleanupCompleted => {
@@ -1458,7 +1464,9 @@ mod tests {
         }
         assert!(service.output_relocation_status(PORT).unwrap().is_some());
 
-        let recovered = PortcoveService::new(fixture.library.clone()).unwrap();
+        let recovered = phase("relocation recovery: reopen and recover", || {
+            PortcoveService::new(fixture.library.clone()).unwrap()
+        });
         assert!(recovered.output_relocation_status(PORT).unwrap().is_none());
         let expected_destination =
             crate::path::normalized_absolute(&fixture.destination, "test relocation destination")

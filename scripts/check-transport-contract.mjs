@@ -106,6 +106,7 @@ function main() {
       "source_discovery_request",
       "source_discovery_limits",
       "catalog_update_source",
+      "definition_capability_request",
     ].map((key) => [key, inputSchemas[key]]),
   );
   const inputPath = path.join(

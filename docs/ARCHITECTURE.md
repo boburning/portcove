@@ -1,5 +1,15 @@
 # Architecture
 
+## Engine template capability ownership
+
+Core owns the installed template/version inventory and pure requirement
+negotiation. API schema 45 adds this inventory to the capability document and a
+bounded, read-only requirements inspection command. CLI and Tauri delegate to
+that same implementation; React does not infer compatibility. This prerequisite
+does not load definitions or confer admission or execution permission. The
+[definition delivery contract](DEFINITION-DELIVERY.md#implemented-engine-capability-negotiation)
+specifies request bounds, version semantics, and independent trust checks.
+
 ## Local artwork ownership
 
 Core owns independent cover/detail choices, copied local originals, bounded raster
