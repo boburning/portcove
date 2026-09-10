@@ -280,6 +280,39 @@
     "title": "BootstrapStatus",
     "type": "object"
   },
+  "cli_command_context": {
+    "$defs": {
+      "CommandShell": {
+        "enum": [
+          "powershell",
+          "posix"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "executable": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "library_root": {
+        "type": "string"
+      },
+      "shell": {
+        "$ref": "#/$defs/CommandShell"
+      }
+    },
+    "required": [
+      "library_root",
+      "executable",
+      "shell"
+    ],
+    "title": "CliCommandContext",
+    "type": "object"
+  },
   "desktop_error": {
     "$defs": {
       "ErrorCode": {

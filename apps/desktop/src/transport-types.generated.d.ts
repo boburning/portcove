@@ -338,6 +338,7 @@ export type SourceImportOutcome =
   "copied" | "moved" | "reused_existing" | "registered_current_location" | "copied_original_retained";
 export type SourceInboxResolutionState =
   "registered" | "exact_match" | "approval_required" | "unresolved" | "conflict" | "incomplete";
+export type CommandShell = "powershell" | "posix";
 
 export interface TransportOutputs {
   about: OutputAbout;
@@ -415,6 +416,7 @@ export interface TransportOutputs {
   upstream_observation_report: OutputUpstreamObservationReport;
   desktop_backup_review: OutputDesktopBackupReview;
   desktop_bootstrap_status: OutputDesktopBootstrapStatus;
+  desktop_cli_command_context: OutputDesktopCliCommandContext;
   desktop_desktop_error: FailureReport;
   desktop_launch_result: OutputDesktopLaunchResult;
   desktop_reconcile_outcome: OutputReconcileBatchOutcome;
@@ -1788,6 +1790,12 @@ export interface OutputDesktopBootstrapStatus {
   library_root: string | null;
   ready: boolean;
   selection: LibrarySelection | null;
+  [k: string]: unknown;
+}
+export interface OutputDesktopCliCommandContext {
+  executable: string | null;
+  library_root: string;
+  shell: CommandShell;
   [k: string]: unknown;
 }
 export interface OutputDesktopLaunchResult {

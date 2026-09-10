@@ -2,9 +2,8 @@ import { RemovalControl, type ApplyRemoval } from "./RemovalReview";
 import type { ApplyBackupAction } from "./BackupReview";
 import { ReleaseChannelControl } from "./ReleaseChannel";
 import { useState } from "react";
-import { AlertTriangle, ArchiveX, CheckCircle2, ChevronDown, Clipboard, ClipboardCheck, Download, ExternalLink, FileArchive, FileSearch, FolderOpen, Gamepad2, HardDrive, RefreshCw, RotateCcw, Save, ShieldCheck, Wrench, X } from "lucide-react";
-import { primaryCliCommand } from "../cli-command";
-import { copyText } from "../clipboard";
+import { AlertTriangle, ArchiveX, CheckCircle2, ChevronDown, Download, ExternalLink, FileArchive, FileSearch, FolderOpen, Gamepad2, HardDrive, RefreshCw, RotateCcw, Save, ShieldCheck, Wrench, X } from "lucide-react";
+import { CliContinuity } from "./CliContinuity";
 import { useDialogFocus } from "../dialog";
 import type { ActivityRecord, BackupInventory, BackupProblem, BackupRecord, InstallPlan, PortDefinition, PortStatus, ReleaseChannel, SourceHealth, SourceInspectionReport, SourceProfile, SourceRecord, UpdatePolicy } from "../types";
 import { OperationCancellation } from "./OperationCancellation";
@@ -205,7 +204,7 @@ function AdvancedControls({ libraryGeneration, port, status, selectedChannel, po
       <SourceFields mode="registered" controls={sources} />
       <div className="metadata"><span><small>Platforms</small>{port.platforms.map(value => platformLabels[value]).join(" · ")}</span><span><small>Installation method</small>{adapterPresentation[port.adapter]}</span><span><small>Automated evidence</small>{port.automated_tested_platforms.length ? port.automated_tested_platforms.map(value => platformLabels[value]).join(" · ") : "Qualification pending"}</span><span><small>Physical validation</small>{port.manually_validated_platforms.length ? port.manually_validated_platforms.map(value => platformLabels[value]).join(" · ") : "Deferred / not completed"}</span><span title={persistentFiles}><small>Persistent data root</small>{status?.user_data_root ?? "Created inside the selected library"}</span></div>
       <div className="upstream-link"><ProjectLink href={port.project_url}>Open upstream project <Icon glyph={ExternalLink} size="sm" /></ProjectLink><span>Portcove resolves releases from this reviewed upstream.</span></div>
-      <CliContinuity port={port} status={status} channel={selectedChannel} sourcePath={sources.sourcePath} biosPath={sources.biosPath} />
+      <CliContinuity key={`${port.id}:${libraryGeneration}`} generation={libraryGeneration} port={port} status={status} channel={selectedChannel} sourcePath={sources.sourcePath || sources.source?.path || ""} biosPath={sources.biosPath || sources.bios?.path || ""} />
       {(installed || backups.length > 0 || backupProblems.length > 0) && <BackupHistory key={`${port.id}:${libraryGeneration}`} generation={libraryGeneration} backups={backups} problems={backupProblems} state={backupState} busy={busy} restore={actions.restoreBackup} remove={actions.deleteBackup} />}
       {installed && <MaintenanceActions port={port} libraryGeneration={libraryGeneration} canRollback={Boolean(status?.previous)} busy={busy} actions={actions} />}
     </div>
@@ -314,16 +313,6 @@ function MaintenanceActions({ port, libraryGeneration, canRollback, busy, action
   </div>;
 }
 
-function CliContinuity({ port, status, channel, sourcePath, biosPath }: { port: PortDefinition; status?: PortStatus; channel: ReleaseChannel; sourcePath: string; biosPath?: string }) {
-  const [copied, setCopied] = useState(false);
-  const command = primaryCliCommand(port, status, channel, sourcePath, biosPath ?? "");
-  const label = status?.active ? "Launch command" : "Install command";
-  return <div className="cli-continuity">
-    <div><label>{label}</label><span>The desktop and CLI use the same catalog and local state.</span></div>
-    <div className="command-line"><code>{command}</code><button data-focusable className="icon-button" aria-label={`Copy ${label.toLowerCase()}`} onClick={() => { void copyText(command).then(() => { setCopied(true); window.setTimeout(() => setCopied(false), 1600); }).catch(() => setCopied(false)); }}><Icon glyph={copied ? ClipboardCheck : Clipboard} /></button></div>
-    <small><Shortcut>portcove</Shortcut> can also be called by Playnite, LaunchBox, RetroBat, EmuDeck, Batocera, and other frontends.</small>
-  </div>;
-}
 
 function detailState(installed: boolean, launchReady: boolean, staged: boolean, pendingSetup: boolean, runtimeNeeded: boolean, sourceHealth?: SourceHealth | null, biosHealth?: SourceHealth | null, selectedPath = false) {
   if (!installed) return { title: "Available to install", description: selectedPath ? "Selected game files have not been checked. Portcove validates them when you continue installation." : "Portcove will check required game files and verify the release before it becomes active.", tone: "available", icon: Download };

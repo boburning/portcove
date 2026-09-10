@@ -21,6 +21,18 @@ React UI ── Tauri IPC ───┤
                  SQLite + library tree
 ```
 
+## Desktop command-line handoff
+
+The native host reports the effective library and discovers a separate CLI beside
+Desktop or in absolute PATH directories. Discovery reads file metadata and never
+executes that program; it supplies a path, not a version or trust attestation.
+The request binds the current library generation. React formats documented CLI
+arguments and shell syntax as presentation, including an explicit library root.
+It labels missing executables or source inputs as templates and exposes program
+and argument-array fields separately. This creates no independent lifecycle
+state or command authority: the standalone CLI validates and executes through core.
+Desktop continues to call core directly.
+
 ## Desktop library handoff state
 
 Library selection and transfer share the same adapter initialization lock. Either

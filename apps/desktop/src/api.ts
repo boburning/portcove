@@ -1,4 +1,4 @@
-import type { BackupAction, BackupReview, PortRemovalPreview } from "./types";
+import type { CliCommandContext, BackupAction, BackupReview, PortRemovalPreview } from "./types";
 import type { InstallInput, LaunchResult } from "./types";
 import type { GameUpdatePlan, PreparationPlan } from "./types";
 import type { CatalogStatus, CatalogUpdatePlan, CatalogUpdateSource } from "./types";
@@ -9,6 +9,7 @@ import type { SourceDiscoveryLimits, SourceDiscoveryRequest, SourceDiscoveryRepo
 import type { ActivityDiagnostic, ActivityRecord, AdoptionPreview, BackupInventory, BackupRecord, BootstrapStatus, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, HostToolProbeResult, HostToolStatus, InstallPlan, InstallRecord, LibraryMetadataFile, OutputDestinationPreview, OutputRelocationPlan, OutputRelocationResult, OutputRelocationStatus, PortOutputLocation, PortStatus, ReleaseChannel, RestoreResult, SourceInspectionReport, SourceIntakeInspection, SourceRecord, SourceRelinkPlan, SourceRemovalPreview, SourceVerificationOutcome, UpdateCheck, UpdateCheckOutcome, UpdatePolicy } from "./types";
 
 export const desktopApi = {
+  cliCommandContext: (generation: number) => invoke<CliCommandContext>("get_cli_command_context", { generation }),
   catalogStatus: () => invoke<CatalogStatus>("get_catalog_status"),
   trustCatalogKey: (publicKey: string) => invoke<CatalogStatus | null>("trust_catalog_key", { publicKey }),
   revokeCatalogKey: (keyId: string, expectedState: string) => invoke<CatalogStatus>("revoke_catalog_key", { keyId, expectedState }),
