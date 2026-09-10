@@ -27,6 +27,15 @@ execution in public repositories does not imply unlimited free storage.
 See [Development tools](DEVELOPMENT-TOOLS.md) for the read-only host doctor,
 native desktop evidence harness, repository skills and targeted safety experiments.
 
+The native desktop harness includes a 1,000-control injected-controller profile.
+It records layout-query counts and observed input-handler durations for idle,
+activation, held activation, and directional movement. Idle and held activation
+perform no layout queries; focused activation checks only its modal scope and
+the current control. Directional movement measures the current region once per
+accepted move, using fresh geometry rather than a stale layout cache. The harness
+restores its injected input and DOM fixture afterward. These measurements are
+native rendering evidence, not physical-controller or human-navigation evidence.
+
 | Scope | Command | Purpose |
 |---|---|---|
 | Rust change | `just check-rust` | format, compile, Clippy, tests, unused dependencies/files, and crate boundaries |

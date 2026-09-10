@@ -11,6 +11,7 @@ import { writeEvidence, fileIdentity } from "../../../scripts/development-eviden
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 import { preparationScenarios } from "./desktop-preparation-test.mjs";
 import { nativeConfirmation } from "./desktop-native-confirmation.mjs";
+import { controllerScenario } from "./desktop-controller-test.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const { values } = parseArgs({ options: {
@@ -25,6 +26,7 @@ const port = Number(values.port);
 if (!Number.isInteger(port) || port < 1024 || port > 65533) throw new Error("--port must be 1024..65533");
 const inputs = await Promise.all(["app", "driver", "native-driver"].map(name => fileIdentity(values[name])));
 inputs.push(await fileIdentity(fileURLToPath(import.meta.url)));
+inputs.push(await fileIdentity(fileURLToPath(new URL("./desktop-controller-test.mjs", import.meta.url))));
 if (values["preparation-cli"] || values["preparation-tool"]) {
   for (const name of ["preparation-cli", "preparation-tool"]) {
     if (!values[name] || !path.isAbsolute(values[name])) throw new Error(`--${name} requires an absolute path`);
@@ -169,6 +171,7 @@ try {
     artifacts.push(report);
     assert.deepEqual(result.violations.map(item => item.id), []);
   });
+  await controllerScenario({ browser, scenario, output, artifacts });
   checks.push({ scenario: "install-progress-cancellation", outcome: "not-run", reason: "Requires a reviewed install fixture; the smoke harness does not download or execute upstream games." });
   if (values["preparation-cli"]) {
     await preparationScenarios({ browser, invoke, scenario, library, output, artifacts,

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { activateControl, cyclePrimaryNavigation, dismissActiveDialog, fieldOwnsArrows, focusAndReveal, focusRegion, focusableControls } from "./focus";
+import { activateFocusedControl, cyclePrimaryNavigation, dismissActiveDialog, fieldOwnsArrows, focusAndReveal, focusRegion, focusableControls, navigationScope } from "./focus";
 
 export type NavigationDirection = "up" | "down" | "left" | "right";
 export interface FocusRect { left: number; top: number; width: number; height: number }
@@ -79,10 +79,7 @@ function controllerButton(buttons: Set<number>, back: () => void) {
   if (buttons.has(1)) {
     if (!dismissActiveDialog()) back();
   } else if (buttons.has(0)) {
-    const items = focusableControls();
-    const focused = items.find(item => item === document.activeElement);
-    if (focused) activateControl(focused);
-    else focusAndReveal(items[0]);
+    activateFocusedControl();
   } else if (buttons.has(4)) cyclePrimaryNavigation(-1);
   else if (buttons.has(5)) cyclePrimaryNavigation(1);
 }
@@ -102,11 +99,8 @@ export function useGamepadNavigation(onBack: () => void) {
       // Games and native file pickers must own their controller input while
       // Portcove is in the background. Still consume edges to avoid replay.
       if (!document.hasFocus()) return;
-      if (state.active) document.documentElement.dataset.inputMode = "controller";
-      if (state.move) {
-        const items = focusableControls();
-        moveFocus(items, items.indexOf(document.activeElement as HTMLElement), state.move);
-      }
+      if (state.active && document.documentElement.dataset.inputMode !== "controller") document.documentElement.dataset.inputMode = "controller";
+      if (state.move) moveFocus(state.move);
       controllerButton(state.buttons, () => back.current());
     };
     const keydown = (event: KeyboardEvent) => {
@@ -122,8 +116,7 @@ export function useGamepadNavigation(onBack: () => void) {
       if (!direction || event.altKey || event.ctrlKey || event.metaKey) return;
       const target = event.target as HTMLElement | null;
       if (fieldOwnsArrows(target)) return;
-      const items = focusableControls();
-      if (moveFocus(items, items.indexOf(document.activeElement as HTMLElement), direction)) event.preventDefault();
+      if (moveFocus(direction)) event.preventDefault();
     };
     const pointerdown = () => { document.documentElement.dataset.inputMode = "pointer"; };
     window.addEventListener("keydown", keydown);
@@ -138,12 +131,14 @@ export function useGamepadNavigation(onBack: () => void) {
   return controller;
 }
 
-function moveFocus(items: HTMLElement[], current: number, direction: NavigationDirection) {
-  const origin = items[current];
-  const region = origin?.closest<HTMLElement>("[data-focus-region]");
+function moveFocus(direction: NavigationDirection) {
+  const scope = navigationScope();
+  const origin = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
+  const containingRegion = origin?.closest<HTMLElement>("[data-focus-region]");
+  const region = containingRegion && scope.contains(containingRegion) ? containingRegion : undefined;
   const horizontal = direction === "left" || direction === "right";
-  const candidates = region ? items.filter(item => item.closest("[data-focus-region]") === region) : items;
-  const target = spatialTargetIndex(candidates.map(item => item.getBoundingClientRect()), candidates.indexOf(origin), direction, candidates.map(item => item.closest("[data-focus-group]")));
+  const candidates = focusableControls(region ?? scope).filter(item => !region || item.closest("[data-focus-region]") === region);
+  const target = spatialTargetIndex(candidates.map(item => item.getBoundingClientRect()), origin ? candidates.indexOf(origin) : -1, direction, candidates.map(item => item.closest("[data-focus-group]")));
   if (target < 0 && horizontal && region) {
     if (direction === "left" && region.dataset.focusRegion === "workspace") return focusRegion("sidebar");
     if (direction === "right" && region.dataset.focusRegion === "sidebar") return focusRegion("workspace");
