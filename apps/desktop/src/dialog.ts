@@ -15,14 +15,14 @@ export function useDialogFocus(close: () => void, active = true) {
     const initialFocus = () => focusAndReveal(focusables().find(item => item.hasAttribute("data-autofocus")) ?? focusables()[0] ?? dialog);
     const frame = window.requestAnimationFrame(() => { if (navigationScope() === dialog) initialFocus(); });
     let revealFrame = 0;
-    // Async content can move, disable, or remove the currently focused control.
+    // Recover disabled/removed controls without scrolling a valid focus target
+    // back into view when asynchronous content changes during user scrolling.
     const contentChanges = new MutationObserver(() => {
       window.cancelAnimationFrame(revealFrame);
       revealFrame = window.requestAnimationFrame(() => {
         const focused = document.activeElement;
         if (navigationScope() === dialog) {
-          if (focused instanceof HTMLElement && dialog.contains(focused) && visibleControl(focused)) focusAndReveal(focused);
-          else initialFocus();
+          if (!(focused instanceof HTMLElement && dialog.contains(focused) && visibleControl(focused))) initialFocus();
         }
       });
     });

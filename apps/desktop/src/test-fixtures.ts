@@ -1,6 +1,11 @@
-import type { DesktopError, PortDefinition, PortStatus, SourceProfile } from "./types";
+import type { ArtworkSlot, ArtworkState, DesktopError, PortDefinition, PortStatus, SourceProfile } from "./types";
 
 // Complete serialized values; tests override only the behavior they exercise.
+export function artworkState(portId = "sample", slot: ArtworkSlot = "cover", revision = 0, selected = false): ArtworkState {
+  const asset = selected ? { sha256: "a".repeat(64), original_name: "owned-image.png", format: "png" as const, byte_size: 69, width: 1, height: 1, imported_at: 1789038047 } : null;
+  return { choice: { port_id: portId, slot, revision, asset_sha256: asset?.sha256 ?? null }, selection: asset, availability: selected ? "available" : "fallback", reason: null };
+}
+
 export function portDefinition(): PortDefinition {
   return {
     id: "sample", name: "Sample", summary: "Sample port", project_url: "https://example.com",

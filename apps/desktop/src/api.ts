@@ -1,4 +1,4 @@
-import type { CliCommandContext, BackupAction, BackupReview, PortRemovalPreview } from "./types";
+import type { ArtworkSlot, ArtworkState, ArtworkThumbnail, CliCommandContext, BackupAction, BackupReview, PortRemovalPreview } from "./types";
 import type { InstallInput, LaunchResult } from "./types";
 import type { GameUpdatePlan, PreparationPlan } from "./types";
 import type { CatalogStatus, CatalogUpdatePlan, CatalogUpdateSource } from "./types";
@@ -9,6 +9,10 @@ import type { SourceDiscoveryLimits, SourceDiscoveryRequest, SourceDiscoveryRepo
 import type { ActivityDiagnostic, ActivityRecord, AdoptionPreview, BackupInventory, BackupRecord, BootstrapStatus, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, HostToolProbeResult, HostToolStatus, InstallPlan, InstallRecord, LibraryMetadataFile, OutputDestinationPreview, OutputRelocationPlan, OutputRelocationResult, OutputRelocationStatus, PortOutputLocation, PortStatus, ReleaseChannel, RestoreResult, SourceInspectionReport, SourceIntakeInspection, SourceRecord, SourceRelinkPlan, SourceRemovalPreview, SourceVerificationOutcome, UpdateCheck, UpdateCheckOutcome, UpdatePolicy } from "./types";
 
 export const desktopApi = {
+  artwork: (portId: string, slot: ArtworkSlot, generation: number) => invoke<ArtworkState>("get_artwork", { portId, slot, generation }),
+  artworkThumbnail: (portId: string, slot: ArtworkSlot, expectedRevision: number, generation: number) => invoke<ArtworkThumbnail>("get_artwork_thumbnail", { portId, slot, expectedRevision, generation }),
+  importArtwork: (portId: string, slot: ArtworkSlot, path: string, expectedRevision: number, generation: number) => invoke<ArtworkState>("import_artwork", { portId, slot, path, expectedRevision, generation }),
+  resetArtwork: (portId: string, slot: ArtworkSlot, expectedRevision: number, generation: number) => invoke<ArtworkState>("reset_artwork", { portId, slot, expectedRevision, generation }),
   cliCommandContext: (generation: number) => invoke<CliCommandContext>("get_cli_command_context", { generation }),
   catalogStatus: () => invoke<CatalogStatus>("get_catalog_status"),
   trustCatalogKey: (publicKey: string) => invoke<CatalogStatus | null>("trust_catalog_key", { publicKey }),

@@ -5,6 +5,7 @@ import { currentUpdateSnapshot, filterOptions, platformLabels, portReadiness, ty
 import { BrandMascot, BrandWordmark } from "./Brand";
 import { BrandMotif, EmptyState, Icon } from "./ui";
 import type { NativeSourceDragState } from "../native-source-drop";
+import { ArtworkImage } from "./Artwork";
 
 export function PortBrowser({ view, ports, statuses, registeredSources, overview, recent, filter, setFilter, onSelect, onContinue, onBrowseCatalog, clearFilters, loading, nativeSourceDrag = { active: false, pathCount: 0 } }: {
   view: View; ports: PortDefinition[]; statuses: Map<string, PortStatus>; registeredSources: ReadonlySet<string>; overview: LibraryOverview; filter: Filter;
@@ -48,7 +49,7 @@ function BrowserEmptyState({ view, clearFilters, onBrowseCatalog }: { view: View
 function ContinueCard({ recent, launch, details }: { recent: RecentPort; launch: (portId: string) => void; details: (portId: string) => void }) {
   const { port, status } = recent;
   return <section className="continue-card" data-focus-group aria-label={`Continue ${port.name}`}>
-    <div className={`continue-art art-${port.support_tier}`}>{port.name.slice(0, 2).toUpperCase()}</div>
+    <ArtworkImage port={port} className={`continue-art art-${port.support_tier}`} />
     <div><p className="eyebrow">CONTINUE</p><h2>{port.name}</h2><p className="continue-meta">Last successful session · {status.active?.version}</p></div>
     <div className="continue-actions"><button data-focusable onClick={() => details(port.id)}>View details</button><button data-focusable className="primary button-with-icon" onClick={() => status.readiness?.launchable === false ? details(port.id) : launch(port.id)}><Icon glyph={Gamepad2} />{status.readiness?.launchable === false ? "Finish setup" : "Play again"}</button></div>
   </section>;
@@ -72,7 +73,7 @@ function PortCard({ port, status, readiness, onSelect, nativeSourceDrag }: { por
   return <button data-focusable className={`port-card${dropEligible ? " source-drop-eligible" : ""}${dropTarget ? " source-drop-targeted" : ""}`} aria-label={`${port.name}. ${state.label}. ${state.action}.`} onClick={() => onSelect(port.id)}
     data-source-drop-port-id={dropEligible ? port.id : undefined} data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}>
     {dropEligible && <span className="source-drop-target" aria-hidden="true">{dropTarget ? "Release to check" : "Drop to check for this game"}</span>}
-    <div className={`card-art palette-${color}`}><span>{port.name.slice(0, 2).toUpperCase()}</span><i>{port.platforms.map(platform => platformLabels[platform]).join(" · ")}</i></div>
+    <ArtworkImage port={port} className={`card-art palette-${color}`} />
     <div className="card-content"><div className="card-kicker"><span className={`readiness ${state.tone}`}><i />{state.label}</span><span className={`badge ${status?.channel ?? port.support_tier}`}>{status?.channel ?? port.support_tier}</span></div>
       <div className="card-title"><h2>{port.name}</h2></div>
       <div className="card-flags">{updateAvailable && <span className="badge update">Update available</span>}{port.upstream_status === "retired" && <span className="badge retired">Retired upstream</span>}</div>

@@ -5,7 +5,7 @@
 Core owns independent cover/detail choices, copied local originals, bounded raster
 decoding and disposable thumbnails. SQLite schema 24 records assets and monotonic
 choice revisions; older writers refuse the upgraded library. API schema 44 exposes
-selection and integrity metadata through the CLI. Catalog and signed-envelope
+selection and integrity metadata through the CLI and Desktop. Catalog and signed-envelope
 formats are unchanged. Local filenames, hashes and import times record provenance;
 they establish neither copyright permission nor upstream authenticity.
 
@@ -42,11 +42,23 @@ payload. Formats 1 and 2 remain importable with empty artwork state and reject
 artwork fields; disposable `artwork-cache` files are excluded. Per-game save backups
 continue to cover saved data; whole-library backup copies include the artwork root.
 
-This foundation has no provider, network fetch, catalog artwork default or Desktop
-picker. Hosts will own native file selection and display bridging, and React will
-render core results without owning a second selection store. Deterministic fallback
-remains available when there is no local choice. Provider access and redistribution
-permissions remain separate from this account-free storage contract.
+Desktop owns native file selection and routes each read/change through a library
+generation check. React displays core results through a disposable cache for the
+visible viewport plus at most 32 inactive previews per generation. Requests are
+serialized to avoid competing for the artwork lock; queued reads are discarded
+when their view no longer needs them. Visible cards load asynchronously and preserve
+the cached image while refreshing. PNG data URLs carry only bounded core thumbnails;
+the renderer never reads original files or changes the content-security policy.
+Picker cancellation, closing the editor, changing ports or changing libraries
+invalidates the pending intent before mutation. Core still checks the selected slot
+revision. Titles, status and actions stay outside portrait/letterboxed covers;
+detail images are optional. Reset preserves imported originals. Source information
+reports the original filename, dimensions and import time, with author/license
+explicitly unavailable for local imports.
+
+There is no provider, network fetch or catalog artwork default. Deterministic
+fallback remains available when there is no local choice. Provider access and
+redistribution permissions remain separate from this account-free storage contract.
 
 The [independent definition delivery contract](DEFINITION-DELIVERY.md) keeps
 successor definition admission, retained source/execution/persistence contracts

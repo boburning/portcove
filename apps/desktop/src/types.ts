@@ -15,6 +15,9 @@ export type { SourceRepresentation } from "./transport-types.generated";
 export type { PortDefinition } from "./transport-types.generated";
 
 export type CatalogDocument = Generated.TransportOutputs["catalog"];
+export type ArtworkState = Generated.TransportOutputs["artwork_state"];
+export type ArtworkThumbnail = Generated.TransportOutputs["artwork_thumbnail"];
+export type ArtworkSlot = ArtworkState["choice"]["slot"];
 
 export type { InstallRecord } from "./transport-types.generated";
 

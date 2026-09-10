@@ -18,11 +18,13 @@ const { values } = parseArgs({ options: {
   app: { type: "string" }, driver: { type: "string" }, "native-driver": { type: "string" },
   output: { type: "string" }, port: { type: "string", default: "4444" },
   "preparation-cli": { type: "string" }, "preparation-tool": { type: "string" },
+  "artwork-only": { type: "boolean", default: false },
 } });
 for (const name of ["app", "driver", "native-driver", "output"]) {
   if (!values[name] || !path.isAbsolute(values[name])) throw new Error(`--${name} requires an absolute path`);
 }
 const port = Number(values.port);
+if (values["artwork-only"] && !values["preparation-cli"]) throw new Error("--artwork-only requires the owned preparation CLI/tool inputs");
 if (!Number.isInteger(port) || port < 1024 || port > 65533) throw new Error("--port must be 1024..65533");
 const inputs = await Promise.all(["app", "driver", "native-driver"].map(name => fileIdentity(values[name])));
 inputs.push(await fileIdentity(fileURLToPath(import.meta.url)));
@@ -62,7 +64,8 @@ function stopDriver() {
     try { process.kill(-driver.pid, "SIGTERM"); } catch { /* Already stopped. */ }
   }
 }
-const deadline = setTimeout(() => { stopDriver(); }, 120_000);
+// Includes owned native artwork picker/restart coverage in addition to lifecycle reviews.
+const deadline = setTimeout(() => { stopDriver(); }, 180_000);
 deadline.unref();
 
 async function requireUnusedPort(number) {
@@ -176,7 +179,7 @@ try {
   if (values["preparation-cli"]) {
     await preparationScenarios({ browser, invoke, scenario, library, output, artifacts,
       confirmNative: nativeConfirmation({ application: values.app, driverPid: driver.pid, output, artifacts }),
-      cli: values["preparation-cli"], tool: values["preparation-tool"] });
+      cli: values["preparation-cli"], tool: values["preparation-tool"], onlyArtwork: values["artwork-only"] });
   }
 } catch (error) {
   checks.push({ scenario: "harness", outcome: "failed", message: error.message });
@@ -198,6 +201,6 @@ try {
   const log = path.join(output, "driver.log");
   await writeFile(log, driverLog, { flag: "wx" });
   artifacts.push(log);
-  await writeEvidence(output, { revision, executable: values.app, capturedExecutable: inputs[0], checks, artifacts, inputs, method: "native-desktop-smoke" });
+  await writeEvidence(output, { revision, executable: values.app, capturedExecutable: inputs[0], checks, artifacts, inputs, method: values["artwork-only"] ? "native-artwork-smoke" : "native-desktop-smoke" });
   console.log(JSON.stringify(checks, null, 2));
 }
