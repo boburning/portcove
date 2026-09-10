@@ -154,6 +154,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 serde_json::json!(schema_for_contract::<SourceRelinkPlan>(contract)),
             ),
             (
+                "launch_request",
+                serde_json::json!(schema_for_contract::<
+                    Option<portcove_core::LaunchSessionRecord>,
+                >(contract)),
+            ),
+            (
                 "library_identity",
                 serde_json::json!(schema_for_contract::<LibraryIdentity>(contract)),
             ),

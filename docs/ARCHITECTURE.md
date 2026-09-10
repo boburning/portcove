@@ -21,6 +21,16 @@ React UI ── Tauri IPC ───┤
                  SQLite + library tree
 ```
 
+## Public launch observation
+
+External launchers may supply a UUID to CLI `exec` and query `launch show` through
+core's existing retained launch-request record. CLI input parsing normalizes UUID
+syntax; core remains the authority for request reuse, port exclusion, acceptance,
+exact process identity, cancellation and terminal save collection. The read uses
+`Library::launch_request` before service recovery initialization, so observation
+cannot advance a retained operation. API schema 42 exports the nullable core record.
+No daemon, adapter job store or machine output inside raw game streams is added.
+
 ## Public library identity
 
 Core exposes its existing database identity with the effective library root through
@@ -28,8 +38,8 @@ Core exposes its existing database identity with the effective library root thro
 `get_library_identity` are thin reads of that record under the library lease.
 The same ID continues to protect output-root ownership; there is no second identity
 store or adapter SQL. Managed moves preserve it, while supported metadata/content
-imports retain the destination's independently initialized identity. The API schema
-is 41; metadata and database formats are unchanged. The public ID is opaque and is
+imports retain the destination's independently initialized identity. The identity
+command was introduced in API schema 41; metadata and database formats are unchanged. The public ID is opaque and is
 not an authentication, trust or qualification claim. See [CLI identity semantics](CLI.md#library-identity).
 
 ## Desktop command-line handoff

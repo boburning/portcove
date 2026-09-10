@@ -187,7 +187,11 @@ fn preparation_roundtrip(chd: bool) {
     let installed = std::path::PathBuf::from(status["data"]["active"]["path"].as_str().unwrap());
     let log = installed.join("data/log/setup.log");
     fs::write(&log, b"setup must not run during CLI exec").unwrap();
-    let played = portcove(&library, &["exec", &port.id]);
+    let played = if chd {
+        portcove(&library, &["exec", &port.id])
+    } else {
+        super::launch_contract::observe_prepared_launch(&library, &preferences, &port.id)
+    };
     assert!(played.status.success(), "{played:?}");
     assert!(String::from_utf8_lossy(&played.stdout).contains("owned game launched"));
     assert_eq!(

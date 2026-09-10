@@ -29,6 +29,10 @@ evidence must not collapse into one supported flag. Missing gameplay is not a
 source mismatch. Observable schema changes require explicit versioning and
 legacy/unknown-value handling; this planning contract adds no command or field.
 
+Schema 42 adds `exec --request-id <uuid>` and `launch show <uuid>` for exact durable
+launch observation, plus the nullable `launch_request` output schema. `exec`
+continues to own raw game streams and supervise through game exit/save collection.
+
 Schema 41 adds `library identity`, the `library_identity` schema and the
 `library.identity` capability entry. It exposes the existing core-owned identity
 with its effective location; no database or metadata format changes are required.
@@ -44,7 +48,7 @@ version folder is named only after verification of the private copy.
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":41,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":42,"ok":true,"command":"status","data":{},"error":null}
 ```
 
 Schema 39 changes `activity_diagnostic`, available through `activity log <activity-id>`,
@@ -496,6 +500,36 @@ application updater.
 Portcove V1 requires every path that crosses a durable SQLite/JSON boundary or child-process argument/environment boundary to be valid Unicode. On Unix, a non-UTF-8 library, source, install, backup, lifecycle, executable, or generated runtime path fails with `unsupported` instead of being stored or launched through a lossy alias.
 
 `exec` forwards arguments after `--` literally only to native executables. A cataloged Windows `.bat` or `.cmd` launcher crosses an implicit `cmd.exe` boundary, so Portcove rejects caller-supplied arguments for that launch kind and permits only fixed catalog arguments that pass the batch metacharacter policy. The same core process policy removes GitHub and credential-shaped environment variables from games and every third-party setup, validation, conversion, and builder process while retaining the reviewed host/session variables required for graphics, audio, locale, profile paths, Steam/Proton, Wine, and executable discovery. Native games run in a supervised process group. Ctrl-C, plus SIGTERM on Unix, is forwarded to that group; the CLI keeps supervising until the child exits and exact-install save collection finishes.
+
+External launchers can supply a fresh UUID before starting the raw-stream CLI and
+observe it from another process:
+
+```text
+portcove --library <path> exec <port-id> --request-id <fresh-uuid> -- <game arguments...>
+portcove --library <path> --json launch show <uuid>
+```
+
+Omitting `--request-id` preserves generated-ID behavior. CLI UUID arguments are
+normalized to the canonical lowercase form; core still validates, locks and rejects
+reused retained request identities. A retry needs a new explicit launch decision and UUID.
+`launch.show` returns the core session or `null` if absent or expired. It opens the
+selected library through normal initialization/relocation gates but does not start,
+cancel, recover or otherwise advance lifecycle work. It requires no network or GUI.
+The latest 1,000 terminal launch sessions remain readable alongside active sessions.
+
+A record identifies the exact port, installation, supervisor and child. `phase` is
+`preparing`, `spawning`, `running`, `collecting` or `recovering`; it describes the
+last recorded phase, even after termination. `outcome` is null while unresolved and
+`succeeded`, `failed` or `cancelled` when terminal; `exit_code` and `finished_at`
+carry the retained result. `started_at` is request acceptance, not a precise game-start
+timestamp. `child_pid`/`child_identity` are recorded only after child
+creation; they are observations, never authorization for a client to signal a PID.
+A running snapshot can become stale immediately. Poll at a bounded interval and stop
+on a terminal outcome; never equate CLI process creation, a missing record, lost raw
+output, an unknown enum or a stopped wrapper with success. A failure before session
+creation can leave no session; retain the CLI error and inspect durable activity or
+recovery guidance. Use existing `cancel <id>` semantics where cancellation is still
+supported; game signals and post-exit save collection stay with the supervisor.
 
 Status objects include additive `readiness`, `last_launched_at`, `successful_launches`, and `last_update_check` fields. Readiness separates one-time upstream setup from the current game-source and BIOS states: `unregistered`, `current`, `missing`, `unreadable`, `changed`, or `not_checked`. Installed requirements are hashed against their registered storage baseline; uninstalled registrations use `not_checked` so catalog browsing does not imply a current-byte check. `current` means unchanged since registration, not that an informational or extension-only profile gained exact-revision evidence. Missing, unreadable, and changed requirements block launch and route Continue to setup. Install and launch still repeat the full catalog validation at their final use boundary. Launch history advances only after a child process exits successfully; a failed start, crash, or non-zero exit never becomes a Continue candidate. Both the CLI and desktop write the same SQLite record, so external frontends can use these fields without scraping GUI state.
 
