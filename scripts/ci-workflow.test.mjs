@@ -133,7 +133,7 @@ test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () 
   assert.match(rustTests, /runs-on: windows-latest/);
   assert.match(
     rustTests,
-    /shard: \[core-service-1, core-service-2, core-recovery, core-other-1, core-other-2\]/,
+    /shard:\s*\[\s*core-service-1,\s*core-service-2,\s*core-recovery,\s*core-other-1,\s*core-other-2,?\s*\]/,
   );
   for (const shard of [
     "service::",
@@ -199,7 +199,7 @@ test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () 
   assert.match(rust, /^    if: always\(\)$/m);
   assert.match(
     rust,
-    /^    needs: \[rust_tests, rust_workspace_tests, rust_clippy, windows_storage, native_rust, intel_build, intel_tests, rust_docs\]$/m,
+    /needs:\s*\[\s*rust_tests,\s*rust_workspace_tests,\s*rust_clippy,\s*windows_storage,\s*native_rust,\s*intel_build,\s*intel_tests,\s*rust_docs,?\s*\]/,
   );
   assert.match(rust, /RUST_TEST_RESULT: \$\{\{ needs\.rust_tests\.result \}\}/);
   assert.match(
@@ -259,7 +259,10 @@ test("Intel tests build once on Apple Silicon and execute every partition on Int
   assert.match(intelBuild, /retention-days: 1/);
   assert.match(intelTests, /needs: intel_build/);
   assert.match(intelTests, /runs-on: macos-15-intel/);
-  assert.match(intelTests, /partition: \["hash:1\/2", "hash:2\/2"\]/);
+  assert.match(
+    intelTests,
+    /partition:\s*\[\s*"hash:1\/2",\s*"hash:2\/2",?\s*\]/,
+  );
   assert.match(
     intelTests,
     /cargo nextest run --archive-file .* --workspace-remap "\$PWD" --partition "\$\{\{ matrix\.partition \}\}"/,
@@ -367,7 +370,10 @@ test("live upstream health has bounded independent triggers while catalog stays 
       ".node-version",
       ".github/workflows/upstream-health.yml",
     ]) {
-      assert.ok(section.includes(`'${path}'`), `${trigger} must cover ${path}`);
+      assert.ok(
+        section.includes(`'${path}'`) || section.includes(`"${path}"`),
+        `${trigger} must cover ${path}`,
+      );
     }
   }
   assert.match(health, /run: node scripts\/check-catalog-repositories\.mjs/);
