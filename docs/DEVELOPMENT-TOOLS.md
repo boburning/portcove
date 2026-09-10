@@ -194,7 +194,10 @@ interruption claim; existing core publication-recovery fixtures remain separate.
 
 The final owned-library handoff scenario seeds and selects a separate harness-owned
 library, then moves it through Settings. Earlier preparation journals remain intact
-in their original test library; their required recovery is never bypassed. It checks preserved originals, matching saved-data copies, stable active
+in their original test library; their required recovery is never bypassed. Before
+copying, it checks the recorded installation and source-location consequences,
+opens the saved-data inventory, and verifies an exact owned filename in the
+compact review. It checks preserved originals, matching saved-data copies, stable active
 installation identity, unchanged source references and an advanced desktop library
 generation. A prior-generation request is rejected, while the new generation reads
 the verified destination. CLI and Tauri identity reads must match before and after
