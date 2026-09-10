@@ -1923,18 +1923,7 @@ impl PortcoveService {
         let registered = self.library.source(profile_id)?.ok_or_else(|| {
             PortcoveError::not_found(format!("source profile {profile_id} is not registered"))
         })?;
-        match self.inspect_source(profile_id, &registered.path) {
-            Ok(inspection) => {
-                crate::source_report::available_report(&self.catalog, Some(registered), inspection)
-            }
-            Err(error) => {
-                let health = match registered.path.try_exists() {
-                    Ok(false) => SourceHealth::Missing,
-                    Ok(true) | Err(_) => SourceHealth::Unreadable,
-                };
-                crate::source_report::unavailable_report(&self.catalog, registered, health, &error)
-            }
-        }
+        crate::source_report::registered_report(&self.catalog, registered)
     }
 
     pub(crate) fn inspect_source_record(

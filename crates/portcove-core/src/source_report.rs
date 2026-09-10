@@ -156,6 +156,23 @@ struct ReportStatus<'a> {
     problem: Option<SourceInspectionProblem>,
 }
 
+pub(crate) fn registered_report(
+    catalog: &Catalog,
+    registered: SourceRecord,
+) -> Result<SourceInspectionReport> {
+    catalog.source_profile(&registered.profile_id)?;
+    match crate::source_inspection::inspect(catalog, &registered.profile_id, &registered.path) {
+        Ok(inspection) => available_report(catalog, Some(registered), inspection),
+        Err(error) => {
+            let health = match registered.path.try_exists() {
+                Ok(false) => SourceHealth::Missing,
+                Ok(true) | Err(_) => SourceHealth::Unreadable,
+            };
+            unavailable_report(catalog, registered, health, &error)
+        }
+    }
+}
+
 pub(crate) fn unavailable_report(
     catalog: &Catalog,
     registered: SourceRecord,

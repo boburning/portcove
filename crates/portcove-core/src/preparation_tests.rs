@@ -208,6 +208,71 @@ fn installed_definition_survives_catalog_changes_and_options_fail_closed() {
 }
 
 #[test]
+fn preparation_retains_source_contract_and_review_after_catalog_changes() {
+    let mut fixture = Fixture::new();
+    let before = fixture
+        .service
+        .plan_preparation(PORT, fixture.options())
+        .unwrap();
+    let profile_id = before.inputs.source.profile_id.clone();
+    let registered = serde_json::to_value(&before.inputs.source).unwrap();
+    let source_bytes = fs::read(&fixture.source).unwrap();
+    let mut document = fixture.service.catalog().authoritative_document();
+    let profile = document
+        .source_catalog
+        .as_mut()
+        .unwrap()
+        .identities
+        .iter_mut()
+        .find(|profile| profile.id == profile_id)
+        .unwrap();
+    profile.label = "A later catalog description".into();
+    fixture.service.replace_catalog_for_test(
+        Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+    );
+    assert_eq!(
+        fixture
+            .service
+            .inspect_registered_source(&profile_id)
+            .unwrap()
+            .expected_identity
+            .unwrap()
+            .label,
+        "A later catalog description"
+    );
+    let after = fixture
+        .service
+        .plan_preparation(PORT, fixture.options())
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(&before).unwrap(),
+        serde_json::to_value(&after).unwrap()
+    );
+    fixture
+        .service
+        .authorize_preparation(PORT, fixture.options(), &before.plan_sha256)
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(fixture.service.library().source(&profile_id).unwrap()).unwrap(),
+        registered
+    );
+    assert_eq!(fs::read(&fixture.source).unwrap(), source_bytes);
+    fs::write(&fixture.source, b"changed after review").unwrap();
+    assert_eq!(
+        fixture
+            .service
+            .authorize_preparation(PORT, fixture.options(), &before.plan_sha256)
+            .unwrap_err()
+            .code,
+        ErrorCode::SourceInvalid
+    );
+    assert_eq!(
+        crate::library_transfer::reviewed_tree(&fixture.install.path).unwrap(),
+        before.copy
+    );
+}
+
+#[test]
 fn generated_outputs_cannot_claim_executables_sources_or_persistent_data() {
     let fixture = Fixture::new();
     let port = fixture.service.catalog().port(PORT).unwrap();
