@@ -423,6 +423,14 @@ describe("desktop components", () => {
     expect(html).toContain("Install · 64.0 MiB");
   });
 
+  it("does not describe a blocked local copy as verified", () => {
+    const html = renderToStaticMarkup(<DetailPanel port={{ ...port, source_profile: null }} sourcePath="" setSourcePath={vi.fn()} actions={actions} installPlan={reviewedInstallPlan("blocked_unverified")} />);
+    expect(html).toContain("Local copy needs verification");
+    expect(html).toContain("Unverified copy blocks install");
+    expect(html).not.toContain("Verified local release");
+    expect(html).not.toContain("Use verified release");
+  });
+
   it.each(["future_action", "constructor", "__proto__"])("offers only another review for unknown install action %s", action => {
     const html = renderToStaticMarkup(<DetailPanel port={{ ...port, source_profile: null }} sourcePath="" setSourcePath={vi.fn()} actions={actions} installPlan={reviewedInstallPlan(action as InstallPlan["action"])} />);
     expect(html).toContain("Review install again");

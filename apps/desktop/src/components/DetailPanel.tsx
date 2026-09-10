@@ -283,9 +283,10 @@ function InstallAction({ ready, plan, busy, install, review }: { ready: boolean;
 
 function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
   const download = plan.action === "download";
+  const localState = plan.action === "blocked_unverified" ? "Local copy needs verification" : "Verified local release";
   return <div className="install-plan">
     <div><p className="eyebrow">INSTALL PLAN</p><strong>{plan.release.version}</strong><span>{plan.channel} · {installPlanActionLabel(plan.action)}</span>{plan.bundled_runtime && <span>Includes verified runtime · {formatBytes(plan.bundled_runtime.asset.size)}</span>}</div>
-    <div><strong>{download ? formatBytes(plan.download_bytes) : "No download"}</strong><span>{download ? `${formatBytes(plan.storage.volume_available_bytes)} available` : "Verified local release"}</span></div>
+    <div><strong>{download ? formatBytes(plan.download_bytes) : "No download"}</strong><span>{download ? `${formatBytes(plan.storage.volume_available_bytes)} available` : localState}</span></div>
   </div>;
 }
 
