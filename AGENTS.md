@@ -76,6 +76,18 @@ files, milestone mirrors, or another planning authority. Repository docs own
 stable contracts and dated release snapshots; `catalog.json` owns actual port
 support and qualification evidence.
 
+## Contribution metadata
+
+Follow `docs/CONTRIBUTION-CONVENTIONS.md` for branch names, authored commit
+subjects, pull request titles and descriptions. Use the configured
+Conventional-lite title, a project-purpose branch prefix rather than an agent
+name, and the five pull request sections in their defined order. Drafts may
+record pending evidence; update the same description with exact final results
+and the reviewed head before marking the pull request ready. After creating or
+updating a pull request, run `just pr-check <number-or-url>` and resolve or
+explain its advisory findings. This advisory check never replaces acceptance,
+review, CI, Roadmap state or merge-authority requirements.
+
 ### Delivery planning
 
 Public beta and 1.0 are readiness commitments, separate from versions and the
