@@ -102,9 +102,31 @@ test("managed quality tools use explicit supported platform identities and safe 
   );
 
   const ruff = manifest.tools.find((tool) => tool.id === "ruff");
+  assert.deepEqual(
+    Object.fromEntries(
+      Object.entries(ruff.install.assets).map(([key, asset]) => [
+        key,
+        asset.entry,
+      ]),
+    ),
+    {
+      "win32-x64": "ruff.exe",
+      "linux-x64": "ruff-x86_64-unknown-linux-gnu/ruff",
+      "darwin-x64": "ruff-x86_64-apple-darwin/ruff",
+      "darwin-arm64": "ruff-aarch64-apple-darwin/ruff",
+    },
+  );
   assert.equal(
     managedToolPath(ruff, path.join("cache", "tools"), "linux-x64"),
-    path.join("cache", "tools", "ruff", ruff.version, "linux-x64", "ruff"),
+    path.join(
+      "cache",
+      "tools",
+      "ruff",
+      ruff.version,
+      "linux-x64",
+      "ruff-x86_64-unknown-linux-gnu",
+      "ruff",
+    ),
   );
   assert.throws(
     () => managedToolPath(ruff, path.join("cache", "tools"), "linux-riscv64"),
