@@ -159,6 +159,20 @@ The workflow caches semdup's exact-version executable, versioned 149 MB model, a
 
 The workflow log is review evidence, not an instruction to rewrite code. Hawk and semdup findings remain advisory, but the hosted job requires both analyzers to execute successfully so a missing tool or broken runtime cannot masquerade as a clean report. Local `just deep` continues past unavailable optional tools, and deterministic checks inside `just audit` still block normally.
 
+Windows CI fixture jobs explicitly export `TEMP` and `TMP` from the existing
+runner-owned `RUNNER_TEMP` before fixture preparation and timed tests. Setup logs
+the inherited and selected directories and rejects invalid locations before
+exporting either variable. This affects only subsequent job processes, not the
+host's persistent settings. The workflow contract executes the actual setup block
+on Windows and checks the directory observed by a fresh child process.
+
+Test-only phase timings preserve the last entered initialization or recovery
+boundary when nextest terminates a test. A finished phase means its action
+returned, including an error result; the original assertions remain authoritative.
+These observations help isolate intermittent Windows failures but do not by
+themselves establish their cause. Test deadlines, concurrency and retry policy
+remain unchanged.
+
 ## Architecture gate
 
 `scripts/check-rust-architecture.mjs` reads `cargo metadata --format-version 1 --no-deps`; it never scrapes manifests. It requires both adapters to depend on `portcove-core`, prevents core from depending on CLI/Tauri/desktop concerns, prevents either adapter from depending on its peer, and keeps the default Cargo member set limited to Core and CLI so a focused Rust build has no desktop frontend prerequisite. Add future layer rules to the checker data rather than writing a second checker.

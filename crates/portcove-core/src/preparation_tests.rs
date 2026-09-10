@@ -1,6 +1,7 @@
 #[path = "preparation_execution_tests.rs"]
 mod execution_tests;
 use super::*;
+use crate::test_fixture::phase as test_phase;
 use crate::{ArtifactIdentity, Catalog, ErrorCode, Library, ReleaseChannel};
 use std::fs;
 
@@ -16,9 +17,19 @@ struct Fixture {
 
 impl Fixture {
     fn new() -> Self {
-        let temporary = tempfile::tempdir().unwrap();
-        let library = Library::open(temporary.path().join("library")).unwrap();
-        let service = PortcoveService::new(library.clone()).unwrap();
+        let temporary = test_phase(
+            "preparation fixture: temporary directory",
+            tempfile::tempdir,
+        )
+        .unwrap();
+        let library = test_phase("preparation fixture: library open", || {
+            Library::open(temporary.path().join("library"))
+        })
+        .unwrap();
+        let service = test_phase("preparation fixture: service open", || {
+            PortcoveService::new(library.clone())
+        })
+        .unwrap();
         let port = service.catalog().port(PORT).unwrap();
         let platform = Platform::current().unwrap();
         let artifact = ArtifactIdentity {
@@ -39,11 +50,22 @@ impl Fixture {
             fs::write(&path, b"owned inert fixture").unwrap();
             crate::permissions::normalize_archive_entry(&path, false, true).unwrap();
         }
-        let qualification = crate::test_fixture::retained_qualification(port, platform).unwrap();
+        let qualification = test_phase("preparation fixture: retained qualification", || {
+            crate::test_fixture::retained_qualification(port, platform)
+        })
+        .unwrap();
         let id = uuid::Uuid::new_v4().to_string();
-        let (manifest_sha256, selected_executable, runtime) = Installer::new(library.clone())
-            .unwrap()
-            .create_manifest(&id, PORT, "fixture", &artifact, &qualification, &root)
+        let (manifest_sha256, selected_executable, runtime) =
+            test_phase("preparation fixture: initial manifest", || {
+                Installer::new(library.clone()).unwrap().create_manifest(
+                    &id,
+                    PORT,
+                    "fixture",
+                    &artifact,
+                    &qualification,
+                    &root,
+                )
+            })
             .unwrap();
         let install = InstallRecord {
             id,
@@ -59,12 +81,15 @@ impl Fixture {
             selected_executable,
             runtime,
         };
-        library.register_install(&install, true).unwrap();
+        test_phase("preparation fixture: register install", || {
+            library.register_install(&install, true)
+        })
+        .unwrap();
         let source = temporary.path().join("owned.iso");
         fs::write(&source, b"owned source awaiting the upstream validator").unwrap();
         let (sha256, size) = crate::adapter::hash_file(&source).unwrap();
-        library
-            .register_source(&SourceRecord {
+        test_phase("preparation fixture: register source", || {
+            library.register_source(&SourceRecord {
                 profile_id: port.source_profile.clone().unwrap(),
                 path: source.clone(),
                 sha256: sha256.clone(),
@@ -74,7 +99,8 @@ impl Fixture {
                 updated_at: Library::now(),
                 observed_identity: None,
             })
-            .unwrap();
+        })
+        .unwrap();
         Self {
             _temporary: temporary,
             service,
