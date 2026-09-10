@@ -12,6 +12,7 @@ import { libraryHandoffScenario } from "./desktop-library-handoff-test.mjs";
 import { adoptionReviewScenario } from "./desktop-adoption-review-test.mjs";
 import { sourceRemovalScenario } from "./desktop-source-removal-test.mjs";
 import { interruptedPreparationScenario } from "./desktop-preparation-recovery-test.mjs";
+import { clickVisible } from "./desktop-review-controls.mjs";
 
 export async function preparationScenarios({ browser, invoke, scenario, library, output, artifacts, cli, tool, confirmNative }) {
   const command = (args, selectedLibrary = library) => {
@@ -205,8 +206,10 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
       const card = By.xpath(`//button[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`);
       await browser.wait(until.elementLocated(card), 15_000);
       await browser.findElement(card).click();
-      await browser.findElement(By.css("details.advanced-settings > summary")).click();
-      return browser.findElement(By.css('section[aria-label="Game release channel"]'));
+      await clickVisible(browser, await browser.findElement(By.css("details.advanced-settings > summary")));
+      const channel = await browser.findElement(By.css('section[aria-label="Game release channel"]'));
+      await browser.wait(until.elementIsVisible(channel), 5_000);
+      return channel;
     };
     const single = await openCatalogPort("ghostship");
     assert.ok((await single.getText()).includes("Stable only"));

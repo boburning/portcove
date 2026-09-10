@@ -3,10 +3,10 @@ use clap::ValueEnum;
 use portcove_core::{
     ActivityRecord, AdoptionPreview, BackupActionPreview, BackupInventory, BackupRecord,
     CapabilityDocument, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin,
-    GithubDeviceLoginResult, InstallPlan, InstallRecord, LibraryMetadata, LibraryMetadataFile,
-    OperationEvent, PortDefinition, PortPaths, PortRemovalPreview, PortStatus, ReconcileResult,
-    RestoreResult, SourceInspectionReport, SourceRecord, SourceRelinkPlan, SourceRemovalPreview,
-    SourceVerification, StorageSummary, UpdateCheck, UpdateSnapshot,
+    GithubDeviceLoginResult, InstallPlan, InstallRecord, LibraryIdentity, LibraryMetadata,
+    LibraryMetadataFile, OperationEvent, PortDefinition, PortPaths, PortRemovalPreview, PortStatus,
+    ReconcileResult, RestoreResult, SourceInspectionReport, SourceRecord, SourceRelinkPlan,
+    SourceRemovalPreview, SourceVerification, StorageSummary, UpdateCheck, UpdateSnapshot,
 };
 use schemars::{JsonSchema, Schema, generate::SchemaSettings};
 
@@ -152,6 +152,10 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
             (
                 "source_relink_plan",
                 serde_json::json!(schema_for_contract::<SourceRelinkPlan>(contract)),
+            ),
+            (
+                "library_identity",
+                serde_json::json!(schema_for_contract::<LibraryIdentity>(contract)),
             ),
             (
                 "library_metadata",

@@ -192,6 +192,8 @@ enum BackupCommand {
 enum LibraryCommand {
     /// Show the effective library and whether it came from --library, saved preferences, or default.
     Show,
+    /// Open the selected library and report its stable identity and effective location.
+    Identity,
     /// Save an existing empty directory or recognizable Portcove library as the host default.
     Set { path: PathBuf },
     /// Clear the saved library, including recovery from malformed or future preferences.
@@ -1642,6 +1644,7 @@ where
 fn library_command_name(command: &LibraryCommand) -> &'static str {
     match command {
         LibraryCommand::Show => "library.show",
+        LibraryCommand::Identity => "library.identity",
         LibraryCommand::Set { .. } => "library.set",
         LibraryCommand::Reset => "library.reset",
         LibraryCommand::Import { .. } => "library.import",
@@ -1668,6 +1671,11 @@ fn execute_library(
             name,
             preferences.resolve(invocation_root, platform_default)?,
         )?,
+        LibraryCommand::Identity => {
+            let root = preferences.resolve(invocation_root, platform_default)?.root;
+            let library = portcove_core::Library::open(&root)?;
+            render_success(mode, name, library.identity_record()?)?;
+        }
         LibraryCommand::Set { path } => {
             preferences.set_library(path)?;
             render_success(mode, name, preferences.resolve(None, platform_default)?)?;
@@ -2533,7 +2541,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 40);
+        assert_eq!(capabilities.schema_version, 41);
         assert_eq!(
             capabilities.failure_isolated_batches,
             ["check", "reconcile", "update", "source.verify"]

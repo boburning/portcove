@@ -29,6 +29,10 @@ evidence must not collapse into one supported flag. Missing gameplay is not a
 source mismatch. Observable schema changes require explicit versioning and
 legacy/unknown-value handling; this planning contract adds no command or field.
 
+Schema 41 adds `library identity`, the `library_identity` schema and the
+`library.identity` capability entry. It exposes the existing core-owned identity
+with its effective location; no database or metadata format changes are required.
+
 Schema 40 extends adoption previews with the selected output destination, current
 active installation, imported persistent paths and current saved-data identity.
 Review authorization binds these values as well as the source copy plan. A changed
@@ -40,7 +44,7 @@ version folder is named only after verification of the private copy.
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":40,"ok":true,"command":"status","data":{},"error":null}
+{"schema_version":41,"ok":true,"command":"status","data":{},"error":null}
 ```
 
 Schema 39 changes `activity_diagnostic`, available through `activity log <activity-id>`,
@@ -384,6 +388,37 @@ Library selection uses `--library` or `PORTCOVE_LIBRARY` for one invocation, the
 `library set` accepts an existing empty directory or a recognizable Portcove library, canonicalizes it, and publishes only the host preference. It rejects missing paths, files, symlinks, filesystem roots, unrelated nonempty directories, and a choice that would place preferences inside the library. It does not move or initialize the selected directory. `library reset` replaces damaged or unsupported preferences with format 1 and restores platform-default selection without opening that library. The desktop exposes the same choice and reset controls during bootstrap recovery and in Settings. A live desktop switch first drops adapter-owned handles and refuses while an already-dispatched operation still holds the old library; successful switches remount UI data against a new library generation.
 
 The preference document lives in Portcove's platform configuration directory, outside movable library data and credential storage. `PORTCOVE_PREFERENCES` may select an alternate absolute preference file for portable/test hosts; it does not change library precedence or make a relative path valid.
+
+## Library identity
+
+```text
+portcove --library <path> --json library identity
+```
+
+This opens the resolved library through normal core initialization and returns
+`library.identity` with `data: {"id": "<opaque-library-id>", "root": "<effective-path>"}`.
+A new library is initialized if needed; use `library show` for selection inspection
+without opening it. A completed managed move redirects an old root to the effective
+location. Both locations report the same ID. Malformed, future or recovery-gated
+libraries report the existing structured errors instead of manufacturing an ID.
+
+Treat `id` as an opaque, case-sensitive string and `root` as a canonical current
+location. Windows paths may use the extended-length prefix.
+Refresh, game update, rollback and managed library moves do not create a new library
+identity. A supported metadata/content import preserves the destination's own
+identity (creating one for a new destination), while preserving exported installation
+IDs. It never replaces that ID with the source library's ID. A raw SQLite copy is a
+replica with the same ID, not a supported way to create an independent library.
+The ID is neither a credential nor proof of ownership, artifact integrity or qualification.
+
+Use the library ID plus catalog `port_id` as a library entry key. Installation IDs
+identify retained versions within that library; update creates a new installation,
+while activation/rollback changes pointers among retained IDs. Use `(library ID,
+installation ID)` when tracking installations across libraries and imports. Never
+use titles, display versions, array order or mutable paths as identity. The library
+ID does not replace operation/session IDs or the Desktop generation used to reject
+stale requests. Tauri's `get_library_identity(generation)` reads the same core record
+under the current generation and lease; Desktop continues to call core directly.
 
 ## Library metadata
 

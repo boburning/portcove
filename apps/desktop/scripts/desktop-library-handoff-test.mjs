@@ -25,6 +25,9 @@ export async function libraryHandoffScenario({ browser, invoke, scenario, librar
     const selected = await invoke("set_default_library", { path: source });
     assert.equal(selected.ok, true);
     const before = (await invoke("get_bootstrap_status")).value;
+    const identityBefore = await invoke("get_library_identity", { generation: before.generation });
+    assert.equal(identityBefore.ok, true);
+    assert.deepEqual(identityBefore.value, ownedCommand(["library", "identity"]));
     const active = ownedCommand(["status", portId]).active;
     const preserved = await Promise.all([path.join(paths.user_data_root, "general.json"), path.join(paths.user_data_root, "unrelated-save.bin"), path.join(backup.path, "data/general.json")].map(fileIdentity));
     const sources = ownedCommand(["source", "list"]);
@@ -51,6 +54,14 @@ export async function libraryHandoffScenario({ browser, invoke, scenario, librar
       return after?.ready && after.generation > before.generation;
     }, 15_000);
     assert.equal(await realpath(after.library_root), await realpath(destination));
+    const identityAfter = await invoke("get_library_identity", { generation: after.generation });
+    assert.equal(identityAfter.ok, true);
+    assert.equal(identityAfter.value.id, identityBefore.value.id);
+    assert.equal(await realpath(identityAfter.value.root), await realpath(destination));
+    assert.deepEqual(identityAfter.value, ownedCommand(["library", "identity"]));
+    assert.deepEqual(identityAfter.value, command(["library", "identity"], destination));
+    const staleIdentity = await invoke("get_library_identity", { generation: before.generation });
+    assert.equal(staleIdentity.ok, false); assert.equal(staleIdentity.error.code, "conflict");
     const stale = await invoke("get_output_location", { portId, generation: before.generation });
     assert.equal(stale.ok, false); assert.equal(stale.error.code, "conflict");
     const current = await invoke("get_output_location", { portId, generation: after.generation });
@@ -68,6 +79,6 @@ export async function libraryHandoffScenario({ browser, invoke, scenario, librar
     }
     assert.deepEqual((await invoke("get_sources")).value, sources);
     const result = path.join(output, "library-handoff-result.json");
-    await writeFile(result, JSON.stringify({ before, after, preserved_originals: preserved, copied, preserved_active_identity: active.id, stale_generation_rejected: true, evidence: "native owned-library copy and frontend handoff; no physical interruption claim" }, null, 2), { flag: "wx" }); artifacts.push(result);
+    await writeFile(result, JSON.stringify({ before, after, identity_before: identityBefore.value, identity_after: identityAfter.value, stale_identity_generation_rejected: true, preserved_originals: preserved, copied, preserved_active_identity: active.id, stale_generation_rejected: true, evidence: "native owned-library copy and frontend handoff; no physical interruption claim" }, null, 2), { flag: "wx" }); artifacts.push(result);
   });
 }

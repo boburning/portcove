@@ -366,6 +366,7 @@ export interface TransportOutputs {
   host_tool_probe_result: OutputHostToolProbeResult;
   host_tool_status: HostToolStatus;
   install_plan: InstallPlan;
+  library_identity: OutputLibraryIdentity;
   library_import_plan: OutputLibraryImportPlan;
   library_import_result: OutputLibraryImportResult;
   library_metadata: LibraryMetadata;
@@ -1116,6 +1117,20 @@ export interface OutputHostToolProbeResult {
   sha256: string | null;
   state: HostToolProbeState;
   tool_id: string;
+  [k: string]: unknown;
+}
+/**
+ * Durable library identity and its current effective location.
+ */
+export interface OutputLibraryIdentity {
+  /**
+   * Opaque identity, preserved by managed moves; not an authentication token.
+   */
+  id: string;
+  /**
+   * Current location, which may differ from the root originally requested.
+   */
+  root: string;
   [k: string]: unknown;
 }
 /**

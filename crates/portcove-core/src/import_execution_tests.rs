@@ -73,7 +73,9 @@ fn import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empt
     let export = temp.path().join("export.json");
     let destination = temp.path().join("destination");
     let expected = fixture(&source, &export);
+    let original_identity = Library::open(&source).unwrap().identity_record().unwrap();
     let open = Library::open(&destination).unwrap();
+    let destination_identity = open.identity_record().unwrap();
     let plan = PortcoveService::plan_library_import(&export, &source, &destination).unwrap();
     assert!(plan.destination_exists);
     assert!(
@@ -84,6 +86,12 @@ fn import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empt
         PortcoveService::import_library(&export, &source, &destination, &plan.plan_sha256).unwrap();
     assert!(result.completed && result.input_retained);
     let restored = Library::open(&destination).unwrap();
+    assert_ne!(restored.identity_record().unwrap().id, original_identity.id);
+    assert_eq!(restored.identity_record().unwrap(), destination_identity);
+    assert_eq!(
+        Library::open(&source).unwrap().identity_record().unwrap(),
+        original_identity
+    );
     crate::transfer_copy::verify_metadata(&restored, &expected).unwrap();
     let status = restored.status("starship", ReleaseChannel::Stable).unwrap();
     assert_eq!(status.active.unwrap().id, "active");

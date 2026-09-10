@@ -5266,6 +5266,26 @@
     "title": "InstallPlan",
     "type": "object"
   },
+  "library_identity": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Durable library identity and its current effective location.",
+    "properties": {
+      "id": {
+        "description": "Opaque identity, preserved by managed moves; not an authentication token.",
+        "type": "string"
+      },
+      "root": {
+        "description": "Current location, which may differ from the root originally requested.",
+        "type": "string"
+      }
+    },
+    "required": [
+      "id",
+      "root"
+    ],
+    "title": "LibraryIdentity",
+    "type": "object"
+  },
   "library_import_plan": {
     "$defs": {
       "AdoptionCopyFile": {

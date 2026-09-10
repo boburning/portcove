@@ -21,6 +21,17 @@ React UI ── Tauri IPC ───┤
                  SQLite + library tree
 ```
 
+## Public library identity
+
+Core exposes its existing database identity with the effective library root through
+`Library::identity_record`. CLI `library identity` and generation-bound Tauri
+`get_library_identity` are thin reads of that record under the library lease.
+The same ID continues to protect output-root ownership; there is no second identity
+store or adapter SQL. Managed moves preserve it, while supported metadata/content
+imports retain the destination's independently initialized identity. The API schema
+is 41; metadata and database formats are unchanged. The public ID is opaque and is
+not an authentication, trust or qualification claim. See [CLI identity semantics](CLI.md#library-identity).
+
 ## Desktop command-line handoff
 
 The native host reports the effective library and discovers a separate CLI beside
