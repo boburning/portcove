@@ -1,5 +1,17 @@
 # Architecture
 
+## Successor definition content inventory
+
+Core owns the immutable successor index parser and exact target-byte verification
+through `DefinitionContentIndex`. It bounds and validates identities, revisions,
+content-addressed references and declared bytes before exposing read-only records.
+The original index bytes remain available for later authenticated bindings.
+This pure content boundary has no network, library or lifecycle side effects and
+does not replace the current catalog loader. Authentication, entry interpretation,
+independent eligibility and transactional selection remain required before these
+bytes can acquire definition authority. The exact initial representation and
+limits are documented in [DEFINITION-DELIVERY.md](DEFINITION-DELIVERY.md).
+
 ## Engine template capability ownership
 
 Core owns the installed template/version inventory and pure requirement
