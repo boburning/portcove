@@ -9,7 +9,16 @@ import "./styles.css";
 initializeTheme();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode><AppErrorBoundary report={(error, info) => {
-    void desktopApi.reportFrontendError(error.message, info.componentStack ?? "");
-  }}><App /></AppErrorBoundary></React.StrictMode>,
+  <React.StrictMode>
+    <AppErrorBoundary
+      report={(error, info) => {
+        void desktopApi.reportFrontendError(
+          error.message,
+          info.componentStack ?? "",
+        );
+      }}
+    >
+      <App />
+    </AppErrorBoundary>
+  </React.StrictMode>,
 );

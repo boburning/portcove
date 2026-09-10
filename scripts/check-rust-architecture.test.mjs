@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { formatViolations, validateArchitecture } from "./check-rust-architecture.mjs";
+import {
+  formatViolations,
+  validateArchitecture,
+} from "./check-rust-architecture.mjs";
 
 function metadata(overrides = {}) {
   const dependencies = {
@@ -26,43 +29,58 @@ test("accepts the intended core and adapter graph", () => {
 });
 
 test("reports forbidden cross-layer dependencies with actionable context", () => {
-  const violations = validateArchitecture(metadata({ "portcove-core": ["serde", "tauri"] }));
+  const violations = validateArchitecture(
+    metadata({ "portcove-core": ["serde", "tauri"] }),
+  );
   assert.equal(violations.length, 1);
   assert.match(formatViolations(violations), /portcove-core -> tauri/);
   assert.match(formatViolations(violations), /presentation-layer/);
 });
 
 test("reports missing required adapter dependencies", () => {
-  const violations = validateArchitecture(metadata({ "portcove-cli": ["clap"] }));
+  const violations = validateArchitecture(
+    metadata({ "portcove-cli": ["clap"] }),
+  );
   assert.equal(violations.length, 1);
-  assert.match(formatViolations(violations), /portcove-cli -\/-> portcove-core/);
+  assert.match(
+    formatViolations(violations),
+    /portcove-cli -\/-> portcove-core/,
+  );
 });
 
 test("fails closed when a governed workspace package disappears", () => {
   const input = metadata();
-  input.packages = input.packages.filter((pkg) => pkg.name !== "portcove-desktop");
+  input.packages = input.packages.filter(
+    (pkg) => pkg.name !== "portcove-desktop",
+  );
   const violations = validateArchitecture(input);
   assert.equal(violations.length, 1);
   assert.match(formatViolations(violations), /was not found/);
 });
 
 test("keeps catalog signature authority out of presentation adapters", () => {
-  const violations = validateArchitecture(metadata({
-    "portcove-cli": ["clap", "portcove-core", "ed25519-dalek"],
-    "portcove-desktop": ["portcove-core", "tauri", "ed25519-dalek"],
-  }));
+  const violations = validateArchitecture(
+    metadata({
+      "portcove-cli": ["clap", "portcove-core", "ed25519-dalek"],
+      "portcove-desktop": ["portcove-core", "tauri", "ed25519-dalek"],
+    }),
+  );
   assert.equal(violations.length, 2);
-  assert.ok(violations.every(item => item.dependencyName === "ed25519-dalek"));
+  assert.ok(
+    violations.every((item) => item.dependencyName === "ed25519-dalek"),
+  );
 });
 
 test("keeps artwork decoding in core while hosts bridge display and file selection", () => {
-  const violations = validateArchitecture(metadata({
-    "portcove-core": ["serde", "image"],
-    "portcove-cli": ["clap", "portcove-core", "image"],
-    "portcove-desktop": ["portcove-core", "tauri", "image"],
-  }));
+  const violations = validateArchitecture(
+    metadata({
+      "portcove-core": ["serde", "image"],
+      "portcove-cli": ["clap", "portcove-core", "image"],
+      "portcove-desktop": ["portcove-core", "tauri", "image"],
+    }),
+  );
   assert.equal(violations.length, 2);
-  assert.ok(violations.every(item => item.dependencyName === "image"));
+  assert.ok(violations.every((item) => item.dependencyName === "image"));
 });
 
 test("keeps default Cargo builds independent of the desktop package", () => {
@@ -70,19 +88,26 @@ test("keeps default Cargo builds independent of the desktop package", () => {
   input.workspace_default_members.push("portcove-desktop");
   const violations = validateArchitecture(input);
   assert.equal(violations.length, 1);
-  assert.match(formatViolations(violations), /default Rust build stays independent/);
+  assert.match(
+    formatViolations(violations),
+    /default Rust build stays independent/,
+  );
 });
 
 test("isolates offline release verification from player and library authority", () => {
-  const violations = validateArchitecture(metadata({
-    "portcove-release-tools": ["portcove-core", "tauri"],
-    "portcove-desktop": ["portcove-core", "tauri", "portcove-release-tools"],
-  }));
+  const violations = validateArchitecture(
+    metadata({
+      "portcove-release-tools": ["portcove-core", "tauri"],
+      "portcove-desktop": ["portcove-core", "tauri", "portcove-release-tools"],
+    }),
+  );
   assert.equal(violations.length, 3);
 });
 
 test("keeps host tracing collectors outside the core failure authority", () => {
-  const violations = validateArchitecture(metadata({ "portcove-core": ["serde", "tracing-subscriber"] }));
+  const violations = validateArchitecture(
+    metadata({ "portcove-core": ["serde", "tracing-subscriber"] }),
+  );
   assert.equal(violations.length, 1);
   assert.equal(violations[0].dependencyName, "tracing-subscriber");
 });

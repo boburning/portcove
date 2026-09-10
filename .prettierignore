@@ -1,0 +1,29 @@
+# Dependency, build, analysis, and local task output
+/apps/desktop/node_modules/
+/apps/desktop/dist/
+/apps/desktop/src-tauri/gen/
+/target/
+/work/
+/outputs/
+/release-assets/
+/.codex-remote-attachments/
+/.fallow/
+/.fallow-review/
+/.rscheck/
+/.semdup/
+/.tmp/
+/mutants.out/
+/mutants.out.old/
+/Portcove-CI-FiveMinutes/
+
+# Generated or tool-owned artifacts
+**/*.generated.*
+/apps/desktop/pnpm-lock.yaml
+/integrations/playnite/packages.lock.json
+/integrations/playnite/tests/packages.lock.json
+/crates/portcove-core/catalog/*.json
+/crates/**/tests/fixtures/**
+
+# Historical and release evidence is preserved verbatim
+/docs/archive/
+/docs/releases/[0-9]*.md

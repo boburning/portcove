@@ -2,9 +2,13 @@ import { useEffect, useRef } from "react";
 import type { View } from "./view-model";
 import { navigationScope } from "./focus";
 
-export type KeyboardShortcutAction = "toggle-palette" | "close-palette" | "focus-search" | View;
+export type KeyboardShortcutAction =
+  "toggle-palette" | "close-palette" | "focus-search" | View;
 
-export function commandShortcut(key: string, platform = globalThis.navigator?.platform ?? "") {
+export function commandShortcut(
+  key: string,
+  platform = globalThis.navigator?.platform ?? "",
+) {
   return `${/Mac/i.test(platform) ? "Command" : "Ctrl"} ${key}`;
 }
 
@@ -20,15 +24,29 @@ export function keyboardShortcutAction(input: {
   if (input.paletteOpen && input.key === "Escape") return "close-palette";
   const commandKey = Boolean(input.ctrlKey || input.metaKey);
   if (input.modalOpen || input.paletteOpen) {
-    return input.paletteOpen && commandKey && !input.altKey && input.key.toLowerCase() === "k" ? "toggle-palette" : undefined;
+    return input.paletteOpen &&
+      commandKey &&
+      !input.altKey &&
+      input.key.toLowerCase() === "k"
+      ? "toggle-palette"
+      : undefined;
   }
-  if (commandKey && !input.altKey && input.key.toLowerCase() === "k") return "toggle-palette";
-  if (!input.targetIsField && !commandKey && !input.altKey && input.key === "/") return "focus-search";
+  if (commandKey && !input.altKey && input.key.toLowerCase() === "k")
+    return "toggle-palette";
+  if (!input.targetIsField && !commandKey && !input.altKey && input.key === "/")
+    return "focus-search";
   if (!commandKey || input.altKey) return undefined;
-  return ({ "1": "library", "2": "catalog", "3": "updates", "4": "settings" } as const)[input.key as "1"];
+  return (
+    { "1": "library", "2": "catalog", "3": "updates", "4": "settings" } as const
+  )[input.key as "1"];
 }
 
-export function useGlobalShortcuts({ paletteOpen, setPaletteOpen, setView, focusSearch }: {
+export function useGlobalShortcuts({
+  paletteOpen,
+  setPaletteOpen,
+  setView,
+  focusSearch,
+}: {
   paletteOpen: boolean;
   setPaletteOpen: (value: boolean | ((current: boolean) => boolean)) => void;
   setView: (view: View) => void;
@@ -43,7 +61,9 @@ export function useGlobalShortcuts({ paletteOpen, setPaletteOpen, setView, focus
         ctrlKey: event.ctrlKey,
         metaKey: event.metaKey,
         altKey: event.altKey,
-        targetIsField: target?.matches("input, textarea, select, [contenteditable=true]"),
+        targetIsField: target?.matches(
+          "input, textarea, select, [contenteditable=true]",
+        ),
         paletteOpen,
         modalOpen: navigationScope() !== document,
       });
@@ -52,7 +72,7 @@ export function useGlobalShortcuts({ paletteOpen, setPaletteOpen, setView, focus
       if (action === "close-palette") {
         event.stopImmediatePropagation();
         setPaletteOpen(false);
-      } else if (action === "toggle-palette") setPaletteOpen(open => !open);
+      } else if (action === "toggle-palette") setPaletteOpen((open) => !open);
       else if (action === "focus-search") focusSearch();
       else setView(action);
     };
@@ -63,6 +83,8 @@ export function useGlobalShortcuts({ paletteOpen, setPaletteOpen, setView, focus
 
 export function useWorkspaceScroll(view: View) {
   const workspace = useRef<HTMLElement>(null);
-  useEffect(() => { workspace.current?.scrollTo({ top: 0 }); }, [view]);
+  useEffect(() => {
+    workspace.current?.scrollTo({ top: 0 });
+  }, [view]);
   return workspace;
 }

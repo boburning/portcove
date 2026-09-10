@@ -3,10 +3,19 @@ import path from "node:path";
 
 function contains(parent, child) {
   const relative = path.relative(parent, child);
-  return relative === "" || (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative));
+  return (
+    relative === "" ||
+    (!relative.startsWith(`..${path.sep}`) &&
+      relative !== ".." &&
+      !path.isAbsolute(relative))
+  );
 }
 
-export async function assertOwnedUnlinkedPath(projectRoot, candidatePath, label) {
+export async function assertOwnedUnlinkedPath(
+  projectRoot,
+  candidatePath,
+  label,
+) {
   const project = path.resolve(projectRoot);
   const candidate = path.resolve(candidatePath);
   if (candidate === project || !contains(project, candidate)) {
@@ -26,7 +35,9 @@ export async function assertOwnedUnlinkedPath(projectRoot, candidatePath, label)
       throw error;
     }
     if (metadata.isSymbolicLink()) {
-      throw new Error(`${label} contains a symbolic-link or reparse-point component: ${current}`);
+      throw new Error(
+        `${label} contains a symbolic-link or reparse-point component: ${current}`,
+      );
     }
     if (index < parts.length - 1 && !metadata.isDirectory()) {
       throw new Error(`${label} contains a non-directory ancestor: ${current}`);

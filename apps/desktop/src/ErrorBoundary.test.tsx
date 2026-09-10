@@ -6,7 +6,10 @@ describe("top-level render recovery", () => {
   it("turns an injected render failure into a controlled recovery surface", () => {
     const error = new Error("injected render failure");
     const report = vi.fn();
-    const boundary = new AppErrorBoundary({ children: <p>workspace</p>, report });
+    const boundary = new AppErrorBoundary({
+      children: <p>workspace</p>,
+      report,
+    });
     boundary.state = AppErrorBoundary.getDerivedStateFromError(error);
     boundary.componentDidCatch(error, { componentStack: "at BrokenPanel" });
 
@@ -16,6 +19,9 @@ describe("top-level render recovery", () => {
     expect(html).toContain("Portcove hit a display error");
     expect(html).toContain("injected render failure");
     expect(html).not.toContain("workspace");
-    expect(report).toHaveBeenCalledWith(error, expect.objectContaining({ componentStack: "at BrokenPanel" }));
+    expect(report).toHaveBeenCalledWith(
+      error,
+      expect.objectContaining({ componentStack: "at BrokenPanel" }),
+    );
   });
 });

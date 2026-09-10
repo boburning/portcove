@@ -25,7 +25,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [core-service-1, core-service-2, core-recovery, core-other-1, core-other-2]
+        shard:
+          [
+            core-service-1,
+            core-service-2,
+            core-recovery,
+            core-other-1,
+            core-other-2,
+          ]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-rust
@@ -318,7 +325,17 @@ jobs:
 
   rust:
     if: always()
-    needs: [rust_tests, rust_workspace_tests, rust_clippy, windows_storage, native_rust, intel_build, intel_tests, rust_docs]
+    needs:
+      [
+        rust_tests,
+        rust_workspace_tests,
+        rust_clippy,
+        windows_storage,
+        native_rust,
+        intel_build,
+        intel_tests,
+        rust_docs,
+      ]
     runs-on: ubuntu-latest
     steps:
       - name: Require every Rust lane
@@ -440,6 +457,9 @@ jobs:
         with:
           tool: ${{ steps.quality-pins.outputs.just }}
       - run: pnpm install --frozen-lockfile
+      - name: Check repository formatting
+        working-directory: .
+        run: pnpm --dir apps/desktop format:check
       - name: Test development storage tool integration
         working-directory: .
         run: node scripts/dev-storage.mjs run -- node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs --test-name-pattern "pnpm uses|direct just recipes" scripts/dev-storage.test.mjs

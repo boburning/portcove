@@ -97,15 +97,15 @@ An error does not imply unchanged files or a completed rollback.
 
 ## Troubleshooting and conformance
 
-| Observation | Client response |
-|---|---|
-| CLI missing or path relative | Ask for an existing verified executable and explicit library; do not search for a game executable instead. |
-| Unsupported schema/capability | Select a compatible package/client pair. Never continue by ignoring the version. |
-| Missing source/tool or bad checksum | Present core's requirement/error. Preserve the original file and admission rules. |
-| Busy port/library | Wait for the other operation and refresh; do not compete or force-unlock. |
-| Interrupted output/cancellation | Read retained activity and current state; no blind retry or assumed cleanup. |
-| Changed library/stale review | Refresh identity/plan and obtain fresh action intent. |
-| Package/sandbox failure | Confirm the package, native executable, mount and permission scope on that exact host; do not infer another platform works. |
+| Observation                         | Client response                                                                                                             |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| CLI missing or path relative        | Ask for an existing verified executable and explicit library; do not search for a game executable instead.                  |
+| Unsupported schema/capability       | Select a compatible package/client pair. Never continue by ignoring the version.                                            |
+| Missing source/tool or bad checksum | Present core's requirement/error. Preserve the original file and admission rules.                                           |
+| Busy port/library                   | Wait for the other operation and refresh; do not compete or force-unlock.                                                   |
+| Interrupted output/cancellation     | Read retained activity and current state; no blind retry or assumed cleanup.                                                |
+| Changed library/stale review        | Refresh identity/plan and obtain fresh action intent.                                                                       |
+| Package/sandbox failure             | Confirm the package, native executable, mount and permission scope on that exact host; do not infer another platform works. |
 
 Run `just playnite-check` for the reference's synthetic protocol/process cases.
 The fixtures are freely redistributable repository code and need no original

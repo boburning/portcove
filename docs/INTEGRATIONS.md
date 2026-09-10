@@ -155,18 +155,18 @@ interventions—not a minimum integration count.
 
 ## Deliberate frontend sequence
 
-| Environment | Intended first claim | Owner and target | Boundary |
-|---|---|---|---|
-| Playnite | Real lifecycle reference client | #243; integration workstream and Public beta qualification | Small Portcove-maintained example/regression client, not feature parity or an endlessly expanding plugin commitment. |
-| Desktop Steam / Big Picture and Steam Deck Gaming Mode | Generic/manual launch-only route | #290; required Public beta qualification | Plugin-free baseline. Automatic game entries and Decky are separate. |
-| ES-DE | First reusable library-export profile | #291; opportunistic early Post-V1 | Thin profile over supported library/launch data, not a second manager. |
-| Steam automatic entry management | Optional launch convenience | #292; opportunistic early Post-V1 | May remain manual if safe supported reconciliation is unavailable. |
-| LaunchBox / Big Box and RetroBat | Next Windows candidates | #291 evaluation sequence | Proceed only for demonstrated friction, demand, reuse, and maintenance fit. |
-| EmuDeck and RetroDECK | Separately qualified packaged environments | #291 evaluation sequence | Inspect actual ES-DE/Steam route and host/sandbox boundaries; do not inherit an ES-DE claim. |
-| Batocera | Deployment feasibility before support | #291 evaluation sequence | Invocation alone does not prove executable or dependency compatibility. |
-| Lutris, Heroic, and Pegasus | Second-wave candidates | #291 evaluation sequence | Prefer community ownership where practical. |
-| PortMaster | Adjacent native-port ecosystem | #291 evaluation sequence | Evaluate interoperability separately rather than treating it as only a launcher. |
-| Decky | Optional Steam-facing lifecycle client | #293; opportunistic Post-V1 | Prefer community maintenance; never required for baseline use or V1. |
+| Environment                                            | Intended first claim                       | Owner and target                                           | Boundary                                                                                                             |
+| ------------------------------------------------------ | ------------------------------------------ | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Playnite                                               | Real lifecycle reference client            | #243; integration workstream and Public beta qualification | Small Portcove-maintained example/regression client, not feature parity or an endlessly expanding plugin commitment. |
+| Desktop Steam / Big Picture and Steam Deck Gaming Mode | Generic/manual launch-only route           | #290; required Public beta qualification                   | Plugin-free baseline. Automatic game entries and Decky are separate.                                                 |
+| ES-DE                                                  | First reusable library-export profile      | #291; opportunistic early Post-V1                          | Thin profile over supported library/launch data, not a second manager.                                               |
+| Steam automatic entry management                       | Optional launch convenience                | #292; opportunistic early Post-V1                          | May remain manual if safe supported reconciliation is unavailable.                                                   |
+| LaunchBox / Big Box and RetroBat                       | Next Windows candidates                    | #291 evaluation sequence                                   | Proceed only for demonstrated friction, demand, reuse, and maintenance fit.                                          |
+| EmuDeck and RetroDECK                                  | Separately qualified packaged environments | #291 evaluation sequence                                   | Inspect actual ES-DE/Steam route and host/sandbox boundaries; do not inherit an ES-DE claim.                         |
+| Batocera                                               | Deployment feasibility before support      | #291 evaluation sequence                                   | Invocation alone does not prove executable or dependency compatibility.                                              |
+| Lutris, Heroic, and Pegasus                            | Second-wave candidates                     | #291 evaluation sequence                                   | Prefer community ownership where practical.                                                                          |
+| PortMaster                                             | Adjacent native-port ecosystem             | #291 evaluation sequence                                   | Evaluate interoperability separately rather than treating it as only a launcher.                                     |
+| Decky                                                  | Optional Steam-facing lifecycle client     | #293; opportunistic Post-V1                                | Prefer community maintenance; never required for baseline use or V1.                                                 |
 
 These priorities are product-fit choices, not a market-share ranking, mandatory
 matrix, or expansion of Portcove's supported operating systems, architectures,

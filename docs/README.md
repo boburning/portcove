@@ -13,12 +13,12 @@ machine-readable product state.
   remains available with its [reviewed notes](releases/0.1.0-alpha.1-release-notes.md)
   and frozen evidence.
 
-| Authority | Owns | Does not own |
-|---|---|---|
-| [Portcove Roadmap](https://github.com/users/boburning/projects/1) | Current work, priority, horizon, status, target release, blockers, deferred work, and new-port pipeline | Durable implementation details or actual catalog support |
-| GitHub issues | Executable specifications, discussion, dependencies, acceptance criteria, and completion evidence | Priority or release forecasts |
-| [`catalog.json`](../crates/portcove-core/catalog/catalog.json) | Actual ports, platforms, channels, sources, adapters, and qualification evidence | Product-level release scope |
-| Repository documentation | Stable architecture, security, catalog admission, release-stage definitions, qualification policy, contributor rules, and dated snapshots | A mutable backlog |
+| Authority                                                         | Owns                                                                                                                                      | Does not own                                             |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| [Portcove Roadmap](https://github.com/users/boburning/projects/1) | Current work, priority, horizon, status, target release, blockers, deferred work, and new-port pipeline                                   | Durable implementation details or actual catalog support |
+| GitHub issues                                                     | Executable specifications, discussion, dependencies, acceptance criteria, and completion evidence                                         | Priority or release forecasts                            |
+| [`catalog.json`](../crates/portcove-core/catalog/catalog.json)    | Actual ports, platforms, channels, sources, adapters, and qualification evidence                                                          | Product-level release scope                              |
+| Repository documentation                                          | Stable architecture, security, catalog admission, release-stage definitions, qualification policy, contributor rules, and dated snapshots | A mutable backlog                                        |
 
 ## Stable contracts
 

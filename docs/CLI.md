@@ -53,7 +53,13 @@ version folder is named only after verification of the private copy.
 The CLI API schema version is independent of the Portcove release version. Every `--json` result has this envelope:
 
 ```json
-{"schema_version":44,"ok":true,"command":"status","data":{},"error":null}
+{
+  "schema_version": 44,
+  "ok": true,
+  "command": "status",
+  "data": {},
+  "error": null
+}
 ```
 
 Schema 39 changes `activity_diagnostic`, available through `activity log <activity-id>`,
@@ -642,7 +648,6 @@ playing already verified output. Unmigrated definitions retain existing adapter
 behavior. Desktop exposes the same core plan, confirmation, events and operation
 cancellation, with reviews scoped to the selected library generation.
 
-
 Save managers and launcher integrations should ask Portcove for its canonical roots rather than constructing internal paths:
 
 ```bash
@@ -676,19 +681,19 @@ An update also reuses a matching artifact already retained as a rollback or inac
 
 ## Exit codes
 
-| Code | Meaning |
-|---:|---|
-| 0 | Success |
-| 2 | Usage or confirmation required |
-| 3 | Unsupported channel/platform/workflow |
-| 4 | Not found |
-| 5 | Invalid source |
-| 10 | Network failure |
-| 11 | Verification failure |
-| 12 | Installation failure |
-| 13 | Local state failure |
-| 14 | Conflict |
-| 125 | Launch setup failure |
+| Code | Meaning                               |
+| ---: | ------------------------------------- |
+|    0 | Success                               |
+|    2 | Usage or confirmation required        |
+|    3 | Unsupported channel/platform/workflow |
+|    4 | Not found                             |
+|    5 | Invalid source                        |
+|   10 | Network failure                       |
+|   11 | Verification failure                  |
+|   12 | Installation failure                  |
+|   13 | Local state failure                   |
+|   14 | Conflict                              |
+|  125 | Launch setup failure                  |
 
 For `exec`, a successfully started game returns its exit code when it fits the portable `0..=255` process range. Native Windows crash statuses and other out-of-range codes map to `1`, never `0`, while termination without a code maps to `125`. Integrators should treat the structured `error.code` as authoritative for management commands.
 
@@ -730,7 +735,6 @@ API schema 7 adds catalog provenance to `doctor`, public-key trust and selection
 - `catalog use-cached --expected-state <state_sha256>`: reverify and select the cached signed catalog without downloading or admitting an older external candidate.
 
 Local-file review does not write library domain state. Explicit HTTPS delivery is anonymous, bounded to 4 MiB and 20 seconds, and rejects redirects, userinfo, fragments, and non-HTTPS URLs. Catalog application supports cross-process cancellation and CLI Ctrl-C/SIGTERM until publication admission; SQLite activation, replay advancement, and the terminal activity outcome commit together. A service command uses the catalog snapshot it opened with; subsequent commands see the new selection. See [SIGNED-CATALOG.md](SIGNED-CATALOG.md) for the exact signing contract and offline publisher utility.
-
 
 API schema 8 adds optional `runtime` identity to install records, `installed_runtime` and `required_runtime` to update checks, `bundled_runtime` and `download_bytes` to install plans, and `missing_runtime` launch readiness. `catalog` exposes the platform runtime archive pins and layout. A runtime-only change is an update even if the game's release name and archive are unchanged. `update` supplies a missing runtime; `exec` fails before running an upstream downloader. Rollback retains the runtime recorded with that install. Operation event schema remains 2.
 

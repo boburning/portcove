@@ -266,15 +266,15 @@ test, and source-file correctness is not gameplay certification.
 Reusable capabilities, templates and narrowly scoped publisher authorities are
 reviewed once; deterministic checks decide routine candidates within them.
 
-| Candidate | Planned result |
-|---|---|
-| Accepted upstream, ordinary new artifact, supported contract and required checks pass | Automatically available; verify its new digest. Existing selectors need no needless definition PR. |
-| New definition or path/metadata correction inside accepted capabilities and authority | Automatically admit with honest evidence, including zero gameplay reports. |
-| Established asset identity unexpectedly changes bytes | Hold replacement, retain pinned identity and deduplicate the exception. |
-| New authority, ambiguous identity, new capability, widened access or unsupported migration | Scoped trust/engineering review; retain usable versions. |
-| Missing optional input or gameplay | Not run/Unknown, not a blanket block or a fabricated pass. |
-| Integrity, archive, source, executable or mandatory operation failure | Reject/hold the affected operation; untested cannot bypass it. |
-| Unsupported client capability or failing platform | Isolate the affected definition/platform, retaining compatible entries. |
+| Candidate                                                                                  | Planned result                                                                                     |
+| ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| Accepted upstream, ordinary new artifact, supported contract and required checks pass      | Automatically available; verify its new digest. Existing selectors need no needless definition PR. |
+| New definition or path/metadata correction inside accepted capabilities and authority      | Automatically admit with honest evidence, including zero gameplay reports.                         |
+| Established asset identity unexpectedly changes bytes                                      | Hold replacement, retain pinned identity and deduplicate the exception.                            |
+| New authority, ambiguous identity, new capability, widened access or unsupported migration | Scoped trust/engineering review; retain usable versions.                                           |
+| Missing optional input or gameplay                                                         | Not run/Unknown, not a blanket block or a fabricated pass.                                         |
+| Integrity, archive, source, executable or mandatory operation failure                      | Reject/hold the affected operation; untested cannot bypass it.                                     |
+| Unsupported client capability or failing platform                                          | Isolate the affected definition/platform, retaining compatible entries.                            |
 
 Source hashes, variants and relative paths may be accepted data inside a bounded
 schema. Ownership reinterpretation needs explicit migration/consent semantics;

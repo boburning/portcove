@@ -23,8 +23,17 @@ playnite-check *args:
 clean-build:
     node scripts/dev-storage.mjs clean
 
-# Rust fast loop
+# Repository formatting
 fmt:
+    {{storage}} cargo fmt --all
+    {{storage}} pnpm --dir apps/desktop format
+
+fmt-check:
+    {{storage}} cargo fmt --all -- --check
+    {{storage}} pnpm --dir apps/desktop format:check
+
+# Rust fast loop
+rustfmt-check:
     {{storage}} cargo fmt --all -- --check
 
 rust-check:
@@ -53,7 +62,7 @@ transport-contract:
     {{storage}} node scripts/check-transport-contract.mjs
     {{storage}} node --test scripts/check-transport-contract.integration.test.mjs
 
-check-rust: fmt rust-check clippy rust-test shear architecture process-policy transport-contract
+check-rust: rustfmt-check rust-check clippy rust-test shear architecture process-policy transport-contract
 
 # Frontend fast loop
 ui-transport:
@@ -70,7 +79,10 @@ fallow:
     {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-fallow-report.test.mjs
     {{storage}} node scripts/run-fallow.mjs
 
-check-ui: ui-transport ui-build ui-test fallow
+check-ui: fmt-frontend-check ui-transport ui-build ui-test fallow
+
+fmt-frontend-check:
+    {{storage}} pnpm --dir apps/desktop format:check
 
 # Deterministic release metadata and artifact tooling
 release-tools:
