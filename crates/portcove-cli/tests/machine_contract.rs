@@ -1056,7 +1056,7 @@ fn library_metadata_export_is_versioned_and_does_not_replace_an_existing_file() 
     let contents = std::fs::read(&file).unwrap();
     assert_eq!(
         serde_json::from_slice::<Value>(&contents).unwrap()["schema_version"],
-        2
+        3
     );
     assert!(!portcove(&library, &args).status.success());
     assert_eq!(std::fs::read(file).unwrap(), contents);
