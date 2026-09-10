@@ -1,0 +1,7 @@
+Id: 7e856602-b63b-46db-8231-74e4610e4971
+Name: Portcove reference client
+Author: Portcove contributors
+Version: 0.1.0
+Module: Portcove.Playnite.dll
+Type: GameLibrary
+Description: A local reference client for Portcove's public CLI.

@@ -16,6 +16,10 @@ development-tools:
 desktop-test *args:
     {{storage}} node apps/desktop/scripts/desktop-test.mjs {{args}}
 
+# Windows external-reference client; requires Visual Studio Build Tools.
+playnite-check *args:
+    pwsh -NoProfile -File integrations/playnite/check.ps1 {{args}}
+
 clean-build:
     node scripts/dev-storage.mjs clean
 

@@ -121,6 +121,11 @@ updates, catalog updates, and frontend/plugin updates are distinct.
 
 ## Author path and independent-consumer proof
 
+The [integration author guide](INTEGRATION-AUTHOR.md) and
+[local Playnite reference](../integrations/playnite/README.md) provide the concrete
+schema-42 development path. Their protocol fixtures and candidate checks remain
+distinct from final frontend, two-adapter and independent-consumer qualification.
+
 The author guide owned by #243 progresses from locating/verifying the CLI and
 selecting a library, through listing installed ports and supervised launch, to
 optional lifecycle, progress, cancellation, readback, and recovery. Examples

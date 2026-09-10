@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "dependencies": {
+    ".NETFramework,Version=v4.6.2": {
+      "Microsoft.NETFramework.ReferenceAssemblies.net462": {
+        "type": "Direct",
+        "requested": "[1.0.3, )",
+        "resolved": "1.0.3",
+        "contentHash": "IzAV30z22ESCeQfxP29oVf4qEo8fBGXLXSU6oacv/9Iqe6PzgHDKCaWfwMBak7bSJQM0F5boXWoZS+kChztRIQ=="
+      },
+      "PlayniteSDK": {
+        "type": "Direct",
+        "requested": "[6.15.0, )",
+        "resolved": "6.15.0",
+        "contentHash": "WzgyHIi0c1ViCBREdM68puiCbP0mY/VqDDUyYHY1rMmviO+ufaIpw+OjmSUSnujh/p9acaooPhk2QiKLGT/9IA=="
+      }
+    },
+    ".NETFramework,Version=v4.6.2/win": {},
+    ".NETFramework,Version=v4.6.2/win-arm64": {},
+    ".NETFramework,Version=v4.6.2/win-x64": {},
+    ".NETFramework,Version=v4.6.2/win-x86": {}
+  }
+}

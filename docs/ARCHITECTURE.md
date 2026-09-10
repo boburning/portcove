@@ -23,6 +23,14 @@ React UI ── Tauri IPC ───┤
 
 ## Public launch observation
 
+The external Playnite example in `integrations/playnite` consumes only the public
+standalone CLI and public Playnite SDK. It owns launcher presentation, literal
+process arguments, schema checks and a last-launch reference pointer. Core owns
+all durable outcomes; the pointer stores no parallel operation or installation
+state. A framework-native JSON reader avoids shipping an additional runtime JSON
+assembly into Playnite. SDK and framework targeting dependencies are build-only
+and lockfile-verified. Desktop remains a direct core adapter.
+
 External launchers may supply a UUID to CLI `exec` and query `launch show` through
 core's existing retained launch-request record. CLI input parsing normalizes UUID
 syntax; core remains the authority for request reuse, port exclusion, acceptance,
