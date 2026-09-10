@@ -36,16 +36,36 @@ accepted move, using fresh geometry rather than a stale layout cache. The harnes
 restores its injected input and DOM fixture afterward. These measurements are
 native rendering evidence, not physical-controller or human-navigation evidence.
 
-| Scope | Command | Purpose |
-|---|---|---|
-| Rust change | `just check-rust` | format, compile, Clippy, tests, unused dependencies/files, and crate boundaries |
-| UI change | `just check-ui` | production build, tests, and the existing Fallow gate |
+| Scope                               | Command               | Purpose                                                                                                                                       |
+| ----------------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Format supported files              | `just fmt`            | rewrite Rust, frontend, configuration, and active documentation with the repository-pinned formatters                                         |
+| Verify formatting                   | `just fmt-check`      | check the same formatting contract without changing files                                                                                     |
+| Rust change                         | `just check-rust`     | format, compile, Clippy, tests, unused dependencies/files, and crate boundaries                                                               |
+| UI change                           | `just check-ui`       | formatting, production build, tests, and the existing Fallow gate                                                                             |
 | Playnite reference change (Windows) | `just playnite-check` | locked SDK/reference-assembly builds, literal process arguments and public protocol regression fixtures; optional isolated compiled-CLI reads |
-| Cross-stack or release change | `just check` | both fast loops plus deterministic package-policy, staging, checksum, and release-note tests |
-| Substantial completion | `just audit` | fast loop plus dependency policy and rscheck |
-| Large structural change | `just deep` | audit plus advisory Hawk and semdup analysis |
-| Explicit cycle investigation | `just cycles` | optional advisory module-cycle report |
-| Critical core test review | `just mutants` | optional mutation analysis for `portcove-core` |
+| Cross-stack or release change       | `just check`          | both fast loops plus deterministic package-policy, staging, checksum, and release-note tests                                                  |
+| Substantial completion              | `just audit`          | fast loop plus dependency policy and rscheck                                                                                                  |
+| Large structural change             | `just deep`           | audit plus advisory Hawk and semdup analysis                                                                                                  |
+| Explicit cycle investigation        | `just cycles`         | optional advisory module-cycle report                                                                                                         |
+| Critical core test review           | `just mutants`        | optional mutation analysis for `portcove-core`                                                                                                |
+
+## Formatting contract
+
+`just fmt` is the canonical write command and `just fmt-check` is its no-write
+counterpart. Cargo formats Rust, Prettier's unmodified defaults format active
+JavaScript, TypeScript, CSS, HTML, hand-maintained JSON and YAML, and active
+Markdown, and Taplo formats TOML. Prettier and Taplo are exact development
+dependencies installed by the existing pnpm workflow. Recommended VS Code
+extensions and format-on-save settings use those same repository-local tools.
+The TOML wrapper enumerates repository-owned files before passing their contents
+to Taplo so checks cover the same files on Windows and Unix hosts.
+
+Generated files, catalogs, fixtures, dependency lockfiles, archived documents,
+and dated release evidence are outside the bulk-format boundary so a formatter
+cannot rewrite their content or invalidate historical evidence. Secondary
+languages and scripts remain intentionally unchanged until the repository has a
+specific need and a supported formatter for them. The two initial mechanical
+format commits are listed in `.git-blame-ignore-revs`.
 
 Deterministic failures block: rustfmt, Cargo compilation, Clippy, tests, cargo-shear, cargo-deny security/license/source policy, the Cargo-metadata architecture checker, Fallow, and rscheck's absolute-path rule outside reviewed exceptions.
 

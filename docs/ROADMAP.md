@@ -315,8 +315,6 @@ entries, Decky and standalone CLI self-updating are not gates.
 
 ## Post-1.0 principles
 
-
-
 Initial value order is:
 
 1. **More coverage without proportional maintainer work** — #246, #177, #247,
@@ -422,15 +420,15 @@ CI/qualification artifacts, not a new dashboard or telemetry service. Every
 report declares observation time, method, denominator, exclusions and unknown or
 baseline status. This planning change establishes no measurement baseline.
 
-| Measure and owner | Collection and denominator | Exclusions and limits |
-|---|---|---|
-| Available coverage: #246; expanded onboarding #254 | Catalog/core assessment counts distinct usable ports per platform/operation against declared catalog scope. | Separate research inventory, catalog presence and gameplay qualification; report unsupported/unknown operations. |
-| Freshness: #398 observation, #246 acceptance-to-client | Timestamp upstream publication, observation, acceptance, publication and client availability for each release in configured scope. | Declare cadence/clocks; list holds, missing timestamps, unmonitored/stale entries and capability/authority exclusions. Same-day is a target until measured. |
-| Compatible addition effort: #246/#254 | Record human/agent effort and application-code changes per addition expected to use existing capabilities. | Separate new-capability engineering and one-time onboarding; retain failed attempts. |
-| Routine intervention: #246 | Count owner actions and zero-action completions per eligible definition, artifact update and correction. | Separate provisioning/authority decisions from recurring actions; report excluded candidates and reasons. |
-| Exceptions: #246 minimum, #247 expansion | Existing records report age, recurrence, affected scope, failed rule, evidence, fallback and resume condition per unique exception and attempted change. | Deduplicate occurrences without hiding recurrence or unresolved holds. |
-| Player outcomes: #15/#242/#255, #46/#52, #22/#48 | Scoped journey records measure active first-play effort, return after app/game updates, recovery and source/save/settings preservation per attempted scenario. | Separate passive waits, automation, physical observation and novice comprehension; synthetic success cannot establish understanding. |
-| Operating cost: #398/#246, expanded tooling #254 | Record API calls, download bytes, CI time, retained storage and agent cost per accepted change and per exception. | Declare shared/provisioning costs and unavailable billing data; bound retries, concurrency and retention while protecting active/pinned/recovery assets. |
+| Measure and owner                                      | Collection and denominator                                                                                                                                     | Exclusions and limits                                                                                                                                       |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Available coverage: #246; expanded onboarding #254     | Catalog/core assessment counts distinct usable ports per platform/operation against declared catalog scope.                                                    | Separate research inventory, catalog presence and gameplay qualification; report unsupported/unknown operations.                                            |
+| Freshness: #398 observation, #246 acceptance-to-client | Timestamp upstream publication, observation, acceptance, publication and client availability for each release in configured scope.                             | Declare cadence/clocks; list holds, missing timestamps, unmonitored/stale entries and capability/authority exclusions. Same-day is a target until measured. |
+| Compatible addition effort: #246/#254                  | Record human/agent effort and application-code changes per addition expected to use existing capabilities.                                                     | Separate new-capability engineering and one-time onboarding; retain failed attempts.                                                                        |
+| Routine intervention: #246                             | Count owner actions and zero-action completions per eligible definition, artifact update and correction.                                                       | Separate provisioning/authority decisions from recurring actions; report excluded candidates and reasons.                                                   |
+| Exceptions: #246 minimum, #247 expansion               | Existing records report age, recurrence, affected scope, failed rule, evidence, fallback and resume condition per unique exception and attempted change.       | Deduplicate occurrences without hiding recurrence or unresolved holds.                                                                                      |
+| Player outcomes: #15/#242/#255, #46/#52, #22/#48       | Scoped journey records measure active first-play effort, return after app/game updates, recovery and source/save/settings preservation per attempted scenario. | Separate passive waits, automation, physical observation and novice comprehension; synthetic success cannot establish understanding.                        |
+| Operating cost: #398/#246, expanded tooling #254       | Record API calls, download bytes, CI time, retained storage and agent cost per accepted change and per exception.                                              | Declare shared/provisioning costs and unavailable billing data; bound retries, concurrency and retention while protecting active/pinned/recovery assets.    |
 
 Targets remain targets until measured. One accepted upstream does not establish
 ecosystem-wide autonomy; expand declared proven scope over time. Preservation

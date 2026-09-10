@@ -27,7 +27,16 @@ Unknown fields, duplicate templates, invalid ranges and unsupported request
 schema versions are rejected. For example:
 
 ```json
-{"capability_contract_schema":1,"required_capabilities":[{"template":"n64-recomp-portable","minimum_version":1,"maximum_version":1}]}
+{
+  "capability_contract_schema": 1,
+  "required_capabilities": [
+    {
+      "template": "n64-recomp-portable",
+      "minimum_version": 1,
+      "maximum_version": 1
+    }
+  ]
+}
 ```
 
 A valid request returns one result per requirement: `supported`,
@@ -53,12 +62,12 @@ are separate. Catalog authorization cannot replace application code or introduce
 engine capabilities. The TUF feasibility tests under the updater trust design
 establish the selected library's cryptographic primitives, not catalog admission.
 
-| Alternative | Decision |
-| --- | --- |
-| Extend the format-1 signature while relaxing its embedded allowlist | Reject: old clients must keep their exact format-1 behavior, and this does not supply scoped delegation or compromise recovery. |
-| Git tags, unsigned manifests or TLS alone | Reject as the client trust boundary: mutable hosting/transport state does not establish freshness, replay floors or publisher scope. |
-| Sigstore-only observations | Useful optional provenance; not the sole offline catalog/update/recovery policy. |
-| TUF plus core-owned typed definition validation | Select: maintained freshness, replay and delegation machinery with separate semantic admission. |
+| Alternative                                                         | Decision                                                                                                                             |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Extend the format-1 signature while relaxing its embedded allowlist | Reject: old clients must keep their exact format-1 behavior, and this does not supply scoped delegation or compromise recovery.      |
+| Git tags, unsigned manifests or TLS alone                           | Reject as the client trust boundary: mutable hosting/transport state does not establish freshness, replay floors or publisher scope. |
+| Sigstore-only observations                                          | Useful optional provenance; not the sole offline catalog/update/recovery policy.                                                     |
+| TUF plus core-owned typed definition validation                     | Select: maintained freshness, replay and delegation machinery with separate semantic admission.                                      |
 
 Assume hostile metadata, an untrusted candidate branch, compromised online
 publisher or CDN, interrupted writes, malformed archives, mixed client versions
@@ -76,13 +85,13 @@ bytes is a conflict. Display names, upstream tags and download URLs are not
 definition identity. Existing official IDs remain externally unchanged: the
 internal namespace `official` must not rewrite installed IDs or CLI arguments.
 
-| Identity | Exact binding |
-| --- | --- |
-| Engine capability | Installed engine capability identifier and supported contract version; capabilities are shipped/reviewed code. |
-| Definition | Exact canonical target bytes, definition revision and all referenced source/execution/persistence contract bytes. |
+| Identity          | Exact binding                                                                                                                                                                       |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Engine capability | Installed engine capability identifier and supported contract version; capabilities are shipped/reviewed code.                                                                      |
+| Definition        | Exact canonical target bytes, definition revision and all referenced source/execution/persistence contract bytes.                                                                   |
 | Upstream artifact | Publisher/repository, release ID/tag, asset ID/name, platform, size, SHA-256 and independently established acquisition provenance. A new release is not a new definition by itself. |
-| Runtime/tool | Exact artifact identity, permitted mount/executable, immutable files, host-tool probe identity and required capability. |
-| Evidence | Check/version, exact inputs and artifact/definition/source/platform identities, environment, observation, outcome and limitations. |
+| Runtime/tool      | Exact artifact identity, permitted mount/executable, immutable files, host-tool probe identity and required capability.                                                             |
+| Evidence          | Check/version, exact inputs and artifact/definition/source/platform identities, environment, observation, outcome and limitations.                                                  |
 
 Core exposes five separate facts, preserving the source and evidence contracts
 already defined by #178/#184/#201:
@@ -110,14 +119,14 @@ port-specific facts. A supported combination is a versioned engine template;
 listing several individually supported operations does not authorize arbitrary
 composition, ordering, output types or widened paths.
 
-| Operation | Inputs and outputs | Permitted authority |
-| --- | --- | --- |
-| Resolve/download | Scoped upstream selector -> exact release/asset and bounded immutable bytes | Approved repository identity and explicit asset hosts/redirect rules; no ambient credentials. |
-| Validate/materialize source | Existing source-catalog contract and selected exact input -> admitted representation under owned staging | Read selected source; copy/convert only through implemented validators and declared transformations. |
-| Extract/install | Verified artifact and executable/runtime contract -> staged immutable install | Existing archive, symlink, executable ambiguity, lock and atomic-activation protections. |
-| Prepare generated data | Admitted source plus implemented template/tool identity -> declared validated output manifest | Existing bounded managed preparation, cancellation and output checks; no downloaded shell/YAML/JavaScript. |
-| Launch selected game | Exact retained install, admitted inputs and typed launch arguments -> observed game session | Explicit selected-game execution through the existing child-process policy. This is not an OS sandbox. |
-| Preserve/restore | Retained mutable-data contract and explicit operation intent -> verified owned data/backup | Existing persistent-data manifests, per-port locking, transactional replacement and recovery; no new ownership inferred from path correction. |
+| Operation                   | Inputs and outputs                                                                                       | Permitted authority                                                                                                                           |
+| --------------------------- | -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Resolve/download            | Scoped upstream selector -> exact release/asset and bounded immutable bytes                              | Approved repository identity and explicit asset hosts/redirect rules; no ambient credentials.                                                 |
+| Validate/materialize source | Existing source-catalog contract and selected exact input -> admitted representation under owned staging | Read selected source; copy/convert only through implemented validators and declared transformations.                                          |
+| Extract/install             | Verified artifact and executable/runtime contract -> staged immutable install                            | Existing archive, symlink, executable ambiguity, lock and atomic-activation protections.                                                      |
+| Prepare generated data      | Admitted source plus implemented template/tool identity -> declared validated output manifest            | Existing bounded managed preparation, cancellation and output checks; no downloaded shell/YAML/JavaScript.                                    |
+| Launch selected game        | Exact retained install, admitted inputs and typed launch arguments -> observed game session              | Explicit selected-game execution through the existing child-process policy. This is not an OS sandbox.                                        |
+| Preserve/restore            | Retained mutable-data contract and explicit operation intent -> verified owned data/backup               | Existing persistent-data manifests, per-port locking, transactional replacement and recovery; no new ownership inferred from path correction. |
 
 Representative capability families are simple portable binaries (`n64-recomp-
 portable`), generated data (`generated-cache` and `libultraship-portable`), exact
@@ -141,16 +150,16 @@ not a second production validator. #397 must implement this contract in core and
 reuse those cases. Installed core policy owns supported schemas/templates and
 publisher grants; incoming data cannot declare itself supported or approved.
 
-| Observation within the exact operation scope | Result |
-| --- | --- |
-| Accepted publisher, supported contract, authenticated exact input and mandatory deterministic checks pass | Eligible for automatic definition availability, including a new stable ID and zero gameplay reports. |
-| Existing selector already resolves the next upstream release | No definition PR required; observe, authenticate and qualify the distinct new artifact normally. |
-| Safe metadata/relative-path/selector correction within the accepted template and grant | Admit after deterministic checks; existing installs retain their original definition. |
-| Same recorded asset identity now yields different bytes | Hold the replacement; retain the pinned identity and verified current install. Never silently repin. |
-| Missing independent expected integrity, unsafe archive, mismatched source, ambiguous executable or failed mandatory check | Hold/reject only the affected operation/artifact/platform/variant. |
-| Optional ROM fixture absent or gameplay missing/stale | Evidence remains Not run/Unknown. Definition availability is not universally blocked. An operation requiring that actual input waits for it. |
-| New publisher authority, ambiguous identity, unsupported template, arbitrary setup code, wider access or unsupported ownership migration | Escalate the exact trust/engineering change; preserve unaffected usable versions. |
-| New safety-critical field or unsupported contract version | Isolate that entry. Unknown fields in a safety-critical contract fail closed; an explicit bounded presentation `extensions` map may carry ignorable data. |
+| Observation within the exact operation scope                                                                                             | Result                                                                                                                                                    |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Accepted publisher, supported contract, authenticated exact input and mandatory deterministic checks pass                                | Eligible for automatic definition availability, including a new stable ID and zero gameplay reports.                                                      |
+| Existing selector already resolves the next upstream release                                                                             | No definition PR required; observe, authenticate and qualify the distinct new artifact normally.                                                          |
+| Safe metadata/relative-path/selector correction within the accepted template and grant                                                   | Admit after deterministic checks; existing installs retain their original definition.                                                                     |
+| Same recorded asset identity now yields different bytes                                                                                  | Hold the replacement; retain the pinned identity and verified current install. Never silently repin.                                                      |
+| Missing independent expected integrity, unsafe archive, mismatched source, ambiguous executable or failed mandatory check                | Hold/reject only the affected operation/artifact/platform/variant.                                                                                        |
+| Optional ROM fixture absent or gameplay missing/stale                                                                                    | Evidence remains Not run/Unknown. Definition availability is not universally blocked. An operation requiring that actual input waits for it.              |
+| New publisher authority, ambiguous identity, unsupported template, arbitrary setup code, wider access or unsupported ownership migration | Escalate the exact trust/engineering change; preserve unaffected usable versions.                                                                         |
+| New safety-critical field or unsupported contract version                                                                                | Isolate that entry. Unknown fields in a safety-critical contract fail closed; an explicit bounded presentation `extensions` map may carry ignorable data. |
 
 Eligibility never starts installation or migration. User pins, keep-current versus
 disabled game updates, explicit operation consent, sessions and busy locks still
@@ -211,13 +220,13 @@ authenticated index. Capability requirements identify an installed template and
 an exact supported version interval, not a candidate-provided implementation.
 Presentation extensions are explicitly segregated from these required fields.
 
-| Client/content combination | Required behavior |
-| --- | --- |
-| Existing client + format 1 | Unchanged embedded-contract restrictions and normal fallback. |
+| Client/content combination                            | Required behavior                                                                                                                                               |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Existing client + format 1                            | Unchanged embedded-contract restrictions and normal fallback.                                                                                                   |
 | Successor client + existing embedded/format-1 content | Lossless core projection; preserve every current stable ID, source, install, save/config and external command. Representation alone cannot remove availability. |
-| Successor client + supported new definition | Same core loader and lifecycle path; no per-port React or CLI dispatch change. |
-| Successor client + unsupported new entry | Isolate new work, retain exact existing definitions; do not discard the complete usable catalog. |
-| Old CLI + newer library/contract writer | Apply existing schema/lock/protocol refusal rules. No mixed unsupported writers or invented compatibility. |
+| Successor client + supported new definition           | Same core loader and lifecycle path; no per-port React or CLI dispatch change.                                                                                  |
+| Successor client + unsupported new entry              | Isolate new work, retain exact existing definitions; do not discard the complete usable catalog.                                                                |
+| Old CLI + newer library/contract writer               | Apply existing schema/lock/protocol refusal rules. No mixed unsupported writers or invented compatibility.                                                      |
 
 Before staging, installation or adoption can commit, retain all exact referenced
 contract bytes and their digest bindings in library-owned immutable storage,
@@ -249,17 +258,17 @@ Incoming definition targets cannot change publisher grants or engine policy.
 Persist accepted metadata versions/replay floors atomically with the selected
 snapshot; do not reset floors on rollback or key rotation.
 
-| Failure | Retained-use and recovery rule |
-| --- | --- |
-| Offline, outage or expired metadata | Stop new admission requiring fresh authority. Preserve verified, permitted installed use against retained contracts and independent local integrity; report stale discovery accurately. |
-| Signature/hash/length error, metadata replay or mixed snapshot | Reject refresh atomically; current selected data and replay floors remain intact. |
-| Partial refresh or process loss before publication | Incomplete staged bytes have no authority. Retry exact inputs or abandon owned staging after reference/lock checks. |
-| Interrupted atomic selection commit | Recover from the database transaction/journal; never expose a mixture of old/new definitions or consume an uncommitted floor. |
-| Explicit artifact/definition revocation or failed local integrity | Hold affected launch/install operations; ordinary offline fallback cannot bypass an already-known revocation. Preserve files and verified recovery versions. |
-| Online key compromise | Offline authority rotates/revokes the affected delegate, identifies suspect scope/window and publishes explicit holds. Re-evaluate affected retained use; unaffected entries continue. |
-| Root rotation | Verify consecutive roots under both old and new thresholds; persist the new floor before accepting delegated updates. |
-| One root key lost | Remaining quorum rotates to restored independent custody. No lowered threshold. |
-| Root quorum lost or compromised | Freeze network admission; use a separately authenticated application/root recovery procedure and explicit trust establishment. No online key may replace its own root. |
+| Failure                                                           | Retained-use and recovery rule                                                                                                                                                          |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Offline, outage or expired metadata                               | Stop new admission requiring fresh authority. Preserve verified, permitted installed use against retained contracts and independent local integrity; report stale discovery accurately. |
+| Signature/hash/length error, metadata replay or mixed snapshot    | Reject refresh atomically; current selected data and replay floors remain intact.                                                                                                       |
+| Partial refresh or process loss before publication                | Incomplete staged bytes have no authority. Retry exact inputs or abandon owned staging after reference/lock checks.                                                                     |
+| Interrupted atomic selection commit                               | Recover from the database transaction/journal; never expose a mixture of old/new definitions or consume an uncommitted floor.                                                           |
+| Explicit artifact/definition revocation or failed local integrity | Hold affected launch/install operations; ordinary offline fallback cannot bypass an already-known revocation. Preserve files and verified recovery versions.                            |
+| Online key compromise                                             | Offline authority rotates/revokes the affected delegate, identifies suspect scope/window and publishes explicit holds. Re-evaluate affected retained use; unaffected entries continue.  |
+| Root rotation                                                     | Verify consecutive roots under both old and new thresholds; persist the new floor before accepting delegated updates.                                                                   |
+| One root key lost                                                 | Remaining quorum rotates to restored independent custody. No lowered threshold.                                                                                                         |
+| Root quorum lost or compromised                                   | Freeze network admission; use a separately authenticated application/root recovery procedure and explicit trust establishment. No online key may replace its own root.                  |
 
 Revocation is learned when authenticated metadata is available; the application
 does not claim to know unseen offline revocations. Recovery guidance distinguishes

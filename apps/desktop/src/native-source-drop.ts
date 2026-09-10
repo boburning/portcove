@@ -21,7 +21,10 @@ export function sourceDropTargetAt(
   elementAt = (x: number, y: number) => document.elementFromPoint(x, y),
   scale = window.devicePixelRatio || 1,
 ): NativeSourceDropTarget | undefined {
-  const element = elementAt(position.x / scale, position.y / scale)?.closest<HTMLElement>("[data-source-drop-profile-id]");
+  const element = elementAt(
+    position.x / scale,
+    position.y / scale,
+  )?.closest<HTMLElement>("[data-source-drop-profile-id]");
   const portId = element?.dataset.sourceDropPortId;
   const profileId = element?.dataset.sourceDropProfileId;
   return portId && profileId ? { portId, profileId } : undefined;
@@ -30,7 +33,10 @@ export function sourceDropTargetAt(
 export function createNativeSourceDropCoordinator(
   update: (state: NativeSourceDragState) => void,
   accept: (drop: NativeSourceDrop) => void,
-  targetAt: (position: { x: number; y: number }) => NativeSourceDropTarget | undefined = sourceDropTargetAt,
+  targetAt: (position: {
+    x: number;
+    y: number;
+  }) => NativeSourceDropTarget | undefined = sourceDropTargetAt,
 ) {
   let pathCount = 0;
   return (event: DragDropEvent) => {
@@ -58,13 +64,18 @@ export function useNativeSourceDrop(accept: (drop: NativeSourceDrop) => void) {
   useEffect(() => {
     let disposed = false;
     let unlisten: (() => void) | undefined;
-    const coordinator = createNativeSourceDropCoordinator(setState, drop => acceptRef.current(drop));
-    void getCurrentWebview().onDragDropEvent(event => coordinator(event.payload)).then(remove => {
-      if (disposed) remove();
-      else unlisten = remove;
-    }).catch(() => {
-      // Browser-only development and tests have no native webview event source.
-    });
+    const coordinator = createNativeSourceDropCoordinator(setState, (drop) =>
+      acceptRef.current(drop),
+    );
+    void getCurrentWebview()
+      .onDragDropEvent((event) => coordinator(event.payload))
+      .then((remove) => {
+        if (disposed) remove();
+        else unlisten = remove;
+      })
+      .catch(() => {
+        // Browser-only development and tests have no native webview event source.
+      });
     return () => {
       disposed = true;
       unlisten?.();

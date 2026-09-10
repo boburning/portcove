@@ -71,10 +71,15 @@ separately authorized implementation ships.
 
 Before submitting a change:
 
+Run `just fmt` to format Rust, JavaScript, TypeScript, CSS, active documentation,
+hand-maintained JSON and YAML, and TOML. Use `just fmt-check` when you need the
+same verification without changing files.
+
 ```powershell
 .\scripts\bootstrap-quality-tools.ps1
 node scripts/dev-storage.mjs preflight
 node scripts/dev-storage.mjs run -- pnpm --dir apps/desktop install --frozen-lockfile
+just fmt-check
 just check
 just audit
 ```

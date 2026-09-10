@@ -7,18 +7,34 @@ const startMarker = "<!-- portcove-downloads:start -->";
 const endMarker = "<!-- portcove-downloads:end -->";
 
 function validateInventory(inventory) {
-  if (inventory?.schema_version !== 1 || !inventory?.repository || !inventory?.tag || !inventory?.version) {
+  if (
+    inventory?.schema_version !== 1 ||
+    !inventory?.repository ||
+    !inventory?.tag ||
+    !inventory?.version
+  ) {
     throw new Error("release inventory identity is incomplete");
   }
-  if (inventory.tag !== `v${inventory.version}`) throw new Error("release inventory tag and version disagree");
-  if (!Array.isArray(inventory.packages) || inventory.packages.length === 0) throw new Error("release inventory has no packages");
+  if (inventory.tag !== `v${inventory.version}`)
+    throw new Error("release inventory tag and version disagree");
+  if (!Array.isArray(inventory.packages) || inventory.packages.length === 0)
+    throw new Error("release inventory has no packages");
   const names = new Set();
   for (const entry of inventory.packages) {
-    if (!entry.id || !entry.interface || !entry.display_label || !entry.format_label || !entry.download_url) {
+    if (
+      !entry.id ||
+      !entry.interface ||
+      !entry.display_label ||
+      !entry.format_label ||
+      !entry.download_url
+    ) {
       throw new Error("release inventory package metadata is incomplete");
     }
     const name = entry.filename?.toLowerCase();
-    if (!name || names.has(name)) throw new Error(`release inventory has a missing or duplicate filename: ${entry.filename ?? "missing"}`);
+    if (!name || names.has(name))
+      throw new Error(
+        `release inventory has a missing or duplicate filename: ${entry.filename ?? "missing"}`,
+      );
     names.add(name);
   }
 }
@@ -26,19 +42,32 @@ function validateInventory(inventory) {
 function groupedDownloadLines(packages) {
   const groups = [];
   for (const entry of packages) {
-    let group = groups.find(item => item.display_label === entry.display_label);
+    let group = groups.find(
+      (item) => item.display_label === entry.display_label,
+    );
     if (!group) {
-      group = { display_label: entry.display_label, experimental: entry.experimental, entries: [] };
+      group = {
+        display_label: entry.display_label,
+        experimental: entry.experimental,
+        entries: [],
+      };
       groups.push(group);
     }
-    if (group.experimental !== entry.experimental) throw new Error(`inconsistent experimental label for ${entry.display_label}`);
+    if (group.experimental !== entry.experimental)
+      throw new Error(
+        `inconsistent experimental label for ${entry.display_label}`,
+      );
     group.entries.push(entry);
   }
-  return groups.map(group => {
-    const qualification = group.experimental ? " (experimental)" : "";
-    const links = group.entries.map(entry => `[${entry.format_label}](${entry.download_url})`).join(", ");
-    return `- **${group.display_label}${qualification}:** ${links}`;
-  }).join("\n");
+  return groups
+    .map((group) => {
+      const qualification = group.experimental ? " (experimental)" : "";
+      const links = group.entries
+        .map((entry) => `[${entry.format_label}](${entry.download_url})`)
+        .join(", ");
+      return `- **${group.display_label}${qualification}:** ${links}`;
+    })
+    .join("\n");
 }
 
 function powershellExample(asset, manifest) {
@@ -67,12 +96,19 @@ printf '%s\\n' "$line" | ${command}
 
 export function renderDownloadSection(inventory) {
   validateInventory(inventory);
-  const desktop = inventory.packages.filter(entry => entry.interface === "desktop");
-  const cli = inventory.packages.filter(entry => entry.interface === "cli");
-  const windows = desktop.find(entry => entry.os === "windows");
-  const linux = desktop.find(entry => entry.os === "linux" && entry.format === "appimage");
-  const mac = desktop.find(entry => entry.os === "macos" && entry.architecture === "aarch64");
-  if (!windows || !linux || !mac) throw new Error("release inventory lacks verification examples");
+  const desktop = inventory.packages.filter(
+    (entry) => entry.interface === "desktop",
+  );
+  const cli = inventory.packages.filter((entry) => entry.interface === "cli");
+  const windows = desktop.find((entry) => entry.os === "windows");
+  const linux = desktop.find(
+    (entry) => entry.os === "linux" && entry.format === "appimage",
+  );
+  const mac = desktop.find(
+    (entry) => entry.os === "macos" && entry.architecture === "aarch64",
+  );
+  if (!windows || !linux || !mac)
+    throw new Error("release inventory lacks verification examples");
   const preview = inventory.version.includes("-")
     ? "> [!WARNING]\n> **Technical preview.** Use a disposable or fully backed-up Portcove library. A matching checksum is not publisher identity or a malware assessment; keep operating-system protections enabled and review the signing, qualification, and upgrade limitations below."
     : "> [!NOTE]\n> Review the known limitations and upgrade guidance for this release before replacing an existing installation.";
@@ -118,11 +154,18 @@ export function mergeDownloadSection(reviewedBody, inventory) {
   const startCount = reviewedBody.split(startMarker).length - 1;
   const endCount = reviewedBody.split(endMarker).length - 1;
   if (startCount !== endCount || startCount > 1) {
-    throw new Error("release body has incomplete or duplicate generated-download markers");
+    throw new Error(
+      "release body has incomplete or duplicate generated-download markers",
+    );
   }
-  const withoutGenerated = (startCount === 1
-    ? reviewedBody.replace(new RegExp(`${startMarker}[\\s\\S]*?${endMarker}\\s*`), "")
-    : reviewedBody).trim();
+  const withoutGenerated = (
+    startCount === 1
+      ? reviewedBody.replace(
+          new RegExp(`${startMarker}[\\s\\S]*?${endMarker}\\s*`),
+          "",
+        )
+      : reviewedBody
+  ).trim();
   const section = renderDownloadSection(inventory);
   const title = withoutGenerated.match(/^(# [^\r\n]+)(?:\r?\n+)([\s\S]*)$/);
   if (title) return `${title[1]}\n\n${section}\n\n${title[2].trim()}\n`;
@@ -135,11 +178,14 @@ function parseArguments(argv) {
     const name = argv[index];
     const value = argv[index + 1];
     if (!["--inventory", "--body", "--output"].includes(name) || !value) {
-      throw new Error("usage: generate-release-downloads.mjs --inventory PATH --body PATH --output PATH");
+      throw new Error(
+        "usage: generate-release-downloads.mjs --inventory PATH --body PATH --output PATH",
+      );
     }
     options[name.slice(2)] = path.resolve(value);
   }
-  if (!options.inventory || !options.body || !options.output) throw new Error("--inventory, --body, and --output are required");
+  if (!options.inventory || !options.body || !options.output)
+    throw new Error("--inventory, --body, and --output are required");
   return options;
 }
 
@@ -149,5 +195,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
   const body = await readFile(options.body, "utf8");
   const merged = mergeDownloadSection(body, inventory);
   await writeFile(options.output, merged, "utf8");
-  console.log(`Generated desktop-first downloads for ${inventory.tag} without replacing reviewed release prose.`);
+  console.log(
+    `Generated desktop-first downloads for ${inventory.tag} without replacing reviewed release prose.`,
+  );
 }

@@ -21,16 +21,34 @@ afterEach(() => {
 
 describe("theme preferences", () => {
   it("defaults missing, invalid, and unreadable preferences to system", () => {
-    expect(readThemePreference({ getItem: () => null, setItem: vi.fn() })).toBe("system");
-    expect(readThemePreference({ getItem: () => "sepia", setItem: vi.fn() })).toBe("system");
-    expect(readThemePreference({ getItem: () => { throw new Error("blocked"); }, setItem: vi.fn() })).toBe("system");
+    expect(readThemePreference({ getItem: () => null, setItem: vi.fn() })).toBe(
+      "system",
+    );
+    expect(
+      readThemePreference({ getItem: () => "sepia", setItem: vi.fn() }),
+    ).toBe("system");
+    expect(
+      readThemePreference({
+        getItem: () => {
+          throw new Error("blocked");
+        },
+        setItem: vi.fn(),
+      }),
+    ).toBe("system");
   });
 
   it("persists an explicit preference without failing on blocked storage", () => {
     const setItem = vi.fn();
     writeThemePreference("light", { getItem: vi.fn(), setItem });
     expect(setItem).toHaveBeenCalledWith(THEME_STORAGE_KEY, "light");
-    expect(() => writeThemePreference("dark", { getItem: vi.fn(), setItem: () => { throw new Error("full"); } })).not.toThrow();
+    expect(() =>
+      writeThemePreference("dark", {
+        getItem: vi.fn(),
+        setItem: () => {
+          throw new Error("full");
+        },
+      }),
+    ).not.toThrow();
   });
 
   it("resolves system preferences while explicit choices ignore the OS", () => {
@@ -42,8 +60,14 @@ describe("theme preferences", () => {
 
   it("applies the resolved theme and browser chrome color", () => {
     const meta = { setAttribute: vi.fn() };
-    const documentElement = { dataset: {} as Record<string, string>, style: { colorScheme: "" } };
-    vi.stubGlobal("document", { documentElement, querySelector: vi.fn(() => meta) });
+    const documentElement = {
+      dataset: {} as Record<string, string>,
+      style: { colorScheme: "" },
+    };
+    vi.stubGlobal("document", {
+      documentElement,
+      querySelector: vi.fn(() => meta),
+    });
     applyWebTheme("light");
     expect(documentElement.dataset.theme).toBe("light");
     expect(documentElement.style.colorScheme).toBe("light");
@@ -54,7 +78,11 @@ describe("theme preferences", () => {
     let listener: ((event: { matches: boolean }) => void) | undefined;
     const query = {
       matches: false,
-      addEventListener: vi.fn((_type: string, callback: (event: { matches: boolean }) => void) => { listener = callback; }),
+      addEventListener: vi.fn(
+        (_type: string, callback: (event: { matches: boolean }) => void) => {
+          listener = callback;
+        },
+      ),
       removeEventListener: vi.fn(),
     };
     vi.stubGlobal("window", { matchMedia: vi.fn(() => query) });
@@ -73,7 +101,9 @@ describe("theme preferences", () => {
     await syncNativeTheme("dark");
     expect(setNativeTheme).toHaveBeenNthCalledWith(1, null);
     expect(setNativeTheme).toHaveBeenNthCalledWith(2, "dark");
-    vi.mocked(setNativeTheme).mockRejectedValueOnce(new Error("native unavailable"));
+    vi.mocked(setNativeTheme).mockRejectedValueOnce(
+      new Error("native unavailable"),
+    );
     await expect(syncNativeTheme("light")).resolves.toBeUndefined();
   });
 });

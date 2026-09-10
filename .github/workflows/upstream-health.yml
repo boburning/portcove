@@ -3,23 +3,23 @@ name: Upstream health
 on:
   pull_request:
     paths:
-      - 'crates/portcove-core/catalog/**'
-      - 'scripts/retcomm-psx-upstreams.json'
-      - 'scripts/check-catalog-repositories.mjs'
-      - 'scripts/check-retcomm-upstreams.mjs'
-      - '.node-version'
-      - '.github/workflows/upstream-health.yml'
+      - "crates/portcove-core/catalog/**"
+      - "scripts/retcomm-psx-upstreams.json"
+      - "scripts/check-catalog-repositories.mjs"
+      - "scripts/check-retcomm-upstreams.mjs"
+      - ".node-version"
+      - ".github/workflows/upstream-health.yml"
   push:
     branches: [main]
     paths:
-      - 'crates/portcove-core/catalog/**'
-      - 'scripts/retcomm-psx-upstreams.json'
-      - 'scripts/check-catalog-repositories.mjs'
-      - 'scripts/check-retcomm-upstreams.mjs'
-      - '.node-version'
-      - '.github/workflows/upstream-health.yml'
+      - "crates/portcove-core/catalog/**"
+      - "scripts/retcomm-psx-upstreams.json"
+      - "scripts/check-catalog-repositories.mjs"
+      - "scripts/check-retcomm-upstreams.mjs"
+      - ".node-version"
+      - ".github/workflows/upstream-health.yml"
   schedule:
-    - cron: '23 9 * * *'
+    - cron: "23 9 * * *"
   workflow_dispatch:
 
 permissions:

@@ -25,13 +25,13 @@ It also runs as part of the desktop test suite.
 
 ## Semantic hierarchy
 
-| Role | Color family | Uses |
-| --- | --- | --- |
-| Neutral | charcoal, graphite, controller gray, warm white | app background, panels, typography, borders, disabled states |
-| Interactive | cobalt blue | navigation selection, filters, links, staged/running state, controls, loading |
-| Signature | Nintendo-like red | Portcove mark, page punctuation, primary play/install/apply actions |
-| Highlight | golden yellow | focus rings, update badges, counters, setup/warning state |
-| Success | emerald green | connected, verified, installed/current, completed, healthy state |
+| Role        | Color family                                    | Uses                                                                          |
+| ----------- | ----------------------------------------------- | ----------------------------------------------------------------------------- |
+| Neutral     | charcoal, graphite, controller gray, warm white | app background, panels, typography, borders, disabled states                  |
+| Interactive | cobalt blue                                     | navigation selection, filters, links, staged/running state, controls, loading |
+| Signature   | Nintendo-like red                               | Portcove mark, page punctuation, primary play/install/apply actions           |
+| Highlight   | golden yellow                                   | focus rings, update badges, counters, setup/warning state                     |
+| Success     | emerald green                                   | connected, verified, installed/current, completed, healthy state              |
 
 Red is intentionally not the general interaction color. Yellow is intentionally sparse. Status text uses lighter tonal stops on dark surfaces while filled controls use darker stops when warm-white text needs at least 4.5:1 contrast.
 

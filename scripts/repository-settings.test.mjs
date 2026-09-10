@@ -9,8 +9,16 @@ import {
   validateRepositorySettings,
 } from "./repository-settings.mjs";
 
-const ruleset = JSON.parse(await readFile(new URL("../.github/repository-ruleset.json", import.meta.url)));
-const security = JSON.parse(await readFile(new URL("../.github/repository-security.json", import.meta.url)));
+const ruleset = JSON.parse(
+  await readFile(
+    new URL("../.github/repository-ruleset.json", import.meta.url),
+  ),
+);
+const security = JSON.parse(
+  await readFile(
+    new URL("../.github/repository-security.json", import.meta.url),
+  ),
+);
 
 test("checked-in repository settings enforce the exact main contract", () => {
   assert.doesNotThrow(() => validateRepositorySettings(ruleset, security));
@@ -19,25 +27,35 @@ test("checked-in repository settings enforce the exact main contract", () => {
 
 test("validation rejects approval gates, unresolved threads, or weakened status requirements", () => {
   const addedApproval = structuredClone(ruleset);
-  addedApproval.rules.find(rule => rule.type === "pull_request")
-    .parameters.required_approving_review_count = 1;
+  addedApproval.rules.find(
+    (rule) => rule.type === "pull_request",
+  ).parameters.required_approving_review_count = 1;
   assert.throws(
     () => validateRepositorySettings(addedApproval, security),
     /zero approvals/,
   );
 
   const lastPushApproval = structuredClone(ruleset);
-  lastPushApproval.rules.find(rule => rule.type === "pull_request")
-    .parameters.require_last_push_approval = true;
-  assert.throws(() => validateRepositorySettings(lastPushApproval, security), /zero approvals/);
+  lastPushApproval.rules.find(
+    (rule) => rule.type === "pull_request",
+  ).parameters.require_last_push_approval = true;
+  assert.throws(
+    () => validateRepositorySettings(lastPushApproval, security),
+    /zero approvals/,
+  );
 
   const unresolvedThreads = structuredClone(ruleset);
-  unresolvedThreads.rules.find(rule => rule.type === "pull_request")
-    .parameters.required_review_thread_resolution = false;
-  assert.throws(() => validateRepositorySettings(unresolvedThreads, security), /resolved review threads/);
+  unresolvedThreads.rules.find(
+    (rule) => rule.type === "pull_request",
+  ).parameters.required_review_thread_resolution = false;
+  assert.throws(
+    () => validateRepositorySettings(unresolvedThreads, security),
+    /resolved review threads/,
+  );
 
   const missingCheck = structuredClone(ruleset);
-  missingCheck.rules.find(rule => rule.type === "required_status_checks")
+  missingCheck.rules
+    .find((rule) => rule.type === "required_status_checks")
     .parameters.required_status_checks.pop();
   assert.throws(
     () => validateRepositorySettings(missingCheck, security),
@@ -61,26 +79,36 @@ test("validation rejects approval gates, unresolved threads, or weakened status 
 
 test("bounded migration changes only authorized review gates and is idempotent", () => {
   const old = structuredClone(ruleset);
-  const pullRequest = old.rules.find(rule => rule.type === "pull_request").parameters;
+  const pullRequest = old.rules.find(
+    (rule) => rule.type === "pull_request",
+  ).parameters;
   pullRequest.required_approving_review_count = 1;
   pullRequest.require_last_push_approval = true;
   const migration = rulesetMigration(old, ruleset);
   assert.deepEqual(migration.payload, ruleset);
-  assert.deepEqual(migration.changes.map(change => change.path), [
-    "pull_request.required_approving_review_count",
-    "pull_request.require_last_push_approval",
-  ]);
+  assert.deepEqual(
+    migration.changes.map((change) => change.path),
+    [
+      "pull_request.required_approving_review_count",
+      "pull_request.require_last_push_approval",
+    ],
+  );
   assert.deepEqual(rulesetMigration(ruleset, ruleset).changes, []);
 
   const drifted = structuredClone(old);
-  drifted.rules.find(rule => rule.type === "required_status_checks")
+  drifted.rules
+    .find((rule) => rule.type === "required_status_checks")
     .parameters.required_status_checks.pop();
   assert.throws(() => rulesetMigration(drifted, ruleset), /out-of-scope drift/);
 
   const futureParameter = structuredClone(old);
-  futureParameter.rules.find(rule => rule.type === "pull_request")
-    .parameters.future_review_gate = true;
-  assert.throws(() => rulesetMigration(futureParameter, ruleset), /unexpected parameters/);
+  futureParameter.rules.find(
+    (rule) => rule.type === "pull_request",
+  ).parameters.future_review_gate = true;
+  assert.throws(
+    () => rulesetMigration(futureParameter, ruleset),
+    /unexpected parameters/,
+  );
   assert.throws(() => rulesetMigration(null, ruleset), /refusing to create/);
 });
 
@@ -98,25 +126,38 @@ test("application plan preserves stable identity and scopes repository changes",
   assert.deepEqual(plan.rulesetChanges, []);
   assert.equal(plan.enablePrivateReporting, false);
   assert.equal(plan.enableAutoMerge, true);
-  assert.throws(() => repositoryApplyPlan({
-    rulesets: [],
-    actualRuleset: null,
-    securityStatus: { enabled: true },
-    repositoryStatus: { allow_auto_merge: true },
-    desiredRuleset: ruleset,
-    desiredAutoMerge: true,
-  }), /refusing to create/);
+  assert.throws(
+    () =>
+      repositoryApplyPlan({
+        rulesets: [],
+        actualRuleset: null,
+        securityStatus: { enabled: true },
+        repositoryStatus: { allow_auto_merge: true },
+        desiredRuleset: ruleset,
+        desiredAutoMerge: true,
+      }),
+    /refusing to create/,
+  );
 });
 
 test("production automation has no routine administrator merge path", async () => {
   const scriptRoot = new URL("./", import.meta.url);
   const workflowRoot = new URL("../.github/workflows/", import.meta.url);
   const files = [
-    ...(await readdir(scriptRoot)).filter(name => /\.(?:mjs|ps1|sh)$/.test(name) && !name.endsWith(".test.mjs"))
-      .map(name => new URL(name, scriptRoot)),
-    ...(await readdir(workflowRoot)).filter(name => /\.ya?ml$/.test(name))
-      .map(name => new URL(name, workflowRoot)),
+    ...(await readdir(scriptRoot))
+      .filter(
+        (name) => /\.(?:mjs|ps1|sh)$/.test(name) && !name.endsWith(".test.mjs"),
+      )
+      .map((name) => new URL(name, scriptRoot)),
+    ...(await readdir(workflowRoot))
+      .filter((name) => /\.ya?ml$/.test(name))
+      .map((name) => new URL(name, workflowRoot)),
   ];
-  const combined = (await Promise.all(files.map(file => readFile(file, "utf8")))).join("\n");
-  assert.doesNotMatch(combined, /gh\s+pr\s+merge[^\n]*--admin|--admin[^\n]*gh\s+pr\s+merge/i);
+  const combined = (
+    await Promise.all(files.map((file) => readFile(file, "utf8")))
+  ).join("\n");
+  assert.doesNotMatch(
+    combined,
+    /gh\s+pr\s+merge[^\n]*--admin|--admin[^\n]*gh\s+pr\s+merge/i,
+  );
 });

@@ -5,14 +5,8 @@ semantic = "auto"
 toolchain = "stable"
 
 [workspace]
-include = [
-  "crates/**/*.rs",
-  "apps/desktop/src-tauri/**/*.rs",
-]
-exclude = [
-  "target/**",
-  ".git/**",
-]
+include = ["crates/**/*.rs", "apps/desktop/src-tauri/**/*.rs"]
+exclude = ["target/**", ".git/**"]
 
 [output]
 format = "text"

@@ -2,21 +2,46 @@ import { open, save } from "@tauri-apps/plugin-dialog";
 import type { SourceProfile } from "./types";
 
 export function pickArtworkPath() {
-  return open({ title: "Choose local artwork", multiple: false, directory: false, filters: [{ name: "Static PNG or JPEG image", extensions: ["png", "jpg", "jpeg"] }] });
+  return open({
+    title: "Choose local artwork",
+    multiple: false,
+    directory: false,
+    filters: [
+      { name: "Static PNG or JPEG image", extensions: ["png", "jpg", "jpeg"] },
+    ],
+  });
 }
 
-export async function pickSourcePath(profile: SourceProfile, currentPath: string) {
-  if (profile.kind === "file-set" && currentPath.toLowerCase().endsWith(".zip")) {
+export async function pickSourcePath(
+  profile: SourceProfile,
+  currentPath: string,
+) {
+  if (
+    profile.kind === "file-set" &&
+    currentPath.toLowerCase().endsWith(".zip")
+  ) {
     return pickSourceArchivePath(currentPath);
   }
-  const directory = profile.kind === "file-set" || (profile.kind === "psx-disc" && (profile.disc?.discs?.length ?? 0) > 1);
-  const extensions = profile.accepted_extensions.map(extension => extension.replace(/^\./, "").toLowerCase());
-  if ((!profile.kind || profile.kind === "file") && extensions.length && !extensions.includes("zip")) extensions.push("zip");
+  const directory =
+    profile.kind === "file-set" ||
+    (profile.kind === "psx-disc" && (profile.disc?.discs?.length ?? 0) > 1);
+  const extensions = profile.accepted_extensions.map((extension) =>
+    extension.replace(/^\./, "").toLowerCase(),
+  );
+  if (
+    (!profile.kind || profile.kind === "file") &&
+    extensions.length &&
+    !extensions.includes("zip")
+  )
+    extensions.push("zip");
   return open({
     multiple: false,
     directory,
     defaultPath: currentPath || undefined,
-    filters: !directory && extensions.length ? [{ name: "Original game source", extensions }] : undefined,
+    filters:
+      !directory && extensions.length
+        ? [{ name: "Original game source", extensions }]
+        : undefined,
   });
 }
 
@@ -30,18 +55,35 @@ export function pickSourceArchivePath(currentPath: string) {
 }
 
 export function pickInstallFolder(currentPath: string) {
-  return open({ multiple: false, directory: true, defaultPath: currentPath || undefined });
+  return open({
+    multiple: false,
+    directory: true,
+    defaultPath: currentPath || undefined,
+  });
 }
 
 export function pickLibraryFolder(currentPath: string) {
-  return open({ title: "Choose Portcove library", multiple: false, directory: true, defaultPath: currentPath || undefined });
+  return open({
+    title: "Choose Portcove library",
+    multiple: false,
+    directory: true,
+    defaultPath: currentPath || undefined,
+  });
 }
 
 export function pickGameOutputFolder(currentPath: string) {
-  return open({ title: "Choose Export / install folder", multiple: false, directory: true, defaultPath: currentPath || undefined });
+  return open({
+    title: "Choose Export / install folder",
+    multiple: false,
+    directory: true,
+    defaultPath: currentPath || undefined,
+  });
 }
 
-export function pickHostToolExecutable(displayName: string, currentPath: string) {
+export function pickHostToolExecutable(
+  displayName: string,
+  currentPath: string,
+) {
   return open({
     title: `Locate ${displayName} executable`,
     multiple: false,
@@ -51,13 +93,27 @@ export function pickHostToolExecutable(displayName: string, currentPath: string)
 }
 
 export function pickMetadataExportPath() {
-  return save({ title: "Export library metadata", defaultPath: "portcove-library.json", filters: [{ name: "Portcove library metadata", extensions: ["json"] }] });
+  return save({
+    title: "Export library metadata",
+    defaultPath: "portcove-library.json",
+    filters: [{ name: "Portcove library metadata", extensions: ["json"] }],
+  });
 }
 
 export function pickMetadataImportPath() {
-  return open({ title: "Choose library metadata", multiple: false, directory: false, filters: [{ name: "Portcove library metadata", extensions: ["json"] }] });
+  return open({
+    title: "Choose library metadata",
+    multiple: false,
+    directory: false,
+    filters: [{ name: "Portcove library metadata", extensions: ["json"] }],
+  });
 }
 
 export function pickSignedCatalogPath() {
-  return open({ title: "Choose signed catalog", multiple: false, directory: false, filters: [{ name: "Signed Portcove catalog", extensions: ["json"] }] });
+  return open({
+    title: "Choose signed catalog",
+    multiple: false,
+    directory: false,
+    filters: [{ name: "Signed Portcove catalog", extensions: ["json"] }],
+  });
 }

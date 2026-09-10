@@ -11,47 +11,63 @@ import {
   runSourceProvenanceAudit,
 } from "./source-provenance-audit.mjs";
 
-const sha = character => character.repeat(40);
+const sha = (character) => character.repeat(40);
 
 function catalog() {
   return {
     schema_version: 2,
     source_catalog: {
       evidence: [{ id: "review", role: "upstream_support" }],
-      identities: [{
-        id: "sample-source",
-        variants: [{
-          id: "retail",
-          representations: [{
-            id: "canonical",
-            kind: "raw-file",
-            identities: [{ scope: "original-file", sha256: "a".repeat(64) }],
-            evidence_ids: ["review"],
-          }],
+      identities: [
+        {
+          id: "sample-source",
+          variants: [
+            {
+              id: "retail",
+              representations: [
+                {
+                  id: "canonical",
+                  kind: "raw-file",
+                  identities: [
+                    { scope: "original-file", sha256: "a".repeat(64) },
+                  ],
+                  evidence_ids: ["review"],
+                },
+              ],
+              evidence_ids: ["review"],
+            },
+          ],
+        },
+      ],
+      contracts: [
+        {
+          id: "sample-contract",
+          port_id: "sample",
+          profile_id: "sample-source",
+          supported_variant_ids: ["retail"],
           evidence_ids: ["review"],
-        }],
-      }],
-      contracts: [{
-        id: "sample-contract",
-        port_id: "sample",
-        profile_id: "sample-source",
-        supported_variant_ids: ["retail"],
-        evidence_ids: ["review"],
-      }],
+        },
+      ],
       validators: [],
       qualification: [],
     },
-    ports: [{
-      id: "sample",
-      name: "Sample",
-      platforms: ["windows-x86-64"],
-      automated_tested_platforms: [],
-      manually_validated_platforms: [],
-    }],
+    ports: [
+      {
+        id: "sample",
+        name: "Sample",
+        platforms: ["windows-x86-64"],
+        automated_tested_platforms: [],
+        manually_validated_platforms: [],
+      },
+    ],
   };
 }
 
-function issue(number, title, { catalogId, portKey, upstream = `https://example.test/${number}` } = {}) {
+function issue(
+  number,
+  title,
+  { catalogId, portKey, upstream = `https://example.test/${number}` } = {},
+) {
   return {
     number,
     title: `[Port] ${title}`,
@@ -62,7 +78,8 @@ function issue(number, title, { catalogId, portKey, upstream = `https://example.
       upstream,
       catalogId,
       portKey,
-      blocker: "Source evidence is pending. Resume when the reviewed manifest is available.",
+      blocker:
+        "Source evidence is pending. Resume when the reviewed manifest is available.",
     }),
   };
 }
@@ -86,7 +103,10 @@ function fixture() {
   return {
     catalogText: `${JSON.stringify(catalog(), null, 2)}\n`,
     issues: [researchIssue, catalogIssue],
-    projectItems: [projectItem(researchIssue, "Watchlist"), projectItem(catalogIssue, "Cataloged")],
+    projectItems: [
+      projectItem(researchIssue, "Watchlist"),
+      projectItem(catalogIssue, "Cataloged"),
+    ],
     generatedAt: "2026-09-06T15:00:00Z",
     baseCommit: sha("a"),
     generatorCommit: sha("b"),
@@ -98,7 +118,10 @@ test("identical offline fixtures produce byte-identical ordered evidence", () =>
   const first = buildSourceProvenanceAudit(fixture());
   const second = buildSourceProvenanceAudit(fixture());
   assert.deepEqual(first, second);
-  assert.equal(renderSourceProvenanceAudit(first), renderSourceProvenanceAudit(second));
+  assert.equal(
+    renderSourceProvenanceAudit(first),
+    renderSourceProvenanceAudit(second),
+  );
   assert.deepEqual(first.counts, {
     catalogPorts: 1,
     sourceProfiles: 1,
@@ -114,30 +137,53 @@ test("identical offline fixtures produce byte-identical ordered evidence", () =>
   });
   assert.deepEqual(first.observations, []);
   assert.equal(first.research[0].sourceEvidence, "Gap recorded");
-  assert.equal(first.cataloged[0].qualification, "No exact records; legacy automated=0, hands-on=0");
+  assert.equal(
+    first.cataloged[0].qualification,
+    "No exact records; legacy automated=0, hands-on=0",
+  );
 });
 
 test("negative fixtures expose missing tickets, duplicate catalog IDs, stale hashes, and missing evidence", () => {
   const missingIssue = fixture();
-  missingIssue.issues = missingIssue.issues.filter(value => value.number !== 1);
-  missingIssue.projectItems = missingIssue.projectItems.filter(value => value.content.number !== 1);
-  assert.ok(buildSourceProvenanceAudit(missingIssue).observations.some(value => value.includes("Catalog port lacks")));
+  missingIssue.issues = missingIssue.issues.filter(
+    (value) => value.number !== 1,
+  );
+  missingIssue.projectItems = missingIssue.projectItems.filter(
+    (value) => value.content.number !== 1,
+  );
+  assert.ok(
+    buildSourceProvenanceAudit(missingIssue).observations.some((value) =>
+      value.includes("Catalog port lacks"),
+    ),
+  );
 
   const duplicateId = fixture();
   const parsed = JSON.parse(duplicateId.catalogText);
   parsed.ports.push({ ...parsed.ports[0] });
   duplicateId.catalogText = JSON.stringify(parsed);
-  assert.ok(buildSourceProvenanceAudit(duplicateId).observations.includes("Duplicate catalog port ID: sample"));
+  assert.ok(
+    buildSourceProvenanceAudit(duplicateId).observations.includes(
+      "Duplicate catalog port ID: sample",
+    ),
+  );
 
   const stale = fixture();
   stale.expectedCatalogSha256 = "0".repeat(64);
-  assert.ok(buildSourceProvenanceAudit(stale).observations.some(value => value.startsWith("Stale catalog hash:")));
+  assert.ok(
+    buildSourceProvenanceAudit(stale).observations.some((value) =>
+      value.startsWith("Stale catalog hash:"),
+    ),
+  );
 
   const missingEvidence = fixture();
   const missingCatalog = JSON.parse(missingEvidence.catalogText);
   missingCatalog.source_catalog.contracts[0].evidence_ids = ["absent"];
   missingEvidence.catalogText = JSON.stringify(missingCatalog);
-  assert.ok(buildSourceProvenanceAudit(missingEvidence).observations.includes("Missing source evidence reference: absent"));
+  assert.ok(
+    buildSourceProvenanceAudit(missingEvidence).observations.includes(
+      "Missing source evidence reference: absent",
+    ),
+  );
 });
 
 test("duplicate candidate keys and titles fail while one shared upstream can serve distinct targets", () => {
@@ -157,7 +203,9 @@ test("duplicate candidate keys and titles fail while one shared upstream can ser
     projectItem(second, "Watchlist"),
   ];
   assert.equal(
-    buildSourceProvenanceAudit(input).observations.some(value => value.includes("share direct upstream")),
+    buildSourceProvenanceAudit(input).observations.some((value) =>
+      value.includes("share direct upstream"),
+    ),
     false,
   );
 
@@ -168,7 +216,11 @@ test("duplicate candidate keys and titles fail while one shared upstream can ser
   const sameTarget = structuredClone(input);
   sameTarget.issues.push(duplicateTarget);
   sameTarget.projectItems.push(projectItem(duplicateTarget, "Watchlist"));
-  assert.ok(buildSourceProvenanceAudit(sameTarget).observations.some(value => value.includes("share direct upstream and game/target identity")));
+  assert.ok(
+    buildSourceProvenanceAudit(sameTarget).observations.some((value) =>
+      value.includes("share direct upstream and game/target identity"),
+    ),
+  );
 
   const duplicateKey = issue(5, "Different Title", {
     portKey: "research",
@@ -177,18 +229,30 @@ test("duplicate candidate keys and titles fail while one shared upstream can ser
   input.issues.push(duplicateKey);
   input.projectItems.push(projectItem(duplicateKey, "Watchlist"));
   const keyAudit = buildSourceProvenanceAudit(input);
-  assert.ok(keyAudit.observations.some(value => value.includes("non-catalog port key research")));
+  assert.ok(
+    keyAudit.observations.some((value) =>
+      value.includes("non-catalog port key research"),
+    ),
+  );
 
   const duplicateTitle = issue(6, "Research!", { portKey: "unique-key" });
   input.issues.push(duplicateTitle);
   input.projectItems.push(projectItem(duplicateTitle, "Watchlist"));
-  assert.ok(buildSourceProvenanceAudit(input).observations.some(value => value.includes("normalized title identity research")));
+  assert.ok(
+    buildSourceProvenanceAudit(input).observations.some((value) =>
+      value.includes("normalized title identity research"),
+    ),
+  );
 });
 
 test("misclassified Project state is surfaced as drift", () => {
   const input = fixture();
   input.projectItems[0]["port stage"] = "Cataloged";
-  assert.ok(buildSourceProvenanceAudit(input).observations.some(value => value.includes("must have exactly one valid catalog ID")));
+  assert.ok(
+    buildSourceProvenanceAudit(input).observations.some((value) =>
+      value.includes("must have exactly one valid catalog ID"),
+    ),
+  );
 });
 
 test("live enrichment calls only bounded read commands and API errors do not expose tokens", () => {
@@ -200,15 +264,30 @@ test("live enrichment calls only bounded read commands and API errors do not exp
     run(args, input) {
       calls.push({ args, input });
       if (args[0] === "project") return { id: "PVT" };
-      const page = { totalCount: 0, nodes: [], pageInfo: { hasNextPage: false, endCursor: null } };
+      const page = {
+        totalCount: 0,
+        nodes: [],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      };
       return JSON.parse(input).query.includes("issues(first:")
         ? { data: { repository: { issues: page } } }
         : { data: { node: { items: page } } };
     },
   });
-  assert.deepEqual(result, { issues: [], projectItems: [], projectState: "available" });
-  assert.deepEqual(calls.map(({ args }) => args.slice(0, 2)), [["api", "graphql"], ["project", "view"], ["api", "graphql"]]);
-  for (const { input } of calls.filter(call => call.input)) {
+  assert.deepEqual(result, {
+    issues: [],
+    projectItems: [],
+    projectState: "available",
+  });
+  assert.deepEqual(
+    calls.map(({ args }) => args.slice(0, 2)),
+    [
+      ["api", "graphql"],
+      ["project", "view"],
+      ["api", "graphql"],
+    ],
+  );
+  for (const { input } of calls.filter((call) => call.input)) {
     const query = JSON.parse(input).query;
     assert.match(query, /^query\(/);
     assert.match(query, /(?:issues\(first: 100|items\(first: 50)/);
@@ -218,36 +297,51 @@ test("live enrichment calls only bounded read commands and API errors do not exp
 
   const secret = "github_pat_secret_value_that_must_not_appear";
   assert.throws(
-    () => readLiveSourceProvenance({
-      repository: "boburning/portcove",
-      owner: "boburning",
-      projectNumber: 1,
-      run() { throw new Error(secret); },
-    }),
-    error => !error.message.includes(secret),
+    () =>
+      readLiveSourceProvenance({
+        repository: "boburning/portcove",
+        owner: "boburning",
+        projectNumber: 1,
+        run() {
+          throw new Error(secret);
+        },
+      }),
+    (error) => !error.message.includes(secret),
   );
 });
 
 test("live GitHub reads allow the full bounded Project payload", () => {
   let invocation;
-  const value = runReadOnlyGitHubCommand(["api", "graphql", "--input", "-"], '{"query":"query { viewer { login } }"}', (command, args, options) => {
-    invocation = { command, args, options };
-    return { status: 0, stdout: '{"items":[]}', stderr: "" };
-  });
+  const value = runReadOnlyGitHubCommand(
+    ["api", "graphql", "--input", "-"],
+    '{"query":"query { viewer { login } }"}',
+    (command, args, options) => {
+      invocation = { command, args, options };
+      return { status: 0, stdout: '{"items":[]}', stderr: "" };
+    },
+  );
   assert.deepEqual(value, { items: [] });
   assert.equal(invocation.command, "gh");
   assert.deepEqual(invocation.args, ["api", "graphql", "--input", "-"]);
-  assert.equal(invocation.options.input, '{"query":"query { viewer { login } }"}');
+  assert.equal(
+    invocation.options.input,
+    '{"query":"query { viewer { login } }"}',
+  );
   assert.equal(invocation.options.maxBuffer, 32 * 1024 * 1024);
 });
 
 test("rendered output labels evidence authority and catalog versus research scope", () => {
-  const report = renderSourceProvenanceAudit(buildSourceProvenanceAudit(fixture()));
+  const report = renderSourceProvenanceAudit(
+    buildSourceProvenanceAudit(fixture()),
+  );
   assert.match(report, /Dated read-only evidence/);
   assert.match(report, /not a roadmap, priority authority/);
   assert.match(report, /## Cataloged support inventory/);
   assert.match(report, /## Research inventory/);
-  assert.match(report, /Exact qualification counts only artifact\/source-variant-scoped records/);
+  assert.match(
+    report,
+    /Exact qualification counts only artifact\/source-variant-scoped records/,
+  );
 });
 
 function paginatedLiveRunner(issues, projectItems, intercept = () => {}) {
@@ -261,26 +355,53 @@ function paginatedLiveRunner(issues, projectItems, intercept = () => {}) {
     intercept({ isIssues, offset });
     const nodes = values.slice(offset, offset + size);
     const hasNextPage = offset + nodes.length < values.length;
-    const page = { nodes, totalCount: values.length,
-      pageInfo: { hasNextPage, endCursor: hasNextPage ? String(offset + nodes.length) : null } };
-    return { data: isIssues ? { repository: { issues: page } } : { node: { items: page } } };
+    const page = {
+      nodes,
+      totalCount: values.length,
+      pageInfo: {
+        hasNextPage,
+        endCursor: hasNextPage ? String(offset + nodes.length) : null,
+      },
+    };
+    return {
+      data: isIssues
+        ? { repository: { issues: page } }
+        : { node: { items: page } },
+    };
   };
 }
 
 function largeLiveFixture() {
   const input = fixture();
   const issues = [
-    ...Array.from({ length: 1001 }, (_, i) => ({ number: i + 3, title: `Other work ${i}`, body: "", state: "CLOSED", __typename: "Issue" })),
-    ...input.issues.map(value => ({ ...value, __typename: "Issue" })),
+    ...Array.from({ length: 1001 }, (_, i) => ({
+      number: i + 3,
+      title: `Other work ${i}`,
+      body: "",
+      state: "CLOSED",
+      __typename: "Issue",
+    })),
+    ...input.issues.map((value) => ({ ...value, __typename: "Issue" })),
   ];
   const projectItems = [
-    ...Array.from({ length: 1001 }, (_, i) => ({ id: `PVTI_draft_${i}`, content: { __typename: "DraftIssue", title: `Draft ${i}` }, fieldValues: { nodes: [] } })),
+    ...Array.from({ length: 1001 }, (_, i) => ({
+      id: `PVTI_draft_${i}`,
+      content: { __typename: "DraftIssue", title: `Draft ${i}` },
+      fieldValues: { nodes: [] },
+    })),
     ...input.projectItems.map((value, index) => ({
-      id: `PVTI_port_${index}`, content: { ...value.content, __typename: "Issue" },
-      fieldValues: { nodes: [
-        ["Status", value.status], ["Work type", "Port"], ["Port stage", value["port stage"]],
-        ["Horizon", value.horizon], ["Priority", value.priority], ["Target release", value["target release"]],
-      ].map(([name, option]) => ({ name: option, field: { name } })) },
+      id: `PVTI_port_${index}`,
+      content: { ...value.content, __typename: "Issue" },
+      fieldValues: {
+        nodes: [
+          ["Status", value.status],
+          ["Work type", "Port"],
+          ["Port stage", value["port stage"]],
+          ["Horizon", value.horizon],
+          ["Priority", value.priority],
+          ["Target release", value["target release"]],
+        ].map(([name, option]) => ({ name: option, field: { name } })),
+      },
     })),
   ];
   return { input, issues, projectItems };
@@ -289,24 +410,44 @@ function largeLiveFixture() {
 test("live provenance includes canonical ports beyond 1000 records with deterministic output", () => {
   const { input, issues, projectItems } = largeLiveFixture();
   const calls = [];
-  const run = paginatedLiveRunner(issues, projectItems, call => calls.push(call));
-  const live = readLiveSourceProvenance({ repository: "boburning/portcove", owner: "boburning", projectNumber: 1, run });
+  const run = paginatedLiveRunner(issues, projectItems, (call) =>
+    calls.push(call),
+  );
+  const live = readLiveSourceProvenance({
+    repository: "boburning/portcove",
+    owner: "boburning",
+    projectNumber: 1,
+    run,
+  });
   assert.equal(live.issues.length, 1003);
   assert.equal(live.projectItems.length, 1003);
-  assert.equal(calls.filter(call => call.isIssues).length, 11);
-  assert.equal(calls.filter(call => !call.isIssues).length, 21);
+  assert.equal(calls.filter((call) => call.isIssues).length, 11);
+  assert.equal(calls.filter((call) => !call.isIssues).length, 21);
   assert.equal(live.projectItems.at(-1).content.number, 1);
   const first = buildSourceProvenanceAudit({ ...input, ...live });
-  const second = buildSourceProvenanceAudit({ ...input, ...readLiveSourceProvenance({ repository: "boburning/portcove", owner: "boburning", projectNumber: 1, run }) });
+  const second = buildSourceProvenanceAudit({
+    ...input,
+    ...readLiveSourceProvenance({
+      repository: "boburning/portcove",
+      owner: "boburning",
+      projectNumber: 1,
+      run,
+    }),
+  });
   assert.deepEqual(first.observations, []);
   assert.equal(first.counts.portIssues, 2);
   assert.equal(first.counts.catalogedIssues, 1);
   assert.equal(first.counts.researchIssues, 1);
-  assert.equal(renderSourceProvenanceAudit(first), renderSourceProvenanceAudit(second));
+  assert.equal(
+    renderSourceProvenanceAudit(first),
+    renderSourceProvenanceAudit(second),
+  );
 });
 
 test("failed later live pages preserve existing snapshots and create no partial snapshot", async () => {
-  const directory = await mkdtemp(new URL("../docs/archive/provenance-test-", import.meta.url));
+  const directory = await mkdtemp(
+    new URL("../docs/archive/provenance-test-", import.meta.url),
+  );
   const existing = `${directory}/existing.md`;
   const absent = `${directory}/absent.md`;
   const secret = "github_pat_private_test_value";
@@ -314,16 +455,39 @@ test("failed later live pages preserve existing snapshots and create no partial 
   try {
     await writeFile(existing, "previous verified snapshot\n");
     for (const failIssues of [true, false]) {
-      const run = paginatedLiveRunner(issues, projectItems, ({ isIssues, offset }) => {
-        if (isIssues === failIssues && offset > 0) throw new Error(secret);
-      });
+      const run = paginatedLiveRunner(
+        issues,
+        projectItems,
+        ({ isIssues, offset }) => {
+          if (isIssues === failIssues && offset > 0) throw new Error(secret);
+        },
+      );
       for (const output of [existing, absent]) {
-        await assert.rejects(runSourceProvenanceAudit([
-          "--live", "--generated-at", "2026-09-06T15:00:00Z", "--base-commit", sha("a"),
-          "--generator-commit", sha("b"), "--output", output,
-        ], { run }), error => error.message === "read-only GitHub enrichment failed; no snapshot was written" && !error.message.includes(secret));
+        await assert.rejects(
+          runSourceProvenanceAudit(
+            [
+              "--live",
+              "--generated-at",
+              "2026-09-06T15:00:00Z",
+              "--base-commit",
+              sha("a"),
+              "--generator-commit",
+              sha("b"),
+              "--output",
+              output,
+            ],
+            { run },
+          ),
+          (error) =>
+            error.message ===
+              "read-only GitHub enrichment failed; no snapshot was written" &&
+            !error.message.includes(secret),
+        );
       }
-      assert.equal(await readFile(existing, "utf8"), "previous verified snapshot\n");
+      assert.equal(
+        await readFile(existing, "utf8"),
+        "previous verified snapshot\n",
+      );
       await assert.rejects(readFile(absent), { code: "ENOENT" });
     }
   } finally {

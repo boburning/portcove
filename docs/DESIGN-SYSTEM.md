@@ -22,20 +22,20 @@ Portcove should feel like development software from an alternate 1997 console st
 
 ## Product vocabulary
 
-| Term | Meaning |
-| --- | --- |
-| Port | One cataloged native decompilation, recompilation, or source-port integration. |
-| Library | Ports installed or adopted into the selected Portcove library root. |
-| Port catalog | Every reviewed Portcove definition, including ports not installed locally. |
-| Source | A legally obtained original game file or reviewed file set referenced in place. |
-| BIOS | A separately modeled firmware requirement. It is not called a game source in recovery copy. |
-| Release channel | Stable, beta, or rolling upstream stream selected per port. |
-| Update policy | Notify, stage, or automatically install for one installed port. |
-| Staged release | A verified release retained locally but not yet active. |
-| Active version | The managed version currently selected for launch. |
+| Term            | Meaning                                                                                                |
+| --------------- | ------------------------------------------------------------------------------------------------------ |
+| Port            | One cataloged native decompilation, recompilation, or source-port integration.                         |
+| Library         | Ports installed or adopted into the selected Portcove library root.                                    |
+| Port catalog    | Every reviewed Portcove definition, including ports not installed locally.                             |
+| Source          | A legally obtained original game file or reviewed file set referenced in place.                        |
+| BIOS            | A separately modeled firmware requirement. It is not called a game source in recovery copy.            |
+| Release channel | Stable, beta, or rolling upstream stream selected per port.                                            |
+| Update policy   | Notify, stage, or automatically install for one installed port.                                        |
+| Staged release  | A verified release retained locally but not yet active.                                                |
+| Active version  | The managed version currently selected for launch.                                                     |
 | Persistent data | Saves, settings, bindings, mods, and other mutable upstream-owned files kept outside managed versions. |
-| Backup | A verified snapshot of persistent data. |
-| Build or setup | Use the precise upstream operation. Do not call every install a build or every first launch a compile. |
+| Backup          | A verified snapshot of persistent data.                                                                |
+| Build or setup  | Use the precise upstream operation. Do not call every install a build or every first launch a compile. |
 
 GUI labels should match the CLI concepts. A GUI action that external tools may automate should expose its canonical `portcove` command where practical.
 

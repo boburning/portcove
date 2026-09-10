@@ -1,5 +1,10 @@
 import { useEffect, useRef } from "react";
-import { focusAndReveal, focusableControls, navigationScope, visibleControl } from "./focus";
+import {
+  focusAndReveal,
+  focusableControls,
+  navigationScope,
+  visibleControl,
+} from "./focus";
 
 export function useDialogFocus(close: () => void, active = true) {
   const root = useRef<HTMLElement>(null);
@@ -12,8 +17,15 @@ export function useDialogFocus(close: () => void, active = true) {
     if (!dialog) return undefined;
     dialog.tabIndex = -1;
     const focusables = () => focusableControls(dialog);
-    const initialFocus = () => focusAndReveal(focusables().find(item => item.hasAttribute("data-autofocus")) ?? focusables()[0] ?? dialog);
-    const frame = window.requestAnimationFrame(() => { if (navigationScope() === dialog) initialFocus(); });
+    const initialFocus = () =>
+      focusAndReveal(
+        focusables().find((item) => item.hasAttribute("data-autofocus")) ??
+          focusables()[0] ??
+          dialog,
+      );
+    const frame = window.requestAnimationFrame(() => {
+      if (navigationScope() === dialog) initialFocus();
+    });
     let revealFrame = 0;
     // Recover disabled/removed controls without scrolling a valid focus target
     // back into view when asynchronous content changes during user scrolling.
@@ -22,16 +34,43 @@ export function useDialogFocus(close: () => void, active = true) {
       revealFrame = window.requestAnimationFrame(() => {
         const focused = document.activeElement;
         if (navigationScope() === dialog) {
-          if (!(focused instanceof HTMLElement && dialog.contains(focused) && visibleControl(focused))) initialFocus();
+          if (!(
+            focused instanceof HTMLElement &&
+            dialog.contains(focused) &&
+            visibleControl(focused)
+          ))
+            initialFocus();
         }
       });
     });
-    contentChanges.observe(dialog, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["disabled", "aria-disabled", "hidden", "aria-hidden", "inert", "tabindex"] });
+    contentChanges.observe(dialog, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: [
+        "disabled",
+        "aria-disabled",
+        "hidden",
+        "aria-hidden",
+        "inert",
+        "tabindex",
+      ],
+    });
     const containFocus = () => {
-      if (navigationScope() === dialog && !dialog.contains(document.activeElement)) initialFocus();
+      if (
+        navigationScope() === dialog &&
+        !dialog.contains(document.activeElement)
+      )
+        initialFocus();
     };
     const keydown = (event: KeyboardEvent) => {
-      if (navigationScope() !== dialog || event.defaultPrevented || event.isComposing) return;
+      if (
+        navigationScope() !== dialog ||
+        event.defaultPrevented ||
+        event.isComposing
+      )
+        return;
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
@@ -45,7 +84,11 @@ export function useDialogFocus(close: () => void, active = true) {
         return;
       }
       const current = items.indexOf(document.activeElement as HTMLElement);
-      const next = event.shiftKey ? (current <= 0 ? items.length - 1 : current - 1) : (current + 1) % items.length;
+      const next = event.shiftKey
+        ? current <= 0
+          ? items.length - 1
+          : current - 1
+        : (current + 1) % items.length;
       event.preventDefault();
       focusAndReveal(items[next]);
     };
@@ -57,8 +100,12 @@ export function useDialogFocus(close: () => void, active = true) {
       contentChanges.disconnect();
       dialog.removeEventListener("keydown", keydown);
       document.removeEventListener("focusin", containFocus);
-      if (previous?.isConnected && visibleControl(previous)) focusAndReveal(previous);
-      else focusAndReveal(focusableControls().find(item => !dialog.contains(item)));
+      if (previous?.isConnected && visibleControl(previous))
+        focusAndReveal(previous);
+      else
+        focusAndReveal(
+          focusableControls().find((item) => !dialog.contains(item)),
+        );
     };
   }, [active]);
   return root;
