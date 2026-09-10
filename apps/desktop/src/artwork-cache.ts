@@ -75,7 +75,9 @@ export class ArtworkCache {
   load(portId: string, slot: ArtworkSlot, refresh = false, stillInterested: () => boolean = () => true): Promise<void> {
     const key = this.key(portId, slot);
     const pending = this.pending.get(key);
-    if (pending) return pending;
+    if (pending) return pending.then(() => {
+      if (!this.entries.has(key) && stillInterested()) return this.load(portId, slot, refresh, stillInterested);
+    });
     if (!refresh && this.entries.has(key)) return Promise.resolve();
     const result = this.enqueue(async () => {
       if (!stillInterested() && !this.listeners.has(key)) return;

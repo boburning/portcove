@@ -107,6 +107,16 @@ describe("disposable artwork display cache", () => {
     expect(cache.read("visible", "cover").state).toBeUndefined();
   });
 
+  it("loads a newly interested view even when its earlier queued read was abandoned", async () => {
+    const read = vi.spyOn(desktopApi, "artwork").mockImplementation(async (port, slot) => artworkState(port, slot));
+    const cache = new ArtworkCache(1);
+    const abandoned = cache.load("sample", "cover", false, () => false);
+    const current = cache.load("sample", "cover");
+    await Promise.all([abandoned, current]);
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(cache.read("sample", "cover").state?.choice.port_id).toBe("sample");
+  });
+
   it("refuses oversized previews and isolates library generations", async () => {
     vi.spyOn(desktopApi, "artwork").mockImplementation(async (_port, _slot, generation) => artworkState("sample", "cover", generation, true));
     vi.spyOn(desktopApi, "artworkThumbnail").mockImplementation(async (_port, _slot, revision) => ({ asset_sha256: "a".repeat(64), choice_revision: revision, png: new Array(1024 * 1024 + 1).fill(0) }));
