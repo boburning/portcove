@@ -9,22 +9,14 @@ param(
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
-$applicationFull = (Resolve-Path -LiteralPath $ApplicationPath).Path
-$processes = @(Get-CimInstance Win32_Process)
-$byId = @{}
-foreach ($entry in $processes) { $byId[[int]$entry.ProcessId] = $entry }
-if (-not $byId.ContainsKey($DriverProcessId)) { throw 'Owned driver is no longer running.' }
-$applications = @($processes | Where-Object { $_.ExecutablePath -and [string]::Equals($_.ExecutablePath, $applicationFull, [StringComparison]::OrdinalIgnoreCase) } | Where-Object {
-    $ancestor = [int]$_.ParentProcessId
-    $seen = [Collections.Generic.HashSet[int]]::new()
-    while ($ancestor -ne $DriverProcessId -and $byId.ContainsKey($ancestor) -and $seen.Add($ancestor)) { $ancestor = [int]$byId[$ancestor].ParentProcessId }
-    $ancestor -eq $DriverProcessId
-})
-if ($applications.Count -ne 1) { throw 'Expected exactly one owned application descended from the selected driver.' }
-$applicationId = [int]$applications[0].ProcessId
+. (Join-Path $PSScriptRoot 'native-process-tree.ps1')
+$tree = Get-OwnedNativeProcessTree $DriverProcessId $ApplicationPath
+$application = $tree.application
+$applicationFull = $application.ExecutablePath
+$applicationId = [int]$application.ProcessId
 function Assert-LiveApplication {
     $live = Get-CimInstance Win32_Process -Filter "ProcessId = $applicationId"
-    if (-not $live -or $live.CreationDate -ne $applications[0].CreationDate -or $live.ExecutablePath -ne $applications[0].ExecutablePath) { throw 'Owned application identity changed while waiting for confirmation.' }
+    if (-not $live -or $live.CreationDate -ne $application.CreationDate -or $live.ExecutablePath -ne $application.ExecutablePath) { throw 'Owned application identity changed while waiting for confirmation.' }
 }
 $condition = [System.Windows.Automation.AndCondition]::new([System.Windows.Automation.Condition[]]@(
     [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $applicationId),
