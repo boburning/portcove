@@ -39,7 +39,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     await click("Choose folder");
     expect(control("Search this folder").disabled).toBe(true);
     await click("Choose folder");
-    await click("Source profile"); await click("Owned game source");
+    await click("Required source"); await click("Owned game source");
     await click("Open Source Inbox"); expect(openInbox).toHaveBeenCalledWith(profile.id);
     await click("Scan Source Inbox");
     expect(scanInbox).toHaveBeenCalledWith(profile.id, expect.objectContaining({ max_entries: 10_000, max_candidates: 64 }), expect.any(Function));
@@ -77,7 +77,7 @@ it("keeps cancellation tied to the emitted durable operation", async () => {
   const click = async (label: string) => { await act(async () => control(label).click()); };
   try {
     await act(async () => root.render(<SourceDiscoveryButton profiles={[profile]} disabled={false} />));
-    await click("Find source files"); await click("Choose folder"); await click("Source profile"); await click("Owned game source");
+    await click("Find source files"); await click("Choose folder"); await click("Required source"); await click("Owned game source");
     await click("Search this folder"); await click("Cancel operation");
     expect(cancel).toHaveBeenCalledWith("search-operation");
     expect(control("Close").disabled).toBe(true);

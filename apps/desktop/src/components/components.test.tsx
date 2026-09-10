@@ -405,7 +405,7 @@ describe("desktop components", () => {
     expect(installed).toContain("source.z64");
     expect(uninstalled).not.toContain('<details class="advanced-settings" open="">');
     expect(installed).not.toContain('<details class="advanced-settings" open="">');
-    expect(installed).toContain("Persistent data root");
+    expect(installed).toContain("Saves and settings folder");
     expect(installed).toContain("C:/Portcove/user/sample");
     expect(installed).toContain("Deferred / not completed");
     expect(installed).toContain("Launch from another app");
