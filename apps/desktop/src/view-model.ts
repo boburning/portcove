@@ -30,6 +30,16 @@ function operationLabel(value: string) {
   return Object.hasOwn(labels, value) ? labels[value] : "Working";
 }
 
+type CountMessages = Partial<Record<"one" | "two" | "few" | "many", string>> & { zero: string; other: string; unknown: string };
+
+/** Complete messages use the UI language, currently English, for numbers and plurals. */
+export function formatCountMessage(count: number | null | undefined, messages: CountMessages, locale = "en") {
+  if (count == null || !Number.isSafeInteger(count) || count < 0) return messages.unknown;
+  const category = count === 0 ? "zero" : new Intl.PluralRules(locale).select(count);
+  const message = messages[category] ?? messages.other;
+  return message.replaceAll("{count}", new Intl.NumberFormat(locale).format(count));
+}
+
 export type View = "library" | "catalog" | "updates" | "settings";
 export type Filter = "all" | "ready" | "setup" | "stable" | "beta" | "rolling";
 export type PortReadiness = "available" | "ready" | "source" | "bios" | "setup" | "staged" | "runtime" | "repair";

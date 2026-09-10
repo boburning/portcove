@@ -15,7 +15,8 @@
     "desktop:dev": "tauri dev",
     "desktop:build": "tauri build",
     "preview": "vite preview",
-    "test": "vitest run --pool=threads --isolate --maxWorkers=2 --testTimeout=5000 --reporter=default --reporter=json --outputFile=../../work/ui-tests.json && node ../../scripts/check-vitest-durations.mjs ../../work/ui-tests.json && node scripts/check-theme.mjs",
+    "test": "vitest run --pool=threads --isolate --maxWorkers=2 --testTimeout=5000 --reporter=default --reporter=json --outputFile=../../work/ui-tests.json && node ../../scripts/check-vitest-durations.mjs ../../work/ui-tests.json && node scripts/check-theme.mjs && node scripts/check-copy.mjs",
+    "test:copy": "vitest run scripts/check-copy.test.mjs src/count-messages.test.ts && node scripts/check-copy.mjs",
     "test:theme": "node scripts/check-theme.mjs",
     "transport:check": "node scripts/generate-transport-types.mjs",
     "test:cli-handoff": "vitest run scripts/cli-command-shell.test.mjs src/cli-command.test.ts src/components/CliContinuity.test.tsx"
@@ -28,6 +29,7 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@babel/parser": "8.0.4",
     "@tauri-apps/cli": "2.11.4",
     "@types/jsdom": "^30.0.0",
     "@types/react": "^19.2.18",

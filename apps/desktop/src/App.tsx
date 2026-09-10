@@ -248,7 +248,7 @@ async function applyPathChoice(choice: Promise<string | null>, setPath: (path: s
 
 async function replaceRegisteredSource(profile: SourceProfile | undefined, source: SourceRecord, perform: Perform, setError: (error?: string) => void) {
   if (!profile) {
-    setError(`Source profile ${source.profile_id} is not in the current catalog.`);
+    setError("The selected file’s source requirements are missing from the current catalog.");
     return;
   }
   try {

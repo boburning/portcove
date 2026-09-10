@@ -49,6 +49,22 @@ native rendering evidence, not physical-controller or human-navigation evidence.
 
 Deterministic failures block: rustfmt, Cargo compilation, Clippy, tests, cargo-shear, cargo-deny security/license/source policy, the Cargo-metadata architecture checker, Fallow, and rscheck's absolute-path rule outside reviewed exceptions.
 
+The UI test command also runs `apps/desktop/scripts/check-copy.mjs`. It parses
+production TypeScript/TSX with the development-only Babel parser and rejects
+internal terminology, parenthetical plurals and an unqualified “Verified” label
+in static copy. This includes JSX text, accessible labels and message literals.
+Malformed source fails the check. There is no violation baseline or suppression
+comment mechanism.
+
+The check deliberately excludes non-runtime declarations/tests, imports, property
+names, machine-value comparisons and non-copy JSX attributes. A lexical `details`
+disclosure named “Technical details”, “View technical details” or “Full identity
+and evidence” permits technical terms within that disclosure; it does not exempt
+the rest of the component. These boundaries distinguish technical syntax and
+evidence from ordinary copy. Runtime catalog/IPC text and raw-enum data flow still
+need their owner-layer presentation tests and review; this static check is not a
+proof of all rendered wording or of translation quality.
+
 Structural heuristics advise: dependency duplication, unmaintained transitive dependencies, complexity, responsibility splits, god objects, duplicate logic, dead public APIs, semantic duplication, and mutation survivors. Do not refactor simply to make an advisory number green.
 
 pnpm 11's default one-day minimum release age remains active. The workspace contains exact-version-only exceptions for the Fallow 3.22.0 platform set and Lucide 1.39.0 used during this reviewed modernization pass; future versions are not exempt. Do not replace these with package-wide patterns or disable lockfile verification.

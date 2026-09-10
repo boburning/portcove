@@ -21,7 +21,7 @@ export function useCommandSurface({ recent, installedCount, busy, setView, setAd
   const commands = useMemo<PaletteCommand[]>(() => [
     { id: "library", label: "Open library", description: "View installed ports and launch readiness", icon: Library, shortcut: commandShortcut("1"), keywords: "navigate collection", action: () => setView("library") },
     { id: "catalog", label: "Open port catalog", description: "Browse supported decomps and recompilations", icon: Boxes, shortcut: commandShortcut("2"), keywords: "navigate discover", action: () => setView("catalog") },
-    { id: "search", label: "Search port catalog", description: "Find a port by title, adapter, or platform", icon: Search, shortcut: "/", action: focusSearch },
+    { id: "search", label: "Search port catalog", description: "Find a port by title, installation method, or platform", icon: Search, shortcut: "/", action: focusSearch },
     { id: "updates", label: "Open update center", description: "Review versions, policies, and operation history", icon: Download, shortcut: commandShortcut("3"), keywords: "navigate activity", action: () => setView("updates") },
     { id: "check", label: "Check installed ports for updates", description: "Run a read-only release check for every installed port", icon: RefreshCw, keywords: "update all", disabled: busy || installedCount === 0, action: () => { void checkAll(); } },
     { id: "adopt", label: "Adopt an existing install", description: "Preview and copy an existing native port into Portcove", icon: FolderSearch, keywords: "import", action: () => setAdoptOpen(true) },

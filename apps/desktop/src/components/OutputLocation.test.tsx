@@ -84,6 +84,21 @@ afterEach(async () => {
 });
 
 describe("per-game Export / install folder", () => {
+  it.each([
+    [0, "Relocation cleanup is pending. Portcove will retry only when the reviewed contents are unchanged."],
+    [1, "Relocation cleanup is pending for 1 old folder. Portcove will retry only when its reviewed contents are unchanged."],
+    [2, "Relocation cleanup is pending for 2 old folders. Portcove will retry only when their reviewed contents are unchanged."],
+  ])("keeps pending cleanup explicit for %s old folders", async (count, message) => {
+    vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(defaultLocation("sample"));
+    vi.mocked(desktopApi.outputRelocationStatus).mockResolvedValue({
+      port_id: "sample", operation_id: "pending", destination_root: "F:/Games/Sample", phase: "cleanup_pending", last_error: null,
+      cleanup_pending_paths: Array.from({ length: Number(count) }, (_, index) => `E:/Portcove/old-${index}`),
+    });
+    await render(<OutputLocationControl portId="sample" generation={7} />);
+    expect(container.textContent).toContain(message);
+    expect(container.textContent).not.toContain("folder(s)");
+  });
+
   it("keeps an unknown destination availability blocked", async () => {
     vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(defaultLocation("sample"));
     vi.spyOn(desktopApi, "previewOutputLocation").mockResolvedValue(destinationPreview("sample", "F:/Games/Sample", { availability: "future_availability" as OutputDestinationPreview["availability"] }));
@@ -333,6 +348,6 @@ describe("per-game Export / install folder", () => {
     expect(move).toHaveBeenCalledWith("sample", "F:/Games/Sample", "b".repeat(64), 14);
     expect(onApplying.mock.calls).toEqual([[true], [false]]);
     expect(container.textContent).toContain("Move completed");
-    expect(container.textContent).toContain("remain for safe cleanup");
+    expect(container.textContent).toContain("Move completed. 1 old folder contains changed files and remains for safe cleanup.");
   });
 });

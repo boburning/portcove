@@ -108,7 +108,7 @@ function DigestValue({ label, scope, value }: { label: string; scope: string; va
 function Qualification({ report }: { report: SourceInspectionReport }) {
   const legacyAutomated = new Set(report.applications.flatMap(application => application.qualification.legacy_automated_platforms));
   const legacyHandsOn = new Set(report.applications.flatMap(application => application.qualification.legacy_hands_on_platforms));
-  return <section><h4>Qualification coverage</h4>
+  return <section><h4>Test coverage</h4>
     <dl className="qualification-grid">
       <div><dt>Legacy port-wide automated</dt><dd>{platformList(legacyAutomated) || "Not recorded"}</dd></div>
       <div><dt>Legacy port-wide hands-on</dt><dd>{platformList(legacyHandsOn) || "Not recorded"}</dd></div>

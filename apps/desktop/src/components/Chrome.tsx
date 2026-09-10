@@ -197,7 +197,7 @@ function SourceHealth({ generation, ports, sources, requirements, outcomes, insp
     {sources.length === 0
       ? <p>No source files are registered yet.</p>
       : <div className="source-health-list">{sources.map(source => <SourceHealthRow key={`${source.profile_id}:${generation}`} source={source} generation={generation} ports={ports} onRemoved={onAdded} report={inspections.get(source.profile_id)} outcome={byProfile.get(source.profile_id)} busy={busy} replace={replace} openEvidence={openEvidence} />)}</div>}
-    <p>Verification is local and read-only. Relink source checks the current source profile and confirms identical content at the new location before updating Portcove's reference. Your source files stay untouched.</p>
+    <p>Verification is local and read-only. Relink source checks the current source requirements and confirms identical content at the new location before updating Portcove's reference. Your source files stay untouched.</p>
   </article>;
 }
 
@@ -218,7 +218,7 @@ function SourceState({ report, outcome }: { report?: SourceInspectionReport; out
     return <span className="source-state"><Icon glyph={CircleMinus} size="sm" />{report.summary}</span>;
   }
   if (!outcome) return <span className="source-state">Not checked</span>;
-  if (outcome.ok) return <span className="source-state verified"><Icon glyph={Check} size="sm" />Verified</span>;
+  if (outcome.ok) return <span className="source-state verified"><Icon glyph={Check} size="sm" />Source check passed</span>;
   return <span className="source-state failed"><Icon glyph={AlertTriangle} size="sm" />Needs attention</span>;
 }
 
@@ -361,7 +361,7 @@ function HostReadiness({ doctor, busy, actions }: { doctor?: DoctorReport; busy?
       ? <><p className="host-summary"><code>{doctor.platform}</code><span>{doctor.catalog_port_count} ports · {doctor.installed_port_count} installed · {doctor.registered_source_count} sources</span></p>
         <div className="host-tool-list">{doctor.host_tools.map(tool => <HostToolRow key={tool.id} tool={tool} busy={Boolean(busy)} actions={actions} />)}</div></>
       : <p>Checking disc-tool readiness…</p>}
-    <p>Optional tools are required only when a matching compressed disc format needs validation or materialization.</p>
+    <p>For some compressed disc formats, Portcove needs a disc tool to check or convert the image.</p>
   </article>;
 }
 

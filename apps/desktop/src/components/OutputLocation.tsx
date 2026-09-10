@@ -3,7 +3,7 @@ import { AlertTriangle, FolderOpen, HardDrive, RotateCcw, ShieldCheck } from "lu
 import { desktopApi } from "../api";
 import { pickGameOutputFolder } from "../file-picker";
 import type { OutputDestinationPreview, OutputRelocationPlan, OutputRelocationResult, OutputRelocationStatus, PortOutputLocation } from "../types";
-import { errorText, formatBytes } from "../view-model";
+import { errorText, formatBytes, formatCountMessage } from "../view-model";
 import { Icon } from "./ui";
 
 export function OutputLocationControl({ portId, generation, busy, onChanged, onApplying }: {
@@ -222,11 +222,30 @@ export function OutputLocationControl({ portId, generation, busy, onChanged, onA
       {location?.configured_output_directory && <button ref={resetButton} data-focusable className="small-control button-with-icon" disabled={controlsDisabled || pending === "review"} onClick={() => { void review(null); }}><Icon glyph={RotateCcw} />Review library default</button>}
     </div>
     {preview && <OutputLocationReview preview={preview} relocation={relocation} pending={pending} applyButton={applyButton} apply={() => { void apply(); }} reviewRelocation={() => { void reviewRelocation(); }} applyRelocation={() => { void applyRelocation(); }} cancel={cancelReview} />}
-    {relocationResult && <p className="output-location-success" role="status"><Icon glyph={ShieldCheck} size="sm" />{relocationResult.cleanup_pending ? `Move completed. ${relocationResult.old_paths_retained.length} old folder(s) contain changed files and remain for safe cleanup.` : `Moved ${relocationResult.relocated_installs.length} recorded version(s) and verified the new location.`}</p>}
-    {relocationStatus && <p className="output-location-error" role="status"><Icon glyph={AlertTriangle} size="sm" />Relocation cleanup is pending for {relocationStatus.cleanup_pending_paths.length} old folder(s). Portcove will retry only when their reviewed contents are unchanged.</p>}
+    {relocationResult && <p className="output-location-success" role="status"><Icon glyph={ShieldCheck} size="sm" />{relocationResult.cleanup_pending ? formatCountMessage(relocationResult.old_paths_retained.length, retainedFolderMessages) : formatCountMessage(relocationResult.relocated_installs.length, movedVersionMessages)}</p>}
+    {relocationStatus && <p className="output-location-error" role="status"><Icon glyph={AlertTriangle} size="sm" />{formatCountMessage(relocationStatus.cleanup_pending_paths.length, pendingCleanupMessages)}</p>}
     {error && <p className="output-location-error" role="alert"><Icon glyph={AlertTriangle} size="sm" />{error}</p>}
   </section>;
 }
+
+const retainedFolderMessages = {
+  zero: "Move completed. Cleanup remains pending.",
+  one: "Move completed. {count} old folder contains changed files and remains for safe cleanup.",
+  other: "Move completed. {count} old folders contain changed files and remain for safe cleanup.",
+  unknown: "Move completed. The number of old folders needing cleanup is unavailable.",
+};
+const movedVersionMessages = {
+  zero: "Move completed. No recorded versions needed relocation.",
+  one: "Moved {count} recorded version and verified the new location.",
+  other: "Moved {count} recorded versions and verified the new location.",
+  unknown: "Move completed. The number of relocated versions is unavailable.",
+};
+const pendingCleanupMessages = {
+  zero: "Relocation cleanup is pending. Portcove will retry only when the reviewed contents are unchanged.",
+  one: "Relocation cleanup is pending for {count} old folder. Portcove will retry only when its reviewed contents are unchanged.",
+  other: "Relocation cleanup is pending for {count} old folders. Portcove will retry only when their reviewed contents are unchanged.",
+  unknown: "Relocation cleanup is pending. The number of old folders is unavailable. Portcove will retry only when the reviewed contents are unchanged.",
+};
 
 function OutputLocationReview({ preview, relocation, pending, applyButton, apply, reviewRelocation, applyRelocation, cancel }: {
   preview: OutputDestinationPreview;
