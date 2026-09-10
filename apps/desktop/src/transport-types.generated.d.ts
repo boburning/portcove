@@ -63,7 +63,8 @@ export type LaunchBlocker =
   | "unreadable_bios"
   | "changed_bios"
   | "missing_runtime"
-  | "preparation_required";
+  | "preparation_required"
+  | "invalid_installation";
 export type UpdatePolicy = "notify" | "stage" | "automatic";
 export type BackupAction = "restore" | "delete";
 export type BackupProblemKind =

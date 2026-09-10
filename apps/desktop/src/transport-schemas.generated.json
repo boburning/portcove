@@ -905,7 +905,8 @@
           "unreadable_bios",
           "changed_bios",
           "missing_runtime",
-          "preparation_required"
+          "preparation_required",
+          "invalid_installation"
         ],
         "type": "string"
       },
@@ -24995,7 +24996,8 @@
           "unreadable_bios",
           "changed_bios",
           "missing_runtime",
-          "preparation_required"
+          "preparation_required",
+          "invalid_installation"
         ],
         "type": "string"
       },
