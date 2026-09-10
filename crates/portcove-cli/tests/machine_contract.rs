@@ -797,6 +797,10 @@ fn library_identity_is_stable_across_processes_and_distinct_from_selection() {
     );
     let first = json_stdout(&portcove(&library, &["--json", "library", "identity"]));
     assert_eq!(first["command"], "library.identity");
+    assert_eq!(
+        first["data"]["root"],
+        std::fs::canonicalize(&library).unwrap().to_str().unwrap()
+    );
     assert!(
         first["data"]["id"]
             .as_str()

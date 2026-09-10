@@ -402,7 +402,8 @@ without opening it. A completed managed move redirects an old root to the effect
 location. Both locations report the same ID. Malformed, future or recovery-gated
 libraries report the existing structured errors instead of manufacturing an ID.
 
-Treat `id` as an opaque, case-sensitive string and `root` as a current location.
+Treat `id` as an opaque, case-sensitive string and `root` as a canonical current
+location. Windows paths may use the extended-length prefix.
 Refresh, game update, rollback and managed library moves do not create a new library
 identity. A supported metadata/content import preserves the destination's own
 identity (creating one for a new destination), while preserving exported installation

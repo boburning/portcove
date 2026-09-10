@@ -174,7 +174,10 @@ library, then moves it through Settings. Earlier preparation journals remain int
 in their original test library; their required recovery is never bypassed. It checks preserved originals, matching saved-data copies, stable active
 installation identity, unchanged source references and an advanced desktop library
 generation. A prior-generation request is rejected, while the new generation reads
-the verified destination. Its accessibility and native evidence remain distinct
+the verified destination. CLI and Tauri identity reads must match before and after
+the move, including the redirected old root. The core record canonicalizes its
+location so Windows extended-length path spelling does not create adapter drift.
+Its accessibility and native evidence remain distinct
 from core interruption and physical-platform qualification.
 
 ### Command-line handoff verification

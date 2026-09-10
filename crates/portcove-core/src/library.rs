@@ -1041,7 +1041,7 @@ impl Library {
     pub fn identity_record(&self) -> Result<crate::LibraryIdentity> {
         Ok(crate::LibraryIdentity {
             id: self.identity()?,
-            root: self.root().to_path_buf(),
+            root: fs::canonicalize(self.root())?,
         })
     }
 
