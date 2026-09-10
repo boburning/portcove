@@ -2,11 +2,11 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { writeFile, realpath } from "node:fs/promises";
-import axe from "axe-core";
 import { By, until } from "selenium-webdriver";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
 import {
   assertCompactReview,
+  captureAccessibilityReport,
   reviewControls,
 } from "./desktop-review-controls.mjs";
 
@@ -106,19 +106,8 @@ export async function libraryHandoffScenario({
     );
     assert.ok((await files.getText()).includes("unrelated-save.bin"));
     await assertCompactReview(browser, '[role="dialog"]');
-    await browser.executeScript(axe.source);
-    const accessibility = await browser.executeAsyncScript((done) =>
-      window.axe.run().then(done),
-    );
     const report = path.join(output, "library-move-accessibility.json");
-    await writeFile(report, JSON.stringify(accessibility, null, 2), {
-      flag: "wx",
-    });
-    artifacts.push(report);
-    assert.deepEqual(
-      accessibility.violations.map((item) => item.id),
-      [],
-    );
+    await captureAccessibilityReport(browser, report, artifacts);
     const reviewImage = path.join(output, "native-library-move-review.png");
     await writeFile(reviewImage, await browser.takeScreenshot(), {
       encoding: "base64",

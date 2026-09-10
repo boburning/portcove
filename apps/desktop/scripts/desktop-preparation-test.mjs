@@ -1,6 +1,5 @@
 // Optional owned-fixture scenarios; all state stays under desktop-test's new output directory.
 import assert from "node:assert/strict";
-import axe from "axe-core";
 import { copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { By, Key, until } from "selenium-webdriver";
@@ -13,7 +12,10 @@ import { libraryHandoffScenario } from "./desktop-library-handoff-test.mjs";
 import { adoptionReviewScenario } from "./desktop-adoption-review-test.mjs";
 import { sourceRemovalScenario } from "./desktop-source-removal-test.mjs";
 import { interruptedPreparationScenario } from "./desktop-preparation-recovery-test.mjs";
-import { clickVisible } from "./desktop-review-controls.mjs";
+import {
+  captureAccessibilityReport,
+  clickVisible,
+} from "./desktop-review-controls.mjs";
 
 export async function preparationScenarios({
   browser,
@@ -132,24 +134,11 @@ export async function preparationScenarios({
       flag: "wx",
     });
     artifacts.push(reviewImage);
-    await browser.executeScript(axe.source);
-    const accessibility = await browser.executeAsyncScript((done) =>
-      window.axe.run().then(done),
-    );
     const accessibilityReport = path.join(
       output,
       "preparation-accessibility.json",
     );
-    await writeFile(
-      accessibilityReport,
-      JSON.stringify(accessibility, null, 2),
-      { flag: "wx" },
-    );
-    artifacts.push(accessibilityReport);
-    assert.deepEqual(
-      accessibility.violations.map((item) => item.id),
-      [],
-    );
+    await captureAccessibilityReport(browser, accessibilityReport, artifacts);
     await browser.findElement(button("Start new preparation")).click();
     await browser.wait(
       async () => (await status(port.id)).readiness.launchable,
@@ -202,19 +191,8 @@ export async function preparationScenarios({
         command(["status", port.id]).readiness,
         damaged.readiness,
       );
-      await browser.executeScript(axe.source);
-      const accessibility = await browser.executeAsyncScript((done) =>
-        window.axe.run().then(done),
-      );
       const report = path.join(output, "retained-contract-accessibility.json");
-      await writeFile(report, JSON.stringify(accessibility, null, 2), {
-        flag: "wx",
-      });
-      artifacts.push(report);
-      assert.deepEqual(
-        accessibility.violations.map((item) => item.id),
-        [],
-      );
+      await captureAccessibilityReport(browser, report, artifacts);
       const screenshot = path.join(
         output,
         "native-retained-contract-repair.png",
@@ -364,19 +342,8 @@ export async function preparationScenarios({
     });
     artifacts.push(capture);
 
-    await browser.executeScript(axe.source);
-    const accessibility = await browser.executeAsyncScript((done) =>
-      window.axe.run().then(done),
-    );
     const report = path.join(output, "recovery-details-accessibility.json");
-    await writeFile(report, JSON.stringify(accessibility, null, 2), {
-      flag: "wx",
-    });
-    artifacts.push(report);
-    assert.deepEqual(
-      accessibility.violations.map((item) => item.id),
-      [],
-    );
+    await captureAccessibilityReport(browser, report, artifacts);
     await browser.executeScript(
       'arguments[0].scrollIntoView({ block: "center" });',
       row,
@@ -455,19 +422,8 @@ export async function preparationScenarios({
       ),
       15_000,
     );
-    await browser.executeScript(axe.source);
-    const accessibility = await browser.executeAsyncScript((done) =>
-      window.axe.run().then(done),
-    );
     const report = path.join(output, "update-settings-accessibility.json");
-    await writeFile(report, JSON.stringify(accessibility, null, 2), {
-      flag: "wx",
-    });
-    artifacts.push(report);
-    assert.deepEqual(
-      accessibility.violations.map((item) => item.id),
-      [],
-    );
+    await captureAccessibilityReport(browser, report, artifacts);
     await browser.executeScript(
       'arguments[0].scrollIntoView({ block: "center" });',
       await browser.findElement(
@@ -570,19 +526,8 @@ export async function preparationScenarios({
       'arguments[0].scrollIntoView({ block: "center" });',
       restarted,
     );
-    await browser.executeScript(axe.source);
-    const accessibility = await browser.executeAsyncScript((done) =>
-      window.axe.run().then(done),
-    );
     const report = path.join(output, "release-channel-accessibility.json");
-    await writeFile(report, JSON.stringify(accessibility, null, 2), {
-      flag: "wx",
-    });
-    artifacts.push(report);
-    assert.deepEqual(
-      accessibility.violations.map((item) => item.id),
-      [],
-    );
+    await captureAccessibilityReport(browser, report, artifacts);
     const screenshot = path.join(
       output,
       "native-release-channel-restarted.png",

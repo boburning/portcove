@@ -1,5 +1,7 @@
 // Shared native review interactions; visibility waits never bypass product consent.
 import assert from "node:assert/strict";
+import { writeFile } from "node:fs/promises";
+import axe from "axe-core";
 import { By, until } from "selenium-webdriver";
 
 async function waitForEntrance(browser, element) {
@@ -84,4 +86,19 @@ export async function assertCompactReview(browser, selector) {
     dialogOverflow: false,
     inView: true,
   });
+}
+
+export async function captureAccessibilityReport(browser, report, artifacts) {
+  await browser.executeScript(axe.source);
+  const accessibility = await browser.executeAsyncScript((done) =>
+    window.axe.run().then(done),
+  );
+  await writeFile(report, JSON.stringify(accessibility, null, 2), {
+    flag: "wx",
+  });
+  artifacts.push(report);
+  assert.deepEqual(
+    accessibility.violations.map((item) => item.id),
+    [],
+  );
 }

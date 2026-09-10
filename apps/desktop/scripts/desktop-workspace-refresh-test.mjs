@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
-import axe from "axe-core";
 import { By, until } from "selenium-webdriver";
+import { captureAccessibilityReport } from "./desktop-review-controls.mjs";
 
 export async function workspaceRefreshScenario({
   browser,
@@ -109,24 +109,11 @@ export async function workspaceRefreshScenario({
         (await browser.findElements(By.css(".port-card"))).length,
         before.length,
       );
-      await browser.executeScript(axe.source);
-      const accessibility = await browser.executeAsyncScript((done) =>
-        window.axe.run().then(done),
-      );
       const accessibilityPath = path.join(
         output,
         "workspace-refresh-accessibility.json",
       );
-      await writeFile(
-        accessibilityPath,
-        JSON.stringify(accessibility, null, 2),
-        { flag: "wx" },
-      );
-      artifacts.push(accessibilityPath);
-      assert.deepEqual(
-        accessibility.violations.map((item) => item.id),
-        [],
-      );
+      await captureAccessibilityReport(browser, accessibilityPath, artifacts);
       const screenshot = path.join(
         output,
         "native-workspace-refresh-failure.png",

@@ -3,10 +3,10 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile, realpath, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
-import axe from "axe-core";
 import { By, Key, until } from "selenium-webdriver";
 import {
   assertCompactReview,
+  captureAccessibilityReport,
   reviewControls,
 } from "./desktop-review-controls.mjs";
 import { artworkObservations } from "./desktop-artwork-observations.mjs";
@@ -203,19 +203,8 @@ export async function artworkScenario({
         flag: "wx",
       });
       artifacts.push(screenshot);
-      await browser.executeScript(axe.source);
-      const accessibility = await browser.executeAsyncScript((done) =>
-        window.axe.run().then(done),
-      );
       const report = path.join(output, "artwork-accessibility.json");
-      await writeFile(report, JSON.stringify(accessibility, null, 2), {
-        flag: "wx",
-      });
-      artifacts.push(report);
-      assert.deepEqual(
-        accessibility.violations.map((item) => item.id),
-        [],
-      );
+      await captureAccessibilityReport(browser, report, artifacts);
       await click(control("cover", "Reset to default"));
       await browser.wait(
         async () => (await state("cover")).choice.asset_sha256 === null,

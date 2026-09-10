@@ -2,9 +2,11 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import axe from "axe-core";
 import { By, until } from "selenium-webdriver";
-import { clickVisible as clickReviewControl } from "./desktop-review-controls.mjs";
+import {
+  captureAccessibilityReport,
+  clickVisible as clickReviewControl,
+} from "./desktop-review-controls.mjs";
 
 export async function backupReviewScenario({
   browser,
@@ -60,17 +62,8 @@ export async function backupReviewScenario({
         'arguments[0].scrollIntoView({ block: "start" });',
         dialog,
       );
-      await browser.executeScript(axe.source);
-      const result = await browser.executeAsyncScript((done) =>
-        window.axe.run().then(done),
-      );
       const report = path.join(output, `${name}-accessibility.json`);
-      await writeFile(report, JSON.stringify(result, null, 2), { flag: "wx" });
-      artifacts.push(report);
-      assert.deepEqual(
-        result.violations.map((item) => item.id),
-        [],
-      );
+      await captureAccessibilityReport(browser, report, artifacts);
       const screenshot = path.join(output, `${name}.png`);
       await writeFile(screenshot, await browser.takeScreenshot(), {
         encoding: "base64",

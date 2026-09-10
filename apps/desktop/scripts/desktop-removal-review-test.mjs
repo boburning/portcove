@@ -3,9 +3,11 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
-import axe from "axe-core";
 import { By, until } from "selenium-webdriver";
-import { reviewControls } from "./desktop-review-controls.mjs";
+import {
+  captureAccessibilityReport,
+  reviewControls,
+} from "./desktop-review-controls.mjs";
 
 export async function removalReviewScenario({
   browser,
@@ -143,22 +145,11 @@ export async function removalReviewScenario({
       'arguments[0].scrollIntoView({ block: "start" });',
       await browser.findElement(dialog),
     );
-    await browser.executeScript(axe.source);
-    const accessibility = await browser.executeAsyncScript((done) =>
-      window.axe.run().then(done),
-    );
     const accessibilityPath = path.join(
       output,
       "removal-review-accessibility.json",
     );
-    await writeFile(accessibilityPath, JSON.stringify(accessibility, null, 2), {
-      flag: "wx",
-    });
-    artifacts.push(accessibilityPath);
-    assert.deepEqual(
-      accessibility.violations.map((item) => item.id),
-      [],
-    );
+    await captureAccessibilityReport(browser, accessibilityPath, artifacts);
     const screenshot = path.join(
       output,
       "native-installed-game-removal-review.png",

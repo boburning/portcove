@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
-import axe from "axe-core";
 import { By, until } from "selenium-webdriver";
+import { captureAccessibilityReport } from "./desktop-review-controls.mjs";
 
 export async function interruptedPreparationScenario({
   browser,
@@ -126,22 +126,11 @@ export async function interruptedPreparationScenario({
       async () => (await row.getText()).includes("Capture is incomplete"),
       5_000,
     );
-    await browser.executeScript(axe.source);
-    const accessibility = await browser.executeAsyncScript((done) =>
-      window.axe.run().then(done),
-    );
     const report = path.join(
       output,
       "interrupted-preparation-accessibility.json",
     );
-    await writeFile(report, JSON.stringify(accessibility, null, 2), {
-      flag: "wx",
-    });
-    artifacts.push(report);
-    assert.deepEqual(
-      accessibility.violations.map((item) => item.id),
-      [],
-    );
+    await captureAccessibilityReport(browser, report, artifacts);
     const evidence = path.join(output, "interrupted-preparation-recovery.json");
     await writeFile(
       evidence,

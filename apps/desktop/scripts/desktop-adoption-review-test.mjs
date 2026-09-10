@@ -9,11 +9,11 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
-import axe from "axe-core";
 import { By, until } from "selenium-webdriver";
 import {
   reviewControls,
   assertCompactReview,
+  captureAccessibilityReport,
 } from "./desktop-review-controls.mjs";
 
 export async function adoptionReviewScenario({
@@ -134,19 +134,8 @@ export async function adoptionReviewScenario({
       until.elementLocated(button("Continue to copy confirmation")),
       15_000,
     );
-    await browser.executeScript(axe.source);
-    const accessibility = await browser.executeAsyncScript((done) =>
-      window.axe.run().then(done),
-    );
     const report = path.join(output, "adoption-review-accessibility.json");
-    await writeFile(report, JSON.stringify(accessibility, null, 2), {
-      flag: "wx",
-    });
-    artifacts.push(report);
-    assert.deepEqual(
-      accessibility.violations.map((item) => item.id),
-      [],
-    );
+    await captureAccessibilityReport(browser, report, artifacts);
     const normal = path.join(output, "native-adoption-review.png");
     await writeFile(normal, await browser.takeScreenshot(), {
       encoding: "base64",

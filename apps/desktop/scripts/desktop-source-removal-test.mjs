@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
-import axe from "axe-core";
 import { By, until } from "selenium-webdriver";
 import {
   reviewControls,
   assertCompactReview,
+  captureAccessibilityReport,
 } from "./desktop-review-controls.mjs";
 
 export async function sourceRemovalScenario({
@@ -142,19 +142,8 @@ export async function sourceRemovalScenario({
       'arguments[0].scrollIntoView({ block: "start" });',
       await browser.findElement(dialog),
     );
-    await browser.executeScript(axe.source);
-    const accessibility = await browser.executeAsyncScript((done) =>
-      window.axe.run().then(done),
-    );
     const report = path.join(output, "source-removal-accessibility.json");
-    await writeFile(report, JSON.stringify(accessibility, null, 2), {
-      flag: "wx",
-    });
-    artifacts.push(report);
-    assert.deepEqual(
-      accessibility.violations.map((item) => item.id),
-      [],
-    );
+    await captureAccessibilityReport(browser, report, artifacts);
     const screenshot = path.join(output, "native-source-removal-review.png");
     await writeFile(screenshot, await browser.takeScreenshot(), {
       encoding: "base64",

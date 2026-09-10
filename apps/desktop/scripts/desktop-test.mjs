@@ -5,7 +5,6 @@ import path from "node:path";
 import net from "node:net";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
-import axe from "axe-core";
 import { Builder, By, Key, until } from "selenium-webdriver";
 import {
   writeEvidence,
@@ -18,6 +17,7 @@ import { controllerScenario } from "./desktop-controller-test.mjs";
 import { accessibleNavigationScenario } from "./desktop-accessibility-test.mjs";
 import { reloadScenario } from "./desktop-reload-test.mjs";
 import { workspaceRefreshScenario } from "./desktop-workspace-refresh-test.mjs";
+import { captureAccessibilityReport } from "./desktop-review-controls.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const { values } = parseArgs({
@@ -434,17 +434,8 @@ try {
     }
   });
   await scenario("accessibility", async () => {
-    await browser.executeScript(axe.source);
-    const result = await browser.executeAsyncScript((done) =>
-      window.axe.run().then(done),
-    );
     const report = path.join(output, "accessibility.json");
-    await writeFile(report, JSON.stringify(result, null, 2), { flag: "wx" });
-    artifacts.push(report);
-    assert.deepEqual(
-      result.violations.map((item) => item.id),
-      [],
-    );
+    await captureAccessibilityReport(browser, report, artifacts);
   });
   await controllerScenario({ browser, scenario, output, artifacts });
   await accessibleNavigationScenario({ browser, scenario, output, artifacts });

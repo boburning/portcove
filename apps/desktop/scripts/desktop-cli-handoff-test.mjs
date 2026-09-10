@@ -2,11 +2,11 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { realpath, writeFile } from "node:fs/promises";
-import axe from "axe-core";
 import { By, until } from "selenium-webdriver";
 import {
   reviewControls,
   assertCompactReview,
+  captureAccessibilityReport,
 } from "./desktop-review-controls.mjs";
 
 export async function cliHandoffScenario({
@@ -77,19 +77,8 @@ export async function cliHandoffScenario({
     ]);
     assert.ok(shell.includes("--library") && shell.includes("moved-library"));
     await assertCompactReview(browser, ".detail-panel");
-    await browser.executeScript(axe.source);
-    const accessibility = await browser.executeAsyncScript((done) =>
-      window.axe.run().then(done),
-    );
     const report = path.join(output, "cli-handoff-accessibility.json");
-    await writeFile(report, JSON.stringify(accessibility, null, 2), {
-      flag: "wx",
-    });
-    artifacts.push(report);
-    assert.deepEqual(
-      accessibility.violations.map((item) => item.id),
-      [],
-    );
+    await captureAccessibilityReport(browser, report, artifacts);
     await browser.executeScript(
       'arguments[0].scrollIntoView({ block: "center" });',
       await browser.findElement(launch),
