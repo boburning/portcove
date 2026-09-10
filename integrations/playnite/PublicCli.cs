@@ -87,17 +87,21 @@ namespace Portcove.ReferenceClient
                 var output = Pump(process.StandardOutput, parser.Line);
                 // Raw stderr may contain local paths or tool output. Drain without exporting it.
                 var errors = Drain(process.StandardError.BaseStream);
-                var exited = Task.Run(() => { while (!process.WaitForExit(200)) { } });
-                if (!mutation && await Task.WhenAny(exited, Task.Delay(TimeSpan.FromSeconds(45))).ConfigureAwait(false) != exited)
+                var exited = await Task.Run(() => process.WaitForExit(mutation ? -1 : 45000)).ConfigureAwait(false);
+                if (!exited)
                 {
                     // Only this owned read process is stopped. Mutations and game supervisors are never killed here.
                     try { if (!process.HasExited) process.Kill(); } catch (InvalidOperationException) { }
+                    await Task.Run(() => process.WaitForExit(5000)).ConfigureAwait(false);
+                    ObserveDrainFailures(Task.WhenAll(output, errors));
                     throw new InvalidOperationException("The CLI read timed out. No success is inferred; inspect Portcove activity before retrying.");
                 }
-                await exited.ConfigureAwait(false);
                 var drained = Task.WhenAll(output, errors);
                 if (await Task.WhenAny(drained, Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false) != drained)
+                {
+                    ObserveDrainFailures(drained);
                     throw new InvalidOperationException("The CLI exited but an output stream stayed open. Refresh durable state; the operation is unconfirmed.");
+                }
                 await drained.ConfigureAwait(false);
                 var value = parser.Finish(process.ExitCode);
                 if (parser.EventGap)
@@ -105,6 +109,11 @@ namespace Portcove.ReferenceClient
                 return value;
             }
         }
+
+        private static void ObserveDrainFailures(Task task) => task.ContinueWith(completed =>
+        {
+            var ignored = completed.Exception;
+        }, TaskContinuationOptions.OnlyOnFaulted);
 
         internal async Task<RawLaunch> Launch(string port, string requestId)
         {
@@ -174,7 +183,7 @@ namespace Portcove.ReferenceClient
             errors = PublicCli.Drain(process.StandardError.BaseStream);
         }
         internal bool HasExited => process.HasExited;
-        internal int ExitCode => process.ExitCode;
+        internal int ProcessId => process.Id;
         public void Dispose()
         {
             // Closing the client never signals a game or invents a completed core session.

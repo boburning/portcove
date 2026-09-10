@@ -93,6 +93,7 @@ internal static class ContractTests
         Reject(() => disagreement.Finish(1), "exit/result disagreement rejected");
         var failure = new ProtocolStream("ensure"); failure.Line(Result("ensure", null, false));
         Reject(() => failure.Finish(14), "structured busy-port failure remains a failure");
+        LaunchRecords();
         var root = Path.Combine(Path.GetDirectoryName(Binary), "fixture-library");
         var client = new PublicCli(Binary, root);
         await client.Connect();
@@ -124,6 +125,32 @@ internal static class ContractTests
             Check(catalog.Length > 1 && statuses.Length == catalog.Length, "real standalone CLI discovery through reference consumer");
             Check(await real.Read("launch.show", "launch", "show", Guid.NewGuid().ToString("D")) == null, "real standalone CLI absent launch readback");
         }
+    }
+    private static void LaunchRecords()
+    {
+        var record = Json.Object(Json.Parse(Json.Print(new
+        {
+            id = "request", port_id = "port", supervisor_pid = 123, child_pid = (int?)456,
+            phase = "running", outcome = (string)null, finished_at = (long?)null
+        })));
+        Check(LaunchObservation.Read(null, "request", "port", 123) == null, "null launch observation is not terminal success");
+        var running = LaunchObservation.Read(record, "request", "port", 123);
+        Check(running.ChildPid == 456 && running.Outcome == null, "running child remains unresolved");
+        Reject(() => LaunchObservation.Read(record, "other", "port", 123), "wrong request observation rejected");
+        Reject(() => LaunchObservation.Read(record, "request", "other", 123), "wrong port observation rejected");
+        Reject(() => LaunchObservation.Read(record, "request", "port", 789), "wrong supervisor observation rejected");
+        record["phase"] = "future_phase";
+        Reject(() => LaunchObservation.Read(record, "request", "port", 123), "unknown consequential phase rejected");
+        record["phase"] = "running"; record["outcome"] = "future_outcome";
+        Reject(() => LaunchObservation.Read(record, "request", "port", 123), "unknown outcome rejected");
+        record["outcome"] = "succeeded";
+        Reject(() => LaunchObservation.Read(record, "request", "port", 123), "terminal outcome without completion evidence rejected");
+        record["finished_at"] = 42;
+        Check(LaunchObservation.Read(record, "request", "port", 123).Outcome == "succeeded", "terminal result wins over retained running phase");
+        record["child_pid"] = null;
+        Reject(() => LaunchObservation.Read(record, "request", "port", 123), "success without child observation rejected");
+        record["outcome"] = "failed";
+        Check(LaunchObservation.Read(record, "request", "port", 123).ChildPid == null, "prelaunch failure does not invent a started child");
     }
     private static int FakeCli(string[] args)
     {

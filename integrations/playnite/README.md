@@ -66,7 +66,8 @@ Progress is best-effort and a single final response must agree with the process
 exit status. The view reads the latest 200 durable activities and displays up to
 eight for the selected port; absence from this bounded view does not prove that
 an operation never happened. Cancellation requests target the observed operation
-ID and wait for core's terminal result. No automatic mutation replay, process-tree
+ID and wait for core's terminal result. Closing during work offers explicit
+disconnect without cancelling or claiming success. No automatic mutation replay, process-tree
 kill, rollback, library recovery or credential setup is performed.
 
 Play uses raw supervised `exec` with a fresh known UUID and polls `launch show`.

@@ -31,6 +31,7 @@ native desktop evidence harness, repository skills and targeted safety experimen
 |---|---|---|
 | Rust change | `just check-rust` | format, compile, Clippy, tests, unused dependencies/files, and crate boundaries |
 | UI change | `just check-ui` | production build, tests, and the existing Fallow gate |
+| Playnite reference change (Windows) | `just playnite-check` | locked SDK/reference-assembly builds, literal process arguments and public protocol regression fixtures; optional isolated compiled-CLI reads |
 | Cross-stack or release change | `just check` | both fast loops plus deterministic package-policy, staging, checksum, and release-note tests |
 | Substantial completion | `just audit` | fast loop plus dependency policy and rscheck |
 | Large structural change | `just deep` | audit plus advisory Hawk and semdup analysis |

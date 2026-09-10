@@ -19,7 +19,7 @@ namespace Portcove.ReferenceClient
     public sealed class SettingsModel : ObservableObject, ISettings
     {
         private readonly PortcovePlugin plugin;
-        private ClientSettings saved;
+        internal ClientSettings Active { get; private set; }
         private ClientSettings settings;
         public ClientSettings Settings
         {
@@ -29,20 +29,29 @@ namespace Portcove.ReferenceClient
         internal SettingsModel(PortcovePlugin plugin)
         {
             this.plugin = plugin;
-            Settings = plugin.LoadPluginSettings<ClientSettings>() ?? new ClientSettings();
+            Active = plugin.LoadPluginSettings<ClientSettings>() ?? new ClientSettings();
+            Settings = Copy(Active);
         }
-        public void BeginEdit() => saved = new ClientSettings
+        private static ClientSettings Copy(ClientSettings value) => new ClientSettings
         {
-            Executable = Settings.Executable, LibraryRoot = Settings.LibraryRoot,
-            LastLaunchGame = Settings.LastLaunchGame, LastLaunchRequest = Settings.LastLaunchRequest
+            Executable = value.Executable, LibraryRoot = value.LibraryRoot,
+            LastLaunchGame = value.LastLaunchGame, LastLaunchRequest = value.LastLaunchRequest
         };
-        public void CancelEdit() => Settings = saved;
-        public void EndEdit() => plugin.SavePluginSettings(Settings);
+        public void BeginEdit() => Settings = Copy(Active);
+        public void CancelEdit() => Settings = Copy(Active);
+        public void EndEdit()
+        {
+            var accepted = Copy(Settings);
+            plugin.SavePluginSettings(accepted);
+            Active = accepted;
+        }
         internal void RememberLaunch(string game, string request)
         {
             Settings.LastLaunchGame = game; Settings.LastLaunchRequest = request;
-            if (saved != null) { saved.LastLaunchGame = game; saved.LastLaunchRequest = request; }
-            plugin.SavePluginSettings(Settings);
+            var remembered = Copy(Active);
+            remembered.LastLaunchGame = game; remembered.LastLaunchRequest = request;
+            plugin.SavePluginSettings(remembered);
+            Active = remembered;
         }
         public bool VerifySettings(out List<string> errors)
         {

@@ -8,10 +8,11 @@ using System.Windows.Controls;
 
 namespace Portcove.ReferenceClient
 {
-    internal sealed class ManagementWindow : Window
+    internal sealed class ManagementWindow
     {
         private readonly PortcovePlugin plugin;
         private readonly Game game;
+        private readonly Window window;
         private readonly TextBlock state = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 8) };
         private readonly TextBlock progress = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 8) };
         private readonly TextBox source = new TextBox();
@@ -24,18 +25,22 @@ namespace Portcove.ReferenceClient
         private string operationId;
         private bool busy;
         private bool cancellationRequested;
+        private bool detached;
         private DateTime lastProgress;
         internal object CurrentStatus { get; private set; }
 
-        internal ManagementWindow(PortcovePlugin plugin, Game game)
+        internal void ShowDialog() => window.ShowDialog();
+
+        internal ManagementWindow(PortcovePlugin plugin, Game game, Window window)
         {
             this.plugin = plugin;
             this.game = game;
-            Title = "Portcove · " + game.Name;
-            Width = 740; Height = 710; MinWidth = 520; MinHeight = 480;
-            WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            this.window = window;
+            window.Title = "Portcove · " + game.Name;
+            window.Width = 740; window.Height = 710; window.MinWidth = 520; window.MinHeight = 480;
+            window.WindowStartupLocation = WindowStartupLocation.CenterScreen;
             var panel = new StackPanel { Margin = new Thickness(20) };
-            Content = new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            window.Content = new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             panel.Children.Add(new TextBlock { Text = game.Name, FontSize = 24, TextWrapping = TextWrapping.Wrap });
             panel.Children.Add(state);
             panel.Children.Add(new TextBlock
@@ -69,18 +74,20 @@ namespace Portcove.ReferenceClient
             panel.Children.Add(new Expander { Header = "Technical response (local only)", Content = technical });
             panel.Children.Add(new TextBlock
             {
-                Text = "Closing this view while idle makes no management request. During an operation, request cancellation and wait. Recovery and retained results come from Portcove; a missing stream never means success.",
+                Text = "Closing while idle makes no management request. During work, request cancellation and wait, or explicitly stop watching. Portcove may continue after disconnect; refresh its retained activity before retrying.",
                 TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 12, 0, 0)
             });
-            Loaded += async (sender, args) => await Execute(async () =>
+            window.Loaded += async (sender, args) => await Execute(async () =>
             {
                 cli = await plugin.Connect();
                 port = Identity.Port(game.GameId, cli.LibraryId);
                 await Refresh();
             });
-            Closing += (sender, args) =>
+            window.Closing += (sender, args) =>
             {
-                if (busy) { args.Cancel = true; progress.Text = "Portcove is still working. Request cancellation, then wait for its result."; }
+                if (busy && MessageBox.Show(window, "Stop watching this operation? Portcove may continue working. This does not cancel it or confirm success. Reopen management and refresh retained activity before deciding on another action.",
+                    "Disconnect from operation", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) args.Cancel = true;
+                else { detached = true; if (busy) CurrentStatus = null; }
             };
         }
 
@@ -162,7 +169,7 @@ namespace Portcove.ReferenceClient
                 PublicCli.RequireAbsolute(paths[index]);
                 if (profiles[index] == null) throw new InvalidOperationException("The catalog does not request that source input.");
             }
-            if (MessageBox.Show(this, "Register these original paths under this game's catalog profiles? Portcove validates their identity. Original files stay in place. Each registration is separate; a later failure does not undo an earlier registration.\n\n" +
+            if (MessageBox.Show(window, "Register these original paths under this game's catalog profiles? Portcove validates their identity. Original files stay in place. Each registration is separate; a later failure does not undo an earlier registration.\n\n" +
                 string.Join("\n", paths.Where(path => path.Length != 0)), "Register original files", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
             CurrentStatus = null;
             for (var index = 0; index < paths.Length; index++)
@@ -182,7 +189,7 @@ namespace Portcove.ReferenceClient
             var prompt = command == "ensure"
                 ? "Use the current installation if present, or download, verify and activate the selected channel's release? This may register the supplied source files."
                 : "Check the selected channel now, then download, verify and activate its eligible update? The release is resolved when you continue. Supplied source files may be registered.";
-            if (MessageBox.Show(this, prompt + "\n\nLibrary: " + cli.LibraryRoot + "\nGame: " + game.Name,
+            if (MessageBox.Show(window, prompt + "\n\nLibrary: " + cli.LibraryRoot + "\nGame: " + game.Name,
                 "Portcove", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
             CurrentStatus = null;
             await cli.Manage(command, args.ToArray(), OnProgress);
@@ -196,9 +203,15 @@ namespace Portcove.ReferenceClient
             var inputs = Json.Field(plan, "inputs");
             var install = Json.Field(inputs, "install");
             var sourceRecord = Json.Field(inputs, "source");
-            var message = "Prepare a private installation from the reviewed artifact and registered source? Portcove checks that this exact plan is still current before applying it. Original files and the existing version remain. Cancellation may retain private work for recovery.\n\nInstallation: " + Json.Text(install, "path") +
-                "\nSource: " + Json.Text(sourceRecord, "path") + "\n\nThe technical response contains the complete core copy and tool plan.";
-            if (MessageBox.Show(this, message, "Review preparation", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
+            var tool = Json.Field(inputs, "setup_tool");
+            var conversion = Json.Field(inputs, "conversion_tool");
+            var message = "Prepare a private installation from the reviewed artifact and registered source? Portcove checks this exact plan before applying it. Original files and the existing version remain. Cancellation may retain private work for recovery.\n\nInstallation: " + Json.Text(install, "path") +
+                "\nVersion: " + Json.Text(install, "version") + "\nSource: " + Json.Text(sourceRecord, "path") +
+                "\nSetup tool: " + Json.Text(tool, "path") + "\nSetup SHA-256: " + Json.Text(tool, "sha256") +
+                (conversion == null ? "" : "\nConversion tool: " + Json.Text(conversion, "path") + "\nConversion SHA-256: " + Json.Text(conversion, "sha256")) +
+                "\nCopy bytes: " + Json.Field(Json.Field(plan, "copy"), "total_bytes") +
+                "\nMode: " + Json.Text(Json.Field(inputs, "options"), "mode") + "\nTarget: " + Json.Text(Json.Field(inputs, "options"), "target");
+            if (MessageBox.Show(window, message, "Review preparation", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
             CurrentStatus = null;
             await cli.Manage("preparation.run", new[] { "preparation", "run", port, "--expected-plan", Json.Text(plan, "plan_sha256"), "--yes" }, OnProgress);
             await Refresh();
@@ -206,12 +219,13 @@ namespace Portcove.ReferenceClient
 
         private void OnProgress(Dictionary<string, object> record)
         {
+            if (detached) return;
             var root = Json.Field(record, "parent_operation_id") == null;
             var now = DateTime.UtcNow;
             var firstRoot = root && operationId != Json.Text(record, "operation_id");
             if (!firstRoot && now - lastProgress < TimeSpan.FromMilliseconds(200)) return;
             lastProgress = now;
-            Dispatcher.Invoke(() =>
+            window.Dispatcher.Invoke(() =>
             {
                 if (root) { operationId = Json.Text(record, "operation_id"); cancel.IsEnabled = !cancellationRequested; }
                 progress.Text = Json.Text(record, "operation").Replace('_', ' ') + ": " + Json.Text(record, "type").Replace('_', ' ');

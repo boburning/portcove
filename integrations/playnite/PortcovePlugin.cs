@@ -25,17 +25,19 @@ namespace Portcove.ReferenceClient
 
         internal async Task<PublicCli> Connect()
         {
-            var client = new PublicCli(settings.Settings.Executable, settings.Settings.LibraryRoot);
+            var accepted = settings.Active;
+            var client = new PublicCli(accepted.Executable, accepted.LibraryRoot);
             await client.Connect().ConfigureAwait(false);
             return client;
         }
 
         internal void Error(Exception error) => PlayniteApi.MainView.UIDispatcher.Invoke(() =>
             PlayniteApi.Dialogs.ShowErrorMessage(error.Message, "Portcove"));
+        internal void OnUi(Action action) => PlayniteApi.MainView.UIDispatcher.Invoke(action);
 
         internal void RememberLaunch(string game, string request) => PlayniteApi.MainView.UIDispatcher.Invoke(() => settings.RememberLaunch(game, request));
         internal string RecentLaunch(string game) => PlayniteApi.MainView.UIDispatcher.Invoke(() =>
-            settings.Settings.LastLaunchGame == game ? settings.Settings.LastLaunchRequest : null);
+            settings.Active.LastLaunchGame == game ? settings.Active.LastLaunchRequest : null);
 
         public override IEnumerable<GameMetadata> GetGames(LibraryGetGamesArgs args) => Discover().GetAwaiter().GetResult();
 
@@ -90,7 +92,10 @@ namespace Portcove.ReferenceClient
         {
             return PlayniteApi.MainView.UIDispatcher.Invoke(() =>
             {
-                var window = new ManagementWindow(this, game);
+                var window = new ManagementWindow(this, game, PlayniteApi.Dialogs.CreateWindow(new WindowCreationOptions
+                {
+                    ShowMinimizeButton = false, ShowMaximizeButton = true, ShowCloseButton = true
+                }));
                 window.ShowDialog();
                 return window.CurrentStatus;
             });
@@ -147,24 +152,19 @@ namespace Portcove.ReferenceClient
                     while (true)
                     {
                         var record = await cli.Read("launch.show", "launch", "show", request).ConfigureAwait(false);
-                        if (record != null)
+                        var observation = LaunchObservation.Read(record, request, port, launch.ProcessId);
+                        if (observation != null)
                         {
-                            if (Json.Text(record, "id") != request || Json.Text(record, "port_id") != port)
-                                throw new InvalidOperationException("Launch observation returned a different identity. The game outcome is unconfirmed.");
-                            var outcome = Json.Field(record, "outcome");
-                            var child = Json.Field(record, "child_pid");
-                            if (!started && child != null)
+                            if (!started && observation.ChildPid.HasValue)
                             {
                                 observedStart = DateTime.UtcNow;
-                                InvokeOnStarted(new GameStartedEventArgs { StartedProcessId = checked(Convert.ToInt32(child)) });
+                                plugin.OnUi(() => InvokeOnStarted(new GameStartedEventArgs { StartedProcessId = observation.ChildPid.Value }));
                                 started = true;
                             }
-                            if (outcome != null)
+                            if (observation.Outcome != null)
                             {
-                                if (!new[] { "succeeded", "failed", "cancelled" }.Contains(outcome as string))
-                                    throw new InvalidOperationException("Unknown launch outcome. Update the reference client and inspect core activity.");
-                                if (outcome as string != "succeeded")
-                                    throw new InvalidOperationException("Portcove launch " + outcome + ". Review activity for recovery and save-collection details.");
+                                if (observation.Outcome != "succeeded")
+                                    throw new InvalidOperationException("Portcove launch " + observation.Outcome + ". Review activity for recovery and save-collection details.");
                                 break;
                             }
                         }
@@ -178,7 +178,7 @@ namespace Portcove.ReferenceClient
             finally
             {
                 // Stopped ends Playnite tracking, not a successful-game or successful-save assertion.
-                InvokeOnStopped(new GameStoppedEventArgs(started ? (ulong)Math.Max(0, (DateTime.UtcNow - observedStart).TotalSeconds) : 0));
+                plugin.OnUi(() => InvokeOnStopped(new GameStoppedEventArgs(started ? (ulong)Math.Max(0, (DateTime.UtcNow - observedStart).TotalSeconds) : 0)));
             }
         }
     }

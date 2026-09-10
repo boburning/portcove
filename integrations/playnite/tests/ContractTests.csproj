@@ -16,6 +16,7 @@
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net462" Version="1.0.3" PrivateAssets="all" />
     <Reference Include="System" /><Reference Include="System.Core" /><Reference Include="System.Web.Extensions" />
     <Compile Include="..\Protocol.cs" /><Compile Include="..\PublicCli.cs" />
+    <Compile Include="..\LaunchObservation.cs" />
     <Compile Include="ContractTests.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
