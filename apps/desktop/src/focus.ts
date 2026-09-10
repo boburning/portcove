@@ -54,6 +54,16 @@ export function activateControl(item: HTMLElement) {
   item.click();
 }
 
+export function activateFocusedControl() {
+  const scope = navigationScope();
+  const focused = document.activeElement;
+  if (focused instanceof HTMLElement && scope.contains(focused) && focused.matches(selector) && visibleControl(focused)) {
+    activateControl(focused);
+  } else {
+    focusAndReveal(focusableControls(scope)[0]);
+  }
+}
+
 export function dismissActiveDialog() {
   const scope = navigationScope();
   if (scope === document) return false;

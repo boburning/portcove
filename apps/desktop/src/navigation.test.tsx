@@ -8,7 +8,7 @@ import { ChoiceMenu } from "./components/ChoiceMenu";
 import { ExternalLink } from "./components/ExternalLink";
 import { desktopApi } from "./api";
 import { useDialogFocus } from "./dialog";
-import { focusRegion } from "./focus";
+import { activateFocusedControl, focusRegion } from "./focus";
 import { useGamepadNavigation } from "./gamepad";
 
 let root: Root;
@@ -80,6 +80,60 @@ afterEach(async () => {
 });
 
 describe("controller and modal integration", () => {
+  it("activates once without measuring unrelated controls in a large list", async () => {
+    const clicked = vi.fn();
+    function LargeList() {
+      useGamepadNavigation(() => undefined);
+      return <main>{Array.from({ length: 1000 }, (_, index) => <button key={index} onClick={clicked}>Game {index}</button>)}</main>;
+    }
+    await act(async () => root.render(<LargeList />));
+    control("Game 500").focus();
+    const visibility = vi.mocked(HTMLElement.prototype.getClientRects); visibility.mockClear();
+    const geometry = vi.mocked(HTMLElement.prototype.getBoundingClientRect); geometry.mockClear();
+    await frame([0]);
+    expect(clicked).toHaveBeenCalledOnce();
+    expect(visibility).toHaveBeenCalledTimes(1);
+    visibility.mockClear(); geometry.mockClear();
+    for (let index = 0; index < 30; index++) await frame([0]);
+    expect(clicked).toHaveBeenCalledOnce();
+    expect(visibility).not.toHaveBeenCalled(); expect(geometry).not.toHaveBeenCalled();
+    await frame(); await frame([0]);
+    expect(clicked).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps activation inside the top dialog and rechecks disabled or hidden controls", () => {
+    const dialog = document.createElement("section");
+    dialog.setAttribute("role", "dialog"); dialog.setAttribute("aria-modal", "true");
+    const first = document.createElement("button"); const second = document.createElement("button");
+    dialog.append(first, second); document.body.append(dialog);
+    const clicked = vi.fn(); first.addEventListener("click", clicked); second.addEventListener("click", clicked);
+    control("Game card").focus(); activateFocusedControl();
+    expect(document.activeElement).toBe(first); expect(clicked).not.toHaveBeenCalled();
+    first.disabled = true; activateFocusedControl();
+    expect(document.activeElement).toBe(second); expect(clicked).not.toHaveBeenCalled();
+    second.hidden = true; activateFocusedControl();
+    expect(clicked).not.toHaveBeenCalled();
+    second.hidden = false; second.focus(); activateFocusedControl();
+    expect(clicked).toHaveBeenCalledOnce();
+  });
+
+  it("measures only the active region for directional input and does no idle layout work", async () => {
+    const workspace = document.querySelector('[data-focus-region="workspace"]')!;
+    for (let index = 0; index < 1000; index++) workspace.append(document.createElement("button"));
+    control("Library").focus();
+    const visibility = vi.mocked(HTMLElement.prototype.getClientRects); visibility.mockClear();
+    const geometry = vi.mocked(HTMLElement.prototype.getBoundingClientRect); geometry.mockClear();
+    await frame([13]);
+    expect(document.activeElement).toBe(control("Catalog"));
+    expect(visibility).toHaveBeenCalledTimes(2);
+    visibility.mockClear(); geometry.mockClear();
+    for (let index = 0; index < 5; index++) await frame([13]);
+    expect(visibility).not.toHaveBeenCalled(); expect(geometry).not.toHaveBeenCalled();
+    await frame();
+    for (let index = 0; index < 30; index++) await frame();
+    expect(visibility).not.toHaveBeenCalled(); expect(geometry).not.toHaveBeenCalled();
+  });
+
   it("selects a game channel with the controller and restores focus after saving", async () => {
     const save = vi.fn(async () => ({ ...portStatus(), channel: "rolling" as const }));
     function ChannelFixture() {
