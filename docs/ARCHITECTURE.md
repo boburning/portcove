@@ -21,6 +21,16 @@ React UI ── Tauri IPC ───┤
                  SQLite + library tree
 ```
 
+## Public launch observation
+
+External launchers may supply a UUID to CLI `exec` and query `launch show` through
+core's existing retained launch-request record. CLI input parsing normalizes UUID
+syntax; core remains the authority for request reuse, port exclusion, acceptance,
+exact process identity, cancellation and terminal save collection. The read uses
+`Library::launch_request` before service recovery initialization, so observation
+cannot advance a retained operation. API schema 42 exports the nullable core record.
+No daemon, adapter job store or machine output inside raw game streams is added.
+
 ## Public library identity
 
 Core exposes its existing database identity with the effective library root through

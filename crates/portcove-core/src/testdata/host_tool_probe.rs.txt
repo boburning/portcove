@@ -6,7 +6,16 @@ fn main() {
         Some("extractdvd") => owned_conversion(&args),
         Some("--owned-preparation") => owned_preparation(&args),
         Some("--game") if args.iter().any(|argument| argument == "--extract") => owned_preparation(&args),
-        Some("--game") => println!("owned game launched"),
+        Some("--game") => {
+            if let Some(pair) = args.windows(2).find(|pair| pair[0] == "--owned-wait") {
+                let deadline = std::time::Instant::now() + Duration::from_secs(10);
+                while !std::path::Path::new(&pair[1]).exists() {
+                    if std::time::Instant::now() >= deadline { std::process::exit(8); }
+                    thread::sleep(Duration::from_millis(20));
+                }
+            }
+            println!("owned game launched");
+        },
         Some("-help") => {
             println!("chdman verify extractdvd");
             std::process::exit(1);

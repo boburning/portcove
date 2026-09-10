@@ -1207,6 +1207,8 @@ impl CapabilityDocument {
                 "channel".into(),
                 "policy".into(),
                 "exec".into(),
+                "launch".into(),
+                "launch.show".into(),
                 "capabilities".into(),
                 "schema".into(),
             ],
