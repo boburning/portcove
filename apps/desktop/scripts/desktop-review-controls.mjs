@@ -32,6 +32,10 @@ export function reviewControls(browser) {
 
 export async function assertCompactReview(browser, selector) {
   await browser.manage().window().setRect({ width: 960, height: 640 });
+  await browser.wait(() => browser.executeScript(selector => {
+    const review = document.querySelector(selector);
+    return review && !review.getAnimations().some(animation => animation.playState === "running");
+  }, selector), 5_000, "The review must finish its entrance animation before layout is measured");
   const layout = await browser.executeScript(selector => {
     const review = document.querySelector(selector);
     const bounds = review.getBoundingClientRect();
