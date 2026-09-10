@@ -1,17 +1,17 @@
 use super::*;
-use crate::test_fixture::phase;
+use crate::test_fixture::phase as test_phase;
 use crate::{ArtifactIdentity, BackupAction, InstallRecord, ReleaseChannel};
 
 fn fixture_library(root: &Path, installs: &[(&str, bool)]) -> Library {
-    let library = phase("import fixture: open library", || {
+    let library = test_phase("import fixture: open library", || {
         Library::open(root).unwrap()
     });
-    let catalog = phase("import fixture: embedded catalog", || {
+    let catalog = test_phase("import fixture: embedded catalog", || {
         Catalog::embedded().unwrap()
     });
     let port = catalog.port("starship").unwrap();
     let platform = Platform::current().unwrap();
-    let qualification = phase("import fixture: retained qualification", || {
+    let qualification = test_phase("import fixture: retained qualification", || {
         crate::test_fixture::retained_qualification(port, platform).unwrap()
     });
     for &(id, staged) in installs {
@@ -26,13 +26,13 @@ fn fixture_library(root: &Path, installs: &[(&str, bool)]) -> Library {
             size: 42,
         };
         let (manifest_sha256, selected_executable, runtime) =
-            phase("import fixture: create manifest", || {
+            test_phase("import fixture: create manifest", || {
                 Installer::new(library.clone())
                     .unwrap()
                     .create_manifest(id, "starship", id, &artifact, &qualification, &path)
                     .unwrap()
             });
-        phase("import fixture: register install", || {
+        test_phase("import fixture: register install", || {
             library
                 .register_install(
                     &InstallRecord {
@@ -64,7 +64,7 @@ fn fixture(root: &Path, export: &Path) -> LibraryMetadata {
         fs::write(root.join(tree).join("starship/data.bin"), tree).unwrap();
     }
     library.record_successful_launch("starship").unwrap();
-    let service = phase("import fixture: open service", || {
+    let service = test_phase("import fixture: open service", || {
         PortcoveService::new(library).unwrap()
     });
     let original_source = root.with_extension("original.z64");
@@ -72,18 +72,18 @@ fn fixture(root: &Path, export: &Path) -> LibraryMetadata {
     service
         .register_source("star-fox-64", &original_source)
         .unwrap();
-    phase("import fixture: create backup", || {
+    test_phase("import fixture: create backup", || {
         service.create_backup("starship").unwrap()
     });
-    phase("import fixture: set output directory", || {
+    test_phase("import fixture: set output directory", || {
         service
             .set_output_directory("starship", &root.with_extension("starship-output"))
             .unwrap()
     });
-    phase("import fixture: write metadata", || {
+    test_phase("import fixture: write metadata", || {
         service.write_library_metadata(export).unwrap()
     });
-    phase("import fixture: export metadata", || {
+    test_phase("import fixture: export metadata", || {
         service.export_library_metadata().unwrap()
     })
 }
@@ -98,19 +98,19 @@ fn import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empt
     let original_identity = Library::open(&source).unwrap().identity_record().unwrap();
     let open = Library::open(&destination).unwrap();
     let destination_identity = open.identity_record().unwrap();
-    let plan = phase("import recovery: plan", || {
+    let plan = test_phase("import recovery: plan", || {
         PortcoveService::plan_library_import(&export, &source, &destination)
     })
     .unwrap();
     assert!(plan.destination_exists);
     assert!(
-        phase("import recovery: execute", || {
+        test_phase("import recovery: execute", || {
             PortcoveService::import_library(&export, &source, &destination, &plan.plan_sha256)
         })
         .is_err()
     );
     drop(open);
-    let result = phase("import recovery: execute", || {
+    let result = test_phase("import recovery: execute", || {
         PortcoveService::import_library(&export, &source, &destination, &plan.plan_sha256)
     })
     .unwrap();
@@ -180,7 +180,7 @@ fn import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empt
     // Completed import remains idempotent even when the old input is no longer mounted.
     fs::rename(&source, temp.path().join("offline-source")).unwrap();
     assert!(
-        phase("import recovery: resume", || {
+        test_phase("import recovery: resume", || {
             PortcoveService::resume_library_import(&destination)
         })
         .unwrap()
@@ -194,7 +194,7 @@ fn assert_interrupted_import_recovery(phase: TransferPhase) {
     let export = temp.path().join("export.json");
     let destination = temp.path().join("destination");
     fixture(&source, &export);
-    let plan = phase("import recovery: plan", || {
+    let plan = test_phase("import recovery: plan", || {
         PortcoveService::plan_library_import(&export, &source, &destination)
     })
     .unwrap();
@@ -212,7 +212,7 @@ fn assert_interrupted_import_recovery(phase: TransferPhase) {
         fs::write(destination.join("user/starship/data.bin"), b"new save").unwrap();
         fs::rename(&source, temp.path().join("offline-source")).unwrap();
         assert!(
-            phase("import recovery: abort", || {
+            test_phase("import recovery: abort", || {
                 PortcoveService::abort_library_import(&destination)
             })
             .is_err()
@@ -221,7 +221,7 @@ fn assert_interrupted_import_recovery(phase: TransferPhase) {
         assert!(Library::open(&destination).is_err());
     }
     assert!(
-        phase("import recovery: resume", || {
+        test_phase("import recovery: resume", || {
             PortcoveService::resume_library_import(&destination)
         })
         .unwrap()
@@ -256,7 +256,7 @@ fn assert_changed_import_retained(change_input: bool) {
     let export = temp.path().join("export.json");
     let destination = temp.path().join("destination");
     fixture(&source, &export);
-    let plan = phase("import recovery: plan", || {
+    let plan = test_phase("import recovery: plan", || {
         PortcoveService::plan_library_import(&export, &source, &destination)
     })
     .unwrap();
@@ -271,20 +271,20 @@ fn assert_changed_import_retained(change_input: bool) {
     let changed = if change_input { &source } else { &destination };
     fs::write(changed.join("user/starship/data.bin"), b"changed").unwrap();
     assert!(
-        phase("import recovery: resume", || {
+        test_phase("import recovery: resume", || {
             PortcoveService::resume_library_import(&destination)
         })
         .is_err()
     );
     assert!(
-        !phase("import recovery: abort", || {
+        !test_phase("import recovery: abort", || {
             PortcoveService::abort_library_import(&destination)
         })
         .unwrap()
         .completed
     );
     assert!(
-        !phase("import recovery: abort", || {
+        !test_phase("import recovery: abort", || {
             PortcoveService::abort_library_import(&destination)
         })
         .unwrap()
@@ -315,13 +315,13 @@ fn stale_plan_and_existing_data_are_rejected_before_creating_an_import() {
     let export = temp.path().join("export.json");
     let destination = temp.path().join("destination");
     fixture(&source, &export);
-    let plan = phase("import recovery: plan", || {
+    let plan = test_phase("import recovery: plan", || {
         PortcoveService::plan_library_import(&export, &source, &destination)
     })
     .unwrap();
     fs::write(source.join("user/starship/data.bin"), b"changed").unwrap();
     assert!(
-        phase("import recovery: execute", || {
+        test_phase("import recovery: execute", || {
             PortcoveService::import_library(&export, &source, &destination, &plan.plan_sha256)
         })
         .is_err()
@@ -330,7 +330,7 @@ fn stale_plan_and_existing_data_are_rejected_before_creating_an_import() {
     fs::create_dir(&destination).unwrap();
     fs::write(destination.join("unrelated.txt"), b"retain").unwrap();
     assert!(
-        phase("import recovery: plan", || {
+        test_phase("import recovery: plan", || {
             PortcoveService::plan_library_import(&export, &source, &destination)
         })
         .is_err()
@@ -345,7 +345,7 @@ fn interrupted_abort_cannot_be_resumed_as_a_successful_import() {
     let export = temp.path().join("export.json");
     let destination = temp.path().join("destination");
     fixture(&source, &export);
-    let plan = phase("import recovery: plan", || {
+    let plan = test_phase("import recovery: plan", || {
         PortcoveService::plan_library_import(&export, &source, &destination)
     })
     .unwrap();
@@ -368,14 +368,14 @@ fn interrupted_abort_cannot_be_resumed_as_a_successful_import() {
         .unwrap();
     drop(target);
     assert!(
-        phase("import recovery: resume", || {
+        test_phase("import recovery: resume", || {
             PortcoveService::resume_library_import(&destination)
         })
         .is_err()
     );
     assert!(Library::open(&destination).is_err());
     assert!(
-        !phase("import recovery: abort", || {
+        !test_phase("import recovery: abort", || {
             PortcoveService::abort_library_import(&destination)
         })
         .unwrap()
@@ -425,11 +425,11 @@ fn imported_retained_arguments_cannot_grant_themselves_execution_authority() {
     install.selected_executable = executable;
     install.runtime = runtime;
     fs::write(&export, serde_json::to_vec_pretty(&metadata).unwrap()).unwrap();
-    let plan = phase("import recovery: plan", || {
+    let plan = test_phase("import recovery: plan", || {
         PortcoveService::plan_library_import(&export, &source, &destination)
     })
     .unwrap();
-    let error = phase("import recovery: execute", || {
+    let error = test_phase("import recovery: execute", || {
         PortcoveService::import_library(&export, &source, &destination, &plan.plan_sha256)
     })
     .unwrap_err();
@@ -478,11 +478,11 @@ fn a_self_consistent_manifest_cannot_select_an_undeclared_executable_on_import()
     install.selected_executable = executable;
     install.runtime = runtime;
     fs::write(&export, serde_json::to_vec_pretty(&metadata).unwrap()).unwrap();
-    let plan = phase("import recovery: plan", || {
+    let plan = test_phase("import recovery: plan", || {
         PortcoveService::plan_library_import(&export, &source, &destination)
     })
     .unwrap();
-    let error = phase("import recovery: execute", || {
+    let error = test_phase("import recovery: execute", || {
         PortcoveService::import_library(&export, &source, &destination, &plan.plan_sha256)
     })
     .unwrap_err();
