@@ -23,9 +23,9 @@ use crate::{
     OutputAffectedInstall, OutputDestinationPreview, OutputLocationSource, Platform,
     PortDefinition, PortOutputLocation, PortPaths, PortStatus, PortcoveError, ReconcileAction,
     ReconcileResult, ReleaseChannel, ReleaseProvider, RepairItem, RepairItemKind, RepairPlan,
-    ResolvedRelease, RestoreResult, Result, SourceHealth, SourceKind, SourceRecord,
-    SourceRemovalPreview, SourceRequirementRole, SourceVerification, SupervisedLaunchOutcome,
-    UpdateCheck, UpdatePolicy, VerificationReport,
+    ResolvedRelease, RestoreResult, Result, SourceHealth, SourceRecord, SourceRemovalPreview,
+    SourceRequirementRole, SourceVerification, SupervisedLaunchOutcome, UpdateCheck, UpdatePolicy,
+    VerificationReport,
     durability::{prepare_backup_publication, publish_backup_directory},
     operation::{
         LifecycleFaultInjector, LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind,
@@ -257,7 +257,7 @@ impl PortcoveService {
     }
 
     #[cfg(test)]
-    fn with_provider_and_faults(
+    pub(crate) fn with_provider_and_faults(
         library: Library,
         releases: Arc<dyn ReleaseProvider>,
         faults: Arc<dyn LifecycleFaultInjector>,
@@ -1612,13 +1612,13 @@ impl PortcoveService {
         checked_sources: &mut HashMap<String, SourceHealth>,
     ) -> Result<PortStatus> {
         let mut blockers = Vec::new();
-        let retained_port = match status
+        let retained_catalog = match status
             .active
             .as_ref()
-            .map(|install| self.installed_port(install))
+            .map(|install| self.installed_catalog(install))
             .transpose()
         {
-            Ok(port) => port,
+            Ok(catalog) => catalog,
             Err(_) => {
                 status.readiness = Some(LaunchReadiness {
                     launchable: false,
@@ -1630,20 +1630,33 @@ impl PortcoveService {
                 return Ok(status);
             }
         };
-        let port = retained_port.as_ref().unwrap_or(port);
+        let catalog = retained_catalog.as_ref().unwrap_or(&self.catalog);
+        let port = catalog.port(&port.id)?;
         let installed = status.active.is_some();
         let source = port
             .source_profile
             .as_deref()
             .map(|profile_id| {
-                self.source_health(profile_id, installed, registered_sources, checked_sources)
+                Self::source_health(
+                    catalog,
+                    profile_id,
+                    installed,
+                    registered_sources,
+                    checked_sources,
+                )
             })
             .transpose()?;
         let bios = port
             .bios_source_profile
             .as_deref()
             .map(|profile_id| {
-                self.source_health(profile_id, installed, registered_sources, checked_sources)
+                Self::source_health(
+                    catalog,
+                    profile_id,
+                    installed,
+                    registered_sources,
+                    checked_sources,
+                )
             })
             .transpose()?;
         add_source_blocker(&mut blockers, source, false);
@@ -1681,7 +1694,7 @@ impl PortcoveService {
     }
 
     fn source_health(
-        &self,
+        catalog: &Catalog,
         profile_id: &str,
         installed: bool,
         registered_sources: &HashMap<String, SourceRecord>,
@@ -1693,12 +1706,15 @@ impl PortcoveService {
         if !installed {
             return Ok(SourceHealth::NotChecked);
         }
-        if let Some(health) = checked_sources.get(profile_id) {
+        let profile = catalog.source_profile(profile_id)?;
+        // A status batch can contain installations retaining different contracts
+        // for one profile ID. Reuse only the same interpretation of this snapshot.
+        let contract = crate::signed_catalog::digest(&serde_json::to_vec(profile)?);
+        if let Some(health) = checked_sources.get(&contract) {
             return Ok(*health);
         }
-        let profile = self.catalog.source_profile(profile_id)?;
         let health = crate::adapter::inspect_source_health(profile, source);
-        checked_sources.insert(profile_id.into(), health);
+        checked_sources.insert(contract, health);
         Ok(health)
     }
 
@@ -1824,44 +1840,7 @@ impl PortcoveService {
 
     /// Inspect selected source bytes without registering them or changing their baseline.
     pub fn inspect_source(&self, profile_id: &str, path: &Path) -> Result<crate::SourceInspection> {
-        crate::path::unicode(path, "source")?;
-        let absolute = std::path::absolute(path)?;
-        let path = absolute.as_path();
-        let profile = self.catalog.source_profile(profile_id)?;
-        if matches!(
-            profile.kind,
-            SourceKind::File | SourceKind::UpstreamValidatedDisc
-        ) {
-            let mut budget = crate::source_file::HashBudget {
-                operation: None,
-                limit: u64::MAX,
-                hashed: 0,
-                max_zip_entries: 4096,
-            };
-            if profile.kind == SourceKind::UpstreamValidatedDisc {
-                return crate::source_inspection::inspect_pinned_validator(
-                    &self.catalog,
-                    profile_id,
-                    path,
-                    u64::MAX,
-                    &mut budget,
-                );
-            }
-            return crate::source_inspection::inspect_file(
-                &self.catalog,
-                profile_id,
-                path,
-                u64::MAX,
-                &mut budget,
-            );
-        }
-        if profile.kind == SourceKind::FileSet {
-            return crate::source_inspection::inspect_file_set(&self.catalog, profile_id, path);
-        }
-        if matches!(profile.kind, SourceKind::GamecubeDisc | SourceKind::PsxDisc) {
-            return crate::source_inspection::inspect_disc(&self.catalog, profile_id, path);
-        }
-        unreachable!("all source kinds have a shared inspection path")
+        crate::source_inspection::inspect(&self.catalog, profile_id, path)
     }
 
     /// Inspect explicitly selected bytes and attach the active catalog's complete
@@ -1960,18 +1939,7 @@ impl PortcoveService {
         let registered = self.library.source(profile_id)?.ok_or_else(|| {
             PortcoveError::not_found(format!("source profile {profile_id} is not registered"))
         })?;
-        match self.inspect_source(profile_id, &registered.path) {
-            Ok(inspection) => {
-                crate::source_report::available_report(&self.catalog, Some(registered), inspection)
-            }
-            Err(error) => {
-                let health = match registered.path.try_exists() {
-                    Ok(false) => SourceHealth::Missing,
-                    Ok(true) | Err(_) => SourceHealth::Unreadable,
-                };
-                crate::source_report::unavailable_report(&self.catalog, registered, health, &error)
-            }
-        }
+        crate::source_report::registered_report(&self.catalog, registered)
     }
 
     pub(crate) fn inspect_source_record(
@@ -2163,28 +2131,7 @@ impl PortcoveService {
     }
 
     pub(crate) fn verify_source_record(&self, registered: &SourceRecord) -> Result<()> {
-        let profile_id = &registered.profile_id;
-        let actual = self.inspect_source_record(profile_id, &registered.path)?;
-        if actual.sha256 != registered.sha256
-            || actual.size != registered.size
-            || actual.storage_sha256 != registered.storage_sha256
-            || actual.storage_size != registered.storage_size
-        {
-            return Err(PortcoveError::source(format!(
-                "source changed since registration: {}",
-                registered.path.display()
-            ))
-            .detail("profile_id", profile_id)
-            .detail("recorded_sha256", registered.sha256.clone())
-            .detail("actual_sha256", actual.sha256)
-            .detail("recorded_size", registered.size.to_string())
-            .detail("actual_size", actual.size.to_string())
-            .detail("recorded_storage_sha256", registered.storage_sha256.clone())
-            .detail("actual_storage_sha256", actual.storage_sha256)
-            .detail("recorded_storage_size", registered.storage_size.to_string())
-            .detail("actual_storage_size", actual.storage_size.to_string()));
-        }
-        Ok(())
+        crate::source_inspection::verify_registered(&self.catalog, registered)
     }
 
     fn verified_source_record(&self, profile_id: &str) -> Result<SourceRecord> {
@@ -2197,18 +2144,19 @@ impl PortcoveService {
 
     fn verified_source_record_with_checkpoint(
         &self,
+        catalog: &Catalog,
         profile_id: &str,
         checkpoint: &dyn Fn() -> Result<()>,
     ) -> Result<SourceRecord> {
         let registered = self.library.source(profile_id)?.ok_or_else(|| {
             PortcoveError::not_found(format!("source profile {profile_id} is not registered"))
         })?;
-        self.verify_source_record_with_checkpoint(&registered, checkpoint)?;
+        Self::verify_source_record_with_checkpoint(catalog, &registered, checkpoint)?;
         Ok(registered)
     }
 
     fn verify_source_record_with_checkpoint(
-        &self,
+        catalog: &Catalog,
         registered: &SourceRecord,
         checkpoint: &dyn Fn() -> Result<()>,
     ) -> Result<()> {
@@ -2227,7 +2175,7 @@ impl PortcoveService {
             .detail("actual_storage_size", storage_size.to_string()));
         }
         checkpoint()?;
-        self.verify_source_record(registered)?;
+        crate::source_inspection::verify_registered(catalog, registered)?;
         checkpoint()?;
         Ok(())
     }
@@ -3806,8 +3754,8 @@ impl PortcoveService {
                 "launch installation belongs to another port",
             ));
         }
-        let retained_port = self.installed_port(active)?;
-        let port = &retained_port;
+        let catalog = self.installed_catalog(active)?;
+        let port = catalog.port(&active.port_id)?;
         let checkpoint = || operation.map_or(Ok(()), OperationCoordinator::checkpoint);
         checkpoint()?;
         crate::runtime::require_ready(port, Platform::current()?, active)?;
@@ -3823,12 +3771,15 @@ impl PortcoveService {
             let profile_id = port.source_profile.as_deref().ok_or_else(|| {
                 PortcoveError::usage(format!("{} does not accept a source override", port.name))
             })?;
-            let source = Some(self.inspect_source_record(profile_id, path)?);
+            let source = Some(
+                crate::source_inspection::inspect(&catalog, profile_id, path)?
+                    .require_admitted_record()?,
+            );
             checkpoint()?;
             source
         } else if let Some(profile) = &port.source_profile {
             if self.library.source(profile)?.is_some() {
-                Some(self.verified_source_record_with_checkpoint(profile, &checkpoint)?)
+                Some(self.verified_source_record_with_checkpoint(&catalog, profile, &checkpoint)?)
             } else {
                 None
             }
@@ -3878,7 +3829,7 @@ impl PortcoveService {
         self.faults.check(LifecycleFaultPoint::SourcePrepared)?;
         checkpoint()?;
         if let Some(source) = &source {
-            self.verify_source_record_with_checkpoint(source, &checkpoint)?;
+            Self::verify_source_record_with_checkpoint(&catalog, source, &checkpoint)?;
         }
         checkpoint()?;
         self.refresh_upstream_setup_manifest(port, active, &spec.working_directory)?;
@@ -3962,10 +3913,17 @@ impl PortcoveService {
     }
 
     pub(crate) fn installed_port(&self, install: &InstallRecord) -> Result<PortDefinition> {
+        Ok(self
+            .installed_catalog(install)?
+            .port(&install.port_id)?
+            .clone())
+    }
+
+    pub(crate) fn installed_catalog(&self, install: &InstallRecord) -> Result<Catalog> {
         self.managed_install_root(&install.port_id, &install.path)?;
         match Installer::new(self.library.clone())?.retained_catalog(install)? {
-            Some(catalog) => Ok(catalog.port(&install.port_id)?.clone()),
-            None => Ok(self.catalog.port(&install.port_id)?.clone()),
+            Some(catalog) => Ok(catalog),
+            None => Ok(self.catalog.clone()),
         }
     }
 
@@ -8284,6 +8242,171 @@ fn main() {
         );
     }
 
+    #[test]
+    fn status_keeps_shared_source_health_bound_to_each_installed_contract() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let source_root = temporary.path().join("owned-source-set");
+        fs::create_dir(&source_root).unwrap();
+        let mut document = Catalog::embedded().unwrap().authoritative_document();
+        let host = Platform::current().unwrap();
+        let executable_name = if host == Platform::WindowsX86_64 {
+            "owned-game.exe"
+        } else {
+            "owned-game"
+        };
+        let fixture_port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "g-diffuser")
+            .unwrap();
+        // This inert status fixture needs a host path; it does not qualify an
+        // upstream artifact or inherit G-Diffuser's shipping-platform coverage.
+        fixture_port.platforms = vec![host];
+        fixture_port.executable_hints.clear();
+        fixture_port
+            .executable_hints
+            .insert(host, vec![executable_name.into()]);
+        let mut second_port = fixture_port.clone();
+        second_port.id = "g-diffuser-fixture".into();
+        document.ports.push(second_port);
+        let source_catalog = document.source_catalog.as_mut().unwrap();
+        let mut second_contract = source_catalog
+            .contracts
+            .iter()
+            .find(|contract| contract.port_id == "g-diffuser")
+            .unwrap()
+            .clone();
+        second_contract.id = "g-diffuser-fixture-source".into();
+        second_contract.port_id = "g-diffuser-fixture".into();
+        source_catalog.contracts.push(second_contract);
+        let profile = document
+            .source_catalog
+            .as_mut()
+            .unwrap()
+            .identities
+            .iter_mut()
+            .find(|profile| profile.id == "g-diffuser-source-set")
+            .unwrap();
+        let crate::SourceRepresentationKind::FileSet { members } =
+            &mut profile.variants[0].representations[0].kind
+        else {
+            panic!("file-set fixture")
+        };
+        for member in members {
+            let bytes = member.id.as_bytes();
+            fs::write(source_root.join(&member.filenames[0]), bytes).unwrap();
+            member.identities = vec![crate::DigestIdentity {
+                scope: crate::DigestScope::FileSetMember,
+                sha256: Some(crate::signed_catalog::digest(bytes)),
+                sha1: None,
+                crc32: None,
+            }];
+        }
+        let original = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        let mut service = service_with_release(library.clone(), "v2");
+        service.catalog = original.clone();
+        let registered = service
+            .register_source("g-diffuser-source-set", &source_root)
+            .unwrap();
+        let profile = document
+            .source_catalog
+            .as_mut()
+            .unwrap()
+            .identities
+            .iter_mut()
+            .find(|profile| profile.id == "g-diffuser-source-set")
+            .unwrap();
+        let crate::SourceRepresentationKind::FileSet { members } =
+            &mut profile.variants[0].representations[0].kind
+        else {
+            panic!("file-set fixture")
+        };
+        members[0].identities[0].sha256 =
+            Some(crate::signed_catalog::digest(b"different required bytes"));
+        let changed = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        let installer = Installer::new(library.clone()).unwrap();
+        for (port_id, catalog) in [("g-diffuser", &original), ("g-diffuser-fixture", &changed)] {
+            let path = library.versions_dir().join(port_id).join("v1");
+            fs::create_dir_all(&path).unwrap();
+            let executable = path.join(executable_name);
+            fs::write(&executable, b"owned inert status fixture").unwrap();
+            crate::permissions::normalize_archive_entry(&executable, false, true).unwrap();
+            let artifact = ArtifactIdentity {
+                asset_name: "owned-fixture.zip".into(),
+                sha256: crate::signed_catalog::digest(port_id.as_bytes()),
+                size: 4,
+            };
+            let id = Uuid::new_v4().to_string();
+            let qualification =
+                InstallQualification::from_catalog(catalog, port_id, Platform::current().unwrap())
+                    .unwrap();
+            let (manifest_sha256, selected_executable, runtime) = installer
+                .create_manifest(&id, port_id, "v1", &artifact, &qualification, &path)
+                .unwrap();
+            library
+                .register_install(
+                    &InstallRecord {
+                        id,
+                        port_id: port_id.into(),
+                        version: "v1".into(),
+                        path,
+                        channel: ReleaseChannel::Stable,
+                        installed_at: Library::now(),
+                        verified: true,
+                        staged: false,
+                        artifact,
+                        manifest_sha256,
+                        selected_executable,
+                        runtime,
+                    },
+                    true,
+                )
+                .unwrap();
+        }
+        service.catalog = changed;
+        for reverse in [false, true] {
+            if reverse {
+                document.ports.reverse();
+                service.catalog =
+                    Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+            }
+            let statuses = service.statuses().unwrap();
+            for (id, expected) in [
+                ("g-diffuser", SourceHealth::Current),
+                ("g-diffuser-fixture", SourceHealth::Changed),
+            ] {
+                let single = service.status(id).unwrap().readiness.unwrap();
+                let batched = statuses
+                    .iter()
+                    .find(|status| status.port_id == id)
+                    .unwrap()
+                    .readiness
+                    .as_ref()
+                    .unwrap();
+                assert_eq!(single.source, Some(expected), "single {id}");
+                assert_eq!(
+                    batched.source,
+                    Some(expected),
+                    "batch {id}; reversed={reverse}"
+                );
+                assert_eq!(single.blockers, batched.blockers);
+                assert_eq!(single.launchable, expected == SourceHealth::Current);
+            }
+        }
+        assert_eq!(
+            serde_json::to_value(library.source(&registered.profile_id).unwrap()).unwrap(),
+            serde_json::to_value(&registered).unwrap()
+        );
+        fs::remove_dir_all(&source_root).unwrap();
+        for id in ["g-diffuser", "g-diffuser-fixture"] {
+            assert_eq!(
+                service.status(id).unwrap().readiness.unwrap().source,
+                Some(SourceHealth::Missing)
+            );
+        }
+    }
+
     #[cfg(unix)]
     #[test]
     fn status_distinguishes_an_unreadable_registered_source() {
@@ -8486,6 +8609,65 @@ fn main() {
 
         assert_eq!(error.code, crate::ErrorCode::SourceInvalid);
         assert!(error.message.contains("changed since registration"));
+        assert!(!install.join(LAUNCH_MARKER).exists());
+    }
+
+    #[test]
+    fn installed_launch_retains_source_inspection_after_catalog_changes() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = library.versions_dir().join("starship/v1");
+        fs::create_dir_all(&install).unwrap();
+        write_host_test_executable(&install, "starship");
+        register_existing_test_install(&library, "starship", "v1", &install, true);
+        let source = temporary.path().join("owned-source.z64");
+        fs::write(&source, b"original source").unwrap();
+        let mut service = PortcoveService::with_provider(
+            library.clone(),
+            Arc::new(StaticReleaseProvider {
+                version: "v2".into(),
+            }),
+        )
+        .unwrap();
+        let registered = service.register_source("star-fox-64", &source).unwrap();
+        let mut document = service.catalog.authoritative_document();
+        let profile = document
+            .source_catalog
+            .as_mut()
+            .unwrap()
+            .identities
+            .iter_mut()
+            .find(|profile| profile.id == "star-fox-64")
+            .unwrap();
+        for variant in &mut profile.variants {
+            for representation in &mut variant.representations {
+                representation.extensions = vec!["future".into()];
+            }
+        }
+        service.catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+
+        assert!(
+            service
+                .inspect_source_record("star-fox-64", &source)
+                .is_err()
+        );
+        for selected in [None, Some(source.as_path())] {
+            let spec = service.launch_spec("starship", selected).unwrap();
+            assert_eq!(
+                spec.environment.get("PORTCOVE_SOURCE"),
+                Some(&source.to_string_lossy().into_owned())
+            );
+        }
+        assert_eq!(
+            serde_json::to_value(library.source("star-fox-64").unwrap().unwrap()).unwrap(),
+            serde_json::to_value(registered).unwrap()
+        );
+        assert_eq!(fs::read(&source).unwrap(), b"original source");
+        fs::write(&source, b"changed after registration").unwrap();
+        assert_eq!(
+            service.launch_spec("starship", None).unwrap_err().code,
+            crate::ErrorCode::SourceInvalid
+        );
         assert!(!install.join(LAUNCH_MARKER).exists());
     }
 

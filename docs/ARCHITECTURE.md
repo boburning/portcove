@@ -97,7 +97,21 @@ status list. Actual launch still performs immutable-file verification.
 Retained content is not a new admission authority. Metadata import continues to
 check the current platform contract and compares retained execution semantics
 with the existing frozen admission rules; a self-consistent hash cannot authorize
-new launch arguments. Source validation still uses the admitted current catalog.
+new launch arguments. Source registration still uses the admitted current
+catalog. Installed launch resolves both registered and explicit source
+inputs through the verified version-owned catalog, then rechecks their complete
+payload/storage identity after adapter preparation. Legacy manifests retain their
+current-catalog fallback. The shared source inspector takes an explicit catalog;
+this does not register a new source, replace its baseline or authorize a new
+publisher. Managed preparation also uses that version-owned source contract for
+verification, its inspection report and the reviewed definition digest. Prepared
+receipt validation uses the retained contract, so a later catalog edit cannot
+invalidate unchanged prepared inputs. Actual source, setup tool, manifest or
+prepared-output changes still fail the existing review and integrity checks.
+Installed launch readiness uses the retained source and BIOS profiles too.
+Within each status snapshot, source-health results are reused only for identical
+profile content; two installed contracts sharing a profile ID cannot inherit each
+other's result. Uninstalled sources retain their explicit unchecked state.
 Authenticated successor definitions, independent operation eligibility, historical
 admission proofs, and explicit revocation handling remain in the independent
 definition delivery work. No new publisher, signing grant, or updater is enabled.
