@@ -12,10 +12,12 @@ impl Fixture {
     fn native(mode: &str) -> Self {
         let mut fixture = Self::new();
         let native = tempfile::tempdir().unwrap();
-        fs::copy(
-            crate::test_fixture::build_probe(native.path()),
-            &fixture.setup,
-        )
+        test_phase("preparation fixture: native probe and copy", || {
+            fs::copy(
+                crate::test_fixture::build_probe(native.path()),
+                &fixture.setup,
+            )
+        })
         .unwrap();
         crate::permissions::normalize_archive_entry(&fixture.setup, false, true).unwrap();
         fs::write(fixture.install.path.join("owned-setup-mode"), mode).unwrap();
@@ -29,31 +31,39 @@ impl Fixture {
             .find(|port| port.id == PORT)
             .unwrap();
         port.setup_arguments = vec!["--owned-preparation".into()];
-        let qualification =
+        let qualification = test_phase("preparation fixture: native qualification", || {
             crate::test_fixture::retained_qualification(port, Platform::current().unwrap())
-                .unwrap();
-        let (manifest, selected, runtime) = Installer::new(fixture.service.library().clone())
-            .unwrap()
-            .create_manifest(
-                &fixture.install.id,
-                PORT,
-                &fixture.install.version,
-                &fixture.install.artifact,
-                &qualification,
-                &fixture.install.path,
-            )
+        })
+        .unwrap();
+        let (manifest, selected, runtime) =
+            test_phase("preparation fixture: native manifest", || {
+                Installer::new(fixture.service.library().clone())
+                    .unwrap()
+                    .create_manifest(
+                        &fixture.install.id,
+                        PORT,
+                        &fixture.install.version,
+                        &fixture.install.artifact,
+                        &qualification,
+                        &fixture.install.path,
+                    )
+            })
             .unwrap();
         fixture.install.manifest_sha256 = manifest;
         fixture.install.selected_executable = selected;
         fixture.install.runtime = runtime;
-        fixture
-            .service
-            .library()
-            .update_install_manifest(&fixture.install)
-            .unwrap();
-        fixture.service.replace_catalog_for_test(
-            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
-        );
+        test_phase("preparation fixture: update manifest", || {
+            fixture
+                .service
+                .library()
+                .update_install_manifest(&fixture.install)
+        })
+        .unwrap();
+        test_phase("preparation fixture: replace catalog", || {
+            fixture.service.replace_catalog_for_test(
+                Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+            )
+        });
         fixture
     }
 
