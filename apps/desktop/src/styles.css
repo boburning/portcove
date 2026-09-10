@@ -1230,7 +1230,7 @@ h2 { letter-spacing: -0.025em; line-height: var(--leading-tight); }
 .detail-hero h2 { margin-bottom: 0; font-size: var(--text-2xl); color: var(--color-art-text); }
 .detail-hero .eyebrow { color: var(--color-art-text-muted); }
 
-.detail-artwork { padding: var(--space-5) var(--space-6) 0; }
+.detail-artwork { margin-block: var(--space-5); }
 .wide-artwork { width: 100%; aspect-ratio: 16 / 9; background: var(--color-art-neutral); border-radius: var(--radius-md); }
 .artwork-controls { margin: var(--space-5) var(--space-6); }
 .artwork-controls > summary, .artwork-source > summary { cursor: pointer; padding-block: var(--space-3); }

@@ -89,7 +89,6 @@ function DetailDialog({ props, dialog }: { props: DetailPanelProps; dialog: Retu
     <section ref={dialog} className="detail-panel" role="dialog" aria-modal="true" aria-labelledby="port-detail-title">
       <button data-focusable className="close icon-button" aria-label="Close port details" onClick={actions.close}><Icon glyph={X} /></button>
       <DetailHero port={port} state={state} />
-      <DetailArtwork key={`${port.id}:${props.libraryGeneration}`} port={port} />
       <ArtworkControls key={`${port.id}:${props.libraryGeneration}`} port={port} />
       {props.cancellableActivities?.map(activity => <OperationCancellation key={activity.id} operationId={activity.id} state={activity.cancellation ?? undefined} />)}
       <DetailBody perform={props.perform} prepare={props.prepare} port={port} status={status} state={state} sources={sources} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} installPlan={installPlan} selectedChannel={selectedChannel} policy={policy} backups={backups} backupProblems={backupProblems} backupState={backupState} busy={effectiveBusy} outputExternalBusy={busy} libraryGeneration={props.libraryGeneration ?? 0} outputLocationChanged={props.outputLocationChanged} outputApplying={setOutputApplying} actions={actions} />
@@ -116,6 +115,7 @@ function DetailBody({ perform, prepare, port, status, state, sources, installed,
     <SourceIntakeActions controls={sources} busy={Boolean(busy)} />
     {managedPreparation && pendingSetup && <PreparationControl key={`${port.id}:${libraryGeneration}:${status?.active?.id}`} portId={port.id} generation={libraryGeneration} disabled={Boolean(busy) || !sources.sourceReady || !sources.biosReady} run={prepare} />}
     <PrimaryActions invalidInstallation={Boolean(status?.readiness?.blockers.includes("invalid_installation"))} preparationRequired={managedPreparation && pendingSetup} runtimeNeeded={Boolean(status?.readiness?.blockers.includes("missing_runtime"))} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} plan={installPlan} busy={busy} actions={actions} />
+    <DetailArtwork key={`${port.id}:${libraryGeneration}`} port={port} />
     {status?.staged && <section aria-label="Activate staged update"><p>Staged update: <strong>{status.staged.version}</strong>. Activation uses this verified local copy without downloading and keeps the current version for rollback.</p><button data-focusable disabled={Boolean(busy)} onClick={actions.activate}>Activate staged update · {status.staged.version}</button></section>}
     {installed && <GameUpdateControl key={`${port.id}:${libraryGeneration}:${status?.active?.id}:${status?.staged?.id}:${selectedChannel}:${policy}`} portId={port.id} generation={libraryGeneration} policy={policy} busy={Boolean(busy)} perform={perform} />}
     <TrustStrip status={status} />

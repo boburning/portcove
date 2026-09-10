@@ -34,9 +34,13 @@ export async function artworkScenario({ browser, invoke, scenario, output, artif
       await summary.sendKeys(Key.ENTER);
       await browser.wait(until.elementIsEnabled(await browser.findElement(control("cover", "Choose local image"))), 10_000);
     };
-    const waitImage = async selector => browser.wait(() => browser.executeScript(selector => {
-      const image = document.querySelector(selector); return Boolean(image?.complete && image.naturalWidth > 0);
-    }, selector), 10_000, `Core thumbnail must render in ${selector}`);
+    const waitImage = async selector => {
+      const frame = await browser.wait(until.elementLocated(By.css(selector.replace(/ img$/, ""))), 10_000);
+      await browser.executeScript('arguments[0].scrollIntoView({ block: "center" });', frame);
+      await browser.wait(() => browser.executeScript(selector => {
+        const image = document.querySelector(selector); return Boolean(image?.complete && image.naturalWidth > 0);
+      }, selector), 10_000, `Core thumbnail must render in ${selector}`);
+    };
     await open();
     const before = await state("cover");
     const stale = await invoke("reset_artwork", { portId, slot: "cover", expectedRevision: before.choice.revision, generation: bootstrap.generation + 1 });
@@ -51,7 +55,7 @@ export async function artworkScenario({ browser, invoke, scenario, output, artif
       await confirmNative("Choose local artwork", "Open", "File name:", `artwork-picker-${slot}`, source);
       await browser.wait(async () => (await state(slot)).choice.asset_sha256 === digest, 10_000);
     }
-    await waitImage(".detail-cover img"); await waitImage(".wide-artwork img");
+    await waitImage(".wide-artwork img"); await waitImage(".detail-cover img");
     const cover = await state("cover"), detail = await state("detail");
     assert.equal(cover.choice.revision, before.choice.revision + 1);
     const oldChoice = await invoke("reset_artwork", { portId, slot: "cover", expectedRevision: before.choice.revision, generation: bootstrap.generation });

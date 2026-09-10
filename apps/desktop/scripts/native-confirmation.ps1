@@ -34,7 +34,17 @@ while ([DateTime]::UtcNow -lt $deadline) {
     if ($windows.Count -eq 1) { $window = $windows[0]; break }
     Start-Sleep -Milliseconds 100
 }
-if (-not $window) { throw 'Owned native confirmation did not appear.' }
+if (-not $window) {
+    $ownedCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $applicationId)
+    $roots = [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $ownedCondition)
+    $observed = @($roots | ForEach-Object {
+        [pscustomobject]@{ name = $_.Current.Name; class = $_.Current.ClassName; process = $_.Current.ProcessId }
+        $_.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Window)) | ForEach-Object {
+            [pscustomobject]@{ name = $_.Current.Name; class = $_.Current.ClassName; process = $_.Current.ProcessId }
+        }
+    }) | ConvertTo-Json -Compress
+    throw "Owned native confirmation did not appear. Owned window observations: $observed"
+}
 $children = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
 $names = @($children | ForEach-Object { $_.Current.Name })
 $text = $names -join "`n"

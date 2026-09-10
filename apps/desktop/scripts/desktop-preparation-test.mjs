@@ -15,7 +15,7 @@ import { sourceRemovalScenario } from "./desktop-source-removal-test.mjs";
 import { interruptedPreparationScenario } from "./desktop-preparation-recovery-test.mjs";
 import { clickVisible } from "./desktop-review-controls.mjs";
 
-export async function preparationScenarios({ browser, invoke, scenario, library, output, artifacts, cli, tool, confirmNative }) {
+export async function preparationScenarios({ browser, invoke, scenario, library, output, artifacts, cli, tool, confirmNative, onlyArtwork = false }) {
   const command = (args, selectedLibrary = library) => {
     const result = spawnCommand(cli, ["--library", selectedLibrary, "--json", "--non-interactive", ...args], {
       encoding: "utf8", windowsHide: true, timeout: 15_000,
@@ -28,6 +28,10 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
   };
   const host = process.platform === "win32" ? "windows-x86-64"
     : process.platform === "darwin" ? (process.arch === "arm64" ? "macos-aarch64" : "macos-x86-64") : "linux-x86-64";
+  if (onlyArtwork) {
+    await artworkScenario({ browser, invoke, scenario, output, artifacts, command, confirmNative });
+    return;
+  }
   async function seed(portId, mode, chd = false) {
     const port = command(["catalog", "show", portId]);
     const original = path.join(output, `owned-${portId}`);

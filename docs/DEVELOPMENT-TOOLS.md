@@ -191,6 +191,10 @@ status reads usable; restoring it, clearing thumbnails and restarting the render
 must rediscover the authoritative selection. The combined smoke harness is bounded
 to three minutes. These are automated native observations, not human comprehension,
 physical controller ergonomics or artwork-rights evidence.
+For bounded artwork debugging, add `--artwork-only` with the same owned CLI/tool
+inputs. Its evidence method is `native-artwork-smoke`; it runs the startup checks
+and artwork scenario without the other preparation/review scenarios. It does not
+replace the combined native regression run at completion.
 
 ### Command-line handoff verification
 
