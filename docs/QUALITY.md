@@ -62,7 +62,9 @@ to Taplo so checks cover the same files on Windows and Unix hosts.
 
 Generated files, catalogs, fixtures, dependency lockfiles, archived documents,
 and dated release evidence are outside the bulk-format boundary so a formatter
-cannot rewrite their content or invalidate historical evidence. Secondary
+cannot rewrite their content or invalidate historical evidence. This includes
+the Playnite integration and contract tests' `bin` and `obj` directories, which
+MSBuild and NuGet own. Secondary
 languages and scripts remain intentionally unchanged until the repository has a
 specific need and a supported formatter for them. The two initial mechanical
 format commits are listed in `.git-blame-ignore-revs`.
