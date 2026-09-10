@@ -371,6 +371,7 @@ fn a_self_consistent_manifest_cannot_select_an_undeclared_executable_on_import()
     let install = &mut metadata.application_versions[0];
     let path = source.join(&install.path);
     fs::write(path.join("undeclared.exe"), b"not a declared application").unwrap();
+    crate::permissions::normalize_archive_entry(&path.join("undeclared.exe"), false, true).unwrap();
     let mut forged_port = Catalog::embedded()
         .unwrap()
         .port(&install.port_id)

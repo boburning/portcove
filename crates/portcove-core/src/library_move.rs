@@ -360,6 +360,8 @@ mod tests {
             let path = root.join("versions/starship").join(id);
             fs::create_dir_all(&path).unwrap();
             fs::write(path.join("game.exe"), format!("synthetic application {id}")).unwrap();
+            crate::permissions::normalize_archive_entry(&path.join("game.exe"), false, true)
+                .unwrap();
             let artifact = ArtifactIdentity {
                 asset_name: format!("{id}.zip"),
                 sha256: "a".repeat(64),

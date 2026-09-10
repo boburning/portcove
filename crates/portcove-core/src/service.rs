@@ -3972,9 +3972,16 @@ impl PortcoveService {
     ) -> Result<PortDefinition> {
         let root = self.managed_install_root(&fallback.id, install_root)?;
         for install in self.library.all_installs()? {
-            if install.port_id == fallback.id
-                && repair_path_identity(&install.path) == repair_path_identity(&root)
-            {
+            if install.port_id != fallback.id {
+                continue;
+            }
+            refuse_symlink_ancestors(&install.path)?;
+            let registered = match fs::canonicalize(&install.path) {
+                Ok(path) => path,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(error) => return Err(error.into()),
+            };
+            if registered == root {
                 return self.installed_port(&install);
             }
         }
@@ -8699,7 +8706,13 @@ fn main() {
     #[test]
     fn installed_versions_keep_execution_and_saves_after_catalog_contract_changes() {
         let temporary = tempfile::tempdir().unwrap();
-        let library = Library::open(temporary.path().join("library")).unwrap();
+        let root = temporary.path().join("library");
+        fs::create_dir_all(&root).unwrap();
+        // Exercise the same canonical-path distinction as Windows runner
+        // short names and differently cased user/temp directory prefixes.
+        #[cfg(windows)]
+        let root = PathBuf::from(root.to_str().unwrap().to_uppercase());
+        let library = Library::open(root).unwrap();
         let first = register_zelda_install(&library, "v1", true);
         let second = register_zelda_install(&library, "v2", true);
         let staged = register_zelda_install(&library, "v3", false);
