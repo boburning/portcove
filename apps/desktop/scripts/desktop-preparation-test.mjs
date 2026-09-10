@@ -7,6 +7,7 @@ import { By, until } from "selenium-webdriver";
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 import { backupReviewScenario } from "./desktop-backup-review-test.mjs";
 import { removalReviewScenario } from "./desktop-removal-review-test.mjs";
+import { cliHandoffScenario } from "./desktop-cli-handoff-test.mjs";
 import { libraryHandoffScenario } from "./desktop-library-handoff-test.mjs";
 import { adoptionReviewScenario } from "./desktop-adoption-review-test.mjs";
 import { sourceRemovalScenario } from "./desktop-source-removal-test.mjs";
@@ -249,5 +250,6 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
   await sourceRemovalScenario({ browser, invoke, scenario, library, output, artifacts, command, confirmNative });
   await adoptionReviewScenario({ browser, invoke, scenario, library, output, artifacts, command, tool, host, confirmNative });
   await libraryHandoffScenario({ browser, invoke, scenario, library, output, artifacts, command });
+  await cliHandoffScenario({ browser, invoke, scenario, output, artifacts, cli, command });
 
 }

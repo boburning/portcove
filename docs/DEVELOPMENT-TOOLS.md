@@ -185,6 +185,7 @@ CLI or original-file paths remain explicit templates. Program path and argument
 array are also available separately; a terminal command is not a launcher argument
 field. Native discovery does not execute or attest the CLI it finds.
 
+Run `pnpm --dir apps/desktop test:cli-handoff` for the focused checks.
 The host shell test sends spaces, apostrophes, Unicode, literal substitution syntax,
 metacharacters, empty values and trailing separators to a harmless Node process,
 then compares its actual argument vector. Component tests cover missing inputs,

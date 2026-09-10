@@ -14,7 +14,7 @@ import { BackupHistory } from "./BackupHistory";
 import { GameUpdateControl, UpdatePolicyControl } from "./GameUpdates";
 import type { Perform } from "../use-portcove";
 import { ExternalLink as ProjectLink } from "./ExternalLink";
-import { Icon, NavigationHints, Shortcut } from "./ui";
+import { Icon, NavigationHints } from "./ui";
 import { SourceIdentityPanel } from "./SourceIdentity";
 
 export interface DetailActions {

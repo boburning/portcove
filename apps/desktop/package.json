@@ -17,7 +17,8 @@
     "preview": "vite preview",
     "test": "vitest run --pool=threads --isolate --maxWorkers=2 --testTimeout=5000 --reporter=default --reporter=json --outputFile=../../work/ui-tests.json && node ../../scripts/check-vitest-durations.mjs ../../work/ui-tests.json && node scripts/check-theme.mjs",
     "test:theme": "node scripts/check-theme.mjs",
-    "transport:check": "node scripts/generate-transport-types.mjs"
+    "transport:check": "node scripts/generate-transport-types.mjs",
+    "test:cli-handoff": "vitest run scripts/cli-command-shell.test.mjs src/cli-command.test.ts src/components/CliContinuity.test.tsx"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1",
