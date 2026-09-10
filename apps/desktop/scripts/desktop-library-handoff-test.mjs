@@ -10,13 +10,24 @@ import { reviewControls } from "./desktop-review-controls.mjs";
 export async function libraryHandoffScenario({ browser, invoke, scenario, library, output, artifacts, command }) {
   await scenario("native-library-move-invalidates-prior-reviews", async () => {
     assert.equal(path.resolve(library), path.resolve(output, "library"));
+    // Existing preparation scenarios retain recovery work intentionally. Use a
+    // separate owned library, without clearing or bypassing those journals.
+    const source = path.join(output, "handoff-library");
+    const ownedCommand = args => command(args, source);
     const destination = path.join(output, "moved-library");
     const portId = "zelda64-recomp";
+    ownedCommand(["adopt", path.join(output, "owned-adoption-review"), "--port", portId, "--yes"]);
+    const paths = ownedCommand(["paths", portId]);
+    await writeFile(path.join(paths.user_data_root, "unrelated-save.bin"), "preserved handoff save", { flag: "wx" });
+    const backup = ownedCommand(["backup", "create", portId]);
+    const profile = command(["catalog", "show", "opengoal-jak1"]).source_profile;
+    ownedCommand(["source", "add", profile, path.join(output, "opengoal-jak1.iso")]);
+    const selected = await invoke("set_default_library", { path: source });
+    assert.equal(selected.ok, true);
     const before = (await invoke("get_bootstrap_status")).value;
-    const active = command(["status", portId]).active;
-    const paths = command(["paths", portId]);
-    const preserved = await Promise.all([path.join(paths.user_data_root, "general.json"), path.join(paths.user_data_root, "unrelated-save.bin")].map(fileIdentity));
-    const sources = command(["source", "list"]);
+    const active = ownedCommand(["status", portId]).active;
+    const preserved = await Promise.all([path.join(paths.user_data_root, "general.json"), path.join(paths.user_data_root, "unrelated-save.bin"), path.join(backup.path, "data/general.json")].map(fileIdentity));
+    const sources = ownedCommand(["source", "list"]);
     const { click, button } = reviewControls(browser);
     await browser.navigate().refresh();
     await click(By.xpath('//nav//button[contains(., "Settings")]'));
@@ -25,7 +36,7 @@ export async function libraryHandoffScenario({ browser, invoke, scenario, librar
     await click(button("Review move"));
     await browser.wait(until.elementLocated(button("Move to this folder")), 15_000);
     const plan = await browser.findElement(By.css('[aria-label="Library move plan"]')).getText();
-    assert.ok(plan.includes(destination) && plan.includes(library));
+    assert.ok(plan.includes(destination) && plan.includes(source));
     await browser.executeScript(axe.source);
     const accessibility = await browser.executeAsyncScript(done => window.axe.run().then(done));
     const report = path.join(output, "library-move-accessibility.json");
@@ -52,7 +63,7 @@ export async function libraryHandoffScenario({ browser, invoke, scenario, librar
     const copied = [];
     for (const original of preserved) {
       assert.deepEqual(await fileIdentity(original.path), original);
-      const copy = await fileIdentity(path.join(current.value.user_data_root, path.basename(original.path)));
+      const copy = await fileIdentity(path.join(destination, path.relative(paths.library_root, original.path)));
       assert.equal(copy.sha256, original.sha256); copied.push(copy);
     }
     assert.deepEqual((await invoke("get_sources")).value, sources);

@@ -1,7 +1,7 @@
 // An isolated durable-state fixture followed by real core recovery and native rendering.
 import assert from "node:assert/strict";
 import path from "node:path";
-import { writeFile, realpath } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
 import axe from "axe-core";
 import { By, until } from "selenium-webdriver";
@@ -9,9 +9,6 @@ import { By, until } from "selenium-webdriver";
 export async function interruptedPreparationScenario({ browser, invoke, scenario, library, output, artifacts, command }) {
   await scenario("native-interrupted-preparation-recovery", async () => {
     assert.equal(path.resolve(library), path.resolve(output, "library"));
-    const activeLibrary = await realpath((await invoke("get_bootstrap_status")).value.library_root);
-    assert.equal(path.dirname(activeLibrary), await realpath(output));
-    assert.ok(["library", "moved-library"].includes(path.basename(activeLibrary)));
     const before = command(["status", "opengoal-jak2"]);
     const activity = command(["activity"]).find(item => item.operation === "prepare" && item.target_id === before.port_id && item.status === "cancelled");
     assert.ok(activity);
@@ -19,7 +16,7 @@ export async function interruptedPreparationScenario({ browser, invoke, scenario
     retained.at(-1).complete = false;
     // Simulate the durable state left before a worker's terminal update, only
     // in this harness's owned library. This is not a physical process-crash test.
-    const database = new DatabaseSync(path.join(activeLibrary, "portcove.sqlite3"));
+    const database = new DatabaseSync(path.join(library, "portcove.sqlite3"));
     try {
       database.exec("PRAGMA busy_timeout=1000");
       database.exec("BEGIN IMMEDIATE");
