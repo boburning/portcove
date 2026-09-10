@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "repository": "boburning/portcove",
+  "title": {
+    "types": [
+      "feat",
+      "fix",
+      "docs",
+      "test",
+      "refactor",
+      "perf",
+      "build",
+      "ci",
+      "chore",
+      "revert"
+    ],
+    "max_length": 72
+  },
+  "branch": {
+    "prefixes": [
+      "feature/",
+      "fix/",
+      "docs/",
+      "test/",
+      "refactor/",
+      "performance/",
+      "build/",
+      "ci/",
+      "chore/",
+      "release/"
+    ],
+    "bot_prefixes": ["dependabot/"]
+  },
+  "body": {
+    "headings": [
+      "Linked issue",
+      "Outcome and scope",
+      "Verification",
+      "Review and risk",
+      "Readiness and follow-ups"
+    ],
+    "issue_keywords": ["Closes", "Fixes", "Resolves", "Refs", "Related to"]
+  },
+  "bot_actors": ["dependabot[bot]"]
+}

@@ -112,6 +112,17 @@ as exited identities. `just development-tools` exercises live-process timeout,
 later exit, stale identity and ambiguous discovery using owned Windows processes;
 these platform-specific tests are explicitly skipped on other hosts.
 
+Owned-process discovery validates creation times at every parent link, including
+the selected driver. A parent created after its apparent child cannot establish
+ownership. Missing timestamps and cycles cannot establish
+ancestry; equal timestamps remain valid for the operating system's time
+resolution. Only exactly one matching application permits native confirmation
+or shutdown observation. Refusals report matching/descendant counts and missing
+image-path counts without guessing ownership. The regression fixtures model
+stale parent references independently from the live-process checks; they do not
+claim to reproduce an observed operating-system PID reuse. This follows the
+[Windows parent-process identity contract](https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-process).
+
 For bounded diagnosis, `--restart-cycles 1..10` repeats the actual process restart
 and records preference persistence and shutdown observations. `--reload-cycles
 0..25` optionally adds repeated renderer reloads and concurrent read-only native

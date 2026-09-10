@@ -238,14 +238,23 @@ impl LifecycleFaultInjector for Fault {
 }
 
 fn assert_recovery(point: LifecycleFaultPoint, publishable: bool) {
-    let mut fixture = Fixture::native("success");
+    use crate::test_fixture::phase;
+    let mut fixture = phase("preparation recovery: native fixture", || {
+        Fixture::native("success")
+    });
     let original = crate::library_transfer::reviewed_tree(&fixture.install.path).unwrap();
-    fixture.set_faults(Arc::new(Fault(point)));
+    phase("preparation recovery: open fault-injected service", || {
+        fixture.set_faults(Arc::new(Fault(point)))
+    });
     assert_eq!(
-        fixture.run(|_| {}).unwrap_err().message,
+        phase("preparation recovery: interrupt", || fixture.run(|_| {}))
+            .unwrap_err()
+            .message,
         "owned preparation interruption"
     );
-    fixture.set_faults(Arc::new(NoLifecycleFaults));
+    phase("preparation recovery: reopen and recover", || {
+        fixture.set_faults(Arc::new(NoLifecycleFaults))
+    });
     let store = OperationStore::new(fixture.service.library().clone());
     let mut journal = store.all().unwrap().remove(0);
     let private = journal.paths.staging.clone().unwrap();
@@ -255,7 +264,9 @@ fn assert_recovery(point: LifecycleFaultPoint, publishable: bool) {
             .library()
             .try_lock_port(PORT, "owned recovery fixture")
             .unwrap();
-        super::super::recover(&fixture.service, &store, &mut journal)
+        phase("preparation recovery: recover journal", || {
+            super::super::recover(&fixture.service, &store, &mut journal)
+        })
     };
     if publishable {
         recovered.unwrap();
@@ -270,7 +281,10 @@ fn assert_recovery(point: LifecycleFaultPoint, publishable: bool) {
             fixture.service.status(PORT).unwrap().active.unwrap().id,
             fixture.install.id
         );
-        let retried = fixture.run(|_| {}).unwrap();
+        let retried = phase("preparation recovery: retry privately", || {
+            fixture.run(|_| {})
+        })
+        .unwrap();
         assert_ne!(retried.id, journal.id);
         assert!(private.exists() || point == LifecycleFaultPoint::PreparationJournaled);
         assert_eq!(store.all().unwrap().len(), 1);

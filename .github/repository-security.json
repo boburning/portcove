@@ -1,6 +1,8 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "repository": "boburning/portcove",
   "private_vulnerability_reporting": true,
-  "allow_auto_merge": true
+  "allow_auto_merge": true,
+  "merge_commit_title": "PR_TITLE",
+  "merge_commit_message": "BLANK"
 }
