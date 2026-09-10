@@ -185,7 +185,9 @@ pub(crate) fn ensure_empty_destination(root: &Path) -> Result<()> {
             match name {
                 "locks" | "logs" => true,
                 "versions" | "user" | "source-inbox" | "backups" | "toolchains" | "staging"
-                | "downloads" | "recovery" => fs::read_dir(entry.path())?.next().is_none(),
+                | "downloads" | "recovery" | "artwork" | "artwork-cache" => {
+                    fs::read_dir(entry.path())?.next().is_none()
+                }
                 _ => false,
             }
         } else {
@@ -217,6 +219,21 @@ pub(crate) fn ensure_empty_destination(root: &Path) -> Result<()> {
 }
 
 pub(crate) fn metadata_tables_empty(connection: &rusqlite::Connection) -> Result<bool> {
+    let has_artwork: bool = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='artwork_assets')",
+        [],
+        |row| row.get(0),
+    )?;
+    if has_artwork {
+        let occupied: bool = connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM artwork_assets) OR EXISTS(SELECT 1 FROM artwork_choices)",
+            [],
+            |row| row.get(0),
+        )?;
+        if occupied {
+            return Ok(false);
+        }
+    }
     Ok(connection.query_row(
         "SELECT NOT (EXISTS(SELECT 1 FROM installs) OR EXISTS(SELECT 1 FROM sources)
          OR EXISTS(SELECT 1 FROM port_settings) OR EXISTS(SELECT 1 FROM launch_history)

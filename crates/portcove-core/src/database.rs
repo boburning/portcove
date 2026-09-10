@@ -10,7 +10,7 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior};
 
 use crate::{PortcoveError, Result};
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 23;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 24;
 
 struct Migration {
     version: i64,
@@ -157,6 +157,12 @@ const MIGRATIONS: &[Migration] = &[
         name: "retained installation contract writer protocol",
         apply: migration_23,
         verify: verify_migration_23,
+    },
+    Migration {
+        version: 24,
+        name: "managed local artwork",
+        apply: crate::artwork_store::migrate,
+        verify: verify_migration_24,
     },
 ];
 
@@ -859,6 +865,24 @@ fn migration_23(transaction: &Transaction<'_>) -> Result<()> {
     verify_migration_23(transaction)
 }
 
+fn verify_migration_24(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "artwork_assets",
+        &["sha256", "payload", "byte_size"],
+    )?;
+    require_columns(
+        connection,
+        "artwork_choices",
+        &["port_id", "slot", "revision", "asset_sha256"],
+    )?;
+    require_columns(
+        connection,
+        "artwork_thumbnails",
+        &["asset_sha256", "format_version", "sha256", "byte_size"],
+    )
+}
+
 fn verify_migration_23(connection: &Connection) -> Result<()> {
     require_columns(
         connection,
@@ -1054,7 +1078,7 @@ mod tests {
         let current = crate::Library::open(root).unwrap();
         assert_eq!(
             recorded_versions(&connect(root).unwrap()).unwrap().last(),
-            Some(&23)
+            Some(&CURRENT_SCHEMA_VERSION)
         );
         // Current clients retain normal concurrent shared access after migration.
         let other = crate::Library::open(root).unwrap();
@@ -1199,6 +1223,7 @@ mod tests {
         schema_20: 20,
         schema_21: 21,
         schema_22: 22,
+        schema_23: 23,
     }
 
     #[test]

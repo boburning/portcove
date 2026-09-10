@@ -23,6 +23,8 @@ pub struct LibraryMetadata {
     pub application_versions: Vec<InstallRecord>,
     pub port_settings: Vec<LibraryPortSettings>,
     pub launch_history: Vec<LibraryLaunchHistory>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub artwork: Option<crate::ArtworkMetadata>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -39,6 +41,7 @@ pub enum LibraryContentKind {
     SourceInbox,
     Backups,
     Toolchains,
+    LocalArtwork,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -117,9 +120,10 @@ impl Library {
         }
         let port_settings = read_settings(&transaction)?;
         let launch_history = read_launch_history(&transaction)?;
+        let artwork = crate::artwork_store::snapshot(&transaction)?;
         transaction.commit()?;
         Ok(LibraryMetadata {
-            schema_version: 2,
+            schema_version: 3,
             exported_at: Self::now(),
             original_root,
             content_roots: [
@@ -128,6 +132,7 @@ impl Library {
                 (LibraryContentKind::SourceInbox, "source-inbox"),
                 (LibraryContentKind::Backups, "backups"),
                 (LibraryContentKind::Toolchains, "toolchains"),
+                (LibraryContentKind::LocalArtwork, "artwork"),
             ]
             .into_iter()
             .map(|(kind, relative_path)| LibraryContentRoot {
@@ -139,6 +144,7 @@ impl Library {
             application_versions,
             port_settings,
             launch_history,
+            artwork: Some(artwork),
         })
     }
 }
@@ -287,7 +293,7 @@ mod tests {
             serde_json::to_value(&metadata.source_references).unwrap(),
             serde_json::to_value(&before).unwrap()
         );
-        assert_eq!(metadata.schema_version, 2);
+        assert_eq!(metadata.schema_version, 3);
         assert_eq!(metadata.content_roots.len(), 5);
         assert_eq!(
             metadata.content_roots[2].kind,

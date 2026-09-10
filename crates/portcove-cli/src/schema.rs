@@ -30,6 +30,28 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
     serde_json::Value::Object(
         [
             (
+                "artwork_state",
+                serde_json::json!(schema_for_contract::<portcove_core::ArtworkState>(contract)),
+            ),
+            (
+                "artwork_thumbnail",
+                serde_json::json!(schema_for_contract::<portcove_core::ArtworkThumbnail>(
+                    contract
+                )),
+            ),
+            (
+                "artwork_cache_clear",
+                serde_json::json!(schema_for_contract::<portcove_core::ArtworkCacheClear>(
+                    contract
+                )),
+            ),
+            (
+                "artwork_assets",
+                serde_json::json!(
+                    schema_for_contract::<Vec<portcove_core::LocalArtworkAsset>>(contract)
+                ),
+            ),
+            (
                 "api_response_port_status",
                 serde_json::json!(schema_for_contract::<ApiResponse<PortStatus>>(contract)),
             ),

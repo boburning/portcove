@@ -284,6 +284,9 @@ fn restore_metadata(target: &Library, metadata: &LibraryMetadata) -> Result<()> 
     for launch in &metadata.launch_history {
         transaction.execute("INSERT INTO launch_history(port_id, last_launched_at, successful_launches) VALUES (?1, ?2, ?3)", rusqlite::params![launch.port_id, launch.last_launched_at, launch.successful_launches])?;
     }
+    if let Some(artwork) = &metadata.artwork {
+        crate::artwork_store::restore(&transaction, artwork)?;
+    }
     transaction.commit()?;
     Ok(())
 }

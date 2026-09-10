@@ -408,6 +408,13 @@ impl Library {
         })
     }
 
+    pub(crate) fn try_lock_artwork(&self) -> Result<PortOperationGuard> {
+        crate::path::refuse_symlink_ancestors(&self.locks_dir().join("artwork.lock"))?;
+        Ok(PortOperationGuard {
+            file: self.acquire_lock("artwork", "local artwork", "change-artwork")?,
+        })
+    }
+
     pub(crate) fn try_lock_port_for_launch_recovery(
         &self,
         port_id: &str,
