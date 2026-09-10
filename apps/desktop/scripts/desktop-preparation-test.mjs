@@ -14,6 +14,7 @@ import { adoptionReviewScenario } from "./desktop-adoption-review-test.mjs";
 import { sourceRemovalScenario } from "./desktop-source-removal-test.mjs";
 import { interruptedPreparationScenario } from "./desktop-preparation-recovery-test.mjs";
 import { clickVisible } from "./desktop-review-controls.mjs";
+import { readinessScenario } from "./desktop-readiness-test.mjs";
 
 export async function preparationScenarios({ browser, invoke, scenario, library, output, artifacts, cli, tool, confirmNative, onlyArtwork = false }) {
   const command = (args, selectedLibrary = library) => {
@@ -93,6 +94,7 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
     await browser.wait(async () => (await status(port.id)).successful_launches > 0, 15_000);
     assert.equal(await readFile(log, "utf8"), "setup must not run during desktop Play");
   });
+  await readinessScenario({ browser, scenario, output, artifacts, command, open });
   await scenario("native-retained-contract-repair-state", async () => {
     const port = command(["catalog", "show", "opengoal-jak1"]);
     const active = (await status(port.id)).active;
