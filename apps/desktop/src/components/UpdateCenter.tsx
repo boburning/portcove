@@ -1,14 +1,16 @@
 import { FailureDetails } from "./FailureDetails";
 import { ActivityDiagnostic } from "./ActivityDiagnostic";
+import { RecoveryReview } from "./RecoveryReview";
 import { errorText } from "../view-model";
 import { OperationCancellation } from "./OperationCancellation";
 import type { LucideIcon } from "lucide-react";
 import { AlertTriangle, Check, CircleMinus, Download, History, LoaderCircle, PackageCheck, RefreshCw, ShieldCheck } from "lucide-react";
-import type { ActivityOperation, ActivityRecord, PortDefinition, PortStatus, UpdateCheck, UpdateCheckOutcome } from "../types";
+import type { ActivityOperation, ActivityRecord, DoctorReport, PortDefinition, PortStatus, UpdateCheck, UpdateCheckOutcome } from "../types";
 import { EmptyState, Icon } from "./ui";
 
-export function UpdateCenter({ ports, statuses, activities, outcomes, busy, checkAll, onSelect, onOpenSources, generation }: {
+export function UpdateCenter({ ports, statuses, activities, outcomes, busy, checkAll, onSelect, onOpenSources, generation, repair }: {
   generation: number;
+  repair?: DoctorReport["repair"];
   ports: PortDefinition[];
   statuses: Map<string, PortStatus>;
   activities: ActivityRecord[];
@@ -50,6 +52,7 @@ export function UpdateCenter({ ports, statuses, activities, outcomes, busy, chec
           {outcome?.error && <small className="update-error">{errorText(outcome.error)}</small>}
         </button>;
       })}</div>}
+    <RecoveryReview repair={repair} ports={ports} />
     <ActivityHistory ports={ports} activities={activities} onSelect={onSelect} onOpenSources={onOpenSources} generation={generation} />
   </section>;
 }

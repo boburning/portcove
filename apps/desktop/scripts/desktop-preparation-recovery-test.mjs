@@ -62,5 +62,19 @@ export async function interruptedPreparationScenario({ browser, invoke, scenario
     const evidence = path.join(output, "interrupted-preparation-recovery.json");
     await writeFile(evidence, JSON.stringify({ method: "simulated durable interruption with real CLI recovery and native UI", activity: recovered, repair, captures: retained }, null, 2), { flag: "wx" }); artifacts.push(evidence);
     await browser.executeScript('arguments[0].scrollIntoView({ block: "start" });', row);
+    const review = await browser.findElement(By.css(`[data-recovery-operation="${activity.id}"]`));
+    await review.findElement(By.css("summary")).click();
+    assert.match(await review.getText(), /Unfinished operation/);
+    assert.ok((await review.getText()).includes(privatePath));
+    assert.match(await review.getText(), /cannot be resumed/);
+    assert.equal((await review.findElements(By.css("button,a"))).length, 0);
+    await browser.executeScript('arguments[0].scrollIntoView({ block: "start" });', review);
+    const recoveryAccessibility = await browser.executeAsyncScript(done => window.axe.run().then(done));
+    const recoveryReport = path.join(output, "recovery-review-accessibility.json");
+    await writeFile(recoveryReport, JSON.stringify(recoveryAccessibility, null, 2), { flag: "wx" }); artifacts.push(recoveryReport);
+    assert.deepEqual(recoveryAccessibility.violations.map(item => item.id), []);
+    const recoveryImage = path.join(output, "native-retained-work-review.png");
+    await writeFile(recoveryImage, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" }); artifacts.push(recoveryImage);
+    await browser.executeScript('arguments[0].scrollIntoView({ block: "start" });', row);
   });
 }
