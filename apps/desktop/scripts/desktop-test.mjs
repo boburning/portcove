@@ -13,6 +13,7 @@ import { preparationScenarios } from "./desktop-preparation-test.mjs";
 import { nativeConfirmation } from "./desktop-native-confirmation.mjs";
 import { controllerScenario } from "./desktop-controller-test.mjs";
 import { accessibleNavigationScenario } from "./desktop-accessibility-test.mjs";
+import { reloadScenario } from "./desktop-reload-test.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const { values } = parseArgs({ options: {
@@ -21,6 +22,7 @@ const { values } = parseArgs({ options: {
   "preparation-cli": { type: "string" }, "preparation-tool": { type: "string" },
   "artwork-only": { type: "boolean", default: false },
   "restart-cycles": { type: "string", default: "1" },
+  "reload-cycles": { type: "string", default: "0" },
 } });
 for (const name of ["app", "driver", "native-driver", "output"]) {
   if (!values[name] || !path.isAbsolute(values[name])) throw new Error(`--${name} requires an absolute path`);
@@ -28,12 +30,15 @@ for (const name of ["app", "driver", "native-driver", "output"]) {
 const port = Number(values.port);
 const restartCycles = Number(values["restart-cycles"]);
 if (!Number.isInteger(restartCycles) || restartCycles < 1 || restartCycles > 10) throw new Error("--restart-cycles must be 1..10");
+const reloadCycles = Number(values["reload-cycles"]);
+if (!Number.isInteger(reloadCycles) || reloadCycles < 0 || reloadCycles > 25) throw new Error("--reload-cycles must be 0..25");
 if (values["artwork-only"] && !values["preparation-cli"]) throw new Error("--artwork-only requires the owned preparation CLI/tool inputs");
 if (!Number.isInteger(port) || port < 1024 || port > 65533) throw new Error("--port must be 1024..65533");
 const inputs = await Promise.all(["app", "driver", "native-driver"].map(name => fileIdentity(values[name])));
 inputs.push(await fileIdentity(fileURLToPath(import.meta.url)));
 inputs.push(await fileIdentity(fileURLToPath(new URL("./desktop-controller-test.mjs", import.meta.url))));
 for (const name of ["native-session.ps1", "native-process-tree.ps1"]) inputs.push(await fileIdentity(fileURLToPath(new URL(name, import.meta.url))));
+inputs.push(await fileIdentity(fileURLToPath(new URL("desktop-reload-test.mjs", import.meta.url))));
 if (values["preparation-cli"] || values["preparation-tool"]) {
   for (const name of ["preparation-cli", "preparation-tool"]) {
     if (!values[name] || !path.isAbsolute(values[name])) throw new Error(`--${name} requires an absolute path`);
@@ -210,6 +215,7 @@ try {
       confirmNative: nativeConfirmation({ application: values.app, driverPid: driver.pid, output, artifacts }),
       cli: values["preparation-cli"], tool: values["preparation-tool"], onlyArtwork: values["artwork-only"] });
   }
+  if (reloadCycles) await reloadScenario({ browser, scenario, output, artifacts, cycles: reloadCycles });
 } catch (error) {
   checks.push({ scenario: "harness", outcome: "failed", message: error.message });
   if (browser) {

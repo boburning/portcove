@@ -16,7 +16,7 @@ if ($Mode -eq 'Snapshot') {
                 $started = $process.StartTime.ToUniversalTime()
                 if ([Math]::Abs(($started - $entry.CreationDate.ToUniversalTime()).TotalMilliseconds) -gt 1 -or
                     -not [string]::Equals($process.MainModule.FileName, $entry.ExecutablePath, [StringComparison]::OrdinalIgnoreCase)) { throw 'Native process identity changed during snapshot.' }
-                [pscustomobject]@{ pid = $entry.ProcessId; path = $entry.ExecutablePath; started_filetime = $process.StartTime.ToFileTimeUtc() }
+                [pscustomobject]@{ pid = $entry.ProcessId; path = $entry.ExecutablePath; started_filetime = $process.StartTime.ToFileTimeUtc().ToString([Globalization.CultureInfo]::InvariantCulture) }
             } catch [InvalidOperationException] {
                 if (-not $process.HasExited) { throw }
             } finally { $process.Dispose() }

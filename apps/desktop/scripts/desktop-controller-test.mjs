@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
+import { By } from "selenium-webdriver";
 
 /** Native layout/input observations with an injected pad, not physical-controller evidence. */
 export async function controllerScenario({ browser, scenario, output, artifacts }) {
   await scenario("native-controller-large-list", async () => {
+    // A newly restarted window may be behind the host. Establish native input
+    // focus with an ordinary navigation click before injecting the pad fixture.
+    await browser.findElement(By.css('nav[aria-label="Primary navigation"] button')).click();
     const result = await browser.executeAsyncScript(async done => {
       const physical = Array.from(navigator.getGamepads()).filter(Boolean).map(pad => ({ id: pad.id, mapping: pad.mapping }));
       const previousPads = navigator.getGamepads;

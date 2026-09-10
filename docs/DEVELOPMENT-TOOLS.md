@@ -90,6 +90,22 @@ Install/progress/cancellation requires a reviewed artifact fixture and is
 explicitly not-run in this smoke suite. Core/component tests and human acceptance
 remain separate. An incomplete report is not full desktop qualification.
 
+Windows restart checks capture the exact driver-owned application and child
+process identities before closing the session. Before reusing its WebView profile,
+the harness waits at most five seconds for those processes to exit; it never kills
+them to satisfy the check. Process IDs with different creation times are treated
+as exited identities. `just development-tools` exercises live-process timeout,
+later exit, stale identity and ambiguous discovery using owned Windows processes;
+these platform-specific tests are explicitly skipped on other hosts.
+
+For bounded diagnosis, `--restart-cycles 1..10` repeats the actual process restart
+and records preference persistence and shutdown observations. `--reload-cycles
+0..25` optionally adds repeated renderer reloads and concurrent read-only native
+requests matching the five ordinary library refresh calls. It records the first
+failed batch without retrying it. The defaults remain one restart and no extra
+reload probe, within the existing three-minute harness deadline. Partial reports
+and failed runs remain evidence; a later pass does not establish a root-cause fix.
+
 `development-evidence.mjs` writes format version 1 observations with a full
 revision, executable hash, method, scenario outcomes, and hashed artifact
 references. It never overwrites a report. Artifact references are local paths;
