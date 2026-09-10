@@ -252,7 +252,8 @@ test(
   "Windows fixture setup exports a usable directory and rejects invalid roots without partial exports",
   { skip: process.platform !== "win32" },
   async () => {
-    const { mkdtemp, mkdir, writeFile, rm } = await import("node:fs/promises");
+    const { mkdtemp, mkdir, writeFile, realpath, rm } =
+      await import("node:fs/promises");
     const { tmpdir } = await import("node:os");
     const path = await import("node:path");
     const { spawnSync } = await import("node:child_process");
@@ -284,30 +285,33 @@ test(
             timeout: 10_000,
           },
         );
-      await writeFile(environmentFile, "");
-      const result = invoke(script, {
-        RUNNER_TEMP: selected,
-        GITHUB_ENV: environmentFile,
-      });
-      assert.ifError(result.error);
-      assert.equal(result.status, 0, result.stdout + result.stderr);
-      const exported = Object.fromEntries(
-        (await readFile(environmentFile, "utf8"))
-          .trim()
-          .split(/\r?\n/)
-          .map((line) => {
-            const delimiter = line.indexOf("=");
-            return [line.slice(0, delimiter), line.slice(delimiter + 1)];
-          }),
-      );
-      assert.deepEqual(exported, { TEMP: selected, TMP: selected });
-      const consumer = invoke("[System.IO.Path]::GetTempPath()", exported);
-      assert.ifError(consumer.error);
-      assert.equal(consumer.status, 0, consumer.stderr);
-      assert.equal(
-        path.resolve(consumer.stdout.trim()),
-        path.resolve(selected),
-      );
+      const selectedIdentity = await realpath(selected);
+      for (const selectedPath of [selected, `${selected}${path.sep}.`]) {
+        await writeFile(environmentFile, "");
+        const result = invoke(script, {
+          RUNNER_TEMP: selectedPath,
+          GITHUB_ENV: environmentFile,
+        });
+        assert.ifError(result.error);
+        assert.equal(result.status, 0, result.stdout + result.stderr);
+        const exported = Object.fromEntries(
+          (await readFile(environmentFile, "utf8"))
+            .trim()
+            .split(/\r?\n/)
+            .map((line) => {
+              const delimiter = line.indexOf("=");
+              return [line.slice(0, delimiter), line.slice(delimiter + 1)];
+            }),
+        );
+        assert.deepEqual(exported, {
+          TEMP: selectedIdentity,
+          TMP: selectedIdentity,
+        });
+        const consumer = invoke("[System.IO.Path]::GetTempPath()", exported);
+        assert.ifError(consumer.error);
+        assert.equal(consumer.status, 0, consumer.stderr);
+        assert.equal(await realpath(consumer.stdout.trim()), selectedIdentity);
+      }
       for (const invalid of [
         "",
         "relative",
