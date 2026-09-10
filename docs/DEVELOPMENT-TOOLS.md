@@ -196,6 +196,16 @@ inputs. Its evidence method is `native-artwork-smoke`; it runs the startup check
 and artwork scenario without the other preparation/review scenarios. It does not
 replace the combined native regression run at completion.
 
+The native navigation-copy scenario opens the command palette with the actual
+host keyboard shortcut, checks keyboard hints and the generic controller-hint
+presentation, then expands its labels by approximately 35% at 125% text size.
+It checks the compact dialog and its controls for horizontal clipping and captures
+a screenshot and accessibility report. The controller input-mode and expanded
+strings are explicit presentation fixtures; they do not establish physical button
+mapping, translated-language quality or screen-reader comprehension. Component
+tests separately observe the progress live region across repeated count updates:
+only the phase text changes there, while readable counts remain outside it.
+
 ### Command-line handoff verification
 
 The command details surface binds the effective library and names the shell whose

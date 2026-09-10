@@ -1,4 +1,34 @@
-import type { DesktopError, PortDefinition, PortStatus, ReadinessBlocker, SourceProfile, SourceRecord, UpdateSnapshot } from "./types";
+import type { DesktopError, OperationEvent, PortDefinition, PortStatus, ReadinessBlocker, SourceProfile, SourceRecord, UpdateSnapshot } from "./types";
+
+/** Display bounds do not turn best-effort progress into a lifecycle outcome. */
+export function progressPresentation(operation: OperationEvent | undefined, busy: string): {
+  label: string; detail: string; range?: { current: number; total: number; percent: number };
+} {
+  const label = operationLabel(operation?.type === "progress" ? operation.phase : operation?.operation ?? busy);
+  const unknown = { label, detail: "Working… Total not yet known." };
+  if (operation?.type === "message") return { label, detail: operation.message };
+  if (operation?.type !== "progress") return unknown;
+  const { completed, total } = operation;
+  if (!Number.isSafeInteger(completed) || completed < 0) return unknown;
+  if (completed === 0 && total === 0) return { label, detail: "No work reported yet." };
+  if (total === null || !Number.isSafeInteger(total) || total <= 0) return unknown;
+  const current = Math.min(completed, total);
+  return { label, detail: `${completed.toLocaleString()} of ${total.toLocaleString()}`,
+    range: { current, total, percent: current / total * 100 } };
+}
+
+function operationLabel(value: string) {
+  const labels: Record<string, string> = {
+    download: "Downloading files", copy: "Copying files", "psx-toolchain-download": "Downloading preparation tools",
+    install: "Installing game", update: "Updating game", prepare: "Preparing game", launch: "Starting game",
+    verify: "Checking files", verify_install: "Checking installed files", verify_source: "Checking game files",
+    backup: "Backup in progress", restore: "Restoring saved data", rollback: "Restoring previous version",
+    activate: "Activating staged version", adopt: "Copying existing installation", remove: "Removing managed files",
+    move_library: "Moving library", import_library: "Importing library", import_source: "Copying game files",
+    discover_sources: "Searching for game files", update_catalog: "Updating port catalog", "check installed": "Checking for updates",
+  };
+  return labels[value] ?? "Working";
+}
 
 export type View = "library" | "catalog" | "updates" | "settings";
 export type Filter = "all" | "ready" | "setup" | "stable" | "beta" | "rolling";

@@ -4,7 +4,7 @@ import { AlertTriangle, Boxes, Check, CheckCircle2, CircleMinus, CircleUserRound
 import desktopPackage from "../../package.json";
 import type { ThemeState, ThemePreference } from "../theme";
 import type { PortDefinition, DoctorReport, GithubAuthStatus, GithubDeviceLogin, HostToolProbeResult, HostToolStatus, LibraryMetadataFile, LibrarySelection, OperationEvent, SourceInspectionReport, SourceProfile, SourceRecord, SourceVerificationOutcome, StorageSummary } from "../types";
-import { errorText, failurePresentation, formatBytes, type SourceRequirement, type View } from "../view-model";
+import { errorText, failurePresentation, formatBytes, progressPresentation, type SourceRequirement, type View } from "../view-model";
 import { FailureDetails } from "./FailureDetails";
 import { BrandAvatar, BrandMascot, BrandWordmark } from "./Brand";
 import { ExternalLink } from "./ExternalLink";
@@ -86,37 +86,16 @@ function ErrorNotice({ error, clearError }: { error: unknown; clearError: () => 
 }
 
 function OperationProgress({ operation, busy }: { operation?: OperationEvent; busy: string }) {
-  const label = operationLabel(operation?.type === "progress" ? operation.phase : operation?.operation ?? busy);
-  const total = operation?.type === "progress" ? operation.total : null;
-  const completed = operation?.type === "progress" ? operation.completed : undefined;
-  const knownCount = completed !== undefined && Number.isSafeInteger(completed) && completed >= 0;
-  const determinate = knownCount && total !== null && Number.isSafeInteger(total) && total > 0;
-  const current = determinate ? Math.min(completed, total) : undefined;
-  const detail = operation?.type === "message" ? operation.message : determinate
-    ? `${completed.toLocaleString()} of ${total.toLocaleString()}`
-    : knownCount && completed === 0 && total === 0 ? "No work reported yet." : "Working… Total not yet known.";
+  const { label, detail, range } = progressPresentation(operation, busy);
   return <div className="operation-bar">
     <span className="operation-icon"><Icon glyph={LoaderCircle} /></span>
     <div className="operation-copy"><strong role="status" aria-live="polite" aria-atomic="true">{label}</strong><span>{detail}</span></div>
-    <div className={`progress-track${determinate ? "" : " indeterminate"}`} role="progressbar" aria-label={label}
-      aria-valuemin={determinate ? 0 : undefined} aria-valuemax={determinate ? total : undefined}
-      aria-valuenow={current} aria-valuetext={detail}>
-      <i style={determinate ? { width: `${(current! / total) * 100}%` } : undefined} />
+    <div className={`progress-track${range ? "" : " indeterminate"}`} role="progressbar" aria-label={label}
+      aria-valuemin={range ? 0 : undefined} aria-valuemax={range?.total}
+      aria-valuenow={range?.current} aria-valuetext={detail}>
+      <i style={range ? { width: `${range.percent}%` } : undefined} />
     </div>
   </div>;
-}
-
-function operationLabel(value: string) {
-  const labels: Record<string, string> = {
-    download: "Downloading files", copy: "Copying files", "psx-toolchain-download": "Downloading preparation tools",
-    install: "Installing game", update: "Updating game", prepare: "Preparing game", launch: "Starting game",
-    verify: "Checking files", verify_install: "Checking installed files", verify_source: "Checking game files",
-    backup: "Backup in progress", restore: "Restoring saved data", rollback: "Restoring previous version",
-    activate: "Activating staged version", adopt: "Copying existing installation", remove: "Removing managed files",
-    move_library: "Moving library", import_library: "Importing library", import_source: "Copying game files",
-    discover_sources: "Searching for game files", update_catalog: "Updating port catalog", "check installed": "Checking for updates",
-  };
-  return labels[value] ?? "Working";
 }
 
 export interface GithubSettingsActions {
