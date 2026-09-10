@@ -40,4 +40,3 @@ describe("GUI to CLI continuity", () => {
     expect(() => quoteCliArg("bad\0path", "posix")).toThrow(/null/);
   });
 });
-
