@@ -242,6 +242,16 @@ Fixtures cover large counts, unavailable counts and additional plural categories
 they do not claim that translated application content has been supplied or that
 all existing copy has been migrated to the formatter.
 
+Workspace refresh fixtures cover failed initial loads, retained snapshots, explicit
+retry, out-of-order responses, event-triggered failures and separate operation
+outcomes. The native smoke also injects one rejected catalog response into its
+owned renderer, then uses real native IPC for the explicit retry. It checks the
+stale-information notice, retained cards, accessible error surface, restored focus
+and absence of repeated mutation commands. The interception is restored in
+`finally`, and partial observations are retained. This proves presentation
+recovery for a synthetic failure; it does not reproduce or repair an underlying
+SQLite locking failure.
+
 ### Command-line handoff verification
 
 The command details surface binds the effective library and names the shell whose

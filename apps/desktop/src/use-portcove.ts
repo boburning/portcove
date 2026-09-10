@@ -14,25 +14,45 @@ export function usePortcoveData() {
   const [sources, setSources] = useState<SourceRecord[]>([]);
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
   const [doctor, setDoctor] = useState<DoctorReport>();
+  const [refreshFailure, setRefreshFailure] = useState<{ error: unknown }>();
+  const [refreshing, setRefreshing] = useState(false);
   const refreshGeneration = useRef(new LatestRequestGeneration());
   const activityGeneration = useRef(new LatestRequestGeneration());
   const refresh = useCallback(async () => {
     const generation = refreshGeneration.current.begin();
     const activityRequest = activityGeneration.current.begin();
-    const [nextCatalog, nextStatuses, nextSources, nextActivities, nextDoctor] = await Promise.all([
-      desktopApi.catalog(), desktopApi.statuses(), desktopApi.sources(), desktopApi.activities(), desktopApi.doctor(),
-    ]);
-    if (!refreshGeneration.current.isCurrent(generation)) return;
-    setCatalog(nextCatalog);
-    setStatuses(nextStatuses);
-    setSources(nextSources);
-    if (activityGeneration.current.isCurrent(activityRequest)) setActivities(nextActivities);
-    setDoctor(nextDoctor);
+    setRefreshing(true);
+    try {
+      const [nextCatalog, nextStatuses, nextSources, nextActivities, nextDoctor] = await Promise.all([
+        desktopApi.catalog(), desktopApi.statuses(), desktopApi.sources(), desktopApi.activities(), desktopApi.doctor(),
+      ]);
+      if (!refreshGeneration.current.isCurrent(generation)) return;
+      setCatalog(nextCatalog);
+      setStatuses(nextStatuses);
+      setSources(nextSources);
+      if (activityGeneration.current.isCurrent(activityRequest)) setActivities(nextActivities);
+      setDoctor(nextDoctor);
+      setRefreshFailure(undefined);
+    } catch (error) {
+      if (!refreshGeneration.current.isCurrent(generation)) return;
+      setRefreshFailure({ error });
+      throw error;
+    } finally {
+      if (refreshGeneration.current.isCurrent(generation)) setRefreshing(false);
+    }
   }, []);
-  useEffect(() => {
-    const unlisten = listen<string>("portcove://library-changed", () => { void refresh(); });
-    return () => { unlisten.then(dispose => dispose()); };
+  const retryRefresh = useCallback(async () => {
+    try { await refresh(); }
+    catch { /* The refresh failure remains visible independently of mutation outcomes. */ }
   }, [refresh]);
+  useEffect(() => {
+    const unlisten = listen<string>("portcove://library-changed", () => { void retryRefresh(); });
+    return () => {
+      refreshGeneration.current.begin();
+      activityGeneration.current.begin();
+      unlisten.then(dispose => dispose());
+    };
+  }, [retryRefresh]);
   useEffect(() => {
     let closed = false;
     let timer = 0;
@@ -47,7 +67,7 @@ export function usePortcoveData() {
     timer = window.setTimeout(() => { void poll(); }, 1000);
     return () => { closed = true; window.clearTimeout(timer); };
   }, []);
-  return { catalog, statuses, sources, activities, doctor, storage: doctor?.library, refresh };
+  return { catalog, statuses, sources, activities, doctor, storage: doctor?.library, refresh, retryRefresh, refreshFailure, refreshing };
 }
 
 export function useOperationState(refresh: () => Promise<void>) {
