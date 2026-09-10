@@ -250,6 +250,34 @@ authenticated index. Capability requirements identify an installed template and
 an exact supported version interval, not a candidate-provided implementation.
 Presentation extensions are explicitly segregated from these required fields.
 
+`DefinitionContentIndex::inspect_entry(namespace, stable_id, bytes)` implements
+the entry inspection boundary. It verifies the indexed target bytes before JSON
+decoding and requires schema 1 and exact namespace, stable ID and revision
+agreement. The port ID must match that stable ID. The initial `port` value must
+contain the complete serialization of the existing `PortDefinition`, including
+default-valued fields. Comparing its typed projection rejects unknown fields at
+every nested port boundary without changing legacy catalog parsing. Object key
+order, whitespace and escaped string spellings need not be canonical; the input
+bytes remain exact. Duplicate JSON keys, including escaped aliases inside maps
+and arrays, are rejected before they can be overwritten. No presentation
+extension fields are supported by this initial entry schema.
+
+`required_capabilities` uses the existing requirement vocabulary and must include
+the entry's adapter. Valid unsupported versions/templates remain reportable as
+incompatible; they grant no capability. `source_contracts`, `artifact_bindings`
+and `evidence_references` are ordered arrays of target strings;
+`execution_contract` and `persistence_contract` are required target strings.
+Every occurrence must resolve inside the index, and all five fields together
+contain at most 1,024 references. Shared targets are allowed; role and order remain
+available separately in the immutable inspection result.
+
+Inspection failures affect the requested entry only and do not mutate the index.
+Successful shape inspection is not semantic validation: even a representable port
+still needs the existing catalog/source/execution/persistence checks. Referenced
+record interpretation, role/identity agreement, complete graph depth/cycle bounds,
+authenticated provenance, replay/revocation handling and atomic catalog selection
+remain required. An indexed empty object is not a usable execution contract.
+
 | Client/content combination                            | Required behavior                                                                                                                                               |
 | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Existing client + format 1                            | Unchanged embedded-contract restrictions and normal fallback.                                                                                                   |

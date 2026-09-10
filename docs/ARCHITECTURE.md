@@ -12,6 +12,15 @@ independent eligibility and transactional selection remain required before these
 bytes can acquire definition authority. The exact initial representation and
 limits are documented in [DEFINITION-DELIVERY.md](DEFINITION-DELIVERY.md).
 
+The same core boundary inspects individual indexed entries through
+`DefinitionContentIndex::inspect_entry`. It binds the exact bytes and identity,
+checks the complete typed port projection and installed capability requirements,
+and retains separately labeled in-index contract references. It rejects duplicate
+JSON keys before constructing object maps. An inspection cannot construct a
+usable catalog, authenticate a publisher, interpret referenced contracts or grant
+an operation; existing semantic validators and the remaining loader gates still
+own those decisions.
+
 ## Engine template capability ownership
 
 Core owns the installed template/version inventory and pure requirement
