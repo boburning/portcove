@@ -31,7 +31,7 @@ export function CliContinuity({ generation, port, status, channel, sourcePath, b
   catch { return <section className="cli-continuity" aria-label={title}><strong>{title}</strong><p role="alert">Remove invalid characters from the selected paths before copying a command.</p></section>; }
   return <section className="cli-continuity" aria-label={title}>
     <div><strong>{title}</strong><span>Uses this library: <code>{context.library_root}</code></span></div>
-    <p>{context.shell === "powershell" ? "PowerShell 7" : "sh / bash"}{command.missing.length ? " template" : " command"}</p>
+    <p>{command.interpreter === "powershell" ? "PowerShell 7" : "sh / bash"}{command.missing.length ? " template" : " command"}</p>
     {command.missing.length > 0 && <p>Template — replace: {command.missing.join(", ")}.{!context.executable && " Install the standalone Portcove CLI or locate its executable first."}</p>}
     <CopyField key={command.shell} value={command.shell} label={command.missing.length ? "Copy command template" : copyLabel} />
     <p>{status?.active ? "The CLI checks this installation before launching it. This does not install or update the game." : "Running this command can download and install the selected release. Required original files are checked before use."}</p>

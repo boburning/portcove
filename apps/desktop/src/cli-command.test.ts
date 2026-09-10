@@ -12,7 +12,7 @@ const port: PortDefinition = {
   release: portDefinition().release, executable_hints: {},
 };
 
-const context = { executable: "C:/Program Files/Portcove/portcove.exe", library_root: "E:/My Library", shell: "powershell" } as const;
+const context = { executable: "C:/Program Files/Portcove/portcove.exe", library_root: "E:/My Library", platform: "windows-x86-64" } as const;
 
 describe("GUI to CLI continuity", () => {
   it("binds setup to the selected library, release channel and original files", () => {

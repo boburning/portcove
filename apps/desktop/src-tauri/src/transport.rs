@@ -38,17 +38,10 @@ pub(crate) struct BackupReview {
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub(crate) enum CommandShell {
-    Powershell,
-    Posix,
-}
-
-#[derive(Debug, Serialize, JsonSchema)]
 pub(crate) struct CliCommandContext {
     pub(crate) library_root: PathBuf,
     pub(crate) executable: Option<PathBuf>,
-    pub(crate) shell: CommandShell,
+    pub(crate) platform: portcove_core::Platform,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]

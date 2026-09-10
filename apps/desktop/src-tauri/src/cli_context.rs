@@ -1,7 +1,7 @@
 //! Read-only host discovery for command-line handoff; never execute the CLI.
 use std::path::{Path, PathBuf};
 
-use crate::transport::{CliCommandContext, CommandShell};
+use crate::transport::CliCommandContext;
 use crate::{DesktopResult, DesktopState, blocking_worker, service_at_generation};
 
 #[tauri::command]
@@ -17,11 +17,7 @@ pub(crate) async fn get_cli_command_context(
         Ok(CliCommandContext {
             library_root: service.library().root().to_path_buf(),
             executable: discover_cli(current.as_deref(), std::env::split_paths(&search)),
-            shell: if cfg!(windows) {
-                CommandShell::Powershell
-            } else {
-                CommandShell::Posix
-            },
+            platform: portcove_core::Platform::current()?,
         })
     })
     .await

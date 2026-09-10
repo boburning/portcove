@@ -9,7 +9,7 @@ import type { CliCommandContext, PortStatus } from "../types";
 import { CliContinuity } from "./CliContinuity";
 
 let root: Root;
-const context: CliCommandContext = { executable: "C:/Apps/portcove.exe", library_root: "E:/My library", shell: "powershell" };
+const context: CliCommandContext = { executable: "C:/Apps/portcove.exe", library_root: "E:/My library", platform: "windows-x86-64" };
 const props = { generation: 1, port: portDefinition(), channel: "stable" as const, sourcePath: "", biosPath: "" };
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
