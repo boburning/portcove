@@ -220,6 +220,22 @@ impl Library {
             let lease = std::sync::Arc::new(crate::library_access::LibraryLease::acquire(&root)?);
             if let Some(destination) = crate::library_authority::open_target(&root)? {
                 root = destination;
+            } else if database::requires_migration(&root)? {
+                // A previously opened client holds a shared lease for its whole
+                // lifetime. Do not change the writer protocol beneath it.
+                drop(lease);
+                let exclusive =
+                    std::sync::Arc::new(crate::library_access::LibraryLease::with_access(
+                        &root,
+                        crate::library_access::LibraryAccess::Exclusive,
+                    )?);
+                if let Some(destination) = crate::library_authority::open_target(&root)? {
+                    root = destination;
+                } else {
+                    drop(Self::initialize(root.clone(), exclusive)?);
+                }
+                // Reacquire and recheck authority after releasing exclusivity;
+                // a completed library move may have won that interval.
             } else {
                 return Self::initialize(root, lease);
             }

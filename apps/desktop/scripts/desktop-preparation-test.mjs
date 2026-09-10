@@ -88,6 +88,36 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
     await browser.wait(async () => (await status(port.id)).successful_launches > 0, 15_000);
     assert.equal(await readFile(log, "utf8"), "setup must not run during desktop Play");
   });
+  await scenario("native-retained-contract-repair-state", async () => {
+    const port = command(["catalog", "show", "opengoal-jak1"]);
+    const active = (await status(port.id)).active;
+    const manifest = path.join(active.path, ".portcove-manifest.json");
+    const original = await readFile(manifest);
+    assert.equal(JSON.parse(original).schema_version, 6);
+    try {
+      await writeFile(manifest, "owned corrupt contract fixture");
+      await open(port);
+      const damaged = await status(port.id);
+      assert.equal(damaged.readiness.launchable, false);
+      assert.deepEqual(damaged.readiness.blockers, ["invalid_installation"]);
+      await browser.wait(until.elementLocated(By.xpath('//*[normalize-space(.)="Installation needs repair"]')), 15_000);
+      assert.equal((await browser.findElements(button("Play now"))).length, 0);
+      assert.equal((await browser.findElements(button("Choose required source"))).length, 0);
+      assert.deepEqual(command(["status", port.id]).readiness, damaged.readiness);
+      await browser.executeScript(axe.source);
+      const accessibility = await browser.executeAsyncScript(done => window.axe.run().then(done));
+      const report = path.join(output, "retained-contract-accessibility.json");
+      await writeFile(report, JSON.stringify(accessibility, null, 2), { flag: "wx" }); artifacts.push(report);
+      assert.deepEqual(accessibility.violations.map(item => item.id), []);
+      const screenshot = path.join(output, "native-retained-contract-repair.png");
+      await writeFile(screenshot, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" }); artifacts.push(screenshot);
+    } finally {
+      await writeFile(manifest, original);
+    }
+    await open(port);
+    assert.equal((await status(port.id)).readiness.launchable, true);
+  });
+
   await scenario("native-preparation-cancellation", async () => {
     const { port, install } = await seed("opengoal-jak2", "wait", true);
     await open(port);

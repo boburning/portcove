@@ -112,7 +112,7 @@ function DetailBody({ perform, prepare, port, status, state, sources, installed,
     <SourceFields mode="missing" controls={sources} />
     <SourceIntakeActions controls={sources} busy={Boolean(busy)} />
     {managedPreparation && pendingSetup && <PreparationControl key={`${port.id}:${libraryGeneration}:${status?.active?.id}`} portId={port.id} generation={libraryGeneration} disabled={Boolean(busy) || !sources.sourceReady || !sources.biosReady} run={prepare} />}
-    <PrimaryActions preparationRequired={managedPreparation && pendingSetup} runtimeNeeded={Boolean(status?.readiness?.blockers.includes("missing_runtime"))} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} plan={installPlan} busy={busy} actions={actions} />
+    <PrimaryActions invalidInstallation={Boolean(status?.readiness?.blockers.includes("invalid_installation"))} preparationRequired={managedPreparation && pendingSetup} runtimeNeeded={Boolean(status?.readiness?.blockers.includes("missing_runtime"))} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} plan={installPlan} busy={busy} actions={actions} />
     {status?.staged && <section aria-label="Activate staged update"><p>Staged update: <strong>{status.staged.version}</strong>. Activation uses this verified local copy without downloading and keeps the current version for rollback.</p><button data-focusable disabled={Boolean(busy)} onClick={actions.activate}>Activate staged update · {status.staged.version}</button></section>}
     {installed && <GameUpdateControl key={`${port.id}:${libraryGeneration}:${status?.active?.id}:${status?.staged?.id}:${selectedChannel}:${policy}`} portId={port.id} generation={libraryGeneration} policy={policy} busy={Boolean(busy)} perform={perform} />}
     <TrustStrip status={status} />
@@ -259,7 +259,8 @@ function sourceFieldCopy(profile?: SourceProfile) {
   return { placeholder: "Choose or paste the full source file path", note: "Referenced in place; never uploaded." };
 }
 
-function PrimaryActions({ preparationRequired, runtimeNeeded, installed, launchReady, pendingSetup, plan, busy, actions }: { preparationRequired: boolean; runtimeNeeded: boolean; installed: boolean; launchReady: boolean; pendingSetup: boolean; plan?: InstallPlan; busy?: string; actions: DetailActions }) {
+function PrimaryActions({ invalidInstallation, preparationRequired, runtimeNeeded, installed, launchReady, pendingSetup, plan, busy, actions }: { invalidInstallation: boolean; preparationRequired: boolean; runtimeNeeded: boolean; installed: boolean; launchReady: boolean; pendingSetup: boolean; plan?: InstallPlan; busy?: string; actions: DetailActions }) {
+  if (invalidInstallation) return <p>Verify the game files below and review repair before playing.</p>;
   if (runtimeNeeded) return <p>Review the game update below to install the required runtime.</p>;
   if (!installed) return <InstallAction ready={launchReady} plan={plan} busy={busy} install={actions.install} review={actions.reviewInstall} />;
   return <div className="actions primary-actions">

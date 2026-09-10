@@ -59,7 +59,7 @@ export function summarizeLibrary(ports: PortDefinition[], statuses: Map<string, 
   return {
     installed: installed.length,
     ready: states.filter(state => state === "ready" || state === "staged").length,
-    needsSetup: states.filter(state => state === "source" || state === "bios" || (state === "setup" || state === "runtime")).length,
+    needsSetup: states.filter(state => state === "source" || state === "bios" || (state === "setup" || state === "runtime" || state === "repair")).length,
     staged: states.filter(state => state === "staged").length,
   };
 }
@@ -117,7 +117,7 @@ function visibleInView(port: PortDefinition, statuses: Map<string, PortStatus>, 
 function matchesFilter(port: PortDefinition, status: PortStatus | undefined, filter: Filter, registeredSources: ReadonlySet<string>) {
   const readiness = portReadiness(port, status, registeredSources);
   if (filter === "ready") return readiness === "ready" || readiness === "staged";
-  if (filter === "setup") return readiness === "source" || readiness === "bios" || readiness === "setup" || readiness === "runtime";
+  if (filter === "setup") return readiness === "source" || readiness === "bios" || readiness === "setup" || readiness === "runtime" || readiness === "repair";
   if (filter === "stable" || filter === "beta" || filter === "rolling") return port.channels.includes(filter);
   return true;
 }

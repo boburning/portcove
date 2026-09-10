@@ -60,6 +60,15 @@ describe("desktop components", () => {
     expect(html).not.toContain("Choose required source");
   });
 
+  it("shows installation repair without asking for a different source", () => {
+    const html = renderToStaticMarkup(<DetailPanel port={{ ...port, source_profile: null }} sourcePath="" setSourcePath={vi.fn()} actions={actions}
+      status={{ ...portStatus(), active: installRecord(), readiness: { launchable: false, blockers: ["invalid_installation"], pending_setup: false } }} />);
+    expect(html).toContain("Installation needs repair");
+    expect(html).toContain("Verify the game files below");
+    expect(html).not.toContain("Play now");
+    expect(html).not.toContain("Choose required source");
+  });
+
   it("shows changed registered bytes as setup instead of launch readiness", () => {
     const source = { profile_id: "sample-rom", path: "source.z64", sha256: "a".repeat(64), size: 12, storage_sha256: "a".repeat(64), storage_size: 12, updated_at: 1 };
     const html = renderToStaticMarkup(<DetailPanel port={port} source={source} sourcePath="source.z64" setSourcePath={vi.fn()} actions={actions}

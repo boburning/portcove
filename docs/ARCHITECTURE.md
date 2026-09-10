@@ -2,8 +2,42 @@
 
 The [independent definition delivery contract](DEFINITION-DELIVERY.md) keeps
 successor definition admission, retained source/execution/persistence contracts
-and operation eligibility in core. Its executable examples are test-only design
-fixtures; the implemented format-1 loader and lifecycle boundaries are unchanged.
+and operation eligibility in core. Successor admission and capability examples
+remain test-only design fixtures. The format-1 loader retains its frozen contract;
+new installations now retain the admitted catalog content described below.
+
+## Retained installation contracts
+
+Core captures a canonical, self-contained catalog projection before publishing a
+new installation, adoption, or prepared derivative. Schema-6 installation
+manifests include the port identity and complete referenced source graph, covered
+by the existing immutable manifest digest. Keeping the complete bounded catalog
+avoids a second mutable database or a missing sidecar during moves and exports.
+This trades repeated catalog bytes per version for a single atomic payload and
+an independently readable contract. The retained catalog uses the existing 4 MiB
+catalog limit and rejects unknown or discarded semantics.
+
+Launch, preparation, rollback, staged activation, recovery, verification, output
+relocation, and save synchronization resolve each registered version's execution
+and persistence definition from that verified manifest. Manifest refresh and
+prepared derivatives preserve the original snapshot. Legacy schemas 2–5 keep
+their existing catalog-based interpretation; reading them does not manufacture
+historical evidence. New manifests always require a complete captured catalog.
+
+SQLite schema 23 is a writer-protocol migration with no table-layout change. Its
+migration ledger makes older clients refuse to open the upgraded library. An
+upgrade requires exclusive library access, so previously opened clients must
+release their shared leases before the protocol advances. API schema 43 adds `invalid_installation` to launch blockers;
+an unreadable or corrupt manifest blocks its game without failing the entire
+status list. Actual launch still performs immutable-file verification.
+
+Retained content is not a new admission authority. Metadata import continues to
+check the current platform contract and compares retained execution semantics
+with the existing frozen admission rules; a self-consistent hash cannot authorize
+new launch arguments. Source validation still uses the admitted current catalog.
+Authenticated successor definitions, independent operation eligibility, historical
+admission proofs, and explicit revocation handling remain in the independent
+definition delivery work. No new publisher, signing grant, or updater is enabled.
 
 Portcove currently has one authority for catalog, source, release, installation, update, rollback, persistence, recovery, and launch behavior: `portcove-core`. The CLI and Tauri backend are thin adapters around it. The React frontend invokes Tauri commands and never owns installation state. External frontends use the public CLI and own only their presentation and platform-facing translation; they do not become another game-management authority.
 

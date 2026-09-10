@@ -169,6 +169,13 @@ Preliminary ISO/CHD selection reports `not_run` with structural admission rather
 than claiming an exact match. LIVE/STFS packages now reach exact admission only
 after the shared bounded package validator succeeds.
 
+API schema 43 adds the `invalid_installation` launch blocker. A game whose saved
+installation contract cannot be verified remains visible but cannot launch;
+other games remain readable. New installations retain their execution and
+persistence definitions in manifest schema 6. Libraries opened by this client
+use writer protocol 23, which older clients refuse to modify. The Playnite
+reference accepts API schemas 42 and 43 with event schema 2.
+
 API schema 22 adds the core-resolved per-game output location to install plans
 and path results. It distinguishes a one-request override, the saved port
 setting, and the existing library default while retaining the exact recorded

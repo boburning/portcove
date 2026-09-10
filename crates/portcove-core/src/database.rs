@@ -212,6 +212,24 @@ pub(crate) fn migrate(root: &Path) -> Result<()> {
     migrate_to(root, CURRENT_SCHEMA_VERSION)
 }
 
+pub(crate) fn requires_migration(root: &Path) -> Result<bool> {
+    let path = database_path(root);
+    if !path.exists() {
+        return Ok(true);
+    }
+    let connection = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    let has_ledger: bool = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='schema_migrations')",
+        [], |row| row.get(0),
+    )?;
+    if !has_ledger {
+        return Ok(true);
+    }
+    let versions = recorded_versions(&connection)?;
+    validate_recorded_versions(&versions)?;
+    Ok(versions.last().copied().unwrap_or_default() < CURRENT_SCHEMA_VERSION)
+}
+
 fn migrate_to(root: &Path, target_version: i64) -> Result<()> {
     let _lock = MigrationLock::acquire(root)?;
     let mut connection = connect(root)?;
@@ -1017,6 +1035,30 @@ mod tests {
 
     fn prepare_root(root: &Path) {
         fs::create_dir_all(root.join("locks")).unwrap();
+    }
+
+    #[test]
+    fn writer_protocol_upgrade_waits_for_previously_opened_clients() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 22).unwrap();
+        let old_client = crate::library_access::LibraryLease::acquire(root).unwrap();
+        let error = crate::Library::open(root).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert_eq!(
+            recorded_versions(&connect(root).unwrap()).unwrap().last(),
+            Some(&22)
+        );
+        drop(old_client);
+        let current = crate::Library::open(root).unwrap();
+        assert_eq!(
+            recorded_versions(&connect(root).unwrap()).unwrap().last(),
+            Some(&23)
+        );
+        // Current clients retain normal concurrent shared access after migration.
+        let other = crate::Library::open(root).unwrap();
+        drop((current, other));
     }
 
     fn schema_fingerprint(connection: &Connection) -> String {
