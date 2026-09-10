@@ -13,17 +13,23 @@ export async function workspaceRefreshScenario({ browser, scenario, output, arti
     try {
       await browser.executeAsyncScript(done => {
         const native = window.__TAURI_INTERNALS__;
-        const original = native.invoke;
-        window.__portcoveRefreshProbe = { original, calls: [], remaining: 1 };
-        native.invoke = function(command, ...args) {
+        const original = window.fetch;
+        const target = native.convertFileSrc("get_catalog", "ipc");
+        window.__portcoveRefreshProbe = { original, calls: [], remaining: 1, injected: 0 };
+        window.fetch = function(input, ...args) {
           const probe = window.__portcoveRefreshProbe;
-          probe.calls.push(command);
-          if (command === "get_catalog" && probe.remaining-- > 0) return Promise.reject({
-            code: "state", message: "synthetic-native-refresh-failure", details: {},
-            presentation: { presentation_key: "state_unavailable", summary: "Library information is temporarily unavailable.", tone: "error", mutation_state: "unknown", phase: null,
-              recovery_actions: ["review_current_state", "view_technical_details"], technical_message: "Synthetic refresh rejection for presentation verification.", technical_context: {} },
-          });
-          return original.call(native, command, ...args);
+          const url = typeof input === "string" ? input : input.url ?? String(input);
+          const parsed = new URL(url, location.href);
+          if (parsed.hostname === "ipc.localhost") probe.calls.push(decodeURIComponent(parsed.pathname.slice(1)));
+          if (url === target && probe.remaining-- > 0) {
+            probe.injected++;
+            return Promise.resolve(new Response(JSON.stringify({
+              code: "state", message: "synthetic-native-refresh-failure", details: {},
+              presentation: { presentation_key: "state_unavailable", summary: "Library information is temporarily unavailable.", tone: "error", mutation_state: "unknown", phase: null,
+                recovery_actions: ["review_current_state", "view_technical_details"], technical_message: "Synthetic refresh rejection for presentation verification.", technical_context: {} },
+            }), { headers: { "Content-Type": "application/json", "Tauri-Response": "error" } }));
+          }
+          return original.call(window, input, ...args);
         };
         native.invoke("plugin:event|emit", { event: "portcove://library-changed", payload: "refresh-probe" }).then(() => done({ ok: true }), error => done({ error }));
       }).then(result => assert.equal(result.ok, true, JSON.stringify(result)));
@@ -45,6 +51,7 @@ export async function workspaceRefreshScenario({ browser, scenario, output, arti
       observations.after_cards = (await browser.findElements(By.css(".port-card"))).length;
       assert.equal(observations.after_cards, before.length);
       observations.commands = await browser.executeScript(() => window.__portcoveRefreshProbe.calls);
+      assert.equal(await browser.executeScript(() => window.__portcoveRefreshProbe.injected), 1);
       assert.equal(observations.commands.filter(command => command === "get_catalog").length, 2);
       assert.ok(observations.commands.every(command => command.startsWith("get_") || command.startsWith("plugin:")), JSON.stringify(observations.commands));
     } catch (error) {
@@ -52,11 +59,15 @@ export async function workspaceRefreshScenario({ browser, scenario, output, arti
       throw error;
     } finally {
       try {
-        await browser.executeScript(() => {
+        observations.probe = await browser.executeScript(() => {
           const probe = window.__portcoveRefreshProbe;
-          if (probe) { window.__TAURI_INTERNALS__.invoke = probe.original; delete window.__portcoveRefreshProbe; }
+          if (!probe) return { installed: false };
+          window.fetch = probe.original;
+          const result = { injected: probe.injected, commands: probe.calls, restored: window.fetch === probe.original };
+          delete window.__portcoveRefreshProbe;
+          return result;
         });
-        observations.interception_restored = true;
+        assert.equal(observations.probe.restored, true);
       } finally {
         const report = path.join(output, "workspace-refresh-observations.json");
         await writeFile(report, JSON.stringify(observations, null, 2), { flag: "wx" }); artifacts.push(report);
