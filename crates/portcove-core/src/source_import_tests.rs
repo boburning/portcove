@@ -7,6 +7,7 @@ use std::{
         Arc, Mutex,
         atomic::{AtomicBool, Ordering},
     },
+    time::Instant,
 };
 
 use sha1::Sha1;
@@ -19,6 +20,60 @@ use crate::{
 };
 
 const PROFILE: &str = "opengoal-jak1-disc";
+
+// Nextest retains this small stage trace on failure, including when its hang
+// guard terminates a case before normal test output can identify the slow call.
+#[track_caller]
+fn traced<T>(stage: &str, run: impl FnOnce() -> Result<T>) -> Result<T> {
+    let line = std::panic::Location::caller().line();
+    let start = Instant::now();
+    eprintln!("source-import fixture line {line}: {stage} started");
+    let result = run();
+    eprintln!(
+        "source-import fixture line {line}: {stage} finished after {} ms; ok={}",
+        start.elapsed().as_millis(),
+        result.is_ok()
+    );
+    result
+}
+
+#[track_caller]
+fn traced_service(library: Library) -> Result<PortcoveService> {
+    traced("service initialization and recovery", || {
+        PortcoveService::new(library)
+    })
+}
+
+struct TracedFaults {
+    inner: Arc<dyn LifecycleFaultInjector>,
+    start: Instant,
+}
+
+impl LifecycleFaultInjector for TracedFaults {
+    fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+        eprintln!(
+            "source-import fixture: {point:?} after {} ms",
+            self.start.elapsed().as_millis()
+        );
+        traced("fault callback", || self.inner.check(point))
+    }
+}
+
+#[track_caller]
+fn traced_service_with_faults(
+    library: Library,
+    faults: Arc<dyn LifecycleFaultInjector>,
+) -> Result<PortcoveService> {
+    traced("fault service initialization", || {
+        PortcoveService::with_faults(
+            library,
+            Arc::new(TracedFaults {
+                inner: faults,
+                start: Instant::now(),
+            }),
+        )
+    })
+}
 
 #[derive(Debug)]
 struct FailAt(LifecycleFaultPoint);
@@ -151,7 +206,10 @@ fn create_directory_symlink(target: &Path, link: &Path) -> std::io::Result<()> {
 
 fn library_fixture() -> (tempfile::TempDir, Library, PathBuf) {
     let temporary = tempfile::tempdir().unwrap();
-    let library = Library::open(temporary.path().join("library")).unwrap();
+    let library = traced("library initialization", || {
+        Library::open(temporary.path().join("library"))
+    })
+    .unwrap();
     let source = temporary.path().join("original").join("disc.iso");
     fs::create_dir_all(source.parent().unwrap()).unwrap();
     fs::write(&source, b"synthetic format-only disc source").unwrap();
@@ -160,7 +218,7 @@ fn library_fixture() -> (tempfile::TempDir, Library, PathBuf) {
 
 fn fixture() -> (tempfile::TempDir, Library, PortcoveService, PathBuf) {
     let (temporary, library, source) = library_fixture();
-    let service = PortcoveService::new(library.clone()).unwrap();
+    let service = traced_service(library.clone()).unwrap();
     (temporary, library, service, source)
 }
 
@@ -266,7 +324,7 @@ fn sharing_failure_retains_move_original_and_resumes_after_handle_release() {
         destination_name: plan.destination.file_name().unwrap().to_os_string(),
         held: Mutex::new(None),
     });
-    let service = PortcoveService::with_faults(library.clone(), fault.clone()).unwrap();
+    let service = traced_service_with_faults(library.clone(), fault.clone()).unwrap();
     let authorization = service
         .authorize_source_move(PROFILE, &source, &plan.plan_sha256)
         .unwrap();
@@ -292,7 +350,7 @@ fn sharing_failure_retains_move_original_and_resumes_after_handle_release() {
     *fault.held.lock().unwrap() = None;
     drop(service);
 
-    let recovered = PortcoveService::new(library.clone()).unwrap();
+    let recovered = traced_service(library.clone()).unwrap();
     let registered = recovered.library().source(PROFILE).unwrap().unwrap();
     assert_eq!(registered.path, plan.destination);
     assert_eq!(fs::read(registered.path).unwrap(), original);
@@ -310,7 +368,7 @@ fn assert_late_destination_collision_is_safe(mode: SourceImportMode, sentinel: V
         created_identity: Mutex::new(None),
         fired: AtomicBool::new(false),
     });
-    let service = PortcoveService::with_faults(library.clone(), fault.clone()).unwrap();
+    let service = traced_service_with_faults(library.clone(), fault.clone()).unwrap();
     let authorization = (mode == SourceImportMode::Move).then(|| {
         service
             .authorize_source_move(PROFILE, &source, &plan.plan_sha256)
@@ -349,7 +407,7 @@ fn assert_late_destination_collision_is_safe(mode: SourceImportMode, sentinel: V
     assert!(staging.exists(), "{mode:?}");
     drop(service);
 
-    let conflicted_restart = PortcoveService::new(library.clone()).unwrap();
+    let conflicted_restart = traced_service(library.clone()).unwrap();
     assert!(
         conflicted_restart
             .library()
@@ -373,7 +431,7 @@ fn assert_late_destination_collision_is_safe(mode: SourceImportMode, sentinel: V
     drop(conflicted_restart);
 
     fs::remove_file(&plan.destination).unwrap();
-    let recovered = PortcoveService::new(library.clone()).unwrap();
+    let recovered = traced_service(library.clone()).unwrap();
     let registered = recovered.library().source(PROFILE).unwrap().unwrap();
     assert_eq!(registered.path, plan.destination, "{mode:?}");
     assert_eq!(fs::read(&registered.path).unwrap(), original, "{mode:?}");
@@ -567,7 +625,7 @@ fn copy_and_move_reject_sources_that_contain_or_are_inside_the_inbox() {
 #[test]
 fn deletion_failure_reports_a_valid_copy_and_the_exact_retained_original() {
     let (_temporary, library, _service, source) = fixture();
-    let service = PortcoveService::with_faults(
+    let service = traced_service_with_faults(
         library,
         Arc::new(FailAt(LifecycleFaultPoint::SourceImportDeleteAttempt)),
     )
@@ -791,7 +849,7 @@ fn observed_optical_identity(name: &str) -> ObservedSourceIdentity {
 fn assert_durable_move_recovery(point: LifecycleFaultPoint) {
     let (_temporary, library, source) = library_fixture();
     eprintln!("{point:?}: fixture created");
-    let service = PortcoveService::with_faults(library.clone(), Arc::new(FailAt(point))).unwrap();
+    let service = traced_service_with_faults(library.clone(), Arc::new(FailAt(point))).unwrap();
     let plan = service
         .plan_source_import(PROFILE, &source, SourceImportMode::Move)
         .unwrap();
@@ -814,7 +872,7 @@ fn assert_durable_move_recovery(point: LifecycleFaultPoint) {
     drop(service);
     eprintln!("{point:?}: interruption recorded; recovering");
 
-    let recovered = PortcoveService::new(library.clone()).unwrap();
+    let recovered = traced_service(library.clone()).unwrap();
     let registered = recovered.library().source(PROFILE).unwrap().unwrap();
     assert!(registered.path.exists(), "{point:?}");
     assert!(!source.exists(), "{point:?}");
@@ -839,7 +897,7 @@ fn assert_durable_move_recovery(point: LifecycleFaultPoint) {
     );
     drop(recovered);
     eprintln!("{point:?}: recovery verified; checking idempotence");
-    let recovered_again = PortcoveService::new(library.clone()).unwrap();
+    let recovered_again = traced_service(library.clone()).unwrap();
     let registered_again = recovered_again.library().source(PROFILE).unwrap().unwrap();
     assert_eq!(registered_again.path, registered.path, "{point:?}");
     assert_eq!(registered_again.sha256, registered.sha256, "{point:?}");
@@ -905,7 +963,7 @@ fn recovers_cleanup_completed_without_deleting_unverified_bytes() {
 #[test]
 fn copy_recovers_after_publication_before_phase_persistence_and_registers_once() {
     let (_temporary, library, _service, source) = fixture();
-    let service = PortcoveService::with_faults(
+    let service = traced_service_with_faults(
         library.clone(),
         Arc::new(FailAt(
             LifecycleFaultPoint::SourceImportBeforePublicationRecorded,
@@ -940,7 +998,7 @@ fn copy_recovers_after_publication_before_phase_persistence_and_registers_once()
     assert!(source.exists());
     drop(service);
 
-    let recovered = PortcoveService::new(library.clone()).unwrap();
+    let recovered = traced_service(library.clone()).unwrap();
     let registered = recovered.library().source(PROFILE).unwrap().unwrap();
     assert_eq!(registered.path, plan.destination);
     assert!(registered.path.exists());
@@ -964,7 +1022,7 @@ fn copy_recovers_after_publication_before_phase_persistence_and_registers_once()
     assert_eq!(registration_count, 1);
     drop(recovered);
 
-    let recovered_again = PortcoveService::new(library.clone()).unwrap();
+    let recovered_again = traced_service(library.clone()).unwrap();
     let registered_again = recovered_again.library().source(PROFILE).unwrap().unwrap();
     assert_eq!(registered_again.path, registered.path);
     assert_eq!(registered_again.sha256, registered.sha256);
@@ -993,7 +1051,7 @@ fn move_recovers_when_publication_phase_write_fails() {
 
 fn assert_publication_phase_write_recovery(mode: SourceImportMode) {
     let (_temporary, library, source) = library_fixture();
-    let service = PortcoveService::with_faults(
+    let service = traced_service_with_faults(
         library.clone(),
         Arc::new(RejectPublicationPhaseWrite {
             library: library.clone(),
@@ -1042,7 +1100,7 @@ fn assert_publication_phase_write_recovery(mode: SourceImportMode) {
         .unwrap()
         .execute_batch("DROP TRIGGER reject_source_import_publication_phase")
         .unwrap();
-    let recovered = PortcoveService::new(library.clone()).unwrap();
+    let recovered = traced_service(library.clone()).unwrap();
     let registered = recovered.library().source(PROFILE).unwrap().unwrap();
     assert_eq!(registered.path, plan.destination);
     assert_eq!(source.exists(), mode == SourceImportMode::Copy);
@@ -1076,7 +1134,7 @@ enum PublicationMutation {
 
 fn assert_prejournal_rejects(mutation: PublicationMutation) {
     let (_temporary, library, _service, source) = fixture();
-    let service = PortcoveService::with_faults(
+    let service = traced_service_with_faults(
         library.clone(),
         Arc::new(FailAt(
             LifecycleFaultPoint::SourceImportBeforePublicationRecorded,
@@ -1127,7 +1185,7 @@ fn assert_prejournal_rejects(mutation: PublicationMutation) {
     }
     drop(service);
 
-    let recovered = PortcoveService::new(library.clone()).unwrap();
+    let recovered = traced_service(library.clone()).unwrap();
     assert!(recovered.library().source(PROFILE).unwrap().is_none());
     assert!(source.exists());
     let retained = OperationStore::new(library.clone()).all().unwrap();
@@ -1182,7 +1240,7 @@ fn final_publication_ownership_check_rejects_a_same_content_replacement() {
     let plan = service
         .plan_source_import(PROFILE, &source, SourceImportMode::Copy)
         .unwrap();
-    let service = PortcoveService::with_faults(
+    let service = traced_service_with_faults(
         library.clone(),
         Arc::new(ReplacePublishedAtFinalOwnershipCheck {
             source: source.clone(),
@@ -1214,7 +1272,7 @@ fn final_publication_ownership_check_rejects_a_same_content_replacement() {
 #[test]
 fn recovered_publication_rejects_a_redirected_receipt_root() {
     let (temporary, library, _service, source) = fixture();
-    let service = PortcoveService::with_faults(
+    let service = traced_service_with_faults(
         library.clone(),
         Arc::new(FailAt(
             LifecycleFaultPoint::SourceImportBeforePublicationRecorded,
@@ -1248,7 +1306,7 @@ fn recovered_publication_rejects_a_redirected_receipt_root() {
     }
     drop(service);
 
-    let recovered = PortcoveService::new(library.clone()).unwrap();
+    let recovered = traced_service(library.clone()).unwrap();
     assert!(recovered.library().source(PROFILE).unwrap().is_none());
     assert!(source.exists());
     assert!(plan.destination.exists());
@@ -1261,7 +1319,7 @@ fn recovered_publication_rejects_a_redirected_receipt_root() {
 #[test]
 fn receipt_cleanup_failure_is_retained_and_retried_before_registration() {
     let (_temporary, library, _service, source) = fixture();
-    let service = PortcoveService::with_faults(
+    let service = traced_service_with_faults(
         library.clone(),
         Arc::new(FailAt(
             LifecycleFaultPoint::SourceImportBeforePublicationRecorded,
@@ -1293,7 +1351,7 @@ fn receipt_cleanup_failure_is_retained_and_retried_before_registration() {
     fs::write(&blocker, b"preserve me").unwrap();
     drop(service);
 
-    let first_restart = PortcoveService::new(library.clone()).unwrap();
+    let first_restart = traced_service(library.clone()).unwrap();
     assert!(first_restart.library().source(PROFILE).unwrap().is_none());
     assert_eq!(fs::read(&blocker).unwrap(), b"preserve me");
     let retained = OperationStore::new(library.clone()).all().unwrap();
@@ -1303,7 +1361,7 @@ fn receipt_cleanup_failure_is_retained_and_retried_before_registration() {
     drop(first_restart);
 
     fs::remove_file(blocker).unwrap();
-    let recovered = PortcoveService::new(library.clone()).unwrap();
+    let recovered = traced_service(library.clone()).unwrap();
     let registered = recovered.library().source(PROFILE).unwrap().unwrap();
     assert_eq!(registered.path, plan.destination);
     assert!(source.exists());
@@ -1314,7 +1372,7 @@ fn receipt_cleanup_failure_is_retained_and_retried_before_registration() {
 #[test]
 fn payload_published_cleanup_rejects_a_redirected_root_without_deleting_external_files() {
     let (temporary, library, _service, source) = fixture();
-    let service = PortcoveService::with_faults(
+    let service = traced_service_with_faults(
         library.clone(),
         Arc::new(FailAt(LifecycleFaultPoint::SourceImportPublished)),
     )
@@ -1348,7 +1406,7 @@ fn payload_published_cleanup_rejects_a_redirected_root_without_deleting_external
     }
     drop(service);
 
-    let recovered = PortcoveService::new(library.clone()).unwrap();
+    let recovered = traced_service(library.clone()).unwrap();
     assert!(recovered.library().source(PROFILE).unwrap().is_none());
     assert_eq!(fs::read(&external_receipt).unwrap(), b"external evidence");
     let retained = OperationStore::new(library).all().unwrap();
@@ -1360,7 +1418,7 @@ fn payload_published_cleanup_rejects_a_redirected_root_without_deleting_external
 #[test]
 fn changed_original_after_publication_registers_destination_and_retains_original() {
     let (_temporary, library, _service, source) = fixture();
-    let service = PortcoveService::with_faults(
+    let service = traced_service_with_faults(
         library.clone(),
         Arc::new(FailAt(
             LifecycleFaultPoint::SourceImportBeforePublicationRecorded,
@@ -1385,7 +1443,7 @@ fn changed_original_after_publication_registers_destination_and_retains_original
     drop(service);
 
     fs::write(&source, b"changed original before restart").unwrap();
-    let recovered = PortcoveService::new(library.clone()).unwrap();
+    let recovered = traced_service(library.clone()).unwrap();
     let registered = recovered.library().source(PROFILE).unwrap().unwrap();
     assert_eq!(registered.path, plan.destination);
     assert_eq!(
@@ -1413,7 +1471,7 @@ fn changed_original_after_publication_registers_destination_and_retains_original
 #[test]
 fn recovery_never_deletes_a_replacement_at_the_original_path() {
     let (_temporary, library, _service, source) = fixture();
-    let service = PortcoveService::with_faults(
+    let service = traced_service_with_faults(
         library.clone(),
         Arc::new(FailAt(LifecycleFaultPoint::SourceImportOriginalQuarantined)),
     )
@@ -1436,7 +1494,7 @@ fn recovery_never_deletes_a_replacement_at_the_original_path() {
     drop(service);
 
     fs::write(&source, b"replacement after interrupted move").unwrap();
-    let recovered = PortcoveService::new(library.clone()).unwrap();
+    let recovered = traced_service(library.clone()).unwrap();
     assert_eq!(
         fs::read(&source).unwrap(),
         b"replacement after interrupted move"
@@ -1468,7 +1526,7 @@ fn recovery_never_deletes_a_replacement_at_the_original_path() {
 #[test]
 fn move_retains_original_bytes_changed_after_registration() {
     let (_temporary, library, _service, source) = fixture();
-    let service = PortcoveService::with_faults(
+    let service = traced_service_with_faults(
         library.clone(),
         Arc::new(FailAt(LifecycleFaultPoint::SourceImportRegistered)),
     )
@@ -1491,7 +1549,7 @@ fn move_retains_original_bytes_changed_after_registration() {
     drop(service);
 
     fs::write(&source, b"changed after destination registration").unwrap();
-    let recovered = PortcoveService::new(library.clone()).unwrap();
+    let recovered = traced_service(library.clone()).unwrap();
     assert_eq!(
         fs::read(&source).unwrap(),
         b"changed after destination registration"
@@ -1518,7 +1576,7 @@ fn move_retains_original_bytes_changed_after_registration() {
 #[test]
 fn missing_published_destination_blocks_recovery_and_preserves_the_original() {
     let (_temporary, library, _service, source) = fixture();
-    let service = PortcoveService::with_faults(
+    let service = traced_service_with_faults(
         library.clone(),
         Arc::new(FailAt(LifecycleFaultPoint::SourceImportPublished)),
     )
@@ -1541,7 +1599,7 @@ fn missing_published_destination_blocks_recovery_and_preserves_the_original() {
     drop(service);
     fs::remove_file(&plan.destination).unwrap();
 
-    let recovered = PortcoveService::new(library.clone()).unwrap();
+    let recovered = traced_service(library.clone()).unwrap();
     assert!(source.exists());
     assert!(recovered.library().source(PROFILE).unwrap().is_none());
     let operations = OperationStore::new(library).all().unwrap();
@@ -1587,7 +1645,7 @@ fn directory_file_sets_copy_with_names_and_identity_intact() {
     }
     let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
     eprintln!("directory import: initialize service");
-    let mut service = PortcoveService::new(library).unwrap();
+    let mut service = traced_service(library).unwrap();
     service.replace_catalog_for_test(catalog);
     eprintln!("directory import: prepare source files");
     let source = temporary.path().join("owned-files");
