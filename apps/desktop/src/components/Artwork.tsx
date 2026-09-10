@@ -42,10 +42,17 @@ function ArtworkSlotControl({ port, slot }: { port: PortDefinition; slot: Artwor
   const busy = useRef(false);
   const pickerButton = useRef<HTMLButtonElement>(null);
   const resetButton = useRef<HTMLButtonElement>(null);
+  const returnFocus = useRef<HTMLButtonElement | null>(null);
   const identity = `${cache?.generation}:${port.id}:${slot}`;
   const currentIdentity = useRef(identity);
   currentIdentity.current = identity;
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  useEffect(() => {
+    if (pending || !returnFocus.current) return;
+    const target = returnFocus.current;
+    returnFocus.current = null;
+    (target.disabled ? pickerButton.current : target)?.focus();
+  }, [pending]);
 
   const change = async (pick: boolean) => {
     if (!cache || !display.state || busy.current) return;
@@ -62,9 +69,8 @@ function ArtworkSlotControl({ port, slot }: { port: PortDefinition; slot: Artwor
     } finally {
       busy.current = false;
       if (stillCurrent()) {
+        returnFocus.current = (pick ? pickerButton : resetButton).current;
         setPending(false);
-        // Return focus after React reenables the invoking control.
-        requestAnimationFrame(() => { if (stillCurrent()) (pick ? pickerButton : resetButton).current?.focus(); });
       }
     }
   };

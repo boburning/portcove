@@ -31,12 +31,10 @@ function button(slot: "cover" | "detail", label: string) {
 
 async function click(slot: "cover" | "detail", label: string) {
   await act(async () => button(slot, label).click());
-  await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); });
 }
 
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => setTimeout(() => callback(0), 0));
   container = document.createElement("div"); document.body.append(container); root = createRoot(container);
   vi.spyOn(desktopApi, "artwork").mockImplementation(async (port, slot) => artworkState(port, slot));
   vi.spyOn(desktopApi, "artworkThumbnail").mockImplementation(async (_port, _slot, revision) => ({ asset_sha256: "a".repeat(64), choice_revision: revision, png: [137, 80, 78, 71] }));
