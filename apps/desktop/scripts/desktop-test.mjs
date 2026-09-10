@@ -20,11 +20,14 @@ const { values } = parseArgs({ options: {
   output: { type: "string" }, port: { type: "string", default: "4444" },
   "preparation-cli": { type: "string" }, "preparation-tool": { type: "string" },
   "artwork-only": { type: "boolean", default: false },
+  "restart-cycles": { type: "string", default: "1" },
 } });
 for (const name of ["app", "driver", "native-driver", "output"]) {
   if (!values[name] || !path.isAbsolute(values[name])) throw new Error(`--${name} requires an absolute path`);
 }
 const port = Number(values.port);
+const restartCycles = Number(values["restart-cycles"]);
+if (!Number.isInteger(restartCycles) || restartCycles < 1 || restartCycles > 10) throw new Error("--restart-cycles must be 1..10");
 if (values["artwork-only"] && !values["preparation-cli"]) throw new Error("--artwork-only requires the owned preparation CLI/tool inputs");
 if (!Number.isInteger(port) || port < 1024 || port > 65533) throw new Error("--port must be 1024..65533");
 const inputs = await Promise.all(["app", "driver", "native-driver"].map(name => fileIdentity(values[name])));
@@ -162,10 +165,23 @@ try {
     await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
     await browser.findElement(By.xpath('//button[normalize-space(.)="Light"]')).click();
     assert.equal(await browser.executeScript(() => document.documentElement.dataset.theme), "light");
-    await browser.quit();
-    browser = undefined;
-    await connect();
-    assert.equal(await browser.executeScript(() => document.documentElement.dataset.theme), "light");
+    const observations = [];
+    try {
+      for (let cycle = 0; cycle < restartCycles; cycle++) {
+        const observation = { cycle: cycle + 1, quit_started: new Date().toISOString() };
+        observations.push(observation);
+        await browser.quit();
+        browser = undefined;
+        observation.quit_completed = new Date().toISOString();
+        await connect();
+        observation.connected = new Date().toISOString();
+        assert.equal(await browser.executeScript(() => document.documentElement.dataset.theme), "light");
+        observation.preference_preserved = true;
+      }
+    } finally {
+      const report = path.join(output, "restart-observations.json");
+      await writeFile(report, JSON.stringify(observations, null, 2), { flag: "wx" }); artifacts.push(report);
+    }
   });
   await scenario("accessibility", async () => {
     await browser.executeScript(axe.source);
