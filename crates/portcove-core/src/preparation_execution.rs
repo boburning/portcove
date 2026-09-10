@@ -339,7 +339,7 @@ impl PortcoveService {
             .detail("exit_code", output.status.code().unwrap_or(-1).to_string()));
         }
         self.check_lifecycle_fault(LifecycleFaultPoint::PreparationToolCompleted)?;
-        validate_outputs(port, payload, &before, &permissions)
+        validate_outputs(&port, payload, &before, &permissions)
             .map_err(|error| error.during("preparation.verify"))?;
         let marker = port
             .setup_marker

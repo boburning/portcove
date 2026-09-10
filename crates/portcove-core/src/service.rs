@@ -8655,6 +8655,56 @@ fn main() {
     }
 
     #[test]
+    fn installed_versions_keep_execution_and_saves_after_catalog_contract_changes() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let first = register_zelda_install(&library, "v1", true);
+        let second = register_zelda_install(&library, "v2", true);
+        let staged = register_zelda_install(&library, "v3", false);
+        fs::write(second.join("general.json"), b"version-owned-settings").unwrap();
+        fs::write(second.join(LAUNCH_MARKER), b"1").unwrap();
+        let mut service = PortcoveService::new(library.clone()).unwrap();
+        let original = service.catalog.port("zelda64-recomp").unwrap().clone();
+        let mut document = service.catalog.authoritative_document();
+        let changed = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == original.id)
+            .unwrap();
+        changed
+            .executable_hints
+            .insert(Platform::current().unwrap(), vec!["future-game.exe".into()]);
+        changed.launch_arguments.push("--future-contract".into());
+        changed
+            .persistent_paths
+            .retain(|path| path != "general.json");
+        changed.persistent_paths.push("future-settings.json".into());
+        service.catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+
+        assert!(service.verify(&original.id).unwrap().valid);
+        let spec = service.launch_spec(&original.id, None).unwrap();
+        assert!(!format!("{spec:?}").contains("--future-contract"));
+        let rolled_back = service.rollback(&original.id).unwrap();
+        assert_eq!(rolled_back.path, first);
+        assert_eq!(
+            fs::read(first.join("general.json")).unwrap(),
+            b"version-owned-settings"
+        );
+        let activated = service.activate_staged(&original.id).unwrap();
+        assert_eq!(activated.path, staged);
+        assert_eq!(
+            fs::read(staged.join("general.json")).unwrap(),
+            b"version-owned-settings"
+        );
+        for install in library.all_installs().unwrap() {
+            assert_eq!(
+                serde_json::to_value(service.installed_port(&install).unwrap()).unwrap(),
+                serde_json::to_value(&original).unwrap()
+            );
+        }
+    }
+
+    #[test]
     fn rollback_collects_the_version_being_deactivated() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();

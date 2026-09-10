@@ -2476,6 +2476,63 @@ mod tests {
     }
 
     #[test]
+    fn manifest_refresh_and_preparation_preserve_the_original_contract() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("game.exe"), b"owned executable").unwrap();
+        let original = InstallQualification::test("game.exe");
+        let (installer, install) = create_test_install(&root, &original);
+        let retained = installer.retained_catalog(&install).unwrap().unwrap();
+        let mut document = retained.authoritative_document();
+        let changed = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == install.port_id)
+            .unwrap();
+        changed.launch_arguments.push("--future".into());
+        changed.persistent_paths.push("future-data".into());
+        let future = crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        let current =
+            InstallQualification::from_catalog(&future, &install.port_id, original.platform)
+                .unwrap();
+        let refreshed = installer
+            .refresh_verified_manifest(&install, &current)
+            .unwrap();
+        let derived = temporary.path().join("prepared");
+        fs::create_dir_all(&derived).unwrap();
+        fs::write(derived.join("game.exe"), b"owned executable").unwrap();
+        fs::write(
+            derived.join(crate::preparation::RECEIPT_FILE),
+            b"owned receipt",
+        )
+        .unwrap();
+        let prepared = installer
+            .create_prepared_manifest(&refreshed, "prepared-id", &current, &derived)
+            .unwrap();
+        for version in [&refreshed, &prepared] {
+            assert_eq!(
+                serde_json::to_value(
+                    installer
+                        .retained_catalog(version)
+                        .unwrap()
+                        .unwrap()
+                        .authoritative_document()
+                )
+                .unwrap(),
+                serde_json::to_value(retained.authoritative_document()).unwrap()
+            );
+        }
+        // The retained content is protected by the same immutable manifest digest.
+        let path = prepared.path.join(".portcove-manifest.json");
+        let content = fs::read_to_string(&path)
+            .unwrap()
+            .replace("sample", "forged");
+        fs::write(path, content).unwrap();
+        assert!(installer.retained_catalog(&prepared).is_err());
+    }
+
+    #[test]
     fn new_persistent_declarations_do_not_rewrite_recorded_immutable_identity() {
         let temporary = tempfile::tempdir().unwrap();
         let root = temporary.path().join("payload");
