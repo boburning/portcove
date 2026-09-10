@@ -6,7 +6,7 @@ import { pickSourcePath } from "../file-picker";
 import type { HostToolStatus, SourceImportMode, SourceImportPlan, SourceIntakeInspection, SourceProfile } from "../types";
 import { errorText, isCancellation } from "../view-model";
 import { SourceIdentityPanel } from "./SourceIdentity";
-import { SourceImportReview, sourceImportModeLabel, sourceImportNotice } from "./SourceDiscovery";
+import { SourceImportReview, sourceImportModePresentation, sourceImportNotice } from "./SourceDiscovery";
 import { HostToolRow, type HostToolActions } from "./Chrome";
 import { Icon, NavigationHints } from "./ui";
 
@@ -88,8 +88,10 @@ export function SourceIntakeDialog({ request, close, onAdded, openEvidence, host
   };
   const apply = async () => {
     if (!plan) return;
+    const presentation = sourceImportModePresentation(plan.mode);
+    if (!presentation.known) { setError(presentation.explanation); return; }
     const current = ++intent.current;
-    setBusy(`${sourceImportModeLabel[plan.mode]}…`);
+    setBusy(`${presentation.label}…`);
     setError(undefined);
     try {
       const imported = await desktopApi.importSource(plan.profile_id, plan.source.path, plan.mode, plan.plan_sha256);

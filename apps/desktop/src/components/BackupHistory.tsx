@@ -36,14 +36,15 @@ export function BackupHistory({ backups, problems = [], state = "healthy", busy,
 }
 
 function problemLabel(kind: BackupProblem["kind"]) {
-  return ({
+  const labels = {
     missing_manifest: "Missing manifest",
     unreadable_manifest: "Unreadable manifest",
     malformed_manifest: "Malformed manifest",
     identity_mismatch: "Identity mismatch",
     unsupported_entry: "Unsupported entry",
     recovery_required: "Recovery required",
-  } satisfies Record<BackupProblem["kind"], string>)[kind];
+  } satisfies Record<BackupProblem["kind"], string>;
+  return Object.hasOwn(labels, kind) ? labels[kind] : "Backup information unavailable";
 }
 
 function backupSummary(count: number) {

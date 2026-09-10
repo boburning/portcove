@@ -11,6 +11,8 @@ export async function accessibleNavigationScenario({ browser, scenario, output, 
     const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
     await browser.actions().keyDown(modifier).sendKeys("k").keyUp(modifier).perform();
     await browser.wait(until.elementLocated(By.css(".command-palette")), 5000);
+    const search = await browser.findElement(By.css('.command-palette input[aria-label="Search commands"]'));
+    assert.equal((await search.getAttribute("value")).length, 0, "A freshly opened palette must start with an empty query");
     const hints = async () => browser.executeScript(() => [...document.querySelectorAll(".palette-footer .controller-hint > span")]
       .filter(element => element.getClientRects().length > 0).map(element => element.textContent));
     assert.deepEqual(await hints(), ["Arrow keys: Move", "Enter: Select", "Esc: Back"]);
@@ -51,6 +53,16 @@ export async function accessibleNavigationScenario({ browser, scenario, output, 
     await writeFile(screenshot, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" }); artifacts.push(screenshot);
     const evidence = path.join(output, "expanded-navigation-result.json");
     await writeFile(evidence, JSON.stringify({ method: "Native keyboard and synthetic input-mode/expanded-text presentation", expansion, layout }, null, 2), { flag: "wx" }); artifacts.push(evidence);
+    await search.sendKeys("owned-no-matching-command");
+    await browser.wait(until.elementLocated(By.css(".palette-empty")), 5000);
+    assert.equal((await browser.findElements(By.css('.command-palette [role="listbox"]'))).length, 0);
+    assert.equal(await search.getAttribute("aria-expanded"), "false");
+    const emptyAccessibility = await browser.executeAsyncScript(done => window.axe.run().then(done));
+    const emptyReport = path.join(output, "empty-command-search-accessibility.json");
+    await writeFile(emptyReport, JSON.stringify(emptyAccessibility, null, 2), { flag: "wx" }); artifacts.push(emptyReport);
+    const emptyImage = path.join(output, "native-empty-command-search.png");
+    await writeFile(emptyImage, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" }); artifacts.push(emptyImage);
+    assert.deepEqual(emptyAccessibility.violations.map(item => item.id), []);
     await browser.actions().sendKeys(Key.ESCAPE).perform();
     await browser.wait(async () => (await browser.findElements(By.css(".command-palette"))).length === 0, 5000);
     await browser.navigate().refresh();

@@ -4,7 +4,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
-import type { HostToolStatus, SourceInspectionReport, SourceIntakeInspection, SourceProfile, SourceRecord } from "../types";
+import type { HostToolStatus, SourceImportPlan, SourceInspectionReport, SourceIntakeInspection, SourceProfile, SourceRecord } from "../types";
 import { SourceIntakeDialog, type SourceIntakeRequest } from "./SourceIntake";
 
 const profile: SourceProfile = { id: "game", label: "Owned game source", kind: "file", accepted_extensions: ["z64"], accepted_sha1: [], accepted_sha256: [], disc: null, members: [] };
@@ -76,6 +76,22 @@ describe("source intake dialog", () => {
 
     expect(host.textContent).toContain("Choose one source.");
     expect(button("Copy to Source Inbox")).toBeUndefined();
+  });
+
+  it.each(["future_mode", "constructor", "__proto__"])("leaves an unfamiliar %s plan cancellable without importing", async mode => {
+    vi.spyOn(desktopApi, "inspectSourceIntake").mockResolvedValue(intake("D:/Game.z64"));
+    const plan: SourceImportPlan = { schema_version: 1, profile_id: profile.id, mode: mode as SourceImportPlan["mode"], source: record("D:/Game.z64"),
+      admission_mode: "structural_checks", destination: "D:/Inbox/Game.z64", destination_exists: false, existing_registration: null, reuse_existing: false,
+      required_bytes: 64, source_guard_sha256: "b".repeat(64), plan_sha256: "c".repeat(64) };
+    vi.spyOn(desktopApi, "planSourceImport").mockResolvedValue(plan);
+    const apply = vi.spyOn(desktopApi, "importSource");
+    await act(async () => root.render(<SourceIntakeDialog request={request(["D:/Game.z64"])} close={vi.fn()} />));
+    await act(async () => button("Copy to Source Inbox")!.click());
+    expect(host.textContent).toContain("Import method unavailable");
+    expect(host.querySelector('section[aria-label="Source import review"] button.primary')).toBeNull();
+    await act(async () => button("Cancel review")!.click());
+    expect(button("Copy to Source Inbox")).toBeDefined();
+    expect(apply).not.toHaveBeenCalled();
   });
 
   it("offers the matching preparation tool inline and rechecks the unchanged selection", async () => {

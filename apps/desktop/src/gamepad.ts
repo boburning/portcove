@@ -21,7 +21,7 @@ export function keyboardNavigationAction(key: string): NavigationDirection | "ba
   const directions: Record<string, NavigationDirection> = {
     ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
   };
-  return directions[key];
+  return Object.hasOwn(directions, key) ? directions[key] : undefined;
 }
 
 export function spatialTargetIndex(rects: FocusRect[], current: number, direction: NavigationDirection, groups: readonly unknown[] = []) {

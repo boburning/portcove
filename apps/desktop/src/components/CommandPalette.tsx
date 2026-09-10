@@ -43,18 +43,18 @@ export function CommandPalette({ open, commands, close }: { open: boolean; comma
       <h2 className="sr-only" id="command-palette-title">Portcove commands</h2>
       <label className="palette-search">
         <Icon glyph={Search} />
-        <input data-autofocus data-focusable role="combobox" aria-expanded="true" aria-autocomplete="list" aria-label="Search commands" value={query} onChange={event => setQuery(event.target.value)}
+        <input data-autofocus data-focusable role="combobox" aria-expanded={filtered.length > 0} aria-autocomplete="list" aria-label="Search commands" value={query} onChange={event => setQuery(event.target.value)}
           onKeyDown={event => {
-            if (event.key === "ArrowDown") { event.preventDefault(); setActiveIndex(index => Math.min(index + 1, filtered.length - 1)); }
+            if (event.key === "ArrowDown") { event.preventDefault(); setActiveIndex(index => Math.max(0, Math.min(index + 1, filtered.length - 1))); }
             else if (event.key === "ArrowUp") { event.preventDefault(); setActiveIndex(index => Math.max(index - 1, 0)); }
             else if (event.key === "Enter" && filtered[activeIndex]) { event.preventDefault(); run(filtered[activeIndex]); }
           }}
-          aria-controls="command-palette-results" aria-activedescendant={filtered[activeIndex] ? `command-${filtered[activeIndex].id}` : undefined}
+          aria-controls={filtered.length ? "command-palette-results" : undefined} aria-activedescendant={filtered[activeIndex] ? `command-${filtered[activeIndex].id}` : undefined}
           placeholder="Search actions and navigation" autoComplete="off" />
         <Shortcut>Esc</Shortcut>
       </label>
-      <div className="palette-results" id="command-palette-results" role="listbox" aria-label="Available commands">
-        {filtered.length === 0 ? <p className="palette-empty">No command matches “{query}”.</p> : filtered.map((command, index) =>
+      <div className="palette-results" id="command-palette-results" role={filtered.length ? "listbox" : undefined} aria-label={filtered.length ? "Available commands" : undefined}>
+        {filtered.length === 0 ? <p className="palette-empty" role="status">{query.trim() ? `No command matches “${query}”.` : "No commands are available."}</p> : filtered.map((command, index) =>
           <button id={`command-${command.id}`} role="option" aria-selected={activeIndex === index} data-focusable key={command.id}
             ref={activeIndex === index ? activeCommand : undefined} onFocus={() => setActiveIndex(index)}
             className={activeIndex === index ? "palette-command active" : "palette-command"} disabled={command.disabled}
