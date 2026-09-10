@@ -14,6 +14,7 @@ import { CatalogSettings } from "./CatalogUpdates";
 import { SourceDiscoveryButton } from "./SourceDiscovery";
 import { SourceIdentityPanel } from "./SourceIdentity";
 import { Icon, NavigationHints, Shortcut } from "./ui";
+import { commandShortcut } from "../keyboard-shortcuts";
 
 export function Sidebar({ view, setView, installedCount, updateCount, onAdopt, controller }: {
   view: View; setView: Dispatch<SetStateAction<View>>; installedCount: number; updateCount: number; onAdopt: () => void;
@@ -32,7 +33,7 @@ export function Sidebar({ view, setView, installedCount, updateCount, onAdopt, c
         <Icon glyph={item.icon} /><span>{item.label}</span>
         {item.view === "library" && <b aria-label={`${installedCount} installed`}>{installedCount}</b>}
         {item.view === "updates" && updateCount > 0 && <b aria-label={`${updateCount} updates available`}>{updateCount}</b>}
-        <Shortcut>Ctrl {item.shortcut}</Shortcut>
+        <Shortcut>{commandShortcut(item.shortcut)}</Shortcut>
       </button>)}</nav>
     <div className="sidebar-footer">
       <button data-focusable className="secondary full button-with-icon" onClick={onAdopt}><Icon glyph={FolderInput} />Adopt an install</button>
@@ -49,7 +50,7 @@ export function PageHeader({ view, query, setQuery, portCount, onOpenCommands }:
     <div><p className="eyebrow">{copy.eyebrow}</p><h1>{copy.title}</h1><p className="page-description">{copy.description}</p></div>
     <div className="header-tools" data-focus-group>
       {(view === "library" || view === "catalog") && <label className="search" htmlFor="port-search"><Icon glyph={Search} /><span className="sr-only">Search ports</span><input id="port-search" data-focusable value={query} onChange={event => setQuery(event.target.value)} placeholder="Search ports" /><Shortcut>/</Shortcut></label>}
-      <button data-focusable className="command-trigger button-with-icon" onClick={onOpenCommands} aria-label="Open command palette"><Icon glyph={Command} /><span>Commands</span><Shortcut>Ctrl K</Shortcut></button>
+      <button data-focusable className="command-trigger button-with-icon" onClick={onOpenCommands} aria-label="Open command palette"><Icon glyph={Command} /><span>Commands</span><Shortcut>{commandShortcut("K")}</Shortcut></button>
     </div>
   </header>;
 }
@@ -85,28 +86,37 @@ function ErrorNotice({ error, clearError }: { error: unknown; clearError: () => 
 }
 
 function OperationProgress({ operation, busy }: { operation?: OperationEvent; busy: string }) {
-  const label = operation?.type === "message" ? operation.message : operation?.type === "progress" ? operation.phase : operation?.operation ?? busy;
-  if (operation?.type === "progress" && operation.total !== null && operation.total > 0) {
-    return <DeterminateProgress label={label} total={operation.total} completed={operation.completed} />;
-  }
-  return <div className="operation-bar" aria-live="polite">
+  const label = operationLabel(operation?.type === "progress" ? operation.phase : operation?.operation ?? busy);
+  const total = operation?.type === "progress" ? operation.total : null;
+  const completed = operation?.type === "progress" ? operation.completed : undefined;
+  const knownCount = completed !== undefined && Number.isSafeInteger(completed) && completed >= 0;
+  const determinate = knownCount && total !== null && Number.isSafeInteger(total) && total > 0;
+  const current = determinate ? Math.min(completed, total) : undefined;
+  const detail = operation?.type === "message" ? operation.message : determinate
+    ? `${completed.toLocaleString()} of ${total.toLocaleString()}`
+    : knownCount && completed === 0 && total === 0 ? "No work reported yet." : "Working… Total not yet known.";
+  return <div className="operation-bar">
     <span className="operation-icon"><Icon glyph={LoaderCircle} /></span>
-    <div className="operation-copy"><strong>{operationLabel(label)}</strong><span>Working…</span></div>
-    <div className="progress-track indeterminate" role="progressbar" aria-label={label}><i /></div>
+    <div className="operation-copy"><strong role="status" aria-live="polite" aria-atomic="true">{label}</strong><span>{detail}</span></div>
+    <div className={`progress-track${determinate ? "" : " indeterminate"}`} role="progressbar" aria-label={label}
+      aria-valuemin={determinate ? 0 : undefined} aria-valuemax={determinate ? total : undefined}
+      aria-valuenow={current} aria-valuetext={detail}>
+      <i style={determinate ? { width: `${(current! / total) * 100}%` } : undefined} />
+    </div>
   </div>;
 }
 
-function DeterminateProgress({ label, total, completed }: { label: string; total: number; completed: number }) {
-  const progress = Math.min(100, (completed / total) * 100);
-  return <div className="operation-bar" aria-live="polite">
-      <span className="operation-icon"><Icon glyph={LoaderCircle} /></span>
-      <div className="operation-copy"><strong>{operationLabel(label)}</strong><span>{completed.toLocaleString()} of {total.toLocaleString()}</span></div>
-      <div className="progress-track" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={total} aria-valuenow={completed}><i style={{ width: `${progress}%` }} /></div>
-    </div>;
-}
-
 function operationLabel(value: string) {
-  return value.replaceAll("_", " ").replace(/^\w/, letter => letter.toUpperCase());
+  const labels: Record<string, string> = {
+    download: "Downloading files", copy: "Copying files", "psx-toolchain-download": "Downloading preparation tools",
+    install: "Installing game", update: "Updating game", prepare: "Preparing game", launch: "Starting game",
+    verify: "Checking files", verify_install: "Checking installed files", verify_source: "Checking game files",
+    backup: "Backup in progress", restore: "Restoring saved data", rollback: "Restoring previous version",
+    activate: "Activating staged version", adopt: "Copying existing installation", remove: "Removing managed files",
+    move_library: "Moving library", import_library: "Importing library", import_source: "Copying game files",
+    discover_sources: "Searching for game files", update_catalog: "Updating port catalog", "check installed": "Checking for updates",
+  };
+  return labels[value] ?? "Working";
 }
 
 export interface GithubSettingsActions {

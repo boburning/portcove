@@ -568,6 +568,10 @@ nav { display: grid; gap: 6px; }
   font-size: var(--text-xs);
 }
 
+.gamepad-navigation-hint { display: none; }
+[data-input-mode="controller"] .keyboard-navigation-hint { display: none; }
+[data-input-mode="controller"] .gamepad-navigation-hint { display: inline; }
+
 main {
   width: 100%;
   max-width: var(--layout-content-max);
@@ -1146,6 +1150,7 @@ h2 { letter-spacing: -0.025em; line-height: var(--leading-tight); }
 .operation-copy span { display: block; }
 .operation-copy strong { color: var(--color-text); font-weight: var(--font-weight-medium); }
 .operation-copy span { margin-top: 0.1rem; }
+.operation-copy { min-width: 0; overflow-wrap: anywhere; }
 
 .progress-track {
   height: 5px;

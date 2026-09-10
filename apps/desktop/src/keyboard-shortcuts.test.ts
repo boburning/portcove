@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { keyboardShortcutAction } from "./keyboard-shortcuts";
+import { commandShortcut, keyboardShortcutAction } from "./keyboard-shortcuts";
 
 describe("global keyboard shortcuts", () => {
   it("maps navigation, palette, and search shortcuts", () => {
@@ -14,6 +14,13 @@ describe("global keyboard shortcuts", () => {
     expect(keyboardShortcutAction({ key: "/", targetIsField: true })).toBeUndefined();
     expect(keyboardShortcutAction({ key: "/", altKey: true })).toBeUndefined();
     expect(keyboardShortcutAction({ key: "1" })).toBeUndefined();
+    expect(keyboardShortcutAction({ key: "k", ctrlKey: true, altKey: true })).toBeUndefined();
+  });
+
+  it("names the host modifier without assuming Control on macOS", () => {
+    expect(commandShortcut("K", "MacIntel")).toBe("Command K");
+    expect(commandShortcut("1", "MacARM")).toBe("Command 1");
+    for (const platform of ["Win32", "Linux x86_64", ""]) expect(commandShortcut("K", platform)).toBe("Ctrl K");
   });
 
   it("keeps workspace shortcuts behind the top modal inactive", () => {
