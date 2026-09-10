@@ -12,6 +12,22 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Select Windows test temporary storage
+      if: runner.os == 'Windows' && inputs.test-fixtures == 'true'
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $temporaryPath = $env:RUNNER_TEMP
+        if ([string]::IsNullOrWhiteSpace($temporaryPath) -or $temporaryPath -match '[\r\n]' -or -not [System.IO.Path]::IsPathFullyQualified($temporaryPath)) {
+          throw 'RUNNER_TEMP must name an absolute existing directory'
+        }
+        $temporaryDirectory = Get-Item -LiteralPath $temporaryPath -ErrorAction Stop
+        if (-not $temporaryDirectory.PSIsContainer) {
+          throw 'RUNNER_TEMP must name a directory'
+        }
+        Write-Output "Windows test temporary storage: $([System.IO.Path]::GetTempPath()) -> $($temporaryDirectory.FullName)"
+        "TEMP=$($temporaryDirectory.FullName)" >> $env:GITHUB_ENV
+        "TMP=$($temporaryDirectory.FullName)" >> $env:GITHUB_ENV
     - name: Read repository toolchain
       id: repository-toolchain
       shell: pwsh
