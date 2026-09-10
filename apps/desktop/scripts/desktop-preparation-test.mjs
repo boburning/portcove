@@ -200,7 +200,7 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
     const card = By.xpath(`//button[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`);
     await browser.wait(until.elementLocated(card), 15_000);
     await browser.findElement(card).click();
-    await browser.findElement(By.css("details.advanced-settings > summary")).click();
+    await clickVisible(browser, await browser.findElement(By.css("details.advanced-settings > summary")));
     const before = await status(port.id);
     const activities = await invoke("get_activities");
     await browser.findElement(By.xpath('//button[contains(., "Saved update policy")]')).click();
