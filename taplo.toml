@@ -1,9 +1,4 @@
-include = [
-  "*.toml",
-  ".config/**/*.toml",
-  "apps/**/*.toml",
-  "crates/**/*.toml",
-]
+include = ["*.toml", ".config/**/*.toml", "apps/**/*.toml", "crates/**/*.toml"]
 
 exclude = [
   "apps/desktop/src-tauri/gen/**",
