@@ -37,6 +37,20 @@ pub(crate) struct BackupReview {
     pub(crate) persistent_data_path: PathBuf,
 }
 
+#[derive(Debug, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum CommandShell {
+    Powershell,
+    Posix,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub(crate) struct CliCommandContext {
+    pub(crate) library_root: PathBuf,
+    pub(crate) executable: Option<PathBuf>,
+    pub(crate) shell: CommandShell,
+}
+
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct InstallInput {

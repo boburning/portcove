@@ -1,6 +1,7 @@
 mod adoption;
 mod backup_review;
 mod catalog;
+mod cli_context;
 mod diagnostics;
 mod game_updates;
 mod library_selection;
@@ -1622,6 +1623,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_bootstrap_status,
+            cli_context::get_cli_command_context,
             library_selection::set_default_library,
             library_selection::reset_default_library,
             get_github_auth_status,
