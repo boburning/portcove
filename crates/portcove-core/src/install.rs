@@ -181,6 +181,10 @@ impl InstallQualification {
         port.id = "sample".into();
         port.source_profile = None;
         port.source_environment = None;
+        port.runtime_source_filename = None;
+        port.runtime_source_materialization = None;
+        port.runtime_source_hashes.clear();
+        port.runtime_source_set.clear();
         port.user_data_environment = None;
         port.launch_environment.clear();
         port.launch_arguments.clear();
@@ -2210,6 +2214,7 @@ mod tests {
             serde_json::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
         let object = value.as_object_mut().unwrap();
         object.insert("schema_version".into(), 4.into());
+        object.remove("retained_contract");
         object.remove("platform");
         for file in object.get_mut("files").unwrap().as_array_mut().unwrap() {
             file.as_object_mut().unwrap().remove("executable");

@@ -30,7 +30,7 @@ mod tests {
             .iter_mut()
             .find(|port| port.id == "zelda64-recomp")
             .unwrap();
-        port.persistent_paths = vec!["replacement-saves".into()];
+        port.persistent_paths.push("replacement-saves".into());
         port.launch_arguments = vec!["changed-argument".into()];
         let changed = Catalog::from_json(&serde_json::to_string(&changed).unwrap()).unwrap();
         let retained = contract.catalog("zelda64-recomp").unwrap();
