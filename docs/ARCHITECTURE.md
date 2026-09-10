@@ -38,8 +38,8 @@ Core exposes its existing database identity with the effective library root thro
 `get_library_identity` are thin reads of that record under the library lease.
 The same ID continues to protect output-root ownership; there is no second identity
 store or adapter SQL. Managed moves preserve it, while supported metadata/content
-imports retain the destination's independently initialized identity. The API schema
-is 41; metadata and database formats are unchanged. The public ID is opaque and is
+imports retain the destination's independently initialized identity. The identity
+command was introduced in API schema 41; metadata and database formats are unchanged. The public ID is opaque and is
 not an authentication, trust or qualification claim. See [CLI identity semantics](CLI.md#library-identity).
 
 ## Desktop command-line handoff

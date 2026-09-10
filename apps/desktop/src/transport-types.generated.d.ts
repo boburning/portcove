@@ -205,6 +205,9 @@ export type HostToolProbeState =
   | "incompatible_version"
   | "cancelled"
   | "success";
+export type OutputLaunchRequest = LaunchSessionRecord | null;
+export type LaunchSessionOutcome = "succeeded" | "failed" | "cancelled";
+export type LaunchSessionPhase = "preparing" | "spawning" | "running" | "collecting" | "recovering";
 export type LibraryContentKind = "application_versions" | "user_data" | "source_inbox" | "backups" | "toolchains";
 export type SourceDigestAlgorithm = "sha1" | "sha256" | "crc32";
 export type SourceComponentKind = "file_set_member" | "optical_disc";
@@ -366,6 +369,7 @@ export interface TransportOutputs {
   host_tool_probe_result: OutputHostToolProbeResult;
   host_tool_status: HostToolStatus;
   install_plan: InstallPlan;
+  launch_request: OutputLaunchRequest;
   library_identity: OutputLibraryIdentity;
   library_import_plan: OutputLibraryImportPlan;
   library_import_result: OutputLibraryImportResult;
@@ -1117,6 +1121,24 @@ export interface OutputHostToolProbeResult {
   sha256: string | null;
   state: HostToolProbeState;
   tool_id: string;
+  [k: string]: unknown;
+}
+export interface LaunchSessionRecord {
+  child_identity: string | null;
+  child_pid: number | null;
+  exit_code: number | null;
+  finished_at: number | null;
+  id: string;
+  install_id: string;
+  install_root: string;
+  message: string | null;
+  outcome: LaunchSessionOutcome | null;
+  phase: LaunchSessionPhase;
+  port_id: string;
+  started_at: number;
+  supervisor_identity: string | null;
+  supervisor_pid: number;
+  updated_at: number;
   [k: string]: unknown;
 }
 /**
