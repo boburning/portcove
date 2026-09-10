@@ -43,10 +43,11 @@ artwork fields; disposable `artwork-cache` files are excluded. Per-game save bac
 continue to cover saved data; whole-library backup copies include the artwork root.
 
 Desktop owns native file selection and routes each read/change through a library
-generation check. React displays core results through a disposable cache of at most
-32 previews and 32 queued reads per generation; requests are serialized to avoid
-competing for the artwork lock. Visible cards load asynchronously and preserve the
-cached image while refreshing. PNG data URLs carry only bounded core thumbnails;
+generation check. React displays core results through a disposable cache for the
+visible viewport plus at most 32 inactive previews per generation. Requests are
+serialized to avoid competing for the artwork lock; queued reads are discarded
+when their view no longer needs them. Visible cards load asynchronously and preserve
+the cached image while refreshing. PNG data URLs carry only bounded core thumbnails;
 the renderer never reads original files or changes the content-security policy.
 Picker cancellation, closing the editor, changing ports or changing libraries
 invalidates the pending intent before mutation. Core still checks the selected slot

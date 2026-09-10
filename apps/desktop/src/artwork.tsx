@@ -13,12 +13,16 @@ export function ArtworkProvider({ generation, children }: { generation: number; 
 export function useArtwork(portId: string, slot: ArtworkSlot, visible = true) {
   const cache = useContext(ArtworkContext);
   const subscribe = useCallback((listener: () => void) => {
-    if (cache) return cache.subscribe(portId, slot, listener);
+    if (cache && visible) return cache.subscribe(portId, slot, listener);
     return () => {};
-  }, [cache, portId, slot]);
-  const read = useCallback(() => cache?.read(portId, slot) ?? unavailable, [cache, portId, slot]);
+  }, [cache, portId, slot, visible]);
+  const read = useCallback(() => visible ? cache?.read(portId, slot) ?? unavailable : unavailable, [cache, portId, slot, visible]);
   const display = useSyncExternalStore(subscribe, read, () => unavailable);
-  useEffect(() => { if (visible) void cache?.load(portId, slot, true); }, [cache, portId, slot, visible]);
+  useEffect(() => {
+    let current = true;
+    if (visible) void cache?.load(portId, slot, true, () => current);
+    return () => { current = false; };
+  }, [cache, portId, slot, visible]);
   return { cache, display };
 }
 

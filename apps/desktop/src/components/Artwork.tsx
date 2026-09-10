@@ -8,9 +8,11 @@ export function ArtworkImage({ port, slot = "cover", className = "" }: { port: P
   const { element, visible } = useArtworkVisibility();
   const { display } = useArtwork(port.id, slot, visible);
   const [failedImage, setFailedImage] = useState<string>();
+  useEffect(() => { if (display.loading) setFailedImage(undefined); }, [display.loading]);
   const image = display.image !== failedImage ? display.image : undefined;
   return <div ref={element} className={`artwork-image ${className}`} aria-hidden="true">
     {image ? <img src={image} alt="" decoding="async" onError={() => setFailedImage(image)} /> : <span>{port.name.slice(0, 2).toUpperCase()}</span>}
+    {(display.error || display.state?.availability === "unavailable" || failedImage) && <small className="artwork-image-note">Image unavailable</small>}
   </div>;
 }
 

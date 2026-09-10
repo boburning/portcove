@@ -86,14 +86,25 @@ describe("disposable artwork display cache", () => {
     expect(cache.read("sample", "detail").image).toBeUndefined();
   });
 
-  it("bounds display entries and queued requests during rapid browsing", async () => {
+  it("bounds inactive previews and discards queued reads after rapid browsing", async () => {
     const read = vi.spyOn(desktopApi, "artwork").mockImplementation(async (port, slot) => artworkState(port, slot));
     const cache = new ArtworkCache(1);
-    await Promise.all(Array.from({ length: 80 }, (_, index) => cache.load(`port-${index}`, "cover")));
+    await Promise.all(Array.from({ length: 80 }, (_, index) => cache.load(`port-${index}`, "cover", false, () => index >= 48)));
     expect(read).toHaveBeenCalledTimes(32);
     await cache.load("last", "cover");
-    expect(cache.read("port-0", "cover").state).toBeUndefined();
+    expect(cache.read("port-48", "cover").state).toBeUndefined();
     expect(cache.read("last", "cover").state?.choice.port_id).toBe("last");
+  });
+
+  it("does not evict an on-screen cover as other catalog entries load", async () => {
+    vi.spyOn(desktopApi, "artwork").mockImplementation(async (port, slot) => artworkState(port, slot));
+    const cache = new ArtworkCache(1);
+    const leave = cache.subscribe("visible", "cover", () => {});
+    await cache.load("visible", "cover");
+    for (let index = 0; index < 40; index++) await cache.load(`other-${index}`, "cover");
+    expect(cache.read("visible", "cover").state?.choice.port_id).toBe("visible");
+    leave();
+    expect(cache.read("visible", "cover").state).toBeUndefined();
   });
 
   it("refuses oversized previews and isolates library generations", async () => {

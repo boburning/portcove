@@ -37,17 +37,18 @@ export class ArtworkCache {
     const key = this.key(portId, slot);
     const listeners = this.listeners.get(key) ?? new Set<() => void>();
     listeners.add(listener); this.listeners.set(key, listeners);
-    return () => { listeners.delete(listener); if (!listeners.size) this.listeners.delete(key); };
+    return () => { listeners.delete(listener); if (!listeners.size) this.listeners.delete(key); this.trim(); };
+  }
+
+  private trim() {
+    const inactive = [...this.entries.keys()].filter(key => !this.listeners.has(key));
+    for (const key of inactive.slice(0, Math.max(0, inactive.length - maximumEntries))) this.entries.delete(key);
   }
 
   private publish(portId: string, slot: ArtworkSlot, value: ArtworkDisplay) {
     const key = this.key(portId, slot);
     this.entries.delete(key); this.entries.set(key, value);
-    while (this.entries.size > maximumEntries) {
-      const oldest = this.entries.keys().next().value!;
-      this.entries.delete(oldest);
-      this.listeners.get(oldest)?.forEach(listener => listener());
-    }
+    this.trim();
     this.listeners.get(key)?.forEach(listener => listener());
   }
 
@@ -71,15 +72,19 @@ export class ArtworkCache {
     }
   }
 
-  load(portId: string, slot: ArtworkSlot, refresh = false): Promise<void> {
+  load(portId: string, slot: ArtworkSlot, refresh = false, stillInterested: () => boolean = () => true): Promise<void> {
     const key = this.key(portId, slot);
     const pending = this.pending.get(key);
     if (pending) return pending;
-    if (this.pending.size >= maximumEntries) return Promise.resolve();
     if (!refresh && this.entries.has(key)) return Promise.resolve();
     const result = this.enqueue(async () => {
+      if (!stillInterested() && !this.listeners.has(key)) return;
       this.publish(portId, slot, { ...this.read(portId, slot), loading: true, error: undefined });
-      try { await this.display(portId, slot, await desktopApi.artwork(portId, slot, this.generation)); }
+      try {
+        const state = await desktopApi.artwork(portId, slot, this.generation);
+        if (stillInterested() || this.listeners.has(key)) await this.display(portId, slot, state);
+        else this.entries.delete(key);
+      }
       catch (error) { this.publish(portId, slot, { error: errorText(error), loading: false }); }
     });
     this.pending.set(key, result);
