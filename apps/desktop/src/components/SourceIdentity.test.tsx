@@ -66,7 +66,7 @@ function report(stateCode = "recognized_exact"): SourceInspectionReport {
 describe("source identity presentation", () => {
   it.each(["future_check_result", "constructor", "__proto__", "toString"])("renders unknown result %s without claiming a match", state => {
     const value = report(state);
-    value.applications[0].contract_result.state = state as typeof value.applications[0].contract_result.state;
+    value.applications[0].contract_result.state = state as SourceInspectionReport["applications"][number]["contract_result"]["state"];
     value.applications[0].release_applicability.state_code = state;
     if (value.inspection?.assessment.admission.state === "admitted") value.inspection.assessment.admission.mode = state as typeof value.inspection.assessment.admission.mode;
     const html = renderToStaticMarkup(<SourceIdentityPanel report={value} />);
