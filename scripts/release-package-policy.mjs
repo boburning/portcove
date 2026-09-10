@@ -53,6 +53,13 @@ const platformIdentities = new Map([
   ],
 ]);
 
+function hasControlCharacter(value) {
+  return [...value].some((character) => {
+    const code = character.charCodeAt(0);
+    return code <= 0x1f || code === 0x7f;
+  });
+}
+
 function safeBasename(value) {
   return (
     typeof value === "string" &&
@@ -60,7 +67,7 @@ function safeBasename(value) {
     value === path.basename(value) &&
     !value.includes("/") &&
     !value.includes("\\") &&
-    !/[\u0000-\u001f\u007f]/.test(value)
+    !hasControlCharacter(value)
   );
 }
 

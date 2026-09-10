@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { LatestRequestGeneration } from "./concurrency-state";
 import { errorText } from "./view-model";
 
@@ -29,7 +29,7 @@ export function useActionReview<T>({
   const dismiss = () => {
     if (inFlight.current !== "apply") callbacks.current.close();
   };
-  const review = async () => {
+  const review = useCallback(async () => {
     if (inFlight.current === "apply") return;
     const request = requests.current.begin();
     inFlight.current = "review";
@@ -47,14 +47,15 @@ export function useActionReview<T>({
         setPending(undefined);
       }
     }
-  };
+  }, [identity]);
   useLayoutEffect(() => {
+    const requestGeneration = requests.current;
     void review();
     return () => {
-      requests.current.begin();
+      requestGeneration.begin();
       inFlight.current = undefined;
     };
-  }, [identity]);
+  }, [review]);
   const execute = async () => {
     if (!preview || inFlight.current) return;
     const request = requests.current.begin();

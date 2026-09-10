@@ -198,7 +198,7 @@ describe("disposable artwork display cache", () => {
       async (_port, _slot, revision) => ({
         asset_sha256: "a".repeat(64),
         choice_revision: revision,
-        png: new Array(1024 * 1024 + 1).fill(0),
+        png: new Array<number>(1024 * 1024 + 1).fill(0),
       }),
     );
     const first = new ArtworkCache(1),

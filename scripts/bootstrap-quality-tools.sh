@@ -54,6 +54,8 @@ for tool in "${required_tools[@]}"; do
   install_tool "$tool"
 done
 
+node scripts/quality-tools.mjs --install-managed required
+
 optional_failures=()
 if $include_deep; then
   for tool in "${optional_tools[@]}"; do

@@ -293,10 +293,10 @@ test("advisory workflow executes only trusted base metadata with read permission
       "ready_for_review",
     ],
   );
-  assert.match(workflow, /^  workflow_dispatch:/m);
+  assert.match(workflow, /^ {2}workflow_dispatch:/m);
   assert.match(
     workflow,
-    /^permissions:\r?\n  contents: read\r?\n  pull-requests: read$/m,
+    /^permissions:\r?\n {2}contents: read\r?\n {2}pull-requests: read$/m,
   );
   assert.match(
     workflow,

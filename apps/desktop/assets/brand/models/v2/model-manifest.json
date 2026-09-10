@@ -41,22 +41,22 @@
       "id": "mascot-v2-model-builder",
       "path": "apps/desktop/assets/brand/models/v2/build_portcove_mascot_v2.py",
       "role": "Reproducible Blender geometry and turnaround builder",
-      "bytes": 23025,
-      "sha256": "85ba79b578907b68f3297e1018664a4ae65a539d2a942096838b625ac6e040b8"
+      "bytes": 23009,
+      "sha256": "2523403aea1d62dbd80294ed2a6a2778680f2e9f9ce081af4fa5fa77eef75948"
     },
     {
       "id": "mascot-v2-model-validator",
       "path": "apps/desktop/assets/brand/models/v2/validate_portcove_mascot_v2.py",
       "role": "Blender and GLB structural validator",
-      "bytes": 7382,
-      "sha256": "3b1e2cf3847ccd20fdbc66bc320a0c9ab61151d964105fd3cea828b062c117f0"
+      "bytes": 7381,
+      "sha256": "c8a94c56743fd335acfe1cbaefe9b96f20ba78f20ea4482e5dde891b2087d69e"
     },
     {
       "id": "mascot-v2-proof-builder",
       "path": "apps/desktop/assets/brand/models/v2/create_portcove_mascot_v2_proofs.py",
       "role": "Alpha, stage, and runtime-size proof builder",
-      "bytes": 4296,
-      "sha256": "92b8fdc29d6f71c4a22ce8ed9615eea196938970b514f99a795cfdae833a5d86"
+      "bytes": 4295,
+      "sha256": "a98bc22b1e4b784d75238cd34ef61e036e8bb4cfb325c8623605753d77d8bb7d"
     }
   ]
 }

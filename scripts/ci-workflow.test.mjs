@@ -58,10 +58,10 @@ test("release selection runs after the maintained SemVer dependency is installed
 });
 
 test("required CI keeps its cancellation and least-privilege contracts", () => {
-  assert.match(workflow, /^permissions:\r?\n  contents: read$/m);
+  assert.match(workflow, /^permissions:\r?\n {2}contents: read$/m);
   assert.match(
     workflow,
-    /^concurrency:\r?\n  group: ci-\$\{\{ github\.event\.pull_request\.number \|\| github\.ref \}\}\r?\n  cancel-in-progress: true$/m,
+    /^concurrency:\r?\n {2}group: ci-\$\{\{ github\.event\.pull_request\.number \|\| github\.ref \}\}\r?\n {2}cancel-in-progress: true$/m,
   );
   for (const section of [
     rustTests,
@@ -77,7 +77,7 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
     catalog,
   ]) {
     assert.notEqual(section, "");
-    assert.doesNotMatch(section, /^    if:/m);
+    assert.doesNotMatch(section, /^ {4}if:/m);
   }
 });
 
@@ -128,7 +128,7 @@ test("Rust setup installs the repository pin instead of an unrelated stable tool
 test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () => {
   assert.match(
     rustTests,
-    /^    name: rust-test \(\$\{\{ matrix\.shard \}\}\)$/m,
+    /^ {4}name: rust-test \(\$\{\{ matrix\.shard \}\}\)$/m,
   );
   assert.match(rustTests, /runs-on: windows-latest/);
   assert.match(
@@ -157,7 +157,7 @@ test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () 
 
   assert.match(
     rustWorkspaceTests,
-    /^    name: rust-test \(workspace-other\)$/m,
+    /^ {4}name: rust-test \(workspace-other\)$/m,
   );
   assert.match(rustWorkspaceTests, /runs-on: windows-latest/);
   assert.match(
@@ -166,7 +166,7 @@ test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () 
   );
   assert.doesNotMatch(rustWorkspaceTests, /matrix|cargo fmt|cargo clippy/);
 
-  assert.match(rustClippy, /^    name: rust-clippy$/m);
+  assert.match(rustClippy, /^ {4}name: rust-clippy$/m);
   assert.match(rustClippy, /runs-on: windows-latest/);
   assert.match(rustClippy, /cargo fmt --all -- --check/);
   assert.match(
@@ -175,7 +175,7 @@ test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () 
   );
   assert.doesNotMatch(rustClippy, /cargo test|matrix/);
 
-  assert.match(windowsStorage, /^    name: windows-storage$/m);
+  assert.match(windowsStorage, /^ {4}name: windows-storage$/m);
   assert.match(windowsStorage, /runs-on: windows-latest/);
   assert.match(windowsStorage, /scripts\/dev-storage\.test\.mjs/);
   assert.match(
@@ -194,9 +194,16 @@ test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () 
     windowsStorage,
     /--test-timeout=30000 --test-reporter=\.\/scripts\/test-duration-reporter\.mjs/,
   );
+  assert.match(
+    windowsStorage,
+    /quality-tools\.mjs --install-managed psscriptanalyzer/,
+  );
+  assert.match(windowsStorage, /run-powershell-lint\.mjs/);
+  assert.match(windowsStorage, /lint-tools\.integration\.mjs psscriptanalyzer/);
   assert.doesNotMatch(windowsStorage, /rust-toolchain|rust-cache|cargo/);
+  assert.doesNotMatch(windowsStorage, /continue-on-error/);
 
-  assert.match(rust, /^    if: always\(\)$/m);
+  assert.match(rust, /^ {4}if: always\(\)$/m);
   assert.match(
     rust,
     /needs:\s*\[\s*rust_tests,\s*rust_workspace_tests,\s*rust_clippy,\s*windows_storage,\s*native_rust,\s*intel_build,\s*intel_tests,\s*rust_docs,?\s*\]/,
@@ -225,7 +232,7 @@ test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () 
 test("native Rust runs the full workspace on every supported Unix architecture", () => {
   assert.match(
     nativeRust,
-    /^    name: native-rust \(\$\{\{ matrix\.platform \}\}, \$\{\{ matrix\.partition \}\}\)$/m,
+    /^ {4}name: native-rust \(\$\{\{ matrix\.platform \}\}, \$\{\{ matrix\.partition \}\}\)$/m,
   );
   for (const [platform, runner] of [
     ["linux-x86_64", "ubuntu-22.04"],
@@ -296,6 +303,21 @@ test("Linux Rust quality keeps its platform-specific and policy gates without pn
   assert.match(rustQuality, /cargo deny check/);
   assert.match(rustQuality, /check-rust-architecture\.mjs/);
   assert.match(rustQuality, /run-rscheck\.mjs/);
+  const bootstrap = rustQuality.indexOf("./scripts/bootstrap-quality-tools.sh");
+  for (const lint of [
+    "quality-tools.mjs --run ruff",
+    "quality-tools.mjs --run shellcheck",
+    "quality-tools.mjs --run actionlint",
+  ]) {
+    assert.ok(
+      rustQuality.indexOf(lint) > bootstrap,
+      `${lint} must run after the managed tools are installed`,
+    );
+  }
+  assert.match(
+    rustQuality,
+    /lint-tools\.integration\.mjs ruff shellcheck actionlint/,
+  );
   const desktopPrerequisites = rustQuality.indexOf(
     "libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf",
   );
@@ -309,16 +331,21 @@ test("Linux Rust quality keeps its platform-specific and policy gates without pn
     /--test-skip-pattern "pnpm uses\|direct just recipes"/,
   );
   assert.doesNotMatch(rustQuality, /pnpm\/action-setup|pnpm install/);
+  assert.doesNotMatch(rustQuality, /continue-on-error/);
 });
 
 test("frontend keeps deterministic product gates and delegates vulnerability changes", () => {
-  assert.match(frontend, /^    env:\r?\n      npm_config_audit: "false"$/m);
+  assert.match(frontend, /^ {4}env:\r?\n {6}npm_config_audit: "false"$/m);
   assert.match(frontend, /pnpm install --frozen-lockfile/);
   assert.match(frontend, /Install pinned recipe runner/);
   const install = frontend.indexOf("pnpm install --frozen-lockfile");
   const formatting = frontend.indexOf("pnpm --dir apps/desktop format:check");
+  const lint = frontend.indexOf("pnpm lint");
   const build = frontend.indexOf("pnpm build");
-  assert.ok(install >= 0 && formatting > install && build > formatting);
+  assert.ok(
+    install >= 0 && formatting > install && lint > formatting && build > lint,
+  );
+  assert.match(frontend, /lint-tools\.integration\.mjs eslint stylelint/);
   assert.match(
     frontend,
     /--test-name-pattern "pnpm uses\|direct just recipes" scripts\/dev-storage\.test\.mjs/,
@@ -327,6 +354,7 @@ test("frontend keeps deterministic product gates and delegates vulnerability cha
   assert.match(frontend, /pnpm test/);
   assert.match(frontend, /run-fallow\.mjs/);
   assert.doesNotMatch(frontend, /pnpm audit/);
+  assert.doesNotMatch(frontend, /continue-on-error/);
 
   assert.match(dependencyReview, /github\.event_name == 'pull_request'/);
   assert.match(dependencyReview, /dependency-review-action/);
@@ -355,13 +383,13 @@ test("live upstream health has bounded independent triggers while catalog stays 
     new URL("../.github/workflows/upstream-health.yml", import.meta.url),
     "utf8",
   );
-  assert.match(health, /schedule:\r?\n    - cron:/);
+  assert.match(health, /schedule:\r?\n {4}- cron:/);
   assert.match(health, /workflow_dispatch:/);
   assert.match(health, /timeout-minutes: 10/);
-  assert.match(health, /^permissions:\r?\n  contents: read$/m);
+  assert.match(health, /^permissions:\r?\n {2}contents: read$/m);
   assert.doesNotMatch(health, /pull_request_target|continue-on-error/);
   for (const trigger of ["pull_request", "push"]) {
-    const section = health.split(`  ${trigger}:`)[1].split(/^  \w+:/m)[0];
+    const section = health.split(`  ${trigger}:`)[1].split(/^ {2}\w+:/m)[0];
     for (const path of [
       "crates/portcove-core/catalog/**",
       "scripts/retcomm-psx-upstreams.json",

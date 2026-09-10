@@ -436,7 +436,7 @@ kbd {
   padding: 0;
   margin: -1px;
   border: 0;
-  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
   white-space: nowrap;
 }
 
@@ -1386,11 +1386,15 @@ h2 {
 .activity-diagnostic summary {
   cursor: pointer;
 }
-.activity-diagnostic pre {
+.activity-diagnostic textarea {
+  width: 100%;
+  min-height: 5rem;
   max-height: 24rem;
   overflow: auto;
+  resize: vertical;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  font: inherit;
 }
 .activity-details > .failure-details {
   display: block;

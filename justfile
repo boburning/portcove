@@ -83,10 +83,37 @@ fallow:
     {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-fallow-report.test.mjs
     {{storage}} node scripts/run-fallow.mjs
 
-check-ui: fmt-frontend-check ui-transport ui-build ui-test fallow
+eslint:
+    {{storage}} corepack pnpm --dir apps/desktop lint:eslint
+    {{storage}} node scripts/lint-tools.integration.mjs eslint
+
+stylelint:
+    {{storage}} corepack pnpm --dir apps/desktop lint:style
+    {{storage}} node scripts/lint-tools.integration.mjs stylelint
+
+check-ui: fmt-frontend-check ui-transport ui-build ui-test fallow eslint stylelint
 
 fmt-frontend-check:
     {{storage}} pnpm --dir apps/desktop format:check
+
+# Cross-language scripts and hosted automation.
+python-lint:
+    {{storage}} node scripts/quality-tools.mjs --run ruff -- check apps/desktop/assets/brand/models/v2
+    {{storage}} node scripts/lint-tools.integration.mjs ruff
+
+shell-lint:
+    {{storage}} node scripts/quality-tools.mjs --run shellcheck -- --severity=warning scripts/bootstrap-quality-tools.sh
+    {{storage}} node scripts/lint-tools.integration.mjs shellcheck
+
+actions-lint:
+    {{storage}} node scripts/quality-tools.mjs --run actionlint --
+    {{storage}} node scripts/lint-tools.integration.mjs actionlint
+
+powershell-lint:
+    {{storage}} node scripts/run-powershell-lint.mjs
+    {{storage}} node scripts/lint-tools.integration.mjs psscriptanalyzer
+
+script-lint: python-lint shell-lint actions-lint powershell-lint
 
 # Deterministic release metadata and artifact tooling
 release-tools:
@@ -113,7 +140,7 @@ roadmap-bootstrap:
     node scripts/roadmap.mjs bootstrap
 
 # Standard repository check
-check: check-rust check-ui release-tools roadmap-check development-tools
+check: check-rust check-ui script-lint release-tools roadmap-check development-tools
 
 # Deeper deterministic and structural audit
 deny:

@@ -7,7 +7,6 @@ from pathlib import Path
 import bpy
 from mathutils import Vector
 
-
 ROOT = Path(__file__).resolve().parent
 GLB_PATH = ROOT / "portcove-mascot-v2.glb"
 

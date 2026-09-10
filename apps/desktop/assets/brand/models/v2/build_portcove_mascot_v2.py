@@ -7,7 +7,6 @@ from pathlib import Path
 import bpy
 from mathutils import Vector
 
-
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parents[5]
 OUTPUT_DIR = SCRIPT_DIR
@@ -287,7 +286,7 @@ def build_model() -> tuple[bpy.types.Object, dict[str, bpy.types.Material], bpy.
     )
     belly["placement_rule"] = "front third only; hidden in rear view"
 
-    mouth_border = make_prism(
+    make_prism(
         "Mouth.Border",
         [(-1.08, 0.92), (1.16, 0.45), (-1.05, 0.28)],
         -2.64,

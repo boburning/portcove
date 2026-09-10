@@ -52,22 +52,24 @@ import { SourceIdentityPanel } from "./SourceIdentity";
 import { installPlanActionLabel } from "../install-plan-presentation";
 
 export interface DetailActions {
-  activate: () => void;
-  backup: () => void;
+  activate: AsyncAction;
+  backup: AsyncAction;
   check: () => Promise<unknown>;
   close: () => void;
   deleteBackup: ApplyBackupAction;
-  install: () => void;
-  launch: () => void;
-  openUserData: () => void;
-  reviewInstall: () => void;
+  install: AsyncAction;
+  launch: AsyncAction;
+  openUserData: AsyncAction;
+  reviewInstall: AsyncAction;
   restoreBackup: ApplyBackupAction;
-  rollback: () => void;
+  rollback: AsyncAction;
   remove: ApplyRemoval;
   setChannel: (channel: ReleaseChannel) => Promise<PortStatus | undefined>;
   setPolicy: (policy: UpdatePolicy) => Promise<PortStatus | undefined>;
-  verify: () => void;
+  verify: AsyncAction;
 }
+
+type AsyncAction = () => void | Promise<unknown>;
 
 interface DetailPanelProps {
   perform?: Perform;
@@ -187,6 +189,7 @@ function DetailDialog({
   return (
     <div
       className="scrim"
+      role="presentation"
       onMouseDown={(event) => closeFromScrim(event, actions.close)}
     >
       <section
@@ -362,7 +365,9 @@ function DetailBody({
           <button
             data-focusable
             disabled={Boolean(busy)}
-            onClick={actions.activate}
+            onClick={() => {
+              void actions.activate();
+            }}
           >
             Activate staged update · {status.staged.version}
           </button>
@@ -939,7 +944,9 @@ function PrimaryActions({
               : "Review the current launch requirements"
         }
         disabled={preparationRequired || !launchReady || Boolean(busy)}
-        onClick={actions.launch}
+        onClick={() => {
+          void actions.launch();
+        }}
       >
         <Icon
           glyph={
@@ -968,8 +975,8 @@ function InstallAction({
   ready: boolean;
   plan?: InstallPlan;
   busy?: string;
-  install: () => void;
-  review: () => void;
+  install: AsyncAction;
+  review: AsyncAction;
 }) {
   if (!ready)
     return (
@@ -992,7 +999,9 @@ function InstallAction({
           data-focusable
           className="primary wide button-with-icon"
           disabled={Boolean(busy)}
-          onClick={review}
+          onClick={() => {
+            void review();
+          }}
         >
           <Icon glyph={ShieldCheck} />
           {busy === "review install" ? "Checking release…" : "Review install"}
@@ -1006,7 +1015,13 @@ function InstallAction({
           This version of Portcove cannot display the installation plan. Review
           it again, or update Portcove if this continues.
         </p>
-        <button data-focusable disabled={Boolean(busy)} onClick={review}>
+        <button
+          data-focusable
+          disabled={Boolean(busy)}
+          onClick={() => {
+            void review();
+          }}
+        >
           Review install again
         </button>
       </div>
@@ -1061,7 +1076,7 @@ function PlannedInstallButton({
 }: {
   plan: InstallPlan;
   busy?: string;
-  install: () => void;
+  install: AsyncAction;
 }) {
   const blocked = plan.action === "blocked_unverified";
   const insufficientSpace =
@@ -1080,7 +1095,9 @@ function PlannedInstallButton({
         data-focusable
         className="primary wide button-with-icon"
         disabled={blocked || insufficientSpace || Boolean(busy)}
-        onClick={install}
+        onClick={() => {
+          void install();
+        }}
       >
         <Icon glyph={Download} />
         {label}
@@ -1109,7 +1126,9 @@ function MaintenanceActions({
         className="button-with-icon"
         title="Create a versioned backup of saves and settings"
         disabled={Boolean(busy)}
-        onClick={actions.backup}
+        onClick={() => {
+          void actions.backup();
+        }}
       >
         <Icon glyph={Save} />
         Back up data
@@ -1118,7 +1137,9 @@ function MaintenanceActions({
         data-focusable
         className="button-with-icon"
         disabled={Boolean(busy)}
-        onClick={actions.openUserData}
+        onClick={() => {
+          void actions.openUserData();
+        }}
       >
         <Icon glyph={FolderOpen} />
         Open data folder
@@ -1127,7 +1148,9 @@ function MaintenanceActions({
         data-focusable
         className="button-with-icon"
         disabled={Boolean(busy)}
-        onClick={actions.check}
+        onClick={() => {
+          void actions.check();
+        }}
       >
         <Icon glyph={RefreshCw} />
         Check update
@@ -1136,7 +1159,9 @@ function MaintenanceActions({
         data-focusable
         className="button-with-icon"
         disabled={Boolean(busy)}
-        onClick={actions.verify}
+        onClick={() => {
+          void actions.verify();
+        }}
       >
         <Icon glyph={ShieldCheck} />
         Verify
@@ -1145,7 +1170,9 @@ function MaintenanceActions({
         data-focusable
         className="button-with-icon"
         disabled={!canRollback || Boolean(busy)}
-        onClick={actions.rollback}
+        onClick={() => {
+          void actions.rollback();
+        }}
       >
         <Icon glyph={RotateCcw} />
         Rollback
