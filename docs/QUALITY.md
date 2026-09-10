@@ -57,6 +57,8 @@ JavaScript, TypeScript, CSS, HTML, hand-maintained JSON and YAML, and active
 Markdown, and Taplo formats TOML. Prettier and Taplo are exact development
 dependencies installed by the existing pnpm workflow. Recommended VS Code
 extensions and format-on-save settings use those same repository-local tools.
+The TOML wrapper enumerates repository-owned files before passing their contents
+to Taplo so checks cover the same files on Windows and Unix hosts.
 
 Generated files, catalogs, fixtures, dependency lockfiles, archived documents,
 and dated release evidence are outside the bulk-format boundary so a formatter
