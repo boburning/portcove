@@ -127,12 +127,14 @@ namespace Portcove.ReferenceClient
 
         private async Task Refresh()
         {
+            if (detached) return;
             await cli.AssertIdentity();
             CurrentStatus = null;
             var status = await cli.Read("status", "status", port);
             var activity = Json.Array(await cli.Read("activity", "activity", "--limit", "200"));
             var catalog = await cli.Read("catalog.show", "catalog", "show", port);
             await cli.AssertIdentity();
+            if (detached) return;
             var active = Json.Field(status, "active");
             var readiness = Json.Field(status, "readiness");
             var blockers = readiness == null ? "Readiness unknown" : string.Join(", ", Json.Array(Json.Field(readiness, "blockers")).Select(value => Convert.ToString(value).Replace('_', ' ')));

@@ -151,6 +151,9 @@ namespace Portcove.ReferenceClient
                 {
                     while (true)
                     {
+                        // If exit happens after this snapshot, read once more on the next poll.
+                        // The durable terminal write precedes an already-observed wrapper exit.
+                        var exitedBeforeRead = launch.HasExited;
                         var record = await cli.Read("launch.show", "launch", "show", request).ConfigureAwait(false);
                         var observation = LaunchObservation.Read(record, request, port, launch.ProcessId);
                         if (observation != null)
@@ -168,7 +171,7 @@ namespace Portcove.ReferenceClient
                                 break;
                             }
                         }
-                        if (launch.HasExited)
+                        if (exitedBeforeRead)
                             throw new InvalidOperationException("The CLI exited without an observed terminal launch outcome. Review activity and refresh; do not launch again automatically.");
                         await Task.Delay(750).ConfigureAwait(false);
                     }
