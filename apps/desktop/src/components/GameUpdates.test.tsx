@@ -219,3 +219,112 @@ it("discards a late update review after switching the selected library", async (
   await act(async () => complete(plan));
   expect(container.textContent).not.toContain("2.0");
 });
+
+it.each(["future_action", "constructor", "__proto__", "toString"])(
+  "rejects an unfamiliar update action %s before execution and supports a fresh review",
+  async (action) => {
+    vi.spyOn(desktopApi, "planGameUpdate")
+      .mockResolvedValueOnce({
+        ...plan,
+        plan: {
+          ...plan.plan,
+          action: action as GameUpdatePlan["plan"]["action"],
+        },
+      })
+      .mockResolvedValueOnce(plan);
+    const apply = vi
+      .spyOn(desktopApi, "applyGameUpdate")
+      .mockResolvedValue(undefined!);
+    await act(async () =>
+      root.render(
+        <GameUpdateControl
+          portId="sample"
+          generation={9}
+          policy="notify"
+          busy={false}
+          perform={perform}
+        />,
+      ),
+    );
+    await click("Review game update");
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+      "cannot display this update plan",
+    );
+    expect(container.textContent).not.toContain("verified local release");
+    expect(container.querySelector(".install-plan button.primary")).toBeNull();
+    expect(apply).not.toHaveBeenCalled();
+    await click("Review game update again");
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    await click("Download update for later");
+    expect(apply).toHaveBeenCalledExactlyOnceWith(
+      "sample",
+      false,
+      "reviewed-download",
+      9,
+      expect.any(Function),
+    );
+  },
+);
+
+it.each(["already_active", "blocked_unverified"] as const)(
+  "does not submit the recognized non-executable update action %s",
+  async (action) => {
+    vi.spyOn(desktopApi, "planGameUpdate").mockResolvedValue({
+      ...plan,
+      plan: { ...plan.plan, action },
+    });
+    const apply = vi.spyOn(desktopApi, "applyGameUpdate");
+    await act(async () =>
+      root.render(
+        <GameUpdateControl
+          portId="sample"
+          generation={9}
+          policy="notify"
+          busy={false}
+          perform={perform}
+        />,
+      ),
+    );
+    await click("Review game update");
+    expect(container.querySelector(".install-plan button.primary")).toBeNull();
+    expect(container.querySelector('[role="status"]')?.textContent).toContain(
+      action === "already_active" ? "already active" : "unverified local copy",
+    );
+    expect(apply).not.toHaveBeenCalled();
+  },
+);
+
+it.each(["use_staged", "reuse_retained"] as const)(
+  "retains exact confirmation for the verified local action %s",
+  async (action) => {
+    vi.spyOn(desktopApi, "planGameUpdate").mockResolvedValue({
+      ...plan,
+      plan_sha256: `reviewed-${action}`,
+      plan: { ...plan.plan, action },
+    });
+    const apply = vi
+      .spyOn(desktopApi, "applyGameUpdate")
+      .mockResolvedValue(undefined!);
+    await act(async () =>
+      root.render(
+        <GameUpdateControl
+          portId="sample"
+          generation={9}
+          policy="notify"
+          busy={false}
+          perform={perform}
+        />,
+      ),
+    );
+    await click("Review game update");
+    expect(apply).not.toHaveBeenCalled();
+    await click("Stage verified update for later");
+    expect(apply).toHaveBeenCalledExactlyOnceWith(
+      "sample",
+      false,
+      `reviewed-${action}`,
+      9,
+      expect.any(Function),
+    );
+  },
+);

@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { desktopApi } from "../api";
 import type { GameUpdatePlan, PortStatus, UpdatePolicy } from "../types";
 import type { Perform } from "../use-portcove";
 import { errorText, formatBytes } from "../view-model";
 import { ChoiceMenu } from "./ChoiceMenu";
 import { OperationCancellation } from "./OperationCancellation";
+import { installPlanActionLabel } from "../install-plan-presentation";
 
 export function UpdatePolicyControl({
   policy,
@@ -121,7 +122,7 @@ export function GameUpdateControl({
     }
   };
   const apply = async () => {
-    if (!plan || !perform) return;
+    if (!plan || !perform || !gameUpdateActionLabel(plan)) return;
     const current = ++request.current;
     setPending(true);
     setError(undefined);
@@ -157,17 +158,6 @@ export function GameUpdateControl({
       }
     }
   };
-  const blocked =
-    plan?.plan.action === "blocked_unverified" ||
-    plan?.plan.action === "already_active";
-  const label =
-    plan?.plan.action === "download"
-      ? plan.activate
-        ? "Download and install update"
-        : "Download update for later"
-      : plan?.activate
-        ? "Install verified update"
-        : "Stage verified update for later";
   return (
     <section aria-label="Review game update">
       <h3>Game update</h3>
@@ -197,45 +187,18 @@ export function GameUpdateControl({
         </button>
       )}
       {plan && (
-        <div className="install-plan">
-          <p>
-            <strong>{plan.plan.release.version}</strong> · {plan.plan.channel}
-          </p>
-          <p>
-            {plan.plan.action === "download"
-              ? `${formatBytes(plan.plan.download_bytes)} to download`
-              : plan.plan.action === "blocked_unverified"
-                ? "The local copy has not been verified."
-                : "No download; use the verified local release."}
-          </p>
-          {!blocked && (
-            <p>
-              {plan.activate
-                ? "The verified update becomes active and the current version remains available for rollback."
-                : "The update is staged for later. Your active version stays unchanged."}{" "}
-              Saved update settings are unchanged.
-            </p>
-          )}
-          {blocked ? (
-            <p role="status">
-              {plan.plan.action === "already_active"
-                ? "This verified release is already active."
-                : "An unverified local copy blocks this update. Verify or repair it first."}
-            </p>
-          ) : (
-            <button
-              ref={confirm}
-              data-focusable
-              className="primary"
-              disabled={busy || pending}
-              onClick={() => {
-                void apply();
-              }}
-            >
-              {pending ? "Updating…" : label}
-            </button>
-          )}
-        </div>
+        <GameUpdateReview
+          plan={plan}
+          disabled={busy || pending || !perform}
+          pending={pending}
+          confirm={confirm}
+          review={() => {
+            void review();
+          }}
+          apply={() => {
+            void apply();
+          }}
+        />
       )}
       {operation && (
         <OperationCancellation
@@ -247,5 +210,98 @@ export function GameUpdateControl({
       {message && <p role="status">{message}</p>}
       {error && <p role="alert">{error}</p>}
     </section>
+  );
+}
+
+function gameUpdateActionLabel(plan: GameUpdatePlan) {
+  const labels: Record<GameUpdatePlan["plan"]["action"], string | undefined> = {
+    download: plan.activate
+      ? "Download and install update"
+      : "Download update for later",
+    use_staged: plan.activate
+      ? "Install verified update"
+      : "Stage verified update for later",
+    reuse_retained: plan.activate
+      ? "Install verified update"
+      : "Stage verified update for later",
+    already_active: undefined,
+    blocked_unverified: undefined,
+  };
+  return Object.hasOwn(labels, plan.plan.action)
+    ? labels[plan.plan.action]
+    : undefined;
+}
+
+function GameUpdateReview({
+  plan,
+  disabled,
+  pending,
+  confirm,
+  review,
+  apply,
+}: {
+  plan: GameUpdatePlan;
+  disabled: boolean;
+  pending: boolean;
+  confirm: RefObject<HTMLButtonElement | null>;
+  review: () => void;
+  apply: () => void;
+}) {
+  const label = gameUpdateActionLabel(plan);
+  if (!installPlanActionLabel(plan.plan.action))
+    return (
+      <div className="install-plan">
+        <p role="alert">
+          This version of Portcove cannot display this update plan. Review it
+          again, or update Portcove if this continues.
+        </p>
+        <button
+          ref={confirm}
+          data-focusable
+          disabled={disabled}
+          onClick={review}
+        >
+          Review game update again
+        </button>
+      </div>
+    );
+  return (
+    <div className="install-plan">
+      <p>
+        <strong>{plan.plan.release.version}</strong> · {plan.plan.channel}
+      </p>
+      <p>
+        {plan.plan.action === "download"
+          ? `${formatBytes(plan.plan.download_bytes)} to download`
+          : plan.plan.action === "blocked_unverified"
+            ? "The local copy has not been verified."
+            : "No download; use the verified local release."}
+      </p>
+      {label && (
+        <p>
+          {plan.activate
+            ? "The verified update becomes active and the current version remains available for rollback."
+            : "The update is staged for later. Your active version stays unchanged."}{" "}
+          Saved update settings are unchanged.
+        </p>
+      )}
+      {!label ? (
+        <p role="status">
+          {plan.plan.action === "already_active"
+            ? "This verified release is already active."
+            : "An unverified local copy blocks this update. Verify or repair it first."}
+        </p>
+      ) : (
+        <button
+          ref={confirm}
+          data-focusable
+          className="primary"
+          disabled={disabled}
+          onClick={apply}
+        >
+          {pending ? "Updating…" : label}
+        </button>
+      )}
+    </div>
   );
 }
