@@ -69,6 +69,24 @@ The future protected publisher in #246 will complete policy-compliant candidates
 automatically; current PR and integrity requirements remain in force until that
 separately authorized implementation ships.
 
+## Pull request and commit conventions
+
+Follow [Contribution conventions](docs/CONTRIBUTION-CONVENTIONS.md) for branch
+names, authored commit subjects, pull request titles and the five-section pull
+request description. The short form is `type(scope): imperative summary`, with
+an optional lowercase scope and a descriptive project-purpose branch such as
+`feature/source-review` or `chore/pr-conventions`.
+
+Open incomplete work as a draft, keep one description current as evidence
+changes, and run the advisory checker after creating or updating it:
+
+```powershell
+just pr-check <number-or-url>
+```
+
+Style findings do not block merge and do not replace the linked issue,
+acceptance evidence, distinct review, required CI, or merge-authority checks.
+
 Before submitting a change:
 
 Run `just fmt` to format Rust, JavaScript, TypeScript, CSS, active documentation,

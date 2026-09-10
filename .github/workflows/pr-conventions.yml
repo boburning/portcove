@@ -1,0 +1,46 @@
+name: PR conventions (advisory)
+
+on:
+  pull_request_target:
+    types:
+      [
+        opened,
+        edited,
+        synchronize,
+        reopened,
+        converted_to_draft,
+        ready_for_review,
+      ]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to inspect
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: pr-conventions-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: true
+
+jobs:
+  conventions:
+    name: PR conventions (advisory)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the trusted base contract
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: Report advisory findings
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+        run: node scripts/pr-conventions.mjs --pr "$PR_NUMBER"

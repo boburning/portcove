@@ -23,6 +23,11 @@ const expectedChecks = [
   "rust",
   "rust-quality",
 ];
+const repositorySettingNames = [
+  "allow_auto_merge",
+  "merge_commit_title",
+  "merge_commit_message",
+];
 const expectedBypassActors = [
   {
     actor_id: 5,
@@ -39,8 +44,18 @@ function requiredRule(ruleset, type) {
 }
 
 export function validateRepositorySettings(ruleset, security) {
-  if (security.schema_version !== 1)
-    throw new Error("repository security schema_version must be 1");
+  assertExactKeys(
+    security,
+    [
+      "schema_version",
+      "repository",
+      "private_vulnerability_reporting",
+      ...repositorySettingNames,
+    ],
+    "repository security configuration",
+  );
+  if (security.schema_version !== 2)
+    throw new Error("repository security schema_version must be 2");
   if (!security.repository?.match(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/)) {
     throw new Error(
       "repository security configuration has an invalid repository",
@@ -51,6 +66,14 @@ export function validateRepositorySettings(ruleset, security) {
   }
   if (security.allow_auto_merge !== true) {
     throw new Error("repository auto-merge capability must be enabled");
+  }
+  if (
+    security.merge_commit_title !== "PR_TITLE" ||
+    security.merge_commit_message !== "BLANK"
+  ) {
+    throw new Error(
+      "merge commits must use the pull request title with a blank generated body",
+    );
   }
   if (ruleset.name !== "Protect main" || ruleset.target !== "branch") {
     throw new Error(
@@ -78,6 +101,8 @@ export function validateRepositorySettings(ruleset, security) {
   requiredRule(ruleset, "non_fast_forward");
   const pullRequest = requiredRule(ruleset, "pull_request").parameters;
   if (
+    JSON.stringify(pullRequest.allowed_merge_methods) !==
+      JSON.stringify(["merge", "squash", "rebase"]) ||
     pullRequest.required_approving_review_count !== 0 ||
     !pullRequest.dismiss_stale_reviews_on_push ||
     pullRequest.require_last_push_approval ||
@@ -86,7 +111,7 @@ export function validateRepositorySettings(ruleset, security) {
     !pullRequest.required_review_thread_resolution
   ) {
     throw new Error(
-      "pull requests must require zero approvals, no last-push or CODEOWNERS approval, and resolved review threads",
+      "pull requests must preserve merge, squash and rebase plus zero approvals, no last-push or CODEOWNERS approval, and resolved review threads",
     );
   }
   const statusChecks = requiredRule(
@@ -242,7 +267,7 @@ export function repositoryApplyPlan({
   securityStatus,
   repositoryStatus,
   desiredRuleset,
-  desiredAutoMerge,
+  desiredRepository,
 }) {
   const existing = rulesets.find(
     (ruleset) =>
@@ -259,12 +284,34 @@ export function repositoryApplyPlan({
     );
   }
   const migration = rulesetMigration(actualRuleset, desiredRuleset);
+  const repository = repositorySettingsMigration(
+    repositoryStatus,
+    desiredRepository,
+  );
   return {
     rulesetEndpoint: `rulesets/${existing.id}`,
     rulesetPayload: migration.payload,
     rulesetChanges: migration.changes,
     enablePrivateReporting: securityStatus.enabled !== true,
-    enableAutoMerge: repositoryStatus.allow_auto_merge !== desiredAutoMerge,
+    repositoryChanges: repository.changes,
+    repositoryPayload: repository.payload,
+  };
+}
+
+export function repositorySettingsMigration(actual, desired) {
+  assertExactKeys(
+    desired,
+    repositorySettingNames,
+    "desired repository settings",
+  );
+  const changes = repositorySettingNames
+    .filter((name) => actual[name] !== desired[name])
+    .map((name) => ({ path: name, from: actual[name], to: desired[name] }));
+  return {
+    changes,
+    payload: Object.fromEntries(
+      changes.map((change) => [change.path, change.to]),
+    ),
   };
 }
 
@@ -316,6 +363,9 @@ async function main(argv) {
     return;
   }
   const repo = security.repository;
+  const desiredRepository = Object.fromEntries(
+    repositorySettingNames.map((name) => [name, security[name]]),
+  );
   let summaries = gh(repo, { endpoint: "rulesets", method: "GET" });
   let securityStatus = gh(repo, {
     endpoint: "private-vulnerability-reporting",
@@ -333,22 +383,14 @@ async function main(argv) {
     securityStatus,
     repositoryStatus,
     desiredRuleset: ruleset,
-    desiredAutoMerge: security.allow_auto_merge,
+    desiredRepository,
   });
   if (mode === "--plan") {
     console.log(
       JSON.stringify(
         {
           ruleset: plan.rulesetChanges,
-          repository: plan.enableAutoMerge
-            ? [
-                {
-                  path: "allow_auto_merge",
-                  from: repositoryStatus.allow_auto_merge,
-                  to: security.allow_auto_merge,
-                },
-              ]
-            : [],
+          repository: plan.repositoryChanges,
           privateVulnerabilityReporting: plan.enablePrivateReporting
             ? [
                 {
@@ -373,12 +415,8 @@ async function main(argv) {
         plan.rulesetPayload,
       );
     }
-    if (plan.enableAutoMerge) {
-      gh(
-        repo,
-        { endpoint: "", method: "PATCH" },
-        { allow_auto_merge: security.allow_auto_merge },
-      );
+    if (plan.repositoryChanges.length) {
+      gh(repo, { endpoint: "", method: "PATCH" }, plan.repositoryPayload);
     }
     if (plan.enablePrivateReporting) {
       gh(repo, { endpoint: "private-vulnerability-reporting", method: "PUT" });
@@ -403,9 +441,13 @@ async function main(argv) {
   }
   if (securityStatus.enabled !== true)
     throw new Error("private vulnerability reporting is not enabled");
-  if (repositoryStatus.allow_auto_merge !== security.allow_auto_merge) {
+  const repositoryDrift = repositorySettingsMigration(
+    repositoryStatus,
+    desiredRepository,
+  ).changes;
+  if (repositoryDrift.length) {
     throw new Error(
-      "repository auto-merge capability differs from .github/repository-security.json",
+      `repository settings differ from .github/repository-security.json: ${repositoryDrift.map((change) => change.path).join(", ")}`,
     );
   }
   console.log(`Repository settings match the checked-in contract for ${repo}.`);
