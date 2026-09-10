@@ -19,7 +19,8 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
   const [plan, setPlan] = useState<LibraryImportPlan>();
   const [busy, setBusy] = useState("");
   const [error, setError] = useState<unknown>();
-  const dismiss = () => { if (!busy) close(); };
+  const [transferAttempted, setTransferAttempted] = useState(false);
+  const dismiss = () => { if (!busy) { if (transferAttempted) window.location.reload(); else close(); } };
   const dialog = useDialogFocus(dismiss);
   const recoveryRoot = transferRecoveryRoot(error, "import_destination");
   const run = async (label: string, operation: () => Promise<void>) => {
@@ -46,10 +47,11 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
     {plan && <LibraryCopySummary plan={plan} source={plan.content_root} label="Library import plan" />}
     {busy && <p role="status">{busy} Keep Portcove open until this finishes.</p>}
     {error != null && <p role="alert">{errorText(error)}</p>}
+    {transferAttempted && !busy && <p>Closing this review refreshes the library before you continue.</p>}
     {recoveryRoot && <LibraryImportRecovery destination={recoveryRoot} onBusyChange={active => setBusy(active ? "Recovering your import…" : "")} />}
     <div className="actions"><button data-focusable disabled={Boolean(busy)} onClick={dismiss}>Close</button>
       {!recoveryRoot && (plan
-        ? <button data-focusable className="primary" disabled={Boolean(busy)} onClick={() => { void run("Copying and verifying your backup…", async () => { await desktopApi.importLibrary(plan.metadata_file.path, plan.content_root, plan.plan_sha256); window.location.reload(); }); }}>Import this backup</button>
+        ? <button data-focusable className="primary" disabled={Boolean(busy)} onClick={() => { void run("Copying and verifying your backup…", async () => { setTransferAttempted(true); await desktopApi.importLibrary(plan.metadata_file.path, plan.content_root, plan.plan_sha256); window.location.reload(); }); }}>Import this backup</button>
         : <button data-focusable className="primary" disabled={Boolean(busy) || !metadata.trim() || !content.trim()} onClick={() => { void run("Reviewing your backup…", async () => setPlan(await desktopApi.planLibraryImport(metadata, content))); }}>Review import</button>)}
     </div>
   </section></div>;

@@ -18,7 +18,8 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
   const [plan, setPlan] = useState<LibraryMovePlan>();
   const [busy, setBusy] = useState("");
   const [error, setError] = useState<unknown>();
-  const dismiss = () => { if (!busy) close(); };
+  const [transferAttempted, setTransferAttempted] = useState(false);
+  const dismiss = () => { if (!busy) { if (transferAttempted) window.location.reload(); else close(); } };
   const dialog = useDialogFocus(dismiss);
   const recoveryRoot = transferRecoveryRoot(error);
   const run = async (label: string, operation: () => Promise<void>) => {
@@ -40,10 +41,11 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
     {plan && <LibraryCopySummary plan={plan} source={plan.source_root} label="Library move plan" />}
     {busy && <p role="status">{busy} Keep Portcove open until this finishes.</p>}
     {error != null && <p role="alert">{errorText(error)}</p>}
+    {transferAttempted && !busy && <p>Closing this review refreshes the library before you continue.</p>}
     {recoveryRoot && <LibraryMoveRecovery source={recoveryRoot} onBusyChange={active => setBusy(active ? "Recovering your library…" : "")} />}
     <div className="actions"><button data-focusable disabled={Boolean(busy)} onClick={dismiss}>Close</button>
       {!recoveryRoot && (plan
-        ? <button data-focusable className="primary" disabled={Boolean(busy)} onClick={() => { void run("Copying and verifying your library…", async () => { await desktopApi.moveLibrary(plan.destination_root, plan.plan_sha256); window.location.reload(); }); }}>Move to this folder</button>
+        ? <button data-focusable className="primary" disabled={Boolean(busy)} onClick={() => { void run("Copying and verifying your library…", async () => { setTransferAttempted(true); await desktopApi.moveLibrary(plan.destination_root, plan.plan_sha256); window.location.reload(); }); }}>Move to this folder</button>
         : <button data-focusable className="primary" disabled={Boolean(busy) || !destination.trim()} onClick={() => { void run("Reviewing your library…", async () => setPlan(await desktopApi.planLibraryMove(destination))); }}>Review move</button>)}
     </div>
   </section></div>;
@@ -72,7 +74,7 @@ export function transferRecoveryRoot(error: unknown, key: "retained_source" | "i
 }
 
 export function LibraryCopySummary({ plan, source, label }: { plan: Pick<LibraryMovePlan, "content" | "metadata" | "destination_root" | "required_bytes" | "available_bytes">; source: string; label: string }) {
-  return <section className="adoption-plan" aria-label={label}>
+  return <section className="adoption-plan adoption-review" aria-label={label}>
     <p>From <code>{source}</code><br />To <code>{plan.destination_root}</code></p>
     <ul>{plan.content.map(tree => <li key={tree.kind}>{tree.kind.replaceAll("_", " ")}: {tree.copy.files.length.toLocaleString()} files, {formatBytes(tree.copy.total_bytes)}</li>)}</ul>
     <p>{formatBytes(plan.required_bytes)} required, including working space. {formatBytes(plan.available_bytes)} available.</p>

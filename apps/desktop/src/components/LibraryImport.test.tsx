@@ -6,6 +6,7 @@ import { desktopApi } from "../api";
 import * as picker from "../file-picker";
 import type { LibraryImportPlan } from "../types";
 import { LibraryImportButton } from "./LibraryImport";
+import { LibraryMoveButton } from "./LibraryMove";
 
 let root: Root;
 const plan: LibraryImportPlan = {
@@ -64,4 +65,34 @@ it("keeps the dialog open while a reviewed import is running", async () => {
   expect(document.querySelector("[role=dialog]")).not.toBeNull();
   await act(async () => rejectImport({ message: "Import was not confirmed" }));
   expect(button("Close").disabled).toBe(false);
+});
+
+
+it.each(["move", "import"] as const)("refreshes the workspace after closing a failed %s without repeating the transfer", async kind => {
+  const reload = vi.fn();
+  const originalWindow = window;
+  vi.stubGlobal("window", new Proxy(originalWindow, {
+    get(target, key, receiver) { return key === "location" ? { reload } : Reflect.get(target, key, receiver); },
+  }));
+  if (kind === "move") {
+    vi.spyOn(desktopApi, "planLibraryMove").mockResolvedValue({ ...plan, source_root: plan.content_root, source_will_be_retained: true, destination_root: "E:/New" });
+    vi.spyOn(desktopApi, "moveLibrary").mockRejectedValue({ message: "Disk disconnected after copying" });
+    await act(async () => root.render(<LibraryMoveButton disabled={false} />));
+    await click("Move library");
+    const input = document.querySelector<HTMLInputElement>("#library-destination")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "E:/New");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await click("Review move"); await click("Move to this folder");
+    expect(document.body.textContent).toContain("Disk disconnected after copying");
+  } else {
+    await click("Import library"); await click("Choose file"); await click("Choose folder"); await click("Review import"); await click("Import this backup");
+    expect(document.body.textContent).toContain("Copied file changed");
+  }
+  expect(reload).not.toHaveBeenCalled();
+  expect(document.body.textContent).toContain("Closing this review refreshes the library");
+  await click("Close");
+  expect(reload).toHaveBeenCalledTimes(1);
+  expect(kind === "move" ? desktopApi.moveLibrary : desktopApi.importLibrary).toHaveBeenCalledTimes(1);
 });

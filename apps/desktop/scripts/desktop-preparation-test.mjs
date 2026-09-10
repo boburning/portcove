@@ -7,13 +7,14 @@ import { By, until } from "selenium-webdriver";
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 import { backupReviewScenario } from "./desktop-backup-review-test.mjs";
 import { removalReviewScenario } from "./desktop-removal-review-test.mjs";
+import { libraryHandoffScenario } from "./desktop-library-handoff-test.mjs";
 import { adoptionReviewScenario } from "./desktop-adoption-review-test.mjs";
 import { sourceRemovalScenario } from "./desktop-source-removal-test.mjs";
 import { interruptedPreparationScenario } from "./desktop-preparation-recovery-test.mjs";
 
 export async function preparationScenarios({ browser, invoke, scenario, library, output, artifacts, cli, tool, confirmNative }) {
-  const command = args => {
-    const result = spawnCommand(cli, ["--library", library, "--json", "--non-interactive", ...args], {
+  const command = (args, selectedLibrary = library) => {
+    const result = spawnCommand(cli, ["--library", selectedLibrary, "--json", "--non-interactive", ...args], {
       encoding: "utf8", windowsHide: true, timeout: 15_000,
       env: { ...process.env, PORTCOVE_PREFERENCES: path.join(output, "preferences.json") },
     });
@@ -247,5 +248,6 @@ export async function preparationScenarios({ browser, invoke, scenario, library,
   await removalReviewScenario({ browser, invoke, scenario, library, output, artifacts, command, open, confirmNative });
   await sourceRemovalScenario({ browser, invoke, scenario, library, output, artifacts, command, confirmNative });
   await adoptionReviewScenario({ browser, invoke, scenario, library, output, artifacts, command, tool, host, confirmNative });
+  await libraryHandoffScenario({ browser, invoke, scenario, library, output, artifacts, command });
 
 }

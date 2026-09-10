@@ -2,7 +2,7 @@
 
 use crate::{
     BootstrapStatus, DesktopError, DesktopResult, DesktopState, blocking_worker, bootstrap_status,
-    initialize_desktop_selection, observe_launch_completion, ready,
+    initialize_desktop_selection, observe_launch_completion, ready, require_no_library_handoff,
 };
 use portcove_core::{Library, LibrarySelection, LibrarySelectionSource, PortcoveError};
 use std::path::PathBuf;
@@ -74,6 +74,7 @@ fn switch_library(
         let mut initialization = state.initialization.lock().map_err(|_| {
             DesktopError::from(PortcoveError::state("desktop state lock was poisoned"))
         })?;
+        require_no_library_handoff(&initialization)?;
         if let Ok(current) = initialization.as_mut()
             && current.library.root() == selection.root
         {
@@ -119,12 +120,15 @@ fn switch_library(
         restore_previous(state, previous_selection);
         return Err(error);
     }
-    *state.initialization.lock().map_err(|_| {
-        DesktopError::from(PortcoveError::state("desktop state lock was poisoned"))
-    })? = Ok(next);
-    state
-        .generation
-        .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+    {
+        let mut initialization = state.initialization.lock().map_err(|_| {
+            DesktopError::from(PortcoveError::state("desktop state lock was poisoned"))
+        })?;
+        *initialization = Ok(next);
+        state
+            .generation
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+    }
     Ok(bootstrap_status(state))
 }
 
@@ -229,5 +233,35 @@ mod tests {
         assert_eq!(crate::ready(&state).unwrap().library.root(), current);
         assert_eq!(fs::read(preference_path).unwrap(), b"{");
         assert_eq!(fs::read_dir(next).unwrap().count(), 0);
+    }
+    #[test]
+    fn library_switch_cannot_replace_an_inflight_transfer_or_switch() {
+        for marker in ["transfer_in_progress", "library_switch_in_progress"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let target = temporary.path().join("target");
+            fs::create_dir(&target).unwrap();
+            let preferences =
+                HostPreferenceStore::new(temporary.path().join("preferences.json")).unwrap();
+            let state = desktop_state(preferences.clone(), temporary.path().join("current"));
+            *state.initialization.lock().unwrap() = Err(PortcoveError::conflict("owned handoff")
+                .detail(marker, "true")
+                .into());
+            let before = preferences.load().unwrap();
+            let error = switch_library(&state, Some(target.clone())).unwrap_err();
+            assert_eq!(error.code, portcove_core::ErrorCode::Conflict);
+            assert!(
+                crate::ready(&state)
+                    .err()
+                    .unwrap()
+                    .details
+                    .contains_key(marker)
+            );
+            assert_eq!(
+                serde_json::to_value(preferences.load().unwrap()).unwrap(),
+                serde_json::to_value(before).unwrap()
+            );
+            assert_eq!(fs::read_dir(target).unwrap().count(), 0);
+            assert_eq!(crate::state_generation(&state), 1);
+        }
     }
 }

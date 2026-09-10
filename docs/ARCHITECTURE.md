@@ -21,6 +21,19 @@ React UI ── Tauri IPC ───┤
                  SQLite + library tree
 ```
 
+## Desktop library handoff state
+
+Library selection and transfer share the same adapter initialization lock. Either
+in-flight handoff excludes another switch, move, import or recovery transfer before
+it can replace the active adapter state. Bootstrap captures the library and its
+generation under that same lock; successful selection and every attempted transfer
+publish the reopened state and new generation together. A transfer error can follow
+committed changes or reopening through a relocation receipt, so it also expires
+earlier reviews. Rejected overlapping handoffs leave the owned operation untouched.
+Reviews from the previous generation must be requested again. Core still owns library leases, copy verification,
+persistence, transfer journals and durable library selection; this is host-state
+coordination, not another domain authority.
+
 ## Existing-install adoption review
 
 Core's adoption preview binds both the source copy plan and the destination:

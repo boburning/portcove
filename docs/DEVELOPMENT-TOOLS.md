@@ -168,3 +168,11 @@ Confirmed copying replaces matching saved files while preserving the original,
 unrelated saves, prior installation, backups, sources and another game. It records
 accessibility and compact layout evidence. It establishes no gameplay or physical
 interruption claim; existing core publication-recovery fixtures remain separate.
+
+The final owned-library handoff scenario seeds and selects a separate harness-owned
+library, then moves it through Settings. Earlier preparation journals remain intact
+in their original test library; their required recovery is never bypassed. It checks preserved originals, matching saved-data copies, stable active
+installation identity, unchanged source references and an advanced desktop library
+generation. A prior-generation request is rejected, while the new generation reads
+the verified destination. Its accessibility and native evidence remain distinct
+from core interruption and physical-platform qualification.
