@@ -81,6 +81,13 @@ async function scenario(name, action) {
     checks.push({ scenario: name, outcome: "passed" });
   } catch (error) {
     checks.push({ scenario: name, outcome: "failed", message: error.message });
+    if (browser) {
+      const report = path.join(output, `${name}-diagnostics.json`);
+      try {
+        const details = await browser.executeScript(() => Array.from(document.querySelectorAll('.error-banner, .bootstrap-error')).map(element => element.textContent));
+        await writeFile(report, JSON.stringify(details, null, 2), { flag: "wx" }); artifacts.push(report);
+      } catch { /* Preserve the original failure if its window is unavailable. */ }
+    }
     process.exitCode = 1;
   }
   if (browser) {

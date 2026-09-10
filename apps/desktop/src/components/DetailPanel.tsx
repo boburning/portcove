@@ -78,7 +78,7 @@ function DetailDialog({ props, dialog }: { props: DetailPanelProps; dialog: Retu
   const selectedChannel = status?.channel ?? port.channels[0];
   const policy = status?.update_policy ?? "notify";
   const { sourceReady, biosReady, launchReady, installed, pendingSetup } = detailReadiness(port, status, source, sourcePath, bios, biosPath);
-  const state = detailState(installed, launchReady, Boolean(status?.staged), pendingSetup, Boolean(status?.readiness?.blockers.includes("missing_runtime")), status?.readiness?.source, status?.readiness?.bios, Boolean(sourcePath.trim() || biosPath?.trim()));
+  const state = detailState(installed, launchReady, Boolean(status?.staged), pendingSetup, Boolean(status?.readiness?.blockers.includes("missing_runtime")), status?.readiness?.source, status?.readiness?.bios, Boolean(sourcePath.trim() || biosPath?.trim()), Boolean(status?.readiness?.blockers.includes("invalid_installation")));
   const sources: SourceControls = {
     port, source, sourceInspection, sourceProfile, sourcePath, setSourcePath, pickSource, pickSourceArchive,
     bios, biosInspection, biosProfile, biosPath, setBiosPath, pickBios, sourceReady, biosReady, openSourceEvidence: props.openSourceEvidence, inspectSource: props.inspectSource,
@@ -112,7 +112,7 @@ function DetailBody({ perform, prepare, port, status, state, sources, installed,
     <SourceFields mode="missing" controls={sources} />
     <SourceIntakeActions controls={sources} busy={Boolean(busy)} />
     {managedPreparation && pendingSetup && <PreparationControl key={`${port.id}:${libraryGeneration}:${status?.active?.id}`} portId={port.id} generation={libraryGeneration} disabled={Boolean(busy) || !sources.sourceReady || !sources.biosReady} run={prepare} />}
-    <PrimaryActions preparationRequired={managedPreparation && pendingSetup} runtimeNeeded={Boolean(status?.readiness?.blockers.includes("missing_runtime"))} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} plan={installPlan} busy={busy} actions={actions} />
+    <PrimaryActions invalidInstallation={Boolean(status?.readiness?.blockers.includes("invalid_installation"))} preparationRequired={managedPreparation && pendingSetup} runtimeNeeded={Boolean(status?.readiness?.blockers.includes("missing_runtime"))} installed={installed} launchReady={launchReady} pendingSetup={pendingSetup} plan={installPlan} busy={busy} actions={actions} />
     {status?.staged && <section aria-label="Activate staged update"><p>Staged update: <strong>{status.staged.version}</strong>. Activation uses this verified local copy without downloading and keeps the current version for rollback.</p><button data-focusable disabled={Boolean(busy)} onClick={actions.activate}>Activate staged update · {status.staged.version}</button></section>}
     {installed && <GameUpdateControl key={`${port.id}:${libraryGeneration}:${status?.active?.id}:${status?.staged?.id}:${selectedChannel}:${policy}`} portId={port.id} generation={libraryGeneration} policy={policy} busy={Boolean(busy)} perform={perform} />}
     <TrustStrip status={status} />
@@ -259,7 +259,8 @@ function sourceFieldCopy(profile?: SourceProfile) {
   return { placeholder: "Choose or paste the full source file path", note: "Referenced in place; never uploaded." };
 }
 
-function PrimaryActions({ preparationRequired, runtimeNeeded, installed, launchReady, pendingSetup, plan, busy, actions }: { preparationRequired: boolean; runtimeNeeded: boolean; installed: boolean; launchReady: boolean; pendingSetup: boolean; plan?: InstallPlan; busy?: string; actions: DetailActions }) {
+function PrimaryActions({ invalidInstallation, preparationRequired, runtimeNeeded, installed, launchReady, pendingSetup, plan, busy, actions }: { invalidInstallation: boolean; preparationRequired: boolean; runtimeNeeded: boolean; installed: boolean; launchReady: boolean; pendingSetup: boolean; plan?: InstallPlan; busy?: string; actions: DetailActions }) {
+  if (invalidInstallation) return <p>Verify the game files below and review repair before playing.</p>;
   if (runtimeNeeded) return <p>Review the game update below to install the required runtime.</p>;
   if (!installed) return <InstallAction ready={launchReady} plan={plan} busy={busy} install={actions.install} review={actions.reviewInstall} />;
   return <div className="actions primary-actions">
@@ -314,7 +315,8 @@ function MaintenanceActions({ port, libraryGeneration, canRollback, busy, action
 }
 
 
-function detailState(installed: boolean, launchReady: boolean, staged: boolean, pendingSetup: boolean, runtimeNeeded: boolean, sourceHealth?: SourceHealth | null, biosHealth?: SourceHealth | null, selectedPath = false) {
+function detailState(installed: boolean, launchReady: boolean, staged: boolean, pendingSetup: boolean, runtimeNeeded: boolean, sourceHealth?: SourceHealth | null, biosHealth?: SourceHealth | null, selectedPath = false, invalidInstallation = false) {
+  if (invalidInstallation) return { title: "Installation needs repair", description: "Portcove could not verify this installation. Verify the game files and review repair before playing.", tone: "setup", icon: AlertTriangle };
   if (!installed) return { title: "Available to install", description: selectedPath ? "Selected game files have not been checked. Portcove validates them when you continue installation." : "Portcove will check required game files and verify the release before it becomes active.", tone: "available", icon: Download };
   if (runtimeNeeded) return { title: "Verified runtime required", description: "Review the update to install this port with its required runtime. Existing saves stay in your library.", tone: "setup", icon: Wrench };
   const sourceIssue = sourceHealthState("Original source", sourceHealth);

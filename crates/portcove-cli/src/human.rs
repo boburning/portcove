@@ -1095,6 +1095,7 @@ fn readiness(status: &PortStatus) -> String {
             LaunchBlocker::ChangedBios => "changed BIOS",
             LaunchBlocker::MissingRuntime => "needs verified runtime (update port)",
             LaunchBlocker::PreparationRequired => "needs game data preparation",
+            LaunchBlocker::InvalidInstallation => "installation needs verification or repair",
         })
         .collect::<Vec<_>>()
         .join(", ")

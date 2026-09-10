@@ -1608,6 +1608,25 @@ impl PortcoveService {
         checked_sources: &mut HashMap<String, SourceHealth>,
     ) -> Result<PortStatus> {
         let mut blockers = Vec::new();
+        let retained_port = match status
+            .active
+            .as_ref()
+            .map(|install| self.installed_port(install))
+            .transpose()
+        {
+            Ok(port) => port,
+            Err(_) => {
+                status.readiness = Some(LaunchReadiness {
+                    launchable: false,
+                    blockers: vec![LaunchBlocker::InvalidInstallation],
+                    pending_setup: false,
+                    source: None,
+                    bios: None,
+                });
+                return Ok(status);
+            }
+        };
+        let port = retained_port.as_ref().unwrap_or(port);
         let installed = status.active.is_some();
         let source = port
             .source_profile
@@ -2394,11 +2413,15 @@ impl PortcoveService {
         F: FnMut(OperationEvent),
     {
         let runtime = crate::runtime::required(port, Platform::current()?);
-        let qualification = InstallQualification::from_port(port, Platform::current()?)?;
         if let Some(active) = &status.active
             && artifact_matches_release(active, &release, runtime.as_ref())
         {
             self.managed_install_root(&port.id, &active.path)?;
+            let qualification = Installer::new(self.library.clone())?.qualification_for_install(
+                active,
+                &self.catalog,
+                Platform::current()?,
+            )?;
             Installer::new(self.library.clone())?.verify_critical(active, &qualification)?;
             return Ok(active.clone());
         }
@@ -2406,6 +2429,11 @@ impl PortcoveService {
             && artifact_matches_release(staged, &release, runtime.as_ref())
         {
             self.managed_install_root(&port.id, &staged.path)?;
+            let qualification = Installer::new(self.library.clone())?.qualification_for_install(
+                staged,
+                &self.catalog,
+                Platform::current()?,
+            )?;
             Installer::new(self.library.clone())?.verify_critical(staged, &qualification)?;
             reporter.operation.begin_publication()?;
             return if activate {
@@ -2419,6 +2447,11 @@ impl PortcoveService {
                 .install_by_artifact(&port.id, &release.asset.sha256, runtime.as_ref())?
         {
             self.managed_install_root(&port.id, &existing.path)?;
+            let qualification = Installer::new(self.library.clone())?.qualification_for_install(
+                &existing,
+                &self.catalog,
+                Platform::current()?,
+            )?;
             Installer::new(self.library.clone())?.verify_critical(&existing, &qualification)?;
             reporter.operation.begin_publication()?;
             self.collect_active_user_data_if_launched(&port.id)?;
@@ -2428,6 +2461,8 @@ impl PortcoveService {
             existing.staged = !activate;
             return Ok(existing);
         }
+        let qualification =
+            InstallQualification::from_catalog(&self.catalog, &port.id, Platform::current()?)?;
         self.collect_active_user_data_if_launched(&port.id)?;
         let source =
             self.validate_and_remember_source(port, overrides.source, reporter.operation)?;
@@ -2792,8 +2827,8 @@ impl PortcoveService {
                 .status(port_id)?
                 .active
                 .ok_or_else(|| PortcoveError::not_found(format!("{port_id} is not installed")))?;
-            let qualification =
-                InstallQualification::from_port(self.catalog.port(port_id)?, Platform::current()?)?;
+            let port = self.installed_port(&active)?;
+            let qualification = InstallQualification::from_port(&port, Platform::current()?)?;
             self.managed_install_root(port_id, &active.path)?;
             Installer::new(self.library.clone())?.verify_managed(&active, &qualification)
         })();
@@ -2812,27 +2847,18 @@ impl PortcoveService {
             let previous = self.status(port_id)?.previous.ok_or_else(|| {
                 PortcoveError::not_found(format!("{port_id} has no rollback version"))
             })?;
-            crate::runtime::require_ready(
-                self.catalog.port(port_id)?,
-                Platform::current()?,
-                &previous,
-            )?;
+            let port = self.installed_port(&previous)?;
+            crate::runtime::require_ready(&port, Platform::current()?, &previous)?;
             self.managed_install_root(port_id, &previous.path)?;
             Installer::new(self.library.clone())?.verify_critical(
                 &previous,
-                &InstallQualification::from_port(
-                    self.catalog.port(port_id)?,
-                    Platform::current()?,
-                )?,
+                &InstallQualification::from_port(&port, Platform::current()?)?,
             )?;
             self.collect_active_user_data_if_launched(port_id)?;
-            self.restore_user_data_to(self.catalog.port(port_id)?, &previous.path)?;
+            self.restore_user_data_to(&port, &previous.path)?;
             Installer::new(self.library.clone())?.verify_critical(
                 &previous,
-                &InstallQualification::from_port(
-                    self.catalog.port(port_id)?,
-                    Platform::current()?,
-                )?,
+                &InstallQualification::from_port(&port, Platform::current()?)?,
             )?;
             self.library.rollback(port_id)
         })();
@@ -2885,11 +2911,12 @@ impl PortcoveService {
             .status(port_id)?
             .staged
             .ok_or_else(|| PortcoveError::not_found(format!("{port_id} has no staged version")))?;
-        crate::runtime::require_ready(self.catalog.port(port_id)?, Platform::current()?, &staged)?;
+        let port = self.installed_port(&staged)?;
+        crate::runtime::require_ready(&port, Platform::current()?, &staged)?;
         self.managed_install_root(port_id, &staged.path)?;
         Installer::new(self.library.clone())?.verify_critical(
             &staged,
-            &InstallQualification::from_port(self.catalog.port(port_id)?, Platform::current()?)?,
+            &InstallQualification::from_port(&port, Platform::current()?)?,
         )?;
         let store = OperationStore::new(self.library.clone());
         let mut lifecycle =
@@ -2898,13 +2925,10 @@ impl PortcoveService {
         store.put(&mut lifecycle)?;
         let result: Result<InstallRecord> = (|| {
             self.collect_active_user_data_if_launched(port_id)?;
-            self.restore_user_data_to(self.catalog.port(port_id)?, &staged.path)?;
+            self.restore_user_data_to(&port, &staged.path)?;
             Installer::new(self.library.clone())?.verify_critical(
                 &staged,
-                &InstallQualification::from_port(
-                    self.catalog.port(port_id)?,
-                    Platform::current()?,
-                )?,
+                &InstallQualification::from_port(&port, Platform::current()?)?,
             )?;
             let activated = self.library.activate_staged(port_id)?;
             lifecycle.phase = LifecyclePhase::MetadataCommitted;
@@ -3095,7 +3119,8 @@ impl PortcoveService {
         let result = (|| {
             let port = self.catalog.port(&port_id)?;
             let platform = Platform::current()?;
-            let qualification = InstallQualification::from_port(port, platform)?;
+            let qualification =
+                InstallQualification::from_catalog(&self.catalog, &port_id, platform)?;
             let _operation = self.library.try_lock_port(&port_id, "adopt")?;
             let locked_preview = self.preview_adoption(source, selected_port_id)?;
             let target = adoption_authorization_target(source, selected_port_id)?;
@@ -3772,6 +3797,13 @@ impl PortcoveService {
         source_override: Option<&Path>,
         operation: Option<&OperationCoordinator>,
     ) -> Result<crate::LaunchSpec> {
+        if port.id != active.port_id {
+            return Err(PortcoveError::verification(
+                "launch installation belongs to another port",
+            ));
+        }
+        let retained_port = self.installed_port(active)?;
+        let port = &retained_port;
         let checkpoint = || operation.map_or(Ok(()), OperationCoordinator::checkpoint);
         checkpoint()?;
         crate::runtime::require_ready(port, Platform::current()?, active)?;
@@ -3866,8 +3898,13 @@ impl PortcoveService {
         }
         let manifest_path = active.path.join(".portcove-manifest.json");
         let previous_manifest = fs::read(&manifest_path)?;
-        let qualification = InstallQualification::from_port(port, Platform::current()?)?;
         let installer = Installer::new(self.library.clone())?;
+        let retained = installer.retained_catalog(active)?;
+        let qualification = InstallQualification::from_catalog(
+            retained.as_ref().unwrap_or(&self.catalog),
+            &port.id,
+            Platform::current()?,
+        )?;
         let refreshed = installer.refresh_verified_manifest(active, &qualification)?;
         if let Err(error) = installer.verify_critical(&refreshed, &qualification) {
             return restore_setup_manifest(&manifest_path, &previous_manifest, active, error);
@@ -3918,6 +3955,39 @@ impl PortcoveService {
 
     fn managed_install_root(&self, port_id: &str, install_root: &Path) -> Result<PathBuf> {
         crate::output_root::validate_install_path(&self.library, port_id, install_root)
+    }
+
+    pub(crate) fn installed_port(&self, install: &InstallRecord) -> Result<PortDefinition> {
+        self.managed_install_root(&install.port_id, &install.path)?;
+        match Installer::new(self.library.clone())?.retained_catalog(install)? {
+            Some(catalog) => Ok(catalog.port(&install.port_id)?.clone()),
+            None => Ok(self.catalog.port(&install.port_id)?.clone()),
+        }
+    }
+
+    fn persistence_port(
+        &self,
+        fallback: &PortDefinition,
+        install_root: &Path,
+    ) -> Result<PortDefinition> {
+        let root = self.managed_install_root(&fallback.id, install_root)?;
+        for install in self.library.all_installs()? {
+            if install.port_id != fallback.id {
+                continue;
+            }
+            refuse_symlink_ancestors(&install.path)?;
+            let registered = match fs::canonicalize(&install.path) {
+                Ok(path) => path,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(error) => return Err(error.into()),
+            };
+            if registered == root {
+                return self.installed_port(&install);
+            }
+        }
+        // An unpublished payload has no library record yet. Its caller owns
+        // the qualification captured for that installation operation.
+        Ok(fallback.clone())
     }
 
     fn require_completed_restore(&self, port_id: &str) -> Result<()> {
@@ -4022,6 +4092,8 @@ impl PortcoveService {
                 }
             }
             let install_root = self.managed_install_root(port_id, &path)?;
+            let retained_port = self.persistence_port(port, &install_root)?;
+            let port = &retained_port;
             let persistent_root = self.persistence_root(port, &install_root)?;
             for relative in crate::persistence::entries(port, &[&user_root, &persistent_root])? {
                 let source = user_root.join(&relative);
@@ -4051,6 +4123,8 @@ impl PortcoveService {
         port: &PortDefinition,
         install_root: &Path,
     ) -> Result<Vec<PathBuf>> {
+        let retained_port = self.persistence_port(port, install_root)?;
+        let port = &retained_port;
         self.require_completed_restore(&port.id)?;
         let user_root = self.library.user_dir(&port.id);
         let persistent_root = self.persistence_root(port, install_root)?;
@@ -4081,6 +4155,8 @@ impl PortcoveService {
         port: &PortDefinition,
         install_root: &Path,
     ) -> Result<()> {
+        let retained_port = self.persistence_port(port, install_root)?;
+        let port = &retained_port;
         let install_root = self.managed_install_root(&port.id, install_root)?;
         let user_root = self.library.user_dir(&port.id);
         let persistent_root = self.persistence_root(port, &install_root)?;
@@ -6304,7 +6380,8 @@ mod tests {
         let catalog = Catalog::embedded().unwrap();
         let port = catalog.port(port_id).unwrap();
         let qualification =
-            InstallQualification::from_port(port, Platform::current().unwrap()).unwrap();
+            crate::test_fixture::retained_qualification(port, Platform::current().unwrap())
+                .unwrap();
         let (manifest_sha256, selected_executable, runtime) = Installer::new(library.clone())
             .unwrap()
             .create_manifest(&id, port_id, version, &artifact, &qualification, path)
@@ -6360,7 +6437,8 @@ mod tests {
             .unwrap()
             .clone();
         let qualification =
-            InstallQualification::from_port(&port, Platform::current().unwrap()).unwrap();
+            crate::test_fixture::retained_qualification(&port, Platform::current().unwrap())
+                .unwrap();
         let (manifest_sha256, selected_executable, runtime) = Installer::new(library.clone())
             .unwrap()
             .create_manifest(&id, &port.id, version, &artifact, &qualification, &path)
@@ -6455,7 +6533,8 @@ fn main() {
             .unwrap()
             .clone();
         let qualification =
-            InstallQualification::from_port(&port, Platform::current().unwrap()).unwrap();
+            crate::test_fixture::retained_qualification(&port, Platform::current().unwrap())
+                .unwrap();
         let (manifest_sha256, selected_executable, runtime) = Installer::new(library.clone())
             .unwrap()
             .create_manifest(&id, &port.id, version, &artifact, &qualification, &path)
@@ -6640,11 +6719,8 @@ fn main() {
         fs::write(&user_companion, b"untrusted companion").unwrap();
         let service = service_with_added_persistent_path(library.clone(), "v2", COMPANION);
 
-        assert_eq!(
-            service.launch_spec(PORT, None).unwrap_err().code,
-            crate::ErrorCode::Verification
-        );
-        assert!(active.join(COMPANION).is_file());
+        service.launch_spec(PORT, None).unwrap();
+        assert!(!active.join(COMPANION).exists());
         assert_eq!(service.status(PORT).unwrap().active.unwrap().version, "v1");
 
         let temporary = tempfile::tempdir().unwrap();
@@ -6656,14 +6732,11 @@ fn main() {
         fs::write(&user_companion, b"untrusted companion").unwrap();
         let service = service_with_added_persistent_path(library, "v2", COMPANION);
 
-        assert_eq!(
-            service.activate_staged(PORT).unwrap_err().code,
-            crate::ErrorCode::Verification
-        );
-        assert!(staged.join(COMPANION).is_file());
+        service.activate_staged(PORT).unwrap();
+        assert!(!staged.join(COMPANION).exists());
         let status = service.status(PORT).unwrap();
-        assert_eq!(status.active.unwrap().version, "v1");
-        assert_eq!(status.staged.unwrap().version, "v2");
+        assert_eq!(status.active.unwrap().version, "v2");
+        assert!(status.staged.is_none());
 
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("rollback-library")).unwrap();
@@ -6674,12 +6747,9 @@ fn main() {
         fs::write(&user_companion, b"untrusted companion").unwrap();
         let service = service_with_added_persistent_path(library, "v2", COMPANION);
 
-        assert_eq!(
-            service.rollback(PORT).unwrap_err().code,
-            crate::ErrorCode::Verification
-        );
-        assert!(previous.join(COMPANION).is_file());
-        assert_eq!(service.status(PORT).unwrap().active.unwrap().version, "v2");
+        service.rollback(PORT).unwrap();
+        assert!(!previous.join(COMPANION).exists());
+        assert_eq!(service.status(PORT).unwrap().active.unwrap().version, "v1");
 
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("recovery-library")).unwrap();
@@ -6698,20 +6768,9 @@ fn main() {
         operation.install = Some(service.status(PORT).unwrap().staged.unwrap());
         store.put(&mut operation).unwrap();
 
-        assert_eq!(
-            service
-                .recover_activation(&store, &mut operation)
-                .unwrap_err()
-                .code,
-            crate::ErrorCode::Verification
-        );
-        assert!(staged.join(COMPANION).is_file());
-        assert_eq!(service.status(PORT).unwrap().active.unwrap().version, "v1");
-        assert!(!service.repair_plan().unwrap().items.is_empty());
-
-        fs::remove_file(user_companion).unwrap();
-        fs::remove_file(staged.join(COMPANION)).unwrap();
         service.recover_activation(&store, &mut operation).unwrap();
+        assert!(!staged.join(COMPANION).exists());
+        assert!(user_companion.is_file());
         assert_eq!(service.status(PORT).unwrap().active.unwrap().version, "v2");
         assert!(service.repair_plan().unwrap().items.is_empty());
     }
@@ -8614,6 +8673,90 @@ fn main() {
         fs::remove_file(&user_archive).unwrap();
         service.collect_user_data("lighthouse").unwrap();
         assert!(!user_archive.exists());
+    }
+
+    #[test]
+    fn corrupt_retained_manifest_blocks_only_its_own_status_and_launch() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let path = register_zelda_install(&library, "v1", true);
+        let service = PortcoveService::new(library).unwrap();
+        fs::write(
+            path.join(".portcove-manifest.json"),
+            b"corrupt retained contract",
+        )
+        .unwrap();
+        let statuses = service.statuses().unwrap();
+        let status = statuses
+            .iter()
+            .find(|status| status.port_id == "zelda64-recomp")
+            .unwrap();
+        let readiness = status.readiness.as_ref().unwrap();
+        assert!(!readiness.launchable);
+        assert_eq!(readiness.blockers, vec![LaunchBlocker::InvalidInstallation]);
+        assert!(
+            statuses
+                .iter()
+                .any(|status| status.port_id != "zelda64-recomp")
+        );
+        assert!(service.launch_spec("zelda64-recomp", None).is_err());
+        assert!(!path.join(LAUNCH_MARKER).exists());
+    }
+
+    #[test]
+    fn installed_versions_keep_execution_and_saves_after_catalog_contract_changes() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("library");
+        fs::create_dir_all(&root).unwrap();
+        // Exercise the same canonical-path distinction as Windows runner
+        // short names and differently cased user/temp directory prefixes.
+        #[cfg(windows)]
+        let root = PathBuf::from(root.to_str().unwrap().to_uppercase());
+        let library = Library::open(root).unwrap();
+        let first = register_zelda_install(&library, "v1", true);
+        let second = register_zelda_install(&library, "v2", true);
+        let staged = register_zelda_install(&library, "v3", false);
+        fs::write(second.join("general.json"), b"version-owned-settings").unwrap();
+        fs::write(second.join(LAUNCH_MARKER), b"1").unwrap();
+        let mut service = PortcoveService::new(library.clone()).unwrap();
+        let original = service.catalog.port("zelda64-recomp").unwrap().clone();
+        let mut document = service.catalog.authoritative_document();
+        let changed = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == original.id)
+            .unwrap();
+        changed
+            .executable_hints
+            .insert(Platform::current().unwrap(), vec!["future-game.exe".into()]);
+        changed.launch_arguments.push("--future-contract".into());
+        changed
+            .persistent_paths
+            .retain(|path| path != "general.json");
+        changed.persistent_paths.push("future-settings.json".into());
+        service.catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+
+        assert!(service.verify(&original.id).unwrap().valid);
+        let spec = service.launch_spec(&original.id, None).unwrap();
+        assert!(!format!("{spec:?}").contains("--future-contract"));
+        let rolled_back = service.rollback(&original.id).unwrap();
+        assert_eq!(rolled_back.path, first);
+        assert_eq!(
+            fs::read(first.join("general.json")).unwrap(),
+            b"version-owned-settings"
+        );
+        let activated = service.activate_staged(&original.id).unwrap();
+        assert_eq!(activated.path, staged);
+        assert_eq!(
+            fs::read(staged.join("general.json")).unwrap(),
+            b"version-owned-settings"
+        );
+        for install in library.all_installs().unwrap() {
+            assert_eq!(
+                serde_json::to_value(service.installed_port(&install).unwrap()).unwrap(),
+                serde_json::to_value(&original).unwrap()
+            );
+        }
     }
 
     #[test]

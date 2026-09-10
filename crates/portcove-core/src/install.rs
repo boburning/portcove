@@ -33,6 +33,7 @@ pub struct InstallRequest {
 
 #[derive(Debug, Clone)]
 pub struct InstallQualification {
+    retained_contract: Option<crate::installed_contract::InstalledContract>,
     platform: Platform,
     executable_hints: Vec<String>,
     runtime_subdirectory: Option<String>,
@@ -47,6 +48,20 @@ pub struct InstallQualification {
 }
 
 impl InstallQualification {
+    /// Capture the catalog and referenced source contracts before publication.
+    pub fn from_catalog(
+        catalog: &crate::Catalog,
+        port_id: &str,
+        platform: Platform,
+    ) -> Result<Self> {
+        let mut qualification = Self::from_port(catalog.port(port_id)?, platform)?;
+        qualification.retained_contract = Some(
+            crate::installed_contract::InstalledContract::capture(catalog, port_id)?,
+        );
+        Ok(qualification)
+    }
+
+    /// Build a verification projection. New manifests require `from_catalog`.
     pub fn from_port(port: &PortDefinition, platform: Platform) -> Result<Self> {
         crate::runtime::validate(port)?;
         for pattern in &port.persistent_file_patterns {
@@ -64,6 +79,7 @@ impl InstallQualification {
             )));
         }
         Ok(Self {
+            retained_contract: None,
             platform,
             executable_hints,
             runtime_subdirectory: port.runtime_subdirectory.clone(),
@@ -157,19 +173,39 @@ impl InstallQualification {
 
     #[cfg(test)]
     pub(crate) fn test(executable: &str) -> Self {
-        Self {
-            platform: Platform::WindowsX86_64,
-            executable_hints: vec![executable.into()],
-            runtime_subdirectory: None,
-            persistent_paths: Vec::new(),
-            persistent_file_patterns: Vec::new(),
-            runtime_mutable_paths: Vec::new(),
-            persistence_at_install_root: true,
-            runtime: None,
-            runtime_origin: RuntimeOrigin::VerifiedDownload,
-            generated_metadata: Vec::new(),
-            critical_paths: Vec::new(),
-        }
+        let mut port = crate::Catalog::embedded()
+            .unwrap()
+            .port("zelda64-recomp")
+            .unwrap()
+            .clone();
+        port.id = "sample".into();
+        port.source_profile = None;
+        port.source_environment = None;
+        port.runtime_source_filename = None;
+        port.runtime_source_materialization = None;
+        port.runtime_source_hashes.clear();
+        port.runtime_source_set.clear();
+        port.user_data_environment = None;
+        port.launch_environment.clear();
+        port.launch_arguments.clear();
+        port.persistent_paths.clear();
+        port.persistent_file_patterns.clear();
+        port.runtime_mutable_paths.clear();
+        port.portable_marker = false;
+        port.platforms = vec![
+            Platform::WindowsX86_64,
+            Platform::LinuxX86_64,
+            Platform::MacosX86_64,
+            Platform::MacosAarch64,
+        ];
+        port.automated_tested_platforms.clear();
+        port.manually_validated_platforms.clear();
+        port.executable_hints = port
+            .platforms
+            .iter()
+            .map(|platform| (*platform, vec![executable.into()]))
+            .collect();
+        crate::test_fixture::retained_qualification(&port, Platform::WindowsX86_64).unwrap()
     }
 }
 
@@ -184,6 +220,8 @@ pub struct VerificationReport {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct InstallManifest {
     schema_version: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    retained_contract: Option<crate::installed_contract::InstalledContract>,
     #[serde(default)]
     platform: Option<Platform>,
     install_id: String,
@@ -886,17 +924,59 @@ impl Installer {
         write_manifest(install_id, port_id, version, artifact, &adopted, root)
     }
 
+    pub(crate) fn retained_catalog(
+        &self,
+        install: &InstallRecord,
+    ) -> Result<Option<crate::Catalog>> {
+        verified_manifest(install)?
+            .retained_contract
+            .map(|contract| contract.catalog(&install.port_id))
+            .transpose()
+    }
+
+    pub(crate) fn qualification_for_install(
+        &self,
+        install: &InstallRecord,
+        fallback: &crate::Catalog,
+        platform: Platform,
+    ) -> Result<InstallQualification> {
+        let retained = self.retained_catalog(install)?;
+        InstallQualification::from_catalog(
+            retained.as_ref().unwrap_or(fallback),
+            &install.port_id,
+            platform,
+        )
+    }
+
+    fn retained_qualification(
+        &self,
+        install: &InstallRecord,
+        fallback: &InstallQualification,
+    ) -> Result<InstallQualification> {
+        let mut qualification = match self.retained_catalog(install)? {
+            Some(catalog) => {
+                InstallQualification::from_catalog(&catalog, &install.port_id, fallback.platform)?
+            }
+            None => fallback.clone(),
+        };
+        if let Some(runtime) = &install.runtime {
+            qualification.runtime_origin = runtime.origin;
+        }
+        Ok(qualification)
+    }
+
     pub(crate) fn refresh_verified_manifest(
         &self,
         install: &InstallRecord,
         qualification: &InstallQualification,
     ) -> Result<InstallRecord> {
+        let qualification = self.retained_qualification(install, qualification)?;
         let (manifest_sha256, selected_executable, runtime) = write_manifest(
             &install.id,
             &install.port_id,
             &install.version,
             &install.artifact,
-            qualification,
+            &qualification,
             &install.path,
         )?;
         let mut refreshed = install.clone();
@@ -913,10 +993,7 @@ impl Installer {
         qualification: &InstallQualification,
         root: &Path,
     ) -> Result<InstallRecord> {
-        let mut qualification = qualification.clone();
-        if let Some(runtime) = &original.runtime {
-            qualification.runtime_origin = runtime.origin;
-        }
+        let mut qualification = self.retained_qualification(original, qualification)?;
         qualification
             .critical_paths
             .push(crate::preparation::RECEIPT_FILE.into());
@@ -950,6 +1027,15 @@ fn write_manifest(
     qualification: &InstallQualification,
     root: &Path,
 ) -> Result<(String, PathBuf, Option<RuntimeIdentity>)> {
+    let retained_contract = qualification.retained_contract.as_ref().ok_or_else(|| {
+        PortcoveError::verification("manifest publication requires the exact catalog contract")
+    })?;
+    if retained_contract.port_id() != port_id {
+        return Err(PortcoveError::verification(
+            "manifest and retained port identity differ",
+        ));
+    }
+    retained_contract.catalog(port_id)?;
     validate_artifact(artifact)?;
     let selected = resolve_declared_executable(root, qualification)?;
     let selected_relative = manifest_relative(root, &selected)?;
@@ -989,7 +1075,8 @@ fn write_manifest(
         }
     }
     let manifest = InstallManifest {
-        schema_version: 5,
+        schema_version: 6,
+        retained_contract: Some(retained_contract.clone()),
         platform: Some(qualification.platform),
         runtime: runtime.clone(),
         runtime_root,
@@ -1212,7 +1299,9 @@ fn verified_manifest(install: &InstallRecord) -> Result<InstallManifest> {
             ));
         }
     }
-    if !matches!(manifest.schema_version, 2..=5)
+    if !matches!(manifest.schema_version, 2..=6)
+        || (manifest.schema_version < 6 && manifest.retained_contract.is_some())
+        || (manifest.schema_version >= 6 && manifest.retained_contract.is_none())
         || (manifest.schema_version < 4 && !manifest.mutable_file_patterns.is_empty())
         || (manifest.schema_version < 5
             && (manifest.platform.is_some() || manifest.files.iter().any(|file| file.executable)))
@@ -1238,6 +1327,9 @@ fn verified_manifest(install: &InstallRecord) -> Result<InstallManifest> {
         ));
     }
     validate_runtime_manifest(&manifest)?;
+    if let Some(contract) = &manifest.retained_contract {
+        contract.catalog(&install.port_id)?;
+    }
     Ok(manifest)
 }
 
@@ -1647,9 +1739,10 @@ mod tests {
             sha256: "a".repeat(64),
             size: 32,
         };
+        let port_id = qualification.retained_contract.as_ref().unwrap().port_id();
         let (manifest_sha256, selected_executable, runtime) = write_manifest(
             "test-install",
-            "sample",
+            port_id,
             "v1",
             &artifact,
             qualification,
@@ -1660,7 +1753,7 @@ mod tests {
             installer,
             InstallRecord {
                 id: "test-install".into(),
-                port_id: "sample".into(),
+                port_id: port_id.into(),
                 version: "v1".into(),
                 path: root.to_path_buf(),
                 channel: crate::ReleaseChannel::Stable,
@@ -1688,7 +1781,8 @@ mod tests {
             .port("dkr-r")
             .unwrap()
             .clone();
-        let qualification = InstallQualification::from_port(&port, Platform::LinuxX86_64).unwrap();
+        let qualification =
+            crate::test_fixture::retained_qualification(&port, Platform::LinuxX86_64).unwrap();
         let declared = Path::new("DKR-R-1.0.4-Linux-x86_64.AppImage");
         for version in ["1.0.4", "1.0.5"] {
             let root = temporary.path().join(version);
@@ -1840,7 +1934,8 @@ mod tests {
         let temporary = tempfile::tempdir().unwrap();
         let root = temporary.path();
         fs::write(root.join("game.exe"), b"trusted").unwrap();
-        let mut qualification = InstallQualification::test("../game.exe");
+        let mut qualification = InstallQualification::test("game.exe");
+        qualification.executable_hints = vec!["../game.exe".into()];
         assert_eq!(
             resolve_declared_executable(root, &qualification)
                 .unwrap_err()
@@ -2062,7 +2157,7 @@ mod tests {
         };
 
         let manifest = verified_manifest(&install).unwrap();
-        assert_eq!(manifest.schema_version, 5);
+        assert_eq!(manifest.schema_version, 6);
         assert_eq!(manifest.platform, Some(qualification.platform));
         assert!(
             manifest
@@ -2158,6 +2253,7 @@ mod tests {
             serde_json::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
         let object = value.as_object_mut().unwrap();
         object.insert("schema_version".into(), 4.into());
+        object.remove("retained_contract");
         object.remove("platform");
         for file in object.get_mut("files").unwrap().as_array_mut().unwrap() {
             file.as_object_mut().unwrap().remove("executable");
@@ -2197,7 +2293,7 @@ mod tests {
             .unwrap();
         }
         let catalog = crate::Catalog::embedded().unwrap();
-        let qualification = InstallQualification::from_port(
+        let qualification = crate::test_fixture::retained_qualification(
             catalog.port("final-fantasy-vii-recompiled").unwrap(),
             Platform::WindowsX86_64,
         )
@@ -2228,7 +2324,7 @@ mod tests {
         let executable = working.join("PaperMarioReCut.exe");
         fs::write(&executable, b"verified fixture").unwrap();
         let catalog = crate::Catalog::embedded().unwrap();
-        let qualification = InstallQualification::from_port(
+        let qualification = crate::test_fixture::retained_qualification(
             catalog.port("paper-mario-recut").unwrap(),
             Platform::WindowsX86_64,
         )
@@ -2322,7 +2418,7 @@ mod tests {
             sha256: "1".repeat(64),
             size: 32,
         };
-        let qualification = InstallQualification::from_port(
+        let qualification = crate::test_fixture::retained_qualification(
             crate::Catalog::embedded()
                 .unwrap()
                 .port("opengoal-jak1")
@@ -2391,6 +2487,63 @@ mod tests {
                 .unwrap()
                 .valid
         );
+    }
+
+    #[test]
+    fn manifest_refresh_and_preparation_preserve_the_original_contract() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("game.exe"), b"owned executable").unwrap();
+        let original = InstallQualification::test("game.exe");
+        let (installer, install) = create_test_install(&root, &original);
+        let retained = installer.retained_catalog(&install).unwrap().unwrap();
+        let mut document = retained.authoritative_document();
+        let changed = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == install.port_id)
+            .unwrap();
+        changed.launch_arguments.push("--future".into());
+        changed.persistent_paths.push("future-data".into());
+        let future = crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        let current =
+            InstallQualification::from_catalog(&future, &install.port_id, original.platform)
+                .unwrap();
+        let refreshed = installer
+            .refresh_verified_manifest(&install, &current)
+            .unwrap();
+        let derived = temporary.path().join("prepared");
+        fs::create_dir_all(&derived).unwrap();
+        fs::write(derived.join("game.exe"), b"owned executable").unwrap();
+        fs::write(
+            derived.join(crate::preparation::RECEIPT_FILE),
+            b"owned receipt",
+        )
+        .unwrap();
+        let prepared = installer
+            .create_prepared_manifest(&refreshed, "prepared-id", &current, &derived)
+            .unwrap();
+        for version in [&refreshed, &prepared] {
+            assert_eq!(
+                serde_json::to_value(
+                    installer
+                        .retained_catalog(version)
+                        .unwrap()
+                        .unwrap()
+                        .authoritative_document()
+                )
+                .unwrap(),
+                serde_json::to_value(retained.authoritative_document()).unwrap()
+            );
+        }
+        // The retained content is protected by the same immutable manifest digest.
+        let path = prepared.path.join(".portcove-manifest.json");
+        let content = fs::read_to_string(&path)
+            .unwrap()
+            .replace("sample", "forged");
+        fs::write(path, content).unwrap();
+        assert!(installer.retained_catalog(&prepared).is_err());
     }
 
     #[test]
@@ -2465,7 +2618,7 @@ mod tests {
             .unwrap()
             .clone();
         let qualification =
-            InstallQualification::from_port(&port, Platform::WindowsX86_64).unwrap();
+            crate::test_fixture::retained_qualification(&port, Platform::WindowsX86_64).unwrap();
         let (installer, install) = create_test_install(&root, &qualification);
         fs::create_dir_all(root.join("logs")).unwrap();
         fs::write(root.join("torch.hash.yml"), b"generated extraction cache").unwrap();

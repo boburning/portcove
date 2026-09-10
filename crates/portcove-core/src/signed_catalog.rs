@@ -166,45 +166,53 @@ fn validate_update_contract(candidate: &Catalog, baseline: &Catalog) -> Result<(
     validate_source_update_contract(candidate.source_catalog(), baseline.source_catalog())?;
     for port in candidate.ports() {
         let original = baseline.port(&port.id)?;
-        let mut contract = serde_json::to_value(port)?;
-        let mut original_contract = serde_json::to_value(original)?;
-        for field in [
-            "name",
-            "summary",
-            "project_url",
-            "support_tier",
-            "channels",
-            "platforms",
-            "release",
-            "upstream_status",
-        ] {
-            contract
-                .as_object_mut()
-                .expect("port is an object")
-                .remove(field);
-            original_contract
-                .as_object_mut()
-                .expect("port is an object")
-                .remove(field);
-        }
-        for value in [&mut contract, &mut original_contract] {
-            if let Some(runtimes) = value
-                .get_mut("bundled_runtime")
-                .and_then(serde_json::Value::as_object_mut)
-            {
-                for runtime in runtimes.values_mut() {
-                    let runtime = runtime.as_object_mut().expect("runtime is an object");
-                    runtime.remove("asset");
-                    runtime.remove("archive_root");
-                }
+        validate_installed_port_contract(port, original)?;
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_installed_port_contract(
+    port: &crate::PortDefinition,
+    original: &crate::PortDefinition,
+) -> Result<()> {
+    let mut contract = serde_json::to_value(port)?;
+    let mut original_contract = serde_json::to_value(original)?;
+    for field in [
+        "name",
+        "summary",
+        "project_url",
+        "support_tier",
+        "channels",
+        "platforms",
+        "release",
+        "upstream_status",
+    ] {
+        contract
+            .as_object_mut()
+            .expect("port is an object")
+            .remove(field);
+        original_contract
+            .as_object_mut()
+            .expect("port is an object")
+            .remove(field);
+    }
+    for value in [&mut contract, &mut original_contract] {
+        if let Some(runtimes) = value
+            .get_mut("bundled_runtime")
+            .and_then(serde_json::Value::as_object_mut)
+        {
+            for runtime in runtimes.values_mut() {
+                let runtime = runtime.as_object_mut().expect("runtime is an object");
+                runtime.remove("asset");
+                runtime.remove("archive_root");
             }
         }
-        if contract != original_contract {
-            return Err(PortcoveError::verification(format!(
-                "{} changes an installed-code source, execution, or persistent-data contract; update Portcove first",
-                port.id
-            )));
-        }
+    }
+    if contract != original_contract {
+        return Err(PortcoveError::verification(format!(
+            "{} changes an installed-code source, execution, or persistent-data contract; update Portcove first",
+            port.id
+        )));
     }
     Ok(())
 }

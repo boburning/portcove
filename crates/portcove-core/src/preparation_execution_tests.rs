@@ -29,7 +29,8 @@ impl Fixture {
             .unwrap();
         port.setup_arguments = vec!["--owned-preparation".into()];
         let qualification =
-            InstallQualification::from_port(port, Platform::current().unwrap()).unwrap();
+            crate::test_fixture::retained_qualification(port, Platform::current().unwrap())
+                .unwrap();
         let (manifest, selected, runtime) = Installer::new(fixture.service.library().clone())
             .unwrap()
             .create_manifest(
@@ -87,7 +88,7 @@ fn preparation_publishes_a_verified_derivative_and_preserves_the_staged_update()
     staged.version = "next-fixture".into();
     staged.staged = true;
     crate::service::copy_tree(&fixture.install.path, &staged.path).unwrap();
-    let qualification = InstallQualification::from_port(
+    let qualification = crate::test_fixture::retained_qualification(
         fixture.service.catalog().port(PORT).unwrap(),
         Platform::current().unwrap(),
     )
@@ -540,7 +541,7 @@ fn preparation_is_explicit_and_play_never_runs_setup_or_recreates_inputs() {
 }
 
 #[test]
-fn changed_definition_and_missing_receipt_invalidate_prepared_readiness() {
+fn retained_definition_survives_catalog_changes_but_missing_receipt_blocks_play() {
     let mut fixture = Fixture::native("success");
     let prepared = fixture.run(|_| {}).unwrap();
     assert!(
@@ -565,7 +566,7 @@ fn changed_definition_and_missing_receipt_invalidate_prepared_readiness() {
         Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
     );
     assert!(
-        !fixture
+        fixture
             .service
             .status(PORT)
             .unwrap()
@@ -573,7 +574,7 @@ fn changed_definition_and_missing_receipt_invalidate_prepared_readiness() {
             .unwrap()
             .launchable
     );
-    assert!(fixture.service.launch_spec(PORT, None).is_err());
+    assert!(fixture.service.launch_spec(PORT, None).is_ok());
     fixture.service.replace_catalog_for_test(original_catalog);
     fs::remove_file(prepared.path.join(RECEIPT_FILE)).unwrap();
     assert!(
@@ -621,7 +622,7 @@ fn assert_legacy_setup(nested: bool) {
 
     let port = fixture.service.catalog().port(PORT).unwrap();
     let qualification =
-        InstallQualification::from_port(port, Platform::current().unwrap()).unwrap();
+        crate::test_fixture::retained_qualification(port, Platform::current().unwrap()).unwrap();
     let installer = Installer::new(fixture.service.library().clone()).unwrap();
     let (hash, selected, runtime) = installer
         .create_manifest(

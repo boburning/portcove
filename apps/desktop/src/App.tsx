@@ -158,8 +158,8 @@ type AppearanceState = ReturnType<typeof useThemePreference>;
 type InstallPlanningState = ReturnType<typeof useInstallPlanning>;
 type BackupState = ReturnType<typeof usePortBackups>;
 
-function useAppModel(data: DataState, ui: UiState, setError: (error?: string) => void) {
-  useEffect(() => { data.refresh().catch(value => setError(errorText(value))); }, [data.refresh, setError]);
+function useAppModel(data: DataState, ui: UiState, setError: (error?: unknown) => void) {
+  useEffect(() => { data.refresh().catch(setError); }, [data.refresh, setError]);
   const statusMap = useMemo(() => indexStatuses(data.statuses), [data.statuses]);
   const registeredSources = useMemo(() => new Set(data.sources.map(source => source.profile_id)), [data.sources]);
   const visible = useMemo(() => filterPorts(data.catalog?.ports ?? [], statusMap, ui.view, ui.filter, ui.query, registeredSources), [data.catalog, statusMap, ui.view, ui.filter, ui.query, registeredSources]);

@@ -19,6 +19,7 @@ mod host_tools;
 mod import_execution;
 mod import_journal;
 mod install;
+mod installed_contract;
 mod launch;
 mod library;
 mod library_access;
@@ -146,4 +147,4 @@ pub use source_report::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 42;
+pub const API_SCHEMA_VERSION: u32 = 43;

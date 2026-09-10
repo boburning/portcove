@@ -2,7 +2,7 @@ import type { DesktopError, PortDefinition, PortStatus, ReadinessBlocker, Source
 
 export type View = "library" | "catalog" | "updates" | "settings";
 export type Filter = "all" | "ready" | "setup" | "stable" | "beta" | "rolling";
-export type PortReadiness = "available" | "ready" | "source" | "bios" | "setup" | "staged" | "runtime";
+export type PortReadiness = "available" | "ready" | "source" | "bios" | "setup" | "staged" | "runtime" | "repair";
 
 export interface LibraryOverview {
   installed: number;
@@ -36,6 +36,7 @@ export function filterOptions(view: View): Filter[] {
 
 export function portReadiness(port: PortDefinition, status: PortStatus | undefined, registeredSources: ReadonlySet<string>): PortReadiness {
   if (!status?.active) return "available";
+  if (status.readiness?.blockers.includes("invalid_installation")) return "repair";
   const sourceMissing = status.readiness?.blockers.some(blocker => SOURCE_BLOCKERS.includes(blocker))
     ?? Boolean(port.source_profile && !registeredSources.has(port.source_profile));
   const biosMissing = status.readiness?.blockers.some(blocker => BIOS_BLOCKERS.includes(blocker))
@@ -58,7 +59,7 @@ export function summarizeLibrary(ports: PortDefinition[], statuses: Map<string, 
   return {
     installed: installed.length,
     ready: states.filter(state => state === "ready" || state === "staged").length,
-    needsSetup: states.filter(state => state === "source" || state === "bios" || (state === "setup" || state === "runtime")).length,
+    needsSetup: states.filter(state => state === "source" || state === "bios" || (state === "setup" || state === "runtime" || state === "repair")).length,
     staged: states.filter(state => state === "staged").length,
   };
 }
@@ -116,7 +117,7 @@ function visibleInView(port: PortDefinition, statuses: Map<string, PortStatus>, 
 function matchesFilter(port: PortDefinition, status: PortStatus | undefined, filter: Filter, registeredSources: ReadonlySet<string>) {
   const readiness = portReadiness(port, status, registeredSources);
   if (filter === "ready") return readiness === "ready" || readiness === "staged";
-  if (filter === "setup") return readiness === "source" || readiness === "bios" || readiness === "setup" || readiness === "runtime";
+  if (filter === "setup") return readiness === "source" || readiness === "bios" || readiness === "setup" || readiness === "runtime" || readiness === "repair";
   if (filter === "stable" || filter === "beta" || filter === "rolling") return port.channels.includes(filter);
   return true;
 }

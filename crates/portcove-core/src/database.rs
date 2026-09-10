@@ -10,7 +10,7 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior};
 
 use crate::{PortcoveError, Result};
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 22;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 23;
 
 struct Migration {
     version: i64,
@@ -152,6 +152,12 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_22,
         verify: verify_migration_22,
     },
+    Migration {
+        version: 23,
+        name: "retained installation contract writer protocol",
+        apply: migration_23,
+        verify: verify_migration_23,
+    },
 ];
 
 struct MigrationLock {
@@ -204,6 +210,24 @@ pub(crate) fn connect(root: &Path) -> Result<Connection> {
 
 pub(crate) fn migrate(root: &Path) -> Result<()> {
     migrate_to(root, CURRENT_SCHEMA_VERSION)
+}
+
+pub(crate) fn requires_migration(root: &Path) -> Result<bool> {
+    let path = database_path(root);
+    if !path.exists() {
+        return Ok(true);
+    }
+    let connection = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    let has_ledger: bool = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='schema_migrations')",
+        [], |row| row.get(0),
+    )?;
+    if !has_ledger {
+        return Ok(true);
+    }
+    let versions = recorded_versions(&connection)?;
+    validate_recorded_versions(&versions)?;
+    Ok(versions.last().copied().unwrap_or_default() < CURRENT_SCHEMA_VERSION)
 }
 
 fn migrate_to(root: &Path, target_version: i64) -> Result<()> {
@@ -828,6 +852,21 @@ fn verify_migration_18(connection: &Connection) -> Result<()> {
     require_columns(connection, "lifecycle_operations", &["source_import_json"])
 }
 
+fn migration_23(transaction: &Transaction<'_>) -> Result<()> {
+    // No table layout changes: the migration ledger is also the library writer
+    // protocol. Older clients must refuse this library before they can replace
+    // a schema-6 manifest with one that discards its retained contracts.
+    verify_migration_23(transaction)
+}
+
+fn verify_migration_23(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "installs",
+        &["manifest_sha256", "selected_executable"],
+    )
+}
+
 fn migration_22(transaction: &Transaction<'_>) -> Result<()> {
     transaction.execute_batch("ALTER TABLE activity_diagnostics RENAME TO activity_diagnostics_v21;
         CREATE TABLE activity_diagnostics (
@@ -998,6 +1037,30 @@ mod tests {
         fs::create_dir_all(root.join("locks")).unwrap();
     }
 
+    #[test]
+    fn writer_protocol_upgrade_waits_for_previously_opened_clients() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 22).unwrap();
+        let old_client = crate::library_access::LibraryLease::acquire(root).unwrap();
+        let error = crate::Library::open(root).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert_eq!(
+            recorded_versions(&connect(root).unwrap()).unwrap().last(),
+            Some(&22)
+        );
+        drop(old_client);
+        let current = crate::Library::open(root).unwrap();
+        assert_eq!(
+            recorded_versions(&connect(root).unwrap()).unwrap().last(),
+            Some(&23)
+        );
+        // Current clients retain normal concurrent shared access after migration.
+        let other = crate::Library::open(root).unwrap();
+        drop((current, other));
+    }
+
     fn schema_fingerprint(connection: &Connection) -> String {
         let mut statement = connection
             .prepare(
@@ -1135,6 +1198,7 @@ mod tests {
         schema_19: 19,
         schema_20: 20,
         schema_21: 21,
+        schema_22: 22,
     }
 
     #[test]

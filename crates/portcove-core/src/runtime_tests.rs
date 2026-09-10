@@ -156,7 +156,7 @@ impl Fixture {
             output_root: library.versions_dir().join(PORT),
             activate,
             managed: None,
-            qualification: InstallQualification::from_port(
+            qualification: crate::test_fixture::retained_qualification(
                 &self.port,
                 Platform::current().unwrap(),
             )
@@ -321,8 +321,11 @@ async fn named_save_restore_updates_every_version_and_preserves_import_policy() 
             installer
                 .verify_import_contract(
                     install,
-                    &InstallQualification::from_port(&changed, Platform::current().unwrap())
-                        .unwrap()
+                    &crate::test_fixture::retained_qualification(
+                        &changed,
+                        Platform::current().unwrap()
+                    )
+                    .unwrap()
                 )
                 .is_err()
         );
@@ -376,8 +379,11 @@ async fn named_saves_survive_reinstallation_without_weakening_executable_policy(
         installer
             .verify_critical(
                 &installed,
-                &InstallQualification::from_port(&second.port, Platform::current().unwrap())
-                    .unwrap()
+                &crate::test_fixture::retained_qualification(
+                    &second.port,
+                    Platform::current().unwrap()
+                )
+                .unwrap()
             )
             .is_err()
     );
@@ -460,8 +466,11 @@ async fn runtime_only_updates_stage_reuse_and_rollback_with_their_exact_bytes() 
             .unwrap()
             .verify_critical(
                 &new,
-                &InstallQualification::from_port(&second.port, Platform::current().unwrap())
-                    .unwrap()
+                &crate::test_fixture::retained_qualification(
+                    &second.port,
+                    Platform::current().unwrap()
+                )
+                .unwrap()
             )
             .is_err()
     );
@@ -476,8 +485,11 @@ async fn runtime_only_updates_stage_reuse_and_rollback_with_their_exact_bytes() 
             .unwrap()
             .verify_critical(
                 &new,
-                &InstallQualification::from_port(&second.port, Platform::current().unwrap())
-                    .unwrap()
+                &crate::test_fixture::retained_qualification(
+                    &second.port,
+                    Platform::current().unwrap()
+                )
+                .unwrap()
             )
             .is_err()
     );
@@ -603,8 +615,14 @@ fn adopted_runtime_fixture() -> (
     crate::InstallRecord,
 ) {
     let root = tempfile::tempdir().unwrap();
-    let fixture = Fixture::new(b"runtime", false);
+    let mut fixture = Fixture::new(b"runtime", false);
     let platform = Platform::current().unwrap();
+    // Adoption/import exercises an admitted catalog contract. Keep the other
+    // platforms' reviewed declarations instead of the download fixture's
+    // deliberately host-only definition.
+    let host_runtime = fixture.port.bundled_runtime[&platform].clone();
+    fixture.port = Catalog::embedded().unwrap().port(PORT).unwrap().clone();
+    fixture.port.bundled_runtime.insert(platform, host_runtime);
     let runtime = &fixture.port.bundled_runtime[&platform];
     let external = root.path().join("external");
     for (relative, bytes) in [
@@ -714,6 +732,7 @@ async fn runtime_follows_a_nested_working_directory_and_rejects_resolved_mutable
     let library = Library::open(root.path().join("valid")).unwrap();
     let mut fixture = Fixture::new(b"runtime", false);
     fixture.port.adapter = crate::AdapterKind::N64RecompPortable;
+    fixture.port.launch_from_install_root = false;
     fixture.port.runtime_subdirectory = Some("bundle".into());
     fixture.port.persistent_paths = vec!["bundle/user".into()];
     fixture.port.source_profile = None;

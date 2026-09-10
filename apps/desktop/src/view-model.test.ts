@@ -42,6 +42,15 @@ describe("catalog view model", () => {
     expect(filterOptions("catalog")).toEqual(["all", "stable", "beta", "rolling"]);
   });
 
+  it("keeps damaged installations visible in the needs-setup filter", () => {
+    const damaged: PortStatus = { ...status, readiness: { launchable: false, blockers: ["invalid_installation"], pending_setup: false } };
+    const statuses = indexStatuses([damaged]);
+    expect(portReadiness(ports[0], damaged, new Set())).toBe("repair");
+    expect(filterPorts(ports, statuses, "library", "setup", "").map(port => port.id)).toEqual(["alpha"]);
+    expect(filterPorts(ports, statuses, "library", "ready", "")).toEqual([]);
+    expect(summarizeLibrary(ports, statuses, new Set()).needsSetup).toBe(1);
+  });
+
   it("treats changed and unreadable registered bytes as setup blockers", () => {
     const withSources = { ...ports[0], source_profile: "alpha-source", bios_source_profile: "alpha-bios" };
     const changed: PortStatus = {

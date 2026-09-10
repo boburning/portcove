@@ -26,7 +26,7 @@ program/argument objects, not shell command strings:
 
 Check the envelope's schema, command, `ok`, data/error and exit status. Negotiate
 required command names, JSON/JSONL formats and raw `exec`. The reference's initial
-window is API 42/event 2; tolerate additive object fields within it and reject
+window is API 42–43/event 2; tolerate additive object fields within it and reject
 unknown consequential enum values or a different schema with a migration message.
 Future client revisions should extend that window only after matching fixtures
 and package tests. The product version is descriptive, never a substitute for

@@ -39,7 +39,7 @@ impl Fixture {
             fs::write(&path, b"owned inert fixture").unwrap();
             crate::permissions::normalize_archive_entry(&path, false, true).unwrap();
         }
-        let qualification = InstallQualification::from_port(port, platform).unwrap();
+        let qualification = crate::test_fixture::retained_qualification(port, platform).unwrap();
         let id = uuid::Uuid::new_v4().to_string();
         let (manifest_sha256, selected_executable, runtime) = Installer::new(library.clone())
             .unwrap()
@@ -162,7 +162,7 @@ fn changed_source_or_setup_bytes_cannot_acquire_a_fresh_trust_identity() {
 }
 
 #[test]
-fn definition_changes_invalidate_the_plan_and_options_fail_closed() {
+fn installed_definition_survives_catalog_changes_and_options_fail_closed() {
     let mut fixture = Fixture::new();
     let before = fixture
         .service
@@ -183,11 +183,11 @@ fn definition_changes_invalidate_the_plan_and_options_fail_closed() {
         .service
         .plan_preparation(PORT, fixture.options())
         .unwrap();
-    assert_ne!(
+    assert_eq!(
         before.inputs.definition_sha256,
         after.inputs.definition_sha256
     );
-    assert_ne!(before.plan_sha256, after.plan_sha256);
+    assert_eq!(before.plan_sha256, after.plan_sha256);
     let mut other = fixture.options();
     other.target = if other.target == Platform::WindowsX86_64 {
         Platform::LinuxX86_64
@@ -256,7 +256,9 @@ fn generated_outputs_cannot_claim_executables_sources_or_persistent_data() {
     service.replace_catalog_for_test(
         Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
     );
-    assert_eq!(
+    // Removing a capability from the current catalog cannot remove the
+    // already-admitted installation's retained setup contract.
+    assert!(
         service
             .plan_preparation(
                 PORT,
@@ -265,8 +267,6 @@ fn generated_outputs_cannot_claim_executables_sources_or_persistent_data() {
                     mode: PreparationMode::Default
                 }
             )
-            .unwrap_err()
-            .code,
-        ErrorCode::Unsupported
+            .is_ok()
     );
 }

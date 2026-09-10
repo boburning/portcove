@@ -6,7 +6,7 @@ fn fixture_library(root: &Path, installs: &[(&str, bool)]) -> Library {
     let catalog = Catalog::embedded().unwrap();
     let port = catalog.port("starship").unwrap();
     let platform = Platform::current().unwrap();
-    let qualification = InstallQualification::from_port(port, platform).unwrap();
+    let qualification = crate::test_fixture::retained_qualification(port, platform).unwrap();
     for &(id, staged) in installs {
         let path = root.join("versions/starship").join(id);
         fs::create_dir_all(&path).unwrap();
@@ -313,6 +313,51 @@ fn interrupted_abort_cannot_be_resumed_as_a_successful_import() {
 }
 
 #[test]
+fn imported_retained_arguments_cannot_grant_themselves_execution_authority() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let export = temp.path().join("export.json");
+    let destination = temp.path().join("destination");
+    let library = fixture_library(&source, &[("active", false)]);
+    let mut metadata = PortcoveService::new(library.clone())
+        .unwrap()
+        .export_library_metadata()
+        .unwrap();
+    let install = &mut metadata.application_versions[0];
+    let mut forged_port = Catalog::embedded()
+        .unwrap()
+        .port(&install.port_id)
+        .unwrap()
+        .clone();
+    forged_port
+        .launch_arguments
+        .push("--unreviewed-command".into());
+    let qualification =
+        crate::test_fixture::retained_qualification(&forged_port, Platform::current().unwrap())
+            .unwrap();
+    let (hash, executable, runtime) = Installer::new(library)
+        .unwrap()
+        .create_manifest(
+            &install.id,
+            &install.port_id,
+            &install.version,
+            &install.artifact,
+            &qualification,
+            &source.join(&install.path),
+        )
+        .unwrap();
+    install.manifest_sha256 = hash;
+    install.selected_executable = executable;
+    install.runtime = runtime;
+    fs::write(&export, serde_json::to_vec_pretty(&metadata).unwrap()).unwrap();
+    let plan = PortcoveService::plan_library_import(&export, &source, &destination).unwrap();
+    let error = PortcoveService::import_library(&export, &source, &destination, &plan.plan_sha256)
+        .unwrap_err();
+    assert!(error.message.contains("execution"), "{error}");
+    assert!(Library::open(&destination).is_err());
+}
+
+#[test]
 fn a_self_consistent_manifest_cannot_select_an_undeclared_executable_on_import() {
     let temp = tempfile::tempdir().unwrap();
     let source = temp.path().join("source");
@@ -326,6 +371,18 @@ fn a_self_consistent_manifest_cannot_select_an_undeclared_executable_on_import()
     let install = &mut metadata.application_versions[0];
     let path = source.join(&install.path);
     fs::write(path.join("undeclared.exe"), b"not a declared application").unwrap();
+    crate::permissions::normalize_archive_entry(&path.join("undeclared.exe"), false, true).unwrap();
+    let mut forged_port = Catalog::embedded()
+        .unwrap()
+        .port(&install.port_id)
+        .unwrap()
+        .clone();
+    forged_port
+        .executable_hints
+        .insert(Platform::current().unwrap(), vec!["undeclared.exe".into()]);
+    let forged =
+        crate::test_fixture::retained_qualification(&forged_port, Platform::current().unwrap())
+            .unwrap();
     let (hash, executable, runtime) = Installer::new(library)
         .unwrap()
         .create_manifest(
@@ -333,7 +390,7 @@ fn a_self_consistent_manifest_cannot_select_an_undeclared_executable_on_import()
             &install.port_id,
             &install.version,
             &install.artifact,
-            &InstallQualification::test("undeclared.exe"),
+            &forged,
             &path,
         )
         .unwrap();
