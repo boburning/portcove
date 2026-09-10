@@ -14,13 +14,13 @@ migrations, game sessions, mutation locks and all game data. React presents type
 host results; it supplies neither trusted URLs nor keys. Desktop never silently
 replaces a separately installed CLI. Catalog keys cannot authorize application code.
 
-| Claim | Mechanism | Limit |
-| --- | --- | --- |
-| Payload authenticity | Mandatory maintained Tauri updater signature | Does not authenticate feed JSON or current eligibility |
-| Exact bytes | Authenticated SHA-256 and length reconciled with final inventory | Adjacent unsigned checksums alone give no publisher authority |
-| Release and promotion authority | TUF authenticated metadata and targets with separate roles | Does not bypass compatibility or safe-apply checks |
-| OS publisher identity | Authenticode or Developer ID if separately provisioned | Ad-hoc signing has limited identity; signatures do not guarantee no prompts |
-| OS enforcement | Actual ownership/permissions, Defender and Gatekeeper | Passive installation is not a bypass |
+| Claim                           | Mechanism                                                        | Limit                                                                       |
+| ------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Payload authenticity            | Mandatory maintained Tauri updater signature                     | Does not authenticate feed JSON or current eligibility                      |
+| Exact bytes                     | Authenticated SHA-256 and length reconciled with final inventory | Adjacent unsigned checksums alone give no publisher authority               |
+| Release and promotion authority | TUF authenticated metadata and targets with separate roles       | Does not bypass compatibility or safe-apply checks                          |
+| OS publisher identity           | Authenticode or Developer ID if separately provisioned           | Ad-hoc signing has limited identity; signatures do not guarantee no prompts |
+| OS enforcement                  | Actual ownership/permissions, Defender and Gatekeeper            | Passive installation is not a bypass                                        |
 
 Select TUF 1.x with maintained Rust `tough`; the fixtures lock version 0.24.0.
 Its editor and client own canonicalization, signing and verification, with no
@@ -118,15 +118,15 @@ offline keys and recovery copies in independently controlled storage with public
 fingerprints, custody inventory and tested restoration. No private key goes into
 Git, logs, releases or ordinary CI. Fixtures generate temporary disposable secrets.
 
-| Event | Required recovery |
-| --- | --- |
-| Planned root rotation | Every sequential bridge meets both old and new quorums; retain endpoints/bridges for supported skipped clients. |
-| One offline key lost or compromised | The remaining two uncompromised keys replace it; one key cannot appoint a new root. |
-| Online key lost | Its offline authority replaces it; reconstruct metadata from immutable identities and authenticated eligibility. |
-| Online key compromised | Stop the signer, rotate authority, withdraw affected candidates, refresh metadata and forward repair; assess other exposed roles. |
-| Payload key lost | Use a preprovisioned offline-authorized replacement and compatible host; legacy single-key clients need a prepared bridge or independently verified bootstrap. |
-| Payload key compromised | Revoke new use and staged intent, rotate through independent metadata authority and forward repair. A compromised sole key is insufficient recovery authority. |
-| Root quorum lost or compromised | In-band recovery is unavailable or untrustworthy; use a separately authenticated manual bootstrap with independently checked package/key identity. |
+| Event                               | Required recovery                                                                                                                                              |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Planned root rotation               | Every sequential bridge meets both old and new quorums; retain endpoints/bridges for supported skipped clients.                                                |
+| One offline key lost or compromised | The remaining two uncompromised keys replace it; one key cannot appoint a new root.                                                                            |
+| Online key lost                     | Its offline authority replaces it; reconstruct metadata from immutable identities and authenticated eligibility.                                               |
+| Online key compromised              | Stop the signer, rotate authority, withdraw affected candidates, refresh metadata and forward repair; assess other exposed roles.                              |
+| Payload key lost                    | Use a preprovisioned offline-authorized replacement and compatible host; legacy single-key clients need a prepared bridge or independently verified bootstrap. |
+| Payload key compromised             | Revoke new use and staged intent, rotate through independent metadata authority and forward repair. A compromised sole key is insufficient recovery authority. |
+| Root quorum lost or compromised     | In-band recovery is unavailable or untrustworthy; use a separately authenticated manual bootstrap with independently checked package/key identity.             |
 
 A new root's self-signature does not establish continuity. Expired old roots may
 participate in TUF's sequential update, but final metadata/root must be fresh. A

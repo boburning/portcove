@@ -4,25 +4,25 @@ Portcove's brand system uses the crab mascot and dimensional `PortCove` wordmark
 
 ## Asset roles
 
-| Asset | Role | Usage |
-| --- | --- | --- |
-| `masters/portcove-mascot-master.jpg` · 1280 × 981 | Preserved owner-supplied Mascot V1 source | Provenance only. Do not replace or edit. |
-| `masters/portcove-logo-master.jpg` · 1280 × 720 | Preserved owner-supplied Logo V1 source | Provenance only. Do not replace, edit, or use as the production wordmark. |
-| `generated/v2/portcove-mascot-v2-front.png` · 1254 × 1254 RGB | Canonical Mascot V2 front master | Authoritative full-character geometry, anatomy, color placement, and expression reference. |
-| `generated/v2/portcove-mascot-v2-front-left-three-quarter.png` · 1254 × 1254 RGB | Approved Mascot V2 front-left three-quarter master | First depth and attachment reference for the turnaround. |
-| `generated/v2/portcove-mascot-v2-front-right-three-quarter.png` · 1254 × 1254 RGB | Approved Mascot V2 front-right three-quarter master | Opposite-camera depth reference with the canonical grin direction preserved. |
-| `generated/v2/portcove-mascot-v2-left-side.png` · 1254 × 1254 RGB | Approved Mascot V2 left-side master | Strict profile reference for shell depth, leg occlusion, and localized chest placement. |
-| `generated/v2/portcove-mascot-v2-back.png` · 1254 × 1254 RGB | Approved Mascot V2 back master | Strict rear reference for shell thickness, rear eye construction, appendage attachments, and front-only feature occlusion. |
-| `models/v2/portcove-mascot-v2.blend` | Editable Mascot V2 geometry authority | Named six-material hierarchy with mirrored anatomy, two pivoting lid controls, and five fixed turnaround cameras. |
-| `models/v2/portcove-mascot-v2.glb` | Portable Mascot V2 exchange model | Carries the model hierarchy, materials, metadata, and cameras for non-Blender workflows. |
-| `generated/v2/model/*.png` · 1254 × 1254 RGBA | Transparent model turnaround renders | Front, both three-quarter, strict left-side, and strict back geometry references. These do not replace the approved raster surface treatment. |
-| `generated/v2/model/proofs/*.png` | Model compositing and scale proofs | Graphite, warm-light, 512 px, 256 px, and 128 px QA outputs. They are not product UI assets. |
-| `public/brand/mascot/portcove-mascot-v2-front.png` · 1254 × 962 RGB | Crop-only Mascot V2 runtime derivative | Empty-library and About artwork. It removes unused black clear space without rescaling or changing the character. |
-| `generated/v2/portcove-logo-v2-transparent.png` · 1868 × 743 RGBA | Canonical full-color Logo V2 master with required clear space | Source for future approved derivatives and the README display identity. |
-| `generated/v2/portcove-logo-v2-tight-transparent.png` · 1646 × 521 RGBA | Tight full-color derivative | Controlled placements whose container supplies the required clear space. The optimized 1024 × 324 runtime copy is used at startup and in About. |
-| `generated/v2/portcove-logo-v2-graphite-stage.png` / `portcove-logo-v2-light-stage.png` · 1868 × 743 | Intentional staged derivatives | Fixed graphite or warm-light presentation where a transparent asset cannot be composited deliberately. |
-| `generated/v2/portcove-logo-v2-monochrome-white.png` / `portcove-logo-v2-monochrome-graphite.png` · 1868 × 743 RGBA | Tonally separated monochrome derivatives | Exceptional one-color contexts only; retain the dimensional face hierarchy. |
-| `generated/portcove-mascot-head-icon-master.png` · 1254 × 1254 | AI-assisted compact mascot portrait | Native application icon and sidebar avatar. Tauri-generated platform sizes live under `src-tauri/icons/`. |
+| Asset                                                                                                               | Role                                                          | Usage                                                                                                                                           |
+| ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `masters/portcove-mascot-master.jpg` · 1280 × 981                                                                   | Preserved owner-supplied Mascot V1 source                     | Provenance only. Do not replace or edit.                                                                                                        |
+| `masters/portcove-logo-master.jpg` · 1280 × 720                                                                     | Preserved owner-supplied Logo V1 source                       | Provenance only. Do not replace, edit, or use as the production wordmark.                                                                       |
+| `generated/v2/portcove-mascot-v2-front.png` · 1254 × 1254 RGB                                                       | Canonical Mascot V2 front master                              | Authoritative full-character geometry, anatomy, color placement, and expression reference.                                                      |
+| `generated/v2/portcove-mascot-v2-front-left-three-quarter.png` · 1254 × 1254 RGB                                    | Approved Mascot V2 front-left three-quarter master            | First depth and attachment reference for the turnaround.                                                                                        |
+| `generated/v2/portcove-mascot-v2-front-right-three-quarter.png` · 1254 × 1254 RGB                                   | Approved Mascot V2 front-right three-quarter master           | Opposite-camera depth reference with the canonical grin direction preserved.                                                                    |
+| `generated/v2/portcove-mascot-v2-left-side.png` · 1254 × 1254 RGB                                                   | Approved Mascot V2 left-side master                           | Strict profile reference for shell depth, leg occlusion, and localized chest placement.                                                         |
+| `generated/v2/portcove-mascot-v2-back.png` · 1254 × 1254 RGB                                                        | Approved Mascot V2 back master                                | Strict rear reference for shell thickness, rear eye construction, appendage attachments, and front-only feature occlusion.                      |
+| `models/v2/portcove-mascot-v2.blend`                                                                                | Editable Mascot V2 geometry authority                         | Named six-material hierarchy with mirrored anatomy, two pivoting lid controls, and five fixed turnaround cameras.                               |
+| `models/v2/portcove-mascot-v2.glb`                                                                                  | Portable Mascot V2 exchange model                             | Carries the model hierarchy, materials, metadata, and cameras for non-Blender workflows.                                                        |
+| `generated/v2/model/*.png` · 1254 × 1254 RGBA                                                                       | Transparent model turnaround renders                          | Front, both three-quarter, strict left-side, and strict back geometry references. These do not replace the approved raster surface treatment.   |
+| `generated/v2/model/proofs/*.png`                                                                                   | Model compositing and scale proofs                            | Graphite, warm-light, 512 px, 256 px, and 128 px QA outputs. They are not product UI assets.                                                    |
+| `public/brand/mascot/portcove-mascot-v2-front.png` · 1254 × 962 RGB                                                 | Crop-only Mascot V2 runtime derivative                        | Empty-library and About artwork. It removes unused black clear space without rescaling or changing the character.                               |
+| `generated/v2/portcove-logo-v2-transparent.png` · 1868 × 743 RGBA                                                   | Canonical full-color Logo V2 master with required clear space | Source for future approved derivatives and the README display identity.                                                                         |
+| `generated/v2/portcove-logo-v2-tight-transparent.png` · 1646 × 521 RGBA                                             | Tight full-color derivative                                   | Controlled placements whose container supplies the required clear space. The optimized 1024 × 324 runtime copy is used at startup and in About. |
+| `generated/v2/portcove-logo-v2-graphite-stage.png` / `portcove-logo-v2-light-stage.png` · 1868 × 743                | Intentional staged derivatives                                | Fixed graphite or warm-light presentation where a transparent asset cannot be composited deliberately.                                          |
+| `generated/v2/portcove-logo-v2-monochrome-white.png` / `portcove-logo-v2-monochrome-graphite.png` · 1868 × 743 RGBA | Tonally separated monochrome derivatives                      | Exceptional one-color contexts only; retain the dimensional face hierarchy.                                                                     |
+| `generated/portcove-mascot-head-icon-master.png` · 1254 × 1254                                                      | AI-assisted compact mascot portrait                           | Native application icon and sidebar avatar. Tauri-generated platform sizes live under `src-tauri/icons/`.                                       |
 
 `apps/desktop/assets/brand/manifest.json` is the machine-readable integrity contract for approved masters, model renders, QA proofs, and runtime derivatives. The release check verifies every listed PNG's SHA-256, dimensions, 8-bit color mode, unique identity, and repository-contained path. `models/v2/model-manifest.json` separately freezes the editable model, GLB exchange file, reproducible tools, anatomy counts, material set, and triangle budget. Update either manifest only after the project owner approves the changed asset set.
 
@@ -45,18 +45,18 @@ One polygonal face has one color role. A presentation render may add modest diff
 
 Measurements are approximate and use the tight visible wordmark width as `1.000`. Coordinates begin at the upper-left of the tight visible bounds.
 
-| Measure | Normalized value |
-| --- | ---: |
-| Total wordmark height, excluding the underline's extra depth | `0.290` |
-| Capital `P` height | `0.270` |
-| Typical lowercase body height | `0.158` |
-| Capital `C` height | `0.263` |
-| Capital `C` width | `0.211` |
-| Underline width | `0.826` |
-| Underline depth | `0.091` |
-| Average extrusion depth | `0.023` |
-| Approximate optical baseline from the top bound | `0.228` |
-| Alpha-weighted visual center `(x, y)` | `(0.490, 0.176)` |
+| Measure                                                      | Normalized value |
+| ------------------------------------------------------------ | ---------------: |
+| Total wordmark height, excluding the underline's extra depth |          `0.290` |
+| Capital `P` height                                           |          `0.270` |
+| Typical lowercase body height                                |          `0.158` |
+| Capital `C` height                                           |          `0.263` |
+| Capital `C` width                                            |          `0.211` |
+| Underline width                                              |          `0.826` |
+| Underline depth                                              |          `0.091` |
+| Average extrusion depth                                      |          `0.023` |
+| Approximate optical baseline from the top bound              |          `0.228` |
+| Alpha-weighted visual center `(x, y)`                        | `(0.490, 0.176)` |
 
 The tight visible bounds are 1646 × 521 pixels. The canonical transparent canvas adds 111 pixels on every side, equal to one quarter of the approximately 444-pixel capital `P` height.
 
@@ -82,16 +82,16 @@ The editable model under `assets/brand/models/v2/` is the geometry authority for
 
 The canonical character is a broad, squat red crab with a shallow continuous gold belly, two tall eyes, two oversized claws, four short walking legs, and four side spikes. Its front silhouette is bilateral. Small facet and lighting variation may remain inside a surface, but the geometry and color ownership do not drift.
 
-| Feature | Canonical rule |
-| --- | --- |
-| Eyes | Exactly 2 tall, mirror-matched eye globes with warm-white sclera, cobalt irises, dark pupils, and red housings. |
-| Upper lids | Exactly 2 attached angular hoods. Each hood has a red exterior and graphite underside and moves as one rigid part around its outer attachment. |
+| Feature        | Canonical rule                                                                                                                                                                       |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Eyes           | Exactly 2 tall, mirror-matched eye globes with warm-white sclera, cobalt irises, dark pupils, and red housings.                                                                      |
+| Upper lids     | Exactly 2 attached angular hoods. Each hood has a red exterior and graphite underside and moves as one rigid part around its outer attachment.                                       |
 | Eye expression | The canonical front pose uses equal mirrored lid pivots. Expression poses may rotate a lid, but must not stretch, resize, crease, or misalign the eye globe, iris, pupil, or sclera. |
-| Claws | Exactly 2 oversized claws. From the body outward, color order is red arm and inner geometry, cobalt primary mass, then golden-yellow outer tip. |
-| Walking legs | Exactly 4 total: 2 per side, all red, short, tapered, crab-like, and tucked beneath the shell. Never add shoes, feet, or blue/yellow leg sections. |
-| Side spikes | Exactly 4 visible in front view: 2 per side. Each has an emerald body and golden-yellow tip. |
-| Belly | One broad, shallow, continuous gold form. Do not introduce a tail, long center point, armor plates, or deep seams. |
-| Mouth | One narrow asymmetric warm-white wedge grin with a dark border. It carries the mischievous attitude without becoming a large smile. |
+| Claws          | Exactly 2 oversized claws. From the body outward, color order is red arm and inner geometry, cobalt primary mass, then golden-yellow outer tip.                                      |
+| Walking legs   | Exactly 4 total: 2 per side, all red, short, tapered, crab-like, and tucked beneath the shell. Never add shoes, feet, or blue/yellow leg sections.                                   |
+| Side spikes    | Exactly 4 visible in front view: 2 per side. Each has an emerald body and golden-yellow tip.                                                                                         |
+| Belly          | One broad, shallow, continuous gold form. Do not introduce a tail, long center point, armor plates, or deep seams.                                                                   |
+| Mouth          | One narrow asymmetric warm-white wedge grin with a dark border. It carries the mischievous attitude without becoming a large smile.                                                  |
 
 The attached red-and-graphite upper lids are the facial control. The eye globes, stalks, lower housings, irises, and pupils remain fixed. This separation allows controlled confident, skeptical, or mischievous expressions without creating sleepy eyes or detached eyebrows.
 
@@ -99,39 +99,39 @@ The attached red-and-graphite upper lids are the facial control. The eye globes,
 
 Measurements use the visible shell width of 673 pixels as `1.000`. They describe the approved front raster and are practical guardrails rather than replacement geometry. Paired values are averaged where the low-poly lighting changes an edge by a few pixels.
 
-| Measure | Pixels | Normalized value |
-| --- | ---: | ---: |
-| Shell width | `673` | `1.000` |
-| Shell/body height, including the belly envelope | `353` | `0.525` |
-| Total character width, including claws | `1199` | `1.782` |
-| Total character height, including eyes and legs | `730` | `1.085` |
-| Eye assembly height, lid through lower housing | `242` | `0.360` |
-| Eye center-to-center spacing | `205` | `0.305` |
-| Visible eye-stalk length | `68` | `0.101` |
-| Belly width | `352` | `0.523` |
-| Belly height | `140` | `0.208` |
-| Individual claw width | `290` | `0.431` |
-| Individual claw height | `325` | `0.483` |
-| Individual claw width / shell width | `290 / 673` | `0.431` |
-| Walking-leg visible root-to-tip length | `121` | `0.180` |
-| Walking-leg average thickness | `48` | `0.071` |
-| Side-spike average base-to-tip length | `184` | `0.273` |
-| Same-side spike tip spacing | `95` | `0.141` |
-| Mouth width, including border | `224` | `0.333` |
-| Mouth height, including border | `67` | `0.100` |
+| Measure                                         |      Pixels | Normalized value |
+| ----------------------------------------------- | ----------: | ---------------: |
+| Shell width                                     |       `673` |          `1.000` |
+| Shell/body height, including the belly envelope |       `353` |          `0.525` |
+| Total character width, including claws          |      `1199` |          `1.782` |
+| Total character height, including eyes and legs |       `730` |          `1.085` |
+| Eye assembly height, lid through lower housing  |       `242` |          `0.360` |
+| Eye center-to-center spacing                    |       `205` |          `0.305` |
+| Visible eye-stalk length                        |        `68` |          `0.101` |
+| Belly width                                     |       `352` |          `0.523` |
+| Belly height                                    |       `140` |          `0.208` |
+| Individual claw width                           |       `290` |          `0.431` |
+| Individual claw height                          |       `325` |          `0.483` |
+| Individual claw width / shell width             | `290 / 673` |          `0.431` |
+| Walking-leg visible root-to-tip length          |       `121` |          `0.180` |
+| Walking-leg average thickness                   |        `48` |          `0.071` |
+| Side-spike average base-to-tip length           |       `184` |          `0.273` |
+| Same-side spike tip spacing                     |        `95` |          `0.141` |
+| Mouth width, including border                   |       `224` |          `0.333` |
+| Mouth height, including border                  |        `67` |          `0.100` |
 
 ### Mascot color map
 
 The palette references below define material roles; the raster master contains darker and lighter facet values produced by simple lighting.
 
-| Material region | Canonical color role |
-| --- | --- |
+| Material region                                                                              | Canonical color role |
+| -------------------------------------------------------------------------------------------- | -------------------- |
 | Shell, eye housings, eye stalks, claw arms, claw inner/lower geometry, all four walking legs | Signature red/orange |
-| Claw primary mass and irises | Cobalt blue |
-| Belly, claw outer tips, spike tips | Golden yellow |
-| Spike bodies only | Emerald green |
-| Sclera and grin | Warm white |
-| Lid undersides, pupils, mouth border | Graphite/black |
+| Claw primary mass and irises                                                                 | Cobalt blue          |
+| Belly, claw outer tips, spike tips                                                           | Golden yellow        |
+| Spike bodies only                                                                            | Emerald green        |
+| Sclera and grin                                                                              | Warm white           |
+| Lid undersides, pupils, mouth border                                                         | Graphite/black       |
 
 Color ownership is symmetric and deterministic. Green remains exclusive to the spikes, and blue must not spread onto walking legs or unrelated shell geometry.
 
@@ -151,14 +151,14 @@ The compact application icon was produced with the built-in image-generation wor
 
 Brand artwork should harmonize with the semantic UI system rather than create a parallel palette.
 
-| Role | Reference | UI meaning |
-| --- | --- | --- |
-| Graphite | `#191A1D` / `#24252A` | Hardware-like presentation field and neutral shell. |
-| Cobalt blue | `#2D5DA8` | Interaction, mascot claws and irises, and logo depth. |
-| Signature red | `#E23B32` | Mascot shell, wordmark edge punctuation, and rare product emphasis. |
-| Emerald green | `#27995B` | Mascot spike bodies, logo side planes, and semantic success. |
-| Golden yellow | `#F2C94C` | Logo faces, mascot belly and outer tips, and rare UI focus/highlight. |
-| Warm white | `#F5F3EE` | Crisp UI typography and mascot eyes/grin. |
+| Role          | Reference             | UI meaning                                                            |
+| ------------- | --------------------- | --------------------------------------------------------------------- |
+| Graphite      | `#191A1D` / `#24252A` | Hardware-like presentation field and neutral shell.                   |
+| Cobalt blue   | `#2D5DA8`             | Interaction, mascot claws and irises, and logo depth.                 |
+| Signature red | `#E23B32`             | Mascot shell, wordmark edge punctuation, and rare product emphasis.   |
+| Emerald green | `#27995B`             | Mascot spike bodies, logo side planes, and semantic success.          |
+| Golden yellow | `#F2C94C`             | Logo faces, mascot belly and outer tips, and rare UI focus/highlight. |
+| Warm white    | `#F5F3EE`             | Crisp UI typography and mascot eyes/grin.                             |
 
 Artwork may retain source texture variation; UI components must continue to use semantic tokens rather than sampling arbitrary colors from the raster masters.
 

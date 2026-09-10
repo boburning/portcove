@@ -159,12 +159,12 @@ declares interface, operating system, processor, format, native filename rule,
 display label, and experimental presentation independently of whatever a build
 happens to emit. The current exact matrix is:
 
-| Platform | Desktop | Standalone CLI |
-|---|---|---|
-| Windows x86_64 | NSIS setup installer | ZIP |
-| Linux x86_64 | AppImage, DEB, RPM (experimental) | TAR.GZ |
-| macOS aarch64 | DMG (experimental) | TAR.GZ |
-| macOS x86_64 | DMG (experimental) | TAR.GZ |
+| Platform       | Desktop                           | Standalone CLI |
+| -------------- | --------------------------------- | -------------- |
+| Windows x86_64 | NSIS setup installer              | ZIP            |
+| Linux x86_64   | AppImage, DEB, RPM (experimental) | TAR.GZ         |
+| macOS aarch64  | DMG (experimental)                | TAR.GZ         |
+| macOS x86_64   | DMG (experimental)                | TAR.GZ         |
 
 Release jobs pass `--bundles nsis`, `--bundles appimage,deb,rpm`, or
 `--bundles dmg` to the installed Tauri 2 CLI as appropriate; they do not assume

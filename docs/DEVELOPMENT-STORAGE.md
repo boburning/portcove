@@ -57,14 +57,14 @@ the old generated directory until the replacement passes validation.
 
 The default layout is entirely relative to the checkout:
 
-| Purpose | Path |
-|---|---|
-| Cargo, rust-analyzer, Tauri, tests, and mutation builds | `target` |
-| Process temporary data and test scratch space | `work/temp` |
-| pnpm content-addressed store | `work/pnpm-store` |
-| Local installers, executables, source archives, and checksums | `outputs` |
-| Frontend dependencies and production output | `apps/desktop/node_modules`, `apps/desktop/dist` |
-| Tauri generated schemas | `apps/desktop/src-tauri/gen` |
+| Purpose                                                       | Path                                             |
+| ------------------------------------------------------------- | ------------------------------------------------ |
+| Cargo, rust-analyzer, Tauri, tests, and mutation builds       | `target`                                         |
+| Process temporary data and test scratch space                 | `work/temp`                                      |
+| pnpm content-addressed store                                  | `work/pnpm-store`                                |
+| Local installers, executables, source archives, and checksums | `outputs`                                        |
+| Frontend dependencies and production output                   | `apps/desktop/node_modules`, `apps/desktop/dist` |
+| Tauri generated schemas                                       | `apps/desktop/src-tauri/gen`                     |
 
 The launcher creates the temporary, packaging, and pnpm directories after a successful check. It exports `CARGO_TARGET_DIR`, `TEMP`, `TMP`, `TMPDIR`, `pnpm_config_store_dir` (pnpm 11), and the Portcove path variables to its child process. Every `just` quality recipe runs through this launcher, so `just check` and `just audit` also work directly in a fresh checkout.
 
