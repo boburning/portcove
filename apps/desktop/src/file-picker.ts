@@ -1,6 +1,10 @@
 import { open, save } from "@tauri-apps/plugin-dialog";
 import type { SourceProfile } from "./types";
 
+export function pickArtworkPath() {
+  return open({ title: "Choose local artwork", multiple: false, directory: false, filters: [{ name: "Static PNG or JPEG image", extensions: ["png", "jpg", "jpeg"] }] });
+}
+
 export async function pickSourcePath(profile: SourceProfile, currentPath: string) {
   if (profile.kind === "file-set" && currentPath.toLowerCase().endsWith(".zip")) {
     return pickSourceArchivePath(currentPath);

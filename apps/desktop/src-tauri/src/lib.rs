@@ -1,4 +1,5 @@
 mod adoption;
+mod artwork;
 mod backup_review;
 mod catalog;
 mod cli_context;
@@ -1661,6 +1662,10 @@ pub fn run() {
             get_backups,
             create_backup,
             backup_review::preview_backup_action,
+            artwork::get_artwork,
+            artwork::get_artwork_thumbnail,
+            artwork::import_artwork,
+            artwork::reset_artwork,
             backup_review::restore_backup,
             backup_review::delete_backup,
             verify_source,

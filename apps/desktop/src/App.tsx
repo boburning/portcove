@@ -6,6 +6,7 @@ import { PageHeader, SettingsView, Sidebar, StatusLayer, type HostToolActions } 
 import { CommandPalette } from "./components/CommandPalette";
 import { DetailPanel } from "./components/DetailPanel";
 import { PortBrowser } from "./components/PortBrowser";
+import { ArtworkProvider } from "./artwork";
 import { SourceIntakeDialog, type SourceIntakeRequest } from "./components/SourceIntake";
 import { UpdateCenter } from "./components/UpdateCenter";
 import { FailureDetails } from "./components/FailureDetails";
@@ -133,7 +134,7 @@ function Workspace({ bootstrap, switchLibrary, resetLibrary }: { bootstrap: Boot
     openOfficial: (toolId: string) => desktopApi.openHostToolOfficialSite(toolId),
   };
 
-  return <div className="app-shell">
+  return <ArtworkProvider generation={bootstrap.generation}><div className="app-shell">
     <Sidebar view={ui.view} setView={ui.setView} controller={controller} installedCount={data.statuses.filter(status => status.active).length}
       updateCount={data.statuses.filter(status => currentUpdateSnapshot(status)?.check.update_available).length} onAdopt={() => ui.setAdoptOpen(true)} />
     <main ref={workspace} data-focus-region="workspace">
@@ -145,7 +146,7 @@ function Workspace({ bootstrap, switchLibrary, resetLibrary }: { bootstrap: Boot
     <AdoptionOverlay ui={ui} operations={operations} libraryGeneration={bootstrap.generation} />
     <CommandPalette open={commandSurface.open} commands={commandSurface.commands} close={() => commandSurface.setOpen(false)} />
     {sourceIntake && <SourceIntakeDialog request={sourceIntake} close={() => setSourceIntake(undefined)} onAdded={data.refresh} openEvidence={evidenceId => { void operations.perform("open source evidence", () => desktopApi.openSourceEvidence(evidenceId)); }} hostTools={data.doctor?.host_tools} hostToolActions={hostToolActions} />}
-  </div>;
+  </div></ArtworkProvider>;
 }
 
 type DataState = ReturnType<typeof usePortcoveData>;
