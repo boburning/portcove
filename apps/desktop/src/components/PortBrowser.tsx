@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import { ArrowRight, Boxes, CheckCircle2, Download, Gamepad2, LoaderCircle, Settings2, Wrench } from "lucide-react";
 import type { PortDefinition, PortStatus } from "../types";
-import { currentUpdateSnapshot, filterOptions, platformLabels, portReadiness, type Filter, type LibraryOverview, type PortReadiness, type RecentPort, type View } from "../view-model";
+import { currentUpdateSnapshot, filterOptions, platformLabel, portReadiness, releaseChannelPresentation, type Filter, type LibraryOverview, type PortReadiness, type RecentPort, type View } from "../view-model";
 import { BrandMascot, BrandWordmark } from "./Brand";
 import { BrandMotif, EmptyState, Icon } from "./ui";
 import type { NativeSourceDragState } from "../native-source-drop";
@@ -60,12 +60,13 @@ function LibrarySummary({ overview }: { overview: LibraryOverview }) {
     <div><span className="summary-icon ready"><Icon glyph={CheckCircle2} /></span><p><strong className="summary-value">{overview.ready}</strong><small>Launch ready</small></p></div>
     <div><span className="summary-icon setup"><Icon glyph={Wrench} /></span><p><strong className="summary-value">{overview.needsSetup}</strong><small>Need setup</small></p></div>
     <div><span className="summary-icon staged"><Icon glyph={Download} /></span><p><strong className="summary-value">{overview.staged}</strong><small>Staged updates</small></p></div>
-    <p className="summary-note"><strong>{overview.installed} installed</strong><span>Sources stay local. Managed versions remain rollback-safe.</span></p>
+    <p className="summary-note"><strong>{overview.installed} installed</strong><span>View a game's details for setup and recovery options.</span></p>
   </section>;
 }
 
 function PortCard({ port, status, readiness, onSelect, nativeSourceDrag }: { port: PortDefinition; status?: PortStatus; readiness: PortReadiness; onSelect: (portId: string) => void; nativeSourceDrag: NativeSourceDragState }) {
   const state = readinessPresentation(readiness);
+  const channel = releaseChannelPresentation(status?.channel ?? port.support_tier);
   const updateAvailable = currentUpdateSnapshot(status)?.check.update_available;
   const color = [...port.id].reduce((total, character) => total + character.charCodeAt(0), 0) % 6;
   const dropEligible = nativeSourceDrag.active && Boolean(port.source_profile);
@@ -74,10 +75,10 @@ function PortCard({ port, status, readiness, onSelect, nativeSourceDrag }: { por
     data-source-drop-port-id={dropEligible ? port.id : undefined} data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}>
     {dropEligible && <span className="source-drop-target" aria-hidden="true">{dropTarget ? "Release to check" : "Drop to check for this game"}</span>}
     <ArtworkImage port={port} className={`card-art palette-${color}`} />
-    <div className="card-content"><div className="card-kicker"><span className={`readiness ${state.tone}`}><i />{state.label}</span><span className={`badge ${status?.channel ?? port.support_tier}`}>{status?.channel ?? port.support_tier}</span></div>
+    <div className="card-content"><div className="card-kicker"><span className={`readiness ${state.tone}`}><i />{state.label}</span><span className={`badge ${channel.tone}`}>{channel.label}</span></div>
       <div className="card-title"><h2>{port.name}</h2></div>
       <div className="card-flags">{updateAvailable && <span className="badge update">Update available</span>}{port.upstream_status === "retired" && <span className="badge retired">Retired upstream</span>}</div>
-      <p>{port.summary}</p><div className="platforms">{port.platforms.map(platform => <span key={platform}>{platformLabels[platform]}</span>)}</div>
+      <p>{port.summary}</p><div className="platforms">{port.platforms.map(platform => <span key={platform}>{platformLabel(platform)}</span>)}</div>
       <div className="card-status"><strong>{status?.active ? status.active.version : "Not installed"}</strong><span>{state.action}<Icon glyph={ArrowRight} size="sm" /></span></div>
     </div>
   </button>;

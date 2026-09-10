@@ -410,15 +410,15 @@ export function HostToolRow({ tool, busy, actions, showTechnicalId = true }: { t
 
 function StorageCard({ libraryRoot, storage, busy, exportMetadata }: { libraryRoot: string; storage?: StorageSummary; busy?: string; exportMetadata?: () => Promise<LibraryMetadataFile | undefined> }) {
   const [exported, setExported] = useState<LibraryMetadataFile>();
-  const total = storage?.volume_total_bytes ?? 0;
-  const available = storage?.volume_available_bytes ?? 0;
-  const availablePercent = total > 0 ? Math.min(100, available / total * 100) : 0;
+  const total = storage?.volume_total_bytes;
+  const available = storage?.volume_available_bytes;
+  const measurable = typeof total === "number" && typeof available === "number" && Number.isSafeInteger(total) && Number.isSafeInteger(available) && total > 0 && available >= 0 && available <= total;
   return <article className="settings-card storage-card" data-focus-group>
     <p className="eyebrow">CURRENT LIBRARY</p><h2><Icon glyph={HardDrive} />Files and capacity</h2><code>{libraryRoot || "Loading…"}</code>
-    {storage && <div className="storage-capacity">
+    {measurable ? <div className="storage-capacity">
       <div><strong>{formatBytes(available)} available</strong><span>{formatBytes(total)} volume</span></div>
-      <div className="storage-meter" role="meter" aria-label="Available library storage" aria-valuemin={0} aria-valuemax={total} aria-valuenow={available}><i style={{ width: `${availablePercent}%` }} /></div>
-    </div>}
+      <div className="storage-meter" role="meter" aria-label="Available library storage" aria-valuemin={0} aria-valuemax={total} aria-valuenow={available}><i style={{ width: `${available / total * 100}%` }} /></div>
+    </div> : <p>Storage capacity is unavailable for this location.</p>}
     <p><Icon glyph={ShieldCheck} size="sm" /> Application versions are isolated from saves, configuration, mods, and original sources.</p>
     <button data-focusable className="small-control" disabled={Boolean(busy) || !exportMetadata} onClick={() => { void exportMetadata?.().then(setExported); }}>Export metadata</button>
     <p>Export source references and version settings. Game files, saves, backups, toolchains, and credentials are not included.</p>
