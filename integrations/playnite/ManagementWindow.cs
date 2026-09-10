@@ -36,6 +36,9 @@ namespace Portcove.ReferenceClient
             this.plugin = plugin;
             this.game = game;
             this.window = window;
+            window.SetResourceReference(Control.ForegroundProperty, "TextBrush");
+            window.SetResourceReference(Control.FontFamilyProperty, "FontFamily");
+            window.SetResourceReference(Control.FontSizeProperty, "FontSize");
             window.Title = "Portcove · " + game.Name;
             window.Width = 740; window.Height = 710; window.MinWidth = 520; window.MinHeight = 480;
             window.WindowStartupLocation = WindowStartupLocation.CenterScreen;
