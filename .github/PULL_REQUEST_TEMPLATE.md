@@ -1,49 +1,21 @@
 ## Linked issue
 
+<!-- Use Closes/Fixes/Resolves only when this PR completes the issue; otherwise use Refs or Related to. -->
+
 Closes #
 
-## User outcome
+## Outcome and scope
 
-<!-- What becomes possible, safer, faster, or clearer? -->
+<!-- State the user or maintainer outcome, implementation boundary, and important non-goals. -->
 
-## Scope and non-goals
+## Verification
 
-<!-- Summarize the implemented scope and what this PR deliberately does not change. -->
+<!-- List exact commands and observed results. Use Not run — reason or Not applicable — reason where appropriate. -->
 
-## Acceptance criteria
+## Review and risk
 
-- [ ] Every applicable criterion in the linked issue is complete.
-- [ ] Completion evidence is attached to the issue or this PR.
+<!-- Record the distinct review against the exact head, repairs/re-review, relevant invariants, and documentation impact. Drafts may say Pending. -->
 
-## Tests and exact commands
+## Readiness and follow-ups
 
-<!-- List exact commands and results. Distinguish automated evidence from human or physical-platform observations. -->
-
-## Separate review result
-
-<!-- Link or summarize an explicit diff/evidence review. No comments, timeout, or cancellation is not a successful review. -->
-
-## Documentation
-
-<!-- Stable contract, user documentation, release snapshot, or none with reason. -->
-
-## Roadmap state
-
-- [ ] The linked issue is present in the Portcove Roadmap.
-- [ ] Status is In progress or Validating while this PR is open.
-- [ ] Priority, horizon, target release, release commitment, dependencies, and blockers are current.
-
-## Merge authority
-
-- [ ] This exact revision is within standing or explicit owner authority.
-- [ ] The normal merge path uses no administrator bypass.
-- [ ] Any protected-policy, signing/publication, or credential boundary change has separate explicit owner authorization.
-
-## Remaining blockers or follow-up work
-
-<!-- Link sub-issues or state none. Do not create a TODO/backlog document. -->
-
-## Planning-authority check
-
-- [ ] This change does not introduce a repository ledger, mutable STATUS file,
-      milestone mirror, or other duplicate planning authority.
+<!-- State Roadmap status, merge authority, remaining blockers/follow-ups, or None. -->
