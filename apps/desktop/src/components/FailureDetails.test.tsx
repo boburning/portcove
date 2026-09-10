@@ -7,11 +7,53 @@ import { failureReport, portDefinition } from "../test-fixtures";
 import { StatusLayer } from "./Chrome";
 import { UpdateCenter } from "./UpdateCenter";
 import { useOperationState } from "../use-portcove";
+import { BootstrapRecovery } from "../App";
+import { errorText, failurePresentation } from "../view-model";
 
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn().mockResolvedValue(() => {}) }));
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe("core-owned failure presentation", () => {
+  it.each(["future_outcome", "constructor", "__proto__"])("retains safe copy and the original technical outcome for %s", outcome => {
+    const error = failureReport();
+    error.message = "raw-machine-secret";
+    error.details = { token: "raw-field-secret" };
+    error.presentation.mutation_state = outcome as typeof error.presentation.mutation_state;
+    const original = JSON.stringify(error);
+    for (const view of [<StatusLayer error={error} clearError={vi.fn()} />, <BootstrapRecovery error={error} />]) {
+      const html = renderToStaticMarkup(view);
+      expect(html).toContain(error.presentation.summary);
+      expect(html).toContain("The changes could not be confirmed");
+      expect(html).toContain(outcome);
+      expect(html).not.toContain("No files were changed");
+      expect(html).not.toContain("raw-machine-secret");
+      expect(html).not.toContain("raw-field-secret");
+    }
+    expect(errorText(error)).toBe(error.presentation.summary);
+    expect(JSON.stringify(error)).toBe(original);
+  });
+
+  it("keeps safe summaries for an unfamiliar tone without announcing cancellation", () => {
+    const error = failureReport();
+    error.message = "raw-machine-secret";
+    error.presentation.tone = "future_tone" as typeof error.presentation.tone;
+    const html = renderToStaticMarkup(<StatusLayer error={error} clearError={vi.fn()} />);
+    expect(html).toContain(error.presentation.summary);
+    expect(html).toContain('role="alert"');
+    expect(html).not.toContain("Operation cancelled");
+    expect(html).not.toContain("raw-machine-secret");
+    expect(error.presentation.tone).toBe("future_tone");
+  });
+
+  it("treats a missing outcome as unknown without changing the retained report", () => {
+    const error = failureReport();
+    const { mutation_state: _outcome, ...presentation } = error.presentation;
+    const incomplete = { ...error, presentation };
+    expect(failurePresentation(incomplete)?.mutation_state).toBe("unknown");
+    expect(errorText(incomplete)).toBe(error.presentation.summary);
+    expect(incomplete.presentation).not.toHaveProperty("mutation_state");
+  });
+
   it.each(["not_started", "committed", "recovery_required", "unknown"] as const)("does not claim unchanged files for %s", mutation_state => {
     const error = failureReport();
     error.message = "raw-machine-secret"; error.details = { token: "raw-field-secret" };

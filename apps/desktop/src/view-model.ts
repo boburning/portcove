@@ -184,14 +184,18 @@ export function errorText(error: unknown) {
   return String(error);
 }
 
-export function failurePresentation(error: unknown): DesktopError["presentation"] | undefined {
+/** Display accepts future outcome names without asserting a known mutation result. */
+export type FailureDisplay = {
+  [Key in keyof DesktopError["presentation"]]: Key extends "mutation_state" ? string : DesktopError["presentation"][Key];
+};
+
+export function failurePresentation(error: unknown): FailureDisplay | undefined {
   if (typeof error !== "object" || !error || !("presentation" in error)) return undefined;
   const value = error.presentation as Partial<DesktopError["presentation"]> | null;
   if (!value || typeof value.summary !== "string" || typeof value.technical_message !== "string"
-    || !value.technical_context || !Array.isArray(value.recovery_actions)
-    || !["neutral", "error"].includes(value.tone ?? "")
-    || !["not_started", "no_changes", "committed", "recovery_required", "unknown"].includes(value.mutation_state ?? "")) return undefined;
-  return value as DesktopError["presentation"];
+    || !value.technical_context || !Array.isArray(value.recovery_actions)) return undefined;
+  return { ...value, tone: value.tone === "neutral" ? "neutral" : "error",
+    mutation_state: typeof value.mutation_state === "string" ? value.mutation_state : "unknown" } as FailureDisplay;
 }
 
 export function isCancellation(error: unknown) {
