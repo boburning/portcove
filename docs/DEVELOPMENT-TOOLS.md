@@ -176,3 +176,19 @@ installation identity, unchanged source references and an advanced desktop libra
 generation. A prior-generation request is rejected, while the new generation reads
 the verified destination. Its accessibility and native evidence remain distinct
 from core interruption and physical-platform qualification.
+
+### Command-line handoff verification
+
+The command details surface binds the effective library and names the shell whose
+syntax it displays (PowerShell 7 on Windows, sh/bash elsewhere). Missing standalone
+CLI or original-file paths remain explicit templates. Program path and argument
+array are also available separately; a terminal command is not a launcher argument
+field. Native discovery does not execute or attest the CLI it finds.
+
+Run `pnpm --dir apps/desktop test:cli-handoff` for the focused checks.
+The host shell test sends spaces, apostrophes, Unicode, literal substitution syntax,
+metacharacters, empty values and trailing separators to a harmless Node process,
+then compares its actual argument vector. Component tests cover missing inputs,
+clipboard failure and a late response from another library. Quoting follows the
+[PowerShell quoting rules](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_quoting_rules?view=powershell-7.6)
+and [POSIX-style single quoting](https://www.gnu.org/software/bash/manual/html_node/Single-Quotes.html).

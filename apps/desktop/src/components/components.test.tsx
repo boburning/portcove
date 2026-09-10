@@ -381,8 +381,9 @@ describe("desktop components", () => {
     expect(installed).toContain("Persistent data root");
     expect(installed).toContain("C:/Portcove/user/sample");
     expect(installed).toContain("Deferred / not completed");
-    expect(installed).toContain("Launch command");
-    expect(installed).toContain("portcove exec sample --");
+    expect(installed).toContain("Launch from another app");
+    expect(installed).toContain("Finding the command-line app");
+    expect(installed).not.toContain("portcove exec sample --");
     expect(installed).toContain("Open upstream project");
   });
 

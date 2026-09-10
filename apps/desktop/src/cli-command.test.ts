@@ -12,23 +12,31 @@ const port: PortDefinition = {
   release: portDefinition().release, executable_hints: {},
 };
 
+const context = { executable: "C:/Program Files/Portcove/portcove.exe", library_root: "E:/My Library", platform: "windows-x86-64" } as const;
+
 describe("GUI to CLI continuity", () => {
-  it("renders a non-interactive install command with explicit source requirements", () => {
-    expect(primaryCliCommand(port, undefined, "beta", "D:/ROMs/Sample Game.z64", "D:/BIOS/sample.bin")).toBe(
-      'portcove --json --non-interactive ensure sample-port --channel beta --source "D:/ROMs/Sample Game.z64" --bios D:/BIOS/sample.bin',
-    );
+  it("binds setup to the selected library, release channel and original files", () => {
+    const command = primaryCliCommand(context, port, undefined, "beta", "D:/ROMs/Sample Game.z64", "D:/BIOS/sample.bin");
+    expect(command.args).toEqual(["--library", "E:/My Library", "--json", "--non-interactive", "ensure", "sample-port", "--channel", "beta", "--source", "D:/ROMs/Sample Game.z64", "--bios", "D:/BIOS/sample.bin"]);
+    expect(command.shell).toContain("& 'C:/Program Files/Portcove/portcove.exe' --library 'E:/My Library'");
+    expect(command.missing).toEqual([]);
   });
 
-  it("renders the canonical launch command for an active port", () => {
-    const status = { ...portStatus(), port_id: port.id, channel: "stable", update_policy: "notify", active: {
-      id: "1", port_id: port.id, version: "1", path: "sample", channel: "stable", installed_at: 1, verified: true, staged: false,
-      artifact: { asset_name: "sample.zip", sha256: "a".repeat(64), size: 1 }, manifest_sha256: "b".repeat(64), selected_executable: "sample.exe", runtime: null,
-    } } satisfies PortStatus;
-    expect(primaryCliCommand(port, status, "stable")).toBe("portcove exec sample-port --");
+  it("launches the active installation with the exact library and no ensure operation", () => {
+    const status = { ...portStatus(), active: { id: "active" } } as PortStatus;
+    const command = primaryCliCommand(context, port, status, "stable");
+    expect(command.args).toEqual(["--library", "E:/My Library", "exec", "sample-port", "--"]);
+    expect(command.missing).toEqual([]);
   });
 
-  it("quotes values that contain shell-significant whitespace", () => {
-    expect(quoteCliArg("simple-id")).toBe("simple-id");
-    expect(quoteCliArg("two words")).toBe('"two words"');
+  it("labels unavailable executables and missing originals as templates", () => {
+    const command = primaryCliCommand({ ...context, executable: null }, port, undefined, "stable");
+    expect(command.missing).toEqual(["Portcove CLI executable", "source-path", "bios-path"]);
+    expect(command.args).toContain("<source-path>");
+    expect(command.shell).toContain("'<portcove-executable>'");
+  });
+
+  it("rejects null characters instead of producing truncated arguments", () => {
+    expect(() => quoteCliArg("bad\0path", "posix")).toThrow(/null/);
   });
 });

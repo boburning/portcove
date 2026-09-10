@@ -144,3 +144,5 @@ export type BackupReview = Generated.TransportOutputs["desktop_backup_review"];
 export type BackupAction = BackupReview["preview"]["action"];
 
 export type PortRemovalPreview = Generated.TransportOutputs["port_removal_preview"];
+
+export type CliCommandContext = Generated.TransportOutputs["desktop_cli_command_context"];

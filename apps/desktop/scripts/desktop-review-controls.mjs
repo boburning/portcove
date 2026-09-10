@@ -2,8 +2,16 @@
 import assert from "node:assert/strict";
 import { By, until } from "selenium-webdriver";
 
+async function waitForEntrance(browser, element) {
+  await browser.wait(() => browser.executeScript(element => {
+    const dialog = element.closest('[role="dialog"]') ?? element;
+    return !dialog.getAnimations().some(animation => animation.playState === "running");
+  }, element), 5_000, "The review must finish its entrance animation before interaction or measurement");
+}
+
 export async function clickVisible(browser, element) {
   try {
+    await waitForEntrance(browser, element);
     await browser.executeScript('arguments[0].focus({ preventScroll: true }); arguments[0].scrollIntoView({ block: "center" });', element);
     await browser.wait(until.elementIsVisible(element), 5_000);
     await browser.wait(until.elementIsEnabled(element), 5_000);
@@ -32,6 +40,7 @@ export function reviewControls(browser) {
 
 export async function assertCompactReview(browser, selector) {
   await browser.manage().window().setRect({ width: 960, height: 640 });
+  await waitForEntrance(browser, await browser.findElement(By.css(selector)));
   const layout = await browser.executeScript(selector => {
     const review = document.querySelector(selector);
     const bounds = review.getBoundingClientRect();

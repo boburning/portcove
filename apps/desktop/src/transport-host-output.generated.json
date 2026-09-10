@@ -280,6 +280,41 @@
     "title": "BootstrapStatus",
     "type": "object"
   },
+  "cli_command_context": {
+    "$defs": {
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "executable": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "library_root": {
+        "type": "string"
+      },
+      "platform": {
+        "$ref": "#/$defs/Platform"
+      }
+    },
+    "required": [
+      "library_root",
+      "executable",
+      "platform"
+    ],
+    "title": "CliCommandContext",
+    "type": "object"
+  },
   "desktop_error": {
     "$defs": {
       "ErrorCode": {
