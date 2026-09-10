@@ -17,6 +17,7 @@ import type { Perform } from "../use-portcove";
 import { ExternalLink as ProjectLink } from "./ExternalLink";
 import { Icon, NavigationHints } from "./ui";
 import { SourceIdentityPanel } from "./SourceIdentity";
+import { installPlanActionLabel } from "../install-plan-presentation";
 
 export interface DetailActions {
   activate: () => void;
@@ -299,17 +300,6 @@ function PlannedInstallButton({ plan, busy, install }: { plan: InstallPlan; busy
   else if (insufficientSpace) label = "Free space required";
   else if (busy === "install") label = "Installing…";
   return <div className="actions primary-actions"><button data-focusable className="primary wide button-with-icon" disabled={blocked || insufficientSpace || Boolean(busy)} onClick={install}><Icon glyph={Download} />{label}</button></div>;
-}
-
-function installPlanActionLabel(action: InstallPlan["action"]) {
-  const labels: Record<InstallPlan["action"], string> = {
-    already_active: "Already active",
-    use_staged: "Use staged release",
-    reuse_retained: "Reuse retained release",
-    blocked_unverified: "Unverified local copy",
-    download: "Download verified release",
-  };
-  return Object.hasOwn(labels, action) ? labels[action] : undefined;
 }
 
 function MaintenanceActions({ port, libraryGeneration, canRollback, busy, actions }: { port: PortDefinition; libraryGeneration: number; canRollback: boolean; busy?: string; actions: DetailActions }) {
