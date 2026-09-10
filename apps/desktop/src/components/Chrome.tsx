@@ -4,7 +4,7 @@ import { AlertTriangle, Boxes, Check, CheckCircle2, CircleMinus, CircleUserRound
 import desktopPackage from "../../package.json";
 import type { ThemeState, ThemePreference } from "../theme";
 import type { PortDefinition, DoctorReport, GithubAuthStatus, GithubDeviceLogin, HostToolProbeResult, HostToolStatus, LibraryMetadataFile, LibrarySelection, OperationEvent, SourceInspectionReport, SourceProfile, SourceRecord, SourceVerificationOutcome, StorageSummary } from "../types";
-import { errorText, failurePresentation, formatBytes, type SourceRequirement, type View } from "../view-model";
+import { errorText, failurePresentation, formatBytes, progressPresentation, type SourceRequirement, type View } from "../view-model";
 import { FailureDetails } from "./FailureDetails";
 import { BrandAvatar, BrandMascot, BrandWordmark } from "./Brand";
 import { ExternalLink } from "./ExternalLink";
@@ -14,6 +14,7 @@ import { CatalogSettings } from "./CatalogUpdates";
 import { SourceDiscoveryButton } from "./SourceDiscovery";
 import { SourceIdentityPanel } from "./SourceIdentity";
 import { Icon, NavigationHints, Shortcut } from "./ui";
+import { commandShortcut } from "../keyboard-shortcuts";
 
 export function Sidebar({ view, setView, installedCount, updateCount, onAdopt, controller }: {
   view: View; setView: Dispatch<SetStateAction<View>>; installedCount: number; updateCount: number; onAdopt: () => void;
@@ -32,7 +33,7 @@ export function Sidebar({ view, setView, installedCount, updateCount, onAdopt, c
         <Icon glyph={item.icon} /><span>{item.label}</span>
         {item.view === "library" && <b aria-label={`${installedCount} installed`}>{installedCount}</b>}
         {item.view === "updates" && updateCount > 0 && <b aria-label={`${updateCount} updates available`}>{updateCount}</b>}
-        <Shortcut>Ctrl {item.shortcut}</Shortcut>
+        <Shortcut>{commandShortcut(item.shortcut)}</Shortcut>
       </button>)}</nav>
     <div className="sidebar-footer">
       <button data-focusable className="secondary full button-with-icon" onClick={onAdopt}><Icon glyph={FolderInput} />Adopt an install</button>
@@ -49,7 +50,7 @@ export function PageHeader({ view, query, setQuery, portCount, onOpenCommands }:
     <div><p className="eyebrow">{copy.eyebrow}</p><h1>{copy.title}</h1><p className="page-description">{copy.description}</p></div>
     <div className="header-tools" data-focus-group>
       {(view === "library" || view === "catalog") && <label className="search" htmlFor="port-search"><Icon glyph={Search} /><span className="sr-only">Search ports</span><input id="port-search" data-focusable value={query} onChange={event => setQuery(event.target.value)} placeholder="Search ports" /><Shortcut>/</Shortcut></label>}
-      <button data-focusable className="command-trigger button-with-icon" onClick={onOpenCommands} aria-label="Open command palette"><Icon glyph={Command} /><span>Commands</span><Shortcut>Ctrl K</Shortcut></button>
+      <button data-focusable className="command-trigger button-with-icon" onClick={onOpenCommands} aria-label="Open command palette"><Icon glyph={Command} /><span>Commands</span><Shortcut>{commandShortcut("K")}</Shortcut></button>
     </div>
   </header>;
 }
@@ -85,28 +86,16 @@ function ErrorNotice({ error, clearError }: { error: unknown; clearError: () => 
 }
 
 function OperationProgress({ operation, busy }: { operation?: OperationEvent; busy: string }) {
-  const label = operation?.type === "message" ? operation.message : operation?.type === "progress" ? operation.phase : operation?.operation ?? busy;
-  if (operation?.type === "progress" && operation.total !== null && operation.total > 0) {
-    return <DeterminateProgress label={label} total={operation.total} completed={operation.completed} />;
-  }
-  return <div className="operation-bar" aria-live="polite">
+  const { label, detail, range } = progressPresentation(operation, busy);
+  return <div className="operation-bar">
     <span className="operation-icon"><Icon glyph={LoaderCircle} /></span>
-    <div className="operation-copy"><strong>{operationLabel(label)}</strong><span>Working…</span></div>
-    <div className="progress-track indeterminate" role="progressbar" aria-label={label}><i /></div>
+    <div className="operation-copy"><strong role="status" aria-live="polite" aria-atomic="true">{label}</strong><span>{detail}</span></div>
+    <div className={`progress-track${range ? "" : " indeterminate"}`} role="progressbar" aria-label={label}
+      aria-valuemin={range ? 0 : undefined} aria-valuemax={range?.total}
+      aria-valuenow={range?.current} aria-valuetext={detail}>
+      <i style={range ? { width: `${range.percent}%` } : undefined} />
+    </div>
   </div>;
-}
-
-function DeterminateProgress({ label, total, completed }: { label: string; total: number; completed: number }) {
-  const progress = Math.min(100, (completed / total) * 100);
-  return <div className="operation-bar" aria-live="polite">
-      <span className="operation-icon"><Icon glyph={LoaderCircle} /></span>
-      <div className="operation-copy"><strong>{operationLabel(label)}</strong><span>{completed.toLocaleString()} of {total.toLocaleString()}</span></div>
-      <div className="progress-track" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={total} aria-valuenow={completed}><i style={{ width: `${progress}%` }} /></div>
-    </div>;
-}
-
-function operationLabel(value: string) {
-  return value.replaceAll("_", " ").replace(/^\w/, letter => letter.toUpperCase());
 }
 
 export interface GithubSettingsActions {

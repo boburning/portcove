@@ -12,6 +12,7 @@ import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 import { preparationScenarios } from "./desktop-preparation-test.mjs";
 import { nativeConfirmation } from "./desktop-native-confirmation.mjs";
 import { controllerScenario } from "./desktop-controller-test.mjs";
+import { accessibleNavigationScenario } from "./desktop-accessibility-test.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const { values } = parseArgs({ options: {
@@ -175,6 +176,7 @@ try {
     assert.deepEqual(result.violations.map(item => item.id), []);
   });
   await controllerScenario({ browser, scenario, output, artifacts });
+  await accessibleNavigationScenario({ browser, scenario, output, artifacts });
   checks.push({ scenario: "install-progress-cancellation", outcome: "not-run", reason: "Requires a reviewed install fixture; the smoke harness does not download or execute upstream games." });
   if (values["preparation-cli"]) {
     await preparationScenarios({ browser, invoke, scenario, library, output, artifacts,

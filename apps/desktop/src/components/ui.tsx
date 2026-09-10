@@ -41,5 +41,14 @@ export function Shortcut({ children }: { children: ReactNode }) {
 }
 
 export function NavigationHints({ controller, workspace = false }: { controller?: string; workspace?: boolean }) {
-  return <div className="controller-hint" aria-label="Navigation help">{controller && <strong>{controller}</strong>}<span>D-pad / stick / arrows: move</span><span>A / Enter: select</span><span>B / Esc: {workspace ? "menu" : "back"}</span>{workspace && <span>LB / RB: switch section</span>}</div>;
+  return <div className="controller-hint" aria-label="Navigation help">
+    {controller && <strong>{controller}</strong>}
+    <span className="keyboard-navigation-hint">Arrow keys: Move</span>
+    <span className="keyboard-navigation-hint">Enter: Select</span>
+    <span className="keyboard-navigation-hint">{workspace ? "Esc: Menu" : "Esc: Back"}</span>
+    <span className="gamepad-navigation-hint">D-pad or stick: Move</span>
+    <span className="gamepad-navigation-hint">Confirm button: Select</span>
+    <span className="gamepad-navigation-hint">{workspace ? "Back button: Menu" : "Back button: Back"}</span>
+    {workspace && <span className="gamepad-navigation-hint">Shoulder buttons: Switch section</span>}
+  </div>;
 }

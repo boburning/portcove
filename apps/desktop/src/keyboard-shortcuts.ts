@@ -4,6 +4,10 @@ import { navigationScope } from "./focus";
 
 export type KeyboardShortcutAction = "toggle-palette" | "close-palette" | "focus-search" | View;
 
+export function commandShortcut(key: string, platform = globalThis.navigator?.platform ?? "") {
+  return `${/Mac/i.test(platform) ? "Command" : "Ctrl"} ${key}`;
+}
+
 export function keyboardShortcutAction(input: {
   key: string;
   ctrlKey?: boolean;
@@ -18,7 +22,7 @@ export function keyboardShortcutAction(input: {
   if (input.modalOpen || input.paletteOpen) {
     return input.paletteOpen && commandKey && !input.altKey && input.key.toLowerCase() === "k" ? "toggle-palette" : undefined;
   }
-  if (commandKey && input.key.toLowerCase() === "k") return "toggle-palette";
+  if (commandKey && !input.altKey && input.key.toLowerCase() === "k") return "toggle-palette";
   if (!input.targetIsField && !commandKey && !input.altKey && input.key === "/") return "focus-search";
   if (!commandKey || input.altKey) return undefined;
   return ({ "1": "library", "2": "catalog", "3": "updates", "4": "settings" } as const)[input.key as "1"];
