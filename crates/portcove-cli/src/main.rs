@@ -2699,7 +2699,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 43);
+        assert_eq!(capabilities.schema_version, 44);
         assert_eq!(
             capabilities.failure_isolated_batches,
             ["check", "reconcile", "update", "source.verify"]
@@ -2708,6 +2708,7 @@ mod tests {
         assert!(capabilities.commands.contains(&"storage".to_owned()));
         assert!(capabilities.commands.contains(&"doctor".to_owned()));
         assert!(capabilities.commands.contains(&"backup".to_owned()));
+        assert!(capabilities.commands.contains(&"artwork".to_owned()));
         assert!(capabilities.commands.contains(&"tool".to_owned()));
         assert!(capabilities.commands.contains(&"plan".to_owned()));
         assert!(capabilities.commands.contains(&"paths".to_owned()));

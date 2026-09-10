@@ -1028,7 +1028,7 @@ fn library_metadata_export_is_versioned_and_does_not_replace_an_existing_file() 
     assert_eq!(metadata["data"]["schema_version"], 3);
     assert_eq!(
         metadata["data"]["content_roots"].as_array().unwrap().len(),
-        5
+        6
     );
     assert!(
         metadata["data"]["source_references"]
