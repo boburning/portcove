@@ -307,7 +307,7 @@ body,
 
 body {
   margin: 0;
-  min-width: 60rem;
+  min-width: min(60rem, 100vw);
   min-height: 100vh;
   overflow: hidden;
   color: var(--color-text);
