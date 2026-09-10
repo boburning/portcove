@@ -10,6 +10,7 @@ import { ArtworkProvider } from "./artwork";
 import { SourceIntakeDialog, type SourceIntakeRequest } from "./components/SourceIntake";
 import { UpdateCenter } from "./components/UpdateCenter";
 import { FailureDetails } from "./components/FailureDetails";
+import { WorkspaceRefreshNotice } from "./components/WorkspaceRefreshNotice";
 import { pickHostToolExecutable, pickInstallFolder, pickLibraryFolder, pickMetadataExportPath, pickSourceArchivePath, pickSourcePath } from "./file-picker";
 import { desktopApi } from "./api";
 import { useWorkspaceScroll } from "./keyboard-shortcuts";
@@ -88,7 +89,7 @@ export function BootstrapRecovery({ error, chooseLibrary, resetLibrary }: { erro
 
 function Workspace({ bootstrap, switchLibrary, resetLibrary }: { bootstrap: BootstrapStatus; switchLibrary: (path: string) => Promise<void>; resetLibrary: () => Promise<void> }) {
   const data = usePortcoveData();
-  const operations = useOperationState(data.refresh);
+  const operations = useOperationState(data.retryRefresh);
   const github = useGithubAuth(operations.perform, operations.setError);
   const updates = useUpdateCenter(operations.perform, data.statuses);
   const ui = usePortcoveUi();
@@ -103,7 +104,7 @@ function Workspace({ bootstrap, switchLibrary, resetLibrary }: { bootstrap: Boot
   const inspectionProfiles = ui.view === "settings" ? data.sources.map(source => source.profile_id) : [selectedPort?.source_profile, selectedPort?.bios_source_profile].filter((profile): profile is string => Boolean(profile));
   const sourceHealth = useSourceHealth(operations.perform, data.sources, inspectionProfiles, JSON.stringify(data.catalog?.source_catalog ?? null));
   const appearance = useThemePreference();
-  const model = useAppModel(data, ui, operations.setError);
+  const model = useAppModel(data, ui);
   const installPlanning = useInstallPlanning(model.port?.id, model.status?.channel ?? model.port?.channels[0], operations.perform);
   const backups = usePortBackups(model.port?.id, operations.setError);
   const workspace = useWorkspaceScroll(ui.view);
@@ -140,6 +141,7 @@ function Workspace({ bootstrap, switchLibrary, resetLibrary }: { bootstrap: Boot
     <main ref={workspace} data-focus-region="workspace">
       <PageHeader view={ui.view} query={ui.query} setQuery={ui.setQuery} portCount={data.catalog?.ports.length ?? 0} onOpenCommands={() => commandSurface.setOpen(true)} />
       <StatusLayer error={operations.error} clearError={() => operations.setError(undefined)} operation={operations.operation} busy={operations.busy} />
+      <WorkspaceRefreshNotice failure={data.refreshFailure} hasSnapshot={Boolean(data.catalog)} refreshing={data.refreshing} retry={data.retryRefresh} />
       <CurrentView data={data} ui={ui} model={model} operations={operations} github={github} updates={updates} sourceHealth={sourceHealth} appearance={appearance} bootstrap={bootstrap} switchLibrary={switchLibrary} resetLibrary={resetLibrary} nativeSourceDrag={nativeSourceDrag} hostToolActions={hostToolActions} />
     </main>
     <SelectedPortPanel model={model} ui={ui} operations={operations} sourceHealth={sourceHealth} installPlanning={installPlanning} backups={backups} activities={data.activities} libraryGeneration={bootstrap.generation} openSourceIntake={openSourceIntake} />
@@ -159,8 +161,8 @@ type AppearanceState = ReturnType<typeof useThemePreference>;
 type InstallPlanningState = ReturnType<typeof useInstallPlanning>;
 type BackupState = ReturnType<typeof usePortBackups>;
 
-function useAppModel(data: DataState, ui: UiState, setError: (error?: unknown) => void) {
-  useEffect(() => { data.refresh().catch(setError); }, [data.refresh, setError]);
+function useAppModel(data: DataState, ui: UiState) {
+  useEffect(() => { void data.retryRefresh(); }, [data.retryRefresh]);
   const statusMap = useMemo(() => indexStatuses(data.statuses), [data.statuses]);
   const registeredSources = useMemo(() => new Set(data.sources.map(source => source.profile_id)), [data.sources]);
   const visible = useMemo(() => filterPorts(data.catalog?.ports ?? [], statusMap, ui.view, ui.filter, ui.query, registeredSources), [data.catalog, statusMap, ui.view, ui.filter, ui.query, registeredSources]);
@@ -209,6 +211,7 @@ function CurrentView({ data, ui, model, operations, github, updates, sourceHealt
     }} sourceNeeds={model.sourceNeeds} addSource={(profile, archive) => {
       void addRequiredSource(profile, archive, operations.perform, operations.setError);
     }} />;
+  if (!data.catalog && data.refreshFailure) return null;
   return <PortBrowser view={ui.view} ports={model.visible} statuses={model.statusMap} registeredSources={model.registeredSources} overview={model.overview} recent={model.recent}
     filter={ui.filter} setFilter={ui.setFilter} onSelect={ui.setSelectedId} onContinue={portId => { void operations.perform("launch", () => desktopApi.launch(portId, "")); }}
     onBrowseCatalog={() => ui.setView("catalog")} clearFilters={() => { ui.setFilter("all"); ui.setQuery(""); }} loading={!data.catalog} nativeSourceDrag={nativeSourceDrag} />;

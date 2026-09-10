@@ -14,6 +14,7 @@ import { nativeConfirmation } from "./desktop-native-confirmation.mjs";
 import { controllerScenario } from "./desktop-controller-test.mjs";
 import { accessibleNavigationScenario } from "./desktop-accessibility-test.mjs";
 import { reloadScenario } from "./desktop-reload-test.mjs";
+import { workspaceRefreshScenario } from "./desktop-workspace-refresh-test.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const { values } = parseArgs({ options: {
@@ -39,6 +40,7 @@ inputs.push(await fileIdentity(fileURLToPath(import.meta.url)));
 inputs.push(await fileIdentity(fileURLToPath(new URL("./desktop-controller-test.mjs", import.meta.url))));
 for (const name of ["native-session.ps1", "native-process-tree.ps1"]) inputs.push(await fileIdentity(fileURLToPath(new URL(name, import.meta.url))));
 inputs.push(await fileIdentity(fileURLToPath(new URL("desktop-reload-test.mjs", import.meta.url))));
+inputs.push(await fileIdentity(fileURLToPath(new URL("desktop-workspace-refresh-test.mjs", import.meta.url))));
 if (values["preparation-cli"] || values["preparation-tool"]) {
   for (const name of ["preparation-cli", "preparation-tool"]) {
     if (!values[name] || !path.isAbsolute(values[name])) throw new Error(`--${name} requires an absolute path`);
@@ -209,6 +211,7 @@ try {
   });
   await controllerScenario({ browser, scenario, output, artifacts });
   await accessibleNavigationScenario({ browser, scenario, output, artifacts });
+  await workspaceRefreshScenario({ browser, scenario, output, artifacts });
   checks.push({ scenario: "install-progress-cancellation", outcome: "not-run", reason: "Requires a reviewed install fixture; the smoke harness does not download or execute upstream games." });
   if (values["preparation-cli"]) {
     await preparationScenarios({ browser, invoke, scenario, library, output, artifacts,
