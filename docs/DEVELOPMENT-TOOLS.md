@@ -206,6 +206,16 @@ mapping, translated-language quality or screen-reader comprehension. Component
 tests separately observe the progress live region across repeated count updates:
 only the phase text changes there, while readable counts remain outside it.
 
+Unknown presentation-state fixtures exercise source results, digest algorithms,
+installation actions, destination ownership/availability and activity/update-policy
+labels. They use unfamiliar values (including inherited JavaScript property names)
+at the renderer boundary. Unrecognized results must remain explicit and neutral;
+an unsupported installation plan offers another review, and destination changes
+require an explicitly recognized ownership state before offering Apply. These
+fixtures do not change core admission policy or claim that current typed core
+outputs emit those future values. Core still validates every mutation and stale
+review; ordinary known-state behavior remains part of the native regression.
+
 ### Command-line handoff verification
 
 The command details surface binds the effective library and names the shell whose

@@ -203,7 +203,7 @@ export function OutputLocationControl({ portId, generation, busy, onChanged, onA
   };
 
   const controlsDisabled = Boolean(busy) || pending === "load" || pending === "pick" || pending === "apply";
-  const source = location?.selection_source === "port_setting" ? "Custom for this game" : "Inherited from the Portcove library";
+  const source = location ? outputSourceLabel(location.selection_source) : "Location not loaded";
   return <section className="output-location-control" data-focus-group aria-labelledby={`output-location-${portId}`}>
     <div className="output-location-heading">
       <div><p className="eyebrow">STORAGE LOCATION</p><h3 id={`output-location-${portId}`}><Icon glyph={HardDrive} />Export / install folder</h3></div>
@@ -239,8 +239,9 @@ function OutputLocationReview({ preview, relocation, pending, applyButton, apply
   cancel: () => void;
 }) {
   const safe = preview.availability === "available" && preview.validation_errors.length === 0
-    && !["owned_by_another_port", "unrelated_content", "invalid", "unknown"].includes(preview.ownership);
-  const availability = preview.availability === "full" ? "Full · no free space" : preview.availability === "unavailable" ? "Unavailable" : "Available";
+    && ["library_default", "unclaimed", "owned_by_port"].includes(preview.ownership);
+  const availabilityLabels = { full: "Full · no free space", available: "Available", unavailable: "Unavailable" };
+  const availability = Object.hasOwn(availabilityLabels, preview.availability) ? availabilityLabels[preview.availability] : "Availability result unavailable";
   const capacity = preview.available_bytes == null
     ? "Capacity unavailable"
     : preview.total_bytes == null
@@ -276,7 +277,7 @@ function OutputRelocationReview({ plan, pending, applyButton, apply, cancel }: {
   cancel: () => void;
 }) {
   const safe = plan.availability === "available" && plan.validation_errors.length === 0
-    && !["owned_by_another_port", "unrelated_content", "invalid", "unknown"].includes(plan.ownership)
+    && ["library_default", "unclaimed", "owned_by_port"].includes(plan.ownership)
     && !plan.sources_will_move && !plan.user_data_will_move && !plan.backups_will_move;
   return <div className={`output-location-review ${safe ? "safe" : "blocked"}`} role="group" aria-label="Existing version relocation review">
     <div className="output-review-title" aria-live="polite"><strong>Review moving existing versions</strong><span>{plan.installs.length} version{plan.installs.length === 1 ? "" : "s"}</span></div>
@@ -284,6 +285,7 @@ function OutputRelocationReview({ plan, pending, applyButton, apply, cancel }: {
     <dl>
       <div><dt>Copy required</dt><dd>{formatBytes(plan.required_bytes)}</dd></div>
       <div><dt>Capacity</dt><dd>{plan.available_bytes == null ? "Capacity unavailable" : `${formatBytes(plan.available_bytes)} available`}</dd></div>
+      <div><dt>Ownership</dt><dd>{outputOwnershipLabel(plan.ownership)}</dd></div>
       <div><dt>Sources</dt><dd>{plan.sources_will_move ? "Unexpected move requested" : "Stay in the central source library"}</dd></div>
       <div><dt>Saves and backups</dt><dd>{plan.user_data_will_move || plan.backups_will_move ? "Unexpected move requested" : "Stay in their current folders"}</dd></div>
     </dl>
@@ -307,11 +309,11 @@ function outputOwnershipLabel(value: OutputDestinationPreview["ownership"]) {
     invalid: "Invalid destination",
     unknown: "Unknown",
   };
-  return labels[value];
+  return Object.hasOwn(labels, value) ? labels[value] : "Ownership result unavailable";
 }
 
 function outputSourceLabel(value: OutputDestinationPreview["proposed"]["selection_source"]) {
   if (value === "request_override") return "Selected for this game";
   if (value === "port_setting") return "Custom for this game";
-  return "Inherited from library";
+  return value === "library_default" ? "Inherited from the Portcove library" : "Location origin unavailable";
 }

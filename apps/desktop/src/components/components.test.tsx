@@ -1,7 +1,7 @@
 import { failureReport, portDefinition, portStatus, sourceProfile } from "../test-fixtures";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import type { InstallRecord, OperationEvent, PortDefinition, PortStatus, SourceInspectionReport } from "../types";
+import type { InstallPlan, InstallRecord, OperationEvent, PortDefinition, PortStatus, SourceInspectionReport } from "../types";
 import { PageHeader, SettingsView, Sidebar, StatusLayer } from "./Chrome";
 import { BackupHistory } from "./BackupHistory";
 import { DetailPanel, type DetailActions } from "./DetailPanel";
@@ -27,7 +27,25 @@ const installRecord = (overrides: Partial<InstallRecord> = {}): InstallRecord =>
   ...overrides,
 });
 
+const reviewedInstallPlan = (action: InstallPlan["action"] = "download"): InstallPlan => ({
+  bundled_runtime: null, port_id: port.id, channel: "stable", platform: "windows-x86-64", action, source_requirements: [], download_bytes: 64 * 1024 ** 2,
+  release: { published_at: null, version: "2.0", channel: "stable", asset: { name: "sample.zip", url: "https://example.com/sample.zip", size: 64 * 1024 ** 2, sha256: "a".repeat(64) } },
+  storage: { library_root: "E:/Portcove", volume_total_bytes: 1024 ** 4, volume_available_bytes: 512 * 1024 ** 3 },
+  output_location: { configured_output_directory: null, port_id: port.id, library_root: "E:/Portcove", default_output_directory: "E:/Portcove/versions/sample", effective_output_directory: "E:/Portcove/versions/sample", selection_source: "library_default", user_data_root: "E:/Portcove/user/sample" },
+});
+
 describe("desktop components", () => {
+  it.each(["future_state", "constructor", "__proto__"])("keeps unknown activity and policy labels neutral for %s", value => {
+    const status = { ...portStatus(), active: installRecord(), update_policy: value as PortStatus["update_policy"] };
+    const html = renderToStaticMarkup(<UpdateCenter generation={1} ports={[port]} statuses={new Map([[port.id, status]])}
+      activities={[{ id: "unknown", operation: value as import("../types").ActivityOperation, target_kind: "port", target_id: port.id,
+        status: "succeeded", started_at: 1, finished_at: 2, failure: null, cancellation: null, message: null }]}
+      outcomes={[]} checkAll={vi.fn()} onSelect={vi.fn()} onOpenSources={vi.fn()} />);
+    expect(html).toContain("Recorded activity");
+    expect(html).toContain("Update policy unavailable");
+    expect(html).not.toContain("· Notify");
+  });
+
   it("shows ongoing parent progress after a child finishes while retaining failure notice", () => {
     const parent: OperationEvent = { schema_version: 2, parent_operation_id: null, target: null, operation_id: "parent", sequence: 2, timestamp_ms: 1,
       operation: "install", type: "progress", phase: "download", completed: 1, total: 2 };
@@ -397,17 +415,27 @@ describe("desktop components", () => {
   });
 
   it("summarizes a resolved install before starting the download", () => {
-    const html = renderToStaticMarkup(<DetailPanel port={{ ...port, source_profile: null }} sourcePath="" setSourcePath={vi.fn()} actions={actions} installPlan={{
-      bundled_runtime: null,      port_id: port.id, channel: "stable", platform: "windows-x86-64", action: "download", source_requirements: [], download_bytes: 64 * 1024 ** 2,
-      release: { published_at: null, version: "2.0", channel: "stable", asset: { name: "sample.zip", url: "https://example.com/sample.zip", size: 64 * 1024 ** 2, sha256: "a".repeat(64) } },
-      storage: { library_root: "E:/Portcove", volume_total_bytes: 1024 ** 4, volume_available_bytes: 512 * 1024 ** 3 },
-      output_location: { configured_output_directory: null, port_id: port.id, library_root: "E:/Portcove", default_output_directory: "E:/Portcove/versions/sample", effective_output_directory: "E:/Portcove/versions/sample", selection_source: "library_default", user_data_root: "E:/Portcove/user/sample" },
-    }} />);
+    const html = renderToStaticMarkup(<DetailPanel port={{ ...port, source_profile: null }} sourcePath="" setSourcePath={vi.fn()} actions={actions} installPlan={reviewedInstallPlan()} />);
     expect(html).toContain("INSTALL PLAN");
     expect(html).toContain("2.0");
     expect(html).toContain("64.0 MiB");
     expect(html).toContain("512 GiB available");
     expect(html).toContain("Install · 64.0 MiB");
+  });
+
+  it("does not describe a blocked local copy as verified", () => {
+    const html = renderToStaticMarkup(<DetailPanel port={{ ...port, source_profile: null }} sourcePath="" setSourcePath={vi.fn()} actions={actions} installPlan={reviewedInstallPlan("blocked_unverified")} />);
+    expect(html).toContain("Local copy needs verification");
+    expect(html).toContain("Unverified copy blocks install");
+    expect(html).not.toContain("Verified local release");
+    expect(html).not.toContain("Use verified release");
+  });
+
+  it.each(["future_action", "constructor", "__proto__"])("offers only another review for unknown install action %s", action => {
+    const html = renderToStaticMarkup(<DetailPanel port={{ ...port, source_profile: null }} sourcePath="" setSourcePath={vi.fn()} actions={actions} installPlan={reviewedInstallPlan(action as InstallPlan["action"])} />);
+    expect(html).toContain("Review install again");
+    expect(html).toContain("cannot display the installation plan");
+    for (const label of ["Use verified release", "Verified local release", "No download", "Install ·"]) expect(html).not.toContain(label);
   });
 
   it("explains the folder contract for a multi-disc source", () => {
