@@ -5,7 +5,7 @@ import { writeFile, realpath } from "node:fs/promises";
 import axe from "axe-core";
 import { By, until } from "selenium-webdriver";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
-import { reviewControls } from "./desktop-review-controls.mjs";
+import { assertCompactReview, reviewControls } from "./desktop-review-controls.mjs";
 
 export async function libraryHandoffScenario({ browser, invoke, scenario, library, output, artifacts, command }) {
   await scenario("native-library-move-invalidates-prior-reviews", async () => {
@@ -40,6 +40,13 @@ export async function libraryHandoffScenario({ browser, invoke, scenario, librar
     await browser.wait(until.elementLocated(button("Move to this folder")), 15_000);
     const plan = await browser.findElement(By.css('[aria-label="Library move plan"]')).getText();
     assert.ok(plan.includes(destination) && plan.includes(source));
+    assert.ok(plan.includes(portId) && plan.includes(active.version));
+    assert.ok(plan.includes("Copying Source Inbox files does not redirect their registrations."));
+    assert.ok(plan.includes("this dialog cannot cancel it"));
+    await click(By.xpath('//section[@aria-label="Library move plan"]//summary[starts-with(normalize-space(.), "Saved data")]'));
+    const files = await browser.wait(until.elementLocated(By.css('[aria-label="Files in user"]')), 5_000);
+    assert.ok((await files.getText()).includes("unrelated-save.bin"));
+    await assertCompactReview(browser, '[role="dialog"]');
     await browser.executeScript(axe.source);
     const accessibility = await browser.executeAsyncScript(done => window.axe.run().then(done));
     const report = path.join(output, "library-move-accessibility.json");
