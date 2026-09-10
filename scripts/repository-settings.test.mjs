@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   projectRuleset,
   repositoryApplyPlan,
+  repositorySettingsMigration,
   rulesetMigration,
   validateRepositorySettings,
 } from "./repository-settings.mjs";
@@ -23,6 +24,31 @@ const security = JSON.parse(
 test("checked-in repository settings enforce the exact main contract", () => {
   assert.doesNotThrow(() => validateRepositorySettings(ruleset, security));
   assert.deepEqual(projectRuleset({ id: 42, ...ruleset }), ruleset);
+});
+
+test("repository settings require standardized merge commits without narrowing merge methods", () => {
+  const classicMergeTitle = structuredClone(security);
+  classicMergeTitle.merge_commit_title = "MERGE_MESSAGE";
+  assert.throws(
+    () => validateRepositorySettings(ruleset, classicMergeTitle),
+    /pull request title/,
+  );
+
+  const repeatedMergeBody = structuredClone(security);
+  repeatedMergeBody.merge_commit_message = "PR_TITLE";
+  assert.throws(
+    () => validateRepositorySettings(ruleset, repeatedMergeBody),
+    /blank generated body/,
+  );
+
+  const narrowedMethods = structuredClone(ruleset);
+  narrowedMethods.rules.find(
+    (rule) => rule.type === "pull_request",
+  ).parameters.allowed_merge_methods = ["merge"];
+  assert.throws(
+    () => validateRepositorySettings(narrowedMethods, security),
+    /preserve merge, squash and rebase/,
+  );
 });
 
 test("validation rejects approval gates, unresolved threads, or weakened status requirements", () => {
@@ -114,29 +140,78 @@ test("bounded migration changes only authorized review gates and is idempotent",
 
 test("application plan preserves stable identity and scopes repository changes", () => {
   const summaries = [{ id: 99, name: "Protect main", target: "branch" }];
+  const desiredRepository = {
+    allow_auto_merge: security.allow_auto_merge,
+    merge_commit_title: security.merge_commit_title,
+    merge_commit_message: security.merge_commit_message,
+  };
   const plan = repositoryApplyPlan({
     rulesets: summaries,
     actualRuleset: ruleset,
     securityStatus: { enabled: true },
-    repositoryStatus: { allow_auto_merge: false },
+    repositoryStatus: {
+      allow_auto_merge: false,
+      merge_commit_title: "MERGE_MESSAGE",
+      merge_commit_message: "PR_TITLE",
+    },
     desiredRuleset: ruleset,
-    desiredAutoMerge: true,
+    desiredRepository,
   });
   assert.equal(plan.rulesetEndpoint, "rulesets/99");
   assert.deepEqual(plan.rulesetChanges, []);
   assert.equal(plan.enablePrivateReporting, false);
-  assert.equal(plan.enableAutoMerge, true);
+  assert.deepEqual(
+    plan.repositoryChanges.map((change) => change.path),
+    ["allow_auto_merge", "merge_commit_title", "merge_commit_message"],
+  );
+  assert.deepEqual(plan.repositoryPayload, desiredRepository);
   assert.throws(
     () =>
       repositoryApplyPlan({
         rulesets: [],
         actualRuleset: null,
         securityStatus: { enabled: true },
-        repositoryStatus: { allow_auto_merge: true },
+        repositoryStatus: desiredRepository,
         desiredRuleset: ruleset,
-        desiredAutoMerge: true,
+        desiredRepository,
       }),
     /refusing to create/,
+  );
+});
+
+test("repository setting migration is exact, idempotent and rejects an expanded desired contract", () => {
+  const desired = {
+    allow_auto_merge: true,
+    merge_commit_title: "PR_TITLE",
+    merge_commit_message: "BLANK",
+  };
+  const current = {
+    allow_auto_merge: true,
+    merge_commit_title: "MERGE_MESSAGE",
+    merge_commit_message: "PR_TITLE",
+    unrelated_live_setting: true,
+  };
+  assert.deepEqual(repositorySettingsMigration(current, desired), {
+    changes: [
+      { path: "merge_commit_title", from: "MERGE_MESSAGE", to: "PR_TITLE" },
+      { path: "merge_commit_message", from: "PR_TITLE", to: "BLANK" },
+    ],
+    payload: { merge_commit_title: "PR_TITLE", merge_commit_message: "BLANK" },
+  });
+  assert.deepEqual(
+    repositorySettingsMigration({ ...current, ...desired }, desired),
+    {
+      changes: [],
+      payload: {},
+    },
+  );
+  assert.throws(
+    () =>
+      repositorySettingsMigration(current, {
+        ...desired,
+        future_setting: true,
+      }),
+    /unexpected parameters/,
   );
 });
 

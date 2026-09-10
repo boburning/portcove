@@ -1,6 +1,13 @@
 # Repository settings
 
-Portcove keeps its review and private-reporting expectations in version control even though GitHub stores the effective settings outside Git. `.github/repository-ruleset.json` protects exactly `refs/heads/main`; `.github/repository-security.json` names the repository and requires private vulnerability reporting.
+Portcove keeps its review, merge-message and private-reporting expectations in
+version control even though GitHub stores the effective settings outside Git.
+`.github/repository-ruleset.json` protects exactly `refs/heads/main`;
+`.github/repository-security.json` names the repository, requires private
+vulnerability reporting and auto-merge capability, and selects the pull request
+title with a blank generated body for merge commits. The allowed merge methods
+remain merge, squash and rebase. Contribution wording and the advisory checker
+are documented in [Contribution conventions](CONTRIBUTION-CONVENTIONS.md).
 
 The `Protect main` ruleset blocks deletion and force-pushes, requires a pull
 request and resolved review threads, and requires the `catalog`,
@@ -39,11 +46,13 @@ node scripts/repository-settings.mjs --check
 The live modes fail closed when the stable ruleset is absent or any
 out-of-scope rule, check, condition, or bypass actor differs from the checked-in
 contract. `--apply` updates the existing stable ruleset identity only for the
-authorized review parameters, changes only the repository `allow_auto_merge`
-property, and preserves the separate release-tag ruleset. It refuses to create
-replacement protection or apply across unexpected concurrent drift. Do not
-weaken or delete a live rule without updating the artifact, regression tests,
-and rationale under separately authorized policy scope.
+authorized review parameters and sends only changed values among
+`allow_auto_merge`, `merge_commit_title`, and `merge_commit_message` to the
+repository endpoint. It preserves every allowed merge method, required check,
+bypass and the separate release-tag ruleset. It refuses to create replacement
+protection or apply across unexpected concurrent drift. Do not weaken or delete
+a live rule without updating the artifact, regression tests, and rationale
+under separately authorized policy scope.
 
 The repository ruleset ID is host-assigned and intentionally absent from the
 portable contract. Re-read effective rulesets, classic protection, and
@@ -61,6 +70,13 @@ bypass. Classic `main` protection remains absent. The separately listed release
 tag ruleset 22334556 remained active and outside the update payload. This is live
 settings evidence for removal of the approval bottleneck, not evidence that a
 trusted unattended controller or zero-intervention merge scenario exists.
+
+The contribution-conventions migration changes only the default presentation
+of future merge commits from GitHub's classic merge subject/title body to the
+pull request title/blank body. It does not rewrite history, force a merge
+method, add a status requirement, or change merge authority. Apply it only from
+the merged `main` contract and record the exact live readback on its durable
+issue.
 
 ## Release protections
 
