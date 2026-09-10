@@ -142,7 +142,7 @@ jobs:
       - name: Test Windows qualification session integration
         run: node --test scripts/windows-qualification-session.integration.test.mjs
       - name: Test development diagnostics and evidence
-        run: node scripts/dev-storage.mjs run -- node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/dev-doctor.test.mjs scripts/development-evidence.test.mjs
+        run: node scripts/dev-storage.mjs run -- node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/dev-doctor.test.mjs scripts/development-evidence.test.mjs scripts/native-session.test.mjs
 
   native_rust:
     name: native-rust (${{ matrix.platform }}, ${{ matrix.partition }})
