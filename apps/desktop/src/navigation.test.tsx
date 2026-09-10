@@ -109,6 +109,8 @@ describe("controller and modal integration", () => {
     const clicked = vi.fn(); first.addEventListener("click", clicked); second.addEventListener("click", clicked);
     control("Game card").focus(); activateFocusedControl();
     expect(document.activeElement).toBe(first); expect(clicked).not.toHaveBeenCalled();
+    dialog.tabIndex = 0; dialog.focus(); activateFocusedControl();
+    expect(document.activeElement).toBe(first); expect(clicked).not.toHaveBeenCalled();
     first.disabled = true; activateFocusedControl();
     expect(document.activeElement).toBe(second); expect(clicked).not.toHaveBeenCalled();
     second.hidden = true; activateFocusedControl();

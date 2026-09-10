@@ -57,7 +57,7 @@ export function activateControl(item: HTMLElement) {
 export function activateFocusedControl() {
   const scope = navigationScope();
   const focused = document.activeElement;
-  if (focused instanceof HTMLElement && scope.contains(focused) && focused.matches(selector) && visibleControl(focused)) {
+  if (focused instanceof HTMLElement && focused !== scope && scope.contains(focused) && focused.matches(selector) && visibleControl(focused)) {
     activateControl(focused);
   } else {
     focusAndReveal(focusableControls(scope)[0]);
