@@ -1612,13 +1612,13 @@ impl PortcoveService {
         checked_sources: &mut HashMap<String, SourceHealth>,
     ) -> Result<PortStatus> {
         let mut blockers = Vec::new();
-        let retained_port = match status
+        let retained_catalog = match status
             .active
             .as_ref()
-            .map(|install| self.installed_port(install))
+            .map(|install| self.installed_catalog(install))
             .transpose()
         {
-            Ok(port) => port,
+            Ok(catalog) => catalog,
             Err(_) => {
                 status.readiness = Some(LaunchReadiness {
                     launchable: false,
@@ -1630,20 +1630,33 @@ impl PortcoveService {
                 return Ok(status);
             }
         };
-        let port = retained_port.as_ref().unwrap_or(port);
+        let catalog = retained_catalog.as_ref().unwrap_or(&self.catalog);
+        let port = catalog.port(&port.id)?;
         let installed = status.active.is_some();
         let source = port
             .source_profile
             .as_deref()
             .map(|profile_id| {
-                self.source_health(profile_id, installed, registered_sources, checked_sources)
+                Self::source_health(
+                    catalog,
+                    profile_id,
+                    installed,
+                    registered_sources,
+                    checked_sources,
+                )
             })
             .transpose()?;
         let bios = port
             .bios_source_profile
             .as_deref()
             .map(|profile_id| {
-                self.source_health(profile_id, installed, registered_sources, checked_sources)
+                Self::source_health(
+                    catalog,
+                    profile_id,
+                    installed,
+                    registered_sources,
+                    checked_sources,
+                )
             })
             .transpose()?;
         add_source_blocker(&mut blockers, source, false);
@@ -1681,7 +1694,7 @@ impl PortcoveService {
     }
 
     fn source_health(
-        &self,
+        catalog: &Catalog,
         profile_id: &str,
         installed: bool,
         registered_sources: &HashMap<String, SourceRecord>,
@@ -1693,12 +1706,15 @@ impl PortcoveService {
         if !installed {
             return Ok(SourceHealth::NotChecked);
         }
-        if let Some(health) = checked_sources.get(profile_id) {
+        let profile = catalog.source_profile(profile_id)?;
+        // A status batch can contain installations retaining different contracts
+        // for one profile ID. Reuse only the same interpretation of this snapshot.
+        let contract = crate::signed_catalog::digest(&serde_json::to_vec(profile)?);
+        if let Some(health) = checked_sources.get(&contract) {
             return Ok(*health);
         }
-        let profile = self.catalog.source_profile(profile_id)?;
         let health = crate::adapter::inspect_source_health(profile, source);
-        checked_sources.insert(profile_id.into(), health);
+        checked_sources.insert(contract, health);
         Ok(health)
     }
 
@@ -8224,6 +8240,156 @@ fn main() {
             bios_blockers,
             [LaunchBlocker::UnreadableBios, LaunchBlocker::ChangedBios]
         );
+    }
+
+    #[test]
+    fn status_keeps_shared_source_health_bound_to_each_installed_contract() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let source_root = temporary.path().join("owned-source-set");
+        fs::create_dir(&source_root).unwrap();
+        let mut document = Catalog::embedded().unwrap().authoritative_document();
+        let mut second_port = document
+            .ports
+            .iter()
+            .find(|port| port.id == "g-diffuser")
+            .unwrap()
+            .clone();
+        second_port.id = "g-diffuser-fixture".into();
+        document.ports.push(second_port);
+        let source_catalog = document.source_catalog.as_mut().unwrap();
+        let mut second_contract = source_catalog
+            .contracts
+            .iter()
+            .find(|contract| contract.port_id == "g-diffuser")
+            .unwrap()
+            .clone();
+        second_contract.id = "g-diffuser-fixture-source".into();
+        second_contract.port_id = "g-diffuser-fixture".into();
+        source_catalog.contracts.push(second_contract);
+        let profile = document
+            .source_catalog
+            .as_mut()
+            .unwrap()
+            .identities
+            .iter_mut()
+            .find(|profile| profile.id == "g-diffuser-source-set")
+            .unwrap();
+        let crate::SourceRepresentationKind::FileSet { members } =
+            &mut profile.variants[0].representations[0].kind
+        else {
+            panic!("file-set fixture")
+        };
+        for member in members {
+            let bytes = member.id.as_bytes();
+            fs::write(source_root.join(&member.filenames[0]), bytes).unwrap();
+            member.identities = vec![crate::DigestIdentity {
+                scope: crate::DigestScope::FileSetMember,
+                sha256: Some(crate::signed_catalog::digest(bytes)),
+                sha1: None,
+                crc32: None,
+            }];
+        }
+        let original = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        let mut service = service_with_release(library.clone(), "v2");
+        service.catalog = original.clone();
+        let registered = service
+            .register_source("g-diffuser-source-set", &source_root)
+            .unwrap();
+        let profile = document
+            .source_catalog
+            .as_mut()
+            .unwrap()
+            .identities
+            .iter_mut()
+            .find(|profile| profile.id == "g-diffuser-source-set")
+            .unwrap();
+        let crate::SourceRepresentationKind::FileSet { members } =
+            &mut profile.variants[0].representations[0].kind
+        else {
+            panic!("file-set fixture")
+        };
+        members[0].identities[0].sha256 =
+            Some(crate::signed_catalog::digest(b"different required bytes"));
+        let changed = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        let installer = Installer::new(library.clone()).unwrap();
+        for (port_id, catalog) in [("g-diffuser", &original), ("g-diffuser-fixture", &changed)] {
+            let path = library.versions_dir().join(port_id).join("v1");
+            fs::create_dir_all(&path).unwrap();
+            write_host_test_executable(&path, "g-diffuser");
+            let artifact = ArtifactIdentity {
+                asset_name: "owned-fixture.zip".into(),
+                sha256: crate::signed_catalog::digest(port_id.as_bytes()),
+                size: 4,
+            };
+            let id = Uuid::new_v4().to_string();
+            let qualification =
+                InstallQualification::from_catalog(catalog, port_id, Platform::current().unwrap())
+                    .unwrap();
+            let (manifest_sha256, selected_executable, runtime) = installer
+                .create_manifest(&id, port_id, "v1", &artifact, &qualification, &path)
+                .unwrap();
+            library
+                .register_install(
+                    &InstallRecord {
+                        id,
+                        port_id: port_id.into(),
+                        version: "v1".into(),
+                        path,
+                        channel: ReleaseChannel::Stable,
+                        installed_at: Library::now(),
+                        verified: true,
+                        staged: false,
+                        artifact,
+                        manifest_sha256,
+                        selected_executable,
+                        runtime,
+                    },
+                    true,
+                )
+                .unwrap();
+        }
+        service.catalog = changed;
+        for reverse in [false, true] {
+            if reverse {
+                document.ports.reverse();
+                service.catalog =
+                    Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+            }
+            let statuses = service.statuses().unwrap();
+            for (id, expected) in [
+                ("g-diffuser", SourceHealth::Current),
+                ("g-diffuser-fixture", SourceHealth::Changed),
+            ] {
+                let single = service.status(id).unwrap().readiness.unwrap();
+                let batched = statuses
+                    .iter()
+                    .find(|status| status.port_id == id)
+                    .unwrap()
+                    .readiness
+                    .as_ref()
+                    .unwrap();
+                assert_eq!(single.source, Some(expected), "single {id}");
+                assert_eq!(
+                    batched.source,
+                    Some(expected),
+                    "batch {id}; reversed={reverse}"
+                );
+                assert_eq!(single.blockers, batched.blockers);
+                assert_eq!(single.launchable, expected == SourceHealth::Current);
+            }
+        }
+        assert_eq!(
+            serde_json::to_value(library.source(&registered.profile_id).unwrap()).unwrap(),
+            serde_json::to_value(&registered).unwrap()
+        );
+        fs::remove_dir_all(&source_root).unwrap();
+        for id in ["g-diffuser", "g-diffuser-fixture"] {
+            assert_eq!(
+                service.status(id).unwrap().readiness.unwrap().source,
+                Some(SourceHealth::Missing)
+            );
+        }
     }
 
     #[cfg(unix)]

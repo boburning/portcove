@@ -108,8 +108,10 @@ verification, its inspection report and the reviewed definition digest. Prepared
 receipt validation uses the retained contract, so a later catalog edit cannot
 invalidate unchanged prepared inputs. Actual source, setup tool, manifest or
 prepared-output changes still fail the existing review and integrity checks.
-Broader retained-source status and successor admission remain part of the
-independent definition delivery work.
+Installed launch readiness uses the retained source and BIOS profiles too.
+Within each status snapshot, source-health results are reused only for identical
+profile content; two installed contracts sharing a profile ID cannot inherit each
+other's result. Uninstalled sources retain their explicit unchecked state.
 Authenticated successor definitions, independent operation eligibility, historical
 admission proofs, and explicit revocation handling remain in the independent
 definition delivery work. No new publisher, signing grant, or updater is enabled.
