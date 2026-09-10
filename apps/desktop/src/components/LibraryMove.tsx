@@ -18,7 +18,8 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
   const [plan, setPlan] = useState<LibraryMovePlan>();
   const [busy, setBusy] = useState("");
   const [error, setError] = useState<unknown>();
-  const dismiss = () => { if (!busy) close(); };
+  const [transferAttempted, setTransferAttempted] = useState(false);
+  const dismiss = () => { if (!busy) { if (transferAttempted) window.location.reload(); else close(); } };
   const dialog = useDialogFocus(dismiss);
   const recoveryRoot = transferRecoveryRoot(error);
   const run = async (label: string, operation: () => Promise<void>) => {
@@ -40,10 +41,11 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
     {plan && <LibraryCopySummary plan={plan} source={plan.source_root} label="Library move plan" />}
     {busy && <p role="status">{busy} Keep Portcove open until this finishes.</p>}
     {error != null && <p role="alert">{errorText(error)}</p>}
+    {transferAttempted && !busy && <p>Closing this review refreshes the library before you continue.</p>}
     {recoveryRoot && <LibraryMoveRecovery source={recoveryRoot} onBusyChange={active => setBusy(active ? "Recovering your library…" : "")} />}
     <div className="actions"><button data-focusable disabled={Boolean(busy)} onClick={dismiss}>Close</button>
       {!recoveryRoot && (plan
-        ? <button data-focusable className="primary" disabled={Boolean(busy)} onClick={() => { void run("Copying and verifying your library…", async () => { await desktopApi.moveLibrary(plan.destination_root, plan.plan_sha256); window.location.reload(); }); }}>Move to this folder</button>
+        ? <button data-focusable className="primary" disabled={Boolean(busy)} onClick={() => { void run("Copying and verifying your library…", async () => { setTransferAttempted(true); await desktopApi.moveLibrary(plan.destination_root, plan.plan_sha256); window.location.reload(); }); }}>Move to this folder</button>
         : <button data-focusable className="primary" disabled={Boolean(busy) || !destination.trim()} onClick={() => { void run("Reviewing your library…", async () => setPlan(await desktopApi.planLibraryMove(destination))); }}>Review move</button>)}
     </div>
   </section></div>;
