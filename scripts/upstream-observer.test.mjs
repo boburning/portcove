@@ -43,7 +43,11 @@ test("scheduled observation keeps the configured cadence, read-only authority an
     ),
     "utf8",
   );
-  assert.ok(workflow.includes(`cron: '17 */${config.cadence_hours} * * *'`));
+  const cadence = `17 */${config.cadence_hours} * * *`;
+  assert.ok(
+    workflow.includes(`cron: '${cadence}'`) ||
+      workflow.includes(`cron: "${cadence}"`),
+  );
   assert.match(workflow, /permissions:\s+contents: read/);
   assert.doesNotMatch(
     workflow,
