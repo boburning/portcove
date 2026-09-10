@@ -54,7 +54,7 @@ impl PortcoveService {
                     .with_mutation_state(MutationState::NotStarted)
                     .during("preparation.review")
             })?;
-        let port = self.catalog().port(port_id)?;
+        let port = self.installed_port(&plan.inputs.install)?;
         if port.runtime_source_materialization != Some(RuntimeSourceMaterialization::Ps2Iso)
             || !port.runtime_source_set.is_empty()
             || !port.persistent_file_patterns.is_empty()
@@ -193,9 +193,13 @@ impl PortcoveService {
             &serde_json::to_vec(&receipt)?,
             false,
         )?;
-        let qualification =
-            InstallQualification::from_catalog(self.catalog(), &plan.port_id, plan.inputs.host)?;
         let installer = Installer::new(self.library().clone())?;
+        let retained = installer.retained_catalog(original)?;
+        let qualification = InstallQualification::from_catalog(
+            retained.as_ref().unwrap_or(self.catalog()),
+            &plan.port_id,
+            plan.inputs.host,
+        )?;
         let mut install = installer
             .create_prepared_manifest(original, operation.operation_id(), &qualification, &payload)
             .map_err(|error| error.detail("preparation_phase", "create manifest"))?;
@@ -228,8 +232,8 @@ impl PortcoveService {
         operation: &OperationCoordinator,
         emit: &mut impl FnMut(OperationEvent),
     ) -> Result<()> {
-        let port = self.catalog().port(&plan.port_id)?;
-        let qualification = InstallQualification::from_port(port, plan.inputs.host)?;
+        let port = self.installed_port(&plan.inputs.install)?;
+        let qualification = InstallQualification::from_port(&port, plan.inputs.host)?;
         let copied = InstallRecord {
             path: payload.into(),
             ..plan.inputs.install.clone()

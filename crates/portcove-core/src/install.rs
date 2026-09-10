@@ -924,17 +924,45 @@ impl Installer {
         write_manifest(install_id, port_id, version, artifact, &adopted, root)
     }
 
+    pub(crate) fn retained_catalog(
+        &self,
+        install: &InstallRecord,
+    ) -> Result<Option<crate::Catalog>> {
+        verified_manifest(install)?
+            .retained_contract
+            .map(|contract| contract.catalog(&install.port_id))
+            .transpose()
+    }
+
+    fn retained_qualification(
+        &self,
+        install: &InstallRecord,
+        fallback: &InstallQualification,
+    ) -> Result<InstallQualification> {
+        let mut qualification = match self.retained_catalog(install)? {
+            Some(catalog) => {
+                InstallQualification::from_catalog(&catalog, &install.port_id, fallback.platform)?
+            }
+            None => fallback.clone(),
+        };
+        if let Some(runtime) = &install.runtime {
+            qualification.runtime_origin = runtime.origin;
+        }
+        Ok(qualification)
+    }
+
     pub(crate) fn refresh_verified_manifest(
         &self,
         install: &InstallRecord,
         qualification: &InstallQualification,
     ) -> Result<InstallRecord> {
+        let qualification = self.retained_qualification(install, qualification)?;
         let (manifest_sha256, selected_executable, runtime) = write_manifest(
             &install.id,
             &install.port_id,
             &install.version,
             &install.artifact,
-            qualification,
+            &qualification,
             &install.path,
         )?;
         let mut refreshed = install.clone();
@@ -951,10 +979,7 @@ impl Installer {
         qualification: &InstallQualification,
         root: &Path,
     ) -> Result<InstallRecord> {
-        let mut qualification = qualification.clone();
-        if let Some(runtime) = &original.runtime {
-            qualification.runtime_origin = runtime.origin;
-        }
+        let mut qualification = self.retained_qualification(original, qualification)?;
         qualification
             .critical_paths
             .push(crate::preparation::RECEIPT_FILE.into());

@@ -79,7 +79,12 @@ impl PortcoveService {
         port_id: &str,
         options: PreparationOptions,
     ) -> Result<PreparationPlan> {
-        let port = self.catalog().port(port_id)?;
+        let install = self.status(port_id)?.active.ok_or_else(|| {
+            PortcoveError::not_found("install this port before preparing its source")
+                .detail("port_id", port_id)
+        })?;
+        let retained_port = self.installed_port(&install)?;
+        let port = &retained_port;
         let host = Platform::current()?;
         if port.adapter != AdapterKind::UpstreamManagedSetup {
             return Err(PortcoveError::unsupported(
@@ -97,10 +102,6 @@ impl PortcoveService {
                 "managed preparation requires an available artifact for this host; target selection does not enable cross-compilation",
             ));
         }
-        let install = self.status(port_id)?.active.ok_or_else(|| {
-            PortcoveError::not_found("install this port before preparing its source")
-                .detail("port_id", port_id)
-        })?;
         crate::output_root::validate_install_path(self.library(), port_id, &install.path)?;
         let qualification = InstallQualification::from_port(port, host)?;
         let installer = Installer::new(self.library().clone())?;

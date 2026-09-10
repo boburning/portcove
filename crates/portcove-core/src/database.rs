@@ -10,7 +10,7 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior};
 
 use crate::{PortcoveError, Result};
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 22;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 23;
 
 struct Migration {
     version: i64,
@@ -151,6 +151,12 @@ const MIGRATIONS: &[Migration] = &[
         name: "separate preparation phase diagnostics",
         apply: migration_22,
         verify: verify_migration_22,
+    },
+    Migration {
+        version: 23,
+        name: "retained installation contract writer protocol",
+        apply: migration_23,
+        verify: verify_migration_23,
     },
 ];
 
@@ -828,6 +834,21 @@ fn verify_migration_18(connection: &Connection) -> Result<()> {
     require_columns(connection, "lifecycle_operations", &["source_import_json"])
 }
 
+fn migration_23(transaction: &Transaction<'_>) -> Result<()> {
+    // No table layout changes: the migration ledger is also the library writer
+    // protocol. Older clients must refuse this library before they can replace
+    // a schema-6 manifest with one that discards its retained contracts.
+    verify_migration_23(transaction)
+}
+
+fn verify_migration_23(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "installs",
+        &["manifest_sha256", "selected_executable"],
+    )
+}
+
 fn migration_22(transaction: &Transaction<'_>) -> Result<()> {
     transaction.execute_batch("ALTER TABLE activity_diagnostics RENAME TO activity_diagnostics_v21;
         CREATE TABLE activity_diagnostics (
@@ -1135,6 +1156,7 @@ mod tests {
         schema_19: 19,
         schema_20: 20,
         schema_21: 21,
+        schema_22: 22,
     }
 
     #[test]
