@@ -160,3 +160,11 @@ reference. It verifies unchanged original/replacement bytes, saves, backup conte
 other references and the installed game. The same run re-exercises backup and
 installed-game reviews through their shared presentation lifecycle. Native Windows
 confirmation evidence remains scoped separately from other physical platforms.
+
+The owned adoption review scenario copies a harmless fixture through the real
+native UI. It verifies exact source/output/saved-data paths, dismissal and pending
+or declined native consent, changed saved-data rejection and stale generation.
+Confirmed copying replaces matching saved files while preserving the original,
+unrelated saves, prior installation, backups, sources and another game. It records
+accessibility and compact layout evidence. It establishes no gameplay or physical
+interruption claim; existing core publication-recovery fixtures remain separate.

@@ -113,9 +113,9 @@ pub use release::{
     inspect_upstream_observation,
 };
 pub use service::{
-    AdoptionCopyFile, AdoptionCopyPlan, AdoptionPreview, AdoptionSkippedEntry, BackupAction,
-    BackupActionPreview, IdentifiedLaunchRequest, InstallOverrides, PortRemovalPreview,
-    PortcoveService,
+    AdoptionCopyFile, AdoptionCopyPlan, AdoptionDestinationPreview, AdoptionPreview,
+    AdoptionSkippedEntry, BackupAction, BackupActionPreview, IdentifiedLaunchRequest,
+    InstallOverrides, PortRemovalPreview, PortcoveService,
 };
 pub use signed_catalog::{
     CatalogOrigin, CatalogProvenance, CatalogTrustKey, SignedCatalogEnvelope, SignedCatalogPayload,
@@ -146,4 +146,4 @@ pub use source_report::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 39;
+pub const API_SCHEMA_VERSION: u32 = 40;

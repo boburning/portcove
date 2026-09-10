@@ -4,6 +4,7 @@ import path from "node:path";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import axe from "axe-core";
 import { By, until } from "selenium-webdriver";
+import { clickVisible as clickReviewControl } from "./desktop-review-controls.mjs";
 
 export async function backupReviewScenario({ browser, invoke, scenario, library, output, artifacts, command, seed, open, confirmNative }) {
   await scenario("native-reviewed-backup-restore-and-delete", async () => {
@@ -20,12 +21,7 @@ export async function backupReviewScenario({ browser, invoke, scenario, library,
     const other = command(["backup", "create", port.id]);
     await writeFile(save, "current data before review");
     await open(port);
-    const clickVisible = async element => {
-      await browser.executeScript('arguments[0].scrollIntoView({ block: "center" });', element);
-      await browser.wait(until.elementIsVisible(element), 5_000);
-      await browser.wait(until.elementIsEnabled(element), 5_000);
-      await element.click();
-    };
+    const clickVisible = element => clickReviewControl(browser, element);
     await clickVisible(await browser.findElement(By.css("summary.advanced-summary")));
     const button = label => By.xpath(`//button[normalize-space(.)="${label}"]`);
     const row = id => browser.wait(until.elementLocated(By.css(`[data-backup-id="${id}"]`)), 15_000);

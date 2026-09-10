@@ -5,6 +5,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
 import axe from "axe-core";
 import { By, until } from "selenium-webdriver";
+import { reviewControls, assertCompactReview } from "./desktop-review-controls.mjs";
 
 export async function sourceRemovalScenario({ browser, invoke, scenario, library, output, artifacts, command, confirmNative }) {
   await scenario("native-reviewed-source-reference-removal", async () => {
@@ -24,14 +25,7 @@ export async function sourceRemovalScenario({ browser, invoke, scenario, library
     const others = () => command(["source", "list"]).filter(item => item.profile_id !== source.profile_id);
     const otherSources = others();
     await browser.navigate().refresh();
-    const button = label => By.xpath(`//button[normalize-space(.)="${label}"]`);
-    const click = async locator => {
-      const element = await browser.wait(until.elementLocated(locator), 15_000);
-      await browser.executeScript('arguments[0].scrollIntoView({ block: "center" });', element);
-      await browser.wait(until.elementIsVisible(element), 5_000);
-      await browser.wait(until.elementIsEnabled(element), 5_000);
-      await element.click();
-    };
+    const { button, click } = reviewControls(browser);
     await click(By.xpath('//nav//button[contains(., "Settings")]'));
     const row = By.css(`[data-source-profile="${source.profile_id}"]`);
     const dialog = By.css('[aria-labelledby="source-removal-title"]');
@@ -73,13 +67,7 @@ export async function sourceRemovalScenario({ browser, invoke, scenario, library
     assert.deepEqual(accessibility.violations.map(item => item.id), []);
     const screenshot = path.join(output, "native-source-removal-review.png");
     await writeFile(screenshot, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" }); artifacts.push(screenshot);
-    await browser.manage().window().setRect({ width: 960, height: 640 });
-    const layout = await browser.executeScript(() => {
-      const review = document.querySelector('[aria-labelledby="source-removal-title"]');
-      const bounds = review.getBoundingClientRect();
-      return { pageOverflow: document.documentElement.scrollWidth > window.innerWidth + 1, dialogOverflow: review.scrollWidth > review.clientWidth + 1, inView: bounds.left >= 0 && bounds.right <= window.innerWidth };
-    });
-    assert.deepEqual(layout, { pageOverflow: false, dialogOverflow: false, inView: true });
+    await assertCompactReview(browser, '[aria-labelledby="source-removal-title"]');
     const compact = path.join(output, "native-source-removal-compact.png");
     await writeFile(compact, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" }); artifacts.push(compact);
     await click(button("Continue to removal confirmation"));

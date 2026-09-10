@@ -1,3 +1,4 @@
+mod adoption;
 mod backup_review;
 mod catalog;
 mod diagnostics;
@@ -24,17 +25,16 @@ use std::{
 };
 
 use portcove_core::{
-    ActivityRecord, AdoptionPreview, BackupInventory, BackupRecord, CatalogDocument,
-    ChildProcessClass, ChildProcessPolicy, CompositeReleaseProvider, DoctorReport,
-    GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, GithubReleaseProvider,
-    HostPreferenceStore, HostToolProbeResult, HostToolStatus, IdentifiedLaunchRequest, InstallPlan,
-    InstallRecord, LaunchStdio, Library, LibraryMetadataFile, LibrarySelection,
-    LibrarySelectionSource, OperationCoordinator, OperationEvent, OperationResult, PortStatus,
-    PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel, ReleaseProvider,
-    SourceDiscoveryLimits, SourceImportMode, SourceImportPlan, SourceImportResult,
-    SourceInboxPaths, SourceInboxResolution, SourceInspectionReport, SourceIntakeInspection,
-    SourceRecord, SourceRelinkPlan, SourceVerification, UpdateCheck, UpdatePolicy,
-    VerificationReport,
+    ActivityRecord, BackupInventory, BackupRecord, CatalogDocument, ChildProcessClass,
+    ChildProcessPolicy, CompositeReleaseProvider, DoctorReport, GithubAuthStatus,
+    GithubDeviceLogin, GithubDeviceLoginResult, GithubReleaseProvider, HostPreferenceStore,
+    HostToolProbeResult, HostToolStatus, IdentifiedLaunchRequest, InstallPlan, InstallRecord,
+    LaunchStdio, Library, LibraryMetadataFile, LibrarySelection, LibrarySelectionSource,
+    OperationCoordinator, OperationEvent, OperationResult, PortStatus, PortcoveError,
+    PortcoveService, ReconcileResult, ReleaseChannel, ReleaseProvider, SourceDiscoveryLimits,
+    SourceImportMode, SourceImportPlan, SourceImportResult, SourceInboxPaths,
+    SourceInboxResolution, SourceInspectionReport, SourceIntakeInspection, SourceRecord,
+    SourceRelinkPlan, SourceVerification, UpdateCheck, UpdatePolicy, VerificationReport,
 };
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
@@ -937,68 +937,6 @@ async fn activate_port(
     .await
 }
 
-#[tauri::command]
-async fn preview_adoption(
-    state: tauri::State<'_, DesktopState>,
-    path: PathBuf,
-    port_id: Option<String>,
-) -> DesktopResult<AdoptionPreview> {
-    let state = state.inner().clone();
-    blocking_service(state, move |service| {
-        service
-            .preview_adoption(&path, port_id.as_deref())
-            .map_err(Into::into)
-    })
-    .await
-}
-
-#[tauri::command]
-async fn adopt_port(
-    app: tauri::AppHandle,
-    state: tauri::State<'_, DesktopState>,
-    path: PathBuf,
-    port_id: Option<String>,
-    plan_sha256: String,
-) -> DesktopResult<Option<InstallRecord>> {
-    let worker_state = state.inner().clone();
-    let preview = blocking_service(worker_state, {
-        let path = path.clone();
-        let port_id = port_id.clone();
-        move |service| {
-            service
-                .preview_adoption(&path, port_id.as_deref())
-                .map_err(Into::into)
-        }
-    })
-    .await?;
-    if preview.plan_sha256 != plan_sha256 {
-        return Err(PortcoveError::conflict(
-            "adoption contents changed after preview; review the copy plan again",
-        )
-        .into());
-    }
-    let skipped = preview.copy_plan.skipped_entries.len();
-    let message = format!(
-        "Copy {} files ({} bytes) into Portcove?\n\n{} skipped entr{} will remain only in the original folder. The original folder will not be modified.",
-        preview.copy_plan.files.len(),
-        preview.copy_plan.total_bytes,
-        skipped,
-        if skipped == 1 { "y" } else { "ies" },
-    );
-    if !confirm_destructive(&app, "Confirm adoption", message, "Copy into Portcove").await {
-        return Ok(None);
-    }
-    let state = state.inner().clone();
-    blocking_service(state, move |service| {
-        let authorization = service.authorize_adoption(&path, port_id.as_deref(), &plan_sha256)?;
-        service
-            .adopt(&path, port_id.as_deref(), &authorization.token)
-            .map(Some)
-            .map_err(Into::into)
-    })
-    .await
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 struct LaunchSupervisorRequest {
     request_id: String,
@@ -1728,8 +1666,8 @@ pub fn run() {
             verify_port,
             activate_port,
             rollback_port,
-            preview_adoption,
-            adopt_port,
+            adoption::preview_adoption,
+            adoption::adopt_port,
             removal::preview_removal,
             removal::remove_port,
             launch_port,

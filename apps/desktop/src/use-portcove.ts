@@ -145,17 +145,32 @@ export function useInstallPlanning(portId: string | undefined, channel: PortStat
   return { plan: request.value, review, invalidate: request.invalidate };
 }
 
-export function useAdoptionPlanning(path: string, portId: string | undefined, open: boolean, perform: Perform, done: () => void) {
-  const request = useReviewRequest<Awaited<ReturnType<typeof desktopApi.previewAdoption>>>(JSON.stringify([path, portId, open]), perform);
+export function useAdoptionPlanning(path: string, portId: string | undefined, open: boolean, generation: number, perform: Perform, done: () => void) {
+  const identity = JSON.stringify([path, portId, open, generation]);
+  const request = useReviewRequest<Awaited<ReturnType<typeof desktopApi.previewAdoption>>>(identity, perform);
+  const [failedIdentity, setFailedIdentity] = useState<string>();
+  useLayoutEffect(() => { setFailedIdentity(undefined); }, [identity]);
   const review = async () => {
-    if (open && path.trim()) await request.review("preview adoption", () => desktopApi.previewAdoption(path, portId));
+    setFailedIdentity(undefined);
+    if (open && path.trim()) await request.review("preview adoption", () => desktopApi.previewAdoption(path, generation, portId));
   };
+  const inFlight = useRef(false);
+  const [applying, setApplying] = useState(false);
   const adopt = async () => {
-    if (!open || !request.value?.selected_port_id) return;
+    if (!open || !request.value?.selected_port_id || inFlight.current) return;
+    inFlight.current = true;
+    setApplying(true);
     const current = request.guard();
-    await adoptInstall(path, portId, request.value.plan_sha256, perform, () => { if (current()) done(); });
+    try {
+      const adopted = await perform("adopt", () => desktopApi.adopt(path, request.value!.plan_sha256, generation, portId));
+      if (current()) {
+        request.invalidate();
+        if (adopted !== undefined) done();
+        else setFailedIdentity(identity);
+      }
+    } finally { inFlight.current = false; setApplying(false); }
   };
-  return { preview: request.value, review, adopt };
+  return { preview: request.value, review, adopt, applying, copyFailed: failedIdentity === identity };
 }
 
 export function useSourceHealth(perform: Perform, sources: SourceRecord[], requestedProfileIds: readonly string[] = [], catalogIdentity = "") {
@@ -317,9 +332,4 @@ export function detailActions(port: PortDefinition, status: PortStatus | undefin
     setPolicy: policy => perform("policy", () => desktopApi.setPolicy(port.id, policy, libraryGeneration)),
     verify: () => perform("verify", () => desktopApi.verify(port.id)),
   };
-}
-
-async function adoptInstall(path: string, portId: string | undefined, planSha256: string, perform: Perform, done: () => void) {
-  const adopted = await perform("adopt", () => desktopApi.adopt(path, planSha256, portId));
-  if (adopted) done();
 }

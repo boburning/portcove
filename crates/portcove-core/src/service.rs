@@ -103,6 +103,15 @@ pub struct AdoptionCopyPlan {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct AdoptionDestinationPreview {
+    pub output_location: PortOutputLocation,
+    pub active_install: Option<InstallRecord>,
+    pub imported_user_data_paths: Vec<PathBuf>,
+    pub current_user_data_files: usize,
+    pub current_user_data_sha256: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AdoptionPreview {
     pub source: PathBuf,
     pub detected_port_ids: Vec<String>,
@@ -110,6 +119,7 @@ pub struct AdoptionPreview {
     pub application_files_will_be_copied: bool,
     pub original_will_be_modified: bool,
     pub copy_plan: AdoptionCopyPlan,
+    pub destination: Option<AdoptionDestinationPreview>,
     pub plan_sha256: String,
 }
 
@@ -2964,8 +2974,17 @@ impl PortcoveService {
             _ => None,
         };
         let copy_plan = adoption_copy_plan(source)?;
-        let plan_sha256 =
-            adoption_plan_fingerprint(source, &detected, selected.as_deref(), &copy_plan)?;
+        let destination = selected
+            .as_deref()
+            .map(|id| self.adoption_destination(source, id, &copy_plan))
+            .transpose()?;
+        let plan_sha256 = adoption_plan_fingerprint(
+            source,
+            &detected,
+            selected.as_deref(),
+            &copy_plan,
+            destination.as_ref(),
+        )?;
         Ok(AdoptionPreview {
             source: source.to_path_buf(),
             detected_port_ids: detected,
@@ -2973,7 +2992,55 @@ impl PortcoveService {
             application_files_will_be_copied: true,
             original_will_be_modified: false,
             copy_plan,
+            destination,
             plan_sha256,
+        })
+    }
+
+    fn adoption_destination(
+        &self,
+        source: &Path,
+        port_id: &str,
+        copy_plan: &AdoptionCopyPlan,
+    ) -> Result<AdoptionDestinationPreview> {
+        let port = self.catalog.port(port_id)?;
+        let qualification = InstallQualification::from_port(port, Platform::current()?)?;
+        let executable = crate::install::resolve_declared_executable(source, &qualification)?;
+        let persistent_root = qualification.persistence_root(source, &executable);
+        let prefix = persistent_root
+            .strip_prefix(source)
+            .map_err(|_| PortcoveError::state("adoption persistence escaped its source"))?;
+        let imported_user_data_paths = crate::persistence::entries(port, &[&persistent_root])?
+            .into_iter()
+            .filter(|relative| {
+                let copied = prefix.join(relative);
+                copy_plan.directories.contains(&copied)
+                    || copy_plan
+                        .files
+                        .iter()
+                        .any(|file| file.relative_path == copied)
+            })
+            .map(PathBuf::from)
+            .collect();
+        let output_location = self.output_location(port_id, None)?;
+        let user_root = &output_location.user_data_root;
+        crate::path::refuse_symlink_ancestors(user_root)?;
+        let user_plan = if user_root.exists() {
+            Some(adoption_copy_plan(user_root)?)
+        } else {
+            None
+        };
+        Ok(AdoptionDestinationPreview {
+            output_location,
+            active_install: self.library.status(port_id, default_channel(port))?.active,
+            imported_user_data_paths,
+            current_user_data_files: user_plan.as_ref().map_or(0, |plan| plan.files.len()),
+            current_user_data_sha256: user_plan
+                .as_ref()
+                .map(|plan| {
+                    serde_json::to_vec(plan).map(|bytes| hex::encode(Sha256::digest(bytes)))
+                })
+                .transpose()?,
         })
     }
 
@@ -2986,7 +3053,7 @@ impl PortcoveService {
         let preview = self.preview_adoption(source, selected_port_id)?;
         if preview.plan_sha256 != expected_plan_sha256 {
             return Err(PortcoveError::conflict(
-                "adoption contents changed after preview; review the copy plan again",
+                "adoption contents or destination changed after preview; review the copy plan again",
             ));
         }
         let target = adoption_authorization_target(source, selected_port_id)?;
@@ -3041,8 +3108,11 @@ impl PortcoveService {
             let prepared_root = crate::output_root::prepare_for_install(
                 &self.library,
                 &port_id,
-                &self
-                    .output_location(&port_id, None)?
+                &locked_preview
+                    .destination
+                    .as_ref()
+                    .ok_or_else(|| PortcoveError::state("adoption destination was not selected"))?
+                    .output_location
                     .effective_output_directory,
                 &activity.id,
                 locked_preview.copy_plan.total_bytes,
@@ -3112,6 +3182,15 @@ impl PortcoveService {
             if !installer.verify(&staged_install)?.valid {
                 return Err(PortcoveError::verification(
                     "adopted payload failed its post-copy manifest verification",
+                ));
+            }
+            let current_destination =
+                self.adoption_destination(source, &port_id, &locked_preview.copy_plan)?;
+            if serde_json::to_vec(&Some(current_destination))?
+                != serde_json::to_vec(&locked_preview.destination)?
+            {
+                return Err(PortcoveError::conflict(
+                    "adoption destination or saved data changed while copying; review the copy plan again",
                 ));
             }
             lifecycle.install = Some(install.clone());
@@ -4468,12 +4547,14 @@ fn adoption_plan_fingerprint(
     detected_port_ids: &[String],
     selected_port_id: Option<&str>,
     plan: &AdoptionCopyPlan,
+    destination: Option<&AdoptionDestinationPreview>,
 ) -> Result<String> {
     let encoded = serde_json::to_vec(&(
         crate::path::unicode(source, "adoption source")?,
         detected_port_ids,
         selected_port_id,
         plan,
+        destination,
     ))?;
     Ok(hex::encode(Sha256::digest(encoded)))
 }
@@ -5306,6 +5387,139 @@ mod tests {
     fn recovers_adoption_metadata_committed() {
         assert_external_adoption_recovers_after_every_publication_boundary(
             LifecycleFaultPoint::AdoptionMetadataCommitted,
+        );
+    }
+
+    #[test]
+    fn adoption_rejects_changed_destination_or_saved_data_after_authorization() {
+        for change_output in [true, false] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let source = temporary.path().join("existing-install");
+            fs::create_dir_all(&source).unwrap();
+            write_host_test_executable(&source, "zelda64-recomp");
+            fs::write(source.join("general.json"), b"incoming settings").unwrap();
+            let user = library.user_dir("zelda64-recomp");
+            fs::create_dir_all(&user).unwrap();
+            fs::write(user.join("general.json"), b"current settings").unwrap();
+            let service = service_with_release(library.clone(), "v2");
+            let preview = service
+                .preview_adoption(&source, Some("zelda64-recomp"))
+                .unwrap();
+            let destination = preview.destination.as_ref().unwrap();
+            assert_eq!(destination.output_location.user_data_root, user);
+            assert_eq!(destination.current_user_data_files, 1);
+            assert!(
+                destination
+                    .imported_user_data_paths
+                    .contains(&PathBuf::from("general.json"))
+            );
+            let authorization = service
+                .authorize_adoption(&source, Some("zelda64-recomp"), &preview.plan_sha256)
+                .unwrap();
+            if change_output {
+                service
+                    .set_output_directory("zelda64-recomp", &temporary.path().join("other-output"))
+                    .unwrap();
+            } else {
+                fs::write(user.join("general.json"), b"newer settings").unwrap();
+            }
+            assert_eq!(
+                service
+                    .authorize_adoption(&source, Some("zelda64-recomp"), &preview.plan_sha256)
+                    .unwrap_err()
+                    .code,
+                crate::ErrorCode::Conflict
+            );
+            assert_eq!(
+                service
+                    .adopt(&source, Some("zelda64-recomp"), &authorization.token)
+                    .unwrap_err()
+                    .code,
+                crate::ErrorCode::Conflict
+            );
+            assert!(service.status("zelda64-recomp").unwrap().active.is_none());
+            assert_eq!(
+                fs::read(source.join("general.json")).unwrap(),
+                b"incoming settings"
+            );
+            assert_eq!(
+                fs::read(user.join("general.json")).unwrap(),
+                if change_output {
+                    b"current settings".as_slice()
+                } else {
+                    b"newer settings".as_slice()
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn adoption_review_matches_saved_data_merge_and_retains_existing_install() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let source = temporary.path().join("existing-install");
+        fs::create_dir_all(&source).unwrap();
+        write_host_test_executable(&source, "zelda64-recomp");
+        fs::write(source.join("general.json"), b"incoming settings").unwrap();
+        let service = service_with_release(library.clone(), "v2");
+        let preview = service
+            .preview_adoption(&source, Some("zelda64-recomp"))
+            .unwrap();
+        let authorization = service
+            .authorize_adoption(&source, Some("zelda64-recomp"), &preview.plan_sha256)
+            .unwrap();
+        let previous = service
+            .adopt(&source, Some("zelda64-recomp"), &authorization.token)
+            .unwrap();
+        fs::write(
+            source.join("new-application-file"),
+            b"different application version",
+        )
+        .unwrap();
+        let user = library.user_dir("zelda64-recomp");
+        fs::write(user.join("general.json"), b"current settings").unwrap();
+        fs::write(user.join("unrelated-save"), b"preserved").unwrap();
+        let preview = service
+            .preview_adoption(&source, Some("zelda64-recomp"))
+            .unwrap();
+        let destination = preview.destination.as_ref().unwrap();
+        assert_eq!(destination.active_install.as_ref().unwrap().id, previous.id);
+        assert_eq!(destination.current_user_data_files, 2);
+        let authorization = service
+            .authorize_adoption(&source, Some("zelda64-recomp"), &preview.plan_sha256)
+            .unwrap();
+        let adopted = service
+            .adopt(&source, Some("zelda64-recomp"), &authorization.token)
+            .unwrap();
+        assert_eq!(
+            adopted.path.parent(),
+            Some(
+                fs::canonicalize(&destination.output_location.effective_output_directory)
+                    .unwrap()
+                    .as_path()
+            )
+        );
+        assert_eq!(
+            service.status("zelda64-recomp").unwrap().active.unwrap().id,
+            adopted.id
+        );
+        assert!(previous.path.is_dir());
+        assert_eq!(
+            fs::read(user.join("general.json")).unwrap(),
+            b"incoming settings"
+        );
+        assert_eq!(fs::read(user.join("unrelated-save")).unwrap(), b"preserved");
+        assert_eq!(
+            fs::read(source.join("general.json")).unwrap(),
+            b"incoming settings"
+        );
+        assert!(
+            service
+                .list_backups("zelda64-recomp")
+                .unwrap()
+                .backups
+                .is_empty()
         );
     }
 

@@ -22,9 +22,9 @@ const done = vi.fn();
 const perform: Perform = async (_name, task) => {
   try { return await task(); } catch (error) { errors(error); return undefined; }
 };
-function Fixture({ port = "first", channel = "stable", path = "A", open = true }: { port?: string; channel?: "stable" | "beta"; path?: string; open?: boolean }) {
+function Fixture({ port = "first", channel = "stable", path = "A", open = true, generation = 1 }: { port?: string; channel?: "stable" | "beta"; path?: string; open?: boolean; generation?: number }) {
   install = useInstallPlanning(port, channel, perform);
-  adoption = useAdoptionPlanning(path, port, open, perform, done);
+  adoption = useAdoptionPlanning(path, port, open, generation, perform, done);
   return null;
 }
 async function render(props: Parameters<typeof Fixture>[0] = {}) {
@@ -62,7 +62,7 @@ describe("current review intent", () => {
     expect(install.plan).toBeUndefined();
   });
 
-  it.each([{ path: "B" }, { port: "second" }, { open: false }])("invalidates adoption preview and action on %j", async props => {
+  it.each([{ path: "B" }, { port: "second" }, { open: false }, { generation: 2 }])("invalidates adoption preview and action on %j", async props => {
     const old = deferred<Preview>(); const next = deferred<Preview>();
     vi.spyOn(desktopApi, "previewAdoption").mockReturnValueOnce(old.promise).mockReturnValueOnce(next.promise);
     const adopt = vi.spyOn(desktopApi, "adopt");
@@ -111,9 +111,32 @@ describe("current review intent", () => {
     vi.spyOn(desktopApi, "adopt").mockReturnValue(pending.promise);
     await render(); await act(async () => { await adoption.review(); });
     let mutation!: Promise<void>; await act(async () => { mutation = adoption.adopt(); });
-    expect(desktopApi.adopt).toHaveBeenCalledWith("A", "reviewed", "first");
+    expect(desktopApi.adopt).toHaveBeenCalledWith("A", "reviewed", 1, "first");
     await render({ open: false }); await render({ path: "B" });
     await act(async () => { pending.resolve({} as Awaited<ReturnType<typeof desktopApi.adopt>>); await mutation; });
     expect(done).not.toHaveBeenCalled(); expect(adoption.preview).toBeUndefined();
   });
+  it.each([null, undefined])("requires a fresh adoption review after cancellation or failure: %s", async result => {
+    vi.spyOn(desktopApi, "previewAdoption").mockResolvedValue({ selected_port_id: "first", plan_sha256: "reviewed" } as Preview);
+    vi.spyOn(desktopApi, "adopt").mockImplementation(async () => { if (result === undefined) throw new Error("changed saved data"); return result; });
+    await render(); await act(async () => { await adoption.review(); });
+    await act(async () => { await adoption.adopt(); });
+    expect(adoption.preview).toBeUndefined();
+    expect(done).toHaveBeenCalledTimes(result === null ? 1 : 0);
+    expect(adoption.copyFailed).toBe(result === undefined);
+    await act(async () => { await adoption.adopt(); });
+    expect(desktopApi.adopt).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows only one adoption request from duplicate events", async () => {
+    vi.spyOn(desktopApi, "previewAdoption").mockResolvedValue({ selected_port_id: "first", plan_sha256: "reviewed" } as Preview);
+    const pending = deferred<Awaited<ReturnType<typeof desktopApi.adopt>>>();
+    vi.spyOn(desktopApi, "adopt").mockReturnValue(pending.promise);
+    await render(); await act(async () => { await adoption.review(); });
+    let first!: Promise<void>;
+    await act(async () => { first = adoption.adopt(); await adoption.adopt(); });
+    expect(desktopApi.adopt).toHaveBeenCalledTimes(1);
+    await act(async () => { pending.resolve(null); await first; });
+  });
+
 });

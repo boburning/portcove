@@ -88,13 +88,22 @@ describe("desktop components", () => {
           skipped_entries: [{ relative_path: "linked-save", reason: "symbolic links are not copied" }],
           total_bytes: 2048,
         },
+        destination: {
+          output_location: { port_id: "sample", library_root: "D:/Library", default_output_directory: "D:/Library/versions/sample", configured_output_directory: "E:/Games", effective_output_directory: "E:/Games", selection_source: "port_setting", user_data_root: "D:/Library/user/sample" },
+          active_install: null, imported_user_data_paths: ["settings"], current_user_data_files: 2, current_user_data_sha256: "c".repeat(64),
+        },
         plan_sha256: "b".repeat(64),
       }}
     />);
     expect(html).toContain("1 file · 2.0 KiB");
     expect(html).toContain("1 skipped entry");
     expect(html).toContain("linked-save");
-    expect(html).toContain("Copy into Portcove");
+    expect(html).toContain("Continue to copy confirmation");
+    expect(html).toContain("E:/Games");
+    expect(html).toContain("D:/Library/user/sample");
+    expect(html).toContain("Matching saved files are replaced");
+    expect(html).toContain("No automatic safety backup");
+    expect(html).toContain("cannot cancel");
   });
 
   it("keeps older backups reachable without expanding the detail panel by default", () => {

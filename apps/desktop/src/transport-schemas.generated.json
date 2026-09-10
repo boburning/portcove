@@ -414,6 +414,48 @@
         ],
         "type": "object"
       },
+      "AdoptionDestinationPreview": {
+        "properties": {
+          "active_install": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/InstallRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "current_user_data_files": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "current_user_data_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "imported_user_data_paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "output_location": {
+            "$ref": "#/$defs/PortOutputLocation"
+          }
+        },
+        "required": [
+          "output_location",
+          "active_install",
+          "imported_user_data_paths",
+          "current_user_data_files",
+          "current_user_data_sha256"
+        ],
+        "type": "object"
+      },
       "AdoptionSkippedEntry": {
         "properties": {
           "reason": {
@@ -428,6 +470,186 @@
           "reason"
         ],
         "type": "object"
+      },
+      "ArtifactIdentity": {
+        "properties": {
+          "asset_name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_name",
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "InstallRecord": {
+        "properties": {
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity",
+            "default": {
+              "asset_name": "",
+              "sha256": "",
+              "size": 0
+            }
+          },
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "id": {
+            "type": "string"
+          },
+          "installed_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "manifest_sha256": {
+            "default": "",
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "runtime": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RuntimeIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "selected_executable": {
+            "default": "",
+            "type": "string"
+          },
+          "staged": {
+            "type": "boolean"
+          },
+          "verified": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "port_id",
+          "version",
+          "path",
+          "channel",
+          "installed_at",
+          "verified",
+          "staged",
+          "artifact",
+          "runtime",
+          "manifest_sha256",
+          "selected_executable"
+        ],
+        "type": "object"
+      },
+      "OutputLocationSource": {
+        "enum": [
+          "request_override",
+          "port_setting",
+          "library_default"
+        ],
+        "type": "string"
+      },
+      "PortOutputLocation": {
+        "properties": {
+          "configured_output_directory": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "default_output_directory": {
+            "type": "string"
+          },
+          "effective_output_directory": {
+            "type": "string"
+          },
+          "library_root": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "selection_source": {
+            "$ref": "#/$defs/OutputLocationSource"
+          },
+          "user_data_root": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "library_root",
+          "default_output_directory",
+          "configured_output_directory",
+          "effective_output_directory",
+          "selection_source",
+          "user_data_root"
+        ],
+        "type": "object"
+      },
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
+      },
+      "RuntimeIdentity": {
+        "properties": {
+          "archive_root": {
+            "type": "string"
+          },
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/$defs/RuntimeOrigin"
+          },
+          "target_directory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "origin",
+          "artifact",
+          "archive_root",
+          "target_directory",
+          "executable"
+        ],
+        "type": "object"
+      },
+      "RuntimeOrigin": {
+        "enum": [
+          "verified_download",
+          "adopted_tree"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -437,6 +659,16 @@
       },
       "copy_plan": {
         "$ref": "#/$defs/AdoptionCopyPlan"
+      },
+      "destination": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/AdoptionDestinationPreview"
+          },
+          {
+            "type": "null"
+          }
+        ]
       },
       "detected_port_ids": {
         "items": {
@@ -467,6 +699,7 @@
       "application_files_will_be_copied",
       "original_will_be_modified",
       "copy_plan",
+      "destination",
       "plan_sha256"
     ],
     "title": "AdoptionPreview",
