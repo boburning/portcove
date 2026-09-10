@@ -8249,12 +8249,25 @@ fn main() {
         let source_root = temporary.path().join("owned-source-set");
         fs::create_dir(&source_root).unwrap();
         let mut document = Catalog::embedded().unwrap().authoritative_document();
-        let mut second_port = document
+        let host = Platform::current().unwrap();
+        let executable_name = if host == Platform::WindowsX86_64 {
+            "owned-game.exe"
+        } else {
+            "owned-game"
+        };
+        let fixture_port = document
             .ports
-            .iter()
+            .iter_mut()
             .find(|port| port.id == "g-diffuser")
-            .unwrap()
-            .clone();
+            .unwrap();
+        // This inert status fixture needs a host path; it does not qualify an
+        // upstream artifact or inherit G-Diffuser's shipping-platform coverage.
+        fixture_port.platforms = vec![host];
+        fixture_port.executable_hints.clear();
+        fixture_port
+            .executable_hints
+            .insert(host, vec![executable_name.into()]);
+        let mut second_port = fixture_port.clone();
         second_port.id = "g-diffuser-fixture".into();
         document.ports.push(second_port);
         let source_catalog = document.source_catalog.as_mut().unwrap();
@@ -8316,7 +8329,9 @@ fn main() {
         for (port_id, catalog) in [("g-diffuser", &original), ("g-diffuser-fixture", &changed)] {
             let path = library.versions_dir().join(port_id).join("v1");
             fs::create_dir_all(&path).unwrap();
-            write_host_test_executable(&path, "g-diffuser");
+            let executable = path.join(executable_name);
+            fs::write(&executable, b"owned inert status fixture").unwrap();
+            crate::permissions::normalize_archive_entry(&executable, false, true).unwrap();
             let artifact = ArtifactIdentity {
                 asset_name: "owned-fixture.zip".into(),
                 sha256: crate::signed_catalog::digest(port_id.as_bytes()),
