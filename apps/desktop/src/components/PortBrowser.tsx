@@ -94,6 +94,7 @@ function readinessPresentation(readiness: PortReadiness) {
     available: { label: "Available", action: "View details", tone: "available" },
     ready: { label: "Launch ready", action: "Play options", tone: "ready" },
     source: { label: "Source required", action: "Finish setup", tone: "setup" },
+    repair: { label: "Installation needs repair", action: "Review game", tone: "setup" },
     runtime: { label: "Runtime required", action: "Finish setup", tone: "setup" },
     bios: { label: "BIOS required", action: "Finish setup", tone: "setup" },
     setup: { label: "Setup required", action: "Finish setup", tone: "setup" },

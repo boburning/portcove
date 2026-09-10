@@ -352,9 +352,7 @@ fn recovery_error(error: PortcoveError, journal: &TransferJournal) -> PortcoveEr
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        ArtifactIdentity, ErrorCode, InstallQualification, InstallRecord, Installer, ReleaseChannel,
-    };
+    use crate::{ArtifactIdentity, ErrorCode, InstallRecord, Installer, ReleaseChannel};
 
     fn fixture(root: &Path) -> PortcoveService {
         let library = Library::open(root).unwrap();
@@ -367,7 +365,18 @@ mod tests {
                 sha256: "a".repeat(64),
                 size: 123,
             };
-            let qualification = InstallQualification::test("game.exe");
+            let mut port = crate::Catalog::embedded()
+                .unwrap()
+                .port("starship")
+                .unwrap()
+                .clone();
+            port.executable_hints
+                .insert(crate::Platform::current().unwrap(), vec!["game.exe".into()]);
+            let qualification = crate::test_fixture::retained_qualification(
+                &port,
+                crate::Platform::current().unwrap(),
+            )
+            .unwrap();
             let (manifest_sha256, selected_executable, runtime) = Installer::new(library.clone())
                 .unwrap()
                 .create_manifest(id, "starship", id, &artifact, &qualification, &path)

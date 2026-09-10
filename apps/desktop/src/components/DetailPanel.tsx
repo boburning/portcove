@@ -78,7 +78,7 @@ function DetailDialog({ props, dialog }: { props: DetailPanelProps; dialog: Retu
   const selectedChannel = status?.channel ?? port.channels[0];
   const policy = status?.update_policy ?? "notify";
   const { sourceReady, biosReady, launchReady, installed, pendingSetup } = detailReadiness(port, status, source, sourcePath, bios, biosPath);
-  const state = detailState(installed, launchReady, Boolean(status?.staged), pendingSetup, Boolean(status?.readiness?.blockers.includes("missing_runtime")), status?.readiness?.source, status?.readiness?.bios, Boolean(sourcePath.trim() || biosPath?.trim()));
+  const state = detailState(installed, launchReady, Boolean(status?.staged), pendingSetup, Boolean(status?.readiness?.blockers.includes("missing_runtime")), status?.readiness?.source, status?.readiness?.bios, Boolean(sourcePath.trim() || biosPath?.trim()), Boolean(status?.readiness?.blockers.includes("invalid_installation")));
   const sources: SourceControls = {
     port, source, sourceInspection, sourceProfile, sourcePath, setSourcePath, pickSource, pickSourceArchive,
     bios, biosInspection, biosProfile, biosPath, setBiosPath, pickBios, sourceReady, biosReady, openSourceEvidence: props.openSourceEvidence, inspectSource: props.inspectSource,
@@ -314,7 +314,8 @@ function MaintenanceActions({ port, libraryGeneration, canRollback, busy, action
 }
 
 
-function detailState(installed: boolean, launchReady: boolean, staged: boolean, pendingSetup: boolean, runtimeNeeded: boolean, sourceHealth?: SourceHealth | null, biosHealth?: SourceHealth | null, selectedPath = false) {
+function detailState(installed: boolean, launchReady: boolean, staged: boolean, pendingSetup: boolean, runtimeNeeded: boolean, sourceHealth?: SourceHealth | null, biosHealth?: SourceHealth | null, selectedPath = false, invalidInstallation = false) {
+  if (invalidInstallation) return { title: "Installation needs repair", description: "Portcove could not verify this installation’s saved contract. Verify the game files and review repair before playing.", tone: "setup", icon: AlertTriangle };
   if (!installed) return { title: "Available to install", description: selectedPath ? "Selected game files have not been checked. Portcove validates them when you continue installation." : "Portcove will check required game files and verify the release before it becomes active.", tone: "available", icon: Download };
   if (runtimeNeeded) return { title: "Verified runtime required", description: "Review the update to install this port with its required runtime. Existing saves stay in your library.", tone: "setup", icon: Wrench };
   const sourceIssue = sourceHealthState("Original source", sourceHealth);

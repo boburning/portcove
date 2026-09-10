@@ -20,8 +20,20 @@ pub(crate) fn retained_qualification(
     // A fixture may intentionally exercise only one host. Do not attach another
     // platform's historical qualification to that synthetic definition.
     if let Some(source) = &mut document.source_catalog {
+        source.contracts.retain(|contract| {
+            contract.port_id != port.id
+                || match contract.role {
+                    crate::PortSourceRole::Game => port.source_profile.as_ref(),
+                    crate::PortSourceRole::Bios => port.bios_source_profile.as_ref(),
+                }
+                .is_some_and(|profile| *profile == contract.profile_id)
+        });
         source.qualification.retain(|record| {
-            record.scope.port_id != port.id || port.platforms.contains(&record.scope.platform)
+            record.scope.port_id != port.id
+                || (port.platforms.contains(&record.scope.platform)
+                    && record.scope.contract_id.as_ref().is_none_or(|id| {
+                        source.contracts.iter().any(|contract| contract.id == *id)
+                    }))
         });
     }
     let catalog = crate::Catalog::from_json(&serde_json::to_string(&document)?)?;

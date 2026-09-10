@@ -10,8 +10,8 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     ActivityOperation, ActivityTargetKind, AdoptionCopyPlan, DestructiveAuthorization,
-    InstallQualification, InstallRecord, Installer, Library, OutputDestinationAvailability,
-    OutputDestinationOwnership, PortOutputLocation, PortcoveError, PortcoveService, Result,
+    InstallRecord, Installer, Library, OutputDestinationAvailability, OutputDestinationOwnership,
+    PortOutputLocation, PortcoveError, PortcoveService, Result,
     operation::{
         LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind, LifecyclePhase,
         OperationStore,
@@ -97,7 +97,6 @@ impl PortcoveService {
         let active = status.active.as_ref().map(|install| install.id.as_str());
         let previous = status.previous.as_ref().map(|install| install.id.as_str());
         let staged = status.staged.as_ref().map(|install| install.id.as_str());
-        let qualification = InstallQualification::from_port(port, crate::Platform::current()?)?;
         let installer = Installer::new(self.library().clone())?;
         let mut records = self
             .library()
@@ -117,6 +116,11 @@ impl PortcoveService {
         let mut required_bytes = 0_u64;
         for install in records {
             crate::output_root::validate_install_path(self.library(), port_id, &install.path)?;
+            let qualification = installer.qualification_for_install(
+                &install,
+                self.catalog(),
+                crate::Platform::current()?,
+            )?;
             let report = installer.verify_managed(&install, &qualification)?;
             if !report.valid {
                 return Err(PortcoveError::verification(
@@ -478,10 +482,6 @@ fn verify_staged(
     operation_root: &Path,
 ) -> Result<()> {
     let installer = Installer::new(service.library().clone())?;
-    let qualification = InstallQualification::from_port(
-        service.catalog().port(&plan.port_id)?,
-        crate::Platform::current()?,
-    )?;
     for entry in &plan.installs {
         let path = operation_root.join(&entry.install.id);
         crate::transfer_copy::verify_reviewed_tree(&path, &entry.copy)?;
@@ -489,6 +489,11 @@ fn verify_staged(
             path,
             ..entry.install.clone()
         };
+        let qualification = installer.qualification_for_install(
+            &staged,
+            service.catalog(),
+            crate::Platform::current()?,
+        )?;
         let report = installer.verify_managed(&staged, &qualification)?;
         if !report.valid {
             return Err(PortcoveError::verification(
@@ -509,15 +514,16 @@ fn verify_new_authority(service: &PortcoveService, plan: &OutputRelocationPlan) 
         ));
     }
     let installer = Installer::new(service.library().clone())?;
-    let qualification = InstallQualification::from_port(
-        service.catalog().port(&plan.port_id)?,
-        crate::Platform::current()?,
-    )?;
     for entry in &plan.installs {
         let relocated = InstallRecord {
             path: entry.destination_path.clone(),
             ..entry.install.clone()
         };
+        let qualification = installer.qualification_for_install(
+            &relocated,
+            service.catalog(),
+            crate::Platform::current()?,
+        )?;
         crate::output_root::validate_install_path(
             service.library(),
             &plan.port_id,

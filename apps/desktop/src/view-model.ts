@@ -2,7 +2,7 @@ import type { DesktopError, PortDefinition, PortStatus, ReadinessBlocker, Source
 
 export type View = "library" | "catalog" | "updates" | "settings";
 export type Filter = "all" | "ready" | "setup" | "stable" | "beta" | "rolling";
-export type PortReadiness = "available" | "ready" | "source" | "bios" | "setup" | "staged" | "runtime";
+export type PortReadiness = "available" | "ready" | "source" | "bios" | "setup" | "staged" | "runtime" | "repair";
 
 export interface LibraryOverview {
   installed: number;
@@ -36,6 +36,7 @@ export function filterOptions(view: View): Filter[] {
 
 export function portReadiness(port: PortDefinition, status: PortStatus | undefined, registeredSources: ReadonlySet<string>): PortReadiness {
   if (!status?.active) return "available";
+  if (status.readiness?.blockers.includes("invalid_installation")) return "repair";
   const sourceMissing = status.readiness?.blockers.some(blocker => SOURCE_BLOCKERS.includes(blocker))
     ?? Boolean(port.source_profile && !registeredSources.has(port.source_profile));
   const biosMissing = status.readiness?.blockers.some(blocker => BIOS_BLOCKERS.includes(blocker))

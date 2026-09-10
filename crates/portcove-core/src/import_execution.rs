@@ -191,6 +191,15 @@ fn continue_import(
         let qualification =
             InstallQualification::from_port(catalog.port(&install.port_id)?, Platform::current()?)?;
         installer.verify_import_contract(&install, &qualification)?;
+        if let Some(retained) = installer.retained_catalog(&install)? {
+            // Imported hashes establish content consistency, not definition
+            // authority. Keep the existing frozen execution boundary until
+            // successor admission can authenticate historical contracts.
+            crate::signed_catalog::validate_installed_port_contract(
+                retained.port(&install.port_id)?,
+                catalog.port(&install.port_id)?,
+            )?;
+        }
     }
     verify_input(&journal.plan)?;
     journal.phase = TransferPhase::Verified;

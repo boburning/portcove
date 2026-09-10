@@ -541,7 +541,7 @@ fn preparation_is_explicit_and_play_never_runs_setup_or_recreates_inputs() {
 }
 
 #[test]
-fn changed_definition_and_missing_receipt_invalidate_prepared_readiness() {
+fn retained_definition_survives_catalog_changes_but_missing_receipt_blocks_play() {
     let mut fixture = Fixture::native("success");
     let prepared = fixture.run(|_| {}).unwrap();
     assert!(
@@ -566,7 +566,7 @@ fn changed_definition_and_missing_receipt_invalidate_prepared_readiness() {
         Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
     );
     assert!(
-        !fixture
+        fixture
             .service
             .status(PORT)
             .unwrap()
@@ -574,7 +574,7 @@ fn changed_definition_and_missing_receipt_invalidate_prepared_readiness() {
             .unwrap()
             .launchable
     );
-    assert!(fixture.service.launch_spec(PORT, None).is_err());
+    assert!(fixture.service.launch_spec(PORT, None).is_ok());
     fixture.service.replace_catalog_for_test(original_catalog);
     fs::remove_file(prepared.path.join(RECEIPT_FILE)).unwrap();
     assert!(
