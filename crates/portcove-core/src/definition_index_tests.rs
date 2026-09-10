@@ -106,10 +106,12 @@ fn enforces_namespaces_and_revision_identity_without_rewriting_official_ids() {
 
 #[test]
 fn rejects_external_alias_and_missing_target_references() {
+    let directory = tempfile::tempdir().unwrap();
+    let absolute_target = directory.path().join("entry.json");
+    assert!(absolute_target.is_absolute());
     for target in [
         "../entry.json",
-        "/entry.json",
-        "C:/entry.json",
+        absolute_target.to_str().unwrap(),
         "https://host/entry.json",
         "sha256\\entry.json",
         "sha256/%2e%2e.json",
@@ -123,6 +125,10 @@ fn rejects_external_alias_and_missing_target_references() {
     value["definitions"][0]["target"] = json!(format!("sha256/{}.json", "a".repeat(64)));
     assert!(parse(&value).is_err());
     for digest in ["A".repeat(64), "g".repeat(64), "a".repeat(63)] {
+        let mut value = fixture();
+        let target = format!("sha256/{digest}.json");
+        value["definitions"][0]["target"] = json!(target);
+        value["contents"][0]["target"] = json!(target);
         value["contents"][0]["sha256"] = json!(digest);
         assert!(parse(&value).is_err());
     }
@@ -152,7 +158,8 @@ fn enforces_schema_and_all_resource_bounds() {
             .collect::<Vec<_>>()
     );
     assert_eq!(parse(&value).unwrap().definitions().len(), MAX_DEFINITIONS);
-    let extra = value["definitions"][0].clone();
+    let mut extra = value["definitions"][0].clone();
+    extra["stable_id"] = json!("port-over-count-bound");
     value["definitions"].as_array_mut().unwrap().push(extra);
     assert!(parse(&value).is_err());
     let mut bytes = serde_json::to_vec(&fixture()).unwrap();
