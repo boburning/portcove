@@ -146,6 +146,8 @@ jobs:
         run: node scripts/dev-storage.mjs run -- node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs --test-skip-pattern "pnpm uses|direct just recipes" scripts/dev-storage.test.mjs
       - name: Test Windows qualification unit contracts
         run: node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/windows-qualification-session.test.mjs
+      - name: Test Windows CI setup contract
+        run: node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/ci-workflow.test.mjs
       - name: Test Windows qualification session integration
         run: node --test scripts/windows-qualification-session.integration.test.mjs
       - name: Test development diagnostics and evidence

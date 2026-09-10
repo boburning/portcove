@@ -229,6 +229,119 @@ test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () 
   assert.doesNotMatch(rust, /continue-on-error/);
 });
 
+test("Windows fixture setup selects runner-owned temporary storage before compilation", async () => {
+  const setup = await readFile(
+    new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
+    "utf8",
+  );
+  const selection = setup.indexOf(
+    "name: Select Windows test temporary storage",
+  );
+  assert.ok(
+    selection >= 0 &&
+      selection < setup.indexOf("name: Read repository toolchain"),
+  );
+  assert.match(
+    setup,
+    /if: runner\.os == 'Windows' && inputs\.test-fixtures == 'true'/,
+  );
+  assert.match(windowsStorage, /scripts\/ci-workflow\.test\.mjs/);
+});
+
+test(
+  "Windows fixture setup exports a usable directory and rejects invalid roots without partial exports",
+  { skip: process.platform !== "win32" },
+  async () => {
+    const { mkdtemp, mkdir, writeFile, realpath, rm } =
+      await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+    const { spawnSync } = await import("node:child_process");
+    const setup = await readFile(
+      new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
+      "utf8",
+    );
+    const body = setup.match(
+      /- name: Select Windows test temporary storage[\s\S]*?run: \|\r?\n([\s\S]*?)(?= {4}- name:)/,
+    )?.[1];
+    assert.ok(body);
+    const script = body.replace(/^ {8}/gm, "");
+    const base = path.resolve(tmpdir());
+    const directory = await mkdtemp(path.join(base, "portcove-ci-temp-"));
+    try {
+      const selected = path.join(directory, "runner temporary files");
+      const environmentFile = path.join(directory, "github-env");
+      const notDirectory = path.join(directory, "file");
+      await mkdir(selected);
+      await writeFile(notDirectory, "fixture");
+      const invoke = (command, env) =>
+        spawnSync(
+          "pwsh",
+          ["-NoProfile", "-NonInteractive", "-Command", command],
+          {
+            env: { ...process.env, ...env },
+            encoding: "utf8",
+            windowsHide: true,
+            timeout: 10_000,
+          },
+        );
+      const selectedIdentity = await realpath(selected);
+      for (const selectedPath of [selected, `${selected}${path.sep}.`]) {
+        await writeFile(environmentFile, "");
+        const result = invoke(script, {
+          RUNNER_TEMP: selectedPath,
+          GITHUB_ENV: environmentFile,
+        });
+        assert.ifError(result.error);
+        assert.equal(result.status, 0, result.stdout + result.stderr);
+        const exported = Object.fromEntries(
+          (await readFile(environmentFile, "utf8"))
+            .trim()
+            .split(/\r?\n/)
+            .map((line) => {
+              const delimiter = line.indexOf("=");
+              return [line.slice(0, delimiter), line.slice(delimiter + 1)];
+            }),
+        );
+        assert.deepEqual(exported, {
+          TEMP: selectedIdentity,
+          TMP: selectedIdentity,
+        });
+        const consumer = invoke("[System.IO.Path]::GetTempPath()", exported);
+        assert.ifError(consumer.error);
+        assert.equal(consumer.status, 0, consumer.stderr);
+        assert.equal(await realpath(consumer.stdout.trim()), selectedIdentity);
+      }
+      for (const invalid of [
+        "",
+        "relative",
+        path.join(directory, "missing"),
+        notDirectory,
+        `${selected}\nUNEXPECTED=value`,
+      ]) {
+        await writeFile(environmentFile, "");
+        const rejected = invoke(script, {
+          RUNNER_TEMP: invalid,
+          GITHUB_ENV: environmentFile,
+        });
+        assert.ifError(rejected.error);
+        assert.notEqual(
+          rejected.status,
+          0,
+          `accepted invalid root ${JSON.stringify(invalid)}`,
+        );
+        assert.equal(await readFile(environmentFile, "utf8"), "");
+      }
+    } finally {
+      const relative = path.relative(base, directory);
+      assert.ok(
+        relative && !relative.startsWith("..") && !path.isAbsolute(relative),
+      );
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);
+
 test("native Rust runs the full workspace on every supported Unix architecture", () => {
   assert.match(
     nativeRust,

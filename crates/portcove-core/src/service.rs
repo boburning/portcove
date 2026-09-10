@@ -6248,21 +6248,29 @@ mod tests {
 
     #[test]
     fn policy_initialization_preserves_a_catalog_only_channel() {
+        use crate::test_fixture::phase;
         let temporary = tempfile::tempdir().unwrap();
-        let library = Library::open(temporary.path().join("library")).unwrap();
-        let service = PortcoveService::new(library.clone()).unwrap();
+        let library = phase("policy fixture: library open", || {
+            Library::open(temporary.path().join("library"))
+        })
+        .unwrap();
+        let service = phase("policy fixture: service open", || {
+            PortcoveService::new(library.clone())
+        })
+        .unwrap();
 
-        let status = service
-            .set_update_policy("tomba-recompiled", UpdatePolicy::Stage)
-            .unwrap();
+        let status = phase("policy fixture: set policy", || {
+            service.set_update_policy("tomba-recompiled", UpdatePolicy::Stage)
+        })
+        .unwrap();
 
         assert_eq!(status.channel, ReleaseChannel::Beta);
         assert_eq!(status.update_policy, UpdatePolicy::Stage);
         assert_eq!(
-            library
-                .status("tomba-recompiled", ReleaseChannel::Stable)
-                .unwrap()
-                .channel,
+            phase("policy fixture: read status", || library
+                .status("tomba-recompiled", ReleaseChannel::Stable))
+            .unwrap()
+            .channel,
             ReleaseChannel::Beta
         );
     }
