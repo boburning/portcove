@@ -72,7 +72,7 @@ export function transferRecoveryRoot(error: unknown, key: "retained_source" | "i
 }
 
 export function LibraryCopySummary({ plan, source, label }: { plan: Pick<LibraryMovePlan, "content" | "metadata" | "destination_root" | "required_bytes" | "available_bytes">; source: string; label: string }) {
-  return <section className="adoption-plan" aria-label={label}>
+  return <section className="adoption-plan adoption-review" aria-label={label}>
     <p>From <code>{source}</code><br />To <code>{plan.destination_root}</code></p>
     <ul>{plan.content.map(tree => <li key={tree.kind}>{tree.kind.replaceAll("_", " ")}: {tree.copy.files.length.toLocaleString()} files, {formatBytes(tree.copy.total_bytes)}</li>)}</ul>
     <p>{formatBytes(plan.required_bytes)} required, including working space. {formatBytes(plan.available_bytes)} available.</p>
