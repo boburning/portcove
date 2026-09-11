@@ -52,7 +52,15 @@ pub(crate) fn retained_qualification(
 
 /// Supply exact successor bytes for a synthetic lifecycle contract, without
 /// publisher or artifact authority. No network or source acquisition occurs.
-pub(crate) fn indexed_catalog(catalog: &crate::Catalog, port_id: &str) -> crate::Catalog {
+pub(crate) struct IndexedCatalogBundle {
+    pub(crate) index: Vec<u8>,
+    pub(crate) contents: Vec<(String, Vec<u8>)>,
+}
+
+pub(crate) fn indexed_catalog_bundle(
+    catalog: &crate::Catalog,
+    port_id: &str,
+) -> IndexedCatalogBundle {
     use serde_json::json;
     use sha2::{Digest, Sha256};
     let target = |bytes: &[u8]| format!("sha256/{}.json", hex::encode(Sha256::digest(bytes)));
@@ -73,12 +81,24 @@ pub(crate) fn indexed_catalog(catalog: &crate::Catalog, port_id: &str) -> crate:
     let contents: Vec<_> = [&entry, &contract].into_iter().map(|bytes| json!({
         "target":target(bytes),"sha256":hex::encode(Sha256::digest(bytes)),"length":bytes.len()
     })).collect();
-    let index = crate::DefinitionContentIndex::parse(&serde_json::to_vec_pretty(&json!({
+    let index = serde_json::to_vec_pretty(&json!({
         "index_schema":1,"definitions":[{"namespace":"official","stable_id":port_id,"revision":7,"target":target(&entry)}],
         "contents":contents
-    })).unwrap()).unwrap();
+    }))
+    .unwrap();
+    IndexedCatalogBundle {
+        index,
+        contents: vec![(target(&entry), entry), (target(&contract), contract)],
+    }
+}
+
+pub(crate) fn indexed_catalog(catalog: &crate::Catalog, port_id: &str) -> crate::Catalog {
+    let bundle = indexed_catalog_bundle(catalog, port_id);
+    let index = crate::DefinitionContentIndex::parse(&bundle.index).unwrap();
+    let entry = &bundle.contents[0].1;
+    let contract = &bundle.contents[1].1;
     index
-        .inspect_catalog_projection("official", port_id, &entry, &contract)
+        .inspect_catalog_projection("official", port_id, entry, contract)
         .unwrap()
         .catalog()
         .clone()

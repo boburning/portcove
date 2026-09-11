@@ -34,6 +34,30 @@ edges are rejected; this initial format cannot express recursive target graphs.
 The result supplies validated semantics only: publisher grants, authentication,
 freshness, catalog selection and operation eligibility remain separate boundaries.
 
+## Authenticated successor candidate acquisition
+
+Core acquires an inert `AuthenticatedDefinitionCandidate` from a caller-supplied
+trusted root and separate metadata/target HTTPS bases. The loader uses maintained
+TUF verification with safe expiration enforcement, bounded root rotation and
+consistent snapshots. A terminating `official-definitions` role must have exactly
+the `definitions/index.json` and `sha256/*.json` paths; top-level or nested roles
+cannot widen that authority. The public transport accepts no URL credentials,
+queries, fragments, redirects, ambient proxy configuration or non-HTTPS fetches.
+
+The authenticated index is read within its declared bound, then every indexed
+target's signed length and digest is checked before any content fetch begins.
+Target reads are streamed into their individual and aggregate index bounds and
+verified again against both TUF and the core content inventory. The returned
+snapshot keeps all authenticated bytes in memory with metadata versions, earliest
+expiration and the index digest. A caller may inspect one supported catalog
+projection without interpreting unsupported sibling definitions.
+
+Acquisition does not write a library, persist replay floors, select a catalog,
+grant a publisher, check operation eligibility, install content or activate an
+updater. Those remain later core-owned transactions. The filesystem transport is
+available only to disposable signed tests; production construction requires the
+restricted HTTPS source type.
+
 ## Engine template capability ownership
 
 Core owns the installed template/version inventory and pure requirement
@@ -181,9 +205,10 @@ Installed launch readiness uses the retained source and BIOS profiles too.
 Within each status snapshot, source-health results are reused only for identical
 profile content; two installed contracts sharing a profile ID cannot inherit each
 other's result. Uninstalled sources retain their explicit unchecked state.
-Authenticated successor definitions, independent operation eligibility, historical
-admission proofs, and explicit revocation handling remain in the independent
-definition delivery work. No new publisher, signing grant, or updater is enabled.
+Durable successor selection and replay floors, independent operation eligibility,
+historical admission proofs, and explicit revocation handling remain in the
+independent definition delivery work. No new publisher, signing grant, or updater
+is enabled.
 
 Portcove currently has one authority for catalog, source, release, installation, update, rollback, persistence, recovery, and launch behavior: `portcove-core`. The CLI and Tauri backend are thin adapters around it. The React frontend invokes Tauri commands and never owns installation state. External frontends use the public CLI and own only their presentation and platform-facing translation; they do not become another game-management authority.
 
