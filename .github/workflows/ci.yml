@@ -197,23 +197,8 @@ jobs:
         run: echo "TMPDIR=$RUNNER_TEMP" >> "$GITHUB_ENV"
       - name: Install Linux desktop prerequisites
         if: runner.os == 'Linux'
-        timeout-minutes: 2
-        run: |
-          for source in /etc/apt/sources.list /etc/apt/apt-mirrors.txt; do
-            if [ -f "$source" ]; then
-              sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$source"
-            fi
-          done
-          # These prerequisites come from Ubuntu; unrelated runner repositories
-          # must not participate in resolving this build's dependency set.
-          ubuntu_sources=/etc/apt/sources.list
-          if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
-            ubuntu_sources=/etc/apt/sources.list.d/ubuntu.sources
-          fi
-          test -s "$ubuntu_sources"
-          apt_options=(-o "Dir::Etc::sourcelist=$ubuntu_sources" -o Dir::Etc::sourceparts=- -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 -o Acquire::Retries=0)
-          sudo apt-get "${apt_options[@]}" update
-          sudo apt-get "${apt_options[@]}" install -y --no-install-recommends libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+        timeout-minutes: 15
+        run: ./scripts/install-linux-desktop-prerequisites.sh
       - name: Test the full Rust workspace natively
         run: cargo nextest run --locked --workspace --partition "${{ matrix.partition }}"
 
@@ -311,23 +296,8 @@ jobs:
           key: ${{ hashFiles('Cargo.toml') }}
       - name: Install Linux desktop prerequisites
         if: runner.os == 'Linux'
-        timeout-minutes: 2
-        run: |
-          for source in /etc/apt/sources.list /etc/apt/apt-mirrors.txt; do
-            if [ -f "$source" ]; then
-              sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$source"
-            fi
-          done
-          # These prerequisites come from Ubuntu; unrelated runner repositories
-          # must not participate in resolving this build's dependency set.
-          ubuntu_sources=/etc/apt/sources.list
-          if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
-            ubuntu_sources=/etc/apt/sources.list.d/ubuntu.sources
-          fi
-          test -s "$ubuntu_sources"
-          apt_options=(-o "Dir::Etc::sourcelist=$ubuntu_sources" -o Dir::Etc::sourceparts=- -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 -o Acquire::Retries=0)
-          sudo apt-get "${apt_options[@]}" update
-          sudo apt-get "${apt_options[@]}" install -y --no-install-recommends libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+        timeout-minutes: 15
+        run: ./scripts/install-linux-desktop-prerequisites.sh
       - name: Test workspace documentation
         run: cargo test --locked --workspace --doc
 
@@ -418,7 +388,7 @@ jobs:
       - name: Lint repository scripts and workflows
         run: |
           aqua exec -- ruff check apps/desktop/assets/brand/models/v2
-          aqua exec -- shellcheck --severity=warning scripts/bootstrap-quality-tools.sh
+          aqua exec -- shellcheck --severity=warning scripts/bootstrap-quality-tools.sh scripts/install-linux-desktop-prerequisites.sh
           node scripts/run-actionlint.mjs
           node scripts/lint-tools.integration.mjs ruff shellcheck actionlint
       - name: Test machine CLI contract on Linux
@@ -432,23 +402,8 @@ jobs:
       - run: node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-rust-architecture.test.mjs
       - run: node scripts/check-rust-architecture.mjs
       - name: Install Linux desktop schema-export prerequisites
-        timeout-minutes: 2
-        run: |
-          for source in /etc/apt/sources.list /etc/apt/apt-mirrors.txt; do
-            if [ -f "$source" ]; then
-              sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$source"
-            fi
-          done
-          # These prerequisites come from Ubuntu; unrelated runner repositories
-          # must not participate in resolving this build's dependency set.
-          ubuntu_sources=/etc/apt/sources.list
-          if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
-            ubuntu_sources=/etc/apt/sources.list.d/ubuntu.sources
-          fi
-          test -s "$ubuntu_sources"
-          apt_options=(-o "Dir::Etc::sourcelist=$ubuntu_sources" -o Dir::Etc::sourceparts=- -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 -o Acquire::Retries=0)
-          sudo apt-get "${apt_options[@]}" update
-          sudo apt-get "${apt_options[@]}" install -y --no-install-recommends libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+        timeout-minutes: 15
+        run: ./scripts/install-linux-desktop-prerequisites.sh
       - name: Check child-process policy and live transport contracts
         run: |
           node scripts/check-child-process-policy.mjs

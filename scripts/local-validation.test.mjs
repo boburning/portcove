@@ -137,6 +137,16 @@ test("changed Node implementations select sibling tests and syntax checks", () =
   assert.ok(ids(plan).includes("node-tests"));
 });
 
+test("changed shell scripts run shellcheck across the maintained shell set", () => {
+  const { plan } = planFor(["scripts/install-linux-desktop-prerequisites.sh"]);
+  const shellLint = plan.find((entry) => entry.id === "shell-lint");
+  assert.ok(shellLint);
+  assert.ok(
+    shellLint.args.includes("scripts/install-linux-desktop-prerequisites.sh"),
+  );
+  assert.ok(shellLint.args.includes("scripts/bootstrap-quality-tools.sh"));
+});
+
 test("renames classify both the old and new ownership paths", () => {
   const { selection, plan } = planFor([
     change("docs/moved.md", {

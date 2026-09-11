@@ -44,7 +44,8 @@ jobs:
           key: updater-artifact-rehearsal
       - name: Install Linux packaging prerequisites
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf rpm
+        timeout-minutes: 15
+        run: ./scripts/install-linux-desktop-prerequisites.sh --include-rpm
       - run: pnpm install --frozen-lockfile
         working-directory: apps/desktop
       - name: Test signature rejection and inventory identity

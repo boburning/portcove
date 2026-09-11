@@ -40,7 +40,8 @@ jobs:
           # Reuse the cache created by the former single deep-quality job.
           shared-key: deep-quality
       - name: Install Linux desktop prerequisites
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+        timeout-minutes: 15
+        run: ./scripts/install-linux-desktop-prerequisites.sh
       - name: Restore pinned rscheck binaries
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -96,7 +97,8 @@ jobs:
           path: ~/.cargo/bin/cargo-hawk
           key: quality-hawk-binary-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/quality-tools.json') }}
       - name: Install Linux desktop prerequisites
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+        timeout-minutes: 15
+        run: ./scripts/install-linux-desktop-prerequisites.sh
       - name: Install pinned Hawk toolchain
         run: rustup toolchain install ${{ steps.quality-pins.outputs.hawk_rust }} --component rustc-dev
       - name: Check cached pinned Hawk

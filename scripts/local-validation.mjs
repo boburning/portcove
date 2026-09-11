@@ -511,12 +511,13 @@ export function buildPlan(selection, context = {}) {
     );
   if (selection.shellLint)
     commands.push(
-      command("shell-lint", "lint the maintained shell bootstrap", "aqua", [
+      command("shell-lint", "lint the maintained shell scripts", "aqua", [
         "exec",
         "--",
         "shellcheck",
         "--severity=warning",
         "scripts/bootstrap-quality-tools.sh",
+        "scripts/install-linux-desktop-prerequisites.sh",
       ]),
     );
   if (selection.pythonLint)
