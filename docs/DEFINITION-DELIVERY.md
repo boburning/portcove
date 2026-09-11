@@ -226,6 +226,25 @@ semantics, reference-graph depth/cycle checks, identity agreement with entry
 content, replay/revocation policy and transactional loading remain separate
 required boundaries. A byte match alone cannot turn a target into a usable port.
 
+`acquire_definition_candidate` now supplies the authenticated acquisition boundary
+around that inspector. It accepts a caller-supplied trusted root and credential-free
+HTTPS metadata and target bases. Safe expiration checks, at most 32 root updates,
+consistent snapshots and separate metadata limits are mandatory. A terminating
+`official-definitions` delegation must contain exactly `definitions/index.json`
+and `sha256/*.json`; targets in the top-level role, nested delegates, a hash-prefix
+form of the named role or broader path patterns fail closed. Redirects and ambient
+proxy configuration are disabled.
+
+The loader authenticates and bounds the index, compares every listed target's TUF
+length and SHA-256 before fetching content, streams at most eight target reads at a
+time, and verifies every completed target against both authenticated metadata and
+the index. Its immutable in-memory result includes all target bytes, the loaded
+metadata versions, earliest expiration and exact index digest. It can interpret
+one supported projection while an unsupported sibling remains isolated. This
+candidate does not persist replay floors, select or replace a catalog, establish
+publisher grants or operation eligibility, install content, or provision a
+production root/repository.
+
 The successor target bundle has its own versioned schema, independent of source
 catalog schema 2 and signed envelope format 1. Its outer index is bounded and
 strictly validated before entry processing. Each content-addressed entry includes

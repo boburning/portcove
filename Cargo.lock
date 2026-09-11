@@ -3382,6 +3382,7 @@ name = "portcove-core"
 version = "0.1.0-alpha.2"
 dependencies = [
  "async-trait",
+ "aws-lc-rs",
  "crc32fast",
  "directories",
  "ed25519-dalek",
@@ -3391,6 +3392,7 @@ dependencies = [
  "futures-util",
  "hex",
  "image",
+ "jiff",
  "keyring",
  "libc",
  "proptest",
@@ -3407,6 +3409,7 @@ dependencies = [
  "thiserror 2.0.20",
  "time",
  "tokio",
+ "tough",
  "tracing",
  "uuid",
  "windows-sys 0.61.2",

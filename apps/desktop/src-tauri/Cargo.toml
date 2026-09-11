@@ -31,5 +31,5 @@ aws-lc-rs = "1"
 futures-util.workspace = true
 jiff = "0.2"
 tempfile.workspace = true
-tough = { version = "0.24.0", default-features = false }
+tough.workspace = true
 url = "2"

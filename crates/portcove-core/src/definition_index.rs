@@ -142,6 +142,16 @@ impl DefinitionContentIndex {
         Ok(self.content(target)?.length)
     }
 
+    pub(crate) fn content_records(&self) -> impl Iterator<Item = (&str, &str, u64)> {
+        self.contents.values().map(|content| {
+            (
+                content.target.as_str(),
+                content.sha256.as_str(),
+                content.length,
+            )
+        })
+    }
+
     /// Verify supplied bytes against this inventory. Does not fetch, parse or execute them.
     /// Transport must independently authenticate the index and bound acquisition.
     pub fn verify_content(&self, target: &str, bytes: &[u8]) -> Result<()> {
