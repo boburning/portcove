@@ -134,6 +134,15 @@ impl PortcoveService {
         })?;
         crate::source_inspection::verify_registered(catalog, &source)?;
         let source_inspection = crate::source_report::registered_report(catalog, source.clone())?;
+        self.require_definition_operation(
+            catalog,
+            port,
+            crate::definition_eligibility::DefinitionOperationContext::observed(
+                crate::DefinitionOperation::Prepare,
+                true,
+                install.verified,
+            ),
+        )?;
         let hints = port.setup_executable_hints.get(&host).ok_or_else(|| {
             PortcoveError::unsupported("this host has no declared setup executable")
         })?;

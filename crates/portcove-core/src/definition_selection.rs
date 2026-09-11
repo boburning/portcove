@@ -10,8 +10,10 @@ use super::{
     DefinitionPublisherObservation, DefinitionPublisherStatus, EligibleDefinitionCandidate,
 };
 use crate::{
-    AuthenticatedDefinitionProvenance, Catalog, DefinitionReplayFloor, Library, PortcoveError,
-    Result, definition_projection::DefinitionSnapshot,
+    AuthenticatedDefinitionProvenance, Catalog, DefinitionEligibility, DefinitionEligibilityFacts,
+    DefinitionReplayFloor, Library, PortcoveError, Result,
+    definition_eligibility::DefinitionOperationContext, definition_projection::DefinitionSnapshot,
+    evaluate_definition_eligibility,
 };
 
 const MAX_SELECTION_JSON_BYTES: usize = 16 * 1024 * 1024;
@@ -303,6 +305,14 @@ impl PublisherPolicyRecord {
             && self.grant_id == selection.grant_id
             && self.status == DefinitionPublisherStatus::Scoped
     }
+
+    fn matches_identity(&self, identity: &DefinitionSelectionIdentity) -> bool {
+        self.namespace == identity.namespace
+            && self.stable_id == identity.stable_id
+            && self.root_sha256 == identity.repository_root_sha256
+            && self.policy_revision == identity.policy_revision
+            && self.grant_id == identity.grant_id
+    }
 }
 
 impl Library {
@@ -393,6 +403,66 @@ impl Library {
         let connection = self.connection()?;
         let transaction = connection.unchecked_transaction()?;
         let result = DefinitionSelectionState::read(&transaction)?.status();
+        transaction.commit()?;
+        Ok(result)
+    }
+
+    pub(crate) fn assess_definition_operation(
+        &self,
+        identity: &DefinitionSelectionIdentity,
+        context: DefinitionOperationContext,
+    ) -> Result<DefinitionEligibility> {
+        validate_sha256(&identity.repository_root_sha256)?;
+        DefinitionReplayFloor::from(&identity.provenance).validate()?;
+        if identity.namespace.is_empty()
+            || identity.stable_id.is_empty()
+            || identity.definition_revision == 0
+            || identity.policy_revision == 0
+            || !valid_grant_id(&identity.grant_id)
+            || identity.repository_root_sha256 != identity.provenance.root_sha256
+        {
+            return Err(PortcoveError::state(
+                "retained definition admission identity is invalid",
+            ));
+        }
+
+        let connection = self.connection()?;
+        let transaction = connection.unchecked_transaction()?;
+        let state = DefinitionSelectionState::read(&transaction)?;
+        let policy =
+            PublisherPolicyRecord::read(&transaction, &identity.namespace, &identity.stable_id)?;
+        let replayed_metadata = state
+            .replay_floor
+            .as_ref()
+            .is_some_and(|floor| floor.evaluate(&identity.provenance).is_err());
+        let publisher_scoped = policy
+            .as_ref()
+            .is_some_and(|policy| policy.status == DefinitionPublisherStatus::Scoped);
+        let publisher_revoked = policy
+            .as_ref()
+            .is_some_and(|policy| policy.status == DefinitionPublisherStatus::Revoked);
+        let same_identity_changed = policy
+            .as_ref()
+            .is_some_and(|policy| !policy.matches_identity(identity));
+        let result = evaluate_definition_eligibility(&DefinitionEligibilityFacts {
+            operation: context.operation,
+            publisher_scoped,
+            publisher_revoked,
+            capability_supported: true,
+            unknown_safety_field: false,
+            ownership_preserved: true,
+            same_identity_changed,
+            expected_integrity: true,
+            local_integrity_valid: context.local_integrity_valid,
+            required_source_missing: context.required_source_missing,
+            source_mismatch: context.source_mismatch,
+            mandatory_checks_passed: true,
+            fresh_metadata: Self::now() < expiration_unix(&identity.provenance)?,
+            replayed_metadata,
+            refresh_interrupted: false,
+            retained_contract: context.retained_contract,
+            retained_local_authorization: context.retained_contract,
+        });
         transaction.commit()?;
         Ok(result)
     }

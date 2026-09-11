@@ -102,7 +102,8 @@ pub use definition_capabilities::{
 };
 pub use definition_eligibility::{
     DefinitionEligibility, DefinitionEligibilityFacts, DefinitionEligibilityOutcome,
-    DefinitionEligibilityReason, DefinitionOperation, evaluate_definition_eligibility,
+    DefinitionEligibilityReason, DefinitionOperation, DefinitionOperationAssessment,
+    evaluate_definition_eligibility,
 };
 pub use definition_entry::DefinitionEntryInspection;
 pub use definition_index::{DefinitionContentIndex, IndexedDefinition};
@@ -187,4 +188,4 @@ pub use source_report::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 46;
+pub const API_SCHEMA_VERSION: u32 = 47;

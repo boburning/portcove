@@ -82,10 +82,10 @@ retained launch may continue during outage or a rejected refresh, but known
 revocation, local corruption, changed recorded identity and failed mandatory
 checks still hold it. An explicitly authorized local retained launch may omit
 authenticated upstream acquisition without acquiring official publisher authority.
-Source failures hold only operations that consume that source. Gameplay remains
-separate evidence and is not an input to the decision. The evaluator has no I/O or
-mutation; publisher grants, durable selection and adapter exposure remain later
-boundaries.
+Source failures hold only operations whose existing operation-specific authority
+establishes that source requirement. A catalog source profile alone does not make
+the source mandatory for every operation. Gameplay remains separate evidence and
+is not an input to the decision. The evaluator has no I/O or mutation.
 
 `AuthenticatedDefinitionCandidate::evaluate_availability` composes the acquisition,
 entry, capability, complete catalog projection, replay and eligibility boundaries
@@ -114,7 +114,14 @@ exact, and new source records must be reachable from the selected port. Rejected
 revoked, stale or corrupt selections fall back visibly without hiding baseline
 ports. Catalog provenance reports `definition_selected` when activation succeeds.
 The loaded catalog also carries the exact selection identity that passed those
-checks. SQLite schema 27 advances the library writer protocol so a newly written
+checks. Core now compares that identity with current publisher policy and replay
+state when it builds API-schema-47 port status. Install, preparation and launch
+entry points consume the same decision before publication, persistent-data work
+or child-process preparation. Retained launch ignores metadata expiry and an older
+replay floor, while new install and retained preparation do not; known revocation,
+policy identity drift and invalid retained local state remain holds. CLI and Tauri
+receive the same typed operation, outcome and stable reason without reimplementing
+policy. SQLite schema 27 advances the library writer protocol so a newly written
 successor install retains that identity instead of losing its authenticated
 origin during later lifecycle work. Production still has no grant writer.
 
@@ -270,8 +277,10 @@ Installed launch readiness uses the retained source and BIOS profiles too.
 Within each status snapshot, source-health results are reused only for identical
 profile content; two installed contracts sharing a profile ID cannot inherit each
 other's result. Uninstalled sources retain their explicit unchecked state.
-Independent operation eligibility and explicit revocation handling remain in the
-definition delivery work. No new publisher, signing grant, or updater is enabled.
+API schema 47 exposes successor install, preparation and launch assessments on the
+shared port status model. Lifecycle entry points enforce the same core result;
+legacy format-1/2 contracts retain their existing behavior because they have no
+invented publisher identity. No new publisher, signing grant, or updater is enabled.
 
 Portcove currently has one authority for catalog, source, release, installation, update, rollback, persistence, recovery, and launch behavior: `portcove-core`. The CLI and Tauri backend are thin adapters around it. The React frontend invokes Tauri commands and never owns installation state. External frontends use the public CLI and own only their presentation and platform-facing translation; they do not become another game-management authority.
 

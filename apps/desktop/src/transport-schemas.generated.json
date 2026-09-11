@@ -728,6 +728,78 @@
         ],
         "type": "object"
       },
+      "DefinitionEligibility": {
+        "properties": {
+          "outcome": {
+            "$ref": "#/$defs/DefinitionEligibilityOutcome"
+          },
+          "reason": {
+            "$ref": "#/$defs/DefinitionEligibilityReason"
+          }
+        },
+        "required": [
+          "outcome",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "DefinitionEligibilityOutcome": {
+        "enum": [
+          "eligible",
+          "hold",
+          "escalate"
+        ],
+        "type": "string"
+      },
+      "DefinitionEligibilityReason": {
+        "enum": [
+          "mandatory_checks_passed",
+          "publisher_revoked",
+          "unknown_safety_semantics",
+          "publisher_scope_required",
+          "engine_capability_required",
+          "ownership_migration_required",
+          "metadata_replay",
+          "refresh_incomplete",
+          "metadata_stale",
+          "recorded_identity_changed",
+          "authenticated_integrity_required",
+          "local_integrity_failed",
+          "mandatory_check_failed",
+          "source_identity_mismatch",
+          "required_source_missing"
+        ],
+        "type": "string"
+      },
+      "DefinitionOperation": {
+        "enum": [
+          "availability",
+          "install",
+          "prepare",
+          "launch"
+        ],
+        "type": "string"
+      },
+      "DefinitionOperationAssessment": {
+        "description": "One operation decision exposed by the shared core status model.\n\n`retained` distinguishes an installed version's immutable admission from the\ncurrently selected definition used for new work.",
+        "properties": {
+          "eligibility": {
+            "$ref": "#/$defs/DefinitionEligibility"
+          },
+          "operation": {
+            "$ref": "#/$defs/DefinitionOperation"
+          },
+          "retained": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "operation",
+          "eligibility",
+          "retained"
+        ],
+        "type": "object"
+      },
       "ErrorCode": {
         "enum": [
           "usage",
@@ -976,6 +1048,13 @@
           },
           "channel": {
             "$ref": "#/$defs/ReleaseChannel"
+          },
+          "definition_operations": {
+            "description": "Successor-definition policy decisions. Legacy catalog ports retain an empty list.",
+            "items": {
+              "$ref": "#/$defs/DefinitionOperationAssessment"
+            },
+            "type": "array"
           },
           "last_launched_at": {
             "default": null,
@@ -25682,6 +25761,78 @@
         ],
         "type": "object"
       },
+      "DefinitionEligibility": {
+        "properties": {
+          "outcome": {
+            "$ref": "#/$defs/DefinitionEligibilityOutcome"
+          },
+          "reason": {
+            "$ref": "#/$defs/DefinitionEligibilityReason"
+          }
+        },
+        "required": [
+          "outcome",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "DefinitionEligibilityOutcome": {
+        "enum": [
+          "eligible",
+          "hold",
+          "escalate"
+        ],
+        "type": "string"
+      },
+      "DefinitionEligibilityReason": {
+        "enum": [
+          "mandatory_checks_passed",
+          "publisher_revoked",
+          "unknown_safety_semantics",
+          "publisher_scope_required",
+          "engine_capability_required",
+          "ownership_migration_required",
+          "metadata_replay",
+          "refresh_incomplete",
+          "metadata_stale",
+          "recorded_identity_changed",
+          "authenticated_integrity_required",
+          "local_integrity_failed",
+          "mandatory_check_failed",
+          "source_identity_mismatch",
+          "required_source_missing"
+        ],
+        "type": "string"
+      },
+      "DefinitionOperation": {
+        "enum": [
+          "availability",
+          "install",
+          "prepare",
+          "launch"
+        ],
+        "type": "string"
+      },
+      "DefinitionOperationAssessment": {
+        "description": "One operation decision exposed by the shared core status model.\n\n`retained` distinguishes an installed version's immutable admission from the\ncurrently selected definition used for new work.",
+        "properties": {
+          "eligibility": {
+            "$ref": "#/$defs/DefinitionEligibility"
+          },
+          "operation": {
+            "$ref": "#/$defs/DefinitionOperation"
+          },
+          "retained": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "operation",
+          "eligibility",
+          "retained"
+        ],
+        "type": "object"
+      },
       "InstallRecord": {
         "properties": {
           "artifact": {
@@ -26020,6 +26171,13 @@
       },
       "channel": {
         "$ref": "#/$defs/ReleaseChannel"
+      },
+      "definition_operations": {
+        "description": "Successor-definition policy decisions. Legacy catalog ports retain an empty list.",
+        "items": {
+          "$ref": "#/$defs/DefinitionOperationAssessment"
+        },
+        "type": "array"
       },
       "last_launched_at": {
         "default": null,

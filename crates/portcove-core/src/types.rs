@@ -479,6 +479,9 @@ pub struct PortStatus {
     pub readiness: Option<LaunchReadiness>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_update_check: Option<UpdateSnapshot>,
+    /// Successor-definition policy decisions. Legacy catalog ports retain an empty list.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub definition_operations: Vec<crate::DefinitionOperationAssessment>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

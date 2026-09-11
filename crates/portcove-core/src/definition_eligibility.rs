@@ -68,6 +68,42 @@ pub struct DefinitionEligibility {
     pub reason: DefinitionEligibilityReason,
 }
 
+/// One operation decision exposed by the shared core status model.
+///
+/// `retained` distinguishes an installed version's immutable admission from the
+/// currently selected definition used for new work.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct DefinitionOperationAssessment {
+    pub operation: DefinitionOperation,
+    pub eligibility: DefinitionEligibility,
+    pub retained: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct DefinitionOperationContext {
+    pub operation: DefinitionOperation,
+    pub retained_contract: bool,
+    pub local_integrity_valid: bool,
+    pub required_source_missing: bool,
+    pub source_mismatch: bool,
+}
+
+impl DefinitionOperationContext {
+    pub(crate) const fn observed(
+        operation: DefinitionOperation,
+        retained_contract: bool,
+        local_integrity_valid: bool,
+    ) -> Self {
+        Self {
+            operation,
+            retained_contract,
+            local_integrity_valid,
+            required_source_missing: false,
+            source_mismatch: false,
+        }
+    }
+}
+
 impl DefinitionEligibility {
     const fn eligible() -> Self {
         Self {

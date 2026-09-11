@@ -30,7 +30,7 @@ fn artwork_cli_preserves_choices_and_requires_explicit_unused_removal() {
         String::from_utf8_lossy(&imported.stdout)
     );
     let imported = json_stdout(&imported);
-    assert_eq!(imported["schema_version"], 46);
+    assert_eq!(imported["schema_version"], 47);
     assert_eq!(imported["command"], "artwork.import");
     assert_eq!(imported["data"]["choice"]["revision"], 1);
     let id = imported["data"]["choice"]["asset_sha256"].as_str().unwrap();

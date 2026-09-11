@@ -383,6 +383,14 @@ record.
 Authenticated loading, freshness/revocation, transactional catalog selection and
 scoped runtime activation are implemented in core. Production root and grant
 provisioning remain required before automatic public delivery can use this path.
+API schema 47 composes a format-3 selection or retained admission with current
+library-owned publisher policy, replay floor and metadata freshness. Port status
+exports typed install, preparation and launch outcomes and stable reasons through
+the shared CLI/Tauri contract. The matching lifecycle entry points re-evaluate the
+same policy before publication, persistent-data work or child-process preparation.
+Retained launch may use its exact verified contract after metadata expiration or a
+newer replay floor; preparation and new installation require current metadata.
+Known revocation and changed publisher authorization continue to hold retained use.
 
 | Client/content combination                            | Required behavior                                                                                                                                               |
 | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |

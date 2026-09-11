@@ -1451,6 +1451,7 @@ impl Library {
                     successful_launches: history.map_or(0, |value| value.1.max(0) as u64),
                     readiness: None,
                     last_update_check: update_snapshots.get(port_id).cloned(),
+                    definition_operations: Vec::new(),
                 })
             })
             .collect::<Result<Vec<_>>>()?;

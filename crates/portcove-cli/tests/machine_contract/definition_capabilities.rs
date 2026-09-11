@@ -31,7 +31,7 @@ fn definition_requirements_are_inspected_offline_without_opening_a_library() {
             String::from_utf8_lossy(&output.stderr)
         );
         let response = json_stdout(&output);
-        assert_eq!(response["schema_version"], 46);
+        assert_eq!(response["schema_version"], 47);
         assert_eq!(response["command"], "catalog.check-capabilities");
         assert_eq!(response["data"]["compatible"], false);
         let checks = &response["data"]["checks"];
