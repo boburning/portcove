@@ -10,8 +10,8 @@ use super::{
     DefinitionPublisherObservation, DefinitionPublisherStatus, EligibleDefinitionCandidate,
 };
 use crate::{
-    AuthenticatedDefinitionProvenance, DefinitionReplayFloor, Library, PortcoveError, Result,
-    definition_projection::DefinitionSnapshot,
+    AuthenticatedDefinitionProvenance, Catalog, DefinitionReplayFloor, Library, PortcoveError,
+    Result, definition_projection::DefinitionSnapshot,
 };
 
 const MAX_SELECTION_JSON_BYTES: usize = 16 * 1024 * 1024;
@@ -277,6 +277,15 @@ impl PublisherPolicyRecord {
             && Some(self.grant_id.as_str()) == observation.grant_id.as_deref()
             && self.status == observation.status
     }
+
+    fn matches_selection(&self, selection: &StoredDefinitionSelection) -> bool {
+        self.namespace == selection.namespace
+            && self.stable_id == selection.stable_id
+            && self.root_sha256 == selection.repository_root_sha256
+            && self.policy_revision == selection.policy_revision
+            && self.grant_id == selection.grant_id
+            && self.status == DefinitionPublisherStatus::Scoped
+    }
 }
 
 impl Library {
@@ -422,6 +431,35 @@ impl Library {
     }
 }
 
+pub(crate) fn load_selected_definition_catalog(
+    connection: &Connection,
+    baseline: &Catalog,
+    now_unix: i64,
+) -> Result<Option<(Catalog, i64)>> {
+    let state = DefinitionSelectionState::read(connection)?;
+    let Some(selection) = state.active.as_ref() else {
+        return Ok(None);
+    };
+    let policy =
+        PublisherPolicyRecord::read(connection, &selection.namespace, &selection.stable_id)?
+            .ok_or_else(|| {
+                PortcoveError::conflict("selected definition publisher is not scoped")
+            })?;
+    if !policy.matches_selection(selection) {
+        return Err(PortcoveError::conflict(
+            "selected definition publisher policy changed",
+        ));
+    }
+    require_fresh(&selection.provenance, now_unix)?;
+    let catalog = selection.snapshot.catalog()?;
+    crate::definition_loader::validate_definition_transition(
+        baseline,
+        &catalog,
+        &selection.stable_id,
+    )?;
+    Ok(Some((catalog, expiration_unix(&selection.provenance)?)))
+}
+
 pub(crate) fn migrate(transaction: &rusqlite::Transaction<'_>) -> Result<()> {
     transaction.execute_batch(&format!(
         "CREATE TABLE definition_publisher_policy(
@@ -447,15 +485,21 @@ pub(crate) fn migrate(transaction: &rusqlite::Transaction<'_>) -> Result<()> {
 }
 
 fn require_fresh(provenance: &AuthenticatedDefinitionProvenance, now_unix: i64) -> Result<()> {
-    let expires_at = OffsetDateTime::parse(&provenance.earliest_expiration, &Rfc3339)
-        .map_err(|_| PortcoveError::state("selected definition expiration is invalid"))?
-        .unix_timestamp();
+    let expires_at = expiration_unix(provenance)?;
     if now_unix >= expires_at {
         return Err(PortcoveError::verification(
             "definition metadata expired before selection committed",
         ));
     }
     Ok(())
+}
+
+fn expiration_unix(provenance: &AuthenticatedDefinitionProvenance) -> Result<i64> {
+    Ok(
+        OffsetDateTime::parse(&provenance.earliest_expiration, &Rfc3339)
+            .map_err(|_| PortcoveError::state("selected definition expiration is invalid"))?
+            .unix_timestamp(),
+    )
 }
 
 fn encode_bounded(value: &impl Serialize, label: &str) -> Result<String> {

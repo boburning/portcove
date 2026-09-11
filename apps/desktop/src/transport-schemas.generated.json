@@ -3682,7 +3682,8 @@
         "enum": [
           "embedded",
           "signed_active",
-          "signed_previous"
+          "signed_previous",
+          "definition_selected"
         ],
         "type": "string"
       }
@@ -3739,7 +3740,8 @@
         "enum": [
           "embedded",
           "signed_active",
-          "signed_previous"
+          "signed_previous",
+          "definition_selected"
         ],
         "type": "string"
       },
@@ -3867,7 +3869,8 @@
         "enum": [
           "embedded",
           "signed_active",
-          "signed_previous"
+          "signed_previous",
+          "definition_selected"
         ],
         "type": "string"
       },
@@ -4516,7 +4519,8 @@
         "enum": [
           "embedded",
           "signed_active",
-          "signed_previous"
+          "signed_previous",
+          "definition_selected"
         ],
         "type": "string"
       },

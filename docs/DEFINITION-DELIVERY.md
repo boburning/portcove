@@ -270,9 +270,14 @@ grant ID, repository root, definition identity, metadata expiration and newest
 floor before storing the exact interpreted snapshot and proposed floor in the
 same row. A repeated exact selection does not advance the state revision. A
 policy change, downgrade, equivocation, malformed stored value or failed commit
-preserves the previous selected bytes and floor. The durable record is still
-inert: production grant provisioning and runtime-loader activation remain
-separate protected and migration-acceptance boundaries.
+preserves the previous selected bytes and floor. The runtime loader now consumes
+that record from the same SQLite snapshot as the embedded or signed baseline. It
+accepts the projection only while the exact publisher grant remains scoped and
+fresh and the selected port is the only semantic catalog change. Every unrelated
+port and existing source-authority record must remain exact; additions must be
+reachable only from the selected port. Failure leaves the baseline catalog usable
+and records a visible fallback reason. Production grant provisioning remains a
+separate protected boundary.
 
 The successor target bundle has its own versioned schema, independent of source
 catalog schema 2 and signed envelope format 1. Its outer index is bounded and
@@ -368,8 +373,9 @@ recapture after preparation or manifest refresh preserves the same bytes. Other
 ports in the shared graph do not inherit the selected entry's origin. Format 1
 keeps the existing canonical legacy projection without inventing historical data.
 Writer protocol 25 prevents older clients from dropping format-2 retention.
-Authenticated loading, freshness/revocation and transactional catalog selection
-remain required before this path can replace the current definition loader.
+Authenticated loading, freshness/revocation, transactional catalog selection and
+scoped runtime activation are implemented in core. Production root and grant
+provisioning remain required before automatic public delivery can use this path.
 
 | Client/content combination                            | Required behavior                                                                                                                                               |
 | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |

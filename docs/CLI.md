@@ -33,6 +33,11 @@ Schema 42 adds `exec --request-id <uuid>` and `launch show <uuid>` for exact dur
 launch observation, plus the nullable `launch_request` output schema. `exec`
 continues to own raw game streams and supervise through game exit/save collection.
 
+Schema 46 adds the `definition_selected` catalog provenance origin. Core reports
+that origin only while the exact selected definition is fresh, still authorized,
+and scoped to its selected port. A rejected selection keeps the existing catalog
+origin and appends a visible fallback reason.
+
 Schema 45 adds `capabilities.engine_templates`, `catalog.check-capabilities`, and
 the `definition_capability_request` / `definition_capability_report` schemas.
 This reports installed template contract versions independently from definition
@@ -59,7 +64,7 @@ The CLI API schema version is independent of the Portcove release version. Every
 
 ```json
 {
-  "schema_version": 45,
+  "schema_version": 46,
   "ok": true,
   "command": "status",
   "data": {},
@@ -191,7 +196,7 @@ other games remain readable. New installations retain their execution and
 persistence definitions in manifest schema 6, introduced with writer protocol 23.
 Protocol 25 now protects exact successor definition retention; older clients refuse
 to modify an upgraded library. The Playnite
-reference accepts API schemas 42 through 45 with event schema 2.
+reference accepts API schemas 42 through 46 with event schema 2.
 
 API schema 22 adds the core-resolved per-game output location to install plans
 and path results. It distinguishes a one-request override, the saved port
