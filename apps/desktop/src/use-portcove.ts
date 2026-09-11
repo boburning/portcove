@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type SetStateAction,
+} from "react";
 import { listen } from "@tauri-apps/api/event";
 import { desktopApi } from "./api";
 import type {
@@ -170,7 +177,6 @@ export function useOperationState(refresh: () => Promise<void>) {
 }
 
 export function useUpdateCenter(perform: Perform, statuses: PortStatus[]) {
-  const [outcomes, setOutcomes] = useState<UpdateCheckOutcome[]>([]);
   const snapshots = statuses.flatMap((status) => {
     const snapshot = currentUpdateSnapshot(status);
     return snapshot
@@ -184,23 +190,23 @@ export function useUpdateCenter(perform: Perform, statuses: PortStatus[]) {
         ]
       : [];
   });
-  const snapshotsRef = useRef(snapshots);
-  snapshotsRef.current = snapshots;
   const snapshotBaseline = snapshots
     .map(
       (outcome) =>
         `${outcome.port_id}:${outcome.result?.release.asset.sha256}:${outcome.result?.installed_artifact?.sha256}:${JSON.stringify(outcome.result?.required_runtime)}:${JSON.stringify(outcome.result?.installed_runtime)}`,
     )
     .join("|");
-  useEffect(() => {
-    setOutcomes(snapshotsRef.current);
-  }, [snapshotBaseline]);
+  const [checked, setChecked] = useState<{
+    baseline: string;
+    outcomes: UpdateCheckOutcome[];
+  }>();
+  const outcomes = checked?.baseline === snapshotBaseline ? checked.outcomes : snapshots;
   const checkAll = useCallback(async () => {
     const result = await perform("check installed", desktopApi.checkInstalled);
     if (result) {
-      setOutcomes(result);
+      setChecked({ baseline: snapshotBaseline, outcomes: result });
     }
-  }, [perform]);
+  }, [perform, snapshotBaseline]);
   return { outcomes, checkAll };
 }
 
@@ -211,7 +217,6 @@ function useReviewRequest<T>(identity: string, perform: Perform) {
   useLayoutEffect(() => {
     const requests = generation.current;
     requests.begin();
-    setReviewed(undefined);
     return () => {
       requests.begin();
     };
@@ -276,9 +281,6 @@ export function useAdoptionPlanning(
     perform,
   );
   const [failedIdentity, setFailedIdentity] = useState<string>();
-  useLayoutEffect(() => {
-    setFailedIdentity(undefined);
-  }, [identity]);
   const review = async () => {
     setFailedIdentity(undefined);
     if (open && path.trim())
@@ -322,38 +324,43 @@ export function useSourceHealth(
   requestedProfileIds: readonly string[] = [],
   catalogIdentity = "",
 ) {
-  const [outcomes, setOutcomes] = useState<SourceVerificationOutcome[]>([]);
-  const [inspections, setInspections] = useState<ReadonlyMap<string, SourceInspectionReport>>(
-    new Map(),
-  );
+  const [verified, setVerified] = useState<{
+    baseline: string;
+    outcomes: SourceVerificationOutcome[];
+  }>();
+  const [inspected, setInspected] = useState<{
+    baseline: string;
+    inspections: ReadonlyMap<string, SourceInspectionReport>;
+  }>();
   const generation = useRef(new LatestRequestGeneration());
   const requested = new Set(requestedProfileIds);
   const inspectionSources = sources.filter((source) => requested.has(source.profile_id));
-  const inspectionSourcesRef = useRef(inspectionSources);
-  inspectionSourcesRef.current = inspectionSources;
   const baseline = `${catalogIdentity}|${JSON.stringify(inspectionSources)}`;
+  const inspectionInput = useRef({ baseline, sources: inspectionSources });
+  useLayoutEffect(() => {
+    inspectionInput.current = { baseline, sources: inspectionSources };
+  });
   const inspectAll = useCallback(async () => {
-    const currentSources = inspectionSourcesRef.current;
+    const { baseline: currentBaseline, sources: currentSources } = inspectionInput.current;
     const request = generation.current.begin();
     const results = await Promise.allSettled(
       currentSources.map((source) => desktopApi.inspectSource(source.profile_id)),
     );
     if (!generation.current.isCurrent(request)) return;
-    setInspections(
-      new Map(
+    setInspected({
+      baseline: currentBaseline,
+      inspections: new Map(
         results.flatMap((result, index) =>
           result.status === "fulfilled"
             ? [[currentSources[index].profile_id, result.value] as const]
             : [],
         ),
       ),
-    );
+    });
   }, []);
   useEffect(() => {
     const requests = generation.current;
     requests.begin();
-    setOutcomes([]);
-    setInspections(new Map());
     void inspectAll();
     return () => {
       requests.begin();
@@ -361,9 +368,14 @@ export function useSourceHealth(
   }, [baseline, inspectAll]);
   const verifyAll = useCallback(async () => {
     const result = await perform("verify sources", desktopApi.verifySources);
-    if (result) setOutcomes(result);
+    if (result) setVerified({ baseline, outcomes: result });
     await inspectAll();
-  }, [inspectAll, perform]);
+  }, [baseline, inspectAll, perform]);
+  const outcomes = verified?.baseline === baseline ? verified.outcomes : [];
+  const inspections =
+    inspected?.baseline === baseline
+      ? inspected.inspections
+      : new Map<string, SourceInspectionReport>();
   return { outcomes, inspections, inspectAll, verifyAll };
 }
 
@@ -381,25 +393,32 @@ export function usePortBackups(portId: string | undefined, setError: (error?: st
   const requestId = useRef(0);
   const refresh = useCallback(async () => {
     const request = ++requestId.current;
-    if (!portId) {
-      setInventory(emptyInventory());
-      return;
-    }
+    if (!portId) return;
     try {
       const result = await desktopApi.backups(portId);
       if (request === requestId.current) setInventory(result);
     } catch (value) {
       if (request === requestId.current) setError(errorText(value));
     }
-  }, [emptyInventory, portId, setError]);
+  }, [portId, setError]);
   useEffect(() => {
-    setInventory(emptyInventory());
-    void refresh();
+    if (portId) {
+      const request = ++requestId.current;
+      void desktopApi
+        .backups(portId)
+        .then((result) => {
+          if (request === requestId.current) setInventory(result);
+        })
+        .catch((value) => {
+          if (request === requestId.current) setError(errorText(value));
+        });
+    }
     return () => {
       requestId.current += 1;
     };
-  }, [emptyInventory, refresh]);
-  return { backups: inventory.backups, inventory, refresh };
+  }, [portId, setError]);
+  const currentInventory = inventory.port_id === (portId ?? "") ? inventory : emptyInventory();
+  return { backups: currentInventory.backups, inventory: currentInventory, refresh };
 }
 
 export function useGithubAuth(perform: Perform, setError: (error?: string) => void) {
@@ -414,8 +433,19 @@ export function useGithubAuth(perform: Perform, setError: (error?: string) => vo
     }
   }, [setError]);
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    let current = true;
+    void desktopApi
+      .githubAuthStatus()
+      .then((result) => {
+        if (current) setStatus(result);
+      })
+      .catch((value) => {
+        if (current) setError(errorText(value));
+      });
+    return () => {
+      current = false;
+    };
+  }, [setError]);
   useEffect(() => {
     if (!deviceLogin) return;
     let cancelled = false;
@@ -476,7 +506,7 @@ export function useGithubAuth(perform: Perform, setError: (error?: string) => vo
 }
 
 export function usePortcoveUi() {
-  const [view, setView] = useState<View>("library");
+  const [view, setViewState] = useState<View>("library");
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string>();
@@ -484,7 +514,10 @@ export function usePortcoveUi() {
   const [biosPath, setBiosPath] = useState("");
   const [adoptOpen, setAdoptOpen] = useState(false);
   const [adoptPath, setAdoptPath] = useState("");
-  useEffect(() => setFilter("all"), [view]);
+  const setView = useCallback((nextView: SetStateAction<View>) => {
+    setViewState((current) => (typeof nextView === "function" ? nextView(current) : nextView));
+    setFilter("all");
+  }, []);
   return {
     view,
     setView,

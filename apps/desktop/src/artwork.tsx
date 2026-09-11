@@ -52,13 +52,10 @@ export function useArtwork(portId: string, slot: ArtworkSlot, visible = true) {
 
 export function useArtworkVisibility() {
   const element = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
+  const [visible, setVisible] = useState(() => typeof IntersectionObserver === "undefined");
   useEffect(() => {
     if (!element.current) return;
-    if (typeof IntersectionObserver === "undefined") {
-      setVisible(true);
-      return;
-    }
+    if (typeof IntersectionObserver === "undefined") return;
     const observer = new IntersectionObserver(
       (entries) => setVisible(entries.some((entry) => entry.isIntersecting)),
       { rootMargin: "200px" },

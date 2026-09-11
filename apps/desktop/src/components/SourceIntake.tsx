@@ -27,24 +27,36 @@ export interface SourceIntakeRequest {
   paths: string[];
 }
 
-export function SourceIntakeDialog({
-  request,
-  close,
-  onAdded,
-  openEvidence,
-  hostTools = [],
-  hostToolActions,
-}: {
+interface SourceIntakeDialogProps {
   request: SourceIntakeRequest;
   close: () => void;
   onAdded?: () => Promise<void>;
   openEvidence?: (evidenceId: string) => void;
   hostTools?: HostToolStatus[];
   hostToolActions?: HostToolActions;
-}) {
+}
+
+export function SourceIntakeDialog(props: SourceIntakeDialogProps) {
+  const { request } = props;
+  return (
+    <SourceIntakeSession
+      key={`${request.portId}:${request.profile.id}:${JSON.stringify(request.paths)}`}
+      {...props}
+    />
+  );
+}
+
+function SourceIntakeSession({
+  request,
+  close,
+  onAdded,
+  openEvidence,
+  hostTools = [],
+  hostToolActions,
+}: SourceIntakeDialogProps) {
   const [result, setResult] = useState<SourceIntakeInspection>();
   const [plan, setPlan] = useState<SourceImportPlan>();
-  const [busy, setBusy] = useState("");
+  const [busy, setBusy] = useState(request.paths.length > 0 ? "Checking game files…" : "");
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
   const [selectedPaths, setSelectedPaths] = useState(request.paths);
@@ -55,16 +67,8 @@ export function SourceIntakeDialog({
   };
   const dialog = useDialogFocus(dismiss);
 
-  const inspect = useCallback(
-    async (paths: string[]) => {
-      const current = ++intent.current;
-      selectedPathsRef.current = paths;
-      setSelectedPaths(paths);
-      setBusy("Checking game files…");
-      setError(undefined);
-      setNotice(undefined);
-      setPlan(undefined);
-      setResult(undefined);
+  const loadInspection = useCallback(
+    async (paths: string[], current: number) => {
       try {
         const inspection = await desktopApi.inspectSourceIntake(request.profile.id, paths);
         if (intent.current === current) setResult(inspection);
@@ -77,12 +81,40 @@ export function SourceIntakeDialog({
     [request.profile.id],
   );
 
+  const inspect = useCallback(
+    async (paths: string[]) => {
+      const current = ++intent.current;
+      selectedPathsRef.current = paths;
+      setSelectedPaths(paths);
+      setBusy("Checking game files…");
+      setError(undefined);
+      setNotice(undefined);
+      setPlan(undefined);
+      setResult(undefined);
+      await loadInspection(paths, current);
+    },
+    [loadInspection],
+  );
+
   useEffect(() => {
-    if (request.paths.length > 0) void inspect(request.paths);
+    if (request.paths.length > 0) {
+      const current = ++intent.current;
+      void desktopApi
+        .inspectSourceIntake(request.profile.id, request.paths)
+        .then((inspection) => {
+          if (intent.current === current) setResult(inspection);
+        })
+        .catch((value) => {
+          if (intent.current === current) setError(errorText(value));
+        })
+        .finally(() => {
+          if (intent.current === current) setBusy("");
+        });
+    }
     return () => {
       intent.current += 1;
     };
-  }, [inspect, request.paths]);
+  }, [request.paths, request.profile.id]);
 
   const choose = async () => {
     setError(undefined);

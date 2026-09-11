@@ -107,24 +107,25 @@ export interface ThemeState {
 
 export function useThemePreference(): ThemeState {
   const [preference, setPreferenceState] = useState<ThemePreference>(() => readThemePreference());
-  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() =>
-    resolveThemePreference(preference),
+  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(() =>
+    resolveThemePreference("system"),
   );
+  const resolvedTheme = preference === "system" ? systemTheme : preference;
 
   useEffect(() => {
-    const resolved = applyThemePreference(preference);
-    setResolvedTheme(resolved);
+    applyThemePreference(preference);
     if (preference !== "system") return undefined;
     return observeSystemTheme((nextTheme) => {
       applyWebTheme(nextTheme);
-      setResolvedTheme(nextTheme);
+      setSystemTheme(nextTheme);
     });
   }, [preference]);
 
   const setPreference = useCallback((nextPreference: ThemePreference) => {
     writeThemePreference(nextPreference);
     setPreferenceState(nextPreference);
-    setResolvedTheme(applyThemePreference(nextPreference));
+    const nextTheme = applyThemePreference(nextPreference);
+    if (nextPreference === "system") setSystemTheme(nextTheme);
   }, []);
 
   return { preference, resolvedTheme, setPreference };

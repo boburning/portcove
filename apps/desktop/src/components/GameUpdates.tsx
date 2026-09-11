@@ -16,12 +16,10 @@ export function UpdatePolicyControl({
   busy: boolean;
   save: (policy: UpdatePolicy) => Promise<PortStatus | undefined>;
 }) {
-  const [draft, setDraft] = useState(policy);
+  const [draftState, setDraftState] = useState({ policy, value: policy });
+  const draft = draftState.policy === policy ? draftState.value : policy;
   const [message, setMessage] = useState<string>();
   const [pending, setPending] = useState(false);
-  useEffect(() => {
-    setDraft(policy);
-  }, [policy]);
   const apply = async () => {
     setPending(true);
     setMessage(undefined);
@@ -45,7 +43,7 @@ export function UpdatePolicyControl({
         value={draft}
         disabled={busy || pending}
         onChange={(value) => {
-          setDraft(value);
+          setDraftState({ policy, value });
           setMessage(undefined);
         }}
         options={[

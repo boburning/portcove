@@ -118,23 +118,45 @@ outside reviewed exceptions.
 
 Oxlint uses one root configuration for the desktop TypeScript/TSX and the
 repository's JavaScript modules. The standard pass applies the correctness
-category plus explicit undefined-variable, unused-variable, React Hooks, and
-jsx-a11y alt-text rules. Broad suspicious, pedantic, performance, style,
-restriction, and nursery categories remain opt-in so an Oxc update cannot
-silently expand the blocking policy. Rules that assume the legacy JSX transform
-or request semantic component rewrites are also outside this tooling migration.
-Test fixtures may use async mocks and intentionally exercise structured
-non-Error Tauri rejections; their narrow rule exceptions remain test-only.
+category plus explicit JavaScript correctness, React Hooks, modern React
+`refs`/`set-state-in-effect`, and the complete supported
+`jsx-a11y/recommended` policy inherited from the former ESLint configuration.
+Broad suspicious, pedantic, performance, style, restriction, and nursery
+categories remain opt-in so an Oxc update cannot silently expand the blocking
+policy. Rules that assume the legacy JSX transform remain disabled.
 
-The runner adds a second `oxlint-tsgolint` pass only for `apps/desktop/src`,
-where TypeScript project information is authoritative, and explicitly rejects
-floating promises. Repository JavaScript utilities still receive the standard
-Oxlint pass without being inferred into unrelated TypeScript programs. The
-linter accepts no warnings and rejects unused suppression comments. The
+The correctness category also keeps Oxc's stable compiler-backed React checks
+for error boundaries, immutability, incompatible libraries, preserved manual
+memoization, purity, render-time state changes, static components, and memo use.
+The overlapping nursery dependency/derivation variants are not promoted to a
+second blocking policy. `react/todo` is also excluded because it reports React
+Compiler lowering limitations such as `try`/`finally`, not application defects.
+
+`jsx-a11y/prefer-tag-over-role` remains disabled as one rule-specific tool
+exception. It was not part of `jsx-a11y/recommended`, has no role-specific
+configuration, and currently proposes behavior-changing or invalid substitutes
+for Portcove's managed dialogs, button-based listbox options, and labelled ARIA
+groups. The blocking ARIA role, property, interaction, focus, labelling, and
+semantic-content rules remain enabled. Reassess the exception when the rule can
+distinguish these patterns instead of suppressing accessibility diagnostics by
+file or across the plugin.
+
+The runner adds a second `oxlint-tsgolint` pass for desktop source and TypeScript
+configuration files, including `apps/desktop/vite.config.ts`. It explicitly
+restores every rule from the former `typescript-eslint/recommendedTypeChecked`
+policy that Oxlint supports; core equivalents cover the former TypeScript
+plugin's array-constructor, unused-expression, and unused-variable rules. The
+only type-aware rules not implemented by the pinned `oxlint-tsgolint` are
+`naming-convention` and `prefer-destructuring`, neither of which belonged to the
+former policy. Repository JavaScript utilities still receive the standard
+Oxlint pass without being inferred into unrelated TypeScript programs. Test
+fixtures may use async mocks and intentionally exercise structured non-Error
+Tauri rejections; their narrow rule exceptions remain test/config-file only.
+
+The linter accepts no warnings and rejects unused suppression comments. The
 separate `pnpm typecheck` command remains the authoritative whole-program
 TypeScript compiler gate; Oxlint's experimental whole-program type-check mode is
-not enabled. The VS Code integration enables the same type-aware source
-diagnostics.
+not enabled. The VS Code integration enables the same type-aware diagnostics.
 
 The package uses one TypeScript 7 dependency for the `tsc` build command,
 transport compiler rejection fixtures, and Vite ecosystem tooling. This removes

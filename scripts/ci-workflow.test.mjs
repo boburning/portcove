@@ -457,10 +457,94 @@ test("frontend tooling uses the pinned Oxc contracts without legacy formatter or
   assert.equal(oxlint.categories.correctness, "error");
   assert.equal(oxlint.categories.suspicious, "off");
   assert.equal(oxlint.rules["react/rules-of-hooks"], "error");
-  assert.equal(oxlint.rules["jsx-a11y/alt-text"], "error");
-  assert.equal(oxlint.rules["typescript/no-floating-promises"], "error");
+  assert.equal(oxlint.rules["react/refs"], "error");
+  assert.equal(oxlint.rules["react/set-state-in-effect"], "error");
+  for (const rule of [
+    "alt-text",
+    "anchor-has-content",
+    "anchor-is-valid",
+    "aria-activedescendant-has-tabindex",
+    "aria-props",
+    "aria-proptypes",
+    "aria-role",
+    "aria-unsupported-elements",
+    "autocomplete-valid",
+    "click-events-have-key-events",
+    "heading-has-content",
+    "html-has-lang",
+    "iframe-has-title",
+    "img-redundant-alt",
+    "interactive-supports-focus",
+    "label-has-associated-control",
+    "media-has-caption",
+    "mouse-events-have-key-events",
+    "no-access-key",
+    "no-autofocus",
+    "no-distracting-elements",
+    "no-interactive-element-to-noninteractive-role",
+    "no-noninteractive-element-interactions",
+    "no-noninteractive-element-to-interactive-role",
+    "no-noninteractive-tabindex",
+    "no-redundant-roles",
+    "no-static-element-interactions",
+    "role-has-required-aria-props",
+    "role-supports-aria-props",
+    "scope",
+    "tabindex-no-positive",
+  ]) {
+    assert.equal(oxlint.rules[`jsx-a11y/${rule}`], "error");
+  }
+  assert.equal(oxlint.rules["jsx-a11y/prefer-tag-over-role"], "off");
+  for (const rule of ["no-array-constructor", "no-unused-expressions", "no-unused-vars"]) {
+    assert.equal(oxlint.rules[rule], "error");
+  }
+  for (const rule of [
+    "await-thenable",
+    "ban-ts-comment",
+    "no-array-delete",
+    "no-base-to-string",
+    "no-duplicate-enum-values",
+    "no-duplicate-type-constituents",
+    "no-empty-object-type",
+    "no-explicit-any",
+    "no-extra-non-null-assertion",
+    "no-floating-promises",
+    "no-for-in-array",
+    "no-implied-eval",
+    "no-misused-new",
+    "no-misused-promises",
+    "no-namespace",
+    "no-non-null-asserted-optional-chain",
+    "no-redundant-type-constituents",
+    "no-require-imports",
+    "no-this-alias",
+    "no-unnecessary-type-assertion",
+    "no-unnecessary-type-constraint",
+    "no-unsafe-argument",
+    "no-unsafe-assignment",
+    "no-unsafe-call",
+    "no-unsafe-declaration-merging",
+    "no-unsafe-enum-comparison",
+    "no-unsafe-function-type",
+    "no-unsafe-member-access",
+    "no-unsafe-return",
+    "no-unsafe-unary-minus",
+    "no-wrapper-object-types",
+    "only-throw-error",
+    "prefer-as-const",
+    "prefer-namespace-keyword",
+    "prefer-promise-reject-errors",
+    "require-await",
+    "restrict-plus-operands",
+    "restrict-template-expressions",
+    "triple-slash-reference",
+    "unbound-method",
+  ]) {
+    assert.equal(oxlint.rules[`typescript/${rule}`], "error");
+  }
   const oxlintRunner = await readFile(new URL("./run-oxlint.mjs", import.meta.url), "utf8");
   assert.match(oxlintRunner, /sourceRoot/);
+  assert.match(oxlintRunner, /viteConfig/);
   assert.match(oxlintRunner, /"--type-aware"/);
 
   const oxfmt = JSON.parse(await readFile(new URL("../.oxfmtrc.json", import.meta.url), "utf8"));

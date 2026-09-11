@@ -24,26 +24,26 @@ export function CommandPalette({
   commands: PaletteCommand[];
   close: () => void;
 }) {
+  if (!open) return null;
+  return <OpenCommandPalette commands={commands} close={close} />;
+}
+
+function OpenCommandPalette({
+  commands,
+  close,
+}: {
+  commands: PaletteCommand[];
+  close: () => void;
+}) {
   const [query, setQuery] = useState("");
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const activeCommand = useRef<HTMLButtonElement>(null);
-  const dialog = useDialogFocus(close, open);
+  const dialog = useDialogFocus(close);
   const filtered = useMemo(() => filterCommands(commands, query), [commands, query]);
-
-  useEffect(() => {
-    if (!open) return;
-    setQuery("");
-    setActiveIndex(0);
-  }, [open]);
-
-  useEffect(
-    () => setActiveIndex((index) => Math.min(index, Math.max(0, filtered.length - 1))),
-    [filtered.length],
-  );
+  const activeIndex = Math.min(selectedIndex, Math.max(0, filtered.length - 1));
   useEffect(() => {
     activeCommand.current?.scrollIntoView({ block: "nearest" });
-  }, [activeIndex, open]);
-  if (!open) return null;
+  }, [activeIndex]);
 
   const run = (command: PaletteCommand) => {
     if (command.disabled) return;
@@ -83,10 +83,10 @@ export function CommandPalette({
             onKeyDown={(event) => {
               if (event.key === "ArrowDown") {
                 event.preventDefault();
-                setActiveIndex((index) => Math.max(0, Math.min(index + 1, filtered.length - 1)));
+                setSelectedIndex((index) => Math.max(0, Math.min(index + 1, filtered.length - 1)));
               } else if (event.key === "ArrowUp") {
                 event.preventDefault();
-                setActiveIndex((index) => Math.max(index - 1, 0));
+                setSelectedIndex((index) => Math.max(index - 1, 0));
               } else if (event.key === "Enter" && filtered[activeIndex]) {
                 event.preventDefault();
                 run(filtered[activeIndex]);
@@ -120,10 +120,10 @@ export function CommandPalette({
                 data-focusable
                 key={command.id}
                 ref={activeIndex === index ? activeCommand : undefined}
-                onFocus={() => setActiveIndex(index)}
+                onFocus={() => setSelectedIndex(index)}
                 className={activeIndex === index ? "palette-command active" : "palette-command"}
                 disabled={command.disabled}
-                onMouseEnter={() => setActiveIndex(index)}
+                onMouseEnter={() => setSelectedIndex(index)}
                 onClick={() => run(command)}
               >
                 <span className="palette-command-icon">

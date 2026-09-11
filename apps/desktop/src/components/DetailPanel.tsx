@@ -371,6 +371,7 @@ function DetailBody({
       )}
       <TrustStrip status={status} />
       <OutputLocationControl
+        key={`${port.id}:${libraryGeneration}`}
         portId={port.id}
         generation={libraryGeneration}
         busy={outputExternalBusy}
