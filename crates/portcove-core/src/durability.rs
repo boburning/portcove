@@ -11,11 +11,14 @@ pub(crate) fn rename_noreplace(staging: &Path, destination: &Path) -> Result<()>
             if error.kind() == std::io::ErrorKind::AlreadyExists
                 || fs::symlink_metadata(destination).is_ok() =>
         {
-            Err(PortcoveError::conflict(
-                "publication destination appeared after review; it was retained",
-            )
-            .detail("destination", destination.display().to_string())
-            .detail("os_error", error.to_string()))
+            Err(publication_error(
+                PortcoveError::conflict(
+                    "publication destination appeared after review; it was retained",
+                ),
+                staging,
+                destination,
+                &error,
+            ))
         }
         Err(error)
             if matches!(
@@ -23,14 +26,38 @@ pub(crate) fn rename_noreplace(staging: &Path, destination: &Path) -> Result<()>
                 std::io::ErrorKind::Unsupported | std::io::ErrorKind::InvalidInput
             ) =>
         {
-            Err(
-                PortcoveError::state("filesystem does not support atomic no-replace publication")
-                    .detail("destination", destination.display().to_string())
-                    .detail("os_error", error.to_string()),
-            )
+            Err(publication_error(
+                PortcoveError::state("filesystem does not support atomic no-replace publication"),
+                staging,
+                destination,
+                &error,
+            ))
         }
-        Err(error) => Err(error.into()),
+        Err(error) => Err(publication_error(
+            PortcoveError::state("atomic no-replace publication failed"),
+            staging,
+            destination,
+            &error,
+        )),
     }
+}
+
+fn publication_error(
+    error: PortcoveError,
+    staging: &Path,
+    destination: &Path,
+    os_error: &std::io::Error,
+) -> PortcoveError {
+    error
+        .detail("staging", staging.display().to_string())
+        .detail("destination", destination.display().to_string())
+        .detail("os_error", os_error.to_string())
+        .detail(
+            "os_error_code",
+            os_error
+                .raw_os_error()
+                .map_or_else(|| "unavailable".into(), |code| code.to_string()),
+        )
 }
 
 #[cfg(any(target_os = "linux", target_os = "macos"))]
@@ -48,6 +75,9 @@ fn rename_noreplace_os(staging: &Path, destination: &Path) -> std::io::Result<()
 #[cfg(windows)]
 fn rename_noreplace_os(staging: &Path, destination: &Path) -> std::io::Result<()> {
     use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Foundation::{
+        ERROR_ACCESS_DENIED, ERROR_LOCK_VIOLATION, ERROR_SHARING_VIOLATION,
+    };
 
     fn wide(path: &Path) -> std::io::Result<Vec<u16>> {
         let mut value = path.as_os_str().encode_wide().collect::<Vec<_>>();
@@ -61,21 +91,39 @@ fn rename_noreplace_os(staging: &Path, destination: &Path) -> std::io::Result<()
         Ok(value)
     }
 
-    let staging = wide(staging)?;
-    let destination = wide(destination)?;
-    // SAFETY: both buffers are valid, null-terminated UTF-16 for the duration
-    // of the call. Omitting MOVEFILE_REPLACE_EXISTING is the no-clobber contract.
-    if unsafe {
-        windows_sys::Win32::Storage::FileSystem::MoveFileExW(
-            staging.as_ptr(),
-            destination.as_ptr(),
-            0,
-        )
-    } == 0
-    {
-        Err(std::io::Error::last_os_error())
-    } else {
-        Ok(())
+    let staging_wide = wide(staging)?;
+    let destination_wide = wide(destination)?;
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    loop {
+        // SAFETY: both buffers are valid, null-terminated UTF-16 for the duration
+        // of the call. Omitting MOVEFILE_REPLACE_EXISTING is the no-clobber contract.
+        if unsafe {
+            windows_sys::Win32::Storage::FileSystem::MoveFileExW(
+                staging_wide.as_ptr(),
+                destination_wide.as_ptr(),
+                0,
+            )
+        } != 0
+        {
+            return Ok(());
+        }
+        let error = std::io::Error::last_os_error();
+        let transient = error.raw_os_error().is_some_and(|code| {
+            code == ERROR_ACCESS_DENIED as i32
+                || code == ERROR_SHARING_VIOLATION as i32
+                || code == ERROR_LOCK_VIOLATION as i32
+        });
+        if !transient
+            || std::time::Instant::now() >= deadline
+            || fs::symlink_metadata(destination).is_ok()
+            || fs::symlink_metadata(staging).is_err()
+        {
+            return Err(error);
+        }
+        // A process that just exited, an indexer, or an antivirus scanner can
+        // retain a non-delete-sharing handle briefly. Waiting is bounded and
+        // every retry still uses the same atomic no-replace primitive.
+        std::thread::sleep(std::time::Duration::from_millis(25));
     }
 }
 
@@ -297,5 +345,98 @@ mod tests {
         assert!(rename_noreplace(&staged_directory, &final_directory).is_err());
         assert!(staged_directory.join("staged").exists());
         assert!(fs::read_dir(final_directory).unwrap().next().is_none());
+    }
+
+    #[test]
+    fn no_replace_publication_reports_operation_context() {
+        let temporary = tempfile::tempdir().unwrap();
+        let staged = temporary.path().join("missing-staging");
+        let destination = temporary.path().join("final-directory");
+
+        let error = rename_noreplace(&staged, &destination).unwrap_err();
+
+        assert_eq!(error.message, "atomic no-replace publication failed");
+        assert_eq!(error.details["staging"], staged.display().to_string());
+        assert_eq!(
+            error.details["destination"],
+            destination.display().to_string()
+        );
+        assert!(!error.details["os_error"].is_empty());
+        assert!(!error.details["os_error_code"].is_empty());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn no_replace_publication_waits_for_a_transient_windows_file_handle() {
+        use std::{
+            os::windows::fs::OpenOptionsExt,
+            thread,
+            time::{Duration, Instant},
+        };
+        use windows_sys::Win32::Storage::FileSystem::{FILE_SHARE_READ, FILE_SHARE_WRITE};
+
+        let temporary = tempfile::tempdir().unwrap();
+        let staged = temporary.path().join("staged-directory");
+        let destination = temporary.path().join("final-directory");
+        fs::create_dir(&staged).unwrap();
+        let executable = staged.join("recently-executed.exe");
+        fs::write(&executable, b"synthetic executable bytes").unwrap();
+        let held = fs::OpenOptions::new()
+            .read(true)
+            .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE)
+            .open(&executable)
+            .unwrap();
+        let release = thread::spawn(move || {
+            thread::sleep(Duration::from_millis(100));
+            drop(held);
+        });
+
+        let started = Instant::now();
+        rename_noreplace(&staged, &destination).unwrap();
+        release.join().unwrap();
+
+        assert!(started.elapsed() >= Duration::from_millis(50));
+        assert!(!staged.exists());
+        assert_eq!(
+            fs::read(destination.join("recently-executed.exe")).unwrap(),
+            b"synthetic executable bytes"
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn no_replace_publication_bounds_a_persistent_windows_file_handle() {
+        use std::{os::windows::fs::OpenOptionsExt, time::Duration};
+        use windows_sys::Win32::Storage::FileSystem::{FILE_SHARE_READ, FILE_SHARE_WRITE};
+
+        let temporary = tempfile::tempdir().unwrap();
+        let staged = temporary.path().join("staged-directory");
+        let destination = temporary.path().join("final-directory");
+        fs::create_dir(&staged).unwrap();
+        let executable = staged.join("still-running.exe");
+        fs::write(&executable, b"synthetic executable bytes").unwrap();
+        let held = fs::OpenOptions::new()
+            .read(true)
+            .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE)
+            .open(&executable)
+            .unwrap();
+
+        let started = std::time::Instant::now();
+        let error = rename_noreplace(&staged, &destination).unwrap_err();
+        let elapsed = started.elapsed();
+        drop(held);
+
+        assert!(elapsed >= Duration::from_secs(1));
+        assert!(elapsed < Duration::from_secs(5));
+        assert_eq!(error.message, "atomic no-replace publication failed");
+        assert_eq!(error.details["staging"], staged.display().to_string());
+        assert_eq!(
+            error.details["destination"],
+            destination.display().to_string()
+        );
+        assert_eq!(error.details["os_error_code"], "5");
+        assert!(!error.details["os_error"].is_empty());
+        assert!(staged.join("still-running.exe").is_file());
+        assert!(!destination.exists());
     }
 }
