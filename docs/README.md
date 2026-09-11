@@ -51,8 +51,8 @@ machine-readable product state.
 
 ## Historical evidence
 
-Superseded ledgers, cutoff lists, upstream inventories, and qualification
-narratives live under [`docs/archive/`](archive/). They remain useful evidence
-but must not be edited as current planning. Release-readiness snapshots are
-immutable outputs under [`docs/releases/`](releases/) and do not replace the
-live Project.
+Dated audits, completed migrations, and qualification or release evidence that
+remain useful live under [`docs/archive/`](archive/). Obsolete planning sources
+remain available through Git history and must not be treated as current
+authority. Release-readiness snapshots are immutable outputs under
+[`docs/releases/`](releases/) and do not replace the live Project.
