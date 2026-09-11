@@ -92,7 +92,7 @@ when the issue's acceptance scope calls for it.
 `just fmt` is the canonical write command and `just fmt-check` is its no-write
 counterpart. Cargo formats Rust, Oxfmt formats active JavaScript, TypeScript,
 CSS, HTML, hand-maintained JSON and YAML, and active Markdown, and Taplo formats
-TOML. Oxfmt uses its native 100-column default, sorts package manifests, and
+TOML. Oxfmt uses a configured 100-column width, sorts package manifests, and
 deliberately leaves import order unchanged. Import order can carry side effects,
 and normalizing the existing tree would add unrelated churn without a product or
 quality benefit. Oxfmt and Taplo are exact development dependencies installed by
@@ -107,8 +107,8 @@ and dated release evidence are outside the bulk-format boundary so a formatter
 cannot rewrite their content or invalidate historical evidence. This includes
 the Playnite integration and contract tests' `bin` and `obj` directories, which
 MSBuild and NuGet own. Secondary languages and scripts remain outside the
-bulk-format boundary; their lint contracts are specified below. The two initial
-mechanical format commits are listed in `.git-blame-ignore-revs`.
+bulk-format boundary; their lint contracts are specified below. Mechanical
+repository-wide format commits are listed in `.git-blame-ignore-revs`.
 
 Deterministic failures block: rustfmt, Cargo compilation, Clippy, tests,
 type-aware Oxlint, Oxfmt, Stylelint, Ruff, ShellCheck, actionlint,
