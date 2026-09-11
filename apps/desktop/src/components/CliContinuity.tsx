@@ -27,19 +27,23 @@ export function CliContinuity({
     context: CliCommandContext;
   }>();
   const context = loaded?.generation === generation ? loaded.context : undefined;
-  const [error, setError] = useState<string>();
+  const [failed, setFailed] = useState<{
+    generation: number;
+    attempt: number;
+    message: string;
+  }>();
   const [attempt, setAttempt] = useState(0);
+  const error =
+    failed?.generation === generation && failed.attempt === attempt ? failed.message : undefined;
   useEffect(() => {
     let current = true;
-    setLoaded(undefined);
-    setError(undefined);
     desktopApi
       .cliCommandContext(generation)
       .then((value) => {
         if (current) setLoaded({ generation, context: value });
       })
       .catch((value) => {
-        if (current) setError(errorText(value));
+        if (current) setFailed({ generation, attempt, message: errorText(value) });
       });
     return () => {
       current = false;

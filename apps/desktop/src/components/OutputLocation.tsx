@@ -32,7 +32,7 @@ export function OutputLocationControl({
   const [relocationStatus, setRelocationStatus] = useState<OutputRelocationStatus>();
   const [relocationResult, setRelocationResult] = useState<OutputRelocationResult>();
   const [error, setError] = useState<string>();
-  const [pending, setPending] = useState<"load" | "pick" | "review" | "apply">();
+  const [pending, setPending] = useState<"load" | "pick" | "review" | "apply" | undefined>("load");
   const request = useRef(0);
   const applying = useRef(false);
   const reviewButton = useRef<HTMLButtonElement>(null);
@@ -41,13 +41,6 @@ export function OutputLocationControl({
 
   useEffect(() => {
     const currentRequest = ++request.current;
-    setLocation(undefined);
-    setPreview(undefined);
-    setRelocation(undefined);
-    setRelocationResult(undefined);
-    setRelocationStatus(undefined);
-    setError(undefined);
-    setPending("load");
     void Promise.all([
       desktopApi.outputLocation(portId, generation),
       desktopApi.outputRelocationStatus(portId, generation),
@@ -334,21 +327,34 @@ export function OutputLocationControl({
           cancel={cancelReview}
         />
       )}
-      {relocationResult && (
+      <OutputLocationStatus result={relocationResult} status={relocationStatus} error={error} />
+    </section>
+  );
+}
+
+function OutputLocationStatus({
+  result,
+  status,
+  error,
+}: {
+  result?: OutputRelocationResult;
+  status?: OutputRelocationStatus;
+  error?: string;
+}) {
+  return (
+    <>
+      {result && (
         <p className="output-location-success" role="status">
           <Icon glyph={ShieldCheck} size="sm" />
-          {relocationResult.cleanup_pending
-            ? formatCountMessage(relocationResult.old_paths_retained.length, retainedFolderMessages)
-            : formatCountMessage(relocationResult.relocated_installs.length, movedVersionMessages)}
+          {result.cleanup_pending
+            ? formatCountMessage(result.old_paths_retained.length, retainedFolderMessages)
+            : formatCountMessage(result.relocated_installs.length, movedVersionMessages)}
         </p>
       )}
-      {relocationStatus && (
+      {status && (
         <p className="output-location-error" role="status">
           <Icon glyph={AlertTriangle} size="sm" />
-          {formatCountMessage(
-            relocationStatus.cleanup_pending_paths.length,
-            pendingCleanupMessages,
-          )}
+          {formatCountMessage(status.cleanup_pending_paths.length, pendingCleanupMessages)}
         </p>
       )}
       {error && (
@@ -357,7 +363,7 @@ export function OutputLocationControl({
           {error}
         </p>
       )}
-    </section>
+    </>
   );
 }
 

@@ -230,8 +230,13 @@ function CatalogReview({
 }: CatalogActions & { started: (id: string) => void }) {
   const [kind, setKind] = useState<CatalogUpdateSource["kind"]>("file");
   const [location, setLocation] = useState("");
-  const [plan, setPlan] = useState<CatalogUpdatePlan>();
-  useEffect(() => setPlan(undefined), [status.state_sha256]);
+  const [planState, setPlanState] = useState<{
+    baseline: string;
+    value?: CatalogUpdatePlan;
+  }>();
+  const plan = planState?.baseline === status.state_sha256 ? planState.value : undefined;
+  const setPlan = (value?: CatalogUpdatePlan) =>
+    setPlanState({ baseline: status.state_sha256, value });
   return (
     <>
       <h3>Review an update</h3>

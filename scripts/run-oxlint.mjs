@@ -10,9 +10,18 @@ const targets =
     ? process.argv.slice(2)
     : ["scripts", "apps/desktop/scripts", "apps/desktop/src", "apps/desktop/vite.config.ts"];
 const sourceRoot = path.join(projectRoot, "apps", "desktop", "src");
+const desktopRoot = path.join(projectRoot, "apps", "desktop");
+const viteConfig = path.join(projectRoot, "apps", "desktop", "vite.config.ts");
 const typeAwareTargets = targets.filter((target) => {
   const absolute = path.resolve(projectRoot, target);
-  return absolute === sourceRoot || absolute.startsWith(`${sourceRoot}${path.sep}`);
+  const extension = path.extname(absolute);
+  return (
+    absolute === viteConfig ||
+    absolute === sourceRoot ||
+    absolute.startsWith(`${sourceRoot}${path.sep}`) ||
+    ((extension === ".ts" || extension === ".tsx") &&
+      absolute.startsWith(`${desktopRoot}${path.sep}`))
+  );
 });
 const baseArguments = [
   oxlint,

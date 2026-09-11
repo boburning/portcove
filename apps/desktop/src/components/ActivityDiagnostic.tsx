@@ -11,21 +11,32 @@ export function ActivityDiagnostic({
   activityId: string;
   generation: number;
 }) {
+  return (
+    <ActivityDiagnosticSession
+      key={`${activityId}:${generation}`}
+      activityId={activityId}
+      generation={generation}
+    />
+  );
+}
+
+function ActivityDiagnosticSession({
+  activityId,
+  generation,
+}: {
+  activityId: string;
+  generation: number;
+}) {
   const [capture, setCapture] = useState<Diagnostic>();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
   const [copied, setCopied] = useState(false);
   const request = useRef(0);
   useLayoutEffect(() => {
-    request.current += 1;
-    setCapture(undefined);
-    setError(undefined);
-    setPending(false);
-    setCopied(false);
     return () => {
       request.current += 1;
     };
-  }, [activityId, generation]);
+  }, []);
   const load = async () => {
     const current = ++request.current;
     setPending(true);

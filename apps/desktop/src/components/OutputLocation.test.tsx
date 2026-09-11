@@ -383,10 +383,10 @@ describe("per-game Export / install folder", () => {
       .mockReturnValueOnce(old.promise)
       .mockReturnValueOnce(current.promise);
 
-    await render(<OutputLocationControl portId="first" generation={11} />);
+    await render(<OutputLocationControl key="first:11" portId="first" generation={11} />);
     await changePath("F:/First");
     await click("Review future folder");
-    await render(<OutputLocationControl portId="second" generation={12} />);
+    await render(<OutputLocationControl key="second:12" portId="second" generation={12} />);
     await changePath("F:/Second");
     await click("Review future folder");
     await act(async () => {
@@ -419,6 +419,7 @@ describe("per-game Export / install folder", () => {
 
     await render(
       <OutputLocationControl
+        key="first:13"
         portId="first"
         generation={13}
         onApplying={onApplying}
@@ -434,6 +435,7 @@ describe("per-game Export / install folder", () => {
 
     await render(
       <OutputLocationControl
+        key="second:13"
         portId="second"
         generation={13}
         onApplying={onApplying}

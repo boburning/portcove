@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -16,6 +16,46 @@ function run(command, args) {
     timeout: 30_000,
     windowsHide: true,
   });
+}
+
+function runAsync(command, args) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd: root,
+      encoding: "utf8",
+      timeout: 30_000,
+      windowsHide: true,
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+    child.on("error", reject);
+    child.on("close", (status) => resolve({ status, stdout, stderr }));
+  });
+}
+
+function expectSuccess(tool, result) {
+  assert.ifError(result.error);
+  assert.equal(
+    result.status,
+    0,
+    `${tool} rejected its valid fixture:\n${result.stdout}${result.stderr}`,
+  );
+}
+
+function expectFailure(tool, result, diagnostic) {
+  assert.ifError(result.error);
+  assert.notEqual(result.status, 0, `${tool} accepted its invalid fixture`);
+  assert.match(
+    `${result.stdout}${result.stderr}`,
+    diagnostic,
+    `${tool} failed without the expected diagnostic`,
+  );
 }
 
 function expectFixture(tool, valid, invalid) {
@@ -33,30 +73,101 @@ function expectFixture(tool, valid, invalid) {
 async function oxlintFixture() {
   const directory = path.join(desktop, "src", `.lint-oxlint-${nonce}`);
   const fixture = path.join(directory, "fixture.tsx");
+  const javascriptFixture = path.join(root, "scripts", `.lint-oxlint-${nonce}.mjs`);
+  const viteDirectory = path.join(desktop, `.lint-oxlint-vite-${nonce}`);
+  const viteFixture = path.join(viteDirectory, "vite.config.ts");
+  const runner = path.join(root, "scripts", "run-oxlint.mjs");
   try {
     await mkdir(directory);
     await writeFile(
       fixture,
       'import { useState } from "react";\nexport function Fixture() {\n  const [value] = useState(0);\n  void Promise.resolve(value);\n  return <img alt="" src="fixture" />;\n}\n',
     );
-    const valid = run(process.execPath, [path.join(root, "scripts", "run-oxlint.mjs"), fixture]);
-    for (const [rule, source] of [
+    const valid = run(process.execPath, [runner, fixture]);
+    expectSuccess("Oxlint TypeScript", valid);
+    for (const [rule, diagnostic, source] of [
       [
         "React Hooks",
+        /react-hooks\(rules-of-hooks\)/,
         'import { useState } from "react";\nexport function Fixture({ enabled }: { enabled: boolean }) {\n  if (enabled) useState(0);\n  return null;\n}\n',
       ],
-      ["jsx-a11y", 'export function Fixture() {\n  return <img src="fixture" />;\n}\n'],
-      ["type-aware TypeScript", "export function fixture() {\n  Promise.resolve(1);\n}\n"],
+      [
+        "jsx-a11y",
+        /jsx-a11y\(alt-text\)/,
+        'export function Fixture() {\n  return <img src="fixture" />;\n}\n',
+      ],
+      [
+        "floating promises",
+        /typescript\(no-floating-promises\)/,
+        "export function fixture() {\n  Promise.resolve(1);\n}\n",
+      ],
+      [
+        "semantic unsafe assignment",
+        /typescript\(no-unsafe-assignment\)/,
+        'export const value: string = JSON.parse("\\\"Portcove\\\"");\n',
+      ],
+      [
+        "modern React correctness",
+        /react\(set-state-in-effect\)/,
+        'import { useEffect, useState } from "react";\nexport function Fixture() {\n  const [value, setValue] = useState(0);\n  useEffect(() => setValue(1), []);\n  return <p>{value}</p>;\n}\n',
+      ],
+      [
+        "unused suppression",
+        /unused (?:oxlint-)?disable directive/i,
+        "// oxlint-disable-next-line no-undef\nexport const value = 1;\n",
+      ],
     ]) {
       await writeFile(fixture, source);
-      expectFixture(
-        `Oxlint ${rule}`,
-        valid,
-        run(process.execPath, [path.join(root, "scripts", "run-oxlint.mjs"), fixture]),
-      );
+      expectFailure(`Oxlint ${rule}`, run(process.execPath, [runner, fixture]), diagnostic);
     }
+
+    await writeFile(javascriptFixture, "export const value = 1;\n");
+    expectSuccess("Oxlint JavaScript", run(process.execPath, [runner, javascriptFixture]));
+    await writeFile(javascriptFixture, "missingPortcoveFunction();\n");
+    expectFailure(
+      "Oxlint JavaScript",
+      run(process.execPath, [runner, javascriptFixture]),
+      /eslint\(no-undef\)/,
+    );
+
+    await mkdir(viteDirectory);
+    await writeFile(
+      path.join(viteDirectory, "tsconfig.json"),
+      '{"compilerOptions":{"module":"ESNext","moduleResolution":"Bundler","noEmit":true,"strict":true},"include":["vite.config.ts"]}\n',
+    );
+    await writeFile(viteFixture, "export default { server: { port: 5173 } };\n");
+    expectSuccess("Oxlint Vite config", run(process.execPath, [runner, viteFixture]));
+    await writeFile(
+      viteFixture,
+      "export default function config() {\n  Promise.resolve(1);\n  return {};\n}\n",
+    );
+    expectFailure(
+      "Oxlint type-aware Vite config",
+      run(process.execPath, [runner, viteFixture]),
+      /typescript\(no-floating-promises\)/,
+    );
+
+    const hooksOverlap = path.join(directory, "overlap-hooks.tsx");
+    const a11yOverlap = path.join(directory, "overlap-a11y.tsx");
+    await writeFile(
+      hooksOverlap,
+      'import { useState } from "react";\nexport function Fixture({ enabled }: { enabled: boolean }) {\n  if (enabled) useState(0);\n  return null;\n}\n',
+    );
+    await writeFile(
+      a11yOverlap,
+      'export function Fixture() {\n  return <img src="fixture" />;\n}\n',
+    );
+    const [hooksResult, a11yResult] = await Promise.all([
+      runAsync(process.execPath, [runner, hooksOverlap]),
+      runAsync(process.execPath, [runner, a11yOverlap]),
+    ]);
+    expectFailure("overlapping Oxlint Hooks fixture", hooksResult, /rules-of-hooks/);
+    expectFailure("overlapping Oxlint a11y fixture", a11yResult, /alt-text/);
+    console.log("Oxlint overlapping negative fixtures remained independently deterministic.");
   } finally {
     await rm(directory, { recursive: true, force: true });
+    await rm(javascriptFixture, { force: true });
+    await rm(viteDirectory, { recursive: true, force: true });
   }
 }
 

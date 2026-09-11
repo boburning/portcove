@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import {
   activateFocusedControl,
   cyclePrimaryNavigation,
@@ -138,8 +138,7 @@ function controllerButton(buttons: Set<number>, back: () => void) {
 
 export function useGamepadNavigation(onBack: () => void) {
   const [controller, setController] = useState<string>();
-  const back = useRef(onBack);
-  back.current = onBack;
+  const back = useEffectEvent(onBack);
   useEffect(() => {
     let frame = 0;
     const input = new ControllerInput();
@@ -154,14 +153,14 @@ export function useGamepadNavigation(onBack: () => void) {
       if (state.active && document.documentElement.dataset.inputMode !== "controller")
         document.documentElement.dataset.inputMode = "controller";
       if (state.move) moveFocus(state.move);
-      controllerButton(state.buttons, () => back.current());
+      controllerButton(state.buttons, back);
     };
     const keydown = (event: KeyboardEvent) => {
       document.documentElement.dataset.inputMode = "keyboard";
       if (event.defaultPrevented || event.isComposing) return;
       const action = keyboardNavigationAction(event.key);
       if (action === "back") {
-        back.current();
+        back();
         event.preventDefault();
         return;
       }

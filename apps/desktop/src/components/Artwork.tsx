@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useArtwork, useArtworkVisibility } from "../artwork";
 import { pickArtworkPath } from "../file-picker";
 import type { ArtworkSlot, ArtworkState, PortDefinition } from "../types";
@@ -16,10 +16,7 @@ export function ArtworkImage({
   const { element, visible } = useArtworkVisibility();
   const { display } = useArtwork(port.id, slot, visible);
   const [failedImage, setFailedImage] = useState<string>();
-  useEffect(() => {
-    if (display.loading) setFailedImage(undefined);
-  }, [display.loading]);
-  const image = display.image !== failedImage ? display.image : undefined;
+  const image = display.loading || display.image !== failedImage ? display.image : undefined;
   return (
     <div ref={element} className={`artwork-image ${className}`} aria-hidden="true">
       {image ? (
@@ -77,7 +74,9 @@ function ArtworkSlotControl({ port, slot }: { port: PortDefinition; slot: Artwor
   const returnFocus = useRef<HTMLButtonElement | null>(null);
   const identity = `${cache?.generation}:${port.id}:${slot}`;
   const currentIdentity = useRef(identity);
-  currentIdentity.current = identity;
+  useLayoutEffect(() => {
+    currentIdentity.current = identity;
+  }, [identity]);
   useEffect(() => {
     mounted.current = true;
     return () => {

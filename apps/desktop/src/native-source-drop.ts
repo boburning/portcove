@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { getCurrentWebview, type DragDropEvent } from "@tauri-apps/api/webview";
 
 export interface NativeSourceDropTarget {
@@ -58,14 +58,11 @@ export function createNativeSourceDropCoordinator(
 
 export function useNativeSourceDrop(accept: (drop: NativeSourceDrop) => void) {
   const [state, setState] = useState<NativeSourceDragState>(idleState);
-  const acceptRef = useRef(accept);
-  acceptRef.current = accept;
+  const acceptDrop = useEffectEvent(accept);
   useEffect(() => {
     let disposed = false;
     let unlisten: (() => void) | undefined;
-    const coordinator = createNativeSourceDropCoordinator(setState, (drop) =>
-      acceptRef.current(drop),
-    );
+    const coordinator = createNativeSourceDropCoordinator(setState, acceptDrop);
     void getCurrentWebview()
       .onDragDropEvent((event) => coordinator(event.payload))
       .then((remove) => {

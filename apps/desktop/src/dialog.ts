@@ -1,10 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useEffectEvent, useRef } from "react";
 import { focusAndReveal, focusableControls, navigationScope, visibleControl } from "./focus";
 
 export function useDialogFocus(close: () => void, active = true) {
   const root = useRef<HTMLElement>(null);
-  const closeRef = useRef(close);
-  closeRef.current = close;
+  const closeDialog = useEffectEvent(close);
   useEffect(() => {
     if (!active) return undefined;
     const previous = document.activeElement as HTMLElement | null;
@@ -51,7 +50,7 @@ export function useDialogFocus(close: () => void, active = true) {
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
-        closeRef.current();
+        closeDialog();
         return;
       }
       if (event.key !== "Tab") return;

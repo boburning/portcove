@@ -19,7 +19,9 @@ export function useActionReview<T>({
   failureMessage: string;
 }) {
   const callbacks = useRef({ load, apply, close, failureMessage });
-  callbacks.current = { load, apply, close, failureMessage };
+  useLayoutEffect(() => {
+    callbacks.current = { load, apply, close, failureMessage };
+  });
   const requests = useRef(new LatestRequestGeneration());
   const inFlight = useRef<"review" | "apply">(undefined);
   const [reviewed, setReviewed] = useState<{ identity: string; value: T }>();
