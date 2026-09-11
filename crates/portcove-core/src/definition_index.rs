@@ -6,9 +6,9 @@ use sha2::{Digest, Sha256};
 
 use crate::{PortcoveError, Result};
 
-const MAX_INDEX_BYTES: usize = 4 * 1024 * 1024;
+pub(crate) const MAX_INDEX_BYTES: usize = 4 * 1024 * 1024;
 const MAX_DEFINITIONS: usize = 4096;
-const MAX_CONTENT_BYTES: u64 = 4 * 1024 * 1024;
+pub(crate) const MAX_CONTENT_BYTES: u64 = 4 * 1024 * 1024;
 const MAX_TOTAL_BYTES: u64 = 32 * 1024 * 1024;
 
 #[derive(Debug, Deserialize)]
