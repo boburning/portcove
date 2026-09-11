@@ -67,6 +67,26 @@ downloaded. Those remain later core-owned transactions. The filesystem transport
 is available only to disposable signed tests; production construction requires
 the restricted HTTPS source type.
 
+## Definition operation eligibility
+
+Core owns the pure definition operation-eligibility decision for availability,
+install, preparation and launch. `evaluate_definition_eligibility` consumes facts
+established separately by trust policy, capability negotiation, retained-contract,
+artifact-integrity, source and mandatory-check authorities. It returns a typed
+`eligible`, `hold` or `escalate` outcome with a stable reason. Candidate content
+cannot set these facts or interpret its own result as admission.
+
+Known publisher revocation and unknown safety semantics take precedence over all
+operations. New admission requires fresh, non-replayed, complete metadata;
+retained launch may continue during outage or a rejected refresh, but known
+revocation, local corruption, changed recorded identity and failed mandatory
+checks still hold it. An explicitly authorized local retained launch may omit
+authenticated upstream acquisition without acquiring official publisher authority.
+Source failures hold only operations that consume that source. Gameplay remains
+separate evidence and is not an input to the decision. The evaluator has no I/O or
+mutation; publisher grants, durable selection and adapter exposure remain later
+boundaries.
+
 ## Engine template capability ownership
 
 Core owns the installed template/version inventory and pure requirement

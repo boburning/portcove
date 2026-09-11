@@ -15,6 +15,7 @@ mod catalog_store;
 mod catalog_update;
 mod database;
 mod definition_capabilities;
+mod definition_eligibility;
 mod definition_entry;
 mod definition_index;
 #[cfg(test)]
@@ -91,6 +92,10 @@ pub use definition_capabilities::{
     DefinitionCapabilityOutcome, DefinitionCapabilityReport, DefinitionCapabilityRequest,
     DefinitionCapabilityRequirement, DefinitionCapabilityResult, EngineTemplateCapability,
     check_definition_capabilities, inspect_definition_capabilities,
+};
+pub use definition_eligibility::{
+    DefinitionEligibility, DefinitionEligibilityFacts, DefinitionEligibilityOutcome,
+    DefinitionEligibilityReason, DefinitionOperation, evaluate_definition_eligibility,
 };
 pub use definition_entry::DefinitionEntryInspection;
 pub use definition_index::{DefinitionContentIndex, IndexedDefinition};

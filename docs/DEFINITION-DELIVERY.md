@@ -145,10 +145,13 @@ they do not qualify an arbitrary downloaded port artifact or gameplay.
 
 ## Admission and escalation
 
-The executable decision examples accompanying this contract are design fixtures,
-not a second production validator. #397 must implement this contract in core and
-reuse those cases. Installed core policy owns supported schemas/templates and
-publisher grants; incoming data cannot declare itself supported or approved.
+The executable decision examples accompanying this contract now run against the
+single production `evaluate_definition_eligibility` implementation in core.
+Installed core policy still owns supported schemas/templates and publisher grants;
+incoming data cannot declare itself supported, populate the evaluator's independent
+facts or approve its own result. The evaluator returns typed `eligible`, `hold` or
+`escalate` outcomes with stable reasons for availability, install, prepare and
+launch, and has no I/O or mutation of its own.
 
 | Observation within the exact operation scope                                                                                             | Result                                                                                                                                                    |
 | ---------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
