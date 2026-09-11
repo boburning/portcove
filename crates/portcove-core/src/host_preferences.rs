@@ -1,9 +1,10 @@
 //! Host-owned preferences. No operation opens, initializes, or moves a library.
 
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap},
     fs,
     path::{Path, PathBuf},
+    sync::{Arc, Mutex, MutexGuard, OnceLock, Weak},
 };
 
 use fs2::FileExt;
@@ -14,6 +15,11 @@ use crate::{PortcoveError, Result};
 
 const FORMAT_VERSION: u32 = 1;
 const MAX_BYTES: u64 = 64 * 1024;
+
+type ProcessPreferenceLock = Arc<Mutex<()>>;
+type ProcessPreferenceLockRegistry = Mutex<HashMap<PathBuf, Weak<Mutex<()>>>>;
+
+static PROCESS_PREFERENCE_LOCKS: OnceLock<ProcessPreferenceLockRegistry> = OnceLock::new();
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HostPreferences {
@@ -61,6 +67,12 @@ pub struct LibrarySelection {
 #[derive(Debug, Clone)]
 pub struct HostPreferenceStore {
     path: PathBuf,
+    process_lock: ProcessPreferenceLock,
+}
+
+struct HostPreferenceLock<'a> {
+    _file: fs::File,
+    _process_guard: MutexGuard<'a, ()>,
 }
 
 impl HostPreferenceStore {
@@ -91,7 +103,8 @@ impl HostPreferenceStore {
                 "host preference path must name a file",
             ));
         }
-        Ok(Self { path })
+        let process_lock = process_preference_lock(&path)?;
+        Ok(Self { path, process_lock })
     }
 
     pub fn load(&self) -> Result<HostPreferences> {
@@ -260,7 +273,11 @@ impl HostPreferenceStore {
         self.publish(&HostPreferences::default())
     }
 
-    fn lock(&self) -> Result<fs::File> {
+    fn lock(&self) -> Result<HostPreferenceLock<'_>> {
+        let process_guard = self
+            .process_lock
+            .lock()
+            .map_err(|_| PortcoveError::state("host preference process lock poisoned"))?;
         crate::path::refuse_symlink_ancestors(&self.path)?;
         let parent = self
             .path
@@ -283,7 +300,10 @@ impl HostPreferenceStore {
             .write(true)
             .open(lock_path)?;
         FileExt::lock_exclusive(&file)?;
-        Ok(file)
+        Ok(HostPreferenceLock {
+            _file: file,
+            _process_guard: process_guard,
+        })
     }
 
     fn publish(&self, preferences: &HostPreferences) -> Result<()> {
@@ -296,6 +316,20 @@ impl HostPreferenceStore {
         }
         crate::durability::write_bytes_atomically(&self.path, &bytes, true)
     }
+}
+
+fn process_preference_lock(path: &Path) -> Result<ProcessPreferenceLock> {
+    let registry = PROCESS_PREFERENCE_LOCKS.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut locks = registry
+        .lock()
+        .map_err(|_| PortcoveError::state("host preference lock registry poisoned"))?;
+    locks.retain(|_, lock| lock.strong_count() > 0);
+    if let Some(lock) = locks.get(path).and_then(Weak::upgrade) {
+        return Ok(lock);
+    }
+    let lock = Arc::new(Mutex::new(()));
+    locks.insert(path.to_path_buf(), Arc::downgrade(&lock));
+    Ok(lock)
 }
 
 fn validate_absolute(path: &Path) -> Result<()> {
