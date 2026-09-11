@@ -9,6 +9,26 @@ elif [[ $# -gt 0 ]]; then
   exit 2
 fi
 
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$project_root"
+
+required_aqua="$(tr -d '\r\n' < .aqua-version)"
+if ! command -v aqua >/dev/null 2>&1; then
+  printf 'aqua %s is required; install it before running this bootstrap.\n' "$required_aqua" >&2
+  exit 1
+fi
+aqua_reported="$(aqua --version 2>&1)" || {
+  printf 'aqua could not report its version.\n' >&2
+  exit 1
+}
+aqua_version="${aqua_reported##* }"
+if [[ "$aqua_version" != "${required_aqua#v}" ]]; then
+  printf 'aqua %s is required; reported: %s\n' "$required_aqua" "$aqua_reported" >&2
+  exit 1
+fi
+
+AQUA_ENFORCE_CHECKSUM=true AQUA_ENFORCE_REQUIRE_CHECKSUM=true aqua install
+
 required_tools=()
 while IFS= read -r tool; do required_tools+=("$tool"); done < <(node scripts/quality-tools.mjs --specs required)
 optional_tools=()
@@ -53,8 +73,6 @@ install_tool() {
 for tool in "${required_tools[@]}"; do
   install_tool "$tool"
 done
-
-node scripts/quality-tools.mjs --install-managed required
 
 optional_failures=()
 if $include_deep; then

@@ -98,15 +98,15 @@ fmt-frontend-check:
 
 # Cross-language scripts and hosted automation.
 python-lint:
-    {{storage}} node scripts/quality-tools.mjs --run ruff -- check apps/desktop/assets/brand/models/v2
+    {{storage}} aqua exec -- ruff check apps/desktop/assets/brand/models/v2
     {{storage}} node scripts/lint-tools.integration.mjs ruff
 
 shell-lint:
-    {{storage}} node scripts/quality-tools.mjs --run shellcheck -- --severity=warning scripts/bootstrap-quality-tools.sh
+    {{storage}} aqua exec -- shellcheck --severity=warning scripts/bootstrap-quality-tools.sh
     {{storage}} node scripts/lint-tools.integration.mjs shellcheck
 
 actions-lint:
-    {{storage}} node scripts/quality-tools.mjs --run actionlint --
+    {{storage}} node scripts/run-actionlint.mjs
     {{storage}} node scripts/lint-tools.integration.mjs actionlint
 
 powershell-lint:

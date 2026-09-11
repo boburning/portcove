@@ -1,32 +1,19 @@
 import assert from "node:assert/strict";
-import {
-  mkdtemp,
-  mkdir,
-  readFile,
-  rename,
-  rm,
-  writeFile,
-} from "node:fs/promises";
-import { tmpdir } from "node:os";
-import path from "node:path";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
-  activateStaging,
   findStaleConsumerPins,
   githubOutputs,
-  managedToolPath,
-  platformKey,
-  validateArchiveEntries,
   validateQualityManifest,
-  verifySha256,
 } from "./quality-tools.mjs";
+import { runActionlint } from "./run-actionlint.mjs";
 
 const manifest = JSON.parse(
   await readFile(new URL("../.github/quality-tools.json", import.meta.url)),
 );
 
-test("quality manifest owns exact unique pins and workflow outputs", () => {
+test("quality manifest owns exact unique Rust pins and workflow outputs", () => {
   assert.doesNotThrow(() => validateQualityManifest(manifest));
   assert.deepEqual(githubOutputs(manifest), {
     required_prebuilt:
@@ -38,24 +25,6 @@ test("quality manifest owns exact unique pins and workflow outputs", () => {
     hawk_version: "0.1.13",
     hawk_rust: "1.98.0",
   });
-});
-
-test("managed quality manifest validation rejects incomplete platform coverage", () => {
-  const incomplete = structuredClone(manifest);
-  delete incomplete.tools.find((tool) => tool.id === "ruff").install.assets[
-    "linux-x64"
-  ];
-  assert.throws(
-    () => validateQualityManifest(incomplete),
-    /do not cover the required platforms/,
-  );
-  const portablePowerShell = structuredClone(manifest);
-  delete portablePowerShell.tools.find((tool) => tool.id === "psscriptanalyzer")
-    .install.platform_limited;
-  assert.throws(
-    () => validateQualityManifest(portablePowerShell),
-    /must be platform-limited/,
-  );
 });
 
 test("stale consumer detection rejects copied current or divergent pins", () => {
@@ -80,117 +49,89 @@ test("stale consumer detection rejects copied current or divergent pins", () => 
   );
 });
 
-test("managed quality tools use explicit supported platform identities and safe paths", () => {
-  assert.equal(platformKey("win32", "x64"), "win32-x64");
-  assert.equal(platformKey("darwin", "arm64"), "darwin-arm64");
-  assert.equal(platformKey("linux", "riscv64"), "linux-riscv64");
-  for (const entry of [
-    "../tool",
-    "/absolute/tool",
-    "C:\\absolute\\tool",
-    "safe/../../tool",
-    "bad\0tool",
-    "",
-  ]) {
-    assert.throws(
-      () => validateArchiveEntries([entry]),
-      /unsafe archive entry/,
-    );
-  }
-  assert.doesNotThrow(() =>
-    validateArchiveEntries(["tool", "nested/tool.exe"]),
+test("actionlint receives the exact aqua-managed ShellCheck path", () => {
+  const calls = [];
+  const run = (command, arguments_, options) => {
+    calls.push({ command, arguments_, options });
+    if (arguments_[0] === "which")
+      return { status: 0, stdout: "C:\\aqua\\shellcheck.exe\r\n" };
+    return { status: 0 };
+  };
+  assert.equal(runActionlint(["workflow.yml"], run).status, 0);
+  assert.deepEqual(calls[1].arguments_, [
+    "exec",
+    "--",
+    "actionlint",
+    "-shellcheck=C:\\aqua\\shellcheck.exe",
+    "workflow.yml",
+  ]);
+  assert.throws(
+    () => runActionlint([], () => ({ status: 1, stdout: "" })),
+    /aqua-managed ShellCheck executable is unavailable/,
   );
+});
 
-  const ruff = manifest.tools.find((tool) => tool.id === "ruff");
+test("standalone lint pins use aqua checksums and PSResourceGet data", async () => {
+  const aquaVersion = (
+    await readFile(new URL("../.aqua-version", import.meta.url), "utf8")
+  ).trim();
+  assert.match(aquaVersion, /^v\d+\.\d+\.\d+$/u);
+
+  const aqua = await readFile(new URL("../aqua.yaml", import.meta.url), "utf8");
+  assert.match(
+    aqua,
+    /^checksum:\r?\n {2}enabled: true\r?\n {2}require_checksum: true$/mu,
+  );
+  const packages = [
+    ...aqua.matchAll(/^ {2}- name: ([^@\s]+)@([^\s]+)$/gmu),
+  ].map(([, name, version]) => ({ name, version }));
   assert.deepEqual(
-    Object.fromEntries(
-      Object.entries(ruff.install.assets).map(([key, asset]) => [
-        key,
-        asset.entry,
-      ]),
-    ),
-    {
-      "win32-x64": "ruff.exe",
-      "linux-x64": "ruff-x86_64-unknown-linux-gnu/ruff",
-      "darwin-x64": "ruff-x86_64-apple-darwin/ruff",
-      "darwin-arm64": "ruff-aarch64-apple-darwin/ruff",
-    },
+    packages.map(({ name }) => name),
+    ["astral-sh/ruff", "rhysd/actionlint", "koalaman/shellcheck"],
   );
-  assert.equal(
-    managedToolPath(ruff, path.join("cache", "tools"), "linux-x64"),
-    path.join(
-      "cache",
-      "tools",
-      "ruff",
-      ruff.version,
-      "linux-x64",
-      "ruff-x86_64-unknown-linux-gnu",
-      "ruff",
-    ),
-  );
-  assert.throws(
-    () => managedToolPath(ruff, path.join("cache", "tools"), "linux-riscv64"),
-    /does not support/,
-  );
-});
+  for (const { version } of packages)
+    assert.match(version, /^v?\d+\.\d+\.\d+$/u);
 
-test("managed quality tool checksums fail closed", () => {
-  const contents = Buffer.from("verified fixture");
-  const expected =
-    "f9adb7d924ed98c558040c910600d7363d749e7d20e8d355626edd53b4fb929f";
-  assert.equal(verifySha256(contents, expected), expected);
-  assert.throws(
-    () => verifySha256(contents, "0".repeat(64)),
-    /asset checksum mismatch/,
+  const lock = JSON.parse(
+    await readFile(new URL("../aqua-checksums.json", import.meta.url), "utf8"),
   );
-});
-
-test("managed quality tool activation replaces only a complete staging directory", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "portcove-quality-tools-"));
-  const target = path.join(root, "target");
-  const staging = path.join(root, "staging");
-  try {
-    await mkdir(target);
-    await writeFile(path.join(target, "old.txt"), "old");
-    await mkdir(staging);
-    await writeFile(path.join(staging, "new.txt"), "new");
-    await activateStaging(staging, target);
-    assert.equal(await readFile(path.join(target, "new.txt"), "utf8"), "new");
-    await assert.rejects(readFile(path.join(target, "old.txt")), /ENOENT/);
-    await assert.rejects(
-      activateStaging(path.join(root, "missing"), target),
-      /staged quality tool is missing/,
-    );
-    assert.equal(await readFile(path.join(target, "new.txt"), "utf8"), "new");
-  } finally {
-    await rm(root, { recursive: true, force: true });
+  const ids = lock.checksums.map(({ id }) => id);
+  assert.equal(new Set(ids).size, ids.length);
+  for (const entry of lock.checksums) {
+    assert.match(entry.checksum, /^[A-F0-9]{64}$/u);
+    assert.equal(entry.algorithm, "sha256");
   }
-});
+  for (const identity of [
+    "astral-sh/ruff",
+    "rhysd/actionlint",
+    "koalaman/shellcheck",
+  ])
+    for (const platform of ["windows", "linux", "darwin"])
+      assert.ok(
+        ids.some(
+          (id) =>
+            id.includes(identity) &&
+            (id.includes(platform) ||
+              (identity === "koalaman/shellcheck" &&
+                platform === "windows" &&
+                id.endsWith(".zip"))),
+        ),
+        `${identity} has no ${platform} checksum`,
+      );
 
-test("managed quality tool activation restores the prior version after an interrupted replacement", async () => {
-  const root = await mkdtemp(
-    path.join(tmpdir(), "portcove-quality-tools-interrupted-"),
+  const resources = await readFile(
+    new URL("../.config/powershell-resources.psd1", import.meta.url),
+    "utf8",
   );
-  const target = path.join(root, "target");
-  const staging = path.join(root, "staging");
-  try {
-    await mkdir(target);
-    await writeFile(path.join(target, "old.txt"), "old");
-    await mkdir(staging);
-    await writeFile(path.join(staging, "new.txt"), "new");
-    let calls = 0;
-    const interruptSecondRename = async (source, destination) => {
-      calls += 1;
-      if (calls === 2) throw new Error("simulated activation interruption");
-      await rename(source, destination);
-    };
-    await assert.rejects(
-      activateStaging(staging, target, interruptSecondRename),
-      /simulated activation interruption/,
-    );
-    assert.equal(await readFile(path.join(target, "old.txt"), "utf8"), "old");
-    assert.equal(await readFile(path.join(staging, "new.txt"), "utf8"), "new");
-  } finally {
-    await rm(root, { recursive: true, force: true });
-  }
+  assert.match(resources, /PSScriptAnalyzer/u);
+  assert.match(resources, /version\s*=\s*'\d+\.\d+\.\d+'/u);
+
+  const manager = await readFile(
+    new URL("./quality-tools.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(
+    manager,
+    /install-managed|PORTCOVE_QUALITY_TOOLS_DIR|managedToolPath/u,
+  );
 });

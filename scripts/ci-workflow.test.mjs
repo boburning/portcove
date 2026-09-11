@@ -196,7 +196,7 @@ test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () 
   );
   assert.match(
     windowsStorage,
-    /quality-tools\.mjs --install-managed psscriptanalyzer/,
+    /Install-PSResource -RequiredResourceFile \.config\/powershell-resources\.psd1 -Scope CurrentUser -TrustRepository/,
   );
   assert.match(windowsStorage, /run-powershell-lint\.mjs/);
   assert.match(windowsStorage, /lint-tools\.integration\.mjs psscriptanalyzer/);
@@ -407,6 +407,17 @@ test("Intel tests build once on Apple Silicon and execute every partition on Int
 
 test("Linux Rust quality keeps its platform-specific and policy gates without pnpm", () => {
   assert.match(rustQuality, /runs-on: ubuntu-latest/);
+  assert.match(rustQuality, /AQUA_ENFORCE_CHECKSUM: "true"/);
+  assert.match(rustQuality, /AQUA_ENFORCE_REQUIRE_CHECKSUM: "true"/);
+  assert.match(
+    rustQuality,
+    /aquaproj\/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e/,
+  );
+  assert.match(
+    rustQuality,
+    /aqua_version: \$\{\{ steps\.aqua-version\.outputs\.version \}\}/,
+  );
+  assert.match(rustQuality, /enable_aqua_install: "false"/);
   assert.match(rustQuality, /machine_contract/);
   assert.match(
     rustQuality,
@@ -418,13 +429,13 @@ test("Linux Rust quality keeps its platform-specific and policy gates without pn
   assert.match(rustQuality, /run-rscheck\.mjs/);
   const bootstrap = rustQuality.indexOf("./scripts/bootstrap-quality-tools.sh");
   for (const lint of [
-    "quality-tools.mjs --run ruff",
-    "quality-tools.mjs --run shellcheck",
-    "quality-tools.mjs --run actionlint",
+    "aqua exec -- ruff",
+    "aqua exec -- shellcheck",
+    "run-actionlint.mjs",
   ]) {
     assert.ok(
       rustQuality.indexOf(lint) > bootstrap,
-      `${lint} must run after the managed tools are installed`,
+      `${lint} must run after the aqua tools are installed`,
     );
   }
   assert.match(

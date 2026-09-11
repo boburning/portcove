@@ -94,8 +94,8 @@ Stylelint applies its recommended correctness rules to the existing stylesheet.
 The documented descending-specificity exception preserves the stylesheet's
 intentional later-override structure; it does not disable formatting coverage.
 Ruff checks the tracked Python asset scripts; ShellCheck checks the tracked shell
-bootstrap; actionlint checks every GitHub Actions workflow and uses the same
-managed ShellCheck binary; PSScriptAnalyzer checks all tracked PowerShell scripts.
+bootstrap; actionlint checks every GitHub Actions workflow and receives the exact
+ShellCheck executable selected by aqua; PSScriptAnalyzer checks all tracked PowerShell scripts.
 The PowerShell profile omits only cmdlet naming rules that do not apply to private
 script helpers.
 
@@ -127,7 +127,17 @@ pnpm 11's default one-day minimum release age remains active. The workspace cont
 
 ## Tool and Rust version authority
 
-`.github/quality-tools.json` is the sole quality-tool pin manifest. It records every required and deep tool, exact version, install tier, version command, managed download asset and checksum, and any tool-private Rust requirement. The bootstrap scripts and all required, release, and deep workflows consume that manifest. Managed installs validate archive paths, reject links, verify SHA-256 before extraction, verify the staged executable's exact version, and atomically activate it below `work/quality-tools`. `scripts/quality-tools.mjs --validate` rejects copied tool pins in governed consumers.
+Quality-tool pins follow their native provisioning boundary. `.github/quality-tools.json`
+owns required and deep Rust CLI versions, install tiers, version commands and any
+tool-private Rust requirement; `scripts/quality-tools.mjs --validate` rejects
+copied Rust-tool pins in governed consumers. `.aqua-version` pins aqua itself,
+while `aqua.yaml` and committed `aqua-checksums.json` own Ruff, actionlint and
+ShellCheck versions, platform assets and required SHA-256 verification. The
+bootstrap requires the exact aqua release already on `PATH` and never installs or
+updates aqua on a developer machine. `.config/powershell-resources.psd1` owns the
+exact PSScriptAnalyzer module version installed from PSGallery through
+PSResourceGet on Windows. Portcove does not implement archive download,
+extraction, staging or activation for these standalone linters.
 
 `rust-toolchain.toml` pins normal development and CI to the workspace MSRV recorded in `Cargo.toml`; the manifest validator requires those two declarations and the quality contract to agree. An MSRV increase therefore requires one reviewed update across the workspace metadata, pinned toolchain, and machine contract instead of an implicit move with the latest stable compiler.
 
@@ -139,7 +149,15 @@ Ubuntu; unrelated preconfigured vendor repositories do not take part in that
 resolution. Repository signatures, package checksums, bounded acquisition and
 every required test remain enforced.
 
-CI installs the small prebuilt tool set through the commit-pinned installer action, restores source-built rscheck from an exact-version cache when available, and verifies every exact version before running a gate. An rscheck cache miss falls back to the same pinned installer. The local bootstrap scripts use cargo-binstall when available and exact, locked Cargo installs otherwise; optional deep tools remain outside required PR CI.
+CI installs the small prebuilt Rust tool set through the commit-pinned installer
+action, restores source-built rscheck from an exact-version cache when available,
+and verifies every exact version before running a gate. An rscheck cache miss
+falls back to the same pinned installer. Required Linux CI obtains the pinned
+aqua release from its commit-pinned official action, then uses the same bootstrap
+and checksum enforcement as local development. Windows CI installs the pinned
+PSScriptAnalyzer resource through PSResourceGet. The local bootstrap scripts use
+cargo-binstall when available and exact, locked Cargo installs otherwise;
+optional deep tools remain outside required PR CI.
 
 Required CI cancels an older in-progress run when a newer commit reaches the same branch or pull request. This keeps obsolete Windows builds from occupying the queue while preserving a complete run for the newest commit.
 
