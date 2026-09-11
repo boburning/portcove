@@ -239,9 +239,13 @@ function useReviewRequest<T>(identity: string, perform: Perform) {
     const request = generation.current.begin();
     return () => generation.current.isCurrent(request);
   };
-  const invalidate = () => {
-    generation.current.begin();
-    setReviewed(undefined);
+  const invalidate = (expected?: T) => {
+    if (expected === undefined) {
+      generation.current.begin();
+      setReviewed(undefined);
+      return;
+    }
+    setReviewed((current) => (current?.value === expected ? undefined : current));
   };
   return {
     value: reviewed?.identity === identity ? reviewed.value : undefined,
@@ -281,6 +285,8 @@ export function useAdoptionPlanning(
     perform,
   );
   const [failedIdentity, setFailedIdentity] = useState<string>();
+  const [completedIdentity, setCompletedIdentity] = useState<string>();
+  const notifiedCompletion = useRef<string | undefined>(undefined);
   const review = async () => {
     setFailedIdentity(undefined);
     if (open && path.trim())
@@ -290,29 +296,40 @@ export function useAdoptionPlanning(
   };
   const inFlight = useRef(false);
   const [applying, setApplying] = useState(false);
+  useEffect(() => {
+    if (completedIdentity !== identity || applying || request.value !== undefined) return;
+    if (notifiedCompletion.current === completedIdentity) return;
+    notifiedCompletion.current = completedIdentity;
+    done();
+  }, [applying, completedIdentity, done, identity, request.value]);
   const adopt = async () => {
-    if (!open || !request.value?.selected_port_id || inFlight.current) return;
+    const preview = request.value;
+    if (!open || !preview?.selected_port_id || inFlight.current) return;
     inFlight.current = true;
+    notifiedCompletion.current = undefined;
+    setCompletedIdentity(undefined);
     setApplying(true);
     const current = request.guard();
+    request.invalidate(preview);
+    let adopted: Awaited<ReturnType<typeof desktopApi.adopt>> | undefined;
     try {
-      const adopted = await perform("adopt", () =>
-        desktopApi.adopt(path, request.value!.plan_sha256, generation, portId),
+      adopted = await perform("adopt", () =>
+        desktopApi.adopt(path, preview.plan_sha256, generation, portId),
       );
-      if (current()) {
-        request.invalidate();
-        if (adopted !== undefined) done();
-        else setFailedIdentity(identity);
-      }
     } finally {
       inFlight.current = false;
       setApplying(false);
+    }
+    if (current()) {
+      if (adopted !== undefined) setCompletedIdentity(identity);
+      else setFailedIdentity(identity);
     }
   };
   return {
     preview: request.value,
     review,
     adopt,
+    invalidate: request.invalidate,
     applying,
     copyFailed: failedIdentity === identity,
   };

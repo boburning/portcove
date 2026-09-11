@@ -44,11 +44,37 @@ export async function cliHandoffScenario({
           `//button[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
         ),
       );
-      await click(
-        By.xpath('//summary[starts-with(normalize-space(.), "Release, sources & maintenance")]'),
+      const technical = By.css(".detail-body > .advanced-settings > .advanced-summary");
+      const technicalControl = await browser.wait(until.elementLocated(technical), 10_000);
+      assert.match(
+        await browser.executeScript((element) => element.textContent?.trim(), technicalControl),
+        /^Technical details/,
       );
+      await click(technical);
     };
     await open("zelda64-recomp", "Library");
+    assert.deepEqual(
+      await browser.executeScript(() =>
+        Array.from(document.querySelectorAll(".detail-body > .detail-group > h3"), (heading) =>
+          heading.textContent?.trim(),
+        ),
+      ),
+      [
+        "Status and actions",
+        "Requirements",
+        "Installation and version",
+        "Updates",
+        "Saves and storage",
+        "Compatibility and testing",
+        "Project and release",
+      ],
+    );
+    const versionSummary = await browser
+      .findElement(By.css('[aria-label="Installation and release versions"]'))
+      .getText();
+    assert.match(versionSummary, /Installed version/);
+    assert.match(versionSummary, /Selected channel/);
+    assert.match(versionSummary, /Latest eligible release/);
     const launch = By.css('[aria-label="Launch from another app"]');
     await browser.wait(until.elementLocated(By.css('[aria-label="Copy launch command"]')), 10_000);
     await click(By.xpath('//summary[normalize-space(.)="Separate program and arguments"]'));

@@ -164,7 +164,11 @@ export function AdoptionModal({
               onClick={review}
             >
               <Icon glyph={FolderInput} />
-              {busy === "preview adoption" ? "Reviewing…" : "Review copy plan"}
+              {applying
+                ? "Waiting for copy…"
+                : busy === "preview adoption"
+                  ? "Reviewing…"
+                  : "Review copy plan"}
             </button>
           )}
         </div>

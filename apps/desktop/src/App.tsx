@@ -721,18 +721,25 @@ function AdoptionOverlay({
     operations.perform,
     finish,
   );
+  const setPath = (path: string) => {
+    planning.invalidate();
+    ui.setAdoptPath(path);
+  };
   if (!ui.adoptOpen) return null;
   return (
     <AdoptionModal
       path={ui.adoptPath}
-      setPath={ui.setAdoptPath}
+      setPath={setPath}
       preview={planning.preview}
       copyFailed={planning.copyFailed}
       applying={planning.applying}
       busy={operations.busy}
-      close={() => ui.setAdoptOpen(false)}
+      close={() => {
+        planning.invalidate();
+        ui.setAdoptOpen(false);
+      }}
       pickFolder={() => {
-        void applyPathChoice(pickInstallFolder(ui.adoptPath), ui.setAdoptPath, operations.setError);
+        void applyPathChoice(pickInstallFolder(ui.adoptPath), setPath, operations.setError);
       }}
       review={() => {
         void planning.review();

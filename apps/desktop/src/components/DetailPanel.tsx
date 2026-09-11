@@ -42,7 +42,7 @@ import type {
 import { OperationCancellation } from "./OperationCancellation";
 import { OutputLocationControl } from "./OutputLocation";
 import { PreparationControl, type RunPreparation } from "./Preparation";
-import { formatBytes, platformLabel } from "../view-model";
+import { formatBytes, platformLabel, releaseChannelPresentation } from "../view-model";
 import { BackupHistory } from "./BackupHistory";
 import { GameUpdateControl, UpdatePolicyControl } from "./GameUpdates";
 import type { Perform } from "../use-portcove";
@@ -317,19 +317,104 @@ function DetailBody({
     <div className="detail-body">
       <p className="summary">{port.summary}</p>
       <NavigationHints />
+      <StatusActionsGroup
+        port={port}
+        status={status}
+        state={state}
+        installed={installed}
+        launchReady={launchReady}
+        pendingSetup={pendingSetup}
+        managedPreparation={managedPreparation}
+        installPlan={installPlan}
+        busy={busy}
+        actions={actions}
+      />
+      <DetailArtwork key={`${port.id}:${libraryGeneration}`} port={port} />
+      <RequirementsGroup
+        port={port}
+        status={status}
+        sources={sources}
+        managedPreparation={managedPreparation}
+        pendingSetup={pendingSetup}
+        libraryGeneration={libraryGeneration}
+        busy={busy}
+        prepare={prepare}
+      />
+      <DetailGroup title="Installation and version">
+        <InstallationVersionSummary status={status} selectedChannel={selectedChannel} />
+      </DetailGroup>
+      <UpdatesGroup
+        perform={perform}
+        port={port}
+        status={status}
+        installed={installed}
+        selectedChannel={selectedChannel}
+        policy={policy}
+        libraryGeneration={libraryGeneration}
+        busy={busy}
+        actions={actions}
+      />
+      <SavesStorageGroup
+        port={port}
+        status={status}
+        installed={installed}
+        backups={backups}
+        backupProblems={backupProblems}
+        backupState={backupState}
+        libraryGeneration={libraryGeneration}
+        busy={busy}
+        outputExternalBusy={outputExternalBusy}
+        outputLocationChanged={outputLocationChanged}
+        outputApplying={outputApplying}
+        actions={actions}
+      />
+      <DetailGroup title="Compatibility and testing">
+        <CompatibilitySummary port={port} />
+      </DetailGroup>
+      <DetailGroup title="Project and release">
+        <ProjectReleaseSummary port={port} />
+      </DetailGroup>
+      <TechnicalDetails
+        libraryGeneration={libraryGeneration}
+        port={port}
+        status={status}
+        selectedChannel={selectedChannel}
+        installed={installed}
+        busy={busy}
+        sources={sources}
+        actions={actions}
+      />
+    </div>
+  );
+}
+
+function StatusActionsGroup({
+  port,
+  status,
+  state,
+  installed,
+  launchReady,
+  pendingSetup,
+  managedPreparation,
+  installPlan,
+  busy,
+  actions,
+}: {
+  port: PortDefinition;
+  status?: PortStatus;
+  state: DetailState;
+  installed: boolean;
+  launchReady: boolean;
+  pendingSetup: boolean;
+  managedPreparation: boolean;
+  installPlan?: InstallPlan;
+  busy?: string;
+  actions: DetailActions;
+}) {
+  return (
+    <DetailGroup title="Status and actions">
       <RetiredNotice port={port} />
       <ReadinessCard state={state} />
-      <SourceFields mode="missing" controls={sources} />
-      <SourceIntakeActions controls={sources} busy={Boolean(busy)} />
-      {managedPreparation && pendingSetup && (
-        <PreparationControl
-          key={`${port.id}:${libraryGeneration}:${status?.active?.id}`}
-          portId={port.id}
-          generation={libraryGeneration}
-          disabled={Boolean(busy) || !sources.sourceReady || !sources.biosReady}
-          run={prepare}
-        />
-      )}
       <PrimaryActions
         invalidInstallation={Boolean(status?.readiness?.blockers.includes("invalid_installation"))}
         preparationRequired={managedPreparation && pendingSetup}
@@ -341,7 +426,89 @@ function DetailBody({
         busy={busy}
         actions={actions}
       />
-      <DetailArtwork key={`${port.id}:${libraryGeneration}`} port={port} />
+    </DetailGroup>
+  );
+}
+
+function RequirementsGroup({
+  port,
+  status,
+  sources,
+  managedPreparation,
+  pendingSetup,
+  libraryGeneration,
+  busy,
+  prepare,
+}: {
+  port: PortDefinition;
+  status?: PortStatus;
+  sources: SourceControls;
+  managedPreparation: boolean;
+  pendingSetup: boolean;
+  libraryGeneration: number;
+  busy?: string;
+  prepare?: RunPreparation;
+}) {
+  if (!port.source_profile && !port.bios_source_profile && !managedPreparation) return null;
+  return (
+    <DetailGroup title="Requirements">
+      <SourceFields mode="missing" controls={sources} />
+      <SourceFields mode="registered" controls={sources} />
+      <SourceIntakeActions controls={sources} busy={Boolean(busy)} />
+      {managedPreparation && pendingSetup && (
+        <PreparationControl
+          key={`${port.id}:${libraryGeneration}:${status?.active?.id}`}
+          portId={port.id}
+          generation={libraryGeneration}
+          disabled={Boolean(busy) || !sources.sourceReady || !sources.biosReady}
+          run={prepare}
+        />
+      )}
+    </DetailGroup>
+  );
+}
+
+function UpdatesGroup({
+  perform,
+  port,
+  status,
+  installed,
+  selectedChannel,
+  policy,
+  libraryGeneration,
+  busy,
+  actions,
+}: {
+  perform?: Perform;
+  port: PortDefinition;
+  status?: PortStatus;
+  installed: boolean;
+  selectedChannel: ReleaseChannel;
+  policy: UpdatePolicy;
+  libraryGeneration: number;
+  busy?: string;
+  actions: DetailActions;
+}) {
+  return (
+    <DetailGroup title="Updates">
+      <div className="detail-section">
+        <ReleaseChannelControl
+          key={`${port.id}:${libraryGeneration}`}
+          channels={port.channels}
+          selected={selectedChannel}
+          busy={Boolean(busy)}
+          change={actions.setChannel}
+          refresh={actions.check}
+        />
+      </div>
+      <div className="detail-section">
+        <UpdatePolicyControl
+          key={port.id}
+          policy={policy}
+          busy={Boolean(busy)}
+          save={actions.setPolicy}
+        />
+      </div>
       {status?.staged && (
         <section aria-label="Activate staged update">
           <p>
@@ -360,16 +527,54 @@ function DetailBody({
         </section>
       )}
       {installed && (
-        <GameUpdateControl
-          key={`${port.id}:${libraryGeneration}:${status?.active?.id}:${status?.staged?.id}:${selectedChannel}:${policy}`}
-          portId={port.id}
-          generation={libraryGeneration}
-          policy={policy}
-          busy={Boolean(busy)}
-          perform={perform}
-        />
+        <>
+          <GameUpdateControl
+            key={`${port.id}:${libraryGeneration}:${status?.active?.id}:${status?.staged?.id}:${selectedChannel}:${policy}`}
+            portId={port.id}
+            generation={libraryGeneration}
+            policy={policy}
+            busy={Boolean(busy)}
+            perform={perform}
+          />
+          <UpdateCheckAction busy={busy} check={actions.check} />
+        </>
       )}
+    </DetailGroup>
+  );
+}
+
+function SavesStorageGroup({
+  port,
+  status,
+  installed,
+  backups,
+  backupProblems,
+  backupState,
+  libraryGeneration,
+  busy,
+  outputExternalBusy,
+  outputLocationChanged,
+  outputApplying,
+  actions,
+}: {
+  port: PortDefinition;
+  status?: PortStatus;
+  installed: boolean;
+  backups: BackupRecord[];
+  backupProblems: BackupProblem[];
+  backupState: BackupInventory["state"];
+  libraryGeneration: number;
+  busy?: string;
+  outputExternalBusy?: string;
+  outputLocationChanged?: () => void;
+  outputApplying: (applying: boolean) => void;
+  actions: DetailActions;
+}) {
+  const hasBackupHistory = installed || backups.length > 0 || backupProblems.length > 0;
+  return (
+    <DetailGroup title="Saves and storage">
       <TrustStrip status={status} />
+      <StorageSummary status={status} />
       <OutputLocationControl
         key={`${port.id}:${libraryGeneration}`}
         portId={port.id}
@@ -378,20 +583,120 @@ function DetailBody({
         onChanged={outputLocationChanged}
         onApplying={outputApplying}
       />
-      <AdvancedControls
-        libraryGeneration={libraryGeneration}
-        port={port}
-        status={status}
-        selectedChannel={selectedChannel}
-        policy={policy}
-        installed={installed}
-        backups={backups}
-        backupProblems={backupProblems}
-        backupState={backupState}
-        busy={busy}
-        sources={sources}
-        actions={actions}
-      />
+      {installed && <DataActions busy={busy} actions={actions} />}
+      {hasBackupHistory && (
+        <BackupHistory
+          key={`${port.id}:${libraryGeneration}`}
+          generation={libraryGeneration}
+          backups={backups}
+          problems={backupProblems}
+          state={backupState}
+          busy={busy}
+          restore={actions.restoreBackup}
+          remove={actions.deleteBackup}
+        />
+      )}
+    </DetailGroup>
+  );
+}
+
+function DetailGroup({ title, children }: { title: string; children: React.ReactNode }) {
+  const headingId = `detail-${title.toLowerCase().replaceAll(" ", "-")}`;
+  return (
+    <section className="detail-group" aria-labelledby={headingId}>
+      <h3 id={headingId}>{title}</h3>
+      <div className="detail-group-content">{children}</div>
+    </section>
+  );
+}
+
+function InstallationVersionSummary({
+  status,
+  selectedChannel,
+}: {
+  status?: PortStatus;
+  selectedChannel: ReleaseChannel;
+}) {
+  const checked = status?.last_update_check?.check;
+  const latestEligible =
+    checked?.channel === selectedChannel ? checked.release.version : "Unknown — check for updates";
+  return (
+    <div className="metadata" aria-label="Installation and release versions">
+      <span>
+        <small>Installed version</small>
+        {status?.active?.version ?? "Not installed"}
+      </span>
+      <span>
+        <small>Selected channel</small>
+        {releaseChannelPresentation(selectedChannel).label}
+      </span>
+      {status?.active && (
+        <span>
+          <small>Installed channel</small>
+          {releaseChannelPresentation(status.active.channel).label}
+        </span>
+      )}
+      <span>
+        <small>Latest eligible release</small>
+        {latestEligible}
+      </span>
+      {status?.staged && (
+        <span>
+          <small>Staged version</small>
+          {status.staged.version}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function StorageSummary({ status }: { status?: PortStatus }) {
+  return (
+    <div className="metadata">
+      <span>
+        <small>Saves and settings folder</small>
+        {status?.user_data_root ?? "Created inside the selected library"}
+      </span>
+    </div>
+  );
+}
+
+function CompatibilitySummary({ port }: { port: PortDefinition }) {
+  return (
+    <div className="metadata">
+      <span>
+        <small>Platforms</small>
+        {port.platforms.map((value) => platformLabel(value)).join(" · ")}
+      </span>
+      <span>
+        <small>Installation method</small>
+        {Object.hasOwn(adapterPresentation, port.adapter)
+          ? adapterPresentation[port.adapter]
+          : "Installation method unavailable"}
+      </span>
+      <span>
+        <small>Automated testing</small>
+        {port.automated_tested_platforms.length
+          ? port.automated_tested_platforms.map((value) => platformLabel(value)).join(" · ")
+          : "Not yet tested"}
+      </span>
+      <span>
+        <small>Physical device testing</small>
+        {port.manually_validated_platforms.length
+          ? port.manually_validated_platforms.map((value) => platformLabel(value)).join(" · ")
+          : "No completed device test"}
+      </span>
+    </div>
+  );
+}
+
+function ProjectReleaseSummary({ port }: { port: PortDefinition }) {
+  return (
+    <div className="upstream-link">
+      <ProjectLink href={port.project_url}>
+        Open upstream project <Icon glyph={ExternalLink} size="sm" />
+      </ProjectLink>
+      <span>Portcove checks this project for releases.</span>
     </div>
   );
 }
@@ -601,16 +906,12 @@ function closeFromScrim(event: React.MouseEvent<HTMLDivElement>, close: () => vo
   if (event.currentTarget === event.target) close();
 }
 
-function AdvancedControls({
+function TechnicalDetails({
   libraryGeneration,
   port,
   status,
   selectedChannel,
-  policy,
   installed,
-  backups,
-  backupProblems,
-  backupState,
   busy,
   sources,
   actions,
@@ -619,11 +920,7 @@ function AdvancedControls({
   port: PortDefinition;
   status?: PortStatus;
   selectedChannel: ReleaseChannel;
-  policy: UpdatePolicy;
   installed: boolean;
-  backups: BackupRecord[];
-  backupProblems: BackupProblem[];
-  backupState: BackupInventory["state"];
   busy?: string;
   sources: SourceControls;
   actions: DetailActions;
@@ -637,63 +934,15 @@ function AdvancedControls({
   return (
     <details className="advanced-settings">
       <summary data-focusable className="advanced-summary">
-        Release, sources &amp; maintenance{" "}
-        <span className="advanced-summary-meta">Advanced controls</span>
+        Technical details <span className="advanced-summary-meta">Commands and maintenance</span>
         <Icon glyph={ChevronDown} />
       </summary>
       <div className="advanced-body">
-        <div className="detail-section">
-          <ReleaseChannelControl
-            key={`${port.id}:${libraryGeneration}`}
-            channels={port.channels}
-            selected={selectedChannel}
-            busy={Boolean(busy)}
-            change={actions.setChannel}
-            refresh={actions.check}
-          />
-        </div>
-        <div className="detail-section">
-          <UpdatePolicyControl
-            key={port.id}
-            policy={policy}
-            busy={Boolean(busy)}
-            save={actions.setPolicy}
-          />
-        </div>
-        <SourceFields mode="registered" controls={sources} />
         <div className="metadata">
-          <span>
-            <small>Platforms</small>
-            {port.platforms.map((value) => platformLabel(value)).join(" · ")}
-          </span>
-          <span>
-            <small>Installation method</small>
-            {Object.hasOwn(adapterPresentation, port.adapter)
-              ? adapterPresentation[port.adapter]
-              : "Installation method unavailable"}
-          </span>
-          <span>
-            <small>Automated evidence</small>
-            {port.automated_tested_platforms.length
-              ? port.automated_tested_platforms.map((value) => platformLabel(value)).join(" · ")
-              : "Not yet tested"}
-          </span>
-          <span>
-            <small>Physical validation</small>
-            {port.manually_validated_platforms.length
-              ? port.manually_validated_platforms.map((value) => platformLabel(value)).join(" · ")
-              : "Deferred / not completed"}
-          </span>
           <span title={persistentFiles}>
-            <small>Saves and settings folder</small>
-            {status?.user_data_root ?? "Created inside the selected library"}
+            <small>Saved data patterns</small>
+            {persistentFiles || "No saved data paths declared"}
           </span>
-        </div>
-        <div className="upstream-link">
-          <ProjectLink href={port.project_url}>
-            Open upstream project <Icon glyph={ExternalLink} size="sm" />
-          </ProjectLink>
-          <span>Portcove resolves releases from this reviewed upstream.</span>
         </div>
         <CliContinuity
           key={`${port.id}:${libraryGeneration}`}
@@ -704,18 +953,6 @@ function AdvancedControls({
           sourcePath={sources.sourcePath || sources.source?.path || ""}
           biosPath={sources.biosPath || sources.bios?.path || ""}
         />
-        {(installed || backups.length > 0 || backupProblems.length > 0) && (
-          <BackupHistory
-            key={`${port.id}:${libraryGeneration}`}
-            generation={libraryGeneration}
-            backups={backups}
-            problems={backupProblems}
-            state={backupState}
-            busy={busy}
-            restore={actions.restoreBackup}
-            remove={actions.deleteBackup}
-          />
-        )}
         {installed && (
           <MaintenanceActions
             port={port}
@@ -1053,40 +1290,6 @@ function MaintenanceActions({
       <button
         data-focusable
         className="button-with-icon"
-        title="Create a versioned backup of saves and settings"
-        disabled={Boolean(busy)}
-        onClick={() => {
-          void actions.backup();
-        }}
-      >
-        <Icon glyph={Save} />
-        Back up data
-      </button>
-      <button
-        data-focusable
-        className="button-with-icon"
-        disabled={Boolean(busy)}
-        onClick={() => {
-          void actions.openUserData();
-        }}
-      >
-        <Icon glyph={FolderOpen} />
-        Open data folder
-      </button>
-      <button
-        data-focusable
-        className="button-with-icon"
-        disabled={Boolean(busy)}
-        onClick={() => {
-          void actions.check();
-        }}
-      >
-        <Icon glyph={RefreshCw} />
-        Check update
-      </button>
-      <button
-        data-focusable
-        className="button-with-icon"
         disabled={Boolean(busy)}
         onClick={() => {
           void actions.verify();
@@ -1113,6 +1316,54 @@ function MaintenanceActions({
         busy={Boolean(busy)}
         apply={actions.remove}
       />
+    </div>
+  );
+}
+
+function DataActions({ busy, actions }: { busy?: string; actions: DetailActions }) {
+  return (
+    <div className="actions detail-inline-actions">
+      <button
+        data-focusable
+        className="button-with-icon"
+        title="Create a versioned backup of saves and settings"
+        disabled={Boolean(busy)}
+        onClick={() => {
+          void actions.backup();
+        }}
+      >
+        <Icon glyph={Save} />
+        Back up data
+      </button>
+      <button
+        data-focusable
+        className="button-with-icon"
+        disabled={Boolean(busy)}
+        onClick={() => {
+          void actions.openUserData();
+        }}
+      >
+        <Icon glyph={FolderOpen} />
+        Open data folder
+      </button>
+    </div>
+  );
+}
+
+function UpdateCheckAction({ busy, check }: { busy?: string; check: DetailActions["check"] }) {
+  return (
+    <div className="actions detail-inline-actions">
+      <button
+        data-focusable
+        className="button-with-icon"
+        disabled={Boolean(busy)}
+        onClick={() => {
+          void check();
+        }}
+      >
+        <Icon glyph={RefreshCw} />
+        Check update
+      </button>
     </div>
   );
 }

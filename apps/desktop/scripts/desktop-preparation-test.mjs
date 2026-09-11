@@ -26,6 +26,7 @@ export async function preparationScenarios({
   tool,
   confirmNative,
   onlyArtwork = false,
+  onlyAdoption = false,
 }) {
   const command = (args, selectedLibrary = library) => {
     const result = spawnCommand(
@@ -103,6 +104,22 @@ export async function preparationScenarios({
     const result = await invoke("get_statuses");
     assert.equal(result.ok, true);
     return result.value.find((item) => item.port_id === portId);
+  }
+  if (onlyAdoption) {
+    await seed("opengoal-jak1", "success");
+    await adoptionReviewScenario({
+      browser,
+      invoke,
+      scenario,
+      library,
+      output,
+      artifacts,
+      command,
+      tool,
+      host,
+      confirmNative,
+    });
+    return;
   }
   await scenario("native-preparation-review-and-play", async () => {
     const { port, install } = await seed("opengoal-jak1", "success");
