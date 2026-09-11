@@ -3,6 +3,11 @@ import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 
 const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+const windowsQualificationRunner = await readFile(
+  new URL("./run-windows-qualification.ps1", import.meta.url),
+  "utf8",
+);
+const requiredCiSurface = `${workflow}\n${windowsQualificationRunner}`;
 
 function jobSection(name, nextName) {
   const end = nextName ? `(?=^  ${nextName}:)` : "(?![\\s\\S])";
@@ -29,7 +34,7 @@ test("every Node test file is included in required CI and the local quality work
     name.endsWith(".test.mjs"),
   );
   for (const file of files) {
-    assert.ok(workflow.includes(`scripts/${file}`), `${file} is absent from required CI`);
+    assert.ok(requiredCiSurface.includes(`scripts/${file}`), `${file} is absent from required CI`);
     assert.ok(recipes.includes(`scripts/${file}`), `${file} is absent from local quality checks`);
   }
 });
@@ -193,10 +198,7 @@ test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () 
   assert.match(windowsStorage, /scripts\/dev-storage\.test\.mjs/);
   assert.match(windowsStorage, /--test-skip-pattern "pnpm uses\|direct just recipes"/);
   assert.match(windowsStorage, /scripts\/windows-qualification-session\.test\.mjs/);
-  assert.match(
-    windowsStorage,
-    /node --test scripts\/windows-qualification-session\.integration\.test\.mjs/,
-  );
+  assert.match(windowsStorage, /\.\/scripts\/run-windows-qualification\.ps1/);
   assert.match(
     windowsStorage,
     /--test-timeout=30000 --test-reporter=\.\/scripts\/test-duration-reporter\.mjs/,
@@ -317,6 +319,18 @@ test(
     }
   },
 );
+
+test("Windows qualification serializes machine-global registry fixtures with a bounded lock", () => {
+  const wrapper = windowsQualificationRunner;
+  assert.match(wrapper, /Local\\Portcove\.WindowsQualification\.v1/);
+  assert.match(wrapper, /WaitOne\(\[TimeSpan\]::FromSeconds\(\$WaitSeconds\)\)/);
+  assert.match(wrapper, /AbandonedMutexException/);
+  assert.match(wrapper, /finally \{[\s\S]*ReleaseMutex\(\)[\s\S]*Dispose\(\)/);
+  assert.match(
+    wrapper,
+    /node --test scripts\/windows-qualification-session\.integration\.test\.mjs/,
+  );
+});
 
 test("native Rust runs the full workspace on every supported Unix architecture", () => {
   assert.match(

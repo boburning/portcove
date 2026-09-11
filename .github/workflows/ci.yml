@@ -142,7 +142,8 @@ jobs:
       - name: Test Windows CI setup contract
         run: node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/ci-workflow.test.mjs
       - name: Test Windows qualification session integration
-        run: node --test scripts/windows-qualification-session.integration.test.mjs
+        shell: pwsh
+        run: ./scripts/run-windows-qualification.ps1
       - name: Test development diagnostics and evidence
         run: node scripts/dev-storage.mjs run -- node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/dev-doctor.test.mjs scripts/development-cli-help.test.mjs scripts/development-evidence.test.mjs scripts/local-validation.test.mjs scripts/native-session.test.mjs scripts/tool-cache.test.mjs
       - name: Lint PowerShell scripts
