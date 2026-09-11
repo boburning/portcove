@@ -36,22 +36,24 @@ accepted move, using fresh geometry rather than a stale layout cache. The harnes
 restores its injected input and DOM fixture afterward. These measurements are
 native rendering evidence, not physical-controller or human-navigation evidence.
 
-| Scope                                | Command                        | Purpose                                                                                                                                       |
-| ------------------------------------ | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Plan or run a coherent local change  | `just local-check [--plan]`    | select formatting, affected Rust packages, related UI tests, and exact tooling contracts from the complete local diff                         |
-| Focus a Rust edit-test loop          | `just test-rust <args>`        | pass an explicit package, target, or test-name selection through the pinned nextest fixture runner                                            |
-| Focus a UI edit-test loop            | `just test-ui-related <files>` | run Vitest tests related through the import graph to explicit changed source files with the standard isolation and timing contract            |
-| Focus a Node tooling edit-test loop  | `just test-node <test-files>`  | run explicit Node test files with the standard hang guard and duration reporter                                                               |
-| Format supported files               | `just fmt`                     | rewrite Rust, frontend, configuration, and active documentation with the repository-pinned formatters                                         |
-| Verify all formatting                | `just fmt-check`               | check the complete formatting contract without changing files                                                                                 |
-| Exhaustive local Rust investigation  | `just check-rust`              | format, compile, Clippy, tests, unused dependencies/files, and crate boundaries                                                               |
-| Exhaustive local UI investigation    | `just check-ui`                | Oxfmt, type-aware Oxlint, Stylelint, production build, tests, and the existing Fallow gate                                                    |
-| Playnite reference change (Windows)  | `just playnite-check`          | locked SDK/reference-assembly builds, literal process arguments and public protocol regression fixtures; optional isolated compiled-CLI reads |
-| Exhaustive local cross-stack check   | `just check`                   | Rust, UI, script/workflow lint, and deterministic package-policy, staging, checksum, and release-note tests                                   |
-| Release or explicit transition audit | `just audit`                   | exhaustive local check plus dependency policy and rscheck                                                                                     |
-| Large structural investigation       | `just deep`                    | audit plus advisory Hawk and semdup analysis                                                                                                  |
-| Explicit cycle investigation         | `just cycles`                  | optional advisory module-cycle report                                                                                                         |
-| Critical core test review            | `just mutants`                 | optional mutation analysis for `portcove-core`                                                                                                |
+| Scope                                | Command                            | Purpose                                                                                                                                       |
+| ------------------------------------ | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Plan or run a coherent local change  | `just local-check [--plan]`        | select formatting, affected Rust packages, related UI tests, and exact tooling contracts from the complete local diff                         |
+| Focus a Rust edit-test loop          | `just test-rust <args>`            | pass an explicit package, target, or test-name selection through the pinned nextest fixture runner                                            |
+| Focus a UI edit-test loop            | `just test-ui-related <files>`     | run Vitest tests related through the import graph to explicit changed source files with the standard isolation and timing contract            |
+| Focus a Node tooling edit-test loop  | `just test-node <test-files>`      | run explicit Node test files with the standard hang guard and duration reporter                                                               |
+| Format supported files               | `just fmt`                         | rewrite Rust, frontend, configuration, and active documentation with the repository-pinned formatters                                         |
+| Verify all formatting                | `just fmt-check`                   | check the complete formatting contract without changing files                                                                                 |
+| Exhaustive local Rust investigation  | `just check-rust`                  | format, compile, Clippy, tests, unused dependencies/files, and crate boundaries                                                               |
+| Exhaustive local UI investigation    | `just check-ui`                    | Oxfmt, type-aware Oxlint, Stylelint, production build, tests, and the existing Fallow gate                                                    |
+| Playnite reference change (Windows)  | `just playnite-check`              | locked SDK/reference-assembly builds, literal process arguments and public protocol regression fixtures; optional isolated compiled-CLI reads |
+| Exhaustive source/repository check   | `just check`                       | Rust, UI, script/workflow lint, repository tooling, Roadmap, and development-tool contracts; excludes release qualification                   |
+| Deterministic release-unit check     | `just release-check`               | release metadata, packaging, updater, channel, workflow, and Windows qualification unit contracts                                             |
+| Packaged Windows qualification       | `just windows-qualification-check` | stateful Windows packaged-session integration; always observed rather than reused                                                             |
+| Release or explicit transition audit | `just audit [--plan\|--fresh]`     | staged exhaustive check, dependency policy, rscheck, release units, and applicable Windows qualification                                      |
+| Large structural investigation       | `just deep`                        | audit plus advisory Hawk and semdup analysis                                                                                                  |
+| Explicit cycle investigation         | `just cycles`                      | optional advisory module-cycle report                                                                                                         |
+| Critical core test review            | `just mutants`                     | optional mutation analysis for `portcove-core`                                                                                                |
 
 ## Local feedback and hosted authority
 
@@ -86,6 +88,35 @@ explicitly named acceptance requirement, a validation-contract transition, or
 diagnosing a hosted failure. Native desktop, installer, recovery, security,
 physical-platform, and human evidence remains separate and is still required
 when the issue's acceptance scope calls for it.
+
+## Staged audit receipts
+
+`just audit` executes named formatting, Rust, UI, script-lint, repository-tooling, Roadmap,
+development-tool, dependency-policy, rscheck, release-unit, and applicable
+Windows-qualification stages. It continues independent stages after a failure
+and returns one aggregate failure so a late problem does not hide remaining
+results. `just audit --plan` reports each run/reuse decision without executing a
+stage or creating receipt storage. `just audit --fresh` ignores prior success and
+runs every applicable stage; release preflight and validation-contract acceptance
+use this mode.
+
+Successful deterministic-stage receipts live under ignored
+`work/validation-receipts`. Their fingerprints cover the complete conservative
+repository-owned domain inventory, tracked/index/worktree content identities,
+untracked inputs, recipes and pins, host/tool versions, and whitelisted
+behavior-affecting environment. Unknown files affect every reusable domain. A
+content-identical unrelated rebase can therefore retain a stage, while a relevant
+edit, tool/environment drift, missing input, or receipt-integrity failure forces a
+rerun. Unresolved or partially staged paths are refused because one execution
+cannot validate two different candidate contents. Failed, interrupted, or incomplete stages never create a reusable receipt.
+Dependency/advisory policy and packaged Windows qualification always rerun because
+their external or machine state can change.
+
+Every completed audit writes a current-head run receipt listing the fingerprint,
+originating head, duration, rationale, and fresh/reused/failed result for every
+applicable stage. These files are disposable local execution evidence. They do not
+replace exact-head required CI, issue acceptance, final review, release preflight,
+or any protected authority.
 
 ## Formatting contract
 

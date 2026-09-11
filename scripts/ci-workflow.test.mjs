@@ -30,12 +30,16 @@ const dependencyReview = jobSection("dependency-review");
 
 test("every Node test file is included in required CI and the local quality workflow", async () => {
   const recipes = await readFile(new URL("../justfile", import.meta.url), "utf8");
+  const localQualitySurface = `${recipes}\n${windowsQualificationRunner}`;
   const files = (await readdir(new URL(".", import.meta.url))).filter((name) =>
     name.endsWith(".test.mjs"),
   );
   for (const file of files) {
     assert.ok(requiredCiSurface.includes(`scripts/${file}`), `${file} is absent from required CI`);
-    assert.ok(recipes.includes(`scripts/${file}`), `${file} is absent from local quality checks`);
+    assert.ok(
+      localQualitySurface.includes(`scripts/${file}`),
+      `${file} is absent from local quality checks`,
+    );
   }
 });
 
@@ -609,8 +613,65 @@ test("routine checks retain architecture enforcement but make cycles optional", 
   assert.doesNotMatch(rustQuality, /cargo modules/);
   assert.match(rustQuality, /node scripts\/check-rust-architecture\.mjs/);
   const recipes = await readFile(new URL("../justfile", import.meta.url), "utf8");
-  assert.match(recipes, /^audit: check deny rscheck$/m);
+  assert.match(
+    recipes,
+    /^audit \*args:\r?\n\s+\{\{storage\}\} node scripts\/audit\.mjs \{\{args\}\}$/m,
+  );
   assert.match(recipes, /^cycles:\r?\n.*cargo modules/m);
+});
+
+test("validation recipes separate routine, release, and packaged Windows contracts", async () => {
+  const recipes = await readFile(new URL("../justfile", import.meta.url), "utf8");
+  const routine = recipes.match(/^check: (.+)$/m)?.[1] ?? "";
+  assert.match(
+    routine,
+    /check-rust check-ui script-lint repository-tools roadmap-check development-tools/,
+  );
+  assert.doesNotMatch(routine, /release-check|windows-qualification/);
+  const release = recipes.match(/^release-check:\r?\n([\s\S]*?)(?=^\S)/m)?.[1] ?? "";
+  assert.match(release, /check-release-metadata\.test\.mjs/);
+  assert.match(release, /release-package-policy\.test\.mjs/);
+  assert.match(release, /updater-artifact-inventory\.test\.mjs/);
+  assert.match(release, /windows-qualification-session\.test\.mjs/);
+  assert.doesNotMatch(release, /windows-qualification-session\.integration\.test\.mjs/);
+  for (const generic of [
+    "ci-workflow.test.mjs",
+    "ci-health.test.mjs",
+    "test-duration-reporter.test.mjs",
+    "quality-tools.test.mjs",
+    "repository-settings.test.mjs",
+    "pr-conventions.test.mjs",
+    "dev-storage.test.mjs",
+  ])
+    assert.doesNotMatch(release, new RegExp(generic.replaceAll(".", "\\.")));
+  const windows = recipes.match(/^windows-qualification-check:\r?\n([\s\S]*?)(?=^\S)/m)?.[1] ?? "";
+  assert.match(windows, /process\.platform !== 'win32'/);
+  assert.match(windows, /run-windows-qualification\.ps1/);
+  assert.match(catalog, /check-release-metadata\.test\.mjs/);
+  assert.match(catalog, /release-package-policy\.test\.mjs/);
+  assert.match(windowsStorage, /run-windows-qualification\.ps1/);
+  const ui = recipes.match(/^check-ui: (.+)$/m)?.[1] ?? "";
+  assert.match(ui, /fmt-frontend-check ui-check/);
+  const auditUi = recipes.match(/^ui-check: (.+)$/m)?.[1] ?? "";
+  assert.doesNotMatch(auditUi, /fmt-frontend-check/);
+});
+
+test("release and deep preflights require a fresh audit", async () => {
+  const release = await readFile(
+    new URL("../.github/workflows/release.yml", import.meta.url),
+    "utf8",
+  );
+  const deep = await readFile(
+    new URL("../.github/workflows/deep-quality.yml", import.meta.url),
+    "utf8",
+  );
+  const localPreflight = await readFile(
+    new URL("./release-preflight.ps1", import.meta.url),
+    "utf8",
+  );
+  assert.match(release, /just audit --fresh/);
+  assert.match(deep, /just audit --fresh/);
+  assert.match(localPreflight, /just audit --fresh/);
 });
 
 test("live upstream health has bounded independent triggers while catalog stays offline", async () => {

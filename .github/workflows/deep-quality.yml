@@ -72,7 +72,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
         working-directory: apps/desktop
       - name: Run deterministic gates and structural audit
-        run: just audit
+        run: just audit --fresh
 
   hawk:
     runs-on: ubuntu-24.04

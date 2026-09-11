@@ -325,8 +325,32 @@ export function parseArguments(argv) {
   return { action, asJson, requestedMinimum, command: remaining };
 }
 
+export function isSideEffectFreeHelpCommand(command) {
+  if (!Array.isArray(command) || !command.includes("--help")) return false;
+  const executable = path.basename(command[0] ?? "").toLowerCase();
+  if (!new Set(["node", "node.exe"]).has(executable)) return false;
+  const script = String(command[1] ?? "")
+    .replaceAll("\\", "/")
+    .replace(/^\.\//u, "");
+  return new Set([
+    "scripts/local-validation.mjs",
+    "scripts/audit.mjs",
+    "scripts/desktop-test-cli.mjs",
+  ]).has(script);
+}
+
 function main() {
   const { action, asJson, requestedMinimum, command } = parseArguments(process.argv.slice(2));
+  if (action === "run" && isSideEffectFreeHelpCommand(command)) {
+    const result = spawnSync(command[0], command.slice(1), {
+      cwd: projectRoot,
+      env: process.env,
+      stdio: "inherit",
+      windowsHide: true,
+    });
+    if (result.error) throw result.error;
+    return result.status ?? 1;
+  }
   const configuredPaths = getPaths();
   if (action === "clean") {
     return cleanCargoTarget(configuredPaths);

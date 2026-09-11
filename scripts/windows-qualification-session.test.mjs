@@ -79,6 +79,8 @@ test("installer lifecycle waits for managed files and uninstall registration to 
     source,
     /Wait-JournaledUninstallerChild \$launch\.run \$AllowedRelocationRoot \$deadline/,
   );
+  assert.match(source, /if \(\$process\.HasExited\) \{ continue \}/);
+  assert.match(source, /Uninstaller child executable image path could not be observed/);
   assert.match(source, /Stop-JournaledProcess \$launch\.run \$launch\.process "timed_out"/);
   const start = source.indexOf("function Start-JournaledProcess");
   const spawn = source.indexOf("$process = Start-Process", start);

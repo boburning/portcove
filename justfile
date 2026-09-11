@@ -15,7 +15,7 @@ pr-check *args:
     node scripts/pr-conventions.mjs --pr {{args}}
 
 development-tools:
-    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/dev-doctor.test.mjs scripts/development-cli-help.test.mjs scripts/development-evidence.test.mjs scripts/local-validation.test.mjs scripts/native-session.test.mjs scripts/tool-cache.test.mjs
+    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/audit.test.mjs scripts/dev-doctor.test.mjs scripts/development-cli-help.test.mjs scripts/development-evidence.test.mjs scripts/local-validation.test.mjs scripts/native-session.test.mjs scripts/tool-cache.test.mjs
 
 # Fast local loop. Required GitHub CI remains the exhaustive merge gate.
 local-check *args:
@@ -104,7 +104,9 @@ stylelint:
     {{storage}} corepack pnpm --dir apps/desktop lint:style
     {{storage}} node scripts/lint-tools.integration.mjs stylelint
 
-check-ui: fmt-frontend-check ui-transport ui-build ui-test fallow oxlint stylelint
+ui-check: ui-transport ui-build ui-test fallow oxlint stylelint
+
+check-ui: fmt-frontend-check ui-check
 
 fmt-frontend-check:
     {{storage}} pnpm --dir apps/desktop format:check
@@ -129,15 +131,23 @@ powershell-lint:
 
 script-lint: python-lint shell-lint actions-lint powershell-lint
 
-# Deterministic release metadata and artifact tooling
-release-tools:
+# Generic repository automation and governance contracts.
+repository-tools:
     {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/upstream-observer.test.mjs
-    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-release-metadata.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/updater-artifact-inventory.test.mjs scripts/reconcile-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/select-release-channel.test.mjs scripts/release-workflow.test.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/test-duration-reporter.test.mjs scripts/quality-tools.test.mjs scripts/repository-settings.test.mjs scripts/pr-conventions.test.mjs scripts/dev-storage.test.mjs scripts/migrate-catalog-schema2.test.mjs scripts/windows-qualification-session.test.mjs
-    {{storage}} node --test scripts/windows-qualification-session.integration.test.mjs
-    {{storage}} node scripts/check-release-metadata.mjs
+    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/test-duration-reporter.test.mjs scripts/quality-tools.test.mjs scripts/repository-settings.test.mjs scripts/pr-conventions.test.mjs scripts/dev-storage.test.mjs scripts/migrate-catalog-schema2.test.mjs
     {{storage}} node scripts/check-retcomm-upstreams.mjs --offline
     {{storage}} node scripts/quality-tools.mjs --validate
     {{storage}} node scripts/repository-settings.mjs --validate
+
+# Deterministic release metadata, packaging, updater, and qualification unit contracts.
+release-check:
+    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-release-metadata.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/updater-artifact-inventory.test.mjs scripts/reconcile-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/select-release-channel.test.mjs scripts/release-workflow.test.mjs scripts/windows-qualification-session.test.mjs
+    {{storage}} node scripts/check-release-metadata.mjs
+
+# Stateful packaged-session qualification. Never reused by the audit orchestrator.
+windows-qualification-check:
+    node -e "if (process.platform !== 'win32') { console.error('windows-qualification-check requires Windows'); process.exit(1) }"
+    pwsh -NoLogo -NoProfile -File scripts/run-windows-qualification.ps1
 
 # Offline roadmap schema and governance checks. Live Project access is explicit.
 roadmap-check:
@@ -153,8 +163,8 @@ roadmap-next:
 roadmap-bootstrap:
     node scripts/roadmap.mjs bootstrap
 
-# Standard repository check
-check: check-rust check-ui script-lint release-tools roadmap-check development-tools
+# Standard repository check. Packaged release qualification is intentionally separate.
+check: check-rust check-ui script-lint repository-tools roadmap-check development-tools
 
 # Deeper deterministic and structural audit
 deny:
@@ -167,7 +177,8 @@ rscheck:
     {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/run-rscheck.test.mjs
     {{storage}} node scripts/run-rscheck.mjs
 
-audit: check deny rscheck
+audit *args:
+    {{storage}} node scripts/audit.mjs {{args}}
 
 # Expensive or experimental intelligence. Failures remain diagnostic.
 hawk:

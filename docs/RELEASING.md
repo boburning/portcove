@@ -193,7 +193,7 @@ From the repository root, run the complete local gate before creating a tag:
 .\scripts\release-preflight.ps1 -Tag v0.1.0
 ```
 
-The gate verifies release metadata, the full `just audit` contract, the frontend production dependency audit, active catalog repositories, direct PS1 upstream ownership, the native Tauri bundle, and an isolated silent install/respond/uninstall lifecycle. Install the pinned audit tools with `scripts/bootstrap-quality-tools.ps1` before running it locally. It never uses or modifies the normal Portcove library. Network-backed catalog and dependency checks use the configured credentials or normal anonymous public access.
+The gate verifies release metadata, a no-reuse `just audit --fresh`, the frontend production dependency audit, active catalog repositories, direct PS1 upstream ownership, the native Tauri bundle, and an isolated silent install/respond/uninstall lifecycle. Install the pinned audit tools with `scripts/bootstrap-quality-tools.ps1` before running it locally. It never uses or modifies the normal Portcove library. Network-backed catalog and dependency checks use the configured credentials or normal anonymous public access.
 
 After it passes, refresh the shareable local artifacts and checksum manifest:
 
