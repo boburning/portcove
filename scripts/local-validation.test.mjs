@@ -157,6 +157,22 @@ test("deleted files affect scope without becoming command arguments", () => {
   assert.ok(!plan.map(formatCommand).join("\n").includes("retired-tool"));
 });
 
+test("retired frontend tool configuration remains owned after deletion", () => {
+  const retired = [
+    ".prettierignore",
+    "prettier.config.mjs",
+    "eslint.config.mjs",
+    "apps/desktop/eslint.config.mjs",
+  ];
+  const selection = classifyChanges(
+    retired.map((path) => ({ status: "D", path })),
+    { fileExists: () => false },
+  );
+  assert.deepEqual([...selection.unknown], []);
+  assert.equal(selection.ui, true);
+  assert.equal(selection.uiFullTests, true);
+});
+
 test("non-ignored untracked files use the same deterministic mapping", () => {
   const selection = classifyChanges([{ status: "?", path: "scripts/local-validation.test.mjs" }], {
     fileExists: allFilesExist,

@@ -128,7 +128,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     file.startsWith("apps/desktop/assets/") ||
     file.startsWith("apps/desktop/public/") ||
     file === "apps/desktop/.fallowrc.json" ||
-    /^apps\/desktop\/(?:index\.html|package\.json|pnpm-lock\.yaml|tsconfig.*\.json|vite\.config\.[cm]?ts|stylelint\.config\.mjs)$/.test(
+    /^apps\/desktop\/(?:index\.html|package\.json|pnpm-lock\.yaml|tsconfig.*\.json|vite\.config\.[cm]?ts|eslint\.config\.mjs|stylelint\.config\.mjs)$/.test(
       file,
     )
   ) {
@@ -232,6 +232,9 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     file === ".editorconfig" ||
     file === ".oxfmtrc.json" ||
     file === ".oxlintrc.json" ||
+    file === ".prettierignore" ||
+    file === "prettier.config.mjs" ||
+    file === "eslint.config.mjs" ||
     file === ".gitignore" ||
     file === ".gitattributes" ||
     file === ".git-blame-ignore-revs" ||
