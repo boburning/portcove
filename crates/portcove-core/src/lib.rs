@@ -15,6 +15,7 @@ mod catalog_store;
 mod catalog_update;
 mod database;
 mod definition_capabilities;
+mod definition_entry;
 mod definition_index;
 #[cfg(test)]
 mod definition_policy_tests;
@@ -89,6 +90,7 @@ pub use definition_capabilities::{
     DefinitionCapabilityRequirement, DefinitionCapabilityResult, EngineTemplateCapability,
     check_definition_capabilities, inspect_definition_capabilities,
 };
+pub use definition_entry::DefinitionEntryInspection;
 pub use definition_index::{DefinitionContentIndex, IndexedDefinition};
 pub use error::{ErrorCode, PortcoveError, Result};
 pub use failure::{

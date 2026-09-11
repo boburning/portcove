@@ -173,6 +173,13 @@ These observations help isolate intermittent Windows failures but do not by
 themselves establish their cause. Test deadlines, concurrency and retry policy
 remain unchanged.
 
+The unobserved-abort recovery fixture holds its native uninstaller behind a
+bounded release marker until the owned runner has exited. A fixed sleep cannot
+establish that interruption point on a busy host. The fixture still requires the
+unobserved-exit outcome and exact owned cleanup; the separate observed-exit case
+retains its own assertion. The disposable native helper has no console lifetime
+dependency on the runner it must outlive.
+
 ## Architecture gate
 
 `scripts/check-rust-architecture.mjs` reads `cargo metadata --format-version 1 --no-deps`; it never scrapes manifests. It requires both adapters to depend on `portcove-core`, prevents core from depending on CLI/Tauri/desktop concerns, prevents either adapter from depending on its peer, and keeps the default Cargo member set limited to Core and CLI so a focused Rust build has no desktop frontend prerequisite. Add future layer rules to the checker data rather than writing a second checker.
