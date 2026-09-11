@@ -113,7 +113,10 @@ is the sole semantic change; unrelated ports and existing source authority remai
 exact, and new source records must be reachable from the selected port. Rejected,
 revoked, stale or corrupt selections fall back visibly without hiding baseline
 ports. Catalog provenance reports `definition_selected` when activation succeeds.
-Production still has no grant writer.
+The loaded catalog also carries the exact selection identity that passed those
+checks. SQLite schema 27 advances the library writer protocol so a newly written
+successor install retains that identity instead of losing its authenticated
+origin during later lifecycle work. Production still has no grant writer.
 
 ## Engine template capability ownership
 
@@ -202,21 +205,26 @@ discovery or reconstructing old bytes during preparation or manifest refresh.
 
 Retained-contract format 2 stores the namespace, stable ID and exact index, entry
 and shared leaf JSON strings inside the existing schema-6 install manifest.
-It has no parallel canonical `catalog_json` authority. On read, core checks bounds,
-identity, index-to-content digests and all current supported contract semantics.
-The existing immutable manifest digest covers the snapshot. Format 1 continues to
-retain canonical legacy catalog content, and cannot be mixed with format-2 input.
+Format 3 adds the exact authenticated selection identity: definition revision,
+repository root, publisher grant and policy revision, metadata role versions and
+digests, expiration, and index digest. The admission record must agree with the
+snapshot before the catalog can be reused or recaptured. Neither format has a
+parallel canonical `catalog_json` authority. On read, core checks bounds, identity,
+index-to-content digests and all current supported contract semantics. The existing
+immutable manifest digest covers both the snapshot and admission record. Format 1
+continues to retain canonical legacy catalog content. Format 2 remains readable as
+exact supplied successor content but does not acquire invented authentication.
 Pure decode caching is bounded to one exact format/content pair and never caches
-filesystem integrity, source admission or revocation decisions. Each component
-keeps its existing 4 MiB bound; the three retained components total at most 12 MiB
-before JSON string encoding and decoding overhead.
+filesystem integrity, source admission or revocation decisions. Each content
+component keeps its existing 4 MiB bound; the three retained components total at
+most 12 MiB before JSON string encoding and decoding overhead.
 
-SQLite writer protocol 25 prevents older clients from discarding successor bytes.
-It changes no table layout and uses the existing exclusive migration lease.
-Existing legacy installs remain readable; no historical snapshot or authenticated
+SQLite writer protocols 25 and 27 prevent older clients from discarding exact
+successor bytes and authenticated admission provenance respectively. They change
+no table layout and use the existing exclusive migration lease. Existing legacy
+and format-2 installs remain readable; no historical snapshot or authenticated
 provenance is invented for them. An unselected port in a shared projection cannot
-inherit the selected definition's identity. Trusted acquisition and transactional
-catalog selection remain separate, unactivated loader boundaries.
+inherit the selected definition's identity.
 
 For legacy and embedded catalogs, core captures a canonical, self-contained
 projection before publishing a new installation, adoption, or prepared derivative. Schema-6 installation
@@ -262,10 +270,8 @@ Installed launch readiness uses the retained source and BIOS profiles too.
 Within each status snapshot, source-health results are reused only for identical
 profile content; two installed contracts sharing a profile ID cannot inherit each
 other's result. Uninstalled sources retain their explicit unchecked state.
-Durable successor selection and replay floors, independent operation eligibility,
-historical admission proofs, and explicit revocation handling remain in the
-independent definition delivery work. No new publisher, signing grant, or updater
-is enabled.
+Independent operation eligibility and explicit revocation handling remain in the
+definition delivery work. No new publisher, signing grant, or updater is enabled.
 
 Portcove currently has one authority for catalog, source, release, installation, update, rollback, persistence, recovery, and launch behavior: `portcove-core`. The CLI and Tauri backend are thin adapters around it. The React frontend invokes Tauri commands and never owns installation state. External frontends use the public CLI and own only their presentation and platform-facing translation; they do not become another game-management authority.
 

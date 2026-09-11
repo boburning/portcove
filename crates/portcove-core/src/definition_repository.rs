@@ -60,6 +60,7 @@ impl DefinitionRepositorySource {
 
 /// Authenticated metadata facts captured with a candidate. They are not a persisted replay floor.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct AuthenticatedDefinitionProvenance {
     pub root_version: u64,
     pub root_sha256: String,

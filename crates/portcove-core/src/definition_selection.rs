@@ -17,6 +17,7 @@ use crate::{
 const MAX_SELECTION_JSON_BYTES: usize = 16 * 1024 * 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct DefinitionSelectionIdentity {
     pub namespace: String,
     pub stable_id: String,
@@ -25,6 +26,32 @@ pub struct DefinitionSelectionIdentity {
     pub grant_id: String,
     pub policy_revision: u64,
     pub provenance: AuthenticatedDefinitionProvenance,
+}
+
+impl DefinitionSelectionIdentity {
+    pub(crate) fn validate_snapshot(&self, snapshot: &DefinitionSnapshot) -> Result<()> {
+        if self.namespace != snapshot.namespace()
+            || self.stable_id != snapshot.port_id()
+            || self.repository_root_sha256 != self.provenance.root_sha256
+            || self.provenance.index_sha256 != snapshot.index_sha256()
+            || self.definition_revision == 0
+            || self.policy_revision == 0
+            || !valid_grant_id(&self.grant_id)
+        {
+            return Err(PortcoveError::verification(
+                "definition admission provenance differs from its exact snapshot",
+            ));
+        }
+        validate_sha256(&self.repository_root_sha256)?;
+        DefinitionReplayFloor::from(&self.provenance).validate()?;
+        expiration_unix(&self.provenance)?;
+        if self.definition_revision != snapshot.projection()?.entry().revision() {
+            return Err(PortcoveError::verification(
+                "definition admission revision differs from its exact entry",
+            ));
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -73,25 +100,15 @@ impl StoredDefinitionSelection {
     }
 
     fn validate(&self) -> Result<()> {
-        if self.namespace != self.snapshot.namespace()
-            || self.stable_id != self.snapshot.port_id()
-            || self.repository_root_sha256 != self.provenance.root_sha256
-            || self.provenance.index_sha256 != self.snapshot.index_sha256()
-            || self.definition_revision == 0
-            || self.policy_revision == 0
-            || !valid_grant_id(&self.grant_id)
-        {
-            return Err(PortcoveError::state(
-                "stored definition selection has inconsistent identity or policy",
-            ));
-        }
-        validate_sha256(&self.repository_root_sha256)?;
+        self.identity()
+            .validate_snapshot(&self.snapshot)
+            .map_err(|error| {
+                PortcoveError::state(
+                    "stored definition selection has inconsistent identity or policy",
+                )
+                .detail("cause", error.message)
+            })?;
         let projection = self.snapshot.projection()?;
-        if self.definition_revision != projection.entry().revision() {
-            return Err(PortcoveError::state(
-                "stored definition revision differs from its exact entry",
-            ));
-        }
         projection.catalog().port(&self.stable_id)?;
         Ok(())
     }
@@ -451,12 +468,13 @@ pub(crate) fn load_selected_definition_catalog(
         ));
     }
     require_fresh(&selection.provenance, now_unix)?;
-    let catalog = selection.snapshot.catalog()?;
+    let mut catalog = selection.snapshot.catalog()?;
     crate::definition_loader::validate_definition_transition(
         baseline,
         &catalog,
         &selection.stable_id,
     )?;
+    catalog.retain_definition_selection(std::sync::Arc::new(selection.identity()))?;
     Ok(Some((catalog, expiration_unix(&selection.provenance)?)))
 }
 

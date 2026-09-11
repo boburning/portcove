@@ -5,9 +5,9 @@
 //! evidence records from a later catalog. This records semantics, not new trust.
 
 use serde::{Deserialize, Serialize};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
-use crate::{Catalog, PortcoveError, Result};
+use crate::{Catalog, DefinitionSelectionIdentity, PortcoveError, Result};
 
 // Cache only pure decoding of one exact format and bounded content string. Installation
 // reads still verify the current manifest bytes and digest first;
@@ -23,6 +23,8 @@ pub(crate) struct InstalledContract {
     catalog_json: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     definition: Option<crate::definition_projection::DefinitionSnapshot>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    admission: Option<DefinitionSelectionIdentity>,
 }
 
 impl InstalledContract {
@@ -33,8 +35,15 @@ impl InstalledContract {
     pub(crate) fn capture(catalog: &Catalog, port_id: &str) -> Result<Self> {
         catalog.port(port_id)?;
         let definition = catalog.definition_snapshot(port_id).cloned();
+        let admission = catalog.definition_selection(port_id).cloned();
         let contract = Self {
-            format: if definition.is_some() { 2 } else { 1 },
+            format: if admission.is_some() {
+                3
+            } else if definition.is_some() {
+                2
+            } else {
+                1
+            },
             port_id: port_id.into(),
             catalog_json: if definition.is_some() {
                 String::new()
@@ -42,6 +51,7 @@ impl InstalledContract {
                 serde_json::to_string(&catalog.authoritative_document())?
             },
             definition,
+            admission,
         };
         contract.catalog(port_id)?;
         Ok(contract)
@@ -50,10 +60,14 @@ impl InstalledContract {
     pub(crate) fn catalog(&self, port_id: &str) -> Result<Catalog> {
         if self.port_id != port_id
             || !matches!(
-                (self.format, self.definition.as_ref()),
-                (1, None) | (2, Some(_))
+                (
+                    self.format,
+                    self.definition.as_ref(),
+                    self.admission.as_ref()
+                ),
+                (1, None, None) | (2, Some(_), None) | (3, Some(_), Some(_))
             )
-            || (self.format == 2 && !self.catalog_json.is_empty())
+            || (self.format >= 2 && !self.catalog_json.is_empty())
         {
             return Err(PortcoveError::verification(
                 "retained definition contract does not match this installation",
@@ -72,7 +86,7 @@ impl InstalledContract {
                         "retained indexed definition has a different port identity",
                     ));
                 }
-                serde_json::to_string(definition)?
+                serde_json::to_string(&(definition, &self.admission))?
             }
             None => self.catalog_json.clone(),
         };
@@ -84,10 +98,13 @@ impl InstalledContract {
             catalog.port(port_id)?;
             return Ok(catalog.clone());
         }
-        let catalog = match &self.definition {
+        let mut catalog = match &self.definition {
             Some(definition) => definition.catalog()?,
             None => Catalog::from_json(&self.catalog_json)?,
         };
+        if let Some(admission) = &self.admission {
+            catalog.retain_definition_selection(Arc::new(admission.clone()))?;
+        }
         catalog.port(port_id)?;
         // Format 1 stores canonical legacy semantics. Format 2 already ran the
         // strict indexed interpreter; neither route may discard unknown fields.
@@ -168,7 +185,7 @@ mod tests {
         missing.definition = None;
         assert!(missing.catalog("zelda64-recomp").is_err());
         let mut future = contract;
-        future.format = 3;
+        future.format = 4;
         assert!(future.catalog("zelda64-recomp").is_err());
         let mut unknown = original;
         unknown["definition"]["trusted"] = serde_json::json!(true);
@@ -186,6 +203,7 @@ mod tests {
             port_id: "zelda64-recomp".into(),
             catalog_json: serde_json::to_string(successor.definition.as_ref().unwrap()).unwrap(),
             definition: None,
+            admission: None,
         };
         assert!(impostor.catalog("zelda64-recomp").is_err());
         assert!(successor.catalog("zelda64-recomp").is_ok());

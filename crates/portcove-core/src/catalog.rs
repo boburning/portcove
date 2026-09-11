@@ -15,6 +15,7 @@ const EMBEDDED_CATALOG: &str = include_str!("../catalog/catalog.json");
 pub struct Catalog {
     document: CatalogDocument,
     definition_snapshot: Option<Arc<crate::definition_projection::DefinitionSnapshot>>,
+    definition_selection: Option<Arc<crate::DefinitionSelectionIdentity>>,
 }
 
 impl Catalog {
@@ -57,6 +58,7 @@ impl Catalog {
         let catalog = Self {
             document,
             definition_snapshot: None,
+            definition_selection: None,
         };
         catalog.validate()?;
         Ok(catalog)
@@ -80,6 +82,31 @@ impl Catalog {
         self.definition_snapshot
             .as_deref()
             .filter(|snapshot| snapshot.port_id() == port_id)
+    }
+
+    pub(crate) fn retain_definition_selection(
+        &mut self,
+        selection: Arc<crate::DefinitionSelectionIdentity>,
+    ) -> Result<()> {
+        let snapshot = self
+            .definition_snapshot(&selection.stable_id)
+            .ok_or_else(|| {
+                PortcoveError::state(
+                    "definition admission provenance has no matching exact snapshot",
+                )
+            })?;
+        selection.validate_snapshot(snapshot)?;
+        self.definition_selection = Some(selection);
+        Ok(())
+    }
+
+    pub(crate) fn definition_selection(
+        &self,
+        port_id: &str,
+    ) -> Option<&crate::DefinitionSelectionIdentity> {
+        self.definition_selection
+            .as_deref()
+            .filter(|selection| selection.stable_id == port_id)
     }
 
     pub(crate) fn authoritative_document(&self) -> CatalogDocument {

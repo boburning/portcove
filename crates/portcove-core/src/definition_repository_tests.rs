@@ -715,6 +715,11 @@ async fn selected_post_client_definition_loads_as_the_active_catalog() {
     let library = Library::open(temporary.path()).unwrap();
 
     select_candidate(&library, &candidate, &port_id);
+    let selection = library
+        .definition_selection_status()
+        .unwrap()
+        .selected
+        .unwrap();
     let (loaded, provenance) = library.load_catalog().unwrap();
 
     assert_eq!(provenance.origin, CatalogOrigin::DefinitionSelected);
@@ -727,6 +732,101 @@ async fn selected_post_client_definition_loads_as_the_active_catalog() {
     );
     assert!(loaded.port(&port_id).is_ok());
     assert!(loaded.definition_snapshot(&port_id).is_some());
+    assert_eq!(loaded.definition_selection(&port_id), Some(&selection));
+    let retained =
+        crate::installed_contract::InstalledContract::capture(&loaded, &port_id).unwrap();
+    let retained_value = serde_json::to_value(&retained).unwrap();
+    assert_eq!(retained_value["format"], 3);
+    assert_eq!(
+        retained_value["admission"],
+        serde_json::to_value(&selection).unwrap()
+    );
+    let restored = retained.catalog(&port_id).unwrap();
+    assert_eq!(restored.definition_selection(&port_id), Some(&selection));
+    assert_eq!(
+        serde_json::to_vec(
+            &crate::installed_contract::InstalledContract::capture(&restored, &port_id).unwrap()
+        )
+        .unwrap(),
+        serde_json::to_vec(&retained).unwrap()
+    );
+    for (label, segments, replacement) in [
+        (
+            "admission.stable_id",
+            &["admission", "stable_id"][..],
+            Value::String("changed".into()),
+        ),
+        (
+            "admission.definition_revision",
+            &["admission", "definition_revision"][..],
+            Value::from(999),
+        ),
+        (
+            "admission.repository_root_sha256",
+            &["admission", "repository_root_sha256"][..],
+            Value::String("changed".into()),
+        ),
+        (
+            "admission.provenance.index_sha256",
+            &["admission", "provenance", "index_sha256"][..],
+            Value::String("changed".into()),
+        ),
+        (
+            "admission.grant_id",
+            &["admission", "grant_id"][..],
+            Value::String("INVALID".into()),
+        ),
+        (
+            "admission.policy_revision",
+            &["admission", "policy_revision"][..],
+            Value::from(0),
+        ),
+        (
+            "admission.provenance.timestamp_version",
+            &["admission", "provenance", "timestamp_version"][..],
+            Value::from(0),
+        ),
+        (
+            "admission.provenance.earliest_expiration",
+            &["admission", "provenance", "earliest_expiration"][..],
+            Value::String("invalid".into()),
+        ),
+    ] {
+        let mut changed = retained_value.clone();
+        let mut target = &mut changed;
+        for segment in segments {
+            target = target.get_mut(segment).unwrap();
+        }
+        *target = replacement;
+        let decoded: crate::installed_contract::InstalledContract =
+            serde_json::from_value(changed).unwrap();
+        assert!(
+            decoded.catalog(&port_id).is_err(),
+            "accepted tampered {label}"
+        );
+    }
+    for (label, segments) in [
+        ("admission.unknown", &["admission"][..]),
+        (
+            "admission.provenance.unknown",
+            &["admission", "provenance"][..],
+        ),
+    ] {
+        let mut changed = retained_value.clone();
+        let mut target = &mut changed;
+        for segment in segments {
+            target = target.get_mut(segment).unwrap();
+        }
+        target
+            .as_object_mut()
+            .unwrap()
+            .insert("unknown".into(), Value::Bool(true));
+        assert!(
+            serde_json::from_value::<crate::installed_contract::InstalledContract>(changed)
+                .is_err(),
+            "accepted unknown field at {label}"
+        );
+    }
     for port in baseline.ports() {
         assert_eq!(
             serde_json::to_value(loaded.port(&port.id).unwrap()).unwrap(),
