@@ -372,7 +372,14 @@ Reads reinterpret the snapshot and verify its identities and digest bindings;
 recapture after preparation or manifest refresh preserves the same bytes. Other
 ports in the shared graph do not inherit the selected entry's origin. Format 1
 keeps the existing canonical legacy projection without inventing historical data.
-Writer protocol 25 prevents older clients from dropping format-2 retention.
+After authenticated selection, retained-contract format 3 binds those same exact
+bytes to the accepted definition revision, repository root, publisher grant and
+policy revision, metadata role identities and expiration. Reads require the
+admission record and snapshot to agree exactly, and every existing lifecycle path
+recaptures the complete record. Format 2 stays readable as supplied successor
+content but gains no invented authentication. Writer protocols 25 and 27 prevent
+older clients from dropping exact successor bytes or the authenticated admission
+record.
 Authenticated loading, freshness/revocation, transactional catalog selection and
 scoped runtime activation are implemented in core. Production root and grant
 provisioning remain required before automatic public delivery can use this path.

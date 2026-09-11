@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 26;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 27;
 
 struct Migration {
     version: i64,
@@ -178,6 +178,12 @@ const MIGRATIONS: &[Migration] = &[
         version: 26,
         name: "atomic successor definition selection",
         apply: crate::definition_candidate::selection::migrate,
+        verify: verify_migration_26,
+    },
+    Migration {
+        version: 27,
+        name: "authenticated definition admission writer protocol",
+        apply: migration_27,
         verify: verify_migration_26,
     },
 ];
@@ -887,6 +893,13 @@ fn migration_25(transaction: &Transaction<'_>) -> Result<()> {
     verify_migration_23(transaction)
 }
 
+fn migration_27(transaction: &Transaction<'_>) -> Result<()> {
+    // Older writers cannot preserve format-3 authenticated admission provenance
+    // while refreshing a schema-6 manifest. Advance the protocol before any new
+    // selected-definition installation can be published.
+    verify_migration_26(transaction)
+}
+
 fn verify_migration_26(connection: &Connection) -> Result<()> {
     require_columns(
         connection,
@@ -1157,6 +1170,30 @@ mod tests {
         drop(current);
     }
 
+    #[test]
+    fn admission_writer_protocol_waits_for_schema_26_clients() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 26).unwrap();
+        let previous = crate::library_access::LibraryLease::acquire(root).unwrap();
+        assert_eq!(
+            crate::Library::open(root).unwrap_err().code,
+            crate::ErrorCode::Conflict
+        );
+        assert_eq!(
+            recorded_versions(&connect(root).unwrap()).unwrap().last(),
+            Some(&26)
+        );
+        drop(previous);
+        let current = crate::Library::open(root).unwrap();
+        assert_eq!(
+            recorded_versions(&connect(root).unwrap()).unwrap().last(),
+            Some(&CURRENT_SCHEMA_VERSION)
+        );
+        drop(current);
+    }
+
     fn schema_fingerprint(connection: &Connection) -> String {
         let mut statement = connection
             .prepare(
@@ -1298,6 +1335,7 @@ mod tests {
         schema_23: 23,
         schema_24: 24,
         schema_25: 25,
+        schema_26: 26,
     }
 
     #[test]

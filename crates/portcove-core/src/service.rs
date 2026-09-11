@@ -8916,15 +8916,20 @@ fn main() {
 
     #[test]
     fn installed_versions_keep_execution_and_saves_after_catalog_contract_changes() {
-        assert_catalog_contract_retention(false);
+        assert_catalog_contract_retention(1);
     }
 
     #[test]
     fn successor_adopted_staged_and_rollback_versions_keep_exact_contracts() {
-        assert_catalog_contract_retention(true);
+        assert_catalog_contract_retention(2);
     }
 
-    fn assert_catalog_contract_retention(successor: bool) {
+    #[test]
+    fn authenticated_admission_survives_staging_rollback_activation_and_refresh() {
+        assert_catalog_contract_retention(3);
+    }
+
+    fn assert_catalog_contract_retention(retained_format: u32) {
         let temporary = tempfile::tempdir().unwrap();
         let root = temporary.path().join("library");
         fs::create_dir_all(&root).unwrap();
@@ -8933,8 +8938,40 @@ fn main() {
         #[cfg(windows)]
         let root = PathBuf::from(root.to_str().unwrap().to_uppercase());
         let library = Library::open(root).unwrap();
-        let indexed = successor.then(|| {
-            crate::test_fixture::indexed_catalog(&Catalog::embedded().unwrap(), "zelda64-recomp")
+        let indexed = (retained_format >= 2).then(|| {
+            let mut catalog = crate::test_fixture::indexed_catalog(
+                &Catalog::embedded().unwrap(),
+                "zelda64-recomp",
+            );
+            if retained_format == 3 {
+                let snapshot = catalog.definition_snapshot("zelda64-recomp").unwrap();
+                let selection = crate::DefinitionSelectionIdentity {
+                    namespace: snapshot.namespace().into(),
+                    stable_id: snapshot.port_id().into(),
+                    definition_revision: snapshot.projection().unwrap().entry().revision(),
+                    repository_root_sha256: "a".repeat(64),
+                    grant_id: "test-official-grant".into(),
+                    policy_revision: 7,
+                    provenance: crate::AuthenticatedDefinitionProvenance {
+                        root_version: 1,
+                        root_sha256: "a".repeat(64),
+                        timestamp_version: 2,
+                        timestamp_sha256: "b".repeat(64),
+                        snapshot_version: 3,
+                        snapshot_sha256: "c".repeat(64),
+                        targets_version: 4,
+                        targets_sha256: "d".repeat(64),
+                        definitions_version: 5,
+                        definitions_sha256: "e".repeat(64),
+                        earliest_expiration: "2099-01-01T00:00:00Z".into(),
+                        index_sha256: snapshot.index_sha256(),
+                    },
+                };
+                catalog
+                    .retain_definition_selection(Arc::new(selection))
+                    .unwrap();
+            }
+            catalog
         });
         let register = |version, active| {
             register_zelda_install_contract(&library, version, active, b"test", indexed.as_ref())
@@ -8946,7 +8983,11 @@ fn main() {
             serde_json::from_slice(&fs::read(first.join(".portcove-manifest.json")).unwrap())
                 .unwrap();
         let exact_contract = &manifest["retained_contract"];
-        assert_eq!(exact_contract["format"], if successor { 2 } else { 1 });
+        assert_eq!(exact_contract["format"], retained_format);
+        assert_eq!(
+            exact_contract.get("admission").is_some(),
+            retained_format == 3
+        );
         fs::write(second.join("general.json"), b"version-owned-settings").unwrap();
         fs::write(second.join(LAUNCH_MARKER), b"1").unwrap();
         let mut service = PortcoveService::new(library.clone()).unwrap();
