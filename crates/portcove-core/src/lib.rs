@@ -92,6 +92,7 @@ pub use catalog_update::{CatalogUpdatePlan, CatalogUpdateSource};
 pub use definition_candidate::{
     DefinitionCandidateAvailability, DefinitionPublisherObservation, DefinitionPublisherStatus,
     EligibleDefinitionCandidate,
+    selection::{DefinitionSelectionIdentity, DefinitionSelectionStatus},
 };
 pub use definition_capabilities::{
     DefinitionCapabilityOutcome, DefinitionCapabilityReport, DefinitionCapabilityRequest,

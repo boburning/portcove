@@ -9,6 +9,9 @@ use crate::{
     DefinitionReplayFloor, ErrorCode, Result, evaluate_definition_eligibility,
 };
 
+#[path = "definition_selection.rs"]
+pub(crate) mod selection;
+
 /// Installed publisher-policy observation for one exact definition namespace and identity.
 ///
 /// Candidate bytes cannot create or change this observation. A later durable selector must

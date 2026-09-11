@@ -20,7 +20,7 @@ use tough::{
 
 use crate::{
     Catalog, DefinitionEligibilityOutcome, DefinitionEligibilityReason,
-    DefinitionPublisherObservation, DefinitionPublisherStatus, ErrorCode,
+    DefinitionPublisherObservation, DefinitionPublisherStatus, ErrorCode, Library,
     test_fixture::indexed_catalog_bundle,
 };
 
@@ -558,6 +558,218 @@ async fn composed_availability_binds_replay_without_consuming_or_repairing_the_f
         advance.replay_disposition(),
         DefinitionReplayDisposition::Advance
     );
+}
+
+#[tokio::test]
+async fn library_selection_persists_the_exact_candidate_and_floor_together() {
+    let fixture = RepositoryFixture::new();
+    let (port_id, targets) = repository_targets();
+    let root = fixture
+        .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
+        .await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+    let temporary = TempDir::new().unwrap();
+    let library = Library::open(temporary.path()).unwrap();
+
+    let initial = library.definition_selection_status().unwrap();
+    assert_eq!(initial.revision, 0);
+    assert!(initial.selected.is_none());
+    assert!(initial.replay_floor.is_none());
+    let unscoped = library
+        .assess_definition_candidate(&candidate, "official", &port_id)
+        .unwrap();
+    assert_eq!(
+        unscoped.eligibility().reason,
+        DefinitionEligibilityReason::PublisherScopeRequired
+    );
+    assert!(unscoped.into_eligible().is_none());
+
+    library
+        .install_definition_policy_for_test(
+            &candidate,
+            "official",
+            &port_id,
+            7,
+            "official-fixture-grant",
+            DefinitionPublisherStatus::Scoped,
+        )
+        .unwrap();
+    let eligible = library
+        .assess_definition_candidate(&candidate, "official", &port_id)
+        .unwrap()
+        .into_eligible()
+        .unwrap();
+    let selected = library.select_definition_candidate(eligible).unwrap();
+    assert_eq!(selected.revision, 1);
+    assert_eq!(selected.replay_floor, Some(candidate.replay_floor()));
+    let identity = selected.selected.unwrap();
+    assert_eq!(identity.namespace, "official");
+    assert_eq!(identity.stable_id, port_id);
+    assert_eq!(identity.definition_revision, 7);
+    assert_eq!(identity.policy_revision, 7);
+    assert_eq!(identity.grant_id, "official-fixture-grant");
+    assert_eq!(
+        identity.repository_root_sha256,
+        candidate.provenance().root_sha256
+    );
+
+    let exact_retry = library
+        .assess_definition_candidate(&candidate, "official", &port_id)
+        .unwrap()
+        .into_eligible()
+        .unwrap();
+    assert_eq!(
+        exact_retry.replay_disposition(),
+        DefinitionReplayDisposition::ExactRetry
+    );
+    assert_eq!(
+        library
+            .select_definition_candidate(exact_retry)
+            .unwrap()
+            .revision,
+        1,
+        "an exact retry must not manufacture a new selection revision"
+    );
+
+    drop(library);
+    let reopened = Library::open(temporary.path()).unwrap();
+    assert_eq!(reopened.definition_selection_status().unwrap().revision, 1);
+    let active_json: String = reopened
+        .connection()
+        .unwrap()
+        .query_row(
+            "SELECT active_json FROM definition_selection_state WHERE singleton=1",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    let stored: Value = serde_json::from_str(&active_json).unwrap();
+    assert!(
+        stored["snapshot"]["index_json"]
+            .as_str()
+            .unwrap()
+            .contains('\n')
+    );
+
+    let mut changed = stored;
+    changed["definition_revision"] = 8.into();
+    reopened
+        .connection()
+        .unwrap()
+        .execute(
+            "UPDATE definition_selection_state SET active_json=?1 WHERE singleton=1",
+            [serde_json::to_string(&changed).unwrap()],
+        )
+        .unwrap();
+    let error = reopened.definition_selection_status().unwrap_err();
+    assert_eq!(error.code, ErrorCode::State);
+    reopened
+        .connection()
+        .unwrap()
+        .execute(
+            "UPDATE definition_selection_state SET active_json=?1 WHERE singleton=1",
+            [active_json],
+        )
+        .unwrap();
+    assert_eq!(reopened.definition_selection_status().unwrap().revision, 1);
+}
+
+#[tokio::test]
+async fn selection_rechecks_policy_replay_and_atomic_commit_state() {
+    let fixture = RepositoryFixture::new();
+    let (port_id, targets) = repository_targets();
+    let root = fixture
+        .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
+        .await;
+    let mut candidate = acquire(&fixture, &root).await.unwrap();
+    let temporary = TempDir::new().unwrap();
+    let library = Library::open(temporary.path()).unwrap();
+    library
+        .install_definition_policy_for_test(
+            &candidate,
+            "official",
+            &port_id,
+            1,
+            "official-fixture-grant",
+            DefinitionPublisherStatus::Scoped,
+        )
+        .unwrap();
+
+    let interrupted = library
+        .assess_definition_candidate(&candidate, "official", &port_id)
+        .unwrap()
+        .into_eligible()
+        .unwrap();
+    library
+        .connection()
+        .unwrap()
+        .execute_batch(
+            "CREATE TRIGGER reject_definition_selection
+             BEFORE UPDATE ON definition_selection_state
+             BEGIN SELECT RAISE(ABORT, 'synthetic interruption'); END;",
+        )
+        .unwrap();
+    assert!(library.select_definition_candidate(interrupted).is_err());
+    let unchanged = library.definition_selection_status().unwrap();
+    assert_eq!(unchanged.revision, 0);
+    assert!(unchanged.selected.is_none());
+    assert!(unchanged.replay_floor.is_none());
+    library
+        .connection()
+        .unwrap()
+        .execute("DROP TRIGGER reject_definition_selection", [])
+        .unwrap();
+
+    let initial = library
+        .assess_definition_candidate(&candidate, "official", &port_id)
+        .unwrap()
+        .into_eligible()
+        .unwrap();
+    library.select_definition_candidate(initial).unwrap();
+    let old_retry = library
+        .assess_definition_candidate(&candidate, "official", &port_id)
+        .unwrap()
+        .into_eligible()
+        .unwrap();
+
+    candidate.provenance.timestamp_version += 1;
+    candidate.provenance.timestamp_sha256 = "c".repeat(64);
+    let advance = library
+        .assess_definition_candidate(&candidate, "official", &port_id)
+        .unwrap()
+        .into_eligible()
+        .unwrap();
+    assert_eq!(
+        advance.replay_disposition(),
+        DefinitionReplayDisposition::Advance
+    );
+    let advanced = library.select_definition_candidate(advance).unwrap();
+    assert_eq!(advanced.revision, 2);
+    assert!(advanced.can_rollback);
+    assert_eq!(advanced.replay_floor, Some(candidate.replay_floor()));
+
+    let replay_error = library.select_definition_candidate(old_retry).unwrap_err();
+    assert_eq!(replay_error.code, ErrorCode::Verification);
+    assert_eq!(library.definition_selection_status().unwrap(), advanced);
+
+    let pending = library
+        .assess_definition_candidate(&candidate, "official", &port_id)
+        .unwrap()
+        .into_eligible()
+        .unwrap();
+    library
+        .install_definition_policy_for_test(
+            &candidate,
+            "official",
+            &port_id,
+            2,
+            "official-fixture-grant",
+            DefinitionPublisherStatus::Revoked,
+        )
+        .unwrap();
+    let policy_error = library.select_definition_candidate(pending).unwrap_err();
+    assert_eq!(policy_error.code, ErrorCode::Conflict);
+    assert_eq!(library.definition_selection_status().unwrap(), advanced);
 }
 
 #[tokio::test]
