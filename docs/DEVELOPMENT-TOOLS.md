@@ -7,18 +7,24 @@ tools and storage failures return exit 1. Optional tools do not block readiness.
 Raw subprocess output and environment variables are not dumped. The command does
 not install tools, create output directories or modify host configuration.
 
-The doctor reads existing quality pins, `.node-version`, and the desktop package
-manager declaration. On Windows it reports MSVC installations and PATH candidates;
-this is not proof of Cargo's auto-selected linker. Inspect a verbose native build
-when compiler selection matters. Keep each worktree's Cargo target separate and
-use the existing development-storage wrapper for heavy commands.
+The doctor reads `.node-version`, the desktop package-manager declaration, the
+Rust quality manifest, `.aqua-version`, `aqua.yaml`, and the PowerShell resource
+pin. On Windows it reports MSVC installations and PATH candidates; this is not
+proof of Cargo's auto-selected linker. Inspect a verbose native build when
+compiler selection matters. Keep each worktree's Cargo target separate and use
+the existing development-storage wrapper for heavy commands.
 
-The quality bootstrap also installs the checksum-pinned Ruff, actionlint and
-ShellCheck binaries for the current Windows, Linux or macOS architecture.
-PSScriptAnalyzer is installed from its pinned PowerShell Gallery package on
-Windows; other hosts report it as not applicable because required PowerShell
-coverage runs in Windows CI. Run `just check-ui` for ESLint and Stylelint, or
-`just script-lint` for Python, shell, workflow and PowerShell lint as a group.
+Install the exact aqua release named by `.aqua-version` and make `aqua` available
+on `PATH` before running either quality bootstrap. The repository does not install
+or upgrade aqua on developer machines. The bootstrap verifies that prerequisite,
+then `aqua install` provisions the checksum-locked Ruff, actionlint and ShellCheck
+versions from `aqua.yaml` for the current Windows, Linux or macOS architecture.
+On Windows, the PowerShell bootstrap also installs exact PSScriptAnalyzer 1.25.0
+from PSGallery through the standard `.config/powershell-resources.psd1`
+PSResourceGet contract. Other hosts report it as not applicable because required
+PowerShell coverage runs in Windows CI. Run `just check-ui` for ESLint and
+Stylelint, or `just script-lint` for Python, shell, workflow and PowerShell lint
+as a group.
 
 ## Skills
 

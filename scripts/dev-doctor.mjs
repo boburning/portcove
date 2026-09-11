@@ -7,9 +7,66 @@ import {
   preflight,
   minimumFreeGiB,
 } from "./dev-storage.mjs";
-import { loadQualityManifest, managedToolPath } from "./quality-tools.mjs";
+import { loadQualityManifest } from "./quality-tools.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
+
+function aquaToolPaths(command) {
+  try {
+    const result = spawnCommand("aqua", ["which", command], {
+      cwd: root,
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 15_000,
+    });
+    return result.status === 0 && result.stdout.trim()
+      ? [result.stdout.trim()]
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function aquaDefinitions() {
+  const contents = readFileSync(path.join(root, "aqua.yaml"), "utf8");
+  const commands = {
+    "astral-sh/ruff": ["ruff", "--version"],
+    "rhysd/actionlint": ["actionlint", "-version"],
+    "koalaman/shellcheck": ["shellcheck", "--version"],
+  };
+  return [...contents.matchAll(/^\s*- name: ([^@\s]+)@([^\s]+)$/gmu)].map(
+    ([, packageName, version]) => {
+      const command = commands[packageName];
+      if (!command)
+        throw new Error(`unsupported aqua quality tool: ${packageName}`);
+      return {
+        id: command[0],
+        command: ["aqua", "exec", "--", ...command],
+        version: version.replace(/^v/u, ""),
+        paths: aquaToolPaths(command[0]),
+      };
+    },
+  );
+}
+
+function powershellAnalyzerDefinition() {
+  const contents = readFileSync(
+    path.join(root, ".config", "powershell-resources.psd1"),
+    "utf8",
+  );
+  const version = contents.match(/version\s*=\s*'([^']+)'/u)?.[1];
+  if (!version) throw new Error("PSScriptAnalyzer version is missing");
+  return {
+    id: "psscriptanalyzer",
+    command: [
+      "pwsh",
+      "-NoProfile",
+      "-Command",
+      `Import-Module PSScriptAnalyzer -RequiredVersion ${version} -Force; (Get-Module PSScriptAnalyzer).Version.ToString()`,
+    ],
+    version,
+  };
+}
 
 export function probeTool(definition, run = spawnCommand) {
   const { id, command, version = null, required = true } = definition;
@@ -119,24 +176,12 @@ export async function collectDoctor() {
   const desktop = JSON.parse(
     readFileSync(path.join(root, "apps/desktop/package.json"), "utf8"),
   );
-  const managedDefinitions = manifest.tools
-    .filter((tool) => tool.tier === "required")
-    .map((tool) => {
-      if (!tool.install) return tool;
-      const installedPath = managedToolPath(tool);
-      return installedPath
-        ? {
-            ...tool,
-            command: [
-              process.execPath,
-              path.join(root, "scripts", "quality-tools.mjs"),
-              "--verify",
-              tool.id,
-            ],
-            reportedPath: installedPath,
-          }
-        : { ...tool, applicable: false, required: false };
-    });
+  const requiredRustDefinitions = manifest.tools.filter(
+    (tool) => tool.tier === "required",
+  );
+  const aquaVersion = readFileSync(path.join(root, ".aqua-version"), "utf8")
+    .trim()
+    .replace(/^v/u, "");
   const definitions = [
     {
       id: "node",
@@ -156,7 +201,17 @@ export async function collectDoctor() {
     { id: "cargo", command: ["cargo", "--version"] },
     { id: "git", command: ["git", "--version"] },
     { id: "gh", command: ["gh", "--version"], required: false },
-    ...managedDefinitions,
+    { id: "aqua", command: ["aqua", "--version"], version: aquaVersion },
+    ...aquaDefinitions(),
+    process.platform === "win32"
+      ? powershellAnalyzerDefinition()
+      : {
+          id: "psscriptanalyzer",
+          command: ["pwsh", "-NoProfile", "-Command"],
+          applicable: false,
+          required: false,
+        },
+    ...requiredRustDefinitions,
     {
       id: "tauri-driver",
       command: ["tauri-driver", "--help"],
@@ -175,9 +230,11 @@ export async function collectDoctor() {
         }
       : {
           ...probeTool(definition),
-          paths: definition.reportedPath
-            ? [definition.reportedPath]
-            : executablePaths(definition.command[0]),
+          paths:
+            definition.paths ??
+            (definition.reportedPath
+              ? [definition.reportedPath]
+              : executablePaths(definition.command[0])),
         },
   );
   let storage;

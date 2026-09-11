@@ -83,7 +83,7 @@ async function stylelintFixture() {
   }
 }
 
-async function managedFixture(
+async function aquaFixture(
   tool,
   extension,
   validSource,
@@ -95,19 +95,31 @@ async function managedFixture(
     "scripts",
     `.lint-${tool}-${nonce}.${extension}`,
   );
-  const command = [
-    path.join(root, "scripts", "quality-tools.mjs"),
-    "--run",
-    tool,
-    "--",
-    ...arguments_,
-    fixture,
-  ];
+  const command = ["exec", "--", tool, ...arguments_, fixture];
   try {
     await writeFile(fixture, validSource);
-    const valid = run(process.execPath, command);
+    const valid = run("aqua", command);
     await writeFile(fixture, invalidSource);
-    expectFixture(tool, valid, run(process.execPath, command));
+    expectFixture(tool, valid, run("aqua", command));
+  } finally {
+    await rm(fixture, { force: true });
+  }
+}
+
+async function actionlintFixture() {
+  const fixture = path.join(root, "scripts", `.lint-actionlint-${nonce}.yml`);
+  const command = [path.join(root, "scripts", "run-actionlint.mjs"), fixture];
+  try {
+    await writeFile(
+      fixture,
+      "name: fixture\non:\n  push:\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n",
+    );
+    const valid = run(process.execPath, command);
+    await writeFile(
+      fixture,
+      "name: fixture\non:\n  push:\njobs:\n  test:\n    steps:\n      - run: echo invalid\n",
+    );
+    expectFixture("actionlint", valid, run(process.execPath, command));
   } finally {
     await rm(fixture, { force: true });
   }
@@ -119,15 +131,9 @@ async function psscriptAnalyzerFixture() {
     return;
   }
   const fixture = path.join(root, "scripts", `.lint-powershell-${nonce}.ps1`);
-  const moduleResult = run(process.execPath, [
-    path.join(root, "scripts", "quality-tools.mjs"),
-    "--path",
-    "psscriptanalyzer",
-  ]);
-  assert.ifError(moduleResult.error);
-  assert.equal(moduleResult.status, 0, moduleResult.stderr);
+  const resources = path.join(root, ".config", "powershell-resources.psd1");
   const quote = (value) => value.replaceAll("'", "''");
-  const command = `Import-Module -Name '${quote(moduleResult.stdout.trim())}' -Force; $findings = @(Invoke-ScriptAnalyzer -Path '${quote(fixture)}' -Severity Warning,Error -ExcludeRule PSUseApprovedVerbs,PSUseShouldProcessForStateChangingFunctions,PSUseSingularNouns); if ($findings.Count) { $findings | Format-Table | Out-String | Write-Error }`;
+  const command = `$resources = Import-PowerShellDataFile -LiteralPath '${quote(resources)}'; $version = [string]$resources.PSScriptAnalyzer.version; Import-Module -Name PSScriptAnalyzer -RequiredVersion $version -Force; $findings = @(Invoke-ScriptAnalyzer -Path '${quote(fixture)}' -Severity Warning,Error -ExcludeRule PSUseApprovedVerbs,PSUseShouldProcessForStateChangingFunctions,PSUseSingularNouns); if ($findings.Count) { $findings | Format-Table | Out-String | Write-Error }`;
   try {
     await writeFile(fixture, "param([string]$Name)\nWrite-Output $Name\n");
     const valid = run("pwsh", ["-NoProfile", "-Command", command]);
@@ -146,7 +152,7 @@ const fixtures = {
   eslint: eslintFixture,
   stylelint: stylelintFixture,
   ruff: () =>
-    managedFixture(
+    aquaFixture(
       "ruff",
       "py",
       "name = 'Portcove'\nprint(name)\n",
@@ -154,21 +160,14 @@ const fixtures = {
       ["check"],
     ),
   shellcheck: () =>
-    managedFixture(
+    aquaFixture(
       "shellcheck",
       "sh",
       "#!/bin/sh\nprintf '%s\\n' \"$1\"\n",
       "#!/bin/sh\nif then\n",
       ["--severity=warning"],
     ),
-  actionlint: () =>
-    managedFixture(
-      "actionlint",
-      "yml",
-      "name: fixture\non:\n  push:\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n",
-      "name: fixture\non:\n  push:\njobs:\n  test:\n    steps:\n      - run: echo invalid\n",
-      [],
-    ),
+  actionlint: actionlintFixture,
   psscriptanalyzer: psscriptAnalyzerFixture,
 };
 
