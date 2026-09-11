@@ -293,7 +293,11 @@ async fn get_catalog(state: tauri::State<'_, DesktopState>) -> DesktopResult<Cat
 #[tauri::command]
 async fn get_statuses(state: tauri::State<'_, DesktopState>) -> DesktopResult<Vec<PortStatus>> {
     let state = state.inner().clone();
-    blocking_service(state, |service| service.statuses().map_err(Into::into)).await
+    blocking_service(state, |service| statuses_with_service(&service)).await
+}
+
+fn statuses_with_service(service: &PortcoveService) -> DesktopResult<Vec<PortStatus>> {
+    service.statuses().map_err(Into::into)
 }
 
 #[tauri::command]
@@ -1854,6 +1858,21 @@ mod tests {
 
         let core = service.inspect_registered_source("star-fox-64").unwrap();
         let desktop = inspect_source_with_service(&service, "star-fox-64").unwrap();
+        assert_eq!(
+            serde_json::to_value(desktop).unwrap(),
+            serde_json::to_value(core).unwrap()
+        );
+    }
+
+    #[test]
+    fn desktop_statuses_are_the_exact_core_results() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = PortcoveService::new(library).unwrap();
+
+        let core = service.statuses().unwrap();
+        let desktop = statuses_with_service(&service).unwrap();
+
         assert_eq!(
             serde_json::to_value(desktop).unwrap(),
             serde_json::to_value(core).unwrap()

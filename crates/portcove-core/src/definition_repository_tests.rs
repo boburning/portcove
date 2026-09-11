@@ -22,7 +22,7 @@ use crate::definition_eligibility::DefinitionOperationContext;
 use crate::{
     Catalog, CatalogOrigin, DefinitionEligibilityOutcome, DefinitionEligibilityReason,
     DefinitionOperation, DefinitionPublisherObservation, DefinitionPublisherStatus, ErrorCode,
-    Library,
+    Library, PortcoveService,
     test_fixture::{indexed_catalog_bundle, post_client_catalog},
 };
 
@@ -752,6 +752,31 @@ async fn selected_post_client_definition_loads_as_the_active_catalog() {
         .unwrap(),
         serde_json::to_vec(&retained).unwrap()
     );
+    let service = PortcoveService::new(library.clone()).unwrap();
+    assert_eq!(
+        service.library().catalog_status().unwrap().provenance,
+        provenance
+    );
+    assert!(service.catalog().port(&port_id).is_ok());
+    let status = service.status(&port_id).unwrap();
+    assert_eq!(status.port_id, port_id);
+    assert_eq!(status.definition_operations.len(), 1);
+    assert_eq!(
+        status.definition_operations[0].operation,
+        DefinitionOperation::Install
+    );
+    assert_eq!(
+        status.definition_operations[0].eligibility.outcome,
+        DefinitionEligibilityOutcome::Eligible
+    );
+    assert!(!status.definition_operations[0].retained);
+    assert!(
+        service
+            .status(&baseline.ports()[0].id)
+            .unwrap()
+            .definition_operations
+            .is_empty()
+    );
     for (label, segments, replacement) in [
         (
             "admission.stable_id",
@@ -838,7 +863,7 @@ async fn selected_post_client_definition_loads_as_the_active_catalog() {
 }
 
 #[tokio::test]
-async fn operation_assessment_distinguishes_stale_retained_launch_and_revocation() {
+async fn operation_assessment_distinguishes_outage_revocation_and_local_integrity() {
     let fixture = RepositoryFixture::new();
     let (catalog, port_id) = post_client_catalog();
     let targets = repository_targets_for(&catalog, &port_id);
@@ -888,11 +913,31 @@ async fn operation_assessment_distinguishes_stale_retained_launch_and_revocation
         library
             .assess_definition_operation(
                 &stale,
+                DefinitionOperationContext::observed(DefinitionOperation::Prepare, true, true),
+            )
+            .unwrap()
+            .reason,
+        DefinitionEligibilityReason::MetadataStale
+    );
+    assert_eq!(
+        library
+            .assess_definition_operation(
+                &stale,
                 DefinitionOperationContext::observed(DefinitionOperation::Launch, true, true),
             )
             .unwrap()
             .outcome,
         DefinitionEligibilityOutcome::Eligible
+    );
+    assert_eq!(
+        library
+            .assess_definition_operation(
+                &selection,
+                DefinitionOperationContext::observed(DefinitionOperation::Launch, true, false),
+            )
+            .unwrap()
+            .reason,
+        DefinitionEligibilityReason::LocalIntegrityFailed
     );
 
     library

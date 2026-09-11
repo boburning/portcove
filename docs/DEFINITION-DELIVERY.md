@@ -486,3 +486,27 @@ execution, complete catalog migration and exact retained-content transactions;
 delivery cases. Physical/gameplay evidence is required only for a claim that
 intrinsically depends on it. The design can be reviewed independently of production
 credentials or per-game physical testing.
+
+The #397 client acceptance is executable across the existing test layers. The
+authenticated `selected_post_client_definition_loads_as_the_active_catalog`
+fixture publishes a definition absent from the embedded client, preserves every
+embedded port exactly, retains its complete bytes and admission identity, then
+loads the new port through `PortcoveService` with an eligible install assessment.
+Unsupported siblings and unknown safety semantics have separate isolation tests.
+`authenticated_admission_survives_staging_rollback_activation_and_refresh`
+exercises installed, staged and previous format-3 retention through the shared
+lifecycle and preserves version-owned settings.
+`authenticated_adoption_retains_exact_definition_and_publisher_identity` runs
+the real adoption path and verifies its retained port definition and publisher
+admission identity after the active catalog changes. The operation assessment
+matrix distinguishes stale install/preparation, permitted retained launch, local
+integrity failure and explicit revocation. Selection interruption, replay and
+policy-change tests prove atomic retry and recovery without consuming an invalid
+floor. CLI status calls core directly, while
+`desktop_statuses_are_the_exact_core_results` proves the Tauri adapter returns the
+same `PortStatus` documents without establishing its own eligibility result.
+
+These tests establish client loading and retained lifecycle behavior without
+production credentials. Automatic unchanged-client publication, signed readback
+and production refusal/recovery remain #246 acceptance and do not belong to the
+client implementation boundary.
