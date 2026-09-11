@@ -98,14 +98,28 @@ class Cli { static void Main(string[] a) { string data = "{}"; for (int i=0;i<a.
   const uninstallerSource = path.join(root, "uninstaller.cs");
   writeFileSync(
     uninstallerSource,
-    String.raw`using System; using System.Diagnostics; using System.Reflection; using System.Threading;
-class Uninstaller { static int Main() { var delay = Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_UNINSTALL_DELAY_MS"); if (delay != null) Thread.Sleep(Int32.Parse(delay)); var requestedExit = Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_UNINSTALL_EXIT"); if (requestedExit != null) return Int32.Parse(requestedExit); if (Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_UNINSTALL_LEAVE") == "1") return 0; var self = Assembly.GetExecutingAssembly().Location; var command = "/c ping 127.0.0.1 -n 2 > nul & del /f /q \"" + self + "\""; Process.Start(new ProcessStartInfo("cmd.exe", command) { CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden }); return 0; } }
+    String.raw`using System; using System.IO; using System.Diagnostics; using System.Reflection; using System.Threading;
+class Uninstaller { static int Main() {
+  var release = Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_UNINSTALL_RELEASE");
+  if (release != null) {
+    var waiting = Stopwatch.StartNew();
+    while (!File.Exists(release)) {
+      if (waiting.ElapsedMilliseconds >= 15000) return 94;
+      Thread.Sleep(20);
+    }
+  }
+  var delay = Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_UNINSTALL_DELAY_MS"); if (delay != null) Thread.Sleep(Int32.Parse(delay)); var requestedExit = Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_UNINSTALL_EXIT"); if (requestedExit != null) return Int32.Parse(requestedExit); if (Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_UNINSTALL_LEAVE") == "1") return 0; var self = Assembly.GetExecutingAssembly().Location; var command = "/c ping 127.0.0.1 -n 2 > nul & del /f /q \"" + self + "\""; Process.Start(new ProcessStartInfo("cmd.exe", command) { CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden }); return 0;
+} }
 `,
   );
   const uninstaller = path.join(artifacts, "uninstaller.exe");
-  execFileSync(csc, ["/nologo", `/out:${uninstaller}`, uninstallerSource], {
-    windowsHide: true,
-  });
+  execFileSync(
+    csc,
+    ["/nologo", "/target:winexe", `/out:${uninstaller}`, uninstallerSource],
+    {
+      windowsHide: true,
+    },
+  );
   const sleeperSource = path.join(root, "sleeper.cs");
   writeFileSync(
     sleeperSource,
@@ -859,6 +873,7 @@ test(
       runPowerShell(prepareArgs(item), { env: baseEnvironment }).status,
       0,
     );
+    const releaseMarker = path.join(item.root, "release-uninstaller");
     const child = spawn(
       "pwsh.exe",
       [
@@ -875,27 +890,42 @@ test(
         windowsHide: true,
         env: {
           ...baseEnvironment,
-          PORTCOVE_FIXTURE_UNINSTALL_DELAY_MS: "1800",
+          PORTCOVE_FIXTURE_UNINSTALL_RELEASE: releaseMarker,
         },
         stdio: "ignore",
       },
     );
+    const exited = once(child, "exit");
     const sessionPath = path.join(item.session, "session.json");
     let state;
     const deadline = Date.now() + 15_000;
-    while (Date.now() < deadline) {
-      state = JSON.parse(readFileSync(sessionPath, "utf8"));
-      if (state.abort_attempts?.some((attempt) => attempt.status === "running"))
-        break;
-      await new Promise((resolve) => setTimeout(resolve, 100));
+    try {
+      while (Date.now() < deadline) {
+        state = JSON.parse(readFileSync(sessionPath, "utf8"));
+        if (
+          state.abort_attempts?.some((attempt) => attempt.status === "running")
+        )
+          break;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      assert.ok(
+        state.abort_attempts.some((attempt) => attempt.status === "running"),
+      );
+      assert.equal(child.exitCode, null);
+      assert.ok(
+        child.kill(),
+        "the owned runner must still be alive at interruption",
+      );
+      await exited;
+    } finally {
+      // Keep the fixture alive until its owner can no longer journal its exit.
+      // Release on failure too, so the bounded native fixture can clean itself up.
+      if (child.exitCode === null && child.signalCode === null) {
+        child.kill();
+        await exited;
+      }
+      writeFileSync(releaseMarker, "release");
     }
-    assert.ok(
-      state.abort_attempts.some((attempt) => attempt.status === "running"),
-    );
-    execFileSync("taskkill.exe", ["/PID", String(child.pid), "/F"], {
-      windowsHide: true,
-      stdio: "ignore",
-    });
     const uninstallerPath = path.join(
       item.session,
       "installer-work",
