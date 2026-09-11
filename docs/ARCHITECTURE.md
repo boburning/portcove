@@ -583,6 +583,16 @@ publication or replacement work and is not a production updater or alternative
 catalog verifier. Existing architecture metadata rules continue to forbid
 independent catalog verification in adapters.
 
+Offline release tooling reconstructs the host's record inputs from complete raw
+qualified updater inventories, their signature files, frozen run/tree context,
+compatibility policy and separately reviewed channel eligibility. It emits one
+immutable release record and versioned channel promotion per applicable target,
+so compatibility selection remains host-owned. Reconstruction protects existing
+release records from mutation or omission and can atomically repair derived channel
+output. It holds no runtime, signing, publication or production eligibility
+authority; protected automation must authenticate the inputs and sign the distinct
+TUF roles without executing candidate tooling with production credentials.
+
 Portcove Core, CLI, and Desktop remain in one repository. Shared core services
 own game-management behavior. CLI and Desktop are independently usable
 interfaces and separately packaged deliverables. Repository separation is not

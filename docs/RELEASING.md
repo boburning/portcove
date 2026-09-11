@@ -55,6 +55,34 @@ Only verification accepts `--version` to check a historical fixture explicitly.
 Inventories are evidence, not trust roots or executable feeds. Altered/rebuilt
 packages require new verification and cannot inherit previous package evidence.
 
+`scripts/reconstruct-application-update-records.mjs` is the offline bridge from
+those verified inventories to the application record schema. It accepts a bounded
+source descriptor, a separate reviewed eligibility map and an output directory:
+
+```powershell
+node scripts/reconstruct-application-update-records.mjs `
+  --input work/update-record-inputs.json `
+  --eligibility work/update-eligibility.json `
+  --output work/update-records
+```
+
+Each descriptor entry points to the raw `updater-inventory.json` and its exact
+`.sig` file and supplies the frozen source tree, qualified workflow revision/run,
+installed execution context, compatibility contract and evidence IDs. Paths are
+relative to the descriptor and must remain inside the project. Run the inventory
+`verify` operation immediately before reconstruction; the descriptor and local
+eligibility file do not authenticate themselves.
+
+The tool computes the raw inventory SHA-256, emits immutable
+`releases/<version>/<target>/<package>.json` records and versioned
+`channels/<channel>/<target>/<package>/<version>.json` promotions, then writes a
+deterministic content-addressed manifest. Repeating identical complete input is a
+no-op. Derived channel output and a partial prior write are replaced atomically,
+but changing or omitting an existing immutable release record fails. Supply the
+complete retained inventory history when rebuilding. Production TUF signing,
+GitHub Pages publication, keys, endpoints and updater activation remain outside
+this tool and require their protected owners.
+
 Payload verification streams at most 2 GiB; key and signature metadata are bounded
 to 16 KiB. Only prehashed Minisign signatures emitted by current Tauri tooling are
 accepted. The Rust verifier has no private-key or publication operation. The

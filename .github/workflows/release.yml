@@ -48,7 +48,7 @@ jobs:
         working-directory: apps/desktop
       - name: Verify release identity and required assets
         run: |
-          node --test scripts/check-release-metadata.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/reconcile-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/select-release-channel.test.mjs scripts/release-workflow.test.mjs
+          node --test scripts/check-release-metadata.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/reconcile-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/select-release-channel.test.mjs scripts/reconstruct-application-update-records.test.mjs scripts/release-workflow.test.mjs
           node scripts/check-release-metadata.mjs
       - name: Verify release tag matches metadata
         if: github.event_name == 'push'

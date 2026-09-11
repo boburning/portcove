@@ -28,6 +28,10 @@ export function classifyApplicationVersion(version, productionEligible = false) 
   };
 }
 
+export function compareApplicationVersionPrecedence(left, right) {
+  return semver.compare(exactVersion(left), exactVersion(right));
+}
+
 function field(release, camel, snake) {
   return release[camel] ?? release[snake];
 }

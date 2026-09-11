@@ -141,7 +141,7 @@ repository-tools:
 
 # Deterministic release metadata, packaging, updater, and qualification unit contracts.
 release-check:
-    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-release-metadata.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/updater-artifact-inventory.test.mjs scripts/reconcile-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/select-release-channel.test.mjs scripts/release-workflow.test.mjs scripts/windows-qualification-session.test.mjs
+    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-release-metadata.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/updater-artifact-inventory.test.mjs scripts/reconcile-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/select-release-channel.test.mjs scripts/reconstruct-application-update-records.test.mjs scripts/release-workflow.test.mjs scripts/windows-qualification-session.test.mjs
     {{storage}} node scripts/check-release-metadata.mjs
 
 # Stateful packaged-session qualification. Never reused by the audit orchestrator.
