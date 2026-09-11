@@ -19,6 +19,7 @@ mod definition_entry;
 mod definition_index;
 #[cfg(test)]
 mod definition_policy_tests;
+mod definition_projection;
 mod durability;
 mod error;
 mod failure;
@@ -92,6 +93,7 @@ pub use definition_capabilities::{
 };
 pub use definition_entry::DefinitionEntryInspection;
 pub use definition_index::{DefinitionContentIndex, IndexedDefinition};
+pub use definition_projection::DefinitionCatalogProjection;
 pub use error::{ErrorCode, PortcoveError, Result};
 pub use failure::{
     FailurePresentation, FailureReport, FailureTone, MutationState, RecoveryAction,

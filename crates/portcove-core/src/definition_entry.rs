@@ -171,12 +171,12 @@ impl DefinitionContentIndex {
 
 // Inspect duplicate keys before constructing Value, whose ordinary map decoder
 // would otherwise silently keep the last safety field or environment variable.
-mod strict_json {
+pub(crate) mod strict_json {
     use serde::de::{self, Deserialize, Deserializer, MapAccess, SeqAccess, Visitor};
     use serde_json::{Map, Number, Value};
     use std::fmt;
 
-    pub(super) struct UniqueValue(pub(super) Value);
+    pub(crate) struct UniqueValue(pub(crate) Value);
 
     impl<'de> Deserialize<'de> for UniqueValue {
         fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
