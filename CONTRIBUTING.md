@@ -97,10 +97,15 @@ same verification without changing files.
 .\scripts\bootstrap-quality-tools.ps1
 node scripts/dev-storage.mjs preflight
 node scripts/dev-storage.mjs run -- pnpm --dir apps/desktop install --frozen-lockfile
-just fmt-check
-just check
-just audit
+just local-check
 ```
+
+Use focused test recipes while editing. `just check` is an exhaustive local
+source/repository investigation, `just release-check` covers deterministic
+release-unit contracts, and `just windows-qualification-check` runs the packaged
+Windows session suite. Reserve `just audit` for explicit acceptance and validation
+contract work; release preflight uses `just audit --fresh`. Required GitHub CI on
+the exact reviewed head is the ordinary exhaustive merge gate.
 
 The Windows bootstrap installs pinned Aqua itself, reuses verified payloads under
 `%LOCALAPPDATA%\Portcove\tool-cache`, and creates ignored checkout-local shims. It

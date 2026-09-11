@@ -16,6 +16,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   childEnvironment,
+  isSideEffectFreeHelpCommand,
   isWindowsSystemDrivePath,
   minimumFreeGiB,
   parseArguments,
@@ -27,6 +28,18 @@ import {
 } from "./dev-storage.mjs";
 
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
+
+test("only maintained read-only CLI help bypasses storage preparation", () => {
+  for (const script of [
+    "scripts/local-validation.mjs",
+    "scripts/audit.mjs",
+    "scripts/desktop-test-cli.mjs",
+  ])
+    assert.equal(isSideEffectFreeHelpCommand(["node", script, "--help"]), true);
+  assert.equal(isSideEffectFreeHelpCommand(["node", "scripts/audit.mjs", "--plan"]), false);
+  assert.equal(isSideEffectFreeHelpCommand(["cargo", "--help"]), false);
+  assert.equal(isSideEffectFreeHelpCommand(["node", "untrusted.mjs", "--help"]), false);
+});
 
 function fixture(t) {
   const scratch = path.join(projectRoot, "work/temp");

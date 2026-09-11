@@ -53,7 +53,7 @@ jobs:
       - name: Verify release tag matches metadata
         if: github.event_name == 'push'
         run: node scripts/check-release-metadata.mjs --tag "${{ github.ref_name }}"
-      - run: just audit
+      - run: just audit --fresh
       - name: Verify active catalog upstreams
         run: node scripts/check-catalog-repositories.mjs
         env:

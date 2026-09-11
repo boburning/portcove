@@ -18,6 +18,7 @@ function run(command, args) {
 for (const [name, command, args] of [
   ["doctor", process.execPath, ["scripts/dev-doctor.mjs", "--help"]],
   ["local validation", process.execPath, ["scripts/local-validation.mjs", "check", "--help"]],
+  ["audit", process.execPath, ["scripts/audit.mjs", "--help"]],
   ["desktop testing", process.execPath, ["scripts/desktop-test-cli.mjs", "--help"]],
 ]) {
   test(`${name} help is available without provisioning`, () => {

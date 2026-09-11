@@ -123,6 +123,22 @@ test("frontend configuration changes use the complete small UI suite", () => {
   assert.ok(!ids(plan).includes("ui-related-tests"));
 });
 
+test("Oxc configuration changes retain formatting, lint, UI, fixture, and workflow contracts", () => {
+  for (const config of [".oxfmtrc.json", ".oxlintrc.json"]) {
+    const { selection, plan } = planFor([config]);
+    const selected = ids(plan);
+    assert.equal(selection.uiFullTests, true);
+    assert.ok(selected.includes("oxfmt"));
+    assert.ok(selected.includes("ui-build"));
+    assert.ok(selected.includes("ui-oxlint"));
+    assert.ok(selected.includes("ui-tests"));
+    assert.ok(selected.includes("oxc-fixtures"));
+    assert.ok(selection.nodeTests.has("scripts/ci-workflow.test.mjs"));
+    const fixtures = plan.find((entry) => entry.id === "oxc-fixtures");
+    assert.ok(fixtures.args.includes(config === ".oxfmtrc.json" ? "oxfmt" : "oxlint"));
+  }
+});
+
 test("transport changes select both language scopes and contract comparators", () => {
   const { selection, plan } = planFor([
     "apps/desktop/src/transport-types.generated.d.ts",
@@ -159,6 +175,21 @@ test("changed shell scripts run shellcheck across the maintained shell set", () 
   assert.ok(shellLint);
   assert.ok(shellLint.args.includes("scripts/install-linux-desktop-prerequisites.sh"));
   assert.ok(shellLint.args.includes("scripts/bootstrap-quality-tools.sh"));
+});
+
+test("release-script changes select deterministic release contracts without packaged qualification", () => {
+  const { selection, plan } = planFor(["scripts/release-preflight.ps1"]);
+  for (const contract of [
+    "scripts/check-release-metadata.test.mjs",
+    "scripts/release-package-policy.test.mjs",
+    "scripts/release-workflow.test.mjs",
+    "scripts/windows-qualification-session.test.mjs",
+    "scripts/ci-workflow.test.mjs",
+  ])
+    assert.ok(selection.nodeTests.has(contract));
+  const rendered = plan.map(formatCommand).join("\n");
+  assert.ok(!rendered.includes("windows-qualification-session.integration.test.mjs"));
+  assert.ok(!rendered.includes("desktop-test"));
 });
 
 test("bootstrap manifest changes select cache, doctor, and quality contracts", () => {

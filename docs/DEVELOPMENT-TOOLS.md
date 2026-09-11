@@ -34,8 +34,36 @@ partial extraction, or invalid cached receipt fails closed. The previous verifie
 payload remains in place. Run the bootstrap again to reuse cache hits; no download
 or environment mutation is performed for already verified versions.
 
-Run `just check-ui` for Oxlint, Oxfmt, and Stylelint, or `just script-lint` for
+Run `just fmt-check` for the complete formatting contract, `just check-ui`
+for UI build/tests, Oxlint, Fallow, and Stylelint, or `just script-lint` for
 Python, shell, workflow, and PowerShell lint as a group.
+
+## Validation tiers and resumable audits
+
+Use focused `just test-*` commands while editing and `just local-check` before a
+coherent push. The local selector reads the complete branch and working-tree diff;
+unknown paths fail until a tested routing rule exists. Tooling-only edits do not
+pull in native desktop or packaged Windows qualification. Oxc configuration edits
+retain formatting, typed lint, UI build/tests, rejection fixtures, and hosted
+workflow contracts.
+
+`just check` is exhaustive for Rust, UI, script lint, generic repository tooling,
+Roadmap, and development-tool contracts, but deliberately excludes release and
+packaged qualification. Use `just release-check` for deterministic release units
+and `just windows-qualification-check` for the stateful packaged Windows session.
+Required CI executes those contracts independently on every exact pull-request
+head.
+
+`just audit --plan` explains which named formatting, Rust, UI, script-lint,
+repository-tooling, Roadmap, development-tool, dependency-policy, rscheck,
+release-unit, and applicable Windows-qualification stages would execute or reuse prior
+success. A normal `just audit` reuses only integrity-checked deterministic receipts
+whose complete content, tool, platform, and environment fingerprint still matches.
+Receipts are stored under ignored `work/validation-receipts`; they are disposable
+execution evidence and never release or merge authority. Dependency/advisory and
+Windows qualification stages always execute. Use `just audit --fresh` for release
+preflight, validation-contract changes, and acceptance that explicitly requires a
+single no-reuse run.
 
 ## Skills
 

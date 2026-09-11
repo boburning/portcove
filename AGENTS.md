@@ -126,11 +126,16 @@ The aggregate commands remain available for explicit purposes:
 
 - Rust exhaustive local investigation: `just check-rust`
 - UI exhaustive local investigation: `just check-ui`
-- Cross-stack exhaustive local investigation: `just check`
-- Release preflight, an explicitly named acceptance gate, or validation-contract transition: `just audit`
+- Cross-stack source and repository-contract investigation: `just check`
+- Release metadata, packaging, updater, and qualification unit contracts: `just release-check`
+- Packaged Windows session integration: `just windows-qualification-check`
+- Release preflight, an explicitly named acceptance gate, or validation-contract transition: `just audit` (`--fresh` when prior stage receipts must not be reused)
 - Broad refactor, public API or dependency restructuring, significant abstraction, or architecture investigation: `just deep`
 
 `just deep` findings are evidence to inspect, not automatic instructions to rewrite code. `just cycles` is an explicit, advisory architecture investigation; it is excluded from routine CI and audits while its recorded inherent-item cycle baseline is unresolved.
+Audit receipts under ignored `work/validation-receipts` are disposable execution
+evidence, never planning, acceptance, release, or merge authority. Required CI on
+the exact reviewed head remains independently exhaustive.
 
 ## Fixing failures
 

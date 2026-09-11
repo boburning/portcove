@@ -84,7 +84,7 @@ const explicitNodeTests = new Map([
       "scripts/ci-workflow.test.mjs",
     ],
   ],
-  [".oxfmtrc.json", ["scripts/local-validation.test.mjs"]],
+  [".oxfmtrc.json", ["scripts/local-validation.test.mjs", "scripts/ci-workflow.test.mjs"]],
   ["taplo.toml", ["scripts/local-validation.test.mjs"]],
 ]);
 
@@ -94,6 +94,18 @@ const workflowTests = new Map([
   ["upstream-health.yml", ["scripts/upstream-observer.test.mjs"]],
   ["updater-artifact-rehearsal.yml", ["scripts/updater-artifact-inventory.test.mjs"]],
   ["pr-conventions.yml", ["scripts/pr-conventions.test.mjs"]],
+]);
+
+const releaseContractTests = Object.freeze([
+  "scripts/check-release-metadata.test.mjs",
+  "scripts/release-package-policy.test.mjs",
+  "scripts/write-release-checksums.test.mjs",
+  "scripts/updater-artifact-inventory.test.mjs",
+  "scripts/reconcile-release-assets.test.mjs",
+  "scripts/generate-release-downloads.test.mjs",
+  "scripts/select-release-channel.test.mjs",
+  "scripts/release-workflow.test.mjs",
+  "scripts/windows-qualification-session.test.mjs",
 ]);
 
 function normalizePath(value) {
@@ -203,6 +215,15 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     }
     if (extension === ".ps1") selection.powershellLint = true;
     if (extension === ".sh") selection.shellLint = true;
+    if (
+      /(?:release|updater|package|installer|qualification|checksum|channel)/iu.test(
+        path.posix.basename(file),
+      )
+    ) {
+      selection.scopes.add("release-tooling");
+      for (const testFile of releaseContractTests) addNodeTest(selection, testFile);
+      addNodeTest(selection, "scripts/ci-workflow.test.mjs");
+    }
   }
 
   if (file.startsWith(".github/workflows/")) {
@@ -289,8 +310,17 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
   if (file === ".oxlintrc.json") {
     selection.ui = true;
     selection.uiFullTests = true;
+    selection.oxcFixtures.add("oxlint");
     selection.scopes.add("ui");
     addNodeTest(selection, "scripts/ci-workflow.test.mjs");
+    recognized = true;
+  }
+
+  if (file === ".oxfmtrc.json") {
+    selection.ui = true;
+    selection.uiFullTests = true;
+    selection.oxcFixtures.add("oxfmt");
+    selection.scopes.add("ui");
     recognized = true;
   }
 
@@ -355,6 +385,7 @@ export function classifyChanges(changes, options = {}) {
     nodeSyntax: new Set(),
     oxfmtFiles: new Set(),
     uiRelatedFiles: new Set(),
+    oxcFixtures: new Set(),
     unknown: new Set(),
     rustfmt: false,
     workspaceRust: false,
@@ -494,6 +525,16 @@ export function buildPlan(selection, context = {}) {
     }
   }
   if (selection.nodeTests.size) commands.push(nodeTestCommand(sorted(selection.nodeTests)));
+
+  if (selection.oxcFixtures.size)
+    commands.push(
+      command(
+        "oxc-fixtures",
+        "prove changed Oxc configuration accepts and rejects the maintained fixtures",
+        process.execPath,
+        ["scripts/lint-tools.integration.mjs", ...sorted(selection.oxcFixtures)],
+      ),
+    );
 
   if (selection.actionsLint)
     commands.push(

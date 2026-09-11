@@ -374,7 +374,20 @@ function Wait-JournaledUninstallerChild($ParentRun, [string]$TemporaryRoot, [Dat
                 [Math]::Abs(($started - $child.CreationDate.ToUniversalTime()).TotalMilliseconds) -gt 1) {
                 throw "Uninstaller child process identity changed before observation"
             }
-            $exact = [System.IO.Path]::GetFullPath($process.Path)
+            try {
+                $observedPath = $process.Path
+            } catch {
+                if ($process.HasExited) { continue }
+                throw
+            }
+            if ([string]::IsNullOrWhiteSpace($observedPath)) {
+                # A short-lived cleanup child can exit between the HasExited
+                # observation above and reading its executable image. Treat it
+                # like a child that was already gone when this scan began.
+                if ($process.HasExited) { continue }
+                throw "Uninstaller child executable image path could not be observed"
+            }
+            $exact = [System.IO.Path]::GetFullPath($observedPath)
             $prefix = [System.IO.Path]::GetFullPath($TemporaryRoot).TrimEnd('\') + '\'
             if (-not $exact.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase) -or
                 -not $exact.Equals($child.ExecutablePath, [System.StringComparison]::OrdinalIgnoreCase)) {
