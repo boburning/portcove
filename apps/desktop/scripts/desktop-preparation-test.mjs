@@ -25,8 +25,6 @@ export async function preparationScenarios({
   cli,
   tool,
   confirmNative,
-  onlyArtwork = false,
-  onlyAdoption = false,
 }) {
   const command = (args, selectedLibrary = library) => {
     const result = spawnCommand(
@@ -55,18 +53,6 @@ export async function preparationScenarios({
           ? "macos-aarch64"
           : "macos-x86-64"
         : "linux-x86-64";
-  if (onlyArtwork) {
-    await artworkScenario({
-      browser,
-      invoke,
-      scenario,
-      output,
-      artifacts,
-      command,
-      confirmNative,
-    });
-    return;
-  }
   async function seed(portId, mode, chd = false) {
     const port = command(["catalog", "show", portId]);
     const original = path.join(output, `owned-${portId}`);
@@ -104,22 +90,6 @@ export async function preparationScenarios({
     const result = await invoke("get_statuses");
     assert.equal(result.ok, true);
     return result.value.find((item) => item.port_id === portId);
-  }
-  if (onlyAdoption) {
-    await seed("opengoal-jak1", "success");
-    await adoptionReviewScenario({
-      browser,
-      invoke,
-      scenario,
-      library,
-      output,
-      artifacts,
-      command,
-      tool,
-      host,
-      confirmNative,
-    });
-    return;
   }
   await scenario("native-preparation-review-and-play", async () => {
     const { port, install } = await seed("opengoal-jak1", "success");

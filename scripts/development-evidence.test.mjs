@@ -32,8 +32,41 @@ test("a vanished executable can retain its initial identity and failure evidence
       checks: [{ scenario: "executable-identity", outcome: "failed" }],
       method: "isolated-fixture",
     });
+    assert.equal(report.format_version, 2);
     assert.equal(report.outcome, "failed");
     assert.deepEqual(report.executable, capturedExecutable);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+test("version two evidence separates selected scenarios, setup, gaps, and phases", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-evidence-"));
+  try {
+    const executable = path.join(directory, "fixture");
+    await writeFile(executable, "abc");
+    const report = await writeEvidence(directory, {
+      revision: "b".repeat(40),
+      executable,
+      checks: [{ scenario: "selected", outcome: "passed" }],
+      setupChecks: [{ scenario: "setup", outcome: "passed" }],
+      method: "native-desktop-focused",
+      context: {
+        selected_scenarios: ["selected"],
+        setup_scenarios: ["setup"],
+        excluded_scenarios: ["other"],
+        known_gaps: [{ scenario: "gap", reason: "fixture absent" }],
+        phases: [{ phase: "build", duration_ms: 12, status: 0 }],
+        harness_deadline_ms: 180_000,
+        source_state: { revision: "b".repeat(40), clean: true },
+      },
+    });
+    assert.equal(report.outcome, "passed");
+    assert.equal(report.qualification_complete, false);
+    assert.deepEqual(report.setup_checks, [{ scenario: "setup", outcome: "passed" }]);
+    assert.deepEqual(report.selected_scenarios, ["selected"]);
+    assert.deepEqual(report.excluded_scenarios, ["other"]);
+    assert.equal(report.phases[0].phase, "build");
+    assert.equal(report.harness_deadline_ms, 180_000);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

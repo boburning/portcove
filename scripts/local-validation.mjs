@@ -65,6 +65,15 @@ const oxfmtExtensions = new Set([
 
 const explicitNodeTests = new Map([
   ["scripts/check-vitest-durations.mjs", ["scripts/test-duration-reporter.test.mjs"]],
+  [
+    "apps/desktop/scripts/desktop-test.mjs",
+    [
+      "scripts/desktop-scenarios.test.mjs",
+      "scripts/development-evidence.test.mjs",
+      "scripts/native-session-lock.test.mjs",
+    ],
+  ],
+  ["apps/desktop/scripts/desktop-preparation-test.mjs", ["scripts/desktop-scenarios.test.mjs"]],
   [".github/quality-tools.json", ["scripts/quality-tools.test.mjs"]],
   [
     ".config/tool-bootstrap.json",

@@ -76,6 +76,61 @@ Codex skill directory and can be used outside Portcove.
 
 ## Native desktop smoke tests
 
+For the normal Codex and maintainer workflow, start with a non-launching plan and
+then run the smallest useful selection:
+
+```powershell
+just desktop-verify --plan
+just desktop-verify --scenario keyboard-layout
+just desktop-verify --scenario keyboard-layout --scenario accessibility
+just desktop-verify --profile presentation
+```
+
+With no selector, `desktop-verify` uses the `smoke` profile. Exact `--scenario`
+flags are repeatable and mutually exclusive with `--profile`; execution follows
+catalog order so fixture transitions stay deterministic. Use `--list-scenarios`
+to see stable IDs, descriptions, profile membership, prerequisites and host-impact
+metadata. `--plan --json` and `--list-scenarios --json` provide machine-readable
+output without building or launching.
+
+The curated profiles are:
+
+- `smoke`: native bootstrap/error recovery, keyboard/compact layout, appearance
+  restart, accessibility, injected controller, expanded navigation and workspace
+  refresh. Reviewed install progress/cancellation remains an explicit gap.
+- `presentation`: empty-library, keyboard, accessibility, controller and expanded
+  navigation presentation checks.
+- `restart`: appearance restart and workspace refresh. Positive `--reload-cycles`
+  opts this and other profiles into the repeated reload probe.
+- `artwork`: owned local artwork and the real native file picker.
+- `owned-lifecycle`: reviewed preparation, readiness, recovery, settings, channel,
+  backup/removal, source/adoption, library-move and CLI-handoff scenarios.
+- `full`: smoke, owned lifecycle and artwork. Its reviewed-install gap means it is
+  incomplete rather than universal desktop qualification.
+
+The runner performs the desktop doctor and storage preflight, verifies that the
+pinned Selenium workspace package resolves, builds the frontend with embedded
+assets and the Tauri application, builds the CLI/probe only for owned-fixture
+scenarios, chooses unused consecutive driver ports, acquires the shared native
+session lock, creates a fresh run directory under
+`PORTCOVE_OUTPUT_DIR/desktop-verify`, and prints the retained evidence path. It
+never installs packages or provisions drivers. Follow the reported bootstrap or
+frozen-install remedy when a prerequisite is missing. Use `--require-clean` for
+final evidence; dirty source is allowed and recorded during iteration.
+
+Every native run can take focus and send input. The shared lock serializes
+Portcove qualification runners across worktrees, but it cannot prevent unrelated
+user input. Announce the foreground run and establish an uncontended window.
+Malformed or live lock ownership is never removed; a valid lock is reclaimed only
+when its recorded PID is positively absent.
+
+Focused and small-profile runs retain the three-minute whole-harness watchdog.
+Owned-lifecycle and full sequences use a bounded ten-minute watchdog because they
+compose more than eight independently bounded scenarios; this does not change any
+scenario's operation, UI wait, confirmation or process-shutdown timeout.
+
+For low-level harness diagnosis, the existing command remains available:
+
 Run `./scripts/bootstrap-quality-tools.ps1 -Desktop` to cache pinned
 `tauri-driver` and, on Windows, detect the installed WebView2 runtime and provision
 the corresponding Microsoft EdgeDriver. The bootstrap verifies the reported
@@ -189,11 +244,14 @@ failed batch without retrying it. The defaults remain one restart and no extra
 reload probe, within the existing three-minute harness deadline. Partial reports
 and failed runs remain evidence; a later pass does not establish a root-cause fix.
 
-`development-evidence.mjs` writes format version 1 observations with a full
-revision, executable hash, method, scenario outcomes, and hashed artifact
-references. It never overwrites a report. Artifact references are local paths;
-retain the directory when handing off results. The revision is source context,
-not proof an externally supplied executable was built from that revision.
+`development-evidence.mjs` writes format version 2 observations with a full
+revision, executable hash, method, selected/setup/excluded scenario inventories,
+cycle counts, source cleanliness, phase timings, explicit gaps, qualification
+completeness, scenario outcomes and hashed artifact references. Setup needed to
+create isolated fixture state is recorded separately and never counted as a
+selected scenario pass. It never overwrites a report. Artifact references are
+local paths; retain the directory when handing off results. The revision is source
+context, not proof an externally supplied executable was built from that revision.
 
 ## Rust test runner
 

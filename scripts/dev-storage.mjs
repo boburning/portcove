@@ -336,6 +336,7 @@ export function isSideEffectFreeHelpCommand(command) {
     "scripts/local-validation.mjs",
     "scripts/audit.mjs",
     "scripts/desktop-test-cli.mjs",
+    "scripts/desktop-verify.mjs",
   ]).has(script);
 }
 

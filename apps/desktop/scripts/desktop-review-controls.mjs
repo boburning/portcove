@@ -19,15 +19,13 @@ async function waitForEntrance(browser, element) {
 export async function clickVisible(browser, element) {
   try {
     await waitForEntrance(browser, element);
-    await browser.executeScript(
-      'arguments[0].focus({ preventScroll: true }); arguments[0].scrollIntoView({ block: "center" });',
-      element,
-    );
+    await browser.executeScript("arguments[0].focus({ preventScroll: true });", element);
     await browser.wait(until.elementIsVisible(element), 5_000);
     await browser.wait(until.elementIsEnabled(element), 5_000);
     await browser.wait(
       () =>
         browser.executeScript((element) => {
+          element.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
           const bounds = element.getBoundingClientRect();
           const hit = document.elementFromPoint(
             bounds.x + bounds.width / 2,
@@ -40,14 +38,32 @@ export async function clickVisible(browser, element) {
     );
     await element.click();
   } catch (error) {
-    const context = await browser.executeScript(
-      (element) => ({
+    const context = await browser.executeScript((element) => {
+      const bounds = element.getBoundingClientRect();
+      const hit = document.elementFromPoint(
+        bounds.x + bounds.width / 2,
+        bounds.y + bounds.height / 2,
+      );
+      const scrollContainers = [];
+      for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+        if (parent.scrollHeight > parent.clientHeight)
+          scrollContainers.push({
+            element: parent.outerHTML.slice(0, 200),
+            scrollTop: parent.scrollTop,
+            clientHeight: parent.clientHeight,
+            scrollHeight: parent.scrollHeight,
+          });
+      }
+      return {
         target: element.outerHTML,
         expanded: element.closest("details")?.open,
         focused: document.activeElement?.outerHTML,
-      }),
-      element,
-    );
+        bounds: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+        hit: hit?.outerHTML,
+        scrollContainers,
+      };
+    }, element);
     throw new Error(`${error.message}\nReview control: ${JSON.stringify(context)}`, {
       cause: error,
     });
