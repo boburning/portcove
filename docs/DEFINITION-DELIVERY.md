@@ -278,6 +278,45 @@ record interpretation, role/identity agreement, complete graph depth/cycle bound
 authenticated provenance, replay/revocation handling and atomic catalog selection
 remain required. An indexed empty object is not a usable execution contract.
 
+### Initial referenced catalog projection
+
+`DefinitionContentIndex::inspect_catalog_projection` interprets supplied entry
+and contract bytes through the existing core validators. Its terminal record has
+exactly `contract_schema: 1`, `representation: "catalog_projection"` and `catalog`.
+The catalog is the complete authoritative schema-1 or schema-2 document. Schema 2
+omits derived `source_profiles`; the existing loader reconstructs that projection.
+Every field emitted by the authoritative serializer must be present, including
+default-valued port fields. Unknown, missing or discarded semantics and duplicate
+decoded JSON keys fail closed. Whitespace and object-key order are immaterial;
+the original exact bytes are retained separately.
+
+The entry's source array must contain exactly one target, equal to both its
+execution and persistence target. The artifact and evidence target arrays must
+be empty for this representation. Existing release, runtime, source and scoped
+qualification records stay intact inside the catalog; they do not become new
+artifact acquisition or publisher authority. This deliberate shared leaf avoids
+duplicating durable domain models while retaining the complete legacy graph.
+It is not permission to omit source or evidence records from that graph.
+
+The leaf has no outgoing target references. Additional graph fields, distinct
+role leaves or record types require a separately implemented versioned contract;
+they are rejected rather than silently ignored or traversed. Thus this supported
+target graph is exactly one edge deep with one distinct leaf, within the index's
+existing byte and reference bounds. The projected catalog also keeps its existing
+4 MiB bound. Source-graph references are checked by the current catalog validators.
+
+All catalog semantics must validate, the selected port must exactly match the
+entry, and its installed template requirements must be supported. A failure
+affects only that inspection and leaves the index and other inspections unchanged.
+Other catalog ports preserve the self-contained legacy graph; their presence does
+not admit additional indexed definitions. `DefinitionCatalogProjection` retains
+the exact entry and contract bytes alongside the validated catalog. This is pure
+supplied-content interpretation, with no I/O, signing, publisher grant, selection
+or installation. It does not yet write successor bytes into retained manifests;
+the existing manifest capture continues to retain its canonical catalog semantics.
+Authenticated loading, freshness/revocation and transactional successor retention
+remain required before this path can replace the current definition loader.
+
 | Client/content combination                            | Required behavior                                                                                                                                               |
 | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Existing client + format 1                            | Unchanged embedded-contract restrictions and normal fallback.                                                                                                   |

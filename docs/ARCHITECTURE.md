@@ -21,6 +21,19 @@ usable catalog, authenticate a publisher, interpret referenced contracts or gran
 an operation; existing semantic validators and the remaining loader gates still
 own those decisions.
 
+`inspect_catalog_projection` supplies the first referenced-contract interpreter.
+It accepts a single terminal `catalog_projection` record shared explicitly by the
+source, execution and persistence roles. The complete authoritative catalog is
+validated by the existing `Catalog` and source validators, compared without
+discarding unknown/default semantics, and bound to the selected entry's complete
+port projection. Exact entry and contract bytes remain available. This preserves
+one owner of domain rules and a complete source graph rather than introducing
+parallel execution/persistence models. Other ports inside that retained graph are
+not independently admitted definitions. Unsupported record types or extra target
+edges are rejected; this initial format cannot express recursive target graphs.
+The result supplies validated semantics only: publisher grants, authentication,
+freshness, catalog selection and operation eligibility remain separate boundaries.
+
 ## Engine template capability ownership
 
 Core owns the installed template/version inventory and pure requirement
