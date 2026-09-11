@@ -449,9 +449,9 @@ jobs:
           node apps/desktop/scripts/generate-transport-types.mjs
           node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/transport-types.test.mjs
       - run: pnpm test
-      - name: Test application release selection
+      - name: Test application release records
         working-directory: .
-        run: node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/select-release-channel.test.mjs
+        run: node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/select-release-channel.test.mjs scripts/reconstruct-application-update-records.test.mjs
       - name: Fallow quality gate
         working-directory: .
         run: node scripts/run-fallow.mjs

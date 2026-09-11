@@ -104,6 +104,7 @@ const releaseContractTests = Object.freeze([
   "scripts/reconcile-release-assets.test.mjs",
   "scripts/generate-release-downloads.test.mjs",
   "scripts/select-release-channel.test.mjs",
+  "scripts/reconstruct-application-update-records.test.mjs",
   "scripts/release-workflow.test.mjs",
   "scripts/windows-qualification-session.test.mjs",
 ]);

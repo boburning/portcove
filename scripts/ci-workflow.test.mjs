@@ -43,11 +43,16 @@ test("every Node test file is included in required CI and the local quality work
   }
 });
 
-test("release selection runs after the maintained SemVer dependency is installed", () => {
+test("application release records run after the maintained SemVer dependency is installed", () => {
   const installation = frontend.indexOf("pnpm install --frozen-lockfile");
   const selection = frontend.indexOf("scripts/select-release-channel.test.mjs");
+  const reconstruction = frontend.indexOf(
+    "scripts/reconstruct-application-update-records.test.mjs",
+  );
   assert.ok(installation >= 0 && selection > installation);
+  assert.ok(reconstruction > installation);
   assert.ok(!catalog.includes("scripts/select-release-channel.test.mjs"));
+  assert.ok(!catalog.includes("scripts/reconstruct-application-update-records.test.mjs"));
 });
 
 test("required CI keeps its cancellation and least-privilege contracts", () => {
@@ -632,6 +637,7 @@ test("validation recipes separate routine, release, and packaged Windows contrac
   assert.match(release, /check-release-metadata\.test\.mjs/);
   assert.match(release, /release-package-policy\.test\.mjs/);
   assert.match(release, /updater-artifact-inventory\.test\.mjs/);
+  assert.match(release, /reconstruct-application-update-records\.test\.mjs/);
   assert.match(release, /windows-qualification-session\.test\.mjs/);
   assert.doesNotMatch(release, /windows-qualification-session\.integration\.test\.mjs/);
   for (const generic of [
