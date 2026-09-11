@@ -6,3 +6,6 @@ fbc9872bd494b6a0c0d5b01c73e3b4cf1d64f4ff
 
 # Repository-wide Taplo formatting of TOML.
 2e44de8f8d1df00a0647b42917a9bbbc672a23cb
+
+# Repository-wide Oxfmt formatting of active source and configuration.
+28cec1e641b5119335e1e94d6d7a5bfd15eb0a83
