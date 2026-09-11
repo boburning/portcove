@@ -7,6 +7,7 @@ import {
   classifyChanges,
   executePlan,
   formatCommand,
+  packagesWithDoctests,
   parseNameStatus,
   requireFocusedArguments,
 } from "./local-validation.mjs";
@@ -20,7 +21,13 @@ function planFor(paths) {
     paths.map((path) => (typeof path === "string" ? change(path) : path)),
     { fileExists: allFilesExist },
   );
-  return { selection, plan: buildPlan(selection, { mergeBase: "base-sha" }) };
+  return {
+    selection,
+    plan: buildPlan(selection, {
+      mergeBase: "base-sha",
+      doctestPackages: new Set(["portcove-core", "portcove-release-tools", "portcove-desktop"]),
+    }),
+  };
 }
 
 test("parses modified, deleted, renamed, and copied Git records", () => {
@@ -58,6 +65,22 @@ test("a Rust source change checks and tests only its affected package", () => {
     "rust-tests:portcove-core",
     "rust-docs:portcove-core",
   ]);
+});
+
+test("bin-only Rust packages do not schedule an invalid doctest command", () => {
+  const { plan } = planFor(["crates/portcove-cli/src/main.rs"]);
+  assert.ok(ids(plan).includes("rust-tests:portcove-cli"));
+  assert.ok(!ids(plan).includes("rust-docs:portcove-cli"));
+});
+
+test("doctest capability comes from Cargo target metadata", () => {
+  const packages = packagesWithDoctests({
+    packages: [
+      { name: "library", targets: [{ kind: ["lib"], doctest: true }] },
+      { name: "binary", targets: [{ kind: ["bin"], doctest: false }] },
+    ],
+  });
+  assert.deepEqual([...packages], ["library"]);
 });
 
 test("root Rust dependency changes compile and lint the workspace without local exhaustive tests", () => {

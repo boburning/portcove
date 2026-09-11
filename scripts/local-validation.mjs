@@ -21,6 +21,32 @@ const packagePrefixes = new Map([
   ["apps/desktop/src-tauri/", "portcove-desktop"],
 ]);
 
+export function packagesWithDoctests(metadata) {
+  if (!Array.isArray(metadata?.packages))
+    throw new Error("cargo metadata did not return a package inventory");
+  return new Set(
+    metadata.packages
+      .filter(
+        (pkg) =>
+          typeof pkg?.name === "string" &&
+          Array.isArray(pkg.targets) &&
+          pkg.targets.some((target) => target?.doctest === true),
+      )
+      .map((pkg) => pkg.name),
+  );
+}
+
+function readDoctestPackages() {
+  const result = spawnSync("cargo", ["metadata", "--format-version", "1", "--no-deps"], {
+    cwd: projectRoot,
+    encoding: "utf8",
+    windowsHide: true,
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) throw new Error(`cargo metadata failed: ${result.stderr.trim()}`);
+  return packagesWithDoctests(JSON.parse(result.stdout));
+}
+
 const oxfmtExtensions = new Set([
   ".cjs",
   ".css",
@@ -521,6 +547,7 @@ export function buildPlan(selection, context = {}) {
       ),
     );
   } else {
+    const doctestPackages = context.doctestPackages ?? new Set();
     for (const packageName of sorted(selection.packages)) {
       commands.push(
         command(
@@ -541,13 +568,16 @@ export function buildPlan(selection, context = {}) {
           process.execPath,
           ["scripts/run-rust-tests.mjs", "--locked", "-p", packageName],
         ),
-        command(
-          `rust-docs:${packageName}`,
-          `run documentation tests for affected package ${packageName}`,
-          "cargo",
-          ["test", "--locked", "-p", packageName, "--doc"],
-        ),
       );
+      if (doctestPackages.has(packageName))
+        commands.push(
+          command(
+            `rust-docs:${packageName}`,
+            `run documentation tests for affected package ${packageName}`,
+            "cargo",
+            ["test", "--locked", "-p", packageName, "--doc"],
+          ),
+        );
     }
   }
 
@@ -820,7 +850,11 @@ export function main(argv = process.argv.slice(2)) {
   const { base, planOnly } = parseCheckArgs(args);
   const context = readChangeContext(base);
   const selection = classifyChanges(context.changes);
-  const plan = buildPlan(selection, context);
+  const planContext =
+    selection.packages.size > 0 && !selection.workspaceRust
+      ? { ...context, doctestPackages: readDoctestPackages() }
+      : context;
+  const plan = buildPlan(selection, planContext);
   printPlan(context, selection, plan);
   if (planOnly) return;
   const result = executePlan(plan);
