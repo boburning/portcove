@@ -126,9 +126,7 @@ function makeInstallerLifecycleFixture(t) {
   const keyName = `PortcoveHarness-${path.basename(root)}`;
   const keyPath = `Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${keyName}`;
   t.after(() => {
-    spawnSync("reg.exe", ["delete", `HKCU\\${keyPath}`, "/f"], {
-      windowsHide: true,
-    });
+    removeInstallerLifecycleRegistration({ keyPath });
     rmSync(root, {
       recursive: true,
       force: true,
@@ -240,10 +238,59 @@ function runInstallerLifecycle(
 }
 
 function removeInstallerLifecycleRegistration(item) {
-  spawnSync("reg.exe", ["delete", `HKCU\\${item.keyPath}`, "/f"], {
-    windowsHide: true,
-  });
+  const registryPath = `HKCU\\${item.keyPath}`;
+  const deadline = Date.now() + 5_000;
+  const waitSignal = new Int32Array(new SharedArrayBuffer(4));
+  let deletion;
+  let query;
+  do {
+    deletion = spawnSync("reg.exe", ["delete", registryPath, "/f"], {
+      encoding: "utf8",
+      windowsHide: true,
+    });
+    if (deletion.error) throw deletion.error;
+    query = spawnSync("reg.exe", ["query", registryPath], {
+      encoding: "utf8",
+      windowsHide: true,
+    });
+    if (query.error) throw query.error;
+    if (query.status === 1) return;
+    Atomics.wait(waitSignal, 0, 0, 50);
+  } while (Date.now() < deadline);
+
+  assert.fail(
+    `Fixture uninstall registration remained after bounded cleanup: ${JSON.stringify({
+      registryPath,
+      deleteStatus: deletion?.status,
+      deleteError: deletion?.stderr?.trim(),
+      queryStatus: query?.status,
+      queryError: query?.stderr?.trim(),
+    })}`,
+  );
 }
+
+test(
+  "prepare still rejects an existing Portcove installer registration",
+  { skip: process.platform !== "win32", timeout: 180_000 },
+  (t) => {
+    const item = makeFixture(t);
+    const keyPath = `Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\PortcoveHarness-blocker-${path.basename(item.root)}`;
+    const registryPath = `HKCU\\${keyPath}`;
+    const added = spawnSync(
+      "reg.exe",
+      ["add", registryPath, "/v", "DisplayName", "/t", "REG_SZ", "/d", "Portcove", "/f"],
+      { encoding: "utf8", windowsHide: true },
+    );
+    assert.equal(added.status, 0, added.stderr);
+    try {
+      const prepared = runPowerShell(prepareArgs(item));
+      assert.notEqual(prepared.status, 0);
+      assert.match(prepared.stderr, /installer registration already exists/);
+    } finally {
+      removeInstallerLifecycleRegistration({ keyPath });
+    }
+  },
+);
 
 test(
   "installer lifecycle behavior handles delayed, persistent, and hung uninstall cleanup",
