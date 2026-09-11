@@ -46,7 +46,7 @@ test("also accepts name-status records with an embedded tab", () => {
 test("documentation-only changes stay on formatting and whitespace checks", () => {
   const { selection, plan } = planFor(["docs/QUALITY.md", "AGENTS.md"]);
   assert.deepEqual([...selection.scopes].sort(), ["documentation"]);
-  assert.deepEqual(ids(plan), ["diff-check", "prettier"]);
+  assert.deepEqual(ids(plan), ["diff-check", "oxfmt"]);
 });
 
 test("a Rust source change checks and tests only its affected package", () => {
@@ -78,9 +78,9 @@ test("UI sources build, lint, and run import-related tests", () => {
   assert.equal(selection.uiFullTests, false);
   assert.deepEqual(ids(plan), [
     "diff-check",
-    "prettier",
+    "oxfmt",
     "ui-build",
-    "ui-eslint",
+    "ui-oxlint",
     "ui-related-tests",
     "ui-related-durations",
     "ui-theme-copy",
@@ -156,8 +156,8 @@ test("renames classify both the old and new ownership paths", () => {
   ]);
   assert.ok(selection.scopes.has("documentation"));
   assert.ok(selection.packages.has("portcove-cli"));
-  assert.ok(selection.prettierFiles.has("docs/moved.md"));
-  assert.ok(!selection.prettierFiles.has("crates/portcove-cli/src/removed.rs"));
+  assert.ok(selection.oxfmtFiles.has("docs/moved.md"));
+  assert.ok(!selection.oxfmtFiles.has("crates/portcove-cli/src/removed.rs"));
   assert.ok(!plan.map(formatCommand).join("\n").includes("removed.rs"));
 });
 

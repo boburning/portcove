@@ -96,18 +96,19 @@ fallow:
     {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-fallow-report.test.mjs
     {{storage}} node scripts/run-fallow.mjs
 
-eslint:
-    {{storage}} corepack pnpm --dir apps/desktop lint:eslint
-    {{storage}} node scripts/lint-tools.integration.mjs eslint
+oxlint:
+    {{storage}} pnpm --dir apps/desktop lint:oxlint
+    {{storage}} node scripts/lint-tools.integration.mjs oxlint
 
 stylelint:
     {{storage}} corepack pnpm --dir apps/desktop lint:style
     {{storage}} node scripts/lint-tools.integration.mjs stylelint
 
-check-ui: fmt-frontend-check ui-transport ui-build ui-test fallow eslint stylelint
+check-ui: fmt-frontend-check ui-transport ui-build ui-test fallow oxlint stylelint
 
 fmt-frontend-check:
     {{storage}} pnpm --dir apps/desktop format:check
+    {{storage}} node scripts/lint-tools.integration.mjs oxfmt
 
 # Cross-language scripts and hosted automation.
 python-lint:

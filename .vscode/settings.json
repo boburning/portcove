@@ -1,9 +1,11 @@
 {
   "files.eol": "\n",
-  "prettier.prettierPath": "apps/desktop/node_modules/prettier",
-  "prettier.requireConfig": true,
+  "oxc.configPath": ".oxlintrc.json",
+  "oxc.fmt.configPath": ".oxfmtrc.json",
+  "oxc.requireConfig": true,
+  "oxc.typeAware": true,
   "[javascript][javascriptreact][typescript][typescriptreact][json][jsonc][css][html][markdown][yaml]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.defaultFormatter": "oxc.oxc-vscode",
     "editor.formatOnSave": true
   },
   "[rust]": {

@@ -66,7 +66,7 @@ const request: SourceDiscoveryRequest = { roots: ["owned/source"], profile_ids: 
 const nullable: PortStatus = { ...status, active: null };
 const valid: InstallRecord = { ...install, artifact: { ...install.artifact, size: 2 } };
 `;
-    const packagePath = require.resolve("@typescript/native/package.json");
+    const packagePath = require.resolve("typescript/package.json");
     const packageJson = JSON.parse(fs.readFileSync(packagePath, "utf8"));
     const compiler = path.resolve(
       path.dirname(packagePath),

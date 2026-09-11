@@ -539,7 +539,7 @@ test("frontend keeps deterministic product gates and delegates vulnerability cha
   assert.ok(
     install >= 0 && formatting > install && lint > formatting && build > lint,
   );
-  assert.match(frontend, /lint-tools\.integration\.mjs eslint stylelint/);
+  assert.match(frontend, /lint-tools\.integration\.mjs oxfmt oxlint stylelint/);
   assert.match(
     frontend,
     /--test-name-pattern "pnpm uses\|direct just recipes" scripts\/dev-storage\.test\.mjs/,
@@ -553,6 +553,66 @@ test("frontend keeps deterministic product gates and delegates vulnerability cha
   assert.match(dependencyReview, /github\.event_name == 'pull_request'/);
   assert.match(dependencyReview, /dependency-review-action/);
   assert.match(dependencyReview, /fail-on-severity: high/);
+});
+
+test("frontend tooling uses the pinned Oxc contracts without legacy formatter or linter layers", async () => {
+  const packageJson = JSON.parse(
+    await readFile(new URL("../apps/desktop/package.json", import.meta.url), "utf8"),
+  );
+  assert.equal(packageJson.scripts["format:oxfmt"], "node ../../scripts/run-oxfmt.mjs --write");
+  assert.equal(packageJson.scripts["lint:oxlint"], "node ../../scripts/run-oxlint.mjs");
+  assert.equal(packageJson.devDependencies.oxfmt, "0.67.0");
+  assert.equal(packageJson.devDependencies.oxlint, "1.82.0");
+  assert.equal(packageJson.devDependencies["oxlint-tsgolint"], "7.0.2001");
+  assert.equal(packageJson.devDependencies.typescript, "7.0.2");
+  for (const retired of [
+    "@eslint/js",
+    "@typescript/native",
+    "eslint",
+    "eslint-plugin-jsx-a11y",
+    "eslint-plugin-react-hooks",
+    "globals",
+    "prettier",
+    "typescript-eslint",
+  ]) {
+    assert.equal(packageJson.devDependencies[retired], undefined);
+  }
+
+  const oxlint = JSON.parse(
+    await readFile(new URL("../.oxlintrc.json", import.meta.url), "utf8"),
+  );
+  assert.deepEqual(oxlint.options, {
+    reportUnusedDisableDirectives: "error",
+    typeAware: false,
+    typeCheck: false,
+  });
+  assert.equal(oxlint.categories.correctness, "error");
+  assert.equal(oxlint.categories.suspicious, "off");
+  assert.equal(oxlint.rules["react/rules-of-hooks"], "error");
+  assert.equal(oxlint.rules["jsx-a11y/alt-text"], "error");
+  assert.equal(oxlint.rules["typescript/no-floating-promises"], "error");
+  const oxlintRunner = await readFile(new URL("./run-oxlint.mjs", import.meta.url), "utf8");
+  assert.match(oxlintRunner, /sourceRoot/);
+  assert.match(oxlintRunner, /"--type-aware"/);
+
+  const oxfmt = JSON.parse(
+    await readFile(new URL("../.oxfmtrc.json", import.meta.url), "utf8"),
+  );
+  assert.equal(oxfmt.printWidth, 100);
+  assert.equal(oxfmt.sortImports, false);
+  assert.equal(oxfmt.sortPackageJson, true);
+  assert.ok(oxfmt.ignorePatterns.includes("**/*.toml"));
+
+  for (const retired of [
+    "../.prettierignore",
+    "../prettier.config.mjs",
+    "../eslint.config.mjs",
+    "../apps/desktop/eslint.config.mjs",
+    "../apps/desktop/.fallowrc.json",
+    "./run-eslint.mjs",
+  ]) {
+    await assert.rejects(readFile(new URL(retired, import.meta.url)), { code: "ENOENT" });
+  }
 });
 
 test("catalog executes the CI workflow contract", () => {

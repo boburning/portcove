@@ -21,7 +21,7 @@ const packagePrefixes = new Map([
   ["apps/desktop/src-tauri/", "portcove-desktop"],
 ]);
 
-const prettierExtensions = new Set([
+const oxfmtExtensions = new Set([
   ".cjs",
   ".css",
   ".html",
@@ -49,7 +49,7 @@ const explicitNodeTests = new Map([
       "scripts/ci-workflow.test.mjs",
     ],
   ],
-  ["prettier.config.mjs", ["scripts/local-validation.test.mjs"]],
+  [".oxfmtrc.json", ["scripts/local-validation.test.mjs"]],
   ["taplo.toml", ["scripts/local-validation.test.mjs"]],
 ]);
 
@@ -104,8 +104,8 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
   const includeFileChecks = options.includeFileChecks ?? true;
   let recognized = false;
 
-  if (includeFileChecks && prettierExtensions.has(extension)) {
-    selection.prettierFiles.add(file);
+  if (includeFileChecks && oxfmtExtensions.has(extension)) {
+    selection.oxfmtFiles.add(file);
   }
   if (extension === ".toml") selection.toml = true;
 
@@ -138,7 +138,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     file.startsWith("apps/desktop/assets/") ||
     file.startsWith("apps/desktop/public/") ||
     file === "apps/desktop/.fallowrc.json" ||
-    /^apps\/desktop\/(?:index\.html|package\.json|pnpm-lock\.yaml|tsconfig.*\.json|vite\.config\.[cm]?ts|eslint\.config\.mjs|stylelint\.config\.mjs)$/.test(
+    /^apps\/desktop\/(?:index\.html|package\.json|pnpm-lock\.yaml|tsconfig.*\.json|vite\.config\.[cm]?ts|stylelint\.config\.mjs)$/.test(
       file,
     )
   ) {
@@ -247,7 +247,8 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
 
   if (
     file === ".editorconfig" ||
-    file === ".prettierignore" ||
+    file === ".oxfmtrc.json" ||
+    file === ".oxlintrc.json" ||
     file === ".gitignore" ||
     file === ".gitattributes" ||
     file === ".git-blame-ignore-revs" ||
@@ -263,11 +264,11 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     recognized = true;
   }
 
-  if (file === "eslint.config.mjs") {
+  if (file === ".oxlintrc.json") {
     selection.ui = true;
     selection.uiFullTests = true;
     selection.scopes.add("ui");
-    selection.nodeSyntax.add(file);
+    addNodeTest(selection, "scripts/ci-workflow.test.mjs");
     recognized = true;
   }
 
@@ -336,7 +337,7 @@ export function classifyChanges(changes, options = {}) {
     packages: new Set(),
     nodeTests: new Set(),
     nodeSyntax: new Set(),
-    prettierFiles: new Set(),
+    oxfmtFiles: new Set(),
     uiRelatedFiles: new Set(),
     unknown: new Set(),
     rustfmt: false,
@@ -435,24 +436,19 @@ export function buildPlan(selection, context = {}) {
     ),
   ];
 
-  const existingPrettierFiles = sorted(selection.prettierFiles).filter((file) =>
+  const existingOxfmtFiles = sorted(selection.oxfmtFiles).filter((file) =>
     existsSync(path.join(projectRoot, file)),
   );
-  if (existingPrettierFiles.length) {
+  if (existingOxfmtFiles.length) {
+    const targets = existingOxfmtFiles.includes(".oxfmtrc.json")
+      ? []
+      : existingOxfmtFiles.map((file) => path.join(projectRoot, file));
     commands.push(
-      corepackCommand(
-        "prettier",
+      command(
+        "oxfmt",
         "format-check changed supported files only",
-        [
-          "pnpm",
-          "exec",
-          "prettier",
-          "--check",
-          "--ignore-path",
-          path.join(projectRoot, ".prettierignore"),
-          ...existingPrettierFiles.map((file) => path.join(projectRoot, file)),
-        ],
-        { cwd: desktopRoot },
+        process.execPath,
+        ["scripts/run-oxfmt.mjs", "--check", ...targets],
       ),
     );
   }
@@ -608,9 +604,9 @@ export function buildPlan(selection, context = {}) {
         { cwd: desktopRoot },
       ),
       corepackCommand(
-        "ui-eslint",
+        "ui-oxlint",
         "run the repository's typed frontend lint contract",
-        ["pnpm", "run", "lint:eslint"],
+        ["pnpm", "run", "lint:oxlint"],
         { cwd: desktopRoot },
       ),
     );

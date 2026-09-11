@@ -28,8 +28,8 @@ describe("core-owned failure presentation", () => {
         outcome as typeof error.presentation.mutation_state;
       const original = JSON.stringify(error);
       for (const view of [
-        <StatusLayer error={error} clearError={vi.fn()} />,
-        <BootstrapRecovery error={error} />,
+        <StatusLayer key="status" error={error} clearError={vi.fn()} />,
+        <BootstrapRecovery key="bootstrap" error={error} />,
       ]) {
         const html = renderToStaticMarkup(view);
         expect(html).toContain(error.presentation.summary);

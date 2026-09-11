@@ -321,7 +321,7 @@ function PortCard({
   );
   const updateAvailable = currentUpdateSnapshot(status)?.check.update_available;
   const color =
-    [...port.id].reduce(
+    port.id.split("").reduce(
       (total, character) => total + character.charCodeAt(0),
       0,
     ) % 6;

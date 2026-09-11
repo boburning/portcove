@@ -32,27 +32,58 @@ function expectFixture(tool, valid, invalid) {
   );
 }
 
-async function eslintFixture() {
-  const directory = path.join(root, "scripts", `.lint-eslint-${nonce}`);
-  const fixture = path.join(directory, "fixture.mjs");
+async function oxlintFixture() {
+  const directory = path.join(desktop, "src", `.lint-oxlint-${nonce}`);
+  const fixture = path.join(directory, "fixture.tsx");
   try {
     await mkdir(directory);
-    await writeFile(fixture, "const answer = 42;\nconsole.log(answer);\n");
+    await writeFile(
+      fixture,
+      'import { useState } from "react";\nexport function Fixture() {\n  const [value] = useState(0);\n  void Promise.resolve(value);\n  return <img alt="" src="fixture" />;\n}\n',
+    );
     const valid = run(process.execPath, [
-      path.join(root, "scripts", "run-eslint.mjs"),
+      path.join(root, "scripts", "run-oxlint.mjs"),
       fixture,
     ]);
-    await writeFile(fixture, "missingName();\n");
-    expectFixture(
-      "ESLint",
-      valid,
-      run(process.execPath, [
-        path.join(root, "scripts", "run-eslint.mjs"),
-        fixture,
-      ]),
-    );
+    for (const [rule, source] of [
+      [
+        "React Hooks",
+        'import { useState } from "react";\nexport function Fixture({ enabled }: { enabled: boolean }) {\n  if (enabled) useState(0);\n  return null;\n}\n',
+      ],
+      [
+        "jsx-a11y",
+        'export function Fixture() {\n  return <img src="fixture" />;\n}\n',
+      ],
+      [
+        "type-aware TypeScript",
+        "export function fixture() {\n  Promise.resolve(1);\n}\n",
+      ],
+    ]) {
+      await writeFile(fixture, source);
+      expectFixture(
+        `Oxlint ${rule}`,
+        valid,
+        run(process.execPath, [
+          path.join(root, "scripts", "run-oxlint.mjs"),
+          fixture,
+        ]),
+      );
+    }
   } finally {
     await rm(directory, { recursive: true, force: true });
+  }
+}
+
+async function oxfmtFixture() {
+  const fixture = path.join(root, "scripts", `.format-oxfmt-${nonce}.mjs`);
+  const command = [path.join(root, "scripts", "run-oxfmt.mjs"), "--check", fixture];
+  try {
+    await writeFile(fixture, "const answer = 42;\nconsole.log(answer);\n");
+    const valid = run(process.execPath, command);
+    await writeFile(fixture, "const answer={value:42};console.log(answer.value)\n");
+    expectFixture("Oxfmt", valid, run(process.execPath, command));
+  } finally {
+    await rm(fixture, { force: true });
   }
 }
 
@@ -149,7 +180,8 @@ async function psscriptAnalyzerFixture() {
 }
 
 const fixtures = {
-  eslint: eslintFixture,
+  oxfmt: oxfmtFixture,
+  oxlint: oxlintFixture,
   stylelint: stylelintFixture,
   ruff: () =>
     aquaFixture(

@@ -22,8 +22,8 @@ versions from `aqua.yaml` for the current Windows, Linux or macOS architecture.
 On Windows, the PowerShell bootstrap also installs exact PSScriptAnalyzer 1.25.0
 from PSGallery through the standard `.config/powershell-resources.psd1`
 PSResourceGet contract. Other hosts report it as not applicable because required
-PowerShell coverage runs in Windows CI. Run `just check-ui` for ESLint and
-Stylelint, or `just script-lint` for Python, shell, workflow and PowerShell lint
+PowerShell coverage runs in Windows CI. Run `just check-ui` for Oxlint, Oxfmt,
+and Stylelint, or `just script-lint` for Python, shell, workflow and PowerShell lint
 as a group.
 
 ## Skills

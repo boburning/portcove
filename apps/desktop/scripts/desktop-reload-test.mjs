@@ -35,7 +35,7 @@ export async function reloadScenario({
         // loads. Fail on the first rejected batch; no hidden retry of a failure.
         observation.commands = await browser.executeAsyncScript(
           (commands, done) => {
-            Promise.all(
+            void Promise.all(
               commands.map((command) =>
                 window.__TAURI_INTERNALS__.invoke(command).then(
                   () => ({ command, ok: true }),

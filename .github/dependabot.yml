@@ -28,14 +28,12 @@ updates:
         patterns:
           [
             "typescript",
-            "@typescript/*",
             "vite",
             "vitest",
             "@vitejs/plugin-react",
-            "eslint",
-            "@eslint/*",
-            "eslint-plugin-*",
-            "globals",
+            "oxfmt",
+            "oxlint",
+            "oxlint-tsgolint",
             "stylelint",
             "stylelint-config-*",
           ]
