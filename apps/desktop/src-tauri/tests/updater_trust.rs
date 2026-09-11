@@ -194,6 +194,14 @@ async fn release_record_tampering_is_rejected_before_consumption() {
 
 #[tokio::test]
 async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_bytes() {
+    use std::collections::BTreeSet;
+
+    use portcove_desktop::application_update::{
+        ApplicationChannel, AuthenticatedRecordPair, CandidateState, InstallOwner,
+        InstalledApplicationContext, select_authenticated_candidate,
+    };
+    use serde_json::json;
+    use sha2::{Digest, Sha256};
     use tough::editor::RepositoryEditor;
     use tough::schema::{PathPattern, PathSet};
 
@@ -203,12 +211,67 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
     let promotion = Key::new(f.directory.path()).await;
     let root_path = f.directory.path().join("delegation-root.json");
     fs::write(&root_path, &trusted).unwrap();
-    let record = f.targets.join("stable.json");
-    fs::write(
-        &record,
-        br#"{"release":"1.0.0","eligible":true,"fixture":true}"#,
-    )
+    let release_name = "releases/1.0.0/windows-x86_64/nsis.json";
+    let promotion_name = "channels/stable/windows-x86_64/nsis.json";
+    let release_path = f.targets.join(release_name);
+    let promotion_path = f.targets.join(promotion_name);
+    fs::create_dir_all(release_path.parent().unwrap()).unwrap();
+    fs::create_dir_all(promotion_path.parent().unwrap()).unwrap();
+    let release_bytes = serde_json::to_vec(&json!({
+        "schema_version": 1,
+        "version": "1.0.0",
+        "source_commit": "a".repeat(40),
+        "source_tree": "b".repeat(40),
+        "qualified_run": {
+            "workflow": "release.yml",
+            "workflow_commit": "e".repeat(40),
+            "run_id": 42,
+            "attempt": 1,
+            "inventory_sha256": "f".repeat(64)
+        },
+        "target": "windows-x86_64",
+        "os": "windows",
+        "architecture": "x86_64",
+        "execution_context": "native",
+        "package": { "kind": "nsis", "owner": "portcove", "product_id": "portcove-desktop" },
+        "artifact": {
+            "url": "https://github.com/boburning/portcove/releases/download/v1.0.0/Portcove.exe",
+            "sha256": "c".repeat(64),
+            "bytes": 1024,
+            "tauri_signature": "fixture-signature",
+            "payload_key_id": "d".repeat(64)
+        },
+        "compatibility": {
+            "minimum_os_version": "10.0.19045",
+            "required_capabilities": ["host-api-1"],
+            "cli_protocol": { "min": 1, "max": 1 },
+            "catalog_formats": [2],
+            "library": {
+                "read": { "min": 1, "max": 1 },
+                "write_schema": 1,
+                "lock_protocol": "library-lock-v1"
+            }
+        },
+        "evidence_ids": ["ci-run-42", "windows-package-42"]
+    }))
     .unwrap();
+    fs::write(&release_path, &release_bytes).unwrap();
+    let promotion_bytes = serde_json::to_vec(&json!({
+        "schema_version": 1,
+        "channel": "stable",
+        "target": "windows-x86_64",
+        "package": "nsis",
+        "version": "1.0.0",
+        "release_path": release_name,
+        "release_sha256": hex::encode(Sha256::digest(&release_bytes)),
+        "eligible": true,
+        "production_eligible": true,
+        "withdrawn": false,
+        "reason": null,
+        "required_bridge": null
+    }))
+    .unwrap();
+    fs::write(&promotion_path, &promotion_bytes).unwrap();
     let mut editor = RepositoryEditor::new(root_path).await.unwrap();
     editor
         .targets_version(nz(1))
@@ -223,7 +286,7 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
         .delegate_role(
             "stable",
             &[promotion.source()],
-            PathSet::Paths(vec![PathPattern::new("stable.json").unwrap()]),
+            PathSet::Paths(vec![PathPattern::new(promotion_name).unwrap()]),
             true,
             nz(1),
             expiration(),
@@ -231,6 +294,8 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
         )
         .await
         .unwrap();
+    let (_, release_target) = RepositoryEditor::build_target(&release_path).await.unwrap();
+    editor.add_target(release_name, release_target).unwrap();
     editor
         .sign_targets_editor(&[f.online.source()])
         .await
@@ -240,10 +305,11 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
         .targets_version(nz(1))
         .unwrap()
         .targets_expires(expiration())
-        .unwrap()
-        .add_target_path(&record)
+        .unwrap();
+    let (_, promotion_target) = RepositoryEditor::build_target(&promotion_path)
         .await
         .unwrap();
+    editor.add_target(promotion_name, promotion_target).unwrap();
     match editor.sign_targets_editor(&[f.online.source()]).await {
         Err(error) => assert!(
             matches!(error, Error::SigningKeysNotFound { .. }),
@@ -269,9 +335,8 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
         .await
         .unwrap();
     let repo = f.load(&trusted).await.unwrap();
-    let name = TargetName::new("stable.json").unwrap();
-    let verified = repo
-        .read_target(&name)
+    let verified_release = repo
+        .read_target(&TargetName::new(release_name).unwrap())
         .await
         .unwrap()
         .unwrap()
@@ -279,5 +344,43 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
         .await
         .unwrap()
         .concat();
-    assert_eq!(verified, fs::read(record).unwrap());
+    let verified_promotion = repo
+        .read_target(&TargetName::new(promotion_name).unwrap())
+        .await
+        .unwrap()
+        .unwrap()
+        .try_collect::<Vec<_>>()
+        .await
+        .unwrap()
+        .concat();
+    assert_eq!(verified_release, release_bytes);
+    assert_eq!(verified_promotion, promotion_bytes);
+    let selection = select_authenticated_candidate(
+        &[AuthenticatedRecordPair {
+            release_path: release_name,
+            release_bytes: &verified_release,
+            promotion_bytes: &verified_promotion,
+        }],
+        ApplicationChannel::Stable,
+        &InstalledApplicationContext {
+            current_version: "0.3.0".into(),
+            target: "windows-x86_64".into(),
+            os: "windows".into(),
+            os_version: "10.0.26200".into(),
+            architecture: "x86_64".into(),
+            execution_context: "native".into(),
+            package_kind: "nsis".into(),
+            install_owner: InstallOwner::Portcove,
+            product_id: "portcove-desktop".into(),
+            capabilities: BTreeSet::from(["host-api-1".into()]),
+            cli_protocol: 1,
+            catalog_format: 2,
+            library_schema: 1,
+            library_write_schema: 1,
+            lock_protocol: "library-lock-v1".into(),
+        },
+    )
+    .unwrap();
+    assert_eq!(selection.state, CandidateState::UpdateAvailable);
+    assert_eq!(selection.candidate.unwrap().release.version, "1.0.0");
 }
