@@ -112,6 +112,8 @@ test("UI sources build, lint, and run import-related tests", () => {
     assert.equal(uiBuild.executable, process.execPath);
     assert.match(uiBuild.args[0], /node_modules[\\/]corepack[\\/]dist[\\/]corepack\.js$/);
   } else assert.equal(uiBuild.executable, "corepack");
+  const durations = plan.find((entry) => entry.id === "ui-related-durations");
+  assert.ok(durations.args.includes("--allow-empty"));
 });
 
 test("frontend configuration changes use the complete small UI suite", () => {

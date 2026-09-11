@@ -64,6 +64,7 @@ const oxfmtExtensions = new Set([
 ]);
 
 const explicitNodeTests = new Map([
+  ["scripts/check-vitest-durations.mjs", ["scripts/test-duration-reporter.test.mjs"]],
   [".github/quality-tools.json", ["scripts/quality-tools.test.mjs"]],
   [".github/roadmap.json", ["scripts/roadmap.test.mjs"]],
   [".github/pr-conventions.json", ["scripts/pr-conventions.test.mjs"]],
@@ -413,7 +414,7 @@ function uiRelatedDurationCommand() {
     "ui-related-durations",
     "validate complete timing data for the related UI selection",
     process.execPath,
-    ["scripts/check-vitest-durations.mjs", "work/ui-related-tests.json"],
+    ["scripts/check-vitest-durations.mjs", "work/ui-related-tests.json", "--allow-empty"],
   );
 }
 

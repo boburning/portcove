@@ -61,4 +61,11 @@ test("UI timing reports slow tests and rejects missing or incomplete measurement
   assert.throws(() => checkVitestDurations(report(undefined)), /Missing duration/);
   assert.throws(() => checkVitestDurations({ ...report(1), numPassedTests: 2 }), /Incomplete/);
   assert.throws(() => checkVitestDurations({ ...report(1), success: false }), /successful run/);
+  const empty = { success: true, numPassedTests: 0, testResults: [] };
+  assert.throws(() => checkVitestDurations(empty), /Incomplete/);
+  assert.deepEqual(checkVitestDurations(empty, { allowEmpty: true }), {
+    count: 0,
+    longest: 0,
+    slow: [],
+  });
 });
