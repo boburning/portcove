@@ -50,6 +50,40 @@ pub(crate) fn retained_qualification(
     crate::InstallQualification::from_catalog(&catalog, &port.id, platform)
 }
 
+/// Supply exact successor bytes for a synthetic lifecycle contract, without
+/// publisher or artifact authority. No network or source acquisition occurs.
+pub(crate) fn indexed_catalog(catalog: &crate::Catalog, port_id: &str) -> crate::Catalog {
+    use serde_json::json;
+    use sha2::{Digest, Sha256};
+    let target = |bytes: &[u8]| format!("sha256/{}.json", hex::encode(Sha256::digest(bytes)));
+    let contract = serde_json::to_vec_pretty(&json!({
+        "contract_schema":1,"representation":"catalog_projection",
+        "catalog":catalog.authoritative_document()
+    }))
+    .unwrap();
+    let leaf = target(&contract);
+    let port = catalog.port(port_id).unwrap();
+    let entry = serde_json::to_vec_pretty(&json!({
+        "definition_schema":1,"namespace":"official","stable_id":port_id,"revision":7,
+        "required_capabilities":[{"template":port.adapter,"minimum_version":1,"maximum_version":1}],
+        "port":port,"source_contracts":[leaf],"execution_contract":leaf,"persistence_contract":leaf,
+        "artifact_bindings":[],"evidence_references":[]
+    }))
+    .unwrap();
+    let contents: Vec<_> = [&entry, &contract].into_iter().map(|bytes| json!({
+        "target":target(bytes),"sha256":hex::encode(Sha256::digest(bytes)),"length":bytes.len()
+    })).collect();
+    let index = crate::DefinitionContentIndex::parse(&serde_json::to_vec_pretty(&json!({
+        "index_schema":1,"definitions":[{"namespace":"official","stable_id":port_id,"revision":7,"target":target(&entry)}],
+        "contents":contents
+    })).unwrap()).unwrap();
+    index
+        .inspect_catalog_projection("official", port_id, &entry, &contract)
+        .unwrap()
+        .catalog()
+        .clone()
+}
+
 pub(crate) fn build_probe(directory: &Path) -> PathBuf {
     let executable = directory.join(if cfg!(windows) {
         "host_tool_probe.exe"

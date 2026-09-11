@@ -312,9 +312,15 @@ Other catalog ports preserve the self-contained legacy graph; their presence doe
 not admit additional indexed definitions. `DefinitionCatalogProjection` retains
 the exact entry and contract bytes alongside the validated catalog. This is pure
 supplied-content interpretation, with no I/O, signing, publisher grant, selection
-or installation. It does not yet write successor bytes into retained manifests;
-the existing manifest capture continues to retain its canonical catalog semantics.
-Authenticated loading, freshness/revocation and transactional successor retention
+or installation. Its validated catalog now carries the selected port's exact
+snapshot into existing manifest capture. Retained-contract format 2 preserves the
+index, entry and shared leaf strings rather than reserializing their semantics.
+Reads reinterpret the snapshot and verify its identities and digest bindings;
+recapture after preparation or manifest refresh preserves the same bytes. Other
+ports in the shared graph do not inherit the selected entry's origin. Format 1
+keeps the existing canonical legacy projection without inventing historical data.
+Writer protocol 25 prevents older clients from dropping format-2 retention.
+Authenticated loading, freshness/revocation and transactional catalog selection
 remain required before this path can replace the current definition loader.
 
 | Client/content combination                            | Required behavior                                                                                                                                               |

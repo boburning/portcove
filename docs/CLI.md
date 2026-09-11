@@ -188,8 +188,9 @@ after the shared bounded package validator succeeds.
 API schema 43 adds the `invalid_installation` launch blocker. A game whose saved
 installation contract cannot be verified remains visible but cannot launch;
 other games remain readable. New installations retain their execution and
-persistence definitions in manifest schema 6. Libraries opened by this client
-use writer protocol 23, which older clients refuse to modify. The Playnite
+persistence definitions in manifest schema 6, introduced with writer protocol 23.
+Protocol 25 now protects exact successor definition retention; older clients refuse
+to modify an upgraded library. The Playnite
 reference accepts API schemas 42 through 45 with event schema 2.
 
 API schema 22 adds the core-resolved per-game output location to install plans

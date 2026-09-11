@@ -6388,6 +6388,16 @@ mod tests {
         active: bool,
         executable_contents: &[u8],
     ) -> PathBuf {
+        register_zelda_install_contract(library, version, active, executable_contents, None)
+    }
+
+    fn register_zelda_install_contract(
+        library: &Library,
+        version: &str,
+        active: bool,
+        executable_contents: &[u8],
+        catalog: Option<&Catalog>,
+    ) -> PathBuf {
         let artifact = ArtifactIdentity {
             asset_name: format!("zelda64-recomp-{version}.zip"),
             sha256: hex::encode(Sha256::digest(format!("zelda64-recomp:{version}"))),
@@ -6406,9 +6416,16 @@ mod tests {
             .port("zelda64-recomp")
             .unwrap()
             .clone();
-        let qualification =
-            crate::test_fixture::retained_qualification(&port, Platform::current().unwrap())
-                .unwrap();
+        let qualification = match catalog {
+            Some(catalog) => {
+                InstallQualification::from_catalog(catalog, &port.id, Platform::current().unwrap())
+                    .unwrap()
+            }
+            None => {
+                crate::test_fixture::retained_qualification(&port, Platform::current().unwrap())
+                    .unwrap()
+            }
+        };
         let (manifest_sha256, selected_executable, runtime) = Installer::new(library.clone())
             .unwrap()
             .create_manifest(&id, &port.id, version, &artifact, &qualification, &path)
@@ -8899,6 +8916,15 @@ fn main() {
 
     #[test]
     fn installed_versions_keep_execution_and_saves_after_catalog_contract_changes() {
+        assert_catalog_contract_retention(false);
+    }
+
+    #[test]
+    fn successor_adopted_staged_and_rollback_versions_keep_exact_contracts() {
+        assert_catalog_contract_retention(true);
+    }
+
+    fn assert_catalog_contract_retention(successor: bool) {
         let temporary = tempfile::tempdir().unwrap();
         let root = temporary.path().join("library");
         fs::create_dir_all(&root).unwrap();
@@ -8907,9 +8933,20 @@ fn main() {
         #[cfg(windows)]
         let root = PathBuf::from(root.to_str().unwrap().to_uppercase());
         let library = Library::open(root).unwrap();
-        let first = register_zelda_install(&library, "v1", true);
-        let second = register_zelda_install(&library, "v2", true);
-        let staged = register_zelda_install(&library, "v3", false);
+        let indexed = successor.then(|| {
+            crate::test_fixture::indexed_catalog(&Catalog::embedded().unwrap(), "zelda64-recomp")
+        });
+        let register = |version, active| {
+            register_zelda_install_contract(&library, version, active, b"test", indexed.as_ref())
+        };
+        let first = register("v1", true);
+        let second = register("v2", true);
+        let staged = register("v3", false);
+        let manifest: serde_json::Value =
+            serde_json::from_slice(&fs::read(first.join(".portcove-manifest.json")).unwrap())
+                .unwrap();
+        let exact_contract = &manifest["retained_contract"];
+        assert_eq!(exact_contract["format"], if successor { 2 } else { 1 });
         fs::write(second.join("general.json"), b"version-owned-settings").unwrap();
         fs::write(second.join(LAUNCH_MARKER), b"1").unwrap();
         let mut service = PortcoveService::new(library.clone()).unwrap();
@@ -8946,6 +8983,11 @@ fn main() {
             b"version-owned-settings"
         );
         for install in library.all_installs().unwrap() {
+            let manifest: serde_json::Value = serde_json::from_slice(
+                &fs::read(install.path.join(".portcove-manifest.json")).unwrap(),
+            )
+            .unwrap();
+            assert_eq!(&manifest["retained_contract"], exact_contract);
             assert_eq!(
                 serde_json::to_value(service.installed_port(&install).unwrap()).unwrap(),
                 serde_json::to_value(&original).unwrap()
