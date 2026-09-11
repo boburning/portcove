@@ -2,6 +2,7 @@ import { failureReport, portDefinition, portStatus, sourceProfile } from "../tes
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type {
+  ActivityRecord,
   InstallPlan,
   InstallRecord,
   OperationEvent,
@@ -110,6 +111,7 @@ describe("desktop components", () => {
       const status = {
         ...portStatus(),
         active: installRecord(),
+        channel: value as PortStatus["channel"],
         update_policy: value as PortStatus["update_policy"],
       };
       const html = renderToStaticMarkup(
@@ -138,6 +140,7 @@ describe("desktop components", () => {
         />,
       );
       expect(html).toContain("Recorded activity");
+      expect(html).toContain("Unknown channel");
       expect(html).toContain("Update policy unavailable");
       expect(html).not.toContain("· Notify");
     },
@@ -1571,6 +1574,42 @@ describe("desktop components", () => {
             status: "running",
             started_at: 1,
           },
+          {
+            id: "activity-4",
+            failure: null,
+            cancellation: null,
+            message: null,
+            operation: "install",
+            target_kind: "port",
+            target_id: port.id,
+            status: "cancelled",
+            started_at: 5,
+            finished_at: 6,
+          },
+          {
+            id: "activity-5",
+            failure: null,
+            cancellation: null,
+            message: null,
+            operation: "install",
+            target_kind: "port",
+            target_id: port.id,
+            status: "future-status" as ActivityRecord["status"],
+            started_at: 7,
+            finished_at: 8,
+          },
+          {
+            id: "activity-6",
+            failure: null,
+            cancellation: null,
+            message: null,
+            operation: "install",
+            target_kind: "port",
+            target_id: port.id,
+            status: "running",
+            started_at: Math.floor(Date.now() / 1000),
+            finished_at: null,
+          },
         ]}
         busy={undefined}
         checkAll={vi.fn()}
@@ -1607,15 +1646,25 @@ describe("desktop components", () => {
     );
     expect(html).toContain("Available");
     expect(html).toContain("2.0");
+    expect(html).toContain("Latest eligible");
     expect(html).toContain("Checking only looks for updates");
     expect(html).toContain("Recent activity");
     expect(html).toContain("Updated port");
     expect(html).toContain("Verified source");
     expect(html).toContain("Older activity details are available in a redacted support bundle");
     expect(html).not.toContain("source changed");
-    expect(html).toContain("unfinished");
+    for (const label of [
+      "Completed",
+      "Failed",
+      "Cancelled",
+      "Status unavailable",
+      "Needs review",
+      "In progress",
+    ])
+      expect(html).toContain(`<span class="activity-status">${label}</span>`);
+    expect(html).not.toMatch(/activity-status">(?:succeeded|failed|cancelled|unfinished|running)</);
     expect(html).toContain("No completion recorded");
     expect(html).toContain('<button data-focusable="true">sample-rom</button>');
-    expect(html).toContain("CLI and desktop operations use the same local history");
+    expect(html).toContain("Completed, failed, and interrupted work recorded on this device");
   });
 });
