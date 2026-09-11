@@ -46,9 +46,7 @@ export function SourceIdentityPanel({
       <div className="source-identity-heading">
         <div>
           <small>Source identity</small>
-          <strong>
-            {report.expected_identity?.label ?? report.profile_id}
-          </strong>
+          <strong>{report.expected_identity?.label ?? report.profile_id}</strong>
         </div>
         <span
           className={`source-result ${state.tone}`}
@@ -63,24 +61,16 @@ export function SourceIdentityPanel({
         <div>
           <dt>Selected</dt>
           <dd>
-            <code>
-              {inspection?.path ??
-                report.registered?.path ??
-                "No file is registered"}
-            </code>
+            <code>{inspection?.path ?? report.registered?.path ?? "No file is registered"}</code>
           </dd>
         </div>
         <div>
           <dt>Format</dt>
-          <dd>
-            {formatLabel(report.expected_identity?.kind ?? "Not recorded")}
-          </dd>
+          <dd>{formatLabel(report.expected_identity?.kind ?? "Not recorded")}</dd>
         </div>
         <div>
           <dt>Edition</dt>
-          <dd>
-            {variant ? variantLabel(variant) : classificationLabel(report)}
-          </dd>
+          <dd>{variant ? variantLabel(variant) : classificationLabel(report)}</dd>
         </div>
         <div>
           <dt>Admission</dt>
@@ -130,9 +120,8 @@ export function SourceIdentityPanel({
             </section>
           )}
           <p className="source-boundary">
-            <strong>Read-only check.</strong> Portcove calculated these values
-            locally. It did not modify, normalize, move, or upload the selected
-            files.
+            <strong>Read-only check.</strong> Portcove calculated these values locally. It did not
+            modify, normalize, move, or upload the selected files.
           </p>
         </div>
       </details>
@@ -166,12 +155,9 @@ function ApplicationResult({
     >
       <div>
         <strong>
-          {application.port_name} ·{" "}
-          {application.role === "bios" ? "BIOS" : "Game file"}
+          {application.port_name} · {application.role === "bios" ? "BIOS" : "Game file"}
         </strong>
-        <span
-          className={`source-contract contract-${application.contract_result.state}`}
-        >
+        <span className={`source-contract contract-${application.contract_result.state}`}>
           {result}
         </span>
       </div>
@@ -191,9 +177,7 @@ function ApplicationResult({
         </div>
       </dl>
       {exactHandsOn.length === 0 && (
-        <p>
-          Missing gameplay evidence does not block an otherwise admitted source.
-        </p>
+        <p>Missing gameplay evidence does not block an otherwise admitted source.</p>
       )}
     </section>
   );
@@ -215,17 +199,9 @@ function IdentityDigests({ report }: { report: SourceInspectionReport }) {
       <h4>Calculated identity</h4>
       {inspection ? (
         <>
-          <DigestList
-            label="Selected file"
-            digests={inspection.observed_digests}
-            calculated
-          />
+          <DigestList label="Selected file" digests={inspection.observed_digests} calculated />
           {inspection.components.map((component) => (
-            <ObservedComponent
-              key={component.id}
-              component={component}
-              report={report}
-            />
+            <ObservedComponent key={component.id} component={component} report={report} />
           ))}
         </>
       ) : (
@@ -237,10 +213,7 @@ function IdentityDigests({ report }: { report: SourceInspectionReport }) {
           <div className="expected-variant" key={variant.id}>
             <strong>{variantLabel(variant)}</strong>
             {variant.representations.map((representation) => (
-              <ExpectedRepresentation
-                key={representation.id}
-                representation={representation}
-              />
+              <ExpectedRepresentation key={representation.id} representation={representation} />
             ))}
           </div>
         ))
@@ -251,11 +224,7 @@ function IdentityDigests({ report }: { report: SourceInspectionReport }) {
   );
 }
 
-function ExpectedRepresentation({
-  representation,
-}: {
-  representation: SourceRepresentation;
-}) {
+function ExpectedRepresentation({ representation }: { representation: SourceRepresentation }) {
   const groups = expectedGroups(representation);
   return (
     <div className="expected-representation">
@@ -298,21 +267,9 @@ function ExpectedDigestGroup({
       {identities.length ? (
         identities.map((identity, index) => (
           <div key={`${identity.scope}:${index}`}>
-            <DigestValue
-              label="Expected SHA-256"
-              scope={identity.scope}
-              value={identity.sha256}
-            />
-            <DigestValue
-              label="Expected SHA-1"
-              scope={identity.scope}
-              value={identity.sha1}
-            />
-            <DigestValue
-              label="Expected CRC32"
-              scope={identity.scope}
-              value={identity.crc32}
-            />
+            <DigestValue label="Expected SHA-256" scope={identity.scope} value={identity.sha256} />
+            <DigestValue label="Expected SHA-1" scope={identity.scope} value={identity.sha1} />
+            <DigestValue label="Expected CRC32" scope={identity.scope} value={identity.crc32} />
           </div>
         ))
       ) : (
@@ -333,9 +290,7 @@ function ObservedComponent({
 }) {
   const detail = [
     component.name,
-    component.track_count != null
-      ? `${component.track_count} tracks`
-      : undefined,
+    component.track_count != null ? `${component.track_count} tracks` : undefined,
     component.volume_id ? `Volume ${component.volume_id}` : undefined,
   ]
     .filter(Boolean)
@@ -478,9 +433,7 @@ function expectedGroups(
     representation.kind === "optical-track-set" ||
     representation.kind === "compound"
   )
-    return [
-      { label: representation.id, identities: representation.identities },
-    ];
+    return [{ label: representation.id, identities: representation.identities }];
   if (representation.kind === "file-set")
     return representation.members.map((member) => ({
       label: `${member.label} · ${member.filenames.join(", ")}`,
@@ -494,10 +447,7 @@ function expectedGroups(
   return [];
 }
 
-function expectedComponentIdentities(
-  report: SourceInspectionReport,
-  componentId: string,
-) {
+function expectedComponentIdentities(report: SourceInspectionReport, componentId: string) {
   return (
     report.expected_identity?.variants.flatMap((variant) =>
       variant.representations.flatMap((representation) => {
@@ -515,10 +465,7 @@ function expectedComponentIdentities(
   );
 }
 
-function componentMatch(
-  component: ObservedSourceComponent,
-  expected: DigestIdentity[],
-) {
+function componentMatch(component: ObservedSourceComponent, expected: DigestIdentity[]) {
   if (expected.length === 0)
     return {
       label: "Expected identity missing",
@@ -622,8 +569,7 @@ function classificationLabel(report: SourceInspectionReport) {
     return report.legacy.registration_identity_not_recorded
       ? "Legacy registration · not evaluated"
       : "Couldn't check";
-  if (classification.state === "recognized")
-    return classification.identity.variant_id;
+  if (classification.state === "recognized") return classification.identity.variant_id;
   if (classification.state === "ambiguous")
     return `${classification.candidates.length} possible editions`;
   if (classification.state === "unrecognized") return "Unidentified edition";
@@ -633,8 +579,7 @@ function classificationLabel(report: SourceInspectionReport) {
 function admissionLabel(report: SourceInspectionReport) {
   const admission = report.inspection?.assessment.admission;
   if (!admission || admission.state === "not_evaluated") return "Not evaluated";
-  if (admission.state === "rejected")
-    return `Refused · ${formatLabel(admission.reason)}`;
+  if (admission.state === "rejected") return `Refused · ${formatLabel(admission.reason)}`;
   if (admission.state !== "admitted") return "Not evaluated";
   const labels = {
     exact_identity: "Admitted · exact identity",
@@ -658,46 +603,33 @@ function contractLabel(
     unreviewed_for_release: "Not reviewed for this release",
     not_evaluated: "Not evaluated",
   };
-  return Object.hasOwn(labels, state)
-    ? labels[state]
-    : "Requirement result unavailable";
+  return Object.hasOwn(labels, state) ? labels[state] : "Requirement result unavailable";
 }
 
 function applicabilityLabel(
   state: string,
   contract: SourceInspectionReport["applications"][number]["contract_result"]["state"],
 ) {
-  if (contract === "unreviewed_for_release")
-    return "Not applicable to this release";
+  if (contract === "unreviewed_for_release") return "Not applicable to this release";
   const labels: Record<string, string> = {
     artifact_bound: "Bound to this exact release artifact",
     upstream_release_bound: "Bound to the reviewed upstream release",
     not_rebound: "No release-specific binding is recorded",
   };
-  return Object.hasOwn(labels, state)
-    ? labels[state]
-    : "Release applicability unavailable";
+  return Object.hasOwn(labels, state) ? labels[state] : "Release applicability unavailable";
 }
 
 function variantLabel(
-  variant: NonNullable<
-    SourceInspectionReport["expected_identity"]
-  >["variants"][number],
+  variant: NonNullable<SourceInspectionReport["expected_identity"]>["variants"][number],
 ) {
-  const details = [
-    variant.region,
-    variant.revision,
-    ...variant.product_codes,
-  ].filter(Boolean);
+  const details = [variant.region, variant.revision, ...variant.product_codes].filter(Boolean);
   return `${variant.title}${details.length ? ` · ${details.join(" · ")}` : ""}`;
 }
 
 function evidencePlatforms(
   records: SourceInspectionReport["applications"][number]["qualification"]["exact_records"],
 ) {
-  return [
-    ...new Set(records.map((record) => platformLabel(record.scope.platform))),
-  ].join(" · ");
+  return [...new Set(records.map((record) => platformLabel(record.scope.platform)))].join(" · ");
 }
 
 function platformList(platforms: Set<string>) {

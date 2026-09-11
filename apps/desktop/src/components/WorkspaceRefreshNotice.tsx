@@ -29,9 +29,7 @@ export function WorkspaceRefreshNotice({
   const { error } = failure;
   const presentation = failurePresentation(error);
   const code =
-    typeof error === "object" && error && "code" in error
-      ? String(error.code)
-      : undefined;
+    typeof error === "object" && error && "code" in error ? String(error.code) : undefined;
   return (
     <section className="error-banner" role="alert" aria-busy={refreshing}>
       <span className="error-icon">
@@ -49,12 +47,10 @@ export function WorkspaceRefreshNotice({
             : "Portcove has not loaded the library information yet."}
         </p>
         <p>{errorText(error)}</p>
-        {presentation && (
-          <FailureDetails presentation={presentation} code={code} />
-        )}
+        {presentation && <FailureDetails presentation={presentation} code={code} />}
         <p>
-          Retry refresh loads the current information. It does not repeat your
-          last install, move, or other action.
+          Retry refresh loads the current information. It does not repeat your last install, move,
+          or other action.
         </p>
         <button
           ref={retryButton}

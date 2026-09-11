@@ -44,8 +44,7 @@ export function ActivityDiagnostic({
     <details
       className="activity-diagnostic"
       onToggle={(event) => {
-        if (event.currentTarget.open && capture === undefined && !pending)
-          void load();
+        if (event.currentTarget.open && capture === undefined && !pending) void load();
       }}
     >
       <summary data-focusable>View preparation log</summary>
@@ -53,8 +52,8 @@ export function ActivityDiagnostic({
       {error && <p role="alert">{error}</p>}
       {capture?.length === 0 && (
         <p>
-          No retained diagnostic capture is available. Older activity details
-          may be available in a redacted support bundle in Settings.
+          No retained diagnostic capture is available. Older activity details may be available in a
+          redacted support bundle in Settings.
         </p>
       )}
       {capture?.map((phase) => (
@@ -77,9 +76,7 @@ export function ActivityDiagnostic({
               {formatBytes(phase.stream_limit_bytes)} capture limit per stream.
             </p>
           )}
-          <p>
-            Last saved: {new Date(phase.updated_at * 1000).toLocaleString()}
-          </p>
+          <p>Last saved: {new Date(phase.updated_at * 1000).toLocaleString()}</p>
           <h4>Standard output</h4>
           <textarea
             readOnly

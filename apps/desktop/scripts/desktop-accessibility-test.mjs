@@ -3,25 +3,12 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
 import { By, Key, until } from "selenium-webdriver";
-import {
-  assertCompactReview,
-  captureAccessibilityReport,
-} from "./desktop-review-controls.mjs";
+import { assertCompactReview, captureAccessibilityReport } from "./desktop-review-controls.mjs";
 
-export async function accessibleNavigationScenario({
-  browser,
-  scenario,
-  output,
-  artifacts,
-}) {
+export async function accessibleNavigationScenario({ browser, scenario, output, artifacts }) {
   await scenario("native-expanded-navigation-copy", async () => {
     const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
-    await browser
-      .actions()
-      .keyDown(modifier)
-      .sendKeys("k")
-      .keyUp(modifier)
-      .perform();
+    await browser.actions().keyDown(modifier).sendKeys("k").keyUp(modifier).perform();
     await browser.wait(until.elementLocated(By.css(".command-palette")), 5000);
     const search = await browser.findElement(
       By.css('.command-palette input[aria-label="Search commands"]'),
@@ -33,19 +20,11 @@ export async function accessibleNavigationScenario({
     );
     const hints = async () =>
       browser.executeScript(() =>
-        [
-          ...document.querySelectorAll(
-            ".palette-footer .controller-hint > span",
-          ),
-        ]
+        [...document.querySelectorAll(".palette-footer .controller-hint > span")]
           .filter((element) => element.getClientRects().length > 0)
           .map((element) => element.textContent),
       );
-    assert.deepEqual(await hints(), [
-      "Arrow keys: Move",
-      "Enter: Select",
-      "Esc: Back",
-    ]);
+    assert.deepEqual(await hints(), ["Arrow keys: Move", "Enter: Select", "Esc: Back"]);
     await browser.executeScript(() => {
       document.documentElement.dataset.inputMode = "controller";
     });
@@ -55,11 +34,7 @@ export async function accessibleNavigationScenario({
       "Back button: Back",
     ]);
     await browser.actions().sendKeys(Key.ARROW_DOWN).perform();
-    assert.deepEqual(await hints(), [
-      "Arrow keys: Move",
-      "Enter: Select",
-      "Esc: Back",
-    ]);
+    assert.deepEqual(await hints(), ["Arrow keys: Move", "Enter: Select", "Esc: Back"]);
     const expansion = await browser.executeScript(() => {
       document.documentElement.style.fontSize = "125%";
       const samples = [];
@@ -71,10 +46,7 @@ export async function accessibleNavigationScenario({
         const expanded =
           original.replace(
             /[aeiou]/gi,
-            (letter) =>
-              ({ a: "á", e: "ë", i: "ï", o: "ö", u: "ü" })[
-                letter.toLowerCase()
-              ],
+            (letter) => ({ a: "á", e: "ë", i: "ï", o: "ö", u: "ü" })[letter.toLowerCase()],
           ) +
           " " +
           "ľ".repeat(Math.max(0, Math.ceil(original.length * 0.35) - 1));
@@ -92,16 +64,14 @@ export async function accessibleNavigationScenario({
       const bounds = dialog.getBoundingClientRect();
       return {
         font_size: getComputedStyle(document.documentElement).fontSize,
-        clipped_controls: [...dialog.querySelectorAll("button")].filter(
-          (button) => {
-            const rect = button.getBoundingClientRect();
-            return (
-              rect.left < bounds.left - 1 ||
-              rect.right > bounds.right + 1 ||
-              button.scrollWidth > button.clientWidth + 1
-            );
-          },
-        ).length,
+        clipped_controls: [...dialog.querySelectorAll("button")].filter((button) => {
+          const rect = button.getBoundingClientRect();
+          return (
+            rect.left < bounds.left - 1 ||
+            rect.right > bounds.right + 1 ||
+            button.scrollWidth > button.clientWidth + 1
+          );
+        }).length,
       };
     });
     assert.equal(layout.clipped_controls, 0);
@@ -118,8 +88,7 @@ export async function accessibleNavigationScenario({
       evidence,
       JSON.stringify(
         {
-          method:
-            "Native keyboard and synthetic input-mode/expanded-text presentation",
+          method: "Native keyboard and synthetic input-mode/expanded-text presentation",
           expansion,
           layout,
         },
@@ -132,18 +101,14 @@ export async function accessibleNavigationScenario({
     await search.sendKeys("owned-no-matching-command");
     await browser.wait(until.elementLocated(By.css(".palette-empty")), 5000);
     assert.equal(
-      (await browser.findElements(By.css('.command-palette [role="listbox"]')))
-        .length,
+      (await browser.findElements(By.css('.command-palette [role="listbox"]'))).length,
       0,
     );
     assert.equal(await search.getAttribute("aria-expanded"), "false");
     const emptyAccessibility = await browser.executeAsyncScript((done) =>
       window.axe.run().then(done),
     );
-    const emptyReport = path.join(
-      output,
-      "empty-command-search-accessibility.json",
-    );
+    const emptyReport = path.join(output, "empty-command-search-accessibility.json");
     await writeFile(emptyReport, JSON.stringify(emptyAccessibility, null, 2), {
       flag: "wx",
     });
@@ -160,8 +125,7 @@ export async function accessibleNavigationScenario({
     );
     await browser.actions().sendKeys(Key.ESCAPE).perform();
     await browser.wait(
-      async () =>
-        (await browser.findElements(By.css(".command-palette"))).length === 0,
+      async () => (await browser.findElements(By.css(".command-palette"))).length === 0,
       5000,
     );
     await browser.navigate().refresh();

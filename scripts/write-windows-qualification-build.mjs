@@ -51,8 +51,7 @@ function withinRepository(input, name) {
 }
 async function describe(input, name) {
   const item = withinRepository(input, name);
-  if (!(await stat(item.full)).isFile())
-    throw new Error(`${name} must be a regular file`);
+  if (!(await stat(item.full)).isFile()) throw new Error(`${name} must be a regular file`);
   const bytes = await readFile(item.full);
   return {
     relative_path: item.relative,
@@ -68,11 +67,9 @@ for (const relative of [
   "scripts/qualification-report.mjs",
 ]) {
   const disk = await readFile(path.join(repository, relative));
-  execFileSync(
-    "git",
-    ["-C", repository, "diff", "--quiet", commit, "--", relative],
-    { windowsHide: true },
-  );
+  execFileSync("git", ["-C", repository, "diff", "--quiet", commit, "--", relative], {
+    windowsHide: true,
+  });
   tools[relative] = {
     relative_path: relative,
     bytes: disk.length,

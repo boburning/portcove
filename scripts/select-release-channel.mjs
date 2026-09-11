@@ -14,13 +14,7 @@ function parseArguments(argv) {
   for (let index = 0; index < argv.length; index += 2) {
     const key = argv[index]?.replace(/^--/, "");
     if (
-      ![
-        "channel",
-        "input",
-        "eligibility",
-        "current-version",
-        "target",
-      ].includes(key) ||
+      !["channel", "input", "eligibility", "current-version", "target"].includes(key) ||
       options[key] !== undefined ||
       !argv[index + 1]
     )

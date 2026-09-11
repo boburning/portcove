@@ -28,10 +28,7 @@ export function CommandPalette({
   const [activeIndex, setActiveIndex] = useState(0);
   const activeCommand = useRef<HTMLButtonElement>(null);
   const dialog = useDialogFocus(close, open);
-  const filtered = useMemo(
-    () => filterCommands(commands, query),
-    [commands, query],
-  );
+  const filtered = useMemo(() => filterCommands(commands, query), [commands, query]);
 
   useEffect(() => {
     if (!open) return;
@@ -40,10 +37,7 @@ export function CommandPalette({
   }, [open]);
 
   useEffect(
-    () =>
-      setActiveIndex((index) =>
-        Math.min(index, Math.max(0, filtered.length - 1)),
-      ),
+    () => setActiveIndex((index) => Math.min(index, Math.max(0, filtered.length - 1))),
     [filtered.length],
   );
   useEffect(() => {
@@ -89,9 +83,7 @@ export function CommandPalette({
             onKeyDown={(event) => {
               if (event.key === "ArrowDown") {
                 event.preventDefault();
-                setActiveIndex((index) =>
-                  Math.max(0, Math.min(index + 1, filtered.length - 1)),
-                );
+                setActiveIndex((index) => Math.max(0, Math.min(index + 1, filtered.length - 1)));
               } else if (event.key === "ArrowUp") {
                 event.preventDefault();
                 setActiveIndex((index) => Math.max(index - 1, 0));
@@ -100,13 +92,9 @@ export function CommandPalette({
                 run(filtered[activeIndex]);
               }
             }}
-            aria-controls={
-              filtered.length ? "command-palette-results" : undefined
-            }
+            aria-controls={filtered.length ? "command-palette-results" : undefined}
             aria-activedescendant={
-              filtered[activeIndex]
-                ? `command-${filtered[activeIndex].id}`
-                : undefined
+              filtered[activeIndex] ? `command-${filtered[activeIndex].id}` : undefined
             }
             placeholder="Search actions and navigation"
             autoComplete="off"
@@ -121,9 +109,7 @@ export function CommandPalette({
         >
           {filtered.length === 0 ? (
             <p className="palette-empty" role="status">
-              {query.trim()
-                ? `No command matches “${query}”.`
-                : "No commands are available."}
+              {query.trim() ? `No command matches “${query}”.` : "No commands are available."}
             </p>
           ) : (
             filtered.map((command, index) => (
@@ -135,11 +121,7 @@ export function CommandPalette({
                 key={command.id}
                 ref={activeIndex === index ? activeCommand : undefined}
                 onFocus={() => setActiveIndex(index)}
-                className={
-                  activeIndex === index
-                    ? "palette-command active"
-                    : "palette-command"
-                }
+                className={activeIndex === index ? "palette-command active" : "palette-command"}
                 disabled={command.disabled}
                 onMouseEnter={() => setActiveIndex(index)}
                 onClick={() => run(command)}

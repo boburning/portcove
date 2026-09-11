@@ -51,12 +51,7 @@ function Fixture({
   catalog: string;
   requested?: boolean;
 }) {
-  state = useSourceHealth(
-    perform,
-    [source(path)],
-    requested ? ["game"] : [],
-    catalog,
-  );
+  state = useSourceHealth(perform, [source(path)], requested ? ["game"] : [], catalog);
   return null;
 }
 async function render(path: string, catalog: string) {
@@ -90,20 +85,8 @@ describe("source inspection intent", () => {
   });
 
   it.each([
-    [
-      "a later selected path",
-      "D:/Old.z64",
-      "D:/Current.z64",
-      "catalog-a",
-      "catalog-a",
-    ],
-    [
-      "a later catalog",
-      "D:/Game.z64",
-      "D:/Game.z64",
-      "catalog-old",
-      "catalog-current",
-    ],
+    ["a later selected path", "D:/Old.z64", "D:/Current.z64", "catalog-a", "catalog-a"],
+    ["a later catalog", "D:/Game.z64", "D:/Game.z64", "catalog-old", "catalog-current"],
   ])(
     "does not let an old response replace %s",
     async (_label, oldPath, currentPath, oldCatalog, currentCatalog) => {

@@ -2,18 +2,7 @@
   "schema_version": 1,
   "repository": "boburning/portcove",
   "title": {
-    "types": [
-      "feat",
-      "fix",
-      "docs",
-      "test",
-      "refactor",
-      "perf",
-      "build",
-      "ci",
-      "chore",
-      "revert"
-    ],
+    "types": ["feat", "fix", "docs", "test", "refactor", "perf", "build", "ci", "chore", "revert"],
     "max_length": 72
   },
   "branch": {

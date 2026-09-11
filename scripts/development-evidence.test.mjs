@@ -3,11 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import {
-  writeEvidence,
-  evidenceOutcome,
-  fileIdentity,
-} from "./development-evidence.mjs";
+import { writeEvidence, evidenceOutcome, fileIdentity } from "./development-evidence.mjs";
 
 test("partial and failed evidence cannot become a pass", () => {
   assert.equal(evidenceOutcome([]), "not-run");
@@ -18,10 +14,7 @@ test("partial and failed evidence cannot become a pass", () => {
     ]),
     "incomplete",
   );
-  assert.equal(
-    evidenceOutcome([{ scenario: "a", outcome: "failed" }]),
-    "failed",
-  );
+  assert.equal(evidenceOutcome([{ scenario: "a", outcome: "failed" }]), "failed");
   assert.throws(() => evidenceOutcome([{ scenario: "a", outcome: "maybe" }]));
 });
 

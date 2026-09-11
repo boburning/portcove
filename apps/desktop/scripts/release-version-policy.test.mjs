@@ -25,40 +25,22 @@ test("0.x stays Preview even without a suffix and production eligibility is expl
   for (const version of ["0.1.0-alpha.2", "0.1.0", "0.3.0", "1.0.0-rc.1"]) {
     assert.deepEqual(classifyApplicationVersion(version).channels, ["preview"]);
     assert.equal(classifyApplicationVersion(version).github_prerelease, true);
-    assert.throws(
-      () => classifyApplicationVersion(version, true),
-      /cannot be production eligible/,
-    );
+    assert.throws(() => classifyApplicationVersion(version, true), /cannot be production eligible/);
   }
   assert.equal(classifyApplicationVersion("1.0.0").github_prerelease, true);
-  assert.deepEqual(classifyApplicationVersion("1.0.0", true).channels, [
-    "preview",
-    "stable",
-  ]);
-  assert.equal(
-    classifyApplicationVersion("1.0.0", true).github_prerelease,
-    false,
-  );
+  assert.deepEqual(classifyApplicationVersion("1.0.0", true).channels, ["preview", "stable"]);
+  assert.equal(classifyApplicationVersion("1.0.0", true).github_prerelease, false);
 });
 
 test("maintained SemVer rejects noncanonical values and compares numeric prerelease identifiers", () => {
-  for (const version of [
-    "v1.0.0",
-    " 1.0.0",
-    "1.0",
-    "01.0.0",
-    "1.0.0-beta.01",
-  ]) {
+  for (const version of ["v1.0.0", " 1.0.0", "1.0", "01.0.0", "1.0.0-beta.01"]) {
     assert.throws(() => classifyApplicationVersion(version), /version/);
   }
   const candidates = [
     released("0.2.0-beta.9", { published_at: "2026-09-09T12:00:00Z" }),
     released("0.2.0-beta.10"),
   ];
-  assert.equal(
-    selectApplicationRelease(candidates, "preview").tag_name,
-    "v0.2.0-beta.10",
-  );
+  assert.equal(selectApplicationRelease(candidates, "preview").tag_name, "v0.2.0-beta.10");
 });
 
 test("late maintenance cannot replace a higher preview and drafts stay excluded", () => {
@@ -67,22 +49,13 @@ test("late maintenance cannot replace a higher preview and drafts stay excluded"
     released("0.3.0-beta.1"),
     released("0.4.0", { draft: true }),
   ];
+  assert.equal(selectApplicationRelease(candidates, "preview").tag_name, "v0.3.0-beta.1");
   assert.equal(
-    selectApplicationRelease(candidates, "preview").tag_name,
-    "v0.3.0-beta.1",
-  );
-  assert.equal(
-    selectApplicationRelease(
-      [released("0.3.0", { prerelease: false })],
-      "stable",
-    ),
+    selectApplicationRelease([released("0.3.0", { prerelease: false })], "stable"),
     null,
   );
   assert.equal(
-    selectApplicationRelease(
-      [released("0.3.0", { prerelease: false })],
-      "preview",
-    ).tag_name,
+    selectApplicationRelease([released("0.3.0", { prerelease: false })], "preview").tag_name,
     "v0.3.0",
   );
 });
@@ -96,16 +69,9 @@ test("Stable requires separate production evidence and Preview includes eligible
   assert.equal(selectApplicationRelease([release], "preview"), null);
   const options = { eligibility: { "v1.0.0": approved("1.0.0") } };
   assert.equal(selectApplicationRelease([release], "stable", options), release);
+  assert.equal(selectApplicationRelease([release], "preview", options), release);
   assert.equal(
-    selectApplicationRelease([release], "preview", options),
-    release,
-  );
-  assert.equal(
-    selectApplicationRelease(
-      [{ ...release, prerelease: true }],
-      "stable",
-      options,
-    ),
+    selectApplicationRelease([{ ...release, prerelease: true }], "stable", options),
     null,
   );
 });
@@ -146,11 +112,7 @@ test("Preview-to-Stable waits, equal versions do not reinstall and RC-to-final s
     null,
   );
   assert.throws(
-    () =>
-      selectApplicationRelease(
-        [released("0.3.0+one"), released("0.3.0+two")],
-        "preview",
-      ),
+    () => selectApplicationRelease([released("0.3.0+one"), released("0.3.0+two")], "preview"),
     /equal SemVer precedence/,
   );
 });
@@ -206,15 +168,10 @@ test("reviewed frozen classifications produce deterministic initial-development 
     ["0.1.0-alpha.2", "prerelease", "0.1.0-alpha.3"],
     ["0.1.0-alpha.2", "finalize", "0.1.0"],
   ]) {
-    const result = proposeApplicationVersion(classification(base, change), [
-      base,
-    ]);
+    const result = proposeApplicationVersion(classification(base, change), [base]);
     assert.equal(result.version, expected);
     assert.deepEqual(result.channels, ["preview"]);
-    assert.deepEqual(
-      proposeApplicationVersion(classification(base, change), [base]),
-      result,
-    );
+    assert.deepEqual(proposeApplicationVersion(classification(base, change), [base]), result);
   }
 });
 
@@ -228,11 +185,7 @@ test("classification rejects stale review/history, silent compatibility breaks a
     /review does not match/,
   );
   assert.throws(
-    () =>
-      proposeApplicationVersion(classification("0.1.0", "patch"), [
-        "0.1.0",
-        "0.2.0",
-      ]),
+    () => proposeApplicationVersion(classification("0.1.0", "patch"), ["0.1.0", "0.2.0"]),
     /behind published history/,
   );
   assert.throws(
@@ -240,18 +193,14 @@ test("classification rejects stale review/history, silent compatibility breaks a
     /absent from published history/,
   );
   assert.throws(
-    () =>
-      proposeApplicationVersion(classification("0.1.0-alpha.2", "patch"), [
-        "0.1.0-alpha.2",
-      ]),
+    () => proposeApplicationVersion(classification("0.1.0-alpha.2", "patch"), ["0.1.0-alpha.2"]),
     /explicitly finalize/,
   );
   assert.throws(
     () =>
-      proposeApplicationVersion(
-        classification("0.1.0", "minor", { compatibility: "breaking" }),
-        ["0.1.0"],
-      ),
+      proposeApplicationVersion(classification("0.1.0", "minor", { compatibility: "breaking" }), [
+        "0.1.0",
+      ]),
     /migration notes/,
   );
   assert.throws(
@@ -288,10 +237,7 @@ test("classification rejects stale review/history, silent compatibility breaks a
   );
   assert.throws(
     () =>
-      proposeApplicationVersion(classification("0.1.0+one", "patch"), [
-        "0.1.0+one",
-        "0.1.0+two",
-      ]),
+      proposeApplicationVersion(classification("0.1.0+one", "patch"), ["0.1.0+one", "0.1.0+two"]),
     /duplicate version precedence/,
   );
 });
@@ -316,8 +262,7 @@ test("review explicitly starts new prerelease trains and preserves compatibility
     "2.0.0-beta.1",
   );
   assert.throws(
-    () =>
-      proposeApplicationVersion(classification("0.3.0", "preminor"), ["0.3.0"]),
+    () => proposeApplicationVersion(classification("0.3.0", "preminor"), ["0.3.0"]),
     /explicit identifier/,
   );
   assert.throws(
@@ -333,8 +278,7 @@ test("review explicitly starts new prerelease trains and preserves compatibility
     /cannot carry/,
   );
   assert.throws(
-    () =>
-      selectApplicationRelease([released("0.3.0")], "preview", { target: "" }),
+    () => selectApplicationRelease([released("0.3.0")], "preview", { target: "" }),
     /target must be/,
   );
 });

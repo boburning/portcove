@@ -79,19 +79,10 @@ async function click(label: string) {
 }
 
 it("reviews without executing and binds explicit confirmation to the returned plan", async () => {
-  const review = vi
-    .spyOn(desktopApi, "planPreparation")
-    .mockResolvedValue(plan);
+  const review = vi.spyOn(desktopApi, "planPreparation").mockResolvedValue(plan);
   const run = vi.fn().mockResolvedValue(plan.inputs.install);
   await act(async () =>
-    root.render(
-      <PreparationControl
-        portId="sample"
-        generation={7}
-        disabled={false}
-        run={run}
-      />,
-    ),
+    root.render(<PreparationControl portId="sample" generation={7} disabled={false} run={run} />),
   );
   await click("Review game preparation");
   expect(review).toHaveBeenCalledWith("sample", 7);
@@ -107,26 +98,15 @@ it("requires a fresh review after an execution error and reports no success", as
   vi.spyOn(desktopApi, "planPreparation").mockResolvedValue(plan);
   const run = vi.fn().mockRejectedValue(new Error("Inputs changed"));
   await act(async () =>
-    root.render(
-      <PreparationControl
-        portId="sample"
-        generation={7}
-        disabled={false}
-        run={run}
-      />,
-    ),
+    root.render(<PreparationControl portId="sample" generation={7} disabled={false} run={run} />),
   );
   await click("Review game preparation");
   await click("Start new preparation");
-  expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-    "Inputs changed",
-  );
+  expect(container.querySelector('[role="alert"]')?.textContent).toContain("Inputs changed");
   expect(container.textContent).not.toContain("Game data is prepared");
-  expect(
-    [...container.querySelectorAll("button")].map(
-      (button) => button.textContent,
-    ),
-  ).toContain("Review game preparation");
+  expect([...container.querySelectorAll("button")].map((button) => button.textContent)).toContain(
+    "Review game preparation",
+  );
 });
 
 it("does not carry a late review across a library or port switch", async () => {
@@ -140,25 +120,13 @@ it("does not carry a late review across a library or port switch", async () => {
   const run = vi.fn();
   await act(async () =>
     root.render(
-      <PreparationControl
-        key="old"
-        portId="sample"
-        generation={7}
-        disabled={false}
-        run={run}
-      />,
+      <PreparationControl key="old" portId="sample" generation={7} disabled={false} run={run} />,
     ),
   );
   await click("Review game preparation");
   await act(async () =>
     root.render(
-      <PreparationControl
-        key="new"
-        portId="other"
-        generation={8}
-        disabled={false}
-        run={run}
-      />,
+      <PreparationControl key="new" portId="other" generation={8} disabled={false} run={run} />,
     ),
   );
   await act(async () => complete(plan));

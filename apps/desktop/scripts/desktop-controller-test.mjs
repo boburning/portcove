@@ -4,18 +4,11 @@ import { writeFile } from "node:fs/promises";
 import { By } from "selenium-webdriver";
 
 /** Native layout/input observations with an injected pad, not physical-controller evidence. */
-export async function controllerScenario({
-  browser,
-  scenario,
-  output,
-  artifacts,
-}) {
+export async function controllerScenario({ browser, scenario, output, artifacts }) {
   await scenario("native-controller-large-list", async () => {
     // A newly restarted window may be behind the host. Establish native input
     // focus with an ordinary navigation click before injecting the pad fixture.
-    await browser
-      .findElement(By.css('nav[aria-label="Primary navigation"] button'))
-      .click();
+    await browser.findElement(By.css('nav[aria-label="Primary navigation"] button')).click();
     const result = await browser.executeAsyncScript(async (done) => {
       const physical = Array.from(navigator.getGamepads())
         .filter(Boolean)
@@ -50,8 +43,7 @@ export async function controllerScenario({
         durations = [];
       };
       const frames = async (count) => {
-        for (let index = 0; index < count; index++)
-          await new Promise(requestAnimationFrame);
+        for (let index = 0; index < count; index++) await new Promise(requestAnimationFrame);
       };
       const samples = [];
       let report;
@@ -107,14 +99,12 @@ export async function controllerScenario({
       } catch (error) {
         report = { error: String(error) };
       } finally {
-        for (const name of methods)
-          HTMLElement.prototype[name] = originals[name];
+        for (const name of methods) HTMLElement.prototype[name] = originals[name];
         navigator.getGamepads = previousPads;
         dialog.remove();
         if (previousFocus instanceof HTMLElement && previousFocus.isConnected)
           previousFocus.focus();
-        if (previousMode === undefined)
-          delete document.documentElement.dataset.inputMode;
+        if (previousMode === undefined) delete document.documentElement.dataset.inputMode;
         else document.documentElement.dataset.inputMode = previousMode;
       }
       done(report);

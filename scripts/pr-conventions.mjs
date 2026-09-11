@@ -23,8 +23,7 @@ function stringList(value, label) {
   ) {
     throw new Error(`${label} must be a non-empty string array`);
   }
-  if (new Set(value).size !== value.length)
-    throw new Error(`${label} must not contain duplicates`);
+  if (new Set(value).size !== value.length) throw new Error(`${label} must not contain duplicates`);
   return value;
 }
 
@@ -34,8 +33,7 @@ export function validatePrConventionConfig(config) {
     ["schema_version", "repository", "title", "branch", "body", "bot_actors"],
     "PR conventions config",
   );
-  if (config.schema_version !== 1)
-    throw new Error("PR conventions schema_version must be 1");
+  if (config.schema_version !== 1) throw new Error("PR conventions schema_version must be 1");
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(config.repository ?? "")) {
     throw new Error("PR conventions repository must be owner/name");
   }
@@ -45,27 +43,15 @@ export function validatePrConventionConfig(config) {
   if (types.some((type) => !/^[a-z]+$/.test(type))) {
     throw new Error("title types must use lowercase ASCII letters");
   }
-  if (
-    !Number.isInteger(config.title.max_length) ||
-    config.title.max_length < 40
-  ) {
+  if (!Number.isInteger(config.title.max_length) || config.title.max_length < 40) {
     throw new Error("title max_length must be an integer of at least 40");
   }
 
   exactKeys(config.branch, ["prefixes", "bot_prefixes"], "branch config");
   const prefixes = stringList(config.branch.prefixes, "branch prefixes");
-  const botPrefixes = stringList(
-    config.branch.bot_prefixes,
-    "bot branch prefixes",
-  );
-  if (
-    [...prefixes, ...botPrefixes].some(
-      (prefix) => !/^[a-z][a-z-]*\/$/.test(prefix),
-    )
-  ) {
-    throw new Error(
-      "branch prefixes must be lowercase kebab-case and end with /",
-    );
+  const botPrefixes = stringList(config.branch.bot_prefixes, "bot branch prefixes");
+  if ([...prefixes, ...botPrefixes].some((prefix) => !/^[a-z][a-z-]*\/$/.test(prefix))) {
+    throw new Error("branch prefixes must be lowercase kebab-case and end with /");
   }
 
   exactKeys(config.body, ["headings", "issue_keywords"], "body config");
@@ -86,9 +72,7 @@ function finding(code, message) {
 function titleFindings(subject, config, label) {
   const findings = [];
   const types = config.title.types.map(escapeRegex).join("|");
-  const pattern = new RegExp(
-    `^(?:${types})(?:\\([a-z0-9]+(?:-[a-z0-9]+)*\\))?!?: \\S.*$`,
-  );
+  const pattern = new RegExp(`^(?:${types})(?:\\([a-z0-9]+(?:-[a-z0-9]+)*\\))?!?: \\S.*$`);
   if (!pattern.test(subject)) {
     findings.push(
       finding(
@@ -106,26 +90,15 @@ function titleFindings(subject, config, label) {
     );
   }
   if (subject.endsWith(".")) {
-    findings.push(
-      finding(`${label}-punctuation`, `${label} should not end with a period.`),
-    );
+    findings.push(finding(`${label}-punctuation`, `${label} should not end with a period.`));
   }
   return findings;
 }
 
 function branchFindings(branch, config, bot) {
-  if (
-    bot &&
-    config.branch.bot_prefixes.some((prefix) => branch.startsWith(prefix))
-  )
-    return [];
-  const prefix = config.branch.prefixes.find((candidate) =>
-    branch.startsWith(candidate),
-  );
-  if (
-    !prefix ||
-    !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(branch.slice(prefix?.length ?? 0))
-  ) {
+  if (bot && config.branch.bot_prefixes.some((prefix) => branch.startsWith(prefix))) return [];
+  const prefix = config.branch.prefixes.find((candidate) => branch.startsWith(candidate));
+  if (!prefix || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(branch.slice(prefix?.length ?? 0))) {
     return [
       finding(
         "branch-format",
@@ -169,41 +142,23 @@ function bodyFindings(pull, config) {
     const entries = sections.get(heading) ?? [];
     if (!entries.length) {
       findings.push(
-        finding(
-          "body-heading",
-          `pull request body is missing the '${heading}' section.`,
-        ),
+        finding("body-heading", `pull request body is missing the '${heading}' section.`),
       );
       continue;
     }
     if (entries.length > 1) {
-      findings.push(
-        finding(
-          "body-heading",
-          `pull request body repeats the '${heading}' section.`,
-        ),
-      );
+      findings.push(finding("body-heading", `pull request body repeats the '${heading}' section.`));
     }
     positions.push(entries[0].index);
     if (!stripComments(entries[0].content)) {
       findings.push(
-        finding(
-          "body-empty",
-          `pull request body has no visible content under '${heading}'.`,
-        ),
+        finding("body-empty", `pull request body has no visible content under '${heading}'.`),
       );
     }
   }
-  if (
-    positions.some(
-      (position, index) => index > 0 && position < positions[index - 1],
-    )
-  ) {
+  if (positions.some((position, index) => index > 0 && position < positions[index - 1])) {
     findings.push(
-      finding(
-        "body-order",
-        "pull request body sections must remain in the configured order.",
-      ),
+      finding("body-order", "pull request body sections must remain in the configured order."),
     );
   }
 
@@ -223,22 +178,15 @@ function bodyFindings(pull, config) {
     );
   }
   if (
-    new RegExp(`(?:${keywordPattern})\\s+#\\s*(?:$|\\r?\\n)`, "im").test(
-      visibleBody,
-    ) ||
+    new RegExp(`(?:${keywordPattern})\\s+#\\s*(?:$|\\r?\\n)`, "im").test(visibleBody) ||
     /\b(?:TBD|TODO|REPLACE ME)\b|\[\s*replace[^\]]*\]/i.test(visibleBody)
   ) {
     findings.push(
-      finding(
-        "body-placeholder",
-        "pull request body contains a visible unfinished placeholder.",
-      ),
+      finding("body-placeholder", "pull request body contains a visible unfinished placeholder."),
     );
   }
 
-  const verification = stripComments(
-    sections.get("Verification")?.[0]?.content ?? "",
-  );
+  const verification = stripComments(sections.get("Verification")?.[0]?.content ?? "");
   const draftPending = pull.isDraft && /\bpending\b/i.test(verification);
   if (
     verification &&
@@ -263,9 +211,7 @@ function bodyFindings(pull, config) {
         ),
       );
     }
-    const review = stripComments(
-      sections.get("Review and risk")?.[0]?.content ?? "",
-    );
+    const review = stripComments(sections.get("Review and risk")?.[0]?.content ?? "");
     if (/\b(?:pending|in progress|TBD|TODO)\b|- \[ \]/i.test(review)) {
       findings.push(
         finding(
@@ -276,22 +222,14 @@ function bodyFindings(pull, config) {
     }
     if (review && !/\breview(?:ed)?\b/i.test(review)) {
       findings.push(
-        finding(
-          "review-result",
-          "Review and risk should state the distinct review result.",
-        ),
+        finding("review-result", "Review and risk should state the distinct review result."),
       );
     }
     const reviewedHead =
-      pull.headSha &&
-      (review.includes(pull.headSha) ||
-        review.includes(pull.headSha.slice(0, 7)));
+      pull.headSha && (review.includes(pull.headSha) || review.includes(pull.headSha.slice(0, 7)));
     if (review && !reviewedHead) {
       findings.push(
-        finding(
-          "review-head",
-          "Review and risk should identify the exact reviewed head commit.",
-        ),
+        finding("review-head", "Review and risk should identify the exact reviewed head commit."),
       );
     }
   }
@@ -306,9 +244,7 @@ function commitFindings(pull, config) {
     if (/^Merge\b/.test(subject) || /^Revert\s+"/.test(subject)) continue;
     if (pull.isDraft && /^(?:fixup|squash)!\s*/.test(subject)) continue;
     for (const result of titleFindings(subject, config, "commit subject")) {
-      findings.push(
-        finding(result.code, `${commit.sha.slice(0, 7)}: ${result.message}`),
-      );
+      findings.push(finding(result.code, `${commit.sha.slice(0, 7)}: ${result.message}`));
     }
   }
   return findings;
@@ -349,19 +285,14 @@ export function flattenCommitPages(value, expectedCount) {
   const commits = value.flatMap((page) =>
     page.data.repository.pullRequest.commits.nodes.map((node) => {
       const commit = node?.commit;
-      if (
-        typeof commit?.oid !== "string" ||
-        typeof commit?.message !== "string"
-      ) {
+      if (typeof commit?.oid !== "string" || typeof commit?.message !== "string") {
         throw new Error("GitHub commit pagination returned an invalid commit");
       }
       return { sha: commit.oid, message: commit.message };
     }),
   );
   if (commits.length !== expectedCount) {
-    throw new Error(
-      `GitHub returned ${commits.length} of ${expectedCount} pull request commits`,
-    );
+    throw new Error(`GitHub returned ${commits.length} of ${expectedCount} pull request commits`);
   }
   return commits;
 }
@@ -372,9 +303,7 @@ export function parsePullRequestReference(value, repository) {
   try {
     url = new URL(value);
   } catch {
-    throw new Error(
-      "--pr must be a positive number or a GitHub pull request URL",
-    );
+    throw new Error("--pr must be a positive number or a GitHub pull request URL");
   }
   const parts = url.pathname.split("/").filter(Boolean);
   if (
@@ -400,9 +329,7 @@ function ghApi(endpoint) {
   });
   if (result.error) throw result.error;
   if (result.status !== 0)
-    throw new Error(
-      result.stderr.trim() || `gh api failed with exit ${result.status}`,
-    );
+    throw new Error(result.stderr.trim() || `gh api failed with exit ${result.status}`);
   try {
     return JSON.parse(result.stdout);
   } catch (error) {
@@ -449,10 +376,7 @@ function ghCommitPages(repository, number) {
   );
   if (result.error) throw result.error;
   if (result.status !== 0)
-    throw new Error(
-      result.stderr.trim() ||
-        `gh api graphql failed with exit ${result.status}`,
-    );
+    throw new Error(result.stderr.trim() || `gh api graphql failed with exit ${result.status}`);
   try {
     return JSON.parse(result.stdout);
   } catch (error) {
@@ -463,10 +387,7 @@ function ghCommitPages(repository, number) {
 export async function loadLivePullRequest(reference, config) {
   const number = parsePullRequestReference(reference, config.repository);
   const pull = ghApi(`repos/${config.repository}/pulls/${number}`);
-  const commits = flattenCommitPages(
-    ghCommitPages(config.repository, number),
-    pull.commits,
-  );
+  const commits = flattenCommitPages(ghCommitPages(config.repository, number), pull.commits);
   return {
     number,
     url: pull.html_url,
@@ -481,22 +402,15 @@ export async function loadLivePullRequest(reference, config) {
 }
 
 function githubEscape(value) {
-  return value
-    .replaceAll("%", "%25")
-    .replaceAll("\r", "%0D")
-    .replaceAll("\n", "%0A");
+  return value.replaceAll("%", "%25").replaceAll("\r", "%0D").replaceAll("\n", "%0A");
 }
 
 function markdownEscape(value) {
-  return value
-    .replaceAll("|", "\\|")
-    .replaceAll("\r", " ")
-    .replaceAll("\n", " ");
+  return value.replaceAll("|", "\\|").replaceAll("\r", " ").replaceAll("\n", " ");
 }
 
 export function renderFindings(pull, findings) {
-  if (!findings.length)
-    return `PR #${pull.number} follows the advisory contribution conventions.`;
+  if (!findings.length) return `PR #${pull.number} follows the advisory contribution conventions.`;
   return [
     `PR #${pull.number} has ${findings.length} advisory convention finding${findings.length === 1 ? "" : "s"}:`,
     ...findings.map((item) => `- [${item.code}] ${item.message}`),
@@ -525,8 +439,7 @@ async function writeGithubOutput(pull, findings) {
     lines.push("| Code | Finding |", "| --- | --- |");
     lines.push(
       ...findings.map(
-        (item) =>
-          `| ${markdownEscape(item.code)} | ${markdownEscape(item.message)} |`,
+        (item) => `| ${markdownEscape(item.code)} | ${markdownEscape(item.message)} |`,
       ),
       "",
     );
@@ -536,13 +449,9 @@ async function writeGithubOutput(pull, findings) {
 
 async function main(argv) {
   if (argv.length !== 2 || argv[0] !== "--pr") {
-    throw new Error(
-      "usage: node scripts/pr-conventions.mjs --pr <number-or-url>",
-    );
+    throw new Error("usage: node scripts/pr-conventions.mjs --pr <number-or-url>");
   }
-  const config = validatePrConventionConfig(
-    JSON.parse(await readFile(configPath, "utf8")),
-  );
+  const config = validatePrConventionConfig(JSON.parse(await readFile(configPath, "utf8")));
   const pull = await loadLivePullRequest(argv[1], config);
   const findings = evaluatePullRequest(pull, config);
   console.log(renderFindings(pull, findings));

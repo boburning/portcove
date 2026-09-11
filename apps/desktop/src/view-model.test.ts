@@ -13,10 +13,7 @@ import {
   summarizeLibrary,
 } from "./view-model";
 
-const port = (
-  id: string,
-  channels: PortDefinition["channels"],
-): PortDefinition => ({
+const port = (id: string, channels: PortDefinition["channels"]): PortDefinition => ({
   ...portDefinition(),
   id,
   name: id === "alpha" ? "Alpha Port" : "Beta Port",
@@ -33,9 +30,7 @@ const port = (
   release: portDefinition().release,
   executable_hints: {},
 });
-const installRecord = (
-  overrides: Partial<InstallRecord> = {},
-): InstallRecord => ({
+const installRecord = (overrides: Partial<InstallRecord> = {}): InstallRecord => ({
   id: "1",
   port_id: "alpha",
   version: "1.0",
@@ -65,18 +60,14 @@ describe("catalog view model", () => {
   it("indexes statuses and restricts the library to installed ports", () => {
     const statuses = indexStatuses([status]);
     expect(statuses.get("alpha")).toEqual(status);
-    expect(
-      filterPorts(ports, statuses, "library", "all", "").map(
-        (value) => value.id,
-      ),
-    ).toEqual(["alpha"]);
+    expect(filterPorts(ports, statuses, "library", "all", "").map((value) => value.id)).toEqual([
+      "alpha",
+    ]);
   });
 
   it("combines channel and text filters", () => {
     expect(
-      filterPorts(ports, new Map(), "catalog", "rolling", "BETA").map(
-        (value) => value.id,
-      ),
+      filterPorts(ports, new Map(), "catalog", "rolling", "BETA").map((value) => value.id),
     ).toEqual(["beta"]);
   });
 
@@ -95,9 +86,7 @@ describe("catalog view model", () => {
     expect(portReadiness(blocked)).toBe("source");
     expect(portReadiness(status)).toBe("ready");
     expect(
-      filterPorts([withSource], statuses, "library", "setup", "").map(
-        (value) => value.id,
-      ),
+      filterPorts([withSource], statuses, "library", "setup", "").map((value) => value.id),
     ).toEqual(["alpha"]);
     expect(summarizeLibrary([withSource], statuses)).toEqual({
       installed: 1,
@@ -106,12 +95,7 @@ describe("catalog view model", () => {
       staged: 0,
     });
     expect(filterOptions("library")).toEqual(["all", "ready", "setup"]);
-    expect(filterOptions("catalog")).toEqual([
-      "all",
-      "stable",
-      "beta",
-      "rolling",
-    ]);
+    expect(filterOptions("catalog")).toEqual(["all", "stable", "beta", "rolling"]);
   });
 
   it("keeps damaged installations visible in the needs-setup filter", () => {
@@ -125,11 +109,9 @@ describe("catalog view model", () => {
     };
     const statuses = indexStatuses([damaged]);
     expect(portReadiness(damaged)).toBe("repair");
-    expect(
-      filterPorts(ports, statuses, "library", "setup", "").map(
-        (port) => port.id,
-      ),
-    ).toEqual(["alpha"]);
+    expect(filterPorts(ports, statuses, "library", "setup", "").map((port) => port.id)).toEqual([
+      "alpha",
+    ]);
     expect(filterPorts(ports, statuses, "library", "ready", "")).toEqual([]);
     expect(summarizeLibrary(ports, statuses).needsSetup).toBe(1);
   });
@@ -184,14 +166,9 @@ describe("catalog view model", () => {
       last_launched_at: 20,
     };
     const alpha: PortStatus = { ...status, last_launched_at: 10 };
-    expect(mostRecentPort(ports, indexStatuses([alpha, beta]))?.port.id).toBe(
-      "beta",
-    );
+    expect(mostRecentPort(ports, indexStatuses([alpha, beta]))?.port.id).toBe("beta");
     expect(
-      mostRecentPort(
-        ports,
-        indexStatuses([{ ...status, last_launched_at: null }]),
-      ),
+      mostRecentPort(ports, indexStatuses([{ ...status, last_launched_at: null }])),
     ).toBeUndefined();
   });
 
@@ -219,9 +196,7 @@ describe("catalog view model", () => {
         },
       },
     };
-    expect(
-      currentUpdateSnapshot({ ...status, last_update_check: snapshot }),
-    ).toEqual(snapshot);
+    expect(currentUpdateSnapshot({ ...status, last_update_check: snapshot })).toEqual(snapshot);
     expect(
       currentUpdateSnapshot({
         ...status,
@@ -310,9 +285,7 @@ describe("catalog view model", () => {
   });
 
   it("normalizes structured and primitive errors", () => {
-    expect(errorText({ code: "bad", message: "Readable", details: {} })).toBe(
-      "Readable",
-    );
+    expect(errorText({ code: "bad", message: "Readable", details: {} })).toBe("Readable");
     expect(errorText("failure")).toBe("failure");
   });
 });

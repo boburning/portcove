@@ -15,17 +15,10 @@ export function runActionlint(arguments_, run = spawnSync) {
       "the aqua-managed ShellCheck executable is unavailable; run the quality bootstrap",
     );
   }
-  return run(
-    "aqua",
-    [
-      "exec",
-      "--",
-      "actionlint",
-      `-shellcheck=${shellcheckPath}`,
-      ...arguments_,
-    ],
-    { stdio: "inherit", windowsHide: true },
-  );
+  return run("aqua", ["exec", "--", "actionlint", `-shellcheck=${shellcheckPath}`, ...arguments_], {
+    stdio: "inherit",
+    windowsHide: true,
+  });
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {

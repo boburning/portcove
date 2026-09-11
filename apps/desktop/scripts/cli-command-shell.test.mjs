@@ -23,11 +23,11 @@ it("passes shell-sensitive values as literal arguments to a harmless child proce
   );
   const child =
     shell === "powershell"
-      ? spawnSync(
-          "pwsh",
-          ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command],
-          { encoding: "utf8", windowsHide: true, timeout: 10000 },
-        )
+      ? spawnSync("pwsh", ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command], {
+          encoding: "utf8",
+          windowsHide: true,
+          timeout: 10000,
+        })
       : spawnSync("sh", ["-c", command], { encoding: "utf8", timeout: 10000 });
   expect(child.error).toBeUndefined();
   expect(child.status, child.stderr).toBe(0);

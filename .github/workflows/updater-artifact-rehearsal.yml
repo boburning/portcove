@@ -7,8 +7,7 @@ on:
         description: Platform to investigate; use all for complete-matrix evidence
         type: choice
         default: all
-        options:
-          [all, windows-x86_64, linux-x86_64, macos-x86_64, macos-aarch64]
+        options: [all, windows-x86_64, linux-x86_64, macos-x86_64, macos-aarch64]
 
 permissions:
   contents: read

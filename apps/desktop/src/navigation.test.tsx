@@ -75,9 +75,9 @@ function NavigationFixture() {
 }
 
 function control(text: string) {
-  const result = [
-    ...document.querySelectorAll<HTMLButtonElement>("button"),
-  ].find((item) => item.textContent === text);
+  const result = [...document.querySelectorAll<HTMLButtonElement>("button")].find(
+    (item) => item.textContent === text,
+  );
   if (!result) throw new Error(`missing button: ${text}`);
   return result;
 }
@@ -112,18 +112,11 @@ beforeEach(async () => {
     frames.delete(id);
   });
   vi.stubGlobal("navigator", {
-    getGamepads: () => [
-      { id: "Xbox", index: 0, mapping: "standard", axes: [0, 0], buttons },
-    ],
+    getGamepads: () => [{ id: "Xbox", index: 0, mapping: "standard", axes: [0, 0], buttons }],
   });
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
     function (this: HTMLElement) {
-      return new DOMRect(
-        Number(this.dataset.x ?? 500),
-        Number(this.dataset.y ?? 0),
-        100,
-        40,
-      );
+      return new DOMRect(Number(this.dataset.x ?? 500), Number(this.dataset.y ?? 0), 100, 40);
     },
   );
   vi.spyOn(HTMLElement.prototype, "getClientRects").mockImplementation(
@@ -215,11 +208,8 @@ describe("controller and modal integration", () => {
   });
 
   it("measures only the active region for directional input and does no idle layout work", async () => {
-    const workspace = document.querySelector(
-      '[data-focus-region="workspace"]',
-    )!;
-    for (let index = 0; index < 1000; index++)
-      workspace.append(document.createElement("button"));
+    const workspace = document.querySelector('[data-focus-region="workspace"]')!;
+    for (let index = 0; index < 1000; index++) workspace.append(document.createElement("button"));
     control("Library").focus();
     const visibility = vi.mocked(HTMLElement.prototype.getClientRects);
     visibility.mockClear();
@@ -298,25 +288,19 @@ describe("controller and modal integration", () => {
     control("Cancel preparation").focus();
     await act(async () => transition("waiting"));
     await frame();
-    expect(document.activeElement).toBe(
-      document.querySelector('[role="dialog"]'),
-    );
+    expect(document.activeElement).toBe(document.querySelector('[role="dialog"]'));
     await act(async () => transition("complete"));
     await frame();
     expect(document.activeElement).toBe(control("Search again"));
   });
 
   it("opens external links through the desktop bridge and exposes launch errors", async () => {
-    const open = vi
-      .spyOn(desktopApi, "openExternalUrl")
-      .mockResolvedValue(undefined);
+    const open = vi.spyOn(desktopApi, "openExternalUrl").mockResolvedValue(undefined);
     await act(async () =>
       root.render(
         <>
           <NavigationFixture />
-          <ExternalLink href="https://github.com/boburning/portcove">
-            Repository
-          </ExternalLink>
+          <ExternalLink href="https://github.com/boburning/portcove">Repository</ExternalLink>
         </>,
       ),
     );
@@ -326,9 +310,7 @@ describe("controller and modal integration", () => {
     expect(open).toHaveBeenCalledWith(link.href);
     open.mockRejectedValue({ message: "No browser configured" });
     await act(async () => link.click());
-    expect(document.querySelector("[role=alert]")?.textContent).toContain(
-      "No browser configured",
-    );
+    expect(document.querySelector("[role=alert]")?.textContent).toContain("No browser configured");
   });
 
   it("ignores background game input without replaying a held button on return", async () => {
@@ -407,9 +389,7 @@ describe("controller and modal integration", () => {
       );
     });
     expect(document.activeElement?.tagName).toBe("SUMMARY");
-    const choice = document.querySelector<HTMLButtonElement>(
-      "[aria-haspopup=dialog]",
-    )!;
+    const choice = document.querySelector<HTMLButtonElement>("[aria-haspopup=dialog]")!;
     choice.focus();
     await frame([0]);
     await frame();

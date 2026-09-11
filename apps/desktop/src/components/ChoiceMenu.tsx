@@ -30,9 +30,7 @@ export function ChoiceMenu<T extends string>({
         onClick={() => setOpen(true)}
       >
         <span>{label}</span>
-        <strong>
-          {options.find((option) => option.value === value)?.label}
-        </strong>
+        <strong>{options.find((option) => option.value === value)?.label}</strong>
       </button>
       {open &&
         createPortal(
@@ -67,11 +65,7 @@ export function ChoiceMenu<T extends string>({
                   </button>
                 ))}
               </div>
-              <button
-                data-focusable
-                className="secondary"
-                onClick={() => setOpen(false)}
-              >
+              <button data-focusable className="secondary" onClick={() => setOpen(false)}>
                 Cancel
               </button>
               <NavigationHints />

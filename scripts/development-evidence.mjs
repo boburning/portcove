@@ -16,10 +16,7 @@ export async function fileIdentity(file) {
 export function evidenceOutcome(checks) {
   if (!checks.length) return "not-run";
   for (const check of checks) {
-    if (
-      !check.scenario ||
-      !["passed", "failed", "not-run"].includes(check.outcome)
-    )
+    if (!check.scenario || !["passed", "failed", "not-run"].includes(check.outcome))
       throw new Error("Invalid evidence check");
   }
   return checks.some((check) => check.outcome === "failed")
@@ -31,15 +28,7 @@ export function evidenceOutcome(checks) {
 
 export async function writeEvidence(
   directory,
-  {
-    revision,
-    executable,
-    checks,
-    artifacts = [],
-    method,
-    inputs = [],
-    capturedExecutable,
-  },
+  { revision, executable, checks, artifacts = [], method, inputs = [], capturedExecutable },
 ) {
   if (!/^[a-f0-9]{40}$/u.test(revision) || !method)
     throw new Error("Evidence requires a full revision and explicit method");
@@ -58,10 +47,8 @@ export async function writeEvidence(
     interpretation:
       "Execution observations only; no catalog qualification or human observation is inferred.",
   };
-  await writeFile(
-    path.join(directory, "evidence.json"),
-    `${JSON.stringify(report, null, 2)}\n`,
-    { flag: "wx" },
-  );
+  await writeFile(path.join(directory, "evidence.json"), `${JSON.stringify(report, null, 2)}\n`, {
+    flag: "wx",
+  });
   return report;
 }

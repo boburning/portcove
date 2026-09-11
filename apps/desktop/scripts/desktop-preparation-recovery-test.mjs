@@ -55,12 +55,7 @@ export async function interruptedPreparationScenario({
             .prepare(
               "UPDATE activity_diagnostics SET payload=?,payload_bytes=? WHERE activity_id=? AND phase=?",
             )
-            .run(
-              payload,
-              Buffer.byteLength(payload),
-              activity.id,
-              capture.phase,
-            ).changes,
+            .run(payload, Buffer.byteLength(payload), activity.id, capture.phase).changes,
           1,
         );
       }
@@ -69,23 +64,13 @@ export async function interruptedPreparationScenario({
       database.close();
     }
     const doctor = command(["doctor"]); // A fresh CLI executes real core startup recovery.
-    const recovered = command(["activity"]).find(
-      (item) => item.id === activity.id,
-    );
+    const recovered = command(["activity"]).find((item) => item.id === activity.id);
     assert.equal(recovered.status, "failed");
-    assert.equal(
-      recovered.failure.presentation.presentation_key,
-      "preparation_interrupted",
-    );
+    assert.equal(recovered.failure.presentation.presentation_key, "preparation_interrupted");
     assert.equal(recovered.failure.presentation.tone, "error");
-    assert.equal(
-      recovered.failure.presentation.mutation_state,
-      "recovery_required",
-    );
+    assert.equal(recovered.failure.presentation.mutation_state, "recovery_required");
     assert.equal(recovered.failure.details.cancel_requested, "true");
-    const repair = doctor.repair.items.find(
-      (item) => item.operation_id === activity.id,
-    );
+    const repair = doctor.repair.items.find((item) => item.operation_id === activity.id);
     assert.match(repair.proposed_action, /cannot be resumed/);
     assert.equal(repair.path, privatePath);
     assert.deepEqual(command(["status", before.port_id]).active, before.active);
@@ -95,9 +80,7 @@ export async function interruptedPreparationScenario({
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
       15_000,
     );
-    await browser
-      .findElement(By.xpath('//nav//button[contains(., "Updates")]'))
-      .click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Updates")]')).click();
     const row = await browser.wait(
       until.elementLocated(
         By.xpath(
@@ -107,37 +90,23 @@ export async function interruptedPreparationScenario({
       10_000,
     );
     assert.match(await row.getText(), /Review game preparation/);
-    assert.doesNotMatch(
-      await row.getText(),
-      /No files were changed|The operation was cancelled/,
-    );
+    assert.doesNotMatch(await row.getText(), /No files were changed|The operation was cancelled/);
     assert.deepEqual(
-      (await invoke("get_activities")).value.find(
-        (item) => item.id === activity.id,
-      ),
+      (await invoke("get_activities")).value.find((item) => item.id === activity.id),
       recovered,
     );
     await row
-      .findElement(
-        By.xpath('.//summary[normalize-space(.)="View preparation log"]'),
-      )
+      .findElement(By.xpath('.//summary[normalize-space(.)="View preparation log"]'))
       .click();
-    await browser.wait(
-      async () => (await row.getText()).includes("Capture is incomplete"),
-      5_000,
-    );
-    const report = path.join(
-      output,
-      "interrupted-preparation-accessibility.json",
-    );
+    await browser.wait(async () => (await row.getText()).includes("Capture is incomplete"), 5_000);
+    const report = path.join(output, "interrupted-preparation-accessibility.json");
     await captureAccessibilityReport(browser, report, artifacts);
     const evidence = path.join(output, "interrupted-preparation-recovery.json");
     await writeFile(
       evidence,
       JSON.stringify(
         {
-          method:
-            "simulated durable interruption with real CLI recovery and native UI",
+          method: "simulated durable interruption with real CLI recovery and native UI",
           activity: recovered,
           repair,
           captures: retained,
@@ -148,34 +117,19 @@ export async function interruptedPreparationScenario({
       { flag: "wx" },
     );
     artifacts.push(evidence);
-    await browser.executeScript(
-      'arguments[0].scrollIntoView({ block: "start" });',
-      row,
-    );
-    const review = await browser.findElement(
-      By.css(`[data-recovery-operation="${activity.id}"]`),
-    );
+    await browser.executeScript('arguments[0].scrollIntoView({ block: "start" });', row);
+    const review = await browser.findElement(By.css(`[data-recovery-operation="${activity.id}"]`));
     await review.findElement(By.css("summary")).click();
     assert.match(await review.getText(), /Unfinished operation/);
     assert.ok((await review.getText()).includes(privatePath));
     assert.match(await review.getText(), /cannot be resumed/);
     assert.equal((await review.findElements(By.css("button,a"))).length, 0);
-    await browser.executeScript(
-      'arguments[0].scrollIntoView({ block: "start" });',
-      review,
-    );
+    await browser.executeScript('arguments[0].scrollIntoView({ block: "start" });', review);
     const recoveryAccessibility = await browser.executeAsyncScript((done) =>
       window.axe.run().then(done),
     );
-    const recoveryReport = path.join(
-      output,
-      "recovery-review-accessibility.json",
-    );
-    await writeFile(
-      recoveryReport,
-      JSON.stringify(recoveryAccessibility, null, 2),
-      { flag: "wx" },
-    );
+    const recoveryReport = path.join(output, "recovery-review-accessibility.json");
+    await writeFile(recoveryReport, JSON.stringify(recoveryAccessibility, null, 2), { flag: "wx" });
     artifacts.push(recoveryReport);
     assert.deepEqual(
       recoveryAccessibility.violations.map((item) => item.id),
@@ -187,9 +141,6 @@ export async function interruptedPreparationScenario({
       flag: "wx",
     });
     artifacts.push(recoveryImage);
-    await browser.executeScript(
-      'arguments[0].scrollIntoView({ block: "start" });',
-      row,
-    );
+    await browser.executeScript('arguments[0].scrollIntoView({ block: "start" });', row);
   });
 }

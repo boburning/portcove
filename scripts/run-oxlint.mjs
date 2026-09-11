@@ -3,31 +3,24 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
-const oxlint = path.join(
-  projectRoot,
-  "apps",
-  "desktop",
-  "node_modules",
-  "oxlint",
-  "bin",
-  "oxlint",
-);
+const oxlint = path.join(projectRoot, "apps", "desktop", "node_modules", "oxlint", "bin", "oxlint");
 const desktopBin = path.join(projectRoot, "apps", "desktop", "node_modules", ".bin");
-const targets = process.argv.length > 2
-  ? process.argv.slice(2)
-  : ["scripts", "apps/desktop/scripts", "apps/desktop/src", "apps/desktop/vite.config.ts"];
+const targets =
+  process.argv.length > 2
+    ? process.argv.slice(2)
+    : ["scripts", "apps/desktop/scripts", "apps/desktop/src", "apps/desktop/vite.config.ts"];
 const sourceRoot = path.join(projectRoot, "apps", "desktop", "src");
 const typeAwareTargets = targets.filter((target) => {
   const absolute = path.resolve(projectRoot, target);
   return absolute === sourceRoot || absolute.startsWith(`${sourceRoot}${path.sep}`);
 });
 const baseArguments = [
-    oxlint,
-    "--config",
-    path.join(projectRoot, ".oxlintrc.json"),
-    "--max-warnings",
-    "0",
-    "--report-unused-disable-directives",
+  oxlint,
+  "--config",
+  path.join(projectRoot, ".oxlintrc.json"),
+  "--max-warnings",
+  "0",
+  "--report-unused-disable-directives",
 ];
 function run(args) {
   return spawnSync(process.execPath, args, {

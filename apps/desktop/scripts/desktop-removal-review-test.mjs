@@ -4,10 +4,7 @@ import path from "node:path";
 import { readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
 import { By, until } from "selenium-webdriver";
-import {
-  captureAccessibilityReport,
-  reviewControls,
-} from "./desktop-review-controls.mjs";
+import { captureAccessibilityReport, reviewControls } from "./desktop-review-controls.mjs";
 
 export async function removalReviewScenario({
   browser,
@@ -34,9 +31,7 @@ export async function removalReviewScenario({
       [
         save,
         path.join(output, `${port.id}.iso`),
-        ...snapshots.backups.map((item) =>
-          path.join(item.path, "data/owned-review-save.bin"),
-        ),
+        ...snapshots.backups.map((item) => path.join(item.path, "data/owned-review-save.bin")),
       ].map(fileIdentity),
     );
     await open(port);
@@ -45,10 +40,7 @@ export async function removalReviewScenario({
     await click(By.css("summary.advanced-summary"));
     const review = async () => {
       await click(button("Remove managed files"));
-      await browser.wait(
-        until.elementLocated(button("Remove these managed folders")),
-        15_000,
-      );
+      await browser.wait(until.elementLocated(button("Remove these managed folders")), 15_000);
     };
     const generation = (await invoke("get_bootstrap_status")).value.generation;
     const initial = await invoke("preview_removal", {
@@ -58,9 +50,7 @@ export async function removalReviewScenario({
     assert.equal(initial.ok, true);
     await review();
     for (const affected of initial.value.managed_paths)
-      assert.ok(
-        (await browser.findElement(dialog).getText()).includes(affected),
-      );
+      assert.ok((await browser.findElement(dialog).getText()).includes(affected));
     await click(button("Keep installed files"));
     await assertManagedFolders(initial.value.managed_paths);
     assert.deepEqual(await readFile(save), beforeSave);
@@ -79,34 +69,23 @@ export async function removalReviewScenario({
       paths.user_data_root,
       "removal-native-cancelled",
     );
-    await browser.wait(
-      async () => (await browser.findElements(dialog)).length === 0,
-      15_000,
-    );
+    await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 15_000);
     await assertManagedFolders(initial.value.managed_paths);
     await review();
     // A real new adoption changes the reviewed inventory; the old review must fail.
-    await writeFile(
-      path.join(original, "owned-new-version.bin"),
-      "second reviewed version",
-      { flag: "wx" },
-    );
+    await writeFile(path.join(original, "owned-new-version.bin"), "second reviewed version", {
+      flag: "wx",
+    });
     const added = command(["adopt", original, "--port", port.id, "--yes"]);
     assert.ok(!initial.value.managed_paths.includes(added.path));
     await click(button("Remove these managed folders"));
-    await browser.wait(
-      until.elementLocated(button("Review removal again")),
-      15_000,
-    );
+    await browser.wait(until.elementLocated(button("Review removal again")), 15_000);
     const current = await invoke("preview_removal", {
       portId: port.id,
       generation,
     });
     assert.equal(current.ok, true);
-    assert.equal(
-      current.value.managed_paths.length,
-      initial.value.managed_paths.length + 1,
-    );
+    assert.equal(current.value.managed_paths.length, initial.value.managed_paths.length + 1);
     await assertManagedFolders(current.value.managed_paths);
     const stale = await invoke("remove_port", {
       portId: port.id,
@@ -116,15 +95,9 @@ export async function removalReviewScenario({
     assert.equal(stale.ok, false);
     assert.equal(stale.error.code, "conflict");
     await click(button("Review removal again"));
-    await browser.wait(
-      until.elementLocated(button("Remove these managed folders")),
-      15_000,
-    );
+    await browser.wait(until.elementLocated(button("Remove these managed folders")), 15_000);
     const text = await browser.findElement(dialog).getText();
-    for (const affected of [
-      ...current.value.managed_paths,
-      paths.user_data_root,
-    ])
+    for (const affected of [...current.value.managed_paths, paths.user_data_root])
       assert.ok(text.includes(affected));
     assert.ok(
       text.includes("settings will also be removed") &&
@@ -145,15 +118,9 @@ export async function removalReviewScenario({
       'arguments[0].scrollIntoView({ block: "start" });',
       await browser.findElement(dialog),
     );
-    const accessibilityPath = path.join(
-      output,
-      "removal-review-accessibility.json",
-    );
+    const accessibilityPath = path.join(output, "removal-review-accessibility.json");
     await captureAccessibilityReport(browser, accessibilityPath, artifacts);
-    const screenshot = path.join(
-      output,
-      "native-installed-game-removal-review.png",
-    );
+    const screenshot = path.join(output, "native-installed-game-removal-review.png");
     await writeFile(screenshot, await browser.takeScreenshot(), {
       encoding: "base64",
       flag: "wx",
@@ -166,10 +133,7 @@ export async function removalReviewScenario({
       paths.user_data_root,
       "removal-native-confirmed",
     );
-    await browser.wait(
-      async () => (await browser.findElements(dialog)).length === 0,
-      15_000,
-    );
+    await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 15_000);
     for (const affected of current.value.managed_paths)
       await assert.rejects(stat(affected), { code: "ENOENT" });
     assert.equal(command(["status", port.id]).active, null);
@@ -208,6 +172,5 @@ export async function removalReviewScenario({
 }
 
 async function assertManagedFolders(paths) {
-  for (const managed of paths)
-    assert.ok((await stat(managed)).isDirectory(), managed);
+  for (const managed of paths) assert.ok((await stat(managed)).isDirectory(), managed);
 }

@@ -63,24 +63,18 @@ afterEach(async () => {
 });
 async function click(label: string, contains = false) {
   const button = [...document.querySelectorAll("button")].find((button) =>
-    contains
-      ? button.textContent?.includes(label)
-      : button.textContent === label,
+    contains ? button.textContent?.includes(label) : button.textContent === label,
   );
   expect(button).toBeDefined();
   await act(async () => button?.click());
 }
 
 it("edits locally until Save and never reviews or runs an update when saving", async () => {
-  const save = vi
-    .fn()
-    .mockResolvedValue({ ...portStatus(), update_policy: "automatic" });
+  const save = vi.fn().mockResolvedValue({ ...portStatus(), update_policy: "automatic" });
   const review = vi.spyOn(desktopApi, "planGameUpdate");
   const apply = vi.spyOn(desktopApi, "applyGameUpdate");
   await act(async () =>
-    root.render(
-      <UpdatePolicyControl policy="notify" busy={false} save={save} />,
-    ),
+    root.render(<UpdatePolicyControl policy="notify" busy={false} save={save} />),
   );
   await click("Saved update policy", true);
   await click("Install when running updates");
@@ -95,9 +89,7 @@ it("edits locally until Save and never reviews or runs an update when saving", a
 it("does not report a settings save as successful after failure", async () => {
   const save = vi.fn().mockRejectedValue(new Error("Library changed"));
   await act(async () =>
-    root.render(
-      <UpdatePolicyControl policy="notify" busy={false} save={save} />,
-    ),
+    root.render(<UpdatePolicyControl policy="notify" busy={false} save={save} />),
   );
   await click("Saved update policy", true);
   await click("Download for later");
@@ -108,9 +100,7 @@ it("does not report a settings save as successful after failure", async () => {
 
 it("reviews without execution and submits the exact download-only plan on confirmation", async () => {
   vi.spyOn(desktopApi, "planGameUpdate").mockResolvedValue(plan);
-  const apply = vi
-    .spyOn(desktopApi, "applyGameUpdate")
-    .mockResolvedValue(undefined!);
+  const apply = vi.spyOn(desktopApi, "applyGameUpdate").mockResolvedValue(undefined!);
   await act(async () =>
     root.render(
       <GameUpdateControl
@@ -124,11 +114,7 @@ it("reviews without execution and submits the exact download-only plan on confir
   );
   await click("Review game update");
   expect(apply).not.toHaveBeenCalled();
-  expect(desktopApi.planGameUpdate).toHaveBeenCalledExactlyOnceWith(
-    "sample",
-    false,
-    9,
-  );
+  expect(desktopApi.planGameUpdate).toHaveBeenCalledExactlyOnceWith("sample", false, 9);
   expect(container.textContent).toContain("active version stays unchanged");
   await click("Download update for later");
   expect(apply).toHaveBeenCalledExactlyOnceWith(
@@ -177,9 +163,7 @@ it("requires another review when the chosen action changes and binds activation 
     9,
     expect.any(Function),
   );
-  expect(container.querySelector('[role="alert"]')?.textContent).toBe(
-    "Release changed",
-  );
+  expect(container.querySelector('[role="alert"]')?.textContent).toBe("Release changed");
   expect(container.textContent).toContain("Review game update");
 });
 
@@ -232,9 +216,7 @@ it.each(["future_action", "constructor", "__proto__", "toString"])(
         },
       })
       .mockResolvedValueOnce(plan);
-    const apply = vi
-      .spyOn(desktopApi, "applyGameUpdate")
-      .mockResolvedValue(undefined!);
+    const apply = vi.spyOn(desktopApi, "applyGameUpdate").mockResolvedValue(undefined!);
     await act(async () =>
       root.render(
         <GameUpdateControl
@@ -302,9 +284,7 @@ it.each(["use_staged", "reuse_retained"] as const)(
       plan_sha256: `reviewed-${action}`,
       plan: { ...plan.plan, action },
     });
-    const apply = vi
-      .spyOn(desktopApi, "applyGameUpdate")
-      .mockResolvedValue(undefined!);
+    const apply = vi.spyOn(desktopApi, "applyGameUpdate").mockResolvedValue(undefined!);
     await act(async () =>
       root.render(
         <GameUpdateControl

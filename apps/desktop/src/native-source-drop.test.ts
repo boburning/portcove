@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
 import type { DragDropEvent } from "@tauri-apps/api/webview";
 import { describe, expect, it, vi } from "vitest";
-import {
-  createNativeSourceDropCoordinator,
-  sourceDropTargetAt,
-} from "./native-source-drop";
+import { createNativeSourceDropCoordinator, sourceDropTargetAt } from "./native-source-drop";
 
 const position = { x: 20, y: 40 };
 const native = (event: object) => event as DragDropEvent;
@@ -33,11 +30,8 @@ describe("native source drag coordination", () => {
 
   it("passes the exact external paths only after a native drop over an eligible card", () => {
     const accept = vi.fn();
-    const handle = createNativeSourceDropCoordinator(
-      vi.fn(),
-      accept,
-      (point) =>
-        point.x === 20 ? { portId: "port", profileId: "source" } : undefined,
+    const handle = createNativeSourceDropCoordinator(vi.fn(), accept, (point) =>
+      point.x === 20 ? { portId: "port", profileId: "source" } : undefined,
     );
 
     handle(

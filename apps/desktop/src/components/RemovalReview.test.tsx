@@ -38,20 +38,11 @@ async function click(label: string) {
 }
 
 it("lists every affected path, removed settings and preserved data before explicit consent", async () => {
-  const preview = vi
-    .spyOn(desktopApi, "previewRemoval")
-    .mockResolvedValue(review);
+  const preview = vi.spyOn(desktopApi, "previewRemoval").mockResolvedValue(review);
   const apply = vi.fn().mockResolvedValue(true);
   const close = vi.fn();
   await act(async () =>
-    root.render(
-      <RemovalReviewDialog
-        port={port}
-        generation={7}
-        apply={apply}
-        close={close}
-      />,
-    ),
+    root.render(<RemovalReviewDialog port={port} generation={7} apply={apply} close={close} />),
   );
   expect(preview).toHaveBeenCalledExactlyOnceWith(port.id, 7);
   expect(apply).not.toHaveBeenCalled();
@@ -65,9 +56,7 @@ it("lists every affected path, removed settings and preserved data before explic
     "not an undo",
   ])
     expect(container.textContent).toContain(text);
-  expect(container.querySelector("[data-autofocus]")?.textContent).toBe(
-    "Keep installed files",
-  );
+  expect(container.querySelector("[data-autofocus]")?.textContent).toBe("Keep installed files");
   await click("Remove these managed folders");
   expect(apply).toHaveBeenCalledExactlyOnceWith("reviewed-installations");
   expect(close).toHaveBeenCalledOnce();
@@ -78,14 +67,7 @@ it("dismisses a removal review without applying it", async () => {
   const apply = vi.fn();
   const close = vi.fn();
   await act(async () =>
-    root.render(
-      <RemovalReviewDialog
-        port={port}
-        generation={7}
-        apply={apply}
-        close={close}
-      />,
-    ),
+    root.render(<RemovalReviewDialog port={port} generation={7} apply={apply} close={close} />),
   );
   await click("Keep installed files");
   expect(close).toHaveBeenCalledOnce();
@@ -97,14 +79,7 @@ it("closes the review without an error when final native consent is declined", a
   const apply = vi.fn().mockResolvedValue("cancelled");
   const close = vi.fn();
   await act(async () =>
-    root.render(
-      <RemovalReviewDialog
-        port={port}
-        generation={7}
-        apply={apply}
-        close={close}
-      />,
-    ),
+    root.render(<RemovalReviewDialog port={port} generation={7} apply={apply} close={close} />),
   );
   await click("Remove these managed folders");
   expect(close).toHaveBeenCalledOnce();
@@ -112,9 +87,7 @@ it("closes the review without an error when final native consent is declined", a
 });
 
 it("blocks duplicate removal and requires a new review after failure", async () => {
-  const preview = vi
-    .spyOn(desktopApi, "previewRemoval")
-    .mockResolvedValue(review);
+  const preview = vi.spyOn(desktopApi, "previewRemoval").mockResolvedValue(review);
   let finish!: (result: boolean) => void;
   const apply = vi.fn().mockImplementation(
     () =>
@@ -124,14 +97,7 @@ it("blocks duplicate removal and requires a new review after failure", async () 
   );
   const close = vi.fn();
   await act(async () =>
-    root.render(
-      <RemovalReviewDialog
-        port={port}
-        generation={7}
-        apply={apply}
-        close={close}
-      />,
-    ),
+    root.render(<RemovalReviewDialog port={port} generation={7} apply={apply} close={close} />),
   );
   await click("Remove these managed folders");
   await click("Removing reviewed files…");
@@ -139,9 +105,7 @@ it("blocks duplicate removal and requires a new review after failure", async () 
   expect(apply).toHaveBeenCalledOnce();
   expect(close).not.toHaveBeenCalled();
   await act(async () => finish(false));
-  expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-    "did not complete",
-  );
+  expect(container.querySelector('[role="alert"]')?.textContent).toContain("did not complete");
   expect(container.textContent).not.toContain("Remove these managed folders");
   await click("Review removal again");
   expect(preview).toHaveBeenCalledTimes(2);
@@ -164,24 +128,12 @@ it("ignores a late review from the previous library", async () => {
   const close = vi.fn();
   await act(async () =>
     root.render(
-      <RemovalReviewDialog
-        key="old"
-        port={port}
-        generation={7}
-        apply={apply}
-        close={close}
-      />,
+      <RemovalReviewDialog key="old" port={port} generation={7} apply={apply} close={close} />,
     ),
   );
   await act(async () =>
     root.render(
-      <RemovalReviewDialog
-        key="new"
-        port={port}
-        generation={8}
-        apply={apply}
-        close={close}
-      />,
+      <RemovalReviewDialog key="new" port={port} generation={8} apply={apply} close={close} />,
     ),
   );
   await act(async () => finish(review));

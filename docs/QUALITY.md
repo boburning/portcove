@@ -86,6 +86,7 @@ explicitly named acceptance requirement, a validation-contract transition, or
 diagnosing a hosted failure. Native desktop, installer, recovery, security,
 physical-platform, and human evidence remains separate and is still required
 when the issue's acceptance scope calls for it.
+
 ## Formatting contract
 
 `just fmt` is the canonical write command and `just fmt-check` is its no-write

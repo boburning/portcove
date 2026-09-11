@@ -2,11 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import {
-  findStaleConsumerPins,
-  githubOutputs,
-  validateQualityManifest,
-} from "./quality-tools.mjs";
+import { findStaleConsumerPins, githubOutputs, validateQualityManifest } from "./quality-tools.mjs";
 import { runActionlint } from "./run-actionlint.mjs";
 
 const manifest = JSON.parse(
@@ -16,8 +12,7 @@ const manifest = JSON.parse(
 test("quality manifest owns exact unique Rust pins and workflow outputs", () => {
   assert.doesNotThrow(() => validateQualityManifest(manifest));
   assert.deepEqual(githubOutputs(manifest), {
-    required_prebuilt:
-      "just@1.58.0,cargo-shear@1.13.4,cargo-deny@0.20.2,cargo-nextest@0.9.100",
+    required_prebuilt: "just@1.58.0,cargo-shear@1.13.4,cargo-deny@0.20.2,cargo-nextest@0.9.100",
     required_all:
       "just@1.58.0,cargo-shear@1.13.4,cargo-deny@0.20.2,rscheck-cli@0.1.0,cargo-nextest@0.9.100",
     rscheck_spec: "rscheck-cli@0.1.0",
@@ -38,23 +33,18 @@ test("stale consumer detection rejects copied current or divergent pins", () => 
     findStaleConsumerPins(manifest, {
       stale: "tool: cargo-deny@0.20.2,cargo-deny@0.19.0",
     }),
-    [
-      "stale:1 duplicates cargo-deny pin 0.20.2",
-      "stale:1 duplicates cargo-deny pin 0.19.0",
-    ],
+    ["stale:1 duplicates cargo-deny pin 0.20.2", "stale:1 duplicates cargo-deny pin 0.19.0"],
   );
-  assert.deepEqual(
-    findStaleConsumerPins(manifest, { copied: "cargo +1.98.0 hawk --version" }),
-    ["copied:1 duplicates cargo-hawk pin 1.98.0"],
-  );
+  assert.deepEqual(findStaleConsumerPins(manifest, { copied: "cargo +1.98.0 hawk --version" }), [
+    "copied:1 duplicates cargo-hawk pin 1.98.0",
+  ]);
 });
 
 test("actionlint receives the exact aqua-managed ShellCheck path", () => {
   const calls = [];
   const run = (command, arguments_, options) => {
     calls.push({ command, arguments_, options });
-    if (arguments_[0] === "which")
-      return { status: 0, stdout: "C:\\aqua\\shellcheck.exe\r\n" };
+    if (arguments_[0] === "which") return { status: 0, stdout: "C:\\aqua\\shellcheck.exe\r\n" };
     return { status: 0 };
   };
   assert.equal(runActionlint(["workflow.yml"], run).status, 0);
@@ -72,25 +62,19 @@ test("actionlint receives the exact aqua-managed ShellCheck path", () => {
 });
 
 test("standalone lint pins use aqua checksums and PSResourceGet data", async () => {
-  const aquaVersion = (
-    await readFile(new URL("../.aqua-version", import.meta.url), "utf8")
-  ).trim();
+  const aquaVersion = (await readFile(new URL("../.aqua-version", import.meta.url), "utf8")).trim();
   assert.match(aquaVersion, /^v\d+\.\d+\.\d+$/u);
 
   const aqua = await readFile(new URL("../aqua.yaml", import.meta.url), "utf8");
-  assert.match(
-    aqua,
-    /^checksum:\r?\n {2}enabled: true\r?\n {2}require_checksum: true$/mu,
+  assert.match(aqua, /^checksum:\r?\n {2}enabled: true\r?\n {2}require_checksum: true$/mu);
+  const packages = [...aqua.matchAll(/^ {2}- name: ([^@\s]+)@([^\s]+)$/gmu)].map(
+    ([, name, version]) => ({ name, version }),
   );
-  const packages = [
-    ...aqua.matchAll(/^ {2}- name: ([^@\s]+)@([^\s]+)$/gmu),
-  ].map(([, name, version]) => ({ name, version }));
   assert.deepEqual(
     packages.map(({ name }) => name),
     ["astral-sh/ruff", "rhysd/actionlint", "koalaman/shellcheck"],
   );
-  for (const { version } of packages)
-    assert.match(version, /^v?\d+\.\d+\.\d+$/u);
+  for (const { version } of packages) assert.match(version, /^v?\d+\.\d+\.\d+$/u);
 
   const lock = JSON.parse(
     await readFile(new URL("../aqua-checksums.json", import.meta.url), "utf8"),
@@ -101,11 +85,7 @@ test("standalone lint pins use aqua checksums and PSResourceGet data", async () 
     assert.match(entry.checksum, /^[A-F0-9]{64}$/u);
     assert.equal(entry.algorithm, "sha256");
   }
-  for (const identity of [
-    "astral-sh/ruff",
-    "rhysd/actionlint",
-    "koalaman/shellcheck",
-  ])
+  for (const identity of ["astral-sh/ruff", "rhysd/actionlint", "koalaman/shellcheck"])
     for (const platform of ["windows", "linux", "darwin"])
       assert.ok(
         ids.some(
@@ -126,12 +106,6 @@ test("standalone lint pins use aqua checksums and PSResourceGet data", async () 
   assert.match(resources, /PSScriptAnalyzer/u);
   assert.match(resources, /version\s*=\s*'\d+\.\d+\.\d+'/u);
 
-  const manager = await readFile(
-    new URL("./quality-tools.mjs", import.meta.url),
-    "utf8",
-  );
-  assert.doesNotMatch(
-    manager,
-    /install-managed|PORTCOVE_QUALITY_TOOLS_DIR|managedToolPath/u,
-  );
+  const manager = await readFile(new URL("./quality-tools.mjs", import.meta.url), "utf8");
+  assert.doesNotMatch(manager, /install-managed|PORTCOVE_QUALITY_TOOLS_DIR|managedToolPath/u);
 });

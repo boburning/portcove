@@ -20,12 +20,8 @@ export function navigationScope(): HTMLElement | Document {
   return dialogs.at(-1) ?? document;
 }
 
-export function focusableControls(
-  scope: HTMLElement | Document = navigationScope(),
-) {
-  return [...scope.querySelectorAll<HTMLElement>(selector)].filter(
-    visibleControl,
-  );
+export function focusableControls(scope: HTMLElement | Document = navigationScope()) {
+  return [...scope.querySelectorAll<HTMLElement>(selector)].filter(visibleControl);
 }
 
 export function focusAndReveal(item: HTMLElement | null | undefined) {
@@ -37,30 +33,23 @@ export function focusAndReveal(item: HTMLElement | null | undefined) {
 
 export function focusRegion(name: "sidebar" | "workspace") {
   if (navigationScope() !== document) return false;
-  const region = document.querySelector<HTMLElement>(
-    `[data-focus-region=${name}]`,
-  );
+  const region = document.querySelector<HTMLElement>(`[data-focus-region=${name}]`);
   if (!region) return false;
   const previous = regionFocus.get(region);
   const target =
     previous && region.contains(previous) && visibleControl(previous)
       ? previous
-      : (region.querySelector<HTMLElement>("[aria-current=page]") ??
-        focusableControls(region)[0]);
+      : (region.querySelector<HTMLElement>("[aria-current=page]") ?? focusableControls(region)[0]);
   focusAndReveal(target);
   return Boolean(target);
 }
 
 export function cyclePrimaryNavigation(offset: number) {
   if (navigationScope() !== document) return;
-  const navigation = document.querySelector<HTMLElement>(
-    "nav[aria-label='Primary navigation']",
-  );
+  const navigation = document.querySelector<HTMLElement>("nav[aria-label='Primary navigation']");
   if (!navigation) return;
   const items = focusableControls(navigation);
-  const current = items.findIndex(
-    (item) => item.getAttribute("aria-current") === "page",
-  );
+  const current = items.findIndex((item) => item.getAttribute("aria-current") === "page");
   const target = items[(current + offset + items.length) % items.length];
   if (target) {
     focusAndReveal(target);
@@ -70,9 +59,7 @@ export function cyclePrimaryNavigation(offset: number) {
 
 export function fieldOwnsArrows(target: HTMLElement | null) {
   return Boolean(
-    target?.closest(
-      "input, textarea, select, [contenteditable=true], [role=combobox]",
-    ),
+    target?.closest("input, textarea, select, [contenteditable=true], [role=combobox]"),
   );
 }
 

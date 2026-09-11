@@ -21,17 +21,12 @@ export function addPendingOperation(
   return next;
 }
 
-export function removePendingOperation(
-  operations: ReadonlyMap<number, string>,
-  id: number,
-) {
+export function removePendingOperation(operations: ReadonlyMap<number, string>, id: number) {
   const next = new Map(operations);
   next.delete(id);
   return next;
 }
 
-export function mostRecentPendingOperation(
-  operations: ReadonlyMap<number, string>,
-) {
+export function mostRecentPendingOperation(operations: ReadonlyMap<number, string>) {
   return [...operations].sort(([left], [right]) => right - left)[0]?.[1];
 }

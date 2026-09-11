@@ -56,13 +56,11 @@ export function AdoptionModal({
         <p className="eyebrow">SAFE ADOPTION</p>
         <h2 id="adopt-title">Bring an existing install into Portcove</h2>
         <p className="modal-description" id="adopt-description">
-          Portcove previews the folder, identifies the port, and copies
-          application files into its managed library. The original folder is
-          never changed or deleted.
+          Portcove previews the folder, identifies the port, and copies application files into its
+          managed library. The original folder is never changed or deleted.
         </p>
         <p className="inline-assurance">
-          <Icon glyph={ShieldCheck} /> Review first, then confirm before
-          copying.
+          <Icon glyph={ShieldCheck} /> Review first, then confirm before copying.
         </p>
         <NavigationHints />
         <label htmlFor="adopt-path">Existing installation folder</label>
@@ -90,10 +88,7 @@ export function AdoptionModal({
           )}
         </div>
         {preview && (
-          <section
-            className="adoption-plan adoption-review"
-            aria-label="Adoption copy plan"
-          >
+          <section className="adoption-plan adoption-review" aria-label="Adoption copy plan">
             <p>
               <strong>
                 {preview.selected_port_id ??
@@ -103,16 +98,13 @@ export function AdoptionModal({
             <p>
               {preview.copy_plan.files.length.toLocaleString()}{" "}
               {preview.copy_plan.files.length === 1 ? "file" : "files"} ·{" "}
-              {formatBytes(preview.copy_plan.total_bytes)} will be copied into
-              the managed library.
+              {formatBytes(preview.copy_plan.total_bytes)} will be copied into the managed library.
             </p>
             {preview.copy_plan.skipped_entries.length > 0 && (
               <details>
                 <summary>
                   {preview.copy_plan.skipped_entries.length} skipped{" "}
-                  {preview.copy_plan.skipped_entries.length === 1
-                    ? "entry"
-                    : "entries"}
+                  {preview.copy_plan.skipped_entries.length === 1 ? "entry" : "entries"}
                 </summary>
                 <ul>
                   {preview.copy_plan.skipped_entries.map((entry) => (
@@ -126,30 +118,26 @@ export function AdoptionModal({
             <p>
               <strong>Original folder:</strong> {preview.source}
             </p>
-            {preview.destination && (
-              <AdoptionConsequences destination={preview.destination} />
-            )}
+            {preview.destination && <AdoptionConsequences destination={preview.destination} />}
             <p>
-              The original folder, registered sources, existing backups and
-              other games remain unchanged. Skipped entries stay only in the
-              original folder.
+              The original folder, registered sources, existing backups and other games remain
+              unchanged. Skipped entries stay only in the original folder.
             </p>
             <p>
-              There is no single undo action. Removing the managed copy later
-              does not restore overwritten saved files. Create a backup first if
-              you need those files.
+              There is no single undo action. Removing the managed copy later does not restore
+              overwritten saved files. Create a backup first if you need those files.
             </p>
             <p>
-              Stop the game before copying. Once copying starts, this dialog
-              cannot cancel it. If interrupted, recovery may finish a verified
-              copy; check the library and saved data before retrying.
+              Stop the game before copying. Once copying starts, this dialog cannot cancel it. If
+              interrupted, recovery may finish a verified copy; check the library and saved data
+              before retrying.
             </p>
           </section>
         )}
         {copyFailed && (
           <p role="alert">
-            The copy could not be confirmed. Check the library and activity
-            history before retrying, then review the current copy plan.
+            The copy could not be confirmed. Check the library and activity history before retrying,
+            then review the current copy plan.
           </p>
         )}
         <div className="actions">
@@ -161,10 +149,7 @@ export function AdoptionModal({
               data-focusable
               className="primary button-with-icon"
               disabled={
-                Boolean(busy) ||
-                applying ||
-                !preview.selected_port_id ||
-                !preview.destination
+                Boolean(busy) || applying || !preview.selected_port_id || !preview.destination
               }
               onClick={adopt}
             >
@@ -198,20 +183,17 @@ function AdoptionConsequences({
       <p>
         <strong>Application destination:</strong>{" "}
         {destination.output_location.effective_output_directory}
-        <br />A new version folder is created here and becomes active. Existing
-        versions remain.
+        <br />A new version folder is created here and becomes active. Existing versions remain.
       </p>
       {destination.active_install && (
         <p>
-          <strong>Current active version:</strong>{" "}
-          {destination.active_install.version}
+          <strong>Current active version:</strong> {destination.active_install.version}
           <br />
           {destination.active_install.path}
         </p>
       )}
       <p>
-        <strong>Saved-data destination:</strong>{" "}
-        {destination.output_location.user_data_root}
+        <strong>Saved-data destination:</strong> {destination.output_location.user_data_root}
         <br />
         {destination.current_user_data_files} existing{" "}
         {destination.current_user_data_files === 1 ? "file" : "files"}.
@@ -219,9 +201,8 @@ function AdoptionConsequences({
       {destination.imported_user_data_paths.length > 0 ? (
         <>
           <p>
-            These saved-data paths are merged from the original folder. Matching
-            saved files are replaced; other saved files remain. No automatic
-            safety backup is created.
+            These saved-data paths are merged from the original folder. Matching saved files are
+            replaced; other saved files remain. No automatic safety backup is created.
           </p>
           <ul>
             {destination.imported_user_data_paths.map((path) => (
@@ -230,10 +211,7 @@ function AdoptionConsequences({
           </ul>
         </>
       ) : (
-        <p>
-          No catalog-selected saved-data paths will be imported from this
-          folder.
-        </p>
+        <p>No catalog-selected saved-data paths will be imported from this folder.</p>
       )}
     </>
   );

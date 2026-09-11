@@ -27,14 +27,11 @@ function browserStorage(): Pick<Storage, "getItem" | "setItem"> | undefined {
 }
 
 function lightThemeQuery(): MediaQueryList | undefined {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function")
-    return undefined;
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return undefined;
   return window.matchMedia(LIGHT_THEME_QUERY);
 }
 
-export function readThemePreference(
-  storage = browserStorage(),
-): ThemePreference {
+export function readThemePreference(storage = browserStorage()): ThemePreference {
   try {
     const preference = storage?.getItem(THEME_STORAGE_KEY) ?? null;
     return isThemePreference(preference) ? preference : "system";
@@ -58,11 +55,7 @@ export function resolveThemePreference(
   preference: ThemePreference,
   systemPrefersLight = lightThemeQuery()?.matches ?? false,
 ): ResolvedTheme {
-  return preference === "system"
-    ? systemPrefersLight
-      ? "light"
-      : "dark"
-    : preference;
+  return preference === "system" ? (systemPrefersLight ? "light" : "dark") : preference;
 }
 
 export function applyWebTheme(theme: ResolvedTheme): void {
@@ -74,9 +67,7 @@ export function applyWebTheme(theme: ResolvedTheme): void {
     ?.setAttribute("content", THEME_COLORS[theme]);
 }
 
-export async function syncNativeTheme(
-  preference: ThemePreference,
-): Promise<void> {
+export async function syncNativeTheme(preference: ThemePreference): Promise<void> {
   if (!isTauri()) return;
   try {
     await setNativeTheme(preference === "system" ? null : preference);
@@ -96,13 +87,10 @@ export function initializeTheme(): ResolvedTheme {
   return applyThemePreference(readThemePreference());
 }
 
-export function observeSystemTheme(
-  onChange: (theme: ResolvedTheme) => void,
-): () => void {
+export function observeSystemTheme(onChange: (theme: ResolvedTheme) => void): () => void {
   const query = lightThemeQuery();
   if (!query) return () => undefined;
-  const handleChange = (event: MediaQueryListEvent) =>
-    onChange(event.matches ? "light" : "dark");
+  const handleChange = (event: MediaQueryListEvent) => onChange(event.matches ? "light" : "dark");
   if (typeof query.addEventListener === "function") {
     query.addEventListener("change", handleChange);
     return () => query.removeEventListener("change", handleChange);
@@ -118,9 +106,7 @@ export interface ThemeState {
 }
 
 export function useThemePreference(): ThemeState {
-  const [preference, setPreferenceState] = useState<ThemePreference>(() =>
-    readThemePreference(),
-  );
+  const [preference, setPreferenceState] = useState<ThemePreference>(() => readThemePreference());
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() =>
     resolveThemePreference(preference),
   );

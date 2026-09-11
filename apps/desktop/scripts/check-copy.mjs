@@ -18,16 +18,13 @@ const copyAttributes = new Set([
 const rules = [
   {
     id: "internal-terminology",
-    pattern:
-      /\b(?:adapters?|materialization|qualification|persistent data|source profiles?)\b/iu,
-    message:
-      "Use player-facing terminology; reserve internal terms for technical details.",
+    pattern: /\b(?:adapters?|materialization|qualification|persistent data|source profiles?)\b/iu,
+    message: "Use player-facing terminology; reserve internal terms for technical details.",
   },
   {
     id: "parenthetical-plural",
     pattern: /\b\p{L}+\((?:s|es)\)/iu,
-    message:
-      "Use complete count-aware wording instead of a parenthetical plural.",
+    message: "Use complete count-aware wording instead of a parenthetical plural.",
   },
   {
     id: "generic-verified",
@@ -37,21 +34,16 @@ const rules = [
 ];
 
 function technicalDisclosure(node) {
-  if (node.type !== "JSXElement" || node.openingElement.name.name !== "details")
-    return false;
+  if (node.type !== "JSXElement" || node.openingElement.name.name !== "details") return false;
   const summary = node.children.find(
-    (child) =>
-      child.type === "JSXElement" &&
-      child.openingElement.name.name === "summary",
+    (child) => child.type === "JSXElement" && child.openingElement.name.name === "summary",
   );
   const label =
     summary?.children
       .filter((child) => child.type === "JSXText")
       .map((child) => child.value)
       .join(" ") ?? "";
-  return /^(?:view )?technical details$|^full identity and evidence$/iu.test(
-    label.trim(),
-  );
+  return /^(?:view )?technical details$|^full identity and evidence$/iu.test(label.trim());
 }
 
 function codeLiteral(node, parent) {
@@ -69,9 +61,7 @@ function codeLiteral(node, parent) {
 
 function excludedContext(node, ancestors) {
   if (codeLiteral(node, ancestors.at(-1))) return true;
-  const attribute = ancestors.findLast(
-    (ancestor) => ancestor.type === "JSXAttribute",
-  );
+  const attribute = ancestors.findLast((ancestor) => ancestor.type === "JSXAttribute");
   if (attribute && !copyAttributes.has(attribute.name.name)) return true;
   return ancestors.some(technicalDisclosure);
 }
@@ -92,9 +82,7 @@ export function inspectCopy(source, filename = "fixture.tsx") {
           ? node.value
           : undefined;
     if (typeof text === "string" && !excludedContext(node, ancestors)) {
-      for (const rule of rules.filter((rule) =>
-        rule.pattern.test(text.trim()),
-      )) {
+      for (const rule of rules.filter((rule) => rule.pattern.test(text.trim()))) {
         findings.push({
           file: filename,
           line: node.loc.start.line,
@@ -136,14 +124,7 @@ export function main() {
       `${finding.file}:${finding.line}:${finding.column}: ${finding.rule}: ${finding.message} [${finding.text}]`,
     );
   if (findings.length) process.exitCode = 1;
-  else
-    console.log(
-      `Desktop static-copy check passed across ${files.length} source files.`,
-    );
+  else console.log(`Desktop static-copy check passed across ${files.length} source files.`);
 }
 
-if (
-  process.argv[1] &&
-  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-)
-  main();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();

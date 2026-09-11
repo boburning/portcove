@@ -34,9 +34,9 @@ const plan: LibraryImportPlan = {
   plan_sha256: "reviewed-plan",
 };
 function button(label: string) {
-  const found = [
-    ...document.querySelectorAll<HTMLButtonElement>("button"),
-  ].find((item) => item.textContent === label);
+  const found = [...document.querySelectorAll<HTMLButtonElement>("button")].find(
+    (item) => item.textContent === label,
+  );
   if (!found) throw new Error(`Missing button: ${label}`);
   return found;
 }
@@ -46,9 +46,7 @@ async function click(label: string) {
 
 beforeEach(async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-  vi.spyOn(picker, "pickMetadataImportPath").mockResolvedValue(
-    plan.metadata_file.path,
-  );
+  vi.spyOn(picker, "pickMetadataImportPath").mockResolvedValue(plan.metadata_file.path);
   vi.spyOn(picker, "pickInstallFolder").mockResolvedValue(plan.content_root);
   vi.spyOn(desktopApi, "planLibraryImport").mockResolvedValue(plan);
   vi.spyOn(desktopApi, "importLibrary").mockRejectedValue({
@@ -63,12 +61,7 @@ beforeEach(async () => {
   document.body.append(host);
   root = createRoot(host);
   await act(async () =>
-    root.render(
-      <LibraryImportButton
-        disabled={false}
-        libraryRoot={plan.destination_root}
-      />,
-    ),
+    root.render(<LibraryImportButton disabled={false} libraryRoot={plan.destination_root} />),
   );
 });
 afterEach(async () => {
@@ -86,15 +79,13 @@ it("invalidates a reviewed backup after editing and exposes recoverable import e
   expect(button("Import this backup").disabled).toBe(false);
   const input = document.querySelector<HTMLInputElement>("#import-metadata")!;
   await act(async () => {
-    Object.getOwnPropertyDescriptor(
-      HTMLInputElement.prototype,
-      "value",
-    )!.set!.call(input, "D:/Backup/changed.json");
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
+      input,
+      "D:/Backup/changed.json",
+    );
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
-  expect(
-    document.querySelector("[aria-label='Library import plan']"),
-  ).toBeNull();
+  expect(document.querySelector("[aria-label='Library import plan']")).toBeNull();
   expect(button("Review import").disabled).toBe(false);
   await click("Review import");
   await click("Import this backup");
@@ -104,13 +95,9 @@ it("invalidates a reviewed backup after editing and exposes recoverable import e
     plan.plan_sha256,
   );
   expect(document.body.textContent).toContain("Copied file changed");
-  expect(
-    document.querySelector<HTMLInputElement>("#import-metadata")!.disabled,
-  ).toBe(true);
+  expect(document.querySelector<HTMLInputElement>("#import-metadata")!.disabled).toBe(true);
   await click("Resume import");
-  expect(desktopApi.recoverLibraryImport).toHaveBeenCalledWith(
-    plan.destination_root,
-  );
+  expect(desktopApi.recoverLibraryImport).toHaveBeenCalledWith(plan.destination_root);
   expect(document.body.textContent).toContain("Backup disk is offline");
 });
 
@@ -128,9 +115,7 @@ it("keeps the dialog open while a reviewed import is running", async () => {
   await click("Import this backup");
   expect(button("Close").disabled).toBe(true);
   await act(async () =>
-    document.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
-    ),
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
   );
   expect(document.querySelector("[role=dialog]")).not.toBeNull();
   await act(async () => rejectImport({ message: "Import was not confirmed" }));
@@ -146,9 +131,7 @@ it.each(["move", "import"] as const)(
       "window",
       new Proxy(originalWindow, {
         get(target, key, receiver): unknown {
-          return key === "location"
-            ? { reload }
-            : (Reflect.get(target, key, receiver) as unknown);
+          return key === "location" ? { reload } : (Reflect.get(target, key, receiver) as unknown);
         },
       }),
     );
@@ -162,25 +145,19 @@ it.each(["move", "import"] as const)(
       vi.spyOn(desktopApi, "moveLibrary").mockRejectedValue({
         message: "Disk disconnected after copying",
       });
-      await act(async () =>
-        root.render(<LibraryMoveButton disabled={false} />),
-      );
+      await act(async () => root.render(<LibraryMoveButton disabled={false} />));
       await click("Move library");
-      const input = document.querySelector<HTMLInputElement>(
-        "#library-destination",
-      )!;
+      const input = document.querySelector<HTMLInputElement>("#library-destination")!;
       await act(async () => {
-        Object.getOwnPropertyDescriptor(
-          HTMLInputElement.prototype,
-          "value",
-        )!.set!.call(input, "E:/New");
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
+          input,
+          "E:/New",
+        );
         input.dispatchEvent(new Event("input", { bubbles: true }));
       });
       await click("Review move");
       await click("Move to this folder");
-      expect(document.body.textContent).toContain(
-        "Disk disconnected after copying",
-      );
+      expect(document.body.textContent).toContain("Disk disconnected after copying");
     } else {
       await click("Import library");
       await click("Choose file");
@@ -190,9 +167,7 @@ it.each(["move", "import"] as const)(
       expect(document.body.textContent).toContain("Copied file changed");
     }
     expect(reload).not.toHaveBeenCalled();
-    expect(document.body.textContent).toContain(
-      "Closing this review refreshes the library",
-    );
+    expect(document.body.textContent).toContain("Closing this review refreshes the library");
     await click("Close");
     expect(reload).toHaveBeenCalledTimes(1);
     expect(

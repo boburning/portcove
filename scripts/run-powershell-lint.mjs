@@ -4,17 +4,11 @@ import { fileURLToPath } from "node:url";
 
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
 if (process.platform !== "win32") {
-  console.log(
-    "PSScriptAnalyzer is enforced by the required hosted Windows job.",
-  );
+  console.log("PSScriptAnalyzer is enforced by the required hosted Windows job.");
 } else {
   const result = spawnSync(
     "pwsh",
-    [
-      "-NoProfile",
-      "-File",
-      path.join(projectRoot, "scripts", "run-powershell-lint.ps1"),
-    ],
+    ["-NoProfile", "-File", path.join(projectRoot, "scripts", "run-powershell-lint.ps1")],
     {
       cwd: projectRoot,
       stdio: "inherit",

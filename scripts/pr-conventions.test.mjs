@@ -18,8 +18,7 @@ const headSha = "0123456789abcdef0123456789abcdef01234567";
 function body(overrides = {}) {
   const values = {
     "Linked issue": "Closes #608",
-    "Outcome and scope":
-      "Maintainers receive predictable metadata. Product behavior is unchanged.",
+    "Outcome and scope": "Maintainers receive predictable metadata. Product behavior is unchanged.",
     Verification:
       "`node --test scripts/pr-conventions.test.mjs` passed 12 tests. Not run — no product UI changed.",
     "Review and risk": `Distinct final-diff review of ${headSha} found no substantive issue. Required checks and merge authority are unchanged.`,
@@ -27,9 +26,7 @@ function body(overrides = {}) {
       "Roadmap: Validating. Standing routine merge authority applies. Follow-ups: None.",
     ...overrides,
   };
-  return config.body.headings
-    .map((heading) => `## ${heading}\n\n${values[heading]}`)
-    .join("\n\n");
+  return config.body.headings.map((heading) => `## ${heading}\n\n${values[heading]}`).join("\n\n");
 }
 
 function pull(overrides = {}) {
@@ -65,9 +62,7 @@ test("titles allow optional scopes and breaking markers", () => {
     evaluatePullRequest(
       pull({
         title: "refactor!: replace transport contract",
-        commits: [
-          { sha: headSha, message: "feat(core)!: version machine output" },
-        ],
+        commits: [{ sha: headSha, message: "feat(core)!: version machine output" }],
       }),
       config,
     ),
@@ -103,9 +98,7 @@ test("body headings must be present once, non-empty and in order", () => {
     "## Review and risk\n\nReview pending.",
     "## Review and risk\n\nDuplicate.",
   ].join("\n\n");
-  const result = codes(
-    evaluatePullRequest(pull({ body: malformed, isDraft: true }), config),
-  );
+  const result = codes(evaluatePullRequest(pull({ body: malformed, isDraft: true }), config));
   assert.ok(result.includes("body-heading"));
   assert.ok(result.includes("body-empty"));
   assert.ok(result.includes("body-order"));
@@ -161,10 +154,9 @@ test("bot pull requests keep title checks but exempt generated body and commits"
     commits: [{ sha: headSha, message: "Bump react to 20" }],
   });
   assert.deepEqual(evaluatePullRequest(botPull, config), []);
-  assert.deepEqual(
-    codes(evaluatePullRequest({ ...botPull, title: "Bump react" }, config)),
-    ["pull request title-format"],
-  );
+  assert.deepEqual(codes(evaluatePullRequest({ ...botPull, title: "Bump react" }, config)), [
+    "pull request title-format",
+  ]);
 });
 
 test("Git-generated merge and revert subjects are exempt", () => {
@@ -203,36 +195,22 @@ test("commit pagination must be structured and complete", () => {
     },
   }));
   assert.equal(flattenCommitPages(pages, 251).length, 251);
-  assert.throws(
-    () => flattenCommitPages([{ data: {} }], 1),
-    /invalid response/,
-  );
+  assert.throws(() => flattenCommitPages([{ data: {} }], 1), /invalid response/);
   assert.throws(() => flattenCommitPages(pages, 252), /251 of 252/);
   const malformed = structuredClone(pages);
-  delete malformed[0].data.repository.pullRequest.commits.nodes[0].commit
-    .message;
+  delete malformed[0].data.repository.pullRequest.commits.nodes[0].commit.message;
   assert.throws(() => flattenCommitPages(malformed, 251), /invalid commit/);
 });
 
 test("pull request references accept repository numbers and URLs only", () => {
   assert.equal(parsePullRequestReference("608", config.repository), 608);
   assert.equal(
-    parsePullRequestReference(
-      "https://github.com/boburning/portcove/pull/608",
-      config.repository,
-    ),
+    parsePullRequestReference("https://github.com/boburning/portcove/pull/608", config.repository),
     608,
   );
+  assert.throws(() => parsePullRequestReference("0", config.repository), /positive number/);
   assert.throws(
-    () => parsePullRequestReference("0", config.repository),
-    /positive number/,
-  );
-  assert.throws(
-    () =>
-      parsePullRequestReference(
-        "https://github.com/example/other/pull/1",
-        config.repository,
-      ),
+    () => parsePullRequestReference("https://github.com/example/other/pull/1", config.repository),
     /boburning\/portcove/,
   );
 });
@@ -245,10 +223,7 @@ test("configuration validation rejects unknown, duplicate and malformed values",
   assert.throws(() => validatePrConventionConfig(duplicate), /duplicates/);
   const badPrefix = structuredClone(config);
   badPrefix.branch.prefixes[0] = "Feature/";
-  assert.throws(
-    () => validatePrConventionConfig(badPrefix),
-    /lowercase kebab-case/,
-  );
+  assert.throws(() => validatePrConventionConfig(badPrefix), /lowercase kebab-case/);
 });
 
 test("rendered findings clearly identify advisory success and warnings", () => {
@@ -264,9 +239,7 @@ test("pull request template headings exactly match the configured contract", asy
     new URL("../.github/PULL_REQUEST_TEMPLATE.md", import.meta.url),
     "utf8",
   );
-  const headings = [...template.matchAll(/^##\s+(.+?)\s*$/gm)].map(
-    (match) => match[1],
-  );
+  const headings = [...template.matchAll(/^##\s+(.+?)\s*$/gm)].map((match) => match[1]);
   assert.deepEqual(headings, config.body.headings);
 });
 
@@ -284,35 +257,19 @@ test("advisory workflow executes only trusted base metadata with read permission
       ?.split(",")
       .map((value) => value.trim())
       .filter(Boolean),
-    [
-      "opened",
-      "edited",
-      "synchronize",
-      "reopened",
-      "converted_to_draft",
-      "ready_for_review",
-    ],
+    ["opened", "edited", "synchronize", "reopened", "converted_to_draft", "ready_for_review"],
   );
   assert.match(workflow, /^ {2}workflow_dispatch:/m);
-  assert.match(
-    workflow,
-    /^permissions:\r?\n {2}contents: read\r?\n {2}pull-requests: read$/m,
-  );
+  assert.match(workflow, /^permissions:\r?\n {2}contents: read\r?\n {2}pull-requests: read$/m);
   assert.match(
     workflow,
     /ref: \$\{\{ github\.event\.pull_request\.base\.sha \|\| github\.event\.repository\.default_branch \}\}/,
   );
   assert.match(workflow, /persist-credentials: false/);
-  assert.match(
-    workflow,
-    /node scripts\/pr-conventions\.mjs --pr "\$PR_NUMBER"/,
-  );
+  assert.match(workflow, /node scripts\/pr-conventions\.mjs --pr "\$PR_NUMBER"/);
   assert.doesNotMatch(
     workflow,
     /pull-requests: write|contents: write|secrets\.|issue-comment|continue-on-error/,
   );
-  assert.doesNotMatch(
-    workflow,
-    /pull_request\.head|pull_request\.(?:title|body)|github\.head_ref/,
-  );
+  assert.doesNotMatch(workflow, /pull_request\.head|pull_request\.(?:title|body)|github\.head_ref/);
 });

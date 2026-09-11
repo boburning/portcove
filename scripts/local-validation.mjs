@@ -57,10 +57,7 @@ const workflowTests = new Map([
   ["release.yml", ["scripts/release-workflow.test.mjs"]],
   ["configured-upstream-observer.yml", ["scripts/upstream-observer.test.mjs"]],
   ["upstream-health.yml", ["scripts/upstream-observer.test.mjs"]],
-  [
-    "updater-artifact-rehearsal.yml",
-    ["scripts/updater-artifact-inventory.test.mjs"],
-  ],
+  ["updater-artifact-rehearsal.yml", ["scripts/updater-artifact-inventory.test.mjs"]],
   ["pr-conventions.yml", ["scripts/pr-conventions.test.mjs"]],
 ]);
 
@@ -77,13 +74,7 @@ function command(id, reason, executable, args, options = {}) {
 
 function corepackCommand(id, reason, args, options = {}) {
   return process.platform === "win32"
-    ? command(
-        id,
-        reason,
-        process.execPath,
-        [corepackEntrypoint, ...args],
-        options,
-      )
+    ? command(id, reason, process.execPath, [corepackEntrypoint, ...args], options)
     : command(id, reason, "corepack", args, options);
 }
 
@@ -92,8 +83,7 @@ function addNodeTest(selection, file) {
 }
 
 function existingSiblingTest(file, fileExists) {
-  if (!/\.(?:mjs|cjs|js)$/.test(file) || file.endsWith(".test.mjs"))
-    return null;
+  if (!/\.(?:mjs|cjs|js)$/.test(file) || file.endsWith(".test.mjs")) return null;
   const sibling = file.replace(/\.(?:mjs|cjs|js)$/, ".test.mjs");
   return fileExists(sibling) ? sibling : null;
 }
@@ -145,10 +135,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     selection.ui = true;
     selection.scopes.add("ui");
     recognized = true;
-    if (
-      file.startsWith("apps/desktop/src/") ||
-      file.startsWith("apps/desktop/scripts/")
-    ) {
+    if (file.startsWith("apps/desktop/src/") || file.startsWith("apps/desktop/scripts/")) {
       selection.uiRelatedFiles.add(file);
     } else {
       selection.uiFullTests = true;
@@ -201,8 +188,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
 
   if (file.startsWith(".github/ISSUE_TEMPLATE/")) {
     selection.scopes.add("repository-config");
-    if (file.endsWith("new-port.yml"))
-      addNodeTest(selection, "scripts/roadmap.test.mjs");
+    if (file.endsWith("new-port.yml")) addNodeTest(selection, "scripts/roadmap.test.mjs");
     recognized = true;
   }
 
@@ -219,10 +205,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     recognized = true;
   }
 
-  if (
-    file === ".github/repository-ruleset.json" ||
-    file === ".github/repository-security.json"
-  ) {
+  if (file === ".github/repository-ruleset.json" || file === ".github/repository-security.json") {
     selection.scopes.add("repository-config");
     addNodeTest(selection, "scripts/repository-settings.test.mjs");
     recognized = true;
@@ -311,17 +294,12 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
 
   if (
     /(?:transport|schema)/i.test(file) &&
-    (file.startsWith("crates/") ||
-      file.startsWith("apps/desktop/") ||
-      file.startsWith("scripts/"))
+    (file.startsWith("crates/") || file.startsWith("apps/desktop/") || file.startsWith("scripts/"))
   ) {
     selection.scopes.add("transport");
     selection.transport = true;
     addNodeTest(selection, "scripts/check-transport-contract.test.mjs");
-    addNodeTest(
-      selection,
-      "scripts/check-transport-contract.integration.test.mjs",
-    );
+    addNodeTest(selection, "scripts/check-transport-contract.integration.test.mjs");
     addNodeTest(selection, "scripts/transport-types.test.mjs");
     recognized = true;
   }
@@ -330,8 +308,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
 }
 
 export function classifyChanges(changes, options = {}) {
-  const fileExists =
-    options.fileExists ?? ((file) => existsSync(path.join(projectRoot, file)));
+  const fileExists = options.fileExists ?? ((file) => existsSync(path.join(projectRoot, file)));
   const selection = {
     scopes: new Set(),
     packages: new Set(),
@@ -374,12 +351,7 @@ function nodeTestCommand(files) {
     "node-tests",
     "exact repository-tool contract tests selected from changed paths",
     process.execPath,
-    [
-      "--test",
-      "--test-timeout=30000",
-      `--test-reporter=${durationReporter}`,
-      ...files,
-    ],
+    ["--test", "--test-timeout=30000", `--test-reporter=${durationReporter}`, ...files],
   );
 }
 
@@ -428,12 +400,11 @@ export function buildPlan(selection, context = {}) {
   }
   const mergeBase = context.mergeBase ?? "<merge-base>";
   const commands = [
-    command(
-      "diff-check",
-      "reject whitespace errors across the complete local change",
-      "git",
-      ["diff", "--check", mergeBase],
-    ),
+    command("diff-check", "reject whitespace errors across the complete local change", "git", [
+      "diff",
+      "--check",
+      mergeBase,
+    ]),
   ];
 
   const existingOxfmtFiles = sorted(selection.oxfmtFiles).filter((file) =>
@@ -444,12 +415,11 @@ export function buildPlan(selection, context = {}) {
       ? []
       : existingOxfmtFiles.map((file) => path.join(projectRoot, file));
     commands.push(
-      command(
-        "oxfmt",
-        "format-check changed supported files only",
-        process.execPath,
-        ["scripts/run-oxfmt.mjs", "--check", ...targets],
-      ),
+      command("oxfmt", "format-check changed supported files only", process.execPath, [
+        "scripts/run-oxfmt.mjs",
+        "--check",
+        ...targets,
+      ]),
     );
   }
   if (selection.toml) {
@@ -464,12 +434,12 @@ export function buildPlan(selection, context = {}) {
   }
   if (selection.rustfmt) {
     commands.push(
-      command(
-        "rustfmt",
-        "Rust formatting is workspace-coherent and inexpensive",
-        "cargo",
-        ["fmt", "--all", "--", "--check"],
-      ),
+      command("rustfmt", "Rust formatting is workspace-coherent and inexpensive", "cargo", [
+        "fmt",
+        "--all",
+        "--",
+        "--check",
+      ]),
     );
   }
   for (const file of sorted(selection.nodeSyntax)) {
@@ -484,8 +454,7 @@ export function buildPlan(selection, context = {}) {
       );
     }
   }
-  if (selection.nodeTests.size)
-    commands.push(nodeTestCommand(sorted(selection.nodeTests)));
+  if (selection.nodeTests.size) commands.push(nodeTestCommand(sorted(selection.nodeTests)));
 
   if (selection.actionsLint)
     commands.push(
@@ -518,12 +487,13 @@ export function buildPlan(selection, context = {}) {
     );
   if (selection.pythonLint)
     commands.push(
-      command(
-        "python-lint",
-        "lint the repository's maintained Python asset tools",
-        "aqua",
-        ["exec", "--", "ruff", "check", "apps/desktop/assets/brand/models/v2"],
-      ),
+      command("python-lint", "lint the repository's maintained Python asset tools", "aqua", [
+        "exec",
+        "--",
+        "ruff",
+        "check",
+        "apps/desktop/assets/brand/models/v2",
+      ]),
     );
 
   if (selection.workspaceRust) {
@@ -538,15 +508,7 @@ export function buildPlan(selection, context = {}) {
         "rust-workspace-clippy",
         "root dependency or toolchain change lints every workspace target",
         "cargo",
-        [
-          "clippy",
-          "--locked",
-          "--workspace",
-          "--all-targets",
-          "--",
-          "-D",
-          "warnings",
-        ],
+        ["clippy", "--locked", "--workspace", "--all-targets", "--", "-D", "warnings"],
       ),
       command(
         "dependency-policy",
@@ -568,16 +530,7 @@ export function buildPlan(selection, context = {}) {
           `rust-clippy:${packageName}`,
           `lint every target in affected package ${packageName}`,
           "cargo",
-          [
-            "clippy",
-            "--locked",
-            "-p",
-            packageName,
-            "--all-targets",
-            "--",
-            "-D",
-            "warnings",
-          ],
+          ["clippy", "--locked", "-p", packageName, "--all-targets", "--", "-D", "warnings"],
         ),
         command(
           `rust-tests:${packageName}`,
@@ -629,10 +582,7 @@ export function buildPlan(selection, context = {}) {
         ),
       );
     else if (selection.uiRelatedFiles.size)
-      commands.push(
-        uiRelatedCommand(sorted(selection.uiRelatedFiles)),
-        uiRelatedDurationCommand(),
-      );
+      commands.push(uiRelatedCommand(sorted(selection.uiRelatedFiles)), uiRelatedDurationCommand());
     commands.push(
       corepackCommand(
         "ui-theme-copy",
@@ -701,15 +651,12 @@ export function buildPlan(selection, context = {}) {
 function git(args, options = {}) {
   const result = spawnSync("git", args, {
     cwd: projectRoot,
-    encoding:
-      options.encoding === "buffer" ? null : (options.encoding ?? "utf8"),
+    encoding: options.encoding === "buffer" ? null : (options.encoding ?? "utf8"),
     windowsHide: true,
   });
   if (result.error) throw result.error;
   if (result.status !== 0)
-    throw new Error(
-      `git ${args.join(" ")} failed: ${String(result.stderr ?? "").trim()}`,
-    );
+    throw new Error(`git ${args.join(" ")} failed: ${String(result.stderr ?? "").trim()}`);
   return result.stdout;
 }
 
@@ -732,8 +679,7 @@ export function parseNameStatus(buffer) {
       changes.push({ status, path: currentPath, previousPath });
     } else {
       const currentPath = embeddedPath ?? tokens[index++];
-      if (!currentPath)
-        throw new Error(`incomplete git change record: ${status}`);
+      if (!currentPath) throw new Error(`incomplete git change record: ${status}`);
       changes.push({ status, path: currentPath });
     }
   }
@@ -809,12 +755,8 @@ export function executePlan(plan, options = {}) {
     timings.push({ id: entry.id, elapsedMs });
     if (result.error) throw result.error;
     if (result.status !== 0)
-      throw new Error(
-        `${entry.id} failed with exit code ${result.status ?? "unknown"}`,
-      );
-    console.log(
-      `[local-check] ${entry.id} passed in ${(elapsedMs / 1000).toFixed(1)}s`,
-    );
+      throw new Error(`${entry.id} failed with exit code ${result.status ?? "unknown"}`);
+    console.log(`[local-check] ${entry.id} passed in ${(elapsedMs / 1000).toFixed(1)}s`);
   }
   return { elapsedMs: Date.now() - started, timings };
 }
@@ -822,16 +764,12 @@ export function executePlan(plan, options = {}) {
 export function requireFocusedArguments(kind, args) {
   const hasSelection =
     kind === "test-node"
-      ? args.some((value) =>
-          /\.(?:test|integration\.test)\.(?:mjs|cjs|js)$/.test(value),
-        )
+      ? args.some((value) => /\.(?:test|integration\.test)\.(?:mjs|cjs|js)$/.test(value))
       : kind === "test-ui-related"
         ? args.some((value) => /\.(?:[cm]?[jt]sx?|css)$/.test(value))
         : args.some((value) => !value.startsWith("-"));
   if (!args.length || !hasSelection)
-    throw new Error(
-      `${kind} requires an explicit package, filter, or test path`,
-    );
+    throw new Error(`${kind} requires an explicit package, filter, or test path`);
 }
 
 function runFocusedCommand(kind, args) {
@@ -839,18 +777,14 @@ function runFocusedCommand(kind, args) {
   let plan;
   if (kind === "test-rust") {
     plan = [
-      command(
-        kind,
-        "explicitly focused Rust test selection",
-        process.execPath,
-        ["scripts/run-rust-tests.mjs", "--locked", ...args],
-      ),
+      command(kind, "explicitly focused Rust test selection", process.execPath, [
+        "scripts/run-rust-tests.mjs",
+        "--locked",
+        ...args,
+      ]),
     ];
   } else if (kind === "test-ui-related") {
-    plan = [
-      uiRelatedCommand(args.map(normalizePath)),
-      uiRelatedDurationCommand(),
-    ];
+    plan = [uiRelatedCommand(args.map(normalizePath)), uiRelatedDurationCommand()];
   } else if (kind === "test-node") {
     plan = [nodeTestCommand(args)];
   } else {
@@ -879,8 +813,7 @@ export function main(argv = process.argv.slice(2)) {
     runFocusedCommand(kind, args);
     return;
   }
-  if (kind !== "check")
-    throw new Error(`unknown local validation command: ${kind}`);
+  if (kind !== "check") throw new Error(`unknown local validation command: ${kind}`);
   const { base, planOnly } = parseCheckArgs(args);
   const context = readChangeContext(base);
   const selection = classifyChanges(context.changes);
@@ -888,9 +821,7 @@ export function main(argv = process.argv.slice(2)) {
   printPlan(context, selection, plan);
   if (planOnly) return;
   const result = executePlan(plan);
-  console.log(
-    `\nFocused local validation passed in ${(result.elapsedMs / 1000).toFixed(1)}s.`,
-  );
+  console.log(`\nFocused local validation passed in ${(result.elapsedMs / 1000).toFixed(1)}s.`);
   if (result.elapsedMs > 120_000)
     console.warn(
       "Warm local validation exceeded the two-minute agility target; inspect the stage timings above without weakening checks.",

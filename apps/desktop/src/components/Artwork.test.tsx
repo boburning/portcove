@@ -29,8 +29,7 @@ async function render(portId = "sample", generation = 7) {
 
 async function open() {
   await act(async () => {
-    const details =
-      container.querySelector<HTMLDetailsElement>(".artwork-controls")!;
+    const details = container.querySelector<HTMLDetailsElement>(".artwork-controls")!;
     details.open = true;
     details.dispatchEvent(new Event("toggle"));
   });
@@ -40,9 +39,7 @@ function button(slot: "cover" | "detail", label: string) {
   const section = container.querySelector(
     `[aria-label="${slot === "cover" ? "Cover" : "Detail"} image"]`,
   )!;
-  return [...section.querySelectorAll("button")].find(
-    (item) => item.textContent === label,
-  )!;
+  return [...section.querySelectorAll("button")].find((item) => item.textContent === label)!;
 }
 
 async function click(slot: "cover" | "detail", label: string) {
@@ -57,13 +54,11 @@ beforeEach(() => {
   vi.spyOn(desktopApi, "artwork").mockImplementation(async (port, slot) =>
     artworkState(port, slot),
   );
-  vi.spyOn(desktopApi, "artworkThumbnail").mockImplementation(
-    async (_port, _slot, revision) => ({
-      asset_sha256: "a".repeat(64),
-      choice_revision: revision,
-      png: [137, 80, 78, 71],
-    }),
-  );
+  vi.spyOn(desktopApi, "artworkThumbnail").mockImplementation(async (_port, _slot, revision) => ({
+    asset_sha256: "a".repeat(64),
+    choice_revision: revision,
+    png: [137, 80, 78, 71],
+  }));
 });
 
 afterEach(async () => {
@@ -75,9 +70,7 @@ afterEach(async () => {
 
 describe("local artwork controls", () => {
   it("selects and resets each slot through core and exposes local source information", async () => {
-    const choose = vi
-      .spyOn(picker, "pickArtworkPath")
-      .mockResolvedValue("E:/owned.png");
+    const choose = vi.spyOn(picker, "pickArtworkPath").mockResolvedValue("E:/owned.png");
     const change = vi
       .spyOn(desktopApi, "importArtwork")
       .mockImplementation(async (port, slot, _path, revision) =>
@@ -85,37 +78,19 @@ describe("local artwork controls", () => {
       );
     const reset = vi
       .spyOn(desktopApi, "resetArtwork")
-      .mockImplementation(async (port, slot, revision) =>
-        artworkState(port, slot, revision + 1),
-      );
+      .mockImplementation(async (port, slot, revision) => artworkState(port, slot, revision + 1));
     await render();
     await open();
     expect(container.textContent).not.toContain("SteamGridDB");
     await click("cover", "Choose local image");
-    expect(change).toHaveBeenLastCalledWith(
-      "sample",
-      "cover",
-      "E:/owned.png",
-      0,
-      7,
-    );
+    expect(change).toHaveBeenLastCalledWith("sample", "cover", "E:/owned.png", 0, 7);
     expect(container.querySelector("img")?.alt).toBe("");
-    expect(container.querySelector("h2")?.textContent).toContain(
-      "unusually long",
-    );
+    expect(container.querySelector("h2")?.textContent).toContain("unusually long");
     expect(container.textContent).toContain("owned-image.png");
-    expect(container.textContent).toContain(
-      "Not provided with this local image.",
-    );
+    expect(container.textContent).toContain("Not provided with this local image.");
     expect(document.activeElement).toBe(button("cover", "Choose local image"));
     await click("detail", "Choose local image");
-    expect(change).toHaveBeenLastCalledWith(
-      "sample",
-      "detail",
-      "E:/owned.png",
-      0,
-      7,
-    );
+    expect(change).toHaveBeenLastCalledWith("sample", "detail", "E:/owned.png", 0, 7);
     await click("cover", "Reset to default");
     expect(reset).toHaveBeenCalledWith("sample", "cover", 1, 7);
     expect(container.querySelector("img")).toBeNull();
@@ -149,16 +124,11 @@ describe("local artwork controls", () => {
       await click("cover", "Choose local image");
       if (kind === "close") {
         await act(async () => {
-          const details =
-            container.querySelector<HTMLDetailsElement>(".artwork-controls")!;
+          const details = container.querySelector<HTMLDetailsElement>(".artwork-controls")!;
           details.open = false;
           details.dispatchEvent(new Event("toggle"));
         });
-      } else
-        await render(
-          kind === "port" ? "another" : "sample",
-          kind === "library" ? 8 : 7,
-        );
+      } else await render(kind === "port" ? "another" : "sample", kind === "library" ? 8 : 7);
       await act(async () => finish("E:/stale.png"));
       expect(change).not.toHaveBeenCalled();
       expect(container.textContent).not.toContain("Local image selected.");

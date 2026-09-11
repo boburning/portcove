@@ -1,10 +1,5 @@
 import { useEffect, useRef } from "react";
-import {
-  focusAndReveal,
-  focusableControls,
-  navigationScope,
-  visibleControl,
-} from "./focus";
+import { focusAndReveal, focusableControls, navigationScope, visibleControl } from "./focus";
 
 export function useDialogFocus(close: () => void, active = true) {
   const root = useRef<HTMLElement>(null);
@@ -34,11 +29,9 @@ export function useDialogFocus(close: () => void, active = true) {
       revealFrame = window.requestAnimationFrame(() => {
         const focused = document.activeElement;
         if (navigationScope() === dialog) {
-          if (!(
-            focused instanceof HTMLElement &&
-            dialog.contains(focused) &&
-            visibleControl(focused)
-          ))
+          if (
+            !(focused instanceof HTMLElement && dialog.contains(focused) && visibleControl(focused))
+          )
             initialFocus();
         }
       });
@@ -48,29 +41,13 @@ export function useDialogFocus(close: () => void, active = true) {
       subtree: true,
       characterData: true,
       attributes: true,
-      attributeFilter: [
-        "disabled",
-        "aria-disabled",
-        "hidden",
-        "aria-hidden",
-        "inert",
-        "tabindex",
-      ],
+      attributeFilter: ["disabled", "aria-disabled", "hidden", "aria-hidden", "inert", "tabindex"],
     });
     const containFocus = () => {
-      if (
-        navigationScope() === dialog &&
-        !dialog.contains(document.activeElement)
-      )
-        initialFocus();
+      if (navigationScope() === dialog && !dialog.contains(document.activeElement)) initialFocus();
     };
     const keydown = (event: KeyboardEvent) => {
-      if (
-        navigationScope() !== dialog ||
-        event.defaultPrevented ||
-        event.isComposing
-      )
-        return;
+      if (navigationScope() !== dialog || event.defaultPrevented || event.isComposing) return;
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
@@ -100,12 +77,8 @@ export function useDialogFocus(close: () => void, active = true) {
       contentChanges.disconnect();
       dialog.removeEventListener("keydown", keydown);
       document.removeEventListener("focusin", containFocus);
-      if (previous?.isConnected && visibleControl(previous))
-        focusAndReveal(previous);
-      else
-        focusAndReveal(
-          focusableControls().find((item) => !dialog.contains(item)),
-        );
+      if (previous?.isConnected && visibleControl(previous)) focusAndReveal(previous);
+      else focusAndReveal(focusableControls().find((item) => !dialog.contains(item)));
     };
   }, [active]);
   return root;

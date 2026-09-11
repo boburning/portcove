@@ -25,9 +25,7 @@ function planFor(paths) {
 
 test("parses modified, deleted, renamed, and copied Git records", () => {
   const records = parseNameStatus(
-    Buffer.from(
-      "M\0docs/QUALITY.md\0D\0old.md\0R100\0old.rs\0new.rs\0C090\0a.ts\0b.ts\0",
-    ),
+    Buffer.from("M\0docs/QUALITY.md\0D\0old.md\0R100\0old.rs\0new.rs\0C090\0a.ts\0b.ts\0"),
   );
   assert.deepEqual(records, [
     { status: "M", path: "docs/QUALITY.md" },
@@ -89,10 +87,7 @@ test("UI sources build, lint, and run import-related tests", () => {
   const uiBuild = plan.find((entry) => entry.id === "ui-build");
   if (process.platform === "win32") {
     assert.equal(uiBuild.executable, process.execPath);
-    assert.match(
-      uiBuild.args[0],
-      /node_modules[\\/]corepack[\\/]dist[\\/]corepack\.js$/,
-    );
+    assert.match(uiBuild.args[0], /node_modules[\\/]corepack[\\/]dist[\\/]corepack\.js$/);
   } else assert.equal(uiBuild.executable, "corepack");
 });
 
@@ -122,11 +117,7 @@ test("workflow and justfile changes select exact contract tests and actionlint",
   assert.ok(selection.nodeTests.has("scripts/local-validation.test.mjs"));
   assert.ok(ids(plan).includes("actionlint"));
   const nodeTests = plan.find((entry) => entry.id === "node-tests");
-  assert.ok(
-    nodeTests.args.includes(
-      "--test-reporter=./scripts/test-duration-reporter.mjs",
-    ),
-  );
+  assert.ok(nodeTests.args.includes("--test-reporter=./scripts/test-duration-reporter.mjs"));
 });
 
 test("changed Node implementations select sibling tests and syntax checks", () => {
@@ -141,9 +132,7 @@ test("changed shell scripts run shellcheck across the maintained shell set", () 
   const { plan } = planFor(["scripts/install-linux-desktop-prerequisites.sh"]);
   const shellLint = plan.find((entry) => entry.id === "shell-lint");
   assert.ok(shellLint);
-  assert.ok(
-    shellLint.args.includes("scripts/install-linux-desktop-prerequisites.sh"),
-  );
+  assert.ok(shellLint.args.includes("scripts/install-linux-desktop-prerequisites.sh"));
   assert.ok(shellLint.args.includes("scripts/bootstrap-quality-tools.sh"));
 });
 
@@ -162,19 +151,16 @@ test("renames classify both the old and new ownership paths", () => {
 });
 
 test("deleted files affect scope without becoming command arguments", () => {
-  const { selection, plan } = planFor([
-    { status: "D", path: "scripts/retired-tool.test.mjs" },
-  ]);
+  const { selection, plan } = planFor([{ status: "D", path: "scripts/retired-tool.test.mjs" }]);
   assert.ok(selection.scopes.has("tooling"));
   assert.ok(!selection.nodeTests.has("scripts/retired-tool.test.mjs"));
   assert.ok(!plan.map(formatCommand).join("\n").includes("retired-tool"));
 });
 
 test("non-ignored untracked files use the same deterministic mapping", () => {
-  const selection = classifyChanges(
-    [{ status: "?", path: "scripts/local-validation.test.mjs" }],
-    { fileExists: allFilesExist },
-  );
+  const selection = classifyChanges([{ status: "?", path: "scripts/local-validation.test.mjs" }], {
+    fileExists: allFilesExist,
+  });
   assert.ok(selection.nodeTests.has("scripts/local-validation.test.mjs"));
 });
 
@@ -185,9 +171,7 @@ test("every tracked repository path has an explicit local selection owner", () =
     .toString("utf8")
     .split("\0")
     .filter(Boolean);
-  const selection = classifyChanges(
-    files.map((path) => ({ status: "M", path })),
-  );
+  const selection = classifyChanges(files.map((path) => ({ status: "M", path })));
   assert.deepEqual([...selection.unknown].sort(), []);
 });
 
@@ -223,10 +207,7 @@ test("ordinary plans never invoke aggregate, deep, release, installer, or native
 });
 
 test("focused wrappers require an explicit selection", () => {
-  assert.throws(
-    () => requireFocusedArguments("test-rust", []),
-    /requires an explicit/,
-  );
+  assert.throws(() => requireFocusedArguments("test-rust", []), /requires an explicit/);
   assert.throws(
     () => requireFocusedArguments("test-node", ["--test-name-pattern", "x"]),
     /requires an explicit/,

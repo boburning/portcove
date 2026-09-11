@@ -12,10 +12,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <AppErrorBoundary
       report={(error, info) => {
-        void desktopApi.reportFrontendError(
-          error.message,
-          info.componentStack ?? "",
-        );
+        void desktopApi.reportFrontendError(error.message, info.componentStack ?? "");
       }}
     >
       <App />

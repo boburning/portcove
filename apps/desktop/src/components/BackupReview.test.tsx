@@ -47,9 +47,7 @@ async function click(label: string) {
 }
 
 it("reviews exact paths and safety-backup behavior before a bound restore", async () => {
-  const preview = vi
-    .spyOn(desktopApi, "previewBackupAction")
-    .mockResolvedValue(review);
+  const preview = vi.spyOn(desktopApi, "previewBackupAction").mockResolvedValue(review);
   const apply = vi.fn().mockResolvedValue(true);
   const close = vi.fn();
   await act(async () =>
@@ -70,9 +68,7 @@ it("reviews exact paths and safety-backup behavior before a bound restore", asyn
   expect(container.textContent).toContain("new safety backup");
   expect(container.textContent).toContain("game must be stopped");
   expect(container.textContent).toContain("retains recovery data");
-  expect(container.querySelector("[data-autofocus]")?.textContent).toBe(
-    "Keep current state",
-  );
+  expect(container.querySelector("[data-autofocus]")?.textContent).toBe("Keep current state");
   await click("Restore this backup");
   expect(apply).toHaveBeenCalledWith(review.preview.backup, "reviewed-data");
   expect(close).toHaveBeenCalledOnce();
@@ -131,9 +127,7 @@ it("closes without reporting failure when native consent is declined", async () 
 });
 
 it("requires a fresh review after a changed selection fails and rejects duplicate application", async () => {
-  const preview = vi
-    .spyOn(desktopApi, "previewBackupAction")
-    .mockResolvedValue(review);
+  const preview = vi.spyOn(desktopApi, "previewBackupAction").mockResolvedValue(review);
   let finish!: (result: boolean) => void;
   const apply = vi.fn().mockImplementation(
     () =>
@@ -159,9 +153,7 @@ it("requires a fresh review after a changed selection fails and rejects duplicat
   expect(apply).toHaveBeenCalledOnce();
   expect(close).not.toHaveBeenCalled();
   await act(async () => finish(false));
-  expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-    "did not complete",
-  );
+  expect(container.querySelector('[role="alert"]')?.textContent).toContain("did not complete");
   expect(container.textContent).not.toContain("Restore this backup");
   await click("Review again");
   expect(preview).toHaveBeenCalledTimes(2);
@@ -216,9 +208,7 @@ it("ignores an old review after the library or selected backup changes", async (
   );
   await act(async () => finish(review));
   expect(container.textContent).toContain("current/snapshot");
-  expect(container.textContent).not.toContain(
-    "library/backups/sample/snapshot",
-  );
+  expect(container.textContent).not.toContain("library/backups/sample/snapshot");
   expect(container.textContent).toContain("safety backup will not be created");
   expect(apply).not.toHaveBeenCalled();
 });

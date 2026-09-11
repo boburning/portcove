@@ -3,11 +3,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { desktopApi } from "./api";
-import {
-  useAdoptionPlanning,
-  useInstallPlanning,
-  type Perform,
-} from "./use-portcove";
+import { useAdoptionPlanning, useInstallPlanning, type Perform } from "./use-portcove";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -114,46 +110,44 @@ describe("current review intent", () => {
     expect(install.plan).toBeUndefined();
   });
 
-  it.each([
-    { path: "B" },
-    { port: "second" },
-    { open: false },
-    { generation: 2 },
-  ])("invalidates adoption preview and action on %j", async (props) => {
-    const old = deferred<Preview>();
-    const next = deferred<Preview>();
-    vi.spyOn(desktopApi, "previewAdoption")
-      .mockReturnValueOnce(old.promise)
-      .mockReturnValueOnce(next.promise);
-    const adopt = vi.spyOn(desktopApi, "adopt");
-    await render();
-    let first!: Promise<void>;
-    await act(async () => {
-      first = adoption.review();
-    });
-    await render(props);
-    await act(async () => {
-      old.resolve({ selected_port_id: "first", plan_sha256: "old" } as Preview);
-      await first;
-      await adoption.adopt();
-    });
-    expect(adoption.preview).toBeUndefined();
-    expect(adopt).not.toHaveBeenCalled();
-    await render({ ...props, open: true });
-    let second!: Promise<void>;
-    await act(async () => {
-      second = adoption.review();
-    });
-    const current = {
-      selected_port_id: "second",
-      plan_sha256: "new",
-    } as Preview;
-    await act(async () => {
-      next.resolve(current);
-      await second;
-    });
-    expect(adoption.preview).toBe(current);
-  });
+  it.each([{ path: "B" }, { port: "second" }, { open: false }, { generation: 2 }])(
+    "invalidates adoption preview and action on %j",
+    async (props) => {
+      const old = deferred<Preview>();
+      const next = deferred<Preview>();
+      vi.spyOn(desktopApi, "previewAdoption")
+        .mockReturnValueOnce(old.promise)
+        .mockReturnValueOnce(next.promise);
+      const adopt = vi.spyOn(desktopApi, "adopt");
+      await render();
+      let first!: Promise<void>;
+      await act(async () => {
+        first = adoption.review();
+      });
+      await render(props);
+      await act(async () => {
+        old.resolve({ selected_port_id: "first", plan_sha256: "old" } as Preview);
+        await first;
+        await adoption.adopt();
+      });
+      expect(adoption.preview).toBeUndefined();
+      expect(adopt).not.toHaveBeenCalled();
+      await render({ ...props, open: true });
+      let second!: Promise<void>;
+      await act(async () => {
+        second = adoption.review();
+      });
+      const current = {
+        selected_port_id: "second",
+        plan_sha256: "new",
+      } as Preview;
+      await act(async () => {
+        next.resolve(current);
+        await second;
+      });
+      expect(adoption.preview).toBe(current);
+    },
+  );
 
   it("keeps the newer adoption preview when requests finish in reverse order", async () => {
     const old = deferred<Preview>();

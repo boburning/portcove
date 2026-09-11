@@ -38,9 +38,7 @@ describe("operation event state", () => {
   it("retains nested operation correlation", () => {
     let state = new Map<string, OperationEvent>();
     state = new Map(applyOperationEvent(state, event("parent", 0, 10)));
-    state = new Map(
-      applyOperationEvent(state, event("child", 0, 11, "parent")),
-    );
+    state = new Map(applyOperationEvent(state, event("child", 0, 11, "parent")));
 
     expect(state.get("child")?.parent_operation_id).toBe("parent");
   });
@@ -101,16 +99,10 @@ describe("operation event state", () => {
       result: "failed",
     });
     expect(initial.size).toBe(0);
-    expect(applyOperationEvent(completed, event("completed", 3, 50))).toBe(
-      completed,
-    );
-    expect(applyOperationEvent(completed, event("completed", 5, 60))).toBe(
-      completed,
-    );
+    expect(applyOperationEvent(completed, event("completed", 3, 50))).toBe(completed);
+    expect(applyOperationEvent(completed, event("completed", 5, 60))).toBe(completed);
     let state = completed;
-    for (const [index, result] of (
-      ["succeeded", "failed", "cancelled"] as const
-    ).entries()) {
+    for (const [index, result] of (["succeeded", "failed", "cancelled"] as const).entries()) {
       state = applyOperationEvent(state, {
         ...event(result, 1, 100 + index),
         type: "finished",

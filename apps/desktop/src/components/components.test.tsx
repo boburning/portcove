@@ -1,9 +1,4 @@
-import {
-  failureReport,
-  portDefinition,
-  portStatus,
-  sourceProfile,
-} from "../test-fixtures";
+import { failureReport, portDefinition, portStatus, sourceProfile } from "../test-fixtures";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type {
@@ -57,9 +52,7 @@ const actions: DetailActions = {
   setPolicy: vi.fn(),
   verify: vi.fn(),
 };
-const installRecord = (
-  overrides: Partial<InstallRecord> = {},
-): InstallRecord => ({
+const installRecord = (overrides: Partial<InstallRecord> = {}): InstallRecord => ({
   id: "1",
   port_id: port.id,
   version: "1.0",
@@ -75,9 +68,7 @@ const installRecord = (
   ...overrides,
 });
 
-const reviewedInstallPlan = (
-  action: InstallPlan["action"] = "download",
-): InstallPlan => ({
+const reviewedInstallPlan = (action: InstallPlan["action"] = "download"): InstallPlan => ({
   bundled_runtime: null,
   port_id: port.id,
   channel: "stable",
@@ -177,10 +168,7 @@ describe("desktop components", () => {
       type: "finished",
       result: "failed",
     };
-    const state = applyOperationEvent(
-      applyOperationEvent(new Map(), parent),
-      child,
-    );
+    const state = applyOperationEvent(applyOperationEvent(new Map(), parent), child);
     const html = renderToStaticMarkup(
       <StatusLayer
         error="Child verification failed"
@@ -207,11 +195,7 @@ describe("desktop components", () => {
     };
     for (const operation of [undefined, finished]) {
       const html = renderToStaticMarkup(
-        <StatusLayer
-          clearError={vi.fn()}
-          operation={operation}
-          busy="backup"
-        />,
+        <StatusLayer clearError={vi.fn()} operation={operation} busy="backup" />,
       );
       expect(html).toContain("Backup");
       expect(html).toContain("Working");
@@ -455,9 +439,7 @@ describe("desktop components", () => {
           onAdopt={vi.fn()}
         />,
       ),
-      renderToStaticMarkup(
-        <PageHeader view="catalog" query="sample" setQuery={vi.fn()} />,
-      ),
+      renderToStaticMarkup(<PageHeader view="catalog" query="sample" setQuery={vi.fn()} />),
       renderToStaticMarkup(
         <StatusLayer
           error="Problem"
@@ -505,9 +487,7 @@ describe("desktop components", () => {
     expect(html).toContain("STORAGE LOCATIONS");
     expect(html).toContain("WHOLE PORTCOVE LIBRARY");
     expect(html).toContain("Review platform default");
-    expect(html).toContain(
-      "Each game’s Export / install folder is reviewed separately",
-    );
+    expect(html).toContain("Each game’s Export / install folder is reviewed separately");
   });
 
   it("shows the shared library path and volume capacity", () => {
@@ -639,9 +619,7 @@ describe("desktop components", () => {
       );
       if (source === "credential_store") {
         expect(html).toContain("GitHub no longer accepts the saved sign-in");
-        const signIn = html.match(
-          /<button\b([^>]*)>Sign in with GitHub<\/button>/,
-        );
+        const signIn = html.match(/<button\b([^>]*)>Sign in with GitHub<\/button>/);
         const logout = html.match(/<button\b([^>]*)>Log out<\/button>/);
         expect(signIn).not.toBeNull();
         expect(logout).not.toBeNull();
@@ -812,9 +790,7 @@ describe("desktop components", () => {
               kind: "file-set",
               accepted_extensions: [],
             },
-            requiredBy: [
-              { portId: port.id, portName: port.name, role: "Game source" },
-            ],
+            requiredBy: [{ portId: port.id, portName: port.name, role: "Game source" }],
           },
         ]}
         addSource={vi.fn()}
@@ -1014,9 +990,7 @@ describe("desktop components", () => {
       />,
     );
     expect(uninstalled).toContain("Choose required source");
-    expect(uninstalled).toContain(
-      "Choose every required source before installing",
-    );
+    expect(uninstalled).toContain("Choose every required source before installing");
     expect(sourceFree).toContain("Review install");
     expect(sourceFree).not.toContain("Choose required source");
     expect(uninstalled).toContain("Browse");
@@ -1029,12 +1003,8 @@ describe("desktop components", () => {
     expect(installed).toContain("Delete");
     expect(installed).toContain("Remove managed files");
     expect(installed).toContain("source.z64");
-    expect(uninstalled).not.toContain(
-      '<details class="advanced-settings" open="">',
-    );
-    expect(installed).not.toContain(
-      '<details class="advanced-settings" open="">',
-    );
+    expect(uninstalled).not.toContain('<details class="advanced-settings" open="">');
+    expect(installed).not.toContain('<details class="advanced-settings" open="">');
     expect(installed).toContain("Saves and settings folder");
     expect(installed).toContain("C:/Portcove/user/sample");
     expect(installed).toContain("Deferred / not completed");
@@ -1250,9 +1220,7 @@ describe("desktop components", () => {
     expect(cards).not.toContain("staged-source-portable");
     expect(empty).toContain("No ports match these filters");
     expect(empty).toContain("Clear search and filters");
-    expect(emptyLibrary).toContain(
-      "/brand/mascot/portcove-mascot-v2-front.png",
-    );
+    expect(emptyLibrary).toContain("/brand/mascot/portcove-mascot-v2-front.png");
     expect(emptyLibrary).toContain('aria-hidden="true"');
     expect(loading).toContain("/brand/logo/portcove-logo-v2-transparent.png");
     expect(loading).toContain('alt="Portcove"');
@@ -1260,12 +1228,7 @@ describe("desktop components", () => {
 
   it("keeps adapter internals out of the primary detail view", () => {
     const html = renderToStaticMarkup(
-      <DetailPanel
-        port={port}
-        sourcePath=""
-        setSourcePath={vi.fn()}
-        actions={actions}
-      />,
+      <DetailPanel port={port} sourcePath="" setSourcePath={vi.fn()} actions={actions} />,
     );
     expect(html).toContain("Windows");
     expect(html).toContain("Installation method");
@@ -1541,15 +1504,11 @@ describe("desktop components", () => {
     expect(html).toContain("Recent activity");
     expect(html).toContain("Updated port");
     expect(html).toContain("Verified source");
-    expect(html).toContain(
-      "Older activity details are available in a redacted support bundle",
-    );
+    expect(html).toContain("Older activity details are available in a redacted support bundle");
     expect(html).not.toContain("source changed");
     expect(html).toContain("unfinished");
     expect(html).toContain("No completion recorded");
     expect(html).toContain('<button data-focusable="true">sample-rom</button>');
-    expect(html).toContain(
-      "CLI and desktop operations use the same local history",
-    );
+    expect(html).toContain("CLI and desktop operations use the same local history");
   });
 });

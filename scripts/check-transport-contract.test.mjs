@@ -23,10 +23,7 @@ const schemas = {
 
 test("the complete contract is canonical and line-ending independent", () => {
   const rendered = renderTransportSchemas(schemas);
-  assert.deepEqual(
-    checkTransportContract(schemas, rendered.replaceAll("\n", "\r\n")),
-    [],
-  );
+  assert.deepEqual(checkTransportContract(schemas, rendered.replaceAll("\n", "\r\n")), []);
   const reordered = {
     response: Object.fromEntries(Object.entries(schemas.response).reverse()),
   };
@@ -53,10 +50,7 @@ test("nested types, nullability, required presence, arrays and union drift fail 
   ]) {
     const changed = structuredClone(schemas);
     mutate(changed.response);
-    assert.equal(
-      checkTransportContract(schemas, renderTransportSchemas(changed)).length,
-      1,
-    );
+    assert.equal(checkTransportContract(schemas, renderTransportSchemas(changed)).length, 1);
   }
 });
 

@@ -18,25 +18,12 @@ function validateCheckpoint(checkpoint, config) {
   if (!checkpoint) return;
   if (
     Object.keys(checkpoint).sort().join(",") !==
-    [
-      "format",
-      "config_sha256",
-      "completed_runs",
-      "first_complete_at",
-      "last_complete",
-      "exception",
-    ]
+    ["format", "config_sha256", "completed_runs", "first_complete_at", "last_complete", "exception"]
       .sort()
       .join(",")
   )
-    throw new ObservationFailure(
-      "invalid-checkpoint",
-      "checkpoint fields are invalid",
-    );
-  if (
-    checkpoint.format !== 1 ||
-    checkpoint.config_sha256 !== observationHash(config)
-  )
+    throw new ObservationFailure("invalid-checkpoint", "checkpoint fields are invalid");
+  if (checkpoint.format !== 1 || checkpoint.config_sha256 !== observationHash(config))
     throw new ObservationFailure(
       "invalid-checkpoint",
       "checkpoint belongs to a different observer configuration",
@@ -45,8 +32,7 @@ function validateCheckpoint(checkpoint, config) {
   if (
     prior &&
     (!prior.observation?.facts ||
-      prior.observation.facts_sha256 !==
-        observationHash(prior.observation.facts) ||
+      prior.observation.facts_sha256 !== observationHash(prior.observation.facts) ||
       prior.projection?.facts_sha256 !== prior.observation.facts_sha256 ||
       prior.observation.config_sha256 !== checkpoint.config_sha256 ||
       prior.observation.port_id !== config.port_id ||
@@ -63,10 +49,7 @@ function validateCheckpoint(checkpoint, config) {
     checkpoint.completed_runs < 0 ||
     checkpoint.completed_runs === Number.MAX_SAFE_INTEGER
   )
-    throw new ObservationFailure(
-      "invalid-checkpoint",
-      "checkpoint run count is invalid",
-    );
+    throw new ObservationFailure("invalid-checkpoint", "checkpoint run count is invalid");
   const exception = checkpoint.exception;
   if (
     exception &&
@@ -76,8 +59,7 @@ function validateCheckpoint(checkpoint, config) {
       exception.occurrences < 1 ||
       !Number.isFinite(Date.parse(exception.first_seen)) ||
       !Number.isFinite(Date.parse(exception.last_seen)) ||
-      (exception.retry_at !== null &&
-        !Number.isFinite(Date.parse(exception.retry_at))) ||
+      (exception.retry_at !== null && !Number.isFinite(Date.parse(exception.retry_at))) ||
       exception.key !==
         observationHash({
           port_id: config.port_id,
@@ -93,10 +75,7 @@ function validateCheckpoint(checkpoint, config) {
 }
 
 function exceptionFor(error, prior, config, clock) {
-  const rule =
-    error instanceof ObservationFailure
-      ? error.rule
-      : "core-or-observer-failure";
+  const rule = error instanceof ObservationFailure ? error.rule : "core-or-observer-failure";
   const key = observationHash({
     port_id: config.port_id,
     repository_id: config.repository_id,
@@ -112,9 +91,7 @@ function exceptionFor(error, prior, config, clock) {
     operation: "observe",
     first_seen: repeated ? prior.first_seen : clock,
     last_seen: clock,
-    occurrences: repeated
-      ? Math.min(prior.occurrences + 1, Number.MAX_SAFE_INTEGER)
-      : 1,
+    occurrences: repeated ? Math.min(prior.occurrences + 1, Number.MAX_SAFE_INTEGER) : 1,
     details:
       error instanceof ObservationFailure
         ? error.message
@@ -145,9 +122,7 @@ export async function advanceObservation(config, checkpoint, options) {
   let transition = "deferred";
   let changedException = false;
   let failedPolicyInput = null;
-  const retryClock = next.exception?.retry_at
-    ? Date.parse(next.exception.retry_at)
-    : 0;
+  const retryClock = next.exception?.retry_at ? Date.parse(next.exception.retry_at) : 0;
   if (!retryClock || now() >= retryClock) {
     try {
       const result = await observeUpstream(config, {
@@ -169,8 +144,7 @@ export async function advanceObservation(config, checkpoint, options) {
         );
       transition = !next.last_complete
         ? "initial-baseline"
-        : next.last_complete.observation.facts_sha256 ===
-            result.observation.facts_sha256
+        : next.last_complete.observation.facts_sha256 === result.observation.facts_sha256
           ? "unchanged"
           : "changed";
       next.last_complete = { ...result, projection };
@@ -179,12 +153,7 @@ export async function advanceObservation(config, checkpoint, options) {
       next.exception = null;
       failedPolicyInput = null;
     } catch (error) {
-      const exception = exceptionFor(
-        error,
-        next.exception,
-        config,
-        new Date(now()).toISOString(),
-      );
+      const exception = exceptionFor(error, next.exception, config, new Date(now()).toISOString());
       changedException = exception.key !== next.exception?.key;
       next.exception = exception;
       transition = "failed";
@@ -192,11 +161,8 @@ export async function advanceObservation(config, checkpoint, options) {
   }
   const previousComplete = next.last_complete?.observation.completed_at ?? null;
   const age = previousComplete ? now() - Date.parse(previousComplete) : null;
-  const stale =
-    age === null || age < 0 || age > config.stale_after_hours * 3_600_000;
-  const unmonitored = (options.catalogIds ?? []).filter(
-    (id) => id !== config.port_id,
-  );
+  const stale = age === null || age < 0 || age > config.stale_after_hours * 3_600_000;
+  const unmonitored = (options.catalogIds ?? []).filter((id) => id !== config.port_id);
   const report = {
     format: 1,
     config_sha256: next.config_sha256,
@@ -211,8 +177,7 @@ export async function advanceObservation(config, checkpoint, options) {
     stale,
     last_complete_at: previousComplete,
     next_observation_due_at: new Date(
-      (previousComplete ? Date.parse(previousComplete) : now()) +
-        config.cadence_hours * 3_600_000,
+      (previousComplete ? Date.parse(previousComplete) : now()) + config.cadence_hours * 3_600_000,
     ).toISOString(),
     configured_scope: {
       port_id: config.port_id,
@@ -234,8 +199,7 @@ export async function advanceObservation(config, checkpoint, options) {
         ? {
             observed_at: previousComplete,
             facts_sha256: next.last_complete.observation.facts_sha256,
-            scope:
-              "last-complete-unverified-observation; current upstream state is unknown",
+            scope: "last-complete-unverified-observation; current upstream state is unknown",
           }
         : null,
     clocks: {
@@ -274,21 +238,12 @@ async function boundedJson(filename, maximum, optional = false) {
     const bytes = Buffer.alloc(maximum + 1);
     let length = 0;
     while (length < bytes.length) {
-      const result = await handle.read(
-        bytes,
-        length,
-        bytes.length - length,
-        null,
-      );
+      const result = await handle.read(bytes, length, bytes.length - length, null);
       if (result.bytesRead === 0) break;
       length += result.bytesRead;
     }
     if (length > maximum) throw new Error("JSON input grew beyond its bound");
-    return JSON.parse(
-      new TextDecoder("utf-8", { fatal: true }).decode(
-        bytes.subarray(0, length),
-      ),
-    );
+    return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes.subarray(0, length)));
   } catch (error) {
     if (optional && error.code === "ENOENT") return null;
     throw error;
@@ -348,29 +303,21 @@ async function main(args) {
       );
     parsed.set(args[index], args[index + 1]);
   }
-  if (!parsed.has("--cli"))
-    throw new Error("the reviewed standalone core-backed CLI is required");
+  if (!parsed.has("--cli")) throw new Error("the reviewed standalone core-backed CLI is required");
   const configPath = await assertOwnedUnlinkedPath(
     repositoryRoot,
     path.resolve(
-      parsed.get("--config") ??
-        path.join(repositoryRoot, "release/upstream-observer.json"),
+      parsed.get("--config") ?? path.join(repositoryRoot, "release/upstream-observer.json"),
     ),
     "observer configuration",
   );
   const config = validateObserverConfig(await boundedJson(configPath, 16_384));
-  const directory = path.join(
-    repositoryRoot,
-    "work/upstream-observer",
-    observationHash(config),
-  );
+  const directory = path.join(repositoryRoot, "work/upstream-observer", observationHash(config));
   const workRoot = path.join(repositoryRoot, "work");
   await mkdir(workRoot, { recursive: true });
   const statePath = await assertOwnedUnlinkedPath(
     workRoot,
-    path.resolve(
-      parsed.get("--state") ?? path.join(directory, "checkpoint.json"),
-    ),
+    path.resolve(parsed.get("--state") ?? path.join(directory, "checkpoint.json")),
     "observer checkpoint",
   );
   const reportPath = await assertOwnedUnlinkedPath(
@@ -378,29 +325,19 @@ async function main(args) {
     path.resolve(parsed.get("--report") ?? path.join(directory, "report.json")),
     "observer report",
   );
-  const destinations = [
-    statePath,
-    `${statePath}.lock`,
-    reportPath,
-    configPath,
-  ].map((value) =>
+  const destinations = [statePath, `${statePath}.lock`, reportPath, configPath].map((value) =>
     process.platform === "win32" ? value.toLowerCase() : value,
   );
   if (new Set(destinations).size !== destinations.length)
-    throw new Error(
-      "observer configuration, checkpoint, lock and report must have distinct paths",
-    );
+    throw new Error("observer configuration, checkpoint, lock and report must have distinct paths");
   await withCheckpointLock(statePath, async () => {
     const checkpoint = await boundedJson(statePath, checkpointLimit, true);
     const priorReport = await boundedJson(reportPath, checkpointLimit, true);
     if (
       priorReport &&
-      (priorReport.format !== 1 ||
-        priorReport.config_sha256 !== observationHash(config))
+      (priorReport.format !== 1 || priorReport.config_sha256 !== observationHash(config))
     )
-      throw new Error(
-        "existing report belongs to another operation or configuration",
-      );
+      throw new Error("existing report belongs to another operation or configuration");
     const catalog = await boundedJson(
       path.join(repositoryRoot, "crates/portcove-core/catalog/catalog.json"),
       4 * 1024 * 1024,
@@ -411,15 +348,10 @@ async function main(args) {
       (port.release.provider ?? "github") !== "github" ||
       port.release.repository !== config.repository
     )
-      throw new Error(
-        "configured upstream differs from the existing catalog owner",
-      );
+      throw new Error("configured upstream differs from the existing catalog owner");
     const cli = path.resolve(parsed.get("--cli"));
     const project = async (observation) => {
-      const input = path.join(
-        path.dirname(statePath),
-        `observation-${randomUUID()}.json`,
-      );
+      const input = path.join(path.dirname(statePath), `observation-${randomUUID()}.json`);
       await mkdir(path.dirname(input), { recursive: true });
       try {
         await writeFile(input, JSON.stringify(observation), { flag: "wx" });
@@ -443,10 +375,7 @@ async function main(args) {
           },
         );
         const envelope = JSON.parse(output);
-        if (
-          envelope.command !== "catalog.inspect-observation" ||
-          envelope.ok !== true
-        )
+        if (envelope.command !== "catalog.inspect-observation" || envelope.ok !== true)
           throw new ObservationFailure(
             "core-policy",
             "core did not return a successful observation inspection",
@@ -457,17 +386,13 @@ async function main(args) {
       }
     };
     const execution = {
-      kind: ["schedule", "workflow_dispatch"].includes(
-        process.env.GITHUB_EVENT_NAME,
-      )
+      kind: ["schedule", "workflow_dispatch"].includes(process.env.GITHUB_EVENT_NAME)
         ? process.env.GITHUB_EVENT_NAME
         : "local",
       source_commit: /^[a-f0-9]{40}$/.test(process.env.GITHUB_SHA ?? "")
         ? process.env.GITHUB_SHA
         : null,
-      run_id: /^\d{1,24}$/.test(process.env.GITHUB_RUN_ID ?? "")
-        ? process.env.GITHUB_RUN_ID
-        : null,
+      run_id: /^\d{1,24}$/.test(process.env.GITHUB_RUN_ID ?? "") ? process.env.GITHUB_RUN_ID : null,
       run_attempt: /^\d{1,8}$/.test(process.env.GITHUB_RUN_ATTEMPT ?? "")
         ? process.env.GITHUB_RUN_ATTEMPT
         : null,
@@ -493,8 +418,5 @@ async function main(args) {
   });
 }
 
-if (
-  process.argv[1] &&
-  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-)
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))
   await main(process.argv.slice(2));

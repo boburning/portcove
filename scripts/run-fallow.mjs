@@ -20,9 +20,7 @@ const result = spawnSync(
 if (result.status !== 0 && result.status !== 1) {
   process.stderr.write(result.stderr ?? "");
   if (result.error) console.error(result.error.message);
-  throw new Error(
-    `Fallow could not analyze the frontend (exit ${result.status ?? "unknown"}).`,
-  );
+  throw new Error(`Fallow could not analyze the frontend (exit ${result.status ?? "unknown"}).`);
 }
 
 let report;
@@ -35,9 +33,7 @@ try {
 
 const assessment = evaluateFallowReport(report);
 if (assessment.failures.length > 0) {
-  console.error(
-    `Fallow quality gate failed: ${assessment.failures.join(", ")}`,
-  );
+  console.error(`Fallow quality gate failed: ${assessment.failures.join(", ")}`);
   process.exitCode = 1;
 } else {
   console.log(

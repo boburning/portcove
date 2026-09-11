@@ -25,16 +25,14 @@ export function combineTransportSchemas(schemas, contract = "output") {
     definitions[name] = value;
   }
   for (const schema of Object.values(schemas)) {
-    for (const [name, definition] of Object.entries(schema.$defs ?? {}))
-      add(name, definition);
+    for (const [name, definition] of Object.entries(schema.$defs ?? {})) add(name, definition);
   }
   const properties = {};
   for (const [key, schema] of Object.entries(schemas)) {
     // A root export and a nested definition often name the same Rust type.
     // Reuse that declaration only when the complete schema body is identical.
     const matching = Object.entries(definitions).find(
-      ([, definition]) =>
-        JSON.stringify(definition) === JSON.stringify(body(schema)),
+      ([, definition]) => JSON.stringify(definition) === JSON.stringify(body(schema)),
     );
     const name =
       matching?.[0] ??
@@ -56,16 +54,12 @@ export function combineTransportSchemas(schemas, contract = "output") {
 }
 
 export async function renderTransportTypes(schemas, contract = "output") {
-  return compile(
-    combineTransportSchemas(schemas, contract),
-    "TransportContracts",
-    {
-      bannerComment: `// Generated from Rust ${contract} schemas. Do not edit.\n// Regenerate: node apps/desktop/scripts/generate-transport-types.mjs --write`,
-      unknownAny: true,
-      // The complete schema inventory is local. References may never fetch input.
-      $refOptions: { resolve: { http: false, file: false } },
-    },
-  );
+  return compile(combineTransportSchemas(schemas, contract), "TransportContracts", {
+    bannerComment: `// Generated from Rust ${contract} schemas. Do not edit.\n// Regenerate: node apps/desktop/scripts/generate-transport-types.mjs --write`,
+    unknownAny: true,
+    // The complete schema inventory is local. References may never fetch input.
+    $refOptions: { resolve: { http: false, file: false } },
+  });
 }
 
 function withHostSchemas(core, host) {
@@ -83,33 +77,18 @@ async function main() {
   const { values } = parseArgs({
     options: { write: { type: "boolean", default: false } },
   });
-  const source = path.resolve(
-    path.dirname(fileURLToPath(import.meta.url)),
-    "../src",
-  );
+  const source = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../src");
   const schemas = JSON.parse(
-    fs.readFileSync(
-      path.join(source, "transport-schemas.generated.json"),
-      "utf8",
-    ),
+    fs.readFileSync(path.join(source, "transport-schemas.generated.json"), "utf8"),
   );
   const inputs = JSON.parse(
-    fs.readFileSync(
-      path.join(source, "transport-inputs.generated.json"),
-      "utf8",
-    ),
+    fs.readFileSync(path.join(source, "transport-inputs.generated.json"), "utf8"),
   );
   const hostInput = JSON.parse(
-    fs.readFileSync(
-      path.join(source, "transport-host-input.generated.json"),
-      "utf8",
-    ),
+    fs.readFileSync(path.join(source, "transport-host-input.generated.json"), "utf8"),
   );
   const hostOutput = JSON.parse(
-    fs.readFileSync(
-      path.join(source, "transport-host-output.generated.json"),
-      "utf8",
-    ),
+    fs.readFileSync(path.join(source, "transport-host-output.generated.json"), "utf8"),
   );
   for (const [name, expected] of [
     [
@@ -128,13 +107,8 @@ async function main() {
         `Generated TypeScript transport declarations differ from the Rust schema snapshot: ${name}`,
       );
   }
-  console.log(
-    "TypeScript transport declarations match the Rust schema snapshot.",
-  );
+  console.log("TypeScript transport declarations match the Rust schema snapshot.");
 }
 
-if (
-  process.argv[1] &&
-  fileURLToPath(import.meta.url) === path.resolve(process.argv[1])
-)
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]))
   await main();

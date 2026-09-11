@@ -24,8 +24,7 @@ describe("core-owned failure presentation", () => {
       const error = failureReport();
       error.message = "raw-machine-secret";
       error.details = { token: "raw-field-secret" };
-      error.presentation.mutation_state =
-        outcome as typeof error.presentation.mutation_state;
+      error.presentation.mutation_state = outcome as typeof error.presentation.mutation_state;
       const original = JSON.stringify(error);
       for (const view of [
         <StatusLayer key="status" error={error} clearError={vi.fn()} />,
@@ -48,9 +47,7 @@ describe("core-owned failure presentation", () => {
     const error = failureReport();
     error.message = "raw-machine-secret";
     error.presentation.tone = "future_tone" as typeof error.presentation.tone;
-    const html = renderToStaticMarkup(
-      <StatusLayer error={error} clearError={vi.fn()} />,
-    );
+    const html = renderToStaticMarkup(<StatusLayer error={error} clearError={vi.fn()} />);
     expect(html).toContain(error.presentation.summary);
     expect(html).toContain('role="alert"');
     expect(html).not.toContain("Operation cancelled");
@@ -68,34 +65,28 @@ describe("core-owned failure presentation", () => {
     expect(incomplete.presentation).not.toHaveProperty("mutation_state");
   });
 
-  it.each([
-    "not_started",
-    "committed",
-    "recovery_required",
-    "unknown",
-  ] as const)("does not claim unchanged files for %s", (mutation_state) => {
-    const error = failureReport();
-    error.message = "raw-machine-secret";
-    error.details = { token: "raw-field-secret" };
-    error.presentation.mutation_state = mutation_state;
-    const html = renderToStaticMarkup(
-      <StatusLayer error={error} clearError={vi.fn()} />,
-    );
-    expect(html).toContain(error.presentation.summary);
-    expect(html).toContain("View technical details");
-    expect(html).not.toContain("No files were changed");
-    expect(html).not.toContain("raw-machine-secret");
-    expect(html).not.toContain("raw-field-secret");
-  });
+  it.each(["not_started", "committed", "recovery_required", "unknown"] as const)(
+    "does not claim unchanged files for %s",
+    (mutation_state) => {
+      const error = failureReport();
+      error.message = "raw-machine-secret";
+      error.details = { token: "raw-field-secret" };
+      error.presentation.mutation_state = mutation_state;
+      const html = renderToStaticMarkup(<StatusLayer error={error} clearError={vi.fn()} />);
+      expect(html).toContain(error.presentation.summary);
+      expect(html).toContain("View technical details");
+      expect(html).not.toContain("No files were changed");
+      expect(html).not.toContain("raw-machine-secret");
+      expect(html).not.toContain("raw-field-secret");
+    },
+  );
 
   it("uses neutral cancellation and only shows unchanged files with the explicit core outcome", () => {
     const error = failureReport();
     error.code = "cancelled";
     error.presentation.tone = "neutral";
     error.presentation.mutation_state = "no_changes";
-    const html = renderToStaticMarkup(
-      <StatusLayer error={error} clearError={vi.fn()} />,
-    );
+    const html = renderToStaticMarkup(<StatusLayer error={error} clearError={vi.fn()} />);
     expect(html).toContain('role="status"');
     expect(html).not.toContain('role="alert"');
     expect(html).toContain("lucide-circle-minus");
@@ -123,9 +114,7 @@ describe("core-owned failure presentation", () => {
       expect(state.busy).toBeUndefined();
       refresh.mockResolvedValue(undefined);
       await act(async () => {
-        await state.perform("prepare", () =>
-          Promise.reject({ ...error, code: "cancelled" }),
-        );
+        await state.perform("prepare", () => Promise.reject({ ...error, code: "cancelled" }));
       });
       expect(state.error).toBeUndefined();
     } finally {

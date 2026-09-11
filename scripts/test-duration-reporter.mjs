@@ -26,7 +26,6 @@ export default async function* report(source) {
   yield* Readable.from(inspect()).compose(spec());
   if (slow.length) {
     yield `\nSlow tests to investigate (${slowTestThresholdMs}ms):\n`;
-    for (const test of slow)
-      yield `  ${test.name}: ${test.details.duration_ms.toFixed(1)}ms\n`;
+    for (const test of slow) yield `  ${test.name}: ${test.details.duration_ms.toFixed(1)}ms\n`;
   }
 }

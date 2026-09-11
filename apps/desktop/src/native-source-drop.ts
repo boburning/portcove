@@ -21,10 +21,9 @@ export function sourceDropTargetAt(
   elementAt = (x: number, y: number) => document.elementFromPoint(x, y),
   scale = window.devicePixelRatio || 1,
 ): NativeSourceDropTarget | undefined {
-  const element = elementAt(
-    position.x / scale,
-    position.y / scale,
-  )?.closest<HTMLElement>("[data-source-drop-profile-id]");
+  const element = elementAt(position.x / scale, position.y / scale)?.closest<HTMLElement>(
+    "[data-source-drop-profile-id]",
+  );
   const portId = element?.dataset.sourceDropPortId;
   const profileId = element?.dataset.sourceDropProfileId;
   return portId && profileId ? { portId, profileId } : undefined;

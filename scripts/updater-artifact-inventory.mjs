@@ -1,14 +1,7 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { constants, createReadStream } from "node:fs";
-import {
-  copyFile,
-  lstat,
-  mkdir,
-  readFile,
-  readdir,
-  writeFile,
-} from "node:fs/promises";
+import { copyFile, lstat, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -21,10 +14,7 @@ import {
   workspaceVersion,
 } from "./release-package-policy.mjs";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mjs";
-import {
-  collectReleaseArtifacts,
-  validateStageRoot,
-} from "./write-release-checksums.mjs";
+import { collectReleaseArtifacts, validateStageRoot } from "./write-release-checksums.mjs";
 
 const run = promisify(execFile);
 const project = fileURLToPath(new URL("..", import.meta.url));
@@ -33,9 +23,7 @@ const maxPayloadBytes = 2 * 1024 * 1024 * 1024;
 export function updaterIdentity(policy, label, version) {
   const packages = packagesForPlatform(policy, label);
   const desktop = packages.find(
-    (entry) =>
-      entry.interface === "desktop" &&
-      ["nsis", "appimage", "dmg"].includes(entry.format),
+    (entry) => entry.interface === "desktop" && ["nsis", "appimage", "dmg"].includes(entry.format),
   );
   if (!desktop) throw new Error(`no supported updater identity for ${label}`);
   const mac = desktop.os === "macos";
@@ -45,14 +33,9 @@ export function updaterIdentity(policy, label, version) {
     target: `${mac ? "darwin" : desktop.os}-${desktop.architecture}`,
     format: mac ? "app.tar.gz" : desktop.format,
     filename: mac
-      ? artifactName(
-          { filename: `Portcove_{version}_${desktop.architecture}.app.tar.gz` },
-          version,
-        )
+      ? artifactName({ filename: `Portcove_{version}_${desktop.architecture}.app.tar.gz` }, version)
       : artifactName(desktop, version),
-    source_filename: mac
-      ? "Portcove.app.tar.gz"
-      : artifactName(desktop, version),
+    source_filename: mac ? "Portcove.app.tar.gz" : artifactName(desktop, version),
     bundle_directory: mac ? "macos" : desktop.format,
   };
 }
@@ -60,36 +43,23 @@ export function updaterIdentity(policy, label, version) {
 async function fileIdentity(root, file) {
   await assertOwnedUnlinkedPath(root, file, "updater artifact");
   const metadata = await lstat(file);
-  if (
-    !metadata.isFile() ||
-    metadata.size < 1 ||
-    metadata.size > maxPayloadBytes
-  )
+  if (!metadata.isFile() || metadata.size < 1 || metadata.size > maxPayloadBytes)
     throw new Error(`invalid updater artifact file: ${file}`);
   const hash = createHash("sha256");
   let bytes = 0;
   for await (const chunk of createReadStream(file)) {
     bytes += chunk.length;
-    if (bytes > maxPayloadBytes)
-      throw new Error("updater artifact exceeds its size limit");
+    if (bytes > maxPayloadBytes) throw new Error("updater artifact exceeds its size limit");
     hash.update(chunk);
   }
-  if (bytes !== metadata.size)
-    throw new Error("updater artifact changed while hashing");
+  if (bytes !== metadata.size) throw new Error("updater artifact changed while hashing");
   return { bytes, sha256: hash.digest("hex") };
 }
 
 async function verifySignature(verifier, artifact, signature, key, identity) {
   const { stdout } = await run(
     verifier,
-    [
-      "verify",
-      artifact,
-      signature,
-      key,
-      identity.sha256,
-      String(identity.bytes),
-    ],
+    ["verify", artifact, signature, key, identity.sha256, String(identity.bytes)],
     { timeout: 120_000, maxBuffer: 64 * 1024 },
   );
   const result = JSON.parse(stdout);
@@ -99,15 +69,12 @@ async function verifySignature(verifier, artifact, signature, key, identity) {
     result.bytes !== identity.bytes ||
     result.sha256 !== identity.sha256
   ) {
-    throw new Error(
-      "signature verifier returned a different artifact identity",
-    );
+    throw new Error("signature verifier returned a different artifact identity");
   }
 }
 
 function assertRevision(revision) {
-  if (!/^[a-f0-9]{40}$/.test(revision ?? ""))
-    throw new Error("an exact source commit is required");
+  if (!/^[a-f0-9]{40}$/.test(revision ?? "")) throw new Error("an exact source commit is required");
 }
 
 /** Stage final package bytes, then verify the copied updater and emit evidence last.
@@ -143,32 +110,17 @@ export async function stageUpdaterInventory(options) {
   const signature = `${source}.sig`;
   await assertOwnedUnlinkedPath(root, source, "updater payload");
   await assertOwnedUnlinkedPath(root, signature, "updater signature");
-  if (
-    !(await lstat(signature)).isFile() ||
-    (await lstat(signature)).size > 16 * 1024
-  )
+  if (!(await lstat(signature)).isFile() || (await lstat(signature)).size > 16 * 1024)
     throw new Error("invalid updater signature file");
   // Never overwrite an existing candidate or its evidence. Inputs have already
   // been collected from exact package names; a missing input cannot yield a manifest.
   await mkdir(stage);
   const definitions = packagesForPlatform(policy, options.label);
   for (const file of packages)
-    await copyFile(
-      file,
-      path.join(stage, path.basename(file)),
-      constants.COPYFILE_EXCL,
-    );
+    await copyFile(file, path.join(stage, path.basename(file)), constants.COPYFILE_EXCL);
   if (!packages.includes(source))
-    await copyFile(
-      source,
-      path.join(stage, identity.filename),
-      constants.COPYFILE_EXCL,
-    );
-  await copyFile(
-    signature,
-    path.join(stage, `${identity.filename}.sig`),
-    constants.COPYFILE_EXCL,
-  );
+    await copyFile(source, path.join(stage, identity.filename), constants.COPYFILE_EXCL);
+  await copyFile(signature, path.join(stage, `${identity.filename}.sig`), constants.COPYFILE_EXCL);
   const selected = [];
   for (const definition of definitions) {
     const filename = artifactName(definition, version);
@@ -218,11 +170,7 @@ export async function stageUpdaterInventory(options) {
 /** Recheck staged bytes against exact version/platform identities and a caller-owned key. */
 export async function verifyUpdaterInventory(options) {
   const root = path.resolve(options.projectRoot ?? project);
-  const directory = await assertOwnedUnlinkedPath(
-    root,
-    options.input,
-    "updater inventory input",
-  );
+  const directory = await assertOwnedUnlinkedPath(root, options.input, "updater inventory input");
   const manifest = path.join(directory, "updater-inventory.json");
   await assertOwnedUnlinkedPath(root, manifest, "updater inventory manifest");
   if ((await lstat(manifest)).size > 64 * 1024)
@@ -254,26 +202,15 @@ export async function verifyUpdaterInventory(options) {
   }
   const updater = inventory.updater;
   for (const field of ["id", "target", "format", "filename"]) {
-    if (updater?.[field] !== expected[field])
-      throw new Error(`updater ${field} mismatch`);
+    if (updater?.[field] !== expected[field]) throw new Error(`updater ${field} mismatch`);
   }
   if (updater.signature?.filename !== `${expected.filename}.sig`)
     throw new Error("updater signature filename mismatch");
   const entries = [...inventory.packages, updater, updater.signature];
-  const filenames = [
-    ...new Set(entries.map((entry) => entry.filename)),
-    "updater-inventory.json",
-  ];
-  assertExactArtifactNames(
-    filenames,
-    await readdir(directory),
-    "updater staged files",
-  );
+  const filenames = [...new Set(entries.map((entry) => entry.filename)), "updater-inventory.json"];
+  assertExactArtifactNames(filenames, await readdir(directory), "updater staged files");
   for (const entry of entries) {
-    const actual = await fileIdentity(
-      root,
-      path.join(directory, entry.filename),
-    );
+    const actual = await fileIdentity(root, path.join(directory, entry.filename));
     if (actual.bytes !== entry.bytes || actual.sha256 !== entry.sha256)
       throw new Error(`updater checksum mismatch: ${entry.filename}`);
   }
@@ -296,10 +233,7 @@ export async function verifyUpdaterInventory(options) {
   return inventory;
 }
 
-if (
-  process.argv[1] &&
-  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-) {
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [operation, ...args] = process.argv.slice(2);
   const options = {};
   const names = {
@@ -317,17 +251,11 @@ if (
       throw new Error("invalid or duplicate updater inventory argument");
     options[key] = args[index + 1];
   }
-  if (
-    !options.label ||
-    !options.publicKey ||
-    !options.verifier ||
-    !options.revision
-  )
+  if (!options.label || !options.publicKey || !options.verifier || !options.revision)
     throw new Error("label, public-key, verifier and revision are required");
   if (operation === "stage" && options.output && !options.version)
     await stageUpdaterInventory(options);
-  else if (operation === "verify" && options.input)
-    await verifyUpdaterInventory(options);
+  else if (operation === "verify" && options.input) await verifyUpdaterInventory(options);
   else throw new Error("use stage --output PATH or verify --input PATH");
   console.log(`Updater artifact ${operation} passed for ${options.label}.`);
 }

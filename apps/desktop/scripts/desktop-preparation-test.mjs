@@ -12,10 +12,7 @@ import { libraryHandoffScenario } from "./desktop-library-handoff-test.mjs";
 import { adoptionReviewScenario } from "./desktop-adoption-review-test.mjs";
 import { sourceRemovalScenario } from "./desktop-source-removal-test.mjs";
 import { interruptedPreparationScenario } from "./desktop-preparation-recovery-test.mjs";
-import {
-  captureAccessibilityReport,
-  clickVisible,
-} from "./desktop-review-controls.mjs";
+import { captureAccessibilityReport, clickVisible } from "./desktop-review-controls.mjs";
 import { readinessScenario } from "./desktop-readiness-test.mjs";
 
 export async function preparationScenarios({
@@ -73,10 +70,7 @@ export async function preparationScenarios({
     const port = command(["catalog", "show", portId]);
     const original = path.join(output, `owned-${portId}`);
     await mkdir(original);
-    for (const relative of [
-      port.executable_hints[host][0],
-      port.setup_executable_hints[host][0],
-    ]) {
+    for (const relative of [port.executable_hints[host][0], port.setup_executable_hints[host][0]]) {
       const destination = path.join(original, relative);
       await mkdir(path.dirname(destination), { recursive: true });
       await copyFile(tool, destination);
@@ -96,19 +90,14 @@ export async function preparationScenarios({
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
       15_000,
     );
-    await browser
-      .findElement(By.xpath('//nav//button[contains(., "Library")]'))
-      .click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
     const card = By.xpath(
       `//button[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
     );
     await browser.wait(until.elementLocated(card), 15_000);
     await browser.findElement(card).click();
     if (waitForPreparation)
-      await browser.wait(
-        until.elementLocated(button("Review game preparation")),
-        15_000,
-      );
+      await browser.wait(until.elementLocated(button("Review game preparation")), 15_000);
   }
   async function status(portId) {
     const result = await invoke("get_statuses");
@@ -120,31 +109,18 @@ export async function preparationScenarios({
     await open(port);
     assert.equal((await status(port.id)).readiness.launchable, false);
     await browser.findElement(button("Review game preparation")).click();
-    await browser.wait(
-      until.elementLocated(button("Start new preparation")),
-      15_000,
-    );
-    assert.equal(
-      (await status(port.id)).active.id,
-      install.id,
-      "review must not prepare",
-    );
+    await browser.wait(until.elementLocated(button("Start new preparation")), 15_000);
+    assert.equal((await status(port.id)).active.id, install.id, "review must not prepare");
     const reviewImage = path.join(output, "native-preparation-review.png");
     await writeFile(reviewImage, await browser.takeScreenshot(), {
       encoding: "base64",
       flag: "wx",
     });
     artifacts.push(reviewImage);
-    const accessibilityReport = path.join(
-      output,
-      "preparation-accessibility.json",
-    );
+    const accessibilityReport = path.join(output, "preparation-accessibility.json");
     await captureAccessibilityReport(browser, accessibilityReport, artifacts);
     await browser.findElement(button("Start new preparation")).click();
-    await browser.wait(
-      async () => (await status(port.id)).readiness.launchable,
-      15_000,
-    );
+    await browser.wait(async () => (await status(port.id)).readiness.launchable, 15_000);
     const prepared = await status(port.id);
     assert.notEqual(prepared.active.id, install.id);
     assert.equal(prepared.previous.id, install.id);
@@ -156,14 +132,8 @@ export async function preparationScenarios({
       15_000,
     );
     await browser.findElement(button("Play now")).click();
-    await browser.wait(
-      async () => (await status(port.id)).successful_launches > 0,
-      15_000,
-    );
-    assert.equal(
-      await readFile(log, "utf8"),
-      "setup must not run during desktop Play",
-    );
+    await browser.wait(async () => (await status(port.id)).successful_launches > 0, 15_000);
+    assert.equal(await readFile(log, "utf8"), "setup must not run during desktop Play");
   });
   await readinessScenario({
     browser,
@@ -186,26 +156,15 @@ export async function preparationScenarios({
       assert.equal(damaged.readiness.launchable, false);
       assert.deepEqual(damaged.readiness.blockers, ["invalid_installation"]);
       await browser.wait(
-        until.elementLocated(
-          By.xpath('//*[normalize-space(.)="Installation needs repair"]'),
-        ),
+        until.elementLocated(By.xpath('//*[normalize-space(.)="Installation needs repair"]')),
         15_000,
       );
       assert.equal((await browser.findElements(button("Play now"))).length, 0);
-      assert.equal(
-        (await browser.findElements(button("Choose required source"))).length,
-        0,
-      );
-      assert.deepEqual(
-        command(["status", port.id]).readiness,
-        damaged.readiness,
-      );
+      assert.equal((await browser.findElements(button("Choose required source"))).length, 0);
+      assert.deepEqual(command(["status", port.id]).readiness, damaged.readiness);
       const report = path.join(output, "retained-contract-accessibility.json");
       await captureAccessibilityReport(browser, report, artifacts);
-      const screenshot = path.join(
-        output,
-        "native-retained-contract-repair.png",
-      );
+      const screenshot = path.join(output, "native-retained-contract-repair.png");
       await writeFile(screenshot, await browser.takeScreenshot(), {
         encoding: "base64",
         flag: "wx",
@@ -222,29 +181,19 @@ export async function preparationScenarios({
     const { port, install } = await seed("opengoal-jak2", "wait", true);
     await open(port);
     await browser.findElement(button("Review game preparation")).click();
-    await browser.wait(
-      until.elementLocated(button("Start new preparation")),
-      15_000,
-    );
+    await browser.wait(until.elementLocated(button("Start new preparation")), 15_000);
     await browser.findElement(button("Start new preparation")).click();
     let activity;
     await browser.wait(async () => {
       const result = await invoke("get_activities");
       activity = result.value?.find(
         (item) =>
-          item.operation === "prepare" &&
-          item.target_id === port.id &&
-          item.status === "running",
+          item.operation === "prepare" && item.target_id === port.id && item.status === "running",
       );
       return (
         activity &&
         (await stat(
-          path.join(
-            library,
-            "staging",
-            activity.id,
-            "payload/data/out/setup-ready",
-          ),
+          path.join(library, "staging", activity.id, "payload/data/out/setup-ready"),
         ).then(
           (value) => value.isFile(),
           () => false,
@@ -254,22 +203,14 @@ export async function preparationScenarios({
     await browser.findElement(button("Cancel preparation")).click();
     await browser.wait(async () => {
       const result = await invoke("get_activities");
-      return (
-        result.value?.find((item) => item.id === activity.id)?.status ===
-        "cancelled"
-      );
+      return result.value?.find((item) => item.id === activity.id)?.status === "cancelled";
     }, 5_000);
     assert.equal((await status(port.id)).active.id, install.id);
     assert.equal((await status(port.id)).readiness.launchable, false);
-    const recorded = (await invoke("get_activities")).value.find(
-      (item) => item.id === activity.id,
-    );
+    const recorded = (await invoke("get_activities")).value.find((item) => item.id === activity.id);
     assert.equal(recorded.failure.code, "cancelled");
     assert.equal(recorded.failure.presentation.tone, "neutral");
-    assert.equal(
-      recorded.failure.presentation.mutation_state,
-      "recovery_required",
-    );
+    assert.equal(recorded.failure.presentation.mutation_state, "recovery_required");
     assert.equal(recorded.failure.presentation.phase, "preparation.setup");
     await browser.navigate().refresh();
     await browser.wait(
@@ -277,14 +218,10 @@ export async function preparationScenarios({
       15_000,
     );
     assert.deepEqual(
-      (await invoke("get_activities")).value.find(
-        (item) => item.id === activity.id,
-      ).failure,
+      (await invoke("get_activities")).value.find((item) => item.id === activity.id).failure,
       recorded.failure,
     );
-    await browser
-      .findElement(By.xpath('//nav//button[contains(., "Updates")]'))
-      .click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Updates")]')).click();
     await browser.wait(
       until.elementLocated(By.css(".activity-row.cancelled .failure-details")),
       15_000,
@@ -305,20 +242,11 @@ export async function preparationScenarios({
     );
     assert.equal(retained.value[0].complete, true);
     assert.match(retained.value[0].stdout.text, /owned conversion began/);
-    assert.doesNotMatch(
-      JSON.stringify(retained.value),
-      /owned-conversion-secret/,
-    );
+    assert.doesNotMatch(JSON.stringify(retained.value), /owned-conversion-secret/);
     assert.equal(retained.value[1].complete, true);
     assert.match(retained.value[1].stdout.text, /owned setup began/);
-    assert.match(
-      retained.value[1].stderr.text,
-      /owned setup diagnostic on stderr/,
-    );
-    assert.doesNotMatch(
-      JSON.stringify(retained.value),
-      /owned-fixture-private-value/,
-    );
+    assert.match(retained.value[1].stderr.text, /owned setup diagnostic on stderr/);
+    assert.doesNotMatch(JSON.stringify(retained.value), /owned-fixture-private-value/);
     assert.deepEqual(command(["activity", "log", activity.id]), retained.value);
     const staleLog = await invoke("get_activity_diagnostic", {
       activityId: activity.id,
@@ -327,21 +255,15 @@ export async function preparationScenarios({
     assert.equal(staleLog.ok, false);
     assert.equal(staleLog.error.code, "conflict");
     await row
-      .findElement(
-        By.xpath('.//summary[normalize-space(.)="View preparation log"]'),
-      )
+      .findElement(By.xpath('.//summary[normalize-space(.)="View preparation log"]'))
       .click();
     await browser.wait(
-      async () =>
-        (await row.getText()).includes("owned setup diagnostic on stderr"),
+      async () => (await row.getText()).includes("owned setup diagnostic on stderr"),
       5_000,
     );
     assert.match(await row.getText(), /Preparing source data/);
     assert.match(await row.getText(), /owned conversion began/);
-    assert.doesNotMatch(
-      await row.getText(),
-      /owned-fixture-private-value|owned-conversion-secret/,
-    );
+    assert.doesNotMatch(await row.getText(), /owned-fixture-private-value|owned-conversion-secret/);
     const bundle = await invoke("create_support_bundle");
     assert.equal(bundle.ok, true);
     artifacts.push(bundle.value);
@@ -353,14 +275,8 @@ export async function preparationScenarios({
 
     const report = path.join(output, "recovery-details-accessibility.json");
     await captureAccessibilityReport(browser, report, artifacts);
-    await browser.executeScript(
-      'arguments[0].scrollIntoView({ block: "center" });',
-      row,
-    );
-    const screenshot = path.join(
-      output,
-      "native-preparation-retained-outcome.png",
-    );
+    await browser.executeScript('arguments[0].scrollIntoView({ block: "center" });', row);
+    const screenshot = path.join(output, "native-preparation-retained-outcome.png");
     await writeFile(screenshot, await browser.takeScreenshot(), {
       encoding: "base64",
       flag: "wx",
@@ -390,9 +306,7 @@ export async function preparationScenarios({
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
       15_000,
     );
-    await browser
-      .findElement(By.xpath('//nav//button[contains(., "Library")]'))
-      .click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
     const card = By.xpath(
       `//button[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
     );
@@ -404,9 +318,7 @@ export async function preparationScenarios({
     );
     const before = await status(port.id);
     const activities = await invoke("get_activities");
-    await browser
-      .findElement(By.xpath('//button[contains(., "Saved update policy")]'))
-      .click();
+    await browser.findElement(By.xpath('//button[contains(., "Saved update policy")]')).click();
     await browser.findElement(button("Install when running updates")).click();
     assert.equal(
       (await status(port.id)).update_policy,
@@ -414,10 +326,7 @@ export async function preparationScenarios({
       "editing a choice is not saving",
     );
     await browser.findElement(button("Save update settings")).click();
-    await browser.wait(
-      async () => (await status(port.id)).update_policy === "automatic",
-      15_000,
-    );
+    await browser.wait(async () => (await status(port.id)).update_policy === "automatic", 15_000);
     const after = await status(port.id);
     assert.deepEqual(after.active, before.active);
     assert.deepEqual(after.staged, before.staged);
@@ -435,9 +344,7 @@ export async function preparationScenarios({
     await captureAccessibilityReport(browser, report, artifacts);
     await browser.executeScript(
       'arguments[0].scrollIntoView({ block: "center" });',
-      await browser.findElement(
-        By.css('section[aria-label="Game update settings"]'),
-      ),
+      await browser.findElement(By.css('section[aria-label="Game update settings"]')),
     );
     const screenshot = path.join(output, "native-update-settings-saved.png");
     await writeFile(screenshot, await browser.takeScreenshot(), {
@@ -447,27 +354,17 @@ export async function preparationScenarios({
     artifacts.push(screenshot);
   });
   await scenario("native-release-channel-selection-and-restart", async () => {
-    await browser
-      .findElement(By.css('button[aria-label="Close port details"]'))
-      .click();
-    await browser
-      .findElement(By.xpath('//nav//button[contains(., "Port catalog")]'))
-      .click();
+    await browser.findElement(By.css('button[aria-label="Close port details"]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
     const openCatalogPort = async (id) => {
       const port = command(["catalog", "show", id]);
       const search = await browser.findElement(By.id("port-search"));
       await search.sendKeys(
-        Key.chord(
-          process.platform === "darwin" ? Key.COMMAND : Key.CONTROL,
-          "a",
-        ),
+        Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
         Key.BACK_SPACE,
         port.name,
       );
-      await browser.wait(
-        async () => (await search.getAttribute("value")) === port.name,
-        5_000,
-      );
+      await browser.wait(async () => (await search.getAttribute("value")) === port.name, 5_000);
       const card = By.xpath(
         `//button[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
       );
@@ -475,9 +372,7 @@ export async function preparationScenarios({
       await browser.findElement(card).click();
       await clickVisible(
         browser,
-        await browser.findElement(
-          By.css("details.advanced-settings > summary"),
-        ),
+        await browser.findElement(By.css("details.advanced-settings > summary")),
       );
       const channel = await browser.findElement(
         By.css('section[aria-label="Game release channel"]'),
@@ -488,9 +383,7 @@ export async function preparationScenarios({
     const single = await openCatalogPort("ghostship");
     assert.ok((await single.getText()).includes("Stable only"));
     assert.equal((await single.findElements(By.css("button"))).length, 0);
-    await browser
-      .findElement(By.css('button[aria-label="Close port details"]'))
-      .click();
+    await browser.findElement(By.css('button[aria-label="Close port details"]')).click();
     command(["channel", "set", "re-blue", "stable"]);
     const multi = await openCatalogPort("re-blue");
     const before = await status("re-blue");
@@ -512,35 +405,23 @@ export async function preparationScenarios({
     const trigger = await multi.findElement(By.css("button"));
     await trigger.click();
     await browser.findElement(button("Rolling")).click();
-    await browser.wait(
-      async () => (await status("re-blue")).channel === "rolling",
-      15_000,
-    );
+    await browser.wait(async () => (await status("re-blue")).channel === "rolling", 15_000);
     await browser.wait(until.elementIsEnabled(trigger), 90_000);
     const after = command(["status", "re-blue"]);
-    for (const key of ["active", "staged", "previous"])
-      assert.deepEqual(after[key], before[key]);
+    for (const key of ["active", "staged", "previous"]) assert.deepEqual(after[key], before[key]);
     assert.equal(after.channel, "rolling");
     await browser.navigate().refresh();
     await browser.wait(
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
       15_000,
     );
-    await browser
-      .findElement(By.xpath('//nav//button[contains(., "Port catalog")]'))
-      .click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
     const restarted = await openCatalogPort("re-blue");
     assert.ok((await restarted.getText()).includes("Rolling"));
-    await browser.executeScript(
-      'arguments[0].scrollIntoView({ block: "center" });',
-      restarted,
-    );
+    await browser.executeScript('arguments[0].scrollIntoView({ block: "center" });', restarted);
     const report = path.join(output, "release-channel-accessibility.json");
     await captureAccessibilityReport(browser, report, artifacts);
-    const screenshot = path.join(
-      output,
-      "native-release-channel-restarted.png",
-    );
+    const screenshot = path.join(output, "native-release-channel-restarted.png");
     await writeFile(screenshot, await browser.takeScreenshot(), {
       encoding: "base64",
       flag: "wx",

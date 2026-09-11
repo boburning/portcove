@@ -1,5 +1,4 @@
-export type OverlayBackAction =
-  "close-palette" | "close-adoption" | "close-detail" | undefined;
+export type OverlayBackAction = "close-palette" | "close-adoption" | "close-detail" | undefined;
 
 export function overlayBackAction(state: {
   paletteOpen: boolean;

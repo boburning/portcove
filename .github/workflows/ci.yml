@@ -25,14 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard:
-          [
-            core-service-1,
-            core-service-2,
-            core-recovery,
-            core-other-1,
-            core-other-2,
-          ]
+        shard: [core-service-1, core-service-2, core-recovery, core-other-1, core-other-2]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-rust

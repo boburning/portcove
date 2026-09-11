@@ -32,9 +32,7 @@ describe("native path pickers", () => {
       multiple: false,
       directory: false,
       defaultPath: "D:/Sources/old.z64",
-      filters: [
-        { name: "Original game source", extensions: ["z64", "n64", "zip"] },
-      ],
+      filters: [{ name: "Original game source", extensions: ["z64", "n64", "zip"] }],
     });
   });
 
@@ -93,9 +91,9 @@ describe("native path pickers", () => {
       },
     };
 
-    await expect(
-      pickSourcePath(profile, "D:/Sources/Final Fantasy VII"),
-    ).resolves.toBe("D:/Sources/Final Fantasy VII");
+    await expect(pickSourcePath(profile, "D:/Sources/Final Fantasy VII")).resolves.toBe(
+      "D:/Sources/Final Fantasy VII",
+    );
     expect(openMock).toHaveBeenCalledWith({
       multiple: false,
       directory: true,
@@ -115,9 +113,7 @@ describe("native path pickers", () => {
       members: [],
     };
 
-    await expect(pickSourcePath(profile, "")).resolves.toBe(
-      "D:/Sources/G-Diffuser",
-    );
+    await expect(pickSourcePath(profile, "")).resolves.toBe("D:/Sources/G-Diffuser");
     expect(openMock).toHaveBeenCalledWith({
       multiple: false,
       directory: true,
@@ -128,9 +124,7 @@ describe("native path pickers", () => {
 
   it("selects a ZIP for a compressed exact file set", async () => {
     openMock.mockResolvedValue("D:/Sources/outrun.zip");
-    await expect(pickSourceArchivePath("")).resolves.toBe(
-      "D:/Sources/outrun.zip",
-    );
+    await expect(pickSourceArchivePath("")).resolves.toBe("D:/Sources/outrun.zip");
     expect(openMock).toHaveBeenCalledWith({
       multiple: false,
       directory: false,
@@ -151,9 +145,7 @@ describe("native path pickers", () => {
 
   it("names the per-game output picker without implying a library move", async () => {
     openMock.mockResolvedValue("F:/Games/Sample");
-    await expect(pickGameOutputFolder("F:/Games")).resolves.toBe(
-      "F:/Games/Sample",
-    );
+    await expect(pickGameOutputFolder("F:/Games")).resolves.toBe("F:/Games/Sample");
     expect(openMock).toHaveBeenCalledWith({
       title: "Choose Export / install folder",
       multiple: false,

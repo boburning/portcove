@@ -75,24 +75,21 @@ describe("catalog and capacity presentation", () => {
     { channels: ["stable"], selected: "future" },
     { channels: ["stable", "constructor"], selected: "stable" },
     { channels: ["__proto__"], selected: "__proto__" },
-  ])(
-    "does not offer an unrecognized or inconsistent channel selection: %j",
-    (input) => {
-      const change = vi.fn();
-      const html = renderToStaticMarkup(
-        <ReleaseChannelControl
-          channels={input.channels as ReleaseChannel[]}
-          selected={input.selected as ReleaseChannel}
-          busy={false}
-          change={change}
-          refresh={vi.fn()}
-        />,
-      );
-      expect(html).toContain("Release channel information is unavailable");
-      expect(html).not.toContain('aria-haspopup="dialog"');
-      expect(change).not.toHaveBeenCalled();
-    },
-  );
+  ])("does not offer an unrecognized or inconsistent channel selection: %j", (input) => {
+    const change = vi.fn();
+    const html = renderToStaticMarkup(
+      <ReleaseChannelControl
+        channels={input.channels as ReleaseChannel[]}
+        selected={input.selected as ReleaseChannel}
+        busy={false}
+        change={change}
+        refresh={vi.fn()}
+      />,
+    );
+    expect(html).toContain("Release channel information is unavailable");
+    expect(html).not.toContain('aria-haspopup="dialog"');
+    expect(change).not.toHaveBeenCalled();
+  });
 
   it.each([-1, NaN, Infinity, -Infinity, 0.5, Number.MAX_SAFE_INTEGER + 1])(
     "does not invent a size for %s bytes",

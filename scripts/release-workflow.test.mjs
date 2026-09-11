@@ -13,16 +13,11 @@ const workflow = await readFile(
   new URL("../.github/workflows/release.yml", import.meta.url),
   "utf8",
 );
-const cliPackager = await readFile(
-  new URL("./package-cli.ps1", import.meta.url),
-  "utf8",
-);
-const buildSection =
-  workflow.match(/^ {2}build:\r?\n([\s\S]*?)(?=^ {2}rehearse:)/m)?.[1] ?? "";
+const cliPackager = await readFile(new URL("./package-cli.ps1", import.meta.url), "utf8");
+const buildSection = workflow.match(/^ {2}build:\r?\n([\s\S]*?)(?=^ {2}rehearse:)/m)?.[1] ?? "";
 const rehearseSection =
   workflow.match(/^ {2}rehearse:\r?\n([\s\S]*?)(?=^ {2}publish:)/m)?.[1] ?? "";
-const publishSection =
-  workflow.match(/^ {2}publish:\r?\n([\s\S]*)/m)?.[1] ?? "";
+const publishSection = workflow.match(/^ {2}publish:\r?\n([\s\S]*)/m)?.[1] ?? "";
 
 test("only the final publisher receives release write permission", () => {
   assert.match(workflow, /^permissions:\r?\n {2}contents: read$/m);
@@ -41,8 +36,7 @@ test("only the final publisher receives release write permission", () => {
 });
 
 test("every builder uploads only the staged checksummed payload with short fallback retention", () => {
-  for (const label of releaseLabels)
-    assert.match(buildSection, new RegExp(`label: ${label}`));
+  for (const label of releaseLabels) assert.match(buildSection, new RegExp(`label: ${label}`));
   assert.match(buildSection, /name: release-build-\$\{\{ matrix\.label \}\}/);
   assert.match(buildSection, /--stage-dir release-upload/);
   assert.match(buildSection, /path: release-upload\/\*\*/);
@@ -57,10 +51,7 @@ test("builders package the versioned CLI, smoke-test the archive, and request ex
   assert.match(buildSection, /bundles: nsis/);
   assert.match(buildSection, /bundles: appimage,deb,rpm/);
   assert.equal((buildSection.match(/bundles: dmg/g) ?? []).length, 2);
-  assert.match(
-    buildSection,
-    /pnpm tauri build --bundles "\$\{\{ matrix\.bundles \}\}"/,
-  );
+  assert.match(buildSection, /pnpm tauri build --bundles "\$\{\{ matrix\.bundles \}\}"/);
   assert.doesNotMatch(buildSection, /portcove-\$\{\{ matrix\.label \}\}/);
 });
 
@@ -70,10 +61,7 @@ test("CLI packaging uses the BSD-compatible chmod form required by macOS", () =>
 });
 
 test("manual rehearsal reconciles the complete matrix before deleting transient artifacts", () => {
-  assert.match(
-    rehearseSection,
-    /^ {4}if: github\.event_name == 'workflow_dispatch'$/m,
-  );
+  assert.match(rehearseSection, /^ {4}if: github\.event_name == 'workflow_dispatch'$/m);
   assert.match(rehearseSection, /^ {4}needs: build$/m);
   assert.match(rehearseSection, /pattern: release-build-\*/);
   const reconcile = rehearseSection.indexOf("reconcile-release-assets.mjs");

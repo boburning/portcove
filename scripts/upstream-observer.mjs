@@ -67,9 +67,7 @@ export function validateObserverConfig(config) {
   requireFact(
     typeof config.repository === "string" &&
       config.repository.length <= 200 &&
-      /^[A-Za-z0-9][A-Za-z0-9_.-]*\/[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(
-        config.repository,
-      ),
+      /^[A-Za-z0-9][A-Za-z0-9_.-]*\/[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(config.repository),
     "invalid-config",
     "invalid configured repository",
   );
@@ -164,11 +162,7 @@ function downloadUrl(value, config, tag, name) {
 }
 
 function assetFact(asset, config, tag) {
-  requireFact(
-    asset && typeof asset === "object",
-    "invalid-metadata",
-    "invalid asset object",
-  );
+  requireFact(asset && typeof asset === "object", "invalid-metadata", "invalid asset object");
   const name = textFact(asset.name, "asset filename", 255);
   requireFact(
     !/[\\/]/.test(name) && name !== "." && name !== "..",
@@ -176,9 +170,7 @@ function assetFact(asset, config, tag) {
     "asset filename is not a single component",
   );
   requireFact(
-    Number.isSafeInteger(asset.size) &&
-      asset.size >= 0 &&
-      asset.state === "uploaded",
+    Number.isSafeInteger(asset.size) && asset.size >= 0 && asset.state === "uploaded",
     "invalid-metadata",
     "asset size or upload state is invalid",
   );
@@ -195,12 +187,7 @@ function assetFact(asset, config, tag) {
     size: asset.size,
     state: asset.state,
     digest: asset.digest ?? null,
-    browser_download_url: downloadUrl(
-      asset.browser_download_url,
-      config,
-      tag,
-      name,
-    ),
+    browser_download_url: downloadUrl(asset.browser_download_url, config, tag, name),
     created_at: timestamp(asset.created_at, "asset creation"),
     updated_at: timestamp(asset.updated_at, "asset update"),
   };
@@ -215,11 +202,7 @@ function releaseFact(release) {
     "invalid-metadata",
     "release flags must be explicit booleans",
   );
-  const published = timestamp(
-    release.published_at,
-    "release publication",
-    true,
-  );
+  const published = timestamp(release.published_at, "release publication", true);
   requireFact(
     release.draft || published !== null,
     "invalid-metadata",
@@ -254,16 +237,11 @@ function nextPage(link, pathname, page, config) {
   if (!link) return false;
   const paths = [
     pathname,
-    pathname.replace(
-      `/repos/${config.repository}`,
-      `/repositories/${config.repository_id}`,
-    ),
+    pathname.replace(`/repos/${config.repository}`, `/repositories/${config.repository_id}`),
   ];
   const relations = new Set();
   for (const part of link.split(",")) {
-    const match = part
-      .trim()
-      .match(/^<([^>]+)>; rel="(next|prev|first|last)"$/);
+    const match = part.trim().match(/^<([^>]+)>; rel="(next|prev|first|last)"$/);
     requireFact(match, "pagination", "malformed pagination link");
     const url = new URL(match[1]);
     const number = Number(url.searchParams.get("page"));
@@ -280,18 +258,10 @@ function nextPage(link, pathname, page, config) {
       "pagination",
       "pagination link escaped its configured collection",
     );
-    requireFact(
-      !relations.has(match[2]),
-      "pagination",
-      "duplicate pagination relation",
-    );
+    requireFact(!relations.has(match[2]), "pagination", "duplicate pagination relation");
     relations.add(match[2]);
     if (match[2] === "next")
-      requireFact(
-        number === page + 1,
-        "pagination",
-        "pagination did not advance exactly one page",
-      );
+      requireFact(number === page + 1, "pagination", "pagination did not advance exactly one page");
   }
   return relations.has("next");
 }
@@ -318,9 +288,7 @@ export async function observeUpstream(config, options = {}) {
   const prior = validatedCache(options.cache, configHash);
   const fetcher = options.fetch ?? fetch;
   const now = options.now ?? Date.now;
-  const sleep =
-    options.sleep ??
-    ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
+  const sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
   const started = now();
   const pages = {};
   const consumed = { requests: 0, response_bytes: 0, conditional_hits: 0 };
@@ -342,8 +310,7 @@ export async function observeUpstream(config, options = {}) {
         "cached response identity is invalid",
       );
       requireFact(
-        Buffer.byteLength(JSON.stringify(previous.body)) <=
-          config.budget.response_bytes,
+        Buffer.byteLength(JSON.stringify(previous.body)) <= config.budget.response_bytes,
         "invalid-cache",
         "cached response exceeds the byte budget",
       );
@@ -388,9 +355,7 @@ export async function observeUpstream(config, options = {}) {
         const retry = response.headers.get("retry-after");
         const reset = Number(response.headers.get("x-ratelimit-reset")) * 1000;
         const retryTime =
-          retry && /^\d+$/.test(retry)
-            ? now() + Number(retry) * 1000
-            : Date.parse(retry ?? "");
+          retry && /^\d+$/.test(retry) ? now() + Number(retry) * 1000 : Date.parse(retry ?? "");
         const resume = Math.max(
           now() + 60_000,
           Number.isFinite(retryTime) ? retryTime : 0,
@@ -429,16 +394,9 @@ export async function observeUpstream(config, options = {}) {
           `provider returned HTTP ${response.status}`,
         );
       }
-      if (
-        !(response.headers.get("content-type") ?? "").includes(
-          "application/json",
-        )
-      ) {
+      if (!(response.headers.get("content-type") ?? "").includes("application/json")) {
         await response.body?.cancel();
-        throw new ObservationFailure(
-          "invalid-metadata",
-          "provider response is not JSON",
-        );
+        throw new ObservationFailure("invalid-metadata", "provider response is not JSON");
       }
       const chunks = [];
       let bytes = 0;
@@ -455,16 +413,9 @@ export async function observeUpstream(config, options = {}) {
       }
       let body;
       try {
-        body = JSON.parse(
-          new TextDecoder("utf-8", { fatal: true }).decode(
-            Buffer.concat(chunks),
-          ),
-        );
+        body = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks)));
       } catch {
-        throw new ObservationFailure(
-          "invalid-metadata",
-          "provider returned malformed UTF-8 JSON",
-        );
+        throw new ObservationFailure("invalid-metadata", "provider returned malformed UTF-8 JSON");
       }
       return {
         url,
@@ -509,43 +460,27 @@ export async function observeUpstream(config, options = {}) {
       );
       for (const item of response.body) {
         const id = identity(item?.id, "collection item");
-        requireFact(
-          !ids.has(id),
-          "pagination",
-          "collection repeated an identity across pages",
-        );
+        requireFact(!ids.has(id), "pagination", "collection repeated an identity across pages");
         ids.add(id);
         all.push(item);
       }
       if (!nextPage(response.link, pathname, page, config)) return all;
-      requireFact(
-        response.body.length === 100,
-        "pagination",
-        "nonterminal page is incomplete",
-      );
+      requireFact(response.body.length === 100, "pagination", "nonterminal page is incomplete");
     }
   }
 
   const repositoryPath = `/repos/${config.repository}`;
   const repository = repositoryFact(
-    (await read(repositoryPath, null, (value) => repositoryFact(value, config)))
-      .body,
+    (await read(repositoryPath, null, (value) => repositoryFact(value, config))).body,
     config,
   );
   const releases = [];
   const assetIds = new Set();
-  for (const raw of await collection(
-    `${repositoryPath}/releases`,
-    releaseFact,
-  )) {
+  for (const raw of await collection(`${repositoryPath}/releases`, releaseFact)) {
     const release = releaseFact(raw);
-    const normalizeAsset = (asset) =>
-      assetFact(asset, config, release.tag_name);
+    const normalizeAsset = (asset) => assetFact(asset, config, release.tag_name);
     release.assets = (
-      await collection(
-        `${repositoryPath}/releases/${release.id}/assets`,
-        normalizeAsset,
-      )
+      await collection(`${repositoryPath}/releases/${release.id}/assets`, normalizeAsset)
     ).map(normalizeAsset);
     for (const asset of release.assets) {
       requireFact(

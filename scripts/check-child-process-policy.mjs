@@ -31,12 +31,9 @@ export function findDirectChildProcessCalls(files) {
 }
 
 export function main() {
-  const files = SOURCE_ROOTS.flatMap((root) =>
-    rustFiles(resolve(REPOSITORY_ROOT, root)),
-  ).map((path) => [
-    relative(REPOSITORY_ROOT, path),
-    readFileSync(path, "utf8"),
-  ]);
+  const files = SOURCE_ROOTS.flatMap((root) => rustFiles(resolve(REPOSITORY_ROOT, root))).map(
+    (path) => [relative(REPOSITORY_ROOT, path), readFileSync(path, "utf8")],
+  );
   const violations = findDirectChildProcessCalls(files);
   if (violations.length > 0) {
     for (const violation of violations) {
@@ -52,9 +49,6 @@ export function main() {
   );
 }
 
-if (
-  process.argv[1] &&
-  fileURLToPath(import.meta.url) === resolve(process.argv[1])
-) {
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
   main();
 }

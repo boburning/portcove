@@ -6,20 +6,12 @@ export function pickArtworkPath() {
     title: "Choose local artwork",
     multiple: false,
     directory: false,
-    filters: [
-      { name: "Static PNG or JPEG image", extensions: ["png", "jpg", "jpeg"] },
-    ],
+    filters: [{ name: "Static PNG or JPEG image", extensions: ["png", "jpg", "jpeg"] }],
   });
 }
 
-export async function pickSourcePath(
-  profile: SourceProfile,
-  currentPath: string,
-) {
-  if (
-    profile.kind === "file-set" &&
-    currentPath.toLowerCase().endsWith(".zip")
-  ) {
+export async function pickSourcePath(profile: SourceProfile, currentPath: string) {
+  if (profile.kind === "file-set" && currentPath.toLowerCase().endsWith(".zip")) {
     return pickSourceArchivePath(currentPath);
   }
   const directory =
@@ -39,9 +31,7 @@ export async function pickSourcePath(
     directory,
     defaultPath: currentPath || undefined,
     filters:
-      !directory && extensions.length
-        ? [{ name: "Original game source", extensions }]
-        : undefined,
+      !directory && extensions.length ? [{ name: "Original game source", extensions }] : undefined,
   });
 }
 
@@ -80,10 +70,7 @@ export function pickGameOutputFolder(currentPath: string) {
   });
 }
 
-export function pickHostToolExecutable(
-  displayName: string,
-  currentPath: string,
-) {
+export function pickHostToolExecutable(displayName: string, currentPath: string) {
   return open({
     title: `Locate ${displayName} executable`,
     multiple: false,

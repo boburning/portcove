@@ -23,9 +23,7 @@ export function ArtworkProvider({
   children: ReactNode;
 }) {
   const cache = useMemo(() => new ArtworkCache(generation), [generation]);
-  return (
-    <ArtworkContext.Provider value={cache}>{children}</ArtworkContext.Provider>
-  );
+  return <ArtworkContext.Provider value={cache}>{children}</ArtworkContext.Provider>;
 }
 
 export function useArtwork(portId: string, slot: ArtworkSlot, visible = true) {

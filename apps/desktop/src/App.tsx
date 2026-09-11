@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdoptionModal } from "./components/AdoptionModal";
-import {
-  LibraryMoveRecovery,
-  transferRecoveryRoot,
-} from "./components/LibraryMove";
+import { LibraryMoveRecovery, transferRecoveryRoot } from "./components/LibraryMove";
 import { LibraryImportRecovery } from "./components/LibraryImport";
 import {
   PageHeader,
@@ -16,10 +13,7 @@ import { CommandPalette } from "./components/CommandPalette";
 import { DetailPanel } from "./components/DetailPanel";
 import { PortBrowser } from "./components/PortBrowser";
 import { ArtworkProvider } from "./artwork";
-import {
-  SourceIntakeDialog,
-  type SourceIntakeRequest,
-} from "./components/SourceIntake";
+import { SourceIntakeDialog, type SourceIntakeRequest } from "./components/SourceIntake";
 import { UpdateCenter } from "./components/UpdateCenter";
 import { FailureDetails } from "./components/FailureDetails";
 import { WorkspaceRefreshNotice } from "./components/WorkspaceRefreshNotice";
@@ -181,9 +175,8 @@ export function BootstrapRecovery({
         </dl>
       )}
       <p>
-        Check the configured library path, access permissions, and available
-        space, then retry. Portcove will run recovery checks again before
-        enabling library actions.
+        Check the configured library path, access permissions, and available space, then retry.
+        Portcove will run recovery checks again before enabling library actions.
       </p>
       <div className="button-row">
         <button type="button" onClick={() => window.location.reload()}>
@@ -192,9 +185,7 @@ export function BootstrapRecovery({
         <button
           type="button"
           onClick={() => {
-            void chooseLibrary?.().catch((value) =>
-              setActionError(errorText(value)),
-            );
+            void chooseLibrary?.().catch((value) => setActionError(errorText(value)));
           }}
         >
           Choose library
@@ -202,9 +193,7 @@ export function BootstrapRecovery({
         <button
           type="button"
           onClick={() => {
-            void resetLibrary?.().catch((value) =>
-              setActionError(errorText(value)),
-            );
+            void resetLibrary?.().catch((value) => setActionError(errorText(value)));
           }}
         >
           Use platform default
@@ -234,37 +223,26 @@ function Workspace({
   const [sourceIntake, setSourceIntake] = useState<SourceIntakeRequest>();
   const openSourceIntake = useCallback(
     (portId: string, profileId: string, paths: string[] = []) => {
-      const port = data.catalog?.ports.find(
-        (candidate) => candidate.id === portId,
-      );
+      const port = data.catalog?.ports.find((candidate) => candidate.id === portId);
       const profile = data.catalog?.source_profiles?.find(
         (candidate) => candidate.id === profileId,
       );
-      if (port && profile)
-        setSourceIntake({ portId, portName: port.name, profile, paths });
+      if (port && profile) setSourceIntake({ portId, portName: port.name, profile, paths });
     },
     [data.catalog],
   );
   const nativeSourceDrag = useNativeSourceDrop((drop) =>
     openSourceIntake(drop.portId, drop.profileId, drop.paths),
   );
-  const selectedPort = data.catalog?.ports.find(
-    (port) => port.id === ui.selectedId,
-  );
+  const selectedPort = data.catalog?.ports.find((port) => port.id === ui.selectedId);
   const inspectionProfiles = useMemo(
     () =>
       ui.view === "settings"
         ? data.sources.map((source) => source.profile_id)
-        : [
-            selectedPort?.source_profile,
-            selectedPort?.bios_source_profile,
-          ].filter((profile): profile is string => Boolean(profile)),
-    [
-      data.sources,
-      selectedPort?.bios_source_profile,
-      selectedPort?.source_profile,
-      ui.view,
-    ],
+        : [selectedPort?.source_profile, selectedPort?.bios_source_profile].filter(
+            (profile): profile is string => Boolean(profile),
+          ),
+    [data.sources, selectedPort?.bios_source_profile, selectedPort?.source_profile, ui.view],
   );
   const sourceHealth = useSourceHealth(
     operations.perform,
@@ -304,22 +282,11 @@ function Workspace({
       if (!adopting) setAdoptOpen(false);
     } else if (action === "close-detail") setSelectedId(undefined);
     else focusRegion("sidebar");
-  }, [
-    adoptOpen,
-    adopting,
-    commandOpen,
-    selectedId,
-    setAdoptOpen,
-    setCommandOpen,
-    setSelectedId,
-  ]);
+  }, [adoptOpen, adopting, commandOpen, selectedId, setAdoptOpen, setCommandOpen, setSelectedId]);
   const controller = useGamepadNavigation(handleBack);
   const hostToolActions: HostToolActions = {
     locate: async (tool: HostToolStatus) => {
-      const path = await pickHostToolExecutable(
-        tool.display_name,
-        tool.path ?? "",
-      );
+      const path = await pickHostToolExecutable(tool.display_name, tool.path ?? "");
       if (!path) return undefined;
       const result = await desktopApi.setHostToolPath(tool.id, path);
       await data.refresh();
@@ -330,8 +297,7 @@ function Workspace({
       await data.refresh();
     },
     recheck: async (toolId: string) => desktopApi.recheckHostTool(toolId),
-    openOfficial: (toolId: string) =>
-      desktopApi.openHostToolOfficialSite(toolId),
+    openOfficial: (toolId: string) => desktopApi.openHostToolOfficialSite(toolId),
   };
 
   return (
@@ -341,13 +307,10 @@ function Workspace({
           view={ui.view}
           setView={ui.setView}
           controller={controller}
-          installedCount={
-            data.statuses.filter((status) => status.active).length
-          }
+          installedCount={data.statuses.filter((status) => status.active).length}
           updateCount={
-            data.statuses.filter(
-              (status) => currentUpdateSnapshot(status)?.check.update_available,
-            ).length
+            data.statuses.filter((status) => currentUpdateSnapshot(status)?.check.update_available)
+              .length
           }
           onAdopt={() => ui.setAdoptOpen(true)}
         />
@@ -398,11 +361,7 @@ function Workspace({
           libraryGeneration={bootstrap.generation}
           openSourceIntake={openSourceIntake}
         />
-        <AdoptionOverlay
-          ui={ui}
-          operations={operations}
-          libraryGeneration={bootstrap.generation}
-        />
+        <AdoptionOverlay ui={ui} operations={operations} libraryGeneration={bootstrap.generation} />
         <CommandPalette
           open={commandSurface.open}
           commands={commandSurface.commands}
@@ -443,19 +402,9 @@ function useAppModel(data: DataState, ui: UiState) {
   useEffect(() => {
     void retryRefresh();
   }, [retryRefresh]);
-  const statusMap = useMemo(
-    () => indexStatuses(data.statuses),
-    [data.statuses],
-  );
+  const statusMap = useMemo(() => indexStatuses(data.statuses), [data.statuses]);
   const visible = useMemo(
-    () =>
-      filterPorts(
-        data.catalog?.ports ?? [],
-        statusMap,
-        ui.view,
-        ui.filter,
-        ui.query,
-      ),
+    () => filterPorts(data.catalog?.ports ?? [], statusMap, ui.view, ui.filter, ui.query),
     [data.catalog, statusMap, ui.view, ui.filter, ui.query],
   );
   const overview = useMemo(
@@ -494,9 +443,7 @@ function selectedPort(
   selectedId: string | undefined,
   statuses: ReturnType<typeof indexStatuses>,
 ) {
-  const port = data.catalog?.ports.find(
-    (candidate) => candidate.id === selectedId,
-  );
+  const port = data.catalog?.ports.find((candidate) => candidate.id === selectedId);
   if (!port)
     return {
       port: undefined,
@@ -509,15 +456,11 @@ function selectedPort(
   return {
     port,
     status: statuses.get(port.id),
-    source: data.sources.find(
-      (source) => source.profile_id === port.source_profile,
-    ),
+    source: data.sources.find((source) => source.profile_id === port.source_profile),
     sourceProfile: data.catalog?.source_profiles?.find(
       (profile) => profile.id === port.source_profile,
     ),
-    bios: data.sources.find(
-      (source) => source.profile_id === port.bios_source_profile,
-    ),
+    bios: data.sources.find((source) => source.profile_id === port.bios_source_profile),
     biosProfile: data.catalog?.source_profiles?.find(
       (profile) => profile.id === port.bios_source_profile,
     ),
@@ -612,21 +555,11 @@ function CurrentView({
           const profile = data.catalog?.source_profiles?.find(
             (candidate) => candidate.id === source.profile_id,
           );
-          void replaceRegisteredSource(
-            profile,
-            source,
-            operations.perform,
-            operations.setError,
-          );
+          void replaceRegisteredSource(profile, source, operations.perform, operations.setError);
         }}
         sourceNeeds={model.sourceNeeds}
         addSource={(profile, archive) => {
-          void addRequiredSource(
-            profile,
-            archive,
-            operations.perform,
-            operations.setError,
-          );
+          void addRequiredSource(profile, archive, operations.perform, operations.setError);
         }}
       />
     );
@@ -674,11 +607,7 @@ function SelectedPortPanel({
   backups: BackupState;
   activities: ActivityRecord[];
   libraryGeneration: number;
-  openSourceIntake: (
-    portId: string,
-    profileId: string,
-    paths?: string[],
-  ) => void;
+  openSourceIntake: (portId: string, profileId: string, paths?: string[]) => void;
 }) {
   if (!model.port) return null;
   const pickSource = model.sourceProfile
@@ -714,12 +643,7 @@ function SelectedPortPanel({
       perform={operations.perform}
       prepare={(expectedPlan, onEvent) =>
         operations.perform("prepare game data", () =>
-          desktopApi.prepare(
-            model.port.id,
-            expectedPlan,
-            libraryGeneration,
-            onEvent,
-          ),
+          desktopApi.prepare(model.port.id, expectedPlan, libraryGeneration, onEvent),
         )
       }
       port={model.port}
@@ -738,8 +662,7 @@ function SelectedPortPanel({
       sourcePath={ui.sourcePath}
       setSourcePath={ui.setSourcePath}
       cancellableActivities={activities.filter(
-        (activity) =>
-          activity.target_id === model.port?.id && activity.cancellation,
+        (activity) => activity.target_id === model.port?.id && activity.cancellation,
       )}
       libraryGeneration={libraryGeneration}
       outputLocationChanged={installPlanning.invalidate}
@@ -809,11 +732,7 @@ function AdoptionOverlay({
       busy={operations.busy}
       close={() => ui.setAdoptOpen(false)}
       pickFolder={() => {
-        void applyPathChoice(
-          pickInstallFolder(ui.adoptPath),
-          ui.setAdoptPath,
-          operations.setError,
-        );
+        void applyPathChoice(pickInstallFolder(ui.adoptPath), ui.setAdoptPath, operations.setError);
       }}
       review={() => {
         void planning.review();
@@ -845,9 +764,7 @@ async function replaceRegisteredSource(
   setError: (error?: string) => void,
 ) {
   if (!profile) {
-    setError(
-      "The selected file’s source requirements are missing from the current catalog.",
-    );
+    setError("The selected file’s source requirements are missing from the current catalog.");
     return;
   }
   try {
@@ -869,11 +786,8 @@ async function addRequiredSource(
   setError: (error?: string) => void,
 ) {
   try {
-    const path = await (archive
-      ? pickSourceArchivePath("")
-      : pickSourcePath(profile, ""));
-    if (path)
-      await perform("add source", () => desktopApi.addSource(profile.id, path));
+    const path = await (archive ? pickSourceArchivePath("") : pickSourcePath(profile, ""));
+    if (path) await perform("add source", () => desktopApi.addSource(profile.id, path));
   } catch (value) {
     setError(errorText(value));
   }

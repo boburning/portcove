@@ -51,9 +51,7 @@ async function click(label: string) {
 }
 
 it("shows the original path, installed impact and all dependents without removing anything", async () => {
-  const read = vi
-    .spyOn(desktopApi, "previewSourceRemoval")
-    .mockResolvedValue(preview);
+  const read = vi.spyOn(desktopApi, "previewSourceRemoval").mockResolvedValue(preview);
   const remove = vi.spyOn(desktopApi, "removeSource");
   const close = vi.fn();
   await act(async () =>
@@ -77,9 +75,7 @@ it("shows the original path, installed impact and all dependents without removin
     "no one-click undo",
   ])
     expect(container.textContent).toContain(text);
-  expect(container.querySelector("[data-autofocus]")?.textContent).toBe(
-    "Keep source reference",
-  );
+  expect(container.querySelector("[data-autofocus]")?.textContent).toBe("Keep source reference");
   await click("Keep source reference");
   expect(close).toHaveBeenCalledOnce();
   expect(remove).not.toHaveBeenCalled();
@@ -102,20 +98,14 @@ it("binds application to the review and does not treat native cancellation as re
     ),
   );
   await click("Continue to removal confirmation");
-  expect(remove).toHaveBeenCalledExactlyOnceWith(
-    "source",
-    "reviewed-source-impact",
-    3,
-  );
+  expect(remove).toHaveBeenCalledExactlyOnceWith("source", "reviewed-source-impact", 3);
   expect(close).toHaveBeenCalledOnce();
   expect(removed).not.toHaveBeenCalled();
   expect(container.querySelector('[role="alert"]')).toBeNull();
 });
 
 it("blocks duplicate submissions within one event batch and requires fresh intent after rejection", async () => {
-  const read = vi
-    .spyOn(desktopApi, "previewSourceRemoval")
-    .mockResolvedValue(preview);
+  const read = vi.spyOn(desktopApi, "previewSourceRemoval").mockResolvedValue(preview);
   let reject!: (value: Error) => void;
   const remove = vi
     .spyOn(desktopApi, "removeSource")
@@ -151,9 +141,7 @@ it("blocks duplicate submissions within one event batch and requires fresh inten
   expect(container.querySelector('[role="alert"]')?.textContent).toContain(
     "Source or dependents changed",
   );
-  expect(container.textContent).not.toContain(
-    "Continue to removal confirmation",
-  );
+  expect(container.textContent).not.toContain("Continue to removal confirmation");
   await click("Review source removal again");
   expect(read).toHaveBeenCalledTimes(2);
   await click("Continue to removal confirmation");
@@ -205,17 +193,13 @@ it("ignores a late preview from a previous source or library", async () => {
   );
   await act(async () => finish(preview));
   expect(container.textContent).toContain("new-original/game.bin");
-  expect(container.textContent).toContain(
-    "No installed game currently depends",
-  );
+  expect(container.textContent).toContain("No installed game currently depends");
   expect(container.textContent).not.toContain("Reference to remove: source");
 });
 
 it("retries only the list refresh after a completed removal has a refresh failure", async () => {
   vi.spyOn(desktopApi, "previewSourceRemoval").mockResolvedValue(preview);
-  const remove = vi
-    .spyOn(desktopApi, "removeSource")
-    .mockResolvedValue(preview);
+  const remove = vi.spyOn(desktopApi, "removeSource").mockResolvedValue(preview);
   const refresh = vi
     .fn()
     .mockRejectedValueOnce(new Error("Read failed"))
@@ -268,7 +252,5 @@ it("never commits an old source preview under a new identity", async () => {
   expect(container.textContent).toContain("original/game.bin");
   await act(async () => root.render(<Context profileId="new" />));
   expect(observations.at(-1)).not.toContain("original/game.bin");
-  expect(container.textContent).not.toContain(
-    "Continue to removal confirmation",
-  );
+  expect(container.textContent).not.toContain("Continue to removal confirmation");
 });

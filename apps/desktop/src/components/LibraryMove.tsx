@@ -70,10 +70,9 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
         <p className="eyebrow">LIBRARY STORAGE</p>
         <h2 id="move-library-title">Move your library</h2>
         <p className="modal-description">
-          Copy and verify application versions, saves, backups, and toolchains
-          before switching to the new folder. The original folder stays
-          available for recovery. Original game sources stay at their current
-          paths.
+          Copy and verify application versions, saves, backups, and toolchains before switching to
+          the new folder. The original folder stays available for recovery. Original game sources
+          stay at their current paths.
         </p>
         <NavigationHints />
         <label htmlFor="library-destination">New library folder</label>
@@ -101,15 +100,9 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
           </button>
         </div>
         {plan && (
-          <LibraryCopySummary
-            plan={plan}
-            source={plan.source_root}
-            label="Library move plan"
-          />
+          <LibraryCopySummary plan={plan} source={plan.source_root} label="Library move plan" />
         )}
-        {busy && (
-          <p role="status">{busy} Keep Portcove open until this finishes.</p>
-        )}
+        {busy && <p role="status">{busy} Keep Portcove open until this finishes.</p>}
         {error != null && <p role="alert">{errorText(error)}</p>}
         {transferAttempted && !busy && (
           <p>Closing this review refreshes the library before you continue.</p>
@@ -117,9 +110,7 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
         {recoveryRoot && (
           <LibraryMoveRecovery
             source={recoveryRoot}
-            onBusyChange={(active) =>
-              setBusy(active ? "Recovering your library…" : "")
-            }
+            onBusyChange={(active) => setBusy(active ? "Recovering your library…" : "")}
           />
         )}
         <div className="actions">
@@ -135,10 +126,7 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
                 onClick={() => {
                   void run("Copying and verifying your library…", async () => {
                     setTransferAttempted(true);
-                    await desktopApi.moveLibrary(
-                      plan.destination_root,
-                      plan.plan_sha256,
-                    );
+                    await desktopApi.moveLibrary(plan.destination_root, plan.plan_sha256);
                     window.location.reload();
                   });
                 }}
@@ -191,9 +179,9 @@ export function LibraryMoveRecovery({
   return (
     <section aria-label="Library move recovery">
       <p>
-        A library move needs recovery. Resume verifies the copy before
-        finishing. Abort returns to the original only while the new copy has not
-        been activated. Both choices retain all copied files.
+        A library move needs recovery. Resume verifies the copy before finishing. Abort returns to
+        the original only while the new copy has not been activated. Both choices retain all copied
+        files.
       </p>
       <div className="actions">
         <button
@@ -234,8 +222,7 @@ export function transferRecoveryRoot(
   )
     return undefined;
   const details = error.details as Record<string, unknown>;
-  return (details.transfer_id || details.recovery_action) &&
-    typeof details[key] === "string"
+  return (details.transfer_id || details.recovery_action) && typeof details[key] === "string"
     ? details[key]
     : undefined;
 }
@@ -247,11 +234,7 @@ export function LibraryCopySummary({
 }: {
   plan: Pick<
     LibraryMovePlan,
-    | "content"
-    | "metadata"
-    | "destination_root"
-    | "required_bytes"
-    | "available_bytes"
+    "content" | "metadata" | "destination_root" | "required_bytes" | "available_bytes"
   >;
   source: string;
   label: string;
@@ -271,8 +254,8 @@ export function LibraryCopySummary({
       {plan.metadata.application_versions.length > 0 ? (
         <>
           <p>
-            Active, previous, and staged versions keep their identities. These
-            installation paths are relative to the library folder.
+            Active, previous, and staged versions keep their identities. These installation paths
+            are relative to the library folder.
           </p>
           <ul>
             {plan.metadata.application_versions.map((install) => (
@@ -289,8 +272,8 @@ export function LibraryCopySummary({
       )}
       <h3>Copied folders and files</h3>
       <p>
-        Open a folder to inspect the recorded paths. Each folder is copied from
-        the source location to the same relative path at the destination.
+        Open a folder to inspect the recorded paths. Each folder is copied from the source location
+        to the same relative path at the destination.
       </p>
       {plan.content.map((tree) => (
         <LibraryCopyTree key={tree.relative_path} tree={tree} />
@@ -319,30 +302,23 @@ export function LibraryCopySummary({
         </details>
       )}
       <p>
-        Copying Source Inbox files does not redirect their registrations. Keep
-        the recorded source locations available until you explicitly register
-        another location.
+        Copying Source Inbox files does not redirect their registrations. Keep the recorded source
+        locations available until you explicitly register another location.
       </p>
       <p>
-        Original game files, saves, backups and artwork remain in place. Later
-        saves and settings belong to the library you use; changes are not
-        synchronized between the two locations. There is no single undo action
-        that merges later changes back into the original.
+        Original game files, saves, backups and artwork remain in place. Later saves and settings
+        belong to the library you use; changes are not synchronized between the two locations. There
+        is no single undo action that merges later changes back into the original.
       </p>
       <p>
-        Once copying starts, this dialog cannot cancel it. If interrupted, use
-        the recorded move or import recovery before another transfer. Keep both
-        locations until the result is confirmed.
+        Once copying starts, this dialog cannot cancel it. If interrupted, use the recorded move or
+        import recovery before another transfer. Keep both locations until the result is confirmed.
       </p>
     </section>
   );
 }
 
-function LibraryCopyTree({
-  tree,
-}: {
-  tree: LibraryMovePlan["content"][number];
-}) {
+function LibraryCopyTree({ tree }: { tree: LibraryMovePlan["content"][number] }) {
   const [expanded, setExpanded] = useState(false);
   const labels: Record<typeof tree.kind, string> = {
     application_versions: "Game versions",
@@ -355,10 +331,8 @@ function LibraryCopyTree({
   return (
     <details onToggle={(event) => setExpanded(event.currentTarget.open)}>
       <summary data-focusable>
-        {Object.hasOwn(labels, tree.kind)
-          ? labels[tree.kind]
-          : "Other recorded content"}{" "}
-        · {formatBytes(tree.copy.total_bytes)}
+        {Object.hasOwn(labels, tree.kind) ? labels[tree.kind] : "Other recorded content"} ·{" "}
+        {formatBytes(tree.copy.total_bytes)}
       </summary>
       {expanded && (
         <>

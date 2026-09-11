@@ -25,23 +25,12 @@ export function LibraryImportButton({
       >
         Import library
       </button>
-      {open && (
-        <LibraryImportDialog
-          libraryRoot={libraryRoot}
-          close={() => setOpen(false)}
-        />
-      )}
+      {open && <LibraryImportDialog libraryRoot={libraryRoot} close={() => setOpen(false)} />}
     </>
   );
 }
 
-function LibraryImportDialog({
-  libraryRoot,
-  close,
-}: {
-  libraryRoot: string;
-  close: () => void;
-}) {
+function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; close: () => void }) {
   const [metadata, setMetadata] = useState("");
   const [content, setContent] = useState("");
   const [plan, setPlan] = useState<LibraryImportPlan>();
@@ -71,9 +60,7 @@ function LibraryImportDialog({
   const choose = (field: "metadata" | "content") =>
     run("Choosing your backup…", async () => {
       const path =
-        field === "metadata"
-          ? await pickMetadataImportPath()
-          : await pickInstallFolder(content);
+        field === "metadata" ? await pickMetadataImportPath() : await pickInstallFolder(content);
       if (path) {
         (field === "metadata" ? setMetadata : setContent)(path);
         setPlan(undefined);
@@ -92,10 +79,9 @@ function LibraryImportDialog({
         <p className="eyebrow">LIBRARY BACKUP</p>
         <h2 id="import-library-title">Import your library</h2>
         <p className="modal-description">
-          Restore a trusted metadata export and its copied application, save,
-          backup, and toolchain folders into this empty library. Portcove
-          verifies the copy before opening it and keeps the backup files
-          unchanged.
+          Restore a trusted metadata export and its copied application, save, backup, and toolchain
+          folders into this empty library. Portcove verifies the copy before opening it and keeps
+          the backup files unchanged.
         </p>
         <p>
           Destination: <code>{libraryRoot}</code>
@@ -149,15 +135,9 @@ function LibraryImportDialog({
           </button>
         </div>
         {plan && (
-          <LibraryCopySummary
-            plan={plan}
-            source={plan.content_root}
-            label="Library import plan"
-          />
+          <LibraryCopySummary plan={plan} source={plan.content_root} label="Library import plan" />
         )}
-        {busy && (
-          <p role="status">{busy} Keep Portcove open until this finishes.</p>
-        )}
+        {busy && <p role="status">{busy} Keep Portcove open until this finishes.</p>}
         {error != null && <p role="alert">{errorText(error)}</p>}
         {transferAttempted && !busy && (
           <p>Closing this review refreshes the library before you continue.</p>
@@ -165,9 +145,7 @@ function LibraryImportDialog({
         {recoveryRoot && (
           <LibraryImportRecovery
             destination={recoveryRoot}
-            onBusyChange={(active) =>
-              setBusy(active ? "Recovering your import…" : "")
-            }
+            onBusyChange={(active) => setBusy(active ? "Recovering your import…" : "")}
           />
         )}
         <div className="actions">
@@ -201,9 +179,7 @@ function LibraryImportDialog({
                 disabled={Boolean(busy) || !metadata.trim() || !content.trim()}
                 onClick={() => {
                   void run("Reviewing your backup…", async () =>
-                    setPlan(
-                      await desktopApi.planLibraryImport(metadata, content),
-                    ),
+                    setPlan(await desktopApi.planLibraryImport(metadata, content)),
                   );
                 }}
               >
@@ -242,9 +218,8 @@ export function LibraryImportRecovery({
   return (
     <section aria-label="Library import recovery">
       <p>
-        Resume the import to verify and finish the restored copy. The original
-        backup stays unchanged. Incomplete copies remain closed until recovery
-        succeeds.
+        Resume the import to verify and finish the restored copy. The original backup stays
+        unchanged. Incomplete copies remain closed until recovery succeeds.
       </p>
       <button
         data-focusable

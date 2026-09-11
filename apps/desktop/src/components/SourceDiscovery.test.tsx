@@ -4,11 +4,7 @@ import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
-import type {
-  SourceDiscoveryReport,
-  SourceImportPlan,
-  SourceProfile,
-} from "../types";
+import type { SourceDiscoveryReport, SourceImportPlan, SourceProfile } from "../types";
 import { SourceDiscoveryButton } from "./SourceDiscovery";
 
 it("opens and scans the Inbox, then applies the exact reviewed import", async () => {
@@ -101,9 +97,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
         },
       };
     });
-  const search = vi
-    .spyOn(desktopApi, "discoverSources")
-    .mockResolvedValue(report);
+  const search = vi.spyOn(desktopApi, "discoverSources").mockResolvedValue(report);
   const review = vi
     .spyOn(desktopApi, "planSourceImport")
     .mockRejectedValueOnce({ message: "Source changed after discovery" })
@@ -152,11 +146,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
   try {
     await act(async () =>
       root.render(
-        <SourceDiscoveryButton
-          profiles={[profile]}
-          disabled={false}
-          onAdded={refresh}
-        />,
+        <SourceDiscoveryButton profiles={[profile]} disabled={false} onAdded={refresh} />,
       ),
     );
     await click("Find source files");
@@ -251,9 +241,7 @@ it("keeps cancellation tied to the emitted durable operation", async () => {
   };
   try {
     await act(async () =>
-      root.render(
-        <SourceDiscoveryButton profiles={[profile]} disabled={false} />,
-      ),
+      root.render(<SourceDiscoveryButton profiles={[profile]} disabled={false} />),
     );
     await click("Find source files");
     await click("Choose folder");
@@ -269,9 +257,7 @@ it("keeps cancellation tied to the emitted durable operation", async () => {
         message: "Operation cancelled before publication",
       }),
     );
-    expect(host.textContent).toContain(
-      "Operation cancelled. No unverified source was registered.",
-    );
+    expect(host.textContent).toContain("Operation cancelled. No unverified source was registered.");
     expect(host.querySelector('[role="alert"]')).toBeNull();
   } finally {
     await act(async () => root.unmount());

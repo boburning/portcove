@@ -1,12 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  spawnCommand,
-  getPaths,
-  preflight,
-  minimumFreeGiB,
-} from "./dev-storage.mjs";
+import { spawnCommand, getPaths, preflight, minimumFreeGiB } from "./dev-storage.mjs";
 import { loadQualityManifest } from "./quality-tools.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -19,9 +14,7 @@ function aquaToolPaths(command) {
       windowsHide: true,
       timeout: 15_000,
     });
-    return result.status === 0 && result.stdout.trim()
-      ? [result.stdout.trim()]
-      : [];
+    return result.status === 0 && result.stdout.trim() ? [result.stdout.trim()] : [];
   } catch {
     return [];
   }
@@ -37,8 +30,7 @@ function aquaDefinitions() {
   return [...contents.matchAll(/^\s*- name: ([^@\s]+)@([^\s]+)$/gmu)].map(
     ([, packageName, version]) => {
       const command = commands[packageName];
-      if (!command)
-        throw new Error(`unsupported aqua quality tool: ${packageName}`);
+      if (!command) throw new Error(`unsupported aqua quality tool: ${packageName}`);
       return {
         id: command[0],
         command: ["aqua", "exec", "--", ...command],
@@ -50,10 +42,7 @@ function aquaDefinitions() {
 }
 
 function powershellAnalyzerDefinition() {
-  const contents = readFileSync(
-    path.join(root, ".config", "powershell-resources.psd1"),
-    "utf8",
-  );
+  const contents = readFileSync(path.join(root, ".config", "powershell-resources.psd1"), "utf8");
   const version = contents.match(/version\s*=\s*'([^']+)'/u)?.[1];
   if (!version) throw new Error("PSScriptAnalyzer version is missing");
   return {
@@ -89,8 +78,7 @@ export function probeTool(definition, run = spawnCommand) {
     };
   }
   const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
-  const observed =
-    output.match(/(?<![0-9])\d+\.\d+\.\d+(?:[-+][\w.-]+)?/u)?.[0] ?? null;
+  const observed = output.match(/(?<![0-9])\d+\.\d+\.\d+(?:[-+][\w.-]+)?/u)?.[0] ?? null;
   const status =
     result.error?.code === "ETIMEDOUT"
       ? "timeout"
@@ -106,18 +94,12 @@ export function probeTool(definition, run = spawnCommand) {
 function executablePaths(command) {
   if (path.isAbsolute(command)) return existsSync(command) ? [command] : [];
   try {
-    const result = spawnCommand(
-      process.platform === "win32" ? "where.exe" : "which",
-      [command],
-      {
-        encoding: "utf8",
-        windowsHide: true,
-        timeout: 5_000,
-      },
-    );
-    return result.status === 0
-      ? result.stdout.trim().split(/\r?\n/u).filter(Boolean)
-      : [];
+    const result = spawnCommand(process.platform === "win32" ? "where.exe" : "which", [command], {
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 5_000,
+    });
+    return result.status === 0 ? result.stdout.trim().split(/\r?\n/u).filter(Boolean) : [];
   } catch {
     return [];
   }
@@ -173,12 +155,8 @@ function windowsCompilers() {
 
 export async function collectDoctor() {
   const manifest = await loadQualityManifest();
-  const desktop = JSON.parse(
-    readFileSync(path.join(root, "apps/desktop/package.json"), "utf8"),
-  );
-  const requiredRustDefinitions = manifest.tools.filter(
-    (tool) => tool.tier === "required",
-  );
+  const desktop = JSON.parse(readFileSync(path.join(root, "apps/desktop/package.json"), "utf8"));
+  const requiredRustDefinitions = manifest.tools.filter((tool) => tool.tier === "required");
   const aquaVersion = readFileSync(path.join(root, ".aqua-version"), "utf8")
     .trim()
     .replace(/^v/u, "");
@@ -248,24 +226,18 @@ export async function collectDoctor() {
     platform: process.platform,
     architecture: process.arch,
     workspace: root,
-    ok:
-      storage.status === "ok" &&
-      tools.every((tool) => !tool.required || tool.status === "ok"),
+    ok: storage.status === "ok" && tools.every((tool) => !tool.required || tool.status === "ok"),
     tools,
     storage,
     msvc: windowsCompilers(),
   };
 }
 
-if (
-  process.argv[1] &&
-  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-) {
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   if (process.argv.slice(2).some((arg) => arg !== "--json"))
     throw new Error("usage: dev-doctor.mjs [--json]");
   const report = await collectDoctor();
-  if (process.argv.includes("--json"))
-    console.log(JSON.stringify(report, null, 2));
+  if (process.argv.includes("--json")) console.log(JSON.stringify(report, null, 2));
   else {
     console.log(
       `Development doctor: ${report.ok ? "ready" : "needs attention"} (${report.platform}/${report.architecture})`,

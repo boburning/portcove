@@ -9,10 +9,7 @@ interface ErrorBoundaryState {
   error?: Error;
 }
 
-export class AppErrorBoundary extends Component<
-  ErrorBoundaryProps,
-  ErrorBoundaryState
-> {
+export class AppErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = {};
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
@@ -35,8 +32,8 @@ function RenderRecovery({ error }: { error: Error }) {
       <p className="eyebrow">DESKTOP RECOVERY</p>
       <h1>Portcove hit a display error</h1>
       <p>
-        Your library operation state remains owned by the backend. Reload the
-        interface to reconnect to it.
+        Your library operation state remains owned by the backend. Reload the interface to reconnect
+        to it.
       </p>
       <pre>{error.message || "Unknown render failure"}</pre>
       <button type="button" onClick={() => window.location.reload()}>

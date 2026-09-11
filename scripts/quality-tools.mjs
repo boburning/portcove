@@ -16,29 +16,21 @@ const governedConsumers = [
 ];
 
 function semver(value, label) {
-  if (
-    typeof value !== "string" ||
-    !/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(value)
-  ) {
+  if (typeof value !== "string" || !/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(value)) {
     throw new Error(`${label} must be an exact semantic version`);
   }
 }
 
 export function validateQualityManifest(manifest) {
-  if (manifest.schema_version !== 1)
-    throw new Error("quality manifest schema_version must be 1");
+  if (manifest.schema_version !== 1) throw new Error("quality manifest schema_version must be 1");
   semver(manifest.rust?.channel, "Rust channel");
-  if (
-    JSON.stringify(manifest.rust.components) !==
-    JSON.stringify(["clippy", "rustfmt"])
-  ) {
+  if (JSON.stringify(manifest.rust.components) !== JSON.stringify(["clippy", "rustfmt"])) {
     throw new Error("Rust components must be exactly clippy and rustfmt");
   }
   const ids = new Set();
   const crates = new Set();
   for (const tool of manifest.tools ?? []) {
-    if (!tool.id || ids.has(tool.id))
-      throw new Error(`duplicate or missing tool id: ${tool.id}`);
+    if (!tool.id || ids.has(tool.id)) throw new Error(`duplicate or missing tool id: ${tool.id}`);
     if (!tool.crate || crates.has(tool.crate))
       throw new Error(`duplicate or missing crate: ${tool.crate}`);
     ids.add(tool.id);
@@ -56,8 +48,7 @@ export function validateQualityManifest(manifest) {
     if (!["prebuilt", "cached", "local", "source"].includes(tool.ci_install)) {
       throw new Error(`${tool.id} has an invalid ci_install strategy`);
     }
-    if (tool.rust_toolchain)
-      semver(tool.rust_toolchain, `${tool.id} Rust toolchain`);
+    if (tool.rust_toolchain) semver(tool.rust_toolchain, `${tool.id} Rust toolchain`);
   }
   for (const required of [
     "just",
@@ -70,8 +61,7 @@ export function validateQualityManifest(manifest) {
     "cargo-hawk",
     "cargo-nextest",
   ]) {
-    if (!ids.has(required))
-      throw new Error(`quality manifest is missing ${required}`);
+    if (!ids.has(required)) throw new Error(`quality manifest is missing ${required}`);
   }
 }
 
@@ -82,24 +72,17 @@ export function findStaleConsumerPins(manifest, consumers) {
       const aliases = new Set([
         tool.id,
         tool.crate,
-        ...tool.command.filter(
-          (value) => !value.startsWith("-") && value !== "cargo",
-        ),
+        ...tool.command.filter((value) => !value.startsWith("-") && value !== "cargo"),
       ]);
       const identity = [...aliases]
         .map((value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
         .join("|");
-      const identityPattern = new RegExp(
-        `(?:^|[^A-Za-z0-9_-])(?:${identity})(?:$|[^A-Za-z0-9_-])`,
-      );
+      const identityPattern = new RegExp(`(?:^|[^A-Za-z0-9_-])(?:${identity})(?:$|[^A-Za-z0-9_-])`);
       for (const [index, line] of contents.split(/\r?\n/).entries()) {
         if (!identityPattern.test(line)) continue;
-        const versions =
-          line.match(/\b\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?\b/g) ?? [];
+        const versions = line.match(/\b\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?\b/g) ?? [];
         for (const version of versions)
-          findings.push(
-            `${name}:${index + 1} duplicates ${tool.id} pin ${version}`,
-          );
+          findings.push(`${name}:${index + 1} duplicates ${tool.id} pin ${version}`);
       }
     }
   }
@@ -107,15 +90,11 @@ export function findStaleConsumerPins(manifest, consumers) {
 }
 
 export function githubOutputs(manifest) {
-  const byId = Object.fromEntries(
-    manifest.tools.map((tool) => [tool.id, tool]),
-  );
+  const byId = Object.fromEntries(manifest.tools.map((tool) => [tool.id, tool]));
   const spec = (tool) => `${tool.crate}@${tool.version}`;
   return {
     required_prebuilt: manifest.tools
-      .filter(
-        (tool) => tool.tier === "required" && tool.ci_install === "prebuilt",
-      )
+      .filter((tool) => tool.tier === "required" && tool.ci_install === "prebuilt")
       .map(spec)
       .join(","),
     required_all: manifest.tools
@@ -147,17 +126,11 @@ async function validateConsumers(manifest) {
     throw new Error(
       `quality tool pins must come from .github/quality-tools.json:\n${findings.join("\n")}`,
     );
-  const toolchain = await readFile(
-    path.join(projectRoot, "rust-toolchain.toml"),
-    "utf8",
-  );
+  const toolchain = await readFile(path.join(projectRoot, "rust-toolchain.toml"), "utf8");
   const configuredRust = toolchain.match(/^channel\s*=\s*"([^"]+)"/m)?.[1];
   if (configuredRust !== manifest.rust.channel)
     throw new Error("rust-toolchain.toml drifted from quality-tools.json");
-  const workspace = await readFile(
-    path.join(projectRoot, "Cargo.toml"),
-    "utf8",
-  );
+  const workspace = await readFile(path.join(projectRoot, "Cargo.toml"), "utf8");
   const msrv = workspace.match(/^rust-version\s*=\s*"([^"]+)"/m)?.[1];
   if (`${msrv}.0` !== manifest.rust.channel)
     throw new Error("workspace MSRV drifted from the pinned Rust channel");
@@ -177,13 +150,9 @@ function verifyTool(tool) {
   if (
     result.error ||
     result.status !== 0 ||
-    !new RegExp(
-      `(^|[^0-9])${tool.version.replaceAll(".", "\\.")}([^0-9]|$)`,
-    ).test(output)
+    !new RegExp(`(^|[^0-9])${tool.version.replaceAll(".", "\\.")}([^0-9]|$)`).test(output)
   ) {
-    throw new Error(
-      `${tool.id} did not report required version ${tool.version}`,
-    );
+    throw new Error(`${tool.id} did not report required version ${tool.version}`);
   }
   return output.trim();
 }
@@ -203,8 +172,7 @@ async function main(argv) {
   }
   if (mode === "--specs" && argv.length === 2) {
     const tier = argv[1];
-    if (!["required", "deep"].includes(tier))
-      throw new Error("--specs expects required or deep");
+    if (!["required", "deep"].includes(tier)) throw new Error("--specs expects required or deep");
     for (const tool of manifest.tools.filter(
       (candidate) => candidate.tier === tier && candidate.id !== "cargo-hawk",
     )) {
@@ -218,8 +186,7 @@ async function main(argv) {
   }
   if (mode === "--rust-toolchain" && argv.length === 2) {
     const tool = toolById(manifest, argv[1]);
-    if (!tool.rust_toolchain)
-      throw new Error(`${tool.id} has no private Rust toolchain`);
+    if (!tool.rust_toolchain) throw new Error(`${tool.id} has no private Rust toolchain`);
     console.log(tool.rust_toolchain);
     return;
   }

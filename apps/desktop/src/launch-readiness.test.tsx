@@ -59,9 +59,7 @@ it.each([undefined, null])(
     const statuses = new Map([[port.id, status]]);
     expect(portReadiness(status)).toBe("unknown");
     expect(filterPorts([port], statuses, "library", "ready", "")).toEqual([]);
-    expect(filterPorts([port], statuses, "library", "setup", "")).toEqual([
-      port,
-    ]);
+    expect(filterPorts([port], statuses, "library", "setup", "")).toEqual([port]);
     expect(summarizeLibrary([port], statuses)).toEqual({
       installed: 1,
       ready: 0,
@@ -71,10 +69,7 @@ it.each([undefined, null])(
   },
 );
 
-it.each([
-  { blockers: [] },
-  { blockers: ["future_blocker" as ReadinessBlocker] },
-])(
+it.each([{ blockers: [] }, { blockers: ["future_blocker" as ReadinessBlocker] }])(
   "preserves a core launch refusal without recognized blockers: $blockers",
   ({ blockers }) => {
     const status = installed({
@@ -102,9 +97,7 @@ it.each([true, false])(
         actions={actions}
       />,
     );
-    const primary = host.querySelector<HTMLButtonElement>(
-      ".primary-actions button",
-    )!;
+    const primary = host.querySelector<HTMLButtonElement>(".primary-actions button")!;
     expect(primary.disabled).toBe(true);
     expect(primary.textContent).not.toContain("Choose required source");
     expect(host.textContent).toContain("Readiness unavailable");
@@ -112,11 +105,7 @@ it.each([true, false])(
   },
 );
 
-it.each([
-  undefined,
-  null,
-  { launchable: false, pending_setup: false, blockers: [] },
-])(
+it.each([undefined, null, { launchable: false, pending_setup: false, blockers: [] }])(
   "routes Continue to review without a positive core launch decision: %s",
   async (readiness) => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -144,15 +133,11 @@ it.each([
         ),
       );
       await act(async () =>
-        host
-          .querySelector<HTMLButtonElement>(".continue-actions button.primary")!
-          .click(),
+        host.querySelector<HTMLButtonElement>(".continue-actions button.primary")!.click(),
       );
       expect(launch).not.toHaveBeenCalled();
       expect(details).toHaveBeenCalledExactlyOnceWith(port.id);
-      expect(
-        host.querySelector(".continue-actions")?.textContent,
-      ).not.toContain("Play again");
+      expect(host.querySelector(".continue-actions")?.textContent).not.toContain("Play again");
     } finally {
       await act(async () => root.unmount());
     }
@@ -193,19 +178,13 @@ it("restores Continue only after a new positive core assessment without changing
   try {
     await render(unknown);
     await act(async () =>
-      host
-        .querySelector<HTMLButtonElement>(".continue-actions button.primary")!
-        .click(),
+      host.querySelector<HTMLButtonElement>(".continue-actions button.primary")!.click(),
     );
     expect(launch).not.toHaveBeenCalled();
     await render(ready);
-    expect(
-      host.querySelector(".continue-actions button.primary")?.textContent,
-    ).toBe("Play again");
+    expect(host.querySelector(".continue-actions button.primary")?.textContent).toBe("Play again");
     await act(async () =>
-      host
-        .querySelector<HTMLButtonElement>(".continue-actions button.primary")!
-        .click(),
+      host.querySelector<HTMLButtonElement>(".continue-actions button.primary")!.click(),
     );
     expect(launch).toHaveBeenCalledExactlyOnceWith(port.id);
     expect(details).toHaveBeenCalledExactlyOnceWith(port.id);

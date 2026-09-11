@@ -1,14 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  collectHistory,
-  renderReport,
-  summarizeAttempt,
-  summarizeHistory,
-} from "./ci-health.mjs";
+import { collectHistory, renderReport, summarizeAttempt, summarizeHistory } from "./ci-health.mjs";
 
-const stamp = (seconds) =>
-  new Date(Date.UTC(2026, 8, 7) + seconds * 1000).toISOString();
+const stamp = (seconds) => new Date(Date.UTC(2026, 8, 7) + seconds * 1000).toISOString();
 const run = (overrides) => ({
   id: 1,
   run_attempt: 1,
@@ -44,10 +38,7 @@ test("first attempts include initial queue time and reruns use their own start",
     }).seconds,
     200,
   );
-  assert.equal(
-    attempt({ status: "in_progress", conclusion: null }).seconds,
-    null,
-  );
+  assert.equal(attempt({ status: "in_progress", conclusion: null }).seconds, null);
 });
 
 test("missing or backwards timing is unavailable rather than a zero-duration success", () => {
@@ -91,30 +82,20 @@ test("rerun recovery retains the failed jobs and requires the same run and commi
       url: failed.url,
     },
   ]);
-  for (const changed of [
-    { id: 2 },
-    { head_sha: "b".repeat(40) },
-    { run_attempt: 1 },
-  ]) {
+  for (const changed of [{ id: 2 }, { head_sha: "b".repeat(40) }, { run_attempt: 1 }]) {
     assert.equal(
-      summarizeHistory([failed, attempt({ run_attempt: 2, ...changed })])
-        .rerunRecoveries.length,
+      summarizeHistory([failed, attempt({ run_attempt: 2, ...changed })]).rerunRecoveries.length,
       0,
     );
   }
   assert.equal(
-    summarizeHistory([attempt({ conclusion: "cancelled" }), passed])
-      .rerunRecoveries.length,
+    summarizeHistory([attempt({ conclusion: "cancelled" }), passed]).rerunRecoveries.length,
     0,
   );
-  const cancelledWithFailure = summarizeAttempt(
-    run({ conclusion: "cancelled" }),
-    [job({ conclusion: "failure" })],
-  );
-  assert.equal(
-    summarizeHistory([cancelledWithFailure, passed]).rerunRecoveries.length,
-    1,
-  );
+  const cancelledWithFailure = summarizeAttempt(run({ conclusion: "cancelled" }), [
+    job({ conclusion: "failure" }),
+  ]);
+  assert.equal(summarizeHistory([cancelledWithFailure, passed]).rerunRecoveries.length, 1);
 });
 
 test("percentiles separate first attempts from reruns and require twenty tail samples", () => {
@@ -137,10 +118,7 @@ test("percentiles separate first attempts from reruns and require twenty tail sa
   });
   assert.equal(summary.successfulReruns.p50Seconds, 999);
   assert.equal(summary.successfulReruns.p95Seconds, null);
-  assert.equal(
-    summarizeHistory(first.slice(0, 19)).successfulFirstAttempts.p95Seconds,
-    null,
-  );
+  assert.equal(summarizeHistory(first.slice(0, 19)).successfulFirstAttempts.p95Seconds, null);
 });
 
 test("job and step timings preserve setup costs but do not measure skipped jobs", () => {
@@ -176,8 +154,7 @@ test("collector retrieves failed earlier attempts and every job page", async () 
   const calls = [];
   const request = async (route, paginate) => {
     calls.push({ route, paginate });
-    if (route.includes("/workflows/"))
-      return { workflow_runs: [{ id: 1, run_attempt: 2 }] };
+    if (route.includes("/workflows/")) return { workflow_runs: [{ id: 1, run_attempt: 2 }] };
     const number = Number(route.match(/attempts\/(\d+)/)[1]);
     if (route.includes("/jobs?")) {
       assert.equal(paginate, true);
@@ -200,10 +177,7 @@ test("collector retrieves failed earlier attempts and every job page", async () 
   assert.equal(report.attempts.length, 2);
   assert.equal(report.attempts[0].conclusion, "failure");
   assert.equal(report.attempts[0].jobs.length, 2);
-  assert.match(
-    calls[0].route,
-    /branch=feature%2Ftest&event=pull_request&per_page=2/,
-  );
+  assert.match(calls[0].route, /branch=feature%2Ftest&event=pull_request&per_page=2/);
 });
 
 test("collector rejects incomplete job inventories and API failures", async () => {
@@ -240,9 +214,7 @@ test("date cutoff keeps all attempts of eligible runs without mixing an older wo
         ],
       };
     assert.doesNotMatch(route, /runs\/2\//);
-    return route.includes("/jobs?")
-      ? [{ total_count: 1, jobs: [job()] }]
-      : run();
+    return route.includes("/jobs?") ? [{ total_count: 1, jobs: [job()] }] : run();
   };
   const report = await collectHistory(request, {
     repository: "example/repo",
@@ -256,10 +228,7 @@ test("date cutoff keeps all attempts of eligible runs without mixing an older wo
 });
 
 test("report makes sample and cache limitations explicit and includes investigation links", () => {
-  const attempts = [
-    attempt({ conclusion: "failure" }),
-    attempt({ run_attempt: 2 }),
-  ];
+  const attempts = [attempt({ conclusion: "failure" }), attempt({ run_attempt: 2 })];
   const text = renderReport({
     repository: "example/repo",
     branch: "main",

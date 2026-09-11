@@ -12,10 +12,7 @@ test("doctor distinguishes exact, mismatched, failed and absent tools without ra
   assert.equal(probeTool(definition, run("example 1.2.3")).status, "ok");
   assert.equal(probeTool(definition, run("v1.2.3")).status, "ok");
   assert.equal(probeTool(definition, run("example 1.2.30")).status, "mismatch");
-  assert.equal(
-    probeTool(definition, () => ({ status: 1, stdout: "1.2.3" })).status,
-    "unavailable",
-  );
+  assert.equal(probeTool(definition, () => ({ status: 1, stdout: "1.2.3" })).status, "unavailable");
   const missing = probeTool(definition, () => {
     throw Object.assign(new Error("SECRET"), { code: "ENOENT" });
   });

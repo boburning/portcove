@@ -19,8 +19,7 @@ export function applyOperationEvent(
   if (event.schema_version !== 2) return current;
   const existing = current.get(event.operation_id);
   if (existing && existing.sequence >= event.sequence) return current;
-  if (existing?.type === "finished" && event.type !== "finished")
-    return current;
+  if (existing?.type === "finished" && event.type !== "finished") return current;
   const next = new Map(current);
   next.set(event.operation_id, event);
 
@@ -36,9 +35,7 @@ export function applyOperationEvent(
   }
   const terminal = [...next.values()]
     .filter(
-      (operation) =>
-        operation.type === "finished" &&
-        !activeContext.has(operation.operation_id),
+      (operation) => operation.type === "finished" && !activeContext.has(operation.operation_id),
     )
     .sort(compareRecency);
   for (const operation of terminal.slice(RECENT_TERMINAL_LIMIT)) {
@@ -47,9 +44,7 @@ export function applyOperationEvent(
   return next;
 }
 
-export function mostRecentOperation(
-  operations: OperationEventState,
-): OperationEvent | undefined {
+export function mostRecentOperation(operations: OperationEventState): OperationEvent | undefined {
   return [...operations.values()].sort(
     (left, right) =>
       Number(left.type === "finished") - Number(right.type === "finished") ||

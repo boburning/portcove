@@ -25,19 +25,14 @@ const inboxLimits: SourceDiscoveryLimits = {
   max_candidates: 64,
 };
 
-const importModes: Record<
-  SourceImportMode,
-  { label: string; explanation: string }
-> = {
+const importModes: Record<SourceImportMode, { label: string; explanation: string }> = {
   copy: {
     label: "Copy to Inbox",
-    explanation:
-      "The original stays in place after the verified Inbox copy is registered.",
+    explanation: "The original stays in place after the verified Inbox copy is registered.",
   },
   move: {
     label: "Move to Inbox",
-    explanation:
-      "The original is removed only after the Inbox copy is verified and registered.",
+    explanation: "The original is removed only after the Inbox copy is verified and registered.",
   },
   use_current_location: {
     label: "Use current location",
@@ -77,11 +72,7 @@ export function SourceDiscoveryButton({
         Find source files
       </button>
       {open && (
-        <SourceDiscoveryDialog
-          profiles={profiles}
-          onAdded={onAdded}
-          close={() => setOpen(false)}
-        />
+        <SourceDiscoveryDialog profiles={profiles} onAdded={onAdded} close={() => setOpen(false)} />
       )}
     </>
   );
@@ -162,19 +153,14 @@ function useSourceDiscoveryWorkflow(onAdded?: () => Promise<void>) {
   const scanInbox = () => {
     clearResults();
     return run("Scanning Source Inbox…", async () =>
-      setInbox(
-        await desktopApi.scanSourceInbox(profile, inboxLimits, trackStart),
-      ),
+      setInbox(await desktopApi.scanSourceInbox(profile, inboxLimits, trackStart)),
     );
   };
   const search = () => {
     clearResults();
     return run("Searching your selected folder…", async () =>
       setReport(
-        await desktopApi.discoverSources(
-          { roots: [root], profile_ids: [profile] },
-          trackStart,
-        ),
+        await desktopApi.discoverSources({ roots: [root], profile_ids: [profile] }, trackStart),
       ),
     );
   };
@@ -199,9 +185,7 @@ function useSourceDiscoveryWorkflow(onAdded?: () => Promise<void>) {
         trackStart,
       );
       if (!result) {
-        setNotice(
-          "Move cancelled. The original and registration were left unchanged.",
-        );
+        setNotice("Move cancelled. The original and registration were left unchanged.");
         return;
       }
       setRegistered(result.registered.path);
@@ -243,28 +227,18 @@ function DiscoveryResults({ workflow }: { workflow: Workflow }) {
       candidate.inspection.record ? [candidate.inspection.record] : [],
     ) ??
     [];
-  const limits = [
-    ...(report?.limits_reached ?? []),
-    ...(inbox?.stats.limits_reached ?? []),
-  ];
+  const limits = [...(report?.limits_reached ?? []), ...(inbox?.stats.limits_reached ?? [])];
   const issues = [...(report?.issues ?? []), ...(inbox?.stats.issues ?? [])];
   if (!report && !inbox) return null;
   return (
-    <section
-      className="source-discovery-results"
-      aria-label="Source search results"
-    >
+    <section className="source-discovery-results" aria-label="Source search results">
       {limits.length > 0 && (
         <p>
-          Search limits were reached. Choose a more specific folder to finish
-          checking candidates.
+          Search limits were reached. Choose a more specific folder to finish checking candidates.
         </p>
       )}
       {candidates.map((candidate) => (
-        <div
-          className="source-health-row"
-          key={`${candidate.profile_id}:${candidate.path}`}
-        >
+        <div className="source-health-row" key={`${candidate.profile_id}:${candidate.path}`}>
           <div>
             <code>{candidate.path}</code>
             <span>{formatBytes(candidate.size)}</span>
@@ -329,10 +303,7 @@ export function SourceImportReview({
   if (!plan) return null;
   const presentation = sourceImportModePresentation(plan.mode);
   return (
-    <section
-      className="source-discovery-results"
-      aria-label="Source import review"
-    >
+    <section className="source-discovery-results" aria-label="Source import review">
       <h3>{presentation.label}</h3>
       <p>{presentation.explanation}</p>
       <p>
@@ -342,10 +313,7 @@ export function SourceImportReview({
         Registration: <code>{plan.destination}</code>
       </p>
       {plan.existing_registration && (
-        <p>
-          This replaces the current registration after the selected source is
-          rechecked.
-        </p>
+        <p>This replaces the current registration after the selected source is rechecked.</p>
       )}
       <div className="actions">
         <button data-focusable disabled={busy} onClick={onCancel}>
@@ -378,18 +346,8 @@ function SourceDiscoveryDialog({
   close: () => void;
 }) {
   const workflow = useSourceDiscoveryWorkflow(onAdded);
-  const {
-    root,
-    profile,
-    report,
-    inbox,
-    plan,
-    busy,
-    error,
-    registered,
-    operationId,
-    notice,
-  } = workflow;
+  const { root, profile, report, inbox, plan, busy, error, registered, operationId, notice } =
+    workflow;
   const dismiss = () => {
     if (!busy) close();
   };
@@ -412,9 +370,9 @@ function SourceDiscoveryDialog({
         <p className="eyebrow">LOCAL SOURCES</p>
         <h2 id="source-discovery-title">Find source files</h2>
         <p className="modal-description">
-          Choose the source you need. Portcove can scan its private Inbox or a
-          folder you select, then review a safe copy, an explicit move, or
-          registration at the current location. Source contents stay local.
+          Choose the source you need. Portcove can scan its private Inbox or a folder you select,
+          then review a safe copy, an explicit move, or registration at the current location. Source
+          contents stay local.
         </p>
         <NavigationHints />
         <ChoiceMenu

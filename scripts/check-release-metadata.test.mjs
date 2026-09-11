@@ -208,13 +208,8 @@ test("locks model anatomy, materials, and repository-contained files", () => {
 
 test("reports brand asset integrity failures with release metadata", () => {
   const metadata = validMetadata();
-  metadata.brandManifestErrors = [
-    "brand asset logo-v2 SHA-256 does not match manifest",
-  ];
-  assert.match(
-    validateReleaseMetadata(metadata).join("\n"),
-    /brand asset logo-v2 SHA-256/,
-  );
+  metadata.brandManifestErrors = ["brand asset logo-v2 SHA-256 does not match manifest"];
+  assert.match(validateReleaseMetadata(metadata).join("\n"), /brand asset logo-v2 SHA-256/);
 });
 
 test("reports model integrity failures with release metadata", () => {
@@ -230,12 +225,7 @@ test("reports model integrity failures with release metadata", () => {
 
 test("parses inline and positional release options", () => {
   assert.deepEqual(
-    parseArguments([
-      "--tag=v1.2.3",
-      "--expect-version",
-      "1.2.3",
-      "--print-version",
-    ]),
+    parseArguments(["--tag=v1.2.3", "--expect-version", "1.2.3", "--print-version"]),
     {
       printVersion: true,
       tag: "v1.2.3",

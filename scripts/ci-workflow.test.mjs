@@ -2,18 +2,11 @@ import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 
-const workflow = await readFile(
-  new URL("../.github/workflows/ci.yml", import.meta.url),
-  "utf8",
-);
+const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
 
 function jobSection(name, nextName) {
   const end = nextName ? `(?=^  ${nextName}:)` : "(?![\\s\\S])";
-  return (
-    workflow.match(
-      new RegExp(`^  ${name}:\\r?\\n([\\s\\S]*?)${end}`, "m"),
-    )?.[1] ?? ""
-  );
+  return workflow.match(new RegExp(`^  ${name}:\\r?\\n([\\s\\S]*?)${end}`, "m"))?.[1] ?? "";
 }
 
 const rustTests = jobSection("rust_tests", "rust_workspace_tests");
@@ -31,22 +24,13 @@ const catalog = jobSection("catalog", "dependency-review");
 const dependencyReview = jobSection("dependency-review");
 
 test("every Node test file is included in required CI and the local quality workflow", async () => {
-  const recipes = await readFile(
-    new URL("../justfile", import.meta.url),
-    "utf8",
-  );
+  const recipes = await readFile(new URL("../justfile", import.meta.url), "utf8");
   const files = (await readdir(new URL(".", import.meta.url))).filter((name) =>
     name.endsWith(".test.mjs"),
   );
   for (const file of files) {
-    assert.ok(
-      workflow.includes(`scripts/${file}`),
-      `${file} is absent from required CI`,
-    );
-    assert.ok(
-      recipes.includes(`scripts/${file}`),
-      `${file} is absent from local quality checks`,
-    );
+    assert.ok(workflow.includes(`scripts/${file}`), `${file} is absent from required CI`);
+    assert.ok(recipes.includes(`scripts/${file}`), `${file} is absent from local quality checks`);
   }
 });
 
@@ -91,10 +75,7 @@ test("Linux desktop prerequisite installation is shared, bounded, and retrying",
     "utf8",
   );
   const updaterRehearsal = await readFile(
-    new URL(
-      "../.github/workflows/updater-artifact-rehearsal.yml",
-      import.meta.url,
-    ),
+    new URL("../.github/workflows/updater-artifact-rehearsal.yml", import.meta.url),
     "utf8",
   );
   const installer = await readFile(
@@ -111,12 +92,7 @@ test("Linux desktop prerequisite installation is shared, bounded, and retrying",
     updaterRehearsal,
     /timeout-minutes: 15\r?\n\s+run: \.\/scripts\/install-linux-desktop-prerequisites\.sh --include-rpm/,
   );
-  for (const hostedWorkflow of [
-    workflow,
-    deepQuality,
-    release,
-    updaterRehearsal,
-  ]) {
+  for (const hostedWorkflow of [workflow, deepQuality, release, updaterRehearsal]) {
     assert.doesNotMatch(hostedWorkflow, /sudo apt-get/);
   }
   for (const packageName of [
@@ -135,14 +111,8 @@ test("Linux desktop prerequisite installation is shared, bounded, and retrying",
   assert.match(installer, /Dir::Etc::sourceparts=-/);
   assert.match(installer, /DEBIAN_FRONTEND=noninteractive/);
   assert.match(installer, /timeout --kill-after=10s/);
-  assert.match(
-    installer,
-    /install_from_current_mirror "the runner-configured mirror" 2m 3m/,
-  );
-  assert.match(
-    installer,
-    /install_from_current_mirror "the archive mirror fallback" 4m 5m/,
-  );
+  assert.match(installer, /install_from_current_mirror "the runner-configured mirror" 2m 3m/);
+  assert.match(installer, /install_from_current_mirror "the archive mirror fallback" 4m 5m/);
   assert.ok(
     installer.indexOf('"the runner-configured mirror"') <
       installer.indexOf("archive.ubuntu.com/ubuntu"),
@@ -157,10 +127,7 @@ test("Rust setup installs the repository pin instead of an unrelated stable tool
     "utf8",
   );
   assert.match(setup, /Get-Content rust-toolchain\.toml -Raw/);
-  assert.match(
-    setup,
-    /toolchain: \$\{\{ steps\.repository-toolchain\.outputs\.channel \}\}/,
-  );
+  assert.match(setup, /toolchain: \$\{\{ steps\.repository-toolchain\.outputs\.channel \}\}/);
   assert.match(setup, /targets: \$\{\{ inputs\.targets \}\}/);
   assert.doesNotMatch(workflow, /uses: dtolnay\/rust-toolchain/);
   for (const section of [
@@ -176,30 +143,15 @@ test("Rust setup installs the repository pin instead of an unrelated stable tool
     assert.match(section, /uses: \.\/\.github\/actions\/setup-rust/);
   }
   assert.match(setup, /node scripts\/run-rust-tests\.mjs --prepare-only/);
-  for (const section of [
-    rustTests,
-    rustWorkspaceTests,
-    nativeRust,
-    intelTests,
-    rustQuality,
-  ]) {
+  for (const section of [rustTests, rustWorkspaceTests, nativeRust, intelTests, rustQuality]) {
     assert.match(section, /test-fixtures: true/);
   }
-  const recipes = await readFile(
-    new URL("../justfile", import.meta.url),
-    "utf8",
-  );
-  assert.match(
-    recipes,
-    /node scripts\/run-rust-tests\.mjs --locked --workspace/,
-  );
+  const recipes = await readFile(new URL("../justfile", import.meta.url), "utf8");
+  assert.match(recipes, /node scripts\/run-rust-tests\.mjs --locked --workspace/);
 });
 
 test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () => {
-  assert.match(
-    rustTests,
-    /^ {4}name: rust-test \(\$\{\{ matrix\.shard \}\}\)$/m,
-  );
+  assert.match(rustTests, /^ {4}name: rust-test \(\$\{\{ matrix\.shard \}\}\)$/m);
   assert.match(rustTests, /runs-on: windows-latest/);
   assert.match(
     rustTests,
@@ -220,15 +172,9 @@ test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () 
   );
   assert.equal((rustTests.match(/"hash:1\/2"/g) ?? []).length, 2);
   assert.equal((rustTests.match(/"hash:2\/2"/g) ?? []).length, 2);
-  assert.doesNotMatch(
-    rustTests,
-    /workspace-other|pnpm|cargo check|cargo fmt|cargo clippy/,
-  );
+  assert.doesNotMatch(rustTests, /workspace-other|pnpm|cargo check|cargo fmt|cargo clippy/);
 
-  assert.match(
-    rustWorkspaceTests,
-    /^ {4}name: rust-test \(workspace-other\)$/m,
-  );
+  assert.match(rustWorkspaceTests, /^ {4}name: rust-test \(workspace-other\)$/m);
   assert.match(rustWorkspaceTests, /runs-on: windows-latest/);
   assert.match(
     rustWorkspaceTests,
@@ -239,23 +185,14 @@ test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () 
   assert.match(rustClippy, /^ {4}name: rust-clippy$/m);
   assert.match(rustClippy, /runs-on: windows-latest/);
   assert.match(rustClippy, /cargo fmt --all -- --check/);
-  assert.match(
-    rustClippy,
-    /cargo clippy --workspace --all-targets -- -D warnings/,
-  );
+  assert.match(rustClippy, /cargo clippy --workspace --all-targets -- -D warnings/);
   assert.doesNotMatch(rustClippy, /cargo test|matrix/);
 
   assert.match(windowsStorage, /^ {4}name: windows-storage$/m);
   assert.match(windowsStorage, /runs-on: windows-latest/);
   assert.match(windowsStorage, /scripts\/dev-storage\.test\.mjs/);
-  assert.match(
-    windowsStorage,
-    /--test-skip-pattern "pnpm uses\|direct just recipes"/,
-  );
-  assert.match(
-    windowsStorage,
-    /scripts\/windows-qualification-session\.test\.mjs/,
-  );
+  assert.match(windowsStorage, /--test-skip-pattern "pnpm uses\|direct just recipes"/);
+  assert.match(windowsStorage, /scripts\/windows-qualification-session\.test\.mjs/);
   assert.match(
     windowsStorage,
     /node --test scripts\/windows-qualification-session\.integration\.test\.mjs/,
@@ -279,22 +216,10 @@ test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () 
     /needs:\s*\[\s*rust_tests,\s*rust_workspace_tests,\s*rust_clippy,\s*windows_storage,\s*native_rust,\s*intel_build,\s*intel_tests,\s*rust_docs,?\s*\]/,
   );
   assert.match(rust, /RUST_TEST_RESULT: \$\{\{ needs\.rust_tests\.result \}\}/);
-  assert.match(
-    rust,
-    /RUST_WORKSPACE_TEST_RESULT: \$\{\{ needs\.rust_workspace_tests\.result \}\}/,
-  );
-  assert.match(
-    rust,
-    /RUST_CLIPPY_RESULT: \$\{\{ needs\.rust_clippy\.result \}\}/,
-  );
-  assert.match(
-    rust,
-    /WINDOWS_STORAGE_RESULT: \$\{\{ needs\.windows_storage\.result \}\}/,
-  );
-  assert.match(
-    rust,
-    /NATIVE_RUST_RESULT: \$\{\{ needs\.native_rust\.result \}\}/,
-  );
+  assert.match(rust, /RUST_WORKSPACE_TEST_RESULT: \$\{\{ needs\.rust_workspace_tests\.result \}\}/);
+  assert.match(rust, /RUST_CLIPPY_RESULT: \$\{\{ needs\.rust_clippy\.result \}\}/);
+  assert.match(rust, /WINDOWS_STORAGE_RESULT: \$\{\{ needs\.windows_storage\.result \}\}/);
+  assert.match(rust, /NATIVE_RUST_RESULT: \$\{\{ needs\.native_rust\.result \}\}/);
   assert.match(rust, /exit 1/);
   assert.doesNotMatch(rust, /continue-on-error/);
 });
@@ -304,17 +229,9 @@ test("Windows fixture setup selects runner-owned temporary storage before compil
     new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
     "utf8",
   );
-  const selection = setup.indexOf(
-    "name: Select Windows test temporary storage",
-  );
-  assert.ok(
-    selection >= 0 &&
-      selection < setup.indexOf("name: Read repository toolchain"),
-  );
-  assert.match(
-    setup,
-    /if: runner\.os == 'Windows' && inputs\.test-fixtures == 'true'/,
-  );
+  const selection = setup.indexOf("name: Select Windows test temporary storage");
+  assert.ok(selection >= 0 && selection < setup.indexOf("name: Read repository toolchain"));
+  assert.match(setup, /if: runner\.os == 'Windows' && inputs\.test-fixtures == 'true'/);
   assert.match(windowsStorage, /scripts\/ci-workflow\.test\.mjs/);
 });
 
@@ -322,8 +239,7 @@ test(
   "Windows fixture setup exports a usable directory and rejects invalid roots without partial exports",
   { skip: process.platform !== "win32" },
   async () => {
-    const { mkdtemp, mkdir, writeFile, realpath, rm } =
-      await import("node:fs/promises");
+    const { mkdtemp, mkdir, writeFile, realpath, rm } = await import("node:fs/promises");
     const { tmpdir } = await import("node:os");
     const path = await import("node:path");
     const { spawnSync } = await import("node:child_process");
@@ -345,16 +261,12 @@ test(
       await mkdir(selected);
       await writeFile(notDirectory, "fixture");
       const invoke = (command, env) =>
-        spawnSync(
-          "pwsh",
-          ["-NoProfile", "-NonInteractive", "-Command", command],
-          {
-            env: { ...process.env, ...env },
-            encoding: "utf8",
-            windowsHide: true,
-            timeout: 10_000,
-          },
-        );
+        spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", command], {
+          env: { ...process.env, ...env },
+          encoding: "utf8",
+          windowsHide: true,
+          timeout: 10_000,
+        });
       const selectedIdentity = await realpath(selected);
       for (const selectedPath of [selected, `${selected}${path.sep}.`]) {
         await writeFile(environmentFile, "");
@@ -395,18 +307,12 @@ test(
           GITHUB_ENV: environmentFile,
         });
         assert.ifError(rejected.error);
-        assert.notEqual(
-          rejected.status,
-          0,
-          `accepted invalid root ${JSON.stringify(invalid)}`,
-        );
+        assert.notEqual(rejected.status, 0, `accepted invalid root ${JSON.stringify(invalid)}`);
         assert.equal(await readFile(environmentFile, "utf8"), "");
       }
     } finally {
       const relative = path.relative(base, directory);
-      assert.ok(
-        relative && !relative.startsWith("..") && !path.isAbsolute(relative),
-      );
+      assert.ok(relative && !relative.startsWith("..") && !path.isAbsolute(relative));
       await rm(directory, { recursive: true, force: true });
     }
   },
@@ -421,17 +327,11 @@ test("native Rust runs the full workspace on every supported Unix architecture",
     ["linux-x86_64", "ubuntu-22.04"],
     ["macos-aarch64", "macos-15"],
   ]) {
-    assert.match(
-      nativeRust,
-      new RegExp(`platform: ${platform}\\r?\\n\\s+runner: ${runner}`),
-    );
+    assert.match(nativeRust, new RegExp(`platform: ${platform}\\r?\\n\\s+runner: ${runner}`));
   }
   assert.match(nativeRust, /if: runner\.os == 'Linux'/);
   assert.match(nativeRust, /echo "TMPDIR=\$RUNNER_TEMP" >> "\$GITHUB_ENV"/);
-  assert.match(
-    nativeRust,
-    /run: \.\/scripts\/install-linux-desktop-prerequisites\.sh/,
-  );
+  assert.match(nativeRust, /run: \.\/scripts\/install-linux-desktop-prerequisites\.sh/);
   assert.match(nativeRust, /cargo nextest run --locked --workspace/);
   assert.match(nativeRust, /--partition "\$\{\{ matrix\.partition \}\}"/);
   assert.equal((nativeRust.match(/partition: hash:1\/1/g) ?? []).length, 2);
@@ -449,28 +349,20 @@ test("Intel tests build once on Apple Silicon and execute every partition on Int
   assert.match(intelBuild, /retention-days: 1/);
   assert.match(intelTests, /needs: intel_build/);
   assert.match(intelTests, /runs-on: macos-15-intel/);
-  assert.match(
-    intelTests,
-    /partition:\s*\[\s*"hash:1\/2",\s*"hash:2\/2",?\s*\]/,
-  );
+  assert.match(intelTests, /partition:\s*\[\s*"hash:1\/2",\s*"hash:2\/2",?\s*\]/);
   assert.match(
     intelTests,
     /cargo nextest run --archive-file .* --workspace-remap "\$PWD" --partition "\$\{\{ matrix\.partition \}\}"/,
   );
   for (const section of [intelBuild, intelTests]) {
-    assert.match(
-      section,
-      /name: intel-rust-tests-\$\{\{ github\.run_attempt \}\}/,
-    );
+    assert.match(section, /name: intel-rust-tests-\$\{\{ github\.run_attempt \}\}/);
     assert.doesNotMatch(section, /continue-on-error/);
   }
   for (const [variable, job] of [
     ["INTEL_BUILD_RESULT", "intel_build"],
     ["INTEL_TEST_RESULT", "intel_tests"],
   ]) {
-    assert.ok(
-      rust.includes(`${variable}: ` + "${{ needs." + job + ".result }}"),
-    );
+    assert.ok(rust.includes(`${variable}: ` + "${{ needs." + job + ".result }}"));
     assert.ok(rust.includes(`"$${variable}" != "success"`));
   }
 });
@@ -479,51 +371,31 @@ test("Linux Rust quality keeps its platform-specific and policy gates without pn
   assert.match(rustQuality, /runs-on: ubuntu-latest/);
   assert.match(rustQuality, /AQUA_ENFORCE_CHECKSUM: "true"/);
   assert.match(rustQuality, /AQUA_ENFORCE_REQUIRE_CHECKSUM: "true"/);
-  assert.match(
-    rustQuality,
-    /aquaproj\/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e/,
-  );
-  assert.match(
-    rustQuality,
-    /aqua_version: \$\{\{ steps\.aqua-version\.outputs\.version \}\}/,
-  );
+  assert.match(rustQuality, /aquaproj\/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e/);
+  assert.match(rustQuality, /aqua_version: \$\{\{ steps\.aqua-version\.outputs\.version \}\}/);
   assert.match(rustQuality, /enable_aqua_install: "false"/);
   assert.match(rustQuality, /machine_contract/);
-  assert.match(
-    rustQuality,
-    /backup_directory_durability_support_is_explicit_for_the_host/,
-  );
+  assert.match(rustQuality, /backup_directory_durability_support_is_explicit_for_the_host/);
   assert.match(rustQuality, /cargo shear --deny-warnings/);
   assert.match(rustQuality, /cargo deny check/);
   assert.match(rustQuality, /check-rust-architecture\.mjs/);
   assert.match(rustQuality, /run-rscheck\.mjs/);
   const bootstrap = rustQuality.indexOf("./scripts/bootstrap-quality-tools.sh");
-  for (const lint of [
-    "aqua exec -- ruff",
-    "aqua exec -- shellcheck",
-    "run-actionlint.mjs",
-  ]) {
+  for (const lint of ["aqua exec -- ruff", "aqua exec -- shellcheck", "run-actionlint.mjs"]) {
     assert.ok(
       rustQuality.indexOf(lint) > bootstrap,
       `${lint} must run after the aqua tools are installed`,
     );
   }
-  assert.match(
-    rustQuality,
-    /lint-tools\.integration\.mjs ruff shellcheck actionlint/,
-  );
+  assert.match(rustQuality, /lint-tools\.integration\.mjs ruff shellcheck actionlint/);
   const desktopPrerequisites = rustQuality.indexOf(
     "./scripts/install-linux-desktop-prerequisites.sh",
   );
   assert.ok(
     desktopPrerequisites >= 0 &&
-      desktopPrerequisites <
-        rustQuality.indexOf("node scripts/check-transport-contract.mjs"),
+      desktopPrerequisites < rustQuality.indexOf("node scripts/check-transport-contract.mjs"),
   );
-  assert.match(
-    rustQuality,
-    /--test-skip-pattern "pnpm uses\|direct just recipes"/,
-  );
+  assert.match(rustQuality, /--test-skip-pattern "pnpm uses\|direct just recipes"/);
   assert.doesNotMatch(rustQuality, /pnpm\/action-setup|pnpm install/);
   assert.doesNotMatch(rustQuality, /continue-on-error/);
 });
@@ -536,9 +408,7 @@ test("frontend keeps deterministic product gates and delegates vulnerability cha
   const formatting = frontend.indexOf("pnpm --dir apps/desktop format:check");
   const lint = frontend.indexOf("pnpm lint");
   const build = frontend.indexOf("pnpm build");
-  assert.ok(
-    install >= 0 && formatting > install && lint > formatting && build > lint,
-  );
+  assert.ok(install >= 0 && formatting > install && lint > formatting && build > lint);
   assert.match(frontend, /lint-tools\.integration\.mjs oxfmt oxlint stylelint/);
   assert.match(
     frontend,
@@ -578,9 +448,7 @@ test("frontend tooling uses the pinned Oxc contracts without legacy formatter or
     assert.equal(packageJson.devDependencies[retired], undefined);
   }
 
-  const oxlint = JSON.parse(
-    await readFile(new URL("../.oxlintrc.json", import.meta.url), "utf8"),
-  );
+  const oxlint = JSON.parse(await readFile(new URL("../.oxlintrc.json", import.meta.url), "utf8"));
   assert.deepEqual(oxlint.options, {
     reportUnusedDisableDirectives: "error",
     typeAware: false,
@@ -595,9 +463,7 @@ test("frontend tooling uses the pinned Oxc contracts without legacy formatter or
   assert.match(oxlintRunner, /sourceRoot/);
   assert.match(oxlintRunner, /"--type-aware"/);
 
-  const oxfmt = JSON.parse(
-    await readFile(new URL("../.oxfmtrc.json", import.meta.url), "utf8"),
-  );
+  const oxfmt = JSON.parse(await readFile(new URL("../.oxfmtrc.json", import.meta.url), "utf8"));
   assert.equal(oxfmt.printWidth, 100);
   assert.equal(oxfmt.sortImports, false);
   assert.equal(oxfmt.sortPackageJson, true);
@@ -622,10 +488,7 @@ test("catalog executes the CI workflow contract", () => {
 test("routine checks retain architecture enforcement but make cycles optional", async () => {
   assert.doesNotMatch(rustQuality, /cargo modules/);
   assert.match(rustQuality, /node scripts\/check-rust-architecture\.mjs/);
-  const recipes = await readFile(
-    new URL("../justfile", import.meta.url),
-    "utf8",
-  );
+  const recipes = await readFile(new URL("../justfile", import.meta.url), "utf8");
   assert.match(recipes, /^audit: check deny rscheck$/m);
   assert.match(recipes, /^cycles:\r?\n.*cargo modules/m);
 });
@@ -668,8 +531,7 @@ test("live upstream health has bounded independent triggers while catalog stays 
 });
 
 test("offline RetComM validation rejects bad mappings without loading upstream data", async () => {
-  const { mkdtemp, mkdir, writeFile, copyFile, rm } =
-    await import("node:fs/promises");
+  const { mkdtemp, mkdir, writeFile, copyFile, rm } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");
   const { join } = await import("node:path");
   const { spawnSync } = await import("node:child_process");
@@ -681,15 +543,9 @@ test("offline RetComM validation rejects bad mappings without loading upstream d
       recursive: true,
     });
     const checker = join(root, "scripts/check-retcomm-upstreams.mjs");
-    await copyFile(
-      new URL("./check-retcomm-upstreams.mjs", import.meta.url),
-      checker,
-    );
+    await copyFile(new URL("./check-retcomm-upstreams.mjs", import.meta.url), checker);
     const preload = join(root, "deny-network.mjs");
-    await writeFile(
-      preload,
-      'globalThis.fetch = () => { throw new Error("NETWORK_FORBIDDEN"); };',
-    );
+    await writeFile(preload, 'globalThis.fetch = () => { throw new Error("NETWORK_FORBIDDEN"); };');
     const port = {
       id: "fixture",
       adapter: "psx-recomp-managed",
@@ -699,14 +555,10 @@ test("offline RetComM validation rejects bad mappings without loading upstream d
     await writeFile(catalogFile, JSON.stringify({ ports: [port] }));
     const mappingFile = join(root, "scripts/retcomm-psx-upstreams.json");
     const run = (...args) =>
-      spawnSync(
-        process.execPath,
-        ["--import", pathToFileURL(preload).href, checker, ...args],
-        {
-          encoding: "utf8",
-          env: { ...process.env, RETCOMM_CATALOG_DIR: "" },
-        },
-      );
+      spawnSync(process.execPath, ["--import", pathToFileURL(preload).href, checker, ...args], {
+        encoding: "utf8",
+        env: { ...process.env, RETCOMM_CATALOG_DIR: "" },
+      });
     await writeFile(mappingFile, JSON.stringify({ fixture: "fixture-title" }));
     const valid = run("--offline");
     assert.equal(valid.status, 0, valid.stderr);
@@ -727,42 +579,26 @@ test("offline RetComM validation rejects bad mappings without loading upstream d
 });
 
 test("Rust reports slow tests, terminates hangs and retains documentation coverage", async () => {
-  const config = await readFile(
-    new URL("../.config/nextest.toml", import.meta.url),
-    "utf8",
-  );
+  const config = await readFile(new URL("../.config/nextest.toml", import.meta.url), "utf8");
   assert.match(
     config,
     /slow-timeout = \{ period = "5s", terminate-after = 6, grace-period = "0s" \}/,
   );
   assert.match(config, /^retries = 0$/m);
   assert.doesNotMatch(config, /on-timeout|default-filter/);
-  for (const override of config
-    .split("[[profile.default.overrides]]")
-    .slice(1)) {
+  for (const override of config.split("[[profile.default.overrides]]").slice(1)) {
     assert.doesNotMatch(override, /slow-timeout|retries/);
   }
   assert.match(rustTests, /cargo nextest run --locked @Arguments/);
   assert.doesNotMatch(rustTests + rustWorkspaceTests, /--test-threads 1/);
   assert.match(config, /^test-threads = 2$/m);
   assert.match(rustDocs, /cargo test --locked --workspace --doc/);
-  for (const platform of [
-    "windows-x86_64",
-    "linux-x86_64",
-    "macos-x86_64",
-    "macos-aarch64",
-  ]) {
+  for (const platform of ["windows-x86_64", "linux-x86_64", "macos-x86_64", "macos-aarch64"]) {
     assert.ok(rustDocs.includes(`platform: ${platform}`));
   }
   assert.match(rust, /RUST_DOC_RESULT: \$\{\{ needs\.rust_docs\.result \}\}/);
   assert.match(rust, /"\$RUST_DOC_RESULT" != "success"/);
-  for (const section of [
-    rustTests,
-    rustWorkspaceTests,
-    nativeRust,
-    intelBuild,
-    intelTests,
-  ]) {
+  for (const section of [rustTests, rustWorkspaceTests, nativeRust, intelBuild, intelTests]) {
     assert.match(section, /Install pinned test runner/);
     assert.match(section, /Get-Content \.github\/quality-tools\.json/);
     assert.match(section, /Where-Object id -eq "cargo-nextest"/);

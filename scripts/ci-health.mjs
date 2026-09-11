@@ -40,21 +40,17 @@ export function summarizeAttempt(run, jobs) {
     status: run.status,
     conclusion: run.conclusion,
     url: `${run.html_url}/attempts/${run.run_attempt}`,
-    seconds:
-      run.status === "completed" ? secondsBetween(start, run.updated_at) : null,
+    seconds: run.status === "completed" ? secondsBetween(start, run.updated_at) : null,
     jobs: measuredJobs,
     failedJobs: measuredJobs
-      .filter(
-        (job) => job.conclusion === "failure" || job.conclusion === "timed_out",
-      )
+      .filter((job) => job.conclusion === "failure" || job.conclusion === "timed_out")
       .map((job) => job.name),
   };
 }
 
 function distribution(values) {
   const sorted = values.filter((value) => value !== null).sort((a, b) => a - b);
-  const percentile = (fraction) =>
-    sorted[Math.ceil(sorted.length * fraction) - 1] ?? null;
+  const percentile = (fraction) => sorted[Math.ceil(sorted.length * fraction) - 1] ?? null;
   return {
     count: sorted.length,
     p50Seconds: percentile(0.5),
@@ -66,15 +62,13 @@ function distribution(values) {
 
 export function summarizeHistory(attempts) {
   const successful = attempts.filter(
-    (attempt) =>
-      attempt.status === "completed" && attempt.conclusion === "success",
+    (attempt) => attempt.status === "completed" && attempt.conclusion === "success",
   );
   const recoveries = attempts
     .filter(
       (attempt) =>
         attempt.status === "completed" &&
-        (["failure", "timed_out"].includes(attempt.conclusion) ||
-          attempt.failedJobs.length > 0),
+        (["failure", "timed_out"].includes(attempt.conclusion) || attempt.failedJobs.length > 0),
     )
     .flatMap((failed) => {
       const passed = successful
@@ -115,30 +109,22 @@ export function summarizeHistory(attempts) {
       [
         ...new Set(
           attempts.map((attempt) =>
-            attempt.status === "completed"
-              ? attempt.conclusion
-              : attempt.status,
+            attempt.status === "completed" ? attempt.conclusion : attempt.status,
           ),
         ),
       ].map((outcome) => [
         outcome,
         attempts.filter(
           (attempt) =>
-            (attempt.status === "completed"
-              ? attempt.conclusion
-              : attempt.status) === outcome,
+            (attempt.status === "completed" ? attempt.conclusion : attempt.status) === outcome,
         ).length,
       ]),
     ),
     successfulFirstAttempts: distribution(
-      successful
-        .filter((attempt) => attempt.attempt === 1)
-        .map((attempt) => attempt.seconds),
+      successful.filter((attempt) => attempt.attempt === 1).map((attempt) => attempt.seconds),
     ),
     successfulReruns: distribution(
-      successful
-        .filter((attempt) => attempt.attempt > 1)
-        .map((attempt) => attempt.seconds),
+      successful.filter((attempt) => attempt.attempt > 1).map((attempt) => attempt.seconds),
     ),
     missingCompletedTimings: attempts.filter(
       (attempt) => attempt.status === "completed" && attempt.seconds === null,
@@ -151,15 +137,11 @@ export function summarizeHistory(attempts) {
   };
 }
 
-export async function collectHistory(
-  request,
-  { repository, branch, event, limit, since },
-) {
+export async function collectHistory(request, { repository, branch, event, limit, since }) {
   const root = `repos/${repository}/actions`;
   const query = new URLSearchParams({ branch, event, per_page: String(limit) });
   const listing = await request(`${root}/workflows/ci.yml/runs?${query}`);
-  if (!Array.isArray(listing.workflow_runs))
-    throw new Error("Missing workflow run inventory");
+  if (!Array.isArray(listing.workflow_runs)) throw new Error("Missing workflow run inventory");
   const runs = since
     ? listing.workflow_runs.filter((run) => {
         if (!Number.isFinite(Date.parse(run.created_at)))
@@ -185,19 +167,12 @@ export async function collectHistory(
           const route = `${root}/runs/${reference.id}/attempts/${reference.attempt}`;
           const run = await request(route);
           const pages = await request(`${route}/jobs?per_page=100`, true);
-          if (
-            !Array.isArray(pages) ||
-            !pages.every((page) => Array.isArray(page.jobs))
-          ) {
-            throw new Error(
-              `Missing jobs for ${reference.id}/${reference.attempt}`,
-            );
+          if (!Array.isArray(pages) || !pages.every((page) => Array.isArray(page.jobs))) {
+            throw new Error(`Missing jobs for ${reference.id}/${reference.attempt}`);
           }
           const jobs = pages.flatMap((page) => page.jobs);
           if (jobs.length !== pages[0]?.total_count)
-            throw new Error(
-              `Incomplete jobs for ${reference.id}/${reference.attempt}`,
-            );
+            throw new Error(`Incomplete jobs for ${reference.id}/${reference.attempt}`);
           if (run.id !== reference.id || run.run_attempt !== reference.attempt)
             throw new Error("Attempt identity mismatch");
           return summarizeAttempt(run, jobs);
@@ -221,8 +196,7 @@ const duration = (seconds) =>
   seconds === null
     ? "unavailable"
     : `${Math.floor(Math.round(seconds) / 60)}m${String(Math.round(seconds) % 60).padStart(2, "0")}s`;
-const cell = (value) =>
-  String(value).replaceAll("|", "\\|").replaceAll(/\r?\n/g, " ");
+const cell = (value) => String(value).replaceAll("|", "\\|").replaceAll(/\r?\n/g, " ");
 
 export function renderReport(report) {
   const { summary } = report;
@@ -336,15 +310,10 @@ async function main() {
     limit,
     since: values.since ? new Date(values.since).toISOString() : undefined,
   });
-  console.log(
-    values.json ? JSON.stringify(report, null, 2) : renderReport(report),
-  );
+  console.log(values.json ? JSON.stringify(report, null, 2) : renderReport(report));
 }
 
-if (
-  process.argv[1] &&
-  import.meta.url === pathToFileURL(process.argv[1]).href
-) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((error) => {
     console.error(error.message);
     process.exitCode = 1;

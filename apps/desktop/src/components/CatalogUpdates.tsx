@@ -29,9 +29,8 @@ export function CatalogSettings({
       <h2>Catalog updates</h2>
       <CatalogOrigin provenance={provenance} />
       <p>
-        Optional signed updates refresh port information and release locations.
-        Choose a publisher you trust and review each update. The built-in
-        catalog is always available offline.
+        Optional signed updates refresh port information and release locations. Choose a publisher
+        you trust and review each update. The built-in catalog is always available offline.
       </p>
       <button
         data-focusable
@@ -41,12 +40,7 @@ export function CatalogSettings({
       >
         Manage catalog updates
       </button>
-      {open && (
-        <CatalogUpdatesDialog
-          close={() => setOpen(false)}
-          onChanged={onChanged}
-        />
-      )}
+      {open && <CatalogUpdatesDialog close={() => setOpen(false)} onChanged={onChanged} />}
     </article>
   );
 }
@@ -59,13 +53,10 @@ function CatalogOrigin({ provenance }: { provenance?: CatalogProvenance }) {
         {provenance.origin === "embedded"
           ? "Built-in catalog"
           : `Signed catalog · version ${provenance.sequence}`}
-        {provenance.origin === "signed_previous" &&
-          " · using the previous valid update"}
+        {provenance.origin === "signed_previous" && " · using the previous valid update"}
       </p>
       {provenance.expires_at && (
-        <p>
-          Valid until {new Date(provenance.expires_at * 1000).toLocaleString()}.
-        </p>
+        <p>Valid until {new Date(provenance.expires_at * 1000).toLocaleString()}.</p>
       )}
       {provenance.fallback_reasons.map((reason, index) => (
         <p key={`${index}:${reason}`}>Update unavailable: {reason}</p>
@@ -143,11 +134,7 @@ function CatalogUpdatesDialog({
         {status && (
           <>
             <PublisherTrust status={status} {...actions} />
-            <CatalogReview
-              status={status}
-              {...actions}
-              started={setOperationId}
-            />
+            <CatalogReview status={status} {...actions} started={setOperationId} />
             <CatalogSelection status={status} {...actions} />
           </>
         )}
@@ -184,8 +171,8 @@ function PublisherTrust({ status, busy, run, changed }: CatalogActions) {
     <>
       <h3>Trusted publishers</h3>
       <p>
-        Use a publisher’s public key that you have verified with them. Trust
-        allows that publisher to change release download locations.
+        Use a publisher’s public key that you have verified with them. Trust allows that publisher
+        to change release download locations.
       </p>
       {status.trusted_keys.length === 0 && <p>No publishers configured.</p>}
       {status.trusted_keys.map((key) => (
@@ -199,12 +186,7 @@ function PublisherTrust({ status, busy, run, changed }: CatalogActions) {
             disabled={Boolean(busy)}
             onClick={() => {
               void run("Removing publisher…", async () =>
-                changed(
-                  await desktopApi.revokeCatalogKey(
-                    key.key_id,
-                    status.state_sha256,
-                  ),
-                ),
+                changed(await desktopApi.revokeCatalogKey(key.key_id, status.state_sha256)),
               );
             }}
           >
@@ -212,9 +194,7 @@ function PublisherTrust({ status, busy, run, changed }: CatalogActions) {
           </button>
         </div>
       ))}
-      <label htmlFor="catalog-public-key">
-        Publisher public key (64 hex characters)
-      </label>
+      <label htmlFor="catalog-public-key">Publisher public key (64 hex characters)</label>
       <div className="path-entry">
         <input
           data-focusable
@@ -270,9 +250,7 @@ function CatalogReview({
         }}
       />
       <label htmlFor="catalog-update-location">
-        {kind === "file"
-          ? "Signed catalog file"
-          : "Signed catalog HTTPS address"}
+        {kind === "file" ? "Signed catalog file" : "Signed catalog HTTPS address"}
       </label>
       <div className="path-entry">
         <input
@@ -330,9 +308,7 @@ function CatalogReview({
           <p>
             Publisher fingerprint: <code>{plan.key_id}</code>
           </p>
-          <p>
-            {plan.changed_port_ids.join(", ") || "No port metadata changes."}
-          </p>
+          <p>{plan.changed_port_ids.join(", ") || "No port metadata changes."}</p>
           <button
             data-focusable
             className="primary"
@@ -377,9 +353,7 @@ function CatalogSelection({ status, busy, run, changed }: CatalogActions) {
       </button>
       <button
         data-focusable
-        disabled={
-          Boolean(busy) || status.updates_enabled || !status.can_use_cached
-        }
+        disabled={Boolean(busy) || status.updates_enabled || !status.can_use_cached}
         onClick={() => {
           void run("Selecting cached catalog…", async () =>
             changed(await desktopApi.useCachedCatalog(status.state_sha256)),

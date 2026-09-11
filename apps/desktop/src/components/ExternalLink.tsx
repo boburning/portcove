@@ -14,9 +14,7 @@ export function ExternalLink({
   const [error, setError] = useState<string>();
   const open = () => {
     setError(undefined);
-    void desktopApi
-      .openExternalUrl(href)
-      .catch((value) => setError(errorText(value)));
+    void desktopApi.openExternalUrl(href).catch((value) => setError(errorText(value)));
   };
   return (
     <>

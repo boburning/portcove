@@ -1,11 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
-import {
-  AlertTriangle,
-  FolderOpen,
-  HardDrive,
-  RotateCcw,
-  ShieldCheck,
-} from "lucide-react";
+import { AlertTriangle, FolderOpen, HardDrive, RotateCcw, ShieldCheck } from "lucide-react";
 import { desktopApi } from "../api";
 import { pickGameOutputFolder } from "../file-picker";
 import type {
@@ -35,14 +29,10 @@ export function OutputLocationControl({
   const [draft, setDraft] = useState("");
   const [preview, setPreview] = useState<OutputDestinationPreview>();
   const [relocation, setRelocation] = useState<OutputRelocationPlan>();
-  const [relocationStatus, setRelocationStatus] =
-    useState<OutputRelocationStatus>();
-  const [relocationResult, setRelocationResult] =
-    useState<OutputRelocationResult>();
+  const [relocationStatus, setRelocationStatus] = useState<OutputRelocationStatus>();
+  const [relocationResult, setRelocationResult] = useState<OutputRelocationResult>();
   const [error, setError] = useState<string>();
-  const [pending, setPending] = useState<
-    "load" | "pick" | "review" | "apply"
-  >();
+  const [pending, setPending] = useState<"load" | "pick" | "review" | "apply">();
   const request = useRef(0);
   const applying = useRef(false);
   const reviewButton = useRef<HTMLButtonElement>(null);
@@ -66,10 +56,7 @@ export function OutputLocationControl({
         if (request.current !== currentRequest) return;
         setLocation(result);
         setRelocationStatus(status ?? undefined);
-        setDraft(
-          result.configured_output_directory ??
-            result.effective_output_directory,
-        );
+        setDraft(result.configured_output_directory ?? result.effective_output_directory);
         setPending(undefined);
       })
       .catch((value) => {
@@ -119,9 +106,7 @@ export function OutputLocationControl({
   const review = async (path: string | null) => {
     const selectedPath = path?.trim() ?? null;
     if (path !== null && !selectedPath) {
-      setError(
-        "Choose an absolute Export / install folder before reviewing the change.",
-      );
+      setError("Choose an absolute Export / install folder before reviewing the change.");
       return;
     }
     const currentRequest = ++request.current;
@@ -130,11 +115,7 @@ export function OutputLocationControl({
     setError(undefined);
     setPending("review");
     try {
-      const result = await desktopApi.previewOutputLocation(
-        portId,
-        selectedPath,
-        generation,
-      );
+      const result = await desktopApi.previewOutputLocation(portId, selectedPath, generation);
       if (request.current !== currentRequest) return;
       setPreview(result);
       setPending(undefined);
@@ -152,11 +133,7 @@ export function OutputLocationControl({
     setPending("review");
     setError(undefined);
     try {
-      const result = await desktopApi.planOutputRelocation(
-        portId,
-        reviewedDestination,
-        generation,
-      );
+      const result = await desktopApi.planOutputRelocation(portId, reviewedDestination, generation);
       if (request.current !== currentRequest) return;
       setRelocation(result);
       setPending(undefined);
@@ -219,11 +196,7 @@ export function OutputLocationControl({
     onApplying?.(true);
     try {
       const result = reviewed.reset_to_default
-        ? await desktopApi.resetOutputLocation(
-            portId,
-            reviewed.preview_sha256,
-            generation,
-          )
+        ? await desktopApi.resetOutputLocation(portId, reviewed.preview_sha256, generation)
         : await desktopApi.setOutputLocation(
             portId,
             reviewed.proposed.effective_output_directory,
@@ -232,9 +205,7 @@ export function OutputLocationControl({
           );
       if (request.current !== currentRequest) return;
       setLocation(result);
-      setDraft(
-        result.configured_output_directory ?? result.effective_output_directory,
-      );
+      setDraft(result.configured_output_directory ?? result.effective_output_directory);
       setPreview(undefined);
       setPending(undefined);
       applying.current = false;
@@ -258,19 +229,12 @@ export function OutputLocationControl({
     setRelocation(undefined);
     setError(undefined);
     setPending(undefined);
-    window.requestAnimationFrame(() =>
-      (reset ? resetButton : reviewButton).current?.focus(),
-    );
+    window.requestAnimationFrame(() => (reset ? resetButton : reviewButton).current?.focus());
   };
 
   const controlsDisabled =
-    Boolean(busy) ||
-    pending === "load" ||
-    pending === "pick" ||
-    pending === "apply";
-  const source = location
-    ? outputSourceLabel(location.selection_source)
-    : "Location not loaded";
+    Boolean(busy) || pending === "load" || pending === "pick" || pending === "apply";
+  const source = location ? outputSourceLabel(location.selection_source) : "Location not loaded";
   return (
     <section
       className="output-location-control"
@@ -295,13 +259,10 @@ export function OutputLocationControl({
         {location?.effective_output_directory ?? "Loading current folder…"}
       </code>
       <p>
-        Changing this folder affects future installs for this game only.
-        Existing versions stay where Portcove recorded them; relocation is a
-        separate reviewed action.
+        Changing this folder affects future installs for this game only. Existing versions stay
+        where Portcove recorded them; relocation is a separate reviewed action.
       </p>
-      <label htmlFor={`output-location-path-${portId}`}>
-        Future Export / install folder
-      </label>
+      <label htmlFor={`output-location-path-${portId}`}>Future Export / install folder</label>
       <div className="path-entry">
         <input
           id={`output-location-path-${portId}`}
@@ -325,8 +286,8 @@ export function OutputLocationControl({
         </button>
       </div>
       <small id={`output-location-note-${portId}`}>
-        Review checks the resolved path, volume, capacity, ownership, markers,
-        and affected installs without creating the folder.
+        Review checks the resolved path, volume, capacity, ownership, markers, and affected installs
+        without creating the folder.
       </small>
       <div className="button-row">
         <button
@@ -377,14 +338,8 @@ export function OutputLocationControl({
         <p className="output-location-success" role="status">
           <Icon glyph={ShieldCheck} size="sm" />
           {relocationResult.cleanup_pending
-            ? formatCountMessage(
-                relocationResult.old_paths_retained.length,
-                retainedFolderMessages,
-              )
-            : formatCountMessage(
-                relocationResult.relocated_installs.length,
-                movedVersionMessages,
-              )}
+            ? formatCountMessage(relocationResult.old_paths_retained.length, retainedFolderMessages)
+            : formatCountMessage(relocationResult.relocated_installs.length, movedVersionMessages)}
         </p>
       )}
       {relocationStatus && (
@@ -409,10 +364,8 @@ export function OutputLocationControl({
 const retainedFolderMessages = {
   zero: "Move completed. Cleanup remains pending.",
   one: "Move completed. {count} old folder contains changed files and remains for safe cleanup.",
-  other:
-    "Move completed. {count} old folders contain changed files and remain for safe cleanup.",
-  unknown:
-    "Move completed. The number of old folders needing cleanup is unavailable.",
+  other: "Move completed. {count} old folders contain changed files and remain for safe cleanup.",
+  unknown: "Move completed. The number of old folders needing cleanup is unavailable.",
 };
 const movedVersionMessages = {
   zero: "Move completed. No recorded versions needed relocation.",
@@ -451,9 +404,7 @@ function OutputLocationReview({
   const safe =
     preview.availability === "available" &&
     preview.validation_errors.length === 0 &&
-    ["library_default", "unclaimed", "owned_by_port"].includes(
-      preview.ownership,
-    );
+    ["library_default", "unclaimed", "owned_by_port"].includes(preview.ownership);
   const availabilityLabels = {
     full: "Full · no free space",
     available: "Available",
@@ -490,9 +441,7 @@ function OutputLocationReview({
     >
       <div className="output-review-title" aria-live="polite">
         <strong>
-          {preview.reset_to_default
-            ? "Review library default"
-            : "Review future folder"}
+          {preview.reset_to_default ? "Review library default" : "Review future folder"}
         </strong>
         <span>{availability}</span>
       </div>
@@ -523,14 +472,10 @@ function OutputLocationReview({
       </dl>
       <p>
         <Icon glyph={ShieldCheck} size="sm" />
-        Future placement only; this review does not move an existing
-        installation.
+        Future placement only; this review does not move an existing installation.
       </p>
       {preview.validation_errors.length > 0 && (
-        <ul
-          className="output-validation-errors"
-          aria-label="Destination problems"
-        >
+        <ul className="output-validation-errors" aria-label="Destination problems">
           {preview.validation_errors.map((message) => (
             <li key={message}>{message}</li>
           ))}
@@ -554,9 +499,7 @@ function OutputLocationReview({
             disabled={!safe || Boolean(pending)}
             onClick={reviewRelocation}
           >
-            {pending === "review"
-              ? "Checking versions…"
-              : "Review moving existing versions"}
+            {pending === "review" ? "Checking versions…" : "Review moving existing versions"}
           </button>
         )}
         <button
@@ -588,9 +531,7 @@ function OutputRelocationReview({
   const safe =
     plan.availability === "available" &&
     plan.validation_errors.length === 0 &&
-    ["library_default", "unclaimed", "owned_by_port"].includes(
-      plan.ownership,
-    ) &&
+    ["library_default", "unclaimed", "owned_by_port"].includes(plan.ownership) &&
     !plan.sources_will_move &&
     !plan.user_data_will_move &&
     !plan.backups_will_move;
@@ -661,15 +602,11 @@ function OutputRelocationReview({
       </ul>
       <p>
         <Icon glyph={ShieldCheck} size="sm" />
-        Portcove copies and verifies every recorded version before atomically
-        changing its records. Old folders are removed only when their reviewed
-        contents are unchanged.
+        Portcove copies and verifies every recorded version before atomically changing its records.
+        Old folders are removed only when their reviewed contents are unchanged.
       </p>
       {plan.validation_errors.length > 0 && (
-        <ul
-          className="output-validation-errors"
-          aria-label="Relocation problems"
-        >
+        <ul className="output-validation-errors" aria-label="Relocation problems">
           {plan.validation_errors.map((message) => (
             <li key={message}>{message}</li>
           ))}
@@ -686,12 +623,7 @@ function OutputRelocationReview({
         >
           {pending ? "Moving and verifying…" : "Move existing versions"}
         </button>
-        <button
-          data-focusable
-          className="small-control"
-          disabled={pending}
-          onClick={cancel}
-        >
+        <button data-focusable className="small-control" disabled={pending} onClick={cancel}>
           Cancel review
         </button>
       </div>
@@ -709,14 +641,10 @@ function outputOwnershipLabel(value: OutputDestinationPreview["ownership"]) {
     invalid: "Invalid destination",
     unknown: "Unknown",
   };
-  return Object.hasOwn(labels, value)
-    ? labels[value]
-    : "Ownership result unavailable";
+  return Object.hasOwn(labels, value) ? labels[value] : "Ownership result unavailable";
 }
 
-function outputSourceLabel(
-  value: OutputDestinationPreview["proposed"]["selection_source"],
-) {
+function outputSourceLabel(value: OutputDestinationPreview["proposed"]["selection_source"]) {
   if (value === "request_override") return "Selected for this game";
   if (value === "port_setting") return "Custom for this game";
   return value === "library_default"

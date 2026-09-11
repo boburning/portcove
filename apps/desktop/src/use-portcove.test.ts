@@ -45,11 +45,7 @@ describe("detail actions", () => {
     );
     await actions.setChannel("beta");
     await actions.check();
-    expect(desktopApi.setChannel).toHaveBeenCalledExactlyOnceWith(
-      port.id,
-      "beta",
-      17,
-    );
+    expect(desktopApi.setChannel).toHaveBeenCalledExactlyOnceWith(port.id, "beta", 17);
     expect(desktopApi.check).toHaveBeenCalledExactlyOnceWith(port.id, 17);
   });
 
@@ -70,19 +66,13 @@ describe("detail actions", () => {
       async () => {},
       12,
     ).setPolicy("automatic");
-    expect(desktopApi.setPolicy).toHaveBeenCalledExactlyOnceWith(
-      port.id,
-      "automatic",
-      12,
-    );
+    expect(desktopApi.setPolicy).toHaveBeenCalledExactlyOnceWith(port.id, "automatic", 12);
     expect(install).not.toHaveBeenCalled();
     expect(update).not.toHaveBeenCalled();
   });
 
   it("the explicit Install action does not silently stage because of saved policy", async () => {
-    const install = vi
-      .spyOn(desktopApi, "install")
-      .mockResolvedValue(undefined!);
+    const install = vi.spyOn(desktopApi, "install").mockResolvedValue(undefined!);
     const perform: Perform = async (_name, task) => task();
     await detailActions(
       port,
@@ -92,13 +82,7 @@ describe("detail actions", () => {
       perform,
       vi.fn(),
     ).install();
-    expect(install).toHaveBeenCalledExactlyOnceWith(
-      port.id,
-      "stable",
-      "source.z64",
-      "",
-      false,
-    );
+    expect(install).toHaveBeenCalledExactlyOnceWith(port.id, "stable", "source.z64", "", false);
   });
 
   it("backs up through the shared operation boundary", async () => {
@@ -122,38 +106,22 @@ describe("detail actions", () => {
   });
 
   it("does not close when reviewed removal fails in the shared operation boundary", async () => {
-    vi.spyOn(desktopApi, "remove").mockRejectedValue(
-      new Error("Installation changed"),
-    );
-    const perform = vi.fn(
-      async (_name: string, task: () => Promise<unknown>) => {
-        try {
-          return await task();
-        } catch {
-          return undefined;
-        }
-      },
-    ) as unknown as Perform;
+    vi.spyOn(desktopApi, "remove").mockRejectedValue(new Error("Installation changed"));
+    const perform = vi.fn(async (_name: string, task: () => Promise<unknown>) => {
+      try {
+        return await task();
+      } catch {
+        return undefined;
+      }
+    }) as unknown as Perform;
     const close = vi.fn();
 
-    await detailActions(
-      port,
-      undefined,
-      "",
-      "",
-      perform,
-      close,
-      undefined,
-      undefined,
-      9,
-    ).remove("reviewed-removal");
+    await detailActions(port, undefined, "", "", perform, close, undefined, undefined, 9).remove(
+      "reviewed-removal",
+    );
 
     expect(perform).toHaveBeenCalledWith("remove", expect.any(Function));
-    expect(desktopApi.remove).toHaveBeenCalledWith(
-      port.id,
-      "reviewed-removal",
-      9,
-    );
+    expect(desktopApi.remove).toHaveBeenCalledWith(port.id, "reviewed-removal", 9);
     expect(close).not.toHaveBeenCalled();
   });
 
@@ -225,12 +193,7 @@ describe("detail actions", () => {
       8,
     ).deleteBackup(backup, "reviewed-delete");
 
-    expect(desktopApi.deleteBackup).toHaveBeenCalledWith(
-      port.id,
-      backup.id,
-      "reviewed-delete",
-      8,
-    );
+    expect(desktopApi.deleteBackup).toHaveBeenCalledWith(port.id, backup.id, "reviewed-delete", 8);
     expect(refresh).toHaveBeenCalledOnce();
   });
 
@@ -241,24 +204,12 @@ describe("detail actions", () => {
     ) as unknown as Perform;
     const close = vi.fn();
 
-    await detailActions(
-      port,
-      undefined,
-      "",
-      "",
-      perform,
-      close,
-      undefined,
-      undefined,
-      9,
-    ).remove("reviewed-removal");
+    await detailActions(port, undefined, "", "", perform, close, undefined, undefined, 9).remove(
+      "reviewed-removal",
+    );
 
     expect(perform).toHaveBeenCalledWith("remove", expect.any(Function));
-    expect(desktopApi.remove).toHaveBeenCalledWith(
-      port.id,
-      "reviewed-removal",
-      9,
-    );
+    expect(desktopApi.remove).toHaveBeenCalledWith(port.id, "reviewed-removal", 9);
     expect(close).toHaveBeenCalledOnce();
   });
 
@@ -269,17 +220,7 @@ describe("detail actions", () => {
     const perform: Perform = async (_name, task) => task();
     const close = vi.fn();
     const refresh = vi.fn();
-    const actions = detailActions(
-      port,
-      undefined,
-      "",
-      "",
-      perform,
-      close,
-      undefined,
-      refresh,
-      9,
-    );
+    const actions = detailActions(port, undefined, "", "", perform, close, undefined, refresh, 9);
     const backup = {
       id: "snapshot",
       port_id: port.id,
