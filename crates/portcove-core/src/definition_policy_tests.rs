@@ -4,6 +4,11 @@
 
 use serde::Deserialize;
 
+use crate::{
+    DefinitionEligibilityFacts, DefinitionEligibilityOutcome, DefinitionEligibilityReason,
+    DefinitionOperation, evaluate_definition_eligibility,
+};
+
 #[derive(Clone, Copy, Default, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 enum Operation {
@@ -62,78 +67,33 @@ impl Default for Scenario {
     }
 }
 
-type Decision = (&'static str, &'static str);
-
-fn authority(scenario: &Scenario) -> Option<Decision> {
-    if scenario.publisher_revoked {
-        return Some(("hold", "publisher_revoked"));
+impl From<&Scenario> for DefinitionEligibilityFacts {
+    fn from(scenario: &Scenario) -> Self {
+        Self {
+            operation: match scenario.operation {
+                Operation::Availability => DefinitionOperation::Availability,
+                Operation::Install => DefinitionOperation::Install,
+                Operation::Prepare => DefinitionOperation::Prepare,
+                Operation::Launch => DefinitionOperation::Launch,
+            },
+            publisher_scoped: scenario.publisher_scoped,
+            publisher_revoked: scenario.publisher_revoked,
+            capability_supported: scenario.capability_supported,
+            unknown_safety_field: scenario.unknown_safety_field,
+            ownership_preserved: scenario.ownership_preserved,
+            same_identity_changed: scenario.same_identity_changed,
+            expected_integrity: scenario.expected_integrity,
+            local_integrity_valid: scenario.local_integrity_valid,
+            required_source_missing: scenario.required_source_missing,
+            source_mismatch: scenario.source_mismatch,
+            mandatory_checks_passed: scenario.mandatory_checks_passed,
+            fresh_metadata: scenario.fresh_metadata,
+            replayed_metadata: scenario.replayed_metadata,
+            refresh_interrupted: scenario.refresh_interrupted,
+            retained_contract: scenario.retained_contract,
+            retained_local_authorization: scenario.retained_local_authorization,
+        }
     }
-    if scenario.unknown_safety_field {
-        return Some(("hold", "unknown_safety_semantics"));
-    }
-    if !scenario.publisher_scoped {
-        return Some(("escalate", "publisher_scope_required"));
-    }
-    if !scenario.capability_supported {
-        return Some(("escalate", "engine_capability_required"));
-    }
-    if !scenario.ownership_preserved {
-        return Some(("escalate", "ownership_migration_required"));
-    }
-    None
-}
-
-fn refresh(scenario: &Scenario) -> Option<Decision> {
-    if scenario.replayed_metadata {
-        return Some(("hold", "metadata_replay"));
-    }
-    if scenario.refresh_interrupted {
-        return Some(("hold", "refresh_incomplete"));
-    }
-    if !scenario.fresh_metadata {
-        return Some(("hold", "metadata_stale"));
-    }
-    None
-}
-
-fn operation_inputs(scenario: &Scenario) -> Option<Decision> {
-    if scenario.same_identity_changed {
-        return Some(("hold", "recorded_identity_changed"));
-    }
-    let retained_local_launch = scenario.operation == Operation::Launch
-        && scenario.retained_contract
-        && scenario.retained_local_authorization;
-    if !scenario.expected_integrity && !retained_local_launch {
-        return Some(("hold", "authenticated_integrity_required"));
-    }
-    if !scenario.local_integrity_valid {
-        return Some(("hold", "local_integrity_failed"));
-    }
-    if !scenario.mandatory_checks_passed {
-        return Some(("hold", "mandatory_check_failed"));
-    }
-    if scenario.operation == Operation::Availability {
-        return None;
-    }
-    if scenario.source_mismatch {
-        return Some(("hold", "source_identity_mismatch"));
-    }
-    if scenario.required_source_missing {
-        return Some(("hold", "required_source_missing"));
-    }
-    None
-}
-
-fn decision(scenario: &Scenario) -> Decision {
-    if let Some(result) = authority(scenario) {
-        return result;
-    }
-    if !(scenario.operation == Operation::Launch && scenario.retained_contract)
-        && let Some(result) = refresh(scenario)
-    {
-        return result;
-    }
-    operation_inputs(scenario).unwrap_or(("eligible", "mandatory_checks_passed"))
 }
 
 #[derive(Deserialize)]
@@ -141,8 +101,8 @@ fn decision(scenario: &Scenario) -> Decision {
 struct Case {
     name: String,
     scenario: Scenario,
-    outcome: String,
-    reason: String,
+    outcome: DefinitionEligibilityOutcome,
+    reason: DefinitionEligibilityReason,
 }
 
 #[test]
@@ -154,8 +114,11 @@ fn definition_design_decision_table_preserves_scoped_failures_and_retained_use()
     assert!(cases.len() >= 20);
     for case in cases {
         assert_eq!(
-            decision(&case.scenario),
-            (case.outcome.as_str(), case.reason.as_str()),
+            evaluate_definition_eligibility(&DefinitionEligibilityFacts::from(&case.scenario)),
+            crate::DefinitionEligibility {
+                outcome: case.outcome,
+                reason: case.reason,
+            },
             "{}",
             case.name
         );
@@ -165,12 +128,19 @@ fn definition_design_decision_table_preserves_scoped_failures_and_retained_use()
 #[test]
 fn gameplay_is_an_independent_observation_not_a_definition_admission_gate() {
     let mut scenario = Scenario::default();
-    let missing_gameplay = decision(&scenario);
+    let missing_gameplay =
+        evaluate_definition_eligibility(&DefinitionEligibilityFacts::from(&scenario));
     assert!(!scenario.gameplay_observed);
     scenario.gameplay_observed = true;
-    assert_eq!(decision(&scenario), missing_gameplay);
+    assert_eq!(
+        evaluate_definition_eligibility(&DefinitionEligibilityFacts::from(&scenario)),
+        missing_gameplay
+    );
     scenario.expected_integrity = false;
-    assert_eq!(decision(&scenario).1, "authenticated_integrity_required");
+    assert_eq!(
+        evaluate_definition_eligibility(&DefinitionEligibilityFacts::from(&scenario)).reason,
+        DefinitionEligibilityReason::AuthenticatedIntegrityRequired
+    );
 }
 
 #[test]
