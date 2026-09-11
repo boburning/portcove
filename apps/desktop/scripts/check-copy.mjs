@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { parse } from "@babel/parser";
+import { parseSync, visitorKeys } from "oxc-parser";
 
 const copyAttributes = new Set([
   "title",
@@ -33,6 +33,32 @@ const rules = [
   },
 ];
 
+const jsxEntities = new Map([
+  ["amp", "&"],
+  ["apos", "'"],
+  ["gt", ">"],
+  ["lt", "<"],
+  ["nbsp", "\u00a0"],
+  ["quot", '"'],
+]);
+
+function decodeJsxEntities(value) {
+  return value.replace(
+    /&(?:#(?<decimal>\d+)|#x(?<hex>[\dA-F]+)|(?<named>[A-Z]+));/giu,
+    (...args) => {
+      const groups = args.at(-1);
+      if (groups.decimal) return String.fromCodePoint(Number.parseInt(groups.decimal, 10));
+      if (groups.hex) return String.fromCodePoint(Number.parseInt(groups.hex, 16));
+      return jsxEntities.get(groups.named.toLowerCase()) ?? args[0];
+    },
+  );
+}
+
+function sourcePosition(source, offset) {
+  const lines = source.slice(0, offset).split(/\r\n|[\n\r]/u);
+  return { line: lines.length, column: lines.at(-1).length + 1 };
+}
+
 function technicalDisclosure(node) {
   if (node.type !== "JSXElement" || node.openingElement.name.name !== "details") return false;
   const summary = node.children.find(
@@ -41,7 +67,7 @@ function technicalDisclosure(node) {
   const label =
     summary?.children
       .filter((child) => child.type === "JSXText")
-      .map((child) => child.value)
+      .map((child) => decodeJsxEntities(child.value))
       .join(" ") ?? "";
   return /^(?:view )?technical details$|^full identity and evidence$/iu.test(label.trim());
 }
@@ -66,38 +92,58 @@ function excludedContext(node, ancestors) {
   return ancestors.some(technicalDisclosure);
 }
 
+function staticText(node, parent) {
+  if (node.type === "TemplateElement") return node.value.cooked;
+  if (node.type === "JSXText") return decodeJsxEntities(node.value);
+  if (node.type !== "Literal" || typeof node.value !== "string") return undefined;
+  return parent?.type === "JSXAttribute" ? decodeJsxEntities(node.value) : node.value;
+}
+
+function childNodes(node) {
+  return (visitorKeys[node.type] ?? []).flatMap((key) => {
+    const value = node[key];
+    return (Array.isArray(value) ? value : [value]).filter(
+      (child) => typeof child?.type === "string",
+    );
+  });
+}
+
+function inspectNode(node, ancestors, source, filename) {
+  const text = staticText(node, ancestors.at(-1));
+  if (typeof text !== "string" || excludedContext(node, ancestors)) return [];
+  const position = sourcePosition(source, node.start);
+  return rules
+    .filter((rule) => rule.pattern.test(text.trim()))
+    .map((rule) => ({
+      file: filename,
+      line: position.line,
+      column: position.column,
+      rule: rule.id,
+      message: rule.message,
+      text: text.trim().replace(/\s+/gu, " ").slice(0, 120),
+    }));
+}
+
 /** Check static copy, including message literals outside JSX; never execute source. */
 export function inspectCopy(source, filename = "fixture.tsx") {
-  const ast = parse(source, {
+  const result = parseSync(filename, source, {
     sourceType: "module",
-    plugins: ["typescript", "jsx"],
-    sourceFilename: filename,
+    astType: "ts",
+    showSemanticErrors: true,
   });
+  if (result.errors.length) {
+    const diagnostics = result.errors.map((error) => {
+      const position = sourcePosition(source, error.labels.at(0)?.start ?? 0);
+      return `${filename}:${position.line}:${position.column}: ${error.message}`;
+    });
+    throw new SyntaxError(`Unable to inspect static copy:\n${diagnostics.join("\n")}`);
+  }
   const findings = [];
   const visit = (node, ancestors) => {
-    const text =
-      node.type === "TemplateElement"
-        ? node.value.cooked
-        : ["JSXText", "StringLiteral"].includes(node.type)
-          ? node.value
-          : undefined;
-    if (typeof text === "string" && !excludedContext(node, ancestors)) {
-      for (const rule of rules.filter((rule) => rule.pattern.test(text.trim()))) {
-        findings.push({
-          file: filename,
-          line: node.loc.start.line,
-          column: node.loc.start.column + 1,
-          rule: rule.id,
-          message: rule.message,
-          text: text.trim().replace(/\s+/gu, " ").slice(0, 120),
-        });
-      }
-    }
-    for (const child of Object.values(node).flat()) {
-      if (typeof child?.type === "string") visit(child, [...ancestors, node]);
-    }
+    findings.push(...inspectNode(node, ancestors, source, filename));
+    for (const child of childNodes(node)) visit(child, [...ancestors, node]);
   };
-  visit(ast, []);
+  visit(result.program, []);
   return findings;
 }
 
@@ -116,6 +162,7 @@ function sourceFiles(directory) {
 export function main() {
   const root = fileURLToPath(new URL("../src", import.meta.url));
   const files = sourceFiles(root);
+  if (!files.length) throw new Error("Desktop static-copy check discovered no production sources.");
   const findings = files.flatMap((file) =>
     inspectCopy(readFileSync(file, "utf8"), path.relative(root, file)),
   );

@@ -38,7 +38,6 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
-    "@babel/parser": "8.0.4",
     "@taplo/cli": "0.7.0",
     "@tauri-apps/cli": "2.11.4",
     "@types/jsdom": "^30.0.0",
@@ -49,6 +48,7 @@
     "fallow": "^3.22.0",
     "jsdom": "^30.0.1",
     "json-schema-to-typescript": "16.0.0",
+    "oxc-parser": "0.149.0",
     "oxfmt": "0.67.0",
     "oxlint": "1.82.0",
     "oxlint-tsgolint": "7.0.2001",

@@ -42,7 +42,7 @@ describe("desktop static-copy safeguards", () => {
   it("allows code, type names, imports, identifiers and non-copy attributes", () => {
     expect(
       inspectCopy(
-        'import adapter from "adapter"; type Field = "qualification"; const data = { "source profile": value }; const ok = state === "qualification"; const view = <p className="qualification" id="adapter" data-state="verified">Exact match</p>; // materialization',
+        'import adapter from "adapter"; type Field = "qualification"; const data = { "source profile": value }; const ok = state === "qualification"; const member = port.qualification; const optional = port?.qualification; const computed = port["source profile"]; const view = <p className="qualification" id="adapter" data-state="verified">Exact match</p>; // materialization',
       ),
     ).toEqual([]);
   });
@@ -56,16 +56,36 @@ describe("desktop static-copy safeguards", () => {
   it("does not exempt ordinary disclosures or decoded visible entities", () => {
     expect(
       inspectCopy(
-        "const view = <details><summary>Advanced controls</summary><p>&#86;erified</p></details>;",
+        'const view = <details><summary>Advanced controls</summary><p title="&#86;erified">&#86;erified</p></details>;',
       ),
-    ).toEqual([expect.objectContaining({ rule: "generic-verified" })]);
+    ).toEqual([
+      expect.objectContaining({ rule: "generic-verified" }),
+      expect.objectContaining({ rule: "generic-verified" }),
+    ]);
   });
   it("checks concatenated copy while leaving machine comparisons alone", () => {
     expect(
       inspectCopy('const message = "source profile" + id; const same = state === "qualification";'),
     ).toEqual([expect.objectContaining({ rule: "internal-terminology" })]);
   });
-  it("fails on malformed source instead of silently skipping it", () => {
-    expect(() => inspectCopy('const view = <p title="broken')).toThrow();
+  it("uses cooked template text and preserves source locations", () => {
+    expect(
+      inspectCopy("const π = 1;\r\nconst message = `Verifi\\u0065d`;", "location.tsx"),
+    ).toEqual([
+      expect.objectContaining({
+        file: "location.tsx",
+        line: 2,
+        column: 17,
+        rule: "generic-verified",
+      }),
+    ]);
+  });
+  it("fails closed on syntax and semantic parser diagnostics", () => {
+    expect(() => inspectCopy('const view = <p title="broken', "syntax.tsx")).toThrow(
+      /syntax\.tsx:1:23: Unterminated string/u,
+    );
+    expect(() => inspectCopy("let value; let value;", "semantic.ts")).toThrow(
+      /semantic\.ts:1:5: Identifier `value` has already been declared/u,
+    );
   });
 });

@@ -597,7 +597,10 @@ describe("desktop components", () => {
   });
 
   it("keeps recovery controls available for rejected saved sign-ins and explains environment overrides", () => {
-    for (const source of ["credential_store", "environment"] as const) {
+    for (const [source, message, showsRecovery, showsPasswordEntry] of [
+      ["credential_store", "GitHub no longer accepts the saved sign-in", true, true],
+      ["environment", "Replace or remove it outside Portcove", false, false],
+    ] as const) {
       const html = renderToStaticMarkup(
         <SettingsView
           github={{
@@ -617,19 +620,14 @@ describe("desktop components", () => {
           }}
         />,
       );
-      if (source === "credential_store") {
-        expect(html).toContain("GitHub no longer accepts the saved sign-in");
-        const signIn = html.match(/<button\b([^>]*)>Sign in with GitHub<\/button>/);
-        const logout = html.match(/<button\b([^>]*)>Log out<\/button>/);
-        expect(signIn).not.toBeNull();
-        expect(logout).not.toBeNull();
-        expect(signIn?.[1]).not.toContain("disabled");
-        expect(logout?.[1]).not.toContain("disabled");
-      } else {
-        expect(html).toContain("Replace or remove it outside Portcove");
-        expect(html).not.toContain("Sign in with GitHub");
-        expect(html).not.toContain('type="password"');
-      }
+      const signIn = html.match(/<button\b([^>]*)>Sign in with GitHub<\/button>/);
+      const logout = html.match(/<button\b([^>]*)>Log out<\/button>/);
+      expect(html).toContain(message);
+      expect(signIn !== null).toBe(showsRecovery);
+      expect(logout !== null).toBe(showsRecovery);
+      expect(signIn?.[1] ?? "").not.toContain("disabled");
+      expect(logout?.[1] ?? "").not.toContain("disabled");
+      expect(html.includes('type="password"')).toBe(showsPasswordEntry);
     }
   });
 

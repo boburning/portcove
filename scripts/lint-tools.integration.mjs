@@ -73,18 +73,32 @@ function expectFixture(tool, valid, invalid) {
 async function oxlintFixture() {
   const directory = path.join(desktop, "src", `.lint-oxlint-${nonce}`);
   const fixture = path.join(directory, "fixture.tsx");
+  const moduleFixture = path.join(directory, "module.ts");
   const javascriptFixture = path.join(root, "scripts", `.lint-oxlint-${nonce}.mjs`);
   const viteDirectory = path.join(desktop, `.lint-oxlint-vite-${nonce}`);
   const viteFixture = path.join(viteDirectory, "vite.config.ts");
   const runner = path.join(root, "scripts", "run-oxlint.mjs");
+  const repository = run(process.execPath, [runner]);
+  expectSuccess("Oxlint repository scan", repository);
+  assert.match(
+    `${repository.stdout}${repository.stderr}`,
+    /Oxlint standard pass: [1-9]\d* files with [1-9]\d* active rules/u,
+    "Oxlint repository scan did not report a nonzero file and rule inventory",
+  );
   try {
     await mkdir(directory);
+    await writeFile(moduleFixture, "export const named = 1;\n");
     await writeFile(
       fixture,
       'import { useState } from "react";\nexport function Fixture() {\n  const [value] = useState(0);\n  void Promise.resolve(value);\n  return <img alt="" src="fixture" />;\n}\n',
     );
     const valid = run(process.execPath, [runner, fixture]);
     expectSuccess("Oxlint TypeScript", valid);
+    await writeFile(
+      fixture,
+      'import { expect, it, vi } from "vitest";\nvi.mock("./module", () => ({ named: 1 }));\nit("accepts contextual messages", () => {\n  expect(1, "fixture context").toBe(1);\n});\n',
+    );
+    expectSuccess("Oxlint Vitest policy", run(process.execPath, [runner, fixture]));
     for (const [rule, diagnostic, source] of [
       [
         "React Hooks",
@@ -115,6 +129,37 @@ async function oxlintFixture() {
         "unused suppression",
         /unused (?:oxlint-)?disable directive/i,
         "// oxlint-disable-next-line no-undef\nexport const value = 1;\n",
+      ],
+      [
+        "native Oxc correctness",
+        /oxc\(bad-object-literal-comparison\)/,
+        "export const same = {} === {};\n",
+      ],
+      ["import default", /import\(default\)/, 'import value from "./module";\nexport { value };\n'],
+      [
+        "import namespace",
+        /import\(namespace\)/,
+        'import * as values from "./module";\nexport const missing = values.missing;\n',
+      ],
+      [
+        "Vitest focused test",
+        /vitest\(no-focused-tests\)/,
+        'import { expect, it } from "vitest";\nit.only("focused", () => {\n  expect(1).toBe(1);\n});\n',
+      ],
+      [
+        "Vitest conditional expectation",
+        /vitest\(no-conditional-expect\)/,
+        'import { expect, it } from "vitest";\nit("conditional", () => {\n  if (Date.now() > 0) expect(1).toBe(1);\n});\n',
+      ],
+      [
+        "Vitest promise expectation",
+        /vitest\(valid-expect-in-promise\)/,
+        'import { expect, it } from "vitest";\nit("promise", () => {\n  Promise.resolve().then(() => expect(1).toBe(1));\n});\n',
+      ],
+      [
+        "Vitest throw message",
+        /vitest\(require-to-throw-message\)/,
+        'import { expect, it } from "vitest";\nit("throws", () => {\n  expect(() => {\n    throw new Error("broken");\n  }).toThrow();\n});\n',
       ],
     ]) {
       await writeFile(fixture, source);

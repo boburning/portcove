@@ -117,9 +117,11 @@ Cargo-metadata architecture checker, Fallow, and rscheck's absolute-path rule
 outside reviewed exceptions.
 
 Oxlint uses one root configuration for the desktop TypeScript/TSX and the
-repository's JavaScript modules. The standard pass applies the correctness
-category plus explicit JavaScript correctness, React Hooks, modern React
-`refs`/`set-state-in-effect`, and the complete supported
+repository's JavaScript modules. Its explicit plugin list includes ESLint,
+TypeScript, React, JSX accessibility, Oxc, import, and Vitest coverage; an
+explicit list replaces Oxlint's defaults. The standard pass applies the
+correctness category plus explicit JavaScript correctness, React Hooks, modern
+React `refs`/`set-state-in-effect`, and the complete supported
 `jsx-a11y/recommended` policy inherited from the former ESLint configuration.
 Broad suspicious, pedantic, performance, style, restriction, and nursery
 categories remain opt-in so an Oxc update cannot silently expand the blocking
@@ -158,6 +160,16 @@ separate `pnpm typecheck` command remains the authoritative whole-program
 TypeScript compiler gate; Oxlint's experimental whole-program type-check mode is
 not enabled. The VS Code integration enables the same type-aware diagnostics.
 
+Vitest correctness rules reject focused or disabled tests, conditional or
+standalone expectations, invalid callbacks and titles, missing awaited promise
+expectations, and message-less throw assertions. `vitest/valid-expect` permits
+Vitest's supported optional assertion-message argument. The
+`vitest/require-mock-type-parameters` rule remains disabled because applying it
+to contextually typed component doubles would repeat their prop and module
+contracts across hundreds of ordinary test mocks; contract-sensitive mocks may
+still declare explicit types. This is a rule-specific policy decision, not a
+file exclusion or diagnostic suppression.
+
 The package uses one TypeScript 7 dependency for the `tsc` build command,
 transport compiler rejection fixtures, and Vite ecosystem tooling. This removes
 the former compiler alias and its Fallow dependency exception. The build and
@@ -179,11 +191,13 @@ separate Roslyn analyzer package or repository-wide `.editorconfig`; any compile
 warning exposed by that required build must be fixed rather than suppressed.
 
 The UI test command also runs `apps/desktop/scripts/check-copy.mjs`. It parses
-production TypeScript/TSX with the development-only Babel parser and rejects
-internal terminology, parenthetical plurals and an unqualified “Verified” label
-in static copy. This includes JSX text, accessible labels and message literals.
-Malformed source fails the check. There is no violation baseline or suppression
-comment mechanism.
+production TypeScript/TSX with the exact-pinned development-only Oxc parser and
+walks only declared AST visitor keys. Parser and semantic diagnostics fail
+closed before partial syntax trees are inspected. The checker rejects internal
+terminology, parenthetical plurals and an unqualified “Verified” label in static
+copy. This includes decoded JSX text and attributes, cooked template values,
+accessible labels and message literals. There is no violation baseline or
+suppression-comment mechanism.
 
 The check deliberately excludes non-runtime declarations/tests, imports, property
 names, machine-value comparisons and non-copy JSX attributes. A lexical `details`
