@@ -112,8 +112,33 @@ new installations now retain the admitted catalog content described below.
 
 ## Retained installation contracts
 
-Core captures a canonical, self-contained catalog projection before publishing a
-new installation, adoption, or prepared derivative. Schema-6 installation
+For an inspected successor catalog projection, core carries an immutable exact
+definition snapshot with the catalog for its selected port only. Catalog clones
+share that snapshot; a newly parsed unrelated catalog does not inherit it. This
+is origin retention, not another source/execution/persistence authority. The
+existing qualification and manifest paths capture it without consulting current
+discovery or reconstructing old bytes during preparation or manifest refresh.
+
+Retained-contract format 2 stores the namespace, stable ID and exact index, entry
+and shared leaf JSON strings inside the existing schema-6 install manifest.
+It has no parallel canonical `catalog_json` authority. On read, core checks bounds,
+identity, index-to-content digests and all current supported contract semantics.
+The existing immutable manifest digest covers the snapshot. Format 1 continues to
+retain canonical legacy catalog content, and cannot be mixed with format-2 input.
+Pure decode caching is bounded to one exact format/content pair and never caches
+filesystem integrity, source admission or revocation decisions. Each component
+keeps its existing 4 MiB bound; the three retained components total at most 12 MiB
+before JSON string encoding and decoding overhead.
+
+SQLite writer protocol 25 prevents older clients from discarding successor bytes.
+It changes no table layout and uses the existing exclusive migration lease.
+Existing legacy installs remain readable; no historical snapshot or authenticated
+provenance is invented for them. An unselected port in a shared projection cannot
+inherit the selected definition's identity. Trusted acquisition and transactional
+catalog selection remain separate, unactivated loader boundaries.
+
+For legacy and embedded catalogs, core captures a canonical, self-contained
+projection before publishing a new installation, adoption, or prepared derivative. Schema-6 installation
 manifests include the port identity and complete referenced source graph, covered
 by the existing immutable manifest digest. Keeping the complete bounded catalog
 avoids a second mutable database or a missing sidecar during moves and exports.

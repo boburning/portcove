@@ -1,6 +1,7 @@
 use std::{
     collections::HashSet,
     path::{Component, Path},
+    sync::Arc,
 };
 
 use crate::{
@@ -13,6 +14,7 @@ const EMBEDDED_CATALOG: &str = include_str!("../catalog/catalog.json");
 #[derive(Debug, Clone)]
 pub struct Catalog {
     document: CatalogDocument,
+    definition_snapshot: Option<Arc<crate::definition_projection::DefinitionSnapshot>>,
 }
 
 impl Catalog {
@@ -52,13 +54,32 @@ impl Catalog {
                 )));
             }
         }
-        let catalog = Self { document };
+        let catalog = Self {
+            document,
+            definition_snapshot: None,
+        };
         catalog.validate()?;
         Ok(catalog)
     }
 
     pub fn document(&self) -> &CatalogDocument {
         &self.document
+    }
+
+    pub(crate) fn retain_definition_snapshot(
+        &mut self,
+        snapshot: Arc<crate::definition_projection::DefinitionSnapshot>,
+    ) {
+        self.definition_snapshot = Some(snapshot);
+    }
+
+    pub(crate) fn definition_snapshot(
+        &self,
+        port_id: &str,
+    ) -> Option<&crate::definition_projection::DefinitionSnapshot> {
+        self.definition_snapshot
+            .as_deref()
+            .filter(|snapshot| snapshot.port_id() == port_id)
     }
 
     pub(crate) fn authoritative_document(&self) -> CatalogDocument {

@@ -2491,12 +2491,35 @@ mod tests {
 
     #[test]
     fn manifest_refresh_and_preparation_preserve_the_original_contract() {
+        assert_manifest_retention(false);
+    }
+
+    #[test]
+    fn successor_manifest_refresh_and_preparation_preserve_exact_original_bytes() {
+        assert_manifest_retention(true);
+    }
+
+    fn assert_manifest_retention(successor: bool) {
         let temporary = tempfile::tempdir().unwrap();
         let root = temporary.path().join("payload");
         fs::create_dir_all(&root).unwrap();
         fs::write(root.join("game.exe"), b"owned executable").unwrap();
-        let original = InstallQualification::test("game.exe");
+        let mut original = InstallQualification::test("game.exe");
+        if successor {
+            let catalog = original
+                .retained_contract
+                .as_ref()
+                .unwrap()
+                .catalog("sample")
+                .unwrap();
+            let indexed = crate::test_fixture::indexed_catalog(&catalog, "sample");
+            original =
+                InstallQualification::from_catalog(&indexed, "sample", original.platform).unwrap();
+        }
         let (installer, install) = create_test_install(&root, &original);
+        let exact_contract =
+            serde_json::to_value(verified_manifest(&install).unwrap().retained_contract).unwrap();
+        assert_eq!(exact_contract["format"], if successor { 2 } else { 1 });
         let retained = installer.retained_catalog(&install).unwrap().unwrap();
         let mut document = retained.authoritative_document();
         let changed = document
@@ -2525,6 +2548,11 @@ mod tests {
             .create_prepared_manifest(&refreshed, "prepared-id", &current, &derived)
             .unwrap();
         for version in [&refreshed, &prepared] {
+            assert_eq!(
+                serde_json::to_value(verified_manifest(version).unwrap().retained_contract)
+                    .unwrap(),
+                exact_contract
+            );
             assert_eq!(
                 serde_json::to_value(
                     installer

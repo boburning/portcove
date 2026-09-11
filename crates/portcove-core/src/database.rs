@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 24;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 25;
 
 struct Migration {
     version: i64,
@@ -167,6 +167,12 @@ const MIGRATIONS: &[Migration] = &[
         name: "managed local artwork",
         apply: crate::artwork_store::migrate,
         verify: verify_migration_24,
+    },
+    Migration {
+        version: 25,
+        name: "exact successor contract writer protocol",
+        apply: migration_25,
+        verify: verify_migration_23,
     },
 ];
 
@@ -869,6 +875,12 @@ fn migration_23(transaction: &Transaction<'_>) -> Result<()> {
     verify_migration_23(transaction)
 }
 
+fn migration_25(transaction: &Transaction<'_>) -> Result<()> {
+    // Older writers cannot preserve format-2 exact successor contracts. Advance
+    // the existing writer protocol under the same exclusive migration lease.
+    verify_migration_23(transaction)
+}
+
 fn verify_migration_24(connection: &Connection) -> Result<()> {
     require_columns(
         connection,
@@ -1089,6 +1101,30 @@ mod tests {
         drop((current, other));
     }
 
+    #[test]
+    fn successor_writer_protocol_waits_for_schema_24_clients() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 24).unwrap();
+        let previous = crate::library_access::LibraryLease::acquire(root).unwrap();
+        assert_eq!(
+            crate::Library::open(root).unwrap_err().code,
+            crate::ErrorCode::Conflict
+        );
+        assert_eq!(
+            recorded_versions(&connect(root).unwrap()).unwrap().last(),
+            Some(&24)
+        );
+        drop(previous);
+        let current = crate::Library::open(root).unwrap();
+        assert_eq!(
+            recorded_versions(&connect(root).unwrap()).unwrap().last(),
+            Some(&25)
+        );
+        drop(current);
+    }
+
     fn schema_fingerprint(connection: &Connection) -> String {
         let mut statement = connection
             .prepare(
@@ -1228,6 +1264,7 @@ mod tests {
         schema_21: 21,
         schema_22: 22,
         schema_23: 23,
+        schema_24: 24,
     }
 
     #[test]
