@@ -239,11 +239,14 @@ The loader authenticates and bounds the index, compares every listed target's TU
 length and SHA-256 before fetching content, streams at most eight target reads at a
 time, and verifies every completed target against both authenticated metadata and
 the index. Its immutable in-memory result includes all target bytes, the loaded
-metadata versions, earliest expiration and exact index digest. It can interpret
-one supported projection while an unsupported sibling remains isolated. This
-candidate does not persist replay floors, select or replace a catalog, establish
-publisher grants or operation eligibility, install content, or provision a
-production root/repository.
+metadata versions, canonical signed-body digests, earliest expiration and exact
+index digest. Its replay evaluator rejects a lower role version or different
+signed body at an equal version, while distinguishing an exact retry from a
+monotonic compatible advance. It can interpret one supported projection while an
+unsupported sibling remains isolated. Evaluation does not persist or consume a
+floor; that must happen atomically with later catalog selection. This candidate
+does not select or replace a catalog, establish publisher grants or operation
+eligibility, install content, or provision a production root/repository.
 
 The successor target bundle has its own versioned schema, independent of source
 catalog schema 2 and signed envelope format 1. Its outer index is bounded and
