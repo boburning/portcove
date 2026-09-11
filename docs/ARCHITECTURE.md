@@ -99,6 +99,16 @@ observation, including its grant ID and policy revision. Held or escalated conte
 cannot produce that proof. The proof remains inert until a later library
 transaction persists the selected projection and floor together.
 
+SQLite schema 26 adds the inert successor-selection boundary. Library assessment
+reads the installed publisher record and accepted replay floor from one snapshot;
+an immediate selection transaction then rechecks that exact policy revision,
+grant, root, identity, metadata expiration and the latest floor before writing the
+exact definition snapshot and new floor together. Stored state is strictly decoded
+and reinterpreted from its original index, entry and contract bytes on every
+status read. An exact retry is idempotent, and any failed or interrupted statement
+leaves both the prior selection and floor unchanged. Production has no grant writer
+yet, and the runtime catalog loader does not consume this state yet.
+
 ## Engine template capability ownership
 
 Core owns the installed template/version inventory and pure requirement
@@ -669,7 +679,7 @@ representation and rejects reordered, incomplete, mismatching, or ambiguous
 disc sets before a source record becomes usable.
 `HostPreferenceStore` provides bounded format-1 host preference storage and selection provenance without moving a library. CLI and desktop use its platform configuration path outside movable library data and credentials, with an optional absolute preference-file override for portable/test hosts. Selection precedence is an explicit invocation path, saved path, then the platform default. Invalid selected configuration fails visibly; an explicit invocation path or reset remains available when preferences are corrupt or from a future format.
 
-Preference writers serialize through a persistent sibling operating-system lock and publish a flushed sibling atomically using the shared durability helper. Reads never create files. Setting a library preserves compatible unknown JSON fields; explicit reset replaces the whole document, including damaged or future-format content, with current defaults. Core validates that a saved target is an existing empty directory or recognizable Portcove root, refuses symlinks, filesystem roots, unrelated content, and preference/library overlap, then stores its canonical path without initializing it.
+Preference writers serialize through a process lock keyed by the exact preference path before taking the persistent sibling operating-system lock, then publish a flushed sibling atomically using the shared durability helper. The process lock closes platforms where operating-system file locks do not serialize handles owned by one process; the sibling lock preserves the cross-process boundary. Reads never create files. Setting a library preserves compatible unknown JSON fields; explicit reset replaces the whole document, including damaged or future-format content, with current defaults. Core validates that a saved target is an existing empty directory or recognizable Portcove root, refuses symlinks, filesystem roots, unrelated content, and preference/library overlap, then stores its canonical path without initializing it.
 
 For a live desktop switch, the adapter makes its current state unavailable and drops its cached library/providers. Core then acquires an exclusive lease on the old root; an already-dispatched operation retains a shared lease and makes the switch fail, after which the adapter reopens the old state. Only a successfully opened target is persisted and published as current. A monotonically increasing bootstrap generation remounts React's library-owned state so results from the old workspace cannot populate the new one. This introduces no second library authority or database/catalog migration.
 
