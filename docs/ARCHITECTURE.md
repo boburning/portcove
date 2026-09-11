@@ -52,11 +52,20 @@ snapshot keeps all authenticated bytes in memory with metadata versions, earlies
 expiration and the index digest. A caller may inspect one supported catalog
 projection without interpreting unsupported sibling definitions.
 
+Each candidate also binds the canonical signed body of the root, timestamp,
+snapshot, top-level targets and `official-definitions` metadata. The pure replay
+evaluator compares those identities with a supplied floor, rejecting any version
+downgrade and any changed signed body at an equal version. An exact retry is
+distinguished from a monotonic advance. Signature bytes are excluded so a valid
+re-signing of unchanged metadata does not create false equivocation.
+
 Acquisition does not write a library, persist replay floors, select a catalog,
 grant a publisher, check operation eligibility, install content or activate an
-updater. Those remain later core-owned transactions. The filesystem transport is
-available only to disposable signed tests; production construction requires the
-restricted HTTPS source type.
+updater. Replay evaluation also has no side effect: a floor must advance in the
+later catalog-selection transaction, never merely because a candidate was
+downloaded. Those remain later core-owned transactions. The filesystem transport
+is available only to disposable signed tests; production construction requires
+the restricted HTTPS source type.
 
 ## Engine template capability ownership
 

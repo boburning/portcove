@@ -21,8 +21,8 @@ use tough::{
 use crate::{Catalog, ErrorCode, test_fixture::indexed_catalog_bundle};
 
 use super::{
-    DEFINITION_ROLE_PATHS, DefinitionHttpsTransport, DefinitionRepositorySource, INDEX_TARGET,
-    acquire_with_transport,
+    DEFINITION_ROLE_PATHS, DefinitionHttpsTransport, DefinitionReplayDisposition,
+    DefinitionRepositorySource, INDEX_TARGET, acquire_with_transport,
 };
 
 fn nz(value: u64) -> NonZeroU64 {
@@ -331,6 +331,86 @@ async fn authenticated_candidate_projects_a_definition_published_after_the_clien
     assert_eq!(candidate.provenance().root_version, 1);
     assert_eq!(candidate.provenance().definitions_version, 1);
     assert_eq!(candidate.provenance().index_sha256.len(), 64);
+    for digest in [
+        &candidate.provenance().root_sha256,
+        &candidate.provenance().timestamp_sha256,
+        &candidate.provenance().snapshot_sha256,
+        &candidate.provenance().targets_sha256,
+        &candidate.provenance().definitions_sha256,
+    ] {
+        assert_eq!(digest.len(), 64);
+        assert!(digest.bytes().all(|value| value.is_ascii_hexdigit()));
+    }
+}
+
+#[tokio::test]
+async fn replay_evaluation_rejects_downgrade_and_same_version_equivocation() {
+    let fixture = RepositoryFixture::new();
+    let (_, targets) = repository_targets();
+    let root = fixture
+        .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
+        .await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+
+    assert_eq!(
+        candidate.evaluate_replay(None).unwrap(),
+        DefinitionReplayDisposition::Initial
+    );
+    let floor = candidate.replay_floor();
+    assert_eq!(
+        candidate.evaluate_replay(Some(&floor)).unwrap(),
+        DefinitionReplayDisposition::ExactRetry
+    );
+
+    let mut newer_floor = floor.clone();
+    newer_floor.snapshot_version += 1;
+    newer_floor.snapshot_sha256 = "a".repeat(64);
+    let downgrade = candidate.evaluate_replay(Some(&newer_floor)).unwrap_err();
+    assert_eq!(downgrade.code, ErrorCode::Verification);
+    assert_eq!(downgrade.details["role"], "snapshot");
+    assert_eq!(downgrade.details["accepted_version"], "2");
+    assert_eq!(downgrade.details["candidate_version"], "1");
+
+    let mut replaced = floor;
+    replaced.definitions_sha256 = "b".repeat(64);
+    let equivocation = candidate.evaluate_replay(Some(&replaced)).unwrap_err();
+    assert_eq!(equivocation.code, ErrorCode::Verification);
+    assert_eq!(equivocation.details["role"], "official-definitions");
+    assert_eq!(equivocation.details["version"], "1");
+
+    let mut replaced_index = candidate.replay_floor();
+    replaced_index.index_sha256 = "d".repeat(64);
+    let index_equivocation = candidate
+        .evaluate_replay(Some(&replaced_index))
+        .unwrap_err();
+    assert_eq!(index_equivocation.code, ErrorCode::Verification);
+    assert_eq!(
+        index_equivocation.message,
+        "definition index changed without a delegated metadata version advance"
+    );
+}
+
+#[tokio::test]
+async fn replay_evaluation_allows_independent_monotonic_metadata_advance() {
+    let fixture = RepositoryFixture::new();
+    let (_, targets) = repository_targets();
+    let root = fixture
+        .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
+        .await;
+    let mut candidate = acquire(&fixture, &root).await.unwrap();
+    let floor = candidate.replay_floor();
+
+    candidate.provenance.timestamp_version += 1;
+    candidate.provenance.timestamp_sha256 = "c".repeat(64);
+    assert_eq!(
+        candidate.evaluate_replay(Some(&floor)).unwrap(),
+        DefinitionReplayDisposition::Advance
+    );
+
+    candidate.provenance.timestamp_sha256 = "not-a-digest".into();
+    let corrupt = candidate.evaluate_replay(Some(&floor)).unwrap_err();
+    assert_eq!(corrupt.code, ErrorCode::State);
+    assert_eq!(corrupt.details["identity"], "timestamp");
 }
 
 #[tokio::test]

@@ -11,11 +11,13 @@ use std::{
 use async_trait::async_trait;
 use futures_util::{StreamExt, TryStreamExt, stream};
 use reqwest::{Client, Url, redirect::Policy};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tough::{
     ExpirationEnforcement, Repository, RepositoryLoader, TargetName, Transport, TransportError,
     TransportErrorKind, TransportStream,
-    schema::{DelegatedRole, PathSet, Target},
+    schema::{DelegatedRole, PathSet, Role, Target},
 };
 
 use crate::{
@@ -57,15 +59,48 @@ impl DefinitionRepositorySource {
 }
 
 /// Authenticated metadata facts captured with a candidate. They are not a persisted replay floor.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct AuthenticatedDefinitionProvenance {
     pub root_version: u64,
+    pub root_sha256: String,
     pub timestamp_version: u64,
+    pub timestamp_sha256: String,
     pub snapshot_version: u64,
+    pub snapshot_sha256: String,
     pub targets_version: u64,
+    pub targets_sha256: String,
     pub definitions_version: u64,
+    pub definitions_sha256: String,
     pub earliest_expiration: String,
     pub index_sha256: String,
+}
+
+/// Highest authenticated metadata identities accepted with a selected definition snapshot.
+///
+/// The floor is inert until a later catalog-selection transaction persists it. Each digest is
+/// the canonical signed body for that TUF role, excluding replaceable signature bytes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct DefinitionReplayFloor {
+    pub root_version: u64,
+    pub root_sha256: String,
+    pub timestamp_version: u64,
+    pub timestamp_sha256: String,
+    pub snapshot_version: u64,
+    pub snapshot_sha256: String,
+    pub targets_version: u64,
+    pub targets_sha256: String,
+    pub definitions_version: u64,
+    pub definitions_sha256: String,
+    pub index_sha256: String,
+}
+
+/// Result of comparing one fully authenticated candidate with a retained replay floor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum DefinitionReplayDisposition {
+    Initial,
+    ExactRetry,
+    Advance,
 }
 
 /// Complete authenticated bytes for one inert repository snapshot.
@@ -95,6 +130,22 @@ impl AuthenticatedDefinitionCandidate {
             .ok_or_else(|| PortcoveError::not_found("definition content is outside the candidate"))
     }
 
+    pub fn replay_floor(&self) -> DefinitionReplayFloor {
+        DefinitionReplayFloor::from(&self.provenance)
+    }
+
+    /// Compare this authenticated snapshot with durable state before semantic selection.
+    /// Calling this method never advances the supplied floor.
+    pub fn evaluate_replay(
+        &self,
+        floor: Option<&DefinitionReplayFloor>,
+    ) -> Result<DefinitionReplayDisposition> {
+        let Some(floor) = floor else {
+            return Ok(DefinitionReplayDisposition::Initial);
+        };
+        floor.evaluate(&self.provenance)
+    }
+
     /// Reuse the existing semantic interpreter for exactly one authenticated identity.
     /// Other entries remain isolated and unselected.
     pub fn inspect_catalog_projection(
@@ -118,6 +169,136 @@ impl AuthenticatedDefinitionCandidate {
         self.index
             .inspect_catalog_projection(namespace, stable_id, entry_bytes, contract_bytes)
     }
+}
+
+impl From<&AuthenticatedDefinitionProvenance> for DefinitionReplayFloor {
+    fn from(value: &AuthenticatedDefinitionProvenance) -> Self {
+        Self {
+            root_version: value.root_version,
+            root_sha256: value.root_sha256.clone(),
+            timestamp_version: value.timestamp_version,
+            timestamp_sha256: value.timestamp_sha256.clone(),
+            snapshot_version: value.snapshot_version,
+            snapshot_sha256: value.snapshot_sha256.clone(),
+            targets_version: value.targets_version,
+            targets_sha256: value.targets_sha256.clone(),
+            definitions_version: value.definitions_version,
+            definitions_sha256: value.definitions_sha256.clone(),
+            index_sha256: value.index_sha256.clone(),
+        }
+    }
+}
+
+impl DefinitionReplayFloor {
+    fn evaluate(
+        &self,
+        candidate: &AuthenticatedDefinitionProvenance,
+    ) -> Result<DefinitionReplayDisposition> {
+        let roles = [
+            (
+                "root",
+                self.root_version,
+                &self.root_sha256,
+                candidate.root_version,
+                &candidate.root_sha256,
+            ),
+            (
+                "timestamp",
+                self.timestamp_version,
+                &self.timestamp_sha256,
+                candidate.timestamp_version,
+                &candidate.timestamp_sha256,
+            ),
+            (
+                "snapshot",
+                self.snapshot_version,
+                &self.snapshot_sha256,
+                candidate.snapshot_version,
+                &candidate.snapshot_sha256,
+            ),
+            (
+                "targets",
+                self.targets_version,
+                &self.targets_sha256,
+                candidate.targets_version,
+                &candidate.targets_sha256,
+            ),
+            (
+                "official-definitions",
+                self.definitions_version,
+                &self.definitions_sha256,
+                candidate.definitions_version,
+                &candidate.definitions_sha256,
+            ),
+        ];
+        let mut advanced = false;
+        for (role, accepted_version, accepted_digest, candidate_version, candidate_digest) in roles
+        {
+            validate_metadata_identity(role, accepted_version, accepted_digest)?;
+            validate_metadata_identity(role, candidate_version, candidate_digest)?;
+            if candidate_version < accepted_version {
+                return Err(PortcoveError::verification(
+                    "definition metadata replay or downgrade was rejected",
+                )
+                .detail("role", role)
+                .detail("accepted_version", accepted_version.to_string())
+                .detail("candidate_version", candidate_version.to_string()));
+            }
+            if candidate_version == accepted_version && candidate_digest != accepted_digest {
+                return Err(PortcoveError::verification(
+                    "definition metadata changed without a version advance",
+                )
+                .detail("role", role)
+                .detail("version", candidate_version.to_string()));
+            }
+            advanced |= candidate_version > accepted_version;
+        }
+        validate_sha256("accepted index", &self.index_sha256)?;
+        validate_sha256("candidate index", &candidate.index_sha256)?;
+        if candidate.definitions_version == self.definitions_version
+            && candidate.index_sha256 != self.index_sha256
+        {
+            return Err(PortcoveError::verification(
+                "definition index changed without a delegated metadata version advance",
+            ));
+        }
+        Ok(if advanced {
+            DefinitionReplayDisposition::Advance
+        } else {
+            DefinitionReplayDisposition::ExactRetry
+        })
+    }
+}
+
+fn validate_metadata_identity(role: &str, version: u64, digest: &str) -> Result<()> {
+    if version == 0 {
+        return Err(PortcoveError::state(
+            "definition replay floor contains an invalid metadata version",
+        )
+        .detail("role", role));
+    }
+    validate_sha256(role, digest)
+}
+
+fn validate_sha256(label: &str, digest: &str) -> Result<()> {
+    if digest.len() != 64
+        || !digest
+            .bytes()
+            .all(|value| value.is_ascii_digit() || (b'a'..=b'f').contains(&value))
+    {
+        return Err(PortcoveError::state(
+            "definition replay floor contains an invalid SHA-256 identity",
+        )
+        .detail("identity", label));
+    }
+    Ok(())
+}
+
+fn metadata_sha256(role: &impl Role) -> Result<String> {
+    let canonical = role.canonical_form().map_err(|_| {
+        PortcoveError::verification("could not bind authenticated definition metadata identity")
+    })?;
+    Ok(hex::encode(Sha256::digest(canonical)))
 }
 
 /// Acquire an authenticated candidate from HTTPS without changing durable Portcove state.
@@ -230,10 +411,15 @@ where
     Ok(AuthenticatedDefinitionCandidate {
         provenance: AuthenticatedDefinitionProvenance {
             root_version: repository.root().signed.version.get(),
+            root_sha256: metadata_sha256(&repository.root().signed)?,
             timestamp_version: repository.timestamp().signed.version.get(),
+            timestamp_sha256: metadata_sha256(&repository.timestamp().signed)?,
             snapshot_version: repository.snapshot().signed.version.get(),
+            snapshot_sha256: metadata_sha256(&repository.snapshot().signed)?,
             targets_version: repository.targets().signed.version.get(),
+            targets_sha256: metadata_sha256(&repository.targets().signed)?,
             definitions_version: definitions_metadata.signed.version.get(),
+            definitions_sha256: metadata_sha256(&definitions_metadata.signed)?,
             earliest_expiration: earliest_expiration.to_string(),
             index_sha256: hex::encode(Sha256::digest(index.bytes())),
         },

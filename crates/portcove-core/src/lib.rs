@@ -97,7 +97,8 @@ pub use definition_index::{DefinitionContentIndex, IndexedDefinition};
 pub use definition_projection::DefinitionCatalogProjection;
 pub use definition_repository::{
     AuthenticatedDefinitionCandidate, AuthenticatedDefinitionProvenance,
-    DefinitionRepositorySource, acquire_definition_candidate,
+    DefinitionReplayDisposition, DefinitionReplayFloor, DefinitionRepositorySource,
+    acquire_definition_candidate,
 };
 pub use error::{ErrorCode, PortcoveError, Result};
 pub use failure::{
