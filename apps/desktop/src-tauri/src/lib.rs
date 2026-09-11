@@ -1,4 +1,5 @@
 mod adoption;
+pub mod application_update;
 mod artwork;
 mod backup_review;
 mod catalog;

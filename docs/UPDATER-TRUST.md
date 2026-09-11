@@ -65,6 +65,17 @@ metadata excludes withdrawn versions from staging/application and normally offer
 a newer forward repair. Withdrawal neither deletes user data nor terminates an
 already installed offline application.
 
+The Tauri host's `application_update` module now owns the strict schema and
+selection boundary after TUF verification. It accepts only fully consumed release
+and channel target bytes, verifies that the promotion binds the exact release path
+and SHA-256, retains the qualified workflow revision/run and inventory digest,
+matches installed target/package/owner/execution and compatibility context, and
+selects by maintained SemVer precedence. Its typed result distinguishes
+an available update, an identical current version, a held older or withdrawn
+candidate, incompatibility and no candidate. The module performs no network access,
+trust-state persistence, payload download, signing, publication or replacement;
+those remain later host and protected-automation slices.
+
 ## Freshness, replay and bounds
 
 Use safe expiration enforcement. Under one host OS lock, persist the latest verified

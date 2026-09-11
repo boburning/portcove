@@ -573,11 +573,15 @@ forbid dependencies in either direction between it and the player crates, so it
 cannot become a second domain authority or a runtime dependency. Disposable test
 signers are development dependencies only.
 
-The [application updater trust design](UPDATER-TRUST.md) assigns future application
+The [application updater trust design](UPDATER-TRUST.md) assigns application
 replacement/trust state to the Tauri host; core retains library/game authority.
-Disposable TUF fixtures are host integration tests with test-only dependencies,
-not a production updater or alternative catalog verifier. Existing architecture
-metadata rules continue to forbid independent catalog verification in adapters.
+The host's `application_update` module validates separately authenticated immutable
+release and channel records against installed identity and compatibility context,
+then selects by SemVer precedence. Disposable TUF fixtures authenticate both inputs
+with distinct test keys. This boundary performs no network, persistence, download,
+publication or replacement work and is not a production updater or alternative
+catalog verifier. Existing architecture metadata rules continue to forbid
+independent catalog verification in adapters.
 
 Portcove Core, CLI, and Desktop remain in one repository. Shared core services
 own game-management behavior. CLI and Desktop are independently usable
