@@ -56,6 +56,10 @@ Keep the five template sections in order:
 3. **Verification** — list exact commands and observed results. Distinguish
    automated, packaged, physical-platform and human evidence. Use
    `Not run — <reason>` or `Not applicable — <reason>` instead of silence.
+   For an ordinary pull request, record the focused local checks and the required
+   exact-head GitHub CI result separately. `Not run — full local suite delegated
+to required exact-head CI` is valid when no task-specific acceptance requires
+   an aggregate local run; it does not excuse pending or failed hosted checks.
 4. **Review and risk** — record the distinct final-diff review against the
    exact head commit, repairs and re-review result, important invariants, and
    documentation impact.

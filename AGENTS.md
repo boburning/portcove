@@ -107,11 +107,28 @@ An intentional architecture change must preserve one clear owner for each piece 
 
 ## Quality workflow
 
-- Rust change: `just check-rust`
-- React or TypeScript change: `just check-ui`
-- Cross-stack change: `just check`
-- Substantial completion: `just audit`
-- Broad refactor, public API or dependency restructuring, significant abstraction, or architecture change: `just deep`
+Use three validation tiers. During implementation, run the smallest relevant
+tests with `just test-rust`, `just test-ui-related`, or `just test-node`. Before
+the first coherent push and after a substantive repair, run `just local-check`;
+it selects formatting, affected packages, related UI tests, and exact tooling
+contracts from the complete local diff. Add a tested selection rule when it
+reports an unknown path instead of bypassing the refusal or running every suite.
+
+Open or update a draft pull request after that coherent focused evidence exists.
+Required GitHub CI is the ordinary exhaustive cross-platform gate and must pass
+on the exact reviewed head before merge. Do not repeat `just check` or `just
+audit` locally merely to duplicate CI. Run task-specific native, packaged,
+recovery, security, physical-platform, or human evidence whenever acceptance
+intrinsically requires it; focused validation and hosted CI do not replace that
+evidence.
+
+The aggregate commands remain available for explicit purposes:
+
+- Rust exhaustive local investigation: `just check-rust`
+- UI exhaustive local investigation: `just check-ui`
+- Cross-stack exhaustive local investigation: `just check`
+- Release preflight, an explicitly named acceptance gate, or validation-contract transition: `just audit`
+- Broad refactor, public API or dependency restructuring, significant abstraction, or architecture investigation: `just deep`
 
 `just deep` findings are evidence to inspect, not automatic instructions to rewrite code. `just cycles` is an explicit, advisory architecture investigation; it is excluded from routine CI and audits while its recorded inherent-item cycle baseline is unresolved.
 
