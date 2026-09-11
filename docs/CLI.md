@@ -29,6 +29,14 @@ evidence must not collapse into one supported flag. Missing gameplay is not a
 source mismatch. Observable schema changes require explicit versioning and
 legacy/unknown-value handling; this planning contract adds no command or field.
 
+Schema 47 adds `definition_operations` to port status results for authenticated
+successor definitions. Each entry identifies install, preparation or launch,
+reports the core `eligible`, `hold` or `escalate` result with its stable reason,
+and distinguishes current selection from a retained installed contract. Legacy
+ports omit the field. CLI operations and Tauri commands consume the same core
+assessment; retained launch can survive metadata expiry, while known revocation
+or changed publisher identity remains a hold.
+
 Schema 42 adds `exec --request-id <uuid>` and `launch show <uuid>` for exact durable
 launch observation, plus the nullable `launch_request` output schema. `exec`
 continues to own raw game streams and supervise through game exit/save collection.
@@ -64,7 +72,7 @@ The CLI API schema version is independent of the Portcove release version. Every
 
 ```json
 {
-  "schema_version": 46,
+  "schema_version": 47,
   "ok": true,
   "command": "status",
   "data": {},
@@ -196,7 +204,7 @@ other games remain readable. New installations retain their execution and
 persistence definitions in manifest schema 6, introduced with writer protocol 23.
 Protocol 25 now protects exact successor definition retention; older clients refuse
 to modify an upgraded library. The Playnite
-reference accepts API schemas 42 through 46 with event schema 2.
+reference accepts API schemas 42 through 47 with event schema 2.
 
 API schema 22 adds the core-resolved per-game output location to install plans
 and path results. It distinguishes a one-request override, the saved port

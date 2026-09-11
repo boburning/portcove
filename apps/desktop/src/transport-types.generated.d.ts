@@ -47,6 +47,24 @@ export type OutputActivityDiagnostic = ActivityDiagnostic[];
 export type ReleaseChannel = "stable" | "beta" | "rolling";
 export type RuntimeOrigin = "verified_download" | "adopted_tree";
 export type OutputLocationSource = "request_override" | "port_setting" | "library_default";
+export type DefinitionEligibilityOutcome = "eligible" | "hold" | "escalate";
+export type DefinitionEligibilityReason =
+  | "mandatory_checks_passed"
+  | "publisher_revoked"
+  | "unknown_safety_semantics"
+  | "publisher_scope_required"
+  | "engine_capability_required"
+  | "ownership_migration_required"
+  | "metadata_replay"
+  | "refresh_incomplete"
+  | "metadata_stale"
+  | "recorded_identity_changed"
+  | "authenticated_integrity_required"
+  | "local_integrity_failed"
+  | "mandatory_check_failed"
+  | "source_identity_mismatch"
+  | "required_source_missing";
+export type DefinitionOperation = "availability" | "install" | "prepare" | "launch";
 /**
  * Current relationship between a registered source path and its saved storage identity.
  * `Current` means the bytes are unchanged since registration; it does not strengthen the
@@ -600,6 +618,10 @@ export interface OutputApiResponsePortStatus {
 export interface PortStatus {
   active: InstallRecord | null;
   channel: ReleaseChannel;
+  /**
+   * Successor-definition policy decisions. Legacy catalog ports retain an empty list.
+   */
+  definition_operations?: DefinitionOperationAssessment[];
   last_launched_at: number | null;
   last_update_check?: UpdateSnapshot | null;
   port_id: string;
@@ -609,6 +631,23 @@ export interface PortStatus {
   successful_launches: number;
   update_policy: UpdatePolicy;
   user_data_root?: string | null;
+  [k: string]: unknown;
+}
+/**
+ * One operation decision exposed by the shared core status model.
+ *
+ * `retained` distinguishes an installed version's immutable admission from the
+ * currently selected definition used for new work.
+ */
+export interface DefinitionOperationAssessment {
+  eligibility: DefinitionEligibility;
+  operation: DefinitionOperation;
+  retained: boolean;
+  [k: string]: unknown;
+}
+export interface DefinitionEligibility {
+  outcome: DefinitionEligibilityOutcome;
+  reason: DefinitionEligibilityReason;
   [k: string]: unknown;
 }
 export interface UpdateSnapshot {

@@ -18,9 +18,11 @@ use tough::{
     schema::{KeyHolder, PathPattern, PathSet, RoleKeys, RoleType, Root, Target},
 };
 
+use crate::definition_eligibility::DefinitionOperationContext;
 use crate::{
     Catalog, CatalogOrigin, DefinitionEligibilityOutcome, DefinitionEligibilityReason,
-    DefinitionPublisherObservation, DefinitionPublisherStatus, ErrorCode, Library,
+    DefinitionOperation, DefinitionPublisherObservation, DefinitionPublisherStatus, ErrorCode,
+    Library,
     test_fixture::{indexed_catalog_bundle, post_client_catalog},
 };
 
@@ -833,6 +835,86 @@ async fn selected_post_client_definition_loads_as_the_active_catalog() {
             serde_json::to_value(port).unwrap()
         );
     }
+}
+
+#[tokio::test]
+async fn operation_assessment_distinguishes_stale_retained_launch_and_revocation() {
+    let fixture = RepositoryFixture::new();
+    let (catalog, port_id) = post_client_catalog();
+    let targets = repository_targets_for(&catalog, &port_id);
+    let root = fixture
+        .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
+        .await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+    let temporary = TempDir::new().unwrap();
+    let library = Library::open(temporary.path()).unwrap();
+    select_candidate(&library, &candidate, &port_id);
+    let selection = library
+        .definition_selection_status()
+        .unwrap()
+        .selected
+        .unwrap();
+
+    for (operation, retained) in [
+        (DefinitionOperation::Install, false),
+        (DefinitionOperation::Prepare, true),
+        (DefinitionOperation::Launch, true),
+    ] {
+        assert_eq!(
+            library
+                .assess_definition_operation(
+                    &selection,
+                    DefinitionOperationContext::observed(operation, retained, true),
+                )
+                .unwrap()
+                .outcome,
+            DefinitionEligibilityOutcome::Eligible
+        );
+    }
+
+    let mut stale = selection.clone();
+    stale.provenance.earliest_expiration = "1970-01-01T00:00:00Z".into();
+    assert_eq!(
+        library
+            .assess_definition_operation(
+                &stale,
+                DefinitionOperationContext::observed(DefinitionOperation::Install, false, true),
+            )
+            .unwrap()
+            .reason,
+        DefinitionEligibilityReason::MetadataStale
+    );
+    assert_eq!(
+        library
+            .assess_definition_operation(
+                &stale,
+                DefinitionOperationContext::observed(DefinitionOperation::Launch, true, true),
+            )
+            .unwrap()
+            .outcome,
+        DefinitionEligibilityOutcome::Eligible
+    );
+
+    library
+        .install_definition_policy_for_test(
+            &candidate,
+            "official",
+            &port_id,
+            7,
+            "official-fixture-grant",
+            DefinitionPublisherStatus::Revoked,
+        )
+        .unwrap();
+    assert_eq!(
+        library
+            .assess_definition_operation(
+                &selection,
+                DefinitionOperationContext::observed(DefinitionOperation::Launch, true, true),
+            )
+            .unwrap()
+            .reason,
+        DefinitionEligibilityReason::PublisherRevoked
+    );
 }
 
 #[tokio::test]

@@ -1083,6 +1083,17 @@ fn readiness(status: &PortStatus) -> String {
         }
         .into();
     }
+    if let Some(assessment) = status.definition_operations.iter().find(|assessment| {
+        assessment.operation == portcove_core::DefinitionOperation::Launch
+            && assessment.eligibility.outcome
+                != portcove_core::DefinitionEligibilityOutcome::Eligible
+    }) {
+        let reason = serde_json::to_value(assessment.eligibility.reason)
+            .ok()
+            .and_then(|value| value.as_str().map(str::to_owned))
+            .unwrap_or_else(|| "unknown_policy_result".into());
+        return format!("definition {reason}");
+    }
     readiness
         .blockers
         .iter()

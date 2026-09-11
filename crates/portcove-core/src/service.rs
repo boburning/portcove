@@ -16,16 +16,18 @@ use uuid::Uuid;
 use crate::{
     ActivityOperation, ActivityRecord, ActivityStatus, ActivityTargetKind, AdapterRegistry,
     BackupInventory, BackupInventoryState, BackupProblem, BackupProblemKind, BackupRecord, Catalog,
-    ChildProcessPolicy, CompositeReleaseProvider, DoctorReport, InstallPlan, InstallPlanAction,
-    InstallQualification, InstallRecord, InstallRequest, InstallSourceRequirement, Installer,
-    LaunchBlocker, LaunchReadiness, LaunchSessionOutcome, LaunchSessionPhase, LaunchSessionRecord,
-    LaunchStdio, Library, OperationCoordinator, OperationEvent, OperationResult,
-    OutputAffectedInstall, OutputDestinationPreview, OutputLocationSource, Platform,
-    PortDefinition, PortOutputLocation, PortPaths, PortStatus, PortcoveError, ReconcileAction,
-    ReconcileResult, ReleaseChannel, ReleaseProvider, RepairItem, RepairItemKind, RepairPlan,
-    ResolvedRelease, RestoreResult, Result, SourceHealth, SourceRecord, SourceRemovalPreview,
-    SourceRequirementRole, SourceVerification, SupervisedLaunchOutcome, UpdateCheck, UpdatePolicy,
-    VerificationReport,
+    ChildProcessPolicy, CompositeReleaseProvider, DefinitionEligibilityOutcome,
+    DefinitionOperation, DefinitionOperationAssessment, DoctorReport, InstallPlan,
+    InstallPlanAction, InstallQualification, InstallRecord, InstallRequest,
+    InstallSourceRequirement, Installer, LaunchBlocker, LaunchReadiness, LaunchSessionOutcome,
+    LaunchSessionPhase, LaunchSessionRecord, LaunchStdio, Library, OperationCoordinator,
+    OperationEvent, OperationResult, OutputAffectedInstall, OutputDestinationPreview,
+    OutputLocationSource, Platform, PortDefinition, PortOutputLocation, PortPaths, PortStatus,
+    PortcoveError, ReconcileAction, ReconcileResult, ReleaseChannel, ReleaseProvider, RepairItem,
+    RepairItemKind, RepairPlan, ResolvedRelease, RestoreResult, Result, SourceHealth, SourceRecord,
+    SourceRemovalPreview, SourceRequirementRole, SourceVerification, SupervisedLaunchOutcome,
+    UpdateCheck, UpdatePolicy, VerificationReport,
+    definition_eligibility::DefinitionOperationContext,
     durability::{prepare_backup_publication, publish_backup_directory},
     operation::{
         LifecycleFaultInjector, LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind,
@@ -182,6 +184,13 @@ pub struct InstallOverrides<'a> {
     pub source: Option<&'a Path>,
     pub bios: Option<&'a Path>,
     pub output_directory: Option<&'a Path>,
+}
+
+fn enum_value(value: impl Serialize) -> Result<String> {
+    serde_json::to_value(value)?
+        .as_str()
+        .map(str::to_owned)
+        .ok_or_else(|| PortcoveError::state("operation eligibility enum did not serialize as text"))
 }
 
 fn artifact_matches_release(
@@ -634,7 +643,9 @@ impl PortcoveService {
         let status = statuses
             .pop()
             .ok_or_else(|| PortcoveError::state("status read model returned no row"))?;
-        self.with_launch_readiness(port, status, &registered_sources, &mut HashMap::new())
+        let status =
+            self.with_launch_readiness(port, status, &registered_sources, &mut HashMap::new())?;
+        self.with_definition_operations(port, status)
     }
 
     pub fn statuses(&self) -> Result<Vec<PortStatus>> {
@@ -662,7 +673,13 @@ impl PortcoveService {
             .iter()
             .zip(statuses)
             .map(|(port, status)| {
-                self.with_launch_readiness(port, status, &registered_sources, &mut checked_sources)
+                let status = self.with_launch_readiness(
+                    port,
+                    status,
+                    &registered_sources,
+                    &mut checked_sources,
+                )?;
+                self.with_definition_operations(port, status)
             })
             .collect()
     }
@@ -683,6 +700,11 @@ impl PortcoveService {
     ) -> Result<InstallPlan> {
         let port = self.catalog.port(port_id)?;
         let status = self.status(port_id)?;
+        self.require_definition_operation(
+            &self.catalog,
+            port,
+            DefinitionOperationContext::observed(DefinitionOperation::Install, false, true),
+        )?;
         let selected_channel = channel.unwrap_or(status.channel);
         if !port.channels.contains(&selected_channel) {
             return Err(PortcoveError::unsupported(format!(
@@ -1693,6 +1715,116 @@ impl PortcoveService {
         Ok(status)
     }
 
+    fn with_definition_operations(
+        &self,
+        current_port: &PortDefinition,
+        mut status: PortStatus,
+    ) -> Result<PortStatus> {
+        status.definition_operations.clear();
+        if let Some(identity) = self.catalog.definition_selection(&current_port.id) {
+            status
+                .definition_operations
+                .push(DefinitionOperationAssessment {
+                    operation: DefinitionOperation::Install,
+                    eligibility: self.library.assess_definition_operation(
+                        identity,
+                        DefinitionOperationContext::observed(
+                            DefinitionOperation::Install,
+                            false,
+                            true,
+                        ),
+                    )?,
+                    retained: false,
+                });
+        }
+
+        let Some(active) = status.active.as_ref() else {
+            return Ok(status);
+        };
+        if status.readiness.as_ref().is_some_and(|readiness| {
+            readiness
+                .blockers
+                .contains(&LaunchBlocker::InvalidInstallation)
+        }) {
+            return Ok(status);
+        }
+        let installed_catalog = self.installed_catalog(active)?;
+        let Some(identity) = installed_catalog.definition_selection(&active.port_id) else {
+            return Ok(status);
+        };
+        let installed_port = installed_catalog.port(&active.port_id)?;
+        if crate::preparation::managed(installed_port) {
+            status
+                .definition_operations
+                .push(DefinitionOperationAssessment {
+                    operation: DefinitionOperation::Prepare,
+                    eligibility: self.library.assess_definition_operation(
+                        identity,
+                        DefinitionOperationContext::observed(
+                            DefinitionOperation::Prepare,
+                            true,
+                            active.verified,
+                        ),
+                    )?,
+                    retained: true,
+                });
+        }
+        let launch = self.library.assess_definition_operation(
+            identity,
+            DefinitionOperationContext::observed(
+                DefinitionOperation::Launch,
+                true,
+                active.verified,
+            ),
+        )?;
+        if launch.outcome != DefinitionEligibilityOutcome::Eligible
+            && let Some(readiness) = status.readiness.as_mut()
+        {
+            readiness.launchable = false;
+        }
+        status
+            .definition_operations
+            .push(DefinitionOperationAssessment {
+                operation: DefinitionOperation::Launch,
+                eligibility: launch,
+                retained: true,
+            });
+        Ok(status)
+    }
+
+    pub(crate) fn require_definition_operation(
+        &self,
+        catalog: &Catalog,
+        port: &PortDefinition,
+        context: DefinitionOperationContext,
+    ) -> Result<()> {
+        let Some(identity) = catalog.definition_selection(&port.id) else {
+            return Ok(());
+        };
+        let eligibility = self
+            .library
+            .assess_definition_operation(identity, context)?;
+        if eligibility.outcome == DefinitionEligibilityOutcome::Eligible {
+            return Ok(());
+        }
+        let operation = enum_value(context.operation)?;
+        let outcome = enum_value(eligibility.outcome)?;
+        let reason = enum_value(eligibility.reason)?;
+        let error = match eligibility.outcome {
+            DefinitionEligibilityOutcome::Eligible => unreachable!(),
+            DefinitionEligibilityOutcome::Hold => {
+                PortcoveError::conflict("definition operation is on hold")
+            }
+            DefinitionEligibilityOutcome::Escalate => PortcoveError::unsupported(
+                "definition operation requires an engine or authority change",
+            ),
+        };
+        Err(error
+            .detail("definition_operation", operation)
+            .detail("definition_eligibility", outcome)
+            .detail("definition_reason", reason))
+    }
+
     fn source_health(
         catalog: &Catalog,
         profile_id: &str,
@@ -2228,6 +2360,11 @@ impl PortcoveService {
             self.output_location(port_id, overrides.output_directory)?;
             let _operation = self.library.try_lock_port(port_id, "install")?;
             let status = self.status(port_id)?;
+            self.require_definition_operation(
+                &self.catalog,
+                port,
+                DefinitionOperationContext::observed(DefinitionOperation::Install, false, true),
+            )?;
             let selected_channel = channel.unwrap_or(status.channel);
             if !port.channels.contains(&selected_channel) {
                 return Err(PortcoveError::unsupported(format!(
@@ -2280,8 +2417,14 @@ impl PortcoveService {
         F: FnMut(OperationEvent),
     {
         self.output_location(port_id, output_directory)?;
+        let port = self.catalog.port(port_id)?;
+        self.require_definition_operation(
+            &self.catalog,
+            port,
+            DefinitionOperationContext::observed(DefinitionOperation::Install, false, true),
+        )?;
         if let Some(active) = self.status(port_id)?.active
-            && crate::runtime::ready(self.catalog.port(port_id)?, Platform::current()?, &active)
+            && crate::runtime::ready(port, Platform::current()?, &active)
         {
             self.managed_install_root(port_id, &active.path)?;
             return Ok(active);
@@ -2321,6 +2464,11 @@ impl PortcoveService {
             let _operation = self.library.try_lock_port(port_id, "update")?;
             let status = self.status(port_id)?;
             let port = self.catalog.port(port_id)?;
+            self.require_definition_operation(
+                &self.catalog,
+                port,
+                DefinitionOperationContext::observed(DefinitionOperation::Install, false, true),
+            )?;
             let release = operation
                 .interruptible(
                     self.releases
@@ -2364,6 +2512,11 @@ impl PortcoveService {
     where
         F: FnMut(OperationEvent),
     {
+        self.require_definition_operation(
+            &self.catalog,
+            port,
+            DefinitionOperationContext::observed(DefinitionOperation::Install, false, true),
+        )?;
         let runtime = crate::runtime::required(port, Platform::current()?);
         if let Some(active) = &status.active
             && artifact_matches_release(active, &release, runtime.as_ref())
@@ -3786,6 +3939,15 @@ impl PortcoveService {
         } else {
             None
         };
+        self.require_definition_operation(
+            &catalog,
+            port,
+            DefinitionOperationContext::observed(
+                DefinitionOperation::Launch,
+                true,
+                active.verified,
+            ),
+        )?;
         if crate::preparation::managed(port) {
             self.validate_preparation_receipt(port, active, source.as_ref())?;
             if !Installer::new(self.library.clone())?
@@ -8973,6 +9135,27 @@ fn main() {
             }
             catalog
         });
+        if let Some(identity) = indexed
+            .as_ref()
+            .and_then(|catalog| catalog.definition_selection("zelda64-recomp"))
+        {
+            library
+                .connection()
+                .unwrap()
+                .execute(
+                    "INSERT INTO definition_publisher_policy(
+                       namespace,stable_id,root_sha256,policy_revision,grant_id,status
+                     ) VALUES(?1,?2,?3,?4,?5,'scoped')",
+                    rusqlite::params![
+                        identity.namespace,
+                        identity.stable_id,
+                        identity.repository_root_sha256,
+                        identity.policy_revision,
+                        identity.grant_id,
+                    ],
+                )
+                .unwrap();
+        }
         let register = |version, active| {
             register_zelda_install_contract(&library, version, active, b"test", indexed.as_ref())
         };
@@ -8991,6 +9174,20 @@ fn main() {
         fs::write(second.join("general.json"), b"version-owned-settings").unwrap();
         fs::write(second.join(LAUNCH_MARKER), b"1").unwrap();
         let mut service = PortcoveService::new(library.clone()).unwrap();
+        if retained_format == 3 {
+            service.replace_catalog_for_test(indexed.as_ref().unwrap().clone());
+            let status = service.status("zelda64-recomp").unwrap();
+            let install = status
+                .definition_operations
+                .iter()
+                .find(|assessment| assessment.operation == DefinitionOperation::Install)
+                .unwrap();
+            assert!(!install.retained);
+            assert_eq!(
+                install.eligibility.outcome,
+                DefinitionEligibilityOutcome::Eligible
+            );
+        }
         let original = service.catalog.port("zelda64-recomp").unwrap().clone();
         let mut document = service.catalog.authoritative_document();
         let changed = document
@@ -9033,6 +9230,34 @@ fn main() {
                 serde_json::to_value(service.installed_port(&install).unwrap()).unwrap(),
                 serde_json::to_value(&original).unwrap()
             );
+        }
+        if retained_format == 3 {
+            let status = service.status(&original.id).unwrap();
+            let launch = status
+                .definition_operations
+                .iter()
+                .find(|assessment| assessment.operation == DefinitionOperation::Launch)
+                .unwrap();
+            assert!(launch.retained);
+            assert_eq!(
+                launch.eligibility.outcome,
+                DefinitionEligibilityOutcome::Eligible
+            );
+
+            library
+                .connection()
+                .unwrap()
+                .execute(
+                    "UPDATE definition_publisher_policy SET status='revoked'
+                     WHERE namespace='official' AND stable_id='zelda64-recomp'",
+                    [],
+                )
+                .unwrap();
+            let status = service.status(&original.id).unwrap();
+            assert!(!status.readiness.unwrap().launchable);
+            let error = service.launch_spec(&original.id, None).unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Conflict);
+            assert_eq!(error.details["definition_reason"], "publisher_revoked");
         }
     }
 
