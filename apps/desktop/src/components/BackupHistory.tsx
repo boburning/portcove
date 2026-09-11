@@ -42,8 +42,8 @@ export function BackupHistory({
               : "Some backups need attention"}
           </strong>
           <p>
-            {problems.length} backup{" "}
-            {problems.length === 1 ? "entry is" : "entries are"} unavailable.{" "}
+            {problems.length} backup {problems.length === 1 ? "entry is" : "entries are"}{" "}
+            unavailable.{" "}
             {backups.length
               ? "Verified backups remain listed and usable."
               : "No verified backup is currently available."}
@@ -67,12 +67,9 @@ export function BackupHistory({
       {visible.map((backup) => (
         <div className="backup-row" key={backup.id} data-backup-id={backup.id}>
           <span>
-            <strong>
-              {new Date(backup.created_at * 1000).toLocaleString()}
-            </strong>
+            <strong>{new Date(backup.created_at * 1000).toLocaleString()}</strong>
             <small>
-              {backup.file_count} files · {formatBytes(backup.size)} ·{" "}
-              {backup.sha256.slice(0, 10)}…
+              {backup.file_count} files · {formatBytes(backup.size)} · {backup.sha256.slice(0, 10)}…
             </small>
           </span>
           <span className="backup-actions">
@@ -131,9 +128,7 @@ function problemLabel(kind: BackupProblem["kind"]) {
     unsupported_entry: "Unsupported entry",
     recovery_required: "Recovery required",
   } satisfies Record<BackupProblem["kind"], string>;
-  return Object.hasOwn(labels, kind)
-    ? labels[kind]
-    : "Backup information unavailable";
+  return Object.hasOwn(labels, kind) ? labels[kind] : "Backup information unavailable";
 }
 
 function backupSummary(count: number) {

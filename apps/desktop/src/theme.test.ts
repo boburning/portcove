@@ -21,12 +21,8 @@ afterEach(() => {
 
 describe("theme preferences", () => {
   it("defaults missing, invalid, and unreadable preferences to system", () => {
-    expect(readThemePreference({ getItem: () => null, setItem: vi.fn() })).toBe(
-      "system",
-    );
-    expect(
-      readThemePreference({ getItem: () => "sepia", setItem: vi.fn() }),
-    ).toBe("system");
+    expect(readThemePreference({ getItem: () => null, setItem: vi.fn() })).toBe("system");
+    expect(readThemePreference({ getItem: () => "sepia", setItem: vi.fn() })).toBe("system");
     expect(
       readThemePreference({
         getItem: () => {
@@ -78,11 +74,9 @@ describe("theme preferences", () => {
     let listener: ((event: { matches: boolean }) => void) | undefined;
     const query = {
       matches: false,
-      addEventListener: vi.fn(
-        (_type: string, callback: (event: { matches: boolean }) => void) => {
-          listener = callback;
-        },
-      ),
+      addEventListener: vi.fn((_type: string, callback: (event: { matches: boolean }) => void) => {
+        listener = callback;
+      }),
       removeEventListener: vi.fn(),
     };
     vi.stubGlobal("window", { matchMedia: vi.fn(() => query) });
@@ -101,9 +95,7 @@ describe("theme preferences", () => {
     await syncNativeTheme("dark");
     expect(setNativeTheme).toHaveBeenNthCalledWith(1, null);
     expect(setNativeTheme).toHaveBeenNthCalledWith(2, "dark");
-    vi.mocked(setNativeTheme).mockRejectedValueOnce(
-      new Error("native unavailable"),
-    );
+    vi.mocked(setNativeTheme).mockRejectedValueOnce(new Error("native unavailable"));
     await expect(syncNativeTheme("light")).resolves.toBeUndefined();
   });
 });

@@ -11,16 +11,12 @@ const button = (pressed = false) =>
 const pad = (axes: number[], pressed: number[] = []) =>
   ({
     axes,
-    buttons: Array.from({ length: 16 }, (_, index) =>
-      button(pressed.includes(index)),
-    ),
+    buttons: Array.from({ length: 16 }, (_, index) => button(pressed.includes(index))),
   }) as unknown as Gamepad;
 
 describe("gamepad focus movement", () => {
   it("extracts newly pressed buttons", () => {
-    expect([...pressedButtons([button(), button(true), button()])]).toEqual([
-      1,
-    ]);
+    expect([...pressedButtons([button(), button(true), button()])]).toEqual([1]);
   });
 
   it("maps keyboard arrows and Escape to the controller navigation contract", () => {
@@ -46,12 +42,9 @@ describe("gamepad focus movement", () => {
     [pad([-0.8, 0]), "left"],
     [pad([0.8, 0]), "right"],
     [pad([0, 0]), undefined],
-  ])(
-    "maps directional controller state to focus movement",
-    (gamepad, expected) => {
-      expect(navigationDirection(gamepad)).toBe(expected);
-    },
-  );
+  ])("maps directional controller state to focus movement", (gamepad, expected) => {
+    expect(navigationDirection(gamepad)).toBe(expected);
+  });
 
   it("moves spatially through a two-dimensional card grid", () => {
     const rects = [
@@ -89,8 +82,7 @@ describe("gamepad focus movement", () => {
       "cards",
       "cards",
     ];
-    for (const header of [0, 1])
-      expect(spatialTargetIndex(rects, header, "down", groups)).toBe(2);
+    for (const header of [0, 1]) expect(spatialTargetIndex(rects, header, "down", groups)).toBe(2);
     expect(spatialTargetIndex(rects, 2, "right", groups)).toBe(3);
     expect(spatialTargetIndex(rects, 3, "right", groups)).toBe(4);
     expect(spatialTargetIndex(rects, 4, "right", groups)).toBe(5);

@@ -106,20 +106,14 @@ export function Sidebar({
               <b aria-label={`${installedCount} installed`}>{installedCount}</b>
             )}
             {item.view === "updates" && updateCount > 0 && (
-              <b aria-label={`${updateCount} updates available`}>
-                {updateCount}
-              </b>
+              <b aria-label={`${updateCount} updates available`}>{updateCount}</b>
             )}
             <Shortcut>{commandShortcut(item.shortcut)}</Shortcut>
           </button>
         ))}
       </nav>
       <div className="sidebar-footer">
-        <button
-          data-focusable
-          className="secondary full button-with-icon"
-          onClick={onAdopt}
-        >
+        <button data-focusable className="secondary full button-with-icon" onClick={onAdopt}>
           <Icon glyph={FolderInput} />
           Adopt an install
         </button>
@@ -181,15 +175,11 @@ export function PageHeader({
 }
 
 function pageCopy(view: View, portCount: number) {
-  const copy: Record<
-    View,
-    { eyebrow: string; title: string; description: string }
-  > = {
+  const copy: Record<View, { eyebrow: string; title: string; description: string }> = {
     library: {
       eyebrow: "LIBRARY",
       title: "Your native library",
-      description:
-        "Launch installed ports, finish source setup, and see what needs attention.",
+      description: "Launch installed ports, finish source setup, and see what needs attention.",
     },
     catalog: {
       eyebrow: "PORT CATALOG",
@@ -199,8 +189,7 @@ function pageCopy(view: View, portCount: number) {
     updates: {
       eyebrow: "UPDATES",
       title: "Keep every port current",
-      description:
-        "See every version decision, staged release, and failure in one place.",
+      description: "See every version decision, staged release, and failure in one place.",
     },
     settings: {
       eyebrow: "SETTINGS",
@@ -236,27 +225,14 @@ export function StatusLayer({
   );
 }
 
-function ErrorNotice({
-  error,
-  clearError,
-}: {
-  error: unknown;
-  clearError: () => void;
-}) {
+function ErrorNotice({ error, clearError }: { error: unknown; clearError: () => void }) {
   const presentation = failurePresentation(error);
   const code =
-    typeof error === "object" && error && "code" in error
-      ? String(error.code)
-      : undefined;
+    typeof error === "object" && error && "code" in error ? String(error.code) : undefined;
   return (
-    <section
-      className="error-banner"
-      role={presentation?.tone === "neutral" ? "status" : "alert"}
-    >
+    <section className="error-banner" role={presentation?.tone === "neutral" ? "status" : "alert"}>
       <span className="error-icon">
-        <Icon
-          glyph={presentation?.tone === "neutral" ? CircleMinus : AlertTriangle}
-        />
+        <Icon glyph={presentation?.tone === "neutral" ? CircleMinus : AlertTriangle} />
       </span>
       <div>
         <strong>
@@ -265,9 +241,7 @@ function ErrorNotice({
             : "Portcove couldn’t finish that action"}
         </strong>
         <p>{errorText(error)}</p>
-        {presentation && (
-          <FailureDetails presentation={presentation} code={code} />
-        )}
+        {presentation && <FailureDetails presentation={presentation} code={code} />}
       </div>
       <div className="error-actions">
         <button
@@ -283,13 +257,7 @@ function ErrorNotice({
   );
 }
 
-function OperationProgress({
-  operation,
-  busy,
-}: {
-  operation?: OperationEvent;
-  busy: string;
-}) {
+function OperationProgress({ operation, busy }: { operation?: OperationEvent; busy: string }) {
   const { label, detail, range } = progressPresentation(operation, busy);
   return (
     <div className="operation-bar">
@@ -346,9 +314,7 @@ function GithubConnection({ status }: { status?: GithubAuthStatus }) {
     status && Object.hasOwn(labels, status.source)
       ? labels[status.source]
       : "Sign-in source unavailable";
-  const title = connected
-    ? `Connected as ${status?.login}`
-    : "Optional authentication";
+  const title = connected ? `Connected as ${status?.login}` : "Optional authentication";
   const stateClass = connected ? "auth-state connected" : "auth-state";
   const StateIcon = connected ? CheckCircle2 : CircleUserRound;
   return (
@@ -361,8 +327,8 @@ function GithubConnection({ status }: { status?: GithubAuthStatus }) {
         </span>
       </div>
       <p>
-        {githubQuota(status)}. Authentication raises GitHub's allowance and
-        makes unchanged conditional checks free of the primary limit.
+        {githubQuota(status)}. Authentication raises GitHub's allowance and makes unchanged
+        conditional checks free of the primary limit.
       </p>
     </>
   );
@@ -379,25 +345,15 @@ function DeviceLogin({ login }: { login?: GithubDeviceLogin }) {
     <div className="device-login">
       <strong>Enter {login.user_code}</strong>
       <span>
-        at{" "}
-        <ExternalLink href={login.verification_uri}>
-          {login.verification_uri}
-        </ExternalLink>
+        at <ExternalLink href={login.verification_uri}>{login.verification_uri}</ExternalLink>
       </span>
       <small>Portcove is waiting for GitHub.</small>
     </div>
   );
 }
 
-function TokenEntry({
-  github,
-  busy,
-}: {
-  github?: GithubSettingsActions;
-  busy: boolean;
-}) {
-  if (github?.status?.authenticated || github?.status?.source === "environment")
-    return null;
+function TokenEntry({ github, busy }: { github?: GithubSettingsActions; busy: boolean }) {
+  if (github?.status?.authenticated || github?.status?.source === "environment") return null;
   return (
     <div className="token-entry">
       <input
@@ -423,13 +379,7 @@ function TokenEntry({
   );
 }
 
-function GithubActions({
-  github,
-  busy,
-}: {
-  github?: GithubSettingsActions;
-  busy: boolean;
-}) {
+function GithubActions({ github, busy }: { github?: GithubSettingsActions; busy: boolean }) {
   const status = github?.status;
   return (
     <div className="actions compact">
@@ -480,27 +430,21 @@ function GithubNotes({ status }: { status?: GithubAuthStatus }) {
   if (status?.source === "credential_store" && !status.authenticated)
     return (
       <small>
-        GitHub no longer accepts the saved sign-in. Sign in again, or log out to
-        continue anonymously.
+        GitHub no longer accepts the saved sign-in. Sign in again, or log out to continue
+        anonymously.
       </small>
     );
   if (!status?.device_login_available && !status?.authenticated)
     return (
       <small>
-        Device login needs a Portcove GitHub App client ID in this build. Token
-        and anonymous modes remain available.
+        Device login needs a Portcove GitHub App client ID in this build. Token and anonymous modes
+        remain available.
       </small>
     );
   return null;
 }
 
-function GithubSettings({
-  github,
-  busy,
-}: {
-  github?: GithubSettingsActions;
-  busy?: string;
-}) {
+function GithubSettings({ github, busy }: { github?: GithubSettingsActions; busy?: string }) {
   return (
     <article className="settings-card github-auth" data-focus-group>
       <p className="eyebrow">GITHUB</p>
@@ -533,10 +477,7 @@ function SourceRequirements({
       <div className="source-requirements-heading">
         <strong>
           {requirements.length} source{" "}
-          {requirements.length === 1
-            ? "requirement needs"
-            : "requirements need"}{" "}
-          attention
+          {requirements.length === 1 ? "requirement needs" : "requirements need"} attention
         </strong>
         <small>Required by installed ports</small>
       </div>
@@ -545,9 +486,7 @@ function SourceRequirements({
           <div>
             <strong>{requirement.profile.label}</strong>
             <small>
-              {requirement.requiredBy
-                .map((use) => `${use.portName} · ${use.role}`)
-                .join("  /  ")}
+              {requirement.requiredBy.map((use) => `${use.portName} · ${use.role}`).join("  /  ")}
             </small>
           </div>
           <div className="source-health-actions">
@@ -605,9 +544,7 @@ function SourceHealth({
   onAdded?: () => Promise<void>;
   openEvidence?: (evidenceId: string) => void;
 }) {
-  const byProfile = new Map(
-    outcomes.map((outcome) => [outcome.profile_id, outcome]),
-  );
+  const byProfile = new Map(outcomes.map((outcome) => [outcome.profile_id, outcome]));
   return (
     <article className="settings-card source-health" data-focus-group>
       <p className="eyebrow">SOURCES</p>
@@ -623,11 +560,7 @@ function SourceHealth({
         </button>
       </div>
       <SourceRequirements requirements={requirements} busy={busy} add={add} />
-      <SourceDiscoveryButton
-        profiles={profiles}
-        disabled={Boolean(busy)}
-        onAdded={onAdded}
-      />
+      <SourceDiscoveryButton profiles={profiles} disabled={Boolean(busy)} onAdded={onAdded} />
       {sources.length === 0 ? (
         <p>No source files are registered yet.</p>
       ) : (
@@ -649,9 +582,9 @@ function SourceHealth({
         </div>
       )}
       <p>
-        Verification is local and read-only. Relink source checks the current
-        source requirements and confirms identical content at the new location
-        before updating Portcove's reference. Your source files stay untouched.
+        Verification is local and read-only. Relink source checks the current source requirements
+        and confirms identical content at the new location before updating Portcove's reference.
+        Your source files stay untouched.
       </p>
     </article>
   );
@@ -705,10 +638,7 @@ function SourceHealthRow({
       {outcome?.error && (
         <div>
           <p>{errorText(outcome.error)}</p>
-          <FailureDetails
-            presentation={outcome.error.presentation}
-            code={outcome.error.code}
-          />
+          <FailureDetails presentation={outcome.error.presentation} code={outcome.error.code} />
         </div>
       )}
       {report ? (
@@ -787,11 +717,7 @@ function AppearanceSettings({ appearance }: { appearance?: ThemeState }) {
     <article className="settings-card appearance-card" data-focus-group>
       <p className="eyebrow">APPEARANCE</p>
       <h2>Color theme</h2>
-      <div
-        className="segmented appearance-options"
-        role="group"
-        aria-label="Color theme"
-      >
+      <div className="segmented appearance-options" role="group" aria-label="Color theme">
         {options.map((option) => (
           <ThemeOption
             key={option}
@@ -817,8 +743,8 @@ function AboutCard() {
         <p className="eyebrow">ABOUT &amp; CREDITS</p>
         <h2>One harbor for native ports</h2>
         <p>
-          Portcove keeps the desktop and CLI on the same reviewed catalog, local
-          sources, managed versions, and recovery-safe history.
+          Portcove keeps the desktop and CLI on the same reviewed catalog, local sources, managed
+          versions, and recovery-safe history.
         </p>
         <dl className="about-facts">
           <div>
@@ -865,8 +791,8 @@ function DiagnosticsCard({
         Redacted support bundle
       </h2>
       <p>
-        Collect rotated desktop logs, recent operation records, and host
-        readiness without game sources or stored credentials.
+        Collect rotated desktop logs, recent operation records, and host readiness without game
+        sources or stored credentials.
       </p>
       <button
         data-focusable
@@ -969,8 +895,8 @@ export function SettingsView({
         <p className="eyebrow">STORAGE LOCATIONS</p>
         <h2>Whole-library storage</h2>
         <p>
-          Choose which Portcove library opens at startup. Each game’s Export /
-          install folder is reviewed separately from its game page.
+          Choose which Portcove library opens at startup. Each game’s Export / install folder is
+          reviewed separately from its game page.
         </p>
       </div>
       <LibrarySelectionCard
@@ -1015,16 +941,16 @@ export function SettingsView({
         <p className="eyebrow">UPDATES</p>
         <h2>Safe by default</h2>
         <p>
-          Stable is the default channel. Beta and rolling releases are always an
-          explicit per-port choice.
+          Stable is the default channel. Beta and rolling releases are always an explicit per-port
+          choice.
         </p>
       </article>
       <article className="settings-card">
         <p className="eyebrow">PRIVACY</p>
         <h2>Local and source-safe</h2>
         <p>
-          Portcove does not upload game sources or collect telemetry. Source
-          files remain where you keep them.
+          Portcove does not upload game sources or collect telemetry. Source files remain where you
+          keep them.
         </p>
       </article>
     </section>
@@ -1045,9 +971,7 @@ export function LibrarySelectionCard({
   reset?: () => Promise<void>;
 }) {
   const [error, setError] = useState<string>();
-  const [review, setReview] = useState<
-    { kind: "switch"; path: string } | { kind: "reset" }
-  >();
+  const [review, setReview] = useState<{ kind: "switch"; path: string } | { kind: "reset" }>();
   const [pending, setPending] = useState(false);
   const switchTrigger = useRef<HTMLButtonElement>(null);
   const resetTrigger = useRef<HTMLButtonElement>(null);
@@ -1099,9 +1023,8 @@ export function LibrarySelectionCard({
       <h2>Startup selection</h2>
       <code>{selection?.root ?? "Unavailable"}</code>
       <p>
-        {source}. Switching opens another existing empty folder or Portcove
-        library. It does not move files or change any game’s Export / install
-        folder.
+        {source}. Switching opens another existing empty folder or Portcove library. It does not
+        move files or change any game’s Export / install folder.
       </p>
       <div className="button-row">
         <button
@@ -1138,9 +1061,8 @@ export function LibrarySelectionCard({
           </strong>
           {review.kind === "switch" && <code>{review.path}</code>}
           <p>
-            Portcove will close this library and open the reviewed selection.
-            Existing files stay in place, and per-game Export / install folders
-            do not change.
+            Portcove will close this library and open the reviewed selection. Existing files stay in
+            place, and per-game Export / install folders do not change.
           </p>
           <div className="button-row">
             <button
@@ -1195,18 +1117,13 @@ function HostReadiness({
           <p className="host-summary">
             <code>{doctor.platform}</code>
             <span>
-              {doctor.catalog_port_count} ports · {doctor.installed_port_count}{" "}
-              installed · {doctor.registered_source_count} sources
+              {doctor.catalog_port_count} ports · {doctor.installed_port_count} installed ·{" "}
+              {doctor.registered_source_count} sources
             </span>
           </p>
           <div className="host-tool-list">
             {doctor.host_tools.map((tool) => (
-              <HostToolRow
-                key={tool.id}
-                tool={tool}
-                busy={Boolean(busy)}
-                actions={actions}
-              />
+              <HostToolRow key={tool.id} tool={tool} busy={Boolean(busy)} actions={actions} />
             ))}
           </div>
         </>
@@ -1214,8 +1131,7 @@ function HostReadiness({
         <p>Checking disc-tool readiness…</p>
       )}
       <p>
-        For some compressed disc formats, Portcove needs a disc tool to check or
-        convert the image.
+        For some compressed disc formats, Portcove needs a disc tool to check or convert the image.
       </p>
     </article>
   );
@@ -1237,8 +1153,7 @@ export function HostToolRow({
   const [error, setError] = useState<string>();
   const run = async (
     name: string,
-    operation: () =>
-      Promise<HostToolProbeResult | void | undefined> | undefined,
+    operation: () => Promise<HostToolProbeResult | void | undefined> | undefined,
   ) => {
     setPending(name);
     setError(undefined);
@@ -1390,8 +1305,8 @@ function StorageCard({
         <p>Storage capacity is unavailable for this location.</p>
       )}
       <p>
-        <Icon glyph={ShieldCheck} size="sm" /> Application versions are isolated
-        from saves, configuration, mods, and original sources.
+        <Icon glyph={ShieldCheck} size="sm" /> Application versions are isolated from saves,
+        configuration, mods, and original sources.
       </p>
       <button
         data-focusable
@@ -1404,8 +1319,8 @@ function StorageCard({
         Export metadata
       </button>
       <p>
-        Export source references and version settings. Game files, saves,
-        backups, toolchains, and credentials are not included.
+        Export source references and version settings. Game files, saves, backups, toolchains, and
+        credentials are not included.
       </p>
       {exported && (
         <p role="status">
@@ -1413,10 +1328,7 @@ function StorageCard({
         </p>
       )}
       <LibraryMoveButton disabled={Boolean(busy)} />
-      <LibraryImportButton
-        disabled={Boolean(busy) || !libraryRoot}
-        libraryRoot={libraryRoot}
-      />
+      <LibraryImportButton disabled={Boolean(busy) || !libraryRoot} libraryRoot={libraryRoot} />
     </article>
   );
 }

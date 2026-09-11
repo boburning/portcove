@@ -84,19 +84,14 @@ export function RemovalReviewDialog({
         <p id="removal-review-description">
           Remove the managed versions of {port.name} listed below.
         </p>
-        {pending === "review" && (
-          <p role="status">Checking installed versions…</p>
-        )}
+        {pending === "review" && <p role="status">Checking installed versions…</p>}
         {preview && (
-          <section
-            className="removal-review-details"
-            aria-label="Files removed and data preserved"
-          >
+          <section className="removal-review-details" aria-label="Files removed and data preserved">
             <p>
               <strong>
                 {preview.managed_paths.length} managed{" "}
-                {preview.managed_paths.length === 1 ? "folder" : "folders"} will
-                be removed, including any retained versions listed here.
+                {preview.managed_paths.length === 1 ? "folder" : "folders"} will be removed,
+                including any retained versions listed here.
               </strong>
             </p>
             <ul>
@@ -105,37 +100,30 @@ export function RemovalReviewDialog({
               ))}
             </ul>
             <p>
-              This game's saved release-channel and update-policy settings will
-              also be removed.
+              This game's saved release-channel and update-policy settings will also be removed.
             </p>
             <p>
               <strong>Saved data will be preserved at:</strong>
             </p>
             <p>{preview.persistent_data_path}</p>
             <p>
-              Backups, registered original game sources and the original folders
-              used for adoption are preserved. Other games are unaffected.
+              Backups, registered original game sources and the original folders used for adoption
+              are preserved. Other games are unaffected.
             </p>
             <p>
-              The game must be stopped. Files inside the listed managed folders
-              will be deleted; reinstalling or copying an original again is a
-              new operation, not an undo.
+              The game must be stopped. Files inside the listed managed folders will be deleted;
+              reinstalling or copying an original again is a new operation, not an undo.
             </p>
             <p>
-              If interrupted, Portcove retains a recovery journal and checks
-              removal when the library reopens. Review any recovery notice
-              before another attempt; interrupted deletion may finish.
+              If interrupted, Portcove retains a recovery journal and checks removal when the
+              library reopens. Review any recovery notice before another attempt; interrupted
+              deletion may finish.
             </p>
           </section>
         )}
         {error && <p role="alert">{error}</p>}
         <div className="actions">
-          <button
-            data-autofocus
-            data-focusable
-            disabled={pending === "apply"}
-            onClick={dismiss}
-          >
+          <button data-autofocus data-focusable disabled={pending === "apply"} onClick={dismiss}>
             Keep installed files
           </button>
           {!preview && (
@@ -153,16 +141,12 @@ export function RemovalReviewDialog({
             <button
               data-focusable
               className="danger"
-              disabled={
-                Boolean(pending) || !preview.persistent_data_will_be_preserved
-              }
+              disabled={Boolean(pending) || !preview.persistent_data_will_be_preserved}
               onClick={() => {
                 void remove();
               }}
             >
-              {pending === "apply"
-                ? "Removing reviewed files…"
-                : "Remove these managed folders"}
+              {pending === "apply" ? "Removing reviewed files…" : "Remove these managed folders"}
             </button>
           )}
         </div>

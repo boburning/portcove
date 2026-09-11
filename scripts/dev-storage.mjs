@@ -1,12 +1,6 @@
 #!/usr/bin/env node
 
-import {
-  lstatSync,
-  mkdirSync,
-  realpathSync,
-  statSync,
-  statfsSync,
-} from "node:fs";
+import { lstatSync, mkdirSync, realpathSync, statSync, statfsSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -21,16 +15,12 @@ function resolveConfiguredPath(value, fallback) {
 }
 
 function cargoMetadata() {
-  const result = spawnSync(
-    "cargo",
-    ["metadata", "--format-version", "1", "--no-deps"],
-    {
-      cwd: projectRoot,
-      encoding: "utf8",
-      env: process.env,
-      windowsHide: true,
-    },
-  );
+  const result = spawnSync("cargo", ["metadata", "--format-version", "1", "--no-deps"], {
+    cwd: projectRoot,
+    encoding: "utf8",
+    env: process.env,
+    windowsHide: true,
+  });
   if (result.error) throw result.error;
   if (result.status !== 0) {
     throw new Error(
@@ -69,18 +59,9 @@ export function getPaths() {
   return {
     workspace: metadataRoot,
     target_directory: path.resolve(metadata.target_directory),
-    temporary_directory: resolveConfiguredPath(
-      process.env.PORTCOVE_TEMP_DIR,
-      "work/temp",
-    ),
-    output_root: resolveConfiguredPath(
-      process.env.PORTCOVE_OUTPUT_DIR,
-      "outputs",
-    ),
-    pnpm_store: resolveConfiguredPath(
-      process.env.PORTCOVE_PNPM_STORE_DIR,
-      "work/pnpm-store",
-    ),
+    temporary_directory: resolveConfiguredPath(process.env.PORTCOVE_TEMP_DIR, "work/temp"),
+    output_root: resolveConfiguredPath(process.env.PORTCOVE_OUTPUT_DIR, "outputs"),
+    pnpm_store: resolveConfiguredPath(process.env.PORTCOVE_PNPM_STORE_DIR, "work/pnpm-store"),
     frontend_dependencies: path.join(projectRoot, "apps/desktop/node_modules"),
     frontend_output: path.join(projectRoot, "apps/desktop/dist"),
     tauri_generated: path.join(projectRoot, "apps/desktop/src-tauri/gen"),
@@ -96,8 +77,7 @@ function nearestExistingPath(candidate) {
     } catch (error) {
       if (error.code !== "ENOENT") throw error;
       const parent = path.dirname(current);
-      if (parent === current)
-        throw new Error(`No existing ancestor for ${candidate}`);
+      if (parent === current) throw new Error(`No existing ancestor for ${candidate}`);
       current = parent;
     }
   }
@@ -120,10 +100,7 @@ export function storageVolumes(paths) {
     const device = statSync(probe).dev;
     if (!volumes.has(device)) {
       let root = probe;
-      while (
-        path.dirname(root) !== root &&
-        statSync(path.dirname(root)).dev === device
-      ) {
+      while (path.dirname(root) !== root && statSync(path.dirname(root)).dev === device) {
         root = path.dirname(root);
       }
       const stats = statfsSync(probe);
@@ -137,29 +114,19 @@ export function storageVolumes(paths) {
 }
 
 export function minimumFreeGiB(value) {
-  const parsed = Number(
-    value ?? process.env.PORTCOVE_MIN_FREE_GIB ?? DEFAULT_MINIMUM_FREE_GIB,
-  );
+  const parsed = Number(value ?? process.env.PORTCOVE_MIN_FREE_GIB ?? DEFAULT_MINIMUM_FREE_GIB);
   if (!Number.isFinite(parsed) || parsed <= 0) {
-    throw new Error(
-      `Minimum free space must be a positive GiB value, received ${value}`,
-    );
+    throw new Error(`Minimum free space must be a positive GiB value, received ${value}`);
   }
   return parsed;
 }
 
 export function preflight(paths, requiredFreeGiB) {
   paths = Object.fromEntries(
-    Object.entries(paths).map(([label, candidate]) => [
-      label,
-      resolvePhysicalPath(candidate),
-    ]),
+    Object.entries(paths).map(([label, candidate]) => [label, resolvePhysicalPath(candidate)]),
   );
   if (process.platform === "win32") {
-    const violations = windowsSystemDriveViolations(
-      paths,
-      process.env.SystemDrive || "C:",
-    );
+    const violations = windowsSystemDriveViolations(paths, process.env.SystemDrive || "C:");
     if (violations.length) {
       throw new Error(
         `Heavy Portcove work is blocked because these paths resolve to the Windows system drive: ${violations.join(", ")}`,
@@ -168,17 +135,12 @@ export function preflight(paths, requiredFreeGiB) {
   }
 
   const volumes = storageVolumes(paths);
-  const shortVolumes = volumes.filter(
-    (volume) => volume.free_bytes / GIB < requiredFreeGiB,
-  );
+  const shortVolumes = volumes.filter((volume) => volume.free_bytes / GIB < requiredFreeGiB);
   if (shortVolumes.length) {
     throw new Error(
       `Portcove needs at least ${requiredFreeGiB.toFixed(1)} GiB free; ` +
         shortVolumes
-          .map(
-            (volume) =>
-              `${volume.root} has ${(volume.free_bytes / GIB).toFixed(2)} GiB`,
-          )
+          .map((volume) => `${volume.root} has ${(volume.free_bytes / GIB).toFixed(2)} GiB`)
           .join(", "),
     );
   }
@@ -228,45 +190,33 @@ export function childEnvironment(paths) {
     TMP: paths.temporary_directory,
     TMPDIR: paths.temporary_directory,
   };
-  const overriddenKeys = new Set(
-    Object.keys(overrides).map((key) => key.toLowerCase()),
-  );
+  const overriddenKeys = new Set(Object.keys(overrides).map((key) => key.toLowerCase()));
   // pnpm normalizes configuration variable names on every platform, even
   // where the operating system permits differently cased names to coexist.
   const inherited = Object.fromEntries(
     Object.entries(process.env).filter(
       ([key]) =>
         key.toLowerCase() !== "pnpm_config_store_dir" &&
-        (process.platform !== "win32" ||
-          !overriddenKeys.has(key.toLowerCase())),
+        (process.platform !== "win32" || !overriddenKeys.has(key.toLowerCase())),
     ),
   );
   return { ...inherited, ...overrides };
 }
 
 function ensureChildDirectories(paths) {
-  for (const candidate of [
-    paths.temporary_directory,
-    paths.output_root,
-    paths.pnpm_store,
-  ]) {
+  for (const candidate of [paths.temporary_directory, paths.output_root, paths.pnpm_store]) {
     mkdirSync(candidate, { recursive: true });
   }
 }
 
 export function spawnCommand(command, args, options) {
   let result = spawnSync(command, args, options);
-  if (
-    process.platform === "win32" &&
-    ["ENOENT", "EINVAL"].includes(result.error?.code)
-  ) {
+  if (process.platform === "win32" && ["ENOENT", "EINVAL"].includes(result.error?.code)) {
     // Batch shims need cmd.exe. Quote every token and reject expansion/control
     // characters in both the executable and arguments before invoking the shell.
     const tokens = [command, ...args];
     if (tokens.some((token) => /["&|<>^%!()\r\n]/u.test(token))) {
-      throw new Error(
-        "Refusing shell metacharacters in a Windows command shim",
-      );
+      throw new Error("Refusing shell metacharacters in a Windows command shim");
     }
     const searchPath =
       Object.entries(options.env ?? process.env).find(
@@ -277,34 +227,20 @@ export function spawnCommand(command, args, options) {
         ? [options.cwd ?? process.cwd()]
         : [
             options.cwd ?? process.cwd(),
-            ...searchPath
-              .split(";")
-              .map((directory) => directory.replace(/^"|"$/g, "")),
+            ...searchPath.split(";").map((directory) => directory.replace(/^"|"$/g, "")),
           ];
-    const names = /\.(cmd|bat)$/iu.test(command)
-      ? [command]
-      : [`${command}.cmd`, `${command}.bat`];
+    const names = /\.(cmd|bat)$/iu.test(command) ? [command] : [`${command}.cmd`, `${command}.bat`];
     const shim = directories
-      .flatMap((directory) =>
-        names.map((name) => path.resolve(directory, name)),
-      )
-      .find((candidate) =>
-        statSync(candidate, { throwIfNoEntry: false })?.isFile(),
-      );
+      .flatMap((directory) => names.map((name) => path.resolve(directory, name)))
+      .find((candidate) => statSync(candidate, { throwIfNoEntry: false })?.isFile());
     if (!shim) throw result.error;
     if (/["&|<>^%!()\r\n]/u.test(shim))
-      throw new Error(
-        "Refusing shell metacharacters in a Windows command shim path",
-      );
+      throw new Error("Refusing shell metacharacters in a Windows command shim path");
     const line = [shim, ...args].map((token) => `"${token}"`).join(" ");
-    result = spawnSync(
-      process.env.ComSpec || "cmd.exe",
-      ["/d", "/s", "/c", `"${line}"`],
-      {
-        ...options,
-        windowsVerbatimArguments: true,
-      },
-    );
+    result = spawnSync(process.env.ComSpec || "cmd.exe", ["/d", "/s", "/c", `"${line}"`], {
+      ...options,
+      windowsVerbatimArguments: true,
+    });
   }
   if (result.error) throw result.error;
   return result;
@@ -380,23 +316,16 @@ export function parseArguments(argv) {
   }
   if (remaining[0] === "--") remaining.shift();
   if (!["preflight", "run", "clean"].includes(action)) {
-    throw new Error(
-      `Unknown action ${action}; expected preflight, run, or clean`,
-    );
+    throw new Error(`Unknown action ${action}; expected preflight, run, or clean`);
   }
-  if (action === "run" && !remaining.length)
-    throw new Error("run requires a command after --");
-  if (action !== "run" && remaining.length)
-    throw new Error(`${action} does not accept a command`);
-  if (asJson && action !== "preflight")
-    throw new Error("--json is only supported by preflight");
+  if (action === "run" && !remaining.length) throw new Error("run requires a command after --");
+  if (action !== "run" && remaining.length) throw new Error(`${action} does not accept a command`);
+  if (asJson && action !== "preflight") throw new Error("--json is only supported by preflight");
   return { action, asJson, requestedMinimum, command: remaining };
 }
 
 function main() {
-  const { action, asJson, requestedMinimum, command } = parseArguments(
-    process.argv.slice(2),
-  );
+  const { action, asJson, requestedMinimum, command } = parseArguments(process.argv.slice(2));
   const configuredPaths = getPaths();
   if (action === "clean") {
     return cleanCargoTarget(configuredPaths);
@@ -413,9 +342,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
   try {
     process.exitCode = main();
   } catch (error) {
-    console.error(
-      `Portcove development storage check failed: ${error.message}`,
-    );
+    console.error(`Portcove development storage check failed: ${error.message}`);
     process.exitCode = 1;
   }
 }

@@ -114,12 +114,7 @@ describe("source intake dialog", () => {
     const apply = vi.spyOn(desktopApi, "importSource");
 
     await act(async () =>
-      root.render(
-        <SourceIntakeDialog
-          request={request(["D:/Game.z64"])}
-          close={vi.fn()}
-        />,
-      ),
+      root.render(<SourceIntakeDialog request={request(["D:/Game.z64"])} close={vi.fn()} />),
     );
 
     expect(inspect).toHaveBeenCalledWith(profile.id, ["D:/Game.z64"]);
@@ -145,10 +140,7 @@ describe("source intake dialog", () => {
 
     await act(async () =>
       root.render(
-        <SourceIntakeDialog
-          request={request(["D:/One.z64", "D:/Two.z64"])}
-          close={vi.fn()}
-        />,
+        <SourceIntakeDialog request={request(["D:/One.z64", "D:/Two.z64"])} close={vi.fn()} />,
       ),
     );
 
@@ -159,9 +151,7 @@ describe("source intake dialog", () => {
   it.each(["future_mode", "constructor", "__proto__"])(
     "leaves an unfamiliar %s plan cancellable without importing",
     async (mode) => {
-      vi.spyOn(desktopApi, "inspectSourceIntake").mockResolvedValue(
-        intake("D:/Game.z64"),
-      );
+      vi.spyOn(desktopApi, "inspectSourceIntake").mockResolvedValue(intake("D:/Game.z64"));
       const plan: SourceImportPlan = {
         schema_version: 1,
         profile_id: profile.id,
@@ -179,19 +169,12 @@ describe("source intake dialog", () => {
       vi.spyOn(desktopApi, "planSourceImport").mockResolvedValue(plan);
       const apply = vi.spyOn(desktopApi, "importSource");
       await act(async () =>
-        root.render(
-          <SourceIntakeDialog
-            request={request(["D:/Game.z64"])}
-            close={vi.fn()}
-          />,
-        ),
+        root.render(<SourceIntakeDialog request={request(["D:/Game.z64"])} close={vi.fn()} />),
       );
       await act(async () => button("Copy to Source Inbox")!.click());
       expect(host.textContent).toContain("Import method unavailable");
       expect(
-        host.querySelector(
-          'section[aria-label="Source import review"] button.primary',
-        ),
+        host.querySelector('section[aria-label="Source import review"] button.primary'),
       ).toBeNull();
       await act(async () => button("Cancel review")!.click());
       expect(button("Copy to Source Inbox")).toBeDefined();
@@ -254,9 +237,7 @@ describe("source intake dialog", () => {
     );
 
     expect(host.textContent).toContain("Preparation tool needed");
-    expect(host.textContent).toContain(
-      "Your selected game files remain unchanged.",
-    );
+    expect(host.textContent).toContain("Your selected game files remain unchanged.");
     expect(host.textContent).not.toContain("Technical ID");
     await act(async () => button("Locate executable")!.click());
     expect(locate).toHaveBeenCalledWith(tool);
@@ -271,20 +252,10 @@ describe("source intake dialog", () => {
       .mockReturnValueOnce(old.promise)
       .mockReturnValueOnce(current.promise);
     await act(async () =>
-      root.render(
-        <SourceIntakeDialog
-          request={request(["D:/Old.z64"])}
-          close={vi.fn()}
-        />,
-      ),
+      root.render(<SourceIntakeDialog request={request(["D:/Old.z64"])} close={vi.fn()} />),
     );
     await act(async () =>
-      root.render(
-        <SourceIntakeDialog
-          request={request(["D:/Current.z64"])}
-          close={vi.fn()}
-        />,
-      ),
+      root.render(<SourceIntakeDialog request={request(["D:/Current.z64"])} close={vi.fn()} />),
     );
     await act(async () => {
       current.resolve(intake("D:/Current.z64"));
@@ -318,9 +289,7 @@ describe("source intake dialog", () => {
     );
     expect(button("Choose game files to check")).toBeDefined();
     await act(async () => button("Choose game files to check")!.click());
-    expect(host.textContent).toContain(
-      "File selection cancelled. Nothing was changed.",
-    );
+    expect(host.textContent).toContain("File selection cancelled. Nothing was changed.");
     expect(host.querySelector('[role="alert"]')).toBeNull();
     await act(async () => button("Choose game files to check")!.click());
     expect(inspect).toHaveBeenCalledWith(profile.id, ["D:/Keyboard.z64"]);
@@ -334,12 +303,7 @@ describe("source intake dialog", () => {
           <button type="button" onClick={() => setOpen(true)}>
             Check original game files
           </button>
-          {open && (
-            <SourceIntakeDialog
-              request={request([])}
-              close={() => setOpen(false)}
-            />
-          )}
+          {open && <SourceIntakeDialog request={request([])} close={() => setOpen(false)} />}
         </>
       );
     }

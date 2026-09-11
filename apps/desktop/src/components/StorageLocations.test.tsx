@@ -11,8 +11,7 @@ function button(label: string) {
   const match = [...container.querySelectorAll("button")].find((candidate) =>
     candidate.textContent?.includes(label),
   );
-  if (!(match instanceof HTMLButtonElement))
-    throw new Error(`missing button: ${label}`);
+  if (!(match instanceof HTMLButtonElement)) throw new Error(`missing button: ${label}`);
   return match;
 }
 
@@ -41,10 +40,7 @@ afterEach(async () => {
 
 describe("Storage locations", () => {
   it("keeps picker cancellation neutral and reviews a whole-library switch before applying it", async () => {
-    const choose = vi
-      .fn()
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce("F:/Other Portcove");
+    const choose = vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce("F:/Other Portcove");
     const switchLibrary = vi.fn().mockResolvedValue(undefined);
     const reset = vi.fn().mockResolvedValue(undefined);
     await act(async () => {
@@ -59,18 +55,14 @@ describe("Storage locations", () => {
     });
 
     await click("Review library switch");
-    expect(container.textContent).not.toContain(
-      "Switch whole Portcove library",
-    );
+    expect(container.textContent).not.toContain("Switch whole Portcove library");
     expect(switchLibrary).not.toHaveBeenCalled();
 
     const trigger = button("Review library switch");
     await click("Review library switch");
     expect(container.textContent).toContain("Switch whole Portcove library");
     expect(container.textContent).toContain("F:/Other Portcove");
-    expect(container.textContent).toContain(
-      "per-game Export / install folders do not change",
-    );
+    expect(container.textContent).toContain("per-game Export / install folders do not change");
     expect(switchLibrary).not.toHaveBeenCalled();
     await click("Keep current library");
     expect(document.activeElement).toBe(trigger);

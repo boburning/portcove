@@ -73,9 +73,7 @@ export function PreparationControl({
     } catch (value) {
       if (request.current === current) {
         if (isCancellation(value))
-          setMessage(
-            "Preparation cancelled. Review its retained outcome in Recent activity.",
-          );
+          setMessage("Preparation cancelled. Review its retained outcome in Recent activity.");
         else setError(errorText(value));
       }
     } finally {
@@ -89,8 +87,8 @@ export function PreparationControl({
   return (
     <section aria-label="Prepare game data" className="preparation-control">
       <p>
-        Prepare and verify the original game data before playing. Your current
-        installation and saves are preserved.
+        Prepare and verify the original game data before playing. Your current installation and
+        saves are preserved.
       </p>
       {!plan && (
         <button
@@ -101,9 +99,7 @@ export function PreparationControl({
             void review();
           }}
         >
-          {pending === "review"
-            ? "Checking preparation inputs…"
-            : "Review game preparation"}
+          {pending === "review" ? "Checking preparation inputs…" : "Review game preparation"}
         </button>
       )}
       {plan && (
@@ -114,18 +110,16 @@ export function PreparationControl({
           <p>Original source: {plan.inputs.source.path}</p>
           <p>
             A private copy needs at least{" "}
-            {formatBytes(
-              plan.copy.total_bytes + plan.inputs.source.storage_size,
-            )}{" "}
-            before generated output. The final space needed depends on the game.
+            {formatBytes(plan.copy.total_bytes + plan.inputs.source.storage_size)} before generated
+            output. The final space needed depends on the game.
           </p>
           <p>
-            The verified result becomes active. Your previous version remains
-            available for rollback.
+            The verified result becomes active. Your previous version remains available for
+            rollback.
           </p>
           <p>
-            Each attempt starts from the reviewed inputs in a new private copy
-            and retains earlier partial work.
+            Each attempt starts from the reviewed inputs in a new private copy and retains earlier
+            partial work.
           </p>
           <button
             ref={applyButton}

@@ -31,13 +31,7 @@ export function ReleaseChannelControl({
     [],
   );
   const choose = async (channel: ReleaseChannel) => {
-    if (
-      !recognized ||
-      !channels.includes(channel) ||
-      channel === selected ||
-      pending ||
-      busy
-    )
+    if (!recognized || !channels.includes(channel) || channel === selected || pending || busy)
       return;
     const current = ++request.current;
     setPending(true);
@@ -68,9 +62,7 @@ export function ReleaseChannelControl({
         setPending(false);
         window.requestAnimationFrame(() => {
           if (current === request.current)
-            root.current
-              ?.querySelector<HTMLButtonElement>(".choice-trigger")
-              ?.focus();
+            root.current?.querySelector<HTMLButtonElement>(".choice-trigger")?.focus();
         });
       }
     }
@@ -78,9 +70,7 @@ export function ReleaseChannelControl({
   return (
     <section ref={root} aria-label="Game release channel">
       {!recognized ? (
-        <p role="status">
-          Release channel information is unavailable in this version.
-        </p>
+        <p role="status">Release channel information is unavailable in this version.</p>
       ) : channels.length === 1 ? (
         <p>
           <strong>{releaseChannelPresentation(channels[0]).label} only</strong>

@@ -28,9 +28,7 @@ export async function artworkScenario({
       const libraryRoot = await realpath(bootstrap.library_root);
       const ownedRelative = path.relative(await realpath(output), libraryRoot);
       assert.ok(
-        ownedRelative &&
-          !ownedRelative.startsWith("..") &&
-          !path.isAbsolute(ownedRelative),
+        ownedRelative && !ownedRelative.startsWith("..") && !path.isAbsolute(ownedRelative),
         "Artwork tests require the owned qualification library",
       );
       const portId = "zelda64-recomp";
@@ -75,9 +73,7 @@ export async function artworkScenario({
         );
         await summary.sendKeys(Key.ENTER);
         await browser.wait(
-          until.elementIsEnabled(
-            await browser.findElement(control("cover", "Choose local image")),
-          ),
+          until.elementIsEnabled(await browser.findElement(control("cover", "Choose local image"))),
           10_000,
         );
       };
@@ -86,10 +82,7 @@ export async function artworkScenario({
           until.elementLocated(By.css(selector.replace(/ img$/, ""))),
           10_000,
         );
-        await browser.executeScript(
-          'arguments[0].scrollIntoView({ block: "center" });',
-          frame,
-        );
+        await browser.executeScript('arguments[0].scrollIntoView({ block: "center" });', frame);
         await browser.wait(
           () =>
             browser.executeScript((selector) => {
@@ -118,17 +111,13 @@ export async function artworkScenario({
         "artwork-picker-cancelled",
       );
       await browser.wait(
-        until.elementIsEnabled(
-          await browser.findElement(control("cover", "Choose local image")),
-        ),
+        until.elementIsEnabled(await browser.findElement(control("cover", "Choose local image"))),
         10_000,
       );
       assert.deepEqual(await state("cover"), before);
       await browser.wait(
         () =>
-          browser.executeScript(
-            () => document.activeElement?.textContent === "Choose local image",
-          ),
+          browser.executeScript(() => document.activeElement?.textContent === "Choose local image"),
         5000,
       );
       for (const slot of ["cover", "detail"]) {
@@ -140,22 +129,13 @@ export async function artworkScenario({
           `artwork-picker-${slot}`,
           source,
         );
-        await browser.wait(
-          async () => (await state(slot)).choice.asset_sha256 === digest,
-          10_000,
-        );
-        const picker = await browser.findElement(
-          control(slot, "Choose local image"),
-        );
+        await browser.wait(async () => (await state(slot)).choice.asset_sha256 === digest, 10_000);
+        const picker = await browser.findElement(control(slot, "Choose local image"));
         // Core commits before the renderer finishes its preview and returns focus.
         // Observe completion before scrolling to a different image surface.
         await browser.wait(until.elementIsEnabled(picker), 10_000);
         await browser.wait(
-          () =>
-            browser.executeScript(
-              (element) => document.activeElement === element,
-              picker,
-            ),
+          () => browser.executeScript((element) => document.activeElement === element, picker),
           5000,
         );
       }
@@ -178,9 +158,7 @@ export async function artworkScenario({
         return {
           ratio: bounds.width / bounds.height,
           fit: getComputedStyle(frame.querySelector("img")).objectFit,
-          titleOutsideImage: !frame.contains(
-            document.querySelector("#port-detail-title"),
-          ),
+          titleOutsideImage: !frame.contains(document.querySelector("#port-detail-title")),
         };
       });
       assert.ok(Math.abs(geometry.ratio - 2 / 3) < 0.02);
@@ -194,10 +172,7 @@ export async function artworkScenario({
       await browser.executeScript(
         'document.querySelector(".detail-hero").scrollIntoView({ block: "start" });',
       );
-      const screenshot = path.join(
-        output,
-        "native-artwork-letterboxed-compact.png",
-      );
+      const screenshot = path.join(output, "native-artwork-letterboxed-compact.png");
       await writeFile(screenshot, await browser.takeScreenshot(), {
         encoding: "base64",
         flag: "wx",
@@ -206,10 +181,7 @@ export async function artworkScenario({
       const report = path.join(output, "artwork-accessibility.json");
       await captureAccessibilityReport(browser, report, artifacts);
       await click(control("cover", "Reset to default"));
-      await browser.wait(
-        async () => (await state("cover")).choice.asset_sha256 === null,
-        10_000,
-      );
+      await browser.wait(async () => (await state("cover")).choice.asset_sha256 === null, 10_000);
       assert.equal((await state("detail")).choice.asset_sha256, digest);
 
       const original = path.join(libraryRoot, "artwork", digest);

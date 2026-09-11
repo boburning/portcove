@@ -66,10 +66,7 @@ export function SourceIntakeDialog({
       setPlan(undefined);
       setResult(undefined);
       try {
-        const inspection = await desktopApi.inspectSourceIntake(
-          request.profile.id,
-          paths,
-        );
+        const inspection = await desktopApi.inspectSourceIntake(request.profile.id, paths);
         if (intent.current === current) setResult(inspection);
       } catch (value) {
         if (intent.current === current) setError(errorText(value));
@@ -90,31 +87,22 @@ export function SourceIntakeDialog({
   const choose = async () => {
     setError(undefined);
     try {
-      const path = await pickSourcePath(
-        request.profile,
-        selectedPaths[0] ?? "",
-      );
+      const path = await pickSourcePath(request.profile, selectedPaths[0] ?? "");
       if (path) await inspect([path]);
       else setNotice("File selection cancelled. Nothing was changed.");
     } catch (value) {
-      if (isCancellation(value))
-        setNotice("File selection cancelled. Nothing was changed.");
+      if (isCancellation(value)) setNotice("File selection cancelled. Nothing was changed.");
       else setError(errorText(value));
     }
   };
   const review = async (mode: SourceImportMode) => {
-    if (!result?.report?.inspection?.record || selectedPaths.length !== 1)
-      return;
+    if (!result?.report?.inspection?.record || selectedPaths.length !== 1) return;
     const current = ++intent.current;
     setBusy("Checking the source and destination…");
     setError(undefined);
     setNotice(undefined);
     try {
-      const next = await desktopApi.planSourceImport(
-        request.profile.id,
-        selectedPaths[0],
-        mode,
-      );
+      const next = await desktopApi.planSourceImport(request.profile.id, selectedPaths[0], mode);
       if (intent.current === current) setPlan(next);
     } catch (value) {
       if (intent.current === current) setError(errorText(value));
@@ -142,9 +130,7 @@ export function SourceIntakeDialog({
       if (intent.current !== current) return;
       setPlan(undefined);
       if (!imported)
-        setNotice(
-          "Move cancelled. The original and registration were left unchanged.",
-        );
+        setNotice("Move cancelled. The original and registration were left unchanged.");
       else {
         setNotice(sourceImportNotice(imported));
         await onAdded?.();
@@ -192,8 +178,8 @@ export function SourceIntakeDialog({
         <p className="eyebrow">GAME FILE CHECK</p>
         <h2 id="source-intake-title">Check files for {request.portName}</h2>
         <p className="modal-description">
-          Portcove checks the selected files for this game only. Checking does
-          not install, register, copy, move, replace, or delete anything.
+          Portcove checks the selected files for this game only. Checking does not install,
+          register, copy, move, replace, or delete anything.
         </p>
         <NavigationHints />
         <div className="source-intake-picker">
@@ -214,10 +200,7 @@ export function SourceIntakeDialog({
         </div>
         {busy && <p role="status">{busy}</p>}
         {result && (
-          <section
-            className="source-intake-result"
-            aria-label="Game file check result"
-          >
+          <section className="source-intake-result" aria-label="Game file check result">
             {!result.report && (
               <>
                 <p className="source-intake-summary" role="status">
@@ -233,21 +216,14 @@ export function SourceIntakeDialog({
               </>
             )}
             {result.report && (
-              <SourceIdentityPanel
-                report={result.report}
-                openEvidence={openEvidence}
-              />
+              <SourceIdentityPanel report={result.report} openEvidence={openEvidence} />
             )}
             {requiredTool && (
-              <section
-                className="source-intake-tool"
-                aria-label="Preparation tool needed"
-              >
+              <section className="source-intake-tool" aria-label="Preparation tool needed">
                 <h3>Preparation tool needed</h3>
                 <p>
-                  This source format needs {requiredTool.display_name} before
-                  Portcove can finish checking it. Your selected game files
-                  remain unchanged.
+                  This source format needs {requiredTool.display_name} before Portcove can finish
+                  checking it. Your selected game files remain unchanged.
                 </p>
                 <HostToolRow
                   tool={requiredTool}
@@ -258,13 +234,10 @@ export function SourceIntakeDialog({
               </section>
             )}
             {candidate && !plan && (
-              <div
-                className="source-intake-actions"
-                aria-label="Add checked game files"
-              >
+              <div className="source-intake-actions" aria-label="Add checked game files">
                 <p>
-                  Checking is complete. Choose a separate action only if you
-                  want Portcove to add these files.
+                  Checking is complete. Choose a separate action only if you want Portcove to add
+                  these files.
                 </p>
                 <div className="actions">
                   <button

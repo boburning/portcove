@@ -35,14 +35,12 @@ describe("disposable artwork display cache", () => {
   it("deduplicates requests and serializes slots without making a second choice authority", async () => {
     let active = 0,
       maximum = 0;
-    const read = vi
-      .spyOn(desktopApi, "artwork")
-      .mockImplementation(async (port, slot) => {
-        maximum = Math.max(maximum, ++active);
-        await Promise.resolve();
-        active--;
-        return artworkState(port, slot);
-      });
+    const read = vi.spyOn(desktopApi, "artwork").mockImplementation(async (port, slot) => {
+      maximum = Math.max(maximum, ++active);
+      await Promise.resolve();
+      active--;
+      return artworkState(port, slot);
+    });
     const cache = new ArtworkCache(7);
     await Promise.all([
       cache.load("sample", "cover"),
@@ -57,16 +55,12 @@ describe("disposable artwork display cache", () => {
   });
 
   it("shows cached bytes immediately and rejects a mismatched refreshed thumbnail", async () => {
-    vi.spyOn(desktopApi, "artwork").mockResolvedValue(
-      artworkState("sample", "cover", 1, true),
-    );
-    const thumbnail = vi
-      .spyOn(desktopApi, "artworkThumbnail")
-      .mockResolvedValue({
-        asset_sha256: "a".repeat(64),
-        choice_revision: 1,
-        png: [137, 80, 78, 71],
-      });
+    vi.spyOn(desktopApi, "artwork").mockResolvedValue(artworkState("sample", "cover", 1, true));
+    const thumbnail = vi.spyOn(desktopApi, "artworkThumbnail").mockResolvedValue({
+      asset_sha256: "a".repeat(64),
+      choice_revision: 1,
+      png: [137, 80, 78, 71],
+    });
     const cache = new ArtworkCache(7);
     await cache.load("sample", "cover");
     const image = cache.read("sample", "cover").image;
@@ -91,21 +85,15 @@ describe("disposable artwork display cache", () => {
       .spyOn(desktopApi, "artworkThumbnail")
       .mockRejectedValue(new Error("cache unavailable"));
     const cache = new ArtworkCache(7);
-    expect(
-      await cache.change("sample", "cover", 0, "owned.png", () => true),
-    ).toEqual(selected);
-    expect(cache.read("sample", "cover").state?.selection).toEqual(
-      selected.selection,
-    );
+    expect(await cache.change("sample", "cover", 0, "owned.png", () => true)).toEqual(selected);
+    expect(cache.read("sample", "cover").state?.selection).toEqual(selected.selection);
     vi.spyOn(desktopApi, "artwork").mockResolvedValue({
       ...selected,
       availability: "unavailable",
       reason: "Selected image missing; choice retained.",
     });
     await cache.load("sample", "cover", true);
-    expect(cache.read("sample", "cover").state?.reason).toContain(
-      "choice retained",
-    );
+    expect(cache.read("sample", "cover").state?.reason).toContain("choice retained");
     expect(thumbnails).toHaveBeenCalledTimes(1);
   });
 
@@ -120,13 +108,7 @@ describe("disposable artwork display cache", () => {
     const cache = new ArtworkCache(7);
     const load = cache.load("sample", "detail");
     let current = true;
-    const mutation = cache.change(
-      "sample",
-      "cover",
-      0,
-      "old-picker.png",
-      () => current,
-    );
+    const mutation = cache.change("sample", "cover", 0, "old-picker.png", () => current);
     current = false;
     finish(artworkState("sample", "detail"));
     await load;
@@ -168,11 +150,8 @@ describe("disposable artwork display cache", () => {
     const cache = new ArtworkCache(1);
     const leave = cache.subscribe("visible", "cover", () => {});
     await cache.load("visible", "cover");
-    for (let index = 0; index < 40; index++)
-      await cache.load(`other-${index}`, "cover");
-    expect(cache.read("visible", "cover").state?.choice.port_id).toBe(
-      "visible",
-    );
+    for (let index = 0; index < 40; index++) await cache.load(`other-${index}`, "cover");
+    expect(cache.read("visible", "cover").state?.choice.port_id).toBe("visible");
     leave();
     expect(cache.read("visible", "cover").state).toBeUndefined();
   });
@@ -190,23 +169,17 @@ describe("disposable artwork display cache", () => {
   });
 
   it("refuses oversized previews and isolates library generations", async () => {
-    vi.spyOn(desktopApi, "artwork").mockImplementation(
-      async (_port, _slot, generation) =>
-        artworkState("sample", "cover", generation, true),
+    vi.spyOn(desktopApi, "artwork").mockImplementation(async (_port, _slot, generation) =>
+      artworkState("sample", "cover", generation, true),
     );
-    vi.spyOn(desktopApi, "artworkThumbnail").mockImplementation(
-      async (_port, _slot, revision) => ({
-        asset_sha256: "a".repeat(64),
-        choice_revision: revision,
-        png: new Array<number>(1024 * 1024 + 1).fill(0),
-      }),
-    );
+    vi.spyOn(desktopApi, "artworkThumbnail").mockImplementation(async (_port, _slot, revision) => ({
+      asset_sha256: "a".repeat(64),
+      choice_revision: revision,
+      png: new Array<number>(1024 * 1024 + 1).fill(0),
+    }));
     const first = new ArtworkCache(1),
       second = new ArtworkCache(2);
-    await Promise.all([
-      first.load("sample", "cover"),
-      second.load("sample", "cover"),
-    ]);
+    await Promise.all([first.load("sample", "cover"), second.load("sample", "cover")]);
     expect(first.read("sample", "cover").state?.choice.revision).toBe(1);
     expect(second.read("sample", "cover").state?.choice.revision).toBe(2);
     expect(second.read("sample", "cover").image).toBeUndefined();

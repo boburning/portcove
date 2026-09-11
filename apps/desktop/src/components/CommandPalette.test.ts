@@ -4,11 +4,7 @@ import { Boxes, Library } from "lucide-react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
-import {
-  CommandPalette,
-  filterCommands,
-  type PaletteCommand,
-} from "./CommandPalette";
+import { CommandPalette, filterCommands, type PaletteCommand } from "./CommandPalette";
 
 const commands: PaletteCommand[] = [
   {
@@ -36,21 +32,17 @@ describe("command palette", () => {
     );
     expect(html).toContain('role="dialog"');
     expect(html).toContain('aria-labelledby="command-palette-title"');
-    expect(html).toContain(
-      '<h2 class="sr-only" id="command-palette-title">Portcove commands</h2>',
-    );
+    expect(html).toContain('<h2 class="sr-only" id="command-palette-title">Portcove commands</h2>');
     expect(html).toContain('aria-label="Search commands"');
   });
 
   it("matches labels, descriptions, and keywords with every search term", () => {
-    expect(
-      filterCommands(commands, "installed collection").map(
-        (command) => command.id,
-      ),
-    ).toEqual(["library"]);
-    expect(
-      filterCommands(commands, "browse port").map((command) => command.id),
-    ).toEqual(["catalog"]);
+    expect(filterCommands(commands, "installed collection").map((command) => command.id)).toEqual([
+      "library",
+    ]);
+    expect(filterCommands(commands, "browse port").map((command) => command.id)).toEqual([
+      "catalog",
+    ]);
     expect(filterCommands(commands, "missing")).toEqual([]);
   });
 
@@ -103,10 +95,10 @@ describe("command search transitions", () => {
     const search = host.querySelector("input")!;
     const change = async (value: string) =>
       act(async () => {
-        Object.getOwnPropertyDescriptor(
-          HTMLInputElement.prototype,
-          "value",
-        )!.set!.call(search, value);
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
+          search,
+          value,
+        );
         search.dispatchEvent(new Event("input", { bubbles: true }));
       });
     const key = async (value: string) =>
@@ -120,9 +112,7 @@ describe("command search transitions", () => {
         );
       });
     await change("owned-no-matching-command");
-    expect(host.querySelector('[role="status"]')?.textContent).toContain(
-      "No command matches",
-    );
+    expect(host.querySelector('[role="status"]')?.textContent).toContain("No command matches");
     expect(host.querySelector('[role="listbox"]')).toBeNull();
     expect(search.getAttribute("aria-expanded")).toBe("false");
     expect(search.hasAttribute("aria-controls")).toBe(false);
@@ -133,12 +123,8 @@ describe("command search transitions", () => {
     expect(search.hasAttribute("aria-activedescendant")).toBe(false);
     await change("library");
     expect(search.getAttribute("aria-expanded")).toBe("true");
-    expect(search.getAttribute("aria-activedescendant")).toBe(
-      "command-library",
-    );
-    expect(
-      host.querySelector('[role="option"]')?.getAttribute("aria-selected"),
-    ).toBe("true");
+    expect(search.getAttribute("aria-activedescendant")).toBe("command-library");
+    expect(host.querySelector('[role="option"]')?.getAttribute("aria-selected")).toBe("true");
     await key("Enter");
     expect(action).toHaveBeenCalledOnce();
     expect(close).toHaveBeenCalledOnce();

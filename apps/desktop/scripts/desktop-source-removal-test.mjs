@@ -30,29 +30,20 @@ export async function sourceRemovalScenario({
     const install = command(["status", port.id]).active;
     const paths = command(["paths", port.id]);
     const relative = path.relative(library, paths.user_data_root);
-    assert.ok(
-      relative && !relative.startsWith("..") && !path.isAbsolute(relative),
-    );
+    assert.ok(relative && !relative.startsWith("..") && !path.isAbsolute(relative));
     await mkdir(paths.user_data_root, { recursive: true });
-    const save = path.join(
-      paths.user_data_root,
-      "owned-source-review-save.bin",
-    );
+    const save = path.join(paths.user_data_root, "owned-source-review-save.bin");
     await writeFile(save, "source removal must preserve this save", {
       flag: "wx",
     });
     const backup = command(["backup", "create", port.id]);
     const preserved = await Promise.all(
-      [
-        source.path,
-        save,
-        path.join(backup.path, "data/owned-source-review-save.bin"),
-      ].map(fileIdentity),
+      [source.path, save, path.join(backup.path, "data/owned-source-review-save.bin")].map(
+        fileIdentity,
+      ),
     );
     const others = () =>
-      command(["source", "list"]).filter(
-        (item) => item.profile_id !== source.profile_id,
-      );
+      command(["source", "list"]).filter((item) => item.profile_id !== source.profile_id);
     const otherSources = others();
     await browser.navigate().refresh();
     const { button, click } = reviewControls(browser);
@@ -60,13 +51,8 @@ export async function sourceRemovalScenario({
     const row = By.css(`[data-source-profile="${source.profile_id}"]`);
     const dialog = By.css('[aria-labelledby="source-removal-title"]');
     const openReview = async () => {
-      await click(
-        By.css(`[data-source-profile="${source.profile_id}"] .danger`),
-      );
-      await browser.wait(
-        until.elementLocated(button("Continue to removal confirmation")),
-        15_000,
-      );
+      await click(By.css(`[data-source-profile="${source.profile_id}"] .danger`));
+      await browser.wait(until.elementLocated(button("Continue to removal confirmation")), 15_000);
     };
     await openReview();
     let text = await browser.findElement(dialog).getText();
@@ -77,9 +63,7 @@ export async function sourceRemovalScenario({
     );
     await click(button("Keep source reference"));
     assert.deepEqual(
-      command(["source", "list"]).find(
-        (item) => item.profile_id === source.profile_id,
-      ),
+      command(["source", "list"]).find((item) => item.profile_id === source.profile_id),
       source,
     );
     await openReview();
@@ -91,21 +75,11 @@ export async function sourceRemovalScenario({
       "source-native-before-consent",
     );
     assert.deepEqual(
-      command(["source", "list"]).find(
-        (item) => item.profile_id === source.profile_id,
-      ),
+      command(["source", "list"]).find((item) => item.profile_id === source.profile_id),
       source,
     );
-    await confirmNative(
-      "Confirm source removal",
-      "Cancel",
-      source.path,
-      "source-native-cancelled",
-    );
-    await browser.wait(
-      async () => (await browser.findElements(dialog)).length === 0,
-      15_000,
-    );
+    await confirmNative("Confirm source removal", "Cancel", source.path, "source-native-cancelled");
+    await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 15_000);
     await openReview();
     const replacement = path.join(output, "owned-replacement-jak1.iso");
     await writeFile(replacement, "changed owned source registration", {
@@ -114,10 +88,7 @@ export async function sourceRemovalScenario({
     command(["source", "add", source.profile_id, replacement]);
     preserved.push(await fileIdentity(replacement));
     await click(button("Continue to removal confirmation"));
-    await browser.wait(
-      until.elementLocated(button("Review source removal again")),
-      15_000,
-    );
+    await browser.wait(until.elementLocated(button("Review source removal again")), 15_000);
     const generation = (await invoke("get_bootstrap_status")).value.generation;
     const reviewed = await invoke("preview_source_removal", {
       profileId: source.profile_id,
@@ -132,10 +103,7 @@ export async function sourceRemovalScenario({
     assert.equal(stale.ok, false);
     assert.equal(stale.error.code, "conflict");
     await click(button("Review source removal again"));
-    await browser.wait(
-      until.elementLocated(button("Continue to removal confirmation")),
-      15_000,
-    );
+    await browser.wait(until.elementLocated(button("Continue to removal confirmation")), 15_000);
     text = await browser.findElement(dialog).getText();
     assert.ok(text.includes(replacement));
     await browser.executeScript(
@@ -150,10 +118,7 @@ export async function sourceRemovalScenario({
       flag: "wx",
     });
     artifacts.push(screenshot);
-    await assertCompactReview(
-      browser,
-      '[aria-labelledby="source-removal-title"]',
-    );
+    await assertCompactReview(browser, '[aria-labelledby="source-removal-title"]');
     const compact = path.join(output, "native-source-removal-compact.png");
     await writeFile(compact, await browser.takeScreenshot(), {
       encoding: "base64",
@@ -167,26 +132,15 @@ export async function sourceRemovalScenario({
       replacement,
       "source-native-confirmed",
     );
-    await browser.wait(
-      async () => (await browser.findElements(row)).length === 0,
-      15_000,
-    );
-    assert.ok(
-      !command(["source", "list"]).some(
-        (item) => item.profile_id === source.profile_id,
-      ),
-    );
+    await browser.wait(async () => (await browser.findElements(row)).length === 0, 15_000);
+    assert.ok(!command(["source", "list"]).some((item) => item.profile_id === source.profile_id));
     assert.deepEqual(others(), otherSources);
     assert.deepEqual(
       await Promise.all(preserved.map((item) => fileIdentity(item.path))),
       preserved,
     );
     assert.equal(command(["status", port.id]).active.id, install.id);
-    assert.ok(
-      command(["backup", "list", port.id]).backups.some(
-        (item) => item.id === backup.id,
-      ),
-    );
+    assert.ok(command(["backup", "list", port.id]).backups.some((item) => item.id === backup.id));
     const result = path.join(output, "source-removal-result.json");
     await writeFile(
       result,

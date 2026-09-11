@@ -11,10 +11,7 @@ import type {
 } from "../types";
 import { OutputLocationControl } from "./OutputLocation";
 
-const defaultLocation = (
-  portId: string,
-  custom?: string,
-): PortOutputLocation => ({
+const defaultLocation = (portId: string, custom?: string): PortOutputLocation => ({
   port_id: portId,
   library_root: "E:/Portcove",
   default_output_directory: `E:/Portcove/versions/${portId}`,
@@ -71,8 +68,7 @@ function button(label: string, within: ParentNode = container) {
   const match = [...within.querySelectorAll("button")].find((candidate) =>
     candidate.textContent?.includes(label),
   );
-  if (!(match instanceof HTMLButtonElement))
-    throw new Error(`missing button: ${label}`);
+  if (!(match instanceof HTMLButtonElement)) throw new Error(`missing button: ${label}`);
   return match;
 }
 
@@ -84,13 +80,9 @@ async function click(label: string, within: ParentNode = container) {
 
 async function changePath(path: string, within: ParentNode = container) {
   const input = within.querySelector("input");
-  if (!(input instanceof HTMLInputElement))
-    throw new Error("missing output path input");
+  if (!(input instanceof HTMLInputElement)) throw new Error("missing output path input");
   await act(async () => {
-    const setter = Object.getOwnPropertyDescriptor(
-      HTMLInputElement.prototype,
-      "value",
-    )?.set;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
     if (setter) Reflect.apply(setter, input, [path]);
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
@@ -129,37 +121,29 @@ describe("per-game Export / install folder", () => {
       2,
       "Relocation cleanup is pending for 2 old folders. Portcove will retry only when their reviewed contents are unchanged.",
     ],
-  ])(
-    "keeps pending cleanup explicit for %s old folders",
-    async (count, message) => {
-      vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(
-        defaultLocation("sample"),
-      );
-      vi.mocked(desktopApi.outputRelocationStatus).mockResolvedValue({
-        port_id: "sample",
-        operation_id: "pending",
-        destination_root: "F:/Games/Sample",
-        phase: "cleanup_pending",
-        last_error: null,
-        cleanup_pending_paths: Array.from(
-          { length: Number(count) },
-          (_, index) => `E:/Portcove/old-${index}`,
-        ),
-      });
-      await render(<OutputLocationControl portId="sample" generation={7} />);
-      expect(container.textContent).toContain(message);
-      expect(container.textContent).not.toContain("folder(s)");
-    },
-  );
+  ])("keeps pending cleanup explicit for %s old folders", async (count, message) => {
+    vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(defaultLocation("sample"));
+    vi.mocked(desktopApi.outputRelocationStatus).mockResolvedValue({
+      port_id: "sample",
+      operation_id: "pending",
+      destination_root: "F:/Games/Sample",
+      phase: "cleanup_pending",
+      last_error: null,
+      cleanup_pending_paths: Array.from(
+        { length: Number(count) },
+        (_, index) => `E:/Portcove/old-${index}`,
+      ),
+    });
+    await render(<OutputLocationControl portId="sample" generation={7} />);
+    expect(container.textContent).toContain(message);
+    expect(container.textContent).not.toContain("folder(s)");
+  });
 
   it("keeps an unknown destination availability blocked", async () => {
-    vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(
-      defaultLocation("sample"),
-    );
+    vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(defaultLocation("sample"));
     vi.spyOn(desktopApi, "previewOutputLocation").mockResolvedValue(
       destinationPreview("sample", "F:/Games/Sample", {
-        availability:
-          "future_availability" as OutputDestinationPreview["availability"],
+        availability: "future_availability" as OutputDestinationPreview["availability"],
       }),
     );
     await render(<OutputLocationControl portId="sample" generation={7} />);
@@ -170,9 +154,7 @@ describe("per-game Export / install folder", () => {
   });
 
   it("does not relocate installations using an unknown ownership result", async () => {
-    vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(
-      defaultLocation("sample"),
-    );
+    vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(defaultLocation("sample"));
     const affected = {
       install_id: "install-1",
       version: "1.0",
@@ -218,9 +200,7 @@ describe("per-game Export / install folder", () => {
   it.each(["future_ownership", "constructor", "__proto__"])(
     "does not apply an unfamiliar destination ownership %s",
     async (ownership) => {
-      vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(
-        defaultLocation("sample"),
-      );
+      vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(defaultLocation("sample"));
       const preview = destinationPreview("sample", "F:/Games/Sample", {
         ownership: ownership as OutputDestinationPreview["ownership"],
       });
@@ -240,9 +220,7 @@ describe("per-game Export / install folder", () => {
   );
 
   it("renders inherited, unavailable, full, and validation-error states without offering an unsafe apply", async () => {
-    vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(
-      defaultLocation("sample"),
-    );
+    vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(defaultLocation("sample"));
     vi.spyOn(desktopApi, "previewOutputLocation")
       .mockResolvedValueOnce(
         destinationPreview("sample", "F:/Games/Sample", {
@@ -261,22 +239,14 @@ describe("per-game Export / install folder", () => {
       );
 
     await render(<OutputLocationControl portId="sample" generation={7} />);
-    expect(container.textContent).toContain(
-      "Inherited from the Portcove library",
-    );
-    expect(container.textContent).toContain(
-      "future installs for this game only",
-    );
+    expect(container.textContent).toContain("Inherited from the Portcove library");
+    expect(container.textContent).toContain("future installs for this game only");
     const input = container.querySelector("input")!;
-    expect(
-      container.querySelector(`label[for="${input.id}"]`)?.textContent,
-    ).toContain("Future Export / install folder");
-    expect(input.getAttribute("aria-describedby")).toBe(
-      "output-location-note-sample",
+    expect(container.querySelector(`label[for="${input.id}"]`)?.textContent).toContain(
+      "Future Export / install folder",
     );
-    expect(button("Review future folder").hasAttribute("data-focusable")).toBe(
-      true,
-    );
+    expect(input.getAttribute("aria-describedby")).toBe("output-location-note-sample");
+    expect(button("Review future folder").hasAttribute("data-focusable")).toBe(true);
 
     await changePath("F:/Games/Sample");
     await click("Review future folder");
@@ -288,9 +258,7 @@ describe("per-game Export / install folder", () => {
     await changePath("G:/Games/Sample");
     await click("Review future folder");
     expect(container.textContent).toContain("Full · no free space");
-    expect(container.textContent).toContain(
-      "game output volume has no available space",
-    );
+    expect(container.textContent).toContain("game output volume has no available space");
     expect(button("Use this folder for future installs").disabled).toBe(true);
   });
 
@@ -305,9 +273,7 @@ describe("per-game Export / install folder", () => {
       reset_to_default: true,
       ownership: "library_default",
     });
-    const applyReset = vi
-      .spyOn(desktopApi, "resetOutputLocation")
-      .mockResolvedValue(reset);
+    const applyReset = vi.spyOn(desktopApi, "resetOutputLocation").mockResolvedValue(reset);
     const onChanged = vi.fn();
     const onApplying = vi.fn();
 
@@ -322,9 +288,7 @@ describe("per-game Export / install folder", () => {
     expect(container.textContent).toContain("Custom for this game");
     const trigger = button("Review library default");
     await click("Review library default");
-    expect(container.textContent).toContain(
-      "Use library default for future installs",
-    );
+    expect(container.textContent).toContain("Use library default for future installs");
     expect(container.textContent).toContain("Future placement only");
     await click("Cancel review");
     expect(document.activeElement).toBe(trigger);
@@ -334,24 +298,20 @@ describe("per-game Export / install folder", () => {
     expect(applyReset).toHaveBeenCalledWith("sample", "a".repeat(64), 8);
     expect(onChanged).toHaveBeenCalledTimes(1);
     expect(onApplying.mock.calls).toEqual([[true], [false]]);
-    expect(container.textContent).toContain(
-      "Inherited from the Portcove library",
-    );
+    expect(container.textContent).toContain("Inherited from the Portcove library");
   });
 
   it("keeps mixed roots independent and disables controls during another operation", async () => {
     vi.spyOn(desktopApi, "outputLocation").mockImplementation(async (portId) =>
       defaultLocation(portId, `F:/Games/${portId}`),
     );
-    vi.spyOn(desktopApi, "previewOutputLocation").mockImplementation(
-      async (portId) => ({
-        ...destinationPreview(portId, `E:/Portcove/versions/${portId}`),
-        current: defaultLocation(portId, `F:/Games/${portId}`),
-        proposed: defaultLocation(portId),
-        reset_to_default: true,
-        ownership: "library_default",
-      }),
-    );
+    vi.spyOn(desktopApi, "previewOutputLocation").mockImplementation(async (portId) => ({
+      ...destinationPreview(portId, `E:/Portcove/versions/${portId}`),
+      current: defaultLocation(portId, `F:/Games/${portId}`),
+      proposed: defaultLocation(portId),
+      reset_to_default: true,
+      ownership: "library_default",
+    }));
     const reset = vi
       .spyOn(desktopApi, "resetOutputLocation")
       .mockImplementation(async (portId) => defaultLocation(portId));
@@ -362,19 +322,13 @@ describe("per-game Export / install folder", () => {
           <OutputLocationControl portId="first" generation={9} />
         </div>
         <div data-port="second">
-          <OutputLocationControl
-            portId="second"
-            generation={9}
-            busy="install"
-          />
+          <OutputLocationControl portId="second" generation={9} busy="install" />
         </div>
       </>,
     );
     const first = container.querySelector('[data-port="first"]')!;
     const second = container.querySelector('[data-port="second"]')!;
-    expect((second.querySelector("input") as HTMLInputElement).disabled).toBe(
-      true,
-    );
+    expect((second.querySelector("input") as HTMLInputElement).disabled).toBe(true);
     await click("Review library default", first);
     await click("Use library default for future installs", first);
     expect(reset).toHaveBeenCalledTimes(1);
@@ -383,9 +337,7 @@ describe("per-game Export / install folder", () => {
   });
 
   it("keeps the newest path preview, suppresses stale failures, and requires a fresh review after apply conflict", async () => {
-    vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(
-      defaultLocation("sample"),
-    );
+    vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(defaultLocation("sample"));
     const old = deferred<OutputDestinationPreview>();
     const current = deferred<OutputDestinationPreview>();
     vi.spyOn(desktopApi, "previewOutputLocation")
@@ -399,9 +351,7 @@ describe("per-game Export / install folder", () => {
     await changePath("F:/Old");
     let oldReview!: Promise<void>;
     await act(async () => {
-      oldReview = Promise.resolve(button("Review future folder").click()).then(
-        () => undefined,
-      );
+      oldReview = Promise.resolve(button("Review future folder").click()).then(() => undefined);
     });
     await changePath("F:/Current");
     await click("Review future folder");
@@ -417,19 +367,10 @@ describe("per-game Export / install folder", () => {
     expect(container.textContent).not.toContain("stale preview failed");
 
     await click("Use this folder for future installs");
-    expect(apply).toHaveBeenCalledWith(
-      "sample",
-      "F:/Current",
-      "a".repeat(64),
-      10,
-    );
+    expect(apply).toHaveBeenCalledWith("sample", "F:/Current", "a".repeat(64), 10);
     expect(container.textContent).toContain("destination capacity changed");
-    expect(container.textContent).toContain(
-      "Review the current destination again",
-    );
-    expect(container.textContent).not.toContain(
-      "Use this folder for future installs",
-    );
+    expect(container.textContent).toContain("Review the current destination again");
+    expect(container.textContent).not.toContain("Use this folder for future installs");
   });
 
   it("discards an old preview after the port and library generation change", async () => {
@@ -460,18 +401,8 @@ describe("per-game Export / install folder", () => {
     expect(container.textContent).toContain("F:/Second");
     expect(container.textContent).not.toContain("F:/First");
     expect(container.textContent).not.toContain("old library failed");
-    expect(desktopApi.previewOutputLocation).toHaveBeenNthCalledWith(
-      1,
-      "first",
-      "F:/First",
-      11,
-    );
-    expect(desktopApi.previewOutputLocation).toHaveBeenNthCalledWith(
-      2,
-      "second",
-      "F:/Second",
-      12,
-    );
+    expect(desktopApi.previewOutputLocation).toHaveBeenNthCalledWith(1, "first", "F:/First", 11);
+    expect(desktopApi.previewOutputLocation).toHaveBeenNthCalledWith(2, "second", "F:/Second", 12);
   });
 
   it("releases the detail busy state when the selected game changes during apply", async () => {
@@ -528,9 +459,7 @@ describe("per-game Export / install folder", () => {
       previous: false,
       staged: false,
     };
-    vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(
-      defaultLocation("sample"),
-    );
+    vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(defaultLocation("sample"));
     vi.spyOn(desktopApi, "previewOutputLocation").mockResolvedValue(
       destinationPreview("sample", "F:/Games/Sample", {
         affected_installs: [affected],
@@ -575,9 +504,7 @@ describe("per-game Export / install folder", () => {
       backups_will_move: false,
       plan_sha256: "b".repeat(64),
     } satisfies OutputRelocationPlan;
-    const reviewMove = vi
-      .spyOn(desktopApi, "planOutputRelocation")
-      .mockResolvedValue(plan);
+    const reviewMove = vi.spyOn(desktopApi, "planOutputRelocation").mockResolvedValue(plan);
     const move = vi.spyOn(desktopApi, "relocateOutput").mockResolvedValue({
       operation_id: "operation-1",
       port_id: "sample",
@@ -588,34 +515,17 @@ describe("per-game Export / install folder", () => {
     });
     const onApplying = vi.fn();
 
-    await render(
-      <OutputLocationControl
-        portId="sample"
-        generation={14}
-        onApplying={onApplying}
-      />,
-    );
+    await render(<OutputLocationControl portId="sample" generation={14} onApplying={onApplying} />);
     await changePath("F:/Games/Sample");
     await click("Review future folder");
-    expect(container.textContent).toContain(
-      "remain at their recorded locations",
-    );
+    expect(container.textContent).toContain("remain at their recorded locations");
     await click("Review moving existing versions");
     expect(reviewMove).toHaveBeenCalledWith("sample", "F:/Games/Sample", 14);
-    expect(container.textContent).toContain(
-      "SourcesStay in the central source library",
-    );
-    expect(container.textContent).toContain(
-      "Saves and backupsStay in their current folders",
-    );
+    expect(container.textContent).toContain("SourcesStay in the central source library");
+    expect(container.textContent).toContain("Saves and backupsStay in their current folders");
     expect(container.textContent).toContain("active");
     await click("Move existing versions");
-    expect(move).toHaveBeenCalledWith(
-      "sample",
-      "F:/Games/Sample",
-      "b".repeat(64),
-      14,
-    );
+    expect(move).toHaveBeenCalledWith("sample", "F:/Games/Sample", "b".repeat(64), 14);
     expect(onApplying.mock.calls).toEqual([[true], [false]]);
     expect(container.textContent).toContain("Move completed");
     expect(container.textContent).toContain(

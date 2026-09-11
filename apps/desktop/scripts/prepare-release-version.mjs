@@ -48,9 +48,7 @@ function repositoryGit(repository, environment = {}) {
 function sourceFile(git, commit, filename) {
   const entry = git(["ls-tree", commit, "--", filename]).trim();
   if (!entry.startsWith("100644 blob ") || !entry.endsWith(`\t${filename}`))
-    throw new Error(
-      `version authority must be a regular source blob: ${filename}`,
-    );
+    throw new Error(`version authority must be a regular source blob: ${filename}`);
   return git(["show", `${commit}:${filename}`]);
 }
 
@@ -72,22 +70,16 @@ function workspacePackages(git, commit, cargo) {
   if (!Array.isArray(members) || !members.length)
     throw new Error("explicit workspace members are required");
   const names = members.map((member) => {
-    if (
-      typeof member !== "string" ||
-      !/^[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)+$/.test(member)
-    )
+    if (typeof member !== "string" || !/^[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)+$/.test(member))
       throw new Error("unsupported workspace member path");
     const manifest = sourceFile(git, commit, `${member}/Cargo.toml`);
-    const table = manifest.match(
-      /^\[package\]\r?\n([\s\S]*?)(?=^\[|(?![\s\S]))/m,
-    )?.[1];
+    const table = manifest.match(/^\[package\]\r?\n([\s\S]*?)(?=^\[|(?![\s\S]))/m)?.[1];
     const name = table?.match(/^name\s*=\s*"([a-zA-Z0-9_-]+)"\s*$/m)?.[1];
     if (!name || !/^version\.workspace\s*=\s*true\s*$/m.test(table))
       throw new Error(`workspace version inheritance is required: ${member}`);
     return name;
   });
-  if (new Set(names).size !== names.length)
-    throw new Error("duplicate workspace package identity");
+  if (new Set(names).size !== names.length) throw new Error("duplicate workspace package identity");
   return names;
 }
 
@@ -105,16 +97,14 @@ function updatedLock(lock, names, base, version) {
         block,
         /^version = "([^"]+)"$/gm,
         (_line, current) => {
-          if (current !== base)
-            throw new Error(`workspace lock version drift: ${name}`);
+          if (current !== base) throw new Error(`workspace lock version drift: ${name}`);
           return `version = "${version}"`;
         },
         `${name} lock version`,
       );
     },
   );
-  if (found.size !== names.length)
-    throw new Error("workspace package missing from Cargo.lock");
+  if (found.size !== names.length) throw new Error("workspace package missing from Cargo.lock");
   return updated;
 }
 
@@ -134,14 +124,8 @@ function versionedFiles(git, proposal) {
       "workspace version",
     ),
   );
-  files.set(
-    "Cargo.lock",
-    updatedLock(sourceFile(git, source, "Cargo.lock"), names, base, version),
-  );
-  for (const filename of [
-    "apps/desktop/package.json",
-    "apps/desktop/src-tauri/tauri.conf.json",
-  ]) {
+  files.set("Cargo.lock", updatedLock(sourceFile(git, source, "Cargo.lock"), names, base, version));
+  for (const filename of ["apps/desktop/package.json", "apps/desktop/src-tauri/tauri.conf.json"]) {
     const original = sourceFile(git, source, filename);
     if (JSON.parse(original).version !== base)
       throw new Error(`frozen version authority drift: ${filename}`);
@@ -169,21 +153,13 @@ function allocationTransaction(git, refs, preparedCommit, operation) {
   // Readers of multiple loose refs can observe part of a committed transaction.
   // Verify under the same locks used for creation, with bounded lock contention.
   git(
-    [
-      "-c",
-      "core.filesRefLockTimeout=1000",
-      "update-ref",
-      "--no-deref",
-      "--stdin",
-    ],
+    ["-c", "core.filesRefLockTimeout=1000", "update-ref", "--no-deref", "--stdin"],
     `start\n${refs.map((ref) => `${operation} ${ref} ${preparedCommit}`).join("\n")}\nprepare\ncommit\n`,
   );
 }
 
 async function preparedTree(repository, proposal) {
-  const temporary = await mkdtemp(
-    path.join(os.tmpdir(), "portcove-version-index-"),
-  );
+  const temporary = await mkdtemp(path.join(os.tmpdir(), "portcove-version-index-"));
   try {
     const git = repositoryGit(repository, {
       GIT_INDEX_FILE: path.join(temporary, "index"),
@@ -192,12 +168,7 @@ async function preparedTree(repository, proposal) {
     git(["read-tree", proposal.source_commit]);
     for (const [filename, contents] of files) {
       const blob = git(["hash-object", "-w", "--stdin"], contents).trim();
-      git([
-        "update-index",
-        "--add",
-        "--cacheinfo",
-        `100644,${blob},${filename}`,
-      ]);
+      git(["update-index", "--add", "--cacheinfo", `100644,${blob},${filename}`]);
     }
     return git(["write-tree"]).trim();
   } finally {
@@ -211,19 +182,12 @@ async function preparedTree(repository, proposal) {
  * A protected publisher must provision its own single coordinator and fresh
  * complete published inventory; this offline operation never pushes or tags.
  */
-export async function prepareReleaseVersion(
-  repository,
-  classification,
-  publishedVersions,
-) {
+export async function prepareReleaseVersion(repository, classification, publishedVersions) {
   const proposal = proposeApplicationVersion(classification, publishedVersions);
   const git = repositoryGit(path.resolve(repository));
   if (
-    git([
-      "rev-parse",
-      "--verify",
-      `${proposal.source_commit}^{commit}`,
-    ]).trim() !== proposal.source_commit
+    git(["rev-parse", "--verify", `${proposal.source_commit}^{commit}`]).trim() !==
+    proposal.source_commit
   )
     throw new Error("frozen commit does not resolve exactly");
   const tree = await preparedTree(repository, proposal);
@@ -233,12 +197,7 @@ export async function prepareReleaseVersion(
     migration_notes: classification.migration_notes ?? "",
   });
   const intentHash = createHash("sha256").update(intent).digest("hex");
-  const date = git([
-    "show",
-    "-s",
-    "--format=%cI",
-    proposal.source_commit,
-  ]).trim();
+  const date = git(["show", "-s", "--format=%cI", proposal.source_commit]).trim();
   const commitGit = repositoryGit(repository, {
     GIT_AUTHOR_NAME: "Portcove version preparation",
     GIT_AUTHOR_EMAIL: "version-preparation@portcove.invalid",
@@ -280,21 +239,14 @@ export async function prepareReleaseVersion(
   };
 }
 
-if (
-  process.argv[1] &&
-  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-) {
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [repository, inputPath] = process.argv.slice(2);
   if (process.argv.length !== 4)
     throw new Error("usage: prepare-release-version.mjs REPOSITORY INPUT.json");
   const input = JSON.parse(await readFile(inputPath, "utf8"));
   console.log(
     JSON.stringify(
-      await prepareReleaseVersion(
-        repository,
-        input.classification,
-        input.published_versions,
-      ),
+      await prepareReleaseVersion(repository, input.classification, input.published_versions),
     ),
   );
 }

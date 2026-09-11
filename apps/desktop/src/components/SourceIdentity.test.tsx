@@ -24,8 +24,7 @@ function report(stateCode = "recognized_exact"): SourceInspectionReport {
             { game_id: "game", variant_id: "other", representation_id: "raw" },
           ],
         }
-      : stateCode === "accepted_identity_unknown" ||
-          stateCode === "known_mismatch"
+      : stateCode === "accepted_identity_unknown" || stateCode === "known_mismatch"
         ? { state: "unrecognized" as const }
         : {
             state: "recognized" as const,
@@ -209,9 +208,7 @@ function report(stateCode = "recognized_exact"): SourceInspectionReport {
           immutable_review_url: "https://example.com/review/commit",
           live_review_url: null,
           evidence_gap: null,
-          applicability: [
-            { upstream_ref: "v1", artifact_sha256: "f".repeat(64) },
-          ],
+          applicability: [{ upstream_ref: "v1", artifact_sha256: "f".repeat(64) }],
           aliases: [],
           tombstones: [],
         },
@@ -224,13 +221,8 @@ function report(stateCode = "recognized_exact"): SourceInspectionReport {
                 ? { state: "unreviewed_for_release" }
                 : { state: "supported", contract_id: "game-port" },
         release_applicability: {
-          state_code:
-            stateCode === "release_inapplicable"
-              ? "not_rebound"
-              : "artifact_bound",
-          reviewed_bindings: [
-            { upstream_ref: "v1", artifact_sha256: "f".repeat(64) },
-          ],
+          state_code: stateCode === "release_inapplicable" ? "not_rebound" : "artifact_bound",
+          reviewed_bindings: [{ upstream_ref: "v1", artifact_sha256: "f".repeat(64) }],
         },
         qualification: {
           legacy_automated_platforms: ["windows-x86-64"],
@@ -292,8 +284,7 @@ describe("source identity presentation", () => {
         state as SourceInspectionReport["applications"][number]["contract_result"]["state"];
       value.applications[0].release_applicability.state_code = state;
       const admission = value.inspection?.assessment.admission;
-      if (admission?.state === "admitted")
-        admission.mode = state as typeof admission.mode;
+      if (admission?.state === "admitted") admission.mode = state as typeof admission.mode;
       const html = renderToStaticMarkup(<SourceIdentityPanel report={value} />);
       for (const label of [
         "Result unavailable",
@@ -330,9 +321,10 @@ describe("source identity presentation", () => {
     ["recognized_not_listed", "Recognized · not listed"],
     ["release_inapplicable", "Not applicable to this release"],
   ])("renders %s without collapsing its meaning", (state, expected) => {
-    const html = renderToStaticMarkup(
-      <SourceIdentityPanel report={report(state)} />,
-    ).replaceAll("&#x27;", "'");
+    const html = renderToStaticMarkup(<SourceIdentityPanel report={report(state)} />).replaceAll(
+      "&#x27;",
+      "'",
+    );
     expect(html).toContain(expected);
     expect(html).toContain("Source result:");
   });
@@ -395,9 +387,7 @@ describe("source identity controls", () => {
   it("keeps copy and evidence controls named, keyboard reachable, and focused across a current report refresh", async () => {
     const open = vi.fn();
     await act(async () =>
-      root.render(
-        <SourceIdentityPanel report={report()} openEvidence={open} />,
-      ),
+      root.render(<SourceIdentityPanel report={report()} openEvidence={open} />),
     );
     const details = host.querySelector("details")!;
     details.open = true;
@@ -409,14 +399,10 @@ describe("source identity controls", () => {
     )!;
     expect(copy.tabIndex).toBe(0);
     expect(evidence.tabIndex).toBe(0);
-    expect(host.querySelector("summary")?.hasAttribute("data-focusable")).toBe(
-      true,
-    );
+    expect(host.querySelector("summary")?.hasAttribute("data-focusable")).toBe(true);
     copy.focus();
     await act(async () =>
-      root.render(
-        <SourceIdentityPanel report={report()} openEvidence={open} />,
-      ),
+      root.render(<SourceIdentityPanel report={report()} openEvidence={open} />),
     );
     expect(document.activeElement).toBe(copy);
     await act(async () => evidence.click());
@@ -425,9 +411,7 @@ describe("source identity controls", () => {
 
   it("puts disclosure, copy, and evidence actions in the shared keyboard and controller inventory", async () => {
     await act(async () =>
-      root.render(
-        <SourceIdentityPanel report={report()} openEvidence={vi.fn()} />,
-      ),
+      root.render(<SourceIdentityPanel report={report()} openEvidence={vi.fn()} />),
     );
     host.querySelector("details")!.open = true;
     const names = focusableControls(host).map(

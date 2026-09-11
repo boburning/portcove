@@ -24,9 +24,7 @@ if (
   !(await lstat(library)).isDirectory() ||
   !(await lstat(join(library, "portcove.sqlite3"))).isFile()
 ) {
-  throw new Error(
-    "Use an existing CLI executable and initialized qualification library",
-  );
+  throw new Error("Use an existing CLI executable and initialized qualification library");
 }
 const hash = createHash("sha256");
 for await (const chunk of createReadStream(cli)) hash.update(chunk);
@@ -42,8 +40,7 @@ async function capture(...args) {
     },
   );
   const envelope = JSON.parse(stdout);
-  if (!envelope.ok)
-    throw new Error(`${args.join(" ")}: ${envelope.error?.message}`);
+  if (!envelope.ok) throw new Error(`${args.join(" ")}: ${envelope.error?.message}`);
   return envelope;
 }
 const commands = {
@@ -56,8 +53,7 @@ const commands = {
 };
 const evidence = {};
 // Sequential commands avoid taking a burst of library connections on slower hosts.
-for (const [label, args] of Object.entries(commands))
-  evidence[label] = await capture(...args);
+for (const [label, args] of Object.entries(commands)) evidence[label] = await capture(...args);
 const catalog = evidence.catalog.data;
 const statuses = evidence.status.data;
 if (!Array.isArray(statuses) || !Array.isArray(catalog.ports))
@@ -66,11 +62,7 @@ const installed = statuses.filter((status) => status.active);
 const observations = [];
 for (const status of installed) {
   const port = catalog.ports.find((port) => port.id === status.port_id);
-  evidence[`backups:${status.port_id}`] = await capture(
-    "backup",
-    "list",
-    status.port_id,
-  );
+  evidence[`backups:${status.port_id}`] = await capture("backup", "list", status.port_id);
   observations.push({
     port_id: status.port_id,
     name: port?.name ?? status.port_id,
@@ -101,11 +93,9 @@ const report = {
   evidence,
 };
 await mkdir(output); // A new directory preserves every earlier evidence capture.
-await writeFile(
-  join(output, "evidence.json"),
-  `${JSON.stringify(report, null, 2)}\n`,
-  { flag: "wx" },
-);
+await writeFile(join(output, "evidence.json"), `${JSON.stringify(report, null, 2)}\n`, {
+  flag: "wx",
+});
 const clean = (value) => String(value).replace(/[\r\n|]/g, " ");
 const rows = observations.map(
   (item) =>

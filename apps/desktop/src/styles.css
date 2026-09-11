@@ -69,11 +69,8 @@
 
   /* Product foundations. Space Grotesk and JetBrains Mono are optional local
      enhancements; the offline-safe system fallbacks preserve the same intent. */
-  --font-ui:
-    "Space Grotesk", "Aptos", "Segoe UI Variable", "Segoe UI", system-ui,
-    sans-serif;
-  --font-mono:
-    "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  --font-ui: "Space Grotesk", "Aptos", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas, monospace;
   --font-weight-regular: 450;
   --font-weight-medium: 600;
   --font-weight-bold: 750;
@@ -221,8 +218,7 @@
 
   /* Tactile depth without glow */
   --shadow-control: 0 1px 0 rgba(245, 243, 238, 0.06);
-  --shadow-raised:
-    0 1px 0 rgba(245, 243, 238, 0.06), 0 5px 14px rgba(0, 0, 0, 0.18);
+  --shadow-raised: 0 1px 0 rgba(245, 243, 238, 0.06), 0 5px 14px rgba(0, 0, 0, 0.18);
   --shadow-floating: 0 22px 70px rgba(0, 0, 0, 0.42);
   --shadow-pressed: inset 0 2px 4px rgba(0, 0, 0, 0.3);
 }
@@ -298,8 +294,7 @@
   --color-disabled-bg: var(--n64-gray-200);
 
   --shadow-control: 0 1px 0 rgba(255, 255, 255, 0.72);
-  --shadow-raised:
-    0 1px 0 rgba(255, 255, 255, 0.72), 0 5px 14px rgba(25, 26, 29, 0.1);
+  --shadow-raised: 0 1px 0 rgba(255, 255, 255, 0.72), 0 5px 14px rgba(25, 26, 29, 0.1);
   --shadow-floating: 0 22px 70px rgba(25, 26, 29, 0.24);
   --shadow-pressed: inset 0 2px 4px rgba(25, 26, 29, 0.16);
 }
@@ -512,8 +507,7 @@ kbd {
   display: block;
   flex: none;
   border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg)
-    var(--radius-sm);
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-sm);
   background: var(--color-brand-stage);
   box-shadow: var(--shadow-raised);
   object-fit: cover;
@@ -1298,8 +1292,7 @@ h2 {
   place-items: center;
   overflow: hidden;
   border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg)
-    var(--radius-sm);
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-sm);
   background: var(--color-brand-stage);
   box-shadow: var(--shadow-raised);
 }
@@ -2431,8 +2424,7 @@ select {
   min-width: 0;
   padding: var(--space-3);
   border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg)
-    var(--radius-sm);
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-sm);
   background: var(--color-brand-stage);
   box-shadow: var(--shadow-control);
 }

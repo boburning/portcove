@@ -1,16 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-const catalogPath = new URL(
-  "../crates/portcove-core/catalog/catalog.json",
-  import.meta.url,
-);
+const catalogPath = new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url);
 const mappingPath = new URL("./retcomm-psx-upstreams.json", import.meta.url);
 const catalog = JSON.parse(await readFile(catalogPath, "utf8"));
 const mappings = JSON.parse(await readFile(mappingPath, "utf8"));
-const psxPorts = catalog.ports.filter(
-  (port) => port.adapter === "psx-recomp-managed",
-);
+const psxPorts = catalog.ports.filter((port) => port.adapter === "psx-recomp-managed");
 const failures = [];
 const offline = process.argv.includes("--offline");
 
@@ -20,25 +15,18 @@ for (const port of psxPorts) {
     failures.push(`${port.id}: missing RetComM title mapping`);
   }
   if ((port.release.provider ?? "github") !== "github") {
-    failures.push(
-      `${port.id}: RetComM game upstream must resolve directly through GitHub`,
-    );
+    failures.push(`${port.id}: RetComM game upstream must resolve directly through GitHub`);
   }
   if (
-    port.release.repository.toLowerCase() ===
-    "technicallycomputers/retcomm-launcher".toLowerCase()
+    port.release.repository.toLowerCase() === "technicallycomputers/retcomm-launcher".toLowerCase()
   ) {
-    failures.push(
-      `${port.id}: points at RetComM-Launcher instead of the game upstream`,
-    );
+    failures.push(`${port.id}: points at RetComM-Launcher instead of the game upstream`);
   }
 }
 
 for (const portId of mappedPortIds) {
   if (!psxPorts.some((port) => port.id === portId)) {
-    failures.push(
-      `${portId}: stale mapping has no psx-recomp-managed catalog entry`,
-    );
+    failures.push(`${portId}: stale mapping has no psx-recomp-managed catalog entry`);
   }
 }
 
@@ -54,9 +42,7 @@ async function loadRetcommTitle(titleId) {
   if (localCatalogDir) {
     for (const relative of relativeCandidates) {
       try {
-        return JSON.parse(
-          await readFile(join(localCatalogDir, relative), "utf8"),
-        );
+        return JSON.parse(await readFile(join(localCatalogDir, relative), "utf8"));
       } catch (error) {
         if (error.code !== "ENOENT") throw error;
       }
@@ -69,9 +55,7 @@ async function loadRetcommTitle(titleId) {
     const response = await fetch(url, { headers: rawHeaders });
     if (response.ok) return response.json();
     if (response.status !== 404) {
-      throw new Error(
-        `RetComM catalog returned ${response.status} for ${titleId}`,
-      );
+      throw new Error(`RetComM catalog returned ${response.status} for ${titleId}`);
     }
   }
   throw new Error(`RetComM catalog returned 404 for ${titleId}`);
@@ -88,9 +72,7 @@ if (!offline) {
         const releaseRepository = title.release?.github;
         const buildRepository = title.build?.source?.github;
         if (!releaseRepository) {
-          failures.push(
-            `${titleId}: RetComM entry has no GitHub game release repository`,
-          );
+          failures.push(`${titleId}: RetComM entry has no GitHub game release repository`);
           return;
         }
         if (buildRepository && buildRepository !== releaseRepository) {
@@ -116,13 +98,9 @@ if (failures.length) {
 }
 
 if (offline) {
-  console.log(
-    `Verified ${psxPorts.length} local PS1 mappings; live upstream checks were not run.`,
-  );
+  console.log(`Verified ${psxPorts.length} local PS1 mappings; live upstream checks were not run.`);
 } else {
-  const source = localCatalogDir
-    ? localCatalogDir
-    : `TechnicallyComputers/retcomm-catalog@${ref}`;
+  const source = localCatalogDir ? localCatalogDir : `TechnicallyComputers/retcomm-catalog@${ref}`;
   console.log(
     `Verified ${psxPorts.length} direct PS1 game upstreams against ${source}; RetComM-Launcher is not a runtime source.`,
   );

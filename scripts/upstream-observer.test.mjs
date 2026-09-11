@@ -10,25 +10,16 @@ import {
   observeUpstream,
   validateObserverConfig,
 } from "./upstream-observer.mjs";
-import {
-  advanceObservation,
-  withCheckpointLock,
-} from "./observe-configured-upstream.mjs";
+import { advanceObservation, withCheckpointLock } from "./observe-configured-upstream.mjs";
 
 const config = JSON.parse(
-  await readFile(
-    new URL("../release/upstream-observer.json", import.meta.url),
-    "utf8",
-  ),
+  await readFile(new URL("../release/upstream-observer.json", import.meta.url), "utf8"),
 );
 
 test("the compiled CLI fixture uses the same canonical facts digest", async () => {
   const fixture = JSON.parse(
     await readFile(
-      new URL(
-        "../crates/portcove-cli/tests/fixtures/upstream-observation.json",
-        import.meta.url,
-      ),
+      new URL("../crates/portcove-cli/tests/fixtures/upstream-observation.json", import.meta.url),
       "utf8",
     ),
   );
@@ -37,17 +28,11 @@ test("the compiled CLI fixture uses the same canonical facts digest", async () =
 
 test("scheduled observation keeps the configured cadence, read-only authority and bounded recovery cache", async () => {
   const workflow = await readFile(
-    new URL(
-      "../.github/workflows/configured-upstream-observer.yml",
-      import.meta.url,
-    ),
+    new URL("../.github/workflows/configured-upstream-observer.yml", import.meta.url),
     "utf8",
   );
   const cadence = `17 */${config.cadence_hours} * * *`;
-  assert.ok(
-    workflow.includes(`cron: '${cadence}'`) ||
-      workflow.includes(`cron: "${cadence}"`),
-  );
+  assert.ok(workflow.includes(`cron: '${cadence}'`) || workflow.includes(`cron: "${cadence}"`));
   assert.match(workflow, /permissions:\s+contents: read/);
   assert.doesNotMatch(
     workflow,
@@ -103,19 +88,13 @@ function fixture(overrides = {}) {
   const fetch = async (url, options) => {
     requests.push({ url, options });
     if (overrides.intercept) {
-      const intercepted = await overrides.intercept(
-        url,
-        options,
-        requests.length,
-        replies,
-      );
+      const intercepted = await overrides.intercept(url, options, requests.length, replies);
       if (intercepted) return intercepted;
     }
     const reply = replies.get(url);
     assert.ok(reply, `Unexpected URL ${url}`);
     const etag = `"${observationHash(reply)}"`;
-    if (options.headers["If-None-Match"] === etag)
-      return new Response(null, { status: 304 });
+    if (options.headers["If-None-Match"] === etag) return new Response(null, { status: 304 });
     return new Response(JSON.stringify(reply.body), {
       headers: {
         "content-type": "application/json",
@@ -158,23 +137,15 @@ test("records exact release and asset facts, conditional cache and changed fixtu
     fetch: server.fetch,
     cache: second.cache,
   });
-  assert.notEqual(
-    replaced.observation.facts_sha256,
-    first.observation.facts_sha256,
-  );
+  assert.notEqual(replaced.observation.facts_sha256, first.observation.facts_sha256);
   assert.equal(replaced.observation.facts.releases[0].assets[0].id, 2);
-  server.replies.get(`${root}/releases/1/assets?per_page=100&page=1`).body = [
-    asset(3),
-  ];
+  server.replies.get(`${root}/releases/1/assets?per_page=100&page=1`).body = [asset(3)];
   const changed = await observeUpstream(config, {
     fetch: server.fetch,
     cache: replaced.cache,
   });
   assert.equal(changed.observation.facts.releases[0].assets[0].id, 3);
-  assert.notEqual(
-    changed.observation.facts_sha256,
-    replaced.observation.facts_sha256,
-  );
+  assert.notEqual(changed.observation.facts_sha256, replaced.observation.facts_sha256);
 });
 
 test("traverses complete asset pagination and rejects partial, repeated or escaped pages", async () => {
@@ -210,8 +181,7 @@ test("partial reads and concurrent collection changes never advance the previous
   const baseline = await observeUpstream(config, { fetch: fixture().fetch });
   const original = structuredClone(baseline.cache);
   const partial = fixture({
-    intercept: (url) =>
-      url.includes("/assets?") ? new Response(null, { status: 503 }) : null,
+    intercept: (url) => (url.includes("/assets?") ? new Response(null, { status: 503 }) : null),
   });
   await assert.rejects(
     observeUpstream(config, {
@@ -241,23 +211,20 @@ test("unrelated GitHub counters do not invalidate exact observed release facts",
         replies.get(root).body.stargazers_count = 123;
         replies.get(`${root}/releases?per_page=100&page=1`).body[0].body =
           "untrusted release prose changed";
-        replies.get(
-          `${root}/releases/1/assets?per_page=100&page=1`,
-        ).body[0].download_count = 456;
+        replies.get(`${root}/releases/1/assets?per_page=100&page=1`).body[0].download_count = 456;
       }
     },
   });
   const result = await observeUpstream(config, { fetch: changing.fetch });
-  assert.equal(
-    result.observation.facts_sha256,
-    baseline.observation.facts_sha256,
-  );
+  assert.equal(result.observation.facts_sha256, baseline.observation.facts_sha256);
   assert.equal(result.cache.pages[root].body.stargazers_count, 123);
   const changedAsset = fixture({
     intercept: (_url, _options, count, replies) => {
       if (count === 4)
-        replies.get(`${root}/releases/1/assets?per_page=100&page=1`).body[0] =
-          asset(2, "changed artifact bytes");
+        replies.get(`${root}/releases/1/assets?per_page=100&page=1`).body[0] = asset(
+          2,
+          "changed artifact bytes",
+        );
     },
   });
   await assert.rejects(
@@ -268,8 +235,7 @@ test("unrelated GitHub counters do not invalidate exact observed release facts",
 
 test("rate limits defer to provider clocks and transport retries stay bounded", async () => {
   const limited = fixture({
-    intercept: () =>
-      new Response(null, { status: 429, headers: { "retry-after": "120" } }),
+    intercept: () => new Response(null, { status: 429, headers: { "retry-after": "120" } }),
   });
   await assert.rejects(
     observeUpstream(config, {
@@ -293,8 +259,7 @@ test("rate limits defer to provider clocks and transport retries stay bounded", 
       fetch: broken.fetch,
       sleep: async (ms) => delays.push(ms),
     }),
-    (error) =>
-      error.rule === "transport" && !error.message.includes("untrusted"),
+    (error) => error.rule === "transport" && !error.message.includes("untrusted"),
   );
   assert.equal(broken.requests.length, 3);
   assert.deepEqual(delays, [250, 500]);
@@ -322,13 +287,8 @@ test("budgets, malformed metadata, cache corruption and repository drift fail cl
     (error) => error.rule === "repository-identity",
   );
   malformed.replies.get(root).body.id = config.repository_id;
-  malformed.replies.get(
-    `${root}/releases?per_page=100&page=1`,
-  ).body[0].prerelease = "false";
-  await assert.rejects(
-    observeUpstream(config, { fetch: malformed.fetch }),
-    /explicit booleans/,
-  );
+  malformed.replies.get(`${root}/releases?per_page=100&page=1`).body[0].prerelease = "false";
+  await assert.rejects(observeUpstream(config, { fetch: malformed.fetch }), /explicit booleans/);
   const baseline = await observeUpstream(config, { fetch: fixture().fetch });
   baseline.cache.pages[root].body.id++;
   await assert.rejects(
@@ -347,23 +307,15 @@ test("false prerelease flags and prerelease-only repositories remain observation
     release(1, { tag_name: "1.1-rc5", prerelease: false }),
   ];
   const value = asset();
-  value.browser_download_url = value.browser_download_url.replace(
-    "v1.0.0",
-    "1.1-rc5",
-  );
-  server.replies.get(`${root}/releases/1/assets?per_page=100&page=1`).body = [
-    value,
-  ];
+  value.browser_download_url = value.browser_download_url.replace("v1.0.0", "1.1-rc5");
+  server.replies.get(`${root}/releases/1/assets?per_page=100&page=1`).body = [value];
   const result = await observeUpstream(config, { fetch: server.fetch });
   assert.equal(result.observation.facts.releases[0].prerelease, false);
   assert.equal(result.observation.facts.releases[0].tag_name, "1.1-rc5");
   assert.equal(Object.hasOwn(result.observation, "eligible"), false);
-  server.replies.get(
-    `${root}/releases?per_page=100&page=1`,
-  ).body[0].prerelease = true;
+  server.replies.get(`${root}/releases?per_page=100&page=1`).body[0].prerelease = true;
   assert.equal(
-    (await observeUpstream(config, { fetch: server.fetch })).observation.facts
-      .releases.length,
+    (await observeUpstream(config, { fetch: server.fetch })).observation.facts.releases.length,
     1,
   );
 });
@@ -433,29 +385,16 @@ test("checkpoints preserve the last complete snapshot, deduplicate failures and 
   assert.equal(failed.report.stale, true);
   assert.equal(failed.notify_exception, true);
   assert.deepEqual(first.checkpoint, original);
-  assert.deepEqual(
-    failed.checkpoint.last_complete,
-    first.checkpoint.last_complete,
-  );
-  assert.equal(
-    failed.report.fallback.facts_sha256,
-    first.report.observation.facts_sha256,
-  );
+  assert.deepEqual(failed.checkpoint.last_complete, first.checkpoint.last_complete);
+  assert.equal(failed.report.fallback.facts_sha256, first.report.observation.facts_sha256);
   const repeated = await advanceObservation(config, failed.checkpoint, {
     ...options,
     fetch: broken.fetch,
   });
   assert.equal(repeated.notify_exception, false);
   assert.equal(repeated.report.exception.occurrences, 2);
-  assert.equal(
-    repeated.report.exception.first_seen,
-    failed.report.exception.first_seen,
-  );
-  const recovered = await advanceObservation(
-    config,
-    repeated.checkpoint,
-    options,
-  );
+  assert.equal(repeated.report.exception.first_seen, failed.report.exception.first_seen);
+  const recovered = await advanceObservation(config, repeated.checkpoint, options);
   assert.equal(recovered.report.stale, false);
   assert.equal(recovered.report.transition, "unchanged");
   assert.equal(recovered.report.exception, null);
@@ -465,8 +404,7 @@ test("checkpoints preserve the last complete snapshot, deduplicate failures and 
 test("deferred checkpoints honor retry clocks without requests and mismatched core output cannot advance", async () => {
   let clock = Date.parse(time);
   const limited = fixture({
-    intercept: () =>
-      new Response(null, { status: 429, headers: { "retry-after": "120" } }),
+    intercept: () => new Response(null, { status: 429, headers: { "retry-after": "120" } }),
   });
   const options = { fetch: limited.fetch, project, now: () => clock };
   const first = await advanceObservation(config, null, options);
@@ -493,16 +431,9 @@ test("deferred checkpoints honor retry clocks without requests and mismatched co
     mismatch.report.failed_policy_input.facts_sha256,
     observationHash(mismatch.report.failed_policy_input.facts),
   );
-  assert.deepEqual(
-    mismatch.checkpoint.last_complete,
-    good.checkpoint.last_complete,
-  );
+  assert.deepEqual(mismatch.checkpoint.last_complete, good.checkpoint.last_complete);
   await assert.rejects(
-    advanceObservation(
-      config,
-      { ...good.checkpoint, config_sha256: "wrong" },
-      options,
-    ),
+    advanceObservation(config, { ...good.checkpoint, config_sha256: "wrong" }, options),
     (error) => error.rule === "invalid-checkpoint",
   );
 });

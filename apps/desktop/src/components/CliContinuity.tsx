@@ -3,12 +3,7 @@ import { Clipboard, ClipboardCheck } from "lucide-react";
 import { desktopApi } from "../api";
 import { primaryCliCommand } from "../cli-command";
 import { copyText } from "../clipboard";
-import type {
-  CliCommandContext,
-  PortDefinition,
-  PortStatus,
-  ReleaseChannel,
-} from "../types";
+import type { CliCommandContext, PortDefinition, PortStatus, ReleaseChannel } from "../types";
 import { errorText } from "../view-model";
 import { Icon } from "./ui";
 
@@ -31,8 +26,7 @@ export function CliContinuity({
     generation: number;
     context: CliCommandContext;
   }>();
-  const context =
-    loaded?.generation === generation ? loaded.context : undefined;
+  const context = loaded?.generation === generation ? loaded.context : undefined;
   const [error, setError] = useState<string>();
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
@@ -51,12 +45,8 @@ export function CliContinuity({
       current = false;
     };
   }, [generation, attempt]);
-  const title = status?.active
-    ? "Launch from another app"
-    : "Set up from the command line";
-  const copyLabel = status?.active
-    ? "Copy launch command"
-    : "Copy setup command";
+  const title = status?.active ? "Launch from another app" : "Set up from the command line";
+  const copyLabel = status?.active ? "Copy launch command" : "Copy setup command";
   if (!context)
     return (
       <section className="cli-continuity" aria-label={title}>
@@ -64,10 +54,7 @@ export function CliContinuity({
         {error ? (
           <>
             <p role="alert">{error}</p>
-            <button
-              data-focusable
-              onClick={() => setAttempt((value) => value + 1)}
-            >
+            <button data-focusable onClick={() => setAttempt((value) => value + 1)}>
               Retry command details
             </button>
           </>
@@ -78,21 +65,13 @@ export function CliContinuity({
     );
   let command;
   try {
-    command = primaryCliCommand(
-      context,
-      port,
-      status,
-      channel,
-      sourcePath,
-      biosPath,
-    );
+    command = primaryCliCommand(context, port, status, channel, sourcePath, biosPath);
   } catch {
     return (
       <section className="cli-continuity" aria-label={title}>
         <strong>{title}</strong>
         <p role="alert">
-          Remove invalid characters from the selected paths before copying a
-          command.
+          Remove invalid characters from the selected paths before copying a command.
         </p>
       </section>
     );
@@ -129,14 +108,10 @@ export function CliContinuity({
       <details>
         <summary data-focusable>Separate program and arguments</summary>
         <p>
-          For integrations that accept a program path and an argument array. The
-          shell command above is for a terminal.
+          For integrations that accept a program path and an argument array. The shell command above
+          is for a terminal.
         </p>
-        <CopyField
-          key={command.executable}
-          value={command.executable}
-          label="Copy program path"
-        />
+        <CopyField key={command.executable} value={command.executable} label="Copy program path" />
         <CopyField
           key={JSON.stringify(command.args)}
           value={JSON.stringify(command.args)}
@@ -176,11 +151,7 @@ function CopyField({ value, label }: { value: string; label: string }) {
         </button>
       </div>
       {copied && <small role="status">Copied</small>}
-      {failed && (
-        <small role="alert">
-          Clipboard unavailable. Select and copy the text above.
-        </small>
-      )}
+      {failed && <small role="alert">Clipboard unavailable. Select and copy the text above.</small>}
     </>
   );
 }

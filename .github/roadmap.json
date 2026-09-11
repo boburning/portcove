@@ -155,15 +155,7 @@
       "name": "Active Port Work",
       "layout": "TABLE_LAYOUT",
       "filter": "work-type:Port -status:Done -status:Deferred",
-      "fields": [
-        "Title",
-        "Priority",
-        "Horizon",
-        "Status",
-        "Port stage",
-        "Platform",
-        "Assignees"
-      ],
+      "fields": ["Title", "Priority", "Horizon", "Status", "Port stage", "Platform", "Assignees"],
       "manual_group_by": "Status",
       "manual_sort_by": "Priority,manual"
     },
@@ -219,14 +211,7 @@
       "name": "Inbox & Triage",
       "layout": "TABLE_LAYOUT",
       "filter": "status:Inbox,Triage",
-      "fields": [
-        "Title",
-        "Status",
-        "Work type",
-        "Priority",
-        "Platform",
-        "Assignees"
-      ],
+      "fields": ["Title", "Status", "Work type", "Priority", "Platform", "Assignees"],
       "manual_group_by": "Status",
       "manual_sort_by": "manual"
     },

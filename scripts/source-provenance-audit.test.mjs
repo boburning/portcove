@@ -28,9 +28,7 @@ function catalog() {
                 {
                   id: "canonical",
                   kind: "raw-file",
-                  identities: [
-                    { scope: "original-file", sha256: "a".repeat(64) },
-                  ],
+                  identities: [{ scope: "original-file", sha256: "a".repeat(64) }],
                   evidence_ids: ["review"],
                 },
               ],
@@ -78,8 +76,7 @@ function issue(
       upstream,
       catalogId,
       portKey,
-      blocker:
-        "Source evidence is pending. Resume when the reviewed manifest is available.",
+      blocker: "Source evidence is pending. Resume when the reviewed manifest is available.",
     }),
   };
 }
@@ -103,10 +100,7 @@ function fixture() {
   return {
     catalogText: `${JSON.stringify(catalog(), null, 2)}\n`,
     issues: [researchIssue, catalogIssue],
-    projectItems: [
-      projectItem(researchIssue, "Watchlist"),
-      projectItem(catalogIssue, "Cataloged"),
-    ],
+    projectItems: [projectItem(researchIssue, "Watchlist"), projectItem(catalogIssue, "Cataloged")],
     generatedAt: "2026-09-06T15:00:00Z",
     baseCommit: sha("a"),
     generatorCommit: sha("b"),
@@ -118,10 +112,7 @@ test("identical offline fixtures produce byte-identical ordered evidence", () =>
   const first = buildSourceProvenanceAudit(fixture());
   const second = buildSourceProvenanceAudit(fixture());
   assert.deepEqual(first, second);
-  assert.equal(
-    renderSourceProvenanceAudit(first),
-    renderSourceProvenanceAudit(second),
-  );
+  assert.equal(renderSourceProvenanceAudit(first), renderSourceProvenanceAudit(second));
   assert.deepEqual(first.counts, {
     catalogPorts: 1,
     sourceProfiles: 1,
@@ -145,9 +136,7 @@ test("identical offline fixtures produce byte-identical ordered evidence", () =>
 
 test("negative fixtures expose missing tickets, duplicate catalog IDs, stale hashes, and missing evidence", () => {
   const missingIssue = fixture();
-  missingIssue.issues = missingIssue.issues.filter(
-    (value) => value.number !== 1,
-  );
+  missingIssue.issues = missingIssue.issues.filter((value) => value.number !== 1);
   missingIssue.projectItems = missingIssue.projectItems.filter(
     (value) => value.content.number !== 1,
   );
@@ -229,11 +218,7 @@ test("duplicate candidate keys and titles fail while one shared upstream can ser
   input.issues.push(duplicateKey);
   input.projectItems.push(projectItem(duplicateKey, "Watchlist"));
   const keyAudit = buildSourceProvenanceAudit(input);
-  assert.ok(
-    keyAudit.observations.some((value) =>
-      value.includes("non-catalog port key research"),
-    ),
-  );
+  assert.ok(keyAudit.observations.some((value) => value.includes("non-catalog port key research")));
 
   const duplicateTitle = issue(6, "Research!", { portKey: "unique-key" });
   input.issues.push(duplicateTitle);
@@ -323,25 +308,17 @@ test("live GitHub reads allow the full bounded Project payload", () => {
   assert.deepEqual(value, { items: [] });
   assert.equal(invocation.command, "gh");
   assert.deepEqual(invocation.args, ["api", "graphql", "--input", "-"]);
-  assert.equal(
-    invocation.options.input,
-    '{"query":"query { viewer { login } }"}',
-  );
+  assert.equal(invocation.options.input, '{"query":"query { viewer { login } }"}');
   assert.equal(invocation.options.maxBuffer, 32 * 1024 * 1024);
 });
 
 test("rendered output labels evidence authority and catalog versus research scope", () => {
-  const report = renderSourceProvenanceAudit(
-    buildSourceProvenanceAudit(fixture()),
-  );
+  const report = renderSourceProvenanceAudit(buildSourceProvenanceAudit(fixture()));
   assert.match(report, /Dated read-only evidence/);
   assert.match(report, /not a roadmap, priority authority/);
   assert.match(report, /## Cataloged support inventory/);
   assert.match(report, /## Research inventory/);
-  assert.match(
-    report,
-    /Exact qualification counts only artifact\/source-variant-scoped records/,
-  );
+  assert.match(report, /Exact qualification counts only artifact\/source-variant-scoped records/);
 });
 
 function paginatedLiveRunner(issues, projectItems, intercept = () => {}) {
@@ -364,9 +341,7 @@ function paginatedLiveRunner(issues, projectItems, intercept = () => {}) {
       },
     };
     return {
-      data: isIssues
-        ? { repository: { issues: page } }
-        : { node: { items: page } },
+      data: isIssues ? { repository: { issues: page } } : { node: { items: page } },
     };
   };
 }
@@ -410,9 +385,7 @@ function largeLiveFixture() {
 test("live provenance includes canonical ports beyond 1000 records with deterministic output", () => {
   const { input, issues, projectItems } = largeLiveFixture();
   const calls = [];
-  const run = paginatedLiveRunner(issues, projectItems, (call) =>
-    calls.push(call),
-  );
+  const run = paginatedLiveRunner(issues, projectItems, (call) => calls.push(call));
   const live = readLiveSourceProvenance({
     repository: "boburning/portcove",
     owner: "boburning",
@@ -438,16 +411,11 @@ test("live provenance includes canonical ports beyond 1000 records with determin
   assert.equal(first.counts.portIssues, 2);
   assert.equal(first.counts.catalogedIssues, 1);
   assert.equal(first.counts.researchIssues, 1);
-  assert.equal(
-    renderSourceProvenanceAudit(first),
-    renderSourceProvenanceAudit(second),
-  );
+  assert.equal(renderSourceProvenanceAudit(first), renderSourceProvenanceAudit(second));
 });
 
 test("failed later live pages preserve existing snapshots and create no partial snapshot", async () => {
-  const directory = await mkdtemp(
-    new URL("../docs/archive/provenance-test-", import.meta.url),
-  );
+  const directory = await mkdtemp(new URL("../docs/archive/provenance-test-", import.meta.url));
   const existing = `${directory}/existing.md`;
   const absent = `${directory}/absent.md`;
   const secret = "github_pat_private_test_value";
@@ -455,13 +423,9 @@ test("failed later live pages preserve existing snapshots and create no partial 
   try {
     await writeFile(existing, "previous verified snapshot\n");
     for (const failIssues of [true, false]) {
-      const run = paginatedLiveRunner(
-        issues,
-        projectItems,
-        ({ isIssues, offset }) => {
-          if (isIssues === failIssues && offset > 0) throw new Error(secret);
-        },
-      );
+      const run = paginatedLiveRunner(issues, projectItems, ({ isIssues, offset }) => {
+        if (isIssues === failIssues && offset > 0) throw new Error(secret);
+      });
       for (const output of [existing, absent]) {
         await assert.rejects(
           runSourceProvenanceAudit(
@@ -479,15 +443,11 @@ test("failed later live pages preserve existing snapshots and create no partial 
             { run },
           ),
           (error) =>
-            error.message ===
-              "read-only GitHub enrichment failed; no snapshot was written" &&
+            error.message === "read-only GitHub enrichment failed; no snapshot was written" &&
             !error.message.includes(secret),
         );
       }
-      assert.equal(
-        await readFile(existing, "utf8"),
-        "previous verified snapshot\n",
-      );
+      assert.equal(await readFile(existing, "utf8"), "previous verified snapshot\n");
       await assert.rejects(readFile(absent), { code: "ENOENT" });
     }
   } finally {

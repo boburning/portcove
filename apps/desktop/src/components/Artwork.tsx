@@ -21,24 +21,13 @@ export function ArtworkImage({
   }, [display.loading]);
   const image = display.image !== failedImage ? display.image : undefined;
   return (
-    <div
-      ref={element}
-      className={`artwork-image ${className}`}
-      aria-hidden="true"
-    >
+    <div ref={element} className={`artwork-image ${className}`} aria-hidden="true">
       {image ? (
-        <img
-          src={image}
-          alt=""
-          decoding="async"
-          onError={() => setFailedImage(image)}
-        />
+        <img src={image} alt="" decoding="async" onError={() => setFailedImage(image)} />
       ) : (
         <span>{port.name.slice(0, 2).toUpperCase()}</span>
       )}
-      {(display.error ||
-        display.state?.availability === "unavailable" ||
-        failedImage) && (
+      {(display.error || display.state?.availability === "unavailable" || failedImage) && (
         <small className="artwork-image-note">Image unavailable</small>
       )}
     </div>
@@ -64,36 +53,19 @@ export function DetailArtwork({ port }: { port: PortDefinition }) {
 export function ArtworkControls({ port }: { port: PortDefinition }) {
   const [open, setOpen] = useState(false);
   return (
-    <details
-      className="artwork-controls"
-      onToggle={(event) => setOpen(event.currentTarget.open)}
-    >
+    <details className="artwork-controls" onToggle={(event) => setOpen(event.currentTarget.open)}>
       <summary data-focusable>Change artwork</summary>
       {open && (
         <div className="artwork-slots">
-          <ArtworkSlotControl
-            key={`${port.id}:cover`}
-            port={port}
-            slot="cover"
-          />
-          <ArtworkSlotControl
-            key={`${port.id}:detail`}
-            port={port}
-            slot="detail"
-          />
+          <ArtworkSlotControl key={`${port.id}:cover`} port={port} slot="cover" />
+          <ArtworkSlotControl key={`${port.id}:detail`} port={port} slot="detail" />
         </div>
       )}
     </details>
   );
 }
 
-function ArtworkSlotControl({
-  port,
-  slot,
-}: {
-  port: PortDefinition;
-  slot: ArtworkSlot;
-}) {
+function ArtworkSlotControl({ port, slot }: { port: PortDefinition; slot: ArtworkSlot }) {
   const { cache, display } = useArtwork(port.id, slot);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string>();
@@ -122,8 +94,7 @@ function ArtworkSlotControl({
   const change = async (pick: boolean) => {
     if (!cache || !display.state || busy.current) return;
     const revision = display.state.choice.revision;
-    const stillCurrent = () =>
-      mounted.current && currentIdentity.current === identity;
+    const stillCurrent = () => mounted.current && currentIdentity.current === identity;
     busy.current = true;
     setPending(true);
     setMessage(undefined);
@@ -131,13 +102,7 @@ function ArtworkSlotControl({
     try {
       const path = pick ? await pickArtworkPath() : null;
       if (!stillCurrent() || (pick && !path)) return;
-      const result = await cache.change(
-        port.id,
-        slot,
-        revision,
-        path,
-        stillCurrent,
-      );
+      const result = await cache.change(port.id, slot, revision, path, stillCurrent);
       if (stillCurrent() && result)
         setMessage(
           pick
@@ -197,13 +162,9 @@ function ArtworkSlotControl({
       <p className="artwork-notice">
         Static PNG or JPEG, up to 16 MiB. Portcove keeps a local copy.
       </p>
-      {display.state?.reason && (
-        <p className="artwork-notice">{display.state.reason}</p>
-      )}
+      {display.state?.reason && <p className="artwork-notice">{display.state.reason}</p>}
       <p role="status">
-        {pending
-          ? "Updating artwork…"
-          : (message ?? (display.loading ? "Loading artwork…" : ""))}
+        {pending ? "Updating artwork…" : (message ?? (display.loading ? "Loading artwork…" : ""))}
       </p>
       {(error || display.error) && <p role="alert">{error ?? display.error}</p>}
       <details className="artwork-source">

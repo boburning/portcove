@@ -3,13 +3,7 @@ import path from "node:path";
 import { writeFile } from "node:fs/promises";
 import { By, until } from "selenium-webdriver";
 
-export async function reloadScenario({
-  browser,
-  scenario,
-  output,
-  artifacts,
-  cycles,
-}) {
+export async function reloadScenario({ browser, scenario, output, artifacts, cycles }) {
   await scenario("native-repeated-library-reload", async () => {
     const observations = [];
     const commands = [
@@ -33,26 +27,22 @@ export async function reloadScenario({
         );
         // Match the actual five concurrent refresh calls while the renderer also
         // loads. Fail on the first rejected batch; no hidden retry of a failure.
-        observation.commands = await browser.executeAsyncScript(
-          (commands, done) => {
-            Promise.all(
-              commands.map((command) =>
-                window.__TAURI_INTERNALS__.invoke(command).then(
-                  () => ({ command, ok: true }),
-                  (error) => ({ command, ok: false, error }),
-                ),
+        observation.commands = await browser.executeAsyncScript((commands, done) => {
+          void Promise.all(
+            commands.map((command) =>
+              window.__TAURI_INTERNALS__.invoke(command).then(
+                () => ({ command, ok: true }),
+                (error) => ({ command, ok: false, error }),
               ),
-            ).then(done);
-          },
-          commands,
-        );
+            ),
+          ).then(done);
+        }, commands);
         assert.ok(
           observation.commands.every((result) => result.ok),
           JSON.stringify(observation),
         );
         await browser.wait(
-          async () =>
-            (await browser.findElements(By.css(".loading-state"))).length === 0,
+          async () => (await browser.findElements(By.css(".loading-state"))).length === 0,
           10_000,
         );
         observation.errors = await browser.executeScript(() =>

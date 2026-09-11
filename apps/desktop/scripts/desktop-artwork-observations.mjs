@@ -14,30 +14,24 @@ export function artworkObservations({ browser, output, artifacts }) {
           requests: probe.requests,
           omitted_requests: probe.omitted,
           restored: window.fetch === probe.original,
-          slots: [...document.querySelectorAll(".artwork-slot")].map(
-            (slot) => ({
-              label: slot.getAttribute("aria-label"),
-              busy: slot.getAttribute("aria-busy"),
-              notices: [
-                ...slot.querySelectorAll(
-                  '[role="alert"], [role="status"], .artwork-notice',
-                ),
-              ].map((node) => node.textContent),
-              buttons: [...slot.querySelectorAll("button")].map((button) => ({
-                label: button.textContent,
-                disabled: button.disabled,
-              })),
+          slots: [...document.querySelectorAll(".artwork-slot")].map((slot) => ({
+            label: slot.getAttribute("aria-label"),
+            busy: slot.getAttribute("aria-busy"),
+            notices: [
+              ...slot.querySelectorAll('[role="alert"], [role="status"], .artwork-notice'),
+            ].map((node) => node.textContent),
+            buttons: [...slot.querySelectorAll("button")].map((button) => ({
+              label: button.textContent,
+              disabled: button.disabled,
+            })),
+          })),
+          images: [...document.querySelectorAll(".wide-artwork img, .detail-cover img")].map(
+            (img) => ({
+              complete: img.complete,
+              width: img.naturalWidth,
+              height: img.naturalHeight,
             }),
           ),
-          images: [
-            ...document.querySelectorAll(
-              ".wide-artwork img, .detail-cover img",
-            ),
-          ].map((img) => ({
-            complete: img.complete,
-            width: img.naturalWidth,
-            height: img.naturalHeight,
-          })),
         };
         delete window.__portcoveArtworkProbe;
         return result;
@@ -60,12 +54,9 @@ export function artworkObservations({ browser, output, artifacts }) {
         const command = decodeURIComponent(url.pathname.slice(1));
         if (
           url.hostname !== "ipc.localhost" ||
-          ![
-            "get_artwork",
-            "get_artwork_thumbnail",
-            "import_artwork",
-            "reset_artwork",
-          ].includes(command)
+          !["get_artwork", "get_artwork_thumbnail", "import_artwork", "reset_artwork"].includes(
+            command,
+          )
         )
           return original.call(window, input, ...args);
         if (probe.requests.length >= 256) {
@@ -125,8 +116,7 @@ export function artworkObservations({ browser, output, artifacts }) {
       report,
       JSON.stringify(
         {
-          method:
-            "Owned native renderer fetch observations; no response substitution",
+          method: "Owned native renderer fetch observations; no response substitution",
           failure,
           documents,
         },

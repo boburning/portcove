@@ -27,8 +27,7 @@ export function OperationCancellation({
       setPending(false);
     }
   };
-  if (state?.phase === "finishing")
-    return <p role="status">Finishing safely…</p>;
+  if (state?.phase === "finishing") return <p role="status">Finishing safely…</p>;
   return (
     <div className="operation-cancellation">
       <button
@@ -46,9 +45,7 @@ export function OperationCancellation({
             : label}
       </button>
       {(requested || state?.requested) && (
-        <p role="status">
-          Waiting for the current preparation step to stop safely.
-        </p>
+        <p role="status">Waiting for the current preparation step to stop safely.</p>
       )}
       {error && <p role="alert">{error}</p>}
     </div>

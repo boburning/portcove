@@ -55,8 +55,8 @@ export function UpdatePolicyControl({
         ]}
       />
       <p>
-        Saving changes does not run an update. Review a game update separately
-        to choose what to do now.
+        Saving changes does not run an update. Review a game update separately to choose what to do
+        now.
       </p>
       <button
         data-focusable
@@ -109,11 +109,7 @@ export function GameUpdateControl({
     setError(undefined);
     setMessage(undefined);
     try {
-      const value = await desktopApi.planGameUpdate(
-        portId,
-        activate,
-        generation,
-      );
+      const value = await desktopApi.planGameUpdate(portId, activate, generation);
       if (current === request.current) setPlan(value);
     } catch (error) {
       if (current === request.current) setError(errorText(error));
@@ -128,17 +124,11 @@ export function GameUpdateControl({
     setError(undefined);
     try {
       const result = await perform("run reviewed game update", () =>
-        desktopApi.applyGameUpdate(
-          portId,
-          plan.activate,
-          plan.plan_sha256,
-          generation,
-          (event) => {
-            if (current !== request.current) return;
-            if (event.type === "started") setOperation(event.operation_id);
-            if (event.type === "message") setMessage(event.message);
-          },
-        ),
+        desktopApi.applyGameUpdate(portId, plan.activate, plan.plan_sha256, generation, (event) => {
+          if (current !== request.current) return;
+          if (event.type === "started") setOperation(event.operation_id);
+          if (event.type === "message") setMessage(event.message);
+        }),
       );
       if (current === request.current)
         setMessage(
@@ -201,11 +191,7 @@ export function GameUpdateControl({
         />
       )}
       {operation && (
-        <OperationCancellation
-          key={operation}
-          operationId={operation}
-          label="Cancel game update"
-        />
+        <OperationCancellation key={operation} operationId={operation} label="Cancel game update" />
       )}
       {message && <p role="status">{message}</p>}
       {error && <p role="alert">{error}</p>}
@@ -215,21 +201,13 @@ export function GameUpdateControl({
 
 function gameUpdateActionLabel(plan: GameUpdatePlan) {
   const labels: Record<GameUpdatePlan["plan"]["action"], string | undefined> = {
-    download: plan.activate
-      ? "Download and install update"
-      : "Download update for later",
-    use_staged: plan.activate
-      ? "Install verified update"
-      : "Stage verified update for later",
-    reuse_retained: plan.activate
-      ? "Install verified update"
-      : "Stage verified update for later",
+    download: plan.activate ? "Download and install update" : "Download update for later",
+    use_staged: plan.activate ? "Install verified update" : "Stage verified update for later",
+    reuse_retained: plan.activate ? "Install verified update" : "Stage verified update for later",
     already_active: undefined,
     blocked_unverified: undefined,
   };
-  return Object.hasOwn(labels, plan.plan.action)
-    ? labels[plan.plan.action]
-    : undefined;
+  return Object.hasOwn(labels, plan.plan.action) ? labels[plan.plan.action] : undefined;
 }
 
 function GameUpdateReview({
@@ -252,15 +230,10 @@ function GameUpdateReview({
     return (
       <div className="install-plan">
         <p role="alert">
-          This version of Portcove cannot display this update plan. Review it
-          again, or update Portcove if this continues.
+          This version of Portcove cannot display this update plan. Review it again, or update
+          Portcove if this continues.
         </p>
-        <button
-          ref={confirm}
-          data-focusable
-          disabled={disabled}
-          onClick={review}
-        >
+        <button ref={confirm} data-focusable disabled={disabled} onClick={review}>
           Review game update again
         </button>
       </div>

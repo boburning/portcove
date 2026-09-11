@@ -82,11 +82,7 @@ afterEach(async () => {
 const render = async (plan: LibraryMovePlan) =>
   act(async () =>
     root.render(
-      <LibraryCopySummary
-        plan={plan}
-        source={plan.source_root}
-        label="Library move plan"
-      />,
+      <LibraryCopySummary plan={plan} source={plan.source_root} label="Library move plan" />,
     ),
   );
 async function toggleFolder(open: boolean) {
@@ -110,9 +106,7 @@ it.each([0, 1, 40])(
     await render(plan);
     expect(host.querySelector('[aria-label="Files in user"]')).toBeNull();
     await toggleFolder(true);
-    expect(
-      host.querySelectorAll('[aria-label="Files in user"] li'),
-    ).toHaveLength(count);
+    expect(host.querySelectorAll('[aria-label="Files in user"] li')).toHaveLength(count);
     for (const file of plan.content[0].copy.files)
       expect(host.textContent).toContain(file.relative_path);
     expect(host.textContent).toContain(
@@ -122,9 +116,9 @@ it.each([0, 1, 40])(
           ? "1 file will be copied."
           : "40 files will be copied.",
     );
-    expect(
-      host.querySelector('[aria-label="Subfolders in user"]')?.textContent,
-    ).toContain("owned-port/empty-folder");
+    expect(host.querySelector('[aria-label="Subfolders in user"]')?.textContent).toContain(
+      "owned-port/empty-folder",
+    );
     expect(host.querySelectorAll("button,a")).toHaveLength(0);
     expect(JSON.stringify(plan)).toBe(original);
     await toggleFolder(false);
@@ -138,13 +132,9 @@ it.each(["future_kind", "constructor", "__proto__"])(
     const plan = fixture();
     plan.content[0].kind = kind as LibraryMovePlan["content"][number]["kind"];
     await render(plan);
-    expect(host.querySelector("summary")?.textContent).toContain(
-      "Other recorded content",
-    );
+    expect(host.querySelector("summary")?.textContent).toContain("Other recorded content");
     await toggleFolder(true);
-    expect(host.textContent).toContain(
-      plan.content[0].copy.files[0].relative_path,
-    );
+    expect(host.textContent).toContain(plan.content[0].copy.files[0].relative_path);
   },
 );
 
@@ -160,9 +150,7 @@ it("names the recorded installation and source paths without promising relocatio
     plan.metadata.source_references[0].path,
   ])
     expect(host.textContent).toContain(value);
-  expect(host.textContent).toContain(
-    "1 source registration keeps its recorded location.",
-  );
+  expect(host.textContent).toContain("1 source registration keeps its recorded location.");
   expect(host.textContent).toContain(
     "Copying Source Inbox files does not redirect their registrations.",
   );
@@ -172,9 +160,7 @@ it("names the recorded installation and source paths without promising relocatio
   expect(host.textContent).not.toContain("original files remain unchanged");
   expect(host.textContent).toContain("There is no single undo action");
   expect(host.textContent).toContain("this dialog cannot cancel it");
-  expect(host.textContent).toContain(
-    "use the recorded move or import recovery",
-  );
+  expect(host.textContent).toContain("use the recorded move or import recovery");
 });
 
 it("replaces displayed inventory with the current plan and distinguishes empty metadata", async () => {
@@ -188,9 +174,7 @@ it("replaces displayed inventory with the current plan and distinguishes empty m
   await render(next);
   expect(host.textContent).toContain("current-port/current.save");
   expect(host.textContent).not.toContain("owned-port/save.bin");
-  expect(host.textContent).toContain(
-    "No installed versions are recorded in this plan.",
-  );
+  expect(host.textContent).toContain("No installed versions are recorded in this plan.");
   expect(host.textContent).toContain("No source registrations are included.");
   expect(host.textContent).not.toContain("owned-disc");
 });

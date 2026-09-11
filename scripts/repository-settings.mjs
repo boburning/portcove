@@ -6,28 +6,10 @@ import { isDeepStrictEqual } from "node:util";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
-const rulesetPath = path.join(
-  projectRoot,
-  ".github",
-  "repository-ruleset.json",
-);
-const securityPath = path.join(
-  projectRoot,
-  ".github",
-  "repository-security.json",
-);
-const expectedChecks = [
-  "catalog",
-  "dependency-review",
-  "frontend",
-  "rust",
-  "rust-quality",
-];
-const repositorySettingNames = [
-  "allow_auto_merge",
-  "merge_commit_title",
-  "merge_commit_message",
-];
+const rulesetPath = path.join(projectRoot, ".github", "repository-ruleset.json");
+const securityPath = path.join(projectRoot, ".github", "repository-security.json");
+const expectedChecks = ["catalog", "dependency-review", "frontend", "rust", "rust-quality"];
+const repositorySettingNames = ["allow_auto_merge", "merge_commit_title", "merge_commit_message"];
 const expectedBypassActors = [
   {
     actor_id: 5,
@@ -38,28 +20,20 @@ const expectedBypassActors = [
 
 function requiredRule(ruleset, type) {
   const matches = ruleset.rules.filter((rule) => rule.type === type);
-  if (matches.length !== 1)
-    throw new Error(`ruleset must contain exactly one ${type} rule`);
+  if (matches.length !== 1) throw new Error(`ruleset must contain exactly one ${type} rule`);
   return matches[0];
 }
 
 export function validateRepositorySettings(ruleset, security) {
   assertExactKeys(
     security,
-    [
-      "schema_version",
-      "repository",
-      "private_vulnerability_reporting",
-      ...repositorySettingNames,
-    ],
+    ["schema_version", "repository", "private_vulnerability_reporting", ...repositorySettingNames],
     "repository security configuration",
   );
   if (security.schema_version !== 2)
     throw new Error("repository security schema_version must be 2");
   if (!security.repository?.match(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/)) {
-    throw new Error(
-      "repository security configuration has an invalid repository",
-    );
+    throw new Error("repository security configuration has an invalid repository");
   }
   if (security.private_vulnerability_reporting !== true) {
     throw new Error("private vulnerability reporting must be enabled");
@@ -67,28 +41,15 @@ export function validateRepositorySettings(ruleset, security) {
   if (security.allow_auto_merge !== true) {
     throw new Error("repository auto-merge capability must be enabled");
   }
-  if (
-    security.merge_commit_title !== "PR_TITLE" ||
-    security.merge_commit_message !== "BLANK"
-  ) {
-    throw new Error(
-      "merge commits must use the pull request title with a blank generated body",
-    );
+  if (security.merge_commit_title !== "PR_TITLE" || security.merge_commit_message !== "BLANK") {
+    throw new Error("merge commits must use the pull request title with a blank generated body");
   }
   if (ruleset.name !== "Protect main" || ruleset.target !== "branch") {
-    throw new Error(
-      "ruleset must target branches under the stable Protect main name",
-    );
+    throw new Error("ruleset must target branches under the stable Protect main name");
   }
-  if (ruleset.enforcement !== "active")
-    throw new Error("ruleset enforcement must be active");
-  if (
-    JSON.stringify(ruleset.bypass_actors) !==
-    JSON.stringify(expectedBypassActors)
-  ) {
-    throw new Error(
-      "main protection must define only the pull-request repository-admin bypass",
-    );
+  if (ruleset.enforcement !== "active") throw new Error("ruleset enforcement must be active");
+  if (JSON.stringify(ruleset.bypass_actors) !== JSON.stringify(expectedBypassActors)) {
+    throw new Error("main protection must define only the pull-request repository-admin bypass");
   }
   const refs = ruleset.conditions?.ref_name;
   if (
@@ -114,21 +75,14 @@ export function validateRepositorySettings(ruleset, security) {
       "pull requests must preserve merge, squash and rebase plus zero approvals, no last-push or CODEOWNERS approval, and resolved review threads",
     );
   }
-  const statusChecks = requiredRule(
-    ruleset,
-    "required_status_checks",
-  ).parameters;
-  const contexts = statusChecks.required_status_checks
-    .map((check) => check.context)
-    .sort();
+  const statusChecks = requiredRule(ruleset, "required_status_checks").parameters;
+  const contexts = statusChecks.required_status_checks.map((check) => check.context).sort();
   if (
     JSON.stringify(contexts) !== JSON.stringify(expectedChecks) ||
     !statusChecks.strict_required_status_checks_policy ||
     !statusChecks.do_not_enforce_on_create
   ) {
-    throw new Error(
-      `required status checks must be exactly: ${expectedChecks.join(", ")}`,
-    );
+    throw new Error(`required status checks must be exactly: ${expectedChecks.join(", ")}`);
   }
 }
 
@@ -145,19 +99,14 @@ export function projectRuleset(ruleset) {
           type: rule.type,
           parameters: {
             allowed_merge_methods: rule.parameters.allowed_merge_methods,
-            dismiss_stale_reviews_on_push:
-              rule.parameters.dismiss_stale_reviews_on_push,
-            require_code_owner_review:
-              rule.parameters.require_code_owner_review,
+            dismiss_stale_reviews_on_push: rule.parameters.dismiss_stale_reviews_on_push,
+            require_code_owner_review: rule.parameters.require_code_owner_review,
             require_extra_approval_for_unattributed_changes:
               rule.parameters.require_extra_approval_for_unattributed_changes,
-            require_last_push_approval:
-              rule.parameters.require_last_push_approval,
-            required_approving_review_count:
-              rule.parameters.required_approving_review_count,
+            require_last_push_approval: rule.parameters.require_last_push_approval,
+            required_approving_review_count: rule.parameters.required_approving_review_count,
             required_reviewers: rule.parameters.required_reviewers ?? [],
-            required_review_thread_resolution:
-              rule.parameters.required_review_thread_resolution,
+            required_review_thread_resolution: rule.parameters.required_review_thread_resolution,
           },
         };
       }
@@ -166,14 +115,12 @@ export function projectRuleset(ruleset) {
           type: rule.type,
           parameters: {
             do_not_enforce_on_create: rule.parameters.do_not_enforce_on_create,
-            required_status_checks: rule.parameters.required_status_checks.map(
-              (check) => ({
-                context: check.context,
-                ...(Number.isInteger(check.integration_id)
-                  ? { integration_id: check.integration_id }
-                  : {}),
-              }),
-            ),
+            required_status_checks: rule.parameters.required_status_checks.map((check) => ({
+              context: check.context,
+              ...(Number.isInteger(check.integration_id)
+                ? { integration_id: check.integration_id }
+                : {}),
+            })),
             strict_required_status_checks_policy:
               rule.parameters.strict_required_status_checks_policy,
           },
@@ -194,9 +141,7 @@ function assertExactKeys(value, expected, label) {
   const actual = Object.keys(value ?? {}).sort();
   const wanted = [...expected].sort();
   if (!isDeepStrictEqual(actual, wanted)) {
-    throw new Error(
-      `${label} has unexpected parameters; refusing the bounded migration`,
-    );
+    throw new Error(`${label} has unexpected parameters; refusing the bounded migration`);
   }
 }
 
@@ -212,36 +157,22 @@ export function rulesetMigration(actualRuleset, desiredRuleset) {
     Object.keys(desiredPullRequestRule.parameters),
     "Protect main pull-request rule",
   );
-  const actualStatusRule = requiredRule(
-    actualRuleset,
-    "required_status_checks",
-  );
-  const desiredStatusRule = requiredRule(
-    desiredRuleset,
-    "required_status_checks",
-  );
+  const actualStatusRule = requiredRule(actualRuleset, "required_status_checks");
+  const desiredStatusRule = requiredRule(desiredRuleset, "required_status_checks");
   assertExactKeys(
     actualStatusRule.parameters,
     Object.keys(desiredStatusRule.parameters),
     "Protect main status-check rule",
   );
-  for (const check of actualStatusRule.parameters.required_status_checks ??
-    []) {
+  for (const check of actualStatusRule.parameters.required_status_checks ?? []) {
     const keys = Number.isInteger(check.integration_id)
       ? ["context", "integration_id"]
       : ["context"];
-    assertExactKeys(
-      check,
-      keys,
-      `Protect main status check ${check.context ?? "<unnamed>"}`,
-    );
+    assertExactKeys(check, keys, `Protect main status check ${check.context ?? "<unnamed>"}`);
   }
   const payload = projectRuleset(actualRuleset);
   const actualPullRequest = requiredRule(payload, "pull_request").parameters;
-  const desiredPullRequest = requiredRule(
-    desiredRuleset,
-    "pull_request",
-  ).parameters;
+  const desiredPullRequest = requiredRule(desiredRuleset, "pull_request").parameters;
   const changes = [];
   for (const name of authorizedReviewChanges) {
     if (actualPullRequest[name] !== desiredPullRequest[name]) {
@@ -270,9 +201,7 @@ export function repositoryApplyPlan({
   desiredRepository,
 }) {
   const existing = rulesets.find(
-    (ruleset) =>
-      ruleset.name === desiredRuleset.name &&
-      ruleset.target === desiredRuleset.target,
+    (ruleset) => ruleset.name === desiredRuleset.name && ruleset.target === desiredRuleset.target,
   );
   if (!existing)
     throw new Error(
@@ -284,10 +213,7 @@ export function repositoryApplyPlan({
     );
   }
   const migration = rulesetMigration(actualRuleset, desiredRuleset);
-  const repository = repositorySettingsMigration(
-    repositoryStatus,
-    desiredRepository,
-  );
+  const repository = repositorySettingsMigration(repositoryStatus, desiredRepository);
   return {
     rulesetEndpoint: `rulesets/${existing.id}`,
     rulesetPayload: migration.payload,
@@ -299,42 +225,29 @@ export function repositoryApplyPlan({
 }
 
 export function repositorySettingsMigration(actual, desired) {
-  assertExactKeys(
-    desired,
-    repositorySettingNames,
-    "desired repository settings",
-  );
+  assertExactKeys(desired, repositorySettingNames, "desired repository settings");
   const changes = repositorySettingNames
     .filter((name) => actual[name] !== desired[name])
     .map((name) => ({ path: name, from: actual[name], to: desired[name] }));
   return {
     changes,
-    payload: Object.fromEntries(
-      changes.map((change) => [change.path, change.to]),
-    ),
+    payload: Object.fromEntries(changes.map((change) => [change.path, change.to])),
   };
 }
 
 function gh(repo, args, input) {
-  const endpoint = args.endpoint
-    ? `repos/${repo}/${args.endpoint}`
-    : `repos/${repo}`;
+  const endpoint = args.endpoint ? `repos/${repo}/${args.endpoint}` : `repos/${repo}`;
   const command = ["api", endpoint, "--method", args.method];
   if (input !== undefined) command.push("--input", "-");
   const result = spawnSync("gh", command, {
     cwd: projectRoot,
     encoding: "utf8",
     input: input === undefined ? undefined : `${JSON.stringify(input)}\n`,
-    stdio:
-      input === undefined
-        ? ["ignore", "pipe", "pipe"]
-        : ["pipe", "pipe", "pipe"],
+    stdio: input === undefined ? ["ignore", "pipe", "pipe"] : ["pipe", "pipe", "pipe"],
   });
   if (result.error) throw result.error;
   if (result.status !== 0)
-    throw new Error(
-      result.stderr.trim() || `gh api failed with exit ${result.status}`,
-    );
+    throw new Error(result.stderr.trim() || `gh api failed with exit ${result.status}`);
   return result.stdout.trim() ? JSON.parse(result.stdout) : null;
 }
 
@@ -349,10 +262,7 @@ async function loadDesired() {
 
 async function main(argv) {
   const mode = argv[0] ?? "--validate";
-  if (
-    !["--validate", "--plan", "--check", "--apply"].includes(mode) ||
-    argv.length > 1
-  ) {
+  if (!["--validate", "--plan", "--check", "--apply"].includes(mode) || argv.length > 1) {
     throw new Error(
       "usage: node scripts/repository-settings.mjs [--validate|--plan|--check|--apply]",
     );
@@ -409,11 +319,7 @@ async function main(argv) {
   }
   if (mode === "--apply") {
     if (plan.rulesetChanges.length) {
-      gh(
-        repo,
-        { endpoint: plan.rulesetEndpoint, method: "PUT" },
-        plan.rulesetPayload,
-      );
+      gh(repo, { endpoint: plan.rulesetEndpoint, method: "PUT" }, plan.rulesetPayload);
     }
     if (plan.repositoryChanges.length) {
       gh(repo, { endpoint: "", method: "PATCH" }, plan.repositoryPayload);
@@ -430,21 +336,15 @@ async function main(argv) {
     summary = summaries.find(
       (item) => item.name === ruleset.name && item.target === ruleset.target,
     );
-    if (!summary)
-      throw new Error("Protect main ruleset disappeared during application");
+    if (!summary) throw new Error("Protect main ruleset disappeared during application");
     actual = gh(repo, { endpoint: `rulesets/${summary.id}`, method: "GET" });
   }
   if (!isDeepStrictEqual(projectRuleset(actual), projectRuleset(ruleset))) {
-    throw new Error(
-      "Protect main ruleset differs from .github/repository-ruleset.json",
-    );
+    throw new Error("Protect main ruleset differs from .github/repository-ruleset.json");
   }
   if (securityStatus.enabled !== true)
     throw new Error("private vulnerability reporting is not enabled");
-  const repositoryDrift = repositorySettingsMigration(
-    repositoryStatus,
-    desiredRepository,
-  ).changes;
+  const repositoryDrift = repositorySettingsMigration(repositoryStatus, desiredRepository).changes;
   if (repositoryDrift.length) {
     throw new Error(
       `repository settings differ from .github/repository-security.json: ${repositoryDrift.map((change) => change.path).join(", ")}`,

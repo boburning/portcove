@@ -45,7 +45,7 @@ native rendering evidence, not physical-controller or human-navigation evidence.
 | Format supported files               | `just fmt`                     | rewrite Rust, frontend, configuration, and active documentation with the repository-pinned formatters                                         |
 | Verify all formatting                | `just fmt-check`               | check the complete formatting contract without changing files                                                                                 |
 | Exhaustive local Rust investigation  | `just check-rust`              | format, compile, Clippy, tests, unused dependencies/files, and crate boundaries                                                               |
-| Exhaustive local UI investigation    | `just check-ui`                | formatting, typed ESLint, Stylelint, production build, tests, and the existing Fallow gate                                                    |
+| Exhaustive local UI investigation    | `just check-ui`                | Oxfmt, type-aware Oxlint, Stylelint, production build, tests, and the existing Fallow gate                                                    |
 | Playnite reference change (Windows)  | `just playnite-check`          | locked SDK/reference-assembly builds, literal process arguments and public protocol regression fixtures; optional isolated compiled-CLI reads |
 | Exhaustive local cross-stack check   | `just check`                   | Rust, UI, script/workflow lint, and deterministic package-policy, staging, checksum, and release-note tests                                   |
 | Release or explicit transition audit | `just audit`                   | exhaustive local check plus dependency policy and rscheck                                                                                     |
@@ -90,43 +90,56 @@ when the issue's acceptance scope calls for it.
 ## Formatting contract
 
 `just fmt` is the canonical write command and `just fmt-check` is its no-write
-counterpart. Cargo formats Rust, Prettier's unmodified defaults format active
-JavaScript, TypeScript, CSS, HTML, hand-maintained JSON and YAML, and active
-Markdown, and Taplo formats TOML. Prettier and Taplo are exact development
-dependencies installed by the existing pnpm workflow. Recommended VS Code
-extensions and format-on-save settings use those same repository-local tools.
-The TOML wrapper enumerates repository-owned files before passing their contents
-to Taplo so checks cover the same files on Windows and Unix hosts.
+counterpart. Cargo formats Rust, Oxfmt formats active JavaScript, TypeScript,
+CSS, HTML, hand-maintained JSON and YAML, and active Markdown, and Taplo formats
+TOML. Oxfmt uses a configured 100-column width, sorts package manifests, and
+deliberately leaves import order unchanged. Import order can carry side effects,
+and normalizing the existing tree would add unrelated churn without a product or
+quality benefit. Oxfmt and Taplo are exact development dependencies installed by
+the existing pnpm workflow. Recommended VS Code extensions and format-on-save
+settings use those same repository-local tools. The Oxfmt wrapper rejects an
+empty repository-owned inventory before invoking the formatter; the TOML wrapper
+enumerates repository-owned files before passing their contents to Taplo so
+checks cover the same files on Windows and Unix hosts.
 
 Generated files, catalogs, fixtures, dependency lockfiles, archived documents,
 and dated release evidence are outside the bulk-format boundary so a formatter
 cannot rewrite their content or invalidate historical evidence. This includes
 the Playnite integration and contract tests' `bin` and `obj` directories, which
 MSBuild and NuGet own. Secondary languages and scripts remain outside the
-bulk-format boundary; their lint contracts are specified below. The two initial
-mechanical format commits are listed in `.git-blame-ignore-revs`.
+bulk-format boundary; their lint contracts are specified below. Mechanical
+repository-wide format commits are listed in `.git-blame-ignore-revs`.
 
-Deterministic failures block: rustfmt, Cargo compilation, Clippy, tests, typed ESLint, Stylelint, Ruff, ShellCheck, actionlint, PSScriptAnalyzer, cargo-shear, cargo-deny security/license/source policy, the Cargo-metadata architecture checker, Fallow, and rscheck's absolute-path rule outside reviewed exceptions.
+Deterministic failures block: rustfmt, Cargo compilation, Clippy, tests,
+type-aware Oxlint, Oxfmt, Stylelint, Ruff, ShellCheck, actionlint,
+PSScriptAnalyzer, cargo-shear, cargo-deny security/license/source policy, the
+Cargo-metadata architecture checker, Fallow, and rscheck's absolute-path rule
+outside reviewed exceptions.
 
-ESLint uses a root flat configuration for the desktop TypeScript/TSX and the
-repository's JavaScript modules. Production UI code receives type-aware
-`typescript-eslint`, React Hooks correctness, and jsx-a11y rules. Test fixtures
-may use async mocks and intentionally exercise structured non-Error Tauri
-rejections; those two test-only contracts are documented directly in the flat
-configuration. The linter accepts no warnings and rejects unused suppression
-comments. ESLint 9 is pinned because the current jsx-a11y plugin's declared peer
-range does not yet include ESLint 10.
+Oxlint uses one root configuration for the desktop TypeScript/TSX and the
+repository's JavaScript modules. The standard pass applies the correctness
+category plus explicit undefined-variable, unused-variable, React Hooks, and
+jsx-a11y alt-text rules. Broad suspicious, pedantic, performance, style,
+restriction, and nursery categories remain opt-in so an Oxc update cannot
+silently expand the blocking policy. Rules that assume the legacy JSX transform
+or request semantic component rewrites are also outside this tooling migration.
+Test fixtures may use async mocks and intentionally exercise structured
+non-Error Tauri rejections; their narrow rule exceptions remain test-only.
 
-The package keeps two deliberate TypeScript compiler identities. `pnpm
-typecheck` invokes the `tsc` binary supplied by `@typescript/native` (the
-TypeScript 7 native compiler), while the `typescript` package name resolves to
-the latest compatible TypeScript 6 implementation used by ESLint's project
-service and Vite ecosystem tooling. Do not replace one with the other without
-revalidating both build and typed-lint contracts. Fallow's dependency graph does
-not associate a package-manager binary with its aliased package, so
-`.fallowrc.json` names `@typescript/native` as the single intentional dependency
-exception; the build and transport compiler tests verify that binary
-independently.
+The runner adds a second `oxlint-tsgolint` pass only for `apps/desktop/src`,
+where TypeScript project information is authoritative, and explicitly rejects
+floating promises. Repository JavaScript utilities still receive the standard
+Oxlint pass without being inferred into unrelated TypeScript programs. The
+linter accepts no warnings and rejects unused suppression comments. The
+separate `pnpm typecheck` command remains the authoritative whole-program
+TypeScript compiler gate; Oxlint's experimental whole-program type-check mode is
+not enabled. The VS Code integration enables the same type-aware source
+diagnostics.
+
+The package uses one TypeScript 7 dependency for the `tsc` build command,
+transport compiler rejection fixtures, and Vite ecosystem tooling. This removes
+the former compiler alias and its Fallow dependency exception. The build and
+transport compiler tests continue to verify the compiler independently.
 
 Stylelint applies its recommended correctness rules to the existing stylesheet.
 The documented descending-specificity exception preserves the stylesheet's

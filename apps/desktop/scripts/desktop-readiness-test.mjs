@@ -5,14 +5,7 @@ import axe from "axe-core";
 import { By, until } from "selenium-webdriver";
 import { reviewControls } from "./desktop-review-controls.mjs";
 
-export async function readinessScenario({
-  browser,
-  scenario,
-  output,
-  artifacts,
-  command,
-  open,
-}) {
+export async function readinessScenario({ browser, scenario, output, artifacts, command, open }) {
   await scenario("native-missing-readiness-recovery", async () => {
     const port = command(["catalog", "show", "opengoal-jak1"]);
     const before = command(["status", port.id]);
@@ -31,17 +24,14 @@ export async function readinessScenario({
           const target = native.convertFileSrc("get_statuses", "ipc");
           window.__portcoveReadinessProbe = { original, injected: 0 };
           window.fetch = async function (input, ...args) {
-            const url =
-              typeof input === "string" ? input : (input.url ?? String(input));
+            const url = typeof input === "string" ? input : (input.url ?? String(input));
             const response = await original.call(window, input, ...args);
             if (url !== target) return response;
             const statuses = await response.clone().json();
             if (
               !Array.isArray(statuses) ||
               !statuses.some(
-                (status) =>
-                  status.port_id === portId &&
-                  status.readiness?.launchable === true,
+                (status) => status.port_id === portId && status.readiness?.launchable === true,
               )
             )
               return response;
@@ -49,9 +39,7 @@ export async function readinessScenario({
             return new Response(
               JSON.stringify(
                 statuses.map((status) =>
-                  status.port_id === portId
-                    ? { ...status, readiness: null }
-                    : status,
+                  status.port_id === portId ? { ...status, readiness: null } : status,
                 ),
               ),
               {
@@ -71,25 +59,19 @@ export async function readinessScenario({
               (error) => done({ error }),
             );
         }, port.id)
-        .then((result) =>
-          assert.equal(result.ok, true, JSON.stringify(result)),
-        );
+        .then((result) => assert.equal(result.ok, true, JSON.stringify(result)));
       await browser.wait(
         async () =>
-          (
-            await browser.findElement(By.css(".detail-panel")).getText()
-          ).includes("Readiness unavailable"),
+          (await browser.findElement(By.css(".detail-panel")).getText()).includes(
+            "Readiness unavailable",
+          ),
         10_000,
       );
-      const primary = await browser.findElement(
-        By.css(".detail-panel .primary-actions button"),
-      );
+      const primary = await browser.findElement(By.css(".detail-panel .primary-actions button"));
       assert.equal(await primary.isEnabled(), false);
       assert.equal(await primary.getText(), "Play unavailable");
       await browser.executeScript(axe.source);
-      const accessibility = await browser.executeAsyncScript((done) =>
-        window.axe.run().then(done),
-      );
+      const accessibility = await browser.executeAsyncScript((done) => window.axe.run().then(done));
       const report = path.join(output, "readiness-accessibility.json");
       await writeFile(report, JSON.stringify(accessibility, null, 2), {
         flag: "wx",
@@ -110,18 +92,15 @@ export async function readinessScenario({
       await browser.wait(until.elementLocated(By.css(".detail-panel")), 10_000);
       await browser.wait(
         async () =>
-          (
-            await browser.findElement(By.css(".detail-panel")).getText()
-          ).includes("Readiness unavailable"),
+          (await browser.findElement(By.css(".detail-panel")).getText()).includes(
+            "Readiness unavailable",
+          ),
         10_000,
       );
       observations.after_review = command(["status", port.id]);
       assert.equal(observations.after_review.readiness.launchable, true);
       assert.equal(observations.after_review.active.id, before.active.id);
-      assert.equal(
-        observations.after_review.successful_launches,
-        before.successful_launches,
-      );
+      assert.equal(observations.after_review.successful_launches, before.successful_launches);
     } catch (error) {
       observations.failure = error.message;
       throw error;
@@ -158,20 +137,14 @@ export async function readinessScenario({
     );
     await browser.wait(
       async () =>
-        (await browser
-          .findElement(By.css(".detail-panel .primary-actions button"))
-          .getText()) === "Play now",
+        (await browser.findElement(By.css(".detail-panel .primary-actions button")).getText()) ===
+        "Play now",
       10_000,
     );
     assert.equal(
-      await browser
-        .findElement(By.css(".detail-panel .primary-actions button"))
-        .isEnabled(),
+      await browser.findElement(By.css(".detail-panel .primary-actions button")).isEnabled(),
       true,
     );
-    assert.equal(
-      command(["status", port.id]).successful_launches,
-      before.successful_launches,
-    );
+    assert.equal(command(["status", port.id]).successful_launches, before.successful_launches);
   });
 }

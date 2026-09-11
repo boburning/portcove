@@ -166,31 +166,17 @@ test(
   },
 );
 
-test(
-  "native ancestry refuses missing parent timestamps and cyclic metadata",
-  windows,
-  async () => {
-    for (const records of [
-      [
-        { ...processRecord(100, 0, 10), CreationDate: null },
-        processRecord(200, 100, 20),
-      ],
-      [
-        processRecord(100, 0, 10),
-        { ...processRecord(200, 100, 20), CreationDate: null },
-      ],
-      [
-        processRecord(100, 0, 10),
-        processRecord(200, 300, 20),
-        processRecord(300, 200, 20),
-      ],
-    ]) {
-      const result = await inspectProcessGraph(records);
-      assert.notEqual(result.status, 0, result.stdout);
-      assert.match(result.stderr, /exactly one owned application/);
-    }
-  },
-);
+test("native ancestry refuses missing parent timestamps and cyclic metadata", windows, async () => {
+  for (const records of [
+    [{ ...processRecord(100, 0, 10), CreationDate: null }, processRecord(200, 100, 20)],
+    [processRecord(100, 0, 10), { ...processRecord(200, 100, 20), CreationDate: null }],
+    [processRecord(100, 0, 10), processRecord(200, 300, 20), processRecord(300, 200, 20)],
+  ]) {
+    const result = await inspectProcessGraph(records);
+    assert.notEqual(result.status, 0, result.stdout);
+    assert.match(result.stderr, /exactly one owned application/);
+  }
+});
 
 test(
   "native ancestry accepts equal timestamps without treating the driver as its own child",
@@ -229,9 +215,7 @@ test(
       process.kill(child.pid, 0);
       const recorded = JSON.parse(await readFile(snapshot, "utf8"));
       for (const record of recorded.processes)
-        record.started_filetime = (
-          BigInt(record.started_filetime) - 10_000n
-        ).toString();
+        record.started_filetime = (BigInt(record.started_filetime) - 10_000n).toString();
       const stale = path.join(root, "stale.json");
       await writeFile(stale, JSON.stringify(recorded));
       const staleResult = run("Wait", stale);
@@ -251,20 +235,16 @@ test(
   },
 );
 
-test(
-  "native process discovery refuses ambiguous application descendants",
-  windows,
-  async () => {
-    const root = await temporaryRoot();
-    const children = [await ownedChild(), await ownedChild()];
-    try {
-      const result = run("Snapshot", path.join(root, "ambiguous.json"));
-      assert.notEqual(result.status, 0);
-      assert.match(result.stderr, /exactly one owned application/);
-      for (const child of children) process.kill(child.pid, 0);
-    } finally {
-      for (const child of children) await stop(child);
-      await rm(root, { recursive: true, force: true });
-    }
-  },
-);
+test("native process discovery refuses ambiguous application descendants", windows, async () => {
+  const root = await temporaryRoot();
+  const children = [await ownedChild(), await ownedChild()];
+  try {
+    const result = run("Snapshot", path.join(root, "ambiguous.json"));
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /exactly one owned application/);
+    for (const child of children) process.kill(child.pid, 0);
+  } finally {
+    for (const child of children) await stop(child);
+    await rm(root, { recursive: true, force: true });
+  }
+});

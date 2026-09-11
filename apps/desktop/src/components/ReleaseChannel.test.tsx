@@ -26,9 +26,7 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 async function click(text: string) {
-  const button = [...document.querySelectorAll("button")].find(
-    (item) => item.textContent === text,
-  );
+  const button = [...document.querySelectorAll("button")].find((item) => item.textContent === text);
   expect(button).toBeDefined();
   await act(async () => button?.click());
 }
@@ -50,9 +48,7 @@ it.each(["stable", "beta", "rolling"] as ReleaseChannel[])(
         />,
       ),
     );
-    expect(container.textContent).toContain(
-      `${channel[0].toUpperCase()}${channel.slice(1)} only`,
-    );
+    expect(container.textContent).toContain(`${channel[0].toUpperCase()}${channel.slice(1)} only`);
     expect(container.querySelector("button")).toBeNull();
     expect(change).not.toHaveBeenCalled();
     expect(refresh).not.toHaveBeenCalled();
@@ -129,9 +125,7 @@ it("does not refresh after an unsuccessful save and exposes retry state", async 
   await click("Rolling");
   expect(refresh).not.toHaveBeenCalled();
   expect(container.textContent).toContain("Channel change was not confirmed");
-  expect(
-    container.querySelector<HTMLButtonElement>(".choice-trigger")?.disabled,
-  ).toBe(false);
+  expect(container.querySelector<HTMLButtonElement>(".choice-trigger")?.disabled).toBe(false);
 });
 
 it("disables choices while saving and ignores completion from an old library", async () => {
@@ -157,9 +151,7 @@ it("disables choices while saving and ignores completion from an old library", a
   );
   await click("Release channelStable");
   await click("Rolling");
-  expect(
-    container.querySelector<HTMLButtonElement>(".choice-trigger")?.disabled,
-  ).toBe(true);
+  expect(container.querySelector<HTMLButtonElement>(".choice-trigger")?.disabled).toBe(true);
   await act(async () =>
     root.render(
       <ReleaseChannelControl

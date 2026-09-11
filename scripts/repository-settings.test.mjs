@@ -11,14 +11,10 @@ import {
 } from "./repository-settings.mjs";
 
 const ruleset = JSON.parse(
-  await readFile(
-    new URL("../.github/repository-ruleset.json", import.meta.url),
-  ),
+  await readFile(new URL("../.github/repository-ruleset.json", import.meta.url)),
 );
 const security = JSON.parse(
-  await readFile(
-    new URL("../.github/repository-security.json", import.meta.url),
-  ),
+  await readFile(new URL("../.github/repository-security.json", import.meta.url)),
 );
 
 test("checked-in repository settings enforce the exact main contract", () => {
@@ -29,10 +25,7 @@ test("checked-in repository settings enforce the exact main contract", () => {
 test("repository settings require standardized merge commits without narrowing merge methods", () => {
   const classicMergeTitle = structuredClone(security);
   classicMergeTitle.merge_commit_title = "MERGE_MESSAGE";
-  assert.throws(
-    () => validateRepositorySettings(ruleset, classicMergeTitle),
-    /pull request title/,
-  );
+  assert.throws(() => validateRepositorySettings(ruleset, classicMergeTitle), /pull request title/);
 
   const repeatedMergeBody = structuredClone(security);
   repeatedMergeBody.merge_commit_message = "PR_TITLE";
@@ -56,19 +49,13 @@ test("validation rejects approval gates, unresolved threads, or weakened status 
   addedApproval.rules.find(
     (rule) => rule.type === "pull_request",
   ).parameters.required_approving_review_count = 1;
-  assert.throws(
-    () => validateRepositorySettings(addedApproval, security),
-    /zero approvals/,
-  );
+  assert.throws(() => validateRepositorySettings(addedApproval, security), /zero approvals/);
 
   const lastPushApproval = structuredClone(ruleset);
   lastPushApproval.rules.find(
     (rule) => rule.type === "pull_request",
   ).parameters.require_last_push_approval = true;
-  assert.throws(
-    () => validateRepositorySettings(lastPushApproval, security),
-    /zero approvals/,
-  );
+  assert.throws(() => validateRepositorySettings(lastPushApproval, security), /zero approvals/);
 
   const unresolvedThreads = structuredClone(ruleset);
   unresolvedThreads.rules.find(
@@ -83,10 +70,7 @@ test("validation rejects approval gates, unresolved threads, or weakened status 
   missingCheck.rules
     .find((rule) => rule.type === "required_status_checks")
     .parameters.required_status_checks.pop();
-  assert.throws(
-    () => validateRepositorySettings(missingCheck, security),
-    /required status checks/,
-  );
+  assert.throws(() => validateRepositorySettings(missingCheck, security), /required status checks/);
 
   const missingAdminBypass = structuredClone(ruleset);
   missingAdminBypass.bypass_actors = [];
@@ -105,19 +89,14 @@ test("validation rejects approval gates, unresolved threads, or weakened status 
 
 test("bounded migration changes only authorized review gates and is idempotent", () => {
   const old = structuredClone(ruleset);
-  const pullRequest = old.rules.find(
-    (rule) => rule.type === "pull_request",
-  ).parameters;
+  const pullRequest = old.rules.find((rule) => rule.type === "pull_request").parameters;
   pullRequest.required_approving_review_count = 1;
   pullRequest.require_last_push_approval = true;
   const migration = rulesetMigration(old, ruleset);
   assert.deepEqual(migration.payload, ruleset);
   assert.deepEqual(
     migration.changes.map((change) => change.path),
-    [
-      "pull_request.required_approving_review_count",
-      "pull_request.require_last_push_approval",
-    ],
+    ["pull_request.required_approving_review_count", "pull_request.require_last_push_approval"],
   );
   assert.deepEqual(rulesetMigration(ruleset, ruleset).changes, []);
 
@@ -128,13 +107,9 @@ test("bounded migration changes only authorized review gates and is idempotent",
   assert.throws(() => rulesetMigration(drifted, ruleset), /out-of-scope drift/);
 
   const futureParameter = structuredClone(old);
-  futureParameter.rules.find(
-    (rule) => rule.type === "pull_request",
-  ).parameters.future_review_gate = true;
-  assert.throws(
-    () => rulesetMigration(futureParameter, ruleset),
-    /unexpected parameters/,
-  );
+  futureParameter.rules.find((rule) => rule.type === "pull_request").parameters.future_review_gate =
+    true;
+  assert.throws(() => rulesetMigration(futureParameter, ruleset), /unexpected parameters/);
   assert.throws(() => rulesetMigration(null, ruleset), /refusing to create/);
 });
 
@@ -198,13 +173,10 @@ test("repository setting migration is exact, idempotent and rejects an expanded 
     ],
     payload: { merge_commit_title: "PR_TITLE", merge_commit_message: "BLANK" },
   });
-  assert.deepEqual(
-    repositorySettingsMigration({ ...current, ...desired }, desired),
-    {
-      changes: [],
-      payload: {},
-    },
-  );
+  assert.deepEqual(repositorySettingsMigration({ ...current, ...desired }, desired), {
+    changes: [],
+    payload: {},
+  });
   assert.throws(
     () =>
       repositorySettingsMigration(current, {
@@ -220,19 +192,12 @@ test("production automation has no routine administrator merge path", async () =
   const workflowRoot = new URL("../.github/workflows/", import.meta.url);
   const files = [
     ...(await readdir(scriptRoot))
-      .filter(
-        (name) => /\.(?:mjs|ps1|sh)$/.test(name) && !name.endsWith(".test.mjs"),
-      )
+      .filter((name) => /\.(?:mjs|ps1|sh)$/.test(name) && !name.endsWith(".test.mjs"))
       .map((name) => new URL(name, scriptRoot)),
     ...(await readdir(workflowRoot))
       .filter((name) => /\.ya?ml$/.test(name))
       .map((name) => new URL(name, workflowRoot)),
   ];
-  const combined = (
-    await Promise.all(files.map((file) => readFile(file, "utf8")))
-  ).join("\n");
-  assert.doesNotMatch(
-    combined,
-    /gh\s+pr\s+merge[^\n]*--admin|--admin[^\n]*gh\s+pr\s+merge/i,
-  );
+  const combined = (await Promise.all(files.map((file) => readFile(file, "utf8")))).join("\n");
+  assert.doesNotMatch(combined, /gh\s+pr\s+merge[^\n]*--admin|--admin[^\n]*gh\s+pr\s+merge/i);
 });

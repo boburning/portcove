@@ -86,9 +86,7 @@ describe("workspace refresh recovery", () => {
     });
     expect(data.catalog).toBeUndefined();
     expect(data.refreshing).toBe(false);
-    expect(host.textContent).toContain(
-      "Library information could not be loaded",
-    );
+    expect(host.textContent).toContain("Library information could not be loaded");
     expect(host.textContent).toContain(error.presentation.summary);
     expect(host.textContent).not.toContain("private-machine-value");
     const retry = [...host.querySelectorAll("button")].find(
@@ -114,9 +112,7 @@ describe("workspace refresh recovery", () => {
       doctor: data.doctor,
     };
     vi.mocked(desktopApi.catalog).mockResolvedValue({ ...catalog, ports: [] });
-    vi.mocked(desktopApi.doctor).mockRejectedValueOnce(
-      new Error("temporarily unavailable"),
-    );
+    vi.mocked(desktopApi.doctor).mockRejectedValueOnce(new Error("temporarily unavailable"));
     await act(async () => {
       await data.retryRefresh();
     });
@@ -163,9 +159,7 @@ describe("workspace refresh recovery", () => {
     await act(async () => {
       old = data.retryRefresh();
     });
-    vi.mocked(desktopApi.catalog).mockRejectedValueOnce(
-      new Error("new failure"),
-    );
+    vi.mocked(desktopApi.catalog).mockRejectedValueOnce(new Error("new failure"));
     await act(async () => {
       await data.retryRefresh();
     });
@@ -177,9 +171,7 @@ describe("workspace refresh recovery", () => {
     expect(data.refreshFailure?.error).toEqual(new Error("new failure"));
   });
   it("handles failed library-change refreshes without losing the failure or retrying automatically", async () => {
-    vi.mocked(desktopApi.catalog).mockRejectedValueOnce(
-      new Error("event failure"),
-    );
+    vi.mocked(desktopApi.catalog).mockRejectedValueOnce(new Error("event failure"));
     const callback = vi
       .mocked(listen)
       .mock.calls.find(([event]) => event === "portcove://library-changed")![1];
@@ -195,9 +187,7 @@ describe("workspace refresh recovery", () => {
   it("refreshes after an operation without replacing its failure or repeating the operation", async () => {
     const mutationFailure = failureReport();
     const action = vi.fn().mockRejectedValue(mutationFailure);
-    vi.mocked(desktopApi.catalog).mockRejectedValueOnce(
-      new Error("refresh failure"),
-    );
+    vi.mocked(desktopApi.catalog).mockRejectedValueOnce(new Error("refresh failure"));
     await act(async () => {
       await operations.perform("move", action);
     });
@@ -213,9 +203,7 @@ describe("workspace refresh recovery", () => {
   it("keeps a successful operation result distinct from a failed display refresh", async () => {
     const committed = { changed: true };
     const action = vi.fn().mockResolvedValue(committed);
-    vi.mocked(desktopApi.catalog).mockRejectedValueOnce(
-      new Error("refresh failure"),
-    );
+    vi.mocked(desktopApi.catalog).mockRejectedValueOnce(new Error("refresh failure"));
     let result: unknown;
     await act(async () => {
       result = await operations.perform("save", action);
@@ -230,9 +218,7 @@ describe("workspace refresh recovery", () => {
     expect(data.refreshFailure).toBeUndefined();
   });
   it("disables retry during the pending request and preserves the current failure until completion", async () => {
-    vi.mocked(desktopApi.catalog).mockRejectedValueOnce(
-      new Error("initial failure"),
-    );
+    vi.mocked(desktopApi.catalog).mockRejectedValueOnce(new Error("initial failure"));
     await act(async () => {
       await data.retryRefresh();
     });

@@ -37,12 +37,8 @@ it("requires explicit review, invalidates changed candidates and uses core prove
     plan_sha256: "review",
   };
   vi.spyOn(desktopApi, "catalogStatus").mockResolvedValue(status);
-  vi.spyOn(picker, "pickSignedCatalogPath").mockResolvedValue(
-    "D:/catalog.json",
-  );
-  const review = vi
-    .spyOn(desktopApi, "planCatalogUpdate")
-    .mockResolvedValue(plan);
+  vi.spyOn(picker, "pickSignedCatalogPath").mockResolvedValue("D:/catalog.json");
+  const review = vi.spyOn(desktopApi, "planCatalogUpdate").mockResolvedValue(plan);
   const apply = vi
     .spyOn(desktopApi, "applyCatalogUpdate")
     .mockRejectedValueOnce({
@@ -73,11 +69,7 @@ it("requires explicit review, invalidates changed candidates and uses core prove
   try {
     await act(async () =>
       root.render(
-        <CatalogSettings
-          disabled={false}
-          provenance={status.provenance}
-          onChanged={refresh}
-        />,
+        <CatalogSettings disabled={false} provenance={status.provenance} onChanged={refresh} />,
       ),
     );
     expect(review).not.toHaveBeenCalled();
@@ -88,11 +80,7 @@ it("requires explicit review, invalidates changed candidates and uses core prove
     expect(review).toHaveBeenCalledWith(plan.source);
     expect(host.textContent).toContain("Verified version 1");
     await click("Apply reviewed update");
-    expect(apply).toHaveBeenCalledWith(
-      plan.source,
-      "review",
-      expect.any(Function),
-    );
+    expect(apply).toHaveBeenCalledWith(plan.source, "review", expect.any(Function));
     expect(host.textContent).toContain("Catalog changed; review again");
     expect(button("Apply reviewed update")).toBeUndefined();
     expect(refresh).not.toHaveBeenCalled();

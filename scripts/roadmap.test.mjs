@@ -38,9 +38,7 @@ import {
   viewMachineDrift,
 } from "./roadmap.mjs";
 
-const config = JSON.parse(
-  await readFile(new URL("../.github/roadmap.json", import.meta.url)),
-);
+const config = JSON.parse(await readFile(new URL("../.github/roadmap.json", import.meta.url)));
 const newPortForm = await readFile(
   new URL("../.github/ISSUE_TEMPLATE/new-port.yml", import.meta.url),
   "utf8",
@@ -72,14 +70,8 @@ test("capability milestones preserve history and fail closed during partial migr
   const history = item(1, "Alpha 2");
   const beta = item(2, "Public beta");
   const production = item(3, "1.0", "Ready", "Required", "OPEN");
-  assert.equal(
-    analyzeReleaseReadiness([history, beta, production], "Public beta").ready,
-    true,
-  );
-  assert.equal(
-    analyzeReleaseReadiness([history, beta, production], "1.0").ready,
-    false,
-  );
+  assert.equal(analyzeReleaseReadiness([history, beta, production], "Public beta").ready, true);
+  assert.equal(analyzeReleaseReadiness([history, beta, production], "1.0").ready, false);
   assert.equal(
     analyzeReleaseReadiness([history, beta, production], "Public beta", {
       candidateIssues: [1],
@@ -109,30 +101,17 @@ test("capability milestones preserve history and fail closed during partial migr
   assert.equal(analyzeReleaseReadiness([history], "Alpha 2").ready, true);
   const unmigrated = item(4, "Alpha 3", "Ready", "Opportunistic", "OPEN");
   assert.equal(
-    analyzeReleaseReadiness([history, beta, unmigrated], "Public beta")
-      .migrationConflicts.length,
+    analyzeReleaseReadiness([history, beta, unmigrated], "Public beta").migrationConflicts.length,
     1,
   );
-  assert.equal(
-    analyzeReleaseReadiness([history, beta, unmigrated], "Public beta").ready,
-    false,
-  );
+  assert.equal(analyzeReleaseReadiness([history, beta, unmigrated], "Public beta").ready, false);
   const missingTarget = item(5, undefined);
-  assert.equal(
-    analyzeReleaseReadiness([history, beta, missingTarget], "Public beta")
-      .ready,
-    false,
-  );
-  assert.equal(
-    analyzeReleaseReadiness([item(5, "Unscheduled")], "Public beta").ready,
-    false,
-  );
+  assert.equal(analyzeReleaseReadiness([history, beta, missingTarget], "Public beta").ready, false);
+  assert.equal(analyzeReleaseReadiness([item(5, "Unscheduled")], "Public beta").ready, false);
   assert.equal(analyzeReleaseReadiness([item(5, "Typo")], "1.0").ready, false);
   assert.equal(
-    analyzeReleaseReadiness(
-      [item(6, "Public beta", "Done", "Required", "OPEN")],
-      "Public beta",
-    ).ready,
+    analyzeReleaseReadiness([item(6, "Public beta", "Done", "Required", "OPEN")], "Public beta")
+      .ready,
     false,
   );
   assert.equal(
@@ -143,8 +122,7 @@ test("capability milestones preserve history and fail closed during partial migr
     1,
   );
   assert.equal(
-    analyzeReleaseReadiness([item(8, "Public beta", "Done", "")], "Public beta")
-      .ready,
+    analyzeReleaseReadiness([item(8, "Public beta", "Done", "")], "Public beta").ready,
     false,
   );
   const selected = item(9, "1.0", "Done", "Opportunistic", "CLOSED", [10]);
@@ -188,24 +166,12 @@ test("New Port form requires canonical identity input without a Project-token wo
 });
 
 test("argument parsing keeps positional item references and named values distinct", () => {
-  assert.deepEqual(
-    parseArguments([
-      "set",
-      "#42",
-      "--status",
-      "In progress",
-      "--release=Alpha 1",
-    ]),
-    {
-      command: "set",
-      positionals: ["#42"],
-      options: { "--status": "In progress", "--release": "Alpha 1" },
-    },
-  );
-  assert.throws(
-    () => parseArguments(["move", "PVTI_1", "--before"]),
-    /requires a value/,
-  );
+  assert.deepEqual(parseArguments(["set", "#42", "--status", "In progress", "--release=Alpha 1"]), {
+    command: "set",
+    positionals: ["#42"],
+    options: { "--status": "In progress", "--release": "Alpha 1" },
+  });
+  assert.throws(() => parseArguments(["move", "PVTI_1", "--before"]), /requires a value/);
 });
 
 test("field reconciliation preserves existing option identities and user data", () => {
@@ -302,15 +268,10 @@ test("active port work is additive and preserves the complete inventory view", (
     .map((view, index) => ({ ...view, id: `V${index}` }));
   const plan = planViewReconciliation(config.views, existing);
   assert.deepEqual(
-    plan
-      .filter((step) => step.action === "create")
-      .map((step) => step.desired.name),
+    plan.filter((step) => step.action === "create").map((step) => step.desired.name),
     ["Active Port Work"],
   );
-  assert.equal(
-    plan.find((step) => step.desired.name === inventory.name).actual.id,
-    "V2",
-  );
+  assert.equal(plan.find((step) => step.desired.name === inventory.name).actual.id, "V2");
 });
 
 test("next work excludes workstreams, completed items, and Later horizon", () => {
@@ -468,16 +429,10 @@ test("release snapshots are cumulative and Project Status alone authorizes compl
     items,
     catalog: { ports: [] },
   });
-  assert.match(
-    document,
-    /Cumulative required stages: Alpha 1, Alpha 2, Alpha 3, Beta 1/,
-  );
+  assert.match(document, /Cumulative required stages: Alpha 1, Alpha 2, Alpha 3, Beta 1/);
   assert.match(document, /## Open blockers[\s\S]*Alpha blocker/);
   assert.match(document, /## Completed required items[\s\S]*Beta complete/);
-  assert.match(
-    document,
-    /## Unfinished required items[\s\S]*Closed not planned/,
-  );
+  assert.match(document, /## Unfinished required items[\s\S]*Closed not planned/);
   assert.match(
     document,
     /## Repository closure and Project Status inconsistencies[\s\S]*Closed not planned/,
@@ -488,13 +443,7 @@ test("release snapshots are cumulative and Project Status alone authorizes compl
 });
 
 test("release readiness separates required, opportunistic, unclassified, and genuine blocking dependencies", () => {
-  const issue = (
-    number,
-    title,
-    fields = {},
-    blockedBy = [],
-    parent = null,
-  ) => ({
+  const issue = (number, title, fields = {}, blockedBy = [], parent = null) => ({
     id: `item-${number}`,
     title,
     ...fields,
@@ -568,14 +517,8 @@ test("release readiness separates required, opportunistic, unclassified, and gen
     ),
   ];
   const analysis = analyzeReleaseReadiness(items, "Alpha 2");
-  assert.deepEqual(
-    analysis.effectiveRequired.map((item) => item.content.number).sort(),
-    [1, 2, 6],
-  );
-  assert.deepEqual(
-    analysis.opportunistic.map((item) => item.content.number).sort(),
-    [3, 6],
-  );
+  assert.deepEqual(analysis.effectiveRequired.map((item) => item.content.number).sort(), [1, 2, 6]);
+  assert.deepEqual(analysis.opportunistic.map((item) => item.content.number).sort(), [3, 6]);
   assert.deepEqual(
     analysis.relevantUnclassified.map((item) => item.content.number),
     [4],
@@ -634,10 +577,7 @@ test("dependency analysis reports cycles and Project-missing blockers", () => {
   assert.deepEqual(dependencyCycles([one, two]), [[1, 2, 1]]);
   const analysis = analyzeReleaseReadiness([one, two], "Alpha 1");
   assert.equal(analysis.missingProjectDependencies.length, 1);
-  assert.equal(
-    analysis.missingProjectDependencies[0].dependency.content.number,
-    99,
-  );
+  assert.equal(analysis.missingProjectDependencies[0].dependency.content.number, 99);
   assert.equal(analysis.ready, false);
 });
 
@@ -697,25 +637,13 @@ test("completion evidence excludes ordinary upstream URLs and accepts explicit o
 });
 
 test("snapshot output is confined to docs/releases", () => {
-  assert.match(
-    resolveSnapshotOutput("docs/releases/alpha.md"),
-    /docs[\\/]releases[\\/]alpha\.md$/,
-  );
-  assert.throws(
-    () => resolveSnapshotOutput("docs/alpha.md"),
-    /must be under docs\/releases/,
-  );
-  assert.throws(
-    () => resolveSnapshotOutput("../outside.md"),
-    /must be under docs\/releases/,
-  );
+  assert.match(resolveSnapshotOutput("docs/releases/alpha.md"), /docs[\\/]releases[\\/]alpha\.md$/);
+  assert.throws(() => resolveSnapshotOutput("docs/alpha.md"), /must be under docs\/releases/);
+  assert.throws(() => resolveSnapshotOutput("../outside.md"), /must be under docs\/releases/);
 });
 
 test("durable promotion rejects missing sections and accepts a complete specification", () => {
-  assert.throws(
-    () => validateDurableIssueBody("## User outcome\n\nUseful"),
-    /incomplete/,
-  );
+  assert.throws(() => validateDurableIssueBody("## User outcome\n\nUseful"), /incomplete/);
   const body = [
     "## User outcome\n\nUseful outcome",
     "## Current behavior and evidence\n\nObserved behavior",
@@ -750,9 +678,7 @@ test("feature intake accepts neutral and explicit planning fields", () => {
     "Desktop UX",
   );
   assert.equal(
-    featureIntakeFields(config, { "--commitment": "Opportunistic" })[
-      "Release commitment"
-    ],
+    featureIntakeFields(config, { "--commitment": "Opportunistic" })["Release commitment"],
     "Opportunistic",
   );
   assert.throws(
@@ -762,13 +688,8 @@ test("feature intake accepts neutral and explicit planning fields", () => {
 });
 
 test("Release commitment field migration is idempotent", () => {
-  const desired = [
-    config.fields.find((field) => field.name === "Release commitment"),
-  ];
-  assert.equal(
-    planFieldReconciliation(desired, { fields: [] })[0].action,
-    "create",
-  );
+  const desired = [config.fields.find((field) => field.name === "Release commitment")];
+  assert.equal(planFieldReconciliation(desired, { fields: [] })[0].action, "create");
   const actual = {
     fields: [
       {
@@ -786,21 +707,15 @@ test("Release commitment field migration is idempotent", () => {
 });
 
 test("active release materialization and manual checklist are explicit", () => {
-  const current = materializeViews(config).find(
-    (view) => view.name === "Current Release",
-  );
-  assert.equal(
-    current.filter,
-    `-status:Done target-release:"${config.active_release}"`,
-  );
+  const current = materializeViews(config).find((view) => view.name === "Current Release");
+  assert.equal(current.filter, `-status:Done target-release:"${config.active_release}"`);
   const alpha1 = materializeViews({
     ...config,
     active_release: "Alpha 1",
   }).find((view) => view.name === "Current Release");
   assert.equal(alpha1.filter, '-status:Done target-release:"Alpha 1"');
   assert.equal(
-    manualUiChecklist(config).filter((line) => /^\d+\. .*: group by/.test(line))
-      .length,
+    manualUiChecklist(config).filter((line) => /^\d+\. .*: group by/.test(line)).length,
     config.views.length,
   );
   assert.match(manualUiChecklist(config).at(-1), /completion workflows/);
@@ -834,9 +749,7 @@ test("doctor drift covers identity linkage field options and view properties", (
     [],
   );
   views[0].filter = "wrong";
-  fields[0].options = fields[0].options.filter(
-    (option) => option.name !== "Done",
-  );
+  fields[0].options = fields[0].options.filter((option) => option.name !== "Done");
   fields[1].options.push({ id: "unexpected", name: "Unexpected" });
   views.push({
     id: "extra",
@@ -858,11 +771,7 @@ test("doctor drift covers identity linkage field options and view properties", (
   assert.ok(drift.some((value) => value.includes("unexpected options")));
   assert.ok(drift.some((value) => value.includes("view Priority Stack")));
   assert.ok(drift.some((value) => value.includes("unexpected view")));
-  assert.ok(
-    viewMachineDrift(desiredViews[0], views[0]).some((value) =>
-      value.includes("filter"),
-    ),
-  );
+  assert.ok(viewMachineDrift(desiredViews[0], views[0]).some((value) => value.includes("filter")));
 });
 
 test("one-port-one-issue coverage rejects missing duplicate grouped and draft authority", () => {
@@ -906,12 +815,9 @@ test("one-port-one-issue coverage rejects missing duplicate grouped and draft au
   const grouped = repositoryIssue(3, "one");
   grouped.body += "\n<!-- portcove-catalog-id: two -->";
   assert.ok(
-    validatePortIssueCoverage(
-      catalog,
-      [projectItem(grouped)],
-      "boburning/portcove",
-      [grouped],
-    ).some((value) => value.includes("multiple catalog ports")),
+    validatePortIssueCoverage(catalog, [projectItem(grouped)], "boburning/portcove", [
+      grouped,
+    ]).some((value) => value.includes("multiple catalog ports")),
   );
   const draft = {
     title: "Draft only",
@@ -919,19 +825,15 @@ test("one-port-one-issue coverage rejects missing duplicate grouped and draft au
     content: { type: "DraftIssue", body: "<!-- portcove-port -->" },
   };
   assert.ok(
-    validatePortIssueCoverage(
-      { ports: [] },
-      [draft],
-      "boburning/portcove",
-    ).some((value) => value.includes("not backed")),
+    validatePortIssueCoverage({ ports: [] }, [draft], "boburning/portcove").some((value) =>
+      value.includes("not backed"),
+    ),
   );
   assert.ok(
-    validatePortIssueCoverage(
-      catalog,
-      [projectItem(first)],
-      "boburning/portcove",
-      [first, second],
-    ).some((value) => value.includes("not in the Project")),
+    validatePortIssueCoverage(catalog, [projectItem(first)], "boburning/portcove", [
+      first,
+      second,
+    ]).some((value) => value.includes("not in the Project")),
   );
   assert.ok(
     validatePortIssueCoverage(
@@ -960,23 +862,11 @@ test("intake permits integration completion without inventing gameplay qualifica
     portKey: "fixture",
   });
   assert.doesNotThrow(() => validateDurableIssueBody(body));
-  assert.match(
-    body,
-    /absent optional gameplay evidence as Unknown, not failure/,
-  );
-  assert.match(
-    body,
-    /explicit hands-on support claims still require actual observations/,
-  );
-  assert.match(
-    body,
-    /Unsupported management operations remain unavailable with reasons/,
-  );
+  assert.match(body, /absent optional gameplay evidence as Unknown, not failure/);
+  assert.match(body, /explicit hands-on support claims still require actual observations/);
+  assert.match(body, /Unsupported management operations remain unavailable with reasons/);
   assert.match(body, /Manual qualification: Not yet recorded/);
-  assert.doesNotMatch(
-    body,
-    /required hands-on behavior for each claimed platform/,
-  );
+  assert.doesNotMatch(body, /required hands-on behavior for each claimed platform/);
 });
 
 test("one-port-one-issue coverage requires unique candidate keys and allows shared upstream multi-game repositories", () => {
@@ -1042,20 +932,14 @@ test("one-port-one-issue coverage requires unique candidate keys and allows shar
     "<!-- portcove-port -->\n<!-- portcove-upstream: https://example.test/three -->",
   );
   assert.ok(
-    validatePortIssueCoverage(
-      { ports: [] },
-      [projectItem(unlabeled)],
-      "boburning/portcove",
-      [unlabeled],
-    ).some((value) => value.includes("research/watchlist")),
+    validatePortIssueCoverage({ ports: [] }, [projectItem(unlabeled)], "boburning/portcove", [
+      unlabeled,
+    ]).some((value) => value.includes("research/watchlist")),
   );
   assert.ok(
-    validatePortIssueCoverage(
-      { ports: [] },
-      [projectItem(unlabeled)],
-      "boburning/portcove",
-      [unlabeled],
-    ).some((value) => value.includes("durable port key")),
+    validatePortIssueCoverage({ ports: [] }, [projectItem(unlabeled)], "boburning/portcove", [
+      unlabeled,
+    ]).some((value) => value.includes("durable port key")),
   );
 });
 
@@ -1119,18 +1003,12 @@ Play the game.`;
   assert.throws(
     () =>
       parsePortIssueForm(
-        body.replace(
-          "https://github.com/example/shared",
-          "http://example.test/shared",
-        ),
+        body.replace("https://github.com/example/shared", "http://example.test/shared"),
       ),
     /valid https URL/,
   );
   assert.throws(
-    () =>
-      parsePortIssueForm(
-        body.replace("https://github.com/example/shared", "_No response_"),
-      ),
+    () => parsePortIssueForm(body.replace("https://github.com/example/shared", "_No response_")),
     /missing Direct upstream/,
   );
   assert.throws(
@@ -1179,12 +1057,7 @@ test("doctor discovers unnormalized open [Port] issues but ignores ordinary body
     body: `### Direct upstream URL\n\nhttps://example.test/form\n\n### Durable game or target key\n\nform-candidate\n\nSubmitting this form does not grant support.`,
   };
   const item = { title: form.title, "work type": "Research", content: form };
-  const errors = validatePortIssueCoverage(
-    { ports: [] },
-    [item],
-    "boburning/portcove",
-    [form],
-  );
+  const errors = validatePortIssueCoverage({ ports: [] }, [item], "boburning/portcove", [form]);
   assert.ok(
     errors.some(
       (value) =>
@@ -1192,18 +1065,12 @@ test("doctor discovers unnormalized open [Port] issues but ignores ordinary body
         value.includes("normalize-port --issue 10"),
     ),
   );
+  assert.ok(errors.some((value) => value.includes("exactly one direct upstream")));
+  assert.ok(errors.some((value) => value.includes("not classified as Work type = Port")));
   assert.ok(
-    errors.some((value) => value.includes("exactly one direct upstream")),
-  );
-  assert.ok(
-    errors.some((value) =>
-      value.includes("not classified as Work type = Port"),
+    validatePortIssueCoverage({ ports: [] }, [], "boburning/portcove", [form]).some((value) =>
+      value.includes("not in the Project"),
     ),
-  );
-  assert.ok(
-    validatePortIssueCoverage({ ports: [] }, [], "boburning/portcove", [
-      form,
-    ]).some((value) => value.includes("not in the Project")),
   );
   const unrelated = {
     number: 11,
@@ -1213,9 +1080,7 @@ test("doctor discovers unnormalized open [Port] issues but ignores ordinary body
     url: "https://github.com/boburning/portcove/issues/11",
   };
   assert.deepEqual(
-    validatePortIssueCoverage({ ports: [] }, [], "boburning/portcove", [
-      unrelated,
-    ]),
+    validatePortIssueCoverage({ ports: [] }, [], "boburning/portcove", [unrelated]),
     [],
   );
 });
@@ -1288,39 +1153,23 @@ test("Port stage validation is evidence-based and platform-scoped", () => {
     },
   });
   assert.deepEqual(
-    validatePortStageSemantics(catalog, [item("no-evidence", "Cataloged")])
-      .errors,
+    validatePortStageSemantics(catalog, [item("no-evidence", "Cataloged")]).errors,
     [],
   );
   assert.deepEqual(
-    validatePortStageSemantics(catalog, [
-      item("automated", "Automated qualification"),
-    ]).errors,
+    validatePortStageSemantics(catalog, [item("automated", "Automated qualification")]).errors,
     [],
   );
-  const stableOverclaim = validatePortStageSemantics(catalog, [
-    item("no-evidence", "Supported"),
-  ]);
-  assert.ok(
-    stableOverclaim.errors.some((value) =>
-      value.includes("no automated evidence"),
-    ),
-  );
-  assert.ok(
-    stableOverclaim.errors.some((value) =>
-      value.includes("no platform with matching"),
-    ),
-  );
-  const supported = validatePortStageSemantics(catalog, [
-    item("windows-qualified", "Supported"),
-  ]);
+  const stableOverclaim = validatePortStageSemantics(catalog, [item("no-evidence", "Supported")]);
+  assert.ok(stableOverclaim.errors.some((value) => value.includes("no automated evidence")));
+  assert.ok(stableOverclaim.errors.some((value) => value.includes("no platform with matching")));
+  const supported = validatePortStageSemantics(catalog, [item("windows-qualified", "Supported")]);
   assert.deepEqual(supported.errors, []);
   assert.deepEqual(qualifiedPlatforms(catalog.ports[2]), ["windows"]);
   assert.match(supported.diagnostics[0], /qualified platforms = windows/);
   assert.ok(
-    validatePortStageSemantics(catalog, [
-      item("windows-qualified", "Cataloged"),
-    ]).warnings.length > 0,
+    validatePortStageSemantics(catalog, [item("windows-qualified", "Cataloged")]).warnings.length >
+      0,
   );
 });
 
@@ -1345,13 +1194,13 @@ test("Port stage validation rejects broken manual evidence non-catalog overclaim
     },
   };
   assert.ok(
-    validatePortStageSemantics({ ports: [invalidManual] }, [
-      nonCatalog,
-    ]).errors.some((value) => value.includes("exactly one valid catalog ID")),
+    validatePortStageSemantics({ ports: [invalidManual] }, [nonCatalog]).errors.some((value) =>
+      value.includes("exactly one valid catalog ID"),
+    ),
   );
   assert.ok(
-    validatePortStageSemantics({ ports: [invalidManual] }, []).errors.some(
-      (value) => value.includes("manual evidence without matching"),
+    validatePortStageSemantics({ ports: [invalidManual] }, []).errors.some((value) =>
+      value.includes("manual evidence without matching"),
     ),
   );
 
@@ -1365,10 +1214,7 @@ test("Port stage validation rejects broken manual evidence non-catalog overclaim
   });
   const rejected = structuredClone(nonCatalog);
   rejected["port stage"] = "Rejected";
-  assert.deepEqual(
-    validatePortStageSemantics({ ports: [] }, [blocked, rejected]).errors,
-    [],
-  );
+  assert.deepEqual(validatePortStageSemantics({ ports: [] }, [blocked, rejected]).errors, []);
   const invalidBlocked = structuredClone(blocked);
   invalidBlocked.content.body = renderPortIssueBody({
     title: "Candidate",
@@ -1376,9 +1222,8 @@ test("Port stage validation rejects broken manual evidence non-catalog overclaim
     portKey: "candidate",
   });
   assert.ok(
-    validatePortStageSemantics({ ports: [] }, [invalidBlocked]).errors.some(
-      (value) =>
-        value.includes("lacks a usable blocker and exact resume condition"),
+    validatePortStageSemantics({ ports: [] }, [invalidBlocked]).errors.some((value) =>
+      value.includes("lacks a usable blocker and exact resume condition"),
     ),
   );
 
@@ -1401,9 +1246,7 @@ test("Port stage validation rejects broken manual evidence non-catalog overclaim
         ],
       },
       [catalogRejected],
-    ).errors.some((value) =>
-      value.includes("still represented as catalog-supported"),
-    ),
+    ).errors.some((value) => value.includes("still represented as catalog-supported")),
   );
 });
 
@@ -1454,8 +1297,7 @@ test("Supported reconciliation only downgrades overstatement and becomes idempot
     ],
   );
   for (const change of plan)
-    items.find((candidate) => candidate.id === change.itemId)["port stage"] =
-      change.to;
+    items.find((candidate) => candidate.id === change.itemId)["port stage"] = change.to;
   assert.deepEqual(planPortStageReconciliation(catalog, items), []);
 });
 
@@ -1487,8 +1329,7 @@ test("normalization initializes only unset neutral fields and always classifies 
 
 test("final UX audit origins require complete unique enumerated canonical ownership", () => {
   assert.equal(uxAuditOriginIds.length, 178);
-  const completeBody =
-    "<!-- portcove-ux-audit-origins: " + uxAuditOriginIds.join(" ") + " -->";
+  const completeBody = "<!-- portcove-ux-audit-origins: " + uxAuditOriginIds.join(" ") + " -->";
   const item = (number, body) => ({
     title: "Owner " + number,
     content: {
@@ -1500,10 +1341,7 @@ test("final UX audit origins require complete unique enumerated canonical owners
   assert.deepEqual(uxAuditOrigins(completeBody), uxAuditOriginIds);
   assert.deepEqual(validateUxAuditOriginCoverage([item(1, completeBody)]), []);
 
-  const missing =
-    "<!-- portcove-ux-audit-origins: " +
-    uxAuditOriginIds.slice(1).join(" ") +
-    " -->";
+  const missing = "<!-- portcove-ux-audit-origins: " + uxAuditOriginIds.slice(1).join(" ") + " -->";
   assert.ok(
     validateUxAuditOriginCoverage([item(1, missing)]).some((value) =>
       value.includes("lacks a canonical issue: SYS-01"),
@@ -1512,35 +1350,25 @@ test("final UX audit origins require complete unique enumerated canonical owners
 
   const duplicate = "<!-- portcove-ux-audit-origins: SYS-01 -->";
   assert.ok(
-    validateUxAuditOriginCoverage([
-      item(1, completeBody),
-      item(2, duplicate),
-    ]).some((value) => value.includes("duplicate owners: SYS-01")),
+    validateUxAuditOriginCoverage([item(1, completeBody), item(2, duplicate)]).some((value) =>
+      value.includes("duplicate owners: SYS-01"),
+    ),
   );
 
   for (const [body, expected] of [
     ["<!-- portcove-ux-audit-origins: SYS-99 -->", "Unknown UX audit origin"],
     ["<!-- portcove-ux-audit-origins: SYS-1 -->", "Malformed UX audit origin"],
-    [
-      "<!-- portcove-ux-audit-origins: SYS-01..SYS-14 -->",
-      "range must enumerate",
-    ],
-    [
-      "<!-- portcove-wording-audit-origins: WORD-01 -->",
-      "Superseded wording audit",
-    ],
+    ["<!-- portcove-ux-audit-origins: SYS-01..SYS-14 -->", "range must enumerate"],
+    ["<!-- portcove-wording-audit-origins: WORD-01 -->", "Superseded wording audit"],
   ]) {
     assert.ok(
-      validateUxAuditOriginCoverage([item(1, body)]).some((value) =>
-        value.includes(expected),
-      ),
+      validateUxAuditOriginCoverage([item(1, body)]).some((value) => value.includes(expected)),
     );
   }
 });
 
 test("supported-source plan origin has exactly one canonical owner", () => {
-  const marker =
-    "<!-- portcove-origins: PCV-PLAN-SUPPORTED-SOURCE-PROVENANCE-2026-09-04 -->";
+  const marker = "<!-- portcove-origins: PCV-PLAN-SUPPORTED-SOURCE-PROVENANCE-2026-09-04 -->";
   const item = (number, body) => ({
     title: "Owner " + number,
     content: {
@@ -1552,15 +1380,10 @@ test("supported-source plan origin has exactly one canonical owner", () => {
   assert.deepEqual(validatePlanOriginCoverage([item(36, marker)]), []);
   assert.ok(validatePlanOriginCoverage([])[0].includes("found 0"));
   assert.ok(
-    validatePlanOriginCoverage([
-      item(36, marker),
-      item(99, marker),
-    ])[0].includes("found 2"),
+    validatePlanOriginCoverage([item(36, marker), item(99, marker)])[0].includes("found 2"),
   );
   assert.ok(
-    validatePlanOriginCoverage([item(99, marker)])[0].includes(
-      "must be owned by issue #36",
-    ),
+    validatePlanOriginCoverage([item(99, marker)])[0].includes("must be owned by issue #36"),
   );
 });
 
@@ -1570,8 +1393,7 @@ test("RoadmapClient capture uses mocked gh output and stores planning fields onl
   mockedConfig.project.number = 7;
   const runner = (args, input) => {
     calls.push({ args, input });
-    if (args[1] === "item-create")
-      return JSON.stringify({ id: "PVTI_draft", title: "Candidate" });
+    if (args[1] === "item-create") return JSON.stringify({ id: "PVTI_draft", title: "Candidate" });
     if (args[1] === "view") return JSON.stringify({ id: "PVT_project" });
     if (args[1] === "field-list")
       return JSON.stringify({
@@ -1597,19 +1419,11 @@ test("RoadmapClient capture uses mocked gh output and stores planning fields onl
     fields: { Status: "Inbox", Priority: "None" },
   });
   assert.equal(result.id, "PVTI_draft");
-  assert.equal(
-    calls.filter((call) => call.args[1] === "item-create").length,
-    1,
-  );
-  const edit = calls.find((call) =>
-    call.input?.includes("updateProjectV2ItemFieldValue"),
-  );
+  assert.equal(calls.filter((call) => call.args[1] === "item-create").length, 1);
+  const edit = calls.find((call) => call.input?.includes("updateProjectV2ItemFieldValue"));
   const variables = JSON.parse(edit.input).variables;
   assert.deepEqual(
-    Object.values(variables).map((input) => [
-      input.fieldId,
-      input.value.singleSelectOptionId,
-    ]),
+    Object.values(variables).map((input) => [input.fieldId, input.value.singleSelectOptionId]),
     [
       ["PVTSSF_status", "OPT_inbox"],
       ["PVTSSF_priority", "OPT_none"],
@@ -1640,8 +1454,7 @@ test("capture-port creates one Project-backed issue without depending on parent 
         html_url: "https://github.com/boburning/portcove/issues/88",
         number: 88,
       });
-    if (args[0] === "project" && args[1] === "view")
-      return JSON.stringify({ id: "PVT_project" });
+    if (args[0] === "project" && args[1] === "view") return JSON.stringify({ id: "PVT_project" });
     if (args[0] === "project" && args[1] === "field-list")
       return JSON.stringify({
         fields: Object.entries(expectedFields).map(([name, value], index) => ({
@@ -1651,10 +1464,7 @@ test("capture-port creates one Project-backed issue without depending on parent 
         })),
       });
     if (args[0] === "api" && args[1] === "graphql") {
-      assert.doesNotMatch(
-        input,
-        /issue\(number: 16\)|\bparent\s*\{|addSubIssue|removeSubIssue/,
-      );
+      assert.doesNotMatch(input, /issue\(number: 16\)|\bparent\s*\{|addSubIssue|removeSubIssue/);
       if (input.includes("issues(first: 100"))
         return JSON.stringify({
           data: {
@@ -1692,31 +1502,18 @@ test("capture-port creates one Project-backed issue without depending on parent 
   });
   assert.equal(result.itemId, "PVTI_new");
   assert.equal(
-    calls.filter((call) => call.args[1] === "repos/boburning/portcove/issues")
-      .length,
+    calls.filter((call) => call.args[1] === "repos/boburning/portcove/issues").length,
     1,
   );
-  assert.ok(
-    calls.some((call) => call.input?.includes("<!-- portcove-port -->")),
-  );
-  assert.ok(
-    calls.some((call) =>
-      call.input?.includes("<!-- portcove-port-key: new-port -->"),
-    ),
-  );
-  const fieldEdit = calls.find((call) =>
-    call.input?.includes("updateProjectV2ItemFieldValue"),
-  );
+  assert.ok(calls.some((call) => call.input?.includes("<!-- portcove-port -->")));
+  assert.ok(calls.some((call) => call.input?.includes("<!-- portcove-port-key: new-port -->")));
+  const fieldEdit = calls.find((call) => call.input?.includes("updateProjectV2ItemFieldValue"));
   assert.ok(
     Object.values(JSON.parse(fieldEdit.input).variables).some(
-      (input) =>
-        input.fieldId === "F6" && input.value.singleSelectOptionId === "O6",
+      (input) => input.fieldId === "F6" && input.value.singleSelectOptionId === "O6",
     ),
   );
-  assert.equal(
-    calls.filter((call) => call.input?.includes("addProjectV2ItemById")).length,
-    1,
-  );
+  assert.equal(calls.filter((call) => call.input?.includes("addProjectV2ItemById")).length, 1);
 });
 
 for (const parentNumber of [null, 16, 777]) {
@@ -1769,8 +1566,7 @@ Preserve this contributor text.`;
       }
       if (args[0] === "api" && args[1] === "repos/boburning/portcove/issues/42")
         return JSON.stringify(issue());
-      if (args[0] === "project" && args[1] === "view")
-        return JSON.stringify({ id: "PVT_project" });
+      if (args[0] === "project" && args[1] === "view") return JSON.stringify({ id: "PVT_project" });
       if (args[0] === "project" && args[1] === "field-list")
         return JSON.stringify({
           fields: [
@@ -1782,19 +1578,14 @@ Preserve this contributor text.`;
           ],
         });
       if (args[0] === "api" && args[1] === "graphql") {
-        assert.doesNotMatch(
-          input,
-          /issue\(number: 16\)|\bparent\s*\{|addSubIssue|removeSubIssue/,
-        );
+        assert.doesNotMatch(input, /issue\(number: 16\)|\bparent\s*\{|addSubIssue|removeSubIssue/);
         if (input.includes("issues(first: 100"))
           return JSON.stringify({
             data: {
               repository: {
                 issues: {
                   totalCount: 1,
-                  nodes: [
-                    { ...issue(), __typename: "Issue", url: issue().html_url },
-                  ],
+                  nodes: [{ ...issue(), __typename: "Issue", url: issue().html_url }],
                   pageInfo: { hasNextPage: false, endCursor: null },
                 },
               },
@@ -1852,15 +1643,8 @@ Preserve this contributor text.`;
     const second = client.normalizePortIssue({ number: 42, catalog });
     assert.equal(second.bodyChanged, false);
     assert.deepEqual(second.fieldsChanged, []);
-    assert.equal(
-      calls.filter((call) => call.input?.includes("addProjectV2ItemById"))
-        .length,
-      0,
-    );
-    assert.equal(
-      calls.filter((call) => call.input?.includes("addSubIssue")).length,
-      0,
-    );
+    assert.equal(calls.filter((call) => call.input?.includes("addProjectV2ItemById")).length, 0);
+    assert.equal(calls.filter((call) => call.input?.includes("addSubIssue")).length, 0);
   });
 }
 
@@ -1912,10 +1696,7 @@ test("promotion validation happens before any GitHub mutation", () => {
     calls += 1;
     return "";
   });
-  assert.throws(
-    () => client.promote("PVTI_draft", "lightweight note"),
-    /incomplete/,
-  );
+  assert.throws(() => client.promote("PVTI_draft", "lightweight note"), /incomplete/);
   assert.equal(calls, 0);
 });
 
@@ -1975,9 +1756,7 @@ test("RoadmapClient reuses an existing issue item instead of duplicating it", ()
           node: {
             projectItems: after
               ? {
-                  nodes: [
-                    { id: "PVTI_existing", project: { id: "PVT_project" } },
-                  ],
+                  nodes: [{ id: "PVTI_existing", project: { id: "PVT_project" } }],
                   pageInfo: { hasNextPage: false, endCursor: null },
                 }
               : {
@@ -1995,15 +1774,8 @@ test("RoadmapClient reuses an existing issue item instead of duplicating it", ()
     id: "PVTI_existing",
     project: { id: "PVT_project" },
   });
-  assert.equal(
-    calls.filter((call) => call.input?.includes("addProjectV2ItemById")).length,
-    0,
-  );
-  assert.equal(
-    calls.filter((call) => call.input?.includes("projectItems(first: 100"))
-      .length,
-    2,
-  );
+  assert.equal(calls.filter((call) => call.input?.includes("addProjectV2ItemById")).length, 0);
+  assert.equal(calls.filter((call) => call.input?.includes("projectItems(first: 100")).length, 2);
 });
 
 test("GraphQL view pagination reads every page", () => {
@@ -2091,9 +1863,7 @@ test("GraphQL Project item pagination reads every item with normalized fields", 
 
 for (const kind of ["issues", "items"]) {
   const node = (value) =>
-    kind === "issues"
-      ? { number: value, __typename: "Issue" }
-      : { id: `PVTI_${value}` };
+    kind === "issues" ? { number: value, __typename: "Issue" } : { id: `PVTI_${value}` };
   const page = (numbers, totalCount, cursor = null) => ({
     nodes: numbers.map(node),
     totalCount,
@@ -2106,15 +1876,10 @@ for (const kind of ["issues", "items"]) {
       assert.match(JSON.parse(input).query, /totalCount/);
       const current = pages[index++];
       if (current instanceof Error) throw current;
-      assert.ok(
-        index <= pages.length,
-        "reader must stop before exhausting the fixture",
-      );
+      assert.ok(index <= pages.length, "reader must stop before exhausting the fixture");
       return JSON.stringify({
         data:
-          kind === "issues"
-            ? { repository: { issues: current } }
-            : { node: { items: current } },
+          kind === "issues" ? { repository: { issues: current } } : { node: { items: current } },
       });
     });
     return kind === "issues" ? client.repositoryIssues() : client.itemList(1);
@@ -2137,10 +1902,7 @@ for (const kind of ["issues", "items"]) {
   });
   const failures = [
     ["missing connection", [null]],
-    [
-      "missing nodes",
-      [{ totalCount: 0, pageInfo: { hasNextPage: false, endCursor: null } }],
-    ],
+    ["missing nodes", [{ totalCount: 0, pageInfo: { hasNextPage: false, endCursor: null } }]],
     ["missing pagination", [{ nodes: [], totalCount: 0 }]],
     ["missing total", [{ ...page([], 0), totalCount: undefined }]],
     ["invalid total", [page([], -1)]],
@@ -2148,10 +1910,7 @@ for (const kind of ["issues", "items"]) {
       "invalid hasNextPage",
       [{ ...page([], 0), pageInfo: { hasNextPage: "false", endCursor: null } }],
     ],
-    [
-      "missing cursor",
-      [{ ...page([1], 2), pageInfo: { hasNextPage: true, endCursor: null } }],
-    ],
+    ["missing cursor", [{ ...page([1], 2), pageInfo: { hasNextPage: true, endCursor: null } }]],
     ["repeated cursor", [page([1], 3, "next"), page([2], 3, "next")]],
     ["cursor cycle", [page([1], 4, "a"), page([2], 4, "b"), page([3], 4, "a")]],
     ["empty intermediate page", [page([], 1, "next")]],
@@ -2162,10 +1921,7 @@ for (const kind of ["issues", "items"]) {
     ["excess records", [page([1, 2], 1)]],
     ["changing total", [page([1], 2, "next"), page([2], 3)]],
     ["missing final page", [page([1], 2, "next"), null]],
-    [
-      "failed final request",
-      [page([1], 2, "next"), new Error("API unavailable")],
-    ],
+    ["failed final request", [page([1], 2, "next"), new Error("API unavailable")]],
   ];
   for (const [reason, pages] of failures) {
     test(`${kind} inventory rejects ${reason}`, () => {

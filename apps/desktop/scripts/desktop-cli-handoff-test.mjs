@@ -45,25 +45,14 @@ export async function cliHandoffScenario({
         ),
       );
       await click(
-        By.xpath(
-          '//summary[starts-with(normalize-space(.), "Release, sources & maintenance")]',
-        ),
+        By.xpath('//summary[starts-with(normalize-space(.), "Release, sources & maintenance")]'),
       );
     };
     await open("zelda64-recomp", "Library");
     const launch = By.css('[aria-label="Launch from another app"]');
-    await browser.wait(
-      until.elementLocated(By.css('[aria-label="Copy launch command"]')),
-      10_000,
-    );
-    await click(
-      By.xpath(
-        '//summary[normalize-space(.)="Separate program and arguments"]',
-      ),
-    );
-    const codes = await browser
-      .findElement(launch)
-      .findElements(By.css(".command-line code"));
+    await browser.wait(until.elementLocated(By.css('[aria-label="Copy launch command"]')), 10_000);
+    await click(By.xpath('//summary[normalize-space(.)="Separate program and arguments"]'));
+    const codes = await browser.findElement(launch).findElements(By.css(".command-line code"));
     const shell = await codes[0].getText();
     const program = await codes[1].getText();
     const args = JSON.parse(await codes[2].getText());
@@ -99,8 +88,7 @@ export async function cliHandoffScenario({
       .getText();
     assert.ok(setup.includes("source-path") && setup.includes("Template"));
     assert.equal(
-      (await browser.findElements(By.css('[aria-label="Copy setup command"]')))
-        .length,
+      (await browser.findElements(By.css('[aria-label="Copy setup command"]'))).length,
       0,
     );
     const result = path.join(output, "cli-handoff-result.json");

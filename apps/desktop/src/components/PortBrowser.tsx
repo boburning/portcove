@@ -70,9 +70,7 @@ export function PortBrowser({
       <div
         className="filter-row"
         data-focus-group
-        aria-label={
-          view === "library" ? "Library filters" : "Release channel filters"
-        }
+        aria-label={view === "library" ? "Library filters" : "Release channel filters"}
       >
         {filterOptions(view).map((item) => (
           <button
@@ -187,11 +185,7 @@ function BrowserEmptyState({
         description="Browse the catalog to install a supported port, or adopt an existing native installation without changing the original folder."
         action={
           <>
-            <button
-              data-focusable
-              className="primary button-with-icon"
-              onClick={onBrowseCatalog}
-            >
+            <button data-focusable className="primary button-with-icon" onClick={onBrowseCatalog}>
               <Icon glyph={Boxes} />
               Browse port catalog
             </button>
@@ -206,11 +200,7 @@ function BrowserEmptyState({
       title="No ports match these filters"
       description="Try another title, platform term, or release channel. The catalog itself has not been changed."
       action={
-        <button
-          data-focusable
-          className="button-with-icon"
-          onClick={clearFilters}
-        >
+        <button data-focusable className="button-with-icon" onClick={clearFilters}>
           <Icon glyph={Settings2} />
           Clear search and filters
         </button>
@@ -231,21 +221,12 @@ function ContinueCard({
   const { port, status } = recent;
   const launchable = status.readiness?.launchable === true;
   return (
-    <section
-      className="continue-card"
-      data-focus-group
-      aria-label={`Continue ${port.name}`}
-    >
-      <ArtworkImage
-        port={port}
-        className={`continue-art art-${port.support_tier}`}
-      />
+    <section className="continue-card" data-focus-group aria-label={`Continue ${port.name}`}>
+      <ArtworkImage port={port} className={`continue-art art-${port.support_tier}`} />
       <div>
         <p className="eyebrow">CONTINUE</p>
         <h2>{port.name}</h2>
-        <p className="continue-meta">
-          Last successful session · {status.active?.version}
-        </p>
+        <p className="continue-meta">Last successful session · {status.active?.version}</p>
       </div>
       <div className="continue-actions">
         <button data-focusable onClick={() => details(port.id)}>
@@ -316,15 +297,10 @@ function PortCard({
   nativeSourceDrag: NativeSourceDragState;
 }) {
   const state = readinessPresentation(readiness);
-  const channel = releaseChannelPresentation(
-    status?.channel ?? port.support_tier,
-  );
+  const channel = releaseChannelPresentation(status?.channel ?? port.support_tier);
   const updateAvailable = currentUpdateSnapshot(status)?.check.update_available;
   const color =
-    [...port.id].reduce(
-      (total, character) => total + character.charCodeAt(0),
-      0,
-    ) % 6;
+    port.id.split("").reduce((total, character) => total + character.charCodeAt(0), 0) % 6;
   const dropEligible = nativeSourceDrag.active && Boolean(port.source_profile);
   const dropTarget = dropEligible && nativeSourceDrag.targetPortId === port.id;
   return (
@@ -334,9 +310,7 @@ function PortCard({
       aria-label={`${port.name}. ${state.label}. ${state.action}.`}
       onClick={() => onSelect(port.id)}
       data-source-drop-port-id={dropEligible ? port.id : undefined}
-      data-source-drop-profile-id={
-        dropEligible ? port.source_profile : undefined
-      }
+      data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
     >
       {dropEligible && (
         <span className="source-drop-target" aria-hidden="true">
@@ -356,9 +330,7 @@ function PortCard({
           <h2>{port.name}</h2>
         </div>
         <div className="card-flags">
-          {updateAvailable && (
-            <span className="badge update">Update available</span>
-          )}
+          {updateAvailable && <span className="badge update">Update available</span>}
           {port.upstream_status === "retired" && (
             <span className="badge retired">Retired upstream</span>
           )}
@@ -370,9 +342,7 @@ function PortCard({
           ))}
         </div>
         <div className="card-status">
-          <strong>
-            {status?.active ? status.active.version : "Not installed"}
-          </strong>
+          <strong>{status?.active ? status.active.version : "Not installed"}</strong>
           <span>
             {state.action}
             <Icon glyph={ArrowRight} size="sm" />

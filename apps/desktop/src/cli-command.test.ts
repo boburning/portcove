@@ -62,28 +62,13 @@ describe("GUI to CLI continuity", () => {
   it("launches the active installation with the exact library and no ensure operation", () => {
     const status = { ...portStatus(), active: { id: "active" } } as PortStatus;
     const command = primaryCliCommand(context, port, status, "stable");
-    expect(command.args).toEqual([
-      "--library",
-      "E:/My Library",
-      "exec",
-      "sample-port",
-      "--",
-    ]);
+    expect(command.args).toEqual(["--library", "E:/My Library", "exec", "sample-port", "--"]);
     expect(command.missing).toEqual([]);
   });
 
   it("labels unavailable executables and missing originals as templates", () => {
-    const command = primaryCliCommand(
-      { ...context, executable: null },
-      port,
-      undefined,
-      "stable",
-    );
-    expect(command.missing).toEqual([
-      "Portcove CLI executable",
-      "source-path",
-      "bios-path",
-    ]);
+    const command = primaryCliCommand({ ...context, executable: null }, port, undefined, "stable");
+    expect(command.missing).toEqual(["Portcove CLI executable", "source-path", "bios-path"]);
     expect(command.args).toContain("<source-path>");
     expect(command.shell).toContain("'<portcove-executable>'");
   });

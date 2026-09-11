@@ -9,11 +9,7 @@ import type {
 } from "./types";
 import type { InstallInput, LaunchResult } from "./types";
 import type { GameUpdatePlan, PreparationPlan } from "./types";
-import type {
-  CatalogStatus,
-  CatalogUpdatePlan,
-  CatalogUpdateSource,
-} from "./types";
+import type { CatalogStatus, CatalogUpdatePlan, CatalogUpdateSource } from "./types";
 import { Channel, invoke } from "@tauri-apps/api/core";
 import type { CancellationState, OperationEvent } from "./types";
 import type {
@@ -97,12 +93,7 @@ export const desktopApi = {
       expectedRevision,
       generation,
     }),
-  resetArtwork: (
-    portId: string,
-    slot: ArtworkSlot,
-    expectedRevision: number,
-    generation: number,
-  ) =>
+  resetArtwork: (portId: string, slot: ArtworkSlot, expectedRevision: number, generation: number) =>
     invoke<ArtworkState>("reset_artwork", {
       portId,
       slot,
@@ -139,15 +130,12 @@ export const desktopApi = {
     invoke<CatalogStatus>("use_embedded_catalog", { expectedState }),
 
   bootstrapStatus: () => invoke<BootstrapStatus>("get_bootstrap_status"),
-  setDefaultLibrary: (path: string) =>
-    invoke<BootstrapStatus>("set_default_library", { path }),
+  setDefaultLibrary: (path: string) => invoke<BootstrapStatus>("set_default_library", { path }),
   resetDefaultLibrary: () => invoke<BootstrapStatus>("reset_default_library"),
   githubAuthStatus: () => invoke<GithubAuthStatus>("get_github_auth_status"),
-  setGithubToken: (token: string) =>
-    invoke<GithubAuthStatus>("set_github_token", { token }),
+  setGithubToken: (token: string) => invoke<GithubAuthStatus>("set_github_token", { token }),
   logoutGithub: () => invoke<GithubAuthStatus>("logout_github"),
-  beginGithubDeviceLogin: () =>
-    invoke<GithubDeviceLogin>("begin_github_device_login"),
+  beginGithubDeviceLogin: () => invoke<GithubDeviceLogin>("begin_github_device_login"),
   pollGithubDeviceLogin: (sessionId: string) =>
     invoke<GithubDeviceLoginResult>("poll_github_device_login", { sessionId }),
   catalog: () => invoke<CatalogDocument>("get_catalog"),
@@ -194,33 +182,20 @@ export const desktopApi = {
   },
   outputLocation: (portId: string, generation: number) =>
     invoke<PortOutputLocation>("get_output_location", { portId, generation }),
-  previewOutputLocation: (
-    portId: string,
-    path: string | null,
-    generation: number,
-  ) =>
+  previewOutputLocation: (portId: string, path: string | null, generation: number) =>
     invoke<OutputDestinationPreview>("preview_output_location", {
       portId,
       path,
       generation,
     }),
-  setOutputLocation: (
-    portId: string,
-    path: string,
-    expectedPreview: string,
-    generation: number,
-  ) =>
+  setOutputLocation: (portId: string, path: string, expectedPreview: string, generation: number) =>
     invoke<PortOutputLocation>("set_output_location", {
       portId,
       path,
       expectedPreview,
       generation,
     }),
-  resetOutputLocation: (
-    portId: string,
-    expectedPreview: string,
-    generation: number,
-  ) =>
+  resetOutputLocation: (portId: string, expectedPreview: string, generation: number) =>
     invoke<PortOutputLocation>("reset_output_location", {
       portId,
       expectedPreview,
@@ -232,12 +207,7 @@ export const desktopApi = {
       path,
       generation,
     }),
-  relocateOutput: (
-    portId: string,
-    path: string,
-    expectedPlan: string,
-    generation: number,
-  ) =>
+  relocateOutput: (portId: string, path: string, expectedPlan: string, generation: number) =>
     invoke<OutputRelocationResult>("relocate_output", {
       portId,
       path,
@@ -258,8 +228,7 @@ export const desktopApi = {
     }),
   cancelOperation: (operationId: string) =>
     invoke<CancellationState>("cancel_operation", { operationId }),
-  backups: (portId: string) =>
-    invoke<BackupInventory>("get_backups", { portId }),
+  backups: (portId: string) => invoke<BackupInventory>("get_backups", { portId }),
   backup: (portId: string) => invoke<BackupRecord>("create_backup", { portId }),
   previewBackupAction: (
     portId: string,
@@ -273,24 +242,14 @@ export const desktopApi = {
       action,
       generation,
     }),
-  restoreBackup: (
-    portId: string,
-    backupId: string,
-    expectedPreview: string,
-    generation: number,
-  ) =>
+  restoreBackup: (portId: string, backupId: string, expectedPreview: string, generation: number) =>
     invoke<RestoreResult | null>("restore_backup", {
       portId,
       backupId,
       expectedPreview,
       generation,
     }),
-  deleteBackup: (
-    portId: string,
-    backupId: string,
-    expectedPreview: string,
-    generation: number,
-  ) =>
+  deleteBackup: (portId: string, backupId: string, expectedPreview: string, generation: number) =>
     invoke<BackupRecord | null>("delete_backup", {
       portId,
       backupId,
@@ -299,10 +258,7 @@ export const desktopApi = {
     }),
   addSource: (profileId: string, path: string, expectedSha256?: string) =>
     invoke<SourceRecord>("add_source", { profileId, path, expectedSha256 }),
-  discoverSources: (
-    request: SourceDiscoveryRequest,
-    onEvent?: (event: OperationEvent) => void,
-  ) => {
+  discoverSources: (request: SourceDiscoveryRequest, onEvent?: (event: OperationEvent) => void) => {
     const channel = new Channel<OperationEvent>();
     channel.onmessage = (event) => onEvent?.(event);
     return invoke<SourceDiscoveryReport>("discover_sources", {
@@ -355,11 +311,7 @@ export const desktopApi = {
       profileId,
       generation,
     }),
-  removeSource: (
-    profileId: string,
-    previewSha256: string,
-    generation: number,
-  ) =>
+  removeSource: (profileId: string, previewSha256: string, generation: number) =>
     invoke<SourceRemovalPreview | null>("remove_source", {
       profileId,
       previewSha256,
@@ -373,8 +325,7 @@ export const desktopApi = {
       profileId,
       paths,
     }),
-  openSourceEvidence: (evidenceId: string) =>
-    invoke<void>("open_source_evidence", { evidenceId }),
+  openSourceEvidence: (evidenceId: string) => invoke<void>("open_source_evidence", { evidenceId }),
   check: (portId: string, generation: number) =>
     invoke<UpdateCheck>("check_port", { portId, generation }),
   checkInstalled: () => invoke<UpdateCheckOutcome[]>("check_installed"),
@@ -382,10 +333,8 @@ export const desktopApi = {
   hostTools: () => invoke<HostToolStatus[]>("get_host_tools"),
   setHostToolPath: (toolId: string, path: string) =>
     invoke<HostToolProbeResult>("set_host_tool_path", { toolId, path }),
-  clearHostToolPath: (toolId: string) =>
-    invoke<HostToolStatus>("clear_host_tool_path", { toolId }),
-  recheckHostTool: (toolId: string) =>
-    invoke<HostToolProbeResult>("recheck_host_tool", { toolId }),
+  clearHostToolPath: (toolId: string) => invoke<HostToolStatus>("clear_host_tool_path", { toolId }),
+  recheckHostTool: (toolId: string) => invoke<HostToolProbeResult>("recheck_host_tool", { toolId }),
   openHostToolOfficialSite: (toolId: string) =>
     invoke<void>("open_host_tool_official_site", { toolId }),
   createSupportBundle: () => invoke<string>("create_support_bundle"),
@@ -399,11 +348,7 @@ export const desktopApi = {
     invoke<LibraryMoveResult>("recover_library_move", { source, abort }),
   planLibraryImport: (metadata: string, contentRoot: string) =>
     invoke<LibraryImportPlan>("plan_library_import", { metadata, contentRoot }),
-  importLibrary: (
-    metadata: string,
-    contentRoot: string,
-    expectedPlan: string,
-  ) =>
+  importLibrary: (metadata: string, contentRoot: string, expectedPlan: string) =>
     invoke<LibraryImportResult>("import_library", {
       metadata,
       contentRoot,
@@ -418,8 +363,7 @@ export const desktopApi = {
     invoke<void>("report_frontend_error", { message, componentStack }),
   plan: (portId: string, channel: ReleaseChannel) =>
     invoke<InstallPlan>("plan_port", { portId, channel }),
-  openUserData: (portId: string) =>
-    invoke<string>("open_user_data", { portId }),
+  openUserData: (portId: string) => invoke<string>("open_user_data", { portId }),
   openExternalUrl: (url: string) => invoke<void>("open_external_url", { url }),
   setChannel: (portId: string, channel: ReleaseChannel, generation: number) =>
     invoke<PortStatus>("set_channel", { portId, channel, generation }),
@@ -475,12 +419,7 @@ export const desktopApi = {
       generation,
       portId: portId ?? null,
     }),
-  adopt: (
-    path: string,
-    planSha256: string,
-    generation: number,
-    portId?: string,
-  ) =>
+  adopt: (path: string, planSha256: string, generation: number, portId?: string) =>
     invoke<InstallRecord | null>("adopt_port", {
       path,
       generation,

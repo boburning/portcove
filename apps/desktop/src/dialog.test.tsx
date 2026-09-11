@@ -8,30 +8,20 @@ let container: HTMLDivElement, opener: HTMLButtonElement, root: Root;
 const scroll = vi.fn();
 const close = vi.fn();
 
-function Dialog({
-  loaded = false,
-  disabled = false,
-}: {
-  loaded?: boolean;
-  disabled?: boolean;
-}) {
+function Dialog({ loaded = false, disabled = false }: { loaded?: boolean; disabled?: boolean }) {
   const ref = useDialogFocus(close);
   return (
     <section ref={ref} role="dialog" aria-modal="true" aria-label="Fixture">
       <button>Close</button>
       <button disabled={disabled}>Choose local image</button>
-      <div aria-hidden="true">
-        {loaded && <img alt="" src="data:image/png;base64,AA==" />}
-      </div>
+      <div aria-hidden="true">{loaded && <img alt="" src="data:image/png;base64,AA==" />}</div>
       <p role="status">{loaded ? "Image loaded" : "Loading image"}</p>
     </section>
   );
 }
 
 async function render(loaded = false, disabled = false) {
-  await act(async () =>
-    root.render(<Dialog loaded={loaded} disabled={disabled} />),
-  );
+  await act(async () => root.render(<Dialog loaded={loaded} disabled={disabled} />));
   await act(async () => {
     await vi.runOnlyPendingTimersAsync();
   });
@@ -43,9 +33,7 @@ beforeEach(() => {
   vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) =>
     window.setTimeout(() => callback(0), 0),
   );
-  vi.spyOn(window, "cancelAnimationFrame").mockImplementation((id) =>
-    window.clearTimeout(id),
-  );
+  vi.spyOn(window, "cancelAnimationFrame").mockImplementation((id) => window.clearTimeout(id));
   vi.spyOn(HTMLElement.prototype, "getClientRects").mockImplementation(
     () => [new DOMRect(0, 0, 100, 30)] as unknown as DOMRectList,
   );

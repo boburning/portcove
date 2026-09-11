@@ -25,9 +25,7 @@ export async function backupReviewScenario({
     const { port, install } = await seed("opengoal-jak3", "success");
     const paths = command(["paths", port.id]);
     const relative = path.relative(library, paths.user_data_root);
-    assert.ok(
-      relative && !relative.startsWith("..") && !path.isAbsolute(relative),
-    );
+    assert.ok(relative && !relative.startsWith("..") && !path.isAbsolute(relative));
     const save = path.join(paths.user_data_root, "owned-review-save.bin");
     await mkdir(paths.user_data_root, { recursive: true });
     await writeFile(save, "selected snapshot data");
@@ -37,16 +35,10 @@ export async function backupReviewScenario({
     await writeFile(save, "current data before review");
     await open(port);
     const clickVisible = (element) => clickReviewControl(browser, element);
-    await clickVisible(
-      await browser.findElement(By.css("summary.advanced-summary")),
-    );
-    const button = (label) =>
-      By.xpath(`//button[normalize-space(.)="${label}"]`);
+    await clickVisible(await browser.findElement(By.css("summary.advanced-summary")));
+    const button = (label) => By.xpath(`//button[normalize-space(.)="${label}"]`);
     const row = (id) =>
-      browser.wait(
-        until.elementLocated(By.css(`[data-backup-id="${id}"]`)),
-        15_000,
-      );
+      browser.wait(until.elementLocated(By.css(`[data-backup-id="${id}"]`)), 15_000);
     const list = () => command(["backup", "list", port.id]).backups;
     const clickRestore = async () =>
       clickVisible(
@@ -55,13 +47,8 @@ export async function backupReviewScenario({
         ).findElement(By.xpath('.//button[normalize-space(.)="Restore"]')),
       );
     const capture = async (name) => {
-      const dialog = await browser.findElement(
-        By.css('[aria-labelledby="backup-review-title"]'),
-      );
-      await browser.executeScript(
-        'arguments[0].scrollIntoView({ block: "start" });',
-        dialog,
-      );
+      const dialog = await browser.findElement(By.css('[aria-labelledby="backup-review-title"]'));
+      await browser.executeScript('arguments[0].scrollIntoView({ block: "start" });', dialog);
       const report = path.join(output, `${name}-accessibility.json`);
       await captureAccessibilityReport(browser, report, artifacts);
       const screenshot = path.join(output, `${name}.png`);
@@ -72,20 +59,12 @@ export async function backupReviewScenario({
       artifacts.push(screenshot);
     };
     await clickRestore();
-    await browser.wait(
-      until.elementLocated(button("Restore this backup")),
-      15_000,
-    );
+    await browser.wait(until.elementLocated(button("Restore this backup")), 15_000);
     const text = await browser
       .findElement(By.css('[aria-labelledby="backup-review-title"]'))
       .getText();
-    assert.ok(
-      text.includes(selected.path) && text.includes(paths.user_data_root),
-    );
-    assert.ok(
-      text.includes("new safety backup") &&
-        text.includes("retains recovery data"),
-    );
+    assert.ok(text.includes(selected.path) && text.includes(paths.user_data_root));
+    assert.ok(text.includes("new safety backup") && text.includes("retains recovery data"));
     assert.equal(await readFile(save, "utf8"), "current data before review");
     assert.equal(list().length, 2);
     await capture("native-backup-restore-review");
@@ -93,10 +72,7 @@ export async function backupReviewScenario({
     assert.equal(await readFile(save, "utf8"), "current data before review");
     assert.equal(list().length, 2);
     await clickRestore();
-    await browser.wait(
-      until.elementLocated(button("Restore this backup")),
-      15_000,
-    );
+    await browser.wait(until.elementLocated(button("Restore this backup")), 15_000);
     await browser.findElement(button("Restore this backup")).click();
     await confirmNative(
       "Confirm backup restore",
@@ -114,11 +90,8 @@ export async function backupReviewScenario({
     );
     await browser.wait(
       async () =>
-        (
-          await browser.findElements(
-            By.css('[aria-labelledby="backup-review-title"]'),
-          )
-        ).length === 0,
+        (await browser.findElements(By.css('[aria-labelledby="backup-review-title"]'))).length ===
+        0,
       15_000,
     );
     assert.equal(await readFile(save, "utf8"), "current data before review");
@@ -144,20 +117,14 @@ export async function backupReviewScenario({
       assert.equal(rejected.error.code, "conflict");
     }
     await clickRestore();
-    await browser.wait(
-      until.elementLocated(button("Restore this backup")),
-      15_000,
-    );
+    await browser.wait(until.elementLocated(button("Restore this backup")), 15_000);
     await writeFile(save, "changed after review");
     await browser.findElement(button("Restore this backup")).click();
     await browser.wait(until.elementLocated(button("Review again")), 15_000);
     assert.equal(await readFile(save, "utf8"), "changed after review");
     assert.equal(list().length, 2);
     await browser.findElement(button("Review again")).click();
-    await browser.wait(
-      until.elementLocated(button("Restore this backup")),
-      15_000,
-    );
+    await browser.wait(until.elementLocated(button("Restore this backup")), 15_000);
     await browser.findElement(button("Restore this backup")).click();
     await confirmNative(
       "Confirm backup restore",
@@ -167,36 +134,23 @@ export async function backupReviewScenario({
     );
     await browser.wait(
       async () =>
-        (
-          await browser.findElements(
-            By.css('[aria-labelledby="backup-review-title"]'),
-          )
-        ).length === 0,
+        (await browser.findElements(By.css('[aria-labelledby="backup-review-title"]'))).length ===
+        0,
       15_000,
     );
     assert.equal(await readFile(save, "utf8"), "selected snapshot data");
     const afterRestore = list();
     assert.equal(afterRestore.length, 3);
-    const safety = afterRestore.find(
-      (item) => item.id !== selected.id && item.id !== other.id,
-    );
+    const safety = afterRestore.find((item) => item.id !== selected.id && item.id !== other.id);
     assert.ok(safety);
     assert.equal(
-      await readFile(
-        path.join(safety.path, "data/owned-review-save.bin"),
-        "utf8",
-      ),
+      await readFile(path.join(safety.path, "data/owned-review-save.bin"), "utf8"),
       "changed after review",
     );
     await clickVisible(
-      await (
-        await row(selected.id)
-      ).findElement(By.css('button[aria-label^="Delete backup"]')),
+      await (await row(selected.id)).findElement(By.css('button[aria-label^="Delete backup"]')),
     );
-    await browser.wait(
-      until.elementLocated(button("Delete this backup permanently")),
-      15_000,
-    );
+    await browser.wait(until.elementLocated(button("Delete this backup permanently")), 15_000);
     await capture("native-backup-delete-review");
     await browser.findElement(button("Delete this backup permanently")).click();
     await confirmNative(
@@ -214,11 +168,8 @@ export async function backupReviewScenario({
     );
     await browser.wait(
       async () =>
-        (
-          await browser.findElements(
-            By.css('[aria-labelledby="backup-review-title"]'),
-          )
-        ).length === 0,
+        (await browser.findElements(By.css('[aria-labelledby="backup-review-title"]'))).length ===
+        0,
       15_000,
     );
     assert.deepEqual(
@@ -229,17 +180,11 @@ export async function backupReviewScenario({
     );
     assert.equal(await readFile(save, "utf8"), "selected snapshot data");
     assert.equal(
-      await readFile(
-        path.join(other.path, "data/owned-review-save.bin"),
-        "utf8",
-      ),
+      await readFile(path.join(other.path, "data/owned-review-save.bin"), "utf8"),
       "other snapshot data",
     );
     assert.equal(
-      await readFile(
-        path.join(safety.path, "data/owned-review-save.bin"),
-        "utf8",
-      ),
+      await readFile(path.join(safety.path, "data/owned-review-save.bin"), "utf8"),
       "changed after review",
     );
     assert.equal(command(["status", port.id]).active.id, install.id);

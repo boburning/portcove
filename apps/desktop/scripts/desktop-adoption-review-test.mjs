@@ -1,13 +1,7 @@
 // Real adoption of a harmless owned executable; no upstream game or source acquisition.
 import assert from "node:assert/strict";
 import path from "node:path";
-import {
-  copyFile,
-  mkdir,
-  readFile,
-  realpath,
-  writeFile,
-} from "node:fs/promises";
+import { copyFile, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
 import { By, until } from "selenium-webdriver";
 import {
@@ -38,11 +32,9 @@ export async function adoptionReviewScenario({
     await writeFile(incoming, "incoming settings", { flag: "wx" });
     const previous = command(["adopt", original, "--port", port.id, "--yes"]);
     const backup = command(["backup", "create", port.id]);
-    await writeFile(
-      path.join(original, "owned-next-version.bin"),
-      "new application version",
-      { flag: "wx" },
-    );
+    await writeFile(path.join(original, "owned-next-version.bin"), "new application version", {
+      flag: "wx",
+    });
     const paths = command(["paths", port.id]);
     const current = path.join(paths.user_data_root, "general.json");
     const unrelated = path.join(paths.user_data_root, "unrelated-save.bin");
@@ -68,10 +60,7 @@ export async function adoptionReviewScenario({
       await input.clear();
       await input.sendKeys(original);
       await click(button("Review copy plan"));
-      await browser.wait(
-        until.elementLocated(button("Continue to copy confirmation")),
-        15_000,
-      );
+      await browser.wait(until.elementLocated(button("Continue to copy confirmation")), 15_000);
     };
     await open();
     let text = await browser.findElement(dialog).getText();
@@ -102,17 +91,11 @@ export async function adoptionReviewScenario({
       paths.user_data_root,
       "adoption-native-cancelled",
     );
-    await browser.wait(
-      async () => (await browser.findElements(dialog)).length === 0,
-      15_000,
-    );
+    await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 15_000);
     await open();
     await writeFile(current, "changed after review");
     await click(button("Continue to copy confirmation"));
-    await browser.wait(
-      until.elementLocated(button("Review copy plan")),
-      15_000,
-    );
+    await browser.wait(until.elementLocated(button("Review copy plan")), 15_000);
     assert.equal(await readFile(current, "utf8"), "changed after review");
     const generation = (await invoke("get_bootstrap_status")).value.generation;
     const reviewed = await invoke("preview_adoption", {
@@ -130,10 +113,7 @@ export async function adoptionReviewScenario({
     assert.equal(stale.ok, false);
     assert.equal(stale.error.code, "conflict");
     await click(button("Review copy plan"));
-    await browser.wait(
-      until.elementLocated(button("Continue to copy confirmation")),
-      15_000,
-    );
+    await browser.wait(until.elementLocated(button("Continue to copy confirmation")), 15_000);
     const report = path.join(output, "adoption-review-accessibility.json");
     await captureAccessibilityReport(browser, report, artifacts);
     const normal = path.join(output, "native-adoption-review.png");
@@ -164,17 +144,12 @@ export async function adoptionReviewScenario({
       paths.user_data_root,
       "adoption-native-confirmed",
     );
-    await browser.wait(
-      async () => (await browser.findElements(dialog)).length === 0,
-      15_000,
-    );
+    await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 15_000);
     const adopted = command(["status", port.id]).active;
     assert.notEqual(adopted.id, previous.id);
     assert.equal(
       await realpath(path.dirname(adopted.path)),
-      await realpath(
-        reviewed.value.destination.output_location.effective_output_directory,
-      ),
+      await realpath(reviewed.value.destination.output_location.effective_output_directory),
     );
     assert.equal(await readFile(current, "utf8"), "incoming settings");
     assert.deepEqual(
@@ -182,10 +157,7 @@ export async function adoptionReviewScenario({
       preserved,
     );
     assert.deepEqual(command(["source", "list"]), sources);
-    assert.equal(
-      command(["status", "opengoal-jak1"]).active.id,
-      otherInstall.id,
-    );
+    assert.equal(command(["status", "opengoal-jak1"]).active.id, otherInstall.id);
     assert.deepEqual(
       command(["backup", "list", port.id]).backups.map((item) => item.id),
       [backup.id],

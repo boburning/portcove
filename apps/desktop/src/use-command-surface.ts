@@ -105,24 +105,13 @@ export function useCommandSurface({
       {
         id: "continue",
         label: "Return to the last played port",
-        description: recent
-          ? `Open ${recent.port.name}`
-          : "No successful launch is recorded yet",
+        description: recent ? `Open ${recent.port.name}` : "No successful launch is recorded yet",
         icon: Gamepad2,
         disabled: !recent,
         action: () => recent && setSelectedId(recent.port.id),
       },
     ],
-    [
-      busy,
-      checkAll,
-      focusSearch,
-      installedCount,
-      recent,
-      setAdoptOpen,
-      setSelectedId,
-      setView,
-    ],
+    [busy, checkAll, focusSearch, installedCount, recent, setAdoptOpen, setSelectedId, setView],
   );
   useGlobalShortcuts({
     paletteOpen: open,

@@ -1,12 +1,5 @@
 import assert from "node:assert/strict";
-import {
-  copyFile,
-  mkdir,
-  mkdtemp,
-  readFile,
-  rm,
-  writeFile,
-} from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -31,19 +24,11 @@ async function fixture(t, label = "windows-x86_64") {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-updater-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(path.join(root, "release"));
-  await writeFile(
-    path.join(root, "release/package-policy.json"),
-    JSON.stringify(policy),
-  );
-  await writeFile(
-    path.join(root, "Cargo.toml"),
-    `[workspace.package]\nversion = "${version}"\n`,
-  );
+  await writeFile(path.join(root, "release/package-policy.json"), JSON.stringify(policy));
+  await writeFile(path.join(root, "Cargo.toml"), `[workspace.package]\nversion = "${version}"\n`);
   for (const entry of packagesForPlatform(policy, label)) {
     const directory =
-      entry.interface === "cli"
-        ? "release-assets"
-        : `target/release/bundle/${entry.format}`;
+      entry.interface === "cli" ? "release-assets" : `target/release/bundle/${entry.format}`;
     await mkdir(path.join(root, directory), { recursive: true });
     await writeFile(
       path.join(root, directory, artifactName(entry, version)),
@@ -51,15 +36,10 @@ async function fixture(t, label = "windows-x86_64") {
     );
   }
   const identity = updaterIdentity(policy, label, version);
-  const bundle = path.join(
-    root,
-    "target/release/bundle",
-    identity.bundle_directory,
-  );
+  const bundle = path.join(root, "target/release/bundle", identity.bundle_directory);
   await mkdir(bundle, { recursive: true });
   const source = path.join(bundle, identity.source_filename);
-  if (identity.format === "app.tar.gz")
-    await writeFile(source, "mac final archive");
+  if (identity.format === "app.tar.gz") await writeFile(source, "mac final archive");
   await writeFile(`${source}.sig`, "signature fixture");
   const publicKey = path.join(root, "test-public.key");
   await writeFile(publicKey, "public key fixture");
@@ -89,10 +69,7 @@ for (const label of releaseLabels(policy)) {
     const staged = await stageUpdaterInventory(f.options);
     assert.deepEqual(await verifyUpdaterInventory(f.options), staged);
     assert.equal(f.verified(), 2);
-    assert.equal(
-      staged.packages.length,
-      packagesForPlatform(policy, label).length,
-    );
+    assert.equal(staged.packages.length, packagesForPlatform(policy, label).length);
     assert.equal(staged.updater.target, label.replace("macos", "darwin"));
     await assert.rejects(stageUpdaterInventory(f.options), /EEXIST/);
   });
@@ -107,10 +84,7 @@ test("missing signatures and failed verification never produce successful eviden
     throw new Error("wrong signing key");
   };
   await assert.rejects(stageUpdaterInventory(f.options), /wrong signing key/);
-  await assert.rejects(
-    readFile(path.join(f.options.output, "updater-inventory.json")),
-    /ENOENT/,
-  );
+  await assert.rejects(readFile(path.join(f.options.output, "updater-inventory.json")), /ENOENT/);
 });
 
 test("changing any final package or the public key invalidates recorded evidence", async (t) => {
@@ -123,10 +97,7 @@ test("changing any final package or the public key invalidates recorded evidence
   await assert.rejects(verifyUpdaterInventory(f.options), /checksum mismatch/);
   await writeFile(file, original);
   await writeFile(f.options.publicKey, "substituted key");
-  await assert.rejects(
-    verifyUpdaterInventory(f.options),
-    /public key mismatch/,
-  );
+  await assert.rejects(verifyUpdaterInventory(f.options), /public key mismatch/);
 });
 
 test("rejects duplicate packages, wrong target/version/revision and extra assets", async (t) => {
@@ -155,17 +126,11 @@ test("rejects duplicate packages, wrong target/version/revision and extra assets
     const data = structuredClone(inventory);
     mutate(data);
     await writeFile(manifest, JSON.stringify(data));
-    await assert.rejects(
-      verifyUpdaterInventory(f.options),
-      /mismatch|duplicate/,
-    );
+    await assert.rejects(verifyUpdaterInventory(f.options), /mismatch|duplicate/);
   }
   await writeFile(manifest, JSON.stringify(inventory));
   await copyFile(f.source, path.join(f.options.output, "unexpected.exe"));
-  await assert.rejects(
-    verifyUpdaterInventory(f.options),
-    /staged files mismatch/,
-  );
+  await assert.rejects(verifyUpdaterInventory(f.options), /staged files mismatch/);
 });
 
 test("rejects overlapping staging paths and version override inheritance", async (t) => {
@@ -190,14 +155,10 @@ test("rejects overlapping staging paths and version override inheritance", async
 
 test("release-only overlay preserves ordinary secret-free builds and updater package baseline", async () => {
   const base = JSON.parse(
-    await readFile(
-      new URL("../apps/desktop/src-tauri/tauri.conf.json", import.meta.url),
-    ),
+    await readFile(new URL("../apps/desktop/src-tauri/tauri.conf.json", import.meta.url)),
   );
   const overlay = JSON.parse(
-    await readFile(
-      new URL("../release/tauri.updater.conf.json", import.meta.url),
-    ),
+    await readFile(new URL("../release/tauri.updater.conf.json", import.meta.url)),
   );
   assert.equal(base.bundle.createUpdaterArtifacts, false);
   assert.equal(overlay.bundle.createUpdaterArtifacts, true);
@@ -211,10 +172,7 @@ test("release-only overlay preserves ordinary secret-free builds and updater pac
 
 test("manual rehearsal retains the complete matrix without production credentials or publication", async () => {
   const workflow = await readFile(
-    new URL(
-      "../.github/workflows/updater-artifact-rehearsal.yml",
-      import.meta.url,
-    ),
+    new URL("../.github/workflows/updater-artifact-rehearsal.yml", import.meta.url),
     "utf8",
   );
   assert.match(workflow, /workflow_dispatch:/);
@@ -226,8 +184,7 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(workflow, /default: all/);
   const matrix = JSON.parse(workflow.match(/label:.*fromJSON\('([^']+)'\)/)[1]);
   assert.deepEqual(matrix.all.toSorted(), releaseLabels(policy).toSorted());
-  for (const label of releaseLabels(policy))
-    assert.deepEqual(matrix[label], [label]);
+  for (const label of releaseLabels(policy)) assert.deepEqual(matrix[label], [label]);
   assert.match(workflow, /retention-days: 1/);
   assert.doesNotMatch(workflow, /updater-rehearsal\/\*\*|\.key\b/);
   const lifecycle = await readFile(

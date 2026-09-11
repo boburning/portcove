@@ -17,9 +17,9 @@ describe("desktop static-copy safeguards", () => {
   it.each(["file(s)", "match(es)"])(
     "flags parenthetical plurals in interpolated messages: %s",
     (text) => {
-      expect(
-        inspectCopy("const message = `Found ${count} " + text + "`;")[0].rule,
-      ).toBe("parenthetical-plural");
+      expect(inspectCopy("const message = `Found ${count} " + text + "`;")[0].rule).toBe(
+        "parenthetical-plural",
+      );
     },
   );
   it("checks visible and accessible attributes and standalone message literals", () => {
@@ -62,9 +62,7 @@ describe("desktop static-copy safeguards", () => {
   });
   it("checks concatenated copy while leaving machine comparisons alone", () => {
     expect(
-      inspectCopy(
-        'const message = "source profile" + id; const same = state === "qualification";',
-      ),
+      inspectCopy('const message = "source profile" + id; const same = state === "qualification";'),
     ).toEqual([expect.objectContaining({ rule: "internal-terminology" })]);
   });
   it("fails on malformed source instead of silently skipping it", () => {

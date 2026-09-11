@@ -8,12 +8,9 @@ type Presentation = DesktopError["presentation"];
 const outcomes: Record<Presentation["mutation_state"], string> = {
   not_started: "This operation did not start.",
   no_changes: "No files were changed by this operation.",
-  committed:
-    "The change was committed. Review the current state before another operation.",
-  recovery_required:
-    "Retained work needs recovery review before another attempt.",
-  unknown:
-    "The changes could not be confirmed. Review the current state before another attempt.",
+  committed: "The change was committed. Review the current state before another operation.",
+  recovery_required: "Retained work needs recovery review before another attempt.",
+  unknown: "The changes could not be confirmed. Review the current state before another attempt.",
 };
 
 export function FailureDetails({
@@ -39,9 +36,7 @@ export function FailureDetails({
     <div className="failure-details">
       <p>
         {Object.hasOwn(outcomes, presentation.mutation_state)
-          ? outcomes[
-              presentation.mutation_state as Presentation["mutation_state"]
-            ]
+          ? outcomes[presentation.mutation_state as Presentation["mutation_state"]]
           : outcomes.unknown}
       </p>
       <details>

@@ -26,17 +26,15 @@ it("keeps an uncancellable copy open and inputs locked even while another operat
         />,
       ),
     );
-    for (const control of container.querySelectorAll<
-      HTMLInputElement | HTMLButtonElement
-    >("button, input"))
+    for (const control of container.querySelectorAll<HTMLInputElement | HTMLButtonElement>(
+      "button, input",
+    ))
       expect(control.disabled).toBe(true);
     await act(async () => {
       container.querySelector<HTMLButtonElement>(".close")!.click();
       container
         .querySelector('[role="dialog"]')!
-        .dispatchEvent(
-          new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
-        );
+        .dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     });
     expect(close).not.toHaveBeenCalled();
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(

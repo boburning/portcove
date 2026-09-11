@@ -3,11 +3,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, expect, it, vi } from "vitest";
-import type {
-  BackupProblem,
-  SourceImportPlan,
-  SourceImportResult,
-} from "../types";
+import type { BackupProblem, SourceImportPlan, SourceImportResult } from "../types";
 import { BackupHistory } from "./BackupHistory";
 import {
   SourceImportReview,
@@ -38,9 +34,7 @@ const plan = (mode: SourceImportPlan["mode"]): SourceImportPlan => ({
   source_guard_sha256: "b".repeat(64),
   plan_sha256: "c".repeat(64),
 });
-const result = (
-  outcome: SourceImportResult["outcome"],
-): SourceImportResult => ({
+const result = (outcome: SourceImportResult["outcome"]): SourceImportResult => ({
   import_id: "owned-import",
   profile_id: source.profile_id,
   mode: outcome === "moved" ? "move" : "copy",
@@ -62,12 +56,7 @@ it.each(["future_mode", "constructor", "__proto__"])(
     const review = plan(mode as SourceImportPlan["mode"]);
     const original = JSON.stringify(review);
     const html = renderToStaticMarkup(
-      <SourceImportReview
-        plan={review}
-        busy={false}
-        onApply={vi.fn()}
-        onCancel={vi.fn()}
-      />,
+      <SourceImportReview plan={review} busy={false} onApply={vi.fn()} onCancel={vi.fn()} />,
     );
     expect(html).toContain("Import method unavailable");
     expect(html).toContain("Cancel review");
@@ -76,13 +65,9 @@ it.each(["future_mode", "constructor", "__proto__"])(
     expect(html).not.toContain('class="primary"');
     expect(sourceImportModePresentation(mode).known).toBe(false);
     expect(JSON.stringify(review)).toBe(original);
-    const unknown = sourceImportNotice(
-      result(mode as SourceImportResult["outcome"]),
-    );
+    const unknown = sourceImportNotice(result(mode as SourceImportResult["outcome"]));
     expect(unknown).toContain("Source import outcome is unavailable");
-    expect(unknown).not.toMatch(
-      /verified|original was retained|original was removed/,
-    );
+    expect(unknown).not.toMatch(/verified|original was retained|original was removed/);
   },
 );
 
@@ -96,20 +81,11 @@ it.each(["copy", "move", "use_current_location"] as const)(
     try {
       await act(async () =>
         root.render(
-          <SourceImportReview
-            plan={plan(mode)}
-            busy={false}
-            onApply={apply}
-            onCancel={vi.fn()}
-          />,
+          <SourceImportReview plan={plan(mode)} busy={false} onApply={apply} onCancel={vi.fn()} />,
         ),
       );
-      expect(host.textContent).toContain(
-        sourceImportModePresentation(mode).explanation,
-      );
-      await act(async () =>
-        host.querySelector<HTMLButtonElement>("button.primary")!.click(),
-      );
+      expect(host.textContent).toContain(sourceImportModePresentation(mode).explanation);
+      await act(async () => host.querySelector<HTMLButtonElement>("button.primary")!.click());
       expect(apply).toHaveBeenCalledOnce();
     } finally {
       await act(async () => root.unmount());
@@ -119,16 +95,10 @@ it.each(["copy", "move", "use_current_location"] as const)(
 
 it.each([
   ["copied", "Inbox copy verified and registered; the original was retained."],
-  [
-    "reused_existing",
-    "Existing Inbox copy verified and registered; the original was retained.",
-  ],
+  ["reused_existing", "Existing Inbox copy verified and registered; the original was retained."],
   ["moved", "Inbox copy verified and registered; the original was removed."],
   ["registered_current_location", "Source registered at its current location."],
-  [
-    "copied_original_retained",
-    `Inbox copy registered. The original remains at ${source.path}.`,
-  ],
+  ["copied_original_retained", `Inbox copy registered. The original remains at ${source.path}.`],
 ] as const)("retains the specific known %s outcome", (outcome, expected) => {
   const value = result(outcome);
   const original = JSON.stringify(value);

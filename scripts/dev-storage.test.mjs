@@ -58,38 +58,27 @@ function workspace(t) {
 function environment(overrides = {}) {
   const env = Object.fromEntries(
     Object.entries(process.env).filter(
-      ([key]) =>
-        !/^(PORTCOVE_|CARGO_TARGET_DIR$|pnpm_config_store_dir$)/i.test(key),
+      ([key]) => !/^(PORTCOVE_|CARGO_TARGET_DIR$|pnpm_config_store_dir$)/i.test(key),
     ),
   );
   return { ...env, ...overrides };
 }
 
 function cli(root, args, overrides = {}) {
-  return spawnSync(
-    process.execPath,
-    [path.join(root, "scripts/dev-storage.mjs"), ...args],
-    {
-      cwd: root,
-      env: environment(overrides),
-      encoding: "utf8",
-      windowsHide: true,
-    },
-  );
+  return spawnSync(process.execPath, [path.join(root, "scripts/dev-storage.mjs"), ...args], {
+    cwd: root,
+    env: environment(overrides),
+    encoding: "utf8",
+    windowsHide: true,
+  });
 }
 
 test("recognizes only the configured Windows system drive", () => {
   assert.equal(isWindowsSystemDrivePath("C:\\work\\portcove", "C:"), true);
   assert.equal(isWindowsSystemDrivePath("c:/work/portcove/target", "C:"), true);
   assert.equal(isWindowsSystemDrivePath("\\\\?\\C:\\work\\target", "C:"), true);
-  assert.equal(
-    isWindowsSystemDrivePath("E:\\Portcove-Development", "C:"),
-    false,
-  );
-  assert.equal(
-    isWindowsSystemDrivePath("/home/runner/work/portcove", "C:"),
-    false,
-  );
+  assert.equal(isWindowsSystemDrivePath("E:\\Portcove-Development", "C:"), false);
+  assert.equal(isWindowsSystemDrivePath("/home/runner/work/portcove", "C:"), false);
 });
 
 test("resolves missing descendants through junctions and rejects files and dangling links", (t) => {
@@ -103,19 +92,9 @@ test("resolves missing descendants through junctions and rejects files and dangl
     path.join(destination, "not/created"),
   );
   writeFileSync(path.join(root, "file"), "content");
-  assert.throws(
-    () => resolvePhysicalPath(path.join(root, "file/child")),
-    /directory|ENOTDIR/,
-  );
-  symlinkSync(
-    path.join(root, "missing"),
-    path.join(root, "dangling"),
-    "junction",
-  );
-  assert.throws(
-    () => resolvePhysicalPath(path.join(root, "dangling/child")),
-    /ENOENT/,
-  );
+  assert.throws(() => resolvePhysicalPath(path.join(root, "file/child")), /directory|ENOTDIR/);
+  symlinkSync(path.join(root, "missing"), path.join(root, "dangling"), "junction");
+  assert.throws(() => resolvePhysicalPath(path.join(root, "dangling/child")), /ENOENT/);
 });
 
 test(
@@ -126,11 +105,7 @@ test(
     const link = path.join(root, "redirected");
     symlinkSync(`${process.env.SystemDrive || "C:"}\\`, link, "junction");
     assert.throws(
-      () =>
-        preflight(
-          { target_directory: path.join(link, "missing-portcove-target") },
-          1,
-        ),
+      () => preflight({ target_directory: path.join(link, "missing-portcove-target") }, 1),
       /system drive/,
     );
   },
@@ -139,10 +114,7 @@ test(
 test("clean accepts only the default target and refuses linked ancestors", (t) => {
   const root = fixture(t);
   const target = path.join(root, "target");
-  assert.equal(
-    validateCleanTarget({ workspace: root, target_directory: target }),
-    target,
-  );
+  assert.equal(validateCleanTarget({ workspace: root, target_directory: target }), target);
   for (const candidate of [
     root,
     path.dirname(root),
@@ -150,8 +122,7 @@ test("clean accepts only the default target and refuses linked ancestors", (t) =
     path.join(root, "custom/target"),
   ]) {
     assert.throws(
-      () =>
-        validateCleanTarget({ workspace: root, target_directory: candidate }),
+      () => validateCleanTarget({ workspace: root, target_directory: candidate }),
       /except this workspace/,
     );
   }
@@ -223,23 +194,14 @@ test("run creates configured scratch directories, exports matching paths, and pr
     pnpm_config_store_dir: path.join(root, "wrong-store"),
   };
   const probe = `const fs = require('fs'); const os = require('os'); const {CARGO_TARGET_DIR, TMPDIR, pnpm_config_store_dir} = process.env; fs.writeFileSync('probe.json', JSON.stringify({env: {CARGO_TARGET_DIR, TMPDIR, pnpm_config_store_dir}, temp: os.tmpdir(), exists: fs.existsSync(os.tmpdir())})); process.exit(17);`;
-  const result = cli(
-    root,
-    ["run", "--", process.execPath, "-e", probe],
-    overrides,
-  );
+  const result = cli(root, ["run", "--", process.execPath, "-e", probe], overrides);
   assert.equal(result.status, 17, result.stderr);
-  const report = JSON.parse(
-    readFileSync(path.join(root, "probe.json"), "utf8"),
-  );
+  const report = JSON.parse(readFileSync(path.join(root, "probe.json"), "utf8"));
   assert.equal(report.exists, true);
   assert.equal(report.temp, path.join(root, "scratch temp"));
   assert.equal(report.env.CARGO_TARGET_DIR, path.join(root, "build target"));
   assert.equal(report.env.TMPDIR, report.temp);
-  assert.equal(
-    report.env.pnpm_config_store_dir,
-    path.join(root, "package store"),
-  );
+  assert.equal(report.env.pnpm_config_store_dir, path.join(root, "package store"));
   assert.equal(existsSync(path.join(root, "packages")), true);
 });
 
@@ -251,27 +213,17 @@ test("pnpm uses the configured store instead of the workspace YAML default", (t)
     "storeDir: ../../work/pnpm-store\n",
   );
   const store = path.join(root, "custom store");
-  const result = cli(
-    root,
-    ["run", "--", "pnpm", "--dir", "apps/desktop", "store", "path"],
-    {
-      PORTCOVE_PNPM_STORE_DIR: store,
-      PNPM_CONFIG_STORE_DIR: path.join(root, "wrong-store"),
-    },
-  );
+  const result = cli(root, ["run", "--", "pnpm", "--dir", "apps/desktop", "store", "path"], {
+    PORTCOVE_PNPM_STORE_DIR: store,
+    PNPM_CONFIG_STORE_DIR: path.join(root, "wrong-store"),
+  });
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(
-    result.stdout.trim().split(/\r?\n/).at(-1),
-    path.join(store, "v11"),
-  );
+  assert.equal(result.stdout.trim().split(/\r?\n/).at(-1), path.join(store, "v11"));
 });
 
 test("direct just recipes initialize a fresh checkout and preserve storage overrides", (t) => {
   const root = workspace(t);
-  copyFileSync(
-    new URL("../justfile", import.meta.url),
-    path.join(root, "justfile"),
-  );
+  copyFileSync(new URL("../justfile", import.meta.url), path.join(root, "justfile"));
   mkdirSync(path.join(root, "apps/desktop"), { recursive: true });
   writeFileSync(
     path.join(root, "apps/desktop/package.json"),
@@ -294,13 +246,10 @@ test("direct just recipes initialize a fresh checkout and preserve storage overr
     }),
   });
   assert.equal(result.status, 0, result.stderr);
-  assert.deepEqual(
-    JSON.parse(readFileSync(path.join(root, "result.json"), "utf8")),
-    {
-      temp: path.join(root, "custom/temp"),
-      store: path.join(root, "custom/store"),
-    },
-  );
+  assert.deepEqual(JSON.parse(readFileSync(path.join(root, "result.json"), "utf8")), {
+    temp: path.join(root, "custom/temp"),
+    store: path.join(root, "custom/store"),
+  });
 });
 
 test(
@@ -314,22 +263,10 @@ test(
     const result = spawnCommand(shim, ["has spaces", ""], options);
     assert.equal(result.status, 23, result.stderr);
     assert.equal(result.stdout.trim(), "[has spaces] []");
-    for (const token of [
-      'bad"quote',
-      "bad&command",
-      "%TEMP%",
-      "!TEMP!",
-      "line\nbreak",
-    ]) {
-      assert.throws(
-        () => spawnCommand(shim, [token], options),
-        /shell metacharacters/,
-      );
+    for (const token of ['bad"quote', "bad&command", "%TEMP%", "!TEMP!", "line\nbreak"]) {
+      assert.throws(() => spawnCommand(shim, [token], options), /shell metacharacters/);
     }
-    assert.throws(
-      () => spawnCommand("missing&command", [], options),
-      /shell metacharacters/,
-    );
+    assert.throws(() => spawnCommand("missing&command", [], options), /shell metacharacters/);
   },
 );
 
@@ -374,10 +311,7 @@ test(
       new URL("./package-local.ps1", import.meta.url),
       path.join(root, "scripts/package-local.ps1"),
     );
-    writeFileSync(
-      path.join(root, "scripts/check-release-metadata.mjs"),
-      "process.exit(0);\n",
-    );
+    writeFileSync(path.join(root, "scripts/check-release-metadata.mjs"), "process.exit(0);\n");
     writeFileSync(
       path.join(root, "scripts/package-cli.ps1"),
       `
@@ -434,39 +368,26 @@ if ($env:TEMP -ne $previousTemp -or $env:pnpm_config_store_dir -ne $previousStor
       },
     );
     assert.equal(result.status, 0, result.stderr);
-    assert.deepEqual(
-      JSON.parse(readFileSync(path.join(root, "build-env.json"), "utf8")),
-      {
-        target,
-        temp: path.join(root, "scratch"),
-        store: path.join(root, "package store"),
-      },
-    );
+    assert.deepEqual(JSON.parse(readFileSync(path.join(root, "build-env.json"), "utf8")), {
+      target,
+      temp: path.join(root, "scratch"),
+      store: path.join(root, "package store"),
+    });
     const archive = path.join(root, "packages/portcove-0.1.0-source.zip");
-    assert.equal(
-      readFileSync(archive).subarray(0, 4).toString("hex"),
-      "504b0304",
-    );
+    assert.equal(readFileSync(archive).subarray(0, 4).toString("hex"), "504b0304");
     const listing = spawnSync("tar", ["-tf", archive], {
       encoding: "utf8",
       windowsHide: true,
     });
     assert.equal(listing.status, 0, listing.stderr);
     assert.match(listing.stdout, /src\/lib.rs/);
-    assert.doesNotMatch(
-      listing.stdout,
-      /custom target|packages\/|scratch\/|package store/,
-    );
+    assert.doesNotMatch(listing.stdout, /custom target|packages\/|scratch\/|package store/);
     assert.equal(
-      existsSync(
-        path.join(root, "packages/portcove-cli-0.1.0-windows-x86_64.zip"),
-      ),
+      existsSync(path.join(root, "packages/portcove-cli-0.1.0-windows-x86_64.zip")),
       true,
     );
     assert.equal(
-      readFileSync(path.join(root, "packages/SHA256SUMS.txt"), "utf8")
-        .trim()
-        .split(/\r?\n/).length,
+      readFileSync(path.join(root, "packages/SHA256SUMS.txt"), "utf8").trim().split(/\r?\n/).length,
       3,
     );
   },
@@ -481,10 +402,7 @@ test(
       new URL("./release-preflight.ps1", import.meta.url),
       path.join(root, "scripts/release-preflight.ps1"),
     );
-    for (const name of [
-      "check-release-metadata.mjs",
-      "check-release-metadata.test.mjs",
-    ]) {
+    for (const name of ["check-release-metadata.mjs", "check-release-metadata.test.mjs"]) {
       writeFileSync(path.join(root, "scripts", name), "process.exit(0);\n");
     }
     mkdirSync(path.join(root, "apps/desktop"), { recursive: true });
@@ -563,13 +481,8 @@ if ($env:TEMP -ne $previousTemp) { throw "Caller environment was not restored" }
       },
     );
     assert.equal(result.status, 0, result.stderr);
-    const report = JSON.parse(
-      readFileSync(path.join(root, "installer-env.json"), "utf8"),
-    );
-    assert.equal(
-      path.dirname(report.temp),
-      path.join(root, "scratch/installer-qualification"),
-    );
+    const report = JSON.parse(readFileSync(path.join(root, "installer-env.json"), "utf8"));
+    assert.equal(path.dirname(report.temp), path.join(root, "scratch/installer-qualification"));
     assert.equal(report.tmp, report.temp);
     assert.equal(report.tmpdir, report.temp);
     assert.equal(existsSync(report.temp), true);

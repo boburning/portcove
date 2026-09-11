@@ -3,13 +3,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const catalogPath = join(
-  root,
-  "crates",
-  "portcove-core",
-  "catalog",
-  "catalog.json",
-);
+const catalogPath = join(root, "crates", "portcove-core", "catalog", "catalog.json");
 const fixturePath = join(
   root,
   "crates",
@@ -18,8 +12,7 @@ const fixturePath = join(
   "catalog-schema1-fixture.json",
 );
 const legacy = JSON.parse(readFileSync(fixturePath, "utf8"));
-if (legacy.schema_version !== 1)
-  throw new Error("schema-1 fixture is not schema 1");
+if (legacy.schema_version !== 1) throw new Error("schema-1 fixture is not schema 1");
 
 const portcoveEvidence = "alpha1-schema1-source-contracts";
 const portcoveRef = "9d16cf7085ad34b995bbdc2a5763beb67c7e1190";
@@ -105,8 +98,7 @@ const evidence = [
     authority: "Portcove Alpha 1 source catalog",
     authority_ref: portcoveRef,
     reviewed_at: "2026-09-05",
-    claim:
-      "Frozen schema-1 source admission contract used for equivalence migration",
+    claim: "Frozen schema-1 source admission contract used for equivalence migration",
     immutable_url: portcoveUrl,
   },
   {
@@ -163,8 +155,7 @@ function digest(scope, sha1, sha256, crc32) {
 function legacyIdentities(profile, scope) {
   const sha1 = profile.accepted_sha1 ?? [];
   const sha256 = profile.accepted_sha256 ?? [];
-  if (sha1.length === 1 && sha256.length === 1)
-    return [digest(scope, sha1[0], sha256[0])];
+  if (sha1.length === 1 && sha256.length === 1) return [digest(scope, sha1[0], sha256[0])];
   if (sha1.length && sha256.length) {
     if (profile.id !== "bomberman-party-edition-psx") {
       throw new Error(`cannot infer legacy digest pairing for ${profile.id}`);
@@ -190,16 +181,12 @@ function memberIdentities(member) {
   return [
     ...sha1.map((value) => digest("file-set-member", value)),
     ...sha256.map((value) => digest("file-set-member", undefined, value)),
-    ...crc32.map((value) =>
-      digest("file-set-member", undefined, undefined, value),
-    ),
+    ...crc32.map((value) => digest("file-set-member", undefined, undefined, value)),
   ];
 }
 
 function representation(profile) {
-  const extensions = (profile.accepted_extensions ?? []).map((value) =>
-    value.toLowerCase(),
-  );
+  const extensions = (profile.accepted_extensions ?? []).map((value) => value.toLowerCase());
   if (profile.kind === "file-set") {
     return {
       id: "file-set",
@@ -339,22 +326,12 @@ function canonicalN64Representation(id, hashes, evidenceId) {
     id,
     extensions: ["z64", "n64", "v64"],
     kind: "canonical-n64",
-    identities: hashes.map(({ sha1, sha256 }) =>
-      digest("canonical-n64-big-endian", sha1, sha256),
-    ),
+    identities: hashes.map(({ sha1, sha256 }) => digest("canonical-n64-big-endian", sha1, sha256)),
     evidence_ids: [evidenceId],
   };
 }
 
-function n64Variant(
-  id,
-  title,
-  region,
-  revision,
-  hashes,
-  evidenceId,
-  representations,
-) {
+function n64Variant(id, title, region, revision, hashes, evidenceId, representations) {
   return {
     id,
     title,
@@ -386,8 +363,7 @@ applyReviewedVariants("ghostship-source", [
     [
       {
         sha1: "9bef1128717f958171a4afac3ed78ee2bb4e86ce",
-        sha256:
-          "17ce077343c6133f8c9f2d6d6d9a4ab62c8cd2aa57c40aea1f490b4c8bb21d91",
+        sha256: "17ce077343c6133f8c9f2d6d6d9a4ab62c8cd2aa57c40aea1f490b4c8bb21d91",
       },
     ],
     reviewedSources.ghostship.evidenceId,
@@ -415,8 +391,7 @@ applyReviewedVariants("banjo-kazooie", [
     [
       {
         sha1: "1fe1632098865f639e22c11b9a81ee8f29c75d7a",
-        sha256:
-          "59875835b9a5128bb0054315a7f929e2071c2001e528d70bf543e1d6680e6eff",
+        sha256: "59875835b9a5128bb0054315a7f929e2071c2001e528d70bf543e1d6680e6eff",
       },
     ],
     reviewedSources.lighthouse.evidenceId,
@@ -460,27 +435,9 @@ applyReviewedVariants("banjo-kazooie", [
 ]);
 
 const shipwrightHashes = [
-  [
-    "pal-1-0",
-    "PAL 1.0",
-    "PAL",
-    "1.0",
-    "328a1f1beba30ce5e178f031662019eb32c5f3b5",
-  ],
-  [
-    "pal-1-1",
-    "PAL 1.1",
-    "PAL",
-    "1.1",
-    "cfbb98d392e4a9d39da8285d10cbef3974c2f012",
-  ],
-  [
-    "pal-gamecube",
-    "PAL GameCube",
-    "PAL",
-    "GameCube",
-    "0227d7c0074f2d0ac935631990da8ec5914597b4",
-  ],
+  ["pal-1-0", "PAL 1.0", "PAL", "1.0", "328a1f1beba30ce5e178f031662019eb32c5f3b5"],
+  ["pal-1-1", "PAL 1.1", "PAL", "1.1", "cfbb98d392e4a9d39da8285d10cbef3974c2f012"],
+  ["pal-gamecube", "PAL GameCube", "PAL", "GameCube", "0227d7c0074f2d0ac935631990da8ec5914597b4"],
   [
     "pal-master-quest",
     "PAL Master Quest",
@@ -516,48 +473,12 @@ const shipwrightHashes = [
     "Master Quest Debug 3",
     "cfecfdc58d650e71a200c81f033de4e6d617a9f6",
   ],
-  [
-    "usa-1-0",
-    "NTSC 1.0 (US)",
-    "USA",
-    "1.0",
-    "ad69c91157f6705e8ab06c79fe08aad47bb57ba7",
-  ],
-  [
-    "usa-1-1",
-    "NTSC 1.1 (US)",
-    "USA",
-    "1.1",
-    "d3ecb253776cd847a5aa63d859d8c89a2f37b364",
-  ],
-  [
-    "usa-1-2",
-    "NTSC 1.2 (US)",
-    "USA",
-    "1.2",
-    "41b3bdc48d98c48529219919015a1af22f5057c2",
-  ],
-  [
-    "japan-1-0",
-    "NTSC 1.0 (JP)",
-    "Japan",
-    "1.0",
-    "c892bbda3993e66bd0d56a10ecd30b1ee612210f",
-  ],
-  [
-    "japan-1-1",
-    "NTSC 1.1 (JP)",
-    "Japan",
-    "1.1",
-    "dbfc81f655187dc6fefd93fa6798face770d579d",
-  ],
-  [
-    "japan-1-2",
-    "NTSC 1.2 (JP)",
-    "Japan",
-    "1.2",
-    "fa5f5942b27480d60243c2d52c0e93e26b9e6b86",
-  ],
+  ["usa-1-0", "NTSC 1.0 (US)", "USA", "1.0", "ad69c91157f6705e8ab06c79fe08aad47bb57ba7"],
+  ["usa-1-1", "NTSC 1.1 (US)", "USA", "1.1", "d3ecb253776cd847a5aa63d859d8c89a2f37b364"],
+  ["usa-1-2", "NTSC 1.2 (US)", "USA", "1.2", "41b3bdc48d98c48529219919015a1af22f5057c2"],
+  ["japan-1-0", "NTSC 1.0 (JP)", "Japan", "1.0", "c892bbda3993e66bd0d56a10ecd30b1ee612210f"],
+  ["japan-1-1", "NTSC 1.1 (JP)", "Japan", "1.1", "dbfc81f655187dc6fefd93fa6798face770d579d"],
+  ["japan-1-2", "NTSC 1.2 (JP)", "Japan", "1.2", "fa5f5942b27480d60243c2d52c0e93e26b9e6b86"],
   [
     "usa-gamecube",
     "NTSC GameCube (US)",
@@ -597,14 +518,7 @@ const shipwrightHashes = [
 applyReviewedVariants(
   "ocarina-of-time",
   shipwrightHashes.map(([id, title, region, revision, sha1]) =>
-    n64Variant(
-      id,
-      title,
-      region,
-      revision,
-      [{ sha1 }],
-      reviewedSources.shipwright.evidenceId,
-    ),
+    n64Variant(id, title, region, revision, [{ sha1 }], reviewedSources.shipwright.evidenceId),
   ),
 );
 
@@ -636,46 +550,30 @@ applyReviewedVariants("majoras-mask", [
 ]);
 
 applyReviewedVariants("star-fox-64", [
-  n64Variant(
-    "usa-1-0",
-    "Star Fox 64",
-    "USA",
-    "1.0",
-    [],
-    reviewedSources.starship.evidenceId,
-    [
-      canonicalN64Representation(
-        "compressed-rom",
-        [{ sha1: "d8b1088520f7c5f81433292a9258c1184afa1457" }],
-        reviewedSources.starship.evidenceId,
-      ),
-      canonicalN64Representation(
-        "decompressed-rom",
-        [{ sha1: "63b69f0ef36306257481afc250f9bc304c7162b2" }],
-        reviewedSources.starship.evidenceId,
-      ),
-    ],
-  ),
-  n64Variant(
-    "usa-1-1",
-    "Star Fox 64",
-    "USA",
-    "1.1",
-    [],
-    reviewedSources.starship.evidenceId,
-    [
-      canonicalN64Representation(
-        "compressed-rom",
-        [{ sha1: "09f0d105f476b00efa5303a3ebc42e60a7753b7a" }],
-        reviewedSources.starship.evidenceId,
-      ),
-      canonicalN64Representation(
-        "decompressed-rom",
-        [{ sha1: "f7475fb11e7e6830f82883412638e8390791ab87" }],
-        reviewedSources.starship.evidenceId,
-      ),
-    ],
-  ),
+  n64Variant("usa-1-0", "Star Fox 64", "USA", "1.0", [], reviewedSources.starship.evidenceId, [
+    canonicalN64Representation(
+      "compressed-rom",
+      [{ sha1: "d8b1088520f7c5f81433292a9258c1184afa1457" }],
+      reviewedSources.starship.evidenceId,
+    ),
+    canonicalN64Representation(
+      "decompressed-rom",
+      [{ sha1: "63b69f0ef36306257481afc250f9bc304c7162b2" }],
+      reviewedSources.starship.evidenceId,
+    ),
+  ]),
+  n64Variant("usa-1-1", "Star Fox 64", "USA", "1.1", [], reviewedSources.starship.evidenceId, [
+    canonicalN64Representation(
+      "compressed-rom",
+      [{ sha1: "09f0d105f476b00efa5303a3ebc42e60a7753b7a" }],
+      reviewedSources.starship.evidenceId,
+    ),
+    canonicalN64Representation(
+      "decompressed-rom",
+      [{ sha1: "f7475fb11e7e6830f82883412638e8390791ab87" }],
+      reviewedSources.starship.evidenceId,
+    ),
+  ]),
 ]);
 
 const validators = legacy.source_profiles
@@ -700,16 +598,14 @@ for (const port of legacy.ports) {
     if (!profile) throw new Error(`${port.id} references missing ${profileId}`);
     const rep = profile.variants[0].representations[0];
     const informational = rep.kind === "informational-extension";
-    const validator =
-      rep.kind === "pinned-validator" ? rep.validator_contract_id : null;
+    const validator = rep.kind === "pinned-validator" ? rep.validator_contract_id : null;
     contracts.push({
       id: `${port.id}-${role}-source`,
       port_id: port.id,
       role,
       profile_id: profileId,
       admission_mode: informational ? "informational" : "enforced",
-      supported_variant_ids:
-        informational || validator ? [] : ["legacy-accepted"],
+      supported_variant_ids: informational || validator ? [] : ["legacy-accepted"],
       validator_contract_id: validator,
       evidence_ids:
         profileId === "bomberman-party-edition-psx"
@@ -727,33 +623,21 @@ for (const port of legacy.ports) {
   }
 }
 
-function reviewContract(
-  portId,
-  source,
-  supportedVariantIds,
-  extraEvidenceIds = [],
-) {
+function reviewContract(portId, source, supportedVariantIds, extraEvidenceIds = []) {
   const contract = contracts.find(
     (candidate) => candidate.port_id === portId && candidate.role === "game",
   );
   if (!contract) throw new Error(`missing corrected contract for ${portId}`);
   contract.supported_variant_ids = supportedVariantIds;
-  contract.evidence_ids = [
-    ...new Set([source.evidenceId, ...extraEvidenceIds]),
-  ];
+  contract.evidence_ids = [...new Set([source.evidenceId, ...extraEvidenceIds])];
   contract.authority_ref = source.ref;
   contract.reviewed_at = "2026-09-05";
   contract.immutable_review_url = `https://github.com/${source.repository}/blob/${source.ref}/${source.path}`;
   contract.live_review_url = `https://github.com/${source.repository}/blob/${source.liveRef}/${source.path}`;
-  contract.applicability = [
-    { upstream_ref: source.tag, artifact_sha256: null },
-  ];
+  contract.applicability = [{ upstream_ref: source.tag, artifact_sha256: null }];
 }
 
-reviewContract("ghostship", reviewedSources.ghostship, [
-  "super-mario-64-us",
-  "super-mario-64-jp",
-]);
+reviewContract("ghostship", reviewedSources.ghostship, ["super-mario-64-us", "super-mario-64-jp"]);
 reviewContract("lighthouse", reviewedSources.lighthouse, [
   "usa-rev0",
   "usa-rev1",
@@ -771,10 +655,7 @@ reviewContract(
   reviewedSources.shipwright,
   shipwrightHashes.map(([id]) => id),
 );
-reviewContract("2ship2harkinian", reviewedSources.twoShip, [
-  "ntsc-u-1-0",
-  "ntsc-u-gamecube",
-]);
+reviewContract("2ship2harkinian", reviewedSources.twoShip, ["ntsc-u-1-0", "ntsc-u-gamecube"]);
 reviewContract(
   "zelda64-recomp",
   reviewedSources.zelda64Recomp,
@@ -804,10 +685,7 @@ const migrated = {
           runtime_mutable_paths: [
             "torch.hash.yml",
             "logs/Ghostship.log",
-            ...Array.from(
-              { length: 10 },
-              (_, index) => `logs/Ghostship.${index + 1}.log`,
-            ),
+            ...Array.from({ length: 10 }, (_, index) => `logs/Ghostship.${index + 1}.log`),
           ],
         }
       : port.id === "yu-gi-oh-forbidden-memories-recompiled"
@@ -815,11 +693,7 @@ const migrated = {
             ...port,
             // v0.5.7 separates player data and launcher caches unless portable mode is
             // explicit. Remember user selections and ignore only reproducible outputs.
-            persistent_paths: [
-              ...port.persistent_paths,
-              "disc.cfg",
-              "bios.cfg",
-            ],
+            persistent_paths: [...port.persistent_paths, "disc.cfg", "bios.cfg"],
             runtime_mutable_paths: [
               ...port.runtime_mutable_paths,
               "disc_verified.cfg",
@@ -835,11 +709,7 @@ const migrated = {
               ...port,
               // The managed runtime creates these player selections and disposable
               // reports after the frozen schema-1 catalog was recorded.
-              persistent_paths: [
-                ...port.persistent_paths,
-                "input.ini",
-                "keybinds.ini",
-              ],
+              persistent_paths: [...port.persistent_paths, "input.ini", "keybinds.ini"],
               runtime_mutable_paths: [
                 ...(port.runtime_mutable_paths ?? []),
                 "bios.cfg",
@@ -857,23 +727,14 @@ const migrated = {
                   "disc.cfg",
                   "bios.cfg",
                 ],
-                runtime_mutable_paths: [
-                  ...port.runtime_mutable_paths,
-                  "psx_freeze_heartbeat.json",
-                ],
+                runtime_mutable_paths: [...port.runtime_mutable_paths, "psx_freeze_heartbeat.json"],
               }
-            : ["opengoal-jak1", "opengoal-jak2", "opengoal-jak3"].includes(
-                  port.id,
-                )
+            : ["opengoal-jak1", "opengoal-jak2", "opengoal-jak3"].includes(port.id)
               ? {
                   ...port,
                   // Reviewed extractor output ownership; this is not a manifest exclusion.
                   // Pinned upstream evidence is recorded in docs/CATALOG.md.
-                  setup_output_paths: [
-                    "data/iso_data",
-                    "data/decompiler_out",
-                    "data/out",
-                  ],
+                  setup_output_paths: ["data/iso_data", "data/decompiler_out", "data/out"],
                 }
               : port,
   ),

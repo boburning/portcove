@@ -55,36 +55,15 @@ export function UpdateCenter({
     (outcome) => outcome.ok && outcome.result?.update_available,
   ).length;
   const failed = outcomes.filter((outcome) => !outcome.ok).length;
-  const staged = installed.filter(
-    (port) => statuses.get(port.id)?.staged,
-  ).length;
+  const staged = installed.filter((port) => statuses.get(port.id)?.staged).length;
   return (
     <section className="update-center">
       <div className="update-toolbar" data-focus-group>
         <div className="update-stats">
-          <UpdateStat
-            label="Installed"
-            value={installed.length}
-            icon={PackageCheck}
-          />
-          <UpdateStat
-            label="Available"
-            value={available}
-            icon={Download}
-            accent={available > 0}
-          />
-          <UpdateStat
-            label="Staged"
-            value={staged}
-            icon={ShieldCheck}
-            accent={staged > 0}
-          />
-          <UpdateStat
-            label="Failed"
-            value={failed}
-            icon={AlertTriangle}
-            warning={failed > 0}
-          />
+          <UpdateStat label="Installed" value={installed.length} icon={PackageCheck} />
+          <UpdateStat label="Available" value={available} icon={Download} accent={available > 0} />
+          <UpdateStat label="Staged" value={staged} icon={ShieldCheck} accent={staged > 0} />
+          <UpdateStat label="Failed" value={failed} icon={AlertTriangle} warning={failed > 0} />
         </div>
         <div className="update-buttons">
           <button
@@ -94,15 +73,13 @@ export function UpdateCenter({
             onClick={checkAll}
           >
             <Icon glyph={RefreshCw} />
-            {busy === "check installed"
-              ? "Checking installed ports…"
-              : "Check all ports"}
+            {busy === "check installed" ? "Checking installed ports…" : "Check all ports"}
           </button>
         </div>
       </div>
       <p className="update-explainer">
-        Checking only looks for updates. Open a game below to review a download
-        or installation. Saving its update settings runs no update.
+        Checking only looks for updates. Open a game below to review a download or installation.
+        Saving its update settings runs no update.
       </p>
       {installed.length === 0 ? (
         <EmptyState
@@ -142,13 +119,9 @@ export function UpdateCenter({
                   <small>Latest</small>
                   <span>{releaseLabel(outcome?.result)}</span>
                 </div>
-                <span className={`update-state ${state.tone}`}>
-                  {state.label}
-                </span>
+                <span className={`update-state ${state.tone}`}>{state.label}</span>
                 {outcome?.error && (
-                  <small className="update-error">
-                    {errorText(outcome.error)}
-                  </small>
+                  <small className="update-error">{errorText(outcome.error)}</small>
                 )}
               </button>
             );
@@ -206,8 +179,7 @@ function ActivityHistory({
           <div>
             <strong>No operations recorded yet</strong>
             <span>
-              Installs, updates, verification, rollback, adoption, and failures
-              will appear here.
+              Installs, updates, verification, rollback, adoption, and failures will appear here.
             </span>
           </div>
         </div>
@@ -250,11 +222,7 @@ function ActivityRow({
       ? "No completion was recorded. Review the source or port before retrying."
       : undefined);
   return (
-    <div
-      className={`activity-row ${presentation.state}`}
-      title={title}
-      data-focus-group
-    >
+    <div className={`activity-row ${presentation.state}`} title={title} data-focus-group>
       <span className="activity-indicator" aria-hidden="true">
         <Icon glyph={presentation.icon} size="sm" />
       </span>
@@ -270,26 +238,19 @@ function ActivityRow({
       <span
         className="activity-time"
         title={
-          activity.finished_at
-            ? `Finished ${formatActivityTime(activity.finished_at)}`
-            : undefined
+          activity.finished_at ? `Finished ${formatActivityTime(activity.finished_at)}` : undefined
         }
       >
         {presentation.time}
       </span>
       <span className="activity-status">{presentation.label}</span>
       {activity.cancellation && (
-        <OperationCancellation
-          operationId={activity.id}
-          state={activity.cancellation}
-        />
+        <OperationCancellation operationId={activity.id} state={activity.cancellation} />
       )}
       {activity.failure ? (
         <div className="activity-details">
           <p>{activity.failure.presentation.summary}</p>
-          {activity.failure.presentation.recovery_actions.includes(
-            "review_preparation",
-          ) &&
+          {activity.failure.presentation.recovery_actions.includes("review_preparation") &&
             target.portId && (
               <button data-focusable onClick={() => onSelect(target.portId!)}>
                 Review game preparation
@@ -303,8 +264,7 @@ function ActivityRow({
       ) : (
         activity.message && (
           <p className="activity-details">
-            Older activity details are available in a redacted support bundle in
-            Settings.
+            Older activity details are available in a redacted support bundle in Settings.
           </p>
         )
       )}
@@ -345,15 +305,10 @@ function ActivityTargetLink({
   return <span>{target.label}</span>;
 }
 
-function activityTarget(
-  activity: ActivityRecord,
-  names: ReadonlyMap<string, string>,
-) {
+function activityTarget(activity: ActivityRecord, names: ReadonlyMap<string, string>) {
   const targetId = activity.target_id;
   const portId =
-    activity.target_kind === "port" && targetId && names.has(targetId)
-      ? targetId
-      : undefined;
+    activity.target_kind === "port" && targetId && names.has(targetId) ? targetId : undefined;
   return {
     portId,
     label: (portId && names.get(portId)) ?? targetId ?? "Portcove library",
@@ -386,9 +341,7 @@ function operationLabel(operation: ActivityOperation) {
     discover_sources: "Searched for sources",
     update_catalog: "Updated catalog",
   };
-  return Object.hasOwn(labels, operation)
-    ? labels[operation]
-    : "Recorded activity";
+  return Object.hasOwn(labels, operation) ? labels[operation] : "Recorded activity";
 }
 
 function formatActivityTime(timestamp: number) {
@@ -445,13 +398,7 @@ function UpdateStat({
 }) {
   return (
     <div
-      className={
-        warning
-          ? "update-stat warning"
-          : accent
-            ? "update-stat accent"
-            : "update-stat"
-      }
+      className={warning ? "update-stat warning" : accent ? "update-stat accent" : "update-stat"}
     >
       <Icon glyph={icon} />
       <strong>{value}</strong>
@@ -462,9 +409,7 @@ function UpdateStat({
 
 function policyLabel(policy: PortStatus["update_policy"]) {
   const labels = { automatic: "Automatic", stage: "Stage", notify: "Notify" };
-  return Object.hasOwn(labels, policy)
-    ? labels[policy]
-    : "Update policy unavailable";
+  return Object.hasOwn(labels, policy) ? labels[policy] : "Update policy unavailable";
 }
 
 function updateState(status: PortStatus, outcome?: UpdateCheckOutcome) {
@@ -474,7 +419,6 @@ function updateState(status: PortStatus, outcome?: UpdateCheckOutcome) {
       : { label: "Not checked", tone: "muted" };
   if (!outcome.ok) return { label: "Check failed", tone: "failed" };
   if (status.staged) return { label: "Staged", tone: "staged" };
-  if (outcome.result?.update_available)
-    return { label: "Available", tone: "available" };
+  if (outcome.result?.update_available) return { label: "Available", tone: "available" };
   return { label: "Current", tone: "current" };
 }

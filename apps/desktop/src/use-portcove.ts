@@ -1,10 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { desktopApi } from "./api";
 import type {
@@ -23,12 +17,7 @@ import type {
   UpdateCheckOutcome,
 } from "./types";
 import type { DetailActions } from "./components/DetailPanel";
-import {
-  errorText,
-  isCancellation,
-  type Filter,
-  type View,
-} from "./view-model";
+import { errorText, isCancellation, type Filter, type View } from "./view-model";
 import { currentUpdateSnapshot } from "./view-model";
 import { applyOperationEvent, mostRecentOperation } from "./operation-state";
 import {
@@ -53,25 +42,19 @@ export function usePortcoveData() {
     const activityRequest = activityGeneration.current.begin();
     setRefreshing(true);
     try {
-      const [
-        nextCatalog,
-        nextStatuses,
-        nextSources,
-        nextActivities,
-        nextDoctor,
-      ] = await Promise.all([
-        desktopApi.catalog(),
-        desktopApi.statuses(),
-        desktopApi.sources(),
-        desktopApi.activities(),
-        desktopApi.doctor(),
-      ]);
+      const [nextCatalog, nextStatuses, nextSources, nextActivities, nextDoctor] =
+        await Promise.all([
+          desktopApi.catalog(),
+          desktopApi.statuses(),
+          desktopApi.sources(),
+          desktopApi.activities(),
+          desktopApi.doctor(),
+        ]);
       if (!refreshGeneration.current.isCurrent(generation)) return;
       setCatalog(nextCatalog);
       setStatuses(nextStatuses);
       setSources(nextSources);
-      if (activityGeneration.current.isCurrent(activityRequest))
-        setActivities(nextActivities);
+      if (activityGeneration.current.isCurrent(activityRequest)) setActivities(nextActivities);
       setDoctor(nextDoctor);
       setRefreshFailure(undefined);
     } catch (error) {
@@ -108,8 +91,7 @@ export function usePortcoveData() {
       const generation = activityGeneration.current.begin();
       try {
         const next = await desktopApi.activities();
-        if (!closed && activityGeneration.current.isCurrent(generation))
-          setActivities(next);
+        if (!closed && activityGeneration.current.isCurrent(generation)) setActivities(next);
       } catch {
         /* Full refresh reports IPC failures; keep the last known ledger while polling. */
       }
@@ -141,21 +123,19 @@ export function usePortcoveData() {
 }
 
 export function useOperationState(refresh: () => Promise<void>) {
-  const [pendingOperations, setPendingOperations] = useState<
-    ReadonlyMap<number, string>
-  >(new Map());
+  const [pendingOperations, setPendingOperations] = useState<ReadonlyMap<number, string>>(
+    new Map(),
+  );
   const nextPendingId = useRef(0);
   const busy = mostRecentPendingOperation(pendingOperations);
   const [error, setError] = useState<unknown>();
-  const [operationEvents, setOperationEvents] = useState<
-    ReadonlyMap<string, OperationEvent>
-  >(new Map());
+  const [operationEvents, setOperationEvents] = useState<ReadonlyMap<string, OperationEvent>>(
+    new Map(),
+  );
   const operation = mostRecentOperation(operationEvents);
   useEffect(() => {
     const unlisten = listen<OperationEvent>("portcove://operation", (event) => {
-      setOperationEvents((current) =>
-        applyOperationEvent(current, event.payload),
-      );
+      setOperationEvents((current) => applyOperationEvent(current, event.payload));
     });
     return () => {
       void unlisten.then((dispose) => dispose());
@@ -164,14 +144,10 @@ export function useOperationState(refresh: () => Promise<void>) {
   const perform = useCallback(
     async <T>(name: string, task: () => Promise<T>): Promise<T | undefined> => {
       const pendingId = ++nextPendingId.current;
-      setPendingOperations((current) =>
-        addPendingOperation(current, pendingId, name),
-      );
+      setPendingOperations((current) => addPendingOperation(current, pendingId, name));
       setError(undefined);
       const runningRefresh = window.setTimeout(() => {
-        void refresh().catch((value: unknown) =>
-          setError((current: unknown) => current ?? value),
-        );
+        void refresh().catch((value: unknown) => setError((current: unknown) => current ?? value));
       }, 250);
       try {
         const result = await task();
@@ -185,9 +161,7 @@ export function useOperationState(refresh: () => Promise<void>) {
         } catch (value) {
           setError((current: unknown) => current ?? value);
         }
-        setPendingOperations((current) =>
-          removePendingOperation(current, pendingId),
-        );
+        setPendingOperations((current) => removePendingOperation(current, pendingId));
       }
     },
     [refresh],
@@ -254,8 +228,7 @@ function useReviewRequest<T>(identity: string, perform: Perform) {
         return undefined;
       }
     });
-    if (result !== undefined && current())
-      setReviewed({ identity, value: result });
+    if (result !== undefined && current()) setReviewed({ identity, value: result });
   };
   const guard = () => {
     const request = generation.current.begin();
@@ -284,9 +257,7 @@ export function useInstallPlanning(
   );
   const review = async () => {
     if (portId && channel)
-      await request.review("review install", () =>
-        desktopApi.plan(portId, channel),
-      );
+      await request.review("review install", () => desktopApi.plan(portId, channel));
   };
   return { plan: request.value, review, invalidate: request.invalidate };
 }
@@ -300,9 +271,10 @@ export function useAdoptionPlanning(
   done: () => void,
 ) {
   const identity = JSON.stringify([path, portId, open, generation]);
-  const request = useReviewRequest<
-    Awaited<ReturnType<typeof desktopApi.previewAdoption>>
-  >(identity, perform);
+  const request = useReviewRequest<Awaited<ReturnType<typeof desktopApi.previewAdoption>>>(
+    identity,
+    perform,
+  );
   const [failedIdentity, setFailedIdentity] = useState<string>();
   useLayoutEffect(() => {
     setFailedIdentity(undefined);
@@ -351,14 +323,12 @@ export function useSourceHealth(
   catalogIdentity = "",
 ) {
   const [outcomes, setOutcomes] = useState<SourceVerificationOutcome[]>([]);
-  const [inspections, setInspections] = useState<
-    ReadonlyMap<string, SourceInspectionReport>
-  >(new Map());
+  const [inspections, setInspections] = useState<ReadonlyMap<string, SourceInspectionReport>>(
+    new Map(),
+  );
   const generation = useRef(new LatestRequestGeneration());
   const requested = new Set(requestedProfileIds);
-  const inspectionSources = sources.filter((source) =>
-    requested.has(source.profile_id),
-  );
+  const inspectionSources = sources.filter((source) => requested.has(source.profile_id));
   const inspectionSourcesRef = useRef(inspectionSources);
   inspectionSourcesRef.current = inspectionSources;
   const baseline = `${catalogIdentity}|${JSON.stringify(inspectionSources)}`;
@@ -366,9 +336,7 @@ export function useSourceHealth(
     const currentSources = inspectionSourcesRef.current;
     const request = generation.current.begin();
     const results = await Promise.allSettled(
-      currentSources.map((source) =>
-        desktopApi.inspectSource(source.profile_id),
-      ),
+      currentSources.map((source) => desktopApi.inspectSource(source.profile_id)),
     );
     if (!generation.current.isCurrent(request)) return;
     setInspections(
@@ -399,10 +367,7 @@ export function useSourceHealth(
   return { outcomes, inspections, inspectAll, verifyAll };
 }
 
-export function usePortBackups(
-  portId: string | undefined,
-  setError: (error?: string) => void,
-) {
+export function usePortBackups(portId: string | undefined, setError: (error?: string) => void) {
   const emptyInventory = useCallback(
     (): BackupInventory => ({
       port_id: portId ?? "",
@@ -412,9 +377,7 @@ export function usePortBackups(
     }),
     [portId],
   );
-  const [inventory, setInventory] = useState<BackupInventory>(() =>
-    emptyInventory(),
-  );
+  const [inventory, setInventory] = useState<BackupInventory>(() => emptyInventory());
   const requestId = useRef(0);
   const refresh = useCallback(async () => {
     const request = ++requestId.current;
@@ -439,10 +402,7 @@ export function usePortBackups(
   return { backups: inventory.backups, inventory, refresh };
 }
 
-export function useGithubAuth(
-  perform: Perform,
-  setError: (error?: string) => void,
-) {
+export function useGithubAuth(perform: Perform, setError: (error?: string) => void) {
   const [status, setStatus] = useState<GithubAuthStatus>();
   const [token, setToken] = useState("");
   const [deviceLogin, setDeviceLogin] = useState<GithubDeviceLogin>();
@@ -463,9 +423,7 @@ export function useGithubAuth(
     let timer = 0;
     const poll = async () => {
       try {
-        const result = await desktopApi.pollGithubDeviceLogin(
-          deviceLogin.session_id,
-        );
+        const result = await desktopApi.pollGithubDeviceLogin(deviceLogin.session_id);
         if (cancelled) return;
         if (result.state === "complete") {
           setStatus(result.status ?? undefined);
@@ -491,9 +449,7 @@ export function useGithubAuth(
     };
   }, [deviceLogin, setError]);
   const saveToken = useCallback(async () => {
-    const result = await perform("GitHub authentication", () =>
-      desktopApi.setGithubToken(token),
-    );
+    const result = await perform("GitHub authentication", () => desktopApi.setGithubToken(token));
     if (result) {
       setStatus(result);
       setToken("");
@@ -504,10 +460,7 @@ export function useGithubAuth(
     if (result) setStatus(result);
   }, [perform]);
   const beginDeviceLogin = useCallback(async () => {
-    const result = await perform(
-      "GitHub login",
-      desktopApi.beginGithubDeviceLogin,
-    );
+    const result = await perform("GitHub login", desktopApi.beginGithubDeviceLogin);
     if (result) setDeviceLogin(result);
   }, [perform]);
   return {
@@ -552,10 +505,7 @@ export function usePortcoveUi() {
   };
 }
 
-export type Perform = <T>(
-  name: string,
-  task: () => Promise<T>,
-) => Promise<T | undefined>;
+export type Perform = <T>(name: string, task: () => Promise<T>) => Promise<T | undefined>;
 
 export function detailActions(
   port: PortDefinition,
@@ -581,11 +531,9 @@ export function detailActions(
           )
         : undefined,
     backup: async () => {
-      if (await perform("back up data", () => desktopApi.backup(port.id)))
-        await backupsChanged();
+      if (await perform("back up data", () => desktopApi.backup(port.id))) await backupsChanged();
     },
-    check: () =>
-      perform("check", () => desktopApi.check(port.id, libraryGeneration)),
+    check: () => perform("check", () => desktopApi.check(port.id, libraryGeneration)),
     close,
     install: () =>
       perform("install", () =>
@@ -597,10 +545,8 @@ export function detailActions(
           false,
         ),
       ),
-    launch: () =>
-      perform("launch", () => desktopApi.launch(port.id, sourcePath)),
-    openUserData: () =>
-      perform("open data folder", () => desktopApi.openUserData(port.id)),
+    launch: () => perform("launch", () => desktopApi.launch(port.id, sourcePath)),
+    openUserData: () => perform("open data folder", () => desktopApi.openUserData(port.id)),
     reviewInstall,
     remove: async (expectedPreview) => {
       const removed = await perform("remove", () =>
@@ -611,12 +557,7 @@ export function detailActions(
     },
     deleteBackup: async (backup, expectedPreview) => {
       const result = await perform("delete backup", () =>
-        desktopApi.deleteBackup(
-          port.id,
-          backup.id,
-          expectedPreview,
-          libraryGeneration,
-        ),
+        desktopApi.deleteBackup(port.id, backup.id, expectedPreview, libraryGeneration),
       );
       if (result === null) return "cancelled";
       const completed = Boolean(result);
@@ -626,12 +567,7 @@ export function detailActions(
     rollback: () => perform("rollback", () => desktopApi.rollback(port.id)),
     restoreBackup: async (backup, expectedPreview) => {
       const result = await perform("restore backup", () =>
-        desktopApi.restoreBackup(
-          port.id,
-          backup.id,
-          expectedPreview,
-          libraryGeneration,
-        ),
+        desktopApi.restoreBackup(port.id, backup.id, expectedPreview, libraryGeneration),
       );
       if (result === null) return "cancelled";
       const completed = Boolean(result);
@@ -639,13 +575,9 @@ export function detailActions(
       return completed;
     },
     setChannel: (channel) =>
-      perform("channel", () =>
-        desktopApi.setChannel(port.id, channel, libraryGeneration),
-      ),
+      perform("channel", () => desktopApi.setChannel(port.id, channel, libraryGeneration)),
     setPolicy: (policy) =>
-      perform("policy", () =>
-        desktopApi.setPolicy(port.id, policy, libraryGeneration),
-      ),
+      perform("policy", () => desktopApi.setPolicy(port.id, policy, libraryGeneration)),
     verify: () => perform("verify", () => desktopApi.verify(port.id)),
   };
 }

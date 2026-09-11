@@ -22,9 +22,7 @@ function thumbnailUrl(thumbnail: ArtworkThumbnail, state: ArtworkState) {
     throw new Error("The artwork preview changed. Refresh to try again.");
   let binary = "";
   for (let offset = 0; offset < thumbnail.png.length; offset += 8192)
-    binary += String.fromCharCode(
-      ...thumbnail.png.slice(offset, offset + 8192),
-    );
+    binary += String.fromCharCode(...thumbnail.png.slice(offset, offset + 8192));
   return `data:image/png;base64,${btoa(binary)}`;
 }
 
@@ -58,13 +56,8 @@ export class ArtworkCache {
   }
 
   private trim() {
-    const inactive = [...this.entries.keys()].filter(
-      (key) => !this.listeners.has(key),
-    );
-    for (const key of inactive.slice(
-      0,
-      Math.max(0, inactive.length - maximumEntries),
-    ))
+    const inactive = [...this.entries.keys()].filter((key) => !this.listeners.has(key));
+    for (const key of inactive.slice(0, Math.max(0, inactive.length - maximumEntries)))
       this.entries.delete(key);
   }
 
@@ -82,11 +75,7 @@ export class ArtworkCache {
     return next;
   }
 
-  private async display(
-    portId: string,
-    slot: ArtworkSlot,
-    state: ArtworkState,
-  ) {
+  private async display(portId: string, slot: ArtworkSlot, state: ArtworkState) {
     const previous = this.read(portId, slot);
     const image =
       state.availability === "available" &&
@@ -144,8 +133,7 @@ export class ArtworkCache {
       });
       try {
         const state = await desktopApi.artwork(portId, slot, this.generation);
-        if (stillInterested() || this.listeners.has(key))
-          await this.display(portId, slot, state);
+        if (stillInterested() || this.listeners.has(key)) await this.display(portId, slot, state);
         else this.entries.delete(key);
       } catch (error) {
         this.publish(portId, slot, { error: errorText(error), loading: false });
@@ -170,19 +158,8 @@ export class ArtworkCache {
       if (!stillCurrent()) return undefined;
       const state =
         path === null
-          ? await desktopApi.resetArtwork(
-              portId,
-              slot,
-              revision,
-              this.generation,
-            )
-          : await desktopApi.importArtwork(
-              portId,
-              slot,
-              path,
-              revision,
-              this.generation,
-            );
+          ? await desktopApi.resetArtwork(portId, slot, revision, this.generation)
+          : await desktopApi.importArtwork(portId, slot, path, revision, this.generation);
       await this.display(portId, slot, state);
       return state;
     });

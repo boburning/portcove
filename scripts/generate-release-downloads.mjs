@@ -42,9 +42,7 @@ function validateInventory(inventory) {
 function groupedDownloadLines(packages) {
   const groups = [];
   for (const entry of packages) {
-    let group = groups.find(
-      (item) => item.display_label === entry.display_label,
-    );
+    let group = groups.find((item) => item.display_label === entry.display_label);
     if (!group) {
       group = {
         display_label: entry.display_label,
@@ -54,9 +52,7 @@ function groupedDownloadLines(packages) {
       groups.push(group);
     }
     if (group.experimental !== entry.experimental)
-      throw new Error(
-        `inconsistent experimental label for ${entry.display_label}`,
-      );
+      throw new Error(`inconsistent experimental label for ${entry.display_label}`);
     group.entries.push(entry);
   }
   return groups
@@ -96,19 +92,12 @@ printf '%s\\n' "$line" | ${command}
 
 export function renderDownloadSection(inventory) {
   validateInventory(inventory);
-  const desktop = inventory.packages.filter(
-    (entry) => entry.interface === "desktop",
-  );
+  const desktop = inventory.packages.filter((entry) => entry.interface === "desktop");
   const cli = inventory.packages.filter((entry) => entry.interface === "cli");
   const windows = desktop.find((entry) => entry.os === "windows");
-  const linux = desktop.find(
-    (entry) => entry.os === "linux" && entry.format === "appimage",
-  );
-  const mac = desktop.find(
-    (entry) => entry.os === "macos" && entry.architecture === "aarch64",
-  );
-  if (!windows || !linux || !mac)
-    throw new Error("release inventory lacks verification examples");
+  const linux = desktop.find((entry) => entry.os === "linux" && entry.format === "appimage");
+  const mac = desktop.find((entry) => entry.os === "macos" && entry.architecture === "aarch64");
+  if (!windows || !linux || !mac) throw new Error("release inventory lacks verification examples");
   const preview = inventory.version.includes("-")
     ? "> [!WARNING]\n> **Technical preview.** Use a disposable or fully backed-up Portcove library. A matching checksum is not publisher identity or a malware assessment; keep operating-system protections enabled and review the signing, qualification, and upgrade limitations below."
     : "> [!NOTE]\n> Review the known limitations and upgrade guidance for this release before replacing an existing installation.";
@@ -154,16 +143,11 @@ export function mergeDownloadSection(reviewedBody, inventory) {
   const startCount = reviewedBody.split(startMarker).length - 1;
   const endCount = reviewedBody.split(endMarker).length - 1;
   if (startCount !== endCount || startCount > 1) {
-    throw new Error(
-      "release body has incomplete or duplicate generated-download markers",
-    );
+    throw new Error("release body has incomplete or duplicate generated-download markers");
   }
   const withoutGenerated = (
     startCount === 1
-      ? reviewedBody.replace(
-          new RegExp(`${startMarker}[\\s\\S]*?${endMarker}\\s*`),
-          "",
-        )
+      ? reviewedBody.replace(new RegExp(`${startMarker}[\\s\\S]*?${endMarker}\\s*`), "")
       : reviewedBody
   ).trim();
   const section = renderDownloadSection(inventory);

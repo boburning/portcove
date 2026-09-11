@@ -16,8 +16,7 @@ export function renderTransportSchemas(schemas) {
     Array.isArray(schemas) ||
     Object.keys(schemas).length === 0 ||
     Object.values(schemas).some(
-      (schema) =>
-        !schema || typeof schema !== "object" || Array.isArray(schema),
+      (schema) => !schema || typeof schema !== "object" || Array.isArray(schema),
     )
   ) {
     throw new Error("Transport export must contain named JSON schemas");

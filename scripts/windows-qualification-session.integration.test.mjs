@@ -19,12 +19,8 @@ import test, { after } from "node:test";
 import { once } from "node:events";
 import { fileURLToPath } from "node:url";
 
-const script = fileURLToPath(
-  new URL("./windows-qualification-session.ps1", import.meta.url),
-);
-const reportTool = fileURLToPath(
-  new URL("./qualification-report.mjs", import.meta.url),
-);
+const script = fileURLToPath(new URL("./windows-qualification-session.ps1", import.meta.url));
+const reportTool = fileURLToPath(new URL("./qualification-report.mjs", import.meta.url));
 const recordTool = fileURLToPath(
   new URL("./write-windows-qualification-build.mjs", import.meta.url),
 );
@@ -32,33 +28,25 @@ const installerLifecycleTool = fileURLToPath(
   new URL("./test-windows-installer.ps1", import.meta.url),
 );
 const csc = "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe";
-const sha256 = (file) =>
-  createHash("sha256").update(readFileSync(file)).digest("hex");
+const sha256 = (file) => createHash("sha256").update(readFileSync(file)).digest("hex");
 
 function runPowerShell(args, options = {}) {
-  return spawnSync(
-    "pwsh.exe",
-    ["-NoLogo", "-NoProfile", "-File", script, ...args],
-    {
-      encoding: "utf8",
-      windowsHide: true,
-      timeout: 90_000,
-      ...options,
-    },
-  );
+  return spawnSync("pwsh.exe", ["-NoLogo", "-NoProfile", "-File", script, ...args], {
+    encoding: "utf8",
+    windowsHide: true,
+    timeout: 90_000,
+    ...options,
+  });
 }
 
 let compiledFixtureRoot;
 after(() => {
-  if (compiledFixtureRoot)
-    rmSync(compiledFixtureRoot, { recursive: true, force: true });
+  if (compiledFixtureRoot) rmSync(compiledFixtureRoot, { recursive: true, force: true });
 });
 
 function compiledFixtures() {
   if (compiledFixtureRoot) return compiledFixtureRoot;
-  const root = mkdtempSync(
-    path.join(os.tmpdir(), "portcove-session-compiled-"),
-  );
+  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-session-compiled-"));
   compiledFixtureRoot = root;
   const artifacts = root;
   const desktopSource = path.join(root, "desktop.cs");
@@ -113,13 +101,9 @@ class Uninstaller { static int Main() {
 `,
   );
   const uninstaller = path.join(artifacts, "uninstaller.exe");
-  execFileSync(
-    csc,
-    ["/nologo", "/target:winexe", `/out:${uninstaller}`, uninstallerSource],
-    {
-      windowsHide: true,
-    },
-  );
+  execFileSync(csc, ["/nologo", "/target:winexe", `/out:${uninstaller}`, uninstallerSource], {
+    windowsHide: true,
+  });
   const sleeperSource = path.join(root, "sleeper.cs");
   writeFileSync(
     sleeperSource,
@@ -127,11 +111,9 @@ class Uninstaller { static int Main() {
   );
   const sleeper = path.join(artifacts, "sleeper.exe");
   // This process must outlive its launcher, independently of console teardown.
-  execFileSync(
-    csc,
-    ["/nologo", "/target:winexe", `/out:${sleeper}`, sleeperSource],
-    { windowsHide: true },
-  );
+  execFileSync(csc, ["/nologo", "/target:winexe", `/out:${sleeper}`, sleeperSource], {
+    windowsHide: true,
+  });
   return root;
 }
 
@@ -140,9 +122,7 @@ function csharpLiteral(value) {
 }
 
 function makeInstallerLifecycleFixture(t) {
-  const root = mkdtempSync(
-    path.join(os.tmpdir(), "portcove-installer-lifecycle-"),
-  );
+  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-installer-lifecycle-"));
   const keyName = `PortcoveHarness-${path.basename(root)}`;
   const keyPath = `Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${keyName}`;
   t.after(() => {
@@ -288,10 +268,7 @@ test(
     );
     assert.equal(childRun.status, "exit_observed");
     assert.equal(childRun.exit_code, 0);
-    assert.equal(
-      childRun.executable_sha256,
-      delayedEvidence.uninstaller_sha256,
-    );
+    assert.equal(childRun.executable_sha256, delayedEvidence.uninstaller_sha256);
 
     const hungChild = runInstallerLifecycle(
       item,
@@ -300,10 +277,7 @@ test(
       "3",
     );
     assert.notEqual(hungChild.status, 0);
-    assert.match(
-      hungChild.stderr,
-      /candidate_uninstaller_child did not exit within 3 seconds/,
-    );
+    assert.match(hungChild.stderr, /candidate_uninstaller_child did not exit within 3 seconds/);
     const hungChildEvidence = JSON.parse(
       readFileSync(path.join(item.root, "hung-child", "evidence.json"), "utf8"),
     );
@@ -317,8 +291,8 @@ test(
     );
     removeInstallerLifecycleRegistration(item);
     assert.equal(
-      delayedEvidence.process_runs.find((run) => run.role === "candidate_smoke")
-        .close_request.accepted,
+      delayedEvidence.process_runs.find((run) => run.role === "candidate_smoke").close_request
+        .accepted,
       true,
     );
 
@@ -326,19 +300,13 @@ test(
       PORTCOVE_FIXTURE_KEEP_REGISTRATION: "1",
     });
     assert.notEqual(persistent.status, 0);
-    assert.match(
-      persistent.stderr,
-      /Uninstall left registration entries behind/,
-    );
+    assert.match(persistent.stderr, /Uninstall left registration entries behind/);
     const persistentEvidence = JSON.parse(
       readFileSync(path.join(item.root, "persistent", "evidence.json"), "utf8"),
     );
     assert.equal(persistentEvidence.details.application_present, false);
     assert.equal(persistentEvidence.details.uninstaller_present, false);
-    assert.equal(
-      persistentEvidence.details.remaining_registration_paths.length,
-      1,
-    );
+    assert.equal(persistentEvidence.details.remaining_registration_paths.length, 1);
     removeInstallerLifecycleRegistration(item);
 
     const hung = runInstallerLifecycle(
@@ -348,10 +316,7 @@ test(
       "1",
     );
     assert.notEqual(hung.status, 0);
-    assert.match(
-      hung.stderr,
-      /candidate_uninstaller did not exit within 1 seconds/,
-    );
+    assert.match(hung.stderr, /candidate_uninstaller did not exit within 1 seconds/);
     const hungEvidence = JSON.parse(
       readFileSync(path.join(item.root, "hung", "evidence.json"), "utf8"),
     );
@@ -378,10 +343,7 @@ test(
       /candidate_installer injected post-spawn verification failure/,
     );
     const verificationEvidence = JSON.parse(
-      readFileSync(
-        path.join(item.root, "verification", "evidence.json"),
-        "utf8",
-      ),
+      readFileSync(path.join(item.root, "verification", "evidence.json"), "utf8"),
     );
     const installerRun = verificationEvidence.process_runs.find(
       (run) => run.role === "candidate_installer",
@@ -401,9 +363,7 @@ test(
 );
 
 function makeFixture(t) {
-  const root = mkdtempSync(
-    path.join(os.tmpdir(), "portcove-session-stateful-"),
-  );
+  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-session-stateful-"));
   t.after(() =>
     rmSync(root, {
       recursive: true,
@@ -415,14 +375,8 @@ function makeFixture(t) {
   const repository = path.join(root, "repository");
   mkdirSync(path.join(repository, "scripts"), { recursive: true });
   writeFileSync(path.join(repository, "Cargo.toml"), "[workspace]\n");
-  copyFileSync(
-    script,
-    path.join(repository, "scripts", "windows-qualification-session.ps1"),
-  );
-  copyFileSync(
-    reportTool,
-    path.join(repository, "scripts", "qualification-report.mjs"),
-  );
+  copyFileSync(script, path.join(repository, "scripts", "windows-qualification-session.ps1"));
+  copyFileSync(reportTool, path.join(repository, "scripts", "qualification-report.mjs"));
   writeFileSync(
     path.join(repository, "scripts", "test-windows-installer.ps1"),
     String.raw`param(
@@ -550,11 +504,9 @@ test(
     assert.equal(result.predecessor_version, "0.1.0-alpha.1");
     assert.equal(existsSync(item.session), false);
 
-    writeFileSync(
-      path.join(item.repository, "scripts", "qualification-report.mjs"),
-      "tampered\n",
-      { flag: "a" },
-    );
+    writeFileSync(path.join(item.repository, "scripts", "qualification-report.mjs"), "tampered\n", {
+      flag: "a",
+    });
     const dirty = runPowerShell(prepareArgs(item, true));
     assert.notEqual(dirty.status, 0);
     assert.match(dirty.stderr, /exact clean checkout/);
@@ -568,9 +520,7 @@ test(
     const item = makeFixture(t);
     const prepared = runPowerShell(prepareArgs(item));
     assert.equal(prepared.status, 0, prepared.stderr);
-    let state = JSON.parse(
-      readFileSync(path.join(item.session, "session.json"), "utf8"),
-    );
+    let state = JSON.parse(readFileSync(path.join(item.session, "session.json"), "utf8"));
     assert.equal(state.phase, "prepared");
     assert.equal(state.process_runs.length, 1);
     assert.equal(state.process_runs[0].status, "running_verified");
@@ -579,9 +529,7 @@ test(
     assert.equal(state.installer.registration_removed, true);
     assert.ok(state.process_runs[0].pid);
     assert.ok(state.process_runs[0].start_time);
-    assert.ok(
-      existsSync(path.join(item.session, "library", "portcove.sqlite3")),
-    );
+    assert.ok(existsSync(path.join(item.session, "library", "portcove.sqlite3")));
 
     mkdirSync(path.join(item.session, "checkpoints", "0009-interrupted"));
     const checkpoint = runPowerShell([
@@ -594,25 +542,16 @@ test(
       "-Relaunch",
     ]);
     assert.equal(checkpoint.status, 0, checkpoint.stderr);
-    state = JSON.parse(
-      readFileSync(path.join(item.session, "session.json"), "utf8"),
-    );
+    state = JSON.parse(readFileSync(path.join(item.session, "session.json"), "utf8"));
     assert.equal(state.process_runs.length, 2);
     assert.equal(state.process_runs[1].status, "running_verified");
     assert.equal(state.checkpoints.length, 2);
     assert.match(state.checkpoints[1].metadata, /^checkpoints\/0010-/);
     assert.equal(state.checkpoints[1].process_run_id, state.process_runs[0].id);
 
-    const finish = runPowerShell([
-      "-Action",
-      "finish",
-      "-SessionRoot",
-      item.session,
-    ]);
+    const finish = runPowerShell(["-Action", "finish", "-SessionRoot", item.session]);
     assert.equal(finish.status, 0, finish.stderr);
-    state = JSON.parse(
-      readFileSync(path.join(item.session, "session.json"), "utf8"),
-    );
+    state = JSON.parse(readFileSync(path.join(item.session, "session.json"), "utf8"));
     assert.equal(state.phase, "finished");
     assert.equal(state.process_runs.length, 2);
     assert.equal(state.process_runs[1].status, "exit_unobserved");
@@ -620,23 +559,12 @@ test(
     assert.equal(state.checkpoints.length, 3);
     assert.equal(state.checkpoints[2].process_run_id, state.process_runs[1].id);
     assert.ok(existsSync(path.join(item.session, state.finish_receipt.path)));
-    assert.ok(
-      existsSync(
-        path.join(item.session, state.finish_receipt.pre_finish_session_path),
-      ),
-    );
+    assert.ok(existsSync(path.join(item.session, state.finish_receipt.pre_finish_session_path)));
     assert.equal(
-      sha256(
-        path.join(item.session, state.finish_receipt.pre_finish_session_path),
-      ),
+      sha256(path.join(item.session, state.finish_receipt.pre_finish_session_path)),
       state.finish_receipt.pre_finish_session_sha256,
     );
-    const closed = runPowerShell([
-      "-Action",
-      "checkpoint",
-      "-SessionRoot",
-      item.session,
-    ]);
+    const closed = runPowerShell(["-Action", "checkpoint", "-SessionRoot", item.session]);
     assert.notEqual(closed.status, 0);
     assert.match(closed.stderr, /already finished/);
   },
@@ -649,9 +577,7 @@ test(
     const item = makeFixture(t);
     const prepared = runPowerShell(prepareArgs(item));
     assert.equal(prepared.status, 0, prepared.stderr);
-    const state = JSON.parse(
-      readFileSync(path.join(item.session, "session.json"), "utf8"),
-    );
+    const state = JSON.parse(readFileSync(path.join(item.session, "session.json"), "utf8"));
     const evidencePath = path.join(
       item.session,
       state.checkpoints[0].metadata.replace("checkpoint.json", "evidence.json"),
@@ -659,22 +585,12 @@ test(
     const evidence = readFileSync(evidencePath);
     try {
       writeFileSync(evidencePath, "tampered\n", { flag: "a" });
-      const result = runPowerShell([
-        "-Action",
-        "checkpoint",
-        "-SessionRoot",
-        item.session,
-      ]);
+      const result = runPowerShell(["-Action", "checkpoint", "-SessionRoot", item.session]);
       assert.notEqual(result.status, 0);
       assert.match(result.stderr, /checkpoint file SHA-256 mismatch/);
     } finally {
       writeFileSync(evidencePath, evidence);
-      const finished = runPowerShell([
-        "-Action",
-        "finish",
-        "-SessionRoot",
-        item.session,
-      ]);
+      const finished = runPowerShell(["-Action", "finish", "-SessionRoot", item.session]);
       assert.equal(finished.status, 0, finished.stderr);
     }
   },
@@ -694,48 +610,27 @@ test(
       },
     });
     assert.notEqual(failed.status, 0);
-    let state = JSON.parse(
-      readFileSync(path.join(item.session, "session.json"), "utf8"),
-    );
+    let state = JSON.parse(readFileSync(path.join(item.session, "session.json"), "utf8"));
     assert.equal(state.phase, "prepare_failed");
     const installerEvidence = JSON.parse(
-      readFileSync(
-        path.join(item.session, "evidence", "installer-lifecycle.json"),
-        "utf8",
-      ),
+      readFileSync(path.join(item.session, "evidence", "installer-lifecycle.json"), "utf8"),
     );
     assert.equal(installerEvidence.phase, "failed");
-    assert.equal(
-      installerEvidence.owned_paths.install_relative,
-      "run-fixture/installed",
-    );
+    assert.equal(installerEvidence.owned_paths.install_relative, "run-fixture/installed");
     assert.equal(
       state.files.installer_evidence.sha256,
       sha256(path.join(item.session, "evidence", "installer-lifecycle.json")),
     );
-    const aborted = runPowerShell([
-      "-Action",
-      "abort",
-      "-SessionRoot",
-      item.session,
-    ]);
+    const aborted = runPowerShell(["-Action", "abort", "-SessionRoot", item.session]);
     assert.equal(aborted.status, 0, aborted.stderr);
-    state = JSON.parse(
-      readFileSync(path.join(item.session, "session.json"), "utf8"),
-    );
+    state = JSON.parse(readFileSync(path.join(item.session, "session.json"), "utf8"));
     assert.equal(state.phase, "aborted");
     assert.equal(state.abort_cleanup.zero_owned_processes, true);
     assert.equal(state.abort_cleanup.zero_managed_install_files, true);
     assert.equal(state.abort_cleanup.zero_global_registrations, true);
     assert.equal(
       existsSync(
-        path.join(
-          item.session,
-          "installer-work",
-          "run-fixture",
-          "installed",
-          "uninstall.exe",
-        ),
+        path.join(item.session, "installer-work", "run-fixture", "installed", "uninstall.exe"),
       ),
       false,
     );
@@ -757,12 +652,7 @@ for (const mode of ["missing", "wrong"]) {
         },
       });
       assert.notEqual(failed.status, 0);
-      const aborted = runPowerShell([
-        "-Action",
-        "abort",
-        "-SessionRoot",
-        item.session,
-      ]);
+      const aborted = runPowerShell(["-Action", "abort", "-SessionRoot", item.session]);
       assert.notEqual(aborted.status, 0);
       assert.match(
         aborted.stderr,
@@ -770,19 +660,11 @@ for (const mode of ["missing", "wrong"]) {
           ? /uninstaller was not hash-journaled/
           : /partial-run uninstaller SHA-256 mismatch/,
       );
-      const state = JSON.parse(
-        readFileSync(path.join(item.session, "session.json"), "utf8"),
-      );
+      const state = JSON.parse(readFileSync(path.join(item.session, "session.json"), "utf8"));
       assert.equal(state.phase, "prepare_failed");
       assert.ok(
         existsSync(
-          path.join(
-            item.session,
-            "installer-work",
-            "run-fixture",
-            "installed",
-            "uninstall.exe",
-          ),
+          path.join(item.session, "installer-work", "run-fixture", "installed", "uninstall.exe"),
         ),
       );
     },
@@ -807,23 +689,12 @@ test(
     const state = JSON.parse(readFileSync(sessionPath, "utf8"));
     delete state.files.installer_evidence;
     writeFileSync(sessionPath, `${JSON.stringify(state, null, 2)}\n`);
-    const aborted = runPowerShell([
-      "-Action",
-      "abort",
-      "-SessionRoot",
-      item.session,
-    ]);
+    const aborted = runPowerShell(["-Action", "abort", "-SessionRoot", item.session]);
     assert.notEqual(aborted.status, 0);
     assert.match(aborted.stderr, /not hash-bound into session metadata/);
     assert.ok(
       existsSync(
-        path.join(
-          item.session,
-          "installer-work",
-          "run-fixture",
-          "installed",
-          "uninstall.exe",
-        ),
+        path.join(item.session, "installer-work", "run-fixture", "installed", "uninstall.exe"),
       ),
     );
   },
@@ -841,19 +712,13 @@ test(
       PORTCOVE_FIXTURE_UNINSTALLER_HASH: "correct",
       PORTCOVE_FIXTURE_UNINSTALL_LEAVE: "1",
     };
-    assert.notEqual(
-      runPowerShell(prepareArgs(item), { env: environment }).status,
-      0,
-    );
-    const aborted = runPowerShell(
-      ["-Action", "abort", "-SessionRoot", item.session],
-      { env: environment },
-    );
+    assert.notEqual(runPowerShell(prepareArgs(item), { env: environment }).status, 0);
+    const aborted = runPowerShell(["-Action", "abort", "-SessionRoot", item.session], {
+      env: environment,
+    });
     assert.notEqual(aborted.status, 0);
     assert.match(aborted.stderr, /Managed install files remain after abort/);
-    const state = JSON.parse(
-      readFileSync(path.join(item.session, "session.json"), "utf8"),
-    );
+    const state = JSON.parse(readFileSync(path.join(item.session, "session.json"), "utf8"));
     assert.equal(state.phase, "prepare_failed");
   },
 );
@@ -869,23 +734,11 @@ test(
       PORTCOVE_FIXTURE_UNINSTALLER: item.uninstaller,
       PORTCOVE_FIXTURE_UNINSTALLER_HASH: "correct",
     };
-    assert.notEqual(
-      runPowerShell(prepareArgs(item), { env: baseEnvironment }).status,
-      0,
-    );
+    assert.notEqual(runPowerShell(prepareArgs(item), { env: baseEnvironment }).status, 0);
     const releaseMarker = path.join(item.root, "release-uninstaller");
     const child = spawn(
       "pwsh.exe",
-      [
-        "-NoLogo",
-        "-NoProfile",
-        "-File",
-        script,
-        "-Action",
-        "abort",
-        "-SessionRoot",
-        item.session,
-      ],
+      ["-NoLogo", "-NoProfile", "-File", script, "-Action", "abort", "-SessionRoot", item.session],
       {
         windowsHide: true,
         env: {
@@ -902,20 +755,12 @@ test(
     try {
       while (Date.now() < deadline) {
         state = JSON.parse(readFileSync(sessionPath, "utf8"));
-        if (
-          state.abort_attempts?.some((attempt) => attempt.status === "running")
-        )
-          break;
+        if (state.abort_attempts?.some((attempt) => attempt.status === "running")) break;
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
-      assert.ok(
-        state.abort_attempts.some((attempt) => attempt.status === "running"),
-      );
+      assert.ok(state.abort_attempts.some((attempt) => attempt.status === "running"));
       assert.equal(child.exitCode, null);
-      assert.ok(
-        child.kill(),
-        "the owned runner must still be alive at interruption",
-      );
+      assert.ok(child.kill(), "the owned runner must still be alive at interruption");
       await exited;
     } finally {
       // Keep the fixture alive until its owner can no longer journal its exit.
@@ -937,17 +782,13 @@ test(
     while (existsSync(uninstallerPath) && Date.now() < cleanupDeadline)
       await new Promise((resolve) => setTimeout(resolve, 100));
     assert.equal(existsSync(uninstallerPath), false);
-    const resumed = runPowerShell(
-      ["-Action", "abort", "-SessionRoot", item.session],
-      { env: baseEnvironment },
-    );
+    const resumed = runPowerShell(["-Action", "abort", "-SessionRoot", item.session], {
+      env: baseEnvironment,
+    });
     assert.equal(resumed.status, 0, resumed.stderr);
     state = JSON.parse(readFileSync(sessionPath, "utf8"));
     assert.equal(state.phase, "aborted");
-    assert.equal(
-      state.abort_attempts[0].status,
-      "exit_unobserved_cleanup_proven",
-    );
+    assert.equal(state.abort_attempts[0].status, "exit_unobserved_cleanup_proven");
   },
 );
 
@@ -962,22 +803,10 @@ test(
       PORTCOVE_FIXTURE_UNINSTALLER: item.uninstaller,
       PORTCOVE_FIXTURE_UNINSTALLER_HASH: "correct",
     };
-    assert.notEqual(
-      runPowerShell(prepareArgs(item), { env: baseEnvironment }).status,
-      0,
-    );
+    assert.notEqual(runPowerShell(prepareArgs(item), { env: baseEnvironment }).status, 0);
     const child = spawn(
       "pwsh.exe",
-      [
-        "-NoLogo",
-        "-NoProfile",
-        "-File",
-        script,
-        "-Action",
-        "abort",
-        "-SessionRoot",
-        item.session,
-      ],
+      ["-NoLogo", "-NoProfile", "-File", script, "-Action", "abort", "-SessionRoot", item.session],
       {
         windowsHide: true,
         env: {
@@ -992,12 +821,7 @@ test(
     const deadline = Date.now() + 15_000;
     while (Date.now() < deadline) {
       state = JSON.parse(readFileSync(sessionPath, "utf8"));
-      if (
-        state.abort_attempts?.some(
-          (attempt) => attempt.status === "exit_observed",
-        )
-      )
-        break;
+      if (state.abort_attempts?.some((attempt) => attempt.status === "exit_observed")) break;
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
     assert.equal(state.abort_attempts[0].status, "exit_observed");
@@ -1016,17 +840,13 @@ test(
     const cleanupDeadline = Date.now() + 15_000;
     while (existsSync(uninstallerPath) && Date.now() < cleanupDeadline)
       await new Promise((resolve) => setTimeout(resolve, 100));
-    const resumed = runPowerShell(
-      ["-Action", "abort", "-SessionRoot", item.session],
-      { env: baseEnvironment },
-    );
+    const resumed = runPowerShell(["-Action", "abort", "-SessionRoot", item.session], {
+      env: baseEnvironment,
+    });
     assert.equal(resumed.status, 0, resumed.stderr);
     state = JSON.parse(readFileSync(sessionPath, "utf8"));
     assert.equal(state.abort_attempts.length, 1);
-    assert.equal(
-      state.abort_attempts[0].status,
-      "exit_observed_cleanup_proven",
-    );
+    assert.equal(state.abort_attempts[0].status, "exit_observed_cleanup_proven");
   },
 );
 
@@ -1042,24 +862,17 @@ test(
       PORTCOVE_FIXTURE_UNINSTALLER_HASH: "correct",
       PORTCOVE_FIXTURE_UNINSTALL_EXIT: "7",
     };
-    assert.notEqual(
-      runPowerShell(prepareArgs(item), { env: environment }).status,
-      0,
-    );
-    const first = runPowerShell(
-      ["-Action", "abort", "-SessionRoot", item.session],
-      { env: environment },
-    );
+    assert.notEqual(runPowerShell(prepareArgs(item), { env: environment }).status, 0);
+    const first = runPowerShell(["-Action", "abort", "-SessionRoot", item.session], {
+      env: environment,
+    });
     assert.notEqual(first.status, 0);
-    const second = runPowerShell(
-      ["-Action", "abort", "-SessionRoot", item.session],
-      { env: environment },
-    );
+    const second = runPowerShell(["-Action", "abort", "-SessionRoot", item.session], {
+      env: environment,
+    });
     assert.notEqual(second.status, 0);
     assert.match(second.stderr, /previous abort attempt exited with code 7/);
-    const state = JSON.parse(
-      readFileSync(path.join(item.session, "session.json"), "utf8"),
-    );
+    const state = JSON.parse(readFileSync(path.join(item.session, "session.json"), "utf8"));
     assert.equal(state.abort_attempts.length, 1);
     assert.equal(state.abort_attempts[0].status, "exit_observed");
     assert.equal(state.abort_attempts[0].exit_code, 7);
@@ -1070,9 +883,7 @@ test(
   "installer evidence waits for a reader and preserves the previous journal on persistent contention",
   { skip: process.platform !== "win32", timeout: 30_000 },
   async (t) => {
-    const root = mkdtempSync(
-      path.join(os.tmpdir(), "portcove-journal-contention-"),
-    );
+    const root = mkdtempSync(path.join(os.tmpdir(), "portcove-journal-contention-"));
     t.after(() => rmSync(root, { recursive: true, force: true }));
     const quote = (value) => `'${value.replaceAll("'", "''")}'`;
     for (const releaseReader of [true, false]) {
@@ -1093,11 +904,10 @@ Write-InstallerEvidence "updated"
 `,
       );
       let reader = openSync(evidencePath, "r");
-      const runner = spawn(
-        "pwsh.exe",
-        ["-NoLogo", "-NoProfile", "-File", runnerPath],
-        { windowsHide: true, timeout: 10_000 },
-      );
+      const runner = spawn("pwsh.exe", ["-NoLogo", "-NoProfile", "-File", runnerPath], {
+        windowsHide: true,
+        timeout: 10_000,
+      });
       let output = "",
         errors = "",
         releaseTimer;
@@ -1118,25 +928,13 @@ Write-InstallerEvidence "updated"
         assert.match(output, /writer-ready/);
         if (releaseReader) {
           assert.equal(code, 0, errors);
-          assert.equal(
-            JSON.parse(readFileSync(evidencePath, "utf8")).phase,
-            "updated",
-          );
+          assert.equal(JSON.parse(readFileSync(evidencePath, "utf8")).phase, "updated");
           assert.equal(existsSync(`${evidencePath}.next`), false);
         } else {
           assert.notEqual(code, 0);
-          assert.match(
-            errors,
-            /Access to the path is denied|being used by another process/,
-          );
-          assert.equal(
-            JSON.parse(readFileSync(evidencePath, "utf8")).phase,
-            "previous",
-          );
-          assert.equal(
-            JSON.parse(readFileSync(`${evidencePath}.next`, "utf8")).phase,
-            "updated",
-          );
+          assert.match(errors, /Access to the path is denied|being used by another process/);
+          assert.equal(JSON.parse(readFileSync(evidencePath, "utf8")).phase, "previous");
+          assert.equal(JSON.parse(readFileSync(`${evidencePath}.next`, "utf8")).phase, "updated");
         }
       } finally {
         clearTimeout(releaseTimer);
@@ -1157,22 +955,11 @@ test(
       PORTCOVE_FIXTURE_UNINSTALLER: item.uninstaller,
       PORTCOVE_FIXTURE_UNINSTALLER_HASH: "correct",
     };
-    assert.notEqual(
-      runPowerShell(prepareArgs(item), { env: failureEnvironment }).status,
-      0,
-    );
+    assert.notEqual(runPowerShell(prepareArgs(item), { env: failureEnvironment }).status, 0);
     const sessionPath = path.join(item.session, "session.json");
-    const evidencePath = path.join(
-      item.session,
-      "evidence",
-      "installer-lifecycle.json",
-    );
+    const evidencePath = path.join(item.session, "evidence", "installer-lifecycle.json");
     rmSync(evidencePath);
-    const ownedSleeper = path.join(
-      item.session,
-      "inputs",
-      "lifecycle-sleeper.exe",
-    );
+    const ownedSleeper = path.join(item.session, "inputs", "lifecycle-sleeper.exe");
     copyFileSync(item.sleeper, ownedSleeper);
     const ready = path.join(item.root, "sleeper-ready.txt");
     const runner = spawn(
@@ -1197,11 +984,7 @@ test(
           ...process.env,
           PORTCOVE_FIXTURE_SLEEP_MS: "12000",
           PORTCOVE_FIXTURE_READY: ready,
-          PORTCOVE_PREFERENCES: path.join(
-            item.session,
-            "state",
-            "preferences.json",
-          ),
+          PORTCOVE_PREFERENCES: path.join(item.session, "state", "preferences.json"),
         },
         stdio: ["ignore", "ignore", "pipe"],
       },
@@ -1239,43 +1022,26 @@ test(
       "running",
       JSON.stringify({ evidence, diagnostics, runner_exit: runner.exitCode }),
     );
-    assert.equal(
-      Number(readFileSync(ready, "utf8")),
-      evidence.process_runs[0].pid,
-    );
-    assert.equal(
-      evidence.process_runs[0].executable_sha256,
-      sha256(ownedSleeper),
-    );
+    assert.equal(Number(readFileSync(ready, "utf8")), evidence.process_runs[0].pid);
+    assert.equal(evidence.process_runs[0].executable_sha256, sha256(ownedSleeper));
     execFileSync("taskkill.exe", ["/PID", String(runner.pid), "/F"], {
       windowsHide: true,
       stdio: "ignore",
     });
-    const ambiguous = runPowerShell([
-      "-Action",
-      "abort",
-      "-SessionRoot",
-      item.session,
-    ]);
+    const ambiguous = runPowerShell(["-Action", "abort", "-SessionRoot", item.session]);
     assert.notEqual(ambiguous.status, 0);
     assert.match(ambiguous.stderr, /installer_evidence SHA-256 mismatch/);
     const state = JSON.parse(readFileSync(sessionPath, "utf8"));
     state.files.installer_evidence.sha256 = sha256(evidencePath);
     writeFileSync(sessionPath, `${JSON.stringify(state, null, 2)}\n`);
-    const stillRunning = runPowerShell([
-      "-Action",
-      "abort",
-      "-SessionRoot",
-      item.session,
-    ]);
+    const stillRunning = runPowerShell(["-Action", "abort", "-SessionRoot", item.session]);
     assert.notEqual(stillRunning.status, 0);
     assert.match(stillRunning.stderr, /Owned process is still running/);
     try {
-      execFileSync(
-        "taskkill.exe",
-        ["/PID", String(evidence.process_runs[0].pid), "/F"],
-        { windowsHide: true, stdio: "ignore" },
-      );
+      execFileSync("taskkill.exe", ["/PID", String(evidence.process_runs[0].pid), "/F"], {
+        windowsHide: true,
+        stdio: "ignore",
+      });
     } catch {
       /* The owned fixture may already have exited. */
     }
@@ -1316,21 +1082,13 @@ test(
     state.process_runs.push(pending);
     state.active_run_id = pending.id;
     writeFileSync(sessionPath, `${JSON.stringify(state, null, 2)}\n`);
-    const finish = runPowerShell([
-      "-Action",
-      "finish",
-      "-SessionRoot",
-      item.session,
-    ]);
+    const finish = runPowerShell(["-Action", "finish", "-SessionRoot", item.session]);
     assert.notEqual(finish.status, 0);
     assert.match(
       finish.stderr,
       /launch-pending run could not be bound to one exact desktop process/,
     );
-    assert.equal(
-      JSON.parse(readFileSync(sessionPath, "utf8")).phase,
-      "prepared",
-    );
+    assert.equal(JSON.parse(readFileSync(sessionPath, "utf8")).phase, "prepared");
   },
 );
 
@@ -1344,11 +1102,10 @@ test(
     const sessionPath = path.join(item.session, "session.json");
     const state = JSON.parse(readFileSync(sessionPath, "utf8"));
     try {
-      execFileSync(
-        "taskkill.exe",
-        ["/PID", String(state.process_runs[0].pid), "/T", "/F"],
-        { windowsHide: true, stdio: "ignore" },
-      );
+      execFileSync("taskkill.exe", ["/PID", String(state.process_runs[0].pid), "/T", "/F"], {
+        windowsHide: true,
+        stdio: "ignore",
+      });
     } catch {
       /* The owned fixture may already have exited. */
     }
@@ -1360,9 +1117,7 @@ test(
     try {
       await once(older, "spawn");
       state.process_runs[0].status = "exit_unobserved";
-      const futureFiletime = (
-        BigInt(Date.now() + 60_000 + 11644473600000) * 10000n
-      ).toString();
+      const futureFiletime = (BigInt(Date.now() + 60_000 + 11644473600000) * 10000n).toString();
       const pending = {
         ...state.process_runs[0],
         id: "future-pending",
@@ -1379,12 +1134,7 @@ test(
       state.process_runs.push(pending);
       state.active_run_id = pending.id;
       writeFileSync(sessionPath, `${JSON.stringify(state, null, 2)}\n`);
-      const finish = runPowerShell([
-        "-Action",
-        "finish",
-        "-SessionRoot",
-        item.session,
-      ]);
+      const finish = runPowerShell(["-Action", "finish", "-SessionRoot", item.session]);
       assert.notEqual(finish.status, 0);
       assert.match(finish.stderr, /predates the journaled launch request/);
     } finally {
@@ -1413,15 +1163,12 @@ for (const faultpoint of [
       const item = makeFixture(t);
       const prepared = runPowerShell(prepareArgs(item));
       assert.equal(prepared.status, 0, prepared.stderr);
-      const interrupted = runPowerShell(
-        ["-Action", "finish", "-SessionRoot", item.session],
-        {
-          env: {
-            ...process.env,
-            PORTCOVE_QUALIFICATION_TEST_FAULTPOINT: faultpoint,
-          },
+      const interrupted = runPowerShell(["-Action", "finish", "-SessionRoot", item.session], {
+        env: {
+          ...process.env,
+          PORTCOVE_QUALIFICATION_TEST_FAULTPOINT: faultpoint,
         },
-      );
+      });
       assert.notEqual(interrupted.status, 0);
       const sessionPath = path.join(item.session, "session.json");
       let state = JSON.parse(readFileSync(sessionPath, "utf8"));
@@ -1429,8 +1176,7 @@ for (const faultpoint of [
       const expectedStage =
         faultpoint === "after_snapshot_temp"
           ? "pending"
-          : faultpoint === "after_snapshot" ||
-              faultpoint === "after_receipt_temp"
+          : faultpoint === "after_snapshot" || faultpoint === "after_receipt_temp"
             ? "snapshot_written"
             : "receipt_written";
       assert.equal(state.finish_attempt.stage, expectedStage);
@@ -1446,12 +1192,7 @@ for (const faultpoint of [
         assert.ok(temporary);
         writeFileSync(path.join(attemptDirectory, temporary), "partial");
       }
-      const resumed = runPowerShell([
-        "-Action",
-        "finish",
-        "-SessionRoot",
-        item.session,
-      ]);
+      const resumed = runPowerShell(["-Action", "finish", "-SessionRoot", item.session]);
       assert.equal(resumed.status, 0, resumed.stderr);
       state = JSON.parse(readFileSync(sessionPath, "utf8"));
       assert.equal(state.phase, "finished");

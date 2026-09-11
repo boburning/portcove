@@ -27,20 +27,15 @@ test("individual slow tests are identified independently of suite duration", () 
 });
 
 test("a synchronous slow result is reported without failing a correct test", () => {
-  const reporter = new URL("./test-duration-reporter.mjs", import.meta.url)
-    .href;
+  const reporter = new URL("./test-duration-reporter.mjs", import.meta.url).href;
   const script = `import report from ${JSON.stringify(reporter)};
     async function* source() { yield ${JSON.stringify(event(5_001))}; }
     for await (const line of report(source())) process.stdout.write(line);`;
-  const result = spawnSync(
-    process.execPath,
-    ["--input-type=module", "-e", script],
-    {
-      encoding: "utf8",
-      windowsHide: true,
-      timeout: 3_000,
-    },
-  );
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
+    encoding: "utf8",
+    windowsHide: true,
+    timeout: 3_000,
+  });
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /Slow tests to investigate/);
 });
@@ -63,16 +58,7 @@ test("UI timing reports slow tests and rejects missing or incomplete measurement
   assert.deepEqual(checkVitestDurations(report(5_001)).slow, [
     { name: "fixture", duration: 5_001 },
   ]);
-  assert.throws(
-    () => checkVitestDurations(report(undefined)),
-    /Missing duration/,
-  );
-  assert.throws(
-    () => checkVitestDurations({ ...report(1), numPassedTests: 2 }),
-    /Incomplete/,
-  );
-  assert.throws(
-    () => checkVitestDurations({ ...report(1), success: false }),
-    /successful run/,
-  );
+  assert.throws(() => checkVitestDurations(report(undefined)), /Missing duration/);
+  assert.throws(() => checkVitestDurations({ ...report(1), numPassedTests: 2 }), /Incomplete/);
+  assert.throws(() => checkVitestDurations({ ...report(1), success: false }), /successful run/);
 });

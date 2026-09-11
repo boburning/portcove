@@ -29,9 +29,7 @@ test("schema composition rejects conflicting definitions and external references
       remote: { $ref: "https://example.invalid/forbidden-schema" },
     }),
   );
-  await assert.rejects(
-    renderTransportTypes({ local: { $ref: "file:///forbidden-schema.json" } }),
-  );
+  await assert.rejects(renderTransportTypes({ local: { $ref: "file:///forbidden-schema.json" } }));
 });
 
 test("the frontend compiler rejects real nested, nullable, optional, array and union drift", () => {
@@ -66,25 +64,18 @@ const request: SourceDiscoveryRequest = { roots: ["owned/source"], profile_ids: 
 const nullable: PortStatus = { ...status, active: null };
 const valid: InstallRecord = { ...install, artifact: { ...install.artifact, size: 2 } };
 `;
-    const packagePath = require.resolve("@typescript/native/package.json");
+    const packagePath = require.resolve("typescript/package.json");
     const packageJson = JSON.parse(fs.readFileSync(packagePath, "utf8"));
-    const compiler = path.resolve(
-      path.dirname(packagePath),
-      packageJson.bin.tsc,
-    );
+    const compiler = path.resolve(path.dirname(packagePath), packageJson.bin.tsc);
     function compile(source) {
       fs.writeFileSync(fixture, source);
-      const result = spawnSync(
-        process.execPath,
-        [compiler, "--project", config],
-        {
-          cwd: root,
-          encoding: "utf8",
-          timeout: 20_000,
-          maxBuffer: 1024 * 1024,
-          windowsHide: true,
-        },
-      );
+      const result = spawnSync(process.execPath, [compiler, "--project", config], {
+        cwd: root,
+        encoding: "utf8",
+        timeout: 20_000,
+        maxBuffer: 1024 * 1024,
+        windowsHide: true,
+      });
       assert.ifError(result.error);
       return result;
     }
@@ -109,10 +100,7 @@ const valid: InstallRecord = { ...install, artifact: { ...install.artifact, size
         invalid.stdout,
         new RegExp(`fixture\\.ts\\(${failureLine},\\d+\\): error TS\\d+`),
       );
-      assert.doesNotMatch(
-        invalid.stdout + invalid.stderr,
-        /Cannot find module|excessively deep/,
-      );
+      assert.doesNotMatch(invalid.stdout + invalid.stderr, /Cannot find module|excessively deep/);
     }
   } finally {
     fs.rmSync(temporary, { recursive: true, force: true });

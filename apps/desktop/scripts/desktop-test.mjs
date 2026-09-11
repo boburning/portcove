@@ -6,10 +6,7 @@ import net from "node:net";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
 import { Builder, By, Key, until } from "selenium-webdriver";
-import {
-  writeEvidence,
-  fileIdentity,
-} from "../../../scripts/development-evidence.mjs";
+import { writeEvidence, fileIdentity } from "../../../scripts/development-evidence.mjs";
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 import { preparationScenarios } from "./desktop-preparation-test.mjs";
 import { nativeConfirmation } from "./desktop-native-confirmation.mjs";
@@ -46,9 +43,7 @@ const reloadCycles = Number(values["reload-cycles"]);
 if (!Number.isInteger(reloadCycles) || reloadCycles < 0 || reloadCycles > 25)
   throw new Error("--reload-cycles must be 0..25");
 if (values["artwork-only"] && !values["preparation-cli"])
-  throw new Error(
-    "--artwork-only requires the owned preparation CLI/tool inputs",
-  );
+  throw new Error("--artwork-only requires the owned preparation CLI/tool inputs");
 if (!Number.isInteger(port) || port < 1024 || port > 65533)
   throw new Error("--port must be 1024..65533");
 const inputs = await Promise.all(
@@ -56,25 +51,13 @@ const inputs = await Promise.all(
 );
 inputs.push(await fileIdentity(fileURLToPath(import.meta.url)));
 inputs.push(
-  await fileIdentity(
-    fileURLToPath(new URL("./desktop-controller-test.mjs", import.meta.url)),
-  ),
+  await fileIdentity(fileURLToPath(new URL("./desktop-controller-test.mjs", import.meta.url))),
 );
 for (const name of ["native-session.ps1", "native-process-tree.ps1"])
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL(name, import.meta.url))),
-  );
+  inputs.push(await fileIdentity(fileURLToPath(new URL(name, import.meta.url))));
+inputs.push(await fileIdentity(fileURLToPath(new URL("desktop-reload-test.mjs", import.meta.url))));
 inputs.push(
-  await fileIdentity(
-    fileURLToPath(new URL("desktop-reload-test.mjs", import.meta.url)),
-  ),
-);
-inputs.push(
-  await fileIdentity(
-    fileURLToPath(
-      new URL("desktop-workspace-refresh-test.mjs", import.meta.url),
-    ),
-  ),
+  await fileIdentity(fileURLToPath(new URL("desktop-workspace-refresh-test.mjs", import.meta.url))),
 );
 if (values["preparation-cli"] || values["preparation-tool"]) {
   for (const name of ["preparation-cli", "preparation-tool"]) {
@@ -83,85 +66,57 @@ if (values["preparation-cli"] || values["preparation-tool"]) {
     inputs.push(await fileIdentity(values[name]));
   }
   inputs.push(
+    await fileIdentity(fileURLToPath(new URL("./desktop-preparation-test.mjs", import.meta.url))),
+  );
+  inputs.push(
+    await fileIdentity(fileURLToPath(new URL("./desktop-readiness-test.mjs", import.meta.url))),
+  );
+  inputs.push(
     await fileIdentity(
-      fileURLToPath(new URL("./desktop-preparation-test.mjs", import.meta.url)),
+      fileURLToPath(new URL("./desktop-artwork-observations.mjs", import.meta.url)),
     ),
   );
   inputs.push(
     await fileIdentity(
-      fileURLToPath(new URL("./desktop-readiness-test.mjs", import.meta.url)),
+      fileURLToPath(new URL("./desktop-preparation-recovery-test.mjs", import.meta.url)),
+    ),
+  );
+  inputs.push(
+    await fileIdentity(fileURLToPath(new URL("./desktop-backup-review-test.mjs", import.meta.url))),
+  );
+  inputs.push(
+    await fileIdentity(
+      fileURLToPath(new URL("./desktop-removal-review-test.mjs", import.meta.url)),
     ),
   );
   inputs.push(
     await fileIdentity(
-      fileURLToPath(
-        new URL("./desktop-artwork-observations.mjs", import.meta.url),
-      ),
+      fileURLToPath(new URL("./desktop-source-removal-test.mjs", import.meta.url)),
     ),
   );
   inputs.push(
     await fileIdentity(
-      fileURLToPath(
-        new URL("./desktop-preparation-recovery-test.mjs", import.meta.url),
-      ),
+      fileURLToPath(new URL("./desktop-adoption-review-test.mjs", import.meta.url)),
     ),
   );
   inputs.push(
     await fileIdentity(
-      fileURLToPath(
-        new URL("./desktop-backup-review-test.mjs", import.meta.url),
-      ),
+      fileURLToPath(new URL("./desktop-library-handoff-test.mjs", import.meta.url)),
     ),
   );
   inputs.push(
-    await fileIdentity(
-      fileURLToPath(
-        new URL("./desktop-removal-review-test.mjs", import.meta.url),
-      ),
-    ),
+    await fileIdentity(fileURLToPath(new URL("./desktop-cli-handoff-test.mjs", import.meta.url))),
+  );
+  inputs.push(
+    await fileIdentity(fileURLToPath(new URL("./desktop-review-controls.mjs", import.meta.url))),
   );
   inputs.push(
     await fileIdentity(
-      fileURLToPath(
-        new URL("./desktop-source-removal-test.mjs", import.meta.url),
-      ),
+      fileURLToPath(new URL("./desktop-native-confirmation.mjs", import.meta.url)),
     ),
   );
   inputs.push(
-    await fileIdentity(
-      fileURLToPath(
-        new URL("./desktop-adoption-review-test.mjs", import.meta.url),
-      ),
-    ),
-  );
-  inputs.push(
-    await fileIdentity(
-      fileURLToPath(
-        new URL("./desktop-library-handoff-test.mjs", import.meta.url),
-      ),
-    ),
-  );
-  inputs.push(
-    await fileIdentity(
-      fileURLToPath(new URL("./desktop-cli-handoff-test.mjs", import.meta.url)),
-    ),
-  );
-  inputs.push(
-    await fileIdentity(
-      fileURLToPath(new URL("./desktop-review-controls.mjs", import.meta.url)),
-    ),
-  );
-  inputs.push(
-    await fileIdentity(
-      fileURLToPath(
-        new URL("./desktop-native-confirmation.mjs", import.meta.url),
-      ),
-    ),
-  );
-  inputs.push(
-    await fileIdentity(
-      fileURLToPath(new URL("./native-confirmation.ps1", import.meta.url)),
-    ),
+    await fileIdentity(fileURLToPath(new URL("./native-confirmation.ps1", import.meta.url))),
   );
 }
 const revision = spawnCommand("git", ["rev-parse", "HEAD"], {
@@ -204,10 +159,7 @@ async function requireUnusedPort(number) {
   const server = net.createServer();
   await new Promise((resolve, reject) => {
     server.once("error", reject);
-    server.listen(
-      { port: number, host: "127.0.0.1", exclusive: true },
-      resolve,
-    );
+    server.listen({ port: number, host: "127.0.0.1", exclusive: true }, resolve);
   });
   await new Promise((resolve, reject) =>
     server.close((error) => (error ? reject(error) : resolve())),
@@ -237,9 +189,9 @@ async function scenario(name, action) {
       const report = path.join(output, `${name}-diagnostics.json`);
       try {
         const details = await browser.executeScript(() =>
-          Array.from(
-            document.querySelectorAll(".error-banner, .bootstrap-error"),
-          ).map((element) => element.textContent),
+          Array.from(document.querySelectorAll(".error-banner, .bootstrap-error")).map(
+            (element) => element.textContent,
+          ),
         );
         await writeFile(report, JSON.stringify(details, null, 2), {
           flag: "wx",
@@ -273,20 +225,14 @@ async function connect() {
       browserName: process.platform === "win32" ? "webview2" : "wry",
       "tauri:options": {
         application: values.app,
-        ...(process.platform === "win32"
-          ? { webviewOptions: { userDataFolder: profile } }
-          : {}),
+        ...(process.platform === "win32" ? { webviewOptions: { userDataFolder: profile } } : {}),
       },
     })
     .build();
   await browser.manage().setTimeouts({ script: 15_000 });
+  await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 30_000);
   await browser.wait(
-    until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
-    30_000,
-  );
-  await browser.wait(
-    async () =>
-      (await browser.findElements(By.css(".loading-state"))).length === 0,
+    async () => (await browser.findElements(By.css(".loading-state"))).length === 0,
     30_000,
   );
 }
@@ -348,8 +294,7 @@ try {
     });
   for (let attempt = 0; attempt < 40; attempt++) {
     if (spawnError) throw spawnError;
-    if (driver.exitCode !== null)
-      throw new Error(`tauri-driver exited: ${driver.exitCode}`);
+    if (driver.exitCode !== null) throw new Error(`tauri-driver exited: ${driver.exitCode}`);
     await new Promise((resolve) => setTimeout(resolve, 250));
     try {
       const response = await fetch(`http://127.0.0.1:${port}/status`, {
@@ -389,12 +334,8 @@ try {
     assert.equal(focus.overflow, false);
   });
   await scenario("appearance-restart", async () => {
-    await browser
-      .findElement(By.xpath('//nav//button[contains(., "Settings")]'))
-      .click();
-    await browser
-      .findElement(By.xpath('//button[normalize-space(.)="Light"]'))
-      .click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+    await browser.findElement(By.xpath('//button[normalize-space(.)="Light"]')).click();
     assert.equal(
       await browser.executeScript(() => document.documentElement.dataset.theme),
       "light",
@@ -407,10 +348,7 @@ try {
           quit_started: new Date().toISOString(),
         };
         observations.push(observation);
-        const snapshot = path.join(
-          output,
-          `restart-${cycle + 1}-processes.json`,
-        );
+        const snapshot = path.join(output, `restart-${cycle + 1}-processes.json`);
         if (process.platform === "win32") {
           observeNativeSession("Snapshot", snapshot);
           artifacts.push(snapshot);
@@ -423,9 +361,7 @@ try {
         await connect();
         observation.connected = new Date().toISOString();
         assert.equal(
-          await browser.executeScript(
-            () => document.documentElement.dataset.theme,
-          ),
+          await browser.executeScript(() => document.documentElement.dataset.theme),
           "light",
         );
         observation.preference_preserved = true;
@@ -488,9 +424,7 @@ try {
     const screenshot = path.join(output, "harness-failure.png");
     await browser
       .takeScreenshot()
-      .then((data) =>
-        writeFile(screenshot, data, { encoding: "base64", flag: "wx" }),
-      )
+      .then((data) => writeFile(screenshot, data, { encoding: "base64", flag: "wx" }))
       .then(() => artifacts.push(screenshot))
       .catch(() => {});
   }
@@ -523,9 +457,7 @@ try {
     checks,
     artifacts,
     inputs,
-    method: values["artwork-only"]
-      ? "native-artwork-smoke"
-      : "native-desktop-smoke",
+    method: values["artwork-only"] ? "native-artwork-smoke" : "native-desktop-smoke",
   });
   console.log(JSON.stringify(checks, null, 2));
 }

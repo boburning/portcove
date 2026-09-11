@@ -6,8 +6,7 @@ import { fileURLToPath } from "node:url";
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(path.dirname(scriptPath), "..");
 const brandManifestRelativePath = "apps/desktop/assets/brand/manifest.json";
-const modelManifestRelativePath =
-  "apps/desktop/assets/brand/models/v2/model-manifest.json";
+const modelManifestRelativePath = "apps/desktop/assets/brand/models/v2/model-manifest.json";
 const semverPattern =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 
@@ -58,12 +57,9 @@ const requiredBundleIcons = [
 ];
 
 export function parseWorkspacePackage(toml) {
-  const table = toml.match(
-    /(?:^|\r?\n)\[workspace\.package\]\r?\n([\s\S]*?)(?=\r?\n\[|$)/,
-  )?.[1];
+  const table = toml.match(/(?:^|\r?\n)\[workspace\.package\]\r?\n([\s\S]*?)(?=\r?\n\[|$)/)?.[1];
   if (!table) throw new Error("Cargo.toml has no [workspace.package] table");
-  const stringValue = (key) =>
-    table.match(new RegExp(`^${key}\\s*=\\s*"([^"]+)"`, "m"))?.[1];
+  const stringValue = (key) => table.match(new RegExp(`^${key}\\s*=\\s*"([^"]+)"`, "m"))?.[1];
   return {
     version: stringValue("version"),
     repository: stringValue("repository"),
@@ -104,10 +100,8 @@ export function inspectPng(buffer) {
 
 export function validateBrandManifestDefinition(manifest) {
   const errors = [];
-  if (manifest?.schema_version !== 1)
-    errors.push("brand manifest schema_version must be 1");
-  if (manifest?.brand_version !== 2)
-    errors.push("brand manifest brand_version must be 2");
+  if (manifest?.schema_version !== 1) errors.push("brand manifest schema_version must be 1");
+  if (manifest?.brand_version !== 2) errors.push("brand manifest brand_version must be 2");
   if (!Array.isArray(manifest?.assets) || manifest.assets.length === 0) {
     errors.push("brand manifest assets must be a non-empty array");
     return errors;
@@ -120,8 +114,7 @@ export function validateBrandManifestDefinition(manifest) {
       errors.push(`brand manifest has missing or duplicate id: ${label}`);
     if (asset?.id) ids.add(asset.id);
     const assetPath = asset?.path;
-    const normalizedPath =
-      typeof assetPath === "string" ? path.posix.normalize(assetPath) : "";
+    const normalizedPath = typeof assetPath === "string" ? path.posix.normalize(assetPath) : "";
     const allowedRoot =
       normalizedPath.startsWith("apps/desktop/assets/brand/") ||
       normalizedPath.startsWith("apps/desktop/public/brand/");
@@ -147,9 +140,7 @@ export function validateBrandManifestDefinition(manifest) {
       !Number.isInteger(asset?.height) ||
       asset.height <= 0
     ) {
-      errors.push(
-        `brand manifest ${label} must have positive integer dimensions`,
-      );
+      errors.push(`brand manifest ${label} must have positive integer dimensions`);
     }
     if (!["RGB", "RGBA"].includes(asset?.color_mode)) {
       errors.push(`brand manifest ${label} color_mode must be RGB or RGBA`);
@@ -164,9 +155,7 @@ export function validateBrandManifestDefinition(manifest) {
 async function collectBrandManifest(root) {
   let manifest;
   try {
-    manifest = JSON.parse(
-      await readFile(path.join(root, brandManifestRelativePath), "utf8"),
-    );
+    manifest = JSON.parse(await readFile(path.join(root, brandManifestRelativePath), "utf8"));
   } catch (error) {
     return {
       assetCount: 0,
@@ -174,17 +163,14 @@ async function collectBrandManifest(root) {
     };
   }
   const errors = validateBrandManifestDefinition(manifest);
-  if (errors.length)
-    return { assetCount: manifest.assets?.length ?? 0, errors };
+  if (errors.length) return { assetCount: manifest.assets?.length ?? 0, errors };
   await Promise.all(
     manifest.assets.map(async (asset) => {
       let buffer;
       try {
         buffer = await readFile(path.join(root, ...asset.path.split("/")));
       } catch (error) {
-        errors.push(
-          `brand asset ${asset.id} could not be read: ${error.message}`,
-        );
+        errors.push(`brand asset ${asset.id} could not be read: ${error.message}`);
         return;
       }
       const hash = createHash("sha256").update(buffer).digest("hex");
@@ -195,8 +181,7 @@ async function collectBrandManifest(root) {
       }
       try {
         const png = inspectPng(buffer);
-        if (png.bitDepth !== 8)
-          errors.push(`brand asset ${asset.id} must use 8-bit PNG channels`);
+        if (png.bitDepth !== 8) errors.push(`brand asset ${asset.id} must use 8-bit PNG channels`);
         if (png.width !== asset.width || png.height !== asset.height) {
           errors.push(
             `brand asset ${asset.id} dimensions ${png.width}x${png.height} do not match manifest ${asset.width}x${asset.height}`,
@@ -225,14 +210,10 @@ const requiredModelFileIds = new Set([
 
 export function validateModelManifestDefinition(manifest) {
   const errors = [];
-  if (manifest?.schema_version !== 1)
-    errors.push("model manifest schema_version must be 1");
-  if (manifest?.brand_version !== 2)
-    errors.push("model manifest brand_version must be 2");
-  if (manifest?.model_version !== 1)
-    errors.push("model manifest model_version must be 1");
-  if (!manifest?.blender_version)
-    errors.push("model manifest must name its Blender version");
+  if (manifest?.schema_version !== 1) errors.push("model manifest schema_version must be 1");
+  if (manifest?.brand_version !== 2) errors.push("model manifest brand_version must be 2");
+  if (manifest?.model_version !== 1) errors.push("model manifest model_version must be 1");
+  if (!manifest?.blender_version) errors.push("model manifest must name its Blender version");
   const geometry = manifest?.geometry ?? {};
   for (const [name, expected] of Object.entries({
     eyes: 2,
@@ -250,9 +231,7 @@ export function validateModelManifestDefinition(manifest) {
     geometry.triangles <= 0 ||
     geometry.triangles >= 5000
   ) {
-    errors.push(
-      "model manifest must record a positive low-poly triangle count below 5000",
-    );
+    errors.push("model manifest must record a positive low-poly triangle count below 5000");
   }
   const requiredMaterials = [
     "MAT_SignatureRed",
@@ -262,9 +241,7 @@ export function validateModelManifestDefinition(manifest) {
     "MAT_WarmWhite",
     "MAT_Graphite",
   ];
-  if (
-    JSON.stringify(manifest?.materials) !== JSON.stringify(requiredMaterials)
-  ) {
+  if (JSON.stringify(manifest?.materials) !== JSON.stringify(requiredMaterials)) {
     errors.push("model manifest canonical material set drifted");
   }
   if (!Array.isArray(manifest?.files) || manifest.files.length === 0) {
@@ -279,8 +256,7 @@ export function validateModelManifestDefinition(manifest) {
       errors.push(`model manifest has missing or duplicate id: ${label}`);
     if (file?.id) ids.add(file.id);
     const filePath = file?.path;
-    const normalizedPath =
-      typeof filePath === "string" ? path.posix.normalize(filePath) : "";
+    const normalizedPath = typeof filePath === "string" ? path.posix.normalize(filePath) : "";
     const extension = path.posix.extname(normalizedPath);
     const validPath =
       normalizedPath.startsWith("apps/desktop/assets/brand/models/v2/") &&
@@ -316,9 +292,7 @@ export function validateModelManifestDefinition(manifest) {
 async function collectModelManifest(root) {
   let manifest;
   try {
-    manifest = JSON.parse(
-      await readFile(path.join(root, modelManifestRelativePath), "utf8"),
-    );
+    manifest = JSON.parse(await readFile(path.join(root, modelManifestRelativePath), "utf8"));
   } catch (error) {
     return {
       fileCount: 0,
@@ -343,9 +317,7 @@ async function collectModelManifest(root) {
           );
         }
       } catch (error) {
-        errors.push(
-          `model file ${file.id} could not be read: ${error.message}`,
-        );
+        errors.push(`model file ${file.id} could not be read: ${error.message}`);
       }
     }),
   );
@@ -388,13 +360,9 @@ const metadataRules = [
     metadata.cargo.license === "MIT OR Apache-2.0"
       ? undefined
       : "Cargo license must be MIT OR Apache-2.0",
+  (metadata) => (metadata.cargo.repository ? undefined : "Cargo repository metadata is missing"),
   (metadata) =>
-    metadata.cargo.repository
-      ? undefined
-      : "Cargo repository metadata is missing",
-  (metadata) =>
-    !metadata.cargo.repository ||
-    metadata.tauri.bundle?.homepage === metadata.cargo.repository
+    !metadata.cargo.repository || metadata.tauri.bundle?.homepage === metadata.cargo.repository
       ? undefined
       : `Tauri homepage ${metadata.tauri.bundle?.homepage ?? "missing"} does not match Cargo repository ${metadata.cargo.repository}`,
   (metadata) =>
@@ -411,14 +379,11 @@ const metadataRules = [
       ? undefined
       : "Tauri bundle must be active for a release",
   (metadata) =>
-    requiredBundleIcons.every((icon) =>
-      metadata.tauri.bundle?.icon?.includes(icon),
-    )
+    requiredBundleIcons.every((icon) => metadata.tauri.bundle?.icon?.includes(icon))
       ? undefined
       : "Tauri bundle must explicitly configure the complete platform icon set",
   (metadata) =>
-    metadata.tauri.bundle?.shortDescription &&
-    metadata.tauri.bundle?.longDescription
+    metadata.tauri.bundle?.shortDescription && metadata.tauri.bundle?.longDescription
       ? undefined
       : "Tauri bundle descriptions must be present",
   (metadata) =>
@@ -442,26 +407,15 @@ export function validateReleaseMetadata(metadata, options = {}) {
 async function collectReleaseMetadata(root = projectRoot) {
   const cargoPath = path.join(root, "Cargo.toml");
   const desktopPackagePath = path.join(root, "apps", "desktop", "package.json");
-  const tauriPath = path.join(
-    root,
-    "apps",
-    "desktop",
-    "src-tauri",
-    "tauri.conf.json",
-  );
-  const [
-    cargoToml,
-    desktopPackageText,
-    tauriText,
-    brandManifest,
-    modelManifest,
-  ] = await Promise.all([
-    readFile(cargoPath, "utf8"),
-    readFile(desktopPackagePath, "utf8"),
-    readFile(tauriPath, "utf8"),
-    collectBrandManifest(root),
-    collectModelManifest(root),
-  ]);
+  const tauriPath = path.join(root, "apps", "desktop", "src-tauri", "tauri.conf.json");
+  const [cargoToml, desktopPackageText, tauriText, brandManifest, modelManifest] =
+    await Promise.all([
+      readFile(cargoPath, "utf8"),
+      readFile(desktopPackagePath, "utf8"),
+      readFile(tauriPath, "utf8"),
+      collectBrandManifest(root),
+      collectModelManifest(root),
+    ]);
   const missingFiles = [];
   await Promise.all(
     requiredProjectFiles.map(async (relativePath) => {
@@ -491,8 +445,7 @@ const valuedArguments = {
 
 function readArgumentValue(argv, index, name, inlineValue) {
   const value = inlineValue ?? argv[index + 1];
-  if (!value || value.startsWith("--"))
-    throw new Error(`${name} requires a value`);
+  if (!value || value.startsWith("--")) throw new Error(`${name} requires a value`);
   return { value, consumedNext: inlineValue === undefined };
 }
 
@@ -506,12 +459,7 @@ export function parseArguments(argv) {
     }
     const optionKey = valuedArguments[name];
     if (!optionKey) throw new Error(`unknown argument: ${argv[index]}`);
-    const { value, consumedNext } = readArgumentValue(
-      argv,
-      index,
-      name,
-      inlineValue,
-    );
+    const { value, consumedNext } = readArgumentValue(argv, index, name, inlineValue);
     options[optionKey] = value;
     if (consumedNext) index += 1;
   }

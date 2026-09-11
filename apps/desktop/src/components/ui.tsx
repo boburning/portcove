@@ -23,11 +23,7 @@ export function Icon({
 
 export function BrandMotif({ label }: { label?: string }) {
   return (
-    <span
-      className="brand-motif"
-      aria-label={label}
-      aria-hidden={label ? undefined : true}
-    >
+    <span className="brand-motif" aria-label={label} aria-hidden={label ? undefined : true}>
       <i className="motif-red" />
       <i className="motif-blue" />
       <i className="motif-green" />
@@ -64,13 +60,7 @@ export function EmptyState({
   );
 }
 
-function EmptyVisual({
-  icon,
-  visual,
-}: {
-  icon?: LucideIcon;
-  visual?: ReactNode;
-}) {
+function EmptyVisual({ icon, visual }: { icon?: LucideIcon; visual?: ReactNode }) {
   if (visual) return visual;
   if (!icon) return null;
   return (
@@ -96,18 +86,14 @@ export function NavigationHints({
       {controller && <strong>{controller}</strong>}
       <span className="keyboard-navigation-hint">Arrow keys: Move</span>
       <span className="keyboard-navigation-hint">Enter: Select</span>
-      <span className="keyboard-navigation-hint">
-        {workspace ? "Esc: Menu" : "Esc: Back"}
-      </span>
+      <span className="keyboard-navigation-hint">{workspace ? "Esc: Menu" : "Esc: Back"}</span>
       <span className="gamepad-navigation-hint">D-pad or stick: Move</span>
       <span className="gamepad-navigation-hint">Confirm button: Select</span>
       <span className="gamepad-navigation-hint">
         {workspace ? "Back button: Menu" : "Back button: Back"}
       </span>
       {workspace && (
-        <span className="gamepad-navigation-hint">
-          Shoulder buttons: Switch section
-        </span>
+        <span className="gamepad-navigation-hint">Shoulder buttons: Switch section</span>
       )}
     </div>
   );

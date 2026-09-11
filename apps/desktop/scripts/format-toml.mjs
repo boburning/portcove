@@ -77,7 +77,5 @@ if (changed.length === 0) {
   console.error(`TOML formatting differs: ${changed.join(", ")}`);
   process.exitCode = 1;
 } else {
-  console.log(
-    `Taplo formatted ${changed.length} of ${files.length} TOML files.`,
-  );
+  console.log(`Taplo formatted ${changed.length} of ${files.length} TOML files.`);
 }

@@ -138,18 +138,22 @@ function DetailDialog({
     actions,
   } = props;
   const [outputApplying, setOutputApplying] = useState(false);
-  const effectiveBusy =
-    busy ?? (outputApplying ? "storage location" : undefined);
+  const effectiveBusy = busy ?? (outputApplying ? "storage location" : undefined);
   const selectedChannel = status?.channel ?? port.channels[0];
   const policy = status?.update_policy ?? "notify";
-  const { sourceReady, biosReady, launchReady, installed, pendingSetup } =
-    detailReadiness(port, status, source, sourcePath, bios, biosPath);
+  const { sourceReady, biosReady, launchReady, installed, pendingSetup } = detailReadiness(
+    port,
+    status,
+    source,
+    sourcePath,
+    bios,
+    biosPath,
+  );
   const state =
     installed && typeof status?.readiness?.launchable !== "boolean"
       ? {
           title: "Readiness unavailable",
-          description:
-            "Current launch readiness is unavailable. Reopen Portcove to check again.",
+          description: "Current launch readiness is unavailable. Reopen Portcove to check again.",
           tone: "setup",
           icon: AlertTriangle,
         }
@@ -208,10 +212,7 @@ function DetailDialog({
           <Icon glyph={X} />
         </button>
         <DetailHero port={port} state={state} />
-        <ArtworkControls
-          key={`${port.id}:${props.libraryGeneration}`}
-          port={port}
-        />
+        <ArtworkControls key={`${port.id}:${props.libraryGeneration}`} port={port} />
         {props.cancellableActivities?.map((activity) => (
           <OperationCancellation
             key={activity.id}
@@ -249,21 +250,13 @@ function DetailDialog({
 
 type DetailState = ReturnType<typeof detailState>;
 
-function DetailHero({
-  port,
-  state,
-}: {
-  port: PortDefinition;
-  state: DetailState;
-}) {
+function DetailHero({ port, state }: { port: PortDefinition; state: DetailState }) {
   return (
     <div className={`detail-hero art-${port.support_tier}`}>
       <ArtworkImage port={port} className="detail-cover" />
       <div>
         <p className="eyebrow">
-          {port.platforms
-            .map((platform) => platformLabel(platform))
-            .join(" · ")}
+          {port.platforms.map((platform) => platformLabel(platform)).join(" · ")}
         </p>
         <h2 id="port-detail-title">{port.name}</h2>
         <span className={`hero-state ${state.tone}`}>{state.title}</span>
@@ -318,9 +311,7 @@ function DetailBody({
   actions: DetailActions;
 }) {
   const managedPreparation = Boolean(
-    installed &&
-    port.adapter === "upstream-managed-setup" &&
-    port.setup_output_paths.length,
+    installed && port.adapter === "upstream-managed-setup" && port.setup_output_paths.length,
   );
   return (
     <div className="detail-body">
@@ -340,13 +331,9 @@ function DetailBody({
         />
       )}
       <PrimaryActions
-        invalidInstallation={Boolean(
-          status?.readiness?.blockers.includes("invalid_installation"),
-        )}
+        invalidInstallation={Boolean(status?.readiness?.blockers.includes("invalid_installation"))}
         preparationRequired={managedPreparation && pendingSetup}
-        runtimeNeeded={Boolean(
-          status?.readiness?.blockers.includes("missing_runtime"),
-        )}
+        runtimeNeeded={Boolean(status?.readiness?.blockers.includes("missing_runtime"))}
         installed={installed}
         launchReady={launchReady}
         pendingSetup={pendingSetup}
@@ -358,9 +345,8 @@ function DetailBody({
       {status?.staged && (
         <section aria-label="Activate staged update">
           <p>
-            Staged update: <strong>{status.staged.version}</strong>. Activation
-            uses this verified local copy without downloading and keeps the
-            current version for rollback.
+            Staged update: <strong>{status.staged.version}</strong>. Activation uses this verified
+            local copy without downloading and keeps the current version for rollback.
           </p>
           <button
             data-focusable
@@ -464,9 +450,7 @@ function detailReadiness(
   return {
     sourceReady,
     biosReady,
-    launchReady: installed
-      ? status?.readiness?.launchable === true
-      : sourceReady && biosReady,
+    launchReady: installed ? status?.readiness?.launchable === true : sourceReady && biosReady,
     installed,
     pendingSetup: Boolean(status?.readiness?.pending_setup),
   };
@@ -523,18 +507,8 @@ function SourceFields({
   );
 }
 
-function SourceIntakeActions({
-  controls,
-  busy,
-}: {
-  controls: SourceControls;
-  busy: boolean;
-}) {
-  if (
-    !controls.inspectSource ||
-    (!controls.sourceProfile && !controls.biosProfile)
-  )
-    return null;
+function SourceIntakeActions({ controls, busy }: { controls: SourceControls; busy: boolean }) {
+  if (!controls.inspectSource || (!controls.sourceProfile && !controls.biosProfile)) return null;
   return (
     <div className="source-intake-shortcuts" aria-label="Check game files">
       {controls.sourceProfile && (
@@ -565,13 +539,9 @@ function SourceIntakeActions({
   );
 }
 
-function originalSourceField(
-  mode: "missing" | "registered",
-  controls: SourceControls,
-) {
+function originalSourceField(mode: "missing" | "registered", controls: SourceControls) {
   const profileId = controls.port.source_profile;
-  if (!profileId || controls.sourceReady !== (mode === "registered"))
-    return null;
+  if (!profileId || controls.sourceReady !== (mode === "registered")) return null;
   return (
     <SourceField
       heading="Original source"
@@ -589,10 +559,7 @@ function originalSourceField(
   );
 }
 
-function biosSourceField(
-  mode: "missing" | "registered",
-  controls: SourceControls,
-) {
+function biosSourceField(mode: "missing" | "registered", controls: SourceControls) {
   const profileId = controls.port.bios_source_profile;
   if (
     !profileId ||
@@ -623,17 +590,13 @@ function RetiredNotice({ port }: { port: PortDefinition }) {
     <p className="retired-notice">
       <Icon glyph={ArchiveX} />{" "}
       <span>
-        <strong>Retired upstream</strong>This pinned release receives no
-        upstream fixes or support.
+        <strong>Retired upstream</strong>This pinned release receives no upstream fixes or support.
       </span>
     </p>
   );
 }
 
-function closeFromScrim(
-  event: React.MouseEvent<HTMLDivElement>,
-  close: () => void,
-) {
+function closeFromScrim(event: React.MouseEvent<HTMLDivElement>, close: () => void) {
   if (event.currentTarget === event.target) close();
 }
 
@@ -711,17 +674,13 @@ function AdvancedControls({
           <span>
             <small>Automated evidence</small>
             {port.automated_tested_platforms.length
-              ? port.automated_tested_platforms
-                  .map((value) => platformLabel(value))
-                  .join(" · ")
+              ? port.automated_tested_platforms.map((value) => platformLabel(value)).join(" · ")
               : "Not yet tested"}
           </span>
           <span>
             <small>Physical validation</small>
             {port.manually_validated_platforms.length
-              ? port.manually_validated_platforms
-                  .map((value) => platformLabel(value))
-                  .join(" · ")
+              ? port.manually_validated_platforms.map((value) => platformLabel(value)).join(" · ")
               : "Deferred / not completed"}
           </span>
           <span title={persistentFiles}>
@@ -806,8 +765,7 @@ function SourceField({
   openEvidence?: (evidenceId: string) => void;
 }) {
   const copy = sourceFieldCopy(profile);
-  const selectedOverride =
-    Boolean(path.trim()) && (!source || path !== source.path);
+  const selectedOverride = Boolean(path.trim()) && (!source || path !== source.path);
   const sourceNote = selectedOverride
     ? "Selected path has not been checked. Portcove validates these files when you continue."
     : source
@@ -828,23 +786,13 @@ function SourceField({
           placeholder={copy.placeholder}
         />
         {pick && (
-          <button
-            data-focusable
-            className="button-with-icon"
-            type="button"
-            onClick={pick}
-          >
+          <button data-focusable className="button-with-icon" type="button" onClick={pick}>
             <Icon glyph={FolderOpen} />
             Browse
           </button>
         )}
         {pickArchive && (
-          <button
-            data-focusable
-            className="button-with-icon"
-            type="button"
-            onClick={pickArchive}
-          >
+          <button data-focusable className="button-with-icon" type="button" onClick={pickArchive}>
             <Icon glyph={FileArchive} />
             ZIP
           </button>
@@ -861,28 +809,21 @@ function SourceField({
   );
 }
 
-function sourceHealthNote(
-  health: SourceHealth | null | undefined,
-  source: SourceRecord,
-) {
+function sourceHealthNote(health: SourceHealth | null | undefined, source: SourceRecord) {
   const hash = `${source.sha256.slice(0, 12)}…`;
   if (health === "current") return `Current registered bytes checked · ${hash}`;
-  if (health === "changed")
-    return "Registered source changed since it was added.";
+  if (health === "changed") return "Registered source changed since it was added.";
   if (health === "missing") return "Registered source file is missing.";
   if (health === "unreadable") return "Registered source cannot be read.";
-  if (health === "not_checked")
-    return `Registered · current bytes not checked · ${hash}`;
-  if (health === "not_baselined")
-    return "Selected game files have no saved identity baseline.";
+  if (health === "not_checked") return `Registered · current bytes not checked · ${hash}`;
+  if (health === "not_baselined") return "Selected game files have no saved identity baseline.";
   return `Registered · ${hash}`;
 }
 
 function sourceFieldCopy(profile?: SourceProfile) {
   if (profile?.kind === "file-set")
     return {
-      placeholder:
-        "Choose or paste the folder or ZIP containing the required sources",
+      placeholder: "Choose or paste the folder or ZIP containing the required sources",
       note: "Select one exact source folder or ZIP; never uploaded.",
     };
   if (profile?.kind === "psx-disc" && (profile.disc?.discs?.length ?? 0) > 1)
@@ -919,8 +860,7 @@ function PrimaryActions({
 }) {
   if (invalidInstallation)
     return <p>Verify the game files below and review repair before playing.</p>;
-  if (runtimeNeeded)
-    return <p>Review the game update below to install the required runtime.</p>;
+  if (runtimeNeeded) return <p>Review the game update below to install the required runtime.</p>;
   if (!installed)
     return (
       <InstallAction
@@ -948,11 +888,7 @@ function PrimaryActions({
           void actions.launch();
         }}
       >
-        <Icon
-          glyph={
-            !launchReady ? AlertTriangle : pendingSetup ? Wrench : Gamepad2
-          }
-        />
+        <Icon glyph={!launchReady ? AlertTriangle : pendingSetup ? Wrench : Gamepad2} />
         {preparationRequired
           ? "Prepare game data first"
           : !launchReady
@@ -1012,8 +948,8 @@ function InstallAction({
     return (
       <div className="actions primary-actions">
         <p role="alert">
-          This version of Portcove cannot display the installation plan. Review
-          it again, or update Portcove if this continues.
+          This version of Portcove cannot display the installation plan. Review it again, or update
+          Portcove if this continues.
         </p>
         <button
           data-focusable
@@ -1049,20 +985,13 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
           {plan.channel} · {installPlanActionLabel(plan.action)}
         </span>
         {plan.bundled_runtime && (
-          <span>
-            Includes verified runtime ·{" "}
-            {formatBytes(plan.bundled_runtime.asset.size)}
-          </span>
+          <span>Includes verified runtime · {formatBytes(plan.bundled_runtime.asset.size)}</span>
         )}
       </div>
       <div>
-        <strong>
-          {download ? formatBytes(plan.download_bytes) : "No download"}
-        </strong>
+        <strong>{download ? formatBytes(plan.download_bytes) : "No download"}</strong>
         <span>
-          {download
-            ? `${formatBytes(plan.storage.volume_available_bytes)} available`
-            : localState}
+          {download ? `${formatBytes(plan.storage.volume_available_bytes)} available` : localState}
         </span>
       </div>
     </div>
@@ -1080,8 +1009,7 @@ function PlannedInstallButton({
 }) {
   const blocked = plan.action === "blocked_unverified";
   const insufficientSpace =
-    plan.action === "download" &&
-    plan.download_bytes > plan.storage.volume_available_bytes;
+    plan.action === "download" && plan.download_bytes > plan.storage.volume_available_bytes;
   let label =
     plan.action === "download"
       ? `Install · ${formatBytes(plan.download_bytes)}`
@@ -1268,15 +1196,13 @@ function detailState(
   if (staged)
     return {
       title: "Ready · update staged",
-      description:
-        "Play the current version or activate the verified staged release.",
+      description: "Play the current version or activate the verified staged release.",
       tone: "staged",
       icon: RefreshCw,
     };
   return {
     title: "Ready to launch",
-    description:
-      "The active version and every required local source are available.",
+    description: "The active version and every required local source are available.",
     tone: "ready",
     icon: CheckCircle2,
   };

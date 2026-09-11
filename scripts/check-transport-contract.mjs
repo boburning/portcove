@@ -50,15 +50,7 @@ function exportSchemas(root, contract) {
 function exportDesktopSchemas(root) {
   const command = spawnSync(
     "cargo",
-    [
-      "run",
-      "--locked",
-      "--quiet",
-      "-p",
-      "portcove-desktop",
-      "--example",
-      "export_transport",
-    ],
+    ["run", "--locked", "--quiet", "-p", "portcove-desktop", "--example", "export_transport"],
     {
       cwd: root,
       encoding: "utf8",
@@ -87,13 +79,7 @@ function main() {
   const schemas = exportSchemas(root, "output");
   const typesPath = values.types
     ? path.resolve(values.types)
-    : path.join(
-        root,
-        "apps",
-        "desktop",
-        "src",
-        "transport-schemas.generated.json",
-      );
+    : path.join(root, "apps", "desktop", "src", "transport-schemas.generated.json");
   if (values.write) {
     fs.writeFileSync(typesPath, renderTransportSchemas(schemas));
   }
@@ -109,15 +95,8 @@ function main() {
       "definition_capability_request",
     ].map((key) => [key, inputSchemas[key]]),
   );
-  const inputPath = path.join(
-    root,
-    "apps",
-    "desktop",
-    "src",
-    "transport-inputs.generated.json",
-  );
-  if (values.write)
-    fs.writeFileSync(inputPath, renderTransportSchemas(requests));
+  const inputPath = path.join(root, "apps", "desktop", "src", "transport-inputs.generated.json");
+  if (values.write) fs.writeFileSync(inputPath, renderTransportSchemas(requests));
   failures.push(
     ...checkTransportContract(requests, fs.readFileSync(inputPath, "utf8")).map(
       (message) => `Request inputs: ${message}`,
@@ -128,26 +107,16 @@ function main() {
     const target =
       contract === "output" && values["host-types"]
         ? path.resolve(values["host-types"])
-        : path.join(
-            root,
-            "apps",
-            "desktop",
-            "src",
-            `transport-host-${contract}.generated.json`,
-          );
-    if (values.write)
-      fs.writeFileSync(target, renderTransportSchemas(desktop[contract]));
+        : path.join(root, "apps", "desktop", "src", `transport-host-${contract}.generated.json`);
+    if (values.write) fs.writeFileSync(target, renderTransportSchemas(desktop[contract]));
     failures.push(
-      ...checkTransportContract(
-        desktop[contract],
-        fs.readFileSync(target, "utf8"),
-      ).map((message) => `Desktop ${contract}: ${message}`),
+      ...checkTransportContract(desktop[contract], fs.readFileSync(target, "utf8")).map(
+        (message) => `Desktop ${contract}: ${message}`,
+      ),
     );
   }
   if (failures.length > 0) {
-    process.stderr.write(
-      `Transport contract drift:\n- ${failures.join("\n- ")}\n`,
-    );
+    process.stderr.write(`Transport contract drift:\n- ${failures.join("\n- ")}\n`);
     process.exit(1);
   }
 
@@ -156,8 +125,4 @@ function main() {
   );
 }
 
-if (
-  process.argv[1] &&
-  fileURLToPath(import.meta.url) === path.resolve(process.argv[1])
-)
-  main();
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) main();

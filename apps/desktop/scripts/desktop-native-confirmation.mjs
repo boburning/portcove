@@ -5,12 +5,7 @@ import { writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 
-export function nativeConfirmation({
-  application,
-  driverPid,
-  output,
-  artifacts,
-}) {
+export function nativeConfirmation({ application, driverPid, output, artifacts }) {
   return async (title, button, expectedText, name, filePath) => {
     assert.equal(
       process.platform,

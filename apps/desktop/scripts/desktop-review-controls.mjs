@@ -9,9 +9,7 @@ async function waitForEntrance(browser, element) {
     () =>
       browser.executeScript((element) => {
         const dialog = element.closest('[role="dialog"]') ?? element;
-        return !dialog
-          .getAnimations()
-          .some((animation) => animation.playState === "running");
+        return !dialog.getAnimations().some((animation) => animation.playState === "running");
       }, element),
     5_000,
     "The review must finish its entrance animation before interaction or measurement",
@@ -50,10 +48,9 @@ export async function clickVisible(browser, element) {
       }),
       element,
     );
-    throw new Error(
-      `${error.message}\nReview control: ${JSON.stringify(context)}`,
-      { cause: error },
-    );
+    throw new Error(`${error.message}\nReview control: ${JSON.stringify(context)}`, {
+      cause: error,
+    });
   }
 }
 
@@ -61,10 +58,7 @@ export function reviewControls(browser) {
   return {
     button: (label) => By.xpath(`//button[normalize-space(.)="${label}"]`),
     click: async (locator) =>
-      clickVisible(
-        browser,
-        await browser.wait(until.elementLocated(locator), 15_000),
-      ),
+      clickVisible(browser, await browser.wait(until.elementLocated(locator), 15_000)),
   };
 }
 
@@ -75,8 +69,7 @@ export async function assertCompactReview(browser, selector) {
     const review = document.querySelector(selector);
     const bounds = review.getBoundingClientRect();
     return {
-      pageOverflow:
-        document.documentElement.scrollWidth > window.innerWidth + 1,
+      pageOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
       dialogOverflow: review.scrollWidth > review.clientWidth + 1,
       inView: bounds.left >= 0 && bounds.right <= window.innerWidth,
     };
@@ -90,9 +83,7 @@ export async function assertCompactReview(browser, selector) {
 
 export async function captureAccessibilityReport(browser, report, artifacts) {
   await browser.executeScript(axe.source);
-  const accessibility = await browser.executeAsyncScript((done) =>
-    window.axe.run().then(done),
-  );
+  const accessibility = await browser.executeAsyncScript((done) => window.axe.run().then(done));
   await writeFile(report, JSON.stringify(accessibility, null, 2), {
     flag: "wx",
   });
