@@ -125,13 +125,76 @@ impl CatalogState {
     }
 }
 
+fn selected_catalog(
+    catalog: Catalog,
+    expires_at: i64,
+    provenance: CatalogProvenance,
+) -> Result<(Catalog, CatalogProvenance)> {
+    let catalog_sha256 =
+        signed_catalog::digest(&serde_json::to_vec(&catalog.authoritative_document())?);
+    Ok((
+        catalog,
+        CatalogProvenance {
+            origin: CatalogOrigin::DefinitionSelected,
+            catalog_sha256,
+            sequence: None,
+            key_id: None,
+            expires_at: Some(expires_at),
+            fallback_reasons: provenance.fallback_reasons,
+        },
+    ))
+}
+
+fn resolve_effective_catalog(
+    connection: &Connection,
+    state: &CatalogState,
+    now: i64,
+) -> Result<(Catalog, CatalogProvenance)> {
+    let (baseline, mut provenance) = state.resolve(now)?;
+    let selected = crate::definition_candidate::selection::load_selected_definition_catalog(
+        connection, &baseline, now,
+    );
+    match selected {
+        Ok(Some((catalog, expires_at))) => selected_catalog(catalog, expires_at, provenance),
+        Ok(None) => Ok((baseline, provenance)),
+        Err(error) => {
+            provenance.fallback_reasons.push(format!(
+                "selected definition was not loaded: {}",
+                error.message
+            ));
+            Ok((baseline, provenance))
+        }
+    }
+}
+
+pub(crate) fn effective_catalog_status(
+    connection: &Connection,
+    state: &CatalogState,
+    now: i64,
+) -> Result<CatalogStatus> {
+    let mut status = state.status(now)?;
+    status.provenance = resolve_effective_catalog(connection, state, now)?.1;
+    Ok(status)
+}
+
 impl Library {
     pub(crate) fn load_catalog(&self) -> Result<(Catalog, CatalogProvenance)> {
-        CatalogState::read(&self.connection()?)?.resolve(Self::now())
+        let connection = self.connection()?;
+        let transaction = connection.unchecked_transaction()?;
+        let now = Self::now();
+        let state = CatalogState::read(&transaction)?;
+        let result = resolve_effective_catalog(&transaction, &state, now)?;
+        transaction.commit()?;
+        Ok(result)
     }
 
     pub fn catalog_status(&self) -> Result<CatalogStatus> {
-        CatalogState::read(&self.connection()?)?.status(Self::now())
+        let connection = self.connection()?;
+        let transaction = connection.unchecked_transaction()?;
+        let state = CatalogState::read(&transaction)?;
+        let result = effective_catalog_status(&transaction, &state, Self::now())?;
+        transaction.commit()?;
+        Ok(result)
     }
 
     pub fn trust_catalog_key(&self, public_key: &str) -> Result<CatalogStatus> {
@@ -154,7 +217,8 @@ impl Library {
                 [],
             )?;
         }
-        let result = CatalogState::read(&tx)?.status(Self::now())?;
+        let state = CatalogState::read(&tx)?;
+        let result = effective_catalog_status(&tx, &state, Self::now())?;
         tx.commit()?;
         Ok(result)
     }
@@ -216,7 +280,8 @@ impl Library {
             "UPDATE catalog_state SET revision=revision+1 WHERE singleton=1",
             [],
         )?;
-        let result = CatalogState::read(&tx)?.status(Self::now())?;
+        let state = CatalogState::read(&tx)?;
+        let result = effective_catalog_status(&tx, &state, Self::now())?;
         tx.commit()?;
         Ok(result)
     }

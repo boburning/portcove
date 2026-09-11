@@ -175,7 +175,7 @@ export type DigestScope =
 export type CompoundSourceFormat = "stfs-live";
 export type SourceEvidenceKind = "structural_check" | "automated_lifecycle" | "hands_on" | "known_failure";
 export type SourceEvidenceOutcome = "passed" | "failed" | "not_run" | "unknown";
-export type CatalogOrigin = "embedded" | "signed_active" | "signed_previous";
+export type CatalogOrigin = "embedded" | "signed_active" | "signed_previous" | "definition_selected";
 export type CatalogUpdateSource =
   | {
       kind: "file";

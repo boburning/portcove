@@ -43,6 +43,7 @@ pub enum CatalogOrigin {
     Embedded,
     SignedActive,
     SignedPrevious,
+    DefinitionSelected,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

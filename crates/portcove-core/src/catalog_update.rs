@@ -10,7 +10,7 @@ use crate::{
     ActivityOperation, ActivityStatus, ActivityTargetKind, CatalogProvenance, CatalogStatus,
     Library, OperationCoordinator, OperationEvent, OperationResult, PortcoveError, PortcoveService,
     Result,
-    catalog_store::CatalogState,
+    catalog_store::{CatalogState, effective_catalog_status},
     signed_catalog::{self, MAX_CATALOG_BYTES, VerifiedCatalog},
 };
 
@@ -111,7 +111,8 @@ impl Library {
             ActivityStatus::Succeeded,
             None,
         )?;
-        let result = CatalogState::read(&tx)?.status(now)?;
+        let state = CatalogState::read(&tx)?;
+        let result = effective_catalog_status(&tx, &state, now)?;
         tx.commit()?;
         Ok(result)
     }

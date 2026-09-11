@@ -44,10 +44,10 @@ user's ordinary Playnite library.
 
 ## Compatibility and use
 
-This revision supports **Portcove API schemas 42–45 and event schema 2**. Additional
+This revision supports **Portcove API schemas 42–46 and event schema 2**. Additional
 object fields are tolerated; incompatible schema versions and missing required
 capabilities produce an upgrade message before management. A product version
-string is not used as a compatibility guess. Use an exactly identified schema-42, schema-43, schema-44 or schema-45
+string is not used as a compatibility guess. Use an exactly identified schema-42, schema-43, schema-44, schema-45 or schema-46
 candidate until a matching public standalone release exists; the older published
 technical previews must not be described as supporting these new commands.
 See the [author guide](../../docs/INTEGRATION-AUTHOR.md).

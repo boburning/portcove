@@ -19,6 +19,7 @@ mod definition_capabilities;
 mod definition_eligibility;
 mod definition_entry;
 mod definition_index;
+mod definition_loader;
 #[cfg(test)]
 mod definition_policy_tests;
 mod definition_projection;
@@ -186,4 +187,4 @@ pub use source_report::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 45;
+pub const API_SCHEMA_VERSION: u32 = 46;

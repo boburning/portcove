@@ -104,6 +104,60 @@ pub(crate) fn indexed_catalog(catalog: &crate::Catalog, port_id: &str) -> crate:
         .clone()
 }
 
+/// Create a valid catalog with one source-backed port that did not exist when
+/// the embedded client catalog was built.
+pub(crate) fn post_client_catalog() -> (crate::Catalog, String) {
+    let mut document = crate::Catalog::embedded().unwrap().authoritative_document();
+    let mut port = document
+        .ports
+        .iter()
+        .find(|port| port.bios_source_profile.is_none() && port.source_profile.is_some())
+        .unwrap()
+        .clone();
+    let original_port_id = port.id.clone();
+    let original_profile_id = port.source_profile.clone().unwrap();
+    let port_id = "post-client-definition-fixture".to_string();
+    let profile_id = "post-client-definition-fixture-source".to_string();
+    let source = document.source_catalog.as_mut().unwrap();
+
+    let mut identity = source
+        .identities
+        .iter()
+        .find(|identity| identity.id == original_profile_id)
+        .unwrap()
+        .clone();
+    identity.id = profile_id.clone();
+    identity.aliases.clear();
+    identity.tombstones.clear();
+    source.identities.push(identity);
+
+    let mut contract = source
+        .contracts
+        .iter()
+        .find(|contract| {
+            contract.port_id == original_port_id && contract.role == crate::PortSourceRole::Game
+        })
+        .unwrap()
+        .clone();
+    contract.id = "post-client-definition-fixture-game".to_string();
+    contract.port_id = port_id.clone();
+    contract.profile_id = profile_id.clone();
+    contract.aliases.clear();
+    contract.tombstones.clear();
+    source.contracts.push(contract);
+
+    port.id = port_id.clone();
+    port.name = "Post-client definition fixture".to_string();
+    port.summary = "A valid port definition published after this client was built.".to_string();
+    port.source_profile = Some(profile_id);
+    port.automated_tested_platforms.clear();
+    port.manually_validated_platforms.clear();
+    document.ports.push(port);
+
+    let catalog = crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    (catalog, port_id)
+}
+
 pub(crate) fn build_probe(directory: &Path) -> PathBuf {
     let executable = directory.join(if cfg!(windows) {
         "host_tool_probe.exe"

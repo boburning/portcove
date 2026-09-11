@@ -99,15 +99,21 @@ observation, including its grant ID and policy revision. Held or escalated conte
 cannot produce that proof. The proof remains inert until a later library
 transaction persists the selected projection and floor together.
 
-SQLite schema 26 adds the inert successor-selection boundary. Library assessment
+SQLite schema 26 adds the successor-selection boundary. Library assessment
 reads the installed publisher record and accepted replay floor from one snapshot;
 an immediate selection transaction then rechecks that exact policy revision,
 grant, root, identity, metadata expiration and the latest floor before writing the
 exact definition snapshot and new floor together. Stored state is strictly decoded
 and reinterpreted from its original index, entry and contract bytes on every
 status read. An exact retry is idempotent, and any failed or interrupted statement
-leaves both the prior selection and floor unchanged. Production has no grant writer
-yet, and the runtime catalog loader does not consume this state yet.
+leaves both the prior selection and floor unchanged. The runtime catalog loader
+reads that selection with the current embedded or signed baseline in one SQLite
+snapshot. It activates only a fresh, still-scoped projection whose selected port
+is the sole semantic change; unrelated ports and existing source authority remain
+exact, and new source records must be reachable from the selected port. Rejected,
+revoked, stale or corrupt selections fall back visibly without hiding baseline
+ports. Catalog provenance reports `definition_selected` when activation succeeds.
+Production still has no grant writer.
 
 ## Engine template capability ownership
 

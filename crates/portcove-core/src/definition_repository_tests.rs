@@ -19,9 +19,9 @@ use tough::{
 };
 
 use crate::{
-    Catalog, DefinitionEligibilityOutcome, DefinitionEligibilityReason,
+    Catalog, CatalogOrigin, DefinitionEligibilityOutcome, DefinitionEligibilityReason,
     DefinitionPublisherObservation, DefinitionPublisherStatus, ErrorCode, Library,
-    test_fixture::indexed_catalog_bundle,
+    test_fixture::{indexed_catalog_bundle, post_client_catalog},
 };
 
 use super::{
@@ -271,10 +271,37 @@ impl RepositoryFixture {
 fn repository_targets() -> (String, Vec<(String, Vec<u8>)>) {
     let catalog = Catalog::embedded().unwrap();
     let port_id = catalog.ports()[0].id.clone();
-    let bundle = indexed_catalog_bundle(&catalog, &port_id);
+    (port_id.clone(), repository_targets_for(&catalog, &port_id))
+}
+
+fn repository_targets_for(catalog: &Catalog, port_id: &str) -> Vec<(String, Vec<u8>)> {
+    let bundle = indexed_catalog_bundle(catalog, port_id);
     let mut targets = vec![(INDEX_TARGET.to_owned(), bundle.index)];
     targets.extend(bundle.contents);
-    (port_id, targets)
+    targets
+}
+
+fn select_candidate(
+    library: &Library,
+    candidate: &super::AuthenticatedDefinitionCandidate,
+    port_id: &str,
+) {
+    library
+        .install_definition_policy_for_test(
+            candidate,
+            "official",
+            port_id,
+            7,
+            "official-fixture-grant",
+            DefinitionPublisherStatus::Scoped,
+        )
+        .unwrap();
+    let eligible = library
+        .assess_definition_candidate(candidate, "official", port_id)
+        .unwrap()
+        .into_eligible()
+        .unwrap();
+    library.select_definition_candidate(eligible).unwrap();
 }
 
 async fn acquire(
@@ -672,6 +699,171 @@ async fn library_selection_persists_the_exact_candidate_and_floor_together() {
         )
         .unwrap();
     assert_eq!(reopened.definition_selection_status().unwrap().revision, 1);
+}
+
+#[tokio::test]
+async fn selected_post_client_definition_loads_as_the_active_catalog() {
+    let fixture = RepositoryFixture::new();
+    let baseline = Catalog::embedded().unwrap();
+    let (catalog, port_id) = post_client_catalog();
+    let targets = repository_targets_for(&catalog, &port_id);
+    let root = fixture
+        .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
+        .await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+    let temporary = TempDir::new().unwrap();
+    let library = Library::open(temporary.path()).unwrap();
+
+    select_candidate(&library, &candidate, &port_id);
+    let (loaded, provenance) = library.load_catalog().unwrap();
+
+    assert_eq!(provenance.origin, CatalogOrigin::DefinitionSelected);
+    assert_eq!(library.catalog_status().unwrap().provenance, provenance);
+    assert!(provenance.expires_at.is_some());
+    assert!(provenance.fallback_reasons.is_empty());
+    assert_eq!(
+        serde_json::to_value(loaded.authoritative_document()).unwrap(),
+        serde_json::to_value(catalog.authoritative_document()).unwrap()
+    );
+    assert!(loaded.port(&port_id).is_ok());
+    assert!(loaded.definition_snapshot(&port_id).is_some());
+    for port in baseline.ports() {
+        assert_eq!(
+            serde_json::to_value(loaded.port(&port.id).unwrap()).unwrap(),
+            serde_json::to_value(port).unwrap()
+        );
+    }
+}
+
+#[tokio::test]
+async fn out_of_scope_selected_definition_falls_back_without_hiding_ports() {
+    let fixture = RepositoryFixture::new();
+    let baseline = Catalog::embedded().unwrap();
+    let (catalog, port_id) = post_client_catalog();
+    let mut document = catalog.authoritative_document();
+    document
+        .ports
+        .iter_mut()
+        .find(|port| port.id != port_id)
+        .unwrap()
+        .summary
+        .push_str(" changed outside the selected scope");
+    let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    let targets = repository_targets_for(&catalog, &port_id);
+    let root = fixture
+        .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
+        .await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+    let temporary = TempDir::new().unwrap();
+    let library = Library::open(temporary.path()).unwrap();
+
+    select_candidate(&library, &candidate, &port_id);
+    let (loaded, provenance) = library.load_catalog().unwrap();
+
+    assert_eq!(provenance.origin, CatalogOrigin::Embedded);
+    assert!(loaded.port(&port_id).is_err());
+    assert!(provenance.fallback_reasons.iter().any(|reason| {
+        reason.contains("selected definition changes catalog state outside its scope")
+    }));
+    assert_eq!(library.catalog_status().unwrap().provenance, provenance);
+    assert_eq!(
+        serde_json::to_value(loaded.authoritative_document()).unwrap(),
+        serde_json::to_value(baseline.authoritative_document()).unwrap()
+    );
+}
+
+#[tokio::test]
+async fn revoked_selected_definition_falls_back_to_the_existing_catalog() {
+    let fixture = RepositoryFixture::new();
+    let (catalog, port_id) = post_client_catalog();
+    let targets = repository_targets_for(&catalog, &port_id);
+    let root = fixture
+        .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
+        .await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+    let temporary = TempDir::new().unwrap();
+    let library = Library::open(temporary.path()).unwrap();
+
+    select_candidate(&library, &candidate, &port_id);
+    library
+        .install_definition_policy_for_test(
+            &candidate,
+            "official",
+            &port_id,
+            8,
+            "official-fixture-grant",
+            DefinitionPublisherStatus::Revoked,
+        )
+        .unwrap();
+    let (loaded, provenance) = library.load_catalog().unwrap();
+
+    assert_eq!(provenance.origin, CatalogOrigin::Embedded);
+    assert!(loaded.port(&port_id).is_err());
+    assert!(
+        provenance
+            .fallback_reasons
+            .iter()
+            .any(|reason| reason.contains("publisher policy changed"))
+    );
+}
+
+#[tokio::test]
+async fn stale_or_corrupt_selected_definition_falls_back_visibly() {
+    let fixture = RepositoryFixture::new();
+    let (catalog, port_id) = post_client_catalog();
+    let targets = repository_targets_for(&catalog, &port_id);
+    let root = fixture
+        .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
+        .await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+    let temporary = TempDir::new().unwrap();
+    let library = Library::open(temporary.path()).unwrap();
+    select_candidate(&library, &candidate, &port_id);
+
+    let active_json: String = library
+        .connection()
+        .unwrap()
+        .query_row(
+            "SELECT active_json FROM definition_selection_state WHERE singleton=1",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    let mut stale: Value = serde_json::from_str(&active_json).unwrap();
+    stale["provenance"]["earliest_expiration"] = "1970-01-01T00:00:00Z".into();
+    library
+        .connection()
+        .unwrap()
+        .execute(
+            "UPDATE definition_selection_state SET active_json=?1 WHERE singleton=1",
+            [serde_json::to_string(&stale).unwrap()],
+        )
+        .unwrap();
+    let (loaded, provenance) = library.load_catalog().unwrap();
+    assert_eq!(provenance.origin, CatalogOrigin::Embedded);
+    assert!(loaded.port(&port_id).is_err());
+    assert!(
+        provenance
+            .fallback_reasons
+            .iter()
+            .any(|reason| reason.contains("metadata expired before selection committed"))
+    );
+
+    let mut corrupt: Value = serde_json::from_str(&active_json).unwrap();
+    corrupt["snapshot"]["contract_json"] = "{}".into();
+    library
+        .connection()
+        .unwrap()
+        .execute(
+            "UPDATE definition_selection_state SET active_json=?1 WHERE singleton=1",
+            [serde_json::to_string(&corrupt).unwrap()],
+        )
+        .unwrap();
+    let (loaded, provenance) = library.load_catalog().unwrap();
+    assert_eq!(provenance.origin, CatalogOrigin::Embedded);
+    assert!(loaded.port(&port_id).is_err());
+    assert!(!provenance.fallback_reasons.is_empty());
+    assert!(library.definition_selection_status().is_err());
 }
 
 #[tokio::test]
