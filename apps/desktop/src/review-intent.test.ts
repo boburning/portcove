@@ -132,7 +132,9 @@ describe("current review intent", () => {
       });
       expect(adoption.preview).toBeUndefined();
       expect(adopt).not.toHaveBeenCalled();
+      adoption.invalidate();
       await render({ ...props, open: true });
+      expect(adoption.preview).toBeUndefined();
       let second!: Promise<void>;
       await act(async () => {
         second = adoption.review();
@@ -228,6 +230,34 @@ describe("current review intent", () => {
     expect(done).not.toHaveBeenCalled();
     expect(adoption.preview).toBeUndefined();
   });
+
+  it("keeps a consumed preview cleared across transient identity changes", async () => {
+    const reviewed = {
+      selected_port_id: "first",
+      plan_sha256: "reviewed",
+    } as Preview;
+    vi.spyOn(desktopApi, "previewAdoption").mockResolvedValue(reviewed);
+    const pending = deferred<Awaited<ReturnType<typeof desktopApi.adopt>>>();
+    vi.spyOn(desktopApi, "adopt").mockReturnValue(pending.promise);
+    await render();
+    await act(async () => {
+      await adoption.review();
+    });
+    let mutation!: Promise<void>;
+    await act(async () => {
+      mutation = adoption.adopt();
+    });
+    await render({ generation: 2 });
+    await render();
+    expect(adoption.preview).toBeUndefined();
+    await act(async () => {
+      pending.reject(new Error("changed saved data"));
+      await mutation;
+    });
+    expect(adoption.preview).toBeUndefined();
+    expect(done).not.toHaveBeenCalled();
+  });
+
   it.each([null, undefined])(
     "requires a fresh adoption review after cancellation or failure: %s",
     async (result) => {
@@ -256,6 +286,26 @@ describe("current review intent", () => {
     },
   );
 
+  it("commits cleared mutation state before closing after native cancellation", async () => {
+    vi.spyOn(desktopApi, "previewAdoption").mockResolvedValue({
+      selected_port_id: "first",
+      plan_sha256: "reviewed",
+    } as Preview);
+    vi.spyOn(desktopApi, "adopt").mockResolvedValue(null);
+    done.mockImplementation(() => {
+      expect(adoption.preview).toBeUndefined();
+      expect(adoption.applying).toBe(false);
+    });
+    await render();
+    await act(async () => {
+      await adoption.review();
+    });
+    await act(async () => {
+      await adoption.adopt();
+    });
+    expect(done).toHaveBeenCalledOnce();
+  });
+
   it("allows only one adoption request from duplicate events", async () => {
     vi.spyOn(desktopApi, "previewAdoption").mockResolvedValue({
       selected_port_id: "first",
@@ -273,6 +323,8 @@ describe("current review intent", () => {
       await adoption.adopt();
     });
     expect(desktopApi.adopt).toHaveBeenCalledTimes(1);
+    expect(adoption.preview).toBeUndefined();
+    expect(adoption.applying).toBe(true);
     await act(async () => {
       pending.resolve(null);
       await first;

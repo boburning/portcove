@@ -60,7 +60,11 @@ export async function adoptionReviewScenario({
       await input.clear();
       await input.sendKeys(original);
       await click(button("Review copy plan"));
-      await browser.wait(until.elementLocated(button("Continue to copy confirmation")), 15_000);
+      const continueButton = await browser.wait(
+        until.elementLocated(button("Continue to copy confirmation")),
+        15_000,
+      );
+      await browser.wait(until.elementIsEnabled(continueButton), 15_000);
     };
     await open();
     let text = await browser.findElement(dialog).getText();
@@ -95,7 +99,8 @@ export async function adoptionReviewScenario({
     await open();
     await writeFile(current, "changed after review");
     await click(button("Continue to copy confirmation"));
-    await browser.wait(until.elementLocated(button("Review copy plan")), 15_000);
+    const reset = await browser.wait(until.elementLocated(button("Review copy plan")), 15_000);
+    await browser.wait(until.elementIsEnabled(reset), 15_000);
     assert.equal(await readFile(current, "utf8"), "changed after review");
     const generation = (await invoke("get_bootstrap_status")).value.generation;
     const reviewed = await invoke("preview_adoption", {

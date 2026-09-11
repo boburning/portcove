@@ -28,6 +28,7 @@ const { values } = parseArgs({
     "preparation-cli": { type: "string" },
     "preparation-tool": { type: "string" },
     "artwork-only": { type: "boolean", default: false },
+    "adoption-only": { type: "boolean", default: false },
     "restart-cycles": { type: "string", default: "1" },
     "reload-cycles": { type: "string", default: "0" },
   },
@@ -52,8 +53,8 @@ if (!Number.isInteger(restartCycles) || restartCycles < 1 || restartCycles > 10)
 const reloadCycles = Number(values["reload-cycles"]);
 if (!Number.isInteger(reloadCycles) || reloadCycles < 0 || reloadCycles > 25)
   throw new Error("--reload-cycles must be 0..25");
-if (values["artwork-only"] && !values["preparation-cli"])
-  throw new Error("--artwork-only requires the owned preparation CLI/tool inputs");
+if ((values["artwork-only"] || values["adoption-only"]) && !values["preparation-cli"])
+  throw new Error("Focused fixture scenarios require the owned preparation CLI/tool inputs");
 if (!Number.isInteger(port) || port < 1024 || port > 65533)
   throw new Error("--port must be 1024..65533");
 const inputs = await Promise.all(
@@ -414,6 +415,7 @@ try {
       cli: values["preparation-cli"],
       tool: values["preparation-tool"],
       onlyArtwork: values["artwork-only"],
+      onlyAdoption: values["adoption-only"],
     });
   }
   if (reloadCycles)

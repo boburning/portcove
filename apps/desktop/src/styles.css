@@ -1630,6 +1630,29 @@ h2 {
   line-height: var(--leading-relaxed);
 }
 
+.detail-group {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-7);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--color-border);
+}
+
+.detail-group > h3 {
+  margin: 0;
+  font-size: var(--text-md);
+}
+
+.detail-group-content {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.detail-group-content > .detail-section,
+.detail-group-content > .readiness-card {
+  margin: 0;
+}
+
 .retired-notice {
   display: flex;
   align-items: flex-start;
@@ -1988,6 +2011,9 @@ select {
 }
 .primary-actions {
   margin-top: 16px;
+}
+.detail-inline-actions {
+  margin-top: 0;
 }
 .primary-actions button {
   min-height: 46px;

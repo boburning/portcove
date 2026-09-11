@@ -1005,7 +1005,7 @@ describe("desktop components", () => {
     expect(installed).not.toContain('<details class="advanced-settings" open="">');
     expect(installed).toContain("Saves and settings folder");
     expect(installed).toContain("C:/Portcove/user/sample");
-    expect(installed).toContain("Deferred / not completed");
+    expect(installed).toContain("No completed device test");
     expect(installed).toContain("Launch from another app");
     expect(installed).toContain("Finding the command-line app");
     expect(installed).not.toContain("portcove exec sample --");
@@ -1232,6 +1232,115 @@ describe("desktop components", () => {
     expect(html).toContain("Installation method");
     expect(html).toContain("Prepared source beside the game");
     expect(html).not.toContain("staged-source-portable");
+  });
+
+  it("orders port details by player task and distinguishes installed from eligible versions", () => {
+    const install = installRecord();
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={port}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+        status={{
+          ...portStatus(),
+          active: install,
+          channel: "stable",
+          update_policy: "notify",
+          user_data_root: "E:/Portcove/user/sample",
+          last_update_check: {
+            checked_at: 2,
+            check: {
+              port_id: port.id,
+              channel: "stable",
+              installed_version: install.version,
+              installed_runtime: null,
+              required_runtime: null,
+              installed_artifact: install.artifact,
+              update_available: true,
+              release: {
+                published_at: null,
+                version: "2.0",
+                channel: "stable",
+                asset: {
+                  name: "sample.zip",
+                  url: "https://example.com/sample.zip",
+                  size: 1,
+                  sha256: "a".repeat(64),
+                },
+              },
+            },
+          },
+        }}
+      />,
+    );
+    const headings = [
+      "Status and actions",
+      "Requirements",
+      "Installation and version",
+      "Updates",
+      "Saves and storage",
+      "Compatibility and testing",
+      "Project and release",
+      "Technical details",
+    ];
+    let previous = -1;
+    for (const heading of headings) {
+      const current = html.indexOf(heading);
+      expect(current, `${heading} is present`).toBeGreaterThan(previous);
+      previous = current;
+    }
+    expect(html).toContain("Installed version");
+    expect(html).toContain("Latest eligible release");
+    expect(html).toContain("2.0");
+    expect(html).toContain("E:/Portcove/user/sample");
+    expect(html.indexOf("Back up data")).toBeLessThan(html.indexOf("Technical details"));
+    expect(html).not.toContain("staged-source-portable");
+  });
+
+  it("does not present a stale channel check as the selected channel's eligible release", () => {
+    const install = installRecord();
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={port}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+        status={{
+          ...portStatus(),
+          active: install,
+          channel: "beta",
+          update_policy: "notify",
+          last_update_check: {
+            checked_at: 2,
+            check: {
+              port_id: port.id,
+              channel: "stable",
+              installed_version: install.version,
+              installed_runtime: null,
+              required_runtime: null,
+              installed_artifact: install.artifact,
+              update_available: true,
+              release: {
+                published_at: null,
+                version: "9.9-stale",
+                channel: "stable",
+                asset: {
+                  name: "sample.zip",
+                  url: "https://example.com/sample.zip",
+                  size: 1,
+                  sha256: "a".repeat(64),
+                },
+              },
+            },
+          },
+        }}
+      />,
+    );
+    expect(html).toContain("Selected channel");
+    expect(html).toContain("Beta");
+    expect(html).toContain("Unknown — check for updates");
+    expect(html).not.toContain("9.9-stale");
   });
 
   it("reveals eligible card targets only during native file drag and keeps a keyboard check in details", () => {
