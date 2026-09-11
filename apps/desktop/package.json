@@ -45,7 +45,7 @@
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
     "axe-core": "4.13.0",
-    "fallow": "^3.22.0",
+    "fallow": "^3.23.0",
     "jsdom": "^30.0.1",
     "json-schema-to-typescript": "16.0.0",
     "oxc-parser": "0.149.0",
