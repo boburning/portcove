@@ -18,7 +18,11 @@ use tough::{
     schema::{KeyHolder, PathPattern, PathSet, RoleKeys, RoleType, Root, Target},
 };
 
-use crate::{Catalog, ErrorCode, test_fixture::indexed_catalog_bundle};
+use crate::{
+    Catalog, DefinitionEligibilityOutcome, DefinitionEligibilityReason,
+    DefinitionPublisherObservation, DefinitionPublisherStatus, ErrorCode,
+    test_fixture::indexed_catalog_bundle,
+};
 
 use super::{
     DEFINITION_ROLE_PATHS, DefinitionHttpsTransport, DefinitionReplayDisposition,
@@ -37,6 +41,21 @@ fn later() -> Timestamp {
 
 fn earlier() -> Timestamp {
     Timestamp::new(0, 0).unwrap()
+}
+
+fn now_unix() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64
+}
+
+fn publisher(
+    candidate: &super::AuthenticatedDefinitionCandidate,
+    stable_id: &str,
+    status: DefinitionPublisherStatus,
+) -> DefinitionPublisherObservation {
+    DefinitionPublisherObservation::for_test(candidate, "official", stable_id, status).unwrap()
 }
 
 #[derive(Clone)]
@@ -344,6 +363,204 @@ async fn authenticated_candidate_projects_a_definition_published_after_the_clien
 }
 
 #[tokio::test]
+async fn composed_availability_returns_only_a_scoped_fresh_candidate_proof() {
+    let fixture = RepositoryFixture::new();
+    let (port_id, targets) = repository_targets();
+    let root = fixture
+        .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
+        .await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+
+    let available = candidate
+        .evaluate_availability(
+            "official",
+            &port_id,
+            None,
+            &publisher(&candidate, &port_id, DefinitionPublisherStatus::Scoped),
+        )
+        .unwrap();
+    assert_eq!(
+        available.eligibility().outcome,
+        DefinitionEligibilityOutcome::Eligible
+    );
+    let eligible = available.into_eligible().unwrap();
+    assert_eq!(
+        eligible.replay_disposition(),
+        DefinitionReplayDisposition::Initial
+    );
+    assert_eq!(eligible.replay_floor(), &candidate.replay_floor());
+    assert_eq!(eligible.provenance(), candidate.provenance());
+    assert_eq!(
+        eligible.publisher().status(),
+        DefinitionPublisherStatus::Scoped
+    );
+    assert_eq!(eligible.publisher().policy_revision(), 1);
+    assert_eq!(eligible.publisher().grant_id(), Some("test-official-grant"));
+    assert_eq!(
+        eligible.projection().catalog().port(&port_id).unwrap().id,
+        port_id
+    );
+
+    let safe_unscoped =
+        DefinitionPublisherObservation::unscoped(&candidate, "official", &port_id).unwrap();
+    assert_eq!(
+        safe_unscoped.root_sha256(),
+        candidate.provenance().root_sha256
+    );
+    assert_eq!(safe_unscoped.namespace(), "official");
+    assert_eq!(safe_unscoped.stable_id(), port_id);
+    assert_eq!(safe_unscoped.policy_revision(), 0);
+    assert_eq!(safe_unscoped.grant_id(), None);
+    assert_eq!(safe_unscoped.status(), DefinitionPublisherStatus::Unscoped);
+
+    for (publisher_status, outcome, reason) in [
+        (
+            DefinitionPublisherStatus::Unscoped,
+            DefinitionEligibilityOutcome::Escalate,
+            DefinitionEligibilityReason::PublisherScopeRequired,
+        ),
+        (
+            DefinitionPublisherStatus::Revoked,
+            DefinitionEligibilityOutcome::Hold,
+            DefinitionEligibilityReason::PublisherRevoked,
+        ),
+    ] {
+        let assessment = candidate
+            .evaluate_availability_at(
+                "official",
+                &port_id,
+                None,
+                &publisher(&candidate, &port_id, publisher_status),
+                now_unix(),
+            )
+            .unwrap();
+        assert_eq!(assessment.eligibility().outcome, outcome);
+        assert_eq!(assessment.eligibility().reason, reason);
+        assert!(assessment.into_eligible().is_none());
+    }
+
+    let stale = candidate
+        .evaluate_availability_at(
+            "official",
+            &port_id,
+            None,
+            &publisher(&candidate, &port_id, DefinitionPublisherStatus::Scoped),
+            now_unix() + 172_800,
+        )
+        .unwrap();
+    assert_eq!(
+        stale.eligibility().reason,
+        DefinitionEligibilityReason::MetadataStale
+    );
+    assert!(stale.into_eligible().is_none());
+
+    let mismatched_policy = candidate
+        .evaluate_availability_at(
+            "official",
+            "different-port",
+            None,
+            &publisher(&candidate, &port_id, DefinitionPublisherStatus::Scoped),
+            now_unix(),
+        )
+        .unwrap_err();
+    assert_eq!(mismatched_policy.code, ErrorCode::Conflict);
+
+    let other_fixture = RepositoryFixture::new();
+    let (_, other_targets) = repository_targets();
+    let other_root = other_fixture
+        .publish(&other_targets, true, &DEFINITION_ROLE_PATHS, later())
+        .await;
+    let other_candidate = acquire(&other_fixture, &other_root).await.unwrap();
+    let cross_repository = other_candidate
+        .evaluate_availability_at(
+            "official",
+            &port_id,
+            None,
+            &publisher(&candidate, &port_id, DefinitionPublisherStatus::Scoped),
+            now_unix(),
+        )
+        .unwrap_err();
+    assert_eq!(cross_repository.code, ErrorCode::Conflict);
+}
+
+#[tokio::test]
+async fn composed_availability_binds_replay_without_consuming_or_repairing_the_floor() {
+    let fixture = RepositoryFixture::new();
+    let (port_id, targets) = repository_targets();
+    let root = fixture
+        .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
+        .await;
+    let mut candidate = acquire(&fixture, &root).await.unwrap();
+    let floor = candidate.replay_floor();
+
+    let retry = candidate
+        .evaluate_availability_at(
+            "official",
+            &port_id,
+            Some(&floor),
+            &publisher(&candidate, &port_id, DefinitionPublisherStatus::Scoped),
+            now_unix(),
+        )
+        .unwrap()
+        .into_eligible()
+        .unwrap();
+    assert_eq!(
+        retry.replay_disposition(),
+        DefinitionReplayDisposition::ExactRetry
+    );
+
+    let mut newer_floor = floor.clone();
+    newer_floor.snapshot_version += 1;
+    newer_floor.snapshot_sha256 = "a".repeat(64);
+    let replay = candidate
+        .evaluate_availability_at(
+            "official",
+            &port_id,
+            Some(&newer_floor),
+            &publisher(&candidate, &port_id, DefinitionPublisherStatus::Scoped),
+            now_unix(),
+        )
+        .unwrap();
+    assert_eq!(
+        replay.eligibility().reason,
+        DefinitionEligibilityReason::MetadataReplay
+    );
+    assert!(replay.into_eligible().is_none());
+    assert_eq!(newer_floor.snapshot_version, 2);
+
+    let mut malformed = floor.clone();
+    malformed.snapshot_sha256 = "not-a-digest".into();
+    let error = candidate
+        .evaluate_availability_at(
+            "official",
+            &port_id,
+            Some(&malformed),
+            &publisher(&candidate, &port_id, DefinitionPublisherStatus::Scoped),
+            now_unix(),
+        )
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::State);
+
+    candidate.provenance.timestamp_version += 1;
+    candidate.provenance.timestamp_sha256 = "c".repeat(64);
+    let advance = candidate
+        .evaluate_availability_at(
+            "official",
+            &port_id,
+            Some(&floor),
+            &publisher(&candidate, &port_id, DefinitionPublisherStatus::Scoped),
+            now_unix(),
+        )
+        .unwrap()
+        .into_eligible()
+        .unwrap();
+    assert_eq!(
+        advance.replay_disposition(),
+        DefinitionReplayDisposition::Advance
+    );
+}
+
+#[tokio::test]
 async fn replay_evaluation_rejects_downgrade_and_same_version_equivocation() {
     let fixture = RepositoryFixture::new();
     let (_, targets) = repository_targets();
@@ -468,6 +685,37 @@ async fn unsupported_sibling_does_not_block_a_supported_definition() {
         .inspect_catalog_projection("official", "future-incompatible")
         .unwrap_err();
     assert_eq!(error.code, ErrorCode::Unsupported);
+
+    let unsupported = candidate
+        .evaluate_availability(
+            "official",
+            "future-incompatible",
+            None,
+            &publisher(
+                &candidate,
+                "future-incompatible",
+                DefinitionPublisherStatus::Scoped,
+            ),
+        )
+        .unwrap();
+    assert_eq!(
+        unsupported.eligibility().reason,
+        DefinitionEligibilityReason::EngineCapabilityRequired
+    );
+    assert!(unsupported.into_eligible().is_none());
+    assert!(
+        candidate
+            .evaluate_availability_at(
+                "official",
+                &port_id,
+                None,
+                &publisher(&candidate, &port_id, DefinitionPublisherStatus::Scoped),
+                now_unix(),
+            )
+            .unwrap()
+            .into_eligible()
+            .is_some()
+    );
 }
 
 #[tokio::test]

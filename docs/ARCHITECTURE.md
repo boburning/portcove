@@ -87,6 +87,18 @@ separate evidence and is not an input to the decision. The evaluator has no I/O 
 mutation; publisher grants, durable selection and adapter exposure remain later
 boundaries.
 
+`AuthenticatedDefinitionCandidate::evaluate_availability` composes the acquisition,
+entry, capability, complete catalog projection, replay and eligibility boundaries
+for one exact identity. Its only independent authority input is a typed publisher
+status obtained from installed policy and bound to the authenticated repository
+root, namespace and stable ID; that status is not deserializable from candidate
+content or reusable across repositories. A successful result carries a non-serializable
+`EligibleDefinitionCandidate` proof with the exact projection, authenticated
+provenance, replay disposition, proposed floor and identity-bound publisher
+observation, including its grant ID and policy revision. Held or escalated content
+cannot produce that proof. The proof remains inert until a later library
+transaction persists the selected projection and floor together.
+
 ## Engine template capability ownership
 
 Core owns the installed template/version inventory and pure requirement

@@ -251,6 +251,18 @@ floor; that must happen atomically with later catalog selection. This candidate
 does not select or replace a catalog, establish publisher grants or operation
 eligibility, install content, or provision a production root/repository.
 
+The composed availability assessment accepts an installed-policy publisher status
+bound to the authenticated repository root, namespace and stable ID, then derives
+the other availability facts from the authenticated candidate. It rechecks expiry
+using the core-owned clock at the assessment time, isolates
+unsupported capabilities, converts replay/equivocation into the stable
+`metadata_replay` hold and keeps malformed policy floors as state errors. Only a
+scoped, fresh, supported and replay-compatible projection yields the
+non-serializable eligible-candidate proof containing its exact projection,
+provenance, replay disposition, proposed floor and identity-bound grant ID/policy
+revision. Unscoped, revoked, stale or unsupported entries expose only the typed
+eligibility result. This proof still has no selection or persistence authority.
+
 The successor target bundle has its own versioned schema, independent of source
 catalog schema 2 and signed envelope format 1. Its outer index is bounded and
 strictly validated before entry processing. Each content-addressed entry includes
