@@ -1,7 +1,7 @@
 import { FailureDetails } from "./FailureDetails";
 import { ActivityDiagnostic } from "./ActivityDiagnostic";
 import { RecoveryReview } from "./RecoveryReview";
-import { errorText } from "../view-model";
+import { errorText, releaseChannelPresentation } from "../view-model";
 import { OperationCancellation } from "./OperationCancellation";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -108,7 +108,8 @@ export function UpdateCenter({
                 <div className="update-title">
                   <strong>{port.name}</strong>
                   <small>
-                    {status.channel} · {policyLabel(status.update_policy)}
+                    {releaseChannelPresentation(status.channel).label} ·{" "}
+                    {policyLabel(status.update_policy)}
                   </small>
                 </div>
                 <div className="update-version">
@@ -116,7 +117,7 @@ export function UpdateCenter({
                   <span>{status.active?.version}</span>
                 </div>
                 <div className="update-version">
-                  <small>Latest</small>
+                  <small>Latest eligible</small>
                   <span>{releaseLabel(outcome?.result)}</span>
                 </div>
                 <span className={`update-state ${state.tone}`}>{state.label}</span>
@@ -168,10 +169,10 @@ function ActivityHistory({
     <section className="activity-history">
       <div className="activity-heading">
         <div>
-          <p className="eyebrow">SHARED LEDGER</p>
+          <p className="eyebrow">ACTIVITY HISTORY</p>
           <h2>Recent activity</h2>
         </div>
-        <small>CLI and desktop operations use the same local history.</small>
+        <small>Completed, failed, and interrupted work recorded on this device.</small>
       </div>
       {activities.length === 0 ? (
         <div className="activity-empty">
@@ -355,29 +356,37 @@ function formatActivityTime(timestamp: number) {
 
 const unfinishedAfterSeconds = 24 * 60 * 60;
 
+const terminalActivityPresentations: ReadonlyMap<
+  string,
+  { state: string; label: string; icon: LucideIcon }
+> = new Map([
+  ["succeeded", { state: "succeeded", label: "Completed", icon: Check }],
+  ["failed", { state: "failed", label: "Failed", icon: AlertTriangle }],
+  ["cancelled", { state: "cancelled", label: "Cancelled", icon: CircleMinus }],
+]);
+
 function activityPresentation(activity: ActivityRecord) {
-  if (activity.status !== "running")
-    return {
-      state: activity.status,
-      label: activity.status,
-      time: `Started ${formatActivityTime(activity.started_at)}`,
-      icon:
-        activity.status === "succeeded"
-          ? Check
-          : activity.status === "cancelled"
-            ? CircleMinus
-            : AlertTriangle,
+  if (activity.status !== "running") {
+    const presentation = terminalActivityPresentations.get(activity.status) ?? {
+      state: "unknown",
+      label: "Status unavailable",
+      icon: AlertTriangle,
     };
+    return {
+      ...presentation,
+      time: `Started ${formatActivityTime(activity.started_at)}`,
+    };
+  }
   if (Date.now() / 1000 - activity.started_at >= unfinishedAfterSeconds)
     return {
       state: "unfinished",
-      label: "unfinished",
+      label: "Needs review",
       time: "No completion recorded",
       icon: AlertTriangle,
     };
   return {
     state: "running",
-    label: "running",
+    label: "In progress",
     time: "In progress",
     icon: LoaderCircle,
   };
