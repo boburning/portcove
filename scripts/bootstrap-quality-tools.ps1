@@ -2,8 +2,45 @@ param([switch]$IncludeDeep)
 
 $ErrorActionPreference = "Stop"
 $runningOnWindows = $env:OS -eq "Windows_NT"
-$manifestPath = Join-Path (Resolve-Path (Join-Path $PSScriptRoot "..")) ".github\quality-tools.json"
+$projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$manifestPath = Join-Path $projectRoot ".github\quality-tools.json"
 $qualityManifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+
+$requiredAqua = (Get-Content -LiteralPath (Join-Path $projectRoot ".aqua-version") -Raw).Trim()
+$aquaCommand = Get-Command aqua -ErrorAction SilentlyContinue
+if (-not $aquaCommand) {
+    throw "aqua $requiredAqua is required; install it before running this bootstrap"
+}
+$aquaReported = (& aqua --version 2>&1 | Out-String).Trim()
+if ($LASTEXITCODE -ne 0 -or $aquaReported -notmatch "(?<![0-9])$([regex]::Escape($requiredAqua.TrimStart('v')))(?![0-9])") {
+    throw "aqua $requiredAqua is required; reported: $aquaReported"
+}
+
+$previousChecksum = $env:AQUA_ENFORCE_CHECKSUM
+$previousRequiredChecksum = $env:AQUA_ENFORCE_REQUIRE_CHECKSUM
+try {
+    $env:AQUA_ENFORCE_CHECKSUM = "true"
+    $env:AQUA_ENFORCE_REQUIRE_CHECKSUM = "true"
+    & aqua install
+    if ($LASTEXITCODE -ne 0) { throw "aqua could not install the pinned quality tools" }
+}
+finally {
+    $env:AQUA_ENFORCE_CHECKSUM = $previousChecksum
+    $env:AQUA_ENFORCE_REQUIRE_CHECKSUM = $previousRequiredChecksum
+}
+
+if ($runningOnWindows) {
+    $resourceFile = Join-Path $projectRoot ".config\powershell-resources.psd1"
+    $resources = Import-PowerShellDataFile -LiteralPath $resourceFile
+    $requiredPssa = [string]$resources.PSScriptAnalyzer.version
+    if (-not (Get-Module -ListAvailable -Name PSScriptAnalyzer | Where-Object Version -EQ $requiredPssa)) {
+        Install-PSResource -RequiredResourceFile $resourceFile -Scope CurrentUser -TrustRepository
+    }
+    if (-not (Get-Module -ListAvailable -Name PSScriptAnalyzer | Where-Object Version -EQ $requiredPssa)) {
+        throw "PSScriptAnalyzer did not install at required version $requiredPssa"
+    }
+    Write-Output "PSScriptAnalyzer ready: $requiredPssa"
+}
 
 function ConvertTo-QualityTool([object]$Definition) {
     return @{
@@ -60,9 +97,6 @@ function Install-QualityTool([hashtable]$Tool) {
 foreach ($tool in $requiredTools) {
     Install-QualityTool $tool
 }
-
-& node scripts/quality-tools.mjs --install-managed required
-if ($LASTEXITCODE -ne 0) { throw "managed quality-tool installation failed" }
 
 $optionalFailures = @()
 if ($IncludeDeep) {

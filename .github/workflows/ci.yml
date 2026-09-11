@@ -153,8 +153,9 @@ jobs:
       - name: Test development diagnostics and evidence
         run: node scripts/dev-storage.mjs run -- node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/dev-doctor.test.mjs scripts/development-evidence.test.mjs scripts/native-session.test.mjs
       - name: Lint PowerShell scripts
+        shell: pwsh
         run: |
-          node scripts/quality-tools.mjs --install-managed psscriptanalyzer
+          Install-PSResource -RequiredResourceFile .config/powershell-resources.psd1 -Scope CurrentUser -TrustRepository
           node scripts/run-powershell-lint.mjs
           node scripts/lint-tools.integration.mjs psscriptanalyzer
 
@@ -363,6 +364,9 @@ jobs:
 
   rust-quality:
     runs-on: ubuntu-latest
+    env:
+      AQUA_ENFORCE_CHECKSUM: "true"
+      AQUA_ENFORCE_REQUIRE_CHECKSUM: "true"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Read quality tool pins
@@ -386,6 +390,15 @@ jobs:
         uses: taiki-e/install-action@84f5ac3124727fb3d284d4d22ee9ab3654fd09a6 # v2
         with:
           tool: ${{ steps.quality-pins.outputs.required_prebuilt }}
+      - name: Read pinned aqua version
+        id: aqua-version
+        shell: bash
+        run: echo "version=$(tr -d '\r\n' < .aqua-version)" >> "$GITHUB_OUTPUT"
+      - name: Install pinned aqua
+        uses: aquaproj/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e # v4.0.5
+        with:
+          aqua_version: ${{ steps.aqua-version.outputs.version }}
+          enable_aqua_install: "false"
       - name: Check cached pinned rscheck version
         id: rscheck-tool
         shell: bash
@@ -404,9 +417,9 @@ jobs:
         run: ./scripts/bootstrap-quality-tools.sh
       - name: Lint repository scripts and workflows
         run: |
-          node scripts/quality-tools.mjs --run ruff -- check apps/desktop/assets/brand/models/v2
-          node scripts/quality-tools.mjs --run shellcheck -- --severity=warning scripts/bootstrap-quality-tools.sh
-          node scripts/quality-tools.mjs --run actionlint --
+          aqua exec -- ruff check apps/desktop/assets/brand/models/v2
+          aqua exec -- shellcheck --severity=warning scripts/bootstrap-quality-tools.sh
+          node scripts/run-actionlint.mjs
           node scripts/lint-tools.integration.mjs ruff shellcheck actionlint
       - name: Test machine CLI contract on Linux
         run: cargo nextest run --locked -p portcove-cli --test machine_contract

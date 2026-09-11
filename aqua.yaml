@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/aquaproj/aqua/main/json-schema/aqua-yaml.json
+registries:
+  - type: standard
+    ref: v4.559.0
+
+checksum:
+  enabled: true
+  require_checksum: true
+
+packages:
+  - name: astral-sh/ruff@0.16.6
+  - name: rhysd/actionlint@v1.7.12
+  - name: koalaman/shellcheck@v0.11.0
