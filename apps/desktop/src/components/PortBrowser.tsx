@@ -70,6 +70,7 @@ export function PortBrowser({
       <div
         className="filter-row"
         data-focus-group
+        role="group"
         aria-label={view === "library" ? "Library filters" : "Release channel filters"}
       >
         {filterOptions(view).map((item) => (
