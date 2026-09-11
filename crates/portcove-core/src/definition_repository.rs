@@ -190,10 +190,40 @@ impl From<&AuthenticatedDefinitionProvenance> for DefinitionReplayFloor {
 }
 
 impl DefinitionReplayFloor {
-    fn evaluate(
+    pub(crate) fn validate(&self) -> Result<()> {
+        for (role, version, digest) in [
+            ("root", self.root_version, self.root_sha256.as_str()),
+            (
+                "timestamp",
+                self.timestamp_version,
+                self.timestamp_sha256.as_str(),
+            ),
+            (
+                "snapshot",
+                self.snapshot_version,
+                self.snapshot_sha256.as_str(),
+            ),
+            (
+                "targets",
+                self.targets_version,
+                self.targets_sha256.as_str(),
+            ),
+            (
+                "official-definitions",
+                self.definitions_version,
+                self.definitions_sha256.as_str(),
+            ),
+        ] {
+            validate_metadata_identity(role, version, digest)?;
+        }
+        validate_sha256("accepted index", &self.index_sha256)
+    }
+
+    pub(crate) fn evaluate(
         &self,
         candidate: &AuthenticatedDefinitionProvenance,
     ) -> Result<DefinitionReplayDisposition> {
+        self.validate()?;
         let roles = [
             (
                 "root",
@@ -234,7 +264,6 @@ impl DefinitionReplayFloor {
         let mut advanced = false;
         for (role, accepted_version, accepted_digest, candidate_version, candidate_digest) in roles
         {
-            validate_metadata_identity(role, accepted_version, accepted_digest)?;
             validate_metadata_identity(role, candidate_version, candidate_digest)?;
             if candidate_version < accepted_version {
                 return Err(PortcoveError::verification(
@@ -253,7 +282,6 @@ impl DefinitionReplayFloor {
             }
             advanced |= candidate_version > accepted_version;
         }
-        validate_sha256("accepted index", &self.index_sha256)?;
         validate_sha256("candidate index", &candidate.index_sha256)?;
         if candidate.definitions_version == self.definitions_version
             && candidate.index_sha256 != self.index_sha256

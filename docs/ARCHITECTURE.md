@@ -99,6 +99,16 @@ observation, including its grant ID and policy revision. Held or escalated conte
 cannot produce that proof. The proof remains inert until a later library
 transaction persists the selected projection and floor together.
 
+SQLite schema 26 adds the inert successor-selection boundary. Library assessment
+reads the installed publisher record and accepted replay floor from one snapshot;
+an immediate selection transaction then rechecks that exact policy revision,
+grant, root, identity, metadata expiration and the latest floor before writing the
+exact definition snapshot and new floor together. Stored state is strictly decoded
+and reinterpreted from its original index, entry and contract bytes on every
+status read. An exact retry is idempotent, and any failed or interrupted statement
+leaves both the prior selection and floor unchanged. Production has no grant writer
+yet, and the runtime catalog loader does not consume this state yet.
+
 ## Engine template capability ownership
 
 Core owns the installed template/version inventory and pure requirement

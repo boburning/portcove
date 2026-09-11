@@ -25,8 +25,17 @@ pub(crate) struct DefinitionSnapshot {
 }
 
 impl DefinitionSnapshot {
+    pub(crate) fn namespace(&self) -> &str {
+        &self.namespace
+    }
+
     pub(crate) fn port_id(&self) -> &str {
         &self.stable_id
+    }
+
+    pub(crate) fn index_sha256(&self) -> String {
+        use sha2::{Digest, Sha256};
+        hex::encode(Sha256::digest(self.index_json.as_bytes()))
     }
 
     pub(crate) fn validate_bounds(&self) -> Result<()> {
@@ -44,15 +53,18 @@ impl DefinitionSnapshot {
     }
 
     pub(crate) fn catalog(&self) -> Result<Catalog> {
+        Ok(self.projection()?.catalog)
+    }
+
+    pub(crate) fn projection(&self) -> Result<DefinitionCatalogProjection> {
         self.validate_bounds()?;
         let index = DefinitionContentIndex::parse(self.index_json.as_bytes())?;
-        let projection = index.inspect_catalog_projection(
+        index.inspect_catalog_projection(
             &self.namespace,
             &self.stable_id,
             self.entry_json.as_bytes(),
             self.contract_json.as_bytes(),
-        )?;
-        Ok(projection.catalog)
+        )
     }
 }
 
@@ -82,6 +94,10 @@ impl DefinitionCatalogProjection {
     /// Existing catalog validation establishes semantics, never publisher trust.
     pub fn catalog(&self) -> &Catalog {
         &self.catalog
+    }
+
+    pub(crate) fn snapshot(&self) -> &DefinitionSnapshot {
+        &self.snapshot
     }
 }
 

@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 25;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 26;
 
 struct Migration {
     version: i64,
@@ -173,6 +173,12 @@ const MIGRATIONS: &[Migration] = &[
         name: "exact successor contract writer protocol",
         apply: migration_25,
         verify: verify_migration_23,
+    },
+    Migration {
+        version: 26,
+        name: "atomic successor definition selection",
+        apply: crate::definition_candidate::selection::migrate,
+        verify: verify_migration_26,
     },
 ];
 
@@ -881,6 +887,32 @@ fn migration_25(transaction: &Transaction<'_>) -> Result<()> {
     verify_migration_23(transaction)
 }
 
+fn verify_migration_26(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "definition_publisher_policy",
+        &[
+            "namespace",
+            "stable_id",
+            "root_sha256",
+            "policy_revision",
+            "grant_id",
+            "status",
+        ],
+    )?;
+    require_columns(
+        connection,
+        "definition_selection_state",
+        &[
+            "singleton",
+            "revision",
+            "replay_floor_json",
+            "active_json",
+            "previous_json",
+        ],
+    )
+}
+
 fn verify_migration_24(connection: &Connection) -> Result<()> {
     require_columns(
         connection,
@@ -1102,11 +1134,11 @@ mod tests {
     }
 
     #[test]
-    fn successor_writer_protocol_waits_for_schema_24_clients() {
+    fn selection_writer_protocol_waits_for_schema_25_clients() {
         let temporary = tempdir().unwrap();
         let root = temporary.path();
         prepare_root(root);
-        migrate_to(root, 24).unwrap();
+        migrate_to(root, 25).unwrap();
         let previous = crate::library_access::LibraryLease::acquire(root).unwrap();
         assert_eq!(
             crate::Library::open(root).unwrap_err().code,
@@ -1114,13 +1146,13 @@ mod tests {
         );
         assert_eq!(
             recorded_versions(&connect(root).unwrap()).unwrap().last(),
-            Some(&24)
+            Some(&25)
         );
         drop(previous);
         let current = crate::Library::open(root).unwrap();
         assert_eq!(
             recorded_versions(&connect(root).unwrap()).unwrap().last(),
-            Some(&25)
+            Some(&CURRENT_SCHEMA_VERSION)
         );
         drop(current);
     }
@@ -1265,6 +1297,7 @@ mod tests {
         schema_22: 22,
         schema_23: 23,
         schema_24: 24,
+        schema_25: 25,
     }
 
     #[test]

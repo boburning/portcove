@@ -263,6 +263,17 @@ provenance, replay disposition, proposed floor and identity-bound grant ID/polic
 revision. Unscoped, revoked, stale or unsupported entries expose only the typed
 eligibility result. This proof still has no selection or persistence authority.
 
+Schema 26 persists the first successor selection state. Core reads the current
+publisher policy and replay floor when it assesses a candidate. Consuming the
+result opens an immediate SQLite transaction and rechecks the policy revision,
+grant ID, repository root, definition identity, metadata expiration and newest
+floor before storing the exact interpreted snapshot and proposed floor in the
+same row. A repeated exact selection does not advance the state revision. A
+policy change, downgrade, equivocation, malformed stored value or failed commit
+preserves the previous selected bytes and floor. The durable record is still
+inert: production grant provisioning and runtime-loader activation remain
+separate protected and migration-acceptance boundaries.
+
 The successor target bundle has its own versioned schema, independent of source
 catalog schema 2 and signed envelope format 1. Its outer index is bounded and
 strictly validated before entry processing. Each content-addressed entry includes
