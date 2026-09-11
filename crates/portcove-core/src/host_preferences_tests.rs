@@ -116,14 +116,17 @@ fn preference_and_lock_symlinks_do_not_redirect_writes() {
 #[test]
 fn concurrent_set_and_reset_publish_complete_documents() {
     let temp = tempfile::tempdir().unwrap();
-    let store = HostPreferenceStore::new(temp.path().join("preferences.json")).unwrap();
+    let path = temp.path().join("preferences.json");
+    let store = HostPreferenceStore::new(path.clone()).unwrap();
+    let stores = (0..8)
+        .map(|_| HostPreferenceStore::new(path.clone()).unwrap())
+        .collect::<Vec<_>>();
     let selected = temp.path().join("selected");
     fs::create_dir(&selected).unwrap();
     let barrier = std::sync::Arc::new(std::sync::Barrier::new(8));
     std::thread::scope(|scope| {
-        for worker in 0..8 {
+        for (worker, store) in stores.into_iter().enumerate() {
             let barrier = barrier.clone();
-            let store = &store;
             let selected = &selected;
             scope.spawn(move || {
                 barrier.wait();
@@ -143,6 +146,39 @@ fn concurrent_set_and_reset_publish_complete_documents() {
             || result.library_root == Some(fs::canonicalize(&selected).unwrap())
     );
     assert!(selected.is_dir());
+}
+
+#[test]
+fn separately_opened_stores_share_only_the_same_path_lock() {
+    let temp = tempfile::tempdir().unwrap();
+    let first_path = temp.path().join("first.json");
+    let first = HostPreferenceStore::new(first_path.clone()).unwrap();
+    let reopened = HostPreferenceStore::new(first_path).unwrap();
+    let second = HostPreferenceStore::new(temp.path().join("second.json")).unwrap();
+
+    assert!(Arc::ptr_eq(&first.process_lock, &reopened.process_lock));
+    assert!(!Arc::ptr_eq(&first.process_lock, &second.process_lock));
+}
+
+#[test]
+fn poisoned_process_lock_fails_before_publishing_preferences() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("preferences.json");
+    let store = HostPreferenceStore::new(path.clone()).unwrap();
+    let process_lock = store.process_lock.clone();
+    assert!(
+        std::thread::spawn(move || {
+            let _guard = process_lock.lock().unwrap();
+            panic!("poison preference process lock");
+        })
+        .join()
+        .is_err()
+    );
+
+    let error = store.reset().unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::State);
+    assert!(error.message.contains("process lock poisoned"));
+    assert!(!path.exists());
 }
 
 #[test]
