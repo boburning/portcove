@@ -15,7 +15,20 @@ pr-check *args:
     node scripts/pr-conventions.mjs --pr {{args}}
 
 development-tools:
-    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/dev-doctor.test.mjs scripts/development-evidence.test.mjs scripts/native-session.test.mjs
+    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/dev-doctor.test.mjs scripts/development-evidence.test.mjs scripts/local-validation.test.mjs scripts/native-session.test.mjs
+
+# Fast local loop. Required GitHub CI remains the exhaustive merge gate.
+local-check *args:
+    {{storage}} node scripts/local-validation.mjs check {{args}}
+
+test-rust *args:
+    {{storage}} node scripts/local-validation.mjs test-rust {{args}}
+
+test-ui-related *args:
+    {{storage}} node scripts/local-validation.mjs test-ui-related {{args}}
+
+test-node *args:
+    {{storage}} node scripts/local-validation.mjs test-node {{args}}
 
 desktop-test *args:
     {{storage}} node apps/desktop/scripts/desktop-test.mjs {{args}}

@@ -36,18 +36,56 @@ accepted move, using fresh geometry rather than a stale layout cache. The harnes
 restores its injected input and DOM fixture afterward. These measurements are
 native rendering evidence, not physical-controller or human-navigation evidence.
 
-| Scope                               | Command               | Purpose                                                                                                                                       |
-| ----------------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Format supported files              | `just fmt`            | rewrite Rust, frontend, configuration, and active documentation with the repository-pinned formatters                                         |
-| Verify formatting                   | `just fmt-check`      | check the same formatting contract without changing files                                                                                     |
-| Rust change                         | `just check-rust`     | format, compile, Clippy, tests, unused dependencies/files, and crate boundaries                                                               |
-| UI change                           | `just check-ui`       | formatting, typed ESLint, Stylelint, production build, tests, and the existing Fallow gate                                                    |
-| Playnite reference change (Windows) | `just playnite-check` | locked SDK/reference-assembly builds, literal process arguments and public protocol regression fixtures; optional isolated compiled-CLI reads |
-| Cross-stack or release change       | `just check`          | both fast loops, script/workflow lint, and deterministic package-policy, staging, checksum, and release-note tests                            |
-| Substantial completion              | `just audit`          | fast loop plus dependency policy and rscheck                                                                                                  |
-| Large structural change             | `just deep`           | audit plus advisory Hawk and semdup analysis                                                                                                  |
-| Explicit cycle investigation        | `just cycles`         | optional advisory module-cycle report                                                                                                         |
-| Critical core test review           | `just mutants`        | optional mutation analysis for `portcove-core`                                                                                                |
+| Scope                                | Command                        | Purpose                                                                                                                                       |
+| ------------------------------------ | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Plan or run a coherent local change  | `just local-check [--plan]`    | select formatting, affected Rust packages, related UI tests, and exact tooling contracts from the complete local diff                         |
+| Focus a Rust edit-test loop          | `just test-rust <args>`        | pass an explicit package, target, or test-name selection through the pinned nextest fixture runner                                            |
+| Focus a UI edit-test loop            | `just test-ui-related <files>` | run Vitest tests related through the import graph to explicit changed source files with the standard isolation and timing contract            |
+| Focus a Node tooling edit-test loop  | `just test-node <test-files>`  | run explicit Node test files with the standard hang guard and duration reporter                                                               |
+| Format supported files               | `just fmt`                     | rewrite Rust, frontend, configuration, and active documentation with the repository-pinned formatters                                         |
+| Verify all formatting                | `just fmt-check`               | check the complete formatting contract without changing files                                                                                 |
+| Exhaustive local Rust investigation  | `just check-rust`              | format, compile, Clippy, tests, unused dependencies/files, and crate boundaries                                                               |
+| Exhaustive local UI investigation    | `just check-ui`                | formatting, typed ESLint, Stylelint, production build, tests, and the existing Fallow gate                                                    |
+| Playnite reference change (Windows)  | `just playnite-check`          | locked SDK/reference-assembly builds, literal process arguments and public protocol regression fixtures; optional isolated compiled-CLI reads |
+| Exhaustive local cross-stack check   | `just check`                   | Rust, UI, script/workflow lint, and deterministic package-policy, staging, checksum, and release-note tests                                   |
+| Release or explicit transition audit | `just audit`                   | exhaustive local check plus dependency policy and rscheck                                                                                     |
+| Large structural investigation       | `just deep`                    | audit plus advisory Hawk and semdup analysis                                                                                                  |
+| Explicit cycle investigation         | `just cycles`                  | optional advisory module-cycle report                                                                                                         |
+| Critical core test review            | `just mutants`                 | optional mutation analysis for `portcove-core`                                                                                                |
+
+## Local feedback and hosted authority
+
+Portcove uses three validation tiers. The inner loop runs only the test or test
+files that exercise the edit. A coherent pre-push check uses `just local-check`,
+which compares the merge base with `origin/main` by default and includes
+committed branch changes, staged and unstaged changes, renames, deletions, and
+non-ignored untracked files. Pass `--base <revision>` when another reviewed base
+is intentional, or `--plan` to inspect the exact selection without executing it.
+
+The selector always checks whitespace and changed supported-file formatting.
+It runs affected Rust packages rather than the workspace, uses Vitest's import
+graph for UI sources, and maps repository scripts and workflows to their exact
+contract tests. Root Cargo/toolchain changes compile and lint the workspace and
+run dependency policy without executing every local test. Combined changes use
+the union of their scopes. An unknown path is a hard selection error: add and
+test its narrow rule rather than silently passing or falling back to the full
+suite.
+
+A typical warm single-layer local check targets less than two minutes and prints
+every selected stage and elapsed time. The target is diagnostic rather than a
+reason to omit assertions. Open or update a draft pull request after the first
+coherent focused pass so required CI can run while review and remaining work
+continue. Superseded hosted runs are cancelled by the workflow concurrency
+contract.
+
+Required GitHub CI remains the exhaustive cross-platform merge gate. It must
+pass on the exact reviewed head; a local full suite does not replace it. Ordinary
+pull requests do not repeat `just check` or `just audit` merely to duplicate that
+coverage. Aggregate local commands remain useful for release preflight, an
+explicitly named acceptance requirement, a validation-contract transition, or
+diagnosing a hosted failure. Native desktop, installer, recovery, security,
+physical-platform, and human evidence remains separate and is still required
+when the issue's acceptance scope calls for it.
 
 ## Formatting contract
 
