@@ -1,11 +1,14 @@
 # Development tools
 
 `just doctor` reads the current host and emits a concise prerequisite report.
-`node scripts/dev-doctor.mjs --json` emits format version 1: workspace, platform,
-tools, storage, and Windows compiler candidates. Required missing or mismatched
-tools and storage failures return exit 1. Optional tools do not block readiness.
-Raw subprocess output and environment variables are not dumped. The command does
-not install tools, create output directories or modify host configuration.
+Use `just doctor --profile desktop` when native desktop automation is required.
+`just doctor --json` emits format version 2: workspace, platform, selected profile,
+tools, resolved checkout-cache paths, storage, and Windows compiler candidates.
+Required missing or mismatched tools and storage failures return exit 1. Optional
+tools do not block readiness. Raw subprocess output and environment variables are
+not dumped. The command does not install tools, create output directories, or
+modify host configuration. Every missing cached prerequisite includes a safe
+bootstrap command in the human-readable or JSON report.
 
 The doctor reads `.node-version`, the desktop package-manager declaration, the
 Rust quality manifest, `.aqua-version`, `aqua.yaml`, and the PowerShell resource
@@ -14,17 +17,25 @@ proof of Cargo's auto-selected linker. Inspect a verbose native build when
 compiler selection matters. Keep each worktree's Cargo target separate and use
 the existing development-storage wrapper for heavy commands.
 
-Install the exact aqua release named by `.aqua-version` and make `aqua` available
-on `PATH` before running either quality bootstrap. The repository does not install
-or upgrade aqua on developer machines. The bootstrap verifies that prerequisite,
-then `aqua install` provisions the checksum-locked Ruff, actionlint and ShellCheck
-versions from `aqua.yaml` for the current Windows, Linux or macOS architecture.
-On Windows, the PowerShell bootstrap also installs exact PSScriptAnalyzer 1.25.0
-from PSGallery through the standard `.config/powershell-resources.psd1`
-PSResourceGet contract. Other hosts report it as not applicable because required
-PowerShell coverage runs in Windows CI. Run `just check-ui` for Oxlint, Oxfmt,
-and Stylelint, or `just script-lint` for Python, shell, workflow and PowerShell lint
-as a group.
+On Windows, run `./scripts/bootstrap-quality-tools.ps1`. It downloads the exact
+Aqua release named by `.aqua-version` from Aqua's official release origin, verifies
+the checked-in architecture-specific SHA-256, and provisions checksum-locked Ruff,
+actionlint, and ShellCheck versions. Rust quality tools and PSScriptAnalyzer are
+also resolved from repository pins. Verified payloads are reused below
+`%LOCALAPPDATA%\Portcove\tool-cache`; each checkout receives only small ignored
+shims in `work/tool-bin`. Repository commands prepend those shims and set Aqua and
+PowerShell module paths only for their child processes. The bootstrap never changes
+the persistent user or machine `PATH` or environment.
+
+Linux and macOS retain `./scripts/bootstrap-quality-tools.sh`. A checkout with
+different pins resolves a different content-keyed Aqua root while sharing identical
+versioned payloads. A failed download, checksum mismatch, unsupported architecture,
+partial extraction, or invalid cached receipt fails closed. The previous verified
+payload remains in place. Run the bootstrap again to reuse cache hits; no download
+or environment mutation is performed for already verified versions.
+
+Run `just check-ui` for Oxlint, Oxfmt, and Stylelint, or `just script-lint` for
+Python, shell, workflow, and PowerShell lint as a group.
 
 ## Skills
 
@@ -37,8 +48,12 @@ Codex skill directory and can be used outside Portcove.
 
 ## Native desktop smoke tests
 
-Install `tauri-driver` 2.0.6 and a Microsoft Edge WebDriver matching the installed
-WebView2 runtime on Windows. Linux needs WebKitWebDriver and a graphical session.
+Run `./scripts/bootstrap-quality-tools.ps1 -Desktop` to cache pinned
+`tauri-driver` and, on Windows, detect the installed WebView2 runtime and provision
+the corresponding Microsoft EdgeDriver. The bootstrap verifies the reported
+driver/runtime version and Microsoft's Authenticode signature. Ambiguous runtime
+discovery or any verification failure is fatal. Linux needs WebKitWebDriver and a
+graphical session.
 The external driver path adds no automation plugin to the product. Native macOS
 execution is not supported by this harness.
 The pinned Selenium client connects to the explicitly started driver server;
@@ -50,10 +65,12 @@ wrapper (`pnpm --dir apps/desktop build`, then `cargo build -p portcove-desktop
 cannot establish the packaged-assets smoke claim. Then run:
 
 ```powershell
-just desktop-test --app <absolute-desktop-executable> --driver <absolute-tauri-driver> --native-driver <absolute-platform-driver> --output <new-absolute-directory>
+just desktop-test --app <absolute-desktop-executable> --output <new-absolute-directory>
 ```
 
-The output parent must already exist. `--port` defaults to 4444 and the native
+Cached drivers are the default. Explicit absolute `--driver` and `--native-driver`
+overrides remain available for controlled qualification. The output parent must
+already exist. `--port` defaults to 4444 and the native
 driver uses the following port; choose unused ports. The new output directory
 contains an isolated library, host preference file, WebView2 profile on Windows,
 screenshots, bounded driver logs, accessibility results and `evidence.json`.

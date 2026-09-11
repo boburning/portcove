@@ -144,7 +144,7 @@ jobs:
       - name: Test Windows qualification session integration
         run: node --test scripts/windows-qualification-session.integration.test.mjs
       - name: Test development diagnostics and evidence
-        run: node scripts/dev-storage.mjs run -- node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/dev-doctor.test.mjs scripts/development-evidence.test.mjs scripts/local-validation.test.mjs scripts/native-session.test.mjs
+        run: node scripts/dev-storage.mjs run -- node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/dev-doctor.test.mjs scripts/development-cli-help.test.mjs scripts/development-evidence.test.mjs scripts/local-validation.test.mjs scripts/native-session.test.mjs scripts/tool-cache.test.mjs
       - name: Lint PowerShell scripts
         shell: pwsh
         run: |
@@ -380,10 +380,10 @@ jobs:
         run: ./scripts/bootstrap-quality-tools.sh
       - name: Lint repository scripts and workflows
         run: |
-          aqua exec -- ruff check apps/desktop/assets/brand/models/v2
-          aqua exec -- shellcheck --severity=warning scripts/bootstrap-quality-tools.sh scripts/install-linux-desktop-prerequisites.sh
-          node scripts/run-actionlint.mjs
-          node scripts/lint-tools.integration.mjs ruff shellcheck actionlint
+          node scripts/dev-storage.mjs run -- aqua exec -- ruff check apps/desktop/assets/brand/models/v2
+          node scripts/dev-storage.mjs run -- aqua exec -- shellcheck --severity=warning scripts/bootstrap-quality-tools.sh scripts/install-linux-desktop-prerequisites.sh
+          node scripts/dev-storage.mjs run -- node scripts/run-actionlint.mjs
+          node scripts/dev-storage.mjs run -- node scripts/lint-tools.integration.mjs ruff shellcheck actionlint
       - name: Test machine CLI contract on Linux
         run: cargo nextest run --locked -p portcove-cli --test machine_contract
       - name: Test backup durability contract on Linux

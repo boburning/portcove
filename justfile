@@ -7,15 +7,15 @@ default: check
 preflight:
     node scripts/dev-storage.mjs preflight
 
-doctor:
-    node scripts/dev-doctor.mjs
+doctor *args:
+    node scripts/dev-doctor.mjs {{args}}
 
 # Advisory pull request metadata check; requires GitHub authentication.
 pr-check *args:
     node scripts/pr-conventions.mjs --pr {{args}}
 
 development-tools:
-    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/dev-doctor.test.mjs scripts/development-evidence.test.mjs scripts/local-validation.test.mjs scripts/native-session.test.mjs
+    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/dev-doctor.test.mjs scripts/development-cli-help.test.mjs scripts/development-evidence.test.mjs scripts/local-validation.test.mjs scripts/native-session.test.mjs scripts/tool-cache.test.mjs
 
 # Fast local loop. Required GitHub CI remains the exhaustive merge gate.
 local-check *args:
@@ -31,7 +31,7 @@ test-node *args:
     {{storage}} node scripts/local-validation.mjs test-node {{args}}
 
 desktop-test *args:
-    {{storage}} node apps/desktop/scripts/desktop-test.mjs {{args}}
+    {{storage}} node scripts/desktop-test-cli.mjs {{args}}
 
 # Windows external-reference client; requires Visual Studio Build Tools.
 playnite-check *args:

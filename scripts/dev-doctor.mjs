@@ -3,16 +3,23 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnCommand, getPaths, preflight, minimumFreeGiB } from "./dev-storage.mjs";
 import { loadQualityManifest } from "./quality-tools.mjs";
+import {
+  cachedDesktopDrivers,
+  checkoutToolEnvironment,
+  readToolState,
+  toolCachePaths,
+} from "./tool-cache.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 
-function aquaToolPaths(command) {
+function aquaToolPaths(command, environment) {
   try {
     const result = spawnCommand("aqua", ["which", command], {
       cwd: root,
       encoding: "utf8",
       windowsHide: true,
       timeout: 15_000,
+      env: environment,
     });
     return result.status === 0 && result.stdout.trim() ? [result.stdout.trim()] : [];
   } catch {
@@ -20,7 +27,7 @@ function aquaToolPaths(command) {
   }
 }
 
-function aquaDefinitions() {
+function aquaDefinitions(environment) {
   const contents = readFileSync(path.join(root, "aqua.yaml"), "utf8");
   const commands = {
     "astral-sh/ruff": ["ruff", "--version"],
@@ -35,7 +42,8 @@ function aquaDefinitions() {
         id: command[0],
         command: ["aqua", "exec", "--", ...command],
         version: version.replace(/^v/u, ""),
-        paths: aquaToolPaths(command[0]),
+        paths: aquaToolPaths(command[0], environment),
+        remediation: "./scripts/bootstrap-quality-tools.ps1",
       };
     },
   );
@@ -57,7 +65,7 @@ function powershellAnalyzerDefinition() {
   };
 }
 
-export function probeTool(definition, run = spawnCommand) {
+export function probeTool(definition, run = spawnCommand, options = {}) {
   const { id, command, version = null, required = true } = definition;
   let result;
   try {
@@ -67,6 +75,7 @@ export function probeTool(definition, run = spawnCommand) {
       windowsHide: true,
       timeout: 15_000,
       maxBuffer: 256 * 1024,
+      env: options.environment ?? process.env,
     });
   } catch (error) {
     return {
@@ -75,10 +84,11 @@ export function probeTool(definition, run = spawnCommand) {
       expected: version,
       status: error.code === "ETIMEDOUT" ? "timeout" : "unavailable",
       observed: null,
+      remediation: definition.remediation,
     };
   }
   const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
-  const observed = output.match(/(?<![0-9])\d+\.\d+\.\d+(?:[-+][\w.-]+)?/u)?.[0] ?? null;
+  const observed = output.match(/(?<![0-9])\d+\.\d+\.\d+(?:\.\d+)?(?:[-+][\w.-]+)?/u)?.[0] ?? null;
   const status =
     result.error?.code === "ETIMEDOUT"
       ? "timeout"
@@ -88,16 +98,17 @@ export function probeTool(definition, run = spawnCommand) {
           ? "mismatch"
           : "ok";
   // Never include raw tool output: unexpected output can contain credentials.
-  return { id, required, expected: version, observed, status };
+  return { id, required, expected: version, observed, status, remediation: definition.remediation };
 }
 
-function executablePaths(command) {
+function executablePaths(command, environment = process.env) {
   if (path.isAbsolute(command)) return existsSync(command) ? [command] : [];
   try {
     const result = spawnCommand(process.platform === "win32" ? "where.exe" : "which", [command], {
       encoding: "utf8",
       windowsHide: true,
       timeout: 5_000,
+      env: environment,
     });
     return result.status === 0 ? result.stdout.trim().split(/\r?\n/u).filter(Boolean) : [];
   } catch {
@@ -153,8 +164,17 @@ function windowsCompilers() {
   };
 }
 
-export async function collectDoctor() {
+export async function collectDoctor(options = {}) {
+  const profile = options.profile ?? "standard";
+  if (!["standard", "desktop"].includes(profile))
+    throw new Error(`unknown doctor profile: ${profile}`);
+  const cachePaths = toolCachePaths();
+  const environment = checkoutToolEnvironment(process.env, { paths: cachePaths });
+  const toolState = readToolState({ paths: cachePaths });
   const manifest = await loadQualityManifest();
+  const bootstrapManifest = JSON.parse(
+    readFileSync(path.join(root, ".config", "tool-bootstrap.json"), "utf8"),
+  );
   const desktop = JSON.parse(readFileSync(path.join(root, "apps/desktop/package.json"), "utf8"));
   const requiredRustDefinitions = manifest.tools.filter((tool) => tool.tier === "required");
   const aquaVersion = readFileSync(path.join(root, ".aqua-version"), "utf8")
@@ -168,8 +188,9 @@ export async function collectDoctor() {
     },
     {
       id: "pnpm",
-      command: ["corepack", "pnpm", "--version"],
+      command: ["pnpm", "--version"],
       version: desktop.packageManager.split("@")[1],
+      remediation: "./scripts/bootstrap-quality-tools.ps1",
     },
     {
       id: "rustc",
@@ -179,8 +200,13 @@ export async function collectDoctor() {
     { id: "cargo", command: ["cargo", "--version"] },
     { id: "git", command: ["git", "--version"] },
     { id: "gh", command: ["gh", "--version"], required: false },
-    { id: "aqua", command: ["aqua", "--version"], version: aquaVersion },
-    ...aquaDefinitions(),
+    {
+      id: "aqua",
+      command: ["aqua", "--version"],
+      version: aquaVersion,
+      remediation: "./scripts/bootstrap-quality-tools.ps1",
+    },
+    ...aquaDefinitions(environment),
     process.platform === "win32"
       ? powershellAnalyzerDefinition()
       : {
@@ -189,12 +215,11 @@ export async function collectDoctor() {
           applicable: false,
           required: false,
         },
-    ...requiredRustDefinitions,
-    {
-      id: "tauri-driver",
-      command: ["tauri-driver", "--help"],
-      required: false,
-    },
+    ...requiredRustDefinitions.map((definition) => ({
+      ...definition,
+      command: [definition.id === "rscheck-cli" ? "rscheck" : definition.crate, "--version"],
+      remediation: "./scripts/bootstrap-quality-tools.ps1",
+    })),
   ];
   const tools = definitions.map((definition) =>
     definition.applicable === false
@@ -207,14 +232,48 @@ export async function collectDoctor() {
           paths: [],
         }
       : {
-          ...probeTool(definition),
+          ...probeTool(definition, spawnCommand, { environment }),
           paths:
             definition.paths ??
             (definition.reportedPath
               ? [definition.reportedPath]
-              : executablePaths(definition.command[0])),
+              : executablePaths(definition.command[0], environment)),
         },
   );
+  if (profile === "desktop") {
+    const drivers = cachedDesktopDrivers({ paths: cachePaths, state: toolState });
+    const desktopDefinitions = [
+      {
+        id: "tauri-driver",
+        command: [
+          drivers?.driver ?? path.join(cachePaths.shimDirectory, "missing-tauri-driver.exe"),
+          "--help",
+        ],
+        version: bootstrapManifest.desktop.tauri_driver,
+        reportedVersion: toolState?.desktop?.tauri_driver_version ?? null,
+      },
+      {
+        id: "msedgedriver",
+        command: [
+          drivers?.nativeDriver ?? path.join(cachePaths.shimDirectory, "missing-msedgedriver.exe"),
+          "--version",
+        ],
+        version: toolState?.desktop?.webview2_version ?? null,
+      },
+    ];
+    for (const definition of desktopDefinitions) {
+      let result = probeTool(definition, spawnCommand, { environment });
+      if (definition.reportedVersion && result.status === "mismatch") {
+        result = { ...result, observed: definition.reportedVersion, status: "ok" };
+      }
+      tools.push({
+        ...result,
+        required: true,
+        remediation: "./scripts/bootstrap-quality-tools.ps1 -Desktop",
+        paths: path.isAbsolute(definition.command[0]) ? [definition.command[0]] : [],
+      });
+    }
+  }
   let storage;
   try {
     storage = { status: "ok", ...preflight(getPaths(), minimumFreeGiB()) };
@@ -222,22 +281,41 @@ export async function collectDoctor() {
     storage = { status: "failed", message: error.message };
   }
   return {
-    format_version: 1,
+    format_version: 2,
+    profile,
     platform: process.platform,
     architecture: process.arch,
     workspace: root,
     ok: storage.status === "ok" && tools.every((tool) => !tool.required || tool.status === "ok"),
     tools,
+    cache: {
+      status: toolState ? "ready" : "not-bootstrapped",
+      shared_root: cachePaths.sharedRoot,
+      shim_directory: cachePaths.shimDirectory,
+      pin_fingerprint: cachePaths.pins.fingerprint,
+    },
     storage,
     msvc: windowsCompilers(),
   };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  if (process.argv.slice(2).some((arg) => arg !== "--json"))
-    throw new Error("usage: dev-doctor.mjs [--json]");
-  const report = await collectDoctor();
-  if (process.argv.includes("--json")) console.log(JSON.stringify(report, null, 2));
+  const args = process.argv.slice(2);
+  if (args.includes("--help")) {
+    console.log("usage: dev-doctor.mjs [--json] [--profile standard|desktop] [--help]");
+    process.exit(0);
+  }
+  let profile = "standard";
+  let asJson = false;
+  for (let index = 0; index < args.length; index += 1) {
+    if (args[index] === "--json") asJson = true;
+    else if (args[index] === "--profile") {
+      profile = args[++index];
+      if (!profile) throw new Error("--profile requires standard or desktop");
+    } else throw new Error("usage: dev-doctor.mjs [--json] [--profile standard|desktop] [--help]");
+  }
+  const report = await collectDoctor({ profile });
+  if (asJson) console.log(JSON.stringify(report, null, 2));
   else {
     console.log(
       `Development doctor: ${report.ok ? "ready" : "needs attention"} (${report.platform}/${report.architecture})`,
@@ -246,6 +324,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       console.log(
         `${tool.id}: ${tool.status} (${tool.observed ?? "unknown"}; expected ${tool.expected ?? "available"}) ${tool.paths.join(", ")}`,
       );
+    for (const tool of report.tools)
+      if (tool.status !== "ok" && tool.remediation)
+        console.log(`  remedy ${tool.id}: ${tool.remediation}`);
+    console.log(`Tool cache: ${report.cache.status}`);
+    console.log(`  shared: ${report.cache.shared_root}`);
+    console.log(`  shims:  ${report.cache.shim_directory}`);
     console.log(`Storage: ${report.storage.status}`);
     if (report.storage.paths)
       for (const [name, value] of Object.entries(report.storage.paths))

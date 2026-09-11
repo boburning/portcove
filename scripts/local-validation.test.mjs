@@ -161,6 +161,18 @@ test("changed shell scripts run shellcheck across the maintained shell set", () 
   assert.ok(shellLint.args.includes("scripts/bootstrap-quality-tools.sh"));
 });
 
+test("bootstrap manifest changes select cache, doctor, and quality contracts", () => {
+  const { selection, plan } = planFor([".config/tool-bootstrap.json"]);
+  assert.deepEqual([...selection.unknown], []);
+  for (const file of [
+    "scripts/tool-cache.test.mjs",
+    "scripts/quality-tools.test.mjs",
+    "scripts/dev-doctor.test.mjs",
+  ])
+    assert.ok(selection.nodeTests.has(file));
+  assert.ok(ids(plan).includes("node-tests"));
+});
+
 test("renames classify both the old and new ownership paths", () => {
   const { selection, plan } = planFor([
     change("docs/moved.md", {

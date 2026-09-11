@@ -1,0 +1,9 @@
+const args = process.argv.slice(2);
+if (args.includes("--help")) {
+  console.log(
+    "usage: just desktop-test --app ABSOLUTE --output ABSOLUTE [--driver ABSOLUTE] [--native-driver ABSOLUTE] [options]",
+  );
+  console.log("Cached drivers are used when --driver and --native-driver are omitted.");
+} else {
+  await import("../apps/desktop/scripts/desktop-test.mjs");
+}

@@ -4,6 +4,7 @@ import test from "node:test";
 
 import { findStaleConsumerPins, githubOutputs, validateQualityManifest } from "./quality-tools.mjs";
 import { runActionlint } from "./run-actionlint.mjs";
+import { readToolPins } from "./tool-cache.mjs";
 
 const manifest = JSON.parse(
   await readFile(new URL("../.github/quality-tools.json", import.meta.url)),
@@ -108,4 +109,16 @@ test("standalone lint pins use aqua checksums and PSResourceGet data", async () 
 
   const manager = await readFile(new URL("./quality-tools.mjs", import.meta.url), "utf8");
   assert.doesNotMatch(manager, /install-managed|PORTCOVE_QUALITY_TOOLS_DIR|managedToolPath/u);
+});
+
+test("bootstrap pins use verified official Windows download origins", () => {
+  const pins = readToolPins();
+  assert.equal(
+    pins.bootstrap.aqua.release_base,
+    "https://github.com/aquaproj/aqua/releases/download",
+  );
+  assert.equal(pins.bootstrap.desktop.edge_driver_base, "https://msedgedriver.microsoft.com");
+  assert.match(pins.bootstrap.desktop.tauri_driver, /^\d+\.\d+\.\d+$/u);
+  for (const artifact of Object.values(pins.bootstrap.aqua.artifacts))
+    assert.match(artifact.sha256, /^[A-F0-9]{64}$/u);
 });

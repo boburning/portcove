@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "aqua": {
+    "release_base": "https://github.com/aquaproj/aqua/releases/download",
+    "artifacts": {
+      "win32-x64": {
+        "archive": "aqua_windows_amd64.zip",
+        "sha256": "64385D576D419709BA0724005EC495EC6FB47DD42CC398B71609476C4BAFFFC7"
+      },
+      "win32-arm64": {
+        "archive": "aqua_windows_arm64.zip",
+        "sha256": "8F0DB6F24014D7226F4BAD2B02C2B692B1CC85E2E2EE269DB1546FE02D9596AA"
+      }
+    }
+  },
+  "desktop": {
+    "tauri_driver": "2.0.6",
+    "edge_driver_base": "https://msedgedriver.microsoft.com"
+  }
+}

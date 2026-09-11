@@ -1,146 +1,461 @@
-param([switch]$IncludeDeep)
+param(
+    [switch]$IncludeDeep,
+    [switch]$Desktop,
+    [Alias("h")][switch]$Help
+)
 
 $ErrorActionPreference = "Stop"
+if ($Help) {
+    @"
+usage: ./scripts/bootstrap-quality-tools.ps1 [-IncludeDeep] [-Desktop] [-Help]
+
+Installs repository-pinned tools into a shared user cache and writes checkout-local
+shims under work/tool-bin. It never changes persistent PATH or user environment
+variables. -Desktop also provisions tauri-driver and a matching EdgeDriver.
+"@ | Write-Output
+    exit 0
+}
+
 $runningOnWindows = $env:OS -eq "Windows_NT"
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$manifestPath = Join-Path $projectRoot ".github\quality-tools.json"
-$qualityManifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-
+$qualityManifest = Get-Content -LiteralPath (Join-Path $projectRoot ".github\quality-tools.json") -Raw | ConvertFrom-Json
+$bootstrapManifest = Get-Content -LiteralPath (Join-Path $projectRoot ".config\tool-bootstrap.json") -Raw | ConvertFrom-Json
 $requiredAqua = (Get-Content -LiteralPath (Join-Path $projectRoot ".aqua-version") -Raw).Trim()
-$aquaCommand = Get-Command aqua -ErrorAction SilentlyContinue
-if (-not $aquaCommand) {
-    throw "aqua $requiredAqua is required; install it before running this bootstrap"
-}
-$aquaReported = (& aqua --version 2>&1 | Out-String).Trim()
-if ($LASTEXITCODE -ne 0 -or $aquaReported -notmatch "(?<![0-9])$([regex]::Escape($requiredAqua.TrimStart('v')))(?![0-9])") {
-    throw "aqua $requiredAqua is required; reported: $aquaReported"
+$requiredAquaSemver = $requiredAqua.TrimStart("v")
+$toolPathsJson = & node (Join-Path $PSScriptRoot "tool-cache.mjs") --paths
+if ($LASTEXITCODE -ne 0) { throw "Could not resolve the checkout tool-cache contract" }
+$toolPaths = $toolPathsJson | ConvertFrom-Json
+$sharedRoot = [IO.Path]::GetFullPath([string]$toolPaths.sharedRoot)
+$shimDirectory = [IO.Path]::GetFullPath([string]$toolPaths.shimDirectory)
+$aquaRoot = [IO.Path]::GetFullPath([string]$toolPaths.aquaRoot)
+$aquaExecutable = [IO.Path]::GetFullPath([string]$toolPaths.aquaExecutable)
+
+function Assert-UnderRoot([string]$Candidate, [string]$Root, [string]$Label) {
+    $resolvedCandidate = [IO.Path]::GetFullPath($Candidate)
+    $resolvedRoot = [IO.Path]::GetFullPath($Root).TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+    if (-not $resolvedCandidate.StartsWith($resolvedRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "$Label must remain below $Root; received $resolvedCandidate"
+    }
+    return $resolvedCandidate
 }
 
-$previousChecksum = $env:AQUA_ENFORCE_CHECKSUM
-$previousRequiredChecksum = $env:AQUA_ENFORCE_REQUIRE_CHECKSUM
+function Test-ReportedVersion([string]$Executable, [string[]]$Arguments, [string]$Version) {
+    if (-not (Test-Path -LiteralPath $Executable -PathType Leaf)) { return $false }
+    try {
+        $reported = (& $Executable @Arguments 2>&1 | Out-String).Trim()
+        return $LASTEXITCODE -eq 0 -and $reported -match "(?<![0-9])$([regex]::Escape($Version))(?![0-9])"
+    }
+    catch { return $false }
+}
+
+function Write-CommandShim([string]$Name, [string]$Executable, [string[]]$Prefix = @()) {
+    if (@($Executable, $Prefix) | Where-Object { $_ -match '["&|<>^%!\r\n]' }) {
+        throw "Refusing unsafe command-shim content for $Name"
+    }
+    New-Item -ItemType Directory -Force -Path $shimDirectory | Out-Null
+    $prefixText = if ($Prefix.Count) { " " + (($Prefix | ForEach-Object { '"' + $_ + '"' }) -join " ") } else { "" }
+    $call = if ([IO.Path]::GetExtension($Executable) -in @(".cmd", ".bat")) { "call " } else { "" }
+    Set-Content -LiteralPath (Join-Path $shimDirectory "$Name.cmd") -Value "@echo off`r`n$call`"$Executable`"$prefixText %*`r`n" -NoNewline -Encoding ascii
+}
+
+function Invoke-VerifiedDownload([string]$Uri, [string]$ExpectedSha256, [string]$Destination) {
+    $stagingRoot = Assert-UnderRoot (Join-Path $sharedRoot ".staging\$([guid]::NewGuid())") $sharedRoot "download staging"
+    New-Item -ItemType Directory -Force -Path $stagingRoot | Out-Null
+    $download = Join-Path $stagingRoot "download"
+    try {
+        Invoke-WebRequest -UseBasicParsing -Uri $Uri -OutFile $download
+        $actual = (Get-FileHash -LiteralPath $download -Algorithm SHA256).Hash
+        if ($actual -ne $ExpectedSha256) {
+            throw "Downloaded SHA-256 mismatch for $Uri; expected $ExpectedSha256, received $actual"
+        }
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Destination) | Out-Null
+        Copy-Item -LiteralPath $download -Destination $Destination
+    }
+    finally {
+        $verifiedStaging = Assert-UnderRoot $stagingRoot $sharedRoot "download staging cleanup"
+        Remove-Item -LiteralPath $verifiedStaging -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Install-PinnedAqua {
+    if (-not $runningOnWindows) {
+        $existing = Get-Command aqua -ErrorAction SilentlyContinue
+        if (-not $existing -or -not (Test-ReportedVersion $existing.Source @("--version") $requiredAquaSemver)) {
+            throw "aqua $requiredAqua is required on this host; self-install currently supports Windows"
+        }
+        return $existing.Source
+    }
+    $architecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
+    $artifactKey = switch ($architecture) {
+        "x64" { "win32-x64" }
+        "arm64" { "win32-arm64" }
+        default { throw "Unsupported Windows architecture for Aqua: $architecture" }
+    }
+    $artifact = $bootstrapManifest.aqua.artifacts.$artifactKey
+    if (-not $artifact) { throw "No checked-in Aqua artifact for $artifactKey" }
+    $receipt = "$aquaExecutable.receipt.json"
+    $receiptReady = $false
+    if (Test-Path -LiteralPath $receipt -PathType Leaf) {
+        try {
+            $metadata = Get-Content -LiteralPath $receipt -Raw | ConvertFrom-Json
+            $receiptReady = $metadata.version -eq $requiredAquaSemver -and
+                $metadata.archive_sha256 -eq [string]$artifact.sha256
+        }
+        catch { $receiptReady = $false }
+    }
+    if ($receiptReady -and (Test-ReportedVersion $aquaExecutable @("--version") $requiredAquaSemver)) {
+        Write-Information "Aqua cache hit: $aquaExecutable" -InformationAction Continue
+        return $aquaExecutable
+    }
+    $uri = "$($bootstrapManifest.aqua.release_base)/$requiredAqua/$($artifact.archive)"
+    $archive = Assert-UnderRoot "$aquaExecutable.archive.next" $sharedRoot "Aqua archive"
+    $extractRoot = Assert-UnderRoot "$aquaExecutable.extract.next" $sharedRoot "Aqua extraction"
+    $aquaNext = Join-Path (Split-Path -Parent $aquaExecutable) "aqua.$([guid]::NewGuid()).next.exe"
+    Remove-Item -LiteralPath $archive -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $extractRoot -Recurse -Force -ErrorAction SilentlyContinue
+    try {
+        Invoke-VerifiedDownload $uri ([string]$artifact.sha256) $archive
+        Expand-Archive -LiteralPath $archive -DestinationPath $extractRoot
+        $candidate = Join-Path $extractRoot "aqua.exe"
+        if (-not (Test-ReportedVersion $candidate @("--version") $requiredAquaSemver)) {
+            throw "Downloaded Aqua did not report required version $requiredAquaSemver"
+        }
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $aquaExecutable) | Out-Null
+        Copy-Item -LiteralPath $candidate -Destination $aquaNext -Force
+        if (-not (Test-ReportedVersion $aquaNext @("--version") $requiredAquaSemver)) {
+            throw "Staged Aqua did not retain required version $requiredAquaSemver"
+        }
+        @{ version = $requiredAquaSemver; archive_sha256 = [string]$artifact.sha256 } |
+            ConvertTo-Json | Set-Content -LiteralPath "$receipt.next" -Encoding utf8
+        Move-Item -LiteralPath $aquaNext -Destination $aquaExecutable -Force
+        Move-Item -LiteralPath "$receipt.next" -Destination $receipt -Force
+    }
+    finally {
+        Remove-Item -LiteralPath $archive -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $extractRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    Write-Information "Aqua installed: $aquaExecutable" -InformationAction Continue
+    return $aquaExecutable
+}
+
+function Tool-BinaryName([object]$Definition) {
+    if ($Definition.id -eq "rscheck-cli") { return "rscheck" }
+    return [string]$Definition.crate
+}
+
+function Install-CachedCargoTool([object]$Definition) {
+    $binaryName = Tool-BinaryName $Definition
+    $suffix = if ($runningOnWindows) { ".exe" } else { "" }
+    $toolRoot = Join-Path ([string]$toolPaths.cargoRoot) "$($Definition.crate)\$($Definition.version)"
+    $target = Join-Path $toolRoot "bin\$binaryName$suffix"
+    if (-not (Test-ReportedVersion $target @("--version") ([string]$Definition.version))) {
+        $next = Join-Path (Split-Path -Parent $target) "$binaryName.$([guid]::NewGuid()).next$suffix"
+        $global = Get-Command $binaryName -All -ErrorAction SilentlyContinue |
+            Where-Object { $_.CommandType -eq "Application" -and [IO.Path]::GetExtension($_.Source) -eq $suffix } |
+            Select-Object -First 1
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $target) | Out-Null
+        if ($global -and (Test-ReportedVersion $global.Source @("--version") ([string]$Definition.version))) {
+            Copy-Item -LiteralPath $global.Source -Destination $next -Force
+        }
+        else {
+            $installRoot = Assert-UnderRoot (Join-Path $sharedRoot ".staging\cargo-$([guid]::NewGuid())") $sharedRoot "Cargo install staging"
+            try {
+                if (Get-Command cargo-binstall -ErrorAction SilentlyContinue) {
+                    & cargo binstall --no-confirm --locked --root $installRoot "$($Definition.crate)@$($Definition.version)"
+                }
+                else {
+                    & cargo install --locked --root $installRoot --version $Definition.version $Definition.crate
+                }
+                if ($LASTEXITCODE -ne 0) { throw "Could not install $($Definition.crate) $($Definition.version)" }
+                Copy-Item -LiteralPath (Join-Path $installRoot "bin\$binaryName$suffix") -Destination $next -Force
+            }
+            finally {
+                Remove-Item -LiteralPath $installRoot -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+        if (-not (Test-ReportedVersion $next @("--version") ([string]$Definition.version))) {
+            Remove-Item -LiteralPath $next -Force -ErrorAction SilentlyContinue
+            throw "$($Definition.crate) did not report required version $($Definition.version)"
+        }
+        Move-Item -LiteralPath $next -Destination $target -Force
+        Write-Information "$($Definition.crate) installed: $target" -InformationAction Continue
+    }
+    else { Write-Information "$($Definition.crate) cache hit: $target" -InformationAction Continue }
+    Write-CommandShim $binaryName $target
+    return $target
+}
+
+function Install-CachedTauriDriver([string]$Version) {
+    $suffix = if ($runningOnWindows) { ".exe" } else { "" }
+    $toolRoot = Join-Path ([string]$toolPaths.cargoRoot) "tauri-driver\$Version"
+    $target = Join-Path $toolRoot "bin\tauri-driver$suffix"
+    $receipt = Join-Path $toolRoot "receipt.json"
+    $ready = $false
+    if ((Test-Path -LiteralPath $target -PathType Leaf) -and (Test-Path -LiteralPath $receipt -PathType Leaf)) {
+        try {
+            $metadata = Get-Content -LiteralPath $receipt -Raw | ConvertFrom-Json
+            $actualHash = (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash
+            $ready = $metadata.version -eq $Version -and $metadata.sha256 -eq $actualHash
+        }
+        catch { $ready = $false }
+    }
+    if (-not $ready) {
+        $installRoot = Assert-UnderRoot (Join-Path $sharedRoot ".staging\tauri-driver-$([guid]::NewGuid())") $sharedRoot "Tauri driver staging"
+        try {
+            if (Get-Command cargo-binstall -ErrorAction SilentlyContinue) {
+                & cargo binstall --no-confirm --locked --root $installRoot "tauri-driver@$Version" | Out-Host
+            }
+            else {
+                & cargo install --locked --root $installRoot --version $Version tauri-driver | Out-Host
+            }
+            if ($LASTEXITCODE -ne 0) { throw "Could not install tauri-driver $Version" }
+            $candidate = Join-Path $installRoot "bin\tauri-driver$suffix"
+            if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) {
+                throw "tauri-driver installation did not produce $candidate"
+            }
+            $candidateHash = (Get-FileHash -LiteralPath $candidate -Algorithm SHA256).Hash
+            New-Item -ItemType Directory -Force -Path (Split-Path -Parent $target) | Out-Null
+            $targetNext = Join-Path (Split-Path -Parent $target) "tauri-driver.$([guid]::NewGuid()).next$suffix"
+            Copy-Item -LiteralPath $candidate -Destination $targetNext -Force
+            @{ version = $Version; sha256 = $candidateHash } |
+                ConvertTo-Json | Set-Content -LiteralPath "$receipt.next" -Encoding utf8
+            Move-Item -LiteralPath $targetNext -Destination $target -Force
+            Move-Item -LiteralPath "$receipt.next" -Destination $receipt -Force
+        }
+        finally {
+            Remove-Item -LiteralPath $installRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        Write-Information "tauri-driver installed: $target" -InformationAction Continue
+    }
+    else { Write-Information "tauri-driver cache hit: $target" -InformationAction Continue }
+    Write-CommandShim "tauri-driver" $target
+    return $target
+}
+
+function Install-CachedPowerShellAnalyzer([string]$Version, [string]$Repository) {
+    $moduleRoot = [string]$toolPaths.powershellModules
+    $target = Join-Path $moduleRoot "PSScriptAnalyzer\$Version"
+    $manifest = Join-Path $target "PSScriptAnalyzer.psd1"
+    $ready = Test-Path -LiteralPath $manifest -PathType Leaf
+    if ($ready) {
+        try {
+            $metadata = Import-PowerShellDataFile -LiteralPath $manifest
+            $ready = [string]$metadata.ModuleVersion -eq $Version
+        }
+        catch { $ready = $false }
+    }
+    if (-not $ready) {
+        $stagingRoot = Assert-UnderRoot (Join-Path $sharedRoot ".staging\pssa-$([guid]::NewGuid())") $sharedRoot "PSScriptAnalyzer staging"
+        $next = Join-Path $moduleRoot "PSScriptAnalyzer\$Version.next"
+        try {
+            New-Item -ItemType Directory -Force -Path $stagingRoot | Out-Null
+            Save-PSResource -Name PSScriptAnalyzer -Version $Version -Repository $Repository -Path $stagingRoot -TrustRepository
+            $candidate = Join-Path $stagingRoot "PSScriptAnalyzer\$Version"
+            $candidateManifest = Join-Path $candidate "PSScriptAnalyzer.psd1"
+            if (-not (Test-Path -LiteralPath $candidateManifest -PathType Leaf)) {
+                throw "PSScriptAnalyzer download did not contain its module manifest"
+            }
+            $metadata = Import-PowerShellDataFile -LiteralPath $candidateManifest
+            if ([string]$metadata.ModuleVersion -ne $Version) {
+                throw "PSScriptAnalyzer did not contain required version $Version"
+            }
+            New-Item -ItemType Directory -Force -Path (Split-Path -Parent $target) | Out-Null
+            Remove-Item -LiteralPath $next -Recurse -Force -ErrorAction SilentlyContinue
+            Copy-Item -LiteralPath $candidate -Destination $next -Recurse
+            $backup = "$target.invalid-$([guid]::NewGuid())"
+            if (Test-Path -LiteralPath $target) {
+                Move-Item -LiteralPath $target -Destination $backup
+                try { Move-Item -LiteralPath $next -Destination $target }
+                catch {
+                    Move-Item -LiteralPath $backup -Destination $target
+                    throw
+                }
+                Remove-Item -LiteralPath $backup -Recurse -Force
+            }
+            else { Move-Item -LiteralPath $next -Destination $target }
+        }
+        finally {
+            Remove-Item -LiteralPath $stagingRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        Write-Information "PSScriptAnalyzer installed: $target" -InformationAction Continue
+    }
+    else { Write-Information "PSScriptAnalyzer cache hit: $target" -InformationAction Continue }
+}
+
+function Get-WebViewRuntimeVersion {
+    $registryPaths = @(
+        "HKCU:\Software\Microsoft\EdgeUpdate\Clients\*",
+        "HKLM:\Software\Microsoft\EdgeUpdate\Clients\*",
+        "HKLM:\Software\WOW6432Node\Microsoft\EdgeUpdate\Clients\*"
+    )
+    $versions = @($registryPaths | ForEach-Object {
+        Get-ItemProperty -Path $_ -ErrorAction SilentlyContinue |
+            Where-Object { $_.name -eq "Microsoft Edge WebView2 Runtime" } |
+            ForEach-Object { [string]$_.pv }
+    } | Where-Object { $_ -match '^\d+\.\d+\.\d+\.\d+$' } | Sort-Object -Unique)
+    if ($versions.Count -ne 1) {
+        throw "Expected exactly one registered Evergreen WebView2 version; observed $($versions.Count)"
+    }
+    return $versions[0]
+}
+
+function Install-DesktopTools {
+    if (-not $runningOnWindows) { throw "-Desktop self-provisioning currently supports Windows only" }
+    $tauriDriverVersion = [string]$bootstrapManifest.desktop.tauri_driver
+    $tauriDriver = Install-CachedTauriDriver $tauriDriverVersion
+    $runtimeVersion = Get-WebViewRuntimeVersion
+    $architecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
+    $archiveName = switch ($architecture) {
+        "x64" { "edgedriver_win64.zip" }
+        "arm64" { "edgedriver_arm64.zip" }
+        default { throw "Unsupported Windows architecture for EdgeDriver: $architecture" }
+    }
+    $driverRoot = Join-Path $sharedRoot "desktop\msedgedriver\$runtimeVersion\$architecture"
+    $nativeDriver = Join-Path $driverRoot "msedgedriver.exe"
+    $reportedPattern = "(?<![0-9])$([regex]::Escape($runtimeVersion))(?![0-9])"
+    $driverReady = $false
+    if (Test-Path -LiteralPath $nativeDriver -PathType Leaf) {
+        $reported = (& $nativeDriver --version 2>&1 | Out-String).Trim()
+        $signature = Get-AuthenticodeSignature -LiteralPath $nativeDriver
+        $driverReady = $LASTEXITCODE -eq 0 -and $reported -match $reportedPattern -and
+            $signature.Status -eq "Valid" -and $signature.SignerCertificate.Subject -match "Microsoft Corporation"
+    }
+    if (-not $driverReady) {
+        $stagingRoot = Assert-UnderRoot (Join-Path $sharedRoot ".staging\edge-$([guid]::NewGuid())") $sharedRoot "EdgeDriver staging"
+        New-Item -ItemType Directory -Force -Path $stagingRoot | Out-Null
+        try {
+            $archive = Join-Path $stagingRoot $archiveName
+            Invoke-WebRequest -UseBasicParsing -Uri "$($bootstrapManifest.desktop.edge_driver_base)/$runtimeVersion/$archiveName" -OutFile $archive
+            Expand-Archive -LiteralPath $archive -DestinationPath (Join-Path $stagingRoot "extract")
+            $candidate = Join-Path $stagingRoot "extract\msedgedriver.exe"
+            $reported = (& $candidate --version 2>&1 | Out-String).Trim()
+            $signature = Get-AuthenticodeSignature -LiteralPath $candidate
+            if ($LASTEXITCODE -ne 0 -or $reported -notmatch $reportedPattern) {
+                throw "EdgeDriver does not exactly match WebView2 runtime $runtimeVersion"
+            }
+            if ($signature.Status -ne "Valid" -or $signature.SignerCertificate.Subject -notmatch "Microsoft Corporation") {
+                throw "EdgeDriver does not have a valid Microsoft signature"
+            }
+            New-Item -ItemType Directory -Force -Path $driverRoot | Out-Null
+            $nativeDriverNext = Join-Path $driverRoot "msedgedriver.$([guid]::NewGuid()).next.exe"
+            Copy-Item -LiteralPath $candidate -Destination $nativeDriverNext -Force
+            Move-Item -LiteralPath $nativeDriverNext -Destination $nativeDriver -Force
+        }
+        finally {
+            Remove-Item -LiteralPath $stagingRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+    Write-CommandShim "msedgedriver" $nativeDriver
+    return [ordered]@{
+        tauri_driver = $tauriDriver
+        tauri_driver_version = $tauriDriverVersion
+        tauri_driver_sha256 = (Get-FileHash -LiteralPath $tauriDriver -Algorithm SHA256).Hash
+        native_driver = $nativeDriver
+        native_driver_version = $runtimeVersion
+        native_driver_sha256 = (Get-FileHash -LiteralPath $nativeDriver -Algorithm SHA256).Hash
+        webview2_version = $runtimeVersion
+    }
+}
+
+$mutexHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($sharedRoot.ToLowerInvariant())))
+$cacheMutex = [Threading.Mutex]::new($false, "Local\PortcoveToolCache-$($mutexHash.Substring(0, 24))")
+$mutexHeld = $false
 try {
+    try { $mutexHeld = $cacheMutex.WaitOne([TimeSpan]::FromSeconds(55)) }
+    catch [Threading.AbandonedMutexException] { $mutexHeld = $true }
+    if (-not $mutexHeld) { throw "Timed out waiting for another Portcove tool-cache bootstrap" }
+    New-Item -ItemType Directory -Force -Path $sharedRoot, $shimDirectory, $aquaRoot | Out-Null
+    $stagingDirectory = Join-Path $sharedRoot ".staging"
+    if (Test-Path -LiteralPath $stagingDirectory -PathType Container) {
+        Get-ChildItem -LiteralPath $stagingDirectory -Force | ForEach-Object {
+            $stale = Assert-UnderRoot $_.FullName $sharedRoot "stale staging cleanup"
+            Remove-Item -LiteralPath $stale -Recurse -Force
+        }
+    }
+    $incompleteItems = @(Get-ChildItem -LiteralPath $sharedRoot -Recurse -Force -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match '\.next(?:\.|$)' }) |
+        Sort-Object { $_.FullName.Length } -Descending
+    foreach ($item in $incompleteItems) {
+        if (Test-Path -LiteralPath $item.FullName) {
+            $stale = Assert-UnderRoot $item.FullName $sharedRoot "incomplete promotion cleanup"
+            Remove-Item -LiteralPath $stale -Recurse -Force
+        }
+    }
+$resolvedAqua = Install-PinnedAqua
+Write-CommandShim "aqua" $resolvedAqua
+$pnpmSpec = [string]$toolPaths.pins.packageManager
+$corepack = Get-Command corepack.cmd -ErrorAction SilentlyContinue
+if (-not $corepack) { throw "Node's Corepack shim is unavailable; install the repository-pinned Node version" }
+Write-CommandShim "pnpm" $corepack.Source @($pnpmSpec)
+
+$oldPath = $env:PATH
+$oldModulePath = $env:PSModulePath
+$oldAquaRoot = $env:AQUA_ROOT_DIR
+$oldChecksum = $env:AQUA_ENFORCE_CHECKSUM
+$oldRequiredChecksum = $env:AQUA_ENFORCE_REQUIRE_CHECKSUM
+try {
+    $env:PATH = "$shimDirectory;$oldPath"
+    $env:PSModulePath = "$($toolPaths.powershellModules);$oldModulePath"
+    $env:AQUA_ROOT_DIR = $aquaRoot
     $env:AQUA_ENFORCE_CHECKSUM = "true"
     $env:AQUA_ENFORCE_REQUIRE_CHECKSUM = "true"
-    & aqua install
-    if ($LASTEXITCODE -ne 0) { throw "aqua could not install the pinned quality tools" }
-}
-finally {
-    $env:AQUA_ENFORCE_CHECKSUM = $previousChecksum
-    $env:AQUA_ENFORCE_REQUIRE_CHECKSUM = $previousRequiredChecksum
-}
+    & $resolvedAqua install
+    if ($LASTEXITCODE -ne 0) { throw "Aqua could not install the pinned quality tools" }
 
-if ($runningOnWindows) {
-    $resourceFile = Join-Path $projectRoot ".config\powershell-resources.psd1"
-    $resources = Import-PowerShellDataFile -LiteralPath $resourceFile
-    $requiredPssa = [string]$resources.PSScriptAnalyzer.version
-    if (-not (Get-Module -ListAvailable -Name PSScriptAnalyzer | Where-Object Version -EQ $requiredPssa)) {
-        Install-PSResource -RequiredResourceFile $resourceFile -Scope CurrentUser -TrustRepository
-    }
-    if (-not (Get-Module -ListAvailable -Name PSScriptAnalyzer | Where-Object Version -EQ $requiredPssa)) {
-        throw "PSScriptAnalyzer did not install at required version $requiredPssa"
-    }
-    Write-Output "PSScriptAnalyzer ready: $requiredPssa"
-}
-
-function ConvertTo-QualityTool([object]$Definition) {
-    return @{
-        Crate = $Definition.crate
-        Version = $Definition.version
-        Command = $Definition.command[0]
-        Arguments = @($Definition.command | Select-Object -Skip 1)
-    }
-}
-
-$requiredTools = @($qualityManifest.tools | Where-Object { $_.tier -eq "required" -and -not $_.install } | ForEach-Object { ConvertTo-QualityTool $_ })
-$optionalTools = @($qualityManifest.tools | Where-Object { $_.tier -eq "deep" -and $_.id -ne "cargo-hawk" -and -not $_.install } | ForEach-Object { ConvertTo-QualityTool $_ })
-$hawkDefinition = $qualityManifest.tools | Where-Object { $_.id -eq "cargo-hawk" }
-
-function Get-QualityToolVersion([hashtable]$Tool) {
-    try {
-        $arguments = @($Tool.Arguments)
-        $output = (& $Tool.Command @arguments 2>&1 | Out-String).Trim()
-        if ($LASTEXITCODE -eq 0) { return $output }
-    }
-    catch {
-        return $null
-    }
-    return $null
-}
-
-function Test-QualityToolVersion([hashtable]$Tool) {
-    $reported = Get-QualityToolVersion $Tool
-    return $null -ne $reported -and $reported -match "(?<![0-9])$([regex]::Escape($Tool.Version))(?![0-9])"
-}
-
-function Install-QualityTool([hashtable]$Tool) {
-    if (Test-QualityToolVersion $Tool) {
-        Write-Output "$($Tool.Crate) already pinned: $(Get-QualityToolVersion $Tool)"
-        return
-    }
-
-    if (Get-Command cargo-binstall -ErrorAction SilentlyContinue) {
-        & cargo binstall --no-confirm --locked "$($Tool.Crate)@$($Tool.Version)"
-        if ($LASTEXITCODE -ne 0) { throw "cargo-binstall could not install $($Tool.Crate) $($Tool.Version)" }
-    }
-    else {
-        & cargo install --locked --version $Tool.Version $Tool.Crate
-        if ($LASTEXITCODE -ne 0) { throw "cargo install could not install $($Tool.Crate) $($Tool.Version)" }
-    }
-
-    $reported = Get-QualityToolVersion $Tool
-    if (-not (Test-QualityToolVersion $Tool)) {
-        throw "$($Tool.Crate) did not report the required version $($Tool.Version); reported: $reported"
-    }
-    Write-Output "$($Tool.Crate) installed: $reported"
-}
-
-foreach ($tool in $requiredTools) {
-    Install-QualityTool $tool
-}
-
-$optionalFailures = @()
-if ($IncludeDeep) {
-    foreach ($tool in $optionalTools) {
-        try {
-            Install-QualityTool $tool
-        }
-        catch {
-            $optionalFailures += $tool.Crate
-            Write-Warning "$($tool.Crate) remains unavailable: $($_.Exception.Message)"
-        }
+    foreach ($tool in @($qualityManifest.tools | Where-Object { $_.tier -eq "required" })) {
+        Install-CachedCargoTool $tool | Out-Null
     }
 
     if ($runningOnWindows) {
-        $optionalFailures += "cargo-hawk"
-        Write-Warning "Hawk does not publish Windows binaries. Run the deep audit in Linux or macOS for Hawk analysis."
+        $resourceFile = Join-Path $projectRoot ".config\powershell-resources.psd1"
+        $resources = Import-PowerShellDataFile -LiteralPath $resourceFile
+        $requiredPssa = [string]$resources.PSScriptAnalyzer.version
+        Install-CachedPowerShellAnalyzer $requiredPssa ([string]$resources.PSScriptAnalyzer.repository)
+    }
+
+    if ($IncludeDeep) {
+        foreach ($tool in @($qualityManifest.tools | Where-Object { $_.tier -eq "deep" -and $_.id -ne "cargo-hawk" })) {
+            try { Install-CachedCargoTool $tool | Out-Null }
+            catch { Write-Warning "$($tool.crate) remains unavailable: $($_.Exception.Message)" }
+        }
+        if ($runningOnWindows) { Write-Warning "Hawk does not publish Windows binaries" }
+    }
+
+    $desktopState = if ($Desktop) {
+        Install-DesktopTools
     }
     else {
-        try {
-            & rustup toolchain install $hawkDefinition.rust_toolchain --component rustc-dev
-            if ($LASTEXITCODE -ne 0) { throw "could not install Hawk's pinned Rust toolchain with rustc-dev" }
-            $hawkTool = ConvertTo-QualityTool $hawkDefinition
-            if (-not (Test-QualityToolVersion $hawkTool)) {
-                $previousBootstrap = $env:RUSTC_BOOTSTRAP
-                try {
-                    $env:RUSTC_BOOTSTRAP = "1"
-                    & cargo "+$($hawkDefinition.rust_toolchain)" install --locked --version $hawkDefinition.version $hawkDefinition.crate
-                    if ($LASTEXITCODE -ne 0) { throw "could not install the pinned cargo-hawk release" }
-                }
-                finally {
-                    $env:RUSTC_BOOTSTRAP = $previousBootstrap
-                }
-            }
-            if (-not (Test-QualityToolVersion $hawkTool)) { throw "cargo-hawk did not report its pinned version" }
-            Write-Output "cargo-hawk ready: $(Get-QualityToolVersion $hawkTool)"
-        }
-        catch {
-            $optionalFailures += "cargo-hawk"
-            Write-Warning "cargo-hawk remains unavailable: $($_.Exception.Message)"
+        $existingStateJson = & node (Join-Path $PSScriptRoot "tool-cache.mjs") --state
+        if ($LASTEXITCODE -eq 0 -and $existingStateJson) {
+            ($existingStateJson | ConvertFrom-Json).desktop
         }
     }
+    $state = [ordered]@{
+        format_version = 1
+        pin_fingerprint = [string]$toolPaths.pins.fingerprint
+        shared_root = $sharedRoot
+        shim_directory = $shimDirectory
+        aqua = $resolvedAqua
+        aqua_root = $aquaRoot
+        package_manager = $pnpmSpec
+        desktop = $desktopState
+    }
+    $statePath = [string]$toolPaths.statePath
+    $state | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath "$statePath.next" -Encoding utf8
+    Move-Item -LiteralPath "$statePath.next" -Destination $statePath -Force
+}
+finally {
+    $env:PATH = $oldPath
+    $env:PSModulePath = $oldModulePath
+    $env:AQUA_ROOT_DIR = $oldAquaRoot
+    $env:AQUA_ENFORCE_CHECKSUM = $oldChecksum
+    $env:AQUA_ENFORCE_REQUIRE_CHECKSUM = $oldRequiredChecksum
 }
 
-Write-Output "Required pinned Portcove quality tools are ready."
-if ($optionalFailures.Count -gt 0) {
-    Write-Warning "Optional deep tools unavailable on this host: $(($optionalFailures | Select-Object -Unique) -join ', ')"
+Write-Output "Pinned Portcove tools are ready in $sharedRoot."
+Write-Output "Checkout shims are ready in $shimDirectory."
+}
+finally {
+    if ($mutexHeld) { $cacheMutex.ReleaseMutex() }
+    $cacheMutex.Dispose()
 }

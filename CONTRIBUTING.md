@@ -102,7 +102,15 @@ just check
 just audit
 ```
 
-On Linux or macOS, use `./scripts/bootstrap-quality-tools.sh`. Pass `-IncludeDeep` or `--include-deep` when you also want the optional semantic-duplication, dead-public-API, and mutation tools. The non-system-volume workflow, cleanup command, and recovery procedure are documented in [docs/DEVELOPMENT-STORAGE.md](docs/DEVELOPMENT-STORAGE.md).
+The Windows bootstrap installs pinned Aqua itself, reuses verified payloads under
+`%LOCALAPPDATA%\Portcove\tool-cache`, and creates ignored checkout-local shims. It
+does not alter persistent `PATH` or user environment variables. Add `-Desktop` for
+the pinned Tauri driver and a verified EdgeDriver matching WebView2, then check the
+result with `just doctor --profile desktop`. On Linux or macOS, use
+`./scripts/bootstrap-quality-tools.sh`. Pass `-IncludeDeep` or `--include-deep`
+when you also want the optional semantic-duplication, dead-public-API, and mutation
+tools. The non-system-volume workflow, cleanup command, and recovery procedure are
+documented in [docs/DEVELOPMENT-STORAGE.md](docs/DEVELOPMENT-STORAGE.md).
 
 Do not suppress deterministic findings without a narrow, reviewable reason. Treat structural findings as evidence rather than instructions for speculative refactors. Follow [AGENTS.md](AGENTS.md) and [docs/QUALITY.md](docs/QUALITY.md). Catalog changes must pass the live repository audit and must not add archived repositories.
 

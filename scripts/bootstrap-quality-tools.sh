@@ -2,10 +2,13 @@
 set -euo pipefail
 
 include_deep=false
-if [[ "${1:-}" == "--include-deep" ]]; then
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  printf 'usage: %s [--include-deep] [--help]\n' "$0"
+  exit 0
+elif [[ "${1:-}" == "--include-deep" ]]; then
   include_deep=true
 elif [[ $# -gt 0 ]]; then
-  printf 'usage: %s [--include-deep]\n' "$0" >&2
+  printf 'usage: %s [--include-deep] [--help]\n' "$0" >&2
   exit 2
 fi
 
@@ -27,7 +30,13 @@ if [[ "$aqua_version" != "${required_aqua#v}" ]]; then
   exit 1
 fi
 
-AQUA_ENFORCE_CHECKSUM=true AQUA_ENFORCE_REQUIRE_CHECKSUM=true aqua install
+tool_paths="$(node scripts/tool-cache.mjs --paths)"
+AQUA_ROOT_DIR="$(node -e 'const fs=require("node:fs"); console.log(JSON.parse(fs.readFileSync(0,"utf8")).aquaRoot)' <<<"$tool_paths")"
+export AQUA_ROOT_DIR
+export AQUA_ENFORCE_CHECKSUM=true
+export AQUA_ENFORCE_REQUIRE_CHECKSUM=true
+mkdir -p "$AQUA_ROOT_DIR"
+aqua install
 
 required_tools=()
 while IFS= read -r tool; do required_tools+=("$tool"); done < <(node scripts/quality-tools.mjs --specs required)
