@@ -126,6 +126,8 @@ it.each(["move", "import"] as const)(
   "refreshes the workspace after closing a failed %s without repeating the transfer",
   async (kind) => {
     const reload = vi.fn();
+    const expectedError =
+      kind === "move" ? "Disk disconnected after copying" : "Copied file changed";
     const originalWindow = window;
     vi.stubGlobal(
       "window",
@@ -157,15 +159,14 @@ it.each(["move", "import"] as const)(
       });
       await click("Review move");
       await click("Move to this folder");
-      expect(document.body.textContent).toContain("Disk disconnected after copying");
     } else {
       await click("Import library");
       await click("Choose file");
       await click("Choose folder");
       await click("Review import");
       await click("Import this backup");
-      expect(document.body.textContent).toContain("Copied file changed");
     }
+    expect(document.body.textContent).toContain(expectedError);
     expect(reload).not.toHaveBeenCalled();
     expect(document.body.textContent).toContain("Closing this review refreshes the library");
     await click("Close");

@@ -101,7 +101,7 @@ describe("accessible operation progress", () => {
       expect(progress.getAttribute("aria-valuenow")).toBe(now);
       expect(progress.getAttribute("aria-valuetext")).toContain(text);
       expect(progress.innerHTML).not.toMatch(/NaN|Infinity|width:-/);
-      if (now === null) expect(progress.hasAttribute("aria-valuemax")).toBe(false);
+      expect(progress.hasAttribute("aria-valuemax")).toBe(now !== null);
     },
   );
 

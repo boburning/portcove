@@ -1,6 +1,6 @@
 {
   "$schema": "./apps/desktop/node_modules/oxlint/configuration_schema.json",
-  "plugins": ["eslint", "typescript", "react", "jsx-a11y"],
+  "plugins": ["eslint", "typescript", "react", "jsx-a11y", "oxc", "import", "vitest"],
   "categories": {
     "correctness": "error",
     "suspicious": "off",
@@ -53,6 +53,8 @@
     "react/refs": "error",
     "react/rules-of-hooks": "error",
     "react/set-state-in-effect": "error",
+    "vitest/require-mock-type-parameters": "off",
+    "vitest/valid-expect": ["error", { "maxArgs": 2 }],
     "typescript/await-thenable": "error",
     "typescript/ban-ts-comment": "error",
     "typescript/no-array-delete": "error",

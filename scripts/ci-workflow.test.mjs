@@ -425,7 +425,7 @@ test("frontend keeps deterministic product gates and delegates vulnerability cha
   assert.match(dependencyReview, /fail-on-severity: high/);
 });
 
-test("frontend tooling uses the pinned Oxc contracts without legacy formatter or linter layers", async () => {
+test("frontend tooling uses the pinned Oxc contracts without legacy quality layers", async () => {
   const packageJson = JSON.parse(
     await readFile(new URL("../apps/desktop/package.json", import.meta.url), "utf8"),
   );
@@ -434,8 +434,10 @@ test("frontend tooling uses the pinned Oxc contracts without legacy formatter or
   assert.equal(packageJson.devDependencies.oxfmt, "0.67.0");
   assert.equal(packageJson.devDependencies.oxlint, "1.82.0");
   assert.equal(packageJson.devDependencies["oxlint-tsgolint"], "7.0.2001");
+  assert.equal(packageJson.devDependencies["oxc-parser"], "0.149.0");
   assert.equal(packageJson.devDependencies.typescript, "7.0.2");
   for (const retired of [
+    "@babel/parser",
     "@eslint/js",
     "@typescript/native",
     "eslint",
@@ -449,6 +451,15 @@ test("frontend tooling uses the pinned Oxc contracts without legacy formatter or
   }
 
   const oxlint = JSON.parse(await readFile(new URL("../.oxlintrc.json", import.meta.url), "utf8"));
+  assert.deepEqual(oxlint.plugins, [
+    "eslint",
+    "typescript",
+    "react",
+    "jsx-a11y",
+    "oxc",
+    "import",
+    "vitest",
+  ]);
   assert.deepEqual(oxlint.options, {
     reportUnusedDisableDirectives: "error",
     typeAware: false,
@@ -459,6 +470,8 @@ test("frontend tooling uses the pinned Oxc contracts without legacy formatter or
   assert.equal(oxlint.rules["react/rules-of-hooks"], "error");
   assert.equal(oxlint.rules["react/refs"], "error");
   assert.equal(oxlint.rules["react/set-state-in-effect"], "error");
+  assert.equal(oxlint.rules["vitest/require-mock-type-parameters"], "off");
+  assert.deepEqual(oxlint.rules["vitest/valid-expect"], ["error", { maxArgs: 2 }]);
   for (const rule of [
     "alt-text",
     "anchor-has-content",
@@ -546,6 +559,15 @@ test("frontend tooling uses the pinned Oxc contracts without legacy formatter or
   assert.match(oxlintRunner, /sourceRoot/);
   assert.match(oxlintRunner, /viteConfig/);
   assert.match(oxlintRunner, /"--type-aware"/);
+
+  const copyChecker = await readFile(
+    new URL("../apps/desktop/scripts/check-copy.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(copyChecker, /import \{ parseSync, visitorKeys \} from "oxc-parser"/);
+  assert.doesNotMatch(copyChecker, /@babel\/parser/);
+  const dependabot = await readFile(new URL("../.github/dependabot.yml", import.meta.url), "utf8");
+  assert.match(dependabot, /frontend-toolchain:[\s\S]*"oxc-parser"/);
 
   const oxfmt = JSON.parse(await readFile(new URL("../.oxfmtrc.json", import.meta.url), "utf8"));
   assert.equal(oxfmt.printWidth, 100);
