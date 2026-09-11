@@ -82,7 +82,7 @@ export function NavigationHints({
   workspace?: boolean;
 }) {
   return (
-    <div className="controller-hint" aria-label="Navigation help">
+    <div className="controller-hint" role="group" aria-label="Navigation help">
       {controller && <strong>{controller}</strong>}
       <span className="keyboard-navigation-hint">Arrow keys: Move</span>
       <span className="keyboard-navigation-hint">Enter: Select</span>

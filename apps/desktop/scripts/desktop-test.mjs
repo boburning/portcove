@@ -29,6 +29,7 @@ const { values } = parseArgs({
     "preparation-tool": { type: "string" },
     "artwork-only": { type: "boolean", default: false },
     "adoption-only": { type: "boolean", default: false },
+    "accessibility-only": { type: "boolean", default: false },
     "restart-cycles": { type: "string", default: "1" },
     "reload-cycles": { type: "string", default: "0" },
   },
@@ -53,6 +54,10 @@ if (!Number.isInteger(restartCycles) || restartCycles < 1 || restartCycles > 10)
 const reloadCycles = Number(values["reload-cycles"]);
 if (!Number.isInteger(reloadCycles) || reloadCycles < 0 || reloadCycles > 25)
   throw new Error("--reload-cycles must be 0..25");
+const focusedModes = ["artwork-only", "adoption-only", "accessibility-only"].filter(
+  (name) => values[name],
+);
+if (focusedModes.length > 1) throw new Error("Choose only one focused desktop scenario mode");
 if ((values["artwork-only"] || values["adoption-only"]) && !values["preparation-cli"])
   throw new Error("Focused fixture scenarios require the owned preparation CLI/tool inputs");
 if (!Number.isInteger(port) || port < 1024 || port > 65533)
@@ -228,6 +233,10 @@ async function scenario(name, action) {
   }
 }
 
+async function fullDesktopScenario(name, action) {
+  if (!values["accessibility-only"]) await scenario(name, action);
+}
+
 async function connect() {
   browser = await new Builder()
     .disableEnvironmentOverrides()
@@ -317,7 +326,7 @@ try {
     }
   }
   await connect();
-  await scenario("empty-library", async () => {
+  await fullDesktopScenario("empty-library", async () => {
     const bootstrap = await invoke("get_bootstrap_status");
     assert.equal(bootstrap.ok, true);
     assert.equal(path.resolve(bootstrap.value.library_root), library);
@@ -325,7 +334,7 @@ try {
     assert.equal(status.ok, true);
     assert.equal(status.value.filter((item) => item.active).length, 0);
   });
-  await scenario("native-error-recovery", async () => {
+  await fullDesktopScenario("native-error-recovery", async () => {
     const failed = await invoke("verify_port", {
       portId: "nonexistent-fixture-port",
     });
@@ -333,7 +342,7 @@ try {
     assert.ok(failed.error.code);
     assert.equal((await invoke("get_bootstrap_status")).value.ready, true);
   });
-  await scenario("keyboard-layout", async () => {
+  await fullDesktopScenario("keyboard-layout", async () => {
     await browser.manage().window().setRect({ width: 960, height: 640 });
     await browser.findElement(By.css("nav button")).click();
     await browser.actions().sendKeys(Key.TAB).perform();
@@ -344,7 +353,7 @@ try {
     assert.notEqual(focus.tag, "BODY");
     assert.equal(focus.overflow, false);
   });
-  await scenario("appearance-restart", async () => {
+  await fullDesktopScenario("appearance-restart", async () => {
     await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
     await browser.findElement(By.xpath('//button[normalize-space(.)="Light"]')).click();
     assert.equal(
@@ -389,16 +398,20 @@ try {
     const report = path.join(output, "accessibility.json");
     await captureAccessibilityReport(browser, report, artifacts);
   });
-  await controllerScenario({ browser, scenario, output, artifacts });
-  await accessibleNavigationScenario({ browser, scenario, output, artifacts });
-  await workspaceRefreshScenario({ browser, scenario, output, artifacts });
-  checks.push({
-    scenario: "install-progress-cancellation",
-    outcome: "not-run",
-    reason:
-      "Requires a reviewed install fixture; the smoke harness does not download or execute upstream games.",
-  });
-  if (values["preparation-cli"]) {
+  if (!values["accessibility-only"])
+    await controllerScenario({ browser, scenario, output, artifacts });
+  if (!values["accessibility-only"])
+    await accessibleNavigationScenario({ browser, scenario, output, artifacts });
+  if (!values["accessibility-only"])
+    await workspaceRefreshScenario({ browser, scenario, output, artifacts });
+  if (!values["accessibility-only"])
+    checks.push({
+      scenario: "install-progress-cancellation",
+      outcome: "not-run",
+      reason:
+        "Requires a reviewed install fixture; the smoke harness does not download or execute upstream games.",
+    });
+  if (!values["accessibility-only"] && values["preparation-cli"]) {
     await preparationScenarios({
       browser,
       invoke,
@@ -418,7 +431,7 @@ try {
       onlyAdoption: values["adoption-only"],
     });
   }
-  if (reloadCycles)
+  if (!values["accessibility-only"] && reloadCycles)
     await reloadScenario({
       browser,
       scenario,
@@ -469,7 +482,11 @@ try {
     checks,
     artifacts,
     inputs,
-    method: values["artwork-only"] ? "native-artwork-smoke" : "native-desktop-smoke",
+    method: values["accessibility-only"]
+      ? "native-accessibility-smoke"
+      : values["artwork-only"]
+        ? "native-artwork-smoke"
+        : "native-desktop-smoke",
   });
   console.log(JSON.stringify(checks, null, 2));
 }
