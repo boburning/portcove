@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { Builder, By, Key, until } from "selenium-webdriver";
 import { writeEvidence, fileIdentity } from "../../../scripts/development-evidence.mjs";
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
+import { cachedDesktopDrivers } from "../../../scripts/tool-cache.mjs";
 import { preparationScenarios } from "./desktop-preparation-test.mjs";
 import { nativeConfirmation } from "./desktop-native-confirmation.mjs";
 import { controllerScenario } from "./desktop-controller-test.mjs";
@@ -31,9 +32,18 @@ const { values } = parseArgs({
     "reload-cycles": { type: "string", default: "0" },
   },
 });
-for (const name of ["app", "driver", "native-driver", "output"]) {
+const cachedDrivers = cachedDesktopDrivers();
+values.driver ??= cachedDrivers?.driver;
+values["native-driver"] ??= cachedDrivers?.nativeDriver;
+for (const name of ["app", "output"]) {
   if (!values[name] || !path.isAbsolute(values[name]))
     throw new Error(`--${name} requires an absolute path`);
+}
+for (const name of ["driver", "native-driver"]) {
+  if (!values[name] || !path.isAbsolute(values[name]))
+    throw new Error(
+      `--${name} requires an absolute path or a verified cached driver from ./scripts/bootstrap-quality-tools.ps1 -Desktop`,
+    );
 }
 const port = Number(values.port);
 const restartCycles = Number(values["restart-cycles"]);

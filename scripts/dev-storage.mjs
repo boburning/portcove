@@ -4,6 +4,7 @@ import { lstatSync, mkdirSync, realpathSync, statSync, statfsSync } from "node:f
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { checkoutToolEnvironment, toolCachePaths } from "./tool-cache.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(path.dirname(scriptPath), "..");
@@ -200,7 +201,7 @@ export function childEnvironment(paths) {
         (process.platform !== "win32" || !overriddenKeys.has(key.toLowerCase())),
     ),
   );
-  return { ...inherited, ...overrides };
+  return checkoutToolEnvironment({ ...inherited, ...overrides }, { paths: toolCachePaths() });
 }
 
 function ensureChildDirectories(paths) {

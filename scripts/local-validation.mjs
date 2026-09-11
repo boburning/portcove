@@ -66,6 +66,14 @@ const oxfmtExtensions = new Set([
 const explicitNodeTests = new Map([
   ["scripts/check-vitest-durations.mjs", ["scripts/test-duration-reporter.test.mjs"]],
   [".github/quality-tools.json", ["scripts/quality-tools.test.mjs"]],
+  [
+    ".config/tool-bootstrap.json",
+    [
+      "scripts/tool-cache.test.mjs",
+      "scripts/quality-tools.test.mjs",
+      "scripts/dev-doctor.test.mjs",
+    ],
+  ],
   [".github/roadmap.json", ["scripts/roadmap.test.mjs"]],
   [".github/pr-conventions.json", ["scripts/pr-conventions.test.mjs"]],
   [
@@ -248,6 +256,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     file === "aqua.yaml" ||
     file === "aqua-checksums.json" ||
     file === ".aqua-version" ||
+    file === ".config/tool-bootstrap.json" ||
     file === ".config/powershell-resources.psd1"
   ) {
     selection.scopes.add("tooling");
@@ -842,6 +851,12 @@ function parseCheckArgs(args) {
 }
 
 export function main(argv = process.argv.slice(2)) {
+  if (argv.includes("--help")) {
+    console.log(
+      "usage: local-validation.mjs [check [--base REV] [--plan]|test-rust ARGS|test-ui-related FILES|test-node TESTS]",
+    );
+    return;
+  }
   const [kind = "check", ...args] = argv;
   if (["test-rust", "test-ui-related", "test-node"].includes(kind)) {
     runFocusedCommand(kind, args);

@@ -46,6 +46,22 @@ function workspace(t) {
     new URL("./dev-storage.mjs", import.meta.url),
     path.join(root, "scripts/dev-storage.mjs"),
   );
+  copyFileSync(
+    new URL("./tool-cache.mjs", import.meta.url),
+    path.join(root, "scripts/tool-cache.mjs"),
+  );
+  for (const name of [
+    ".aqua-version",
+    "aqua.yaml",
+    "aqua-checksums.json",
+    ".github/quality-tools.json",
+    ".config/tool-bootstrap.json",
+    "apps/desktop/package.json",
+  ]) {
+    const destination = path.join(root, name);
+    mkdirSync(path.dirname(destination), { recursive: true });
+    copyFileSync(path.join(projectRoot, name), destination);
+  }
   writeFileSync(
     path.join(root, "Cargo.toml"),
     '[package]\nname = "storage-fixture"\nversion = "0.1.0"\nedition = "2021"\n[workspace]\n',
@@ -229,6 +245,7 @@ test("direct just recipes initialize a fresh checkout and preserve storage overr
     path.join(root, "apps/desktop/package.json"),
     JSON.stringify({
       name: "storage-probe",
+      packageManager: "pnpm@11.25.0",
       scripts: { build: "node ../../probe.mjs" },
     }),
   );

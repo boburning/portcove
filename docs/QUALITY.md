@@ -203,14 +203,21 @@ pnpm 11's default one-day minimum release age remains active. The workspace cont
 Quality-tool pins follow their native provisioning boundary. `.github/quality-tools.json`
 owns required and deep Rust CLI versions, install tiers, version commands and any
 tool-private Rust requirement; `scripts/quality-tools.mjs --validate` rejects
-copied Rust-tool pins in governed consumers. `.aqua-version` pins aqua itself,
+copied Rust-tool pins in governed consumers. `.aqua-version` pins Aqua itself,
 while `aqua.yaml` and committed `aqua-checksums.json` own Ruff, actionlint and
-ShellCheck versions, platform assets and required SHA-256 verification. The
-bootstrap requires the exact aqua release already on `PATH` and never installs or
-updates aqua on a developer machine. `.config/powershell-resources.psd1` owns the
-exact PSScriptAnalyzer module version installed from PSGallery through
-PSResourceGet on Windows. Portcove does not implement archive download,
-extraction, staging or activation for these standalone linters.
+ShellCheck versions, platform assets and required SHA-256 verification.
+`.config/tool-bootstrap.json` owns official Windows bootstrap origins, Aqua
+release checksums by architecture, and desktop-driver pins.
+`.config/powershell-resources.psd1` owns the exact PSScriptAnalyzer module version
+downloaded from PSGallery through PSResourceGet on Windows.
+
+The Windows bootstrap verifies and atomically promotes these payloads beneath the
+shared local application-data cache, then writes ignored checkout shims. Aqua
+roots are content-keyed from every applicable repository pin. Repository command
+wrappers inject the checkout shim, Aqua, and PowerShell-module paths only into
+child processes; no persistent environment variable is changed. Failed or partial
+downloads never replace verified cached tools. Linux and macOS retain their
+existing Aqua bootstrap behavior.
 
 `rust-toolchain.toml` pins normal development and CI to the workspace MSRV recorded in `Cargo.toml`; the manifest validator requires those two declarations and the quality contract to agree. An MSRV increase therefore requires one reviewed update across the workspace metadata, pinned toolchain, and machine contract instead of an implicit move with the latest stable compiler.
 
