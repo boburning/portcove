@@ -81,6 +81,76 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   }
 });
 
+test("Linux desktop prerequisite installation is shared, bounded, and retrying", async () => {
+  const deepQuality = await readFile(
+    new URL("../.github/workflows/deep-quality.yml", import.meta.url),
+    "utf8",
+  );
+  const release = await readFile(
+    new URL("../.github/workflows/release.yml", import.meta.url),
+    "utf8",
+  );
+  const updaterRehearsal = await readFile(
+    new URL(
+      "../.github/workflows/updater-artifact-rehearsal.yml",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const installer = await readFile(
+    new URL("./install-linux-desktop-prerequisites.sh", import.meta.url),
+    "utf8",
+  );
+  const invocation =
+    /timeout-minutes: 15\r?\n\s+run: \.\/scripts\/install-linux-desktop-prerequisites\.sh/g;
+
+  assert.equal((workflow.match(invocation) ?? []).length, 3);
+  assert.equal((deepQuality.match(invocation) ?? []).length, 2);
+  assert.equal((release.match(invocation) ?? []).length, 2);
+  assert.match(
+    updaterRehearsal,
+    /timeout-minutes: 15\r?\n\s+run: \.\/scripts\/install-linux-desktop-prerequisites\.sh --include-rpm/,
+  );
+  for (const hostedWorkflow of [
+    workflow,
+    deepQuality,
+    release,
+    updaterRehearsal,
+  ]) {
+    assert.doesNotMatch(hostedWorkflow, /sudo apt-get/);
+  }
+  for (const packageName of [
+    "libwebkit2gtk-4.1-dev",
+    "libappindicator3-dev",
+    "librsvg2-dev",
+    "patchelf",
+  ]) {
+    assert.ok(installer.includes(packageName), `${packageName} is missing`);
+  }
+  assert.match(installer, /Acquire::http::Timeout=30/);
+  assert.match(installer, /Acquire::https::Timeout=30/);
+  assert.match(installer, /Acquire::Retries=3/);
+  assert.match(installer, /DPkg::Lock::Timeout=60/);
+  assert.match(installer, /archive\.ubuntu\.com\/ubuntu/);
+  assert.match(installer, /Dir::Etc::sourceparts=-/);
+  assert.match(installer, /DEBIAN_FRONTEND=noninteractive/);
+  assert.match(installer, /timeout --kill-after=10s/);
+  assert.match(
+    installer,
+    /install_from_current_mirror "the runner-configured mirror" 2m 3m/,
+  );
+  assert.match(
+    installer,
+    /install_from_current_mirror "the archive mirror fallback" 4m 5m/,
+  );
+  assert.ok(
+    installer.indexOf('"the runner-configured mirror"') <
+      installer.indexOf("archive.ubuntu.com/ubuntu"),
+  );
+  assert.match(installer, /--include-rpm\) packages\+=\(rpm\)/);
+  assert.match(installer, /usage: \$0 \[--include-rpm\]/);
+});
+
 test("Rust setup installs the repository pin instead of an unrelated stable toolchain", async () => {
   const setup = await readFile(
     new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
@@ -360,7 +430,7 @@ test("native Rust runs the full workspace on every supported Unix architecture",
   assert.match(nativeRust, /echo "TMPDIR=\$RUNNER_TEMP" >> "\$GITHUB_ENV"/);
   assert.match(
     nativeRust,
-    /libwebkit2gtk-4\.1-dev libappindicator3-dev librsvg2-dev patchelf/,
+    /run: \.\/scripts\/install-linux-desktop-prerequisites\.sh/,
   );
   assert.match(nativeRust, /cargo nextest run --locked --workspace/);
   assert.match(nativeRust, /--partition "\$\{\{ matrix\.partition \}\}"/);
@@ -443,7 +513,7 @@ test("Linux Rust quality keeps its platform-specific and policy gates without pn
     /lint-tools\.integration\.mjs ruff shellcheck actionlint/,
   );
   const desktopPrerequisites = rustQuality.indexOf(
-    "libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf",
+    "./scripts/install-linux-desktop-prerequisites.sh",
   );
   assert.ok(
     desktopPrerequisites >= 0 &&

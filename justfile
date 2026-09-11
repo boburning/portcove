@@ -115,7 +115,7 @@ python-lint:
     {{storage}} node scripts/lint-tools.integration.mjs ruff
 
 shell-lint:
-    {{storage}} aqua exec -- shellcheck --severity=warning scripts/bootstrap-quality-tools.sh
+    {{storage}} aqua exec -- shellcheck --severity=warning scripts/bootstrap-quality-tools.sh scripts/install-linux-desktop-prerequisites.sh
     {{storage}} node scripts/lint-tools.integration.mjs shellcheck
 
 actions-lint:
