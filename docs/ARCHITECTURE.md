@@ -563,15 +563,19 @@ another selected library. No new durable job or installation authority is added.
 ## Monorepo and deliverable decision
 
 `portcove-release-tools` is an unpublished, offline repository tool for checking
-application artifact signatures. It uses maintained Minisign verification with
-bounded streaming, independently of the desktop's GUI build dependencies. The
-existing JavaScript release tooling owns package selection and inventory; this
-tool only checks an exact file/signature/key/hash/size tuple. It neither signs
-nor publishes and has no catalog, installation or application replacement state.
+application artifact signatures and constructing signed application-update TUF
+metadata from an already reconstructed target inventory. It uses maintained
+Minisign verification and `tough` signing with externally supplied, distinct role
+keys, independently of the desktop's GUI build dependencies. The existing JavaScript
+release tooling owns package selection, inventory, and deterministic record
+reconstruction. This tool checks exact artifact tuples and creates one staged TUF
+bundle; it cannot provision credentials, publish bytes, or activate an updater and
+has no catalog, installation or application replacement state.
 It is outside the default Cargo members and shipped packages. Architecture rules
 forbid dependencies in either direction between it and the player crates, so it
 cannot become a second domain authority or a runtime dependency. Disposable test
-signers are development dependencies only.
+Payload test signers are development dependencies only. TUF role credentials are
+external inputs and are never copied into repository output.
 
 The [application updater trust design](UPDATER-TRUST.md) assigns application
 replacement/trust state to the Tauri host; core retains library/game authority.

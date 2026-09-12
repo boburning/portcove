@@ -79,9 +79,77 @@ The tool computes the raw inventory SHA-256, emits immutable
 deterministic content-addressed manifest. Repeating identical complete input is a
 no-op. Derived channel output and a partial prior write are replaced atomically,
 but changing or omitting an existing immutable release record fails. Supply the
-complete retained inventory history when rebuilding. Production TUF signing,
-GitHub Pages publication, keys, endpoints and updater activation remain outside
-this tool and require their protected owners.
+complete retained inventory history when rebuilding. TUF role signing, GitHub
+Pages publication, keys, endpoints and updater activation remain outside this
+JavaScript reconstruction operation and retain their separate boundaries.
+
+Build the separately signed TUF repository from that record tree with the offline
+Rust release tool:
+
+```powershell
+cargo run --locked -p portcove-release-tools -- build-tuf work/tuf-build.json
+```
+
+The strict configuration resolves paths relative to its own directory:
+
+```json
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-12T10:00:00Z",
+  "trusted_root": "keys/1.root.json",
+  "reconstructed_records": "update-records",
+  "payload_key_registry": "keys/payload.json",
+  "output": "update-repository",
+  "keys": {
+    "targets": "keys/targets.der",
+    "snapshot": "keys/snapshot.der",
+    "timestamp": "keys/timestamp.der",
+    "releases": "keys/releases.der",
+    "preview": "keys/preview.der",
+    "stable": "keys/stable.der"
+  },
+  "versions": {
+    "targets": 1,
+    "snapshot": 1,
+    "timestamp": 1,
+    "releases": 1,
+    "preview": 1,
+    "stable": 1
+  },
+  "expires": {
+    "targets": "2026-12-11T10:00:00Z",
+    "snapshot": "2026-09-19T10:00:00Z",
+    "timestamp": "2026-09-14T10:00:00Z",
+    "releases": "2026-12-11T10:00:00Z",
+    "preview": "2026-09-19T10:00:00Z",
+    "stable": "2026-09-19T10:00:00Z"
+  }
+}
+```
+
+All six role keys must be distinct PKCS#8 Ed25519 private keys. The signed root
+must already authorize the supplied targets, snapshot, and timestamp keys; release,
+Preview, and Stable become direct delegated roles. The root must require consistent
+snapshots, retain at least three offline keys with a two-signature quorum, and keep
+its single-key online roles distinct. The generation time cannot be more than five
+minutes ahead of the signing host. Timestamp expiry is limited to 48 hours, snapshot
+and channel expiry to seven days, targets and release expiry to 90 days, and root
+expiry to one year.
+
+The operation verifies that the reconstruction manifest exactly inventories its
+bounded record tree and that the payload registry binds each base64 public-key file
+to its SHA-256 identity. It stages metadata and consistent-snapshot target names,
+writes `repository-manifest.json`, and atomically publishes the new local output
+directory. Repeating the same logical build verifies and reuses the existing output;
+changed target bytes, role versions, expiry values, signatures, or manifest content
+fail closed. The tool reads each bounded private-key input once and gives `tough`
+only that immutable in-memory snapshot; private keys are never copied into repository
+output or another file.
+
+Production credential provisioning, GitHub Pages publication, endpoints, updater
+activation, and publication permission remain with their protected owners. A build
+configuration is an unauthenticated controller input and must stay outside the
+repository when it contains private-key paths.
 
 Payload verification streams at most 2 GiB; key and signature metadata are bounded
 to 16 KiB. Only prehashed Minisign signatures emitted by current Tauri tooling are
