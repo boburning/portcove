@@ -493,9 +493,10 @@ by the checksum manifest. The `publish` job cannot begin until those attestation
 succeed. It receives only `contents: write`, downloads the already assembled
 payload and precomputed metadata, and creates or reconciles one draft release.
 
-The publisher refuses to change a published release. The first run generates
-the complete body before creating the draft. A rerun verifies an existing draft
-body byte for byte and fails closed instead of editing it. It rechecks draft
+The publisher refuses to change a published release. The first run supplies the
+precomputed download section while GitHub appends its categorized release notes
+during draft creation. A rerun verifies an existing draft body byte for byte and
+fails closed instead of editing it. The publisher rechecks draft
 state before every asset deletion or upload; repository-level immutable releases
 provide the server-side boundary if publication happens between that check and
 the mutation. After a successful rehearsal or publication handoff, an isolated

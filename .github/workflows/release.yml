@@ -186,11 +186,7 @@ jobs:
             gh release view "$RELEASE_TAG" --json body --jq .body > release-metadata/reviewed-release-body.md
             existing_draft=true
           else
-            gh api --method POST \
-              "repos/${{ github.repository }}/releases/generate-notes" \
-              -f tag_name="$RELEASE_TAG" \
-              -f target_commitish="$GITHUB_SHA" \
-              --jq .body > release-metadata/reviewed-release-body.md
+            printf '' > release-metadata/reviewed-release-body.md
             existing_draft=false
           fi
           node scripts/generate-release-downloads.mjs \
@@ -299,6 +295,7 @@ jobs:
             if [[ "$RELEASE_TAG" == *-* ]]; then prerelease+=(--prerelease); fi
             gh release create "$RELEASE_TAG" \
               --draft \
+              --generate-notes \
               --notes-file release-metadata/generated-release-body.md \
               --title "Portcove $RELEASE_TAG" \
               "${prerelease[@]}"

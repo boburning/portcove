@@ -78,6 +78,7 @@ test("assembler reconciles the full matrix then generates and checksums the rele
   assert.match(assembleSection, /upload-release-assets: false/);
   assert.match(assembleSection, /Refusing to modify non-draft release/);
   assert.match(assembleSection, /Refusing to rewrite existing release notes/);
+  assert.doesNotMatch(assembleSection, /releases\/generate-notes/);
 });
 
 test("manual rehearsal verifies every finalized checksum without release write access", () => {
@@ -105,7 +106,7 @@ test("publisher mutates drafts only from precomputed metadata and attested asset
   assert.match(publishSection, /Refusing to modify non-draft release/);
   assert.match(
     publishSection,
-    /gh release create "\$RELEASE_TAG"[\s\S]*--notes-file release-metadata\/generated-release-body\.md/,
+    /gh release create "\$RELEASE_TAG"[\s\S]*--generate-notes[\s\S]*--notes-file release-metadata\/generated-release-body\.md/,
   );
   assert.doesNotMatch(publishSection, /gh release edit/);
   assert.match(publishSection, /gh release delete-asset/);
