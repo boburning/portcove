@@ -34,6 +34,8 @@ namespace Portcove.ReferenceClient
             return result;
         }
 
+        internal static bool TryField(object value, string key, out object result) => Object(value).TryGetValue(key, out result);
+
         internal static string Text(object value, string key)
         {
             var result = Field(value, key) as string;
@@ -60,6 +62,78 @@ namespace Portcove.ReferenceClient
             var result = Field(value, key);
             if (!(result is int) && !(result is long)) throw new InvalidOperationException("Invalid Portcove integer: " + key);
             return Convert.ToInt64(result);
+        }
+    }
+
+    internal sealed class DefinitionOperationDecision
+    {
+        internal string Operation { get; private set; }
+        internal string Outcome { get; private set; }
+        internal string Reason { get; private set; }
+        internal bool Retained { get; private set; }
+
+        internal static DefinitionOperationDecision Read(object value)
+        {
+            var operation = Json.Text(value, "operation");
+            if (!new[] { "availability", "install", "prepare", "launch" }.Contains(operation))
+                throw new InvalidOperationException("Unknown Portcove definition operation. Update the client before managing this game.");
+            var eligibility = Json.Field(value, "eligibility");
+            var outcome = Json.Text(eligibility, "outcome");
+            if (!new[] { "eligible", "hold", "escalate" }.Contains(outcome))
+                throw new InvalidOperationException("Unknown Portcove definition eligibility outcome. Update the client before managing this game.");
+            var reason = Json.Text(eligibility, "reason");
+            if (!new[]
+            {
+                "mandatory_checks_passed", "publisher_revoked", "unknown_safety_semantics",
+                "publisher_scope_required", "engine_capability_required", "ownership_migration_required",
+                "metadata_replay", "refresh_incomplete", "metadata_stale", "recorded_identity_changed",
+                "authenticated_integrity_required", "local_integrity_failed", "mandatory_check_failed",
+                "source_identity_mismatch", "required_source_missing"
+            }.Contains(reason))
+                throw new InvalidOperationException("Unknown Portcove definition eligibility reason. Update the client before managing this game.");
+            if ((outcome == "eligible") != (reason == "mandatory_checks_passed"))
+                throw new InvalidOperationException("Portcove definition eligibility outcome and reason disagree. Refresh state and use a compatible CLI/client pair.");
+            return new DefinitionOperationDecision
+            {
+                Operation = operation,
+                Outcome = outcome,
+                Reason = reason,
+                Retained = Json.Boolean(value, "retained")
+            };
+        }
+    }
+
+    internal static class DefinitionOperations
+    {
+        internal static DefinitionOperationDecision[] Read(object status)
+        {
+            object raw;
+            if (!Json.TryField(status, "definition_operations", out raw))
+                return new DefinitionOperationDecision[0];
+            var decisions = Json.Array(raw).Select(DefinitionOperationDecision.Read).ToArray();
+            if (decisions.Select(decision => decision.Operation).Distinct(StringComparer.Ordinal).Count() != decisions.Length)
+                throw new InvalidOperationException("Portcove repeated a definition operation decision. Refresh state and update the client if it persists.");
+            return decisions;
+        }
+
+        internal static void RequireEligible(object status, string operation)
+        {
+            var decision = Read(status).SingleOrDefault(value => value.Operation == operation);
+            if (decision == null || decision.Outcome == "eligible") return;
+            throw new InvalidOperationException(
+                "Portcove reports that definition " + operation + " requires attention: " +
+                decision.Reason.Replace('_', ' ') + " [" + decision.Reason + ", " + decision.Outcome + "]. " +
+                "Refresh readiness and use Portcove's supported recovery or trust action; the client did not override this decision.");
+        }
+
+        internal static string Summary(object status)
+        {
+            var decisions = Read(status);
+            if (decisions.Length == 0) return null;
+            return string.Join("\n", decisions.Select(decision =>
+                "Definition " + decision.Operation + ": " + decision.Outcome + " — " +
+                decision.Reason.Replace('_', ' ') + " [" + decision.Reason + "]" +
+                (decision.Retained ? " (retained installed contract)" : " (selected definition)")));
         }
     }
 

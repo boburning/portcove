@@ -138,11 +138,13 @@ namespace Portcove.ReferenceClient
             var active = Json.Field(status, "active");
             var readiness = Json.Field(status, "readiness");
             var blockers = readiness == null ? "Readiness unknown" : string.Join(", ", Json.Array(Json.Field(readiness, "blockers")).Select(value => Convert.ToString(value).Replace('_', ' ')));
+            var definitionOperations = DefinitionOperations.Summary(status);
             state.Text = (active == null ? "Not installed." : "Installed: " + Json.Text(active, "version") + ".") + "\n" +
                 (readiness != null && Json.Boolean(readiness, "launchable") ? "Portcove reports this game is ready to launch." : "Setup: " + blockers + ".") +
                 "\nSource profile: " + (Json.Field(catalog, "source_profile") ?? "none") +
                 "\nBIOS profile: " + (Json.Field(catalog, "bios_source_profile") ?? "none") +
-                "\nCatalog support: " + Json.Text(catalog, "support_tier") + ". Gameplay evidence is separate from launch readiness.";
+                "\nCatalog support: " + Json.Text(catalog, "support_tier") + ". Gameplay evidence is separate from launch readiness." +
+                (definitionOperations == null ? "" : "\n" + definitionOperations);
             var entries = activity.Where(item => (Json.Field(item, "target_id") as string) == port).Take(8).ToArray();
             progress.Text = entries.Length == 0 ? "No retained activity for this game in the latest 200 library entries." :
                 string.Join("\n", entries.Select(item => Json.Text(item, "operation").Replace('_', ' ') + ": " + Json.Text(item, "status") +
@@ -184,6 +186,8 @@ namespace Portcove.ReferenceClient
 
         private async Task Manage(string command)
         {
+            var status = await cli.Read("status", "status", port);
+            DefinitionOperations.RequireEligible(status, "install");
             var sourcePath = source.Text.Trim();
             var biosPath = bios.Text.Trim();
             if (sourcePath.Length != 0) PublicCli.RequireAbsolute(sourcePath);
@@ -203,6 +207,8 @@ namespace Portcove.ReferenceClient
 
         private async Task Prepare()
         {
+            var status = await cli.Read("status", "status", port);
+            DefinitionOperations.RequireEligible(status, "prepare");
             var plan = await cli.Read("preparation.plan", "preparation", "plan", port);
             technical.Text = Json.Print(plan);
             var inputs = Json.Field(plan, "inputs");

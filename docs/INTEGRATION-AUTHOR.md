@@ -25,8 +25,8 @@ program/argument objects, not shell command strings:
 ```
 
 Check the envelope's schema, command, `ok`, data/error and exit status. Negotiate
-required command names, JSON/JSONL formats and raw `exec`. The reference's initial
-window is API 42–43/event 2; tolerate additive object fields within it and reject
+required command names, JSON/JSONL formats and raw `exec`. The reference's current
+window is API 42–47/event 2; tolerate additive object fields within it and reject
 unknown consequential enum values or a different schema with a migration message.
 Future client revisions should extend that window only after matching fixtures
 and package tests. The product version is descriptive, never a substitute for
@@ -80,7 +80,8 @@ registration and install/update are separate observable mutations; a later
 failure does not imply earlier registration was undone.
 
 Event records have **event schema 2 at the root**; they are not nested in API
-envelopes. A final root record has `type: "result"` and API schema 42. Some
+envelopes. A final root record has `type: "result"` and a negotiated API
+schema within the client's 42–47 window. Some
 commands emit only the result. Track sequences per operation ID and parent IDs;
 do not fabricate progress when a phase or event is missing. A valid terminal
 result and matching exit status establish the command response; refresh core
@@ -94,6 +95,15 @@ core result; a request acknowledgment is not completion. Use `activity --limit
 are bounded and retention may remove old records. On reconnect inspect exact
 IDs and current state, then present the specific supported recovery action.
 An error does not imply unchanged files or a completed rollback.
+
+Schema 47 status may include `definition_operations`. Consume each core-owned
+install, preparation and launch outcome with its stable reason and `retained`
+scope. An `eligible` result can be offered, while `hold` and `escalate` require
+the recovery or trust action Portcove reports. Treat an unknown operation,
+outcome or reason as a compatibility failure. Do not reduce publisher trust,
+artifact integrity, source compatibility, scoped evidence or missing gameplay to
+one client-maintained support flag, and do not cache a decision as authorization;
+core revalidates current state when execution begins.
 
 ## Troubleshooting and conformance
 
