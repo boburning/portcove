@@ -12,6 +12,10 @@ use tough::schema::{KeyHolder, RoleKeys, RoleType, Root};
 use tough::{Repository, RepositoryLoader};
 use url::Url;
 
+use portcove_desktop::application_update_trust::{
+    TrustedRepository, TrustedRepositoryError, TrustedRepositoryRequest, load_trusted_repository,
+};
+
 pub fn nz(value: u64) -> NonZeroU64 {
     NonZeroU64::new(value).unwrap()
 }
@@ -126,10 +130,28 @@ impl Fixture {
     }
 
     pub async fn publish(&self, root: &[u8], online: &Key, version: u64, expires: Timestamp) {
+        self.publish_target(
+            root,
+            online,
+            version,
+            expires,
+            br#"{"schema":1,"version":"0.1.0","fixture":true}"#,
+        )
+        .await;
+    }
+
+    pub async fn publish_target(
+        &self,
+        root: &[u8],
+        online: &Key,
+        version: u64,
+        expires: Timestamp,
+        target_bytes: &[u8],
+    ) {
         let root_path = self.directory.path().join("editor-root.json");
         fs::write(&root_path, root).unwrap();
         let target = self.targets.join("release.json");
-        fs::write(&target, br#"{"schema":1,"version":"0.1.0","fixture":true}"#).unwrap();
+        fs::write(&target, target_bytes).unwrap();
         let mut editor = RepositoryEditor::new(root_path).await.unwrap();
         editor
             .targets_version(nz(version))
@@ -162,5 +184,19 @@ impl Fixture {
         RepositoryLoader::new(&trusted, self.metadata_url(), self.targets_url())
             .load()
             .await
+    }
+
+    pub async fn load_persisted(
+        &self,
+        trusted: &[u8],
+        state_directory: &Path,
+    ) -> Result<TrustedRepository, TrustedRepositoryError> {
+        load_trusted_repository(TrustedRepositoryRequest {
+            bundled_root: trusted,
+            metadata_base_url: self.metadata_url(),
+            targets_base_url: self.targets_url(),
+            state_directory,
+        })
+        .await
     }
 }

@@ -6,10 +6,14 @@ mod updater_trust_support;
 use std::fs;
 
 use futures_util::TryStreamExt;
+use portcove_desktop::application_update_trust::{
+    TrustedRepositoryError, TrustedRepositoryRequest, load_trusted_repository,
+};
+use tough::TargetName;
 use tough::error::Error;
 use tough::schema::RoleType;
-use tough::{RepositoryLoader, TargetName};
 use updater_trust_support::{Fixture, Key, expiration, nz};
+use url::Url;
 
 #[tokio::test]
 async fn rotation_survives_one_lost_offline_key_and_revokes_old_online_key() {
@@ -121,24 +125,31 @@ async fn persisted_metadata_rejects_replay_and_expiry_without_touching_user_data
     fs::write(&user_data, b"newer user data").unwrap();
     f.publish(&trusted, &f.online, 1, expiration()).await;
     let timestamp = fs::read(f.metadata.join("timestamp.json")).unwrap();
+    let snapshot = fs::read(f.metadata.join("snapshot.json")).unwrap();
+    let targets = fs::read(f.metadata.join("targets.json")).unwrap();
     let state = f.directory.path().join("trusted-state");
     fs::create_dir(&state).unwrap();
     f.publish(&trusted, &f.online, 2, expiration()).await;
-    RepositoryLoader::new(&trusted, f.metadata_url(), f.targets_url())
-        .datastore(&state)
-        .load()
-        .await
-        .unwrap();
+    f.load_persisted(&trusted, &state).await.unwrap();
     fs::write(f.metadata.join("timestamp.json"), timestamp).unwrap();
     assert!(matches!(
-        RepositoryLoader::new(&trusted, f.metadata_url(), f.targets_url())
-            .datastore(&state)
-            .load()
-            .await,
-        Err(Error::OlderMetadata {
-            role: RoleType::Timestamp,
-            ..
-        })
+        f.load_persisted(&trusted, &state).await,
+        Err(TrustedRepositoryError::Authentication(error))
+            if matches!(*error, Error::OlderMetadata {
+                role: RoleType::Timestamp,
+                ..
+            })
+    ));
+
+    for role in ["timestamp.json", "snapshot.json", "targets.json"] {
+        fs::remove_file(state.join("metadata").join(role)).unwrap();
+    }
+    fs::write(f.metadata.join("snapshot.json"), snapshot).unwrap();
+    fs::write(f.metadata.join("targets.json"), targets).unwrap();
+    assert!(matches!(
+        f.load_persisted(&trusted, &state).await,
+        Err(TrustedRepositoryError::InvalidState(message))
+            if message == "timestamp metadata is below or differs from its replay floor"
     ));
     f.publish(
         &trusted,
@@ -147,14 +158,169 @@ async fn persisted_metadata_rejects_replay_and_expiry_without_touching_user_data
         "2000-01-01T00:00:00Z".parse().unwrap(),
     )
     .await;
-    assert!(matches!(
-        f.load(&trusted).await,
-        Err(Error::ExpiredMetadata {
-            role: RoleType::Timestamp,
-            ..
-        })
-    ));
+    let expired = f.load_persisted(&trusted, &state).await;
+    assert!(
+        matches!(
+        expired,
+        Err(TrustedRepositoryError::Authentication(ref error))
+            if matches!(error.as_ref(), Error::ExpiredMetadata {
+                role: RoleType::Timestamp,
+                ..
+            })
+        ),
+        "{expired:?}"
+    );
     assert_eq!(fs::read(user_data).unwrap(), b"newer user data");
+}
+
+#[tokio::test]
+async fn failed_refresh_persists_rotated_root_for_the_next_restart() {
+    let f = Fixture::new().await;
+    let old = f.root(1, &f.offline, &f.online).await;
+    let trusted = f.sign_root(&old, &old, &f.offline).await;
+    f.publish(&trusted, &f.online, 1, expiration()).await;
+    let state = f.directory.path().join("host-trust-after-failure");
+    let first = f.load_persisted(&trusted, &state).await.unwrap();
+    assert_eq!(first.versions.root, 1);
+    assert_eq!(first.versions.timestamp, 1);
+
+    let replacement_online = Key::new(f.directory.path()).await;
+    let current = f.root(2, &f.offline, &replacement_online).await;
+    let bridge = f.sign_root(&current, &old, &f.offline).await;
+    fs::write(f.metadata.join("2.root.json"), &bridge).unwrap();
+    f.publish(&bridge, &replacement_online, 2, expiration())
+        .await;
+    let valid_timestamp = fs::read(f.metadata.join("timestamp.json")).unwrap();
+    fs::write(f.metadata.join("timestamp.json"), b"not signed metadata").unwrap();
+    assert!(matches!(
+        f.load_persisted(&trusted, &state).await,
+        Err(TrustedRepositoryError::Authentication(_))
+    ));
+
+    let persisted: serde_json::Value =
+        serde_json::from_slice(&fs::read(state.join("trust-state.json")).unwrap()).unwrap();
+    assert_eq!(persisted["root"]["version"], 2);
+
+    fs::remove_file(f.metadata.join("2.root.json")).unwrap();
+    fs::write(f.metadata.join("timestamp.json"), valid_timestamp).unwrap();
+    let restarted = f.load_persisted(&trusted, &state).await.unwrap();
+    assert_eq!(restarted.versions.root, 2);
+    assert_eq!(restarted.versions.timestamp, 2);
+}
+
+#[tokio::test]
+async fn failed_initial_root_refresh_retains_bootstrap_root_for_retry() {
+    let f = Fixture::new().await;
+    let old = f.root(1, &f.offline, &f.online).await;
+    let trusted = f.sign_root(&old, &old, &f.offline).await;
+    f.publish(&trusted, &f.online, 1, expiration()).await;
+
+    let replacement = [
+        Key::new(f.directory.path()).await,
+        Key::new(f.directory.path()).await,
+        Key::new(f.directory.path()).await,
+    ];
+    let replacement_online = Key::new(f.directory.path()).await;
+    let next = f.root(2, &replacement, &replacement_online).await;
+    let self_appointed = f.sign_root(&next, &next, &replacement).await;
+    fs::write(f.metadata.join("2.root.json"), self_appointed).unwrap();
+
+    let state = f.directory.path().join("host-trust-initial-root-failure");
+    assert!(matches!(
+        f.load_persisted(&trusted, &state).await,
+        Err(TrustedRepositoryError::Authentication(error))
+            if matches!(*error, Error::VerifyMetadata {
+                role: RoleType::Root,
+                ..
+            })
+    ));
+    assert!(state.join("metadata/root.json").is_file());
+
+    fs::remove_file(f.metadata.join("2.root.json")).unwrap();
+    let retried = f.load_persisted(&trusted, &state).await.unwrap();
+    assert_eq!(retried.versions.root, 1);
+}
+
+#[tokio::test]
+async fn greatest_accepted_time_rejects_clock_regression() {
+    let f = Fixture::new().await;
+    let root = f.root(1, &f.offline, &f.online).await;
+    let trusted = f.sign_root(&root, &root, &f.offline).await;
+    f.publish(&trusted, &f.online, 1, expiration()).await;
+    let state = f.directory.path().join("host-trust-clock");
+    f.load_persisted(&trusted, &state).await.unwrap();
+
+    let state_path = state.join("trust-state.json");
+    let mut persisted: serde_json::Value =
+        serde_json::from_slice(&fs::read(&state_path).unwrap()).unwrap();
+    persisted["greatest_accepted_time"] = "2999-01-01T00:00:00Z".into();
+    fs::write(&state_path, serde_json::to_vec_pretty(&persisted).unwrap()).unwrap();
+
+    assert!(matches!(
+        f.load_persisted(&trusted, &state).await,
+        Err(TrustedRepositoryError::ClockRegression { .. })
+    ));
+}
+
+#[tokio::test]
+async fn host_loader_refuses_network_sources_before_state_mutation() {
+    let f = Fixture::new().await;
+    let root = f.root(1, &f.offline, &f.online).await;
+    let trusted = f.sign_root(&root, &root, &f.offline).await;
+    let refused_state = f.directory.path().join("refused-network-state");
+    assert!(matches!(
+        load_trusted_repository(TrustedRepositoryRequest {
+            bundled_root: &trusted,
+            metadata_base_url: Url::parse("https://updates.invalid/metadata/").unwrap(),
+            targets_base_url: Url::parse("https://updates.invalid/targets/").unwrap(),
+            state_directory: &refused_state,
+        })
+        .await,
+        Err(TrustedRepositoryError::InvalidSource(_))
+    ));
+    assert!(!refused_state.exists());
+}
+
+#[tokio::test]
+async fn retained_body_hash_rejects_equal_version_equivocation_without_tuf_cache() {
+    let f = Fixture::new().await;
+    let root = f.root(1, &f.offline, &f.online).await;
+    let trusted = f.sign_root(&root, &root, &f.offline).await;
+    let expires = expiration();
+    f.publish_target(&trusted, &f.online, 1, expires, b"first target")
+        .await;
+    let state = f.directory.path().join("host-trust-equivocation");
+    f.load_persisted(&trusted, &state).await.unwrap();
+
+    for role in ["timestamp.json", "snapshot.json", "targets.json"] {
+        fs::remove_file(state.join("metadata").join(role)).unwrap();
+    }
+    f.publish_target(&trusted, &f.online, 1, expires, b"different target")
+        .await;
+    assert!(matches!(
+        f.load_persisted(&trusted, &state).await,
+        Err(TrustedRepositoryError::InvalidState(message))
+            if message == "timestamp metadata is below or differs from its replay floor"
+    ));
+}
+
+#[tokio::test]
+async fn process_guard_allows_only_one_check_for_the_same_state() {
+    let f = Fixture::new().await;
+    let root = f.root(1, &f.offline, &f.online).await;
+    let trusted = f.sign_root(&root, &root, &f.offline).await;
+    f.publish(&trusted, &f.online, 1, expiration()).await;
+    let state = f.directory.path().join("host-trust-concurrent");
+
+    let (left, right) = tokio::join!(
+        f.load_persisted(&trusted, &state),
+        f.load_persisted(&trusted, &state)
+    );
+    assert_eq!(usize::from(left.is_ok()) + usize::from(right.is_ok()), 1);
+    assert!(
+        matches!(left, Err(TrustedRepositoryError::Busy))
+            || matches!(right, Err(TrustedRepositoryError::Busy))
+    );
 }
 
 #[tokio::test]

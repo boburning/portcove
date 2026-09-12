@@ -577,10 +577,14 @@ The [application updater trust design](UPDATER-TRUST.md) assigns application
 replacement/trust state to the Tauri host; core retains library/game authority.
 The host's `application_update` module validates separately authenticated immutable
 release and channel records against installed identity and compatibility context,
-then selects by SemVer precedence. Disposable TUF fixtures authenticate both inputs
-with distinct test keys. This boundary performs no network, persistence, download,
-publication or replacement work and is not a production updater or alternative
-catalog verifier. Existing architecture metadata rules continue to forbid
+then selects by SemVer precedence. `application_update_trust` wraps the maintained
+`tough` client with path-keyed process ownership plus one host OS lock, atomically
+persisted greatest accepted time, the latest verified root and explicit
+timestamp/snapshot/targets version and signed-body replay floors.
+It supplies the latest persisted root on restart and retains verified root progress
+when later metadata fails. The current source boundary accepts disposable local-file
+repositories only; no production network transport, download, publication or
+replacement is active. Existing architecture metadata rules continue to forbid
 independent catalog verification in adapters.
 
 Offline release tooling reconstructs the host's record inputs from complete raw
