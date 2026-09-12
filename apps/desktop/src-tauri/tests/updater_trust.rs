@@ -351,6 +351,60 @@ async fn process_guard_allows_only_one_check_for_the_same_state() {
 }
 
 #[tokio::test]
+async fn authenticated_repository_rejects_more_than_sixteen_delegated_roles() {
+    use tough::editor::RepositoryEditor;
+    use tough::schema::{PathPattern, PathSet};
+
+    let f = Fixture::new().await;
+    let root = f.root(1, &f.offline, &f.online).await;
+    let trusted = f.sign_root(&root, &root, &f.offline[..2]).await;
+    let root_path = f.directory.path().join("editor-root.json");
+    fs::write(&root_path, &trusted).unwrap();
+    let mut editor = RepositoryEditor::new(root_path).await.unwrap();
+    editor
+        .targets_version(nz(1))
+        .unwrap()
+        .targets_expires(expiration())
+        .unwrap()
+        .snapshot_version(nz(1))
+        .snapshot_expires(expiration())
+        .timestamp_version(nz(1))
+        .timestamp_expires(expiration());
+    for index in 0..17 {
+        editor
+            .delegate_role(
+                &format!("role-{index}"),
+                &[f.online.source()],
+                PathSet::Paths(vec![PathPattern::new(format!("role-{index}/*")).unwrap()]),
+                false,
+                nz(1),
+                expiration(),
+                nz(1),
+            )
+            .await
+            .unwrap();
+    }
+    editor
+        .sign(&[f.online.source()])
+        .await
+        .unwrap()
+        .write(&f.metadata)
+        .await
+        .unwrap();
+
+    let state = f.directory.path().join("bounded-role-state");
+    let error = f.load_persisted(&trusted, &state).await.unwrap_err();
+    assert!(matches!(
+        error,
+        TrustedRepositoryError::MetadataPolicy(message)
+            if message.contains("delegated role count exceeds 16")
+    ));
+    let retained: serde_json::Value =
+        serde_json::from_slice(&fs::read(state.join("trust-state.json")).unwrap()).unwrap();
+    assert_eq!(retained["roles"]["targets"]["version"], 1);
+}
+
+#[tokio::test]
 async fn release_record_tampering_is_rejected_before_consumption() {
     let f = Fixture::new().await;
     let root = f.root(1, &f.offline, &f.online).await;
