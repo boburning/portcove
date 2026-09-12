@@ -209,6 +209,15 @@ impl ApplicationUpdateApplyStore {
             .map_err(|error| ApplicationUpdateApplyError::InvalidPath(error.to_string()))
     }
 
+    pub fn open_configured() -> Result<Self, ApplicationUpdateApplyError> {
+        let root = std::env::var_os("PORTCOVE_APPLICATION_UPDATE_STAGING")
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from)
+            .map(Ok)
+            .unwrap_or_else(Self::default_root)?;
+        Self::new(root)
+    }
+
     pub fn new(root: PathBuf) -> Result<Self, ApplicationUpdateApplyError> {
         validate_root(&root)?;
         Ok(Self { root })
@@ -403,7 +412,28 @@ impl ApplicationUpdateApplyStore {
     /// the staged payload or granting permission to retry it.
     pub fn recover(&self) -> Result<ApplicationUpdateApplyState, ApplicationUpdateApplyError> {
         let _lock = self.lock()?;
+        self.recover_locked(false)
+    }
+
+    /// Repairs malformed or future state only while it is still invalid.
+    /// A stale recovery action cannot clear an intent another process repaired.
+    pub fn recover_invalid(
+        &self,
+    ) -> Result<ApplicationUpdateApplyState, ApplicationUpdateApplyError> {
+        let _lock = self.lock()?;
+        self.recover_locked(true)
+    }
+
+    fn recover_locked(
+        &self,
+        require_invalid: bool,
+    ) -> Result<ApplicationUpdateApplyState, ApplicationUpdateApplyError> {
         let revision = match self.load() {
+            Ok(_) if require_invalid => {
+                return Err(ApplicationUpdateApplyError::InvalidState(
+                    "apply state no longer requires recovery".into(),
+                ));
+            }
             Ok(state) => next_revision(state.revision)?,
             Err(ApplicationUpdateApplyError::InvalidState(_))
             | Err(ApplicationUpdateApplyError::UnsupportedSchema(_)) => {

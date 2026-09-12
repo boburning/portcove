@@ -368,6 +368,10 @@ export type SourceInboxResolutionState =
   "registered" | "exact_match" | "approval_required" | "unresolved" | "conflict" | "incomplete";
 export type ApplicationChannel = "preview" | "stable";
 export type ApplicationUpdateMode = "automatic" | "notify-only" | "manual";
+export type ApplicationUpdateRequestedAction = "safe-exit" | "restart-to-apply";
+export type ApplicationUpdateObservedTermination =
+  "normal-exit" | "restart-to-apply" | "crash" | "os-shutdown" | "steam-stop";
+export type ApplicationUpdateRecoveryArea = "schedule" | "staging" | "apply";
 
 export interface TransportOutputs {
   about: OutputAbout;
@@ -452,6 +456,7 @@ export interface TransportOutputs {
   update_snapshot: UpdateSnapshot;
   upstream_observation_report: OutputUpstreamObservationReport;
   desktop_application_update_preferences: OutputDesktopApplicationUpdatePreferences;
+  desktop_application_update_status: OutputDesktopApplicationUpdateStatus;
   desktop_backup_review: OutputDesktopBackupReview;
   desktop_bootstrap_status: OutputDesktopBootstrapStatus;
   desktop_cli_command_context: OutputDesktopCliCommandContext;
@@ -1952,6 +1957,35 @@ export interface ApplicationUpdateChoice {
   channel: ApplicationChannel;
   mode: ApplicationUpdateMode;
   paused: boolean;
+}
+export interface OutputDesktopApplicationUpdateStatus {
+  apply: ApplicationUpdateApplySummary | null;
+  recovery_required: ApplicationUpdateRecoveryNotice[];
+  schedule: ApplicationUpdateScheduleSummary | null;
+  staged: ApplicationUpdateCandidateSummary | null;
+  [k: string]: unknown;
+}
+export interface ApplicationUpdateApplySummary {
+  request: ApplicationUpdateRequestedAction;
+  revision: number;
+  termination: ApplicationUpdateObservedTermination | null;
+  [k: string]: unknown;
+}
+export interface ApplicationUpdateRecoveryNotice {
+  area: ApplicationUpdateRecoveryArea;
+  [k: string]: unknown;
+}
+export interface ApplicationUpdateScheduleSummary {
+  consecutive_failures: number;
+  last_success_unix_seconds: number | null;
+  next_automatic_check_unix_seconds: number | null;
+  [k: string]: unknown;
+}
+export interface ApplicationUpdateCandidateSummary {
+  bytes: number;
+  channel: ApplicationChannel;
+  version: string;
+  [k: string]: unknown;
 }
 export interface OutputDesktopBackupReview {
   persistent_data_path: string;

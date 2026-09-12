@@ -102,6 +102,12 @@ export type ApplicationUpdatePreferences =
 
 export type ApplicationUpdateChoice = Requests.TransportInputs["desktop_application_update_choice"];
 
+export type ApplicationUpdateStatus =
+  Generated.TransportOutputs["desktop_application_update_status"];
+
+export type ApplicationUpdateRecoveryArea =
+  Requests.TransportInputs["desktop_application_update_recovery_area"];
+
 export type LibrarySelection = Generated.TransportOutputs["library_selection"];
 
 export type { LibraryMetadataFile } from "./transport-types.generated";

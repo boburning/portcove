@@ -209,7 +209,28 @@ impl ApplicationUpdatePreferenceStore {
     /// consent. It cannot start any updater operation.
     pub fn reset(&self) -> Result<ApplicationUpdatePreferences, ApplicationUpdatePreferenceError> {
         let _lock = self.lock()?;
+        self.reset_locked(false)
+    }
+
+    /// Repairs malformed or future state only while it is still invalid.
+    /// A stale recovery action cannot clear a choice another process repaired.
+    pub fn recover_invalid(
+        &self,
+    ) -> Result<ApplicationUpdatePreferences, ApplicationUpdatePreferenceError> {
+        let _lock = self.lock()?;
+        self.reset_locked(true)
+    }
+
+    fn reset_locked(
+        &self,
+        require_invalid: bool,
+    ) -> Result<ApplicationUpdatePreferences, ApplicationUpdatePreferenceError> {
         let revision = match self.load() {
+            Ok(_) if require_invalid => {
+                return Err(ApplicationUpdatePreferenceError::InvalidState(
+                    "preference state no longer requires recovery".into(),
+                ));
+            }
             Ok(current) => current.revision.checked_add(1).ok_or_else(|| {
                 ApplicationUpdatePreferenceError::InvalidState(
                     "preference revision is exhausted".into(),
@@ -344,6 +365,14 @@ pub(crate) async fn reset_application_update_preferences(
 ) -> DesktopResult<ApplicationUpdatePreferences> {
     let store = state.store.as_ref().map_err(Clone::clone)?.clone();
     blocking_worker(move || store.reset().map_err(desktop_error)).await
+}
+
+#[tauri::command]
+pub(crate) async fn recover_application_update_preferences(
+    state: tauri::State<'_, ApplicationUpdatePreferenceState>,
+) -> DesktopResult<ApplicationUpdatePreferences> {
+    let store = state.store.as_ref().map_err(Clone::clone)?.clone();
+    blocking_worker(move || store.recover_invalid().map_err(desktop_error)).await
 }
 
 fn desktop_error(error: ApplicationUpdatePreferenceError) -> DesktopError {
@@ -545,9 +574,10 @@ mod tests {
             store.load(),
             Err(ApplicationUpdatePreferenceError::UnsupportedSchema(2))
         ));
-        let reset_future = store.reset().unwrap();
+        let reset_future = store.recover_invalid().unwrap();
         assert_eq!(reset_future.revision, 8);
         assert!(reset_future.choice.is_none());
+        assert!(store.recover_invalid().is_err());
 
         fs::write(
             &path,

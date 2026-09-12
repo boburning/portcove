@@ -9,6 +9,7 @@ pub mod application_update_preferences;
 pub mod application_update_repository;
 pub mod application_update_schedule;
 pub mod application_update_staging;
+pub mod application_update_status;
 mod application_update_storage;
 mod application_update_transport;
 pub mod application_update_trust;
@@ -1662,6 +1663,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(application_update_preferences::configured_state())
+        .manage(application_update_status::configured_state())
         .manage(DesktopState {
             initialization,
             preferences,
@@ -1673,6 +1675,9 @@ pub fn run() {
             application_update_preferences::get_application_update_preferences,
             application_update_preferences::set_application_update_preferences,
             application_update_preferences::reset_application_update_preferences,
+            application_update_preferences::recover_application_update_preferences,
+            application_update_status::get_application_update_status,
+            application_update_status::recover_application_update_state,
             cli_context::get_cli_command_context,
             library_selection::get_library_identity,
             library_selection::set_default_library,

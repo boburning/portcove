@@ -19,7 +19,7 @@ export const DESKTOP_SCENARIOS = Object.freeze([
   scenario("keyboard-layout", "Keyboard focus and compact layout remain usable."),
   scenario(
     "native-application-update-preferences",
-    "Application update consent saves without starting update work and survives renderer reload.",
+    "Application update consent and corrupt-state recovery remain isolated and explicit.",
   ),
   scenario("appearance-restart", "Appearance preferences survive a real application restart.", {
     cycle_option: "restart-cycles",
