@@ -35,8 +35,9 @@ and makes safe exit or an explicit Restart to update action a separate apply bou
 The same Settings card reads a sanitized host status containing only check cadence,
 the verified staged version/channel/size, a pending safe-exit or restart request, its
 durable native-launch state, and named recovery requirements. It explains that an
-ambiguous or started attempt is held for installed-version reconciliation and that a
-proven pre-spawn failure still requires fresh checks before retry. It does not receive
+ambiguous or started attempt is held for installed-version reconciliation, a zero
+installer exit still requires installed-version and application-health proof, and a
+known failed exit requires fresh checks before retry. It does not receive
 repository URLs, signatures, keys, payload paths, installation paths, library roots
 or raw storage errors. Corrupt schedule, staging and apply journals remain separate
 visible recovery states. An explicit repair command locks and rechecks the selected
@@ -259,11 +260,14 @@ current-library locks in that fixed order while it verifies the expected revisio
 termination, unchanged choice, exact staged and freshly authenticated candidate,
 exact installed context, current compatibility and library quiescence. The resulting
 lease still grants no executable ownership or replacement permission. The Windows
-adapter durably records `starting` before native process creation, `started` after a
-child is created, and `failed` only when no child was created. Automatic revalidation
-stays closed after every launch attempt. An explicit retry can reopen only `failed`;
-ambiguous `starting` and `started` require reconciliation against newly observed
-installed identity. No production exit hook activates this sequence.
+adapter durably records `starting` before native process creation and retains every
+updater lock while it waits for that child. It records `failed` when no child was
+created, `installer-succeeded` after a zero exit, and `installer-failed` after a
+nonzero exit. Automatic revalidation stays closed after every launch attempt. An
+explicit retry can reopen `failed` or `installer-failed`; ambiguous `starting` and
+legacy `started` require reconciliation against newly observed installed identity,
+while `installer-succeeded` additionally requires application-health proof before
+clearing. No production exit hook activates this sequence.
 
 The sibling `application_update_trust` module owns the durable host trust boundary.
 Under path-keyed process ownership and one OS file lock it supplies `tough` with the

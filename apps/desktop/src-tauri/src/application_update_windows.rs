@@ -69,6 +69,10 @@ pub enum WindowsApplicationUpdateError {
     Permission(String),
     #[error("the Windows application update could not be launched: {0}")]
     Launch(String),
+    #[error("the Windows application update process could not be observed: {0}")]
+    Wait(String),
+    #[error("the Windows application update installer exited with code {0}")]
+    InstallerExit(i32),
     #[error("the Windows application update launch state could not be recorded: {0}")]
     LaunchJournal(#[from] ApplicationUpdateApplyError),
     #[error(
@@ -89,7 +93,7 @@ struct WindowsNsisUpdatePlan {
     _installer_guard: File,
 }
 
-/// Holds every shared updater authority until the native installer is started.
+/// Holds every shared updater authority until the native installer exits.
 pub struct WindowsNsisUpdateAdmission {
     lease: ApplicationUpdateRevalidationLease,
     plan: WindowsNsisUpdatePlan,
@@ -116,17 +120,32 @@ impl WindowsNsisUpdateAdmission {
         &self.plan.uninstaller
     }
 
-    /// Starts the verified installer with the passive update arguments
+    /// Runs the verified installer with the passive update arguments
     /// documented by Tauri's NSIS updater contract. The installer receives no
-    /// destination override and therefore keeps its registered identity.
+    /// destination override and therefore keeps its registered identity. This
+    /// helper retains every updater lock until the child exits and records the
+    /// process outcome before returning.
     #[cfg(windows)]
     pub fn launch(self) -> Result<(), WindowsApplicationUpdateError> {
         let Self { lease, plan } = self;
         let launch = lease.begin_native_launch()?;
         match launch_windows_nsis_installer(&plan.installer) {
-            Ok(()) => {
-                launch.record_started()?;
-                Ok(())
+            Ok(mut child) => {
+                let status = child
+                    .wait()
+                    .map_err(|error| WindowsApplicationUpdateError::Wait(error.to_string()))?;
+                let exit_code = status.code().ok_or_else(|| {
+                    WindowsApplicationUpdateError::Wait(
+                        "the installer exited without a Windows exit code".into(),
+                    )
+                })?;
+                if status.success() {
+                    launch.record_succeeded()?;
+                    Ok(())
+                } else {
+                    launch.record_installer_failed(exit_code)?;
+                    Err(WindowsApplicationUpdateError::InstallerExit(exit_code))
+                }
             }
             Err(error) => match launch.record_failed() {
                 Ok(_) => Err(error),
@@ -675,7 +694,9 @@ fn wide(value: &str) -> Vec<u16> {
 }
 
 #[cfg(windows)]
-fn launch_windows_nsis_installer(path: &Path) -> Result<(), WindowsApplicationUpdateError> {
+fn launch_windows_nsis_installer(
+    path: &Path,
+) -> Result<std::process::Child, WindowsApplicationUpdateError> {
     use std::process::Stdio;
 
     let mut command = portcove_core::ChildProcessPolicy::native_command(
@@ -695,8 +716,7 @@ fn launch_windows_nsis_installer(path: &Path) -> Result<(), WindowsApplicationUp
         .stderr(Stdio::null());
     command
         .spawn()
-        .map_err(|error| WindowsApplicationUpdateError::Launch(error.to_string()))?;
-    Ok(())
+        .map_err(|error| WindowsApplicationUpdateError::Launch(error.to_string()))
 }
 
 #[cfg(windows)]

@@ -143,7 +143,9 @@
         "enum": [
           "starting",
           "started",
-          "failed"
+          "failed",
+          "installer-succeeded",
+          "installer-failed"
         ],
         "type": "string"
       },

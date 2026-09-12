@@ -694,10 +694,14 @@ installations. An admitted payload starts through the documented passive NSIS
 relocation or elevation argument, while retaining the shared revalidation lease
 through process creation. Before creating the process, the apply journal records
 `starting`; a helper crash then remains an ambiguous attempt instead of silently
-starting the installer twice. Successful child creation records `started`, while a
-proven pre-spawn failure records `failed` and is the only state eligible for an
-explicit retry. Both `starting` and `started` require installed-identity
-reconciliation before any later action. Windows staging uses one fixed
+starting the installer twice. The launch remains `starting` while every updater
+lock is retained and the helper observes the child. A zero exit records
+`installer-succeeded`
+but still requires installed-identity and application-health reconciliation before
+the request can clear. A proven pre-spawn failure records `failed`; a nonzero exit
+records `installer-failed`. Both are known to have no live child and are eligible
+only for an explicit retry. A legacy `started` state and any crash while `starting`
+remain ambiguous and held. Windows staging uses one fixed
 `.exe` payload slot so the operating system can execute the authenticated bytes;
 other platforms retain their inert generic slot until their own adapters define a
 format-specific replacement. The sibling `application_update_helper` defines the
@@ -717,7 +721,8 @@ production repository provider or native launch invokes this sequence yet, so
 production replacement remains inactive.
 The adapter-local `application_update_status` command combines sanitized summaries
 of check cadence, a verified staged candidate, and any pending safe-exit or restart
-request. Its apply summary includes the durable `starting`, `started` or `failed`
+request. Its apply summary includes the durable `starting`, `started`, `failed`,
+`installer-succeeded` or `installer-failed`
 native-launch state so React can explain why another launch is held without receiving
 host paths or native authority. It never exposes authenticated URLs, signatures,
 payload keys, installed paths or library paths to React, and retained state is never
