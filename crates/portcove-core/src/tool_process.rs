@@ -139,8 +139,12 @@ pub(crate) fn run_tool(
         }
     };
     // Windows closes this exact job's descendants. Unix poll_setup stops the
-    // group before reaping its leader, while its PID still cannot be reused.
+    // group before reaping its leader, while its PID still cannot be reused;
+    // its group marker owns no resource that requires a destructor.
+    #[cfg(windows)]
     drop(group);
+    #[cfg(unix)]
+    let _ = group;
     let diagnostic = (|| {
         let drained = drain_setup_output(&receiver);
         let snapshot = snapshot(drained.is_ok())?;

@@ -28,6 +28,15 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
           cache-dependency-path: apps/desktop/pnpm-lock.yaml
+      - name: Read pinned aqua version
+        id: aqua-version
+        shell: bash
+        run: echo "version=$(tr -d '\r\n' < .aqua-version)" >> "$GITHUB_OUTPUT"
+      - name: Install pinned aqua
+        uses: aquaproj/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e # v4.0.5
+        with:
+          aqua_version: ${{ steps.aqua-version.outputs.version }}
+          enable_aqua_install: "false"
       - name: Read quality tool contract
         id: quality-pins
         run: node scripts/quality-tools.mjs --github-output >> "$GITHUB_OUTPUT"
