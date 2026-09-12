@@ -1,6 +1,7 @@
 mod adoption;
 pub mod application_update;
 pub mod application_update_apply;
+pub mod application_update_commands;
 pub mod application_update_coordinator;
 pub mod application_update_download;
 pub mod application_update_helper;
@@ -1697,6 +1698,7 @@ pub fn run() {
     ));
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .manage(application_update_commands::configured_state())
         .manage(application_update_preferences::configured_state())
         .manage(application_update_status::configured_state())
         .manage(DesktopState {
@@ -1707,6 +1709,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_bootstrap_status,
+            application_update_commands::check_application_update,
+            application_update_commands::cancel_application_update_check,
             application_update_preferences::get_application_update_preferences,
             application_update_preferences::set_application_update_preferences,
             application_update_preferences::reset_application_update_preferences,
