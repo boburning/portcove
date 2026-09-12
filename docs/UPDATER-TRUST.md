@@ -109,6 +109,15 @@ bridge requires the exact payload key from the offline-authorized top-level regi
 and returns its Tauri encoding beside the selection. A release or channel role
 cannot supply or override that key.
 
+The sibling `application_update_payload` boundary accepts an already obtained
+payload stream, the selected release artifact identity and that exact registry key.
+It independently revalidates the key's decoded-byte identity, requires a modern
+prehashed Minisign signature, and streams the payload once through the authenticated
+length, 2 GiB host cap, SHA-256 and signature checks. It returns a Rust-only verified
+identity only after all checks succeed. The boundary does not choose a URL, download,
+stage or replace an application, and its result supplies no fresh-eligibility or
+installation authority.
+
 The sibling `application_update_trust` module owns the durable host trust boundary.
 Under path-keyed process ownership and one OS file lock it supplies `tough` with the
 latest persisted root, safe expiration enforcement and bounded
@@ -173,7 +182,9 @@ New production origins require a reviewed trusted configuration change. Local fi
 transport belongs only to tests.
 
 Consume target streams fully before parsing or acting: early bytes are not verified.
-Verify final payload length/hash and Tauri signature before application. Use the
+The host's streaming payload boundary verifies final length, SHA-256 and Tauri
+signature together before any later staging or application step can accept its
+verified identity. Use the
 maintained native installer/replacement route with explicit archive entry, expanded
 size and path/link limits; no arbitrary ZIP overwrite. Extraction grants no execution
 authority. Each platform must prove interruption and extraction bounds before use.
