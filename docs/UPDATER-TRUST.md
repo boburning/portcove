@@ -128,6 +128,20 @@ identity only after all checks succeed. The boundary does not choose a URL, down
 stage or replace an application, and its result supplies no fresh-eligibility or
 installation authority.
 
+The host's `application_update_staging` boundary copies that same stream into one
+fixed private incoming slot while verification runs. Before writing it requires
+free capacity for the authenticated payload plus an equally sized native replacement
+workspace; an already retained prior payload is accounted for by the filesystem's
+used space. Its strict bounded journal advances through staged, payload-verified and
+verified phases under path-keyed process and OS locks. A failed verification removes
+the incoming bytes and restores the prior verified candidate. Restart reconciliation
+only publishes from the durable payload-verified phase, so equal payload bytes in two
+release records cannot make an unfinished signature check appear complete. Unknown,
+future or inconsistent journals fail closed until explicit reset, which removes only
+the fixed staging files. Reconciliation identifies locally retained bytes; it grants
+no fresh trust, eligibility or apply authority. No production downloader or platform
+replacement is activated by this slice.
+
 The sibling `application_update_trust` module owns the durable host trust boundary.
 Under path-keyed process ownership and one OS file lock it supplies `tough` with the
 latest persisted root, safe expiration enforcement and bounded
