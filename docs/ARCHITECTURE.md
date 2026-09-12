@@ -656,7 +656,12 @@ locks serialize writers. On restart it discards pre-verification bytes, restores
 prior verified slot after an interrupted attempt, or completes publication only from
 the durable payload-verified phase. Corrupt or future journals require explicit
 bounded reset. A reconciled file is retained state rather than fresh eligibility or
-apply authority; no downloader or platform replacement is active.
+apply authority. The sibling payload downloader accepts only the authenticated
+Portcove GitHub release/version path, follows at most five redirects through the
+reviewed GitHub release-asset host, resolves and pins public addresses, bypasses
+ambient proxies and streams anonymously under connection, idle, total-time and
+authenticated-length bounds. It returns only a reader for the existing verifier and
+staging boundary; no platform replacement is active.
 The sibling `application_update_apply` journal binds a requested safe exit or
 explicit one-restart action to the exact staged candidate, preference revision and
 choice, installed application context, and canonical current-library root. Its
@@ -678,7 +683,7 @@ For production metadata, a sibling host transport accepts only host-selected
 HTTPS bases with separate path prefixes on port 443, resolves and pins public DNS
 results, bypasses proxies, refuses redirects and enforces request, deadline, idle,
 per-role and aggregate byte limits. Its Rust-only request cannot be populated from
-frontend IPC. No production origin, updater check, payload download, publication or
+frontend IPC. No production origin, updater check, publication or
 replacement is active. Existing architecture metadata rules continue to forbid
 independent catalog verification in adapters.
 

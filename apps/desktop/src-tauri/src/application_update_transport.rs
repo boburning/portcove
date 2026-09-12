@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 use std::io;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
@@ -14,7 +14,8 @@ use reqwest::redirect::Policy;
 use tough::{Transport, TransportError, TransportErrorKind, TransportStream};
 use url::Url;
 
-const DNS_TIMEOUT: Duration = Duration::from_secs(10);
+use crate::application_update_network::{PublicDnsError, resolve_public_https_host};
+
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
 const IDLE_TIMEOUT: Duration = Duration::from_secs(20);
 const METADATA_DEADLINE: Duration = Duration::from_secs(120);
@@ -123,42 +124,15 @@ impl PinnedHttpsTransport {
             if resolved.contains_key(host) {
                 continue;
             }
-            let remaining = deadline
-                .checked_duration_since(Instant::now())
-                .ok_or_else(|| {
-                    TransportSetupError::Network(
-                        "application update metadata deadline expired during DNS lookup".into(),
-                    )
-                })?;
-            let lookup = tokio::time::timeout(
-                remaining.min(DNS_TIMEOUT),
-                tokio::net::lookup_host((host, 443)),
-            )
-            .await
-            .map_err(|_| {
-                TransportSetupError::Network(
-                    "application update metadata DNS lookup timed out".into(),
-                )
-            })?
-            .map_err(|_| {
-                TransportSetupError::Network("application update metadata DNS lookup failed".into())
-            })?;
-            let mut addresses: Vec<_> = lookup.collect();
-            addresses.sort_unstable();
-            addresses.dedup();
-            if addresses.is_empty() {
-                return Err(TransportSetupError::Network(
-                    "application update metadata DNS lookup returned no addresses".into(),
-                ));
-            }
-            if addresses
-                .iter()
-                .any(|address| !is_public_address(address.ip()))
-            {
-                return Err(TransportSetupError::InvalidSource(
-                    "application update metadata resolved to a non-public address".into(),
-                ));
-            }
+            let addresses =
+                resolve_public_https_host(host, deadline, "application update metadata")
+                    .await
+                    .map_err(|error| match error {
+                        PublicDnsError::InvalidDestination(message) => {
+                            TransportSetupError::InvalidSource(message)
+                        }
+                        PublicDnsError::Network(message) => TransportSetupError::Network(message),
+                    })?;
             resolved.insert(host.to_owned(), addresses);
         }
 
@@ -353,42 +327,6 @@ fn accepts(base: &TrustedBase, url: &Url) -> bool {
         && url.as_str().starts_with(base.url.as_str())
 }
 
-fn is_public_address(address: IpAddr) -> bool {
-    match address {
-        IpAddr::V4(address) => is_public_ipv4(address),
-        IpAddr::V6(address) => is_public_ipv6(address),
-    }
-}
-
-fn is_public_ipv4(address: Ipv4Addr) -> bool {
-    let [a, b, c, ..] = address.octets();
-    !(a == 0
-        || a == 10
-        || a == 127
-        || a >= 224
-        || (a == 100 && (64..=127).contains(&b))
-        || (a == 169 && b == 254)
-        || (a == 172 && (16..=31).contains(&b))
-        || (a == 192 && b == 0 && c == 0)
-        || (a == 192 && b == 0 && c == 2)
-        || (a == 192 && b == 168)
-        || (a == 192 && b == 88 && c == 99)
-        || (a == 198 && (18..=19).contains(&b))
-        || (a == 198 && b == 51 && c == 100)
-        || (a == 203 && b == 0 && c == 113))
-}
-
-fn is_public_ipv6(address: Ipv6Addr) -> bool {
-    // Restrict to current global unicast allocation, then fail closed for the
-    // broad IETF special-use block, documentation, deprecated 6to4 and 6bone.
-    let [first, second, ..] = address.segments();
-    (0x2000..=0x3fff).contains(&first)
-        && !(first == 0x2001 && second <= 0x01ff)
-        && !(first == 0x2001 && second == 0x0db8)
-        && first != 0x2002
-        && first != 0x3ffe
-}
-
 fn other_error(url: &Url, message: &str) -> TransportError {
     TransportError::new_with_cause(
         TransportErrorKind::Other,
@@ -430,7 +368,7 @@ mod tests {
     }
 
     #[test]
-    fn unsafe_https_bases_and_non_public_destinations_are_refused() {
+    fn unsafe_https_bases_are_refused() {
         for refused in [
             "http://updates.example/metadata/",
             "https://user@updates.example/metadata/",
@@ -442,31 +380,6 @@ mod tests {
         ] {
             assert!(validate_base(&Url::parse(refused).unwrap(), "metadata").is_err());
         }
-        for refused in [
-            "0.0.0.0",
-            "10.0.0.1",
-            "100.64.0.1",
-            "127.0.0.1",
-            "169.254.1.1",
-            "172.16.0.1",
-            "192.0.2.1",
-            "192.168.1.1",
-            "198.18.0.1",
-            "198.51.100.1",
-            "203.0.113.1",
-            "224.0.0.1",
-            "::1",
-            "fc00::1",
-            "fe80::1",
-            "2001::1",
-            "2001:db8::1",
-            "2002::1",
-            "3ffe::1",
-        ] {
-            assert!(!is_public_address(refused.parse().unwrap()), "{refused}");
-        }
-        assert!(is_public_address("8.8.8.8".parse().unwrap()));
-        assert!(is_public_address("2606:4700:4700::1111".parse().unwrap()));
     }
 
     #[tokio::test]
