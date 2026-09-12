@@ -94,7 +94,7 @@ struct WindowsNsisUpdatePlan {
 
 /// Holds every shared updater authority until the native installer is started.
 pub struct WindowsNsisUpdateAdmission {
-    lease: ApplicationUpdateRevalidationLease,
+    _lease: ApplicationUpdateRevalidationLease,
     plan: WindowsNsisUpdatePlan,
 }
 
@@ -124,7 +124,10 @@ impl WindowsNsisUpdateAdmission {
     /// destination override and therefore keeps its registered identity.
     #[cfg(windows)]
     pub fn launch(self) -> Result<(), WindowsApplicationUpdateError> {
-        let Self { lease, plan } = self;
+        let Self {
+            _lease: lease,
+            plan,
+        } = self;
         let launch = lease.begin_native_launch()?;
         match launch_windows_nsis_installer(&plan.installer) {
             Ok(()) => {
@@ -162,7 +165,10 @@ pub fn admit_windows_nsis_update(
         &registrations,
     )?;
     probe_install_root_write(&plan.install_root)?;
-    Ok(WindowsNsisUpdateAdmission { lease, plan })
+    Ok(WindowsNsisUpdateAdmission {
+        _lease: lease,
+        plan,
+    })
 }
 
 fn evaluate_windows_nsis_update(

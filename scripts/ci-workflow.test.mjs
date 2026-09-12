@@ -202,6 +202,9 @@ test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () 
   assert.match(rustClippy, /cargo clippy --workspace --all-targets -- -D warnings/);
   assert.doesNotMatch(rustClippy, /cargo test|matrix/);
 
+  assert.match(rustQuality, /runs-on: ubuntu-latest/);
+  assert.match(rustQuality, /cargo clippy --workspace --all-targets -- -D warnings/);
+
   assert.match(windowsStorage, /^ {4}name: windows-storage$/m);
   assert.match(windowsStorage, /runs-on: windows-latest/);
   assert.match(windowsStorage, /scripts\/dev-storage\.test\.mjs/);

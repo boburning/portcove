@@ -398,6 +398,8 @@ jobs:
       - name: Install Linux desktop schema-export prerequisites
         timeout-minutes: 15
         run: ./scripts/install-linux-desktop-prerequisites.sh
+      - name: Run all-target Clippy on Linux
+        run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Check child-process policy and live transport contracts
         run: |
           node scripts/check-child-process-policy.mjs
