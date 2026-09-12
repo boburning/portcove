@@ -102,6 +102,15 @@ export type ApplicationUpdatePreferences =
 
 export type ApplicationUpdateChoice = Requests.TransportInputs["desktop_application_update_choice"];
 
+export type ApplicationUpdateProductionDecision =
+  Requests.TransportInputs["desktop_application_update_production_decision"];
+
+export type ApplicationUpdateProductionTransition =
+  Generated.TransportOutputs["desktop_application_update_production_transition"];
+
+export type ApplicationUpdateProductionTransitionResult =
+  Generated.TransportOutputs["desktop_application_update_production_transition_result"];
+
 export type ApplicationUpdateStatus =
   Generated.TransportOutputs["desktop_application_update_status"];
 

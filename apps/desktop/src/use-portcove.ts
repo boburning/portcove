@@ -12,6 +12,8 @@ import type {
   ActivityRecord,
   ApplicationUpdateNoticeSnapshot,
   ApplicationUpdatePreferences,
+  ApplicationUpdateProductionDecision,
+  ApplicationUpdateProductionTransition,
   BackupInventory,
   CatalogDocument,
   DoctorReport,
@@ -63,6 +65,94 @@ export function useApplicationUpdateChoice(reportError?: (error: unknown) => voi
     if (preferences && !preferences.choice) setDismissedRevision(preferences.revision);
   }, [preferences]);
   return { preferences, choiceRequired, accept, dismiss };
+}
+
+export function useApplicationUpdateProductionTransition({
+  preferences,
+  acceptPreferences,
+  reportError,
+}: {
+  preferences: ApplicationUpdatePreferences | undefined;
+  acceptPreferences: (preferences: ApplicationUpdatePreferences) => void;
+  reportError?: (error: unknown) => void;
+}) {
+  const requests = useRef(new LatestRequestGeneration());
+  const actions = useRef(new LatestRequestGeneration());
+  const [snapshot, setSnapshot] = useState<ApplicationUpdateProductionTransition>();
+  const [busy, setBusy] = useState(false);
+  const [dismissedRevision, setDismissedRevision] = useState<number>();
+  const preferenceRevision = preferences?.revision;
+
+  useEffect(() => {
+    const tracker = actions.current;
+    return () => {
+      tracker.begin();
+    };
+  }, []);
+
+  useEffect(() => {
+    const tracker = requests.current;
+    if (preferenceRevision === undefined) return;
+    const request = tracker.begin();
+    void desktopApi
+      .applicationUpdateProductionTransition()
+      .then((next) => {
+        if (tracker.isCurrent(request)) setSnapshot(next);
+      })
+      .catch((error: unknown) => {
+        if (tracker.isCurrent(request)) reportError?.(error);
+      });
+    return () => {
+      tracker.begin();
+    };
+  }, [preferenceRevision, reportError]);
+
+  const complete = useCallback(
+    async (decision: ApplicationUpdateProductionDecision) => {
+      if (preferenceRevision === undefined) return false;
+      const request = actions.current.begin();
+      setBusy(true);
+      try {
+        const result = await desktopApi.completeApplicationUpdateProductionTransition(
+          preferenceRevision,
+          decision,
+        );
+        if (!actions.current.isCurrent(request)) return false;
+        acceptPreferences(result.preferences);
+        setSnapshot(result.transition);
+        return true;
+      } catch (error) {
+        if (!actions.current.isCurrent(request)) return false;
+        reportError?.(error);
+        try {
+          const [currentPreferences, currentTransition] = await Promise.all([
+            desktopApi.applicationUpdatePreferences(),
+            desktopApi.applicationUpdateProductionTransition(),
+          ]);
+          if (actions.current.isCurrent(request)) {
+            acceptPreferences(currentPreferences);
+            setSnapshot(currentTransition);
+          }
+        } catch {
+          // The original typed error remains the actionable report.
+        }
+        return false;
+      } finally {
+        if (actions.current.isCurrent(request)) setBusy(false);
+      }
+    },
+    [acceptPreferences, preferenceRevision, reportError],
+  );
+
+  const offerRequired = Boolean(
+    snapshot?.offer_required &&
+    snapshot.preference_revision === preferenceRevision &&
+    dismissedRevision !== preferenceRevision,
+  );
+  const dismiss = useCallback(() => {
+    if (snapshot?.offer_required) setDismissedRevision(snapshot.preference_revision);
+  }, [snapshot]);
+  return { snapshot, offerRequired, busy, complete, dismiss };
 }
 
 export function useApplicationUpdateNotice(reportError?: (error: unknown) => void) {

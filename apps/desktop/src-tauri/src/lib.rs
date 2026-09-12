@@ -1826,6 +1826,8 @@ pub fn run() {
             application_update_commands::dismiss_application_update_notice,
             application_update_restart::restart_to_apply_application_update,
             application_update_preferences::get_application_update_preferences,
+            application_update_preferences::get_application_update_production_transition,
+            application_update_preferences::complete_application_update_production_transition,
             application_update_preferences::set_application_update_preferences,
             application_update_preferences::reset_application_update_preferences,
             application_update_preferences::recover_application_update_preferences,

@@ -644,6 +644,18 @@ after a newer no-choice state. Reviewing the notice moves focus to the Settings
 choice, whose existing explicit Save action remains the only way to record host
 consent; the notice itself cannot check, download, stage, install or restart.
 
+The first stable production build also asks an existing Preview user once whether
+to move to Stable or keep Preview. The host derives eligibility from its compiled
+semantic version and exact saved preference revision. Choosing Stable changes only
+the channel under the preference lock, preserving mode and pause; keeping Preview
+leaves the choice unchanged. Either explicit decision writes a fixed companion
+acknowledgement beside the unchanged schema-1 preference document. The marker binds
+the preference revision that completes the decision, so an interrupted Stable write
+reoffers rather than hiding an uncommitted choice. A missing, malformed or incomplete
+acknowledgement reoffers the choice, while Not now remains session-only.
+Stable selection may wake the existing scheduler for the new saved policy, but
+neither decision directly downloads, applies or restarts.
+
 On Windows, `application_update_connectivity` queries Network List Manager on a
 short-lived initialized COM worker. A reported offline connection blocks all checks.
 Unrestricted machine-wide cost permits automatic work; fixed, variable, roaming,

@@ -37,6 +37,7 @@ import {
   useAdoptionPlanning,
   useApplicationUpdateChoice,
   useApplicationUpdateNotice,
+  useApplicationUpdateProductionTransition,
   detailActions,
   type Perform,
   useGithubAuth,
@@ -224,6 +225,11 @@ function Workspace({
   const ui = usePortcoveUi();
   const applicationUpdate = useApplicationUpdateNotice(operations.setError);
   const applicationUpdateChoice = useApplicationUpdateChoice(operations.setError);
+  const applicationUpdateProductionTransition = useApplicationUpdateProductionTransition({
+    preferences: applicationUpdateChoice.preferences,
+    acceptPreferences: applicationUpdateChoice.accept,
+    reportError: operations.setError,
+  });
   const [sourceIntake, setSourceIntake] = useState<SourceIntakeRequest>();
   const openSourceIntake = useCallback(
     (portId: string, profileId: string, paths: string[] = []) => {
@@ -313,6 +319,17 @@ function Workspace({
     applicationUpdateChoice.dismiss();
     window.requestAnimationFrame(() => focusRegion("workspace"));
   };
+  const completeApplicationUpdateProductionTransition = async (
+    decision: "use-stable" | "keep-preview",
+  ) => {
+    if (await applicationUpdateProductionTransition.complete(decision)) {
+      window.requestAnimationFrame(() => focusRegion("workspace"));
+    }
+  };
+  const dismissApplicationUpdateProductionTransition = () => {
+    applicationUpdateProductionTransition.dismiss();
+    window.requestAnimationFrame(() => focusRegion("workspace"));
+  };
 
   return (
     <ArtworkProvider generation={bootstrap.generation}>
@@ -343,9 +360,14 @@ function Workspace({
             busy={operations.busy}
             updateNotice={applicationUpdate.notice}
             updateChoiceRequired={applicationUpdateChoice.choiceRequired}
+            productionTransitionRequired={applicationUpdateProductionTransition.offerRequired}
+            productionTransitionBusy={applicationUpdateProductionTransition.busy}
             reviewUpdate={reviewApplicationUpdate}
             dismissUpdate={applicationUpdate.dismiss}
             dismissUpdateChoice={dismissApplicationUpdateChoice}
+            useStable={() => void completeApplicationUpdateProductionTransition("use-stable")}
+            keepPreview={() => void completeApplicationUpdateProductionTransition("keep-preview")}
+            dismissProductionTransition={dismissApplicationUpdateProductionTransition}
           />
           <WorkspaceRefreshNotice
             failure={data.refreshFailure}

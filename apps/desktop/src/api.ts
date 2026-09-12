@@ -38,6 +38,9 @@ import type {
   ApplicationUpdateDownloadRequest,
   ApplicationUpdateNoticeSnapshot,
   ApplicationUpdatePreferences,
+  ApplicationUpdateProductionDecision,
+  ApplicationUpdateProductionTransition,
+  ApplicationUpdateProductionTransitionResult,
   ApplicationUpdateRecoveryArea,
   ApplicationUpdateStatus,
   BackupInventory,
@@ -81,6 +84,16 @@ export const desktopApi = {
     }),
   applicationUpdatePreferences: () =>
     invoke<ApplicationUpdatePreferences>("get_application_update_preferences"),
+  applicationUpdateProductionTransition: () =>
+    invoke<ApplicationUpdateProductionTransition>("get_application_update_production_transition"),
+  completeApplicationUpdateProductionTransition: (
+    expectedRevision: number,
+    decision: ApplicationUpdateProductionDecision,
+  ) =>
+    invoke<ApplicationUpdateProductionTransitionResult>(
+      "complete_application_update_production_transition",
+      { expectedRevision, decision },
+    ),
   setApplicationUpdatePreferences: (expectedRevision: number, choice: ApplicationUpdateChoice) =>
     invoke<ApplicationUpdatePreferences>("set_application_update_preferences", {
       expectedRevision,

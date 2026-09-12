@@ -211,9 +211,14 @@ export function StatusLayer({
   busy,
   updateNotice,
   updateChoiceRequired,
+  productionTransitionRequired,
+  productionTransitionBusy,
   reviewUpdate,
   dismissUpdate,
   dismissUpdateChoice,
+  useStable,
+  keepPreview,
+  dismissProductionTransition,
 }: {
   error?: unknown;
   clearError: () => void;
@@ -221,9 +226,14 @@ export function StatusLayer({
   busy?: string;
   updateNotice?: ApplicationUpdateNoticeSnapshot["notice"];
   updateChoiceRequired?: boolean;
+  productionTransitionRequired?: boolean;
+  productionTransitionBusy?: boolean;
   reviewUpdate?: () => void;
   dismissUpdate?: () => Promise<void>;
   dismissUpdateChoice?: () => void;
+  useStable?: () => void;
+  keepPreview?: () => void;
+  dismissProductionTransition?: () => void;
 }) {
   return (
     <>
@@ -238,6 +248,14 @@ export function StatusLayer({
       {!updateNotice && updateChoiceRequired && (
         <ApplicationUpdateChoiceBanner review={reviewUpdate} dismiss={dismissUpdateChoice} />
       )}
+      {!updateNotice && !updateChoiceRequired && productionTransitionRequired && (
+        <ApplicationUpdateProductionTransitionBanner
+          busy={Boolean(productionTransitionBusy)}
+          useStable={useStable}
+          keepPreview={keepPreview}
+          dismiss={dismissProductionTransition}
+        />
+      )}
       {busy && (
         <OperationProgress
           operation={operation?.type === "finished" ? undefined : operation}
@@ -245,6 +263,51 @@ export function StatusLayer({
         />
       )}
     </>
+  );
+}
+
+function ApplicationUpdateProductionTransitionBanner({
+  busy,
+  useStable,
+  keepPreview,
+  dismiss,
+}: {
+  busy: boolean;
+  useStable?: () => void;
+  keepPreview?: () => void;
+  dismiss?: () => void;
+}) {
+  return (
+    <section
+      className="error-banner application-update-consent-notice"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      aria-busy={busy}
+    >
+      <span className="error-icon">
+        <Icon glyph={ShieldCheck} />
+      </span>
+      <div>
+        <strong>Choose your production channel</strong>
+        <p>
+          Stable is recommended and waits for an eligible production release newer than this
+          installation; it never downgrades Portcove. Keep Preview to continue receiving eligible
+          test releases. Your update mode and pause setting stay unchanged.
+        </p>
+      </div>
+      <div className="error-actions">
+        <button data-focusable className="small-control" disabled={busy} onClick={useStable}>
+          Use Stable
+        </button>
+        <button data-focusable className="small-control" disabled={busy} onClick={keepPreview}>
+          Keep Preview
+        </button>
+        <button data-focusable className="small-control" disabled={busy} onClick={dismiss}>
+          Not now
+        </button>
+      </div>
+    </section>
   );
 }
 

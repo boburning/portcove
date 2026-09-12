@@ -89,6 +89,15 @@
     "title": "ApplicationUpdateDownloadRequest",
     "type": "object"
   },
+  "application_update_production_decision": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "enum": [
+      "use-stable",
+      "keep-preview"
+    ],
+    "title": "ApplicationUpdateProductionDecision",
+    "type": "string"
+  },
   "application_update_recovery_area": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "enum": [

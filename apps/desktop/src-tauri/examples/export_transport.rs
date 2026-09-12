@@ -8,7 +8,8 @@ use portcove_desktop::application_update_commands::{
     ApplicationUpdateNoticeSnapshot,
 };
 use portcove_desktop::application_update_preferences::{
-    ApplicationUpdateChoice, ApplicationUpdatePreferences,
+    ApplicationUpdateChoice, ApplicationUpdatePreferences, ApplicationUpdateProductionDecision,
+    ApplicationUpdateProductionTransition, ApplicationUpdateProductionTransitionResult,
 };
 use portcove_desktop::application_update_status::{
     ApplicationUpdateRecoveryArea, ApplicationUpdateStatus,
@@ -43,6 +44,8 @@ fn main() {
                 "source_verification_outcome": output::<SourceBatchOutcome>(),
                 "launch_result": output::<LaunchResult>(),
                 "application_update_preferences": output::<ApplicationUpdatePreferences>(),
+                "application_update_production_transition": output::<ApplicationUpdateProductionTransition>(),
+                "application_update_production_transition_result": output::<ApplicationUpdateProductionTransitionResult>(),
                 "application_update_status": output::<ApplicationUpdateStatus>(),
                 "application_update_check_result": output::<ApplicationUpdateCheckResult>(),
                 "application_update_check_phase": output::<ApplicationUpdateCheckPhase>(),
@@ -51,6 +54,7 @@ fn main() {
             "input": {
                 "install_input": schemars::schema_for!(InstallInput),
                 "application_update_choice": schemars::schema_for!(ApplicationUpdateChoice),
+                "application_update_production_decision": schemars::schema_for!(ApplicationUpdateProductionDecision),
                 "application_update_recovery_area": schemars::schema_for!(ApplicationUpdateRecoveryArea),
                 "application_update_download_request": schemars::schema_for!(ApplicationUpdateDownloadRequest),
             },
