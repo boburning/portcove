@@ -575,6 +575,14 @@ signers are development dependencies only.
 
 The [application updater trust design](UPDATER-TRUST.md) assigns application
 replacement/trust state to the Tauri host; core retains library/game authority.
+The host's independent `application_update_preferences` store records the user's
+single explicit channel, update mode and pause choice outside every library. Reads
+do not create state, writers use optimistic revisions under path-keyed process and
+operating-system locks, and the shared durable-file helper publishes a flushed
+sibling atomically. Missing state means no consent; malformed or future state fails
+closed until an explicit reset clears the choice and advances its revision. These
+typed host commands only read or persist policy and cannot check, download, stage or
+apply an update.
 The host's `application_update` module validates separately authenticated immutable
 release and channel records against installed identity and compatibility context,
 then selects by SemVer precedence. `application_update_repository` is the bounded

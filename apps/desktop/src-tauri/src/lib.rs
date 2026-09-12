@@ -1,7 +1,9 @@
 mod adoption;
 pub mod application_update;
 pub mod application_update_payload;
+pub mod application_update_preferences;
 pub mod application_update_repository;
+mod application_update_storage;
 mod application_update_transport;
 pub mod application_update_trust;
 mod artwork;
@@ -1625,6 +1627,7 @@ pub fn run() {
     ));
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .manage(application_update_preferences::configured_state())
         .manage(DesktopState {
             initialization,
             preferences,
@@ -1633,6 +1636,9 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_bootstrap_status,
+            application_update_preferences::get_application_update_preferences,
+            application_update_preferences::set_application_update_preferences,
+            application_update_preferences::reset_application_update_preferences,
             cli_context::get_cli_command_context,
             library_selection::get_library_identity,
             library_selection::set_default_library,

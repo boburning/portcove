@@ -366,6 +366,8 @@ export type SourceImportOutcome =
   "copied" | "moved" | "reused_existing" | "registered_current_location" | "copied_original_retained";
 export type SourceInboxResolutionState =
   "registered" | "exact_match" | "approval_required" | "unresolved" | "conflict" | "incomplete";
+export type ApplicationChannel = "preview" | "stable";
+export type ApplicationUpdateMode = "automatic" | "notify-only" | "manual";
 
 export interface TransportOutputs {
   about: OutputAbout;
@@ -449,6 +451,7 @@ export interface TransportOutputs {
   update_check: UpdateCheck;
   update_snapshot: UpdateSnapshot;
   upstream_observation_report: OutputUpstreamObservationReport;
+  desktop_application_update_preferences: OutputDesktopApplicationUpdatePreferences;
   desktop_backup_review: OutputDesktopBackupReview;
   desktop_bootstrap_status: OutputDesktopBootstrapStatus;
   desktop_cli_command_context: OutputDesktopCliCommandContext;
@@ -1936,6 +1939,19 @@ export interface ObservedResolution {
   release: ResolvedRelease;
   release_id: number;
   [k: string]: unknown;
+}
+export interface OutputDesktopApplicationUpdatePreferences {
+  /**
+   * `None` means the user has not completed the one-time choice.
+   */
+  choice: ApplicationUpdateChoice | null;
+  revision: number;
+  schema_version: number;
+}
+export interface ApplicationUpdateChoice {
+  channel: ApplicationChannel;
+  mode: ApplicationUpdateMode;
+  paused: boolean;
 }
 export interface OutputDesktopBackupReview {
   persistent_data_path: string;

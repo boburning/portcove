@@ -1,4 +1,43 @@
 {
+  "application_update_choice": {
+    "$defs": {
+      "ApplicationChannel": {
+        "enum": [
+          "preview",
+          "stable"
+        ],
+        "type": "string"
+      },
+      "ApplicationUpdateMode": {
+        "enum": [
+          "automatic",
+          "notify-only",
+          "manual"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "channel": {
+        "$ref": "#/$defs/ApplicationChannel"
+      },
+      "mode": {
+        "$ref": "#/$defs/ApplicationUpdateMode"
+      },
+      "paused": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "channel",
+      "mode",
+      "paused"
+    ],
+    "title": "ApplicationUpdateChoice",
+    "type": "object"
+  },
   "install_input": {
     "$defs": {
       "ReleaseChannel": {
