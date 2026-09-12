@@ -618,6 +618,13 @@ operation from winning the recheck-to-apply interval. Relocated source roots are
 rejected in favor of their current destination. This proves current-library
 quiescence only; candidate freshness, executable ownership, permissions, consent and
 native replacement remain host checks.
+Independently, every normal CLI command, Desktop process, launch supervisor and
+recovery helper retains a shared `ApplicationRuntimeGuard` in the canonical user host
+directory for its full process operation. Update admission takes the exclusive
+side before the library guard, so a process using another library also blocks
+replacement and a new process cannot enter while replacement is admitted. The lock
+contains no state and does not enumerate libraries; per-library recovery and busy
+details remain owned by the library guard.
 The host's `application_update` module validates separately authenticated immutable
 release and channel records against installed identity and compatibility context,
 then selects by SemVer precedence. `application_update_repository` is the bounded
@@ -659,8 +666,9 @@ Normal Exit and Restart to apply are distinct eligible observations; crash, OS
 shutdown, Steam Stop, missing hooks and mismatched observations remain held for
 next-launch reconciliation. Only a Portcove-owned installation can enter the
 journal. Even a matching observation permits only another revalidation attempt:
-the host locks the apply journal, preferences, staging slot and current library in
-that order, then requires the expected journal revision, matching termination,
+the host locks the apply journal, preferences, staging slot, user-scoped application
+runtime and current library in that order, then requires the expected journal
+revision, matching termination,
 unchanged consent, exact verified staged candidate, exact freshly authenticated
 candidate and installed context, current compatibility and core quiescence. Those
 locks are retained together across later native replacement. Executable ownership

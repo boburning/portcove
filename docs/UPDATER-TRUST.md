@@ -54,6 +54,11 @@ session and any running activity until recovery. The host retains the guard whil
 performing its checks and replacement, closing the race with a newly opened library.
 This proof is limited to current-library quiescence; it grants no candidate freshness,
 executable ownership, permission, consent or replacement authority.
+Every normal CLI operation, Desktop process, launch supervisor and recovery helper
+also holds a user-scoped shared application-runtime lock. Apply admission acquires its
+exclusive side before the current-library guard, excluding a process that selected a
+different library and preventing a new process from entering during replacement. This
+coordination has no daemon, library inventory or durable updater authority.
 
 | Claim                           | Mechanism                                                        | Limit                                                                       |
 | ------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------- |
@@ -185,12 +190,12 @@ Steam Stop, missing hooks and every mismatched observation remain held on restar
 A matching record permits only a fresh revalidation attempt; it does not establish
 current metadata, eligibility, consent, staged bytes, ownership, permissions,
 quiescence or native replacement authority. Admission closes that race by retaining
-the apply-journal, preference, staging and current-library locks in that fixed order
-while it verifies the expected revision and termination, unchanged choice, exact
-staged and freshly authenticated candidate, exact installed context, current
-compatibility and library quiescence. The resulting lease still grants no executable
-ownership or replacement permission. No production exit hook or replacement adapter
-is activated by this slice.
+the apply-journal, preference, staging, user-scoped application-runtime and
+current-library locks in that fixed order while it verifies the expected revision and
+termination, unchanged choice, exact staged and freshly authenticated candidate,
+exact installed context, current compatibility and library quiescence. The resulting
+lease still grants no executable ownership or replacement permission. No production
+exit hook or replacement adapter is activated by this slice.
 
 The sibling `application_update_trust` module owns the durable host trust boundary.
 Under path-keyed process ownership and one OS file lock it supplies `tough` with the

@@ -38,16 +38,17 @@ use std::{
 };
 
 use portcove_core::{
-    ActivityRecord, BackupInventory, BackupRecord, CatalogDocument, ChildProcessClass,
-    ChildProcessPolicy, CompositeReleaseProvider, DoctorReport, GithubAuthStatus,
-    GithubDeviceLogin, GithubDeviceLoginResult, GithubReleaseProvider, HostPreferenceStore,
-    HostToolProbeResult, HostToolStatus, IdentifiedLaunchRequest, InstallPlan, InstallRecord,
-    LaunchStdio, Library, LibraryMetadataFile, LibrarySelection, LibrarySelectionSource,
-    OperationCoordinator, OperationEvent, OperationResult, PortStatus, PortcoveError,
-    PortcoveService, ReconcileResult, ReleaseChannel, ReleaseProvider, SourceDiscoveryLimits,
-    SourceImportMode, SourceImportPlan, SourceImportResult, SourceInboxPaths,
-    SourceInboxResolution, SourceInspectionReport, SourceIntakeInspection, SourceRecord,
-    SourceRelinkPlan, SourceVerification, UpdateCheck, UpdatePolicy, VerificationReport,
+    ActivityRecord, ApplicationRuntimeGuard, BackupInventory, BackupRecord, CatalogDocument,
+    ChildProcessClass, ChildProcessPolicy, CompositeReleaseProvider, DoctorReport,
+    GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, GithubReleaseProvider,
+    HostPreferenceStore, HostToolProbeResult, HostToolStatus, IdentifiedLaunchRequest, InstallPlan,
+    InstallRecord, LaunchStdio, Library, LibraryMetadataFile, LibrarySelection,
+    LibrarySelectionSource, OperationCoordinator, OperationEvent, OperationResult, PortStatus,
+    PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel, ReleaseProvider,
+    SourceDiscoveryLimits, SourceImportMode, SourceImportPlan, SourceImportResult,
+    SourceInboxPaths, SourceInboxResolution, SourceInspectionReport, SourceIntakeInspection,
+    SourceRecord, SourceRelinkPlan, SourceVerification, UpdateCheck, UpdatePolicy,
+    VerificationReport,
 };
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
@@ -1242,6 +1243,10 @@ pub fn run_hidden_helper() -> Option<i32> {
 }
 
 fn run_supervisor_request(request_path: &Path) -> i32 {
+    let _application_runtime = match application_runtime_guard() {
+        Ok(guard) => guard,
+        Err(_) => return 1,
+    };
     let response_path = response_path_for(request_path);
     let request = fs::read(request_path)
         .map_err(PortcoveError::from)
@@ -1301,6 +1306,10 @@ fn run_supervisor_request(request_path: &Path) -> i32 {
 }
 
 fn run_recovery_helper(library_root: &Path, session_id: &str) -> i32 {
+    let _application_runtime = match application_runtime_guard() {
+        Ok(guard) => guard,
+        Err(_) => return 1,
+    };
     match Library::open(library_root)
         .and_then(PortcoveService::new)
         .and_then(|service| service.recover_launch_session(session_id))
@@ -1594,6 +1603,10 @@ fn host_preference_store() -> DesktopResult<HostPreferenceStore> {
     HostPreferenceStore::open_configured().map_err(DesktopError::from)
 }
 
+fn application_runtime_guard() -> portcove_core::Result<ApplicationRuntimeGuard> {
+    ApplicationRuntimeGuard::acquire(&HostPreferenceStore::application_runtime_lock_path()?)
+}
+
 fn initialize_desktop_selection(selection: LibrarySelection) -> DesktopResult<ReadyDesktopState> {
     let library = Library::open(&selection.root).map_err(DesktopError::from)?;
     start_stale_launch_recovery(&library).map_err(DesktopError::from)?;
@@ -1611,6 +1624,21 @@ fn initialize_desktop_selection(selection: LibrarySelection) -> DesktopResult<Re
 
 pub fn run() {
     let preferences = host_preference_store();
+    let application_runtime = preferences.as_ref().map_err(Clone::clone).and_then(|_| {
+        HostPreferenceStore::application_runtime_lock_path()
+            .and_then(|path| ApplicationRuntimeGuard::acquire(&path))
+            .map_err(DesktopError::from)
+    });
+    let _application_runtime = match application_runtime {
+        Ok(guard) => guard,
+        Err(error) => {
+            eprintln!(
+                "Portcove desktop could not acquire its runtime lease: {}",
+                error.message
+            );
+            return;
+        }
+    };
     let configured_root = std::env::var_os("PORTCOVE_LIBRARY")
         .filter(|path| !path.is_empty())
         .map(PathBuf::from);

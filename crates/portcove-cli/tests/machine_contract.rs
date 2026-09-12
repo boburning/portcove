@@ -30,6 +30,34 @@ fn cli_binary() -> std::path::PathBuf {
 struct RunningCli(std::process::Child);
 
 #[test]
+fn cli_refuses_library_work_while_application_replacement_is_exclusive() {
+    let temporary = tempfile::tempdir().unwrap();
+    let preferences_path = temporary.path().join("host/preferences.json");
+    let runtime_lock = temporary.path().join("host/runtime.lock");
+    let replacement =
+        portcove_core::ApplicationUpdateExclusivityGuard::acquire(&runtime_lock).unwrap();
+    let output = Command::new(cli_binary())
+        .env("PORTCOVE_PREFERENCES", &preferences_path)
+        .env("PORTCOVE_APPLICATION_RUNTIME_LOCK", &runtime_lock)
+        .arg("--library")
+        .arg(temporary.path().join("alternate-library"))
+        .args(["--json", "status", "lighthouse"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(14));
+    let response = json_stdout(&output);
+    assert_eq!(response["error"]["code"], "conflict");
+    assert!(
+        response["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("application update replacement")
+    );
+    assert!(!temporary.path().join("alternate-library").exists());
+    drop(replacement);
+}
+
+#[test]
 fn json_and_jsonl_preserve_machine_error_fields_and_share_core_presentation() {
     let temporary = tempfile::tempdir().unwrap();
     let library = temporary.path().join("library");
