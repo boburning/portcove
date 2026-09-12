@@ -44,6 +44,9 @@ playnite-check *args:
 clean-build:
     node scripts/dev-storage.mjs clean
 
+prune-incremental:
+    node scripts/dev-storage.mjs prune-incremental
+
 # Repository formatting
 fmt:
     {{storage}} cargo fmt --all
@@ -83,7 +86,7 @@ transport-contract:
     {{storage}} node scripts/check-transport-contract.mjs
     {{storage}} node --test scripts/check-transport-contract.integration.test.mjs
 
-check-rust: rustfmt-check rust-check clippy rust-test shear architecture process-policy transport-contract
+check-rust: prune-incremental rustfmt-check rust-check clippy rust-test shear architecture process-policy transport-contract
 
 # Frontend fast loop
 ui-transport:

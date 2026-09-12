@@ -297,6 +297,22 @@ record bases must use separate path prefixes on port 443. The request boundary i
 Rust-only and cannot be populated from frontend IPC. No production origin is
 configured and no updater check is activated by this transport slice.
 
+The sibling `application_update_host` provider is the only runtime constructor for
+that trust and selection path. An updater-enabled Desktop build must embed a bounded
+public TUF root and fixed metadata and target base URLs together; partial build
+configuration fails, while an ordinary alpha build embeds no update repository.
+The inputs are `PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE`,
+`PORTCOVE_APPLICATION_UPDATE_METADATA_URL` and
+`PORTCOVE_APPLICATION_UPDATE_TARGETS_URL`.
+Runtime environment variables and frontend IPC cannot replace those compiled
+authorities. On Windows the provider observes the running executable through the
+same exact current-user NSIS registration used by replacement admission, then adds
+the compiled target, API, catalog, library reader/writer and lock compatibility
+identity plus the actual Windows version. The provider implements both the regular
+authenticated checker and the helper's fresh post-exit selection boundary. The
+repository supplies no production root or origin, and no command, startup schedule,
+exit hook or helper dispatch activates this provider yet.
+
 The sibling `application_update_download` boundary accepts only an authenticated,
 selected candidate. It requires the exact Portcove `github.com` repository and
 release-version path, then manually follows at most five redirects through

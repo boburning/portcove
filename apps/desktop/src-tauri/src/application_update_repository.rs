@@ -33,6 +33,8 @@ pub enum CandidateLoadError {
     PayloadKey(#[from] PayloadKeyError),
     #[error("authenticated update repository index is invalid: {0}")]
     InvalidIndex(String),
+    #[error("the installed application context is unavailable: {0}")]
+    InstalledContext(String),
     #[error("authenticated update record set exceeds its byte budget")]
     TooLarge,
 }

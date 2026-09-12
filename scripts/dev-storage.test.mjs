@@ -25,6 +25,7 @@ import {
   resolvePhysicalPath,
   spawnCommand,
   validateCleanTarget,
+  validateIncrementalCache,
   windowsSystemDriveViolations,
 } from "./dev-storage.mjs";
 
@@ -181,6 +182,22 @@ test("clean accepts only the default target and refuses linked ancestors", (t) =
       }),
     /symlink, junction/,
   );
+});
+
+test("incremental pruning accepts only an ordinary unlinked cache", (t) => {
+  const root = fixture(t);
+  const paths = { workspace: root, target_directory: path.join(root, "target") };
+  assert.equal(validateIncrementalCache(paths), path.join(root, "target", "debug", "incremental"));
+
+  const redirected = path.join(root, "redirected");
+  mkdirSync(redirected);
+  mkdirSync(path.join(root, "target"));
+  symlinkSync(redirected, path.join(root, "target", "debug"), "junction");
+  assert.throws(() => validateIncrementalCache(paths), /symlink, junction/);
+  rmSync(path.join(root, "target", "debug"));
+  mkdirSync(path.join(root, "target", "debug"));
+  writeFileSync(path.join(root, "target", "debug", "incremental"), "not a cache");
+  assert.throws(() => validateIncrementalCache(paths), /non-directory/);
 });
 
 test("rejects malformed invocations and invalid free-space margins", () => {
@@ -347,6 +364,51 @@ test("clean remains available below the free-space margin and preserves source f
   assert.equal(rejected.status, 1);
   assert.match(rejected.stderr, /except this workspace/);
   assert.equal(existsSync(path.join(root, "src/lib.rs")), true);
+});
+
+test("incremental prune preserves reusable Cargo artifacts and works below the margin", (t) => {
+  const root = workspace(t);
+  mkdirSync(path.join(root, "target/debug/incremental/unit"), { recursive: true });
+  mkdirSync(path.join(root, "target/debug/deps"), { recursive: true });
+  writeFileSync(path.join(root, "target/debug/incremental/unit/cache"), "discard");
+  writeFileSync(path.join(root, "target/debug/deps/reusable"), "preserve");
+
+  const result = cli(root, ["prune-incremental"], {
+    PORTCOVE_MIN_FREE_GIB: "invalid-but-irrelevant-to-prune",
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(existsSync(path.join(root, "target/debug/incremental")), false);
+  assert.equal(existsSync(path.join(root, "target/debug/deps/reusable")), true);
+  assert.equal(existsSync(path.join(root, "src/lib.rs")), true);
+  assert.equal(cli(root, ["prune-incremental"]).status, 0);
+
+  const custom = path.join(root, "custom-target", "debug", "incremental");
+  mkdirSync(custom, { recursive: true });
+  writeFileSync(path.join(custom, "cache"), "preserve");
+  const rejected = cli(root, ["prune-incremental"], {
+    CARGO_TARGET_DIR: path.join(root, "custom-target"),
+  });
+  assert.equal(rejected.status, 1);
+  assert.match(rejected.stderr, /except this workspace/);
+  assert.equal(existsSync(path.join(custom, "cache")), true);
+});
+
+test("broad Rust gates prune incremental state before heavy work", () => {
+  const recipes = readFileSync(new URL("../justfile", import.meta.url), "utf8");
+  assert.match(
+    recipes,
+    /^prune-incremental:\r?\n\s+node scripts\/dev-storage\.mjs prune-incremental$/m,
+  );
+  assert.match(
+    recipes,
+    /^check-rust: prune-incremental rustfmt-check rust-check clippy rust-test shear architecture process-policy transport-contract$/m,
+  );
+  for (const focused of ["rustfmt-check", "rust-check", "clippy", "rust-test"]) {
+    assert.doesNotMatch(
+      recipes.match(new RegExp(`^${focused}:\\r?\\n([\\s\\S]*?)(?=^\\S)`, "m"))?.[0] ?? "",
+      /prune-incremental/,
+    );
+  }
 });
 
 test(

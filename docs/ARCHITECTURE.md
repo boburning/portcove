@@ -648,6 +648,17 @@ metadata fails closed, and rejected authenticated versions still advance replay 
 It supplies the latest persisted root on restart and retains verified root progress
 when later metadata fails. Disposable local-file repositories remain available to
 tests.
+
+`application_update_host` is the sole runtime constructor for that repository and
+selection path. Updater-enabled Desktop builds embed a bounded public TUF root and
+fixed metadata and target bases as one build-time configuration; partial input
+fails the build, and ordinary alpha builds remain unconfigured. Runtime environment
+variables and React cannot supply those authorities. The Windows context source
+proves the running package through the exact current-user NSIS registration and
+combines it with compiled target, API, catalog, library and lock compatibility plus
+the actual operating-system version. The provider serves both ordinary checks and
+fresh helper revalidation. No production root or origin is present, and no command,
+schedule, exit hook or helper launch currently activates it.
 The sibling payload boundary independently binds an already obtained stream to the
 selected release length, SHA-256 and exact registry key using bounded, prehashed
 Minisign verification. Only its Rust-only verified identity may cross into later

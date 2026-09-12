@@ -82,6 +82,16 @@ node scripts/dev-storage.mjs clean
 
 The command prints the exact deletion target, accepts only this workspace's ordinary `target` directory (or an absent target), and refuses symlinks/junctions anywhere in its ancestor chain. It rejects custom targets, including other directories inside the checkout, and delegates deletion to `cargo clean --target-dir <checked-target>`. Cleanup remains available when free space is low or the old checkout is on the system drive. Stop build/editor processes using that target before invoking it; the command does not stop them for you.
 
+Broad local Rust gates (`just check-rust`, `just check`, `just audit`, and
+`just deep`) first remove only `target/debug/incremental` from the current
+workspace. This bounds the disposable cache that repeated Rust configurations
+can accumulate while retaining compiled dependencies and other reusable build
+artifacts. Focused recipes keep incremental compilation for the edit-test loop.
+The prune is idempotent, remains available below the free-space margin, and
+refuses custom targets, files, symlinks, or junctions. Run the direct
+`just prune-incremental` recipe when needed; `just clean-build` remains the
+separate full Cargo cleanup.
+
 ## Migration and recovery
 
 Before replacing an existing workspace, record `git status --short --branch --untracked-files=all`, `git rev-parse HEAD`, branches, remotes, worktrees, submodules, and rebase state. Stop or wait for Cargo, rust-analyzer, Tauri, Node, test, mutation, and packaging processes using that workspace. Copy first, excluding only verified rebuildable directories, then compare relative file paths and sizes and run Git integrity checks in both locations. Keep the old checkout as rollback until the new checkout passes representative Rust and UI checks.

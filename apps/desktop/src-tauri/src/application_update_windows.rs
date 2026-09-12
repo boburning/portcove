@@ -10,6 +10,9 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
+#[cfg(windows)]
+use std::collections::BTreeSet;
+
 use sha2::{Digest, Sha256};
 
 use crate::application_update::{InstallOwner, InstalledApplicationContext, SelectedCandidate};
@@ -72,6 +75,8 @@ pub enum WindowsApplicationUpdateError {
     InvalidPath(String),
     #[error("the installed application directory is not writable: {0}")]
     Permission(String),
+    #[error("the installed application context could not be established: {0}")]
+    InstalledContext(String),
     #[error("the Windows application update could not be launched: {0}")]
     Launch(String),
     #[error("the Windows application update process could not be observed: {0}")]
@@ -233,6 +238,43 @@ pub fn reconcile_windows_application_update(
     evaluate_windows_nsis_installation(current_version, &current_executable, &registrations)?;
     apply.reconcile_installed_application(state.revision, current_version, staging)?;
     Ok(WindowsApplicationUpdateReconciliation::Reconciled)
+}
+
+/// Observes the running package and the compatibility identity compiled into
+/// this Desktop build. Registry ownership is established from the same exact
+/// current-user NSIS registration used by native replacement admission.
+#[cfg(windows)]
+pub fn current_windows_installed_application_context()
+-> Result<InstalledApplicationContext, WindowsApplicationUpdateError> {
+    let current_executable = std::env::current_exe()?;
+    let registrations = inventory_portcove_registrations()?;
+    evaluate_windows_nsis_installation(
+        env!("CARGO_PKG_VERSION"),
+        &current_executable,
+        &registrations,
+    )?;
+    let os = windows_version::OsVersion::current();
+    let catalog_format = portcove_core::Catalog::embedded()
+        .map_err(|error| WindowsApplicationUpdateError::InstalledContext(error.to_string()))?
+        .document()
+        .schema_version;
+    Ok(InstalledApplicationContext {
+        current_version: env!("CARGO_PKG_VERSION").into(),
+        target: WINDOWS_TARGET.into(),
+        os: "windows".into(),
+        os_version: format!("{}.{}.{}", os.major, os.minor, os.build),
+        architecture: "x86_64".into(),
+        execution_context: WINDOWS_EXECUTION_CONTEXT.into(),
+        package_kind: "nsis".into(),
+        install_owner: InstallOwner::Portcove,
+        product_id: PRODUCT_ID.into(),
+        capabilities: BTreeSet::from([portcove_core::APPLICATION_UPDATE_LOCK_PROTOCOL.to_owned()]),
+        cli_protocol: portcove_core::API_SCHEMA_VERSION,
+        catalog_format,
+        library_schema: portcove_core::MIN_LIBRARY_SCHEMA_VERSION,
+        library_write_schema: portcove_core::LIBRARY_SCHEMA_VERSION,
+        lock_protocol: portcove_core::APPLICATION_UPDATE_LOCK_PROTOCOL.into(),
+    })
 }
 
 fn evaluate_windows_nsis_update(
