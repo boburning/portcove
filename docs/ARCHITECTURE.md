@@ -733,9 +733,22 @@ authenticated selection through its host-owned Rust provider, and immediately
 acquires the canonical apply, preference, staging, application and library lease.
 The retained and newly observed installed contexts must match. A process that starts
 during the fresh check wins the shared runtime lock and safely defers replacement.
-No command-line mode,
-production repository provider or native launch invokes this sequence yet, so
-production replacement remains inactive. On a later Windows startup, reconciliation
+The exact `--portcove-apply-update <revision>` helper mode is reachable only from
+the host-owned Restart to update command after the current library generation,
+verified staging, saved preference and installed package have been rebound into the
+durable journal. While holding the desktop's library-selection mutex, the parent blocks
+new backend workers and manual application-update checks, refuses workers already in
+flight, and preflights
+the same durable activity and launch-session idle conditions so the restart does not
+knowingly interrupt current-process work. The helper receives no path, URL,
+candidate or key. After the parent
+releases its runtime lease it repeats fresh repository, installed identity, consent,
+staging and quiescence checks, crosses Windows NSIS admission, and records the native
+outcome. It reopens the registered application after success or a failure proven to
+have no live installer, and only after proving that no Portcove runtime peer already
+exists. A child-observation failure remains ambiguous and starts no peer process. The
+later healthy startup remains the only authority that can clear a
+successful attempt. On a later Windows startup, reconciliation
 runs only after the new process holds the application runtime lease, initializes its
 selected library and diagnostics, creates the Tauri application, focuses the main
 window, and restores every retained launch-session observer. It then requires the
@@ -758,6 +771,10 @@ fixed recovery action rechecks that its journal is still invalid under that stor
 lock before it clears only that domain; a stale UI action cannot discard state another
 process already repaired. Native automation redirects every updater journal into the
 run's fresh evidence directory.
+The Settings action appears only for a verified staged candidate with no conflicting
+or ambiguous apply attempt. It supplies the current library generation and can reopen
+only a proven `failed` or `installer-failed` attempt; `starting`, legacy `started` and
+`installer-succeeded` remain held for installed-identity reconciliation.
 For production metadata, a sibling host transport accepts only host-selected
 HTTPS bases with separate path prefixes on port 443, resolves and pins public DNS
 results, bypasses proxies, refuses redirects and enforces request, deadline, idle,

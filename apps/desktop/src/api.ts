@@ -91,6 +91,8 @@ export const desktopApi = {
     return invoke<ApplicationUpdateCheckResult>("check_application_update", { onEvent: channel });
   },
   cancelApplicationUpdateCheck: () => invoke<boolean>("cancel_application_update_check"),
+  restartToApplyApplicationUpdate: (generation: number) =>
+    invoke<void>("restart_to_apply_application_update", { generation }),
   artwork: (portId: string, slot: ArtworkSlot, generation: number) =>
     invoke<ArtworkState>("get_artwork", { portId, slot, generation }),
   artworkThumbnail: (

@@ -278,7 +278,18 @@ nonzero exit. Automatic revalidation stays closed after every launch attempt. An
 explicit retry can reopen `failed` or `installer-failed`; ambiguous `starting` and
 legacy `started` require reconciliation against newly observed installed identity,
 while `installer-succeeded` additionally requires application-health proof before
-clearing. A later Windows process crosses that health boundary only after acquiring
+clearing. The explicit Restart to update command binds the renderer's current-library
+generation to host-owned preferences, verified staging, installed context and library
+root. While the desktop library-selection mutex prevents a new library command from
+entering, it closes backend-worker and manual-check admission, refuses workers already
+in flight, and preflights the durable activity and launch-session idle conditions. It
+then dispatches a detached helper carrying only the apply-journal revision.
+That helper waits for every Portcove process to release the user runtime, repeats the
+fresh authenticated and durable checks, launches the admitted passive NSIS payload,
+and reopens Portcove only after success or a failure proven to have no live installer
+and no Portcove runtime peer. A child-observation failure stays ambiguous and starts no
+peer process. A later
+Windows process crosses that health boundary only after acquiring
 the application runtime lease, initializing the selected library and diagnostics,
 creating the Tauri application, focusing its main window, and restoring every
 retained launch-session observer. Reconciliation then requires the compiled version
@@ -286,8 +297,8 @@ to equal the retained candidate plus one exact
 current-user NSIS registration that reports that version and owns the running
 executable and uninstaller. Under the existing apply-before-staging lock order it
 retires only the matching staged candidate, preserves any newer candidate, and clears
-the apply request last so an interruption can resume safely. No production exit hook
-activates the launch sequence.
+the apply request last so an interruption can resume safely. Safe-exit apply remains
+inactive; only the explicit restart action dispatches the launch sequence.
 
 The sibling `application_update_trust` module owns the durable host trust boundary.
 Under path-keyed process ownership and one OS file lock it supplies `tough` with the
@@ -321,8 +332,9 @@ same exact current-user NSIS registration used by replacement admission, then ad
 the compiled target, API, catalog, library reader/writer and lock compatibility
 identity plus the actual Windows version. The provider implements both the regular
 authenticated checker and the helper's fresh post-exit selection boundary. The
-repository supplies no production root or origin, and no command, startup schedule,
-exit hook or helper dispatch activates this provider yet.
+The ordinary alpha build supplies no production root or origin. In an updater-enabled
+build, the fixed manual check and explicit restart helper are the only commands that
+activate this provider; no automatic startup schedule or safe-exit hook does so.
 
 The sibling `application_update_download` boundary accepts only an authenticated,
 selected candidate. It requires the exact Portcove `github.com` repository and

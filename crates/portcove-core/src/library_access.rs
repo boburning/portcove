@@ -146,6 +146,8 @@ mod tests {
                 Some("disc"),
             )
             .unwrap();
+        let preflight = library.require_application_update_idle().unwrap_err();
+        assert_eq!(preflight.details.get("activity_id"), Some(&activity.id));
         drop(library);
 
         let error = ApplicationUpdateQuiescenceGuard::acquire(&root).unwrap_err();
@@ -195,6 +197,11 @@ mod tests {
                 finished_at: None,
             })
             .unwrap();
+        let preflight = library.require_application_update_idle().unwrap_err();
+        assert_eq!(
+            preflight.details.get("launch_session_id"),
+            Some(&activity.id)
+        );
         drop(library);
 
         let error = ApplicationUpdateQuiescenceGuard::acquire(&root).unwrap_err();

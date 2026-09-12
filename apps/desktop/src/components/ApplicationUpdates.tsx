@@ -143,6 +143,101 @@ function isRecoverableStateError(value: unknown) {
   return code === "state" || code === "unsupported";
 }
 
+function ApplicationUpdateRecoveryItems({
+  recoveries,
+  disabled,
+  busy,
+  onRecover,
+}: {
+  recoveries: ApplicationUpdateStatus["recovery_required"];
+  disabled: boolean;
+  busy: boolean;
+  onRecover: (area: ApplicationUpdateRecoveryArea) => Promise<void>;
+}) {
+  return recoveries.map((recovery) => {
+    const copy = recoveryCopy[recovery.area];
+    return (
+      <div className="application-update-recovery" role="alert" key={recovery.area}>
+        <div>
+          <strong>{copy.title}</strong>
+          <p>{copy.description}</p>
+        </div>
+        <button
+          data-focusable
+          disabled={disabled || busy}
+          onClick={() => void onRecover(recovery.area)}
+        >
+          {copy.action}
+        </button>
+      </div>
+    );
+  });
+}
+
+function restartIsAvailable(status: ApplicationUpdateStatus) {
+  const failedAttempt =
+    status.apply?.native_launch === "failed" || status.apply?.native_launch === "installer-failed";
+  return Boolean(
+    status.staged &&
+    !status.recovery_required.some(({ area }) => area === "apply") &&
+    (!status.apply ||
+      (status.apply.request === "restart-to-apply" &&
+        (failedAttempt ||
+          (status.apply.native_launch === null &&
+            status.apply.termination === "restart-to-apply")))),
+  );
+}
+
+function StagedApplicationUpdateItem({
+  status,
+  disabled,
+  onRestart,
+}: {
+  status: ApplicationUpdateStatus;
+  disabled: boolean;
+  onRestart: () => Promise<void>;
+}) {
+  if (!status.staged) return null;
+  return (
+    <div className="application-update-status-item">
+      <strong>Verified update staged</strong>
+      <p>
+        {status.staged.channel === "preview" ? "Preview" : "Stable"} version {status.staged.version}{" "}
+        ({formatBytes(status.staged.bytes)}) is ready for a safe apply request.
+      </p>
+      {restartIsAvailable(status) && (
+        <button
+          data-focusable
+          className="primary"
+          disabled={disabled}
+          onClick={() => void onRestart()}
+        >
+          {status.apply ? "Retry restart to update" : "Restart to update"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ApplicationUpdateScheduleSummary({
+  schedule,
+}: {
+  schedule: ApplicationUpdateStatus["schedule"];
+}) {
+  if (!schedule) return null;
+  return (
+    <p className="application-update-schedule">
+      {schedule.last_success_unix_seconds
+        ? `Last successful check: ${formatTimestamp(schedule.last_success_unix_seconds)}.`
+        : "No successful application update check is recorded."}{" "}
+      {schedule.consecutive_failures > 0 &&
+        `${schedule.consecutive_failures} consecutive check failure${schedule.consecutive_failures === 1 ? "" : "s"} recorded.`}{" "}
+      {schedule.next_automatic_check_unix_seconds &&
+        `Next automatic attempt: ${formatTimestamp(schedule.next_automatic_check_unix_seconds)}.`}
+    </p>
+  );
+}
+
 function ApplicationUpdateStatusPanel({
   status,
   busy,
@@ -150,6 +245,8 @@ function ApplicationUpdateStatusPanel({
   disabled,
   onRefresh,
   onRecover,
+  onRestart,
+  restartDisabled,
 }: {
   status: ApplicationUpdateStatus | undefined;
   busy: string;
@@ -157,6 +254,8 @@ function ApplicationUpdateStatusPanel({
   disabled: boolean;
   onRefresh: () => Promise<void>;
   onRecover: (area: ApplicationUpdateRecoveryArea) => Promise<void>;
+  onRestart: () => Promise<void>;
+  restartDisabled: boolean;
 }) {
   const applyCopy = status?.apply ? applicationUpdateApplyCopy(status.apply) : undefined;
 
@@ -179,35 +278,17 @@ function ApplicationUpdateStatusPanel({
 
       {status && (
         <>
-          {status.recovery_required.map((recovery) => {
-            const copy = recoveryCopy[recovery.area];
-            return (
-              <div className="application-update-recovery" role="alert" key={recovery.area}>
-                <div>
-                  <strong>{copy.title}</strong>
-                  <p>{copy.description}</p>
-                </div>
-                <button
-                  data-focusable
-                  disabled={disabled || Boolean(busy)}
-                  onClick={() => void onRecover(recovery.area)}
-                >
-                  {copy.action}
-                </button>
-              </div>
-            );
-          })}
-
-          {status.staged && (
-            <div className="application-update-status-item">
-              <strong>Verified update staged</strong>
-              <p>
-                {status.staged.channel === "preview" ? "Preview" : "Stable"} version{" "}
-                {status.staged.version} ({formatBytes(status.staged.bytes)}) is ready for a safe
-                apply request.
-              </p>
-            </div>
-          )}
+          <ApplicationUpdateRecoveryItems
+            recoveries={status.recovery_required}
+            disabled={disabled}
+            busy={Boolean(busy)}
+            onRecover={onRecover}
+          />
+          <StagedApplicationUpdateItem
+            status={status}
+            disabled={restartDisabled || Boolean(busy)}
+            onRestart={onRestart}
+          />
 
           {applyCopy && (
             <div className="application-update-status-item">
@@ -220,17 +301,7 @@ function ApplicationUpdateStatusPanel({
             <p className="application-update-idle">No verified application update is staged.</p>
           )}
 
-          {status.schedule && (
-            <p className="application-update-schedule">
-              {status.schedule.last_success_unix_seconds
-                ? `Last successful check: ${formatTimestamp(status.schedule.last_success_unix_seconds)}.`
-                : "No successful application update check is recorded."}{" "}
-              {status.schedule.consecutive_failures > 0 &&
-                `${status.schedule.consecutive_failures} consecutive check failure${status.schedule.consecutive_failures === 1 ? "" : "s"} recorded.`}{" "}
-              {status.schedule.next_automatic_check_unix_seconds &&
-                `Next automatic attempt: ${formatTimestamp(status.schedule.next_automatic_check_unix_seconds)}.`}
-            </p>
-          )}
+          <ApplicationUpdateScheduleSummary schedule={status.schedule} />
         </>
       )}
 
@@ -242,9 +313,11 @@ function ApplicationUpdateStatusPanel({
 
 export function ApplicationUpdateSettings({
   currentVersion,
+  generation = 0,
   disabled = false,
 }: {
   currentVersion: string;
+  generation?: number;
   disabled?: boolean;
 }) {
   const requests = useRef(new LatestRequestGeneration());
@@ -450,6 +523,20 @@ export function ApplicationUpdateSettings({
       await desktopApi.cancelApplicationUpdateCheck();
     } catch (value) {
       setCheckError(errorText(value));
+    }
+  };
+
+  const restartToUpdate = async () => {
+    setBusy("Preparing a safe restart to update…");
+    setError(undefined);
+    setNotice(undefined);
+    try {
+      await desktopApi.restartToApplyApplicationUpdate(generation);
+      setBusy("Restarting Portcove to apply the verified update…");
+    } catch (value) {
+      setError(errorText(value));
+      setBusy("");
+      await loadStatus();
     }
   };
 
@@ -660,6 +747,8 @@ export function ApplicationUpdateSettings({
         disabled={disabled}
         onRefresh={loadStatus}
         onRecover={recover}
+        onRestart={restartToUpdate}
+        restartDisabled={disabled || Boolean(busy) || checkBusy || changed || !preferences?.choice}
       />
 
       {busy && <p role="status">{busy}</p>}
