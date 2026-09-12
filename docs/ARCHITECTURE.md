@@ -650,6 +650,19 @@ prior verified slot after an interrupted attempt, or completes publication only 
 the durable payload-verified phase. Corrupt or future journals require explicit
 bounded reset. A reconciled file is retained state rather than fresh eligibility or
 apply authority; no downloader or platform replacement is active.
+The sibling `application_update_apply` journal binds a requested safe exit or
+explicit one-restart action to the exact staged candidate, preference revision and
+choice, installed application context, and canonical current-library root. Its
+strict compare-and-swap revisions prevent a stale exit observer from changing a
+newer request, and a different candidate cannot replace an unfinished intent.
+Normal Exit and Restart to apply are distinct eligible observations; crash, OS
+shutdown, Steam Stop, missing hooks and mismatched observations remain held for
+next-launch reconciliation. Only a Portcove-owned installation can enter the
+journal. Even a matching observation permits only another revalidation attempt:
+fresh metadata and eligibility, the same preferences, candidate, staged payload,
+installed identity, ownership, permissions and core quiescence must all be proven
+before native replacement. The module has no replacement adapter and activates no
+production updater path.
 For production metadata, a sibling host transport accepts only host-selected
 HTTPS bases with separate path prefixes on port 443, resolves and pins public DNS
 results, bypasses proxies, refuses redirects and enforces request, deadline, idle,

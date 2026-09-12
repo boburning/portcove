@@ -340,7 +340,7 @@ fn desktop_error(error: ApplicationUpdatePreferenceError) -> DesktopError {
     }
 }
 
-fn validate_preferences(
+pub(crate) fn validate_preferences(
     preferences: &ApplicationUpdatePreferences,
 ) -> Result<(), ApplicationUpdatePreferenceError> {
     if preferences.schema_version != PREFERENCE_SCHEMA_VERSION {
