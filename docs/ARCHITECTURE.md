@@ -577,9 +577,13 @@ The [application updater trust design](UPDATER-TRUST.md) assigns application
 replacement/trust state to the Tauri host; core retains library/game authority.
 The host's `application_update` module validates separately authenticated immutable
 release and channel records against installed identity and compatibility context,
-then selects by SemVer precedence. `application_update_trust` wraps the maintained
-`tough` client with path-keyed process ownership plus one host OS lock, atomically
-persisted greatest accepted time, the latest verified root and explicit
+then selects by SemVer precedence. `application_update_repository` is the bounded
+bridge from TUF to that selector: it discovers the installed package's versioned
+promotions, requires separate direct release/channel delegation, rejects top-level
+or duplicate records and fully consumes authenticated streams before parsing.
+`application_update_trust` wraps the maintained `tough` client with path-keyed
+process ownership plus one host OS lock, atomically persisted greatest accepted
+time, the latest verified root and explicit
 timestamp/snapshot/targets version and signed-body replay floors.
 It supplies the latest persisted root on restart and retains verified root progress
 when later metadata fails. Disposable local-file repositories remain available to

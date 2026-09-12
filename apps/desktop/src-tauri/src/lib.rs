@@ -1,5 +1,6 @@
 mod adoption;
 pub mod application_update;
+pub mod application_update_repository;
 mod application_update_transport;
 pub mod application_update_trust;
 mod artwork;
