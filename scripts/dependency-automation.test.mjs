@@ -50,7 +50,7 @@ test("all external GitHub Actions are immutable SHA references", async () => {
     const contents = await read(file);
     for (const [, reference] of contents.matchAll(/^\s*-?\s*uses:\s*([^\s#]+)/gmu)) {
       if (reference.startsWith("./")) continue;
-      assert.match(reference, /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.\/-]+@[a-f0-9]{40}$/u, file);
+      assert.match(reference, /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_./-]+@[a-f0-9]{40}$/u, file);
     }
   }
 });
