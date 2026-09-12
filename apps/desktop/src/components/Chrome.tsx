@@ -51,6 +51,7 @@ import { ExternalLink } from "./ExternalLink";
 import { LibraryMoveButton } from "./LibraryMove";
 import { LibraryImportButton } from "./LibraryImport";
 import { CatalogSettings } from "./CatalogUpdates";
+import { ApplicationUpdateSettings } from "./ApplicationUpdates";
 import { SourceDiscoveryButton } from "./SourceDiscovery";
 import { SourceIdentityPanel } from "./SourceIdentity";
 import { Icon, NavigationHints, Shortcut } from "./ui";
@@ -937,14 +938,7 @@ export function SettingsView({
       <HostReadiness doctor={doctor} busy={busy} actions={hostToolActions} />
       <DiagnosticsCard busy={busy} createSupportBundle={createSupportBundle} />
       <AboutCard />
-      <article className="settings-card">
-        <p className="eyebrow">UPDATES</p>
-        <h2>Safe by default</h2>
-        <p>
-          Stable is the default channel. Beta and rolling releases are always an explicit per-port
-          choice.
-        </p>
-      </article>
+      <ApplicationUpdateSettings currentVersion={desktopPackage.version} disabled={Boolean(busy)} />
       <article className="settings-card">
         <p className="eyebrow">PRIVACY</p>
         <h2>Local and source-safe</h2>

@@ -2417,6 +2417,91 @@ select {
   color: var(--color-text-muted);
   line-height: var(--leading-relaxed);
 }
+.application-update-settings {
+  display: grid;
+  min-height: 0;
+  gap: var(--space-5);
+  grid-column: 1 / -1;
+}
+.application-update-settings :is(h2, h3, p) {
+  margin: 0;
+}
+.application-update-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.application-update-heading > p {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-subtle);
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+.application-update-consent,
+.application-update-disclosure {
+  padding: var(--space-3);
+  border: 1px solid var(--color-warning-border);
+  border-radius: var(--radius-md);
+  background: var(--color-warning-subtle);
+  color: var(--color-warning-text) !important;
+}
+.application-update-choice {
+  display: grid;
+  gap: var(--space-2);
+}
+.application-update-choice h3 {
+  font-size: var(--text-sm);
+}
+.application-update-choice p,
+.application-update-pause small {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-relaxed);
+}
+.application-update-choice .segmented button {
+  display: grid;
+  gap: 2px;
+  place-items: center;
+}
+.application-update-choice .segmented small {
+  color: inherit;
+  font-size: var(--text-2xs);
+  text-transform: none;
+}
+.application-update-pause {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-subtle);
+  cursor: pointer;
+}
+.application-update-pause input {
+  width: auto;
+  margin-top: 3px;
+}
+.application-update-pause span {
+  display: grid;
+  gap: 2px;
+}
+.application-update-pause label {
+  color: var(--color-text);
+  font-weight: 700;
+  cursor: pointer;
+}
+.application-update-disclosure {
+  border-color: var(--color-border);
+  background: var(--color-bg-subtle);
+  color: var(--color-text-secondary) !important;
+  font-size: var(--text-xs);
+}
+.application-update-settings .actions {
+  margin-top: 0;
+}
 .library-selection-review {
   margin-top: var(--space-4);
 }
@@ -3837,6 +3922,12 @@ select:disabled {
   }
   .about-art .brand-wordmark {
     max-height: 4.5rem;
+  }
+  .application-update-heading {
+    flex-direction: column;
+  }
+  .application-update-heading > p {
+    white-space: normal;
   }
 }
 
