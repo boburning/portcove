@@ -73,7 +73,10 @@ impl Drop for LibraryLease {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ErrorCode, Library};
+    use crate::{
+        ActivityOperation, ActivityTargetKind, ApplicationUpdateQuiescenceGuard, ErrorCode,
+        LaunchSessionPhase, LaunchSessionRecord, Library,
+    };
 
     #[test]
     fn every_open_library_and_clone_retains_the_shared_lease() {
@@ -98,5 +101,109 @@ mod tests {
         );
         FileExt::unlock(&exclusive).unwrap();
         Library::open(temporary.path()).unwrap();
+    }
+
+    #[test]
+    fn application_update_quiescence_excludes_every_library_process() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("library");
+        let library = Library::open(&root).unwrap();
+        let busy = ApplicationUpdateQuiescenceGuard::acquire(&root).unwrap_err();
+        assert_eq!(busy.code, ErrorCode::Conflict);
+
+        drop(library);
+        let canonical = fs::canonicalize(&root).unwrap();
+        let guard = ApplicationUpdateQuiescenceGuard::acquire(&root).unwrap();
+        assert_eq!(guard.root(), canonical);
+        assert_eq!(
+            Library::open(guard.root()).unwrap_err().code,
+            ErrorCode::Conflict
+        );
+        drop(guard);
+        Library::open(&root).unwrap();
+    }
+
+    #[test]
+    fn application_update_quiescence_does_not_initialize_an_empty_path() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("empty");
+        fs::create_dir(&root).unwrap();
+
+        let error = ApplicationUpdateQuiescenceGuard::acquire(&root).unwrap_err();
+        assert_eq!(error.code, ErrorCode::Conflict);
+        assert_eq!(fs::read_dir(&root).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn unfinished_activity_requires_explicit_recovery_before_application_update() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("library");
+        let library = Library::open(&root).unwrap();
+        let activity = library
+            .begin_activity(
+                ActivityOperation::ImportSource,
+                ActivityTargetKind::Source,
+                Some("disc"),
+            )
+            .unwrap();
+        drop(library);
+
+        let error = ApplicationUpdateQuiescenceGuard::acquire(&root).unwrap_err();
+        assert_eq!(error.code, ErrorCode::Conflict);
+        assert_eq!(error.details.get("activity_id"), Some(&activity.id));
+        assert_eq!(
+            error.details.get("activity_operation").map(String::as_str),
+            Some("import_source")
+        );
+        assert_eq!(
+            error
+                .details
+                .get("application_update_held")
+                .map(String::as_str),
+            Some("true")
+        );
+    }
+
+    #[test]
+    fn unfinished_launch_is_reported_before_its_activity() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("library");
+        let library = Library::open(&root).unwrap();
+        let activity = library
+            .begin_activity(
+                ActivityOperation::Launch,
+                ActivityTargetKind::Port,
+                Some("example"),
+            )
+            .unwrap();
+        library
+            .create_launch_session(&LaunchSessionRecord {
+                id: activity.id.clone(),
+                port_id: "example".into(),
+                install_id: "install".into(),
+                install_root: root.join("versions/example/install"),
+                supervisor_pid: 10,
+                supervisor_identity: Some("supervisor".into()),
+                child_pid: Some(11),
+                child_identity: Some("child".into()),
+                phase: LaunchSessionPhase::Running,
+                outcome: None,
+                exit_code: None,
+                message: None,
+                started_at: 1,
+                updated_at: 2,
+                finished_at: None,
+            })
+            .unwrap();
+        drop(library);
+
+        let error = ApplicationUpdateQuiescenceGuard::acquire(&root).unwrap_err();
+        assert_eq!(error.code, ErrorCode::Conflict);
+        assert_eq!(error.details.get("launch_session_id"), Some(&activity.id));
+        assert_eq!(
+            error.details.get("launch_phase").map(String::as_str),
+            Some("running")
+        );
+        assert!(!error.details.contains_key("activity_id"));
     }
 }
