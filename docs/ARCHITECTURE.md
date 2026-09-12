@@ -681,8 +681,21 @@ revision, matching termination,
 unchanged consent, exact verified staged candidate, exact freshly authenticated
 candidate and installed context, current compatibility and core quiescence. Those
 locks are retained together across later native replacement. Executable ownership
-and permissions still require a platform proof before replacement. The module has
-no replacement adapter and activates no production updater path.
+and permissions still require a platform proof before replacement. On Windows,
+`application_update_windows` adds that platform proof without accepting paths from
+IPC. It requires one exact HKCU Portcove uninstall registration, the registered
+version and install directory to own the running `portcove-desktop.exe` and direct
+`uninstall.exe`, a writable non-reparse install tree, and the locked staged payload
+to remain an exact Windows x64 Portcove NSIS candidate with PE bytes. It inventories
+both HKLM registry views and refuses system-wide, custom, ambiguous or identity-drifted
+installations. An admitted payload starts through the documented passive NSIS
+`/P /UPDATE` path and the reviewed host-integration child-process policy, with no
+relocation or elevation argument, while retaining the shared revalidation lease
+through process creation. Windows staging uses one fixed
+`.exe` payload slot so the operating system can execute the authenticated bytes;
+other platforms retain their inert generic slot until their own adapters define a
+format-specific replacement. No helper invokes this adapter yet, so production
+replacement remains inactive.
 The adapter-local `application_update_status` command combines sanitized summaries
 of check cadence, a verified staged candidate, and any pending safe-exit or restart
 request. It never exposes authenticated URLs, signatures, payload keys, installed

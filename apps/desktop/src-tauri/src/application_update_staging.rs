@@ -25,6 +25,9 @@ const STAGING_SCHEMA_VERSION: u32 = 1;
 const MAX_JOURNAL_BYTES: u64 = 512 * 1024;
 const JOURNAL_FILE: &str = "staging.json";
 const JOURNAL_TEMP_FILE: &str = ".staging.json.tmp";
+#[cfg(windows)]
+const ACTIVE_PAYLOAD_FILE: &str = "candidate-installer.exe";
+#[cfg(not(windows))]
 const ACTIVE_PAYLOAD_FILE: &str = "candidate.payload";
 const INCOMING_PAYLOAD_FILE: &str = ".candidate.payload.incoming";
 const LOCK_FILE: &str = ".staging.lock";
