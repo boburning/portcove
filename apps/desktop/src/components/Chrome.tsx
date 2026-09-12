@@ -938,7 +938,11 @@ export function SettingsView({
       <HostReadiness doctor={doctor} busy={busy} actions={hostToolActions} />
       <DiagnosticsCard busy={busy} createSupportBundle={createSupportBundle} />
       <AboutCard />
-      <ApplicationUpdateSettings currentVersion={desktopPackage.version} disabled={Boolean(busy)} />
+      <ApplicationUpdateSettings
+        currentVersion={desktopPackage.version}
+        generation={generation}
+        disabled={Boolean(busy)}
+      />
       <article className="settings-card">
         <p className="eyebrow">PRIVACY</p>
         <h2>Local and source-safe</h2>

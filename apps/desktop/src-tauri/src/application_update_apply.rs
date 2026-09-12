@@ -434,32 +434,7 @@ impl ApplicationUpdateApplyStore {
         library_root: &Path,
         request: ApplicationUpdateApplyRequest,
     ) -> Result<ApplicationUpdateApplyState, ApplicationUpdateApplyError> {
-        validate_preferences(preferences)
-            .map_err(|error| ApplicationUpdateApplyError::InvalidState(error.to_string()))?;
-        let choice = preferences.choice.clone().ok_or_else(|| {
-            ApplicationUpdateApplyError::InvalidState(
-                "application update consent has not been recorded".into(),
-            )
-        })?;
-        validate_prepare_policy(preferences.revision, &choice, request)?;
-        validate_selected_candidate_for_context(&staged.candidate, choice.channel, installed)?;
-        if installed.install_owner != InstallOwner::Portcove
-            || staged.candidate.release.package.owner != InstallOwner::Portcove
-        {
-            return Err(ApplicationUpdateApplyError::InvalidState(
-                "only a Portcove-owned application installation can be replaced".into(),
-            ));
-        }
-        let library_root = portcove_core::Library::validate_selection_target(library_root)?;
-        let intent = ApplicationUpdateApplyIntent {
-            preference_revision: preferences.revision,
-            preference_choice: choice,
-            request,
-            candidate: staged.candidate.clone(),
-            installed: installed.clone(),
-            library_root,
-        };
-        validate_intent(&intent)?;
+        let intent = build_intent(preferences, staged, installed, library_root, request)?;
 
         let _lock = self.lock()?;
         let mut state = self.load()?;
@@ -473,6 +448,67 @@ impl ApplicationUpdateApplyStore {
         state.intent = Some(intent);
         state.termination = None;
         self.publish(&state)?;
+        Ok(state)
+    }
+
+    /// Reuses an identical explicit restart request after a known failed
+    /// native attempt, while refusing ambiguous or successful attempts. The
+    /// caller must still record the matching restart termination and launch a
+    /// fresh helper; this method grants no replacement authority.
+    pub fn prepare_explicit_restart(
+        &self,
+        preferences: &ApplicationUpdatePreferences,
+        staged: &StagedApplicationUpdate,
+        installed: &InstalledApplicationContext,
+        library_root: &Path,
+    ) -> Result<ApplicationUpdateApplyState, ApplicationUpdateApplyError> {
+        let intent = build_intent(
+            preferences,
+            staged,
+            installed,
+            library_root,
+            ApplicationUpdateApplyRequest::RestartToApply,
+        )?;
+
+        let _lock = self.lock()?;
+        let mut state = self.load()?;
+        let publish;
+        match state.intent.as_ref() {
+            None => {
+                state.revision = next_revision(state.revision)?;
+                state.intent = Some(intent);
+                state.termination = None;
+                publish = true;
+            }
+            Some(current) if current != &intent => {
+                return Err(ApplicationUpdateApplyError::IntentConflict);
+            }
+            Some(_) => match state.native_launch {
+                Some(
+                    ApplicationUpdateNativeLaunchState::Failed
+                    | ApplicationUpdateNativeLaunchState::InstallerFailed,
+                ) => {
+                    state.revision = next_revision(state.revision)?;
+                    state.native_launch = None;
+                    state.native_exit_code = None;
+                    publish = true;
+                }
+                None if state.termination.is_none()
+                    || state.termination == Some(ApplicationTerminationKind::RestartToApply) =>
+                {
+                    publish = false;
+                }
+                _ => {
+                    return Err(ApplicationUpdateApplyError::InvalidState(
+                        "the previous native update attempt must be reconciled before restarting"
+                            .into(),
+                    ));
+                }
+            },
+        }
+        if publish {
+            self.publish(&state)?;
+        }
         Ok(state)
     }
 
@@ -690,6 +726,41 @@ impl ApplicationUpdateApplyStore {
             Err(error) => Err(error.into()),
         }
     }
+}
+
+fn build_intent(
+    preferences: &ApplicationUpdatePreferences,
+    staged: &StagedApplicationUpdate,
+    installed: &InstalledApplicationContext,
+    library_root: &Path,
+    request: ApplicationUpdateApplyRequest,
+) -> Result<ApplicationUpdateApplyIntent, ApplicationUpdateApplyError> {
+    validate_preferences(preferences)
+        .map_err(|error| ApplicationUpdateApplyError::InvalidState(error.to_string()))?;
+    let choice = preferences.choice.clone().ok_or_else(|| {
+        ApplicationUpdateApplyError::InvalidState(
+            "application update consent has not been recorded".into(),
+        )
+    })?;
+    validate_prepare_policy(preferences.revision, &choice, request)?;
+    validate_selected_candidate_for_context(&staged.candidate, choice.channel, installed)?;
+    if installed.install_owner != InstallOwner::Portcove
+        || staged.candidate.release.package.owner != InstallOwner::Portcove
+    {
+        return Err(ApplicationUpdateApplyError::InvalidState(
+            "only a Portcove-owned application installation can be replaced".into(),
+        ));
+    }
+    let intent = ApplicationUpdateApplyIntent {
+        preference_revision: preferences.revision,
+        preference_choice: choice,
+        request,
+        candidate: staged.candidate.clone(),
+        installed: installed.clone(),
+        library_root: portcove_core::Library::validate_selection_target(library_root)?,
+    };
+    validate_intent(&intent)?;
+    Ok(intent)
 }
 
 fn validate_prepare_policy(
@@ -1115,6 +1186,56 @@ mod tests {
             )
             .unwrap();
         assert!(observed.may_attempt_revalidation());
+    }
+
+    #[test]
+    fn explicit_restart_reopens_only_known_failed_native_attempts() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = library_root(&temporary);
+        let preferences = preferences(ApplicationUpdateMode::Manual, true);
+        let staged = staged(
+            candidate("0.2.0-beta.1", ApplicationChannel::Preview),
+            temporary.path(),
+        );
+        let installed = installed("0.1.0");
+        let store = ApplicationUpdateApplyStore::new(temporary.path().join("updates")).unwrap();
+        let prepared = store
+            .prepare_explicit_restart(&preferences, &staged, &installed, &library)
+            .unwrap();
+        let terminated = store
+            .record_termination(
+                prepared.revision,
+                ApplicationTerminationKind::RestartToApply,
+            )
+            .unwrap();
+
+        let unchanged = store
+            .prepare_explicit_restart(&preferences, &staged, &installed, &library)
+            .unwrap();
+        assert_eq!(unchanged, terminated);
+
+        let mut failed = terminated;
+        failed.revision += 1;
+        failed.native_launch = Some(ApplicationUpdateNativeLaunchState::Failed);
+        store.publish(&failed).unwrap();
+        let retry = store
+            .prepare_explicit_restart(&preferences, &staged, &installed, &library)
+            .unwrap();
+        assert_eq!(retry.revision, failed.revision + 1);
+        assert_eq!(retry.native_launch, None);
+        assert_eq!(
+            retry.termination,
+            Some(ApplicationTerminationKind::RestartToApply)
+        );
+
+        let mut ambiguous = retry;
+        ambiguous.revision += 1;
+        ambiguous.native_launch = Some(ApplicationUpdateNativeLaunchState::Starting);
+        store.publish(&ambiguous).unwrap();
+        assert!(matches!(
+            store.prepare_explicit_restart(&preferences, &staged, &installed, &library),
+            Err(ApplicationUpdateApplyError::InvalidState(_))
+        ));
     }
 
     #[test]

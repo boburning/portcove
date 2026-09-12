@@ -2,8 +2,9 @@
 //!
 //! The helper request carries only an expected durable journal revision.
 //! Repository locations, trust roots, filesystem paths, candidates, and keys
-//! remain host-owned Rust inputs. This module does not register a command-line
-//! mode or activate production replacement.
+//! remain host-owned Rust inputs. The fixed command-line mode and explicit
+//! renderer action live in `application_update_restart`; this module remains
+//! the authority-free revalidation sequence they invoke.
 
 use std::path::Path;
 use std::thread;

@@ -11,6 +11,7 @@ pub mod application_update_operation;
 pub mod application_update_payload;
 pub mod application_update_preferences;
 pub mod application_update_repository;
+mod application_update_restart;
 pub mod application_update_schedule;
 pub mod application_update_staging;
 pub mod application_update_status;
@@ -92,6 +93,98 @@ struct DesktopState {
 }
 
 type DesktopResult<T> = std::result::Result<T, DesktopError>;
+
+#[derive(Default)]
+struct BlockingWorkerState {
+    active: usize,
+    restart_pending: bool,
+}
+
+impl BlockingWorkerState {
+    fn begin_worker(&mut self) -> Result<(), ()> {
+        if self.restart_pending {
+            return Err(());
+        }
+        self.active = self.active.checked_add(1).ok_or(())?;
+        Ok(())
+    }
+
+    fn finish_worker(&mut self) {
+        self.active = self.active.saturating_sub(1);
+    }
+
+    #[cfg(any(windows, test))]
+    fn begin_restart(&mut self) -> Result<(), ()> {
+        if self.active != 0 || self.restart_pending {
+            return Err(());
+        }
+        self.restart_pending = true;
+        Ok(())
+    }
+}
+
+static BLOCKING_WORKERS: std::sync::LazyLock<std::sync::Mutex<BlockingWorkerState>> =
+    std::sync::LazyLock::new(|| std::sync::Mutex::new(BlockingWorkerState::default()));
+
+struct ActiveBlockingWorker;
+
+impl ActiveBlockingWorker {
+    fn begin() -> DesktopResult<Self> {
+        let mut state = BLOCKING_WORKERS.lock().map_err(|_| {
+            DesktopError::from(PortcoveError::state("Desktop worker state is unavailable."))
+        })?;
+        state.begin_worker().map_err(|_| {
+            DesktopError::from(PortcoveError::conflict(
+                "Portcove is restarting to apply an application update.",
+            ))
+        })?;
+        Ok(Self)
+    }
+}
+
+impl Drop for ActiveBlockingWorker {
+    fn drop(&mut self) {
+        if let Ok(mut state) = BLOCKING_WORKERS.lock() {
+            state.finish_worker();
+        }
+    }
+}
+
+#[cfg(windows)]
+struct BlockingWorkerRestartGuard {
+    committed: bool,
+}
+
+#[cfg(windows)]
+impl BlockingWorkerRestartGuard {
+    fn commit(mut self) {
+        self.committed = true;
+    }
+}
+
+#[cfg(windows)]
+impl Drop for BlockingWorkerRestartGuard {
+    fn drop(&mut self) {
+        if !self.committed
+            && let Ok(mut state) = BLOCKING_WORKERS.lock()
+        {
+            state.restart_pending = false;
+        }
+    }
+}
+
+#[cfg(windows)]
+fn block_workers_for_restart() -> DesktopResult<BlockingWorkerRestartGuard> {
+    let mut state = BLOCKING_WORKERS.lock().map_err(|_| {
+        DesktopError::from(PortcoveError::state("Desktop worker state is unavailable."))
+    })?;
+    state.begin_restart().map_err(|_| {
+        DesktopError::from(PortcoveError::conflict(
+            "Portcove is finishing active work. Wait for it to complete before restarting to update.",
+        ))
+    })?;
+    Ok(BlockingWorkerRestartGuard { committed: false })
+}
 
 fn initialization_snapshot(state: &DesktopState) -> (DesktopResult<ReadyDesktopState>, u64) {
     match state.initialization.lock() {
@@ -199,9 +292,13 @@ where
     T: Send + 'static,
     F: FnOnce() -> DesktopResult<T> + Send + 'static,
 {
-    tauri::async_runtime::spawn_blocking(operation)
-        .await
-        .map_err(|error| DesktopError::from(PortcoveError::state(error.to_string())))?
+    let active = ActiveBlockingWorker::begin()?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let _active = active;
+        operation()
+    })
+    .await
+    .map_err(|error| DesktopError::from(PortcoveError::state(error.to_string())))?
 }
 
 async fn confirm_destructive(
@@ -1247,6 +1344,18 @@ pub fn run_hidden_helper() -> Option<i32> {
                 _ => 2,
             })
         }
+        Some(mode) if application_update_restart::is_helper_mode(mode) => {
+            let revision = arguments
+                .next()
+                .as_deref()
+                .and_then(application_update_restart::helper_revision);
+            Some(match revision {
+                Some(revision) if arguments.next().is_none() => {
+                    application_update_restart::run_update_helper(revision)
+                }
+                _ => 2,
+            })
+        }
         _ => None,
     }
 }
@@ -1711,6 +1820,7 @@ pub fn run() {
             get_bootstrap_status,
             application_update_commands::check_application_update,
             application_update_commands::cancel_application_update_check,
+            application_update_restart::restart_to_apply_application_update,
             application_update_preferences::get_application_update_preferences,
             application_update_preferences::set_application_update_preferences,
             application_update_preferences::reset_application_update_preferences,
@@ -2193,6 +2303,7 @@ mod tests {
             Ok(7_u8)
         }));
         observed_start.await.unwrap();
+        assert!(BLOCKING_WORKERS.lock().unwrap().active >= 1);
 
         tokio::time::timeout(
             Duration::from_millis(30),
@@ -2202,6 +2313,17 @@ mod tests {
         .expect("a blocking filesystem phase must not occupy the IPC runtime");
         assert!(!worker.is_finished());
         assert_eq!(worker.await.unwrap().unwrap(), 7);
+    }
+
+    #[test]
+    fn restart_gate_refuses_active_and_new_blocking_workers() {
+        let mut state = BlockingWorkerState::default();
+        state.begin_worker().unwrap();
+        assert!(state.begin_restart().is_err());
+        state.finish_worker();
+        state.begin_restart().unwrap();
+        assert!(state.begin_worker().is_err());
+        assert!(state.begin_restart().is_err());
     }
 
     #[tokio::test(flavor = "current_thread")]

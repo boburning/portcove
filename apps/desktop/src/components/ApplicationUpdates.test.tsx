@@ -291,6 +291,29 @@ describe("ApplicationUpdateSettings", () => {
     expect(host.textContent).toContain("Application update schedule state repaired.");
   });
 
+  it("restarts only through the explicit staged-update action bound to the current library", async () => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
+    vi.mocked(desktopApi.applicationUpdateStatus).mockResolvedValueOnce({
+      ...idleStatus,
+      staged: {
+        version: "0.2.0-beta.3",
+        channel: "preview",
+        bytes: 25 * 1024 * 1024,
+      },
+    });
+    const restart = vi
+      .spyOn(desktopApi, "restartToApplyApplicationUpdate")
+      .mockResolvedValue(undefined);
+
+    await act(async () =>
+      root.render(<ApplicationUpdateSettings currentVersion="0.1.0-alpha.2" generation={17} />),
+    );
+    await click("Restart to update");
+
+    expect(restart).toHaveBeenCalledExactlyOnceWith(17);
+    expect(host.querySelector('[role="status"]')?.textContent).toContain("Restarting Portcove");
+  });
+
   it.each([
     [
       "starting",

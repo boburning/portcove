@@ -130,48 +130,7 @@ impl ApplicationUpdateQuiescenceGuard {
             .detail("application_update_held", "true"));
         }
         require_current_application_update_library(&root)?;
-
-        let connection = database::connect(&root)?;
-        let active_launch: Option<(String, String, String)> = connection
-            .query_row(
-                "SELECT id, port_id, phase FROM launch_sessions
-                 WHERE outcome IS NULL ORDER BY started_at, id LIMIT 1",
-                [],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-            )
-            .optional()?;
-        if let Some((id, port_id, phase)) = active_launch {
-            return Err(PortcoveError::conflict(
-                "an unfinished game launch requires recovery before applying an application update",
-            )
-            .detail("library_root", root.display().to_string())
-            .detail("launch_session_id", id)
-            .detail("port_id", port_id)
-            .detail("launch_phase", phase)
-            .detail("application_update_held", "true"));
-        }
-        let running_activity: Option<(String, String, Option<String>)> = connection
-            .query_row(
-                "SELECT id, operation, target_id FROM activity_history
-                 WHERE status='running' ORDER BY started_at, id LIMIT 1",
-                [],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-            )
-            .optional()?;
-        if let Some((id, activity_operation, target_id)) = running_activity {
-            let mut error = PortcoveError::conflict(
-                "an unfinished Portcove operation requires recovery before applying an application update",
-            )
-            .detail("library_root", root.display().to_string())
-            .detail("activity_id", id)
-            .detail("activity_operation", activity_operation)
-            .detail("application_update_held", "true");
-            if let Some(target_id) = target_id {
-                error = error.detail("activity_target_id", target_id);
-            }
-            return Err(error);
-        }
-        drop(connection);
+        require_application_update_idle(&root)?;
         Ok(Self {
             root,
             _lease: lease,
@@ -182,6 +141,50 @@ impl ApplicationUpdateQuiescenceGuard {
     pub fn root(&self) -> &Path {
         &self.root
     }
+}
+
+fn require_application_update_idle(root: &Path) -> Result<()> {
+    let connection = database::connect(root)?;
+    let active_launch: Option<(String, String, String)> = connection
+        .query_row(
+            "SELECT id, port_id, phase FROM launch_sessions
+             WHERE outcome IS NULL ORDER BY started_at, id LIMIT 1",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()?;
+    if let Some((id, port_id, phase)) = active_launch {
+        return Err(PortcoveError::conflict(
+            "an unfinished game launch requires recovery before applying an application update",
+        )
+        .detail("library_root", root.display().to_string())
+        .detail("launch_session_id", id)
+        .detail("port_id", port_id)
+        .detail("launch_phase", phase)
+        .detail("application_update_held", "true"));
+    }
+    let running_activity: Option<(String, String, Option<String>)> = connection
+        .query_row(
+            "SELECT id, operation, target_id FROM activity_history
+             WHERE status='running' ORDER BY started_at, id LIMIT 1",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()?;
+    if let Some((id, activity_operation, target_id)) = running_activity {
+        let mut error = PortcoveError::conflict(
+            "an unfinished Portcove operation requires recovery before applying an application update",
+        )
+        .detail("library_root", root.display().to_string())
+        .detail("activity_id", id)
+        .detail("activity_operation", activity_operation)
+        .detail("application_update_held", "true");
+        if let Some(target_id) = target_id {
+            error = error.detail("activity_target_id", target_id);
+        }
+        return Err(error);
+    }
+    Ok(())
 }
 
 fn require_current_application_update_library(root: &Path) -> Result<()> {
@@ -385,6 +388,15 @@ impl Library {
     pub fn root(&self) -> &Path {
         &self.root
     }
+
+    /// Preflights the durable idle conditions required before the desktop
+    /// exits for an explicit application update. The post-exit helper still
+    /// acquires the exclusive library lease and repeats this check.
+    pub fn require_application_update_idle(&self) -> Result<()> {
+        require_current_application_update_library(&self.root)?;
+        require_application_update_idle(&self.root)
+    }
+
     pub(crate) fn issue_authorization(
         &self,
         action: &str,

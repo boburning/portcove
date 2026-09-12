@@ -112,13 +112,20 @@ impl ApplicationUpdateCommandRunner for ConfiguredApplicationUpdateCommandRunner
 #[derive(Clone)]
 pub(crate) struct ApplicationUpdateCommandState {
     runner: DesktopResult<Option<Arc<dyn ApplicationUpdateCommandRunner>>>,
-    active: Arc<Mutex<Option<CancellationToken>>>,
+    activity: Arc<Mutex<ApplicationUpdateCommandActivity>>,
+}
+
+enum ApplicationUpdateCommandActivity {
+    Idle,
+    Checking(CancellationToken),
+    #[cfg(any(windows, test))]
+    RestartPending,
 }
 
 pub(crate) fn configured_state() -> ApplicationUpdateCommandState {
     ApplicationUpdateCommandState {
         runner: configure_runner(),
-        active: Arc::new(Mutex::new(None)),
+        activity: Arc::new(Mutex::new(ApplicationUpdateCommandActivity::Idle)),
     }
 }
 
@@ -136,13 +143,40 @@ fn configure_runner() -> DesktopResult<Option<Arc<dyn ApplicationUpdateCommandRu
 }
 
 struct ActiveApplicationUpdateCheck {
-    active: Arc<Mutex<Option<CancellationToken>>>,
+    activity: Arc<Mutex<ApplicationUpdateCommandActivity>>,
+}
+
+#[cfg(any(windows, test))]
+pub(crate) struct ApplicationUpdateCheckRestartGuard {
+    activity: Arc<Mutex<ApplicationUpdateCommandActivity>>,
+    committed: bool,
+}
+
+#[cfg(any(windows, test))]
+impl ApplicationUpdateCheckRestartGuard {
+    pub(crate) fn commit(mut self) {
+        self.committed = true;
+    }
+}
+
+#[cfg(any(windows, test))]
+impl Drop for ApplicationUpdateCheckRestartGuard {
+    fn drop(&mut self) {
+        if !self.committed
+            && let Ok(mut activity) = self.activity.lock()
+            && matches!(*activity, ApplicationUpdateCommandActivity::RestartPending)
+        {
+            *activity = ApplicationUpdateCommandActivity::Idle;
+        }
+    }
 }
 
 impl Drop for ActiveApplicationUpdateCheck {
     fn drop(&mut self) {
-        if let Ok(mut active) = self.active.lock() {
-            *active = None;
+        if let Ok(mut activity) = self.activity.lock()
+            && matches!(*activity, ApplicationUpdateCommandActivity::Checking(_))
+        {
+            *activity = ApplicationUpdateCommandActivity::Idle;
         }
     }
 }
@@ -165,39 +199,60 @@ impl ApplicationUpdateCommandState {
                     "Application update checking is not configured in this build.",
                 ))
             })?;
-        let mut active = self.active.lock().map_err(|_| {
+        let mut activity = self.activity.lock().map_err(|_| {
             DesktopError::from(portcove_core::PortcoveError::state(
                 "Application update check state is unavailable.",
             ))
         })?;
-        if active.is_some() {
+        if !matches!(*activity, ApplicationUpdateCommandActivity::Idle) {
             return Err(portcove_core::PortcoveError::conflict(
                 "An application update check is already active.",
             )
             .into());
         }
         let cancellation = CancellationToken::new();
-        *active = Some(cancellation.clone());
+        *activity = ApplicationUpdateCommandActivity::Checking(cancellation.clone());
         Ok((
             runner,
             cancellation,
             ActiveApplicationUpdateCheck {
-                active: self.active.clone(),
+                activity: self.activity.clone(),
             },
         ))
     }
 
     fn cancel(&self) -> DesktopResult<bool> {
-        let active = self.active.lock().map_err(|_| {
+        let activity = self.activity.lock().map_err(|_| {
             DesktopError::from(portcove_core::PortcoveError::state(
                 "Application update check state is unavailable.",
             ))
         })?;
-        let Some(cancellation) = active.as_ref() else {
+        let ApplicationUpdateCommandActivity::Checking(cancellation) = &*activity else {
             return Ok(false);
         };
         cancellation.cancel();
         Ok(true)
+    }
+
+    #[cfg(any(windows, test))]
+    pub(crate) fn block_for_restart(&self) -> DesktopResult<ApplicationUpdateCheckRestartGuard> {
+        let mut activity = self.activity.lock().map_err(|_| {
+            DesktopError::from(portcove_core::PortcoveError::state(
+                "Application update check state is unavailable.",
+            ))
+        })?;
+        if !matches!(*activity, ApplicationUpdateCommandActivity::Idle) {
+            return Err(portcove_core::PortcoveError::conflict(
+                "An application update check is already active.",
+            )
+            .into());
+        }
+        *activity = ApplicationUpdateCommandActivity::RestartPending;
+        drop(activity);
+        Ok(ApplicationUpdateCheckRestartGuard {
+            activity: self.activity.clone(),
+            committed: false,
+        })
     }
 }
 
@@ -460,7 +515,7 @@ mod tests {
     ) -> ApplicationUpdateCommandState {
         ApplicationUpdateCommandState {
             runner: Ok(Some(runner)),
-            active: Arc::new(Mutex::new(None)),
+            activity: Arc::new(Mutex::new(ApplicationUpdateCommandActivity::Idle)),
         }
     }
 
@@ -475,6 +530,10 @@ mod tests {
             run_check(&running_state, &NoopApplicationUpdateProgressSink).await
         });
         started.acquire().await.unwrap().forget();
+        assert_eq!(
+            state.block_for_restart().err().unwrap().code,
+            portcove_core::ErrorCode::Conflict
+        );
 
         let busy = run_check(&state, &NoopApplicationUpdateProgressSink)
             .await
@@ -485,13 +544,21 @@ mod tests {
         let cancelled = running.await.unwrap().unwrap_err();
         assert_eq!(cancelled.code, portcove_core::ErrorCode::Cancelled);
         assert!(!state.cancel().unwrap());
+        drop(state.block_for_restart().unwrap());
+        assert!(state.begin().is_ok());
+        state.block_for_restart().unwrap().commit();
+        assert_eq!(
+            state.begin().err().unwrap().code,
+            portcove_core::ErrorCode::Conflict
+        );
+        assert!(!state.cancel().unwrap());
     }
 
     #[test]
     fn disabled_builds_report_unavailable_without_starting_work() {
         let state = ApplicationUpdateCommandState {
             runner: Ok(None),
-            active: Arc::new(Mutex::new(None)),
+            activity: Arc::new(Mutex::new(ApplicationUpdateCommandActivity::Idle)),
         };
         let error = state.begin().err().unwrap();
         assert_eq!(error.code, portcove_core::ErrorCode::Unsupported);
