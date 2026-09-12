@@ -3,6 +3,9 @@
 mod transport;
 
 use portcove_core::{ReconcileResult, UpdateCheck};
+use portcove_desktop::application_update_preferences::{
+    ApplicationUpdateChoice, ApplicationUpdatePreferences,
+};
 use schemars::{JsonSchema, generate::SchemaSettings};
 use serde_json::{Value, json};
 use transport::{
@@ -32,8 +35,12 @@ fn main() {
                 "reconcile_outcome": output::<BatchOutcome<ReconcileResult>>(),
                 "source_verification_outcome": output::<SourceBatchOutcome>(),
                 "launch_result": output::<LaunchResult>(),
+                "application_update_preferences": output::<ApplicationUpdatePreferences>(),
             },
-            "input": {"install_input": schemars::schema_for!(InstallInput)},
+            "input": {
+                "install_input": schemars::schema_for!(InstallInput),
+                "application_update_choice": schemars::schema_for!(ApplicationUpdateChoice),
+            },
         })
     );
 }

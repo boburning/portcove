@@ -97,6 +97,11 @@ export type DesktopError = Generated.TransportOutputs["desktop_desktop_error"];
 
 export type BootstrapStatus = Generated.TransportOutputs["desktop_bootstrap_status"];
 
+export type ApplicationUpdatePreferences =
+  Generated.TransportOutputs["desktop_application_update_preferences"];
+
+export type ApplicationUpdateChoice = Requests.TransportInputs["desktop_application_update_choice"];
+
 export type LibrarySelection = Generated.TransportOutputs["library_selection"];
 
 export type { LibraryMetadataFile } from "./transport-types.generated";

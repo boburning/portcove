@@ -12,6 +12,8 @@ export type InputCatalogUpdateSource =
       value: string;
       [k: string]: unknown;
     };
+export type ApplicationChannel = "preview" | "stable";
+export type ApplicationUpdateMode = "automatic" | "notify-only" | "manual";
 export type ReleaseChannel = "stable" | "beta" | "rolling";
 
 export interface TransportInputs {
@@ -19,6 +21,7 @@ export interface TransportInputs {
   definition_capability_request: InputDefinitionCapabilityRequest;
   source_discovery_limits: SourceDiscoveryLimits;
   source_discovery_request: InputSourceDiscoveryRequest;
+  desktop_application_update_choice: InputDesktopApplicationUpdateChoice;
   desktop_install_input: InputDesktopInstallInput;
 }
 export interface InputDefinitionCapabilityRequest {
@@ -51,6 +54,11 @@ export interface SourceDiscoveryLimits1 {
   max_file_bytes: number;
   max_hash_bytes: number;
   [k: string]: unknown;
+}
+export interface InputDesktopApplicationUpdateChoice {
+  channel: ApplicationChannel;
+  mode: ApplicationUpdateMode;
+  paused: boolean;
 }
 export interface InputDesktopInstallInput {
   bios?: string | null;

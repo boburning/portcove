@@ -14,6 +14,16 @@ migrations, game sessions, mutation locks and all game data. React presents type
 host results; it supplies neither trusted URLs nor keys. Desktop never silently
 replaces a separately installed CLI. Catalog keys cannot authorize application code.
 
+The host persists one strict application-update choice containing the Stable or
+Preview channel, automatic, notification-only or manual mode, and a pause flag.
+This state lives beside host configuration and outside all libraries and payload
+staging. A missing document means consent has not been recorded and remains
+read-only. Saves use compare-and-swap revisions under path-keyed process and OS
+locks, then atomically publish flushed bytes. Unknown fields, malformed state and
+future schemas fail closed; explicit reset clears consent while advancing the
+revision. The typed get, save and reset commands perform no update check, download,
+staging or application side effect.
+
 | Claim                           | Mechanism                                                        | Limit                                                                       |
 | ------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | Payload authenticity            | Mandatory maintained Tauri updater signature                     | Does not authenticate feed JSON or current eligibility                      |

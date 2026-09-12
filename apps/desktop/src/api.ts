@@ -32,6 +32,8 @@ import type {
   ActivityDiagnostic,
   ActivityRecord,
   AdoptionPreview,
+  ApplicationUpdateChoice,
+  ApplicationUpdatePreferences,
   BackupInventory,
   BackupRecord,
   BootstrapStatus,
@@ -65,6 +67,15 @@ import type {
 } from "./types";
 
 export const desktopApi = {
+  applicationUpdatePreferences: () =>
+    invoke<ApplicationUpdatePreferences>("get_application_update_preferences"),
+  setApplicationUpdatePreferences: (expectedRevision: number, choice: ApplicationUpdateChoice) =>
+    invoke<ApplicationUpdatePreferences>("set_application_update_preferences", {
+      expectedRevision,
+      choice,
+    }),
+  resetApplicationUpdatePreferences: () =>
+    invoke<ApplicationUpdatePreferences>("reset_application_update_preferences"),
   artwork: (portId: string, slot: ArtworkSlot, generation: number) =>
     invoke<ArtworkState>("get_artwork", { portId, slot, generation }),
   artworkThumbnail: (

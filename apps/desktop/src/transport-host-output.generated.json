@@ -1,4 +1,75 @@
 {
+  "application_update_preferences": {
+    "$defs": {
+      "ApplicationChannel": {
+        "enum": [
+          "preview",
+          "stable"
+        ],
+        "type": "string"
+      },
+      "ApplicationUpdateChoice": {
+        "additionalProperties": false,
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ApplicationChannel"
+          },
+          "mode": {
+            "$ref": "#/$defs/ApplicationUpdateMode"
+          },
+          "paused": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "channel",
+          "mode",
+          "paused"
+        ],
+        "type": "object"
+      },
+      "ApplicationUpdateMode": {
+        "enum": [
+          "automatic",
+          "notify-only",
+          "manual"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "choice": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ApplicationUpdateChoice"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "`None` means the user has not completed the one-time choice."
+      },
+      "revision": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "schema_version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "schema_version",
+      "revision",
+      "choice"
+    ],
+    "title": "ApplicationUpdatePreferences",
+    "type": "object"
+  },
   "backup_review": {
     "$defs": {
       "BackupAction": {

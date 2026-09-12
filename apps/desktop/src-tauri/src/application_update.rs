@@ -33,7 +33,7 @@ pub enum UpdateMetadataError {
     AmbiguousPrecedence,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum ApplicationChannel {
     Preview,
