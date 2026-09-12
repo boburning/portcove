@@ -255,8 +255,12 @@ the apply-journal, preference, staging, user-scoped application-runtime and
 current-library locks in that fixed order while it verifies the expected revision and
 termination, unchanged choice, exact staged and freshly authenticated candidate,
 exact installed context, current compatibility and library quiescence. The resulting
-lease still grants no executable ownership or replacement permission. No production
-exit hook or replacement adapter is activated by this slice.
+lease still grants no executable ownership or replacement permission. The Windows
+adapter durably records `starting` before native process creation, `started` after a
+child is created, and `failed` only when no child was created. Automatic revalidation
+stays closed after every launch attempt. An explicit retry can reopen only `failed`;
+ambiguous `starting` and `started` require reconciliation against newly observed
+installed identity. No production exit hook activates this sequence.
 
 The sibling `application_update_trust` module owns the durable host trust boundary.
 Under path-keyed process ownership and one OS file lock it supplies `tough` with the

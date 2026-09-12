@@ -27,7 +27,7 @@ use crate::application_update_staging::{
 };
 use crate::application_update_storage::write_bytes_atomically;
 
-const APPLY_SCHEMA_VERSION: u32 = 1;
+const APPLY_SCHEMA_VERSION: u32 = 2;
 const MAX_APPLY_STATE_BYTES: u64 = 512 * 1024;
 const APPLY_FILE: &str = "apply.json";
 const APPLY_TEMP_FILE: &str = ".apply.json.tmp";
@@ -80,6 +80,14 @@ pub enum ApplicationTerminationKind {
     SteamStop,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ApplicationUpdateNativeLaunchState {
+    Starting,
+    Started,
+    Failed,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ApplicationUpdateApplyIntent {
@@ -98,6 +106,7 @@ pub struct ApplicationUpdateApplyState {
     pub revision: u64,
     pub intent: Option<ApplicationUpdateApplyIntent>,
     pub termination: Option<ApplicationTerminationKind>,
+    pub native_launch: Option<ApplicationUpdateNativeLaunchState>,
 }
 
 impl Default for ApplicationUpdateApplyState {
@@ -107,6 +116,7 @@ impl Default for ApplicationUpdateApplyState {
             revision: 0,
             intent: None,
             termination: None,
+            native_launch: None,
         }
     }
 }
@@ -115,6 +125,10 @@ impl ApplicationUpdateApplyState {
     /// True only when an observed host action matches the persisted request.
     /// The caller must still revalidate every authority before replacement.
     pub fn may_attempt_revalidation(&self) -> bool {
+        self.native_launch.is_none() && self.has_matching_termination()
+    }
+
+    fn has_matching_termination(&self) -> bool {
         matches!(
             (
                 self.intent.as_ref().map(|intent| intent.request),
@@ -137,11 +151,12 @@ pub struct ApplicationUpdateApplyStore {
 }
 
 struct ApplicationUpdateApplySnapshot {
+    store: ApplicationUpdateApplyStore,
     state: ApplicationUpdateApplyState,
     _lock: ApplyLock,
 }
 
-/// Exact update authorities retained across the host's native replacement.
+/// Exact update authorities retained through native admission and process creation.
 ///
 /// Constructing this lease revalidates the durable request, current consent,
 /// verified staging slot, freshly authenticated candidate, installed context,
@@ -153,6 +168,10 @@ pub struct ApplicationUpdateRevalidationLease {
     staging: ApplicationUpdateStagingSnapshot,
     application: portcove_core::ApplicationUpdateExclusivityGuard,
     library: portcove_core::ApplicationUpdateQuiescenceGuard,
+}
+
+pub struct ApplicationUpdateNativeLaunchLease {
+    revalidation: ApplicationUpdateRevalidationLease,
 }
 
 impl ApplicationUpdateRevalidationLease {
@@ -174,6 +193,62 @@ impl ApplicationUpdateRevalidationLease {
 
     pub fn application_runtime_lock(&self) -> &Path {
         self.application.path()
+    }
+
+    /// Durably closes automatic retry before native process creation. A crash
+    /// after this transition remains an ambiguous attempt for reconciliation.
+    pub fn begin_native_launch(
+        mut self,
+    ) -> Result<ApplicationUpdateNativeLaunchLease, ApplicationUpdateApplyError> {
+        if !self.apply.state.may_attempt_revalidation() {
+            return Err(ApplicationUpdateApplyError::InvalidState(
+                "the application update is no longer eligible to start a native launch".into(),
+            ));
+        }
+        self.apply.state.revision = next_revision(self.apply.state.revision)?;
+        self.apply.state.native_launch = Some(ApplicationUpdateNativeLaunchState::Starting);
+        self.apply.store.publish(&self.apply.state)?;
+        Ok(ApplicationUpdateNativeLaunchLease { revalidation: self })
+    }
+}
+
+impl ApplicationUpdateNativeLaunchLease {
+    pub fn state(&self) -> &ApplicationUpdateApplyState {
+        self.revalidation.state()
+    }
+
+    /// Records that native process creation returned a live child. Installer
+    /// completion is reconciled separately against the newly running version.
+    pub fn record_started(
+        self,
+    ) -> Result<ApplicationUpdateApplyState, ApplicationUpdateApplyError> {
+        self.record(ApplicationUpdateNativeLaunchState::Started)
+    }
+
+    /// Records that native process creation failed before a child was created.
+    pub fn record_failed(self) -> Result<ApplicationUpdateApplyState, ApplicationUpdateApplyError> {
+        self.record(ApplicationUpdateNativeLaunchState::Failed)
+    }
+
+    fn record(
+        mut self,
+        state: ApplicationUpdateNativeLaunchState,
+    ) -> Result<ApplicationUpdateApplyState, ApplicationUpdateApplyError> {
+        if self.revalidation.apply.state.native_launch
+            != Some(ApplicationUpdateNativeLaunchState::Starting)
+        {
+            return Err(ApplicationUpdateApplyError::InvalidState(
+                "the native application update launch was not starting".into(),
+            ));
+        }
+        self.revalidation.apply.state.revision =
+            next_revision(self.revalidation.apply.state.revision)?;
+        self.revalidation.apply.state.native_launch = Some(state);
+        self.revalidation
+            .apply
+            .store
+            .publish(&self.revalidation.apply.state)?;
+        Ok(self.revalidation.apply.state.clone())
     }
 }
 
@@ -269,7 +344,7 @@ impl ApplicationUpdateApplyStore {
         require_revision(&apply.state, expected_revision)?;
         if !apply.state.may_attempt_revalidation() {
             return Err(ApplicationUpdateApplyError::InvalidState(
-                "the recorded termination does not match the application update request".into(),
+                "the application update apply journal is not eligible for revalidation".into(),
             ));
         }
         let intent = apply.state.intent.as_ref().ok_or_else(|| {
@@ -401,18 +476,43 @@ impl ApplicationUpdateApplyStore {
         let _lock = self.lock()?;
         let mut state = self.load()?;
         require_revision(&state, expected_revision)?;
+        if matches!(
+            state.native_launch,
+            Some(
+                ApplicationUpdateNativeLaunchState::Starting
+                    | ApplicationUpdateNativeLaunchState::Started
+            )
+        ) {
+            return Err(ApplicationUpdateApplyError::InvalidState(
+                "the native launch must be reconciled before clearing its apply intent".into(),
+            ));
+        }
         state.revision = next_revision(state.revision)?;
         state.intent = None;
         state.termination = None;
+        state.native_launch = None;
         self.publish(&state)?;
         Ok(state)
     }
 
-    /// Explicit recovery clears corrupt or future apply state without touching
-    /// the staged payload or granting permission to retry it.
-    pub fn recover(&self) -> Result<ApplicationUpdateApplyState, ApplicationUpdateApplyError> {
+    /// Makes only a proven pre-spawn failure eligible for an explicit retry.
+    /// Started or ambiguous attempts must first reconcile installed state.
+    pub fn retry_failed_native_launch(
+        &self,
+        expected_revision: u64,
+    ) -> Result<ApplicationUpdateApplyState, ApplicationUpdateApplyError> {
         let _lock = self.lock()?;
-        self.recover_locked(false)
+        let mut state = self.load()?;
+        require_revision(&state, expected_revision)?;
+        if state.native_launch != Some(ApplicationUpdateNativeLaunchState::Failed) {
+            return Err(ApplicationUpdateApplyError::InvalidState(
+                "only a failed pre-spawn native launch can be retried".into(),
+            ));
+        }
+        state.revision = next_revision(state.revision)?;
+        state.native_launch = None;
+        self.publish(&state)?;
+        Ok(state)
     }
 
     /// Repairs malformed or future state only while it is still invalid.
@@ -421,20 +521,12 @@ impl ApplicationUpdateApplyStore {
         &self,
     ) -> Result<ApplicationUpdateApplyState, ApplicationUpdateApplyError> {
         let _lock = self.lock()?;
-        self.recover_locked(true)
-    }
-
-    fn recover_locked(
-        &self,
-        require_invalid: bool,
-    ) -> Result<ApplicationUpdateApplyState, ApplicationUpdateApplyError> {
         let revision = match self.load() {
-            Ok(_) if require_invalid => {
+            Ok(_) => {
                 return Err(ApplicationUpdateApplyError::InvalidState(
                     "apply state no longer requires recovery".into(),
                 ));
             }
-            Ok(state) => next_revision(state.revision)?,
             Err(ApplicationUpdateApplyError::InvalidState(_))
             | Err(ApplicationUpdateApplyError::UnsupportedSchema(_)) => {
                 next_revision(self.recovery_revision())?
@@ -461,7 +553,11 @@ impl ApplicationUpdateApplyStore {
     fn snapshot(&self) -> Result<ApplicationUpdateApplySnapshot, ApplicationUpdateApplyError> {
         let lock = self.lock()?;
         let state = self.load()?;
-        Ok(ApplicationUpdateApplySnapshot { state, _lock: lock })
+        Ok(ApplicationUpdateApplySnapshot {
+            store: self.clone(),
+            state,
+            _lock: lock,
+        })
     }
 
     fn publish(
@@ -541,6 +637,13 @@ fn validate_state(state: &ApplicationUpdateApplyState) -> Result<(), Application
     if state.termination.is_some() && state.intent.is_none() {
         return Err(ApplicationUpdateApplyError::InvalidState(
             "termination exists without an apply intent".into(),
+        ));
+    }
+    if state.native_launch.is_some()
+        && (state.intent.is_none() || !state.has_matching_termination())
+    {
+        return Err(ApplicationUpdateApplyError::InvalidState(
+            "native launch state requires a matching terminated apply intent".into(),
         ));
     }
     if let Some(intent) = &state.intent {
@@ -1013,7 +1116,7 @@ mod tests {
             store.load(),
             Err(ApplicationUpdateApplyError::UnsupportedSchema(99))
         ));
-        let recovered = store.recover().unwrap();
+        let recovered = store.recover_invalid().unwrap();
         assert_eq!(recovered.revision, 9);
         assert!(recovered.intent.is_none());
     }
@@ -1072,6 +1175,12 @@ mod tests {
             lease.application_runtime_lock(),
             fs::canonicalize(&runtime_lock).unwrap()
         );
+        let launch = lease.begin_native_launch().unwrap();
+        assert_eq!(
+            launch.state().native_launch,
+            Some(ApplicationUpdateNativeLaunchState::Starting)
+        );
+        assert!(!launch.state().may_attempt_revalidation());
         assert!(portcove_core::ApplicationRuntimeGuard::acquire(&runtime_lock).is_err());
         assert!(matches!(
             apply.clear(terminated.revision),
@@ -1086,8 +1195,63 @@ mod tests {
             Err(ApplicationUpdateStagingError::Busy)
         ));
 
-        drop(lease);
-        assert!(apply.clear(terminated.revision).is_ok());
+        let failed = launch.record_failed().unwrap();
+        assert_eq!(failed.revision, 4);
+        assert_eq!(
+            failed.native_launch,
+            Some(ApplicationUpdateNativeLaunchState::Failed)
+        );
+        assert!(!failed.may_attempt_revalidation());
+        assert_eq!(apply.load().unwrap(), failed);
+        assert!(matches!(
+            apply
+                .admit_revalidation(
+                    failed.revision,
+                    &preferences_store,
+                    &staging_store,
+                    &selected,
+                    &installed,
+                    &runtime_lock,
+                )
+                .await,
+            Err(ApplicationUpdateApplyError::InvalidState(message))
+                if message.contains("not eligible")
+        ));
+
+        let retry = apply.retry_failed_native_launch(failed.revision).unwrap();
+        assert_eq!(retry.revision, 5);
+        assert!(retry.native_launch.is_none());
+        assert!(retry.may_attempt_revalidation());
+        let launch = apply
+            .admit_revalidation(
+                retry.revision,
+                &preferences_store,
+                &staging_store,
+                &selected,
+                &installed,
+                &runtime_lock,
+            )
+            .await
+            .unwrap()
+            .begin_native_launch()
+            .unwrap();
+        let started = launch.record_started().unwrap();
+        assert_eq!(started.revision, 7);
+        assert_eq!(
+            started.native_launch,
+            Some(ApplicationUpdateNativeLaunchState::Started)
+        );
+        assert!(!started.may_attempt_revalidation());
+        assert!(matches!(
+            apply.retry_failed_native_launch(started.revision),
+            Err(ApplicationUpdateApplyError::InvalidState(message))
+                if message.contains("failed pre-spawn")
+        ));
+        assert!(matches!(
+            apply.clear(started.revision),
+            Err(ApplicationUpdateApplyError::InvalidState(message))
+                if message.contains("must be reconciled")
+        ));
         assert!(staging_store.reset().is_ok());
     }
 
