@@ -45,6 +45,19 @@ if [[ ! -s "$ubuntu_sources" ]]; then
   exit 1
 fi
 
+# Never wait for an interactive privilege prompt in automation or an agent-owned
+# shell. Root needs no wrapper; other callers must already have noninteractive
+# sudo authority before any package or source mutation starts.
+privilege=()
+if (( EUID != 0 )); then
+  if ! command -v sudo >/dev/null || ! sudo -n true 2>/dev/null; then
+    echo "Linux desktop prerequisites require root or pre-authorized noninteractive sudo." >&2
+    exit 1
+  fi
+  privilege=(sudo -n)
+fi
+readonly privilege
+
 # APT owns retries for individual indexes and packages. Each invocation also
 # has a hard process deadline so one stalled mirror cannot consume the complete
 # workflow step budget.
@@ -60,7 +73,7 @@ apt_options=(
 run_apt() {
   local deadline=$1
   shift
-  sudo timeout --kill-after=10s "$deadline" env DEBIAN_FRONTEND=noninteractive \
+  timeout --kill-after=10s "$deadline" "${privilege[@]}" env DEBIAN_FRONTEND=noninteractive \
     apt-get "${apt_options[@]}" "$@"
 }
 
@@ -93,7 +106,7 @@ fi
 echo "Retrying Linux desktop prerequisites with the archive mirror fallback."
 for source in /etc/apt/sources.list /etc/apt/apt-mirrors.txt; do
   if [[ -f "$source" ]]; then
-    sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$source"
+    "${privilege[@]}" sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$source"
   fi
 done
 if install_from_current_mirror "the archive mirror fallback" 4m 5m; then
