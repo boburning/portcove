@@ -17,6 +17,10 @@ export const DESKTOP_SCENARIOS = Object.freeze([
   scenario("empty-library", "Native bootstrap uses the isolated empty library."),
   scenario("native-error-recovery", "A rejected native operation leaves the application usable."),
   scenario("keyboard-layout", "Keyboard focus and compact layout remain usable."),
+  scenario(
+    "native-application-update-preferences",
+    "Application update consent saves without starting update work and survives renderer reload.",
+  ),
   scenario("appearance-restart", "Appearance preferences survive a real application restart.", {
     cycle_option: "restart-cycles",
   }),
@@ -153,6 +157,7 @@ const smoke = [
   "empty-library",
   "native-error-recovery",
   "keyboard-layout",
+  "native-application-update-preferences",
   "appearance-restart",
   "accessibility",
   "native-controller-large-list",
@@ -181,6 +186,7 @@ export const DESKTOP_PROFILES = Object.freeze({
   presentation: Object.freeze([
     "empty-library",
     "keyboard-layout",
+    "native-application-update-preferences",
     "accessibility",
     "native-controller-large-list",
     "native-expanded-navigation-copy",

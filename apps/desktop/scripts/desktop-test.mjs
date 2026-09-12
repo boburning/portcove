@@ -377,6 +377,7 @@ try {
         ...process.env,
         PORTCOVE_LIBRARY: library,
         PORTCOVE_PREFERENCES: path.join(output, "preferences.json"),
+        PORTCOVE_APPLICATION_UPDATE_PREFERENCES: path.join(output, "application-updates.json"),
         WEBVIEW2_USER_DATA_FOLDER: profile,
       },
     },
@@ -429,6 +430,103 @@ try {
     }));
     assert.notEqual(focus.tag, "BODY");
     assert.equal(focus.overflow, false);
+  });
+  await scenario("native-application-update-preferences", async () => {
+    const before = await invoke("get_application_update_preferences");
+    assert.equal(before.ok, true);
+    assert.equal(before.value.choice, null);
+    const activities = await invoke("get_activities");
+    assert.equal(activities.ok, true);
+
+    await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+    const settings = By.css('article[aria-labelledby="application-update-settings-title"]');
+    await browser.wait(until.elementLocated(settings), 15_000);
+    await browser.wait(
+      until.elementLocated(By.css('[aria-label="Application update channel"]')),
+      15_000,
+    );
+    await browser
+      .findElement(
+        By.xpath(
+          '//*[@aria-label="Application update channel"]//button[normalize-space(.)="Stable"]',
+        ),
+      )
+      .click();
+    await browser
+      .findElement(
+        By.xpath('//*[@aria-label="Application update mode"]//button[normalize-space(.)="Manual"]'),
+      )
+      .click();
+    await browser.findElement(By.id("pause-application-updates")).click();
+
+    assert.equal(
+      (await invoke("get_application_update_preferences")).value.choice,
+      null,
+      "editing application update settings is not saving",
+    );
+    await browser
+      .findElement(By.xpath('//button[normalize-space(.)="Save application update settings"]'))
+      .click();
+    await browser.wait(async () => {
+      const result = await invoke("get_application_update_preferences");
+      return (
+        result.ok &&
+        result.value.choice?.channel === "stable" &&
+        result.value.choice?.mode === "manual" &&
+        result.value.choice?.paused === true
+      );
+    }, 15_000);
+    assert.deepEqual((await invoke("get_activities")).value, activities.value);
+    await browser.wait(
+      until.elementLocated(
+        By.xpath(
+          '//p[@role="status" and contains(., "No update check, download, install, or restart was started.")]',
+        ),
+      ),
+      15_000,
+    );
+
+    await browser.navigate().refresh();
+    await browser.wait(
+      until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
+      15_000,
+    );
+    await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+    await browser.wait(
+      until.elementLocated(By.css('[aria-label="Application update channel"]')),
+      15_000,
+    );
+    assert.equal(
+      await browser
+        .findElement(
+          By.css('[aria-label="Application update channel"] button[aria-pressed="true"]'),
+        )
+        .getText(),
+      "Stable",
+    );
+    assert.equal(
+      await browser
+        .findElement(By.css('[aria-label="Application update mode"] button[aria-pressed="true"]'))
+        .getText(),
+      "Manual",
+    );
+    assert.equal(await browser.findElement(By.id("pause-application-updates")).isSelected(), true);
+    await browser.wait(
+      () =>
+        browser.executeScript(() => {
+          const control = [...document.querySelectorAll("button")].find(
+            (element) => element.textContent?.trim() === "Import library",
+          );
+          return (
+            control instanceof HTMLButtonElement &&
+            !control.disabled &&
+            getComputedStyle(control).color === getComputedStyle(document.body).color
+          );
+        }),
+      15_000,
+    );
+    const report = path.join(output, "application-update-settings-accessibility.json");
+    await captureAccessibilityReport(browser, report, artifacts);
   });
   await scenario("appearance-restart", async () => {
     await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();

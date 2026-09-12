@@ -24,6 +24,14 @@ future schemas fail closed; explicit reset clears consent while advancing the
 revision. The typed get, save and reset commands perform no update check, download,
 staging or application side effect.
 
+Desktop Settings presents that state as a local draft with the installed application
+version, channel, mode and pause control. A missing choice stays nonconsenting even
+while the recommended Preview/automatic draft is visible. Only the explicit Save
+action persists it; discarding changes has no host side effect, and reset returns to
+the missing-choice state. The Stable explanation promises only a newer eligible
+production release and never a downgrade. Automatic-mode disclosure names staging
+and makes safe exit or an explicit Restart to update action a separate apply boundary.
+
 The separate host schedule records successful-check cadence and bounded retry state,
 not a device identity or updater operation. A pure decision delays automatic work
 for 30 seconds after startup, at least 24 hours after success, and 15 minutes through

@@ -95,11 +95,12 @@ output without building or launching.
 
 The curated profiles are:
 
-- `smoke`: native bootstrap/error recovery, keyboard/compact layout, appearance
-  restart, accessibility, injected controller, expanded navigation and workspace
-  refresh. Reviewed install progress/cancellation remains an explicit gap.
-- `presentation`: empty-library, keyboard, accessibility, controller and expanded
-  navigation presentation checks.
+- `smoke`: native bootstrap/error recovery, keyboard/compact layout, isolated
+  application-update preference persistence, appearance restart, accessibility,
+  injected controller, expanded navigation and workspace refresh. Reviewed install
+  progress/cancellation remains an explicit gap.
+- `presentation`: empty-library, keyboard, isolated application-update preferences,
+  accessibility, controller and expanded navigation presentation checks.
 - `restart`: appearance restart and workspace refresh. Positive `--reload-cycles`
   opts this and other profiles into the repeated reload probe.
 - `artwork`: owned local artwork and the real native file picker.
