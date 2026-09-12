@@ -5,6 +5,7 @@ import type {
   ApplicationUpdateChoice,
   ApplicationUpdateCheckPhase,
   ApplicationUpdateCheckResult,
+  ApplicationUpdateNoticeSnapshot,
   ApplicationUpdatePreferences,
   ApplicationUpdateRecoveryArea,
   ApplicationUpdateStatus,
@@ -332,11 +333,13 @@ function useApplicationUpdateOperation({
   changed,
   onStart,
   onComplete,
+  automaticNotice,
 }: {
   preferences: ApplicationUpdatePreferences | undefined;
   changed: boolean;
   onStart: () => void;
   onComplete: () => Promise<void>;
+  automaticNotice?: ApplicationUpdateNoticeSnapshot["notice"];
 }): ApplicationUpdateOperationState {
   const requests = useRef(new LatestRequestGeneration());
   const [busy, setBusy] = useState(false);
@@ -344,8 +347,18 @@ function useApplicationUpdateOperation({
   const [phase, setPhase] = useState<ApplicationUpdateCheckPhase>();
   const [boundResult, setBoundResult] = useState<RevisionBoundCheckResult>();
   const [error, setError] = useState<string>();
+  const currentAutomaticResult =
+    automaticNotice && automaticNotice.preference_revision === preferences?.revision
+      ? {
+          preferenceRevision: automaticNotice.preference_revision,
+          value: automaticNotice.result,
+        }
+      : undefined;
+  const presentedResult = currentAutomaticResult ?? boundResult;
   const result =
-    boundResult?.preferenceRevision === preferences?.revision ? boundResult?.value : undefined;
+    presentedResult && presentedResult.preferenceRevision === preferences?.revision
+      ? presentedResult.value
+      : undefined;
 
   useEffect(() => {
     const tracker = requests.current;
@@ -506,10 +519,12 @@ export function ApplicationUpdateSettings({
   currentVersion,
   generation = 0,
   disabled = false,
+  automaticNotice,
 }: {
   currentVersion: string;
   generation?: number;
   disabled?: boolean;
+  automaticNotice?: ApplicationUpdateNoticeSnapshot["notice"];
 }) {
   const requests = useRef(new LatestRequestGeneration());
   const statusRequests = useRef(new LatestRequestGeneration());
@@ -568,6 +583,7 @@ export function ApplicationUpdateSettings({
     changed,
     onStart: () => setNotice(undefined),
     onComplete: loadStatus,
+    automaticNotice,
   });
 
   useEffect(() => {
@@ -711,7 +727,9 @@ export function ApplicationUpdateSettings({
       <div className="application-update-heading">
         <div>
           <p className="eyebrow">APPLICATION UPDATES</p>
-          <h2 id="application-update-settings-title">Choose how Portcove updates</h2>
+          <h2 id="application-update-settings-title" tabIndex={-1}>
+            Choose how Portcove updates
+          </h2>
         </div>
         <p>
           Current version <strong>{currentVersion}</strong>

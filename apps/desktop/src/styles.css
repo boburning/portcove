@@ -1363,6 +1363,14 @@ h2 {
 .error-banner[role="status"] strong {
   color: var(--color-text);
 }
+.error-banner.application-update-notice {
+  border-color: var(--color-success-border);
+  background: var(--color-success-subtle);
+}
+.error-banner.application-update-notice strong,
+.error-banner.application-update-notice .error-icon {
+  color: var(--color-success-text);
+}
 .failure-details pre {
   white-space: pre-wrap;
   overflow-wrap: anywhere;

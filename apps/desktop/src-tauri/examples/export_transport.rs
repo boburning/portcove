@@ -5,6 +5,7 @@ mod transport;
 use portcove_core::{ReconcileResult, UpdateCheck};
 use portcove_desktop::application_update_commands::{
     ApplicationUpdateCheckPhase, ApplicationUpdateCheckResult, ApplicationUpdateDownloadRequest,
+    ApplicationUpdateNoticeSnapshot,
 };
 use portcove_desktop::application_update_preferences::{
     ApplicationUpdateChoice, ApplicationUpdatePreferences,
@@ -45,6 +46,7 @@ fn main() {
                 "application_update_status": output::<ApplicationUpdateStatus>(),
                 "application_update_check_result": output::<ApplicationUpdateCheckResult>(),
                 "application_update_check_phase": output::<ApplicationUpdateCheckPhase>(),
+                "application_update_notice": output::<ApplicationUpdateNoticeSnapshot>(),
             },
             "input": {
                 "install_input": schemars::schema_for!(InstallInput),

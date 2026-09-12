@@ -474,7 +474,8 @@ export interface TransportOutputs {
   update_snapshot: UpdateSnapshot;
   upstream_observation_report: OutputUpstreamObservationReport;
   desktop_application_update_check_phase: OutputDesktopApplicationUpdateCheckPhase;
-  desktop_application_update_check_result: OutputDesktopApplicationUpdateCheckResult;
+  desktop_application_update_check_result: ApplicationUpdateCheckResult;
+  desktop_application_update_notice: OutputDesktopApplicationUpdateNotice;
   desktop_application_update_preferences: OutputDesktopApplicationUpdatePreferences;
   desktop_application_update_status: OutputDesktopApplicationUpdateStatus;
   desktop_backup_review: OutputDesktopBackupReview;
@@ -1965,7 +1966,7 @@ export interface ObservedResolution {
   release_id: number;
   [k: string]: unknown;
 }
-export interface OutputDesktopApplicationUpdateCheckResult {
+export interface ApplicationUpdateCheckResult {
   candidate: ApplicationUpdateCandidateSummary | null;
   kind: ApplicationUpdateCheckResultKind;
   reasons: string[];
@@ -1976,6 +1977,16 @@ export interface ApplicationUpdateCandidateSummary {
   bytes: number;
   channel: ApplicationChannel;
   version: string;
+}
+export interface OutputDesktopApplicationUpdateNotice {
+  notice: ApplicationUpdateNotice | null;
+  revision: number;
+  [k: string]: unknown;
+}
+export interface ApplicationUpdateNotice {
+  preference_revision: number;
+  result: ApplicationUpdateCheckResult;
+  [k: string]: unknown;
 }
 export interface OutputDesktopApplicationUpdatePreferences {
   /**

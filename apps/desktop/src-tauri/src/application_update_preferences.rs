@@ -348,6 +348,7 @@ pub(crate) async fn get_application_update_preferences(
 pub(crate) async fn set_application_update_preferences(
     state: tauri::State<'_, ApplicationUpdatePreferenceState>,
     updates: tauri::State<'_, crate::application_update_commands::ApplicationUpdateCommandState>,
+    app: tauri::AppHandle,
     expected_revision: u64,
     choice: ApplicationUpdateChoice,
 ) -> DesktopResult<ApplicationUpdatePreferences> {
@@ -358,6 +359,7 @@ pub(crate) async fn set_application_update_preferences(
             .map_err(desktop_error)
     })
     .await?;
+    updates.clear_notice(&app);
     updates.wake_automatic();
     Ok(preferences)
 }
@@ -366,9 +368,11 @@ pub(crate) async fn set_application_update_preferences(
 pub(crate) async fn reset_application_update_preferences(
     state: tauri::State<'_, ApplicationUpdatePreferenceState>,
     updates: tauri::State<'_, crate::application_update_commands::ApplicationUpdateCommandState>,
+    app: tauri::AppHandle,
 ) -> DesktopResult<ApplicationUpdatePreferences> {
     let store = state.store.as_ref().map_err(Clone::clone)?.clone();
     let preferences = blocking_worker(move || store.reset().map_err(desktop_error)).await?;
+    updates.clear_notice(&app);
     updates.wake_automatic();
     Ok(preferences)
 }
@@ -377,10 +381,12 @@ pub(crate) async fn reset_application_update_preferences(
 pub(crate) async fn recover_application_update_preferences(
     state: tauri::State<'_, ApplicationUpdatePreferenceState>,
     updates: tauri::State<'_, crate::application_update_commands::ApplicationUpdateCommandState>,
+    app: tauri::AppHandle,
 ) -> DesktopResult<ApplicationUpdatePreferences> {
     let store = state.store.as_ref().map_err(Clone::clone)?.clone();
     let preferences =
         blocking_worker(move || store.recover_invalid().map_err(desktop_error)).await?;
+    updates.clear_notice(&app);
     updates.wake_automatic();
     Ok(preferences)
 }

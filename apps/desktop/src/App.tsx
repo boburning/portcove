@@ -35,6 +35,7 @@ import { useNativeSourceDrop } from "./native-source-drop";
 import { useCommandSurface } from "./use-command-surface";
 import {
   useAdoptionPlanning,
+  useApplicationUpdateNotice,
   detailActions,
   type Perform,
   useGithubAuth,
@@ -220,6 +221,7 @@ function Workspace({
   const github = useGithubAuth(operations.perform, operations.setError);
   const updates = useUpdateCenter(operations.perform, data.statuses);
   const ui = usePortcoveUi();
+  const applicationUpdate = useApplicationUpdateNotice(operations.setError);
   const [sourceIntake, setSourceIntake] = useState<SourceIntakeRequest>();
   const openSourceIntake = useCallback(
     (portId: string, profileId: string, paths: string[] = []) => {
@@ -327,6 +329,14 @@ function Workspace({
             clearError={() => operations.setError(undefined)}
             operation={operations.operation}
             busy={operations.busy}
+            updateNotice={applicationUpdate.notice}
+            reviewUpdate={() => {
+              ui.setView("settings");
+              window.requestAnimationFrame(() =>
+                document.getElementById("application-update-settings-title")?.focus(),
+              );
+            }}
+            dismissUpdate={applicationUpdate.dismiss}
           />
           <WorkspaceRefreshNotice
             failure={data.refreshFailure}
@@ -348,6 +358,7 @@ function Workspace({
             resetLibrary={resetLibrary}
             nativeSourceDrag={nativeSourceDrag}
             hostToolActions={hostToolActions}
+            applicationUpdateNotice={applicationUpdate.notice}
           />
         </main>
         <SelectedPortPanel
@@ -481,6 +492,7 @@ function CurrentView({
   resetLibrary,
   nativeSourceDrag,
   hostToolActions,
+  applicationUpdateNotice,
 }: {
   data: DataState;
   ui: UiState;
@@ -495,6 +507,7 @@ function CurrentView({
   resetLibrary: () => Promise<void>;
   nativeSourceDrag: ReturnType<typeof useNativeSourceDrop>;
   hostToolActions: HostToolActions;
+  applicationUpdateNotice: ReturnType<typeof useApplicationUpdateNotice>["notice"];
 }) {
   if (ui.view === "updates")
     return (
@@ -532,6 +545,7 @@ function CurrentView({
         onSourceAdded={data.refresh}
         onCatalogChanged={data.refresh}
         hostToolActions={hostToolActions}
+        applicationUpdateNotice={applicationUpdateNotice}
         createSupportBundle={() =>
           operations.perform("support bundle", desktopApi.createSupportBundle)
         }
