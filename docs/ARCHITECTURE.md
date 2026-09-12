@@ -579,6 +579,10 @@ external inputs and are never copied into repository output.
 
 The [application updater trust design](UPDATER-TRUST.md) assigns application
 replacement/trust state to the Tauri host; core retains library/game authority.
+The desktop executable also exposes a GUI-independent application-update recovery
+command. It reuses the same host stores and fixed-area `recover_invalid` methods,
+so it can inspect or clear malformed coordination state without adding network,
+download, installation, restart, consent, library, or native-prompt authority.
 The host's independent `application_update_preferences` store records the user's
 single explicit channel, update mode and pause choice outside every library. Reads
 do not create state, writers use optimistic revisions under path-keyed process and

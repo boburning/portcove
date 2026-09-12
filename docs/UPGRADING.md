@@ -52,3 +52,47 @@ also the safe route when database recovery is necessary: preserve both states,
 select one internally consistent library, and retain the other until its newer
 user data has been reviewed. Application package rollback alone is not database
 recovery.
+
+## Application updater recovery without the GUI
+
+If Portcove cannot open far enough to show **Settings > Application updates**,
+close every Portcove window and run the installed desktop executable from a
+terminal:
+
+```text
+portcove-desktop --application-update-recovery status
+```
+
+The command locally inspects update preferences, automatic check history,
+staged-download state, and the pending exit or restart request. Existing valid
+staging state receives the same safe interruption reconciliation as desktop
+startup. The command does not contact a release server, acquire a new payload,
+install anything, restart Portcove, or open a native prompt. Exit code 0 means
+these four coordination stores are healthy. Exit code 1 means the output lists
+a fixed-area repair, reports that a requested repair is no longer needed, or
+could not inspect the state. Exit code 2 means the command was malformed.
+
+Run only a repair named by the status output:
+
+```text
+portcove-desktop --application-update-recovery repair preferences
+portcove-desktop --application-update-recovery repair schedule
+portcove-desktop --application-update-recovery repair staging
+portcove-desktop --application-update-recovery repair apply
+```
+
+Each repair runs only while its selected store is still malformed or uses a
+newer unsupported schema. If another process already repaired it, the command
+leaves the healthy state unchanged. `preferences` clears saved application
+update consent and requires a new choice. `schedule` clears only automatic-check
+timing and retry history. `staging` removes the damaged staged payload and
+requires a fresh authenticated download. `apply` clears only the damaged exit
+or restart request and keeps an independently healthy staged payload. None of
+these commands repairs or rolls back a Portcove library.
+
+After **Restart to update**, Windows or macOS may own the visible installer,
+UAC, SmartScreen, or Gatekeeper prompt. Portcove cannot move focus into that
+prompt, dismiss it, or determine that silence means approval. A quiet or
+unattended update mode cannot bypass those controls. Complete or decline the OS
+prompt directly, then reopen Portcove so it can reconcile the installed version
+before offering another update action.

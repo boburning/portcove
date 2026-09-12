@@ -11,6 +11,7 @@ mod application_update_network;
 pub mod application_update_operation;
 pub mod application_update_payload;
 pub mod application_update_preferences;
+mod application_update_recovery;
 pub mod application_update_repository;
 mod application_update_restart;
 pub mod application_update_schedule;
@@ -1325,6 +1326,9 @@ pub fn run_hidden_helper() -> Option<i32> {
     let mut arguments = std::env::args_os();
     let _program = arguments.next();
     match arguments.next().as_deref() {
+        Some(mode) if application_update_recovery::is_mode(mode) => {
+            Some(application_update_recovery::run(arguments))
+        }
         Some(mode) if mode == "--portcove-supervise" => {
             let request = arguments.next().map(PathBuf::from);
             Some(match request {
