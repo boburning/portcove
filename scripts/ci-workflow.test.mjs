@@ -691,6 +691,18 @@ test("release and deep preflights require a fresh audit", async () => {
   assert.match(localPreflight, /just audit --fresh/);
 });
 
+test("deep Hawk caching retains and verifies the compiler driver", async () => {
+  const deep = await readFile(
+    new URL("../.github/workflows/deep-quality.yml", import.meta.url),
+    "utf8",
+  );
+  assert.match(deep, /~\/.cargo\/bin\/cargo-hawk\r?\n\s+~\/.cargo\/bin\/cargo-hawk-driver/);
+  assert.match(deep, /quality-hawk-binary-v2-/);
+  assert.match(deep, /command -v cargo-hawk-driver >\/dev\/null/);
+  assert.match(deep, /install --locked --force --version .* cargo-hawk/);
+  assert.match(deep, /test -x "\$\(command -v cargo-hawk-driver\)"/);
+});
+
 test("live upstream health has bounded independent triggers while catalog stays offline", async () => {
   assert.doesNotMatch(catalog, /check-catalog-repositories\.mjs/);
   assert.match(catalog, /check-retcomm-upstreams\.mjs --offline/);
