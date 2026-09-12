@@ -659,10 +659,13 @@ Normal Exit and Restart to apply are distinct eligible observations; crash, OS
 shutdown, Steam Stop, missing hooks and mismatched observations remain held for
 next-launch reconciliation. Only a Portcove-owned installation can enter the
 journal. Even a matching observation permits only another revalidation attempt:
-fresh metadata and eligibility, the same preferences, candidate, staged payload,
-installed identity, ownership, permissions and core quiescence must all be proven
-before native replacement. The module has no replacement adapter and activates no
-production updater path.
+the host locks the apply journal, preferences, staging slot and current library in
+that order, then requires the expected journal revision, matching termination,
+unchanged consent, exact verified staged candidate, exact freshly authenticated
+candidate and installed context, current compatibility and core quiescence. Those
+locks are retained together across later native replacement. Executable ownership
+and permissions still require a platform proof before replacement. The module has
+no replacement adapter and activates no production updater path.
 For production metadata, a sibling host transport accepts only host-selected
 HTTPS bases with separate path prefixes on port 443, resolves and pins public DNS
 results, bypasses proxies, refuses redirects and enforces request, deadline, idle,

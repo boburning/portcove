@@ -3,10 +3,10 @@
 //! This module persists consent and policy only. Reading or saving a choice
 //! cannot check, download, stage, or apply an update.
 
-use std::collections::HashMap;
+use std::collections::BTreeSet;
 use std::fs::{self, File, OpenOptions};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, MutexGuard, OnceLock, TryLockError, Weak};
+use std::sync::{Mutex, OnceLock};
 
 use fs2::FileExt;
 use schemars::JsonSchema;
@@ -20,10 +20,7 @@ const PREFERENCE_SCHEMA_VERSION: u32 = 1;
 const MAX_PREFERENCE_BYTES: u64 = 64 * 1024;
 const DEFAULT_FILE: &str = "application-updates.json";
 
-type ProcessLock = Arc<Mutex<()>>;
-type ProcessLockRegistry = Mutex<HashMap<PathBuf, Weak<Mutex<()>>>>;
-
-static PROCESS_LOCKS: OnceLock<ProcessLockRegistry> = OnceLock::new();
+static ACTIVE_PREFERENCE_PATHS: OnceLock<Mutex<BTreeSet<PathBuf>>> = OnceLock::new();
 
 #[derive(Debug, thiserror::Error)]
 pub enum ApplicationUpdatePreferenceError {
@@ -81,7 +78,6 @@ impl Default for ApplicationUpdatePreferences {
 #[derive(Debug, Clone)]
 pub struct ApplicationUpdatePreferenceStore {
     path: PathBuf,
-    process_lock: ProcessLock,
 }
 
 #[derive(Clone)]
@@ -89,12 +85,38 @@ pub(crate) struct ApplicationUpdatePreferenceState {
     store: DesktopResult<ApplicationUpdatePreferenceStore>,
 }
 
-struct PreferenceLock<'a> {
-    file: File,
-    _process_guard: MutexGuard<'a, ()>,
+pub(crate) struct ApplicationUpdatePreferenceSnapshot {
+    preferences: ApplicationUpdatePreferences,
+    _lock: PreferenceLock,
 }
 
-impl Drop for PreferenceLock<'_> {
+impl ApplicationUpdatePreferenceSnapshot {
+    pub(crate) fn preferences(&self) -> &ApplicationUpdatePreferences {
+        &self.preferences
+    }
+}
+
+struct ProcessPreferenceLock {
+    path: PathBuf,
+}
+
+impl Drop for ProcessPreferenceLock {
+    fn drop(&mut self) {
+        if let Ok(mut active) = ACTIVE_PREFERENCE_PATHS
+            .get_or_init(|| Mutex::new(BTreeSet::new()))
+            .lock()
+        {
+            active.remove(&self.path);
+        }
+    }
+}
+
+struct PreferenceLock {
+    file: File,
+    _process: ProcessPreferenceLock,
+}
+
+impl Drop for PreferenceLock {
     fn drop(&mut self) {
         let _ = FileExt::unlock(&self.file);
     }
@@ -118,8 +140,7 @@ impl ApplicationUpdatePreferenceStore {
 
     pub fn new(path: PathBuf) -> Result<Self, ApplicationUpdatePreferenceError> {
         validate_path(&path)?;
-        let process_lock = process_lock(&path)?;
-        Ok(Self { path, process_lock })
+        Ok(Self { path })
     }
 
     pub fn load(&self) -> Result<ApplicationUpdatePreferences, ApplicationUpdatePreferenceError> {
@@ -208,16 +229,18 @@ impl ApplicationUpdatePreferenceStore {
         Ok(preferences)
     }
 
-    fn lock(&self) -> Result<PreferenceLock<'_>, ApplicationUpdatePreferenceError> {
-        let process_guard = match self.process_lock.try_lock() {
-            Ok(guard) => guard,
-            Err(TryLockError::WouldBlock) => return Err(ApplicationUpdatePreferenceError::Busy),
-            Err(TryLockError::Poisoned(_)) => {
-                return Err(ApplicationUpdatePreferenceError::InvalidState(
-                    "process lock was poisoned".into(),
-                ));
-            }
-        };
+    pub(crate) fn snapshot(
+        &self,
+    ) -> Result<ApplicationUpdatePreferenceSnapshot, ApplicationUpdatePreferenceError> {
+        let lock = self.lock()?;
+        let preferences = self.load()?;
+        Ok(ApplicationUpdatePreferenceSnapshot {
+            preferences,
+            _lock: lock,
+        })
+    }
+
+    fn lock(&self) -> Result<PreferenceLock, ApplicationUpdatePreferenceError> {
         let parent = self.path.parent().ok_or_else(|| {
             ApplicationUpdatePreferenceError::InvalidPath(
                 "preference path needs a parent directory".into(),
@@ -225,6 +248,8 @@ impl ApplicationUpdatePreferenceStore {
         })?;
         fs::create_dir_all(parent)?;
         refuse_symlink_ancestors(parent)?;
+        let canonical_parent = fs::canonicalize(parent)?;
+        let process = acquire_process_lock(canonical_parent.join(file_name(&self.path)?))?;
         let lock_path = sibling_path(&self.path, ".lock")?;
         refuse_symlink_ancestors(&lock_path)?;
         let file = OpenOptions::new()
@@ -236,7 +261,7 @@ impl ApplicationUpdatePreferenceStore {
         match file.try_lock_exclusive() {
             Ok(()) => Ok(PreferenceLock {
                 file,
-                _process_guard: process_guard,
+                _process: process,
             }),
             Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
                 Err(ApplicationUpdatePreferenceError::Busy)
@@ -356,18 +381,21 @@ pub(crate) fn validate_preferences(
     Ok(())
 }
 
-fn process_lock(path: &Path) -> Result<ProcessLock, ApplicationUpdatePreferenceError> {
-    let registry = PROCESS_LOCKS.get_or_init(|| Mutex::new(HashMap::new()));
-    let mut locks = registry.lock().map_err(|_| {
-        ApplicationUpdatePreferenceError::InvalidState("lock registry was poisoned".into())
-    })?;
-    locks.retain(|_, lock| lock.strong_count() > 0);
-    if let Some(lock) = locks.get(path).and_then(Weak::upgrade) {
-        return Ok(lock);
+fn acquire_process_lock(
+    path: PathBuf,
+) -> Result<ProcessPreferenceLock, ApplicationUpdatePreferenceError> {
+    let mut active = ACTIVE_PREFERENCE_PATHS
+        .get_or_init(|| Mutex::new(BTreeSet::new()))
+        .lock()
+        .map_err(|_| {
+            ApplicationUpdatePreferenceError::InvalidState(
+                "preference lock registry was poisoned".into(),
+            )
+        })?;
+    if !active.insert(path.clone()) {
+        return Err(ApplicationUpdatePreferenceError::Busy);
     }
-    let lock = Arc::new(Mutex::new(()));
-    locks.insert(path.to_path_buf(), Arc::downgrade(&lock));
-    Ok(lock)
+    Ok(ProcessPreferenceLock { path })
 }
 
 fn validate_path(path: &Path) -> Result<(), ApplicationUpdatePreferenceError> {

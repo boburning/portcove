@@ -17,10 +17,14 @@ use crate::application_update::{
     validate_selected_candidate_for_context,
 };
 use crate::application_update_preferences::{
-    ApplicationUpdateChoice, ApplicationUpdateMode, ApplicationUpdatePreferences,
-    validate_preferences,
+    ApplicationUpdateChoice, ApplicationUpdateMode, ApplicationUpdatePreferenceError,
+    ApplicationUpdatePreferenceSnapshot, ApplicationUpdatePreferenceStore,
+    ApplicationUpdatePreferences, validate_preferences,
 };
-use crate::application_update_staging::StagedApplicationUpdate;
+use crate::application_update_staging::{
+    ApplicationUpdateStagingError, ApplicationUpdateStagingSnapshot, ApplicationUpdateStagingStore,
+    StagedApplicationUpdate,
+};
 use crate::application_update_storage::write_bytes_atomically;
 
 const APPLY_SCHEMA_VERSION: u32 = 1;
@@ -47,6 +51,10 @@ pub enum ApplicationUpdateApplyError {
     IntentConflict,
     #[error(transparent)]
     Metadata(#[from] UpdateMetadataError),
+    #[error("application update preference admission failed: {0}")]
+    Preferences(#[from] ApplicationUpdatePreferenceError),
+    #[error("application update staging admission failed: {0}")]
+    Staging(#[from] ApplicationUpdateStagingError),
     #[error("application update library admission failed: {0}")]
     Library(#[from] portcove_core::PortcoveError),
     #[error("application update apply I/O failed: {0}")]
@@ -128,6 +136,42 @@ pub struct ApplicationUpdateApplyStore {
     root: PathBuf,
 }
 
+struct ApplicationUpdateApplySnapshot {
+    state: ApplicationUpdateApplyState,
+    _lock: ApplyLock,
+}
+
+/// Exact update authorities retained across the host's native replacement.
+///
+/// Constructing this lease revalidates the durable request, current consent,
+/// verified staging slot, freshly authenticated candidate, installed context,
+/// and current-library quiescence while retaining every mutable store lock.
+/// It does not prove the native target's ownership or replacement permissions.
+pub struct ApplicationUpdateRevalidationLease {
+    apply: ApplicationUpdateApplySnapshot,
+    preferences: ApplicationUpdatePreferenceSnapshot,
+    staging: ApplicationUpdateStagingSnapshot,
+    library: portcove_core::ApplicationUpdateQuiescenceGuard,
+}
+
+impl ApplicationUpdateRevalidationLease {
+    pub fn state(&self) -> &ApplicationUpdateApplyState {
+        &self.apply.state
+    }
+
+    pub fn preferences(&self) -> &ApplicationUpdatePreferences {
+        self.preferences.preferences()
+    }
+
+    pub fn staged(&self) -> &StagedApplicationUpdate {
+        self.staging.staged()
+    }
+
+    pub fn library_root(&self) -> &Path {
+        self.library.root()
+    }
+}
+
 struct ProcessApplyLock {
     root: PathBuf,
 }
@@ -194,6 +238,67 @@ impl ApplicationUpdateApplyStore {
             .map_err(|error| ApplicationUpdateApplyError::InvalidState(error.to_string()))?;
         validate_state(&state)?;
         Ok(state)
+    }
+
+    /// Revalidates and retains every mutable updater authority in a fixed lock
+    /// order: apply journal, preferences, staging, then current library.
+    pub async fn admit_revalidation(
+        &self,
+        expected_revision: u64,
+        preference_store: &ApplicationUpdatePreferenceStore,
+        staging_store: &ApplicationUpdateStagingStore,
+        fresh_candidate: &SelectedCandidate,
+        installed: &InstalledApplicationContext,
+    ) -> Result<ApplicationUpdateRevalidationLease, ApplicationUpdateApplyError> {
+        let apply = self.snapshot()?;
+        require_revision(&apply.state, expected_revision)?;
+        if !apply.state.may_attempt_revalidation() {
+            return Err(ApplicationUpdateApplyError::InvalidState(
+                "the recorded termination does not match the application update request".into(),
+            ));
+        }
+        let intent = apply.state.intent.as_ref().ok_or_else(|| {
+            ApplicationUpdateApplyError::InvalidState(
+                "no application update apply intent exists".into(),
+            )
+        })?;
+
+        let preferences = preference_store.snapshot()?;
+        if preferences.preferences().revision != intent.preference_revision
+            || preferences.preferences().choice.as_ref() != Some(&intent.preference_choice)
+        {
+            return Err(ApplicationUpdateApplyError::InvalidState(
+                "application update consent changed after the apply request".into(),
+            ));
+        }
+
+        let staging = staging_store.snapshot().await?.ok_or_else(|| {
+            ApplicationUpdateApplyError::InvalidState(
+                "the requested application update is no longer staged".into(),
+            )
+        })?;
+        if staging.staged().candidate != intent.candidate
+            || fresh_candidate != &intent.candidate
+            || installed != &intent.installed
+        {
+            return Err(ApplicationUpdateApplyError::InvalidState(
+                "application update identity changed after the apply request".into(),
+            ));
+        }
+        validate_selected_candidate_for_context(
+            fresh_candidate,
+            intent.preference_choice.channel,
+            installed,
+        )?;
+
+        let library =
+            portcove_core::ApplicationUpdateQuiescenceGuard::acquire(&intent.library_root)?;
+        Ok(ApplicationUpdateRevalidationLease {
+            apply,
+            preferences,
+            staging,
+            library,
+        })
     }
 
     pub fn prepare(
@@ -312,6 +417,12 @@ impl ApplicationUpdateApplyStore {
             .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
             .and_then(|document| document.get("revision").and_then(serde_json::Value::as_u64))
             .unwrap_or(0)
+    }
+
+    fn snapshot(&self) -> Result<ApplicationUpdateApplySnapshot, ApplicationUpdateApplyError> {
+        let lock = self.lock()?;
+        let state = self.load()?;
+        Ok(ApplicationUpdateApplySnapshot { state, _lock: lock })
     }
 
     fn publish(
@@ -508,6 +619,7 @@ fn refuse_symlink_ancestors(path: &Path) -> Result<(), ApplicationUpdateApplyErr
 
 #[cfg(test)]
 mod tests {
+    use base64::Engine as _;
     use serde_json::json;
     use sha2::{Digest, Sha256};
 
@@ -515,6 +627,12 @@ mod tests {
     use crate::application_update::{
         ApplicationChannel, AuthenticatedRecordPair, CandidateState, select_authenticated_candidate,
     };
+    use crate::application_update_payload::PayloadVerificationKey;
+    use crate::application_update_preferences::ApplicationUpdatePreferenceStore;
+    use crate::application_update_staging::ApplicationUpdateStagingStore;
+
+    const PUBLIC_KEY: &str = "untrusted comment: minisign public key E7620F1842B4E81F\nRWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3\n";
+    const PREHASHED_SIGNATURE: &str = "untrusted comment: signature from minisign secret key\nRUQf6LRCGA9i559r3g7V1qNyJDApGip8MfqcadIgT9CuhV3EMhHoN1mGTkUidF/z7SrlQgXdy8ofjb7bNJJylDOocrCo8KLzZwo=\ntrusted comment: timestamp:1556193335\tfile:test\ny/rUw2y8/hOUYjZU71eHp/Wo1KZ40fGy2VJEDl34XMJM+TX48Ss/17u3IvIfbVR1FkZZSNCisQbuQY+bHwhEBg==\n";
 
     fn installed(version: &str) -> InstalledApplicationContext {
         InstalledApplicationContext {
@@ -628,6 +746,24 @@ mod tests {
             candidate,
             payload_path: root.join("candidate.payload"),
         }
+    }
+
+    fn payload_key() -> PayloadVerificationKey {
+        PayloadVerificationKey {
+            id: hex::encode(Sha256::digest(PUBLIC_KEY.as_bytes())),
+            tauri_public_key: base64::engine::general_purpose::STANDARD
+                .encode(PUBLIC_KEY.as_bytes()),
+        }
+    }
+
+    fn stageable_candidate(version: &str) -> SelectedCandidate {
+        let mut selected = candidate(version, ApplicationChannel::Preview);
+        selected.release.artifact.sha256 = hex::encode(Sha256::digest(b"test"));
+        selected.release.artifact.bytes = 4;
+        selected.release.artifact.tauri_signature =
+            base64::engine::general_purpose::STANDARD.encode(PREHASHED_SIGNATURE.as_bytes());
+        selected.release.artifact.payload_key_id = payload_key().id;
+        selected
     }
 
     fn library_root(temporary: &tempfile::TempDir) -> PathBuf {
@@ -841,5 +977,148 @@ mod tests {
         let recovered = store.recover().unwrap();
         assert_eq!(recovered.revision, 9);
         assert!(recovered.intent.is_none());
+    }
+
+    #[tokio::test]
+    async fn admission_revalidates_exact_authorities_and_retains_their_locks() {
+        let temporary = tempfile::tempdir().unwrap();
+        let apply = ApplicationUpdateApplyStore::new(temporary.path().join("apply")).unwrap();
+        let preferences_store =
+            ApplicationUpdatePreferenceStore::new(temporary.path().join("preferences.json"))
+                .unwrap();
+        let staging_store =
+            ApplicationUpdateStagingStore::new(temporary.path().join("staging")).unwrap();
+        let selected = stageable_candidate("0.2.0-beta.1");
+        let mut reader = &b"test"[..];
+        let staged = staging_store
+            .stage(&mut reader, &selected, &payload_key())
+            .await
+            .unwrap();
+        let chosen = preferences(ApplicationUpdateMode::Automatic, false)
+            .choice
+            .unwrap();
+        let preferences = preferences_store.save_choice(0, chosen.clone()).unwrap();
+        let installed = installed("0.1.0");
+        let library = library_root(&temporary);
+        let prepared = apply
+            .prepare(
+                &preferences,
+                &staged,
+                &installed,
+                &library,
+                ApplicationUpdateApplyRequest::SafeExit,
+            )
+            .unwrap();
+        let terminated = apply
+            .record_termination(prepared.revision, ApplicationTerminationKind::NormalExit)
+            .unwrap();
+
+        let lease = apply
+            .admit_revalidation(
+                terminated.revision,
+                &preferences_store,
+                &staging_store,
+                &selected,
+                &installed,
+            )
+            .await
+            .unwrap();
+        assert_eq!(lease.state(), &terminated);
+        assert_eq!(lease.preferences(), &preferences);
+        assert_eq!(lease.staged(), &staged);
+        assert_eq!(lease.library_root(), fs::canonicalize(&library).unwrap());
+        assert!(matches!(
+            apply.clear(terminated.revision),
+            Err(ApplicationUpdateApplyError::Busy)
+        ));
+        assert!(matches!(
+            preferences_store.save_choice(preferences.revision, chosen),
+            Err(ApplicationUpdatePreferenceError::Busy)
+        ));
+        assert!(matches!(
+            staging_store.reset(),
+            Err(ApplicationUpdateStagingError::Busy)
+        ));
+
+        drop(lease);
+        assert!(apply.clear(terminated.revision).is_ok());
+        assert!(staging_store.reset().is_ok());
+    }
+
+    #[tokio::test]
+    async fn admission_rejects_stale_consent_and_fresh_candidate_identity() {
+        let temporary = tempfile::tempdir().unwrap();
+        let apply = ApplicationUpdateApplyStore::new(temporary.path().join("apply")).unwrap();
+        let preferences_store =
+            ApplicationUpdatePreferenceStore::new(temporary.path().join("preferences.json"))
+                .unwrap();
+        let staging_store =
+            ApplicationUpdateStagingStore::new(temporary.path().join("staging")).unwrap();
+        let selected = stageable_candidate("0.2.0-beta.1");
+        let mut reader = &b"test"[..];
+        let staged = staging_store
+            .stage(&mut reader, &selected, &payload_key())
+            .await
+            .unwrap();
+        let preferences = preferences_store
+            .save_choice(
+                0,
+                preferences(ApplicationUpdateMode::Automatic, false)
+                    .choice
+                    .unwrap(),
+            )
+            .unwrap();
+        let installed = installed("0.1.0");
+        let prepared = apply
+            .prepare(
+                &preferences,
+                &staged,
+                &installed,
+                &library_root(&temporary),
+                ApplicationUpdateApplyRequest::SafeExit,
+            )
+            .unwrap();
+        let terminated = apply
+            .record_termination(prepared.revision, ApplicationTerminationKind::NormalExit)
+            .unwrap();
+
+        let newer = stageable_candidate("0.2.0-beta.2");
+        assert!(matches!(
+            apply
+                .admit_revalidation(
+                    terminated.revision,
+                    &preferences_store,
+                    &staging_store,
+                    &newer,
+                    &installed,
+                )
+                .await,
+            Err(ApplicationUpdateApplyError::InvalidState(message))
+                if message.contains("identity changed")
+        ));
+
+        preferences_store
+            .save_choice(
+                preferences.revision,
+                ApplicationUpdateChoice {
+                    channel: ApplicationChannel::Preview,
+                    mode: ApplicationUpdateMode::Manual,
+                    paused: false,
+                },
+            )
+            .unwrap();
+        assert!(matches!(
+            apply
+                .admit_revalidation(
+                    terminated.revision,
+                    &preferences_store,
+                    &staging_store,
+                    &selected,
+                    &installed,
+                )
+                .await,
+            Err(ApplicationUpdateApplyError::InvalidState(message))
+                if message.contains("consent changed")
+        ));
     }
 }

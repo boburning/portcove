@@ -61,6 +61,17 @@ pub struct StagedApplicationUpdate {
     pub payload_path: PathBuf,
 }
 
+pub(crate) struct ApplicationUpdateStagingSnapshot {
+    staged: StagedApplicationUpdate,
+    _lock: StagingLock,
+}
+
+impl ApplicationUpdateStagingSnapshot {
+    pub(crate) fn staged(&self) -> &StagedApplicationUpdate {
+        &self.staged
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 enum StagingPhase {
@@ -180,6 +191,19 @@ impl ApplicationUpdateStagingStore {
     ) -> Result<Option<StagedApplicationUpdate>, ApplicationUpdateStagingError> {
         let _lock = self.lock()?;
         self.reconcile_locked().await
+    }
+
+    pub(crate) async fn snapshot(
+        &self,
+    ) -> Result<Option<ApplicationUpdateStagingSnapshot>, ApplicationUpdateStagingError> {
+        let lock = self.lock()?;
+        Ok(self
+            .reconcile_locked()
+            .await?
+            .map(|staged| ApplicationUpdateStagingSnapshot {
+                staged,
+                _lock: lock,
+            }))
     }
 
     /// Copies and verifies one selected candidate into the private staging

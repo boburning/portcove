@@ -184,8 +184,13 @@ safe exit and Restart to apply matches the explicit action. Crash, OS shutdown,
 Steam Stop, missing hooks and every mismatched observation remain held on restart.
 A matching record permits only a fresh revalidation attempt; it does not establish
 current metadata, eligibility, consent, staged bytes, ownership, permissions,
-quiescence or native replacement authority. No production exit hook or replacement
-adapter is activated by this slice.
+quiescence or native replacement authority. Admission closes that race by retaining
+the apply-journal, preference, staging and current-library locks in that fixed order
+while it verifies the expected revision and termination, unchanged choice, exact
+staged and freshly authenticated candidate, exact installed context, current
+compatibility and library quiescence. The resulting lease still grants no executable
+ownership or replacement permission. No production exit hook or replacement adapter
+is activated by this slice.
 
 The sibling `application_update_trust` module owns the durable host trust boundary.
 Under path-keyed process ownership and one OS file lock it supplies `tough` with the
