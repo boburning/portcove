@@ -152,7 +152,7 @@ function toolById(manifest, id) {
   return tool;
 }
 
-function commandFor(manifest, tool) {
+export function commandFor(manifest, tool) {
   return tool.command.map((value) => (value === "+{rust}" ? `+${manifest.rust.channel}` : value));
 }
 

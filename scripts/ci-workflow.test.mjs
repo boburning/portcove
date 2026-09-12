@@ -677,6 +677,10 @@ test("release and deep preflights require a fresh audit", async () => {
   );
   assert.match(release, /just audit --fresh/);
   assert.match(deep, /just audit --fresh/);
+  assert.match(deep, /id: aqua-version/);
+  assert.match(deep, /aquaproj\/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e/);
+  assert.match(deep, /aqua_version: \$\{\{ steps\.aqua-version\.outputs\.version \}\}/);
+  assert.match(deep, /enable_aqua_install: "false"/);
   assert.match(localPreflight, /just audit --fresh/);
 });
 

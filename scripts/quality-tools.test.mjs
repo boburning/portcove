@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { findStaleConsumerPins, githubOutputs, validateQualityManifest } from "./quality-tools.mjs";
+import {
+  commandFor,
+  findStaleConsumerPins,
+  githubOutputs,
+  validateQualityManifest,
+} from "./quality-tools.mjs";
 import { runActionlint } from "./run-actionlint.mjs";
 import { readToolPins } from "./tool-cache.mjs";
 
@@ -21,6 +26,8 @@ test("quality manifest owns exact unique Rust pins and workflow outputs", () => 
     hawk_version: "0.1.13",
     hawk_rust: "1.98.1",
   });
+  const hawk = manifest.tools.find((tool) => tool.id === "cargo-hawk");
+  assert.deepEqual(commandFor(manifest, hawk), ["cargo", "+1.98.1", "hawk", "--version"]);
 });
 
 test("stale consumer detection rejects copied current or divergent pins", () => {

@@ -67,6 +67,15 @@ jobs:
         uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2
         with:
           tool: ${{ steps.quality-pins.outputs.rscheck_spec }}
+      - name: Read pinned aqua version
+        id: aqua-version
+        shell: bash
+        run: echo "version=$(tr -d '\r\n' < .aqua-version)" >> "$GITHUB_OUTPUT"
+      - name: Install pinned aqua
+        uses: aquaproj/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e # v4.0.5
+        with:
+          aqua_version: ${{ steps.aqua-version.outputs.version }}
+          enable_aqua_install: "false"
       - name: Verify exact audit-tool versions
         run: ./scripts/bootstrap-quality-tools.sh
       - run: pnpm install --frozen-lockfile
