@@ -582,8 +582,12 @@ then selects by SemVer precedence. `application_update_trust` wraps the maintain
 persisted greatest accepted time, the latest verified root and explicit
 timestamp/snapshot/targets version and signed-body replay floors.
 It supplies the latest persisted root on restart and retains verified root progress
-when later metadata fails. The current source boundary accepts disposable local-file
-repositories only; no production network transport, download, publication or
+when later metadata fails. Disposable local-file repositories remain available to
+tests. For production metadata, a sibling host transport accepts only host-selected
+HTTPS bases with separate path prefixes on port 443, resolves and pins public DNS
+results, bypasses proxies, refuses redirects and enforces request, deadline, idle,
+per-role and aggregate byte limits. Its Rust-only request cannot be populated from
+frontend IPC. No production origin, updater check, payload download, publication or
 replacement is active. Existing architecture metadata rules continue to forbid
 independent catalog verification in adapters.
 
