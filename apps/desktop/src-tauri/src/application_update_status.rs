@@ -121,6 +121,7 @@ pub(crate) async fn get_application_update_status(
 pub(crate) async fn recover_application_update_state(
     state: tauri::State<'_, ApplicationUpdateStatusState>,
     updates: tauri::State<'_, crate::application_update_commands::ApplicationUpdateCommandState>,
+    app: tauri::AppHandle,
     area: ApplicationUpdateRecoveryArea,
 ) -> DesktopResult<ApplicationUpdateStatus> {
     let stores = state.stores.as_ref().map_err(Clone::clone)?.clone();
@@ -142,6 +143,7 @@ pub(crate) async fn recover_application_update_state(
         }
     }
     let status = load_status(stores).await?;
+    updates.clear_notice(&app);
     updates.wake_automatic();
     Ok(status)
 }

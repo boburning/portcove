@@ -625,6 +625,18 @@ and the cross-process coordinator lock, so it cannot overlap a renderer check,
 download, restart admission or another process. Shutdown drops the task; there is no
 daemon, service or persistent device identity.
 
+A successful due check that selects an eligible candidate also publishes a
+sanitized, process-local notice snapshot containing only the candidate summary,
+staging state and observed preference revision. The Tauri event and matching
+read command carry a monotonically increasing session revision; dismissal
+compares that revision so a late action cannot clear a newer result. Preference
+changes, recovery and successful manual update actions clear the notice. React
+presents it as a global accessible status and may reuse the already checked,
+preference-bound candidate for an explicit download from Settings. The notice is
+disposable presentation state: the durable schedule and staging journals remain
+the authorities across restarts, and no release URL, signature, key or path crosses
+the IPC boundary.
+
 On Windows, `application_update_connectivity` queries Network List Manager on a
 short-lived initialized COM worker. A reported offline connection blocks all checks.
 Unrestricted machine-wide cost permits automatic work; fixed, variable, roaming,

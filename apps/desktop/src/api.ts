@@ -36,6 +36,7 @@ import type {
   ApplicationUpdateCheckPhase,
   ApplicationUpdateCheckResult,
   ApplicationUpdateDownloadRequest,
+  ApplicationUpdateNoticeSnapshot,
   ApplicationUpdatePreferences,
   ApplicationUpdateRecoveryArea,
   ApplicationUpdateStatus,
@@ -72,6 +73,12 @@ import type {
 } from "./types";
 
 export const desktopApi = {
+  applicationUpdateNotice: () =>
+    invoke<ApplicationUpdateNoticeSnapshot>("get_application_update_notice"),
+  dismissApplicationUpdateNotice: (expectedRevision: number) =>
+    invoke<ApplicationUpdateNoticeSnapshot>("dismiss_application_update_notice", {
+      expectedRevision,
+    }),
   applicationUpdatePreferences: () =>
     invoke<ApplicationUpdatePreferences>("get_application_update_preferences"),
   setApplicationUpdatePreferences: (expectedRevision: number, choice: ApplicationUpdateChoice) =>

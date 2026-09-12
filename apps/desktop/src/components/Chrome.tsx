@@ -23,6 +23,7 @@ import desktopPackage from "../../package.json";
 import type { ThemeState, ThemePreference } from "../theme";
 import type {
   PortDefinition,
+  ApplicationUpdateNoticeSnapshot,
   DoctorReport,
   GithubAuthStatus,
   GithubDeviceLogin,
@@ -207,15 +208,28 @@ export function StatusLayer({
   clearError,
   operation,
   busy,
+  updateNotice,
+  reviewUpdate,
+  dismissUpdate,
 }: {
   error?: unknown;
   clearError: () => void;
   operation?: OperationEvent;
   busy?: string;
+  updateNotice?: ApplicationUpdateNoticeSnapshot["notice"];
+  reviewUpdate?: () => void;
+  dismissUpdate?: () => Promise<void>;
 }) {
   return (
     <>
       {error != null && <ErrorNotice error={error} clearError={clearError} />}
+      {updateNotice && (
+        <ApplicationUpdateNoticeBanner
+          notice={updateNotice}
+          review={reviewUpdate}
+          dismiss={dismissUpdate}
+        />
+      )}
       {busy && (
         <OperationProgress
           operation={operation?.type === "finished" ? undefined : operation}
@@ -223,6 +237,57 @@ export function StatusLayer({
         />
       )}
     </>
+  );
+}
+
+function ApplicationUpdateNoticeBanner({
+  notice,
+  review,
+  dismiss,
+}: {
+  notice: NonNullable<ApplicationUpdateNoticeSnapshot["notice"]>;
+  review?: () => void;
+  dismiss?: () => Promise<void>;
+}) {
+  const candidate = notice.result.candidate;
+  if (!candidate) return null;
+  const channel = candidate.channel === "preview" ? "Preview" : "Stable";
+  return (
+    <section
+      className="error-banner application-update-notice"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      <span className="error-icon">
+        <Icon glyph={Download} />
+      </span>
+      <div>
+        <strong>
+          {notice.result.staged
+            ? `Portcove ${candidate.version} is ready to install`
+            : `Portcove ${candidate.version} is available`}
+        </strong>
+        <p>
+          {notice.result.staged
+            ? `${channel} update verified (${formatBytes(candidate.bytes)}). Review it in Settings and restart when convenient.`
+            : `${channel} update found (${formatBytes(candidate.bytes)}). Review it in Settings before downloading.`}
+        </p>
+      </div>
+      <div className="error-actions">
+        <button data-focusable className="small-control" onClick={review}>
+          Review update
+        </button>
+        <button
+          data-focusable
+          className="icon-button"
+          aria-label="Dismiss application update notice"
+          onClick={() => void dismiss?.()}
+        >
+          <Icon glyph={X} />
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -862,6 +927,7 @@ export function SettingsView({
   onCatalogChanged,
   hostToolActions,
   openSourceEvidence,
+  applicationUpdateNotice,
 }: {
   generation?: number;
   ports?: PortDefinition[];
@@ -889,6 +955,7 @@ export function SettingsView({
   onSourceAdded?: () => Promise<void>;
   onCatalogChanged?: () => Promise<void>;
   hostToolActions?: HostToolActions;
+  applicationUpdateNotice?: ApplicationUpdateNoticeSnapshot["notice"];
 }) {
   return (
     <section className="settings-grid">
@@ -942,6 +1009,7 @@ export function SettingsView({
         currentVersion={desktopPackage.version}
         generation={generation}
         disabled={Boolean(busy)}
+        automaticNotice={applicationUpdateNotice}
       />
       <article className="settings-card">
         <p className="eyebrow">PRIVACY</p>

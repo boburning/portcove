@@ -3,7 +3,11 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { desktopApi } from "../api";
-import type { ApplicationUpdatePreferences, ApplicationUpdateStatus } from "../types";
+import type {
+  ApplicationUpdateNoticeSnapshot,
+  ApplicationUpdatePreferences,
+  ApplicationUpdateStatus,
+} from "../types";
 import { ApplicationUpdateSettings } from "./ApplicationUpdates";
 
 const missingChoice: ApplicationUpdatePreferences = {
@@ -60,9 +64,14 @@ describe("ApplicationUpdateSettings", () => {
     await act(async () => button(label).click());
   };
 
-  const render = async () => {
+  const render = async (automaticNotice?: ApplicationUpdateNoticeSnapshot["notice"]) => {
     await act(async () =>
-      root.render(<ApplicationUpdateSettings currentVersion="0.1.0-alpha.2" />),
+      root.render(
+        <ApplicationUpdateSettings
+          currentVersion="0.1.0-alpha.2"
+          automaticNotice={automaticNotice}
+        />,
+      ),
     );
   };
 
@@ -256,6 +265,68 @@ describe("ApplicationUpdateSettings", () => {
       expect.any(Function),
     );
     expect(host.textContent).toContain("0.2.0-beta.3 is verified and staged");
+  });
+
+  it("uses a revision-bound automatic result without repeating its check", async () => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
+    const check = vi.spyOn(desktopApi, "checkApplicationUpdate");
+    const candidate = {
+      version: "0.2.0-beta.3",
+      channel: "preview" as const,
+      bytes: 25 * 1024 * 1024,
+    };
+    const download = vi.spyOn(desktopApi, "downloadApplicationUpdate").mockResolvedValue({
+      kind: "update-available",
+      candidate,
+      reasons: [],
+      staged: true,
+    });
+
+    await render({
+      preference_revision: 4,
+      result: { kind: "update-available", candidate, reasons: [], staged: false },
+    });
+    expect(host.textContent).toContain("Its download has not started.");
+    expect(check).not.toHaveBeenCalled();
+
+    await click("Download and verify update");
+    expect(download).toHaveBeenCalledExactlyOnceWith(
+      {
+        expected_preference_revision: 4,
+        expected_candidate: candidate,
+      },
+      expect.any(Function),
+    );
+  });
+
+  it("does not let a stale automatic result hide a current manual result", async () => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
+    const currentCandidate = {
+      version: "0.2.0-beta.4",
+      channel: "preview" as const,
+      bytes: 26 * 1024 * 1024,
+    };
+    vi.spyOn(desktopApi, "checkApplicationUpdate").mockResolvedValue({
+      kind: "update-available",
+      candidate: currentCandidate,
+      reasons: [],
+      staged: false,
+    });
+
+    await render({
+      preference_revision: 3,
+      result: {
+        kind: "update-available",
+        candidate: { ...currentCandidate, version: "0.2.0-beta.2" },
+        reasons: [],
+        staged: false,
+      },
+    });
+    expect(host.textContent).not.toContain("0.2.0-beta.2");
+
+    await click("Check for updates");
+    expect(host.textContent).toContain("0.2.0-beta.4");
+    expect(button("Download and verify update")).toBeDefined();
   });
 
   it("requires a fresh check after the saved update choice changes", async () => {

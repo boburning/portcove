@@ -10,6 +10,7 @@ import { listen } from "@tauri-apps/api/event";
 import { desktopApi } from "./api";
 import type {
   ActivityRecord,
+  ApplicationUpdateNoticeSnapshot,
   BackupInventory,
   CatalogDocument,
   DoctorReport,
@@ -33,6 +34,51 @@ import {
   mostRecentPendingOperation,
   removePendingOperation,
 } from "./concurrency-state";
+
+export function useApplicationUpdateNotice(reportError?: (error: unknown) => void) {
+  const [snapshot, setSnapshot] = useState<ApplicationUpdateNoticeSnapshot>();
+  const accept = useCallback((next: ApplicationUpdateNoticeSnapshot) => {
+    setSnapshot((current) => (!current || next.revision >= current.revision ? next : current));
+  }, []);
+  useEffect(() => {
+    let disposed = false;
+    let disposeListener: (() => void) | undefined;
+    void (async () => {
+      try {
+        const dispose = await listen<ApplicationUpdateNoticeSnapshot>(
+          "portcove://application-update-notice",
+          (event) => accept(event.payload),
+        );
+        if (disposed) {
+          dispose();
+          return;
+        }
+        disposeListener = dispose;
+      } catch {
+        /* The snapshot read below still provides the current optional notice. */
+      }
+      if (disposed) return;
+      try {
+        accept(await desktopApi.applicationUpdateNotice());
+      } catch {
+        /* Settings owns actionable updater-state recovery; this surface is optional. */
+      }
+    })();
+    return () => {
+      disposed = true;
+      disposeListener?.();
+    };
+  }, [accept]);
+  const dismiss = useCallback(async () => {
+    if (!snapshot?.notice) return;
+    try {
+      accept(await desktopApi.dismissApplicationUpdateNotice(snapshot.revision));
+    } catch (error) {
+      reportError?.(error);
+    }
+  }, [accept, reportError, snapshot]);
+  return { snapshot, notice: snapshot?.notice, dismiss };
+}
 
 export function usePortcoveData() {
   const [catalog, setCatalog] = useState<CatalogDocument>();

@@ -95,6 +95,132 @@
     "title": "ApplicationUpdateCheckResult",
     "type": "object"
   },
+  "application_update_notice": {
+    "$defs": {
+      "ApplicationChannel": {
+        "enum": [
+          "preview",
+          "stable"
+        ],
+        "type": "string"
+      },
+      "ApplicationUpdateCandidateSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "channel": {
+            "$ref": "#/$defs/ApplicationChannel"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "channel",
+          "bytes"
+        ],
+        "type": "object"
+      },
+      "ApplicationUpdateCheckResult": {
+        "properties": {
+          "candidate": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ApplicationUpdateCandidateSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "$ref": "#/$defs/ApplicationUpdateCheckResultKind"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "staged": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kind",
+          "candidate",
+          "reasons",
+          "staged"
+        ],
+        "type": "object"
+      },
+      "ApplicationUpdateCheckResultKind": {
+        "enum": [
+          "consent-required",
+          "paused",
+          "manual-mode",
+          "offline",
+          "metered",
+          "metered-state-unknown",
+          "startup-delay",
+          "cadence",
+          "superseded",
+          "current",
+          "update-available",
+          "held",
+          "incompatible",
+          "no-candidate"
+        ],
+        "type": "string"
+      },
+      "ApplicationUpdateNotice": {
+        "properties": {
+          "preference_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "result": {
+            "$ref": "#/$defs/ApplicationUpdateCheckResult"
+          }
+        },
+        "required": [
+          "preference_revision",
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "notice": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ApplicationUpdateNotice"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "revision": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "revision",
+      "notice"
+    ],
+    "title": "ApplicationUpdateNoticeSnapshot",
+    "type": "object"
+  },
   "application_update_preferences": {
     "$defs": {
       "ApplicationChannel": {

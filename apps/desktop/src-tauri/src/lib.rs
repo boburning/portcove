@@ -1822,6 +1822,8 @@ pub fn run() {
             application_update_commands::check_application_update,
             application_update_commands::download_application_update,
             application_update_commands::cancel_application_update_check,
+            application_update_commands::get_application_update_notice,
+            application_update_commands::dismiss_application_update_notice,
             application_update_restart::restart_to_apply_application_update,
             application_update_preferences::get_application_update_preferences,
             application_update_preferences::set_application_update_preferences,
@@ -1946,6 +1948,7 @@ pub fn run() {
                 app.state::<application_update_commands::ApplicationUpdateCommandState>()
                     .inner()
                     .clone(),
+                app.handle().clone(),
             );
             Ok(())
         })

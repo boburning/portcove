@@ -111,6 +111,9 @@ export type ApplicationUpdateRecoveryArea =
 export type ApplicationUpdateCheckResult =
   Generated.TransportOutputs["desktop_application_update_check_result"];
 
+export type ApplicationUpdateNoticeSnapshot =
+  Generated.TransportOutputs["desktop_application_update_notice"];
+
 export type ApplicationUpdateCheckPhase =
   Generated.TransportOutputs["desktop_application_update_check_phase"];
 

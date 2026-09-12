@@ -10,6 +10,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use async_trait::async_trait;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use tauri::Emitter;
 use tokio::sync::Notify;
 use tokio_util::sync::CancellationToken;
 
@@ -73,6 +74,18 @@ pub struct ApplicationUpdateCheckResult {
     pub candidate: Option<ApplicationUpdateCandidateSummary>,
     pub reasons: Vec<String>,
     pub staged: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct ApplicationUpdateNotice {
+    pub preference_revision: u64,
+    pub result: ApplicationUpdateCheckResult,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct ApplicationUpdateNoticeSnapshot {
+    pub revision: u64,
+    pub notice: Option<ApplicationUpdateNotice>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, JsonSchema)]
@@ -147,6 +160,13 @@ pub(crate) struct ApplicationUpdateCommandState {
     runner: DesktopResult<Option<Arc<dyn ApplicationUpdateCommandRunner>>>,
     activity: Arc<Mutex<ApplicationUpdateCommandActivity>>,
     automatic_wake: Arc<Notify>,
+    notice: Arc<Mutex<ApplicationUpdateNoticeState>>,
+}
+
+#[derive(Default)]
+struct ApplicationUpdateNoticeState {
+    revision: u64,
+    current: Option<ApplicationUpdateNotice>,
 }
 
 enum ApplicationUpdateCommandActivity {
@@ -161,6 +181,7 @@ pub(crate) fn configured_state() -> ApplicationUpdateCommandState {
         runner: configure_runner(),
         activity: Arc::new(Mutex::new(ApplicationUpdateCommandActivity::Idle)),
         automatic_wake: Arc::new(Notify::new()),
+        notice: Arc::new(Mutex::new(ApplicationUpdateNoticeState::default())),
     }
 }
 
@@ -170,7 +191,7 @@ const MAX_AUTOMATIC_SLEEP_SECONDS: u64 = 24 * 60 * 60;
 /// Starts the process-local automatic update coordinator. The first observation
 /// occurs only after the scheduler's startup delay, and every later network or
 /// payload attempt remains governed by the persisted cross-process schedule.
-pub(crate) fn start_automatic_checks(state: ApplicationUpdateCommandState) {
+pub(crate) fn start_automatic_checks(state: ApplicationUpdateCommandState, app: tauri::AppHandle) {
     if !state
         .runner
         .as_ref()
@@ -206,6 +227,9 @@ pub(crate) fn start_automatic_checks(state: ApplicationUpdateCommandState) {
             let delay = match run_automatic_once(&state, environment).await {
                 Ok(outcome) => {
                     log_automatic_outcome(&outcome);
+                    if let Some(snapshot) = state.record_automatic_outcome(&outcome) {
+                        let _ = app.emit("portcove://application-update-notice", snapshot);
+                    }
                     automatic_reevaluation_delay(&outcome, current_unix_seconds())
                 }
                 Err(error) => {
@@ -224,6 +248,82 @@ pub(crate) fn start_automatic_checks(state: ApplicationUpdateCommandState) {
 impl ApplicationUpdateCommandState {
     pub(crate) fn wake_automatic(&self) {
         self.automatic_wake.notify_one();
+    }
+
+    pub(crate) fn clear_notice(&self, app: &tauri::AppHandle) {
+        let snapshot = self.update_notice(None);
+        let _ = app.emit("portcove://application-update-notice", snapshot);
+    }
+
+    fn record_automatic_outcome(
+        &self,
+        outcome: &ApplicationUpdateOperationOutcome,
+    ) -> Option<ApplicationUpdateNoticeSnapshot> {
+        let ApplicationUpdateOperationOutcome::Checked {
+            preference_revision,
+            selection,
+            staged,
+        } = outcome
+        else {
+            return None;
+        };
+        if selection.state != crate::application_update::CandidateState::UpdateAvailable
+            || selection.candidate.is_none()
+        {
+            return Some(self.update_notice(None));
+        }
+        let notice = ApplicationUpdateNotice {
+            preference_revision: *preference_revision,
+            result: result_from_selection(selection.clone(), *staged),
+        };
+        Some(self.update_notice(Some(notice)))
+    }
+
+    fn update_notice(
+        &self,
+        notice: Option<ApplicationUpdateNotice>,
+    ) -> ApplicationUpdateNoticeSnapshot {
+        let Ok(mut state) = self.notice.lock() else {
+            return ApplicationUpdateNoticeSnapshot {
+                revision: 0,
+                notice: None,
+            };
+        };
+        state.revision = state.revision.checked_add(1).unwrap_or(1);
+        state.current = notice;
+        state.snapshot()
+    }
+
+    fn notice(&self) -> ApplicationUpdateNoticeSnapshot {
+        self.notice.lock().map(|state| state.snapshot()).unwrap_or(
+            ApplicationUpdateNoticeSnapshot {
+                revision: 0,
+                notice: None,
+            },
+        )
+    }
+
+    fn dismiss_notice(&self, expected_revision: u64) -> ApplicationUpdateNoticeSnapshot {
+        let Ok(mut state) = self.notice.lock() else {
+            return ApplicationUpdateNoticeSnapshot {
+                revision: 0,
+                notice: None,
+            };
+        };
+        if state.revision == expected_revision && state.current.is_some() {
+            state.revision = state.revision.checked_add(1).unwrap_or(1);
+            state.current = None;
+        }
+        state.snapshot()
+    }
+}
+
+impl ApplicationUpdateNoticeState {
+    fn snapshot(&self) -> ApplicationUpdateNoticeSnapshot {
+        ApplicationUpdateNoticeSnapshot {
+            revision: self.revision,
+            notice: self.current.clone(),
+        }
     }
 }
 
@@ -441,23 +541,33 @@ impl ApplicationUpdateProgressSink for ChannelProgress {
 #[tauri::command]
 pub(crate) async fn check_application_update(
     state: tauri::State<'_, ApplicationUpdateCommandState>,
+    app: tauri::AppHandle,
     on_event: tauri::ipc::Channel<ApplicationUpdateCheckPhase>,
 ) -> DesktopResult<ApplicationUpdateCheckResult> {
-    run_check(state.inner(), &ChannelProgress(on_event)).await
+    let result = run_check(state.inner(), &ChannelProgress(on_event)).await;
+    if result.is_ok() {
+        state.clear_notice(&app);
+    }
+    result
 }
 
 #[tauri::command]
 pub(crate) async fn download_application_update(
     state: tauri::State<'_, ApplicationUpdateCommandState>,
+    app: tauri::AppHandle,
     request: ApplicationUpdateDownloadRequest,
     on_event: tauri::ipc::Channel<ApplicationUpdateCheckPhase>,
 ) -> DesktopResult<ApplicationUpdateCheckResult> {
-    run_command(
+    let result = run_command(
         state.inner(),
         ApplicationUpdateCommandRequest::Download(request),
         &ChannelProgress(on_event),
     )
-    .await
+    .await;
+    if result.is_ok() {
+        state.clear_notice(&app);
+    }
+    result
 }
 
 async fn run_check(
@@ -511,6 +621,21 @@ pub(crate) fn cancel_application_update_check(
     state: tauri::State<'_, ApplicationUpdateCommandState>,
 ) -> DesktopResult<bool> {
     state.cancel()
+}
+
+#[tauri::command]
+pub(crate) fn get_application_update_notice(
+    state: tauri::State<'_, ApplicationUpdateCommandState>,
+) -> ApplicationUpdateNoticeSnapshot {
+    state.notice()
+}
+
+#[tauri::command]
+pub(crate) fn dismiss_application_update_notice(
+    state: tauri::State<'_, ApplicationUpdateCommandState>,
+    expected_revision: u64,
+) -> ApplicationUpdateNoticeSnapshot {
+    state.dismiss_notice(expected_revision)
 }
 
 fn result_from_outcome(outcome: ApplicationUpdateOperationOutcome) -> ApplicationUpdateCheckResult {
@@ -769,6 +894,7 @@ mod tests {
             runner: Ok(Some(runner)),
             activity: Arc::new(Mutex::new(ApplicationUpdateCommandActivity::Idle)),
             automatic_wake: Arc::new(Notify::new()),
+            notice: Arc::new(Mutex::new(ApplicationUpdateNoticeState::default())),
         }
     }
 
@@ -845,6 +971,7 @@ mod tests {
             runner: Ok(None),
             activity: Arc::new(Mutex::new(ApplicationUpdateCommandActivity::Idle)),
             automatic_wake: Arc::new(Notify::new()),
+            notice: Arc::new(Mutex::new(ApplicationUpdateNoticeState::default())),
         };
         let error = state.begin().err().unwrap();
         assert_eq!(error.code, portcove_core::ErrorCode::Unsupported);
@@ -872,6 +999,59 @@ mod tests {
         assert_eq!(result.candidate.unwrap().version, "1.0.0-beta.1");
         assert_eq!(result.reasons, ["eligible"]);
         assert!(result.staged);
+    }
+
+    #[test]
+    fn update_notices_reject_stale_dismissals_and_clear_after_a_current_result() {
+        let state = state_with(Arc::new(EnvironmentRunner {
+            observed: Arc::new(Mutex::new(None)),
+        }));
+        let available = |version: &str| ApplicationUpdateOperationOutcome::Checked {
+            preference_revision: 7,
+            selection: ApplicationUpdateSelectionSummary {
+                state: CandidateState::UpdateAvailable,
+                candidate: Some(ApplicationUpdateCandidateSummary {
+                    version: version.into(),
+                    channel: ApplicationChannel::Preview,
+                    bytes: 42,
+                }),
+                reasons: Vec::new(),
+            },
+            staged: false,
+        };
+
+        let first = state.record_automatic_outcome(&available("1.0.0")).unwrap();
+        let second = state.record_automatic_outcome(&available("1.1.0")).unwrap();
+        assert_eq!(first.revision, 1);
+        assert_eq!(second.revision, 2);
+        assert_eq!(
+            state
+                .dismiss_notice(first.revision)
+                .notice
+                .unwrap()
+                .result
+                .candidate
+                .unwrap()
+                .version,
+            "1.1.0"
+        );
+        let dismissed = state.dismiss_notice(second.revision);
+        assert_eq!(dismissed.revision, 3);
+        assert!(dismissed.notice.is_none());
+
+        state.record_automatic_outcome(&available("1.2.0")).unwrap();
+        let cleared = state
+            .record_automatic_outcome(&ApplicationUpdateOperationOutcome::Checked {
+                preference_revision: 7,
+                selection: ApplicationUpdateSelectionSummary {
+                    state: CandidateState::Current,
+                    candidate: None,
+                    reasons: Vec::new(),
+                },
+                staged: false,
+            })
+            .unwrap();
+        assert!(cleared.notice.is_none());
     }
 
     #[test]
