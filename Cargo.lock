@@ -3421,6 +3421,7 @@ name = "portcove-desktop"
 version = "0.1.0-alpha.2"
 dependencies = [
  "aws-lc-rs",
+ "fs2",
  "futures-util",
  "hex",
  "jiff",
@@ -3440,6 +3441,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
+ "windows-sys 0.61.2",
  "zip",
 ]
 

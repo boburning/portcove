@@ -87,9 +87,21 @@ and SHA-256, retains the qualified workflow revision/run and inventory digest,
 matches installed target/package/owner/execution and compatibility context, and
 selects by maintained SemVer precedence. Its typed result distinguishes
 an available update, an identical current version, a held older or withdrawn
-candidate, incompatibility and no candidate. The module performs no network access,
-trust-state persistence, payload download, signing, publication or replacement;
-those remain later host and protected-automation slices.
+candidate, incompatibility and no candidate.
+
+The sibling `application_update_trust` module owns the durable host trust boundary.
+Under path-keyed process ownership and one OS file lock it supplies `tough` with the
+latest persisted root, safe expiration enforcement and bounded
+root/timestamp/snapshot/targets sizes. A small atomically replaced state file retains
+each canonical signed role body's hash and version plus the greatest accepted
+wall-clock time outside payloads and game libraries. Signature bytes are excluded,
+so a valid re-signing of unchanged metadata does not create false equivocation.
+Time advances before remote metadata is read, role floors never fall, and a verified
+root transition remains trusted even when later metadata fails.
+Clock regression, missing/corrupt state and concurrent ownership fail closed. The
+loader currently accepts only local `file:` fixture repositories, so it cannot be
+used as an accidental production network path. Payload download, signing,
+publication, replacement and the bounded HTTPS transport remain later slices.
 
 ## Freshness, replay and bounds
 
@@ -252,19 +264,24 @@ TUF alone supplies none of these native installation guarantees.
 ## Executable evidence and limits
 
 Run `cargo test --locked -p portcove-desktop --test updater_trust` through the existing
-development-storage wrapper; normal workspace checks include it. Test-only host
-dependencies use the actual Rust TUF editor/client and fresh Ed25519 PKCS#8 keys.
-No private-key fixture, production endpoint or updater plugin is shipped.
+development-storage wrapper; normal workspace checks include it. The host loader
+uses the actual Rust TUF client; its editor and fresh Ed25519 PKCS#8 signing keys
+remain development-only dependencies. No private-key fixture, production endpoint
+or updater plugin is shipped.
 
 Fixtures cover quorum and dual-root continuity, one-key loss, insufficient/online
 key rejection, skipped/missing bridges, revoked online signatures, persistent replay,
 expiry, equal-length target tamper and a separately signed channel delegation.
-The channel fixture refuses the release key and reads promotion bytes through the
-actual delegated verifier. Simplified local roles and non-consistent filenames keep
-the key-lifecycle scenarios bounded. A user-data sentinel establishes only that
-metadata failures preserve that file, not binary rollback or save migration.
-Network policy, full production role layout, payloads, compatibility/journal and
-physical platforms need their applicable implementation proofs before activation.
+Host-state fixtures additionally prove version and signed-body floors after the TUF
+cache is removed, same-process serialization, clock-regression refusal, source
+refusal before state mutation, and recovery from a failed initial bridge plus a
+failed post-rotation refresh after the remote bridge disappears. The channel fixture
+refuses the release key and reads promotion bytes through the actual delegated
+verifier. Simplified local roles and non-consistent filenames keep the key-lifecycle
+scenarios bounded. A user-data sentinel establishes only that metadata failures
+preserve that file, not binary rollback or save migration. Network policy, full
+production role layout, payloads, compatibility/journal and physical platforms need
+their applicable implementation proofs before activation.
 
 References inspected 2026-09-08: [TUF specification](https://theupdateframework.github.io/specification/latest/),
 [`tough`](https://github.com/awslabs/tough), [Tauri updater](https://v2.tauri.app/plugin/updater/)
