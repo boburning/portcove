@@ -221,6 +221,7 @@ describe("ApplicationUpdateSettings", () => {
         revision: 4,
         request: "restart-to-apply",
         termination: null,
+        native_launch: null,
       },
       recovery_required: [
         {
@@ -241,5 +242,39 @@ describe("ApplicationUpdateSettings", () => {
     expect(recover).toHaveBeenCalledExactlyOnceWith("schedule");
     expect(host.textContent).toContain("No verified application update is staged.");
     expect(host.textContent).toContain("Application update schedule state repaired.");
+  });
+
+  it.each([
+    [
+      "starting",
+      "Update launch needs confirmation",
+      "It needs to check which version is installed before it can safely launch another one.",
+    ],
+    [
+      "started",
+      "Installer process started",
+      "It needs to check which version is installed before it can safely offer another update action.",
+    ],
+    [
+      "failed",
+      "Installer did not start",
+      "A retry will still repeat the fresh trust, consent, ownership, compatibility and idle-state checks.",
+    ],
+  ] as const)("explains the %s native launch state", async (native_launch, title, detail) => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
+    vi.mocked(desktopApi.applicationUpdateStatus).mockResolvedValueOnce({
+      ...idleStatus,
+      apply: {
+        revision: 7,
+        request: "restart-to-apply",
+        termination: "restart-to-apply",
+        native_launch,
+      },
+    });
+
+    await render();
+
+    expect(host.textContent).toContain(title);
+    expect(host.textContent).toContain(detail);
   });
 });
