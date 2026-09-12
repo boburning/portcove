@@ -1,21 +1,51 @@
 use std::fs;
-use std::path::Path;
-use std::process::{Command, Output};
+use std::path::{Path, PathBuf};
+use std::process::Output;
 
-fn run(executable: &str, root: &Path, arguments: &[&str]) -> Output {
-    Command::new(executable)
-        .args(arguments)
-        .env(
-            "PORTCOVE_APPLICATION_UPDATE_PREFERENCES",
-            root.join("preferences.json"),
-        )
-        .env(
-            "PORTCOVE_APPLICATION_UPDATE_SCHEDULE",
-            root.join("schedule.json"),
-        )
-        .env("PORTCOVE_APPLICATION_UPDATE_STAGING", root.join("staging"))
-        .output()
-        .expect("recovery command should run")
+fn desktop_executable() -> PathBuf {
+    let cargo_path = PathBuf::from(env!("CARGO_BIN_EXE_portcove-desktop"));
+    if cargo_path.is_file() {
+        return cargo_path;
+    }
+
+    // A nextest archive preserves the profile layout but the compile-time
+    // Cargo path names the build runner. Resolve the archived sibling from the
+    // running integration-test binary when that original path is unavailable.
+    let test_executable =
+        std::env::current_exe().expect("test executable path should be available");
+    let profile_directory = test_executable
+        .parent()
+        .and_then(Path::parent)
+        .expect("integration test should run from the profile deps directory");
+    let archived_path =
+        profile_directory.join(format!("portcove-desktop{}", std::env::consts::EXE_SUFFIX));
+    assert!(
+        archived_path.is_file(),
+        "desktop executable was absent at Cargo path {} and archived sibling {}",
+        cargo_path.display(),
+        archived_path.display()
+    );
+    archived_path
+}
+
+fn run(executable: &Path, root: &Path, arguments: &[&str]) -> Output {
+    portcove_core::ChildProcessPolicy::native_command(
+        portcove_core::ChildProcessClass::HostIntegration,
+        executable,
+    )
+    .expect("desktop executable should satisfy the child process policy")
+    .args(arguments)
+    .env(
+        "PORTCOVE_APPLICATION_UPDATE_PREFERENCES",
+        root.join("preferences.json"),
+    )
+    .env(
+        "PORTCOVE_APPLICATION_UPDATE_SCHEDULE",
+        root.join("schedule.json"),
+    )
+    .env("PORTCOVE_APPLICATION_UPDATE_STAGING", root.join("staging"))
+    .output()
+    .expect("recovery command should run")
 }
 
 fn stdout(output: &Output) -> String {
@@ -28,7 +58,7 @@ fn stderr(output: &Output) -> String {
 
 #[test]
 fn packaged_entry_point_reports_and_repairs_only_named_invalid_state() {
-    let executable = env!("CARGO_BIN_EXE_portcove-desktop");
+    let executable = desktop_executable();
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path();
     let staging = root.join("staging");
@@ -45,7 +75,7 @@ fn packaged_entry_point_reports_and_repairs_only_named_invalid_state() {
     fs::write(staging.join(payload_name), b"untrusted-junk").unwrap();
 
     let status = run(
-        executable,
+        &executable,
         root,
         &["--application-update-recovery", "status"],
     );
@@ -58,7 +88,7 @@ fn packaged_entry_point_reports_and_repairs_only_named_invalid_state() {
 
     for area in ["preferences", "schedule", "staging", "apply"] {
         let repaired = run(
-            executable,
+            &executable,
             root,
             &["--application-update-recovery", "repair", area],
         );
@@ -72,7 +102,7 @@ fn packaged_entry_point_reports_and_repairs_only_named_invalid_state() {
     assert_eq!(preferences["choice"], serde_json::Value::Null);
 
     let healthy = run(
-        executable,
+        &executable,
         root,
         &["--application-update-recovery", "status"],
     );
@@ -80,7 +110,7 @@ fn packaged_entry_point_reports_and_repairs_only_named_invalid_state() {
     assert!(stdout(&healthy).contains("coordination state is healthy"));
 
     let stale_repair = run(
-        executable,
+        &executable,
         root,
         &["--application-update-recovery", "repair", "preferences"],
     );
@@ -90,10 +120,10 @@ fn packaged_entry_point_reports_and_repairs_only_named_invalid_state() {
 
 #[test]
 fn malformed_recovery_command_exits_without_starting_the_gui() {
-    let executable = env!("CARGO_BIN_EXE_portcove-desktop");
+    let executable = desktop_executable();
     let temporary = tempfile::tempdir().unwrap();
     let output = run(
-        executable,
+        &executable,
         temporary.path(),
         &["--application-update-recovery", "repair", "all"],
     );
