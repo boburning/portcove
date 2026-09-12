@@ -132,6 +132,7 @@ namespace Portcove.ReferenceClient
             var cli = plugin.Connect().GetAwaiter().GetResult();
             var port = Identity.Port(Game.GameId, cli.LibraryId);
             var status = cli.Read("status", "status", port).GetAwaiter().GetResult();
+            DefinitionOperations.RequireEligible(status, "launch");
             var readiness = Json.Field(status, "readiness");
             if (readiness == null || !Json.Boolean(readiness, "launchable"))
                 throw new InvalidOperationException("Portcove reports that setup is required. Open Manage and review activity for its current reasons.");

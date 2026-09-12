@@ -111,6 +111,7 @@ internal static class ContractTests
         Reject(() => disagreement.Finish(1), "exit/result disagreement rejected");
         var failure = new ProtocolStream("ensure"); failure.Line(Result("ensure", null, false));
         Reject(() => failure.Finish(14), "structured busy-port failure remains a failure");
+        DefinitionOperationRecords();
         LaunchRecords();
         var root = Path.Combine(Path.GetDirectoryName(Binary), "fixture-library");
         var client = new PublicCli(Binary, root);
@@ -143,6 +144,64 @@ internal static class ContractTests
             Check(catalog.Length > 1 && statuses.Length == catalog.Length, "real standalone CLI discovery through reference consumer");
             Check(await real.Read("launch.show", "launch", "show", Guid.NewGuid().ToString("D")) == null, "real standalone CLI absent launch readback");
         }
+    }
+    private static void DefinitionOperationRecords()
+    {
+        var legacy = Json.Parse(Json.Print(new { port_id = "legacy" }));
+        Check(DefinitionOperations.Read(legacy).Length == 0, "legacy status has no invented definition restriction");
+        var status = Json.Parse(Json.Print(new
+        {
+            port_id = "successor",
+            definition_operations = new object[]
+            {
+                new { operation = "install", eligibility = new { outcome = "eligible", reason = "mandatory_checks_passed" }, retained = false },
+                new { operation = "prepare", eligibility = new { outcome = "escalate", reason = "engine_capability_required" }, retained = true },
+                new { operation = "launch", eligibility = new { outcome = "hold", reason = "metadata_stale" }, retained = true }
+            },
+            additive_future_field = true
+        }));
+        var decisions = DefinitionOperations.Read(status);
+        Check(decisions.Length == 3 && decisions[0].Operation == "install" && !decisions[0].Retained,
+            "definition operation decisions retain core operation and contract scope");
+        DefinitionOperations.RequireEligible(status, "install");
+        Check(true, "eligible definition operation remains available");
+        var summary = DefinitionOperations.Summary(status);
+        Check(summary.Contains("metadata stale [metadata_stale]") && summary.Contains("retained installed contract"),
+            "definition decision presents the exact stable core reason and retained scope");
+        Reject(() => DefinitionOperations.RequireEligible(status, "prepare"), "escalated definition preparation is not overridden by the client");
+        Reject(() => DefinitionOperations.RequireEligible(status, "launch"), "held definition launch is not overridden by the client");
+
+        foreach (var field in new[] { "operation", "outcome", "reason" })
+        {
+            var assessment = Json.Object(Json.Parse(Json.Print(new
+            {
+                operation = "install",
+                eligibility = new { outcome = "eligible", reason = "mandatory_checks_passed" },
+                retained = false
+            })));
+            if (field == "operation") assessment[field] = "future_operation";
+            else Json.Object(Json.Field(assessment, "eligibility"))[field] = "future_" + field;
+            Reject(() => DefinitionOperationDecision.Read(assessment), "unknown definition " + field + " is rejected with migration guidance");
+        }
+        var inconsistent = Json.Parse(Json.Print(new
+        {
+            operation = "launch",
+            eligibility = new { outcome = "eligible", reason = "publisher_revoked" },
+            retained = true
+        }));
+        Reject(() => DefinitionOperationDecision.Read(inconsistent), "inconsistent definition eligibility outcome and reason rejected");
+        var explicitNull = Json.Parse(Json.Print(new { definition_operations = (object)null }));
+        try { DefinitionOperations.Read(explicitNull); throw new Exception("Accepted null definition operations"); }
+        catch (InvalidOperationException) { Check(true, "explicit null definition operation list rejected"); }
+        var duplicate = Json.Parse(Json.Print(new
+        {
+            definition_operations = new object[]
+            {
+                new { operation = "install", eligibility = new { outcome = "eligible", reason = "mandatory_checks_passed" }, retained = false },
+                new { operation = "install", eligibility = new { outcome = "hold", reason = "metadata_stale" }, retained = false }
+            }
+        }));
+        Reject(() => DefinitionOperations.Read(duplicate), "duplicate definition operation decision rejected");
     }
     private static void LaunchRecords()
     {

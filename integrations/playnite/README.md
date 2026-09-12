@@ -52,6 +52,13 @@ candidate until a matching public standalone release exists; the older published
 technical previews must not be described as supporting these new commands.
 See the [author guide](../../docs/INTEGRATION-AUTHOR.md).
 
+Schema 47 status can include core-owned definition decisions for install,
+preparation and launch. The client shows the exact stable reason and whether the
+decision applies to the selected definition or a retained installed contract. A
+hold or escalation is not converted into client consent, and unknown operation,
+outcome or reason values require a compatible client update. Core revalidates the
+decision when an operation starts.
+
 Refresh imports Windows catalog entries with the key `(opaque library ID, port
 ID)`. Version/path changes do not alter it. Installation state comes from core;
 gameplay qualification is distinct from launch readiness. Right-click one
