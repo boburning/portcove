@@ -611,6 +611,28 @@ returns no candidate for staging. A returned candidate carries the preference
 revision that downstream work must revalidate. Current policy ignores old cadence.
 The checker remains the existing authenticated repository boundary, so coordination
 adds no URL, key, network, staging or apply authority.
+Updater-enabled Desktop builds start one process-local background loop after Tauri
+setup returns control to the event loop. It waits through the same 30-second startup
+delay, observes the preferred machine connection on a blocking worker, and submits
+only an automatic request to the coordinator. The persisted schedule remains the
+authority for daily success cadence and retry jitter; the loop sleeps toward the
+returned due time with a one-day maximum and otherwise re-evaluates at a bounded
+one-minute interval. The cap prevents a damaged clock or extreme valid timestamp
+from creating an unbounded runtime timer without shortening the persisted hold.
+Preference changes and explicit recovery wake a cadence sleep so the coordinator can
+apply the new revision immediately. The task shares the manual-command activity guard
+and the cross-process coordinator lock, so it cannot overlap a renderer check,
+download, restart admission or another process. Shutdown drops the task; there is no
+daemon, service or persistent device identity.
+
+On Windows, `application_update_connectivity` queries Network List Manager on a
+short-lived initialized COM worker. A reported offline connection blocks all checks.
+Unrestricted machine-wide cost permits automatic work; fixed, variable, roaming,
+congested, near-limit or over-limit cost holds it as metered. Observation or cost
+classification failure remains unknown and therefore holds automatic activity while
+the existing manual command remains available. Platforms without an implemented
+observer likewise remain unknown until their native apply and connection contracts
+are implemented.
 Immediately before a host application replacement, core's
 `ApplicationUpdateQuiescenceGuard` acquires the current library's
 exclusive lifetime lease. Every CLI and Desktop library instance already retains the
@@ -662,8 +684,9 @@ streams only checking, acquiring-and-verifying, staged and complete phases, and
 returns only candidate version/channel/size, policy reasons and staging outcome.
 One process-owned cancellation token prevents overlapping renderer requests and
 cooperatively stops the existing restart-reconcilable operation. The command is
-unavailable in ordinary unconfigured alpha builds. No production root or origin is
-present, and no automatic schedule or exit hook currently activates the provider.
+unavailable in ordinary unconfigured alpha builds, and the background loop exits
+before spawning there. No production root or origin is present, and no exit hook
+currently activates the provider.
 For notify-only and manual choices, a separate explicit download command accepts
 only the preference revision and sanitized version, channel and size shown by the
 preceding check. The host reauthenticates the repository, requires that exact summary

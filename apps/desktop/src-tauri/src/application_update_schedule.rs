@@ -20,7 +20,7 @@ use crate::application_update_storage::write_bytes_atomically;
 const SCHEDULE_SCHEMA_VERSION: u32 = 1;
 const MAX_SCHEDULE_BYTES: u64 = 64 * 1024;
 const DEFAULT_FILE: &str = "application-update-schedule.json";
-const STARTUP_DELAY_SECONDS: u64 = 30;
+pub(crate) const STARTUP_DELAY_SECONDS: u64 = 30;
 const SUCCESS_INTERVAL_SECONDS: u64 = 24 * 60 * 60;
 const RETRY_BASE_SECONDS: u64 = 15 * 60;
 const RETRY_BASE_CAP_SECONDS: u64 = 5 * 60 * 60;
