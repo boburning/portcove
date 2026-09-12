@@ -1819,6 +1819,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_bootstrap_status,
             application_update_commands::check_application_update,
+            application_update_commands::download_application_update,
             application_update_commands::cancel_application_update_check,
             application_update_restart::restart_to_apply_application_update,
             application_update_preferences::get_application_update_preferences,

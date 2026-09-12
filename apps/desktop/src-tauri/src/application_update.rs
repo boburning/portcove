@@ -199,7 +199,8 @@ pub struct CandidateSelection {
     pub reasons: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ApplicationUpdateCandidateSummary {
     pub version: String,
     pub channel: ApplicationChannel,

@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use schemars::JsonSchema;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tokio_util::sync::CancellationToken;
 
 use crate::application_update::ApplicationUpdateCandidateSummary;
@@ -21,7 +21,8 @@ use crate::application_update_host::{
     ApplicationUpdateHostConfigurationError, ApplicationUpdateHostProvider,
 };
 use crate::application_update_operation::{
-    ApplicationUpdateOperation, ApplicationUpdateOperationError, ApplicationUpdateOperationOutcome,
+    ApplicationUpdateDownloadExpectation, ApplicationUpdateOperation,
+    ApplicationUpdateOperationError, ApplicationUpdateOperationOutcome,
     ApplicationUpdateOperationPhase, ApplicationUpdateProgressSink,
     ApplicationUpdateSelectionSummary, GithubApplicationUpdatePayloadSource,
 };
@@ -71,10 +72,23 @@ pub struct ApplicationUpdateCheckResult {
     pub staged: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ApplicationUpdateDownloadRequest {
+    pub expected_preference_revision: u64,
+    pub expected_candidate: ApplicationUpdateCandidateSummary,
+}
+
+enum ApplicationUpdateCommandRequest {
+    Check,
+    Download(ApplicationUpdateDownloadRequest),
+}
+
 #[async_trait]
 trait ApplicationUpdateCommandRunner: Send + Sync {
     async fn run(
         &self,
+        request: ApplicationUpdateCommandRequest,
         progress: &dyn ApplicationUpdateProgressSink,
         cancellation: &CancellationToken,
     ) -> Result<ApplicationUpdateOperationOutcome, ApplicationUpdateOperationError>;
@@ -89,23 +103,44 @@ struct ConfiguredApplicationUpdateCommandRunner {
 impl ApplicationUpdateCommandRunner for ConfiguredApplicationUpdateCommandRunner {
     async fn run(
         &self,
+        request: ApplicationUpdateCommandRequest,
         progress: &dyn ApplicationUpdateProgressSink,
         cancellation: &CancellationToken,
     ) -> Result<ApplicationUpdateOperationOutcome, ApplicationUpdateOperationError> {
-        self.operation
-            .check_and_stage(
-                ApplicationUpdateCheckEnvironment {
-                    request: ApplicationUpdateCheckRequest::Manual,
-                    startup_unix_seconds: 0,
-                    network: NetworkAvailability::Unknown,
-                    metered: MeteredConnection::Unknown,
-                },
-                &self.provider,
-                &GithubApplicationUpdatePayloadSource,
-                progress,
-                cancellation,
-            )
-            .await
+        let environment = ApplicationUpdateCheckEnvironment {
+            request: ApplicationUpdateCheckRequest::Manual,
+            startup_unix_seconds: 0,
+            network: NetworkAvailability::Unknown,
+            metered: MeteredConnection::Unknown,
+        };
+        match request {
+            ApplicationUpdateCommandRequest::Check => {
+                self.operation
+                    .check_and_stage(
+                        environment,
+                        &self.provider,
+                        &GithubApplicationUpdatePayloadSource,
+                        progress,
+                        cancellation,
+                    )
+                    .await
+            }
+            ApplicationUpdateCommandRequest::Download(request) => {
+                self.operation
+                    .download_expected(
+                        environment,
+                        &self.provider,
+                        &GithubApplicationUpdatePayloadSource,
+                        progress,
+                        cancellation,
+                        ApplicationUpdateDownloadExpectation {
+                            preference_revision: request.expected_preference_revision,
+                            candidate: &request.expected_candidate,
+                        },
+                    )
+                    .await
+            }
+        }
     }
 }
 
@@ -206,7 +241,7 @@ impl ApplicationUpdateCommandState {
         })?;
         if !matches!(*activity, ApplicationUpdateCommandActivity::Idle) {
             return Err(portcove_core::PortcoveError::conflict(
-                "An application update check is already active.",
+                "An application update check or download is already active.",
             )
             .into());
         }
@@ -280,13 +315,35 @@ pub(crate) async fn check_application_update(
     run_check(state.inner(), &ChannelProgress(on_event)).await
 }
 
+#[tauri::command]
+pub(crate) async fn download_application_update(
+    state: tauri::State<'_, ApplicationUpdateCommandState>,
+    request: ApplicationUpdateDownloadRequest,
+    on_event: tauri::ipc::Channel<ApplicationUpdateCheckPhase>,
+) -> DesktopResult<ApplicationUpdateCheckResult> {
+    run_command(
+        state.inner(),
+        ApplicationUpdateCommandRequest::Download(request),
+        &ChannelProgress(on_event),
+    )
+    .await
+}
+
 async fn run_check(
     state: &ApplicationUpdateCommandState,
     progress: &dyn ApplicationUpdateProgressSink,
 ) -> DesktopResult<ApplicationUpdateCheckResult> {
+    run_command(state, ApplicationUpdateCommandRequest::Check, progress).await
+}
+
+async fn run_command(
+    state: &ApplicationUpdateCommandState,
+    request: ApplicationUpdateCommandRequest,
+    progress: &dyn ApplicationUpdateProgressSink,
+) -> DesktopResult<ApplicationUpdateCheckResult> {
     let (runner, cancellation, _active) = state.begin()?;
     runner
-        .run(progress, &cancellation)
+        .run(request, progress, &cancellation)
         .await
         .map(result_from_outcome)
         .map_err(operation_error)
@@ -480,6 +537,18 @@ fn operation_error(error: ApplicationUpdateOperationError) -> DesktopError {
             )
             .into()
         }
+        ApplicationUpdateOperationError::ExplicitDownloadSuperseded => {
+            portcove_core::PortcoveError::conflict(
+                "The available application update changed. Check again before downloading.",
+            )
+            .into()
+        }
+        ApplicationUpdateOperationError::ExplicitDownloadPaused => {
+            portcove_core::PortcoveError::conflict(
+                "Application update staging is paused. Resume update activity before downloading.",
+            )
+            .into()
+        }
     }
 }
 
@@ -501,6 +570,7 @@ mod tests {
     impl ApplicationUpdateCommandRunner for CancelledRunner {
         async fn run(
             &self,
+            _request: ApplicationUpdateCommandRequest,
             _progress: &dyn ApplicationUpdateProgressSink,
             cancellation: &CancellationToken,
         ) -> Result<ApplicationUpdateOperationOutcome, ApplicationUpdateOperationError> {

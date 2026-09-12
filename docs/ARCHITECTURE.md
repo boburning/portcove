@@ -663,8 +663,15 @@ returns only candidate version/channel/size, policy reasons and staging outcome.
 One process-owned cancellation token prevents overlapping renderer requests and
 cooperatively stops the existing restart-reconcilable operation. The command is
 unavailable in ordinary unconfigured alpha builds. No production root or origin is
-present, and no automatic schedule, exit hook or helper launch currently activates
-the provider.
+present, and no automatic schedule or exit hook currently activates the provider.
+For notify-only and manual choices, a separate explicit download command accepts
+only the preference revision and sanitized version, channel and size shown by the
+preceding check. The host reauthenticates the repository, requires that exact summary
+and preference revision to remain current, refuses staging while paused, and sends
+only its newly selected candidate and payload key through the existing downloader,
+verifier and staging boundary. The renderer cannot turn those optimistic guards into
+a URL, key or alternate candidate, and a changed or withdrawn candidate requires a
+fresh visible check.
 The sibling payload boundary independently binds an already obtained stream to the
 selected release length, SHA-256 and exact registry key using bounded, prehashed
 Minisign verification. Only its Rust-only verified identity may cross into later

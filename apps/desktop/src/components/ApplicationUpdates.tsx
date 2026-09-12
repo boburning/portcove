@@ -311,6 +311,197 @@ function ApplicationUpdateStatusPanel({
   );
 }
 
+type ApplicationUpdateOperationState = {
+  busy: boolean;
+  active: "check" | "download" | undefined;
+  phase: ApplicationUpdateCheckPhase | undefined;
+  result: ApplicationUpdateCheckResult | undefined;
+  error: string | undefined;
+  check: () => Promise<void>;
+  download: () => Promise<void>;
+  cancel: () => Promise<void>;
+};
+
+type RevisionBoundCheckResult = {
+  preferenceRevision: number | undefined;
+  value: ApplicationUpdateCheckResult;
+};
+
+function useApplicationUpdateOperation({
+  preferences,
+  changed,
+  onStart,
+  onComplete,
+}: {
+  preferences: ApplicationUpdatePreferences | undefined;
+  changed: boolean;
+  onStart: () => void;
+  onComplete: () => Promise<void>;
+}): ApplicationUpdateOperationState {
+  const requests = useRef(new LatestRequestGeneration());
+  const [busy, setBusy] = useState(false);
+  const [active, setActive] = useState<"check" | "download">();
+  const [phase, setPhase] = useState<ApplicationUpdateCheckPhase>();
+  const [boundResult, setBoundResult] = useState<RevisionBoundCheckResult>();
+  const [error, setError] = useState<string>();
+  const result =
+    boundResult?.preferenceRevision === preferences?.revision ? boundResult?.value : undefined;
+
+  useEffect(() => {
+    const tracker = requests.current;
+    return () => {
+      tracker.begin();
+    };
+  }, []);
+
+  const run = async (
+    operation: "check" | "download",
+    execute: (
+      onEvent: (nextPhase: ApplicationUpdateCheckPhase) => void,
+    ) => Promise<ApplicationUpdateCheckResult>,
+  ) => {
+    const request = requests.current.begin();
+    const preferenceRevision = preferences?.revision;
+    setBusy(true);
+    setActive(operation);
+    setPhase("checking");
+    setBoundResult(undefined);
+    setError(undefined);
+    onStart();
+    try {
+      const nextResult = await execute((nextPhase) => {
+        if (requests.current.isCurrent(request)) setPhase(nextPhase);
+      });
+      if (!requests.current.isCurrent(request)) return;
+      setBoundResult({ preferenceRevision, value: nextResult });
+      await onComplete();
+    } catch (value) {
+      if (requests.current.isCurrent(request)) setError(errorText(value));
+    } finally {
+      if (requests.current.isCurrent(request)) {
+        setBusy(false);
+        setActive(undefined);
+        setPhase(undefined);
+      }
+    }
+  };
+
+  const check = () => run("check", desktopApi.checkApplicationUpdate);
+
+  const download = async () => {
+    const choice = preferences?.choice;
+    if (
+      !choice ||
+      choice.paused ||
+      changed ||
+      result?.kind !== "update-available" ||
+      !result.candidate ||
+      result.staged
+    )
+      return;
+    const expectedCandidate = result.candidate;
+    await run("download", (onEvent) =>
+      desktopApi.downloadApplicationUpdate(
+        {
+          expected_preference_revision: preferences.revision,
+          expected_candidate: expectedCandidate,
+        },
+        onEvent,
+      ),
+    );
+  };
+
+  const cancel = async () => {
+    setError(undefined);
+    try {
+      await desktopApi.cancelApplicationUpdateCheck();
+    } catch (value) {
+      setError(errorText(value));
+    }
+  };
+
+  return { busy, active, phase, result, error, check, download, cancel };
+}
+
+function ApplicationUpdateCheckPanel({
+  disabled,
+  settingsBusy,
+  changed,
+  preferences,
+  operation,
+}: {
+  disabled: boolean;
+  settingsBusy: boolean;
+  changed: boolean;
+  preferences: ApplicationUpdatePreferences | undefined;
+  operation: ApplicationUpdateOperationState;
+}) {
+  const candidateCanDownload =
+    operation.result?.kind === "update-available" &&
+    Boolean(operation.result.candidate) &&
+    !operation.result.staged;
+  const actionsDisabled = disabled || settingsBusy || changed || !preferences?.choice;
+
+  return (
+    <section
+      className="application-update-status"
+      aria-labelledby="application-check-title"
+      aria-busy={operation.busy}
+    >
+      <div className="application-update-status-heading">
+        <div>
+          <h3 id="application-check-title">Check for application updates</h3>
+          <p>
+            Uses the saved channel and host-compiled signed repository. Manual checks never use a
+            URL supplied by this screen.
+          </p>
+        </div>
+        {operation.busy ? (
+          <button data-focusable className="small-control" onClick={() => void operation.cancel()}>
+            {operation.active === "download" ? "Cancel download" : "Cancel check"}
+          </button>
+        ) : (
+          <button
+            data-focusable
+            className="small-control"
+            disabled={actionsDisabled}
+            onClick={() => void operation.check()}
+          >
+            Check for updates
+          </button>
+        )}
+      </div>
+      {operation.busy && operation.phase && (
+        <p role="status">{checkProgressCopy[operation.phase]}</p>
+      )}
+      {operation.result && (
+        <div className="application-update-status-item" role="status">
+          <strong>Check complete</strong>
+          <p>{applicationUpdateCheckCopy(operation.result)}</p>
+          {operation.result.reasons.length > 0 && (
+            <ul>
+              {operation.result.reasons.map((reason) => (
+                <li key={reason}>{reason}</li>
+              ))}
+            </ul>
+          )}
+          {candidateCanDownload && (
+            <button
+              data-focusable
+              className="primary"
+              disabled={actionsDisabled || Boolean(preferences?.choice?.paused)}
+              onClick={() => void operation.download()}
+            >
+              Download and verify update
+            </button>
+          )}
+        </div>
+      )}
+      {operation.error && <p role="alert">{operation.error}</p>}
+    </section>
+  );
+}
+
 export function ApplicationUpdateSettings({
   currentVersion,
   generation = 0,
@@ -322,7 +513,6 @@ export function ApplicationUpdateSettings({
 }) {
   const requests = useRef(new LatestRequestGeneration());
   const statusRequests = useRef(new LatestRequestGeneration());
-  const checkRequests = useRef(new LatestRequestGeneration());
   const [preferences, setPreferences] = useState<ApplicationUpdatePreferences>();
   const [status, setStatus] = useState<ApplicationUpdateStatus>();
   const [draft, setDraft] = useState<ApplicationUpdateChoice>(recommendedChoice);
@@ -332,10 +522,7 @@ export function ApplicationUpdateSettings({
   const [canRecoverPreferences, setCanRecoverPreferences] = useState(false);
   const [statusError, setStatusError] = useState<string>();
   const [notice, setNotice] = useState<string>();
-  const [checkBusy, setCheckBusy] = useState(false);
-  const [checkPhase, setCheckPhase] = useState<ApplicationUpdateCheckPhase>();
-  const [checkResult, setCheckResult] = useState<ApplicationUpdateCheckResult>();
-  const [checkError, setCheckError] = useState<string>();
+  const changed = Boolean(preferences && !choicesMatch(preferences.choice, draft));
 
   const applyPreferences = (value: ApplicationUpdatePreferences) => {
     setPreferences(value);
@@ -376,6 +563,13 @@ export function ApplicationUpdateSettings({
     }
   };
 
+  const updateOperation = useApplicationUpdateOperation({
+    preferences,
+    changed,
+    onStart: () => setNotice(undefined),
+    onComplete: loadStatus,
+  });
+
   useEffect(() => {
     const requestTracker = requests.current;
     const request = requestTracker.begin();
@@ -398,7 +592,6 @@ export function ApplicationUpdateSettings({
       });
     const statusTracker = statusRequests.current;
     const statusRequest = statusTracker.begin();
-    const checkTracker = checkRequests.current;
     void desktopApi
       .applicationUpdateStatus()
       .then((value) => {
@@ -413,7 +606,6 @@ export function ApplicationUpdateSettings({
     return () => {
       requestTracker.begin();
       statusTracker.begin();
-      checkTracker.begin();
     };
   }, []);
 
@@ -493,39 +685,6 @@ export function ApplicationUpdateSettings({
     }
   };
 
-  const checkForUpdate = async () => {
-    const request = checkRequests.current.begin();
-    setCheckBusy(true);
-    setCheckPhase("checking");
-    setCheckResult(undefined);
-    setCheckError(undefined);
-    setNotice(undefined);
-    try {
-      const result = await desktopApi.checkApplicationUpdate((phase) => {
-        if (checkRequests.current.isCurrent(request)) setCheckPhase(phase);
-      });
-      if (!checkRequests.current.isCurrent(request)) return;
-      setCheckResult(result);
-      await loadStatus();
-    } catch (value) {
-      if (checkRequests.current.isCurrent(request)) setCheckError(errorText(value));
-    } finally {
-      if (checkRequests.current.isCurrent(request)) {
-        setCheckBusy(false);
-        setCheckPhase(undefined);
-      }
-    }
-  };
-
-  const cancelCheck = async () => {
-    setCheckError(undefined);
-    try {
-      await desktopApi.cancelApplicationUpdateCheck();
-    } catch (value) {
-      setCheckError(errorText(value));
-    }
-  };
-
   const restartToUpdate = async () => {
     setBusy("Preparing a safe restart to update…");
     setError(undefined);
@@ -541,7 +700,6 @@ export function ApplicationUpdateSettings({
   };
 
   const unavailable = disabled || Boolean(busy) || !preferences;
-  const changed = Boolean(preferences && !choicesMatch(preferences.choice, draft));
 
   return (
     <article
@@ -659,7 +817,8 @@ export function ApplicationUpdateSettings({
             <span>
               <label htmlFor="pause-application-updates">Pause application update activity</label>
               <small id="pause-application-updates-description">
-                Keep this choice, but do not check or stage updates until resumed.
+                Stop automatic checks and all downloads until resumed. Manual checks remain
+                available.
               </small>
             </span>
           </div>
@@ -695,50 +854,13 @@ export function ApplicationUpdateSettings({
         </>
       )}
 
-      <section
-        className="application-update-status"
-        aria-labelledby="application-check-title"
-        aria-busy={checkBusy}
-      >
-        <div className="application-update-status-heading">
-          <div>
-            <h3 id="application-check-title">Check for application updates</h3>
-            <p>
-              Uses the saved channel and host-compiled signed repository. Manual checks never use a
-              URL supplied by this screen.
-            </p>
-          </div>
-          {checkBusy ? (
-            <button data-focusable className="small-control" onClick={() => void cancelCheck()}>
-              Cancel check
-            </button>
-          ) : (
-            <button
-              data-focusable
-              className="small-control"
-              disabled={disabled || Boolean(busy) || changed || !preferences?.choice}
-              onClick={() => void checkForUpdate()}
-            >
-              Check for updates
-            </button>
-          )}
-        </div>
-        {checkBusy && checkPhase && <p role="status">{checkProgressCopy[checkPhase]}</p>}
-        {checkResult && (
-          <div className="application-update-status-item" role="status">
-            <strong>Check complete</strong>
-            <p>{applicationUpdateCheckCopy(checkResult)}</p>
-            {checkResult.reasons.length > 0 && (
-              <ul>
-                {checkResult.reasons.map((reason) => (
-                  <li key={reason}>{reason}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-        {checkError && <p role="alert">{checkError}</p>}
-      </section>
+      <ApplicationUpdateCheckPanel
+        disabled={disabled}
+        settingsBusy={Boolean(busy)}
+        changed={changed}
+        preferences={preferences}
+        operation={updateOperation}
+      />
 
       <ApplicationUpdateStatusPanel
         status={status}
@@ -748,7 +870,9 @@ export function ApplicationUpdateSettings({
         onRefresh={loadStatus}
         onRecover={recover}
         onRestart={restartToUpdate}
-        restartDisabled={disabled || Boolean(busy) || checkBusy || changed || !preferences?.choice}
+        restartDisabled={
+          disabled || Boolean(busy) || updateOperation.busy || changed || !preferences?.choice
+        }
       />
 
       {busy && <p role="status">{busy}</p>}

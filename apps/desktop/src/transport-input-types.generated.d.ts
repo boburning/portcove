@@ -23,6 +23,7 @@ export interface TransportInputs {
   source_discovery_limits: SourceDiscoveryLimits;
   source_discovery_request: InputSourceDiscoveryRequest;
   desktop_application_update_choice: InputDesktopApplicationUpdateChoice;
+  desktop_application_update_download_request: InputDesktopApplicationUpdateDownloadRequest;
   desktop_application_update_recovery_area: InputDesktopApplicationUpdateRecoveryArea;
   desktop_install_input: InputDesktopInstallInput;
 }
@@ -61,6 +62,15 @@ export interface InputDesktopApplicationUpdateChoice {
   channel: ApplicationChannel;
   mode: ApplicationUpdateMode;
   paused: boolean;
+}
+export interface InputDesktopApplicationUpdateDownloadRequest {
+  expected_candidate: ApplicationUpdateCandidateSummary;
+  expected_preference_revision: number;
+}
+export interface ApplicationUpdateCandidateSummary {
+  bytes: number;
+  channel: ApplicationChannel;
+  version: string;
 }
 export interface InputDesktopInstallInput {
   bios?: string | null;

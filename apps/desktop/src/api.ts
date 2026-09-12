@@ -35,6 +35,7 @@ import type {
   ApplicationUpdateChoice,
   ApplicationUpdateCheckPhase,
   ApplicationUpdateCheckResult,
+  ApplicationUpdateDownloadRequest,
   ApplicationUpdatePreferences,
   ApplicationUpdateRecoveryArea,
   ApplicationUpdateStatus,
@@ -89,6 +90,17 @@ export const desktopApi = {
     const channel = new Channel<ApplicationUpdateCheckPhase>();
     channel.onmessage = onEvent;
     return invoke<ApplicationUpdateCheckResult>("check_application_update", { onEvent: channel });
+  },
+  downloadApplicationUpdate: (
+    request: ApplicationUpdateDownloadRequest,
+    onEvent: (event: ApplicationUpdateCheckPhase) => void,
+  ) => {
+    const channel = new Channel<ApplicationUpdateCheckPhase>();
+    channel.onmessage = onEvent;
+    return invoke<ApplicationUpdateCheckResult>("download_application_update", {
+      request,
+      onEvent: channel,
+    });
   },
   cancelApplicationUpdateCheck: () => invoke<boolean>("cancel_application_update_check"),
   restartToApplyApplicationUpdate: (generation: number) =>
