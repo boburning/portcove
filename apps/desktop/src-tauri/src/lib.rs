@@ -2,6 +2,7 @@ mod adoption;
 pub mod application_update;
 pub mod application_update_apply;
 pub mod application_update_commands;
+mod application_update_connectivity;
 pub mod application_update_coordinator;
 pub mod application_update_download;
 pub mod application_update_helper;
@@ -1941,6 +1942,11 @@ pub fn run() {
                 #[cfg(windows)]
                 reconcile_application_update_after_healthy_startup();
             }
+            application_update_commands::start_automatic_checks(
+                app.state::<application_update_commands::ApplicationUpdateCommandState>()
+                    .inner()
+                    .clone(),
+            );
             Ok(())
         })
         .run(tauri::generate_context!())

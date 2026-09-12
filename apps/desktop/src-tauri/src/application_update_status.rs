@@ -120,6 +120,7 @@ pub(crate) async fn get_application_update_status(
 #[tauri::command]
 pub(crate) async fn recover_application_update_state(
     state: tauri::State<'_, ApplicationUpdateStatusState>,
+    updates: tauri::State<'_, crate::application_update_commands::ApplicationUpdateCommandState>,
     area: ApplicationUpdateRecoveryArea,
 ) -> DesktopResult<ApplicationUpdateStatus> {
     let stores = state.stores.as_ref().map_err(Clone::clone)?.clone();
@@ -140,7 +141,9 @@ pub(crate) async fn recover_application_update_state(
             blocking_worker(move || apply.recover_invalid().map_err(apply_error)).await?;
         }
     }
-    load_status(stores).await
+    let status = load_status(stores).await?;
+    updates.wake_automatic();
+    Ok(status)
 }
 
 async fn load_status(

@@ -347,32 +347,42 @@ pub(crate) async fn get_application_update_preferences(
 #[tauri::command]
 pub(crate) async fn set_application_update_preferences(
     state: tauri::State<'_, ApplicationUpdatePreferenceState>,
+    updates: tauri::State<'_, crate::application_update_commands::ApplicationUpdateCommandState>,
     expected_revision: u64,
     choice: ApplicationUpdateChoice,
 ) -> DesktopResult<ApplicationUpdatePreferences> {
     let store = state.store.as_ref().map_err(Clone::clone)?.clone();
-    blocking_worker(move || {
+    let preferences = blocking_worker(move || {
         store
             .save_choice(expected_revision, choice)
             .map_err(desktop_error)
     })
-    .await
+    .await?;
+    updates.wake_automatic();
+    Ok(preferences)
 }
 
 #[tauri::command]
 pub(crate) async fn reset_application_update_preferences(
     state: tauri::State<'_, ApplicationUpdatePreferenceState>,
+    updates: tauri::State<'_, crate::application_update_commands::ApplicationUpdateCommandState>,
 ) -> DesktopResult<ApplicationUpdatePreferences> {
     let store = state.store.as_ref().map_err(Clone::clone)?.clone();
-    blocking_worker(move || store.reset().map_err(desktop_error)).await
+    let preferences = blocking_worker(move || store.reset().map_err(desktop_error)).await?;
+    updates.wake_automatic();
+    Ok(preferences)
 }
 
 #[tauri::command]
 pub(crate) async fn recover_application_update_preferences(
     state: tauri::State<'_, ApplicationUpdatePreferenceState>,
+    updates: tauri::State<'_, crate::application_update_commands::ApplicationUpdateCommandState>,
 ) -> DesktopResult<ApplicationUpdatePreferences> {
     let store = state.store.as_ref().map_err(Clone::clone)?.clone();
-    blocking_worker(move || store.recover_invalid().map_err(desktop_error)).await
+    let preferences =
+        blocking_worker(move || store.recover_invalid().map_err(desktop_error)).await?;
+    updates.wake_automatic();
+    Ok(preferences)
 }
 
 fn desktop_error(error: ApplicationUpdatePreferenceError) -> DesktopError {

@@ -5,13 +5,16 @@
 //! signatures, payload keys, or filesystem paths.
 
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use async_trait::async_trait;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use tokio::sync::Notify;
 use tokio_util::sync::CancellationToken;
 
 use crate::application_update::ApplicationUpdateCandidateSummary;
+use crate::application_update_connectivity::observe_application_update_connectivity;
 use crate::application_update_coordinator::{
     ApplicationUpdateCheckEnvironment, ApplicationUpdateCoordinator,
     ApplicationUpdateCoordinatorError,
@@ -29,7 +32,7 @@ use crate::application_update_operation::{
 use crate::application_update_repository::{CandidateLoadError, CandidateLoadFailureKind};
 use crate::application_update_schedule::{
     ApplicationUpdateCheckDecision, ApplicationUpdateCheckHold, ApplicationUpdateCheckRequest,
-    MeteredConnection, NetworkAvailability,
+    MeteredConnection, NetworkAvailability, STARTUP_DELAY_SECONDS,
 };
 use crate::application_update_staging::{
     ApplicationUpdateStagingError, ApplicationUpdateStagingStore,
@@ -80,7 +83,7 @@ pub struct ApplicationUpdateDownloadRequest {
 }
 
 enum ApplicationUpdateCommandRequest {
-    Check,
+    Check(ApplicationUpdateCheckEnvironment),
     Download(ApplicationUpdateDownloadRequest),
 }
 
@@ -107,14 +110,8 @@ impl ApplicationUpdateCommandRunner for ConfiguredApplicationUpdateCommandRunner
         progress: &dyn ApplicationUpdateProgressSink,
         cancellation: &CancellationToken,
     ) -> Result<ApplicationUpdateOperationOutcome, ApplicationUpdateOperationError> {
-        let environment = ApplicationUpdateCheckEnvironment {
-            request: ApplicationUpdateCheckRequest::Manual,
-            startup_unix_seconds: 0,
-            network: NetworkAvailability::Unknown,
-            metered: MeteredConnection::Unknown,
-        };
         match request {
-            ApplicationUpdateCommandRequest::Check => {
+            ApplicationUpdateCommandRequest::Check(environment) => {
                 self.operation
                     .check_and_stage(
                         environment,
@@ -126,6 +123,7 @@ impl ApplicationUpdateCommandRunner for ConfiguredApplicationUpdateCommandRunner
                     .await
             }
             ApplicationUpdateCommandRequest::Download(request) => {
+                let environment = manual_environment();
                 self.operation
                     .download_expected(
                         environment,
@@ -148,6 +146,7 @@ impl ApplicationUpdateCommandRunner for ConfiguredApplicationUpdateCommandRunner
 pub(crate) struct ApplicationUpdateCommandState {
     runner: DesktopResult<Option<Arc<dyn ApplicationUpdateCommandRunner>>>,
     activity: Arc<Mutex<ApplicationUpdateCommandActivity>>,
+    automatic_wake: Arc<Notify>,
 }
 
 enum ApplicationUpdateCommandActivity {
@@ -161,6 +160,138 @@ pub(crate) fn configured_state() -> ApplicationUpdateCommandState {
     ApplicationUpdateCommandState {
         runner: configure_runner(),
         activity: Arc::new(Mutex::new(ApplicationUpdateCommandActivity::Idle)),
+        automatic_wake: Arc::new(Notify::new()),
+    }
+}
+
+const AUTOMATIC_REEVALUATION_SECONDS: u64 = 60;
+const MAX_AUTOMATIC_SLEEP_SECONDS: u64 = 24 * 60 * 60;
+
+/// Starts the process-local automatic update coordinator. The first observation
+/// occurs only after the scheduler's startup delay, and every later network or
+/// payload attempt remains governed by the persisted cross-process schedule.
+pub(crate) fn start_automatic_checks(state: ApplicationUpdateCommandState) {
+    if !state
+        .runner
+        .as_ref()
+        .is_ok_and(|configured| configured.is_some())
+    {
+        return;
+    }
+    let Some(startup_unix_seconds) = current_unix_seconds() else {
+        tracing::warn!(
+            operation_id = "application-update-automatic",
+            "automatic application update checks are unavailable because the system clock is invalid"
+        );
+        return;
+    };
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(Duration::from_secs(STARTUP_DELAY_SECONDS)).await;
+        loop {
+            let connectivity =
+                tauri::async_runtime::spawn_blocking(observe_application_update_connectivity)
+                    .await
+                    .unwrap_or(
+                        crate::application_update_connectivity::ApplicationUpdateConnectivity {
+                            network: NetworkAvailability::Unknown,
+                            metered: MeteredConnection::Unknown,
+                        },
+                    );
+            let environment = ApplicationUpdateCheckEnvironment {
+                request: ApplicationUpdateCheckRequest::Automatic,
+                startup_unix_seconds,
+                network: connectivity.network,
+                metered: connectivity.metered,
+            };
+            let delay = match run_automatic_once(&state, environment).await {
+                Ok(outcome) => {
+                    log_automatic_outcome(&outcome);
+                    automatic_reevaluation_delay(&outcome, current_unix_seconds())
+                }
+                Err(error) => {
+                    log_automatic_error(&error);
+                    Duration::from_secs(AUTOMATIC_REEVALUATION_SECONDS)
+                }
+            };
+            tokio::select! {
+                _ = tokio::time::sleep(delay) => {}
+                _ = state.automatic_wake.notified() => {}
+            }
+        }
+    });
+}
+
+impl ApplicationUpdateCommandState {
+    pub(crate) fn wake_automatic(&self) {
+        self.automatic_wake.notify_one();
+    }
+}
+
+fn manual_environment() -> ApplicationUpdateCheckEnvironment {
+    ApplicationUpdateCheckEnvironment {
+        request: ApplicationUpdateCheckRequest::Manual,
+        startup_unix_seconds: 0,
+        network: NetworkAvailability::Unknown,
+        metered: MeteredConnection::Unknown,
+    }
+}
+
+fn current_unix_seconds() -> Option<u64> {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .ok()
+        .map(|duration| duration.as_secs())
+}
+
+fn automatic_reevaluation_delay(
+    outcome: &ApplicationUpdateOperationOutcome,
+    now_unix_seconds: Option<u64>,
+) -> Duration {
+    let retry_at = match outcome {
+        ApplicationUpdateOperationOutcome::Held(ApplicationUpdateCheckDecision::Hold {
+            retry_at_unix_seconds,
+            ..
+        }) => *retry_at_unix_seconds,
+        _ => None,
+    };
+    let seconds = retry_at
+        .zip(now_unix_seconds)
+        .map(|(retry_at, now)| retry_at.saturating_sub(now).max(1))
+        .unwrap_or(AUTOMATIC_REEVALUATION_SECONDS)
+        .min(MAX_AUTOMATIC_SLEEP_SECONDS);
+    Duration::from_secs(seconds)
+}
+
+fn log_automatic_outcome(outcome: &ApplicationUpdateOperationOutcome) {
+    match outcome {
+        ApplicationUpdateOperationOutcome::Checked { staged: true, .. } => tracing::info!(
+            operation_id = "application-update-automatic",
+            "an authenticated application update was downloaded and verified"
+        ),
+        ApplicationUpdateOperationOutcome::Checked { .. } => tracing::info!(
+            operation_id = "application-update-automatic",
+            "automatic application update check completed"
+        ),
+        ApplicationUpdateOperationOutcome::Superseded { .. } => tracing::info!(
+            operation_id = "application-update-automatic",
+            "automatic application update result was superseded by a preference change"
+        ),
+        ApplicationUpdateOperationOutcome::Held(_) => {}
+    }
+}
+
+fn log_automatic_error(error: &DesktopError) {
+    if error.code == portcove_core::ErrorCode::Conflict {
+        tracing::debug!(
+            operation_id = "application-update-automatic",
+            "automatic application update check deferred while another update action is active"
+        );
+    } else {
+        tracing::warn!(
+            operation_id = "application-update-automatic",
+            error_code = ?error.code,
+            "automatic application update check failed and will follow the persisted retry cadence"
+        );
     }
 }
 
@@ -333,7 +464,12 @@ async fn run_check(
     state: &ApplicationUpdateCommandState,
     progress: &dyn ApplicationUpdateProgressSink,
 ) -> DesktopResult<ApplicationUpdateCheckResult> {
-    run_command(state, ApplicationUpdateCommandRequest::Check, progress).await
+    run_command(
+        state,
+        ApplicationUpdateCommandRequest::Check(manual_environment()),
+        progress,
+    )
+    .await
 }
 
 async fn run_command(
@@ -341,11 +477,32 @@ async fn run_command(
     request: ApplicationUpdateCommandRequest,
     progress: &dyn ApplicationUpdateProgressSink,
 ) -> DesktopResult<ApplicationUpdateCheckResult> {
+    run_operation(state, request, progress)
+        .await
+        .map(result_from_outcome)
+}
+
+async fn run_automatic_once(
+    state: &ApplicationUpdateCommandState,
+    environment: ApplicationUpdateCheckEnvironment,
+) -> DesktopResult<ApplicationUpdateOperationOutcome> {
+    run_operation(
+        state,
+        ApplicationUpdateCommandRequest::Check(environment),
+        &crate::application_update_operation::NoopApplicationUpdateProgressSink,
+    )
+    .await
+}
+
+async fn run_operation(
+    state: &ApplicationUpdateCommandState,
+    request: ApplicationUpdateCommandRequest,
+    progress: &dyn ApplicationUpdateProgressSink,
+) -> DesktopResult<ApplicationUpdateOperationOutcome> {
     let (runner, cancellation, _active) = state.begin()?;
     runner
         .run(request, progress, &cancellation)
         .await
-        .map(result_from_outcome)
         .map_err(operation_error)
 }
 
@@ -566,6 +723,10 @@ mod tests {
         started: Arc<Semaphore>,
     }
 
+    struct EnvironmentRunner {
+        observed: Arc<Mutex<Option<ApplicationUpdateCheckEnvironment>>>,
+    }
+
     #[async_trait]
     impl ApplicationUpdateCommandRunner for CancelledRunner {
         async fn run(
@@ -580,12 +741,34 @@ mod tests {
         }
     }
 
+    #[async_trait]
+    impl ApplicationUpdateCommandRunner for EnvironmentRunner {
+        async fn run(
+            &self,
+            request: ApplicationUpdateCommandRequest,
+            _progress: &dyn ApplicationUpdateProgressSink,
+            _cancellation: &CancellationToken,
+        ) -> Result<ApplicationUpdateOperationOutcome, ApplicationUpdateOperationError> {
+            let ApplicationUpdateCommandRequest::Check(environment) = request else {
+                panic!("automatic execution must issue a check");
+            };
+            *self.observed.lock().unwrap() = Some(environment);
+            Ok(ApplicationUpdateOperationOutcome::Held(
+                ApplicationUpdateCheckDecision::Hold {
+                    reason: ApplicationUpdateCheckHold::Cadence,
+                    retry_at_unix_seconds: Some(1_500),
+                },
+            ))
+        }
+    }
+
     fn state_with(
         runner: Arc<dyn ApplicationUpdateCommandRunner>,
     ) -> ApplicationUpdateCommandState {
         ApplicationUpdateCommandState {
             runner: Ok(Some(runner)),
             activity: Arc::new(Mutex::new(ApplicationUpdateCommandActivity::Idle)),
+            automatic_wake: Arc::new(Notify::new()),
         }
     }
 
@@ -624,11 +807,44 @@ mod tests {
         assert!(!state.cancel().unwrap());
     }
 
+    #[tokio::test]
+    async fn automatic_checks_keep_the_observed_environment_and_exact_retry_time() {
+        let observed = Arc::new(Mutex::new(None));
+        let state = state_with(Arc::new(EnvironmentRunner {
+            observed: observed.clone(),
+        }));
+        let environment = ApplicationUpdateCheckEnvironment {
+            request: ApplicationUpdateCheckRequest::Automatic,
+            startup_unix_seconds: 1_000,
+            network: NetworkAvailability::Online,
+            metered: MeteredConnection::Unmetered,
+        };
+
+        let outcome = run_automatic_once(&state, environment).await.unwrap();
+
+        assert_eq!(*observed.lock().unwrap(), Some(environment));
+        assert_eq!(
+            automatic_reevaluation_delay(&outcome, Some(1_100)),
+            Duration::from_secs(400)
+        );
+        assert_eq!(
+            automatic_reevaluation_delay(
+                &ApplicationUpdateOperationOutcome::Held(ApplicationUpdateCheckDecision::Hold {
+                    reason: ApplicationUpdateCheckHold::Cadence,
+                    retry_at_unix_seconds: Some(u64::MAX),
+                },),
+                Some(1_100),
+            ),
+            Duration::from_secs(MAX_AUTOMATIC_SLEEP_SECONDS)
+        );
+    }
+
     #[test]
     fn disabled_builds_report_unavailable_without_starting_work() {
         let state = ApplicationUpdateCommandState {
             runner: Ok(None),
             activity: Arc::new(Mutex::new(ApplicationUpdateCommandActivity::Idle)),
+            automatic_wake: Arc::new(Notify::new()),
         };
         let error = state.begin().err().unwrap();
         assert_eq!(error.code, portcove_core::ErrorCode::Unsupported);
