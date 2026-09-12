@@ -14,7 +14,7 @@ use fs2::FileExt;
 use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use tough::schema::{Root, Signed};
+use tough::schema::{PathSet, Root, Signed, Targets};
 use tough::{ExpirationEnforcement, Limits, Repository, RepositoryLoader};
 use url::Url;
 
@@ -27,6 +27,12 @@ const MAX_TIMESTAMP_BYTES: u64 = 32 * 1024;
 const MAX_SNAPSHOT_BYTES: u64 = 1024 * 1024;
 const MAX_TARGETS_BYTES: u64 = 1024 * 1024;
 const MAX_ROOT_UPDATES: u64 = 32;
+const MAX_DELEGATED_ROLES: usize = 16;
+const MAX_DELEGATION_DEPTH: usize = 2;
+const MAX_METADATA_TARGETS: usize = 1024;
+const MAX_DELEGATION_SELECTORS: usize = 1024;
+const MAX_ROLE_NAME_BYTES: usize = 128;
+const MAX_TARGET_PATH_BYTES: usize = 512;
 const STATE_FILE: &str = "trust-state.json";
 const STATE_TEMP_FILE: &str = ".trust-state.json.tmp";
 const ROOT_TEMP_FILE: &str = ".root.json.tmp";
@@ -57,6 +63,8 @@ pub enum TrustedRepositoryError {
     Io(#[from] std::io::Error),
     #[error("application update metadata authentication failed: {0}")]
     Authentication(#[source] Box<tough::error::Error>),
+    #[error("application update metadata violates host policy: {0}")]
+    MetadataPolicy(String),
     #[error("application update trust state serialization failed: {0}")]
     Serialization(#[from] serde_json::Error),
 }
@@ -486,6 +494,133 @@ fn repository_identities(
     })
 }
 
+#[derive(Default)]
+struct MetadataStructureCounts {
+    delegated_roles: usize,
+    targets: usize,
+    delegation_selectors: usize,
+}
+
+fn add_bounded(
+    current: &mut usize,
+    additional: usize,
+    maximum: usize,
+    label: &str,
+) -> Result<(), TrustedRepositoryError> {
+    *current = current.checked_add(additional).ok_or_else(|| {
+        TrustedRepositoryError::MetadataPolicy(format!("{label} count overflowed"))
+    })?;
+    if *current > maximum {
+        return Err(TrustedRepositoryError::MetadataPolicy(format!(
+            "{label} count exceeds {maximum}"
+        )));
+    }
+    Ok(())
+}
+
+fn validate_targets_structure(
+    targets: &Targets,
+    depth: usize,
+    seen_roles: &mut BTreeSet<String>,
+    counts: &mut MetadataStructureCounts,
+) -> Result<(), TrustedRepositoryError> {
+    add_bounded(
+        &mut counts.targets,
+        targets.targets.len(),
+        MAX_METADATA_TARGETS,
+        "target",
+    )?;
+    for name in targets.targets.keys() {
+        if name.raw().len() > MAX_TARGET_PATH_BYTES {
+            return Err(TrustedRepositoryError::MetadataPolicy(format!(
+                "target path exceeds {MAX_TARGET_PATH_BYTES} bytes"
+            )));
+        }
+    }
+
+    let Some(delegations) = &targets.delegations else {
+        return Ok(());
+    };
+    for role in &delegations.roles {
+        let role_depth = depth + 1;
+        if role_depth > MAX_DELEGATION_DEPTH {
+            return Err(TrustedRepositoryError::MetadataPolicy(format!(
+                "delegation depth exceeds {MAX_DELEGATION_DEPTH}"
+            )));
+        }
+        if role.name.is_empty() || role.name.len() > MAX_ROLE_NAME_BYTES {
+            return Err(TrustedRepositoryError::MetadataPolicy(format!(
+                "delegated role name is empty or exceeds {MAX_ROLE_NAME_BYTES} bytes"
+            )));
+        }
+        if !seen_roles.insert(role.name.clone()) {
+            return Err(TrustedRepositoryError::MetadataPolicy(format!(
+                "delegated role name is repeated: {}",
+                role.name
+            )));
+        }
+        add_bounded(
+            &mut counts.delegated_roles,
+            1,
+            MAX_DELEGATED_ROLES,
+            "delegated role",
+        )?;
+
+        let selectors = match &role.paths {
+            PathSet::Paths(patterns) => patterns.len(),
+            PathSet::PathHashPrefixes(prefixes) => prefixes.len(),
+        };
+        add_bounded(
+            &mut counts.delegation_selectors,
+            selectors,
+            MAX_DELEGATION_SELECTORS,
+            "delegation selector",
+        )?;
+
+        match &role.paths {
+            PathSet::Paths(patterns) => {
+                for pattern in patterns {
+                    if pattern.value().len() > MAX_TARGET_PATH_BYTES {
+                        return Err(TrustedRepositoryError::MetadataPolicy(format!(
+                            "delegation path exceeds {MAX_TARGET_PATH_BYTES} bytes"
+                        )));
+                    }
+                }
+            }
+            PathSet::PathHashPrefixes(prefixes) => {
+                for prefix in prefixes {
+                    if prefix.value().is_empty()
+                        || prefix.value().len() > 64
+                        || !prefix.value().bytes().all(|byte| byte.is_ascii_hexdigit())
+                    {
+                        return Err(TrustedRepositoryError::MetadataPolicy(
+                            "delegation hash prefix is not 1-64 hexadecimal bytes".into(),
+                        ));
+                    }
+                }
+            }
+        }
+
+        let child = role.targets.as_ref().ok_or_else(|| {
+            TrustedRepositoryError::MetadataPolicy(format!(
+                "delegated role metadata is unavailable: {}",
+                role.name
+            ))
+        })?;
+        validate_targets_structure(&child.signed, role_depth, seen_roles, counts)?;
+    }
+    Ok(())
+}
+
+fn validate_repository_structure(repository: &Repository) -> Result<(), TrustedRepositoryError> {
+    validate_targets_structure(
+        &repository.targets().signed,
+        0,
+        &mut BTreeSet::new(),
+        &mut MetadataStructureCounts::default(),
+    )
+}
+
 fn ensure_role_floors(
     state: &PersistedTrustedRepositoryState,
     current: &PersistedRoleVersions,
@@ -632,6 +767,11 @@ pub async fn load_trusted_repository(
             "loaded root differs from persisted trusted root".into(),
         ));
     }
+    if let Err(error) = validate_repository_structure(&repository) {
+        state.roles = identities;
+        write_state_atomically(request.state_directory, &state)?;
+        return Err(error);
+    }
     let timestamp = identities
         .timestamp
         .as_ref()
@@ -666,4 +806,213 @@ pub async fn load_trusted_repository(
         },
         repository,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+    use std::num::NonZeroU64;
+
+    use tough::TargetName;
+    use tough::schema::decoded::{Decoded, Hex};
+    use tough::schema::{DelegatedRole, Delegations, Hashes, PathHashPrefix, PathPattern, Target};
+
+    use super::*;
+
+    fn empty_targets() -> Targets {
+        Targets::new(
+            "1.0.0".into(),
+            NonZeroU64::new(1).unwrap(),
+            Timestamp::now(),
+        )
+    }
+
+    fn delegated_role(name: impl Into<String>, targets: Targets) -> DelegatedRole {
+        DelegatedRole {
+            name: name.into(),
+            keyids: Vec::new(),
+            threshold: NonZeroU64::new(1).unwrap(),
+            paths: PathSet::Paths(vec![PathPattern::new("*").unwrap()]),
+            terminating: false,
+            targets: Some(Signed {
+                signed: targets,
+                signatures: Vec::new(),
+            }),
+        }
+    }
+
+    fn target() -> Target {
+        Target {
+            length: 0,
+            hashes: Hashes {
+                sha256: Decoded::<Hex>::from(vec![0; 32]),
+                _extra: HashMap::new(),
+            },
+            custom: HashMap::new(),
+            _extra: HashMap::new(),
+        }
+    }
+
+    fn append_role(parent: &mut Targets, role: DelegatedRole) {
+        parent
+            .delegations
+            .get_or_insert_with(Delegations::new)
+            .roles
+            .push(role);
+    }
+
+    fn validate(targets: &Targets) -> Result<(), TrustedRepositoryError> {
+        validate_targets_structure(
+            targets,
+            0,
+            &mut BTreeSet::new(),
+            &mut MetadataStructureCounts::default(),
+        )
+    }
+
+    #[test]
+    fn delegation_role_limit_accepts_exact_boundary_and_rejects_next_role() {
+        let mut targets = empty_targets();
+        for index in 0..MAX_DELEGATED_ROLES {
+            append_role(
+                &mut targets,
+                delegated_role(format!("role-{index}"), empty_targets()),
+            );
+        }
+        validate(&targets).unwrap();
+
+        append_role(
+            &mut targets,
+            delegated_role("one-role-too-many", empty_targets()),
+        );
+        assert!(matches!(
+            validate(&targets),
+            Err(TrustedRepositoryError::MetadataPolicy(message))
+                if message.contains("delegated role count exceeds 16")
+        ));
+    }
+
+    #[test]
+    fn delegation_depth_accepts_two_and_rejects_three() {
+        let mut depth_one = empty_targets();
+        append_role(&mut depth_one, delegated_role("depth-two", empty_targets()));
+        let mut targets = empty_targets();
+        append_role(&mut targets, delegated_role("depth-one", depth_one));
+        validate(&targets).unwrap();
+
+        let mut depth_two = empty_targets();
+        append_role(
+            &mut depth_two,
+            delegated_role("depth-three", empty_targets()),
+        );
+        let mut depth_one = empty_targets();
+        append_role(&mut depth_one, delegated_role("depth-two", depth_two));
+        let mut targets = empty_targets();
+        append_role(&mut targets, delegated_role("depth-one", depth_one));
+        assert!(matches!(
+            validate(&targets),
+            Err(TrustedRepositoryError::MetadataPolicy(message))
+                if message.contains("delegation depth exceeds 2")
+        ));
+    }
+
+    #[test]
+    fn duplicate_role_names_and_unavailable_metadata_fail_closed() {
+        let mut targets = empty_targets();
+        append_role(&mut targets, delegated_role("duplicate", empty_targets()));
+        append_role(&mut targets, delegated_role("duplicate", empty_targets()));
+        assert!(matches!(
+            validate(&targets),
+            Err(TrustedRepositoryError::MetadataPolicy(message))
+                if message.contains("delegated role name is repeated")
+        ));
+
+        let mut targets = empty_targets();
+        let mut role = delegated_role("missing", empty_targets());
+        role.targets = None;
+        append_role(&mut targets, role);
+        assert!(matches!(
+            validate(&targets),
+            Err(TrustedRepositoryError::MetadataPolicy(message))
+                if message.contains("delegated role metadata is unavailable")
+        ));
+    }
+
+    #[test]
+    fn target_and_selector_limits_reject_the_first_excess_entry() {
+        let target = target();
+        let mut targets = empty_targets();
+        for index in 0..=MAX_METADATA_TARGETS {
+            targets.targets.insert(
+                TargetName::new(format!("target-{index}")).unwrap(),
+                target.clone(),
+            );
+        }
+        assert!(matches!(
+            validate(&targets),
+            Err(TrustedRepositoryError::MetadataPolicy(message))
+                if message.contains("target count exceeds 1024")
+        ));
+
+        let mut targets = empty_targets();
+        let mut role = delegated_role("selectors", empty_targets());
+        role.paths = PathSet::Paths(
+            (0..=MAX_DELEGATION_SELECTORS)
+                .map(|index| PathPattern::new(format!("path-{index}")).unwrap())
+                .collect(),
+        );
+        append_role(&mut targets, role);
+        assert!(matches!(
+            validate(&targets),
+            Err(TrustedRepositoryError::MetadataPolicy(message))
+                if message.contains("delegation selector count exceeds 1024")
+        ));
+    }
+
+    #[test]
+    fn metadata_names_and_selectors_are_bounded_and_well_formed() {
+        let mut targets = empty_targets();
+        targets.targets.insert(
+            TargetName::new("t".repeat(MAX_TARGET_PATH_BYTES + 1)).unwrap(),
+            target(),
+        );
+        assert!(matches!(
+            validate(&targets),
+            Err(TrustedRepositoryError::MetadataPolicy(message))
+                if message.contains("target path exceeds 512 bytes")
+        ));
+
+        let mut targets = empty_targets();
+        append_role(
+            &mut targets,
+            delegated_role("r".repeat(MAX_ROLE_NAME_BYTES + 1), empty_targets()),
+        );
+        assert!(matches!(
+            validate(&targets),
+            Err(TrustedRepositoryError::MetadataPolicy(message))
+                if message.contains("delegated role name is empty or exceeds 128 bytes")
+        ));
+
+        let mut targets = empty_targets();
+        let mut role = delegated_role("long-path", empty_targets());
+        role.paths = PathSet::Paths(vec![
+            PathPattern::new("p".repeat(MAX_TARGET_PATH_BYTES + 1)).unwrap(),
+        ]);
+        append_role(&mut targets, role);
+        assert!(matches!(
+            validate(&targets),
+            Err(TrustedRepositoryError::MetadataPolicy(message))
+                if message.contains("delegation path exceeds 512 bytes")
+        ));
+
+        let mut targets = empty_targets();
+        let mut role = delegated_role("bad-prefix", empty_targets());
+        role.paths = PathSet::PathHashPrefixes(vec![PathHashPrefix::new("not-hex").unwrap()]);
+        append_role(&mut targets, role);
+        assert!(matches!(
+            validate(&targets),
+            Err(TrustedRepositoryError::MetadataPolicy(message))
+                if message.contains("delegation hash prefix is not 1-64 hexadecimal bytes")
+        ));
+    }
 }

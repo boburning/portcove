@@ -584,7 +584,10 @@ or duplicate records and fully consumes authenticated streams before parsing.
 `application_update_trust` wraps the maintained `tough` client with path-keyed
 process ownership plus one host OS lock, atomically persisted greatest accepted
 time, the latest verified root and explicit
-timestamp/snapshot/targets version and signed-body replay floors.
+timestamp/snapshot/targets version and signed-body replay floors. After TUF
+authentication it enforces the host's delegated-role depth/count, global role-name,
+target-count, selector-count and bounded-name/path policy; unavailable delegated
+metadata fails closed, and rejected authenticated versions still advance replay floors.
 It supplies the latest persisted root on restart and retains verified root progress
 when later metadata fails. Disposable local-file repositories remain available to
 tests. For production metadata, a sibling host transport accepts only host-selected

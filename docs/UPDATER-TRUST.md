@@ -138,12 +138,15 @@ state: persist the greatest accepted time, detect clock regression and report a
 clock problem instead of disabling expiry. Administrator/host compromise is outside
 metadata attack resistance.
 
-Enforce transport caps in addition to library limits: 256 KiB/root, 32 KiB/timestamp,
-1 MiB/snapshot or targets role, 256 KiB/release or channel record, 8 MiB total metadata,
-32 sequential root transitions, and 16 delegated roles with depth two. Bound target
-counts and string sizes; reject unsupported record schemas and duplicate contract
-fields. `tough`'s `max_targets_size` is insufficient alone because signed declared
-lengths can override it. Absolute streaming caps must still apply. Stage one candidate
+The host enforces transport and authenticated-structure caps in addition to library
+limits: 256 KiB/root, 32 KiB/timestamp, 1 MiB/snapshot or targets role,
+256 KiB/release or channel record, 8 MiB total metadata, 32 sequential root
+transitions, 16 globally unique delegated roles with depth two, 1,024 total target
+records, 1,024 delegation selectors, 128-byte role names, and 512-byte target paths
+or path patterns. Missing delegated metadata and malformed hash-prefix selectors fail
+closed. Reject unsupported record schemas and duplicate contract fields. `tough`'s
+`max_targets_size` is insufficient alone because signed declared lengths can override
+it. Absolute streaming caps must still apply. Stage one candidate
 and its immediately previous recovery payload, each at most 2 GiB, and check disk
 space for download, native replacement and recovery before beginning. Change a cap
 deliberately if a legitimate package exceeds it.
