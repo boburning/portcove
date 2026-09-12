@@ -35,6 +35,7 @@ import { useNativeSourceDrop } from "./native-source-drop";
 import { useCommandSurface } from "./use-command-surface";
 import {
   useAdoptionPlanning,
+  useApplicationUpdateChoice,
   useApplicationUpdateNotice,
   detailActions,
   type Perform,
@@ -222,6 +223,7 @@ function Workspace({
   const updates = useUpdateCenter(operations.perform, data.statuses);
   const ui = usePortcoveUi();
   const applicationUpdate = useApplicationUpdateNotice(operations.setError);
+  const applicationUpdateChoice = useApplicationUpdateChoice(operations.setError);
   const [sourceIntake, setSourceIntake] = useState<SourceIntakeRequest>();
   const openSourceIntake = useCallback(
     (portId: string, profileId: string, paths: string[] = []) => {
@@ -301,6 +303,16 @@ function Workspace({
     recheck: async (toolId: string) => desktopApi.recheckHostTool(toolId),
     openOfficial: (toolId: string) => desktopApi.openHostToolOfficialSite(toolId),
   };
+  const reviewApplicationUpdate = () => {
+    ui.setView("settings");
+    window.requestAnimationFrame(() =>
+      document.getElementById("application-update-settings-title")?.focus(),
+    );
+  };
+  const dismissApplicationUpdateChoice = () => {
+    applicationUpdateChoice.dismiss();
+    window.requestAnimationFrame(() => focusRegion("workspace"));
+  };
 
   return (
     <ArtworkProvider generation={bootstrap.generation}>
@@ -330,13 +342,10 @@ function Workspace({
             operation={operations.operation}
             busy={operations.busy}
             updateNotice={applicationUpdate.notice}
-            reviewUpdate={() => {
-              ui.setView("settings");
-              window.requestAnimationFrame(() =>
-                document.getElementById("application-update-settings-title")?.focus(),
-              );
-            }}
+            updateChoiceRequired={applicationUpdateChoice.choiceRequired}
+            reviewUpdate={reviewApplicationUpdate}
             dismissUpdate={applicationUpdate.dismiss}
+            dismissUpdateChoice={dismissApplicationUpdateChoice}
           />
           <WorkspaceRefreshNotice
             failure={data.refreshFailure}
@@ -359,6 +368,7 @@ function Workspace({
             nativeSourceDrag={nativeSourceDrag}
             hostToolActions={hostToolActions}
             applicationUpdateNotice={applicationUpdate.notice}
+            onApplicationUpdatePreferencesChanged={applicationUpdateChoice.accept}
           />
         </main>
         <SelectedPortPanel
@@ -493,6 +503,7 @@ function CurrentView({
   nativeSourceDrag,
   hostToolActions,
   applicationUpdateNotice,
+  onApplicationUpdatePreferencesChanged,
 }: {
   data: DataState;
   ui: UiState;
@@ -508,6 +519,7 @@ function CurrentView({
   nativeSourceDrag: ReturnType<typeof useNativeSourceDrop>;
   hostToolActions: HostToolActions;
   applicationUpdateNotice: ReturnType<typeof useApplicationUpdateNotice>["notice"];
+  onApplicationUpdatePreferencesChanged: ReturnType<typeof useApplicationUpdateChoice>["accept"];
 }) {
   if (ui.view === "updates")
     return (
@@ -546,6 +558,7 @@ function CurrentView({
         onCatalogChanged={data.refresh}
         hostToolActions={hostToolActions}
         applicationUpdateNotice={applicationUpdateNotice}
+        onApplicationUpdatePreferencesChanged={onApplicationUpdatePreferencesChanged}
         createSupportBundle={() =>
           operations.perform("support bundle", desktopApi.createSupportBundle)
         }

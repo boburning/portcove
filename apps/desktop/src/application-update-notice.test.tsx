@@ -6,7 +6,7 @@ import { listen } from "@tauri-apps/api/event";
 import { desktopApi } from "./api";
 import { StatusLayer } from "./components/Chrome";
 import type { ApplicationUpdateNoticeSnapshot } from "./types";
-import { useApplicationUpdateNotice } from "./use-portcove";
+import { useApplicationUpdateChoice, useApplicationUpdateNotice } from "./use-portcove";
 
 vi.mock("@tauri-apps/api/event", () => ({
   listen: vi.fn().mockResolvedValue(() => {}),
@@ -128,5 +128,62 @@ describe("application update notice", () => {
 
     expect(reportError).toHaveBeenCalledExactlyOnceWith(new Error("dismiss failed"));
     expect(current.notice?.result.candidate?.version).toBe("0.2.0-beta.3");
+  });
+
+  it("defers an unrecorded choice only for its current session revision", async () => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue({
+      schema_version: 1,
+      revision: 0,
+      choice: null,
+    });
+    let current!: ReturnType<typeof useApplicationUpdateChoice>;
+    function Fixture() {
+      current = useApplicationUpdateChoice();
+      return null;
+    }
+
+    await act(async () => root.render(<Fixture />));
+    await act(async () => {});
+    expect(current.choiceRequired).toBe(true);
+
+    await act(async () => current.dismiss());
+    expect(current.choiceRequired).toBe(false);
+    await act(async () => current.accept({ schema_version: 1, revision: 1, choice: null }));
+    expect(current.choiceRequired).toBe(true);
+    await act(async () =>
+      current.accept({
+        schema_version: 1,
+        revision: 2,
+        choice: { channel: "preview", mode: "automatic", paused: false },
+      }),
+    );
+    expect(current.choiceRequired).toBe(false);
+  });
+
+  it("announces the update-choice prompt with explicit accessible actions", async () => {
+    const review = vi.fn();
+    const dismiss = vi.fn();
+    await act(async () =>
+      root.render(
+        <StatusLayer
+          clearError={() => {}}
+          updateChoiceRequired
+          reviewUpdate={review}
+          dismissUpdateChoice={dismiss}
+        />,
+      ),
+    );
+
+    const status = host.querySelector<HTMLElement>('[role="status"]')!;
+    expect(status.getAttribute("aria-live")).toBe("polite");
+    expect(status.textContent).toContain("Choose how Portcove updates");
+    expect(status.textContent).toContain("Automatic updates are recommended");
+    const buttons = [...status.querySelectorAll<HTMLButtonElement>("button")];
+    expect(buttons.map((button) => button.textContent)).toEqual(["Review options", "Not now"]);
+    expect(buttons.every((button) => button.hasAttribute("data-focusable"))).toBe(true);
+    await act(async () => buttons[0].click());
+    await act(async () => buttons[1].click());
+    expect(review).toHaveBeenCalledOnce();
+    expect(dismiss).toHaveBeenCalledOnce();
   });
 });

@@ -11,6 +11,7 @@ import { desktopApi } from "./api";
 import type {
   ActivityRecord,
   ApplicationUpdateNoticeSnapshot,
+  ApplicationUpdatePreferences,
   BackupInventory,
   CatalogDocument,
   DoctorReport,
@@ -34,6 +35,35 @@ import {
   mostRecentPendingOperation,
   removePendingOperation,
 } from "./concurrency-state";
+
+export function useApplicationUpdateChoice(reportError?: (error: unknown) => void) {
+  const [preferences, setPreferences] = useState<ApplicationUpdatePreferences>();
+  const [dismissedRevision, setDismissedRevision] = useState<number>();
+  const accept = useCallback((next: ApplicationUpdatePreferences) => {
+    setPreferences((current) => (!current || next.revision >= current.revision ? next : current));
+  }, []);
+  useEffect(() => {
+    let disposed = false;
+    void desktopApi
+      .applicationUpdatePreferences()
+      .then((next) => {
+        if (!disposed) accept(next);
+      })
+      .catch((error: unknown) => {
+        if (!disposed) reportError?.(error);
+      });
+    return () => {
+      disposed = true;
+    };
+  }, [accept, reportError]);
+  const choiceRequired = Boolean(
+    preferences && !preferences.choice && dismissedRevision !== preferences.revision,
+  );
+  const dismiss = useCallback(() => {
+    if (preferences && !preferences.choice) setDismissedRevision(preferences.revision);
+  }, [preferences]);
+  return { preferences, choiceRequired, accept, dismiss };
+}
 
 export function useApplicationUpdateNotice(reportError?: (error: unknown) => void) {
   const [snapshot, setSnapshot] = useState<ApplicationUpdateNoticeSnapshot>();

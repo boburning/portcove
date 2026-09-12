@@ -24,6 +24,7 @@ import type { ThemeState, ThemePreference } from "../theme";
 import type {
   PortDefinition,
   ApplicationUpdateNoticeSnapshot,
+  ApplicationUpdatePreferences,
   DoctorReport,
   GithubAuthStatus,
   GithubDeviceLogin,
@@ -209,16 +210,20 @@ export function StatusLayer({
   operation,
   busy,
   updateNotice,
+  updateChoiceRequired,
   reviewUpdate,
   dismissUpdate,
+  dismissUpdateChoice,
 }: {
   error?: unknown;
   clearError: () => void;
   operation?: OperationEvent;
   busy?: string;
   updateNotice?: ApplicationUpdateNoticeSnapshot["notice"];
+  updateChoiceRequired?: boolean;
   reviewUpdate?: () => void;
   dismissUpdate?: () => Promise<void>;
+  dismissUpdateChoice?: () => void;
 }) {
   return (
     <>
@@ -230,6 +235,9 @@ export function StatusLayer({
           dismiss={dismissUpdate}
         />
       )}
+      {!updateNotice && updateChoiceRequired && (
+        <ApplicationUpdateChoiceBanner review={reviewUpdate} dismiss={dismissUpdateChoice} />
+      )}
       {busy && (
         <OperationProgress
           operation={operation?.type === "finished" ? undefined : operation}
@@ -237,6 +245,43 @@ export function StatusLayer({
         />
       )}
     </>
+  );
+}
+
+function ApplicationUpdateChoiceBanner({
+  review,
+  dismiss,
+}: {
+  review?: () => void;
+  dismiss?: () => void;
+}) {
+  return (
+    <section
+      className="error-banner application-update-consent-notice"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      <span className="error-icon">
+        <Icon glyph={Settings} />
+      </span>
+      <div>
+        <strong>Choose how Portcove updates</strong>
+        <p>
+          Automatic updates are recommended. During public beta, Preview receives eligible test
+          releases. Portcove verifies updates and waits for a safe exit or an explicit restart
+          before applying them.
+        </p>
+      </div>
+      <div className="error-actions">
+        <button data-focusable className="small-control" onClick={review}>
+          Review options
+        </button>
+        <button data-focusable className="small-control" onClick={dismiss}>
+          Not now
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -928,6 +973,7 @@ export function SettingsView({
   hostToolActions,
   openSourceEvidence,
   applicationUpdateNotice,
+  onApplicationUpdatePreferencesChanged,
 }: {
   generation?: number;
   ports?: PortDefinition[];
@@ -956,6 +1002,7 @@ export function SettingsView({
   onCatalogChanged?: () => Promise<void>;
   hostToolActions?: HostToolActions;
   applicationUpdateNotice?: ApplicationUpdateNoticeSnapshot["notice"];
+  onApplicationUpdatePreferencesChanged?: (preferences: ApplicationUpdatePreferences) => void;
 }) {
   return (
     <section className="settings-grid">
@@ -1010,6 +1057,7 @@ export function SettingsView({
         generation={generation}
         disabled={Boolean(busy)}
         automaticNotice={applicationUpdateNotice}
+        onPreferencesChanged={onApplicationUpdatePreferencesChanged}
       />
       <article className="settings-card">
         <p className="eyebrow">PRIVACY</p>
