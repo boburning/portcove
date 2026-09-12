@@ -20,7 +20,7 @@ import {
   resolveDesktopSelection,
 } from "./desktop-scenarios.mjs";
 import { acquireNativeSessionLock } from "./native-session-lock.mjs";
-import { cachedDesktopDrivers } from "./tool-cache.mjs";
+import { cachedDesktopDrivers, readToolPins } from "./tool-cache.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -104,8 +104,7 @@ function workspacePackageStatus() {
     return {
       ready: false,
       selenium: null,
-      remediation:
-        "node scripts/dev-storage.mjs run -- corepack pnpm@11.25.0 --dir apps/desktop install --frozen-lockfile",
+      remediation: `node scripts/dev-storage.mjs run -- corepack ${readToolPins().packageManager} --dir apps/desktop install --frozen-lockfile`,
     };
   }
 }
@@ -317,7 +316,12 @@ async function runVerification(options, selection) {
     const environment = childEnvironment(paths);
     const phase = (id, command, args) =>
       executePhase({ id, command, args, cwd: root, environment, log, timings });
-    await phase("frontend-build", "pnpm", ["--dir", "apps/desktop", "build"]);
+    await phase("frontend-build", "corepack", [
+      readToolPins().packageManager,
+      "--dir",
+      "apps/desktop",
+      "build",
+    ]);
     await phase("desktop-build", "cargo", [
       "build",
       "-p",

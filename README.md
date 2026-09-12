@@ -60,7 +60,10 @@ Current priorities and blockers live in the public [Portcove Roadmap](https://gi
 [Choose your operating system and download Portcove Desktop from GitHub
 Releases](https://github.com/boburning/portcove/releases). Future releases made
 by the current pipeline start with generated, version-bound Desktop choices,
-then separately labeled standalone CLI archives and one `SHA256SUMS.txt`.
+then separately labeled standalone CLI archives, one `SHA256SUMS.txt`, and an
+SPDX 2.3 JSON software bill of materials. The checksum manifest covers every
+package and the SBOM. GitHub artifact attestations bind the same final files to
+the tag workflow before a draft can be created.
 Historical releases retain their original assets and notes. The release page is
 the source of current filenames; this README does not advertise an unreleased
 candidate or require a manual version/link update.
@@ -94,9 +97,9 @@ Each entry records its upstream project, platforms, release channels, required l
 
 Requirements:
 
-- Rust 1.88 or newer
-- Node.js 24
-- pnpm 11
+- Rust 1.98.1
+- Node.js 24.21.0
+- pnpm 12.4.1
 - the [Tauri 2 platform prerequisites](https://v2.tauri.app/start/prerequisites/)
 
 On Windows, keep the checkout on a non-system drive. The repository preflight blocks heavy work when the workspace, build output, temporary data, or package store resolves to the system drive. See [docs/DEVELOPMENT-STORAGE.md](docs/DEVELOPMENT-STORAGE.md) for details.
@@ -105,8 +108,8 @@ Run the desktop app from the repository root:
 
 ```powershell
 node scripts/dev-storage.mjs preflight
-node scripts/dev-storage.mjs run -- pnpm --dir apps/desktop install --frozen-lockfile
-node scripts/dev-storage.mjs run -- pnpm --dir apps/desktop desktop:dev
+node scripts/dev-storage.mjs run -- corepack pnpm --dir apps/desktop install --frozen-lockfile
+node scripts/dev-storage.mjs run -- corepack pnpm --dir apps/desktop desktop:dev
 ```
 
 Build the CLI:

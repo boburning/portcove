@@ -16,7 +16,7 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 async-trait.workspace = true
-base64 = "0.22.1"
+base64 = "0.23.1"
 bytes.workspace = true
 fs2.workspace = true
 futures-util.workspace = true

@@ -44,7 +44,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@84f5ac3124727fb3d284d4d22ee9ab3654fd09a6 # v2
+        uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Run exhaustive Rust test shard
@@ -100,7 +100,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@84f5ac3124727fb3d284d4d22ee9ab3654fd09a6 # v2
+        uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - run: cargo nextest run --locked --workspace --exclude portcove-core
@@ -184,7 +184,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@84f5ac3124727fb3d284d4d22ee9ab3654fd09a6 # v2
+        uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Use the runner-owned temporary directory
@@ -217,7 +217,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@84f5ac3124727fb3d284d4d22ee9ab3654fd09a6 # v2
+        uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Cross-compile the full Intel test workspace
@@ -253,7 +253,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@84f5ac3124727fb3d284d4d22ee9ab3654fd09a6 # v2
+        uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Download this attempt's Intel test binaries
@@ -351,7 +351,7 @@ jobs:
             ~/.cargo/bin/rscheck
           key: quality-rscheck-binaries-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/quality-tools.json') }}
       - name: Install pinned prebuilt Rust quality tools
-        uses: taiki-e/install-action@84f5ac3124727fb3d284d4d22ee9ab3654fd09a6 # v2
+        uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2
         with:
           tool: ${{ steps.quality-pins.outputs.required_prebuilt }}
       - name: Read pinned aqua version
@@ -374,7 +374,7 @@ jobs:
           fi
       - name: Install pinned rscheck
         if: steps.rscheck-tool.outputs.ready != 'true'
-        uses: taiki-e/install-action@84f5ac3124727fb3d284d4d22ee9ab3654fd09a6 # v2
+        uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2
         with:
           tool: ${{ steps.quality-pins.outputs.rscheck_spec }}
       - name: Verify exact Rust quality-tool versions
@@ -417,7 +417,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
-          version: 11.25.0
+          package_json_file: apps/desktop/package.json
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
@@ -428,7 +428,7 @@ jobs:
         working-directory: .
         run: echo "just=just@$(node scripts/quality-tools.mjs --version just)" >> "$GITHUB_OUTPUT"
       - name: Install pinned recipe runner
-        uses: taiki-e/install-action@84f5ac3124727fb3d284d4d22ee9ab3654fd09a6 # v2
+        uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2
         with:
           tool: ${{ steps.quality-pins.outputs.just }}
       - run: pnpm install --frozen-lockfile
@@ -466,7 +466,7 @@ jobs:
       - name: Verify repository and release contracts
         run: |
           node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/upstream-observer.test.mjs
-          node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/audit.test.mjs scripts/check-release-metadata.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/updater-artifact-inventory.test.mjs scripts/reconcile-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/release-workflow.test.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/test-duration-reporter.test.mjs scripts/quality-tools.test.mjs scripts/repository-settings.test.mjs scripts/pr-conventions.test.mjs scripts/source-provenance-audit.test.mjs scripts/check-child-process-policy.test.mjs scripts/check-transport-contract.test.mjs scripts/check-fallow-report.test.mjs scripts/migrate-catalog-schema2.test.mjs scripts/roadmap.test.mjs
+          node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/audit.test.mjs scripts/check-release-metadata.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/updater-artifact-inventory.test.mjs scripts/reconcile-release-assets.test.mjs scripts/finalize-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/release-workflow.test.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/test-duration-reporter.test.mjs scripts/quality-tools.test.mjs scripts/dependency-automation.test.mjs scripts/repository-settings.test.mjs scripts/pr-conventions.test.mjs scripts/source-provenance-audit.test.mjs scripts/check-child-process-policy.test.mjs scripts/check-transport-contract.test.mjs scripts/check-fallow-report.test.mjs scripts/migrate-catalog-schema2.test.mjs scripts/roadmap.test.mjs
           node scripts/check-release-metadata.mjs
           node scripts/quality-tools.mjs --validate
           node scripts/repository-settings.mjs --validate

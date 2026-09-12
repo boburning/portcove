@@ -96,7 +96,7 @@ same verification without changing files.
 ```powershell
 .\scripts\bootstrap-quality-tools.ps1
 node scripts/dev-storage.mjs preflight
-node scripts/dev-storage.mjs run -- pnpm --dir apps/desktop install --frozen-lockfile
+node scripts/dev-storage.mjs run -- corepack pnpm --dir apps/desktop install --frozen-lockfile
 just local-check
 ```
 

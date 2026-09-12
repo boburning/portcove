@@ -421,7 +421,7 @@ export function auditRuntime(root = projectRoot) {
     aqua: commandVersion("aqua", ["--version"], root),
     powershell: commandVersion("pwsh", ["--version"], root),
     packageManager,
-    packageManagerVersion: commandVersion("pnpm", ["--version"], root),
+    packageManagerVersion: commandVersion("corepack", [packageManager, "--version"], root),
     environment: Object.fromEntries(
       environmentWhitelist.map((name) => [name, process.env[name] ?? null]),
     ),

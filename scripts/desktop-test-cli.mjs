@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readToolPins } from "./tool-cache.mjs";
 
 const args = process.argv.slice(2);
 if (args.includes("--help")) {
@@ -18,7 +19,7 @@ if (args.includes("--help")) {
     createRequire(path.join(root, "apps", "desktop", "package.json")).resolve("selenium-webdriver");
   } catch {
     throw new Error(
-      "selenium-webdriver is unavailable; run node scripts/dev-storage.mjs run -- corepack pnpm@11.25.0 --dir apps/desktop install --frozen-lockfile",
+      `selenium-webdriver is unavailable; run node scripts/dev-storage.mjs run -- corepack ${readToolPins().packageManager} --dir apps/desktop install --frozen-lockfile`,
     );
   }
   await import("../apps/desktop/scripts/desktop-test.mjs");

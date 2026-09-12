@@ -188,7 +188,7 @@ export async function collectDoctor(options = {}) {
     },
     {
       id: "pnpm",
-      command: ["pnpm", "--version"],
+      command: ["corepack", desktop.packageManager, "--version"],
       version: desktop.packageManager.split("@")[1],
       remediation: "./scripts/bootstrap-quality-tools.ps1",
     },

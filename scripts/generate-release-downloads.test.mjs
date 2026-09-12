@@ -14,6 +14,13 @@ const inventory = {
   tag,
   checksum_manifest: policy.checksum_manifest,
   checksum_url: `https://github.com/${policy.repository}/releases/download/${tag}/${policy.checksum_manifest}`,
+  sbom: {
+    format: "SPDX-2.3 JSON",
+    filename: "Portcove-SBOM.spdx.json",
+    bytes: 100,
+    sha256: "f".repeat(64),
+    download_url: `https://github.com/${policy.repository}/releases/download/${tag}/Portcove-SBOM.spdx.json`,
+  },
   packages: policy.packages.map((entry, index) => {
     const filename = artifactName(entry, version);
     return {
@@ -41,13 +48,15 @@ test("renders desktop first with readable labels and exact tag-bound links", () 
   assert.doesNotMatch(section, /releases\/latest|latest\/download/);
 });
 
-test("explains independent desktop, CLI, source, AppImage, and checksum boundaries", () => {
+test("explains independent desktop, CLI, source, AppImage, checksum, SBOM, and attestation boundaries", () => {
   const section = renderDownloadSection(inventory);
   assert.match(section, /desktop app is complete on its own/);
   assert.match(section, /not a portable graphical app/);
   assert.match(section, /Source code.*require the development toolchain/s);
   assert.match(section, /not a universal Linux or Steam Deck compatibility claim/);
-  assert.match(section, /does not independently prove publisher identity/);
+  assert.match(section, /SPDX 2\.3 SBOM/);
+  assert.match(section, /gh attestation verify <FILE>/);
+  assert.match(section, /An attestation binds those bytes to a workflow identity/);
 });
 
 test("generation is idempotent and preserves reviewed prose and categorized changes", () => {

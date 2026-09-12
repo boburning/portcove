@@ -20,7 +20,7 @@ function fixture() {
   const pins = {
     aquaVersion: "v2.62.3",
     aquaSemver: "2.62.3",
-    packageManager: "pnpm@11.25.0",
+    packageManager: "pnpm@12.4.1",
     bootstrap: { schema_version: 1 },
     fingerprint: "a".repeat(64),
   };

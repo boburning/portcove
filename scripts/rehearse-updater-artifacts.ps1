@@ -7,6 +7,8 @@ param(
 $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 Set-Location -LiteralPath $root
+$pnpmSpec = (Get-Content (Join-Path $root "apps/desktop/package.json") -Raw | ConvertFrom-Json).packageManager
+if ($pnpmSpec -notmatch '^pnpm@\d+\.\d+\.\d+$') { throw "Desktop packageManager must pin an exact pnpm version" }
 function Invoke-Checked([string]$Program, [string[]]$Arguments) {
     & $Program @Arguments
     if ($LASTEXITCODE -ne 0) { throw "$Program failed with exit code $LASTEXITCODE" }
@@ -56,7 +58,7 @@ try {
     [IO.File]::WriteAllText($env:PORTCOVE_PREFERENCES, '{"format_version":1,"library_root":null,"qualification_marker":"updater-package-rehearsal"}')
     $preferencesHash = (Get-FileHash -LiteralPath $env:PORTCOVE_PREFERENCES -Algorithm SHA256).Hash
     # Suppress signer output: only the disposable public key belongs in evidence.
-    Invoke-Checked "pnpm" @("--dir", "apps/desktop", "tauri", "signer", "generate", "--ci", "--write-keys", $privateKey) | Out-Null
+    Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "signer", "generate", "--ci", "--write-keys", $privateKey) | Out-Null
     $env:TAURI_SIGNING_PRIVATE_KEY = $privateKey
     $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = ""
     $configuration = Get-Content (Join-Path $root "release/tauri.updater.conf.json") -Raw | ConvertFrom-Json -AsHashtable
@@ -80,7 +82,7 @@ try {
         $cliName = (& node scripts/release-package-policy.mjs --platform $PlatformLabel --interface cli --version $version | Out-String).Trim()
         if ($LASTEXITCODE -ne 0) { throw "Cannot select packaged CLI" }
         & (Join-Path $PSScriptRoot "smoke-test-cli-archive.ps1") -ArchivePath (Join-Path $cliRoot $cliName) -PlatformLabel $PlatformLabel -Version $version
-        Invoke-Checked "pnpm" @("--dir", "apps/desktop", "tauri", "build", "--bundles", $bundles, "--config", $configPath, "--ci")
+        Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "build", "--bundles", $bundles, "--config", $configPath, "--ci")
         $stage = Join-Path $runRoot "$version-$PlatformLabel"
         Invoke-Checked "node" @("scripts/updater-artifact-inventory.mjs", "stage", "--output", $stage, "--label", $PlatformLabel, "--public-key", $publicKey, "--verifier", $verifier, "--revision", $revision)
         Invoke-Checked "node" @("scripts/updater-artifact-inventory.mjs", "verify", "--input", $stage, "--label", $PlatformLabel, "--public-key", $publicKey, "--verifier", $verifier, "--revision", $revision)

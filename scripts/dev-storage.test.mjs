@@ -16,6 +16,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   childEnvironment,
+  canonicalPackageManagerCommand,
   isSideEffectFreeHelpCommand,
   isWindowsSystemDrivePath,
   minimumFreeGiB,
@@ -39,6 +40,14 @@ test("only maintained read-only CLI help bypasses storage preparation", () => {
   assert.equal(isSideEffectFreeHelpCommand(["node", "scripts/audit.mjs", "--plan"]), false);
   assert.equal(isSideEffectFreeHelpCommand(["cargo", "--help"]), false);
   assert.equal(isSideEffectFreeHelpCommand(["node", "untrusted.mjs", "--help"]), false);
+});
+
+test("storage wrapper resolves canonical pnpm commands from the package authority", () => {
+  assert.deepEqual(canonicalPackageManagerCommand("corepack", ["pnpm", "--version"]), [
+    "corepack",
+    ["pnpm@12.4.1", "--version"],
+  ]);
+  assert.deepEqual(canonicalPackageManagerCommand("cargo", ["check"]), ["cargo", ["check"]]);
 });
 
 function fixture(t) {
@@ -242,10 +251,14 @@ test("pnpm uses the configured store instead of the workspace YAML default", (t)
     "storeDir: ../../work/pnpm-store\n",
   );
   const store = path.join(root, "custom store");
-  const result = cli(root, ["run", "--", "pnpm", "--dir", "apps/desktop", "store", "path"], {
-    PORTCOVE_PNPM_STORE_DIR: store,
-    PNPM_CONFIG_STORE_DIR: path.join(root, "wrong-store"),
-  });
+  const result = cli(
+    root,
+    ["run", "--", "corepack", "pnpm", "--dir", "apps/desktop", "store", "path"],
+    {
+      PORTCOVE_PNPM_STORE_DIR: store,
+      PNPM_CONFIG_STORE_DIR: path.join(root, "wrong-store"),
+    },
+  );
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout.trim().split(/\r?\n/).at(-1), path.join(store, "v11"));
 });
@@ -258,7 +271,7 @@ test("direct just recipes initialize a fresh checkout and preserve storage overr
     path.join(root, "apps/desktop/package.json"),
     JSON.stringify({
       name: "storage-probe",
-      packageManager: "pnpm@11.25.0",
+      packageManager: "pnpm@12.4.1",
       scripts: { build: "node ../../probe.mjs" },
     }),
   );
@@ -317,6 +330,10 @@ test("child environment covers POSIX and Windows temp consumers", () => {
 test("clean remains available below the free-space margin and preserves source files", (t) => {
   const root = workspace(t);
   mkdirSync(path.join(root, "target"));
+  writeFileSync(
+    path.join(root, "target/CACHEDIR.TAG"),
+    "Signature: 8a477f597d28d172789f06886806bc55\n",
+  );
   writeFileSync(path.join(root, "target/disposable-build"), "test output");
   const result = cli(root, ["clean"], {
     PORTCOVE_MIN_FREE_GIB: "invalid-but-irrelevant-to-clean",
@@ -441,7 +458,7 @@ test(
       `
 $ErrorActionPreference = "Stop"
 $previousTemp = $env:TEMP
-function pnpm { $global:LASTEXITCODE = 0 }
+function corepack { $global:LASTEXITCODE = 0 }
 function just {
     if ($env:TEMP -ne (Join-Path $PSScriptRoot "scratch")) { throw "Wrong temporary path" }
     if ($env:pnpm_config_store_dir -ne (Join-Path $PSScriptRoot "store")) { throw "Wrong pnpm store" }

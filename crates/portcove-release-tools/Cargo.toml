@@ -9,7 +9,7 @@ rust-version.workspace = true
 
 [dependencies]
 async-trait.workspace = true
-base64 = "0.22"
+base64 = "0.23"
 futures-util.workspace = true
 hex.workspace = true
 jiff = "0.2"
