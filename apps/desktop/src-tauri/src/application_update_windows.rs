@@ -13,7 +13,9 @@ use std::path::{Path, PathBuf};
 use sha2::{Digest, Sha256};
 
 use crate::application_update::{InstallOwner, InstalledApplicationContext};
-use crate::application_update_apply::ApplicationUpdateRevalidationLease;
+use crate::application_update_apply::{
+    ApplicationUpdateApplyError, ApplicationUpdateRevalidationLease,
+};
 use crate::application_update_staging::StagedApplicationUpdate;
 
 const PRODUCT_NAME: &str = "Portcove";
@@ -67,6 +69,12 @@ pub enum WindowsApplicationUpdateError {
     Permission(String),
     #[error("the Windows application update could not be launched: {0}")]
     Launch(String),
+    #[error("the Windows application update launch state could not be recorded: {0}")]
+    LaunchJournal(#[from] ApplicationUpdateApplyError),
+    #[error(
+        "the Windows application update could not be launched ({launch}); its failure could not be recorded ({journal})"
+    )]
+    LaunchAndJournal { launch: String, journal: String },
     #[error("Windows application update I/O failed: {0}")]
     Io(#[from] std::io::Error),
 }
@@ -83,7 +91,7 @@ struct WindowsNsisUpdatePlan {
 
 /// Holds every shared updater authority until the native installer is started.
 pub struct WindowsNsisUpdateAdmission {
-    _lease: ApplicationUpdateRevalidationLease,
+    lease: ApplicationUpdateRevalidationLease,
     plan: WindowsNsisUpdatePlan,
 }
 
@@ -113,7 +121,21 @@ impl WindowsNsisUpdateAdmission {
     /// destination override and therefore keeps its registered identity.
     #[cfg(windows)]
     pub fn launch(self) -> Result<(), WindowsApplicationUpdateError> {
-        launch_windows_nsis_installer(&self.plan.installer)
+        let Self { lease, plan } = self;
+        let launch = lease.begin_native_launch()?;
+        match launch_windows_nsis_installer(&plan.installer) {
+            Ok(()) => {
+                launch.record_started()?;
+                Ok(())
+            }
+            Err(error) => match launch.record_failed() {
+                Ok(_) => Err(error),
+                Err(journal) => Err(WindowsApplicationUpdateError::LaunchAndJournal {
+                    launch: error.to_string(),
+                    journal: journal.to_string(),
+                }),
+            },
+        }
     }
 }
 
@@ -137,10 +159,7 @@ pub fn admit_windows_nsis_update(
         &registrations,
     )?;
     probe_install_root_write(&plan.install_root)?;
-    Ok(WindowsNsisUpdateAdmission {
-        _lease: lease,
-        plan,
-    })
+    Ok(WindowsNsisUpdateAdmission { lease, plan })
 }
 
 fn evaluate_windows_nsis_update(

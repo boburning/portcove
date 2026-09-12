@@ -680,8 +680,9 @@ runtime and current library in that order, then requires the expected journal
 revision, matching termination,
 unchanged consent, exact verified staged candidate, exact freshly authenticated
 candidate and installed context, current compatibility and core quiescence. Those
-locks are retained together across later native replacement. Executable ownership
-and permissions still require a platform proof before replacement. On Windows,
+locks are retained together through final native admission and process creation.
+Executable ownership and permissions still require a platform proof before
+replacement. On Windows,
 `application_update_windows` adds that platform proof without accepting paths from
 IPC. It requires one exact HKCU Portcove uninstall registration, the registered
 version and install directory to own the running `portcove-desktop.exe` and direct
@@ -691,7 +692,12 @@ both HKLM registry views and refuses system-wide, custom, ambiguous or identity-
 installations. An admitted payload starts through the documented passive NSIS
 `/P /UPDATE` path and the reviewed host-integration child-process policy, with no
 relocation or elevation argument, while retaining the shared revalidation lease
-through process creation. Windows staging uses one fixed
+through process creation. Before creating the process, the apply journal records
+`starting`; a helper crash then remains an ambiguous attempt instead of silently
+starting the installer twice. Successful child creation records `started`, while a
+proven pre-spawn failure records `failed` and is the only state eligible for an
+explicit retry. Both `starting` and `started` require installed-identity
+reconciliation before any later action. Windows staging uses one fixed
 `.exe` payload slot so the operating system can execute the authenticated bytes;
 other platforms retain their inert generic slot until their own adapters define a
 format-specific replacement. The sibling `application_update_helper` defines the
