@@ -267,7 +267,16 @@ nonzero exit. Automatic revalidation stays closed after every launch attempt. An
 explicit retry can reopen `failed` or `installer-failed`; ambiguous `starting` and
 legacy `started` require reconciliation against newly observed installed identity,
 while `installer-succeeded` additionally requires application-health proof before
-clearing. No production exit hook activates this sequence.
+clearing. A later Windows process crosses that health boundary only after acquiring
+the application runtime lease, initializing the selected library and diagnostics,
+creating the Tauri application, focusing its main window, and restoring every
+retained launch-session observer. Reconciliation then requires the compiled version
+to equal the retained candidate plus one exact
+current-user NSIS registration that reports that version and owns the running
+executable and uninstaller. Under the existing apply-before-staging lock order it
+retires only the matching staged candidate, preserves any newer candidate, and clears
+the apply request last so an interruption can resume safely. No production exit hook
+activates the launch sequence.
 
 The sibling `application_update_trust` module owns the durable host trust boundary.
 Under path-keyed process ownership and one OS file lock it supplies `tough` with the

@@ -1629,6 +1629,36 @@ fn initialize_desktop_selection(selection: LibrarySelection) -> DesktopResult<Re
     })
 }
 
+#[cfg(windows)]
+fn reconcile_application_update_after_healthy_startup() {
+    use application_update_windows::WindowsApplicationUpdateReconciliation;
+
+    let result = (|| {
+        let apply = application_update_apply::ApplicationUpdateApplyStore::open_configured()
+            .map_err(application_update_windows::WindowsApplicationUpdateError::from)?;
+        let staging = application_update_staging::ApplicationUpdateStagingStore::open_configured()
+            .map_err(application_update_apply::ApplicationUpdateApplyError::from)
+            .map_err(application_update_windows::WindowsApplicationUpdateError::from)?;
+        application_update_windows::reconcile_windows_application_update(&apply, &staging)
+    })();
+    match result {
+        Ok(WindowsApplicationUpdateReconciliation::Reconciled) => tracing::info!(
+            operation_id = "application-update-reconciliation",
+            "confirmed the running Windows application update"
+        ),
+        Ok(WindowsApplicationUpdateReconciliation::CandidateNotInstalled) => tracing::info!(
+            operation_id = "application-update-reconciliation",
+            "retained the application update request because the candidate is not running"
+        ),
+        Ok(WindowsApplicationUpdateReconciliation::NoAttempt) => {}
+        Err(error) => tracing::warn!(
+            operation_id = "application-update-reconciliation",
+            error = %error,
+            "retained the application update request because startup reconciliation failed"
+        ),
+    }
+}
+
 pub fn run() {
     let preferences = host_preference_store();
     let application_runtime = preferences.as_ref().map_err(Clone::clone).and_then(|_| {
@@ -1792,6 +1822,8 @@ pub fn run() {
                     )
                     .map_err(|error| std::io::Error::other(error.message))?;
                 }
+                #[cfg(windows)]
+                reconcile_application_update_after_healthy_startup();
             }
             Ok(())
         })
