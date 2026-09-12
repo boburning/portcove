@@ -585,16 +585,15 @@ impl PortcoveService {
         activity: ActivityRecord,
         mut result: Result<T>,
     ) -> Result<T> {
-        if result.is_ok() {
-            if let Err(error) = crate::cancellation::close_preparation(&self.library, &activity.id)
-            {
-                result = Err(if activity.operation == ActivityOperation::Prepare {
-                    // A successful preparation result is returned only after its derivative is published.
-                    error.with_mutation_state(crate::MutationState::Committed)
-                } else {
-                    error
-                });
-            }
+        if result.is_ok()
+            && let Err(error) = crate::cancellation::close_preparation(&self.library, &activity.id)
+        {
+            result = Err(if activity.operation == ActivityOperation::Prepare {
+                // A successful preparation result is returned only after its derivative is published.
+                error.with_mutation_state(crate::MutationState::Committed)
+            } else {
+                error
+            });
         }
         let (status, message) = match &result {
             Ok(_) => (ActivityStatus::Succeeded, None),
@@ -1498,30 +1497,30 @@ impl PortcoveService {
             store.remove(&lifecycle.id)?;
             Ok(backup)
         })();
-        if let Err(error) = &mut result {
-            if lifecycle.phase != LifecyclePhase::Preparing {
-                let recovery_path = lifecycle
-                    .paths
-                    .quarantine
-                    .as_ref()
-                    .map_or_else(|| self.library.backups_dir(), PathBuf::from);
-                error
-                    .details
-                    .insert("backup_state".into(), "recovery_required".into());
-                error
-                    .details
-                    .insert("recovery_action".into(), "restart_then_doctor".into());
-                error
-                    .details
-                    .insert("recovery_path".into(), recovery_path.display().to_string());
-                error.message = format!(
-                    "{}; backup recovery is required at {}. Restart Portcove to retry, then review doctor output if it remains",
-                    error.message,
-                    recovery_path.display()
-                );
-                lifecycle.last_error = Some(error.message.clone());
-                let _ = store.put(&mut lifecycle);
-            }
+        if let Err(error) = &mut result
+            && lifecycle.phase != LifecyclePhase::Preparing
+        {
+            let recovery_path = lifecycle
+                .paths
+                .quarantine
+                .as_ref()
+                .map_or_else(|| self.library.backups_dir(), PathBuf::from);
+            error
+                .details
+                .insert("backup_state".into(), "recovery_required".into());
+            error
+                .details
+                .insert("recovery_action".into(), "restart_then_doctor".into());
+            error
+                .details
+                .insert("recovery_path".into(), recovery_path.display().to_string());
+            error.message = format!(
+                "{}; backup recovery is required at {}. Restart Portcove to retry, then review doctor output if it remains",
+                error.message,
+                recovery_path.display()
+            );
+            lifecycle.last_error = Some(error.message.clone());
+            let _ = store.put(&mut lifecycle);
         }
         self.finish_activity(activity, result)
     }
@@ -3711,10 +3710,10 @@ impl PortcoveService {
                 first_error = Some(error);
             }
             let collected = self.collect_user_data_from_install(port_id, &session.install_root);
-            if let Err(error) = collected {
-                if first_error.is_none() {
-                    first_error = Some(error);
-                }
+            if let Err(error) = collected
+                && first_error.is_none()
+            {
+                first_error = Some(error);
             }
 
             if let Some(error) = first_error {

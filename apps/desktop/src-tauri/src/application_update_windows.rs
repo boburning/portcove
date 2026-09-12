@@ -566,7 +566,7 @@ fn read_registry_string(
     if status != ERROR_SUCCESS {
         return Err(registry_status("read uninstall value size", status));
     }
-    if !(2..=MAX_REGISTRY_VALUE_BYTES).contains(&bytes) || bytes % 2 != 0 {
+    if !(2..=MAX_REGISTRY_VALUE_BYTES).contains(&bytes) || !bytes.is_multiple_of(2) {
         return Err(WindowsApplicationUpdateError::Registry(
             "uninstall value has an invalid size".into(),
         ));

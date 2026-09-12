@@ -363,21 +363,14 @@ fn running_setup_cancellation_preserves_the_active_tree() {
                         .join("payload/data/out/setup-ready");
                     let deadline = Instant::now() + Duration::from_secs(5);
                     while Instant::now() < deadline {
-                        if ready.is_file() {
-                            if let Some(capture) =
+                        if ready.is_file()
+                            && let Some(capture) =
                                 service.library().activity_diagnostic(&id).unwrap().last()
-                            {
-                                if capture.stdout.text.contains("owned setup began") {
-                                    assert!(!capture.complete);
-                                    assert!(
-                                        !capture
-                                            .stdout
-                                            .text
-                                            .contains("owned-fixture-private-value")
-                                    );
-                                    return service.request_cancellation(&id).is_ok();
-                                }
-                            }
+                            && capture.stdout.text.contains("owned setup began")
+                        {
+                            assert!(!capture.complete);
+                            assert!(!capture.stdout.text.contains("owned-fixture-private-value"));
+                            return service.request_cancellation(&id).is_ok();
                         }
                         std::thread::sleep(Duration::from_millis(10));
                     }

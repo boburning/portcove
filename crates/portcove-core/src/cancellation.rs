@@ -223,10 +223,9 @@ impl PortcoveService {
                 if self
                     .cancellation_requested
                     .load(std::sync::atomic::Ordering::SeqCst)
+                    && let Err(error) = self.request_cancellation(&activity.id)
                 {
-                    if let Err(error) = self.request_cancellation(&activity.id) {
-                        return self.finish_activity(activity, Err(error));
-                    }
+                    return self.finish_activity(activity, Err(error));
                 }
                 Ok((activity, operation))
             }

@@ -568,11 +568,9 @@ fn activity(record: &ActivityRecord, catalog: &portcove_core::Catalog, technical
             output.push_str("\nUse --technical-details to include redacted recorded details.");
         }
     }
-    if technical {
-        if let Some(id) = &record.target_id {
-            output.push_str("\nRecorded target (redacted): ");
-            output.push_str(&clean(&redact_diagnostic_text(id)));
-        }
+    if technical && let Some(id) = &record.target_id {
+        output.push_str("\nRecorded target (redacted): ");
+        output.push_str(&clean(&redact_diagnostic_text(id)));
     }
     output.push_str(&format!(
         "\nRetained logs: activity log {}",

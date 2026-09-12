@@ -1385,25 +1385,24 @@ fn cleanup_cancelled_import(store: &OperationStore, id: &str) -> Result<()> {
         .all()?
         .into_iter()
         .find(|operation| operation.id == id)
+        && operation.phase == LifecyclePhase::Preparing
     {
-        if operation.phase == LifecyclePhase::Preparing {
-            if let Some(staging) = operation.paths.staging
-                && let Some(root) = staging.parent()
-                && root.try_exists()?
-            {
-                require_owned_staging_tree(
-                    root,
-                    operation
-                        .paths
-                        .final_path
-                        .as_ref()
-                        .and_then(|path| path.parent())
-                        .ok_or_else(|| PortcoveError::state("import destination has no parent"))?,
-                )?;
-                fs::remove_dir_all(root)?;
-            }
-            store.remove(id)?;
+        if let Some(staging) = operation.paths.staging
+            && let Some(root) = staging.parent()
+            && root.try_exists()?
+        {
+            require_owned_staging_tree(
+                root,
+                operation
+                    .paths
+                    .final_path
+                    .as_ref()
+                    .and_then(|path| path.parent())
+                    .ok_or_else(|| PortcoveError::state("import destination has no parent"))?,
+            )?;
+            fs::remove_dir_all(root)?;
         }
+        store.remove(id)?;
     }
     Ok(())
 }

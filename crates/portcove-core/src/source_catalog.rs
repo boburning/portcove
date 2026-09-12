@@ -401,13 +401,13 @@ impl SourceCatalog {
                 &contract.aliases,
                 &contract.tombstones,
             )?;
-            if let Some(validator_id) = &contract.validator_contract_id {
-                if !validators.contains_key(validator_id) {
-                    return Err(PortcoveError::usage(format!(
-                        "{} references unknown validator {}",
-                        contract.id, validator_id
-                    )));
-                }
+            if let Some(validator_id) = &contract.validator_contract_id
+                && !validators.contains_key(validator_id)
+            {
+                return Err(PortcoveError::usage(format!(
+                    "{} references unknown validator {}",
+                    contract.id, validator_id
+                )));
             }
             let variants = profile
                 .variants

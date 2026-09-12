@@ -260,12 +260,12 @@ impl PortcoveService {
         if let Some(parent) = source.parent() {
             fs::create_dir_all(parent)?;
         }
-        if let Some(tool) = &plan.inputs.conversion_tool {
-            if tool_identity(tool.path.clone(), ChildProcessClass::HostTool)? != *tool {
-                return Err(PortcoveError::verification(
-                    "conversion tool changed before preparation",
-                ));
-            }
+        if let Some(tool) = &plan.inputs.conversion_tool
+            && tool_identity(tool.path.clone(), ChildProcessClass::HostTool)? != *tool
+        {
+            return Err(PortcoveError::verification(
+                "conversion tool changed before preparation",
+            ));
         }
         emit(operation.message("info", "Materializing the reviewed source"));
         crate::adapter::prepare_runtime_source_with_tool(

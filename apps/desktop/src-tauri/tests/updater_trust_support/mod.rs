@@ -195,10 +195,11 @@ impl Fixture {
         Url::from_directory_path(&self.targets).unwrap()
     }
 
-    pub async fn load(&self, trusted: &[u8]) -> Result<Repository, tough::error::Error> {
+    pub async fn load(&self, trusted: &[u8]) -> Result<Repository, Box<tough::error::Error>> {
         RepositoryLoader::new(&trusted, self.metadata_url(), self.targets_url())
             .load()
             .await
+            .map_err(Box::new)
     }
 
     pub async fn load_persisted(

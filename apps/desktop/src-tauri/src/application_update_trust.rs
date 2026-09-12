@@ -409,15 +409,14 @@ fn select_trusted_root(
         request.bundled_root.to_vec()
     };
     let identity = root_identity(&bytes)?;
-    if let Some(state) = existing_state {
-        if identity.version < state.root.version
+    if let Some(state) = existing_state
+        && (identity.version < state.root.version
             || (identity.version == state.root.version
-                && identity.signed_sha256 != state.root.signed_sha256)
-        {
-            return Err(TrustedRepositoryError::Replay(
-                "persisted trusted root is below or differs from its replay floor".into(),
-            ));
-        }
+                && identity.signed_sha256 != state.root.signed_sha256))
+    {
+        return Err(TrustedRepositoryError::Replay(
+            "persisted trusted root is below or differs from its replay floor".into(),
+        ));
     }
     Ok((bytes, identity))
 }
