@@ -488,15 +488,19 @@ On a tag run, only the isolated `attest` job receives `id-token: write`,
 `attestations: write`, and `artifact-metadata: write`. It checks out no candidate
 code and runs no repository script. One commit-pinned `actions/attest` step
 creates build provenance for every final payload file, including the checksum
-manifest and SBOM; a second binds the SPDX SBOM to every subject digest declared
-by the checksum manifest. The `publish` job cannot begin until those attestations
-succeed. It receives only `contents: write`, downloads the already assembled
-payload and precomputed metadata, and creates or reconciles one draft release.
+manifest and SBOM. A second binds the SPDX SBOM only to the package digests in a
+deterministic internal checksum list derived from the exact release inventory;
+the SBOM is deliberately not a subject of its own SBOM attestation. That list is
+a transient workflow artifact, never a release asset. The `publish` job cannot
+begin until those attestations succeed. It receives only `contents: write`,
+downloads the already assembled payload and precomputed metadata, and creates or
+reconciles one draft release.
 
 The publisher refuses to change a published release. The first run supplies the
 precomputed download section while GitHub appends its categorized release notes
-during draft creation. A rerun verifies an existing draft body byte for byte and
-fails closed instead of editing it. The publisher rechecks draft
+during draft creation, and `gh release create --verify-tag` refuses a missing
+remote tag. A rerun verifies an existing draft body byte for byte and fails
+closed instead of editing it. The publisher rechecks draft
 state before every asset deletion or upload; repository-level immutable releases
 provide the server-side boundary if publication happens between that check and
 the mutation. After a successful rehearsal or publication handoff, an isolated
@@ -519,7 +523,7 @@ outputs.
 
 ## Release rehearsal
 
-Run the **Release** workflow manually from GitHub Actions before the first v1 tag or after changing packaging. A manual run executes the same preflight, four-platform build matrix, read-only assembly, SBOM generation, payload finalization, and checksum verification, but the tag-only attestation and publication jobs remain disabled. It deletes the transient copies only after those contracts pass. A failed rehearsal retains its artifacts for no more than one day for diagnosis; a successful rehearsal keeps the run logs and verification result without consuming ongoing Actions artifact storage. A rehearsal never creates an attestation, tag, draft release, or published release.
+Run the **Release** workflow manually from GitHub Actions before the first v1 tag or after changing packaging. A manual run executes the same preflight, four-platform build matrix, read-only assembly, SBOM generation, payload finalization, public checksum verification, and internal SBOM-subject checksum verification, but the tag-only attestation and publication jobs remain disabled. It deletes the transient copies only after those contracts pass. A failed rehearsal retains its artifacts for no more than one day for diagnosis; a successful rehearsal keeps the run logs and verification result without consuming ongoing Actions artifact storage. A rehearsal never creates an attestation, tag, draft release, or published release.
 
 From an authenticated GitHub CLI, start and follow the rehearsal with:
 

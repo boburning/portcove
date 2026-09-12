@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -38,12 +38,31 @@ function validateSbom(sbom) {
     throw new Error("release SBOM must describe at least one package");
 }
 
+function contains(parent, child) {
+  const relative = path.relative(parent, child);
+  return (
+    relative === "" ||
+    (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative))
+  );
+}
+
 export async function finalizeReleaseAssets(assetRoot, inventoryFile, options = {}) {
   const projectRoot = path.resolve(options.projectRoot ?? defaultProjectRoot);
   const assets = path.resolve(assetRoot);
   const inventoryPath = path.resolve(inventoryFile);
+  const sbomSubjectChecksumsPath = path.resolve(options.sbomSubjectChecksums ?? "");
+  if (!options.sbomSubjectChecksums) throw new Error("SBOM subject checksum output is required");
   await assertOwnedUnlinkedPath(projectRoot, assets, "release aggregate assets");
   await assertOwnedUnlinkedPath(projectRoot, inventoryPath, "release inventory");
+  await assertOwnedUnlinkedPath(
+    projectRoot,
+    sbomSubjectChecksumsPath,
+    "SBOM subject checksum output",
+  );
+  if (contains(assets, sbomSubjectChecksumsPath))
+    throw new Error("SBOM subject checksum output must remain outside public release assets");
+  if (sbomSubjectChecksumsPath === inventoryPath)
+    throw new Error("SBOM subject checksum output must not replace the release inventory");
 
   const inventory = JSON.parse(await readFile(inventoryPath, "utf8"));
   if (
@@ -95,6 +114,13 @@ export async function finalizeReleaseAssets(assetRoot, inventoryFile, options = 
     .map((entry) => `${entry.sha256}  ${entry.filename}`)
     .join("\n");
   await writeFile(manifestPath, `${manifest}\n`, "utf8");
+  const sbomSubjects = finalIdentities
+    .filter((entry) => inventory.packages.some((item) => item.filename === entry.filename))
+    .sort((left, right) => left.filename.localeCompare(right.filename))
+    .map((entry) => `${entry.sha256}  ${entry.filename}`)
+    .join("\n");
+  await mkdir(path.dirname(sbomSubjectChecksumsPath), { recursive: true });
+  await writeFile(sbomSubjectChecksumsPath, `${sbomSubjects}\n`, "utf8");
   inventory.sbom = {
     format: "SPDX-2.3 JSON",
     filename: releaseSbomName,
@@ -102,7 +128,7 @@ export async function finalizeReleaseAssets(assetRoot, inventoryFile, options = 
     download_url: `https://github.com/${inventory.repository}/releases/download/${inventory.tag}/${releaseSbomName}`,
   };
   await writeFile(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`, "utf8");
-  return { assets: expectedNames.sort(), inventory };
+  return { assets: expectedNames.sort(), inventory, sbomSubjects: `${sbomSubjects}\n` };
 }
 
 function parseArguments(argv) {
@@ -110,14 +136,22 @@ function parseArguments(argv) {
   for (let index = 0; index < argv.length; index += 2) {
     const name = argv[index];
     const value = argv[index + 1];
-    if (!["--assets", "--inventory", "--project-root"].includes(name) || !value)
+    if (
+      !["--assets", "--inventory", "--project-root", "--sbom-subject-checksums"].includes(name) ||
+      !value
+    )
       throw new Error(
-        "usage: finalize-release-assets.mjs --assets PATH --inventory PATH [--project-root PATH]",
+        "usage: finalize-release-assets.mjs --assets PATH --inventory PATH --sbom-subject-checksums PATH [--project-root PATH]",
       );
-    options[name.slice(2).replace("project-root", "projectRoot")] = path.resolve(value);
+    options[
+      name
+        .slice(2)
+        .replace("project-root", "projectRoot")
+        .replace("sbom-subject-checksums", "sbomSubjectChecksums")
+    ] = path.resolve(value);
   }
-  if (!options.assets || !options.inventory)
-    throw new Error("--assets and --inventory are required");
+  if (!options.assets || !options.inventory || !options.sbomSubjectChecksums)
+    throw new Error("--assets, --inventory and --sbom-subject-checksums are required");
   return options;
 }
 

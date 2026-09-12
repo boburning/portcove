@@ -16,6 +16,7 @@ async function fixture(t) {
   t.after(() => rm(root, { recursive: true, force: true }));
   const assets = path.join(root, "assets");
   const inventoryPath = path.join(root, "metadata", "inventory.json");
+  const sbomSubjectChecksums = path.join(root, "attestation", "sbom-subject-checksums.txt");
   await mkdir(assets, { recursive: true });
   await mkdir(path.dirname(inventoryPath), { recursive: true });
   const packageBytes = Buffer.from("package");
@@ -37,20 +38,26 @@ async function fixture(t) {
       packages: [{ filename, bytes: packageBytes.length, sha256: sha256(packageBytes) }],
     })}\n`,
   );
-  return { root, assets, inventoryPath, filename };
+  return { root, assets, inventoryPath, sbomSubjectChecksums, filename };
 }
 
-test("binds the generated SPDX SBOM into the public checksum manifest and inventory", async (t) => {
+test("binds the SBOM publicly while limiting SBOM attestation subjects to packages", async (t) => {
   const item = await fixture(t);
   const first = await finalizeReleaseAssets(item.assets, item.inventoryPath, {
     projectRoot: item.root,
+    sbomSubjectChecksums: item.sbomSubjectChecksums,
   });
   const manifest = await readFile(path.join(item.assets, "SHA256SUMS.txt"), "utf8");
   assert.match(manifest, new RegExp(`  ${releaseSbomName}\\n`, "u"));
+  const subjectChecksums = await readFile(item.sbomSubjectChecksums, "utf8");
+  assert.equal(subjectChecksums, `${sha256(Buffer.from("package"))}  ${item.filename}\n`);
+  assert.doesNotMatch(subjectChecksums, new RegExp(releaseSbomName, "u"));
+  assert.equal(first.sbomSubjects, subjectChecksums);
   assert.equal(first.inventory.sbom.filename, releaseSbomName);
   assert.match(first.inventory.sbom.sha256, /^[a-f0-9]{64}$/u);
   const second = await finalizeReleaseAssets(item.assets, item.inventoryPath, {
     projectRoot: item.root,
+    sbomSubjectChecksums: item.sbomSubjectChecksums,
   });
   assert.deepEqual(second, first);
 });
@@ -59,7 +66,10 @@ test("rejects undeclared final files and malformed or empty SBOMs", async (t) =>
   const extra = await fixture(t);
   await writeFile(path.join(extra.assets, "unexpected.txt"), "unexpected");
   await assert.rejects(
-    finalizeReleaseAssets(extra.assets, extra.inventoryPath, { projectRoot: extra.root }),
+    finalizeReleaseAssets(extra.assets, extra.inventoryPath, {
+      projectRoot: extra.root,
+      sbomSubjectChecksums: extra.sbomSubjectChecksums,
+    }),
     /final release assets mismatch/u,
   );
 
@@ -68,7 +78,19 @@ test("rejects undeclared final files and malformed or empty SBOMs", async (t) =>
   await assert.rejects(
     finalizeReleaseAssets(malformed.assets, malformed.inventoryPath, {
       projectRoot: malformed.root,
+      sbomSubjectChecksums: malformed.sbomSubjectChecksums,
     }),
     /must be SPDX 2\.3 JSON/u,
+  );
+});
+
+test("refuses to place internal SBOM subject checksums in public release assets", async (t) => {
+  const item = await fixture(t);
+  await assert.rejects(
+    finalizeReleaseAssets(item.assets, item.inventoryPath, {
+      projectRoot: item.root,
+      sbomSubjectChecksums: path.join(item.assets, "sbom-subject-checksums.txt"),
+    }),
+    /must remain outside public release assets/u,
   );
 });
