@@ -64,7 +64,22 @@ carries the preference revision that staging and apply work must revalidate. The
 coordinator classifies transport failures as unreachable, expired/replayed metadata
 and clock regression as stale, and all other rejected metadata separately. The
 original error remains available for host diagnostics, but no failed check returns a
-candidate. The coordinator adds no URL, key, network, staging or apply authority.
+candidate. An injected completion can retain that same cross-process owner through a
+selected follow-on step. Its failure records bounded retry instead of the daily
+success interval; success is recorded only after completion. The coordinator adds no
+URL, key, network, staging or apply authority of its own.
+
+The host `application_update_operation` boundary composes that coordinator with
+authenticated payload acquisition and the verified staging store. Automatic mode
+stages only a newer authenticated candidate with its matching authenticated payload
+key; notify-only and manual modes return the sanitized candidate status without
+opening a payload. An exact already-verified staging identity is reused without a
+second download. Fixed checking, acquiring-and-verifying, staged and complete
+phases reveal no URL, signature, key or path. Cooperative cancellation before or
+during network/staging work publishes no unverified bytes, and the staging journal
+restores the prior verified slot on restart. This operation is dependency-injected
+and has no registered command, production metadata origin, exit hook or platform
+replacement authority.
 
 Core supplies a pre-apply quiescence guard under the current library's exclusive
 lifetime lease. Every open CLI or Desktop library already holds the shared side, so
