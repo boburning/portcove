@@ -717,14 +717,16 @@ production repository provider or native launch invokes this sequence yet, so
 production replacement remains inactive.
 The adapter-local `application_update_status` command combines sanitized summaries
 of check cadence, a verified staged candidate, and any pending safe-exit or restart
-request. It never exposes authenticated URLs, signatures, payload keys, installed
-paths or library paths to React, and retained state is never described as fresh
-apply authority. Malformed or future schedule, staging and apply journals are
-reported independently so other readable state remains visible. Each fixed recovery
-action rechecks that its journal is still invalid under that store's lock before it
-clears only that domain; a stale UI action cannot discard state another process
-already repaired. Native automation redirects every updater journal into the run's
-fresh evidence directory.
+request. Its apply summary includes the durable `starting`, `started` or `failed`
+native-launch state so React can explain why another launch is held without receiving
+host paths or native authority. It never exposes authenticated URLs, signatures,
+payload keys, installed paths or library paths to React, and retained state is never
+described as fresh apply authority. Malformed or future schedule, staging and apply
+journals are reported independently so other readable state remains visible. Each
+fixed recovery action rechecks that its journal is still invalid under that store's
+lock before it clears only that domain; a stale UI action cannot discard state another
+process already repaired. Native automation redirects every updater journal into the
+run's fresh evidence directory.
 For production metadata, a sibling host transport accepts only host-selected
 HTTPS bases with separate path prefixes on port 443, resolves and pins public DNS
 results, bypasses proxies, refuses redirects and enforces request, deadline, idle,

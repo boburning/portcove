@@ -368,6 +368,7 @@ export type SourceInboxResolutionState =
   "registered" | "exact_match" | "approval_required" | "unresolved" | "conflict" | "incomplete";
 export type ApplicationChannel = "preview" | "stable";
 export type ApplicationUpdateMode = "automatic" | "notify-only" | "manual";
+export type ApplicationUpdateNativeLaunchSummary = "starting" | "started" | "failed";
 export type ApplicationUpdateRequestedAction = "safe-exit" | "restart-to-apply";
 export type ApplicationUpdateObservedTermination =
   "normal-exit" | "restart-to-apply" | "crash" | "os-shutdown" | "steam-stop";
@@ -1966,6 +1967,7 @@ export interface OutputDesktopApplicationUpdateStatus {
   [k: string]: unknown;
 }
 export interface ApplicationUpdateApplySummary {
+  native_launch: ApplicationUpdateNativeLaunchSummary | null;
   request: ApplicationUpdateRequestedAction;
   revision: number;
   termination: ApplicationUpdateObservedTermination | null;

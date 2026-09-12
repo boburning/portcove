@@ -81,6 +81,16 @@
       },
       "ApplicationUpdateApplySummary": {
         "properties": {
+          "native_launch": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ApplicationUpdateNativeLaunchSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "request": {
             "$ref": "#/$defs/ApplicationUpdateRequestedAction"
           },
@@ -103,7 +113,8 @@
         "required": [
           "revision",
           "request",
-          "termination"
+          "termination",
+          "native_launch"
         ],
         "type": "object"
       },
@@ -127,6 +138,14 @@
           "bytes"
         ],
         "type": "object"
+      },
+      "ApplicationUpdateNativeLaunchSummary": {
+        "enum": [
+          "starting",
+          "started",
+          "failed"
+        ],
+        "type": "string"
       },
       "ApplicationUpdateObservedTermination": {
         "enum": [

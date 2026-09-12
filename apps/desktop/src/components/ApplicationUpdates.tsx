@@ -55,6 +55,38 @@ function formatBytes(value: number) {
   }).format(value / (1024 * 1024));
 }
 
+const nativeLaunchCopy = {
+  starting: {
+    title: "Update launch needs confirmation",
+    description:
+      "Portcove may have started the installer. It needs to check which version is installed before it can safely launch another one.",
+  },
+  started: {
+    title: "Installer process started",
+    description:
+      "Portcove recorded that the installer process started. It needs to check which version is installed before it can safely offer another update action.",
+  },
+  failed: {
+    title: "Installer did not start",
+    description:
+      "No installer process was created. A retry will still repeat the fresh trust, consent, ownership, compatibility and idle-state checks.",
+  },
+} as const;
+
+function applicationUpdateApplyCopy(apply: NonNullable<ApplicationUpdateStatus["apply"]>) {
+  if (apply.native_launch) return nativeLaunchCopy[apply.native_launch];
+
+  return {
+    title:
+      apply.request === "restart-to-apply"
+        ? "Restart to update requested"
+        : "Update on safe exit requested",
+    description: apply.termination
+      ? `Portcove recorded ${apply.termination.replaceAll("-", " ")}. Fresh trust, consent, ownership, compatibility and idle-state checks still run before replacement.`
+      : "The request is saved. Closing or restarting Portcove does not bypass fresh trust, consent, ownership, compatibility or idle-state checks.",
+  };
+}
+
 function isRecoverableStateError(value: unknown) {
   if (typeof value !== "object" || !value || !("code" in value)) return false;
   const code = String(value.code);
@@ -76,6 +108,8 @@ function ApplicationUpdateStatusPanel({
   onRefresh: () => Promise<void>;
   onRecover: (area: ApplicationUpdateRecoveryArea) => Promise<void>;
 }) {
+  const applyCopy = status?.apply ? applicationUpdateApplyCopy(status.apply) : undefined;
+
   return (
     <section className="application-update-status" aria-labelledby="application-status-title">
       <div className="application-update-status-heading">
@@ -125,18 +159,10 @@ function ApplicationUpdateStatusPanel({
             </div>
           )}
 
-          {status.apply && (
+          {applyCopy && (
             <div className="application-update-status-item">
-              <strong>
-                {status.apply.request === "restart-to-apply"
-                  ? "Restart to update requested"
-                  : "Update on safe exit requested"}
-              </strong>
-              <p>
-                {status.apply.termination
-                  ? `Portcove recorded ${status.apply.termination.replaceAll("-", " ")}. Fresh trust, consent, ownership, compatibility and idle-state checks still run before replacement.`
-                  : "The request is saved. Closing or restarting Portcove does not bypass fresh trust, consent, ownership, compatibility or idle-state checks."}
-              </p>
+              <strong>{applyCopy.title}</strong>
+              <p>{applyCopy.description}</p>
             </div>
           )}
 
