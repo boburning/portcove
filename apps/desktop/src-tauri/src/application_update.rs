@@ -152,7 +152,8 @@ pub struct AuthenticatedRecordPair<'a> {
     pub promotion_bytes: &'a [u8],
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct InstalledApplicationContext {
     pub current_version: String,
     pub target: String,
@@ -586,6 +587,35 @@ pub(crate) fn validate_selected_candidate(
         || candidate.promotion.withdrawn
     {
         return Err(UpdateMetadataError::PromotionMismatch);
+    }
+    Ok(())
+}
+
+/// Revalidates a durable candidate against the current installed application
+/// context. Fresh authenticated metadata must still reproduce this exact
+/// candidate immediately before native replacement.
+pub(crate) fn validate_selected_candidate_for_context(
+    candidate: &SelectedCandidate,
+    channel: ApplicationChannel,
+    context: &InstalledApplicationContext,
+) -> Result<(), UpdateMetadataError> {
+    validate_selected_candidate(candidate)?;
+    let current = validate_context(context)?;
+    let candidate_version = canonical_version(&candidate.release.version, "candidate version")?;
+    if candidate.promotion.channel != channel {
+        return Err(UpdateMetadataError::PromotionMismatch);
+    }
+    let reasons = compatibility_reasons(&candidate.release, context)?;
+    if !reasons.is_empty() {
+        return Err(UpdateMetadataError::InvalidIdentity(format!(
+            "candidate is incompatible with the installed context: {}",
+            reasons.join(", ")
+        )));
+    }
+    if candidate_version.cmp_precedence(&current) != Ordering::Greater {
+        return Err(UpdateMetadataError::InvalidIdentity(
+            "candidate version is not newer than the installed version".into(),
+        ));
     }
     Ok(())
 }

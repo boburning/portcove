@@ -1,5 +1,6 @@
 mod adoption;
 pub mod application_update;
+pub mod application_update_apply;
 pub mod application_update_coordinator;
 pub mod application_update_payload;
 pub mod application_update_preferences;

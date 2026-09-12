@@ -173,6 +173,20 @@ the fixed staging files. Reconciliation identifies locally retained bytes; it gr
 no fresh trust, eligibility or apply authority. No production downloader or platform
 replacement is activated by this slice.
 
+The sibling `application_update_apply` boundary records an immutable pending intent
+for either safe normal exit or an explicit one-restart action. The strict bounded
+journal binds the selected candidate to the observed preference revision and choice,
+installed application context, and canonical current-library root under process and
+OS locks. Only Portcove-owned application installations are admitted. Compare-and-
+swap revisions stop stale exit observers, a different candidate cannot overwrite a
+pending intent, and explicit recovery clears only this journal. Normal Exit matches
+safe exit and Restart to apply matches the explicit action. Crash, OS shutdown,
+Steam Stop, missing hooks and every mismatched observation remain held on restart.
+A matching record permits only a fresh revalidation attempt; it does not establish
+current metadata, eligibility, consent, staged bytes, ownership, permissions,
+quiescence or native replacement authority. No production exit hook or replacement
+adapter is activated by this slice.
+
 The sibling `application_update_trust` module owns the durable host trust boundary.
 Under path-keyed process ownership and one OS file lock it supplies `tough` with the
 latest persisted root, safe expiration enforcement and bounded
