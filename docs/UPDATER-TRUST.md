@@ -33,12 +33,15 @@ production release and never a downgrade. Automatic-mode disclosure names stagin
 and makes safe exit or an explicit Restart to update action a separate apply boundary.
 
 The same Settings card reads a sanitized host status containing only check cadence,
-the verified staged version/channel/size, a pending safe-exit or restart request, and
-named recovery requirements. It does not receive repository URLs, signatures, keys,
-payload paths, installation paths, library roots or raw storage errors. Corrupt
-schedule, staging and apply journals remain separate visible recovery states. An
-explicit repair command locks and rechecks the selected fixed journal before clearing
-it, so a stale renderer cannot erase state that another process already repaired.
+the verified staged version/channel/size, a pending safe-exit or restart request, its
+durable native-launch state, and named recovery requirements. It explains that an
+ambiguous or started attempt is held for installed-version reconciliation and that a
+proven pre-spawn failure still requires fresh checks before retry. It does not receive
+repository URLs, signatures, keys, payload paths, installation paths, library roots
+or raw storage errors. Corrupt schedule, staging and apply journals remain separate
+visible recovery states. An explicit repair command locks and rechecks the selected
+fixed journal before clearing it, so a stale renderer cannot erase state that another
+process already repaired.
 Preference corruption has its own explicit reset and returns to no consent.
 
 The separate host schedule records successful-check cadence and bounded retry state,

@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use crate::application_update::ApplicationUpdateCandidateSummary;
 use crate::application_update_apply::{
     ApplicationTerminationKind, ApplicationUpdateApplyError, ApplicationUpdateApplyRequest,
-    ApplicationUpdateApplyState, ApplicationUpdateApplyStore,
+    ApplicationUpdateApplyState, ApplicationUpdateApplyStore, ApplicationUpdateNativeLaunchState,
 };
 use crate::application_update_schedule::{
     ApplicationUpdateSchedule, ApplicationUpdateScheduleError, ApplicationUpdateScheduleStore,
@@ -58,11 +58,20 @@ pub enum ApplicationUpdateObservedTermination {
     SteamStop,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum ApplicationUpdateNativeLaunchSummary {
+    Starting,
+    Started,
+    Failed,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct ApplicationUpdateApplySummary {
     pub revision: u64,
     pub request: ApplicationUpdateRequestedAction,
     pub termination: Option<ApplicationUpdateObservedTermination>,
+    pub native_launch: Option<ApplicationUpdateNativeLaunchSummary>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
@@ -235,7 +244,22 @@ fn apply_summary(state: &ApplicationUpdateApplyState) -> Option<ApplicationUpdat
                 ApplicationUpdateObservedTermination::SteamStop
             }
         }),
+        native_launch: state.native_launch.map(native_launch_summary),
     })
+}
+
+fn native_launch_summary(
+    state: ApplicationUpdateNativeLaunchState,
+) -> ApplicationUpdateNativeLaunchSummary {
+    match state {
+        ApplicationUpdateNativeLaunchState::Starting => {
+            ApplicationUpdateNativeLaunchSummary::Starting
+        }
+        ApplicationUpdateNativeLaunchState::Started => {
+            ApplicationUpdateNativeLaunchSummary::Started
+        }
+        ApplicationUpdateNativeLaunchState::Failed => ApplicationUpdateNativeLaunchSummary::Failed,
+    }
 }
 
 fn recovery_notice(area: ApplicationUpdateRecoveryArea) -> ApplicationUpdateRecoveryNotice {
@@ -313,6 +337,26 @@ fn domain_error(message: &str, conflict: bool, unsupported: bool) -> DesktopErro
 mod tests {
     use super::*;
     use std::fs;
+
+    #[test]
+    fn native_launch_status_preserves_every_sanitized_state() {
+        for (state, expected) in [
+            (
+                ApplicationUpdateNativeLaunchState::Starting,
+                ApplicationUpdateNativeLaunchSummary::Starting,
+            ),
+            (
+                ApplicationUpdateNativeLaunchState::Started,
+                ApplicationUpdateNativeLaunchSummary::Started,
+            ),
+            (
+                ApplicationUpdateNativeLaunchState::Failed,
+                ApplicationUpdateNativeLaunchSummary::Failed,
+            ),
+        ] {
+            assert_eq!(native_launch_summary(state), expected);
+        }
+    }
 
     #[tokio::test]
     async fn empty_status_is_idle_and_contains_no_paths() {
