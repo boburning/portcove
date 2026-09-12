@@ -94,6 +94,16 @@ also holds a user-scoped shared application-runtime lock. Apply admission acquir
 exclusive side before the current-library guard, excluding a process that selected a
 different library and preventing a new process from entering during replacement. This
 coordination has no daemon, library inventory or durable updater authority.
+A dedicated post-exit helper sequence accepts only the expected apply-journal
+revision. It uses that persistent runtime lock, rather than a parent PID, to wait a
+bounded two minutes for all Portcove processes to release their shared lifetime
+proof. This survives a parent that exits before the helper is scheduled and covers a
+CLI or Desktop process using another library. The helper then obtains a newly
+observed installed context and fresh authenticated candidate through a host-owned
+Rust provider and acquires the existing apply/runtime/library lease in its canonical
+order. The retained and newly observed contexts must match. A concurrent new process
+makes the final admission fail closed. The sequence has no registered command-line mode or
+production root, origin, key or native-launch authority.
 
 | Claim                           | Mechanism                                                        | Limit                                                                       |
 | ------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------- |

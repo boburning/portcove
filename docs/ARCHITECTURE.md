@@ -694,8 +694,21 @@ relocation or elevation argument, while retaining the shared revalidation lease
 through process creation. Windows staging uses one fixed
 `.exe` payload slot so the operating system can execute the authenticated bytes;
 other platforms retain their inert generic slot until their own adapters define a
-format-specific replacement. No helper invokes this adapter yet, so production
-replacement remains inactive.
+format-specific replacement. The sibling `application_update_helper` defines the
+post-exit revalidation sequence for a dedicated process without accepting paths,
+repository locations, trust roots, candidates or keys in its request. It first
+requires the exact eligible apply-journal revision, then waits up to two minutes for
+the persistent user-scoped application-runtime lock to become exclusively available.
+Using the runtime lock avoids the process-ID race where a fast parent can disappear
+before a child opens its handle and also accounts for other Portcove processes. The
+helper releases that probe, obtains a newly observed installed context and fresh
+authenticated selection through its host-owned Rust provider, and immediately
+acquires the canonical apply, preference, staging, application and library lease.
+The retained and newly observed installed contexts must match. A process that starts
+during the fresh check wins the shared runtime lock and safely defers replacement.
+No command-line mode,
+production repository provider or native launch invokes this sequence yet, so
+production replacement remains inactive.
 The adapter-local `application_update_status` command combines sanitized summaries
 of check cadence, a verified staged candidate, and any pending safe-exit or restart
 request. It never exposes authenticated URLs, signatures, payload keys, installed
