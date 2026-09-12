@@ -119,9 +119,7 @@ pub(crate) fn run_tool(
             Ok(())
         });
         if let Err(error) = observation {
-            group.terminate(&child);
-            let _ = child.kill();
-            let _ = child.wait();
+            let _ = group.terminate_and_wait(&mut child);
             break Err(error);
         }
         match poll_setup(&mut child, &group) {
@@ -132,9 +130,7 @@ pub(crate) fn run_tool(
                 // Retain private work rather than signal an unverified PID.
                 #[cfg(windows)]
                 {
-                    group.terminate(&child);
-                    let _ = child.kill();
-                    let _ = child.wait();
+                    let _ = group.terminate_and_wait(&mut child);
                 }
                 break Err(PortcoveError::launch(format!(
                     "could not observe tool completion: {error}"
@@ -228,8 +224,7 @@ fn poll_setup(
     if unsafe { info.si_pid() } == 0 {
         return Ok(None);
     }
-    group.terminate(child);
-    child.wait().map(Some)
+    group.terminate_and_wait(child).map(Some)
 }
 
 fn capture_setup_output(
@@ -265,6 +260,54 @@ impl ToolProcessGroup {
     pub(crate) fn terminate(&self, child: &std::process::Child) {
         unsafe {
             libc::kill(-(child.id() as i32), libc::SIGKILL);
+        }
+    }
+
+    /// Close the owned process group before releasing its leader PID.
+    ///
+    /// A descendant can be created around the first group signal. Keeping the
+    /// leader waitable prevents PID reuse while a second signal closes that
+    /// race. Only then is the leader reaped.
+    pub(crate) fn terminate_and_wait(
+        &self,
+        child: &mut std::process::Child,
+    ) -> std::io::Result<ExitStatus> {
+        self.terminate(child);
+        let _ = child.kill();
+        let observed = wait_for_unreaped_exit(child);
+        if observed.is_ok() {
+            self.terminate(child);
+        }
+        let waited = child.wait();
+        observed?;
+        waited
+    }
+}
+
+#[cfg(unix)]
+fn wait_for_unreaped_exit(child: &std::process::Child) -> std::io::Result<()> {
+    loop {
+        // SAFETY: info is initialized writable siginfo_t storage; P_PID selects
+        // this owned child, and WNOWAIT retains its PID until the group is closed.
+        let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
+        let result = unsafe {
+            libc::waitid(
+                libc::P_PID,
+                child.id() as libc::id_t,
+                &mut info,
+                libc::WEXITED | libc::WNOWAIT,
+            )
+        };
+        if result == 0 {
+            // SAFETY: a successful blocking waitid initialized the SIGCHLD fields.
+            if unsafe { info.si_pid() } == child.id() as i32 {
+                return Ok(());
+            }
+            continue;
+        }
+        let error = std::io::Error::last_os_error();
+        if error.kind() != std::io::ErrorKind::Interrupted {
+            return Err(error);
         }
     }
 }
@@ -321,6 +364,15 @@ impl ToolProcessGroup {
                 windows_sys::Win32::System::JobObjects::TerminateJobObject(self.job, 1);
             }
         }
+    }
+
+    pub(crate) fn terminate_and_wait(
+        &self,
+        child: &mut std::process::Child,
+    ) -> std::io::Result<ExitStatus> {
+        self.terminate(child);
+        let _ = child.kill();
+        child.wait()
     }
 }
 
