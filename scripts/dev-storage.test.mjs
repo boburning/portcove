@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   childEnvironment,
-  canonicalPackageManagerCommand,
+  canonicalCheckoutCommand,
   isSideEffectFreeHelpCommand,
   isWindowsSystemDrivePath,
   minimumFreeGiB,
@@ -44,11 +44,22 @@ test("only maintained read-only CLI help bypasses storage preparation", () => {
 });
 
 test("storage wrapper resolves canonical pnpm commands from the package authority", () => {
-  assert.deepEqual(canonicalPackageManagerCommand("corepack", ["pnpm", "--version"]), [
+  assert.deepEqual(canonicalCheckoutCommand("corepack", ["pnpm", "--version"], null), [
     "corepack",
     ["pnpm@12.4.1", "--version"],
   ]);
-  assert.deepEqual(canonicalPackageManagerCommand("cargo", ["check"]), ["cargo", ["check"]]);
+  assert.deepEqual(canonicalCheckoutCommand("cargo", ["check"], null), ["cargo", ["check"]]);
+});
+
+test("storage wrapper selects the bootstrapped pinned Node runtime", (t) => {
+  const root = fixture(t);
+  const executable = path.join(root, process.platform === "win32" ? "node.exe" : "node");
+  writeFileSync(executable, "pinned runtime fixture");
+  assert.deepEqual(canonicalCheckoutCommand("node", ["--version"], { node: executable }), [
+    executable,
+    ["--version"],
+  ]);
+  assert.deepEqual(canonicalCheckoutCommand("node", ["--version"], null), ["node", ["--version"]]);
 });
 
 function fixture(t) {

@@ -114,6 +114,9 @@ export type ApplicationUpdateCheckResult =
 export type ApplicationUpdateCheckPhase =
   Generated.TransportOutputs["desktop_application_update_check_phase"];
 
+export type ApplicationUpdateDownloadRequest =
+  Requests.TransportInputs["desktop_application_update_download_request"];
+
 export type LibrarySelection = Generated.TransportOutputs["library_selection"];
 
 export type { LibraryMetadataFile } from "./transport-types.generated";

@@ -5,6 +5,8 @@
 //! repository locations, signatures, keys and filesystem paths stay in Rust.
 //! Platform replacement remains behind the later native apply adapters.
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use async_trait::async_trait;
 use tokio::io::AsyncRead;
 use tokio_util::sync::CancellationToken;
@@ -38,6 +40,10 @@ pub enum ApplicationUpdateOperationError {
     Staging(#[from] ApplicationUpdateStagingError),
     #[error("authenticated application update selection is inconsistent: {0}")]
     InvalidSelection(String),
+    #[error("the explicit application update download no longer matches the current selection")]
+    ExplicitDownloadSuperseded,
+    #[error("application update staging is paused")]
+    ExplicitDownloadPaused,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -101,6 +107,11 @@ pub enum ApplicationUpdateOperationOutcome {
     },
 }
 
+pub struct ApplicationUpdateDownloadExpectation<'a> {
+    pub preference_revision: u64,
+    pub candidate: &'a ApplicationUpdateCandidateSummary,
+}
+
 #[derive(Clone)]
 pub struct ApplicationUpdateOperation {
     coordinator: ApplicationUpdateCoordinator,
@@ -111,6 +122,16 @@ struct StageCheckCompletion<'a> {
     staging: &'a ApplicationUpdateStagingStore,
     payload_source: &'a dyn ApplicationUpdatePayloadSource,
     progress: &'a dyn ApplicationUpdateProgressSink,
+    request: ApplicationUpdateStageRequest<'a>,
+    staged: AtomicBool,
+}
+
+enum ApplicationUpdateStageRequest<'a> {
+    Automatic,
+    Explicit {
+        expected_preference_revision: u64,
+        expected_candidate: &'a ApplicationUpdateCandidateSummary,
+    },
 }
 
 #[async_trait]
@@ -119,15 +140,39 @@ impl ApplicationUpdateCheckCompletion for StageCheckCompletion<'_> {
 
     async fn complete(
         &self,
-        _preference_revision: u64,
+        preference_revision: u64,
         choice: &crate::application_update_preferences::ApplicationUpdateChoice,
         selection: &crate::application_update_repository::AuthenticatedCandidateSelection,
     ) -> Result<(), Self::Error> {
         validate_selection_shape(&selection.selection, selection.payload_key.is_some())?;
-        if choice.mode != ApplicationUpdateMode::Automatic
-            || selection.selection.state != CandidateState::UpdateAvailable
-        {
-            return Ok(());
+        match self.request {
+            ApplicationUpdateStageRequest::Automatic => {
+                if choice.mode != ApplicationUpdateMode::Automatic
+                    || selection.selection.state != CandidateState::UpdateAvailable
+                {
+                    return Ok(());
+                }
+            }
+            ApplicationUpdateStageRequest::Explicit {
+                expected_preference_revision,
+                expected_candidate,
+            } => {
+                if preference_revision != expected_preference_revision {
+                    return Err(ApplicationUpdateOperationError::ExplicitDownloadSuperseded);
+                }
+                if choice.paused {
+                    return Err(ApplicationUpdateOperationError::ExplicitDownloadPaused);
+                }
+                let current = selection
+                    .selection
+                    .candidate
+                    .as_ref()
+                    .filter(|_| selection.selection.state == CandidateState::UpdateAvailable)
+                    .map(ApplicationUpdateCandidateSummary::from);
+                if current.as_ref() != Some(expected_candidate) {
+                    return Err(ApplicationUpdateOperationError::ExplicitDownloadSuperseded);
+                }
+            }
         }
         let candidate = selection.selection.candidate.as_ref().ok_or_else(|| {
             ApplicationUpdateOperationError::InvalidSelection(
@@ -146,6 +191,7 @@ impl ApplicationUpdateCheckCompletion for StageCheckCompletion<'_> {
             .is_some_and(|staged| staged.candidate == *candidate)
         {
             self.progress.emit(ApplicationUpdateOperationPhase::Staged);
+            self.staged.store(true, Ordering::SeqCst);
             return Ok(());
         }
         self.progress
@@ -153,6 +199,7 @@ impl ApplicationUpdateCheckCompletion for StageCheckCompletion<'_> {
         let mut payload = self.payload_source.open(candidate).await?;
         self.staging.stage(&mut payload, candidate, key).await?;
         self.progress.emit(ApplicationUpdateOperationPhase::Staged);
+        self.staged.store(true, Ordering::SeqCst);
         Ok(())
     }
 }
@@ -180,12 +227,62 @@ impl ApplicationUpdateOperation {
         progress: &dyn ApplicationUpdateProgressSink,
         cancellation: &CancellationToken,
     ) -> Result<ApplicationUpdateOperationOutcome, ApplicationUpdateOperationError> {
+        self.run(
+            environment,
+            checker,
+            payload_source,
+            progress,
+            cancellation,
+            ApplicationUpdateStageRequest::Automatic,
+        )
+        .await
+    }
+
+    /// Reauthenticates the candidate named by a prior sanitized check result
+    /// and stages it only when the saved preference revision and visible
+    /// candidate summary still match. Renderer input is an optimistic guard;
+    /// the host-selected candidate, payload URL and verification key remain
+    /// authoritative.
+    pub async fn download_expected(
+        &self,
+        environment: ApplicationUpdateCheckEnvironment,
+        checker: &dyn ApplicationUpdateChecker,
+        payload_source: &dyn ApplicationUpdatePayloadSource,
+        progress: &dyn ApplicationUpdateProgressSink,
+        cancellation: &CancellationToken,
+        expected: ApplicationUpdateDownloadExpectation<'_>,
+    ) -> Result<ApplicationUpdateOperationOutcome, ApplicationUpdateOperationError> {
+        self.run(
+            environment,
+            checker,
+            payload_source,
+            progress,
+            cancellation,
+            ApplicationUpdateStageRequest::Explicit {
+                expected_preference_revision: expected.preference_revision,
+                expected_candidate: expected.candidate,
+            },
+        )
+        .await
+    }
+
+    async fn run(
+        &self,
+        environment: ApplicationUpdateCheckEnvironment,
+        checker: &dyn ApplicationUpdateChecker,
+        payload_source: &dyn ApplicationUpdatePayloadSource,
+        progress: &dyn ApplicationUpdateProgressSink,
+        cancellation: &CancellationToken,
+        request: ApplicationUpdateStageRequest<'_>,
+    ) -> Result<ApplicationUpdateOperationOutcome, ApplicationUpdateOperationError> {
         require_active(cancellation)?;
         progress.emit(ApplicationUpdateOperationPhase::Checking);
         let completion = StageCheckCompletion {
             staging: &self.staging,
             payload_source,
             progress,
+            request,
+            staged: AtomicBool::new(false),
         };
         let checked = tokio::select! {
             biased;
@@ -217,18 +314,13 @@ impl ApplicationUpdateOperation {
             },
             ApplicationUpdateCoordinatorOutcome::Checked {
                 preference_revision,
-                preference_choice,
                 selection,
                 ..
-            } => {
-                let staged = preference_choice.mode == ApplicationUpdateMode::Automatic
-                    && selection.selection.state == CandidateState::UpdateAvailable;
-                ApplicationUpdateOperationOutcome::Checked {
-                    preference_revision,
-                    selection: selection_summary(&selection.selection),
-                    staged,
-                }
-            }
+            } => ApplicationUpdateOperationOutcome::Checked {
+                preference_revision,
+                selection: selection_summary(&selection.selection),
+                staged: completion.staged.load(Ordering::SeqCst),
+            },
         };
         progress.emit(ApplicationUpdateOperationPhase::Complete);
         Ok(outcome)
@@ -621,6 +713,153 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn explicit_download_rechecks_and_stages_the_expected_candidate() {
+        for mode in [
+            ApplicationUpdateMode::NotifyOnly,
+            ApplicationUpdateMode::Manual,
+        ] {
+            let (temporary, operation, preferences) = fixture(mode);
+            let selected = candidate(b"test");
+            let expected = ApplicationUpdateCandidateSummary::from(&selected);
+            let source = FakePayloadSource {
+                bytes: b"test".to_vec(),
+                calls: AtomicUsize::new(0),
+            };
+
+            let outcome = operation
+                .download_expected(
+                    environment(),
+                    &checker(authenticated(
+                        CandidateState::UpdateAvailable,
+                        Some(selected),
+                    )),
+                    &source,
+                    &NoopApplicationUpdateProgressSink,
+                    &CancellationToken::new(),
+                    ApplicationUpdateDownloadExpectation {
+                        preference_revision: preferences.load().unwrap().revision,
+                        candidate: &expected,
+                    },
+                )
+                .await
+                .unwrap();
+
+            assert!(matches!(
+                outcome,
+                ApplicationUpdateOperationOutcome::Checked { staged: true, .. }
+            ));
+            assert_eq!(source.calls.load(Ordering::SeqCst), 1);
+            assert_eq!(
+                std::fs::read(
+                    ApplicationUpdateStagingStore::new(temporary.path().join("staging"))
+                        .unwrap()
+                        .payload_path()
+                )
+                .unwrap(),
+                b"test"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn explicit_download_refuses_changed_candidate_or_preference_without_payload_activity() {
+        let (_temporary, operation, preferences) = fixture(ApplicationUpdateMode::NotifyOnly);
+        let selected = candidate(b"test");
+        let mut changed = ApplicationUpdateCandidateSummary::from(&selected);
+        changed.bytes += 1;
+        let source = FakePayloadSource {
+            bytes: b"test".to_vec(),
+            calls: AtomicUsize::new(0),
+        };
+
+        assert!(matches!(
+            operation
+                .download_expected(
+                    environment(),
+                    &checker(authenticated(
+                        CandidateState::UpdateAvailable,
+                        Some(selected.clone()),
+                    )),
+                    &source,
+                    &NoopApplicationUpdateProgressSink,
+                    &CancellationToken::new(),
+                    ApplicationUpdateDownloadExpectation {
+                        preference_revision: preferences.load().unwrap().revision,
+                        candidate: &changed,
+                    },
+                )
+                .await,
+            Err(ApplicationUpdateOperationError::ExplicitDownloadSuperseded)
+        ));
+        assert_eq!(source.calls.load(Ordering::SeqCst), 0);
+
+        let expected = ApplicationUpdateCandidateSummary::from(&selected);
+        assert!(matches!(
+            operation
+                .download_expected(
+                    environment(),
+                    &checker(authenticated(
+                        CandidateState::UpdateAvailable,
+                        Some(selected),
+                    )),
+                    &source,
+                    &NoopApplicationUpdateProgressSink,
+                    &CancellationToken::new(),
+                    ApplicationUpdateDownloadExpectation {
+                        preference_revision: preferences.load().unwrap().revision + 1,
+                        candidate: &expected,
+                    },
+                )
+                .await,
+            Err(ApplicationUpdateOperationError::ExplicitDownloadSuperseded)
+        ));
+        assert_eq!(source.calls.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn explicit_download_honors_pause_after_a_manual_check() {
+        let (_temporary, operation, preferences) = fixture(ApplicationUpdateMode::NotifyOnly);
+        let current = preferences.load().unwrap();
+        let paused = preferences
+            .save_choice(
+                current.revision,
+                ApplicationUpdateChoice {
+                    channel: ApplicationChannel::Preview,
+                    mode: ApplicationUpdateMode::NotifyOnly,
+                    paused: true,
+                },
+            )
+            .unwrap();
+        let selected = candidate(b"test");
+        let expected = ApplicationUpdateCandidateSummary::from(&selected);
+        let source = FakePayloadSource {
+            bytes: b"test".to_vec(),
+            calls: AtomicUsize::new(0),
+        };
+
+        assert!(matches!(
+            operation
+                .download_expected(
+                    environment(),
+                    &checker(authenticated(
+                        CandidateState::UpdateAvailable,
+                        Some(selected),
+                    )),
+                    &source,
+                    &NoopApplicationUpdateProgressSink,
+                    &CancellationToken::new(),
+                    ApplicationUpdateDownloadExpectation {
+                        preference_revision: paused.revision,
+                        candidate: &expected,
+                    },
+                )
+                .await,
+            Err(ApplicationUpdateOperationError::ExplicitDownloadPaused)
+        ));
+        assert_eq!(source.calls.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
     async fn nonavailable_selection_is_reported_without_payload_activity() {
         let (_temporary, operation, _preferences) = fixture(ApplicationUpdateMode::Automatic);
         let source = FakePayloadSource {
@@ -734,59 +973,62 @@ mod tests {
 
     #[tokio::test]
     async fn cancellation_during_staging_leaves_only_reconcilable_state() {
-        let (temporary, operation, _preferences) = fixture(ApplicationUpdateMode::Automatic);
-        let (_writer, reader) = tokio::io::duplex(4);
-        let source = Arc::new(HangingPayloadSource {
-            reader: Mutex::new(Some(reader)),
-        });
-        let checker = Arc::new(checker(authenticated(
-            CandidateState::UpdateAvailable,
-            Some(candidate(b"test")),
-        )));
-        let cancellation = CancellationToken::new();
-        let task_cancellation = cancellation.clone();
-        let operation = Arc::new(operation);
-        let task_operation = operation.clone();
-        let task_source = source.clone();
-        let task = tokio::spawn(async move {
-            task_operation
-                .check_and_stage(
-                    environment(),
-                    checker.as_ref(),
-                    task_source.as_ref(),
-                    &NoopApplicationUpdateProgressSink,
-                    &task_cancellation,
-                )
-                .await
-        });
-        let journal = temporary.path().join("staging/staging.json");
-        for _ in 0..100 {
-            if journal.exists() {
-                break;
+        for _ in 0..16 {
+            let (temporary, operation, _preferences) = fixture(ApplicationUpdateMode::Automatic);
+            let (_writer, reader) = tokio::io::duplex(4);
+            let source = Arc::new(HangingPayloadSource {
+                reader: Mutex::new(Some(reader)),
+            });
+            let checker = Arc::new(checker(authenticated(
+                CandidateState::UpdateAvailable,
+                Some(candidate(b"test")),
+            )));
+            let cancellation = CancellationToken::new();
+            let task_cancellation = cancellation.clone();
+            let operation = Arc::new(operation);
+            let task_operation = operation.clone();
+            let task_source = source.clone();
+            let task = tokio::spawn(async move {
+                task_operation
+                    .check_and_stage(
+                        environment(),
+                        checker.as_ref(),
+                        task_source.as_ref(),
+                        &NoopApplicationUpdateProgressSink,
+                        &task_cancellation,
+                    )
+                    .await
+            });
+            let journal = temporary.path().join("staging/staging.json");
+            for _ in 0..100 {
+                if journal.exists() {
+                    break;
+                }
+                tokio::task::yield_now().await;
             }
-            tokio::task::yield_now().await;
+            assert!(journal.exists());
+            cancellation.cancel();
+            assert!(matches!(
+                task.await.unwrap(),
+                Err(ApplicationUpdateOperationError::Cancelled)
+            ));
+
+            let schedule =
+                ApplicationUpdateScheduleStore::new(temporary.path().join("schedule.json"))
+                    .unwrap()
+                    .load()
+                    .unwrap();
+            assert_eq!(schedule, Default::default());
+
+            let restarted =
+                ApplicationUpdateStagingStore::new(temporary.path().join("staging")).unwrap();
+            assert_eq!(restarted.reconcile().await.unwrap(), None);
+            assert!(
+                !temporary
+                    .path()
+                    .join("staging/.candidate.payload.incoming")
+                    .exists()
+            );
         }
-        assert!(journal.exists());
-        cancellation.cancel();
-        assert!(matches!(
-            task.await.unwrap(),
-            Err(ApplicationUpdateOperationError::Cancelled)
-        ));
-
-        let schedule = ApplicationUpdateScheduleStore::new(temporary.path().join("schedule.json"))
-            .unwrap()
-            .load()
-            .unwrap();
-        assert_eq!(schedule, Default::default());
-
-        let restarted =
-            ApplicationUpdateStagingStore::new(temporary.path().join("staging")).unwrap();
-        assert_eq!(restarted.reconcile().await.unwrap(), None);
-        assert!(
-            !temporary
-                .path()
-                .join("staging/.candidate.payload.incoming")
-                .exists()
-        );
     }
 }

@@ -275,11 +275,13 @@ impl ApplicationUpdateStagingStore {
         self.write_journal(&staged)?;
 
         let incoming_path = self.root.join(INCOMING_PAYLOAD_FILE);
-        let mut incoming = match tokio::fs::OpenOptions::new()
+        // Complete the local create before the next cancellation point. Tokio's
+        // filesystem open runs on a blocking thread; dropping that future can
+        // otherwise allow a late create to race restart reconciliation.
+        let incoming = match OpenOptions::new()
             .create_new(true)
             .write(true)
             .open(&incoming_path)
-            .await
         {
             Ok(file) => file,
             Err(error) => {
@@ -287,6 +289,7 @@ impl ApplicationUpdateStagingStore {
                 return Err(error.into());
             }
         };
+        let mut incoming = tokio::fs::File::from_std(incoming);
         let identity =
             match verify_payload_to_writer(reader, &mut incoming, &candidate.release.artifact, key)
                 .await

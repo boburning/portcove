@@ -215,6 +215,80 @@ describe("ApplicationUpdateSettings", () => {
     expect(host.textContent).toContain("Manual checks never use a URL supplied by this screen.");
   });
 
+  it("downloads only the checked candidate through an explicit host-owned action", async () => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
+    const candidate = {
+      version: "0.2.0-beta.3",
+      channel: "preview" as const,
+      bytes: 25 * 1024 * 1024,
+    };
+    vi.spyOn(desktopApi, "checkApplicationUpdate").mockResolvedValue({
+      kind: "update-available",
+      candidate,
+      reasons: [],
+      staged: false,
+    });
+    const download = vi
+      .spyOn(desktopApi, "downloadApplicationUpdate")
+      .mockImplementation((_request, onEvent) => {
+        onEvent("checking");
+        onEvent("acquiring-and-verifying");
+        onEvent("staged");
+        return Promise.resolve({
+          kind: "update-available",
+          candidate,
+          reasons: [],
+          staged: true,
+        });
+      });
+
+    await render();
+    await click("Check for updates");
+    expect(host.textContent).toContain("Its download has not started.");
+
+    await click("Download and verify update");
+
+    expect(download).toHaveBeenCalledExactlyOnceWith(
+      {
+        expected_preference_revision: 4,
+        expected_candidate: candidate,
+      },
+      expect.any(Function),
+    );
+    expect(host.textContent).toContain("0.2.0-beta.3 is verified and staged");
+  });
+
+  it("requires a fresh check after the saved update choice changes", async () => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
+    vi.spyOn(desktopApi, "checkApplicationUpdate").mockResolvedValue({
+      kind: "update-available",
+      candidate: {
+        version: "0.2.0-beta.3",
+        channel: "preview",
+        bytes: 25 * 1024 * 1024,
+      },
+      reasons: [],
+      staged: false,
+    });
+    vi.spyOn(desktopApi, "setApplicationUpdatePreferences").mockResolvedValue({
+      ...savedChoice,
+      revision: 5,
+      choice: { channel: "stable", mode: "notify-only", paused: false },
+    });
+    const download = vi.spyOn(desktopApi, "downloadApplicationUpdate");
+
+    await render();
+    await click("Check for updates");
+    expect(button("Download and verify update")).toBeDefined();
+
+    await click("Stable");
+    await click("Save application update settings");
+
+    expect(host.textContent).not.toContain("Download and verify update");
+    expect(host.textContent).not.toContain("0.2.0-beta.3");
+    expect(download).not.toHaveBeenCalled();
+  });
+
   it("offers cancellation while a check is active", async () => {
     vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
     let rejectCheck!: (reason: unknown) => void;

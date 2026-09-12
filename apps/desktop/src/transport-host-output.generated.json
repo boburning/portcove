@@ -20,6 +20,7 @@
         "type": "string"
       },
       "ApplicationUpdateCandidateSummary": {
+        "additionalProperties": false,
         "properties": {
           "bytes": {
             "format": "uint64",
@@ -214,6 +215,7 @@
         "type": "object"
       },
       "ApplicationUpdateCandidateSummary": {
+        "additionalProperties": false,
         "properties": {
           "bytes": {
             "format": "uint64",

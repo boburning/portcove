@@ -38,6 +38,57 @@
     "title": "ApplicationUpdateChoice",
     "type": "object"
   },
+  "application_update_download_request": {
+    "$defs": {
+      "ApplicationChannel": {
+        "enum": [
+          "preview",
+          "stable"
+        ],
+        "type": "string"
+      },
+      "ApplicationUpdateCandidateSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "channel": {
+            "$ref": "#/$defs/ApplicationChannel"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "channel",
+          "bytes"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "expected_candidate": {
+        "$ref": "#/$defs/ApplicationUpdateCandidateSummary"
+      },
+      "expected_preference_revision": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "expected_preference_revision",
+      "expected_candidate"
+    ],
+    "title": "ApplicationUpdateDownloadRequest",
+    "type": "object"
+  },
   "application_update_recovery_area": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "enum": [

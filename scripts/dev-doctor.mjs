@@ -185,6 +185,10 @@ export async function collectDoctor(options = {}) {
       id: "node",
       command: [process.execPath, "--version"],
       version: readFileSync(path.join(root, ".node-version"), "utf8").trim(),
+      remediation:
+        process.platform === "win32"
+          ? "activate the .node-version runtime, then run ./scripts/bootstrap-quality-tools.ps1"
+          : "activate the repository .node-version runtime",
     },
     {
       id: "pnpm",

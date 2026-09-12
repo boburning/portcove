@@ -1976,7 +1976,6 @@ export interface ApplicationUpdateCandidateSummary {
   bytes: number;
   channel: ApplicationChannel;
   version: string;
-  [k: string]: unknown;
 }
 export interface OutputDesktopApplicationUpdatePreferences {
   /**
