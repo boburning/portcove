@@ -22,6 +22,7 @@ $qualityManifest = Get-Content -LiteralPath (Join-Path $projectRoot ".github\qua
 $bootstrapManifest = Get-Content -LiteralPath (Join-Path $projectRoot ".config\tool-bootstrap.json") -Raw | ConvertFrom-Json
 $requiredAqua = (Get-Content -LiteralPath (Join-Path $projectRoot ".aqua-version") -Raw).Trim()
 $requiredAquaSemver = $requiredAqua.TrimStart("v")
+$requiredNodeVersion = (Get-Content -LiteralPath (Join-Path $projectRoot ".node-version") -Raw).Trim()
 $toolPathsJson = & node (Join-Path $PSScriptRoot "tool-cache.mjs") --paths
 if ($LASTEXITCODE -ne 0) { throw "Could not resolve the checkout tool-cache contract" }
 $toolPaths = $toolPathsJson | ConvertFrom-Json
@@ -46,6 +47,19 @@ function Test-ReportedVersion([string]$Executable, [string[]]$Arguments, [string
         return $LASTEXITCODE -eq 0 -and $reported -match "(?<![0-9])$([regex]::Escape($Version))(?![0-9])"
     }
     catch { return $false }
+}
+
+function Resolve-StableCommandPath([string]$CommandPath) {
+    $resolved = (Resolve-Path -LiteralPath $CommandPath).Path
+    $parent = Get-Item -LiteralPath (Split-Path -Parent $resolved) -Force
+    if ($parent.LinkType) {
+        $target = $parent.ResolveLinkTarget($true)
+        if ($target) {
+            $candidate = Join-Path $target.FullName (Split-Path -Leaf $resolved)
+            if (Test-Path -LiteralPath $candidate -PathType Leaf) { return $candidate }
+        }
+    }
+    return $resolved
 }
 
 function Write-CommandShim([string]$Name, [string]$Executable, [string[]]$Prefix = @()) {
@@ -384,9 +398,17 @@ try {
 $resolvedAqua = Install-PinnedAqua
 Write-CommandShim "aqua" $resolvedAqua
 $pnpmSpec = [string]$toolPaths.pins.packageManager
+$node = Get-Command node.exe -ErrorAction SilentlyContinue
+if (-not $node -or -not (Test-ReportedVersion $node.Source @("--version") $requiredNodeVersion)) {
+    throw "Node $requiredNodeVersion is required before bootstrapping checkout shims"
+}
 $corepack = Get-Command corepack.cmd -ErrorAction SilentlyContinue
 if (-not $corepack) { throw "Node's Corepack shim is unavailable; install the repository-pinned Node version" }
-Write-CommandShim "pnpm" $corepack.Source @($pnpmSpec)
+$resolvedNode = Resolve-StableCommandPath $node.Source
+$resolvedCorepack = Resolve-StableCommandPath $corepack.Source
+Write-CommandShim "node" $resolvedNode
+Write-CommandShim "corepack" $resolvedCorepack
+Write-CommandShim "pnpm" $resolvedCorepack @($pnpmSpec)
 
 $oldPath = $env:PATH
 $oldModulePath = $env:PSModulePath
@@ -437,6 +459,8 @@ try {
         shim_directory = $shimDirectory
         aqua = $resolvedAqua
         aqua_root = $aquaRoot
+        node = $resolvedNode
+        corepack = $resolvedCorepack
         package_manager = $pnpmSpec
         desktop = $desktopState
     }

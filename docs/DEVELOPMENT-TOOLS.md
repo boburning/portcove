@@ -29,9 +29,12 @@ the checked-in architecture-specific SHA-256, and provisions checksum-locked Ruf
 actionlint, and ShellCheck versions. Rust quality tools and PSScriptAnalyzer are
 also resolved from repository pins. Verified payloads are reused below
 `%LOCALAPPDATA%\Portcove\tool-cache`; each checkout receives only small ignored
-shims in `work/tool-bin`. Repository commands prepend those shims and set Aqua and
-PowerShell module paths only for their child processes. The bootstrap never changes
-the persistent user or machine `PATH` or environment.
+shims in `work/tool-bin`. The bootstrap requires the `.node-version` runtime to be
+active, resolves version-manager junctions to their stable installation, and writes
+checkout-local `node`, `corepack`, and exact-pnpm shims together. Repository commands
+prepend those shims and set Aqua and PowerShell module paths only for their child
+processes. The bootstrap never changes the persistent user or machine `PATH` or
+environment.
 
 Linux and macOS retain `./scripts/bootstrap-quality-tools.sh`. A checkout with
 different pins resolves a different content-keyed Aqua root while sharing identical
