@@ -469,6 +469,7 @@ async fn candidate_loader_refuses_top_level_update_records() {
 
 #[tokio::test]
 async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_bytes() {
+    use base64::Engine as _;
     use serde_json::json;
     use sha2::{Digest, Sha256};
     use tough::editor::RepositoryEditor;
@@ -493,7 +494,18 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
     fs::create_dir_all(release_path.parent().unwrap()).unwrap();
     fs::create_dir_all(promotion_path.parent().unwrap()).unwrap();
     fs::create_dir_all(unrelated_promotion_path.parent().unwrap()).unwrap();
-    fs::write(&registry_path, b"fixture payload key registry").unwrap();
+    let public_key = b"untrusted comment: minisign public key E7620F1842B4E81F\nRWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3\n";
+    let payload_key_id = hex::encode(Sha256::digest(public_key));
+    let tauri_public_key = base64::engine::general_purpose::STANDARD.encode(public_key);
+    let registry_bytes = serde_json::to_vec(&json!({
+        "schema_version": 1,
+        "keys": [{
+            "id": payload_key_id.clone(),
+            "tauri_public_key": tauri_public_key.clone()
+        }]
+    }))
+    .unwrap();
+    fs::write(&registry_path, registry_bytes).unwrap();
     let release_bytes = serde_json::to_vec(&json!({
         "schema_version": 1,
         "version": "1.0.0",
@@ -516,7 +528,7 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
             "sha256": "c".repeat(64),
             "bytes": 1024,
             "tauri_signature": "fixture-signature",
-            "payload_key_id": "d".repeat(64)
+            "payload_key_id": payload_key_id.clone()
         },
         "compatibility": {
             "minimum_os_version": "10.0.19045",
@@ -664,6 +676,12 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
         select_repository_candidate(&repo, ApplicationChannel::Stable, &installed_context())
             .await
             .unwrap();
-    assert_eq!(selection.state, CandidateState::UpdateAvailable);
-    assert_eq!(selection.candidate.unwrap().release.version, "1.0.0");
+    assert_eq!(selection.selection.state, CandidateState::UpdateAvailable);
+    assert_eq!(
+        selection.selection.candidate.unwrap().release.version,
+        "1.0.0"
+    );
+    let key = selection.payload_key.unwrap();
+    assert_eq!(key.id, payload_key_id);
+    assert_eq!(key.tauri_public_key, tauri_public_key);
 }
