@@ -20,6 +20,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $null = $ProcessTimeoutSeconds, $TestFault
+$ProcessIdentityClockToleranceMilliseconds = 1000
 
 if ([string]::IsNullOrWhiteSpace($TestBase)) {
     $storageJson = & node (Join-Path $PSScriptRoot "dev-storage.mjs") preflight --json
@@ -370,10 +371,6 @@ function Wait-JournaledUninstallerChild($ParentRun, [string]$TemporaryRoot, [Dat
             $null = $process.Handle
             if ($process.HasExited) { continue }
             $started = $process.StartTime.ToUniversalTime()
-            if ($started -lt [DateTime]::Parse($ParentRun.start_time).ToUniversalTime() -or
-                [Math]::Abs(($started - $child.CreationDate.ToUniversalTime()).TotalMilliseconds) -gt 1) {
-                throw "Uninstaller child process identity changed before observation"
-            }
             try {
                 $observedPath = $process.Path
             } catch {
@@ -389,9 +386,19 @@ function Wait-JournaledUninstallerChild($ParentRun, [string]$TemporaryRoot, [Dat
             }
             $exact = [System.IO.Path]::GetFullPath($observedPath)
             $prefix = [System.IO.Path]::GetFullPath($TemporaryRoot).TrimEnd('\') + '\'
-            if (-not $exact.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase) -or
-                -not $exact.Equals($child.ExecutablePath, [System.StringComparison]::OrdinalIgnoreCase)) {
-                throw "Uninstaller child is outside its owned temporary root"
+            $cimPath = [string]$child.ExecutablePath
+            # The parent can exit before this query and Windows may reuse its
+            # PID. Ignore those unowned descendants before applying identity
+            # checks to the exact session-owned self-copy.
+            if ([string]::IsNullOrWhiteSpace($cimPath) -or
+                -not $exact.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase) -or
+                -not $exact.Equals($cimPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+                continue
+            }
+            $parentStarted = [DateTime]::Parse($ParentRun.start_time).ToUniversalTime()
+            if ($started -lt $parentStarted.AddMilliseconds(-$ProcessIdentityClockToleranceMilliseconds) -or
+                [Math]::Abs(($started - $child.CreationDate.ToUniversalTime()).TotalMilliseconds) -gt $ProcessIdentityClockToleranceMilliseconds) {
+                throw "Owned uninstaller child process identity changed before observation"
             }
             Assert-NoReparseAncestry $exact
             $hash = (Get-FileHash -LiteralPath $exact -Algorithm SHA256).Hash.ToLowerInvariant()
