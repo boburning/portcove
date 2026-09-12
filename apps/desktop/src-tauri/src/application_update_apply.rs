@@ -27,7 +27,8 @@ use crate::application_update_staging::{
 };
 use crate::application_update_storage::write_bytes_atomically;
 
-const APPLY_SCHEMA_VERSION: u32 = 2;
+const APPLY_SCHEMA_VERSION: u32 = 3;
+const LEGACY_APPLY_SCHEMA_VERSION: u32 = 2;
 const MAX_APPLY_STATE_BYTES: u64 = 512 * 1024;
 const APPLY_FILE: &str = "apply.json";
 const APPLY_TEMP_FILE: &str = ".apply.json.tmp";
@@ -86,6 +87,8 @@ pub enum ApplicationUpdateNativeLaunchState {
     Starting,
     Started,
     Failed,
+    InstallerSucceeded,
+    InstallerFailed,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -107,6 +110,8 @@ pub struct ApplicationUpdateApplyState {
     pub intent: Option<ApplicationUpdateApplyIntent>,
     pub termination: Option<ApplicationTerminationKind>,
     pub native_launch: Option<ApplicationUpdateNativeLaunchState>,
+    #[serde(default)]
+    pub native_exit_code: Option<i32>,
 }
 
 impl Default for ApplicationUpdateApplyState {
@@ -117,6 +122,7 @@ impl Default for ApplicationUpdateApplyState {
             intent: None,
             termination: None,
             native_launch: None,
+            native_exit_code: None,
         }
     }
 }
@@ -207,6 +213,7 @@ impl ApplicationUpdateRevalidationLease {
         }
         self.apply.state.revision = next_revision(self.apply.state.revision)?;
         self.apply.state.native_launch = Some(ApplicationUpdateNativeLaunchState::Starting);
+        self.apply.state.native_exit_code = None;
         self.apply.store.publish(&self.apply.state)?;
         Ok(ApplicationUpdateNativeLaunchLease { revalidation: self })
     }
@@ -217,22 +224,43 @@ impl ApplicationUpdateNativeLaunchLease {
         self.revalidation.state()
     }
 
-    /// Records that native process creation returned a live child. Installer
-    /// completion is reconciled separately against the newly running version.
-    pub fn record_started(
-        self,
-    ) -> Result<ApplicationUpdateApplyState, ApplicationUpdateApplyError> {
-        self.record(ApplicationUpdateNativeLaunchState::Started)
-    }
-
     /// Records that native process creation failed before a child was created.
     pub fn record_failed(self) -> Result<ApplicationUpdateApplyState, ApplicationUpdateApplyError> {
-        self.record(ApplicationUpdateNativeLaunchState::Failed)
+        self.record(ApplicationUpdateNativeLaunchState::Failed, None)
+    }
+
+    /// Records a zero exit from the native installer. The installed version
+    /// must still be reconciled before the apply intent can be cleared.
+    pub fn record_succeeded(
+        self,
+    ) -> Result<ApplicationUpdateApplyState, ApplicationUpdateApplyError> {
+        self.record(
+            ApplicationUpdateNativeLaunchState::InstallerSucceeded,
+            Some(0),
+        )
+    }
+
+    /// Records a nonzero installer exit after the child is known to be gone.
+    /// This is safe for an explicit retry but is not replacement evidence.
+    pub fn record_installer_failed(
+        self,
+        exit_code: i32,
+    ) -> Result<ApplicationUpdateApplyState, ApplicationUpdateApplyError> {
+        if exit_code == 0 {
+            return Err(ApplicationUpdateApplyError::InvalidState(
+                "a failed native installer exit code must be nonzero".into(),
+            ));
+        }
+        self.record(
+            ApplicationUpdateNativeLaunchState::InstallerFailed,
+            Some(exit_code),
+        )
     }
 
     fn record(
         mut self,
         state: ApplicationUpdateNativeLaunchState,
+        exit_code: Option<i32>,
     ) -> Result<ApplicationUpdateApplyState, ApplicationUpdateApplyError> {
         if self.revalidation.apply.state.native_launch
             != Some(ApplicationUpdateNativeLaunchState::Starting)
@@ -244,6 +272,7 @@ impl ApplicationUpdateNativeLaunchLease {
         self.revalidation.apply.state.revision =
             next_revision(self.revalidation.apply.state.revision)?;
         self.revalidation.apply.state.native_launch = Some(state);
+        self.revalidation.apply.state.native_exit_code = exit_code;
         self.revalidation
             .apply
             .store
@@ -323,8 +352,11 @@ impl ApplicationUpdateApplyStore {
                 "apply state changed size while being read".into(),
             ));
         }
-        let state: ApplicationUpdateApplyState = serde_json::from_slice(&bytes)
+        let mut state: ApplicationUpdateApplyState = serde_json::from_slice(&bytes)
             .map_err(|error| ApplicationUpdateApplyError::InvalidState(error.to_string()))?;
+        if state.schema_version == LEGACY_APPLY_SCHEMA_VERSION {
+            state.schema_version = APPLY_SCHEMA_VERSION;
+        }
         validate_state(&state)?;
         Ok(state)
     }
@@ -481,6 +513,7 @@ impl ApplicationUpdateApplyStore {
             Some(
                 ApplicationUpdateNativeLaunchState::Starting
                     | ApplicationUpdateNativeLaunchState::Started
+                    | ApplicationUpdateNativeLaunchState::InstallerSucceeded
             )
         ) {
             return Err(ApplicationUpdateApplyError::InvalidState(
@@ -491,12 +524,14 @@ impl ApplicationUpdateApplyStore {
         state.intent = None;
         state.termination = None;
         state.native_launch = None;
+        state.native_exit_code = None;
         self.publish(&state)?;
         Ok(state)
     }
 
-    /// Makes only a proven pre-spawn failure eligible for an explicit retry.
-    /// Started or ambiguous attempts must first reconcile installed state.
+    /// Makes a proven pre-spawn failure or observed nonzero installer exit
+    /// eligible for an explicit retry. Started or ambiguous attempts must
+    /// first reconcile installed state.
     pub fn retry_failed_native_launch(
         &self,
         expected_revision: u64,
@@ -504,13 +539,20 @@ impl ApplicationUpdateApplyStore {
         let _lock = self.lock()?;
         let mut state = self.load()?;
         require_revision(&state, expected_revision)?;
-        if state.native_launch != Some(ApplicationUpdateNativeLaunchState::Failed) {
+        if !matches!(
+            state.native_launch,
+            Some(
+                ApplicationUpdateNativeLaunchState::Failed
+                    | ApplicationUpdateNativeLaunchState::InstallerFailed
+            )
+        ) {
             return Err(ApplicationUpdateApplyError::InvalidState(
-                "only a failed pre-spawn native launch can be retried".into(),
+                "only a native launch known to have no running child can be retried".into(),
             ));
         }
         state.revision = next_revision(state.revision)?;
         state.native_launch = None;
+        state.native_exit_code = None;
         self.publish(&state)?;
         Ok(state)
     }
@@ -645,6 +687,24 @@ fn validate_state(state: &ApplicationUpdateApplyState) -> Result<(), Application
         return Err(ApplicationUpdateApplyError::InvalidState(
             "native launch state requires a matching terminated apply intent".into(),
         ));
+    }
+    match (state.native_launch, state.native_exit_code) {
+        (Some(ApplicationUpdateNativeLaunchState::InstallerSucceeded), Some(0)) => {}
+        (Some(ApplicationUpdateNativeLaunchState::InstallerFailed), Some(code)) if code != 0 => {}
+        (
+            Some(
+                ApplicationUpdateNativeLaunchState::Starting
+                | ApplicationUpdateNativeLaunchState::Started
+                | ApplicationUpdateNativeLaunchState::Failed,
+            )
+            | None,
+            None,
+        ) => {}
+        _ => {
+            return Err(ApplicationUpdateApplyError::InvalidState(
+                "native installer exit code does not match its launch state".into(),
+            ));
+        }
     }
     if let Some(intent) = &state.intent {
         if state.revision == 0 {
@@ -1109,6 +1169,16 @@ mod tests {
 
         fs::write(
             store.root.join(APPLY_FILE),
+            br#"{"schema_version":2,"revision":0,"intent":null,"termination":null,"native_launch":null}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            store.load().unwrap(),
+            ApplicationUpdateApplyState::default()
+        );
+
+        fs::write(
+            store.root.join(APPLY_FILE),
             br#"{"schema_version":99,"revision":8,"intent":null,"termination":null}"#,
         )
         .unwrap();
@@ -1235,20 +1305,56 @@ mod tests {
             .unwrap()
             .begin_native_launch()
             .unwrap();
-        let started = launch.record_started().unwrap();
-        assert_eq!(started.revision, 7);
+        let starting = launch.state().clone();
+        assert_eq!(starting.revision, 6);
         assert_eq!(
-            started.native_launch,
-            Some(ApplicationUpdateNativeLaunchState::Started)
+            starting.native_launch,
+            Some(ApplicationUpdateNativeLaunchState::Starting)
         );
-        assert!(!started.may_attempt_revalidation());
+        assert!(!starting.may_attempt_revalidation());
         assert!(matches!(
-            apply.retry_failed_native_launch(started.revision),
-            Err(ApplicationUpdateApplyError::InvalidState(message))
-                if message.contains("failed pre-spawn")
+            apply.retry_failed_native_launch(starting.revision),
+            Err(ApplicationUpdateApplyError::Busy)
         ));
         assert!(matches!(
-            apply.clear(started.revision),
+            apply.clear(starting.revision),
+            Err(ApplicationUpdateApplyError::Busy)
+        ));
+        let installer_failed = launch.record_installer_failed(1602).unwrap();
+        assert_eq!(installer_failed.revision, 7);
+        assert_eq!(
+            installer_failed.native_launch,
+            Some(ApplicationUpdateNativeLaunchState::InstallerFailed)
+        );
+        assert_eq!(installer_failed.native_exit_code, Some(1602));
+        let retry = apply
+            .retry_failed_native_launch(installer_failed.revision)
+            .unwrap();
+        assert_eq!(retry.revision, 8);
+        assert_eq!(retry.native_exit_code, None);
+
+        let launch = apply
+            .admit_revalidation(
+                retry.revision,
+                &preferences_store,
+                &staging_store,
+                &selected,
+                &installed,
+                &runtime_lock,
+            )
+            .await
+            .unwrap()
+            .begin_native_launch()
+            .unwrap();
+        let succeeded = launch.record_succeeded().unwrap();
+        assert_eq!(succeeded.revision, 10);
+        assert_eq!(
+            succeeded.native_launch,
+            Some(ApplicationUpdateNativeLaunchState::InstallerSucceeded)
+        );
+        assert_eq!(succeeded.native_exit_code, Some(0));
+        assert!(matches!(
+            apply.clear(succeeded.revision),
             Err(ApplicationUpdateApplyError::InvalidState(message))
                 if message.contains("must be reconciled")
         ));

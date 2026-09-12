@@ -260,6 +260,16 @@ describe("ApplicationUpdateSettings", () => {
       "Installer did not start",
       "A retry will still repeat the fresh trust, consent, ownership, compatibility and idle-state checks.",
     ],
+    [
+      "installer-succeeded",
+      "Installer process completed",
+      "still needs to confirm the installed version and application health",
+    ],
+    [
+      "installer-failed",
+      "Installer process did not complete",
+      "A retry will repeat every update safety check.",
+    ],
   ] as const)("explains the %s native launch state", async (native_launch, title, detail) => {
     vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
     vi.mocked(desktopApi.applicationUpdateStatus).mockResolvedValueOnce({
