@@ -606,6 +606,15 @@ The sibling payload boundary independently binds an already obtained stream to t
 selected release length, SHA-256 and exact registry key using bounded, prehashed
 Minisign verification. Only its Rust-only verified identity may cross into later
 staging work; it owns no download, eligibility, replacement or installation state.
+The host's private `application_update_staging` module tees that exact verification
+stream into a fixed incoming file, checks capacity for both the authenticated payload
+and native replacement workspace, and publishes one active candidate with durable
+staged, payload-verified and verified journal phases. Its path-keyed process and OS
+locks serialize writers. On restart it discards pre-verification bytes, restores the
+prior verified slot after an interrupted attempt, or completes publication only from
+the durable payload-verified phase. Corrupt or future journals require explicit
+bounded reset. A reconciled file is retained state rather than fresh eligibility or
+apply authority; no downloader or platform replacement is active.
 For production metadata, a sibling host transport accepts only host-selected
 HTTPS bases with separate path prefixes on port 443, resolves and pins public DNS
 results, bypasses proxies, refuses redirects and enforces request, deadline, idle,

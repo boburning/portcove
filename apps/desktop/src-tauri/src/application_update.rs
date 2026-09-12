@@ -181,7 +181,8 @@ pub enum CandidateState {
     NoCandidate,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SelectedCandidate {
     pub release_path: String,
     pub release_sha256: String,
@@ -560,6 +561,33 @@ fn selected(release: ReleaseRecord, promotion: &PromotionRecord) -> SelectedCand
         release,
         promotion: promotion.clone(),
     }
+}
+
+/// Revalidates a selected candidate after it crosses a durable host-state
+/// boundary. The authenticated release digest still needs a fresh metadata
+/// check immediately before application.
+pub(crate) fn validate_selected_candidate(
+    candidate: &SelectedCandidate,
+) -> Result<(), UpdateMetadataError> {
+    let release_version = validate_release(&candidate.release)?;
+    let promotion_version = validate_promotion(&candidate.promotion, candidate.promotion.channel)?;
+    let expected_path = format!(
+        "releases/{}/{}/{}.json",
+        candidate.release.version, candidate.release.target, candidate.release.package.kind
+    );
+    if candidate.release_path != candidate.promotion.release_path
+        || candidate.release_sha256 != candidate.promotion.release_sha256
+        || candidate.release_path != expected_path
+        || candidate.promotion.version != candidate.release.version
+        || candidate.promotion.target != candidate.release.target
+        || candidate.promotion.package != candidate.release.package.kind
+        || promotion_version != release_version
+        || !candidate.promotion.eligible
+        || candidate.promotion.withdrawn
+    {
+        return Err(UpdateMetadataError::PromotionMismatch);
+    }
+    Ok(())
 }
 
 /// Select the highest compatible candidate by SemVer precedence.

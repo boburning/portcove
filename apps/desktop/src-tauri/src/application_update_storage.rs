@@ -34,6 +34,20 @@ fn replace_file(source: &Path, destination: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
+pub(crate) fn replace_file_atomically(
+    directory: &Path,
+    source_name: &str,
+    destination_name: &str,
+) -> std::io::Result<()> {
+    replace_file(
+        &directory.join(source_name),
+        &directory.join(destination_name),
+    )?;
+    #[cfg(unix)]
+    File::open(directory)?.sync_all()?;
+    Ok(())
+}
+
 #[cfg(not(windows))]
 fn replace_file(source: &Path, destination: &Path) -> std::io::Result<()> {
     fs::rename(source, destination)
@@ -46,7 +60,6 @@ pub(crate) fn write_bytes_atomically(
     bytes: &[u8],
 ) -> std::io::Result<()> {
     let temporary = directory.join(temporary_name);
-    let destination = directory.join(destination_name);
     if temporary.exists() {
         fs::remove_file(&temporary)?;
     }
@@ -57,9 +70,7 @@ pub(crate) fn write_bytes_atomically(
             .open(&temporary)?;
         output.write_all(bytes)?;
         output.sync_all()?;
-        replace_file(&temporary, &destination)?;
-        #[cfg(unix)]
-        File::open(directory)?.sync_all()?;
+        replace_file_atomically(directory, temporary_name, destination_name)?;
         Ok(())
     })();
     if write_result.is_err() {

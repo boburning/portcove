@@ -6,7 +6,7 @@ use base64::Engine as _;
 use minisign_verify::{PublicKey, Signature};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
-use tokio::io::{AsyncRead, AsyncReadExt};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 use crate::application_update::ArtifactIdentity;
 
@@ -160,6 +160,18 @@ pub async fn verify_payload<R: AsyncRead + Unpin>(
     artifact: &ArtifactIdentity,
     key: &PayloadVerificationKey,
 ) -> Result<VerifiedPayloadIdentity, PayloadVerificationError> {
+    verify_payload_to_writer(reader, &mut tokio::io::sink(), artifact, key).await
+}
+
+/// Verifies and copies the same payload stream into a caller-owned private
+/// destination. The caller must discard the destination unless this returns
+/// successfully.
+pub(crate) async fn verify_payload_to_writer<R: AsyncRead + Unpin, W: AsyncWrite + Unpin>(
+    reader: &mut R,
+    writer: &mut W,
+    artifact: &ArtifactIdentity,
+    key: &PayloadVerificationKey,
+) -> Result<VerifiedPayloadIdentity, PayloadVerificationError> {
     if artifact.bytes == 0 || artifact.bytes > MAX_PAYLOAD_BYTES {
         return Err(PayloadVerificationError::InvalidIdentity(
             "authenticated payload size is outside the host limit".into(),
@@ -206,6 +218,7 @@ pub async fn verify_payload<R: AsyncRead + Unpin>(
         }
         sha256.update(&buffer[..count]);
         signature_verifier.update(&buffer[..count]);
+        writer.write_all(&buffer[..count]).await?;
     }
     if received != artifact.bytes {
         return Err(PayloadVerificationError::LengthMismatch {
