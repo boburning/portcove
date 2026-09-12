@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
-          version: 11.25.0
+          package_json_file: apps/desktop/package.json
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
@@ -50,7 +50,7 @@ jobs:
             ~/.cargo/bin/rscheck
           key: quality-rscheck-binaries-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/quality-tools.json') }}
       - name: Install pinned prebuilt audit tools
-        uses: taiki-e/install-action@84f5ac3124727fb3d284d4d22ee9ab3654fd09a6 # v2
+        uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2
         with:
           tool: ${{ steps.quality-pins.outputs.required_prebuilt }}
       - name: Check cached pinned rscheck version
@@ -64,9 +64,18 @@ jobs:
           fi
       - name: Install pinned rscheck
         if: steps.rscheck-tool.outputs.ready != 'true'
-        uses: taiki-e/install-action@84f5ac3124727fb3d284d4d22ee9ab3654fd09a6 # v2
+        uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2
         with:
           tool: ${{ steps.quality-pins.outputs.rscheck_spec }}
+      - name: Read pinned aqua version
+        id: aqua-version
+        shell: bash
+        run: echo "version=$(tr -d '\r\n' < .aqua-version)" >> "$GITHUB_OUTPUT"
+      - name: Install pinned aqua
+        uses: aquaproj/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e # v4.0.5
+        with:
+          aqua_version: ${{ steps.aqua-version.outputs.version }}
+          enable_aqua_install: "false"
       - name: Verify exact audit-tool versions
         run: ./scripts/bootstrap-quality-tools.sh
       - run: pnpm install --frozen-lockfile
@@ -94,8 +103,10 @@ jobs:
       - name: Restore pinned Hawk binary
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ~/.cargo/bin/cargo-hawk
-          key: quality-hawk-binary-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/quality-tools.json') }}
+          path: |
+            ~/.cargo/bin/cargo-hawk
+            ~/.cargo/bin/cargo-hawk-driver
+          key: quality-hawk-binary-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/quality-tools.json') }}
       - name: Install Linux desktop prerequisites
         timeout-minutes: 15
         run: ./scripts/install-linux-desktop-prerequisites.sh
@@ -105,7 +116,7 @@ jobs:
         id: hawk-tool
         shell: bash
         run: |
-          if node scripts/quality-tools.mjs --verify cargo-hawk; then
+          if node scripts/quality-tools.mjs --verify cargo-hawk && command -v cargo-hawk-driver >/dev/null; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
@@ -114,9 +125,12 @@ jobs:
         if: steps.hawk-tool.outputs.ready != 'true'
         env:
           RUSTC_BOOTSTRAP: "1"
-        run: cargo +${{ steps.quality-pins.outputs.hawk_rust }} install --locked --version ${{ steps.quality-pins.outputs.hawk_version }} cargo-hawk
-      - name: Verify exact Hawk version
-        run: node scripts/quality-tools.mjs --verify cargo-hawk
+        run: cargo +${{ steps.quality-pins.outputs.hawk_rust }} install --locked --force --version ${{ steps.quality-pins.outputs.hawk_version }} cargo-hawk
+      - name: Verify exact Hawk installation
+        shell: bash
+        run: |
+          node scripts/quality-tools.mjs --verify cargo-hawk
+          test -x "$(command -v cargo-hawk-driver)"
       - name: Analyze dead public APIs with Hawk
         env:
           PORTCOVE_REQUIRE_DEEP_TOOLS: "1"
@@ -160,7 +174,7 @@ jobs:
           fi
       - name: Install pinned semdup
         if: steps.semdup-tool.outputs.ready != 'true'
-        uses: taiki-e/install-action@84f5ac3124727fb3d284d4d22ee9ab3654fd09a6 # v2
+        uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2
         with:
           tool: ${{ steps.quality-pins.outputs.semdup_spec }}
       - name: Verify exact semdup version

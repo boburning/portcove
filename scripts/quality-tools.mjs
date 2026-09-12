@@ -49,6 +49,14 @@ export function validateQualityManifest(manifest) {
       throw new Error(`${tool.id} has an invalid ci_install strategy`);
     }
     if (tool.rust_toolchain) semver(tool.rust_toolchain, `${tool.id} Rust toolchain`);
+    if (tool.uses_workspace_rust) {
+      if (tool.rust_toolchain)
+        throw new Error(`${tool.id} cannot define both private and workspace Rust toolchains`);
+      if (!tool.command.includes("+{rust}"))
+        throw new Error(`${tool.id} workspace Rust command must contain +{rust}`);
+    } else if (tool.command.includes("+{rust}")) {
+      throw new Error(`${tool.id} cannot use +{rust} without uses_workspace_rust`);
+    }
   }
   for (const required of [
     "just",
@@ -104,7 +112,9 @@ export function githubOutputs(manifest) {
     rscheck_spec: spec(byId["rscheck-cli"]),
     semdup_spec: spec(byId.semdup),
     hawk_version: byId["cargo-hawk"].version,
-    hawk_rust: byId["cargo-hawk"].rust_toolchain,
+    hawk_rust: byId["cargo-hawk"].uses_workspace_rust
+      ? manifest.rust.channel
+      : byId["cargo-hawk"].rust_toolchain,
   };
 }
 
@@ -132,7 +142,7 @@ async function validateConsumers(manifest) {
     throw new Error("rust-toolchain.toml drifted from quality-tools.json");
   const workspace = await readFile(path.join(projectRoot, "Cargo.toml"), "utf8");
   const msrv = workspace.match(/^rust-version\s*=\s*"([^"]+)"/m)?.[1];
-  if (`${msrv}.0` !== manifest.rust.channel)
+  if (manifest.rust.channel !== msrv && !manifest.rust.channel.startsWith(`${msrv}.`))
     throw new Error("workspace MSRV drifted from the pinned Rust channel");
 }
 
@@ -142,8 +152,13 @@ function toolById(manifest, id) {
   return tool;
 }
 
-function verifyTool(tool) {
-  const result = spawnSync(tool.command[0], tool.command.slice(1), {
+export function commandFor(manifest, tool) {
+  return tool.command.map((value) => (value === "+{rust}" ? `+${manifest.rust.channel}` : value));
+}
+
+function verifyTool(manifest, tool) {
+  const command = commandFor(manifest, tool);
+  const result = spawnSync(command[0], command.slice(1), {
     encoding: "utf8",
   });
   const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
@@ -186,12 +201,13 @@ async function main(argv) {
   }
   if (mode === "--rust-toolchain" && argv.length === 2) {
     const tool = toolById(manifest, argv[1]);
-    if (!tool.rust_toolchain) throw new Error(`${tool.id} has no private Rust toolchain`);
-    console.log(tool.rust_toolchain);
+    const rustToolchain = tool.uses_workspace_rust ? manifest.rust.channel : tool.rust_toolchain;
+    if (!rustToolchain) throw new Error(`${tool.id} has no Rust toolchain requirement`);
+    console.log(rustToolchain);
     return;
   }
   if (mode === "--verify" && argv.length === 2) {
-    console.log(verifyTool(toolById(manifest, argv[1])));
+    console.log(verifyTool(manifest, toolById(manifest, argv[1])));
     return;
   }
   throw new Error(

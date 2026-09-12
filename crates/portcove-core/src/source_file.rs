@@ -257,12 +257,12 @@ impl N64CanonicalDigest {
         match self.order.expect("N64 byte order is known") {
             N64ByteOrder::Big | N64ByteOrder::Invalid => {}
             N64ByteOrder::ByteSwapped => {
-                for pair in words.chunks_exact_mut(2) {
+                for pair in words.as_chunks_mut::<2>().0 {
                     pair.swap(0, 1);
                 }
             }
             N64ByteOrder::Little => {
-                for word in words.chunks_exact_mut(4) {
+                for word in words.as_chunks_mut::<4>().0 {
                     word.reverse();
                 }
             }

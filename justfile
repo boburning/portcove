@@ -50,11 +50,11 @@ prune-incremental:
 # Repository formatting
 fmt:
     {{storage}} cargo fmt --all
-    {{storage}} pnpm --dir apps/desktop format
+    {{storage}} corepack pnpm --dir apps/desktop format
 
 fmt-check:
     {{storage}} cargo fmt --all -- --check
-    {{storage}} pnpm --dir apps/desktop format:check
+    {{storage}} corepack pnpm --dir apps/desktop format:check
 
 # Rust fast loop
 rustfmt-check:
@@ -94,21 +94,21 @@ ui-transport:
     {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/transport-types.test.mjs
 
 ui-build:
-    {{storage}} pnpm --dir apps/desktop build
+    {{storage}} corepack pnpm --dir apps/desktop build
 
 ui-test:
-    {{storage}} pnpm --dir apps/desktop test
+    {{storage}} corepack pnpm --dir apps/desktop test
 
 fallow:
     {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-fallow-report.test.mjs
     {{storage}} node scripts/run-fallow.mjs
 
 oxlint:
-    {{storage}} pnpm --dir apps/desktop lint:oxlint
+    {{storage}} corepack pnpm --dir apps/desktop lint:oxlint
     {{storage}} node scripts/lint-tools.integration.mjs oxlint
 
 stylelint:
-    {{storage}} pnpm --dir apps/desktop lint:style
+    {{storage}} corepack pnpm --dir apps/desktop lint:style
     {{storage}} node scripts/lint-tools.integration.mjs stylelint
 
 ui-check: ui-transport ui-build ui-test fallow oxlint stylelint
@@ -116,7 +116,7 @@ ui-check: ui-transport ui-build ui-test fallow oxlint stylelint
 check-ui: fmt-frontend-check ui-check
 
 fmt-frontend-check:
-    {{storage}} pnpm --dir apps/desktop format:check
+    {{storage}} corepack pnpm --dir apps/desktop format:check
     {{storage}} node scripts/lint-tools.integration.mjs oxfmt
 
 # Cross-language scripts and hosted automation.
@@ -141,14 +141,14 @@ script-lint: python-lint shell-lint actions-lint powershell-lint
 # Generic repository automation and governance contracts.
 repository-tools:
     {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/upstream-observer.test.mjs
-    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/test-duration-reporter.test.mjs scripts/quality-tools.test.mjs scripts/repository-settings.test.mjs scripts/pr-conventions.test.mjs scripts/dev-storage.test.mjs scripts/migrate-catalog-schema2.test.mjs
+    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/test-duration-reporter.test.mjs scripts/quality-tools.test.mjs scripts/dependency-automation.test.mjs scripts/repository-settings.test.mjs scripts/pr-conventions.test.mjs scripts/dev-storage.test.mjs scripts/migrate-catalog-schema2.test.mjs
     {{storage}} node scripts/check-retcomm-upstreams.mjs --offline
     {{storage}} node scripts/quality-tools.mjs --validate
     {{storage}} node scripts/repository-settings.mjs --validate
 
 # Deterministic release metadata, packaging, updater, and qualification unit contracts.
 release-check:
-    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-release-metadata.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/updater-artifact-inventory.test.mjs scripts/reconcile-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/select-release-channel.test.mjs scripts/reconstruct-application-update-records.test.mjs scripts/release-workflow.test.mjs scripts/windows-qualification-session.test.mjs
+    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-release-metadata.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/updater-artifact-inventory.test.mjs scripts/reconcile-release-assets.test.mjs scripts/finalize-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/select-release-channel.test.mjs scripts/reconstruct-application-update-records.test.mjs scripts/release-workflow.test.mjs scripts/windows-qualification-session.test.mjs
     {{storage}} node scripts/check-release-metadata.mjs
 
 # Stateful packaged-session qualification. Never reused by the audit orchestrator.

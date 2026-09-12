@@ -19,6 +19,14 @@ function validateInventory(inventory) {
     throw new Error("release inventory tag and version disagree");
   if (!Array.isArray(inventory.packages) || inventory.packages.length === 0)
     throw new Error("release inventory has no packages");
+  if (
+    inventory.sbom?.format !== "SPDX-2.3 JSON" ||
+    !inventory.sbom.filename ||
+    !inventory.sbom.download_url ||
+    !/^[a-f0-9]{64}$/u.test(inventory.sbom.sha256 ?? "")
+  ) {
+    throw new Error("release inventory has no finalized SPDX SBOM");
+  }
   const names = new Set();
   for (const entry of inventory.packages) {
     if (
@@ -135,7 +143,9 @@ macOS:
 
 ${unixExample(mac.filename, inventory.checksum_manifest, "shasum -a 256 --check -")}
 
-A checksum proves that your bytes agree with the bytes listed in this release. It does not independently prove publisher identity, malware freedom, operating-system signing, updater authorization, gameplay, or platform compatibility.
+The [SPDX 2.3 SBOM](${inventory.sbom.download_url}) inventories the release build context and is itself covered by \`${inventory.checksum_manifest}\`. GitHub build-provenance and SBOM attestations bind the final release payloads to this repository and workflow. Verify a downloaded package with \`gh attestation verify <FILE> --repo ${inventory.repository}\` in addition to checking its SHA-256.
+
+A checksum proves that your bytes agree with the bytes listed in this release. An attestation binds those bytes to a workflow identity; neither is a malware assessment, operating-system signature, updater authorization, gameplay result, or platform-compatibility claim.
 ${endMarker}`;
 }
 

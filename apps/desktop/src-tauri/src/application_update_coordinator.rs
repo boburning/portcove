@@ -404,16 +404,12 @@ impl ApplicationUpdateCoordinator {
         std::fs::create_dir_all(parent)?;
         refuse_symlink_ancestors(parent)?;
         refuse_symlink_ancestors(&self.lock_path)?;
-        let file = match OpenOptions::new()
+        let file = OpenOptions::new()
             .create(true)
             .truncate(false)
             .read(true)
             .write(true)
-            .open(&self.lock_path)
-        {
-            Ok(file) => file,
-            Err(error) => return Err(error.into()),
-        };
+            .open(&self.lock_path)?;
         match file.try_lock_exclusive() {
             Ok(()) => Ok(CheckLock {
                 file,

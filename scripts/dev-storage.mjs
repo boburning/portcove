@@ -4,7 +4,7 @@ import { lstatSync, mkdirSync, realpathSync, rmSync, statSync, statfsSync } from
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { checkoutToolEnvironment, toolCachePaths } from "./tool-cache.mjs";
+import { checkoutToolEnvironment, readToolPins, toolCachePaths } from "./tool-cache.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(path.dirname(scriptPath), "..");
@@ -247,6 +247,14 @@ export function spawnCommand(command, args, options) {
   return result;
 }
 
+export function canonicalPackageManagerCommand(command, args) {
+  const executable = path.basename(command).toLowerCase();
+  if (new Set(["corepack", "corepack.cmd", "corepack.exe"]).has(executable) && args[0] === "pnpm") {
+    return [command, [readToolPins().packageManager, ...args.slice(1)]];
+  }
+  return [command, args];
+}
+
 function runChild(command, args, paths) {
   ensureChildDirectories(paths);
   const options = {
@@ -255,6 +263,7 @@ function runChild(command, args, paths) {
     stdio: "inherit",
     windowsHide: true,
   };
+  [command, args] = canonicalPackageManagerCommand(command, args);
   const result = spawnCommand(command, args, options);
   return result.status ?? 1;
 }

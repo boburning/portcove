@@ -17,7 +17,7 @@ function validMetadata() {
       repository: "https://github.com/boburning/portcove",
       license: "MIT OR Apache-2.0",
     },
-    desktopPackage: { version: "1.2.3-beta.1", packageManager: "pnpm@11.25.0" },
+    desktopPackage: { version: "1.2.3-beta.1", packageManager: "pnpm@12.4.1" },
     tauri: {
       productName: "Portcove",
       version: "1.2.3-beta.1",

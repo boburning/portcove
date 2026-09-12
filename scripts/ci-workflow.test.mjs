@@ -202,6 +202,9 @@ test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () 
   assert.match(rustClippy, /cargo clippy --workspace --all-targets -- -D warnings/);
   assert.doesNotMatch(rustClippy, /cargo test|matrix/);
 
+  assert.match(rustQuality, /runs-on: ubuntu-latest/);
+  assert.match(rustQuality, /cargo clippy --workspace --all-targets -- -D warnings/);
+
   assert.match(windowsStorage, /^ {4}name: windows-storage$/m);
   assert.match(windowsStorage, /runs-on: windows-latest/);
   assert.match(windowsStorage, /scripts\/dev-storage\.test\.mjs/);
@@ -676,8 +679,28 @@ test("release and deep preflights require a fresh audit", async () => {
     "utf8",
   );
   assert.match(release, /just audit --fresh/);
+  assert.match(release, /id: aqua-version/);
+  assert.match(release, /aquaproj\/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e/);
+  assert.match(release, /aqua_version: \$\{\{ steps\.aqua-version\.outputs\.version \}\}/);
+  assert.match(release, /enable_aqua_install: "false"/);
   assert.match(deep, /just audit --fresh/);
+  assert.match(deep, /id: aqua-version/);
+  assert.match(deep, /aquaproj\/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e/);
+  assert.match(deep, /aqua_version: \$\{\{ steps\.aqua-version\.outputs\.version \}\}/);
+  assert.match(deep, /enable_aqua_install: "false"/);
   assert.match(localPreflight, /just audit --fresh/);
+});
+
+test("deep Hawk caching retains and verifies the compiler driver", async () => {
+  const deep = await readFile(
+    new URL("../.github/workflows/deep-quality.yml", import.meta.url),
+    "utf8",
+  );
+  assert.match(deep, /~\/.cargo\/bin\/cargo-hawk\r?\n\s+~\/.cargo\/bin\/cargo-hawk-driver/);
+  assert.match(deep, /quality-hawk-binary-v2-/);
+  assert.match(deep, /command -v cargo-hawk-driver >\/dev\/null/);
+  assert.match(deep, /install --locked --force --version .* cargo-hawk/);
+  assert.match(deep, /test -x "\$\(command -v cargo-hawk-driver\)"/);
 });
 
 test("live upstream health has bounded independent triggers while catalog stays offline", async () => {

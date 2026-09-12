@@ -43,9 +43,9 @@ try {
 
     Push-Location $desktopRoot
     try {
-        pnpm install --frozen-lockfile
+        corepack pnpm install --frozen-lockfile
         if ($LASTEXITCODE -ne 0) { throw "Frontend dependency check failed with exit code $LASTEXITCODE" }
-        pnpm audit --prod --audit-level high
+        corepack pnpm audit --prod --audit-level high
         if ($LASTEXITCODE -ne 0) { throw "Frontend production dependency audit failed with exit code $LASTEXITCODE" }
     }
     finally {
@@ -62,7 +62,7 @@ try {
 
     Push-Location $desktopRoot
     try {
-        pnpm tauri build --bundles nsis
+        corepack pnpm tauri build --bundles nsis
         if ($LASTEXITCODE -ne 0) { throw "Tauri bundle build failed with exit code $LASTEXITCODE" }
     }
     finally {

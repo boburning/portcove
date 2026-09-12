@@ -1,0 +1,137 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":dependencyDashboard"],
+  "enabledManagers": ["cargo", "npm", "github-actions", "rust-toolchain", "custom.regex"],
+  "labels": ["dependencies"],
+  "automerge": false,
+  "minimumReleaseAge": "3 days",
+  "internalChecksFilter": "strict",
+  "prCreation": "not-pending",
+  "prConcurrentLimit": 5,
+  "branchConcurrentLimit": 5,
+  "rangeStrategy": "bump",
+  "rebaseWhen": "behind-base-branch",
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on monday"]
+  },
+  "packageRules": [
+    {
+      "description": "Keep immutable GitHub Action references and group their reviewed updates",
+      "matchManagers": ["github-actions"],
+      "groupName": "github-actions",
+      "pinDigests": true
+    },
+    {
+      "description": "Update the React runtime and declarations together",
+      "matchPackageNames": ["react", "react-dom", "@types/react", "@types/react-dom"],
+      "groupName": "react"
+    },
+    {
+      "description": "Keep Tauri JavaScript and Rust packages in one qualification unit",
+      "matchPackageNames": ["/^@tauri-apps\\//", "/^tauri(?:-|$)/"],
+      "groupName": "tauri"
+    },
+    {
+      "description": "Keep the frontend compiler format lint and test tools coherent",
+      "matchPackageNames": [
+        "vite",
+        "vitest",
+        "typescript",
+        "@vitejs/plugin-react",
+        "oxc-parser",
+        "oxfmt",
+        "oxlint",
+        "oxlint-tsgolint",
+        "stylelint",
+        "stylelint-config-recommended"
+      ],
+      "groupName": "frontend-toolchain"
+    },
+    {
+      "description": "Keep the Rust compiler authorities in one reviewed change",
+      "matchPackageNames": ["rust"],
+      "groupName": "rust-toolchain"
+    },
+    {
+      "description": "Do not replace the reviewed SQLite upstream revision automatically",
+      "matchPackageNames": ["rusqlite"],
+      "enabled": false
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github\\/quality-tools\\.json$/"],
+      "matchStrings": [
+        "\\\"crate\\\":\\s*\\\"(?<depName>[^\\\"]+)\\\",\\s*\\\"version\\\":\\s*\\\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\\\""
+      ],
+      "datasourceTemplate": "crate",
+      "versioningTemplate": "cargo"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github\\/quality-tools\\.json$/"],
+      "matchStrings": ["\\\"channel\\\":\\s*\\\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\\\""],
+      "depNameTemplate": "rust",
+      "datasourceTemplate": "rust-version",
+      "versioningTemplate": "rust"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.node-version$/"],
+      "matchStrings": ["(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
+      "depNameTemplate": "node",
+      "datasourceTemplate": "node-version",
+      "versioningTemplate": "node"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.config\\/tool-bootstrap\\.json$/"],
+      "matchStrings": ["\\\"tauri_driver\\\":\\s*\\\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\\\""],
+      "depNameTemplate": "tauri-driver",
+      "datasourceTemplate": "crate",
+      "versioningTemplate": "cargo"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.aqua-version$/"],
+      "matchStrings": ["(?<currentValue>v\\d+\\.\\d+\\.\\d+)"],
+      "depNameTemplate": "aquaproj/aqua",
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "semver-coerced"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^aqua\\.yaml$/"],
+      "matchStrings": ["ref:\\s*(?<currentValue>v\\d+\\.\\d+\\.\\d+)"],
+      "depNameTemplate": "aquaproj/aqua-registry",
+      "datasourceTemplate": "github-tags",
+      "versioningTemplate": "semver-coerced"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^aqua\\.yaml$/"],
+      "matchStrings": ["- name:\\s*(?<depName>[^@\\s]+)@(?<currentValue>v?\\d+\\.\\d+\\.\\d+)"],
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "semver-coerced"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.config\\/powershell-resources\\.psd1$/"],
+      "matchStrings": [
+        "(?<depName>PSScriptAnalyzer)[\\s\\S]*?version\\s*=\\s*'(?<currentValue>\\d+\\.\\d+\\.\\d+)'"
+      ],
+      "datasourceTemplate": "nuget",
+      "versioningTemplate": "nuget"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github\\/workflows\\/release\\.yml$/"],
+      "matchStrings": ["syft-version:\\s*v(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
+      "depNameTemplate": "anchore/syft",
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "semver"
+    }
+  ]
+}

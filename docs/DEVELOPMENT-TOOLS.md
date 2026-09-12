@@ -17,6 +17,12 @@ proof of Cargo's auto-selected linker. Inspect a verbose native build when
 compiler selection matters. Keep each worktree's Cargo target separate and use
 the existing development-storage wrapper for heavy commands.
 
+The active toolchain authorities are Rust 1.98.1 in `rust-toolchain.toml`, Node
+24.21.0 in `.node-version`, and pnpm 12.4.1 in the desktop package's
+`packageManager` field. GitHub workflows derive pnpm from that package manifest
+instead of copying its version. `scripts/dependency-automation.test.mjs` checks
+those relationships together with Renovate coverage for nonstandard pins.
+
 On Windows, run `./scripts/bootstrap-quality-tools.ps1`. It downloads the exact
 Aqua release named by `.aqua-version` from Aqua's official release origin, verifies
 the checked-in architecture-specific SHA-256, and provisions checksum-locked Ruff,
@@ -144,7 +150,7 @@ The pinned Selenium client connects to the explicitly started driver server;
 the harness does not invoke Selenium Manager or provision browsers automatically.
 
 Build the frontend and a desktop binary with embedded assets using the storage
-wrapper (`pnpm --dir apps/desktop build`, then `cargo build -p portcove-desktop
+wrapper (`corepack pnpm --dir apps/desktop build`, then `cargo build -p portcove-desktop
 --features tauri/custom-protocol`). A plain debug build expects a Vite server and
 cannot establish the packaged-assets smoke claim. Then run:
 
@@ -377,7 +383,7 @@ fixtures do not change core admission policy or claim that current typed core
 outputs emit those future values. Core still validates every mutation and stale
 review; ordinary known-state behavior remains part of the native regression.
 
-`pnpm --dir apps/desktop test:copy` exercises the static-copy checker and complete
+`corepack pnpm --dir apps/desktop test:copy` exercises the static-copy checker and complete
 count-message formatter. The ordinary UI test command also runs the checker.
 Count messages provide full zero, plural-category and unknown variants, with
 number formatting in the selected message language (currently English by default).
@@ -405,7 +411,7 @@ CLI or original-file paths remain explicit templates. Program path and argument
 array are also available separately; a terminal command is not a launcher argument
 field. Native discovery does not execute or attest the CLI it finds.
 
-Run `pnpm --dir apps/desktop test:cli-handoff` for the focused checks.
+Run `corepack pnpm --dir apps/desktop test:cli-handoff` for the focused checks.
 The host shell test sends spaces, apostrophes, Unicode, literal substitution syntax,
 metacharacters, empty values and trailing separators to a harmless Node process,
 then compares its actual argument vector. Component tests cover missing inputs,

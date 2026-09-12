@@ -16,8 +16,10 @@ use std::collections::BTreeSet;
 use sha2::{Digest, Sha256};
 
 use crate::application_update::{InstallOwner, InstalledApplicationContext, SelectedCandidate};
+#[cfg(windows)]
+use crate::application_update_apply::ApplicationUpdateApplyStore;
 use crate::application_update_apply::{
-    ApplicationUpdateApplyError, ApplicationUpdateApplyStore, ApplicationUpdateRevalidationLease,
+    ApplicationUpdateApplyError, ApplicationUpdateRevalidationLease,
 };
 use crate::application_update_staging::StagedApplicationUpdate;
 
@@ -29,8 +31,11 @@ const WINDOWS_TARGET: &str = "windows-x86_64";
 const WINDOWS_EXECUTION_CONTEXT: &str = "installed-current-user";
 #[cfg(windows)]
 const NSIS_UPDATE_ARGUMENT_NAMES: [&str; 2] = ["P", "UPDATE"];
+#[cfg(windows)]
 const MAX_REGISTRY_SUBKEYS: u32 = 4_096;
+#[cfg(windows)]
 const MAX_REGISTRY_NAME_UNITS: usize = 512;
+#[cfg(windows)]
 const MAX_REGISTRY_VALUE_BYTES: u32 = 32 * 1024;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -115,7 +120,7 @@ pub enum WindowsApplicationUpdateReconciliation {
 
 /// Holds every shared updater authority until the native installer exits.
 pub struct WindowsNsisUpdateAdmission {
-    lease: ApplicationUpdateRevalidationLease,
+    _lease: ApplicationUpdateRevalidationLease,
     plan: WindowsNsisUpdatePlan,
 }
 
@@ -147,7 +152,10 @@ impl WindowsNsisUpdateAdmission {
     /// process outcome before returning.
     #[cfg(windows)]
     pub fn launch(self) -> Result<(), WindowsApplicationUpdateError> {
-        let Self { lease, plan } = self;
+        let Self {
+            _lease: lease,
+            plan,
+        } = self;
         let launch = lease.begin_native_launch()?;
         match launch_windows_nsis_installer(&plan.installer) {
             Ok(mut child) => {
@@ -198,7 +206,10 @@ pub fn admit_windows_nsis_update(
         &registrations,
     )?;
     probe_install_root_write(&plan.install_root)?;
-    Ok(WindowsNsisUpdateAdmission { lease, plan })
+    Ok(WindowsNsisUpdateAdmission {
+        _lease: lease,
+        plan,
+    })
 }
 
 /// Reconciles a native attempt only after the new desktop has acquired its
@@ -708,7 +719,7 @@ fn read_registry_string(
     if status != ERROR_SUCCESS {
         return Err(registry_status("read uninstall value size", status));
     }
-    if !(2..=MAX_REGISTRY_VALUE_BYTES).contains(&bytes) || bytes % 2 != 0 {
+    if !(2..=MAX_REGISTRY_VALUE_BYTES).contains(&bytes) || !bytes.is_multiple_of(2) {
         return Err(WindowsApplicationUpdateError::Registry(
             "uninstall value has an invalid size".into(),
         ));

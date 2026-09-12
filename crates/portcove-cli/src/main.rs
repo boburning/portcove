@@ -728,8 +728,27 @@ struct SourceBatchOutcome {
     error: Option<ApiError>,
 }
 
+const CLI_RUNTIME_STACK_BYTES: usize = 8 * 1024 * 1024;
+
+fn main() -> ExitCode {
+    let runtime = std::thread::Builder::new()
+        .name("portcove-main".into())
+        .stack_size(CLI_RUNTIME_STACK_BYTES)
+        .spawn(run);
+    match runtime {
+        Ok(runtime) => match runtime.join() {
+            Ok(exit) => exit,
+            Err(panic) => std::panic::resume_unwind(panic),
+        },
+        Err(error) => {
+            eprintln!("Portcove could not initialize its runtime thread: {error}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
 #[tokio::main]
-async fn main() -> ExitCode {
+async fn run() -> ExitCode {
     let raw_args = std::env::args_os().collect::<Vec<_>>();
     let requested_mode = requested_output_mode(&raw_args);
     let cli = match Cli::try_parse_from(raw_args) {

@@ -74,7 +74,16 @@ const explicitNodeTests = new Map([
     ],
   ],
   ["apps/desktop/scripts/desktop-preparation-test.mjs", ["scripts/desktop-scenarios.test.mjs"]],
-  [".github/quality-tools.json", ["scripts/quality-tools.test.mjs"]],
+  [
+    ".github/quality-tools.json",
+    ["scripts/quality-tools.test.mjs", "scripts/dependency-automation.test.mjs"],
+  ],
+  [".node-version", ["scripts/dependency-automation.test.mjs"]],
+  ["Cargo.toml", ["scripts/dependency-automation.test.mjs"]],
+  ["rust-toolchain.toml", ["scripts/dependency-automation.test.mjs"]],
+  ["apps/desktop/package.json", ["scripts/dependency-automation.test.mjs"]],
+  ["apps/desktop/pnpm-workspace.yaml", ["scripts/dependency-automation.test.mjs"]],
+  [".github/dependabot.yml", ["scripts/dependency-automation.test.mjs"]],
   [
     ".config/tool-bootstrap.json",
     [
@@ -91,6 +100,7 @@ const explicitNodeTests = new Map([
       "scripts/local-validation.test.mjs",
       "scripts/dev-storage.test.mjs",
       "scripts/ci-workflow.test.mjs",
+      "scripts/dependency-automation.test.mjs",
     ],
   ],
   [".oxfmtrc.json", ["scripts/local-validation.test.mjs", "scripts/ci-workflow.test.mjs"]],
@@ -111,6 +121,7 @@ const releaseContractTests = Object.freeze([
   "scripts/write-release-checksums.test.mjs",
   "scripts/updater-artifact-inventory.test.mjs",
   "scripts/reconcile-release-assets.test.mjs",
+  "scripts/finalize-release-assets.test.mjs",
   "scripts/generate-release-downloads.test.mjs",
   "scripts/select-release-channel.test.mjs",
   "scripts/reconstruct-application-update-records.test.mjs",
@@ -240,6 +251,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     selection.scopes.add("workflow");
     selection.actionsLint = true;
     addNodeTest(selection, "scripts/ci-workflow.test.mjs");
+    addNodeTest(selection, "scripts/dependency-automation.test.mjs");
     for (const testFile of workflowTests.get(path.posix.basename(file)) ?? [])
       addNodeTest(selection, testFile);
     recognized = true;
@@ -249,6 +261,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     selection.scopes.add("workflow");
     selection.actionsLint = true;
     addNodeTest(selection, "scripts/ci-workflow.test.mjs");
+    addNodeTest(selection, "scripts/dependency-automation.test.mjs");
     recognized = true;
   }
 
@@ -261,6 +274,12 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
   if (file === ".github/dependabot.yml") {
     selection.scopes.add("repository-config");
     addNodeTest(selection, "scripts/ci-workflow.test.mjs");
+    recognized = true;
+  }
+
+  if (file === "renovate.json") {
+    selection.scopes.add("repository-config");
+    addNodeTest(selection, "scripts/dependency-automation.test.mjs");
     recognized = true;
   }
 

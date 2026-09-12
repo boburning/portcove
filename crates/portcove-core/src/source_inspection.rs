@@ -1649,11 +1649,11 @@ mod tests {
         });
 
         let mut byte_swapped = canonical;
-        for pair in byte_swapped.chunks_exact_mut(2) {
+        for pair in byte_swapped.as_chunks_mut::<2>().0 {
             pair.swap(0, 1);
         }
         let mut little = canonical;
-        for word in little.chunks_exact_mut(4) {
+        for word in little.as_chunks_mut::<4>().0 {
             word.reverse();
         }
         for (name, bytes) in [

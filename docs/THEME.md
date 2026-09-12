@@ -18,7 +18,7 @@ The automated theme contract fails if a component introduces a raw hex/RGB/HSL c
 Run it directly with:
 
 ```powershell
-pnpm --dir apps/desktop test:theme
+corepack pnpm --dir apps/desktop test:theme
 ```
 
 It also runs as part of the desktop test suite.

@@ -1,4 +1,6 @@
 version: 2
+# Temporary overlap: keep security fixes and weekly updates active until the
+# hosted Renovate App completes its first verified run and pull request.
 updates:
   - package-ecosystem: github-actions
     directory: /

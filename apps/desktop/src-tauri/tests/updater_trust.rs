@@ -86,10 +86,14 @@ async fn rotation_survives_one_lost_offline_key_and_revokes_old_online_key() {
     assert!(
         matches!(
             f.load(&bridge).await,
-            Err(Error::VerifyMetadata {
-                role: RoleType::Timestamp,
-                ..
-            })
+            Err(error)
+                if matches!(
+                    *error,
+                    Error::VerifyMetadata {
+                        role: RoleType::Timestamp,
+                        ..
+                    }
+                )
         ),
         "revoked online signatures must fail"
     );

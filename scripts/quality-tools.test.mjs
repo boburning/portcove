@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { findStaleConsumerPins, githubOutputs, validateQualityManifest } from "./quality-tools.mjs";
+import {
+  commandFor,
+  findStaleConsumerPins,
+  githubOutputs,
+  validateQualityManifest,
+} from "./quality-tools.mjs";
 import { runActionlint } from "./run-actionlint.mjs";
 import { readToolPins } from "./tool-cache.mjs";
 
@@ -19,8 +24,10 @@ test("quality manifest owns exact unique Rust pins and workflow outputs", () => 
     rscheck_spec: "rscheck-cli@0.1.0",
     semdup_spec: "semdup@0.2.0",
     hawk_version: "0.1.13",
-    hawk_rust: "1.98.0",
+    hawk_rust: "1.98.1",
   });
+  const hawk = manifest.tools.find((tool) => tool.id === "cargo-hawk");
+  assert.deepEqual(commandFor(manifest, hawk), ["cargo", "+1.98.1", "hawk", "--version"]);
 });
 
 test("stale consumer detection rejects copied current or divergent pins", () => {
@@ -36,8 +43,8 @@ test("stale consumer detection rejects copied current or divergent pins", () => 
     }),
     ["stale:1 duplicates cargo-deny pin 0.20.2", "stale:1 duplicates cargo-deny pin 0.19.0"],
   );
-  assert.deepEqual(findStaleConsumerPins(manifest, { copied: "cargo +1.98.0 hawk --version" }), [
-    "copied:1 duplicates cargo-hawk pin 1.98.0",
+  assert.deepEqual(findStaleConsumerPins(manifest, { copied: "cargo +1.98.1 hawk --version" }), [
+    "copied:1 duplicates cargo-hawk pin 1.98.1",
   ]);
 });
 

@@ -121,12 +121,12 @@ impl ImportJournal {
                 "import recovery directory is not a real directory",
             ));
         }
-        if let Some(previous) = Self::read_path(root, &recovery.join("library-import.json"))? {
-            if previous.transfer_id != self.transfer_id {
-                return Err(PortcoveError::conflict(
-                    "an unrelated import recovery journal was retained",
-                ));
-            }
+        if let Some(previous) = Self::read_path(root, &recovery.join("library-import.json"))?
+            && previous.transfer_id != self.transfer_id
+        {
+            return Err(PortcoveError::conflict(
+                "an unrelated import recovery journal was retained",
+            ));
         }
         crate::durability::write_json_atomically(
             &recovery.join("library-import.json"),
@@ -149,19 +149,19 @@ impl ImportJournal {
 }
 
 pub(crate) fn check_open(root: &Path) -> Result<()> {
-    if let Some(journal) = ImportJournal::read(root)? {
-        if !matches!(
+    if let Some(journal) = ImportJournal::read(root)?
+        && !matches!(
             journal.phase,
             TransferPhase::Published | TransferPhase::Complete
-        ) {
-            return Err(journal.error(PortcoveError::conflict(
-                if journal.phase == TransferPhase::Aborted {
-                    "this incomplete import was aborted; copied data is retained"
-                } else {
-                    "library import needs recovery before this library can open"
-                },
-            )));
-        }
+        )
+    {
+        return Err(journal.error(PortcoveError::conflict(
+            if journal.phase == TransferPhase::Aborted {
+                "this incomplete import was aborted; copied data is retained"
+            } else {
+                "library import needs recovery before this library can open"
+            },
+        )));
     }
     Ok(())
 }
