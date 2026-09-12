@@ -689,9 +689,7 @@ fn terminate_probe(
     child: &mut std::process::Child,
     process_group: &crate::tool_process::ToolProcessGroup,
 ) {
-    process_group.terminate(child);
-    let _ = child.kill();
-    let _ = child.wait();
+    let _ = process_group.terminate_and_wait(child);
 }
 
 fn probe_result(
