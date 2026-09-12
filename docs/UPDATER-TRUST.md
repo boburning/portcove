@@ -89,6 +89,14 @@ selects by maintained SemVer precedence. Its typed result distinguishes
 an available update, an identical current version, a held older or withdrawn
 candidate, incompatibility and no candidate.
 
+The sibling `application_update_repository` bridge discovers only versioned
+promotions in the installed channel/target/package namespace and requires the
+promotion and release records to be directly owned by separate top-level delegated
+roles. It rejects direct top-level records, duplicate target paths, malformed or
+unbounded indexes and missing referenced releases. It fully consumes each
+authenticated stream under per-record and aggregate byte limits before handing
+the borrowed bytes to the selector.
+
 The sibling `application_update_trust` module owns the durable host trust boundary.
 Under path-keyed process ownership and one OS file lock it supplies `tough` with the
 latest persisted root, safe expiration enforcement and bounded

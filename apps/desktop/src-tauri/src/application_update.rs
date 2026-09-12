@@ -1,9 +1,10 @@
 //! Host-owned application update metadata contracts and deterministic selection.
 //!
-//! Callers must obtain both byte slices from fully consumed, authenticated TUF
-//! target streams. This module validates their Portcove contracts and binds the
-//! separately authorized promotion to the immutable release record. It does not
-//! fetch metadata, persist trust state, download payloads, or apply an update.
+//! `application_update_repository` obtains both byte slices from fully consumed,
+//! authenticated TUF target streams. This module validates their Portcove
+//! contracts and binds the separately authorized promotion to the immutable
+//! release record. It does not fetch metadata, persist trust state, download
+//! payloads, or apply an update.
 
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
@@ -449,7 +450,9 @@ fn validate_promotion(
     Ok(version)
 }
 
-fn validate_context(context: &InstalledApplicationContext) -> Result<Version, UpdateMetadataError> {
+pub(crate) fn validate_context(
+    context: &InstalledApplicationContext,
+) -> Result<Version, UpdateMetadataError> {
     for (value, label) in [
         (&context.target, "installed target"),
         (&context.os, "installed OS"),

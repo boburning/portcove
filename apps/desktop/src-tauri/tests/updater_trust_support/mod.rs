@@ -148,9 +148,23 @@ impl Fixture {
         expires: Timestamp,
         target_bytes: &[u8],
     ) {
+        self.publish_named_target(root, online, version, expires, "release.json", target_bytes)
+            .await;
+    }
+
+    pub async fn publish_named_target(
+        &self,
+        root: &[u8],
+        online: &Key,
+        version: u64,
+        expires: Timestamp,
+        target_name: &str,
+        target_bytes: &[u8],
+    ) {
         let root_path = self.directory.path().join("editor-root.json");
         fs::write(&root_path, root).unwrap();
-        let target = self.targets.join("release.json");
+        let target = self.targets.join(target_name);
+        fs::create_dir_all(target.parent().unwrap()).unwrap();
         fs::write(&target, target_bytes).unwrap();
         let mut editor = RepositoryEditor::new(root_path).await.unwrap();
         editor
@@ -162,7 +176,8 @@ impl Fixture {
             .snapshot_expires(expires)
             .timestamp_version(nz(version))
             .timestamp_expires(expires);
-        editor.add_target_path(target).await.unwrap();
+        let (_, target) = RepositoryEditor::build_target(&target).await.unwrap();
+        editor.add_target(target_name, target).unwrap();
         editor
             .sign(&[online.source()])
             .await

@@ -3,9 +3,16 @@
 
 mod updater_trust_support;
 
+use std::collections::BTreeSet;
 use std::fs;
 
 use futures_util::TryStreamExt;
+use portcove_desktop::application_update::{
+    ApplicationChannel, CandidateState, InstallOwner, InstalledApplicationContext,
+};
+use portcove_desktop::application_update_repository::{
+    CandidateLoadError, select_repository_candidate,
+};
 use portcove_desktop::application_update_trust::{
     TrustedRepositoryError, TrustedRepositoryRequest, load_trusted_repository,
 };
@@ -14,6 +21,26 @@ use tough::error::Error;
 use tough::schema::RoleType;
 use updater_trust_support::{Fixture, Key, expiration, nz};
 use url::Url;
+
+fn installed_context() -> InstalledApplicationContext {
+    InstalledApplicationContext {
+        current_version: "0.3.0".into(),
+        target: "windows-x86_64".into(),
+        os: "windows".into(),
+        os_version: "10.0.26200".into(),
+        architecture: "x86_64".into(),
+        execution_context: "native".into(),
+        package_kind: "nsis".into(),
+        install_owner: InstallOwner::Portcove,
+        product_id: "portcove-desktop".into(),
+        capabilities: BTreeSet::from(["host-api-1".into()]),
+        cli_protocol: 1,
+        catalog_format: 2,
+        library_schema: 1,
+        library_write_schema: 1,
+        lock_protocol: "library-lock-v1".into(),
+    }
+}
 
 #[tokio::test]
 async fn rotation_survives_one_lost_offline_key_and_revokes_old_online_key() {
@@ -359,13 +386,35 @@ async fn release_record_tampering_is_rejected_before_consumption() {
 }
 
 #[tokio::test]
-async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_bytes() {
-    use std::collections::BTreeSet;
+async fn candidate_loader_refuses_top_level_update_records() {
+    let f = Fixture::new().await;
+    let root = f.root(1, &f.offline, &f.online).await;
+    let trusted = f.sign_root(&root, &root, &f.offline).await;
+    f.publish_named_target(
+        &trusted,
+        &f.online,
+        1,
+        expiration(),
+        "channels/stable/windows-x86_64/nsis/1.0.0.json",
+        b"{}",
+    )
+    .await;
+    let state = f.directory.path().join("candidate-top-level-trust");
+    let repo = f.load_persisted(&trusted, &state).await.unwrap();
 
-    use portcove_desktop::application_update::{
-        ApplicationChannel, AuthenticatedRecordPair, CandidateState, InstallOwner,
-        InstalledApplicationContext, select_authenticated_candidate,
-    };
+    let error =
+        select_repository_candidate(&repo, ApplicationChannel::Stable, &installed_context())
+            .await
+            .unwrap_err();
+    assert!(matches!(
+        error,
+        CandidateLoadError::InvalidIndex(message)
+            if message.contains("top-level targets must delegate")
+    ));
+}
+
+#[tokio::test]
+async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_bytes() {
     use serde_json::json;
     use sha2::{Digest, Sha256};
     use tough::editor::RepositoryEditor;
@@ -374,15 +423,23 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
     let f = Fixture::new().await;
     let root = f.root(1, &f.offline, &f.online).await;
     let trusted = f.sign_root(&root, &root, &f.offline).await;
+    let release = Key::new(f.directory.path()).await;
     let promotion = Key::new(f.directory.path()).await;
     let root_path = f.directory.path().join("delegation-root.json");
     fs::write(&root_path, &trusted).unwrap();
+    let registry_name = "keys/payload.json";
     let release_name = "releases/1.0.0/windows-x86_64/nsis.json";
-    let promotion_name = "channels/stable/windows-x86_64/nsis.json";
+    let promotion_name = "channels/stable/windows-x86_64/nsis/1.0.0.json";
+    let unrelated_promotion_name = "channels/stable/linux-x86_64/appimage/2.0.0.json";
+    let registry_path = f.targets.join(registry_name);
     let release_path = f.targets.join(release_name);
     let promotion_path = f.targets.join(promotion_name);
+    let unrelated_promotion_path = f.targets.join(unrelated_promotion_name);
+    fs::create_dir_all(registry_path.parent().unwrap()).unwrap();
     fs::create_dir_all(release_path.parent().unwrap()).unwrap();
     fs::create_dir_all(promotion_path.parent().unwrap()).unwrap();
+    fs::create_dir_all(unrelated_promotion_path.parent().unwrap()).unwrap();
+    fs::write(&registry_path, b"fixture payload key registry").unwrap();
     let release_bytes = serde_json::to_vec(&json!({
         "schema_version": 1,
         "version": "1.0.0",
@@ -438,6 +495,11 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
     }))
     .unwrap();
     fs::write(&promotion_path, &promotion_bytes).unwrap();
+    fs::write(
+        &unrelated_promotion_path,
+        b"ignored unrelated package record",
+    )
+    .unwrap();
     let mut editor = RepositoryEditor::new(root_path).await.unwrap();
     editor
         .targets_version(nz(1))
@@ -452,7 +514,10 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
         .delegate_role(
             "stable",
             &[promotion.source()],
-            PathSet::Paths(vec![PathPattern::new(promotion_name).unwrap()]),
+            PathSet::Paths(vec![
+                PathPattern::new(promotion_name).unwrap(),
+                PathPattern::new(unrelated_promotion_name).unwrap(),
+            ]),
             true,
             nz(1),
             expiration(),
@@ -460,10 +525,43 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
         )
         .await
         .unwrap();
-    let (_, release_target) = RepositoryEditor::build_target(&release_path).await.unwrap();
-    editor.add_target(release_name, release_target).unwrap();
+    editor
+        .delegate_role(
+            "releases",
+            &[release.source()],
+            PathSet::Paths(vec![PathPattern::new(release_name).unwrap()]),
+            true,
+            nz(1),
+            expiration(),
+            nz(1),
+        )
+        .await
+        .unwrap();
+    let (_, registry_target) = RepositoryEditor::build_target(&registry_path)
+        .await
+        .unwrap();
+    editor.add_target(registry_name, registry_target).unwrap();
     editor
         .sign_targets_editor(&[f.online.source()])
+        .await
+        .unwrap()
+        .change_delegated_targets("releases")
+        .unwrap()
+        .targets_version(nz(1))
+        .unwrap()
+        .targets_expires(expiration())
+        .unwrap();
+    let (_, release_target) = RepositoryEditor::build_target(&release_path).await.unwrap();
+    editor.add_target(release_name, release_target).unwrap();
+    match editor.sign_targets_editor(&[f.online.source()]).await {
+        Err(error) => assert!(
+            matches!(error, Error::SigningKeysNotFound { .. }),
+            "{error}"
+        ),
+        Ok(_) => panic!("top-level targets key must not sign the release role"),
+    }
+    editor
+        .sign_targets_editor(&[release.source()])
         .await
         .unwrap()
         .change_delegated_targets("stable")
@@ -476,7 +574,13 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
         .await
         .unwrap();
     editor.add_target(promotion_name, promotion_target).unwrap();
-    match editor.sign_targets_editor(&[f.online.source()]).await {
+    let (_, unrelated_promotion_target) = RepositoryEditor::build_target(&unrelated_promotion_path)
+        .await
+        .unwrap();
+    editor
+        .add_target(unrelated_promotion_name, unrelated_promotion_target)
+        .unwrap();
+    match editor.sign_targets_editor(&[release.source()]).await {
         Err(error) => assert!(
             matches!(error, Error::SigningKeysNotFound { .. }),
             "{error}"
@@ -500,53 +604,12 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
         .write(&f.metadata)
         .await
         .unwrap();
-    let repo = f.load(&trusted).await.unwrap();
-    let verified_release = repo
-        .read_target(&TargetName::new(release_name).unwrap())
-        .await
-        .unwrap()
-        .unwrap()
-        .try_collect::<Vec<_>>()
-        .await
-        .unwrap()
-        .concat();
-    let verified_promotion = repo
-        .read_target(&TargetName::new(promotion_name).unwrap())
-        .await
-        .unwrap()
-        .unwrap()
-        .try_collect::<Vec<_>>()
-        .await
-        .unwrap()
-        .concat();
-    assert_eq!(verified_release, release_bytes);
-    assert_eq!(verified_promotion, promotion_bytes);
-    let selection = select_authenticated_candidate(
-        &[AuthenticatedRecordPair {
-            release_path: release_name,
-            release_bytes: &verified_release,
-            promotion_bytes: &verified_promotion,
-        }],
-        ApplicationChannel::Stable,
-        &InstalledApplicationContext {
-            current_version: "0.3.0".into(),
-            target: "windows-x86_64".into(),
-            os: "windows".into(),
-            os_version: "10.0.26200".into(),
-            architecture: "x86_64".into(),
-            execution_context: "native".into(),
-            package_kind: "nsis".into(),
-            install_owner: InstallOwner::Portcove,
-            product_id: "portcove-desktop".into(),
-            capabilities: BTreeSet::from(["host-api-1".into()]),
-            cli_protocol: 1,
-            catalog_format: 2,
-            library_schema: 1,
-            library_write_schema: 1,
-            lock_protocol: "library-lock-v1".into(),
-        },
-    )
-    .unwrap();
+    let state = f.directory.path().join("candidate-trust");
+    let repo = f.load_persisted(&trusted, &state).await.unwrap();
+    let selection =
+        select_repository_candidate(&repo, ApplicationChannel::Stable, &installed_context())
+            .await
+            .unwrap();
     assert_eq!(selection.state, CandidateState::UpdateAvailable);
     assert_eq!(selection.candidate.unwrap().release.version, "1.0.0");
 }
