@@ -545,10 +545,10 @@ mod tests {
             ApplicationUpdateOperationOutcome::Checked { staged: true, .. }
         ));
         assert_eq!(source.calls.load(Ordering::SeqCst), 1);
-        assert_eq!(
-            std::fs::read(temporary.path().join("staging/candidate.payload")).unwrap(),
-            b"test"
-        );
+        let staged_payload = ApplicationUpdateStagingStore::new(temporary.path().join("staging"))
+            .unwrap()
+            .payload_path();
+        assert_eq!(std::fs::read(staged_payload).unwrap(), b"test");
         assert_eq!(
             *progress.0.lock().unwrap(),
             [

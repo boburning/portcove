@@ -192,6 +192,8 @@ test("manual rehearsal retains the complete matrix without production credential
     "utf8",
   );
   assert.match(lifecycle, /\$InstallMode -eq "Passive".*"\/P"/);
+  assert.match(lifecycle, /\$predecessor.*"\/UPDATE"/);
+  assert.doesNotMatch(lifecycle, /@\(\$installFlag, "\/D=\$installRoot"\).*candidate_installer/);
   assert.match(lifecycle, /DisplayVersion -ne \$ExpectedVersion/);
   assert.match(lifecycle, /HKEY_CURRENT_USER/);
   const rehearsal = await readFile(

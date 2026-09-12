@@ -193,7 +193,31 @@ class Uninstaller {
   writeFileSync(
     installerSource,
     `using System; using System.IO; using System.Threading; using Microsoft.Win32;
-class Installer { static void Main(string[] args) { if (Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_HANG_INSTALLER") == "1") Thread.Sleep(60000); string install = null; foreach (var arg in args) if (arg.StartsWith("/D=")) install = arg.Substring(3); if (install == null) Environment.Exit(2); Directory.CreateDirectory(install); File.Copy(${csharpLiteral(desktop)}, Path.Combine(install, "portcove-desktop.exe"), true); File.Copy(${csharpLiteral(uninstaller)}, Path.Combine(install, "uninstall.exe"), true); using (var key = Registry.CurrentUser.CreateSubKey(${csharpLiteral(keyPath)})) { key.SetValue("DisplayName", "Portcove"); key.SetValue("InstallLocation", install); key.SetValue("UninstallString", "\\"" + Path.Combine(install, "uninstall.exe") + "\\""); } } }
+class Installer {
+  static void Main(string[] args) {
+    if (Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_HANG_INSTALLER") == "1") Thread.Sleep(60000);
+    string install = null;
+    bool update = false;
+    foreach (var arg in args) {
+      if (arg.StartsWith("/D=")) install = arg.Substring(3);
+      if (arg == "/UPDATE") update = true;
+    }
+    if (install == null && update) {
+      using (var key = Registry.CurrentUser.OpenSubKey(${csharpLiteral(keyPath)})) {
+        if (key != null) install = key.GetValue("InstallLocation") as string;
+      }
+    }
+    if (install == null) Environment.Exit(2);
+    Directory.CreateDirectory(install);
+    File.Copy(${csharpLiteral(desktop)}, Path.Combine(install, "portcove-desktop.exe"), true);
+    File.Copy(${csharpLiteral(uninstaller)}, Path.Combine(install, "uninstall.exe"), true);
+    using (var key = Registry.CurrentUser.CreateSubKey(${csharpLiteral(keyPath)})) {
+      key.SetValue("DisplayName", "Portcove");
+      key.SetValue("InstallLocation", install);
+      key.SetValue("UninstallString", "\\"" + Path.Combine(install, "uninstall.exe") + "\\"");
+    }
+  }
+}
 `,
   );
   const installer = path.join(root, "installer.exe");
@@ -209,6 +233,7 @@ function runInstallerLifecycle(
   environment,
   processTimeoutSeconds = "5",
   testFault = "",
+  upgradeFrom = false,
 ) {
   const caseRoot = path.join(item.root, name);
   mkdirSync(caseRoot);
@@ -229,6 +254,7 @@ function runInstallerLifecycle(
     "2",
   ];
   if (testFault) args.push("-TestFault", testFault);
+  if (upgradeFrom) args.push("-UpgradeFromInstallerPath", item.installer);
   return spawnSync("pwsh.exe", args, {
     encoding: "utf8",
     windowsHide: true,
@@ -236,6 +262,31 @@ function runInstallerLifecycle(
     env: { ...process.env, ...environment },
   });
 }
+
+test(
+  "installer lifecycle uses registered ownership for an actual update-mode upgrade",
+  { skip: process.platform !== "win32", timeout: 60_000 },
+  (t) => {
+    const item = makeInstallerLifecycleFixture(t);
+    t.after(() => removeInstallerLifecycleRegistration(item));
+    const upgraded = runInstallerLifecycle(item, "update-mode", {}, "5", "", true);
+    assert.equal(upgraded.status, 0, upgraded.stderr);
+    const evidence = JSON.parse(
+      readFileSync(path.join(item.root, "update-mode", "evidence.json"), "utf8"),
+    );
+    assert.equal(evidence.phase, "complete");
+    assert.equal(evidence.details.update_path, "registered_nsis_update");
+    assert.ok(evidence.details.upgrade);
+    assert.equal(
+      evidence.process_runs.filter((run) => run.role === "predecessor_installer").length,
+      1,
+    );
+    assert.equal(
+      evidence.process_runs.filter((run) => run.role === "candidate_installer").length,
+      1,
+    );
+  },
+);
 
 function removeInstallerLifecycleRegistration(item) {
   const registryPath = `HKCU\\${item.keyPath}`;
