@@ -67,6 +67,16 @@ if ($FilePath) {
 }
 if ($Button -ne '__observe__') {
     do {
+        # UI Automation elements can become stale while a native TaskDialog remains
+        # visible. Reacquire the same exact owned window before each bounded poll.
+        $freshWindows = [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $condition)
+        if ($freshWindows.Count -eq 0 -and $windowScope -eq 'owned-descendant') {
+            $ownedCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $applicationId)
+            $roots = [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $ownedCondition)
+            $freshWindows = @($roots | ForEach-Object { $_.FindAll([System.Windows.Automation.TreeScope]::Descendants, $condition) })
+        }
+        if ($freshWindows.Count -gt 1) { throw 'Ambiguous native confirmation while waiting for its button.' }
+        if ($freshWindows.Count -eq 1) { $window = $freshWindows[0] }
         $children = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
         $text = @($children | ForEach-Object { $_.Current.Name }) -join "`n"
         if (-not $text.Contains($ExpectedText)) { throw 'Native confirmation target changed while waiting for its button.' }
@@ -76,7 +86,7 @@ if ($Button -ne '__observe__') {
         Start-Sleep -Milliseconds 100
     } while ([DateTime]::UtcNow -lt $deadline)
     if ($buttons.Count -ne 1 -or -not $buttons[0].Current.IsEnabled) {
-        $observed = @($children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button } | ForEach-Object { [pscustomobject]@{ name = $_.Current.Name; enabled = $_.Current.IsEnabled } }) | ConvertTo-Json -Compress
+        $observed = @($children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -or $_.Current.AutomationId -in @('1', '2') } | ForEach-Object { [pscustomobject]@{ name = $_.Current.Name; automation_id = $_.Current.AutomationId; class = $_.Current.ClassName; control_type = $_.Current.ControlType.ProgrammaticName; enabled = $_.Current.IsEnabled } }) | ConvertTo-Json -Compress
         throw "Expected one enabled native confirmation button '$Button'; observed: $observed"
     }
 }

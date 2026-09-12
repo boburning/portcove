@@ -145,7 +145,7 @@ jobs:
         shell: pwsh
         run: ./scripts/run-windows-qualification.ps1
       - name: Test development diagnostics and evidence
-        run: node scripts/dev-storage.mjs run -- node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/dev-doctor.test.mjs scripts/development-cli-help.test.mjs scripts/development-evidence.test.mjs scripts/local-validation.test.mjs scripts/native-session.test.mjs scripts/tool-cache.test.mjs
+        run: node scripts/dev-storage.mjs run -- node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/desktop-scenarios.test.mjs scripts/desktop-verify.test.mjs scripts/dev-doctor.test.mjs scripts/development-cli-help.test.mjs scripts/development-evidence.test.mjs scripts/local-validation.test.mjs scripts/native-session-lock.test.mjs scripts/native-session.test.mjs scripts/tool-cache.test.mjs
       - name: Lint PowerShell scripts
         shell: pwsh
         run: |
