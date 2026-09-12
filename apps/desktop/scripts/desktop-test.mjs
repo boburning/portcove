@@ -444,9 +444,19 @@ try {
     const activities = await invoke("get_activities");
     assert.equal(activities.ok, true);
 
-    await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+    const choicePrompt = By.xpath(
+      '//section[@role="status" and .//strong[normalize-space(.)="Choose how Portcove updates"]]',
+    );
+    await browser.wait(until.elementLocated(choicePrompt), 15_000);
+    await browser.findElement(By.xpath('//button[normalize-space(.)="Review options"]')).click();
     const settings = By.css('article[aria-labelledby="application-update-settings-title"]');
     await browser.wait(until.elementLocated(settings), 15_000);
+    await browser.wait(
+      async () =>
+        (await browser.executeScript(() => document.activeElement?.id)) ===
+        "application-update-settings-title",
+      15_000,
+    );
     await browser.wait(
       until.elementLocated(By.css('[aria-label="Application update channel"]')),
       15_000,
@@ -565,6 +575,13 @@ try {
       const result = await invoke("get_application_update_preferences");
       return result.ok && result.value.choice === null && result.value.revision > 0;
     }, 15_000);
+    await browser.wait(until.elementLocated(choicePrompt), 15_000);
+    await browser.findElement(By.xpath('//button[normalize-space(.)="Not now"]')).click();
+    await browser.wait(async () => (await browser.findElements(choicePrompt)).length === 0, 15_000);
+    await browser.wait(
+      async () => (await browser.executeScript(() => document.activeElement?.tagName)) !== "BODY",
+      15_000,
+    );
     await browser.wait(
       until.elementLocated(
         By.xpath('//p[@role="status" and contains(., "Damaged update settings reset.")]'),

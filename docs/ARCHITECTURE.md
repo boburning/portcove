@@ -637,6 +637,13 @@ disposable presentation state: the durable schedule and staging journals remain
 the authorities across restarts, and no release URL, signature, key or path crosses
 the IPC boundary.
 
+While the host reports no saved application-update choice, React presents an
+accessible setup notice throughout the workspace. Deferring it records only the
+observed preference revision in renderer memory, so it returns after restart or
+after a newer no-choice state. Reviewing the notice moves focus to the Settings
+choice, whose existing explicit Save action remains the only way to record host
+consent; the notice itself cannot check, download, stage, install or restart.
+
 On Windows, `application_update_connectivity` queries Network List Manager on a
 short-lived initialized COM worker. A reported offline connection blocks all checks.
 Unrestricted machine-wide cost permits automatic work; fixed, variable, roaming,

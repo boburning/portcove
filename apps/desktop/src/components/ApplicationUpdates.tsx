@@ -520,11 +520,13 @@ export function ApplicationUpdateSettings({
   generation = 0,
   disabled = false,
   automaticNotice,
+  onPreferencesChanged,
 }: {
   currentVersion: string;
   generation?: number;
   disabled?: boolean;
   automaticNotice?: ApplicationUpdateNoticeSnapshot["notice"];
+  onPreferencesChanged?: (preferences: ApplicationUpdatePreferences) => void;
 }) {
   const requests = useRef(new LatestRequestGeneration());
   const statusRequests = useRef(new LatestRequestGeneration());
@@ -543,6 +545,7 @@ export function ApplicationUpdateSettings({
     setPreferences(value);
     setDraft(value.choice ?? recommendedChoice);
     setCanRecoverPreferences(false);
+    onPreferencesChanged?.(value);
   };
 
   const load = async () => {
@@ -595,6 +598,7 @@ export function ApplicationUpdateSettings({
         if (requestTracker.isCurrent(request)) {
           setPreferences(value);
           setDraft(value.choice ?? recommendedChoice);
+          onPreferencesChanged?.(value);
         }
       })
       .catch((value: unknown) => {
@@ -623,7 +627,7 @@ export function ApplicationUpdateSettings({
       requestTracker.begin();
       statusTracker.begin();
     };
-  }, []);
+  }, [onPreferencesChanged]);
 
   const save = async () => {
     if (!preferences || choicesMatch(preferences.choice, draft)) return;

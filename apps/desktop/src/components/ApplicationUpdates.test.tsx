@@ -64,12 +64,16 @@ describe("ApplicationUpdateSettings", () => {
     await act(async () => button(label).click());
   };
 
-  const render = async (automaticNotice?: ApplicationUpdateNoticeSnapshot["notice"]) => {
+  const render = async (
+    automaticNotice?: ApplicationUpdateNoticeSnapshot["notice"],
+    onPreferencesChanged?: (preferences: ApplicationUpdatePreferences) => void,
+  ) => {
     await act(async () =>
       root.render(
         <ApplicationUpdateSettings
           currentVersion="0.1.0-alpha.2"
           automaticNotice={automaticNotice}
+          onPreferencesChanged={onPreferencesChanged}
         />,
       ),
     );
@@ -84,7 +88,9 @@ describe("ApplicationUpdateSettings", () => {
     });
     const reset = vi.spyOn(desktopApi, "resetApplicationUpdatePreferences");
 
-    await render();
+    const changed = vi.fn();
+    await render(undefined, changed);
+    expect(changed).toHaveBeenLastCalledWith(missingChoice);
     expect(host.textContent).toContain("Automatic checks remain off until you save one.");
     expect(host.textContent).toContain("Current version 0.1.0-alpha.2");
 
@@ -100,6 +106,11 @@ describe("ApplicationUpdateSettings", () => {
       channel: "stable",
       mode: "manual",
       paused: true,
+    });
+    expect(changed).toHaveBeenLastCalledWith({
+      schema_version: 1,
+      revision: 1,
+      choice: { channel: "stable", mode: "manual", paused: true },
     });
     expect(host.querySelector('[role="status"]')?.textContent).toContain(
       "No update check, download, install, or restart was started.",
