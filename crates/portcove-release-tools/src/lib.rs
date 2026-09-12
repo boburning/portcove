@@ -1,5 +1,7 @@
-//! Offline application artifact verification for repository release tooling.
-//! This crate has no catalog, game, installation, signing or publication authority.
+//! Offline application artifact verification and update-metadata signing.
+//! This crate has no catalog, game, installation, credential-provisioning or publication authority.
+
+pub mod tuf_repository;
 
 use std::fs::{self, File};
 use std::io::Read;
