@@ -3,6 +3,8 @@ import { desktopApi } from "../api";
 import { LatestRequestGeneration } from "../concurrency-state";
 import type {
   ApplicationUpdateChoice,
+  ApplicationUpdateCheckPhase,
+  ApplicationUpdateCheckResult,
   ApplicationUpdatePreferences,
   ApplicationUpdateRecoveryArea,
   ApplicationUpdateStatus,
@@ -82,6 +84,44 @@ const nativeLaunchCopy = {
       "The installer process exited unsuccessfully and is no longer running. A retry will repeat every update safety check.",
   },
 } as const;
+
+const checkProgressCopy: Record<ApplicationUpdateCheckPhase, string> = {
+  checking: "Checking signed application update metadata…",
+  "acquiring-and-verifying": "Downloading and verifying the application update…",
+  staged: "The verified application update is staged.",
+  complete: "Application update check complete.",
+};
+
+function applicationUpdateCheckCopy(result: ApplicationUpdateCheckResult) {
+  const version = result.candidate?.version;
+  switch (result.kind) {
+    case "update-available":
+      return result.staged
+        ? `${version ?? "The update"} is verified and staged for a safe apply request.`
+        : `${version ?? "An update"} is available. Its download has not started.`;
+    case "current":
+      return "Portcove is current on the selected application update channel.";
+    case "held":
+      return "An eligible update is being held by its signed release policy.";
+    case "incompatible":
+      return "The available release is not compatible with this installation.";
+    case "no-candidate":
+      return "No eligible release is published for the selected channel.";
+    case "superseded":
+      return "Your update choice changed during the check. Run it again for the current choice.";
+    case "consent-required":
+      return "Save an application update choice before checking.";
+    case "offline":
+      return "The host reports that the network is offline.";
+    case "paused":
+    case "manual-mode":
+    case "metered":
+    case "metered-state-unknown":
+    case "startup-delay":
+    case "cadence":
+      return "The application update check is deferred by the saved host policy.";
+  }
+}
 
 function applicationUpdateApplyCopy(apply: NonNullable<ApplicationUpdateStatus["apply"]>) {
   if (apply.native_launch) return nativeLaunchCopy[apply.native_launch];
@@ -209,6 +249,7 @@ export function ApplicationUpdateSettings({
 }) {
   const requests = useRef(new LatestRequestGeneration());
   const statusRequests = useRef(new LatestRequestGeneration());
+  const checkRequests = useRef(new LatestRequestGeneration());
   const [preferences, setPreferences] = useState<ApplicationUpdatePreferences>();
   const [status, setStatus] = useState<ApplicationUpdateStatus>();
   const [draft, setDraft] = useState<ApplicationUpdateChoice>(recommendedChoice);
@@ -218,6 +259,10 @@ export function ApplicationUpdateSettings({
   const [canRecoverPreferences, setCanRecoverPreferences] = useState(false);
   const [statusError, setStatusError] = useState<string>();
   const [notice, setNotice] = useState<string>();
+  const [checkBusy, setCheckBusy] = useState(false);
+  const [checkPhase, setCheckPhase] = useState<ApplicationUpdateCheckPhase>();
+  const [checkResult, setCheckResult] = useState<ApplicationUpdateCheckResult>();
+  const [checkError, setCheckError] = useState<string>();
 
   const applyPreferences = (value: ApplicationUpdatePreferences) => {
     setPreferences(value);
@@ -280,6 +325,7 @@ export function ApplicationUpdateSettings({
       });
     const statusTracker = statusRequests.current;
     const statusRequest = statusTracker.begin();
+    const checkTracker = checkRequests.current;
     void desktopApi
       .applicationUpdateStatus()
       .then((value) => {
@@ -294,6 +340,7 @@ export function ApplicationUpdateSettings({
     return () => {
       requestTracker.begin();
       statusTracker.begin();
+      checkTracker.begin();
     };
   }, []);
 
@@ -370,6 +417,39 @@ export function ApplicationUpdateSettings({
       if (statusRequests.current.isCurrent(request)) setStatusError(errorText(value));
     } finally {
       if (statusRequests.current.isCurrent(request)) setStatusBusy("");
+    }
+  };
+
+  const checkForUpdate = async () => {
+    const request = checkRequests.current.begin();
+    setCheckBusy(true);
+    setCheckPhase("checking");
+    setCheckResult(undefined);
+    setCheckError(undefined);
+    setNotice(undefined);
+    try {
+      const result = await desktopApi.checkApplicationUpdate((phase) => {
+        if (checkRequests.current.isCurrent(request)) setCheckPhase(phase);
+      });
+      if (!checkRequests.current.isCurrent(request)) return;
+      setCheckResult(result);
+      await loadStatus();
+    } catch (value) {
+      if (checkRequests.current.isCurrent(request)) setCheckError(errorText(value));
+    } finally {
+      if (checkRequests.current.isCurrent(request)) {
+        setCheckBusy(false);
+        setCheckPhase(undefined);
+      }
+    }
+  };
+
+  const cancelCheck = async () => {
+    setCheckError(undefined);
+    try {
+      await desktopApi.cancelApplicationUpdateCheck();
+    } catch (value) {
+      setCheckError(errorText(value));
     }
   };
 
@@ -527,6 +607,51 @@ export function ApplicationUpdateSettings({
           </div>
         </>
       )}
+
+      <section
+        className="application-update-status"
+        aria-labelledby="application-check-title"
+        aria-busy={checkBusy}
+      >
+        <div className="application-update-status-heading">
+          <div>
+            <h3 id="application-check-title">Check for application updates</h3>
+            <p>
+              Uses the saved channel and host-compiled signed repository. Manual checks never use a
+              URL supplied by this screen.
+            </p>
+          </div>
+          {checkBusy ? (
+            <button data-focusable className="small-control" onClick={() => void cancelCheck()}>
+              Cancel check
+            </button>
+          ) : (
+            <button
+              data-focusable
+              className="small-control"
+              disabled={disabled || Boolean(busy) || changed || !preferences?.choice}
+              onClick={() => void checkForUpdate()}
+            >
+              Check for updates
+            </button>
+          )}
+        </div>
+        {checkBusy && checkPhase && <p role="status">{checkProgressCopy[checkPhase]}</p>}
+        {checkResult && (
+          <div className="application-update-status-item" role="status">
+            <strong>Check complete</strong>
+            <p>{applicationUpdateCheckCopy(checkResult)}</p>
+            {checkResult.reasons.length > 0 && (
+              <ul>
+                {checkResult.reasons.map((reason) => (
+                  <li key={reason}>{reason}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+        {checkError && <p role="alert">{checkError}</p>}
+      </section>
 
       <ApplicationUpdateStatusPanel
         status={status}

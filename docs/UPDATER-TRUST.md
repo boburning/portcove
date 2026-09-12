@@ -45,6 +45,16 @@ fixed journal before clearing it, so a stale renderer cannot erase state that an
 process already repaired.
 Preference corruption has its own explicit reset and returns to no consent.
 
+The Settings card also exposes one manual check and a cancellation action. The
+renderer supplies no repository, installed-package, signature, key or path input;
+the host uses only its compiled provider and saved choice. Fixed progress phases and
+the final candidate summary are transient presentation state. Automatic mode may
+stage a verified newer payload during that manual request, while notification-only
+and manual modes report availability without opening the payload. Unsaved preference
+changes disable the action so the visible draft cannot be mistaken for the persisted
+host policy. Ordinary alpha builds return an explicit unavailable result because
+they contain no production repository configuration.
+
 The separate host schedule records successful-check cadence and bounded retry state,
 not a device identity or updater operation. A pure decision delays automatic work
 for 30 seconds after startup, at least 24 hours after success, and 15 minutes through
@@ -82,8 +92,9 @@ second download. Fixed checking, acquiring-and-verifying, staged and complete
 phases reveal no URL, signature, key or path. Cooperative cancellation before or
 during network/staging work publishes no unverified bytes, and the staging journal
 restores the prior verified slot on restart. This operation is dependency-injected
-and has no registered command, production metadata origin, exit hook or platform
-replacement authority.
+and is registered only behind the fixed manual-check command. It has no production
+metadata origin, automatic startup activation, exit hook or platform replacement
+authority.
 
 Core supplies a pre-apply quiescence guard under the current library's exclusive
 lifetime lease. Every open CLI or Desktop library already holds the shared side, so
