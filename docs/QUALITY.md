@@ -10,7 +10,7 @@ Portcove uses one local quality interface for humans, CI, and coding agents. The
 ./scripts/bootstrap-quality-tools.sh
 ```
 
-Pass `-IncludeDeep` or `--include-deep` to also install cargo-modules, semdup, cargo-mutants, and Hawk where supported. Both scripts are idempotent, verify and print exact installed versions, and never silently upgrade tools. Deep tools remain optional: Hawk uses its own manifest-pinned Rust toolchain and does not support Windows, while semdup requires a current native C++ linker for its ONNX runtime.
+Pass `-IncludeDeep` or `--include-deep` to also install cargo-modules, semdup, cargo-mutants, and Hawk where supported. Both scripts are idempotent, verify and print exact installed versions, and never silently upgrade tools. Deep tools remain optional: Hawk shares the workspace Rust channel and adds its required `rustc-dev` component, but does not support Windows; semdup requires a current native C++ linker for its ONNX runtime.
 
 ## Canonical commands
 
@@ -241,7 +241,20 @@ proof of all rendered wording or of translation quality.
 
 Structural heuristics advise: dependency duplication, unmaintained transitive dependencies, complexity, responsibility splits, god objects, duplicate logic, dead public APIs, semantic duplication, and mutation survivors. Do not refactor simply to make an advisory number green.
 
-pnpm 11's default one-day minimum release age remains active. The workspace contains exact-version-only exceptions for the Fallow 3.22.0 platform set and Lucide 1.39.0 used during this reviewed modernization pass; future versions are not exempt. Do not replace these with package-wide patterns or disable lockfile verification.
+pnpm 12's default one-day minimum release age remains active without dependency
+exceptions. Portcove pins pnpm exactly in the desktop `packageManager` field,
+derives workflow setup from that authority, and requires frozen installation.
+Do not replace the release-age policy with package-wide exceptions or disable
+lockfile verification.
+
+The experimental Oxc React Compiler is not enabled in production. A bounded
+qualification with `oxc-transform-react 0.149.0` compiled and passed the focused
+UI contracts, but `@vitejs/plugin-react 6.1.1` declared only `^0.145.0` peer
+compatibility and the main production JavaScript asset grew from 493,060 to
+596,718 bytes, crossing Vite's chunk-size warning. The experiment was removed
+without changing the established Oxc parser, formatter, linter, or Vite stack.
+Reconsider it only after the supported peer range converges and a fresh bundle,
+behavior, and native qualification clears the production bar.
 
 ## Tool and Rust version authority
 
@@ -264,9 +277,17 @@ child processes; no persistent environment variable is changed. Failed or partia
 downloads never replace verified cached tools. Linux and macOS retain their
 existing Aqua bootstrap behavior.
 
-`rust-toolchain.toml` pins normal development and CI to the workspace MSRV recorded in `Cargo.toml`; the manifest validator requires those two declarations and the quality contract to agree. An MSRV increase therefore requires one reviewed update across the workspace metadata, pinned toolchain, and machine contract instead of an implicit move with the latest stable compiler.
+`rust-toolchain.toml` pins normal development and CI to the workspace compiler
+floor recorded in `Cargo.toml`; the manifest validator requires those two
+declarations and the quality contract to agree. The Hawk entry names that same
+authority instead of carrying a second private Rust version. An increase
+therefore requires one reviewed update across the workspace metadata, pinned
+toolchain, and machine contract instead of an implicit move with latest stable.
 
-The committed Cargo lockfile is part of that MSRV contract across every supported host. Tauri's Linux credential-store graph currently resolves `aes 0.9.2`, the newest release in that line compatible with Rust 1.88; `aes 0.9.3` raises its compiler floor to 1.89. Required Ubuntu CI compiles and tests the locked Linux graph with the pinned toolchain, so a future transitive update that exceeds Portcove's declared MSRV fails before merge.
+The committed Cargo lockfile is part of that compiler contract across every
+supported host. Required Ubuntu CI compiles and tests the locked Linux graph
+with the pinned toolchain, so a future transitive update that exceeds Portcove's
+declared floor fails before merge.
 
 Required Linux CI installs desktop prerequisites from the runner's Ubuntu source
 list only (traditional or deb822 layout). All prerequisite packages come from
@@ -292,7 +313,7 @@ Required pull-request CI has a five-minute warm-cache target for the complete pi
 
 A lockfile or toolchain change is expected to pay each lane's cold-build cost once. [Run 33832768415](https://github.com/boburning/portcove/actions/runs/33832768415) established the initial 7m45s cold baseline and exposed the shared-key race. After isolating the non-core jobs, [run 33833781499](https://github.com/boburning/portcove/actions/runs/33833781499) passed in 6m49s while populating both new lane-specific caches.
 
-Frontend pull requests use the required GitHub dependency-review check to block newly introduced high-severity vulnerabilities. Dependabot alerts and automated security fixes provide continuous repository-wide npm monitoring. The frontend build lane therefore does not make a second live request to npm's advisory endpoint on every commit, including npm's implicit install-time audit while bootstrapping pnpm; those duplicate requests added no change-specific coverage and could hold all otherwise-passing checks open for repeated network timeouts. Frozen lockfile installation, production build, tests, Fallow, and the pnpm/`just` development-storage integration cases remain required. The Windows and Linux Rust lanes retain every platform-relevant development-storage test while delegating only those two tool-integration cases to the prepared frontend lane.
+Frontend pull requests use the required GitHub dependency-review check to block newly introduced high-severity vulnerabilities. GitHub vulnerability alerts and automated Dependabot security fixes remain active during the staged Renovate transition. The frontend build lane therefore does not make a second live request to npm's advisory endpoint on every commit, including pnpm's install-time audit; those duplicate requests added no change-specific coverage and could hold all otherwise-passing checks open for repeated network timeouts. Frozen lockfile installation, production build, tests, Fallow, and the pnpm/`just` development-storage integration cases remain required. The Windows and Linux Rust lanes retain every platform-relevant development-storage test while delegating only those two tool-integration cases to the prepared frontend lane.
 
 The manually triggered `.github/workflows/deep-quality.yml` workflow provides a reproducible Ubuntu 24.04 environment for the full advisory pass, including semdup and Hawk. Ubuntu 24.04 is intentional: semdup's bundled ONNX Runtime currently requires newer glibc C23 symbols than the Ubuntu 22.04 runner provides. It runs the same `just deep` constituents as independent audit, Hawk, and semantic-duplication jobs so they execute in parallel, but is deliberately not a required pull-request status check. Start it after broad refactors or when the Windows host cannot link semdup:
 
@@ -335,7 +356,7 @@ dependency on the runner it must outlive.
 
 The reviewed `rusqlite/rusqlite` upstream repository is the sole permitted Git
 dependency source, and Git dependencies require an explicit revision. The workspace
-pins `b2b2592ecf40dcce20641aeb94af82e7d3a0b26d`, which supports Rust 1.88 and bundles
+pins `b2b2592ecf40dcce20641aeb94af82e7d3a0b26d`, which supports the workspace compiler and bundles
 SQLite 3.53.4. Published rusqlite 0.40.2/libsqlite3-sys 0.38.2 still bundle 3.53.2,
 whose Windows VFS mistakes canonical local drive paths for network paths. Repeated
 concurrent connections can then fail with `SQLITE_PROTOCOL`. SQLite corrected
@@ -346,7 +367,20 @@ the fix after equivalent qualification and remove the Git-source allowance. This
 pin changes neither library path identity nor WAL, busy-timeout, migration or
 operation-lock behavior.
 
-GitHub vulnerability alerts and automated Dependabot security fixes are enabled for `boburning/portcove`. Weekly Cargo, npm, and GitHub Actions updates remain configured in `.github/dependabot.yml`; major versions are no longer blanket-ignored and related ecosystems are grouped for coherent review.
+`renovate.json` is the eventual dependency-update authority. It covers Cargo,
+npm, GitHub Actions and Rust toolchains, plus regex-managed Node, repository
+quality crates, tauri-driver, Aqua and its registry/tools, PSScriptAnalyzer, and
+the release Syft version. It groups coupled ecosystems, pins action digests,
+waits three days for new releases, disables automerge, and refuses pending
+release-age checks. Repository tests require those nonstandard authorities and
+every external action to remain covered.
+
+GitHub vulnerability alerts and automated Dependabot security fixes remain
+enabled. Weekly Cargo, npm, and GitHub Actions updates stay configured in
+`.github/dependabot.yml` until the hosted Renovate App is authorized for this
+repository and its first real run and pull request prove the integration. Only
+then may a focused follow-up remove Dependabot; this staged overlap prevents an
+automation gap.
 
 Current Tauri Linux dependencies transitively include the unmaintained GTK3 binding family; other transitive build paths include `proc-macro-error` and the `unic-*` family. `cargo deny check --hide-inclusion-graph -W unmaintained` keeps these visible while continuing to deny security advisories, while omitting thousands of lines of repeated transitive paths from the normal audit. There is no safe direct Portcove upgrade that removes the GTK3 set without changing Tauri's Linux webview architecture.
 

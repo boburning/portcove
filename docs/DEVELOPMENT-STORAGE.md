@@ -20,7 +20,7 @@ git fetch origin
 git worktree add -b feature/my-change H:\Portcove-Worktrees\my-change origin/main
 Set-Location H:\Portcove-Worktrees\my-change
 node scripts/dev-storage.mjs preflight
-node scripts/dev-storage.mjs run -- pnpm --dir apps/desktop install --frozen-lockfile
+node scripts/dev-storage.mjs run -- corepack pnpm --dir apps/desktop install --frozen-lockfile
 just check
 ```
 
@@ -41,7 +41,7 @@ From the new workspace, inspect the resolved layout before a heavy command:
 
 ```powershell
 node scripts/dev-storage.mjs preflight
-node scripts/dev-storage.mjs run -- pnpm --dir apps/desktop install --frozen-lockfile
+node scripts/dev-storage.mjs run -- corepack pnpm --dir apps/desktop install --frozen-lockfile
 just check
 ```
 
@@ -66,7 +66,7 @@ The default layout is entirely relative to the checkout:
 | Frontend dependencies and production output                   | `apps/desktop/node_modules`, `apps/desktop/dist` |
 | Tauri generated schemas                                       | `apps/desktop/src-tauri/gen`                     |
 
-The launcher creates the temporary, packaging, and pnpm directories after a successful check. It exports `CARGO_TARGET_DIR`, `TEMP`, `TMP`, `TMPDIR`, `pnpm_config_store_dir` (pnpm 11), and the Portcove path variables to its child process. Every `just` quality recipe runs through this launcher, so `just check` and `just audit` also work directly in a fresh checkout.
+The launcher creates the temporary, packaging, and pnpm directories after a successful check. It exports `CARGO_TARGET_DIR`, `TEMP`, `TMP`, `TMPDIR`, `pnpm_config_store_dir`, and the Portcove path variables to its child process. Every `just` quality recipe runs through this launcher, so `just check` and `just audit` also work directly in a fresh checkout.
 
 `PORTCOVE_TEMP_DIR`, `PORTCOVE_OUTPUT_DIR`, and `PORTCOVE_PNPM_STORE_DIR` override their defaults; relative values are resolved from the repository root. Cargo owns target selection through its configuration or `CARGO_TARGET_DIR`. `apps/desktop/pnpm-workspace.yaml` supplies the default store for direct pnpm commands; the launcher applies its checked override to pnpm itself. The PowerShell packaging/release scripts use the same checked layout and restore the caller's environment afterward. Local packaging requires its output below the workspace and excludes configured build/scratch/store/output directories from the source ZIP. Installer qualification uses a private run directory below project temporary storage and retains failed-run evidence; an explicit `-TestBase` selects a different qualification root.
 

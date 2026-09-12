@@ -171,7 +171,7 @@ After changing them, run Cargo once so the workspace package entries in `Cargo.l
 
 `scripts/check-release-metadata.mjs` verifies those versions, the tag, package manager pin, repository/license metadata, Tauri identity, and the required master/runtime/platform brand assets. Local packaging derives its default version from that check and rejects an explicit mismatch.
 
-The offline `pnpm --dir apps/desktop release:policy` utility accepts `classify`,
+The offline `corepack pnpm --dir apps/desktop release:policy` utility accepts `classify`,
 `select` or `propose` followed by one JSON input file. It shares the existing Node
 tooling workspace and maintained SemVer dependency; it is not renderer code.
 Classification defaults to Preview, including suffix-free 0.x and unapproved
@@ -190,7 +190,7 @@ grant production approval or publish a release. Its caller must establish input
 authority. Existing production publication remains separately protected; a
 proposal cannot activate that procedure. Download selection uses the same policy.
 
-`pnpm --dir apps/desktop release:prepare REPOSITORY INPUT.json` accepts
+`corepack pnpm --dir apps/desktop release:prepare REPOSITORY INPUT.json` accepts
 `classification` and `published_versions` using the proposal schema. It reads
 only the frozen commit, updates the coordinated Cargo/Desktop/Tauri versions and
 workspace lock entries in a temporary index, and creates a prepared child commit.
@@ -469,21 +469,47 @@ after publication; the repository setting alone is not that evidence.
 
 ## Tagged build
 
-Pushing `v*` starts `.github/workflows/release.yml`. Its preflight job repeats the identity, dependency, test, Fallow, and upstream gates before the Windows, Linux x64, Intel macOS, and Apple-silicon macOS matrix can build. Matrix jobs have read-only repository permission, stage only the versioned CLI archive, explicitly selected native distributable packages, and one internal platform SHA-256 manifest, and pass those exact files to the publisher as transient workflow artifacts. Only after every matrix job succeeds does one `publish` job receive `contents: write`, download all four artifacts, validate the exact independently declared matrix, recompute every checksum, and create or reconcile one draft release. It refuses to change a published release. The first run generates the complete body before creating the draft. A rerun verifies an existing draft body byte for byte and fails closed instead of editing it. The publisher rechecks draft state before each asset deletion or upload; repository-level immutable releases provide the server-side boundary if publication happens between that check and the asset mutation.
+Pushing `v*` starts `.github/workflows/release.yml`. Its preflight job repeats
+the identity, dependency, test, Fallow, and upstream gates before the Windows,
+Linux x64, Intel macOS, and Apple-silicon macOS matrix can build. Matrix jobs
+have read-only repository permission and stage only the versioned CLI archive,
+explicitly selected native distributable packages, and one internal platform
+SHA-256 manifest as transient workflow artifacts.
 
-The reconciler writes the public packages and one aggregate `SHA256SUMS.txt`;
-the four platform manifests remain internal validation inputs and are not
-uploaded as redundant public assets. It also writes a build-time inventory
-outside the public asset directory. The publisher uses that verified inventory
-to add or replace one marked desktop-first download section in the draft body,
-while preserving all reviewed prose and GitHub's categorized changes. Repeated
-generation cannot duplicate the section. Links are bound to the exact tag, and
-preview notes do not use GitHub's stable-only latest-release endpoint. After the
-draft owns the verified files, the publisher deletes the transient workflow
-artifacts; a failed run retains them for no more than one day for diagnosis.
-Tags containing a SemVer prerelease suffix are marked as prereleases
-automatically. Tauri updater metadata remains disabled until Portcove has an
-explicit signed desktop self-update contract.
+After every builder succeeds, the read-only `assemble` job independently
+validates the exact matrix, recomputes every package checksum, generates an SPDX
+2.3 JSON SBOM with the commit-pinned Syft action, and finalizes one immutable
+payload. `SHA256SUMS.txt` covers every public package and
+`Portcove-SBOM.spdx.json`; the SBOM inventory records each package's checksum and
+size. The four platform manifests and build-time inventory remain internal
+validation inputs rather than redundant release assets.
+
+On a tag run, only the isolated `attest` job receives `id-token: write`,
+`attestations: write`, and `artifact-metadata: write`. It checks out no candidate
+code and runs no repository script. One commit-pinned `actions/attest` step
+creates build provenance for every final payload file, including the checksum
+manifest and SBOM; a second binds the SPDX SBOM to every subject digest declared
+by the checksum manifest. The `publish` job cannot begin until those attestations
+succeed. It receives only `contents: write`, downloads the already assembled
+payload and precomputed metadata, and creates or reconciles one draft release.
+
+The publisher refuses to change a published release. The first run generates
+the complete body before creating the draft. A rerun verifies an existing draft
+body byte for byte and fails closed instead of editing it. It rechecks draft
+state before every asset deletion or upload; repository-level immutable releases
+provide the server-side boundary if publication happens between that check and
+the mutation. After a successful rehearsal or publication handoff, an isolated
+cleanup job with only `actions: write` deletes transient workflow artifacts. A
+failed run retains them for no more than one day for diagnosis. Tags containing
+a SemVer prerelease suffix are marked as prereleases automatically. Tauri updater
+metadata remains disabled until Portcove has an explicit signed desktop
+self-update contract.
+
+The verified inventory adds or replaces one marked desktop-first download
+section in the draft body while preserving reviewed prose and GitHub's
+categorized changes. Repeated generation cannot duplicate the section. Links
+are bound to the exact tag, and preview notes do not use GitHub's stable-only
+latest-release endpoint.
 
 Release matrix, aggregate, inventory, checksum, and staging paths must be
 owned child paths of the checkout. Existing linked or reparse-point components
@@ -492,7 +518,7 @@ outputs.
 
 ## Release rehearsal
 
-Run the **Release** workflow manually from GitHub Actions before the first v1 tag or after changing packaging. A manual run executes the same preflight and four-platform build matrix, but every GitHub Release mutation remains disabled. Its read-only rehearsal consumer downloads all four `release-build-*` artifacts, runs `scripts/reconcile-release-assets.mjs` against their containing directory, validates the exact matrix and internal manifests, and generates the aggregate checksum plus private build-time inventory. It deletes the transient copies only after that contract passes. A failed rehearsal retains its artifacts for no more than one day for diagnosis; a successful rehearsal keeps the run logs and verification result without consuming ongoing Actions artifact storage. A rehearsal never creates a tag, draft release, or published release.
+Run the **Release** workflow manually from GitHub Actions before the first v1 tag or after changing packaging. A manual run executes the same preflight, four-platform build matrix, read-only assembly, SBOM generation, payload finalization, and checksum verification, but the tag-only attestation and publication jobs remain disabled. It deletes the transient copies only after those contracts pass. A failed rehearsal retains its artifacts for no more than one day for diagnosis; a successful rehearsal keeps the run logs and verification result without consuming ongoing Actions artifact storage. A rehearsal never creates an attestation, tag, draft release, or published release.
 
 From an authenticated GitHub CLI, start and follow the rehearsal with:
 
@@ -513,7 +539,7 @@ The rehearsal proves that the current commit can produce packages on hosted buil
 
 Before publishing the draft:
 
-1. confirm the aggregate `SHA256SUMS.txt` covers every public CLI archive and desktop bundle and that the logs show all four internal manifests were accepted;
+1. confirm the aggregate `SHA256SUMS.txt` covers every public CLI archive, desktop bundle, and `Portcove-SBOM.spdx.json`, and that the logs show all four internal manifests were accepted;
 2. verify the committed observation snapshot and external execution record both refer to the intended frozen candidate;
 3. compare release notes with live Blocked & Deferred items so manual or signing work is not overstated;
 4. keep unsigned artifacts clearly identified until the signing issue has matching completion evidence;
@@ -526,8 +552,11 @@ The generated draft begins with these sections before categorized changes:
    experimental status retained;
 2. **Command-line tools** — clearly separate standalone CLI archives;
 3. **Verify your download** — the one aggregate manifest and commands that check
-   a selected package without downloading the rest; and
-4. reviewed release changes, known limitations, upgrade guidance, and
+   a selected package without downloading the rest, plus `gh attestation verify`
+   for GitHub-hosted provenance;
+4. **Software bill of materials** — the checksummed SPDX 2.3 JSON inventory and
+   its scope; and
+5. reviewed release changes, known limitations, upgrade guidance, and
    troubleshooting.
 
 It states that Desktop needs no separate CLI, a CLI archive is not a graphical
@@ -544,8 +573,9 @@ Only after separately authorized publication can public reachability and
 integrity be checked. Download `SHA256SUMS.txt` and one selected package, require
 exactly one matching manifest line, and use `Get-FileHash`, `sha256sum --check
 --strict`, or `shasum -a 256 --check` as shown in the generated release body.
-Then use `gh release verify-asset <tag> <asset>` for each public asset and record
-the immutable release/tag, exact commit/run, API size/digest, and HTTP result.
+Then use `gh release verify-asset <tag> <asset>` and `gh attestation verify
+<asset> --repo boburning/portcove` for each public asset and record the immutable
+release/tag, exact commit/run, API size/digest, attestation result, and HTTP result.
 Historical manifests stay untouched.
 
 `scripts/select-release-channel.mjs --channel preview|stable --input releases.json`
