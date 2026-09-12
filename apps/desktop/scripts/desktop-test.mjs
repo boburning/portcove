@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import net from "node:net";
 import { parseArgs } from "node:util";
@@ -16,6 +16,12 @@ import { accessibleNavigationScenario } from "./desktop-accessibility-test.mjs";
 import { reloadScenario } from "./desktop-reload-test.mjs";
 import { workspaceRefreshScenario } from "./desktop-workspace-refresh-test.mjs";
 import { captureAccessibilityReport } from "./desktop-review-controls.mjs";
+import {
+  desktopHarnessDeadlineMs,
+  desktopScenarioById,
+  resolveDesktopSelection,
+} from "../../../scripts/desktop-scenarios.mjs";
+import { acquireNativeSessionLock } from "../../../scripts/native-session-lock.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const { values } = parseArgs({
@@ -24,6 +30,8 @@ const { values } = parseArgs({
     driver: { type: "string" },
     "native-driver": { type: "string" },
     output: { type: "string" },
+    profile: { type: "string" },
+    scenario: { type: "string", multiple: true, default: [] },
     port: { type: "string", default: "4444" },
     "preparation-cli": { type: "string" },
     "preparation-tool": { type: "string" },
@@ -32,6 +40,7 @@ const { values } = parseArgs({
     "accessibility-only": { type: "boolean", default: false },
     "restart-cycles": { type: "string", default: "1" },
     "reload-cycles": { type: "string", default: "0" },
+    "run-metadata": { type: "string" },
   },
 });
 const cachedDrivers = cachedDesktopDrivers();
@@ -58,8 +67,25 @@ const focusedModes = ["artwork-only", "adoption-only", "accessibility-only"].fil
   (name) => values[name],
 );
 if (focusedModes.length > 1) throw new Error("Choose only one focused desktop scenario mode");
-if ((values["artwork-only"] || values["adoption-only"]) && !values["preparation-cli"])
-  throw new Error("Focused fixture scenarios require the owned preparation CLI/tool inputs");
+if (focusedModes.length && (values.profile || values.scenario.length))
+  throw new Error("Legacy focused modes cannot be combined with --profile or --scenario");
+if (Boolean(values["preparation-cli"]) !== Boolean(values["preparation-tool"]))
+  throw new Error("--preparation-cli and --preparation-tool must be supplied together");
+const legacyScenario = values["accessibility-only"]
+  ? "accessibility"
+  : values["artwork-only"]
+    ? "native-local-artwork-picker-and-recovery"
+    : values["adoption-only"]
+      ? "native-reviewed-existing-install-copy"
+      : null;
+const selection = resolveDesktopSelection({
+  profile: values.profile,
+  scenarios: legacyScenario ? [legacyScenario] : values.scenario,
+  reloadCycles,
+  defaultProfile: values["preparation-cli"] ? "full" : "smoke",
+});
+if (selection.prerequisites.includes("owned-fixture") && !values["preparation-cli"])
+  throw new Error("Selected fixture scenarios require the owned preparation CLI/tool inputs");
 if (!Number.isInteger(port) || port < 1024 || port > 65533)
   throw new Error("--port must be 1024..65533");
 const inputs = await Promise.all(
@@ -75,7 +101,7 @@ inputs.push(await fileIdentity(fileURLToPath(new URL("desktop-reload-test.mjs", 
 inputs.push(
   await fileIdentity(fileURLToPath(new URL("desktop-workspace-refresh-test.mjs", import.meta.url))),
 );
-if (values["preparation-cli"] || values["preparation-tool"]) {
+if (selection.prerequisites.includes("owned-fixture")) {
   for (const name of ["preparation-cli", "preparation-tool"]) {
     if (!values[name] || !path.isAbsolute(values[name]))
       throw new Error(`--${name} requires an absolute path`);
@@ -135,6 +161,23 @@ if (values["preparation-cli"] || values["preparation-tool"]) {
     await fileIdentity(fileURLToPath(new URL("./native-confirmation.ps1", import.meta.url))),
   );
 }
+inputs.push(
+  await fileIdentity(
+    fileURLToPath(new URL("../../../scripts/desktop-scenarios.mjs", import.meta.url)),
+  ),
+);
+inputs.push(
+  await fileIdentity(
+    fileURLToPath(new URL("../../../scripts/native-session-lock.mjs", import.meta.url)),
+  ),
+);
+let runnerMetadata = {};
+if (values["run-metadata"]) {
+  if (!path.isAbsolute(values["run-metadata"]))
+    throw new Error("--run-metadata requires an absolute path");
+  inputs.push(await fileIdentity(values["run-metadata"]));
+  runnerMetadata = JSON.parse(await readFile(values["run-metadata"], "utf8"));
+}
 const revision = spawnCommand("git", ["rev-parse", "HEAD"], {
   cwd: root,
   encoding: "utf8",
@@ -145,10 +188,18 @@ await mkdir(output); // Existing output is never reused, including after failed 
 const library = path.join(output, "library");
 const profile = path.join(output, "webview");
 const checks = [];
+const setupChecks = [];
 const artifacts = [];
+const scenarioOutcomes = new Map();
 let driver;
 let browser;
 let driverLog = "";
+const nativeLock = await acquireNativeSessionLock({
+  workspace: root,
+  profile: selection.profile,
+  scenarios: selection.selected_scenarios,
+});
+const harnessStarted = new Date();
 function stopDriver() {
   if (!driver?.pid || driver.exitCode !== null) return;
   if (process.platform === "win32") {
@@ -166,9 +217,10 @@ function stopDriver() {
   }
 }
 // Includes owned native artwork picker/restart coverage in addition to lifecycle reviews.
+const harnessDeadlineMs = desktopHarnessDeadlineMs(selection);
 const deadline = setTimeout(() => {
   stopDriver();
-}, 180_000);
+}, harnessDeadlineMs);
 deadline.unref();
 
 async function requireUnusedPort(number) {
@@ -195,46 +247,71 @@ const invoke = async (command, args = {}) =>
     ),
   );
 
-async function scenario(name, action) {
+function scenarioTarget(name) {
+  if (selection.selected_scenarios.includes(name)) return { records: checks, setup: false };
+  if (selection.setup_scenarios.includes(name)) return { records: setupChecks, setup: true };
+  return null;
+}
+
+function failedScenarioDependency(name) {
+  const dependencies = desktopScenarioById.get(name)?.dependencies ?? [];
+  return dependencies.find((dependency) => scenarioOutcomes.get(dependency) !== "passed");
+}
+
+function recordScenario(target, name, outcome, details = {}) {
+  target.records.push({ scenario: name, outcome, ...details });
+  scenarioOutcomes.set(name, outcome);
+}
+
+async function captureScenarioDiagnostics(name, setup) {
+  if (!browser) return;
+  const report = path.join(output, `${setup ? "setup-" : ""}${name}-diagnostics.json`);
   try {
-    await action();
-    checks.push({ scenario: name, outcome: "passed" });
-  } catch (error) {
-    checks.push({ scenario: name, outcome: "failed", message: error.message });
-    if (browser) {
-      const report = path.join(output, `${name}-diagnostics.json`);
-      try {
-        const details = await browser.executeScript(() =>
-          Array.from(document.querySelectorAll(".error-banner, .bootstrap-error")).map(
-            (element) => element.textContent,
-          ),
-        );
-        await writeFile(report, JSON.stringify(details, null, 2), {
-          flag: "wx",
-        });
-        artifacts.push(report);
-      } catch {
-        /* Preserve the original failure if its window is unavailable. */
-      }
-    }
-    process.exitCode = 1;
-  }
-  if (browser) {
-    const screenshot = path.join(output, `${name}.png`);
-    try {
-      await writeFile(screenshot, await browser.takeScreenshot(), {
-        encoding: "base64",
-        flag: "wx",
-      });
-      artifacts.push(screenshot);
-    } catch {
-      /* The failed scenario remains recorded even if its window disappeared. */
-    }
+    const details = await browser.executeScript(() =>
+      Array.from(document.querySelectorAll(".error-banner, .bootstrap-error")).map(
+        (element) => element.textContent,
+      ),
+    );
+    await writeFile(report, JSON.stringify(details, null, 2), { flag: "wx" });
+    artifacts.push(report);
+  } catch {
+    /* Preserve the original failure if its window is unavailable. */
   }
 }
 
-async function fullDesktopScenario(name, action) {
-  if (!values["accessibility-only"]) await scenario(name, action);
+async function captureScenarioScreenshot(name) {
+  if (!browser) return;
+  const screenshot = path.join(output, `${name}.png`);
+  try {
+    await writeFile(screenshot, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(screenshot);
+  } catch {
+    /* The failed scenario remains recorded even if its window disappeared. */
+  }
+}
+
+async function scenario(name, action) {
+  const target = scenarioTarget(name);
+  if (!target) return;
+  const failedDependency = failedScenarioDependency(name);
+  if (failedDependency) {
+    recordScenario(target, name, "not-run", {
+      reason: `Prerequisite ${failedDependency} did not pass`,
+    });
+    return;
+  }
+  try {
+    await action();
+    recordScenario(target, name, "passed");
+  } catch (error) {
+    recordScenario(target, name, "failed", { message: error.message });
+    await captureScenarioDiagnostics(name, target.setup);
+    process.exitCode = 1;
+  }
+  if (!target.setup) await captureScenarioScreenshot(name);
 }
 
 async function connect() {
@@ -326,7 +403,7 @@ try {
     }
   }
   await connect();
-  await fullDesktopScenario("empty-library", async () => {
+  await scenario("empty-library", async () => {
     const bootstrap = await invoke("get_bootstrap_status");
     assert.equal(bootstrap.ok, true);
     assert.equal(path.resolve(bootstrap.value.library_root), library);
@@ -334,7 +411,7 @@ try {
     assert.equal(status.ok, true);
     assert.equal(status.value.filter((item) => item.active).length, 0);
   });
-  await fullDesktopScenario("native-error-recovery", async () => {
+  await scenario("native-error-recovery", async () => {
     const failed = await invoke("verify_port", {
       portId: "nonexistent-fixture-port",
     });
@@ -342,7 +419,7 @@ try {
     assert.ok(failed.error.code);
     assert.equal((await invoke("get_bootstrap_status")).value.ready, true);
   });
-  await fullDesktopScenario("keyboard-layout", async () => {
+  await scenario("keyboard-layout", async () => {
     await browser.manage().window().setRect({ width: 960, height: 640 });
     await browser.findElement(By.css("nav button")).click();
     await browser.actions().sendKeys(Key.TAB).perform();
@@ -353,7 +430,7 @@ try {
     assert.notEqual(focus.tag, "BODY");
     assert.equal(focus.overflow, false);
   });
-  await fullDesktopScenario("appearance-restart", async () => {
+  await scenario("appearance-restart", async () => {
     await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
     await browser.findElement(By.xpath('//button[normalize-space(.)="Light"]')).click();
     assert.equal(
@@ -398,20 +475,12 @@ try {
     const report = path.join(output, "accessibility.json");
     await captureAccessibilityReport(browser, report, artifacts);
   });
-  if (!values["accessibility-only"])
-    await controllerScenario({ browser, scenario, output, artifacts });
-  if (!values["accessibility-only"])
-    await accessibleNavigationScenario({ browser, scenario, output, artifacts });
-  if (!values["accessibility-only"])
-    await workspaceRefreshScenario({ browser, scenario, output, artifacts });
-  if (!values["accessibility-only"])
-    checks.push({
-      scenario: "install-progress-cancellation",
-      outcome: "not-run",
-      reason:
-        "Requires a reviewed install fixture; the smoke harness does not download or execute upstream games.",
-    });
-  if (!values["accessibility-only"] && values["preparation-cli"]) {
+  await controllerScenario({ browser, scenario, output, artifacts });
+  await accessibleNavigationScenario({ browser, scenario, output, artifacts });
+  await workspaceRefreshScenario({ browser, scenario, output, artifacts });
+  for (const gap of selection.known_gaps)
+    checks.push({ scenario: gap.scenario, outcome: "not-run", reason: gap.reason });
+  if (selection.prerequisites.includes("owned-fixture")) {
     await preparationScenarios({
       browser,
       invoke,
@@ -427,11 +496,9 @@ try {
       }),
       cli: values["preparation-cli"],
       tool: values["preparation-tool"],
-      onlyArtwork: values["artwork-only"],
-      onlyAdoption: values["adoption-only"],
     });
   }
-  if (!values["accessibility-only"] && reloadCycles)
+  if (selection.selected_scenarios.includes("native-repeated-library-reload"))
     await reloadScenario({
       browser,
       scenario,
@@ -455,38 +522,68 @@ try {
   }
   process.exitCode = 1;
 } finally {
-  if (browser) await browser.quit().catch(() => {});
-  stopDriver();
-  clearTimeout(deadline);
   try {
-    assert.equal(
-      (await fileIdentity(values.app)).sha256,
-      inputs[0].sha256,
-      "Executable changed during the run; discard its scenario claims.",
-    );
-  } catch (error) {
-    checks.push({
-      scenario: "executable-identity",
-      outcome: "failed",
-      message: error.message,
+    if (browser) await browser.quit().catch(() => {});
+    stopDriver();
+    clearTimeout(deadline);
+    try {
+      assert.equal(
+        (await fileIdentity(values.app)).sha256,
+        inputs[0].sha256,
+        "Executable changed during the run; discard its scenario claims.",
+      );
+    } catch (error) {
+      checks.push({
+        scenario: "executable-identity",
+        outcome: "failed",
+        message: error.message,
+      });
+      process.exitCode = 1;
+    }
+    const log = path.join(output, "driver.log");
+    await writeFile(log, driverLog, { flag: "wx" });
+    artifacts.push(log);
+    for (const name of selection.selected_scenarios) {
+      if (!checks.some((check) => check.scenario === name))
+        checks.push({
+          scenario: name,
+          outcome: "not-run",
+          reason: "The harness ended before this selected scenario ran",
+        });
+    }
+    await writeEvidence(output, {
+      revision,
+      executable: values.app,
+      capturedExecutable: inputs[0],
+      checks,
+      setupChecks,
+      artifacts,
+      inputs,
+      method: selection.profile ? `native-desktop-${selection.profile}` : "native-desktop-focused",
+      context: {
+        ...runnerMetadata,
+        profile: selection.profile,
+        selected_scenarios: selection.selected_scenarios,
+        setup_scenarios: selection.setup_scenarios,
+        excluded_scenarios: selection.excluded_scenarios,
+        known_gaps: selection.known_gaps,
+        restart_cycles: restartCycles,
+        reload_cycles: reloadCycles,
+        harness_deadline_ms: harnessDeadlineMs,
+        phases: [
+          ...(runnerMetadata.phases ?? []),
+          {
+            phase: "native-harness",
+            started_at: harnessStarted.toISOString(),
+            finished_at: new Date().toISOString(),
+            duration_ms: Date.now() - harnessStarted.getTime(),
+            status: process.exitCode || 0,
+          },
+        ],
+      },
     });
-    process.exitCode = 1;
+    console.log(JSON.stringify(checks, null, 2));
+  } finally {
+    await nativeLock.release();
   }
-  const log = path.join(output, "driver.log");
-  await writeFile(log, driverLog, { flag: "wx" });
-  artifacts.push(log);
-  await writeEvidence(output, {
-    revision,
-    executable: values.app,
-    capturedExecutable: inputs[0],
-    checks,
-    artifacts,
-    inputs,
-    method: values["accessibility-only"]
-      ? "native-accessibility-smoke"
-      : values["artwork-only"]
-        ? "native-artwork-smoke"
-        : "native-desktop-smoke",
-  });
-  console.log(JSON.stringify(checks, null, 2));
 }

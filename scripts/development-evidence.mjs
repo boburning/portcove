@@ -13,27 +13,40 @@ export async function fileIdentity(file) {
   return { path: absolute, bytes: stats.size, sha256: hash.digest("hex") };
 }
 
-export function evidenceOutcome(checks) {
-  if (!checks.length) return "not-run";
-  for (const check of checks) {
+export function evidenceOutcome(checks, setupChecks = []) {
+  const observed = [...setupChecks, ...checks];
+  if (!observed.length) return "not-run";
+  for (const check of observed) {
     if (!check.scenario || !["passed", "failed", "not-run"].includes(check.outcome))
       throw new Error("Invalid evidence check");
   }
-  return checks.some((check) => check.outcome === "failed")
+  return observed.some((check) => check.outcome === "failed")
     ? "failed"
-    : checks.some((check) => check.outcome === "not-run")
+    : observed.some((check) => check.outcome === "not-run")
       ? "incomplete"
       : "passed";
 }
 
 export async function writeEvidence(
   directory,
-  { revision, executable, checks, artifacts = [], method, inputs = [], capturedExecutable },
+  {
+    revision,
+    executable,
+    checks,
+    setupChecks = [],
+    artifacts = [],
+    method,
+    inputs = [],
+    capturedExecutable,
+    context = {},
+  },
 ) {
   if (!/^[a-f0-9]{40}$/u.test(revision) || !method)
     throw new Error("Evidence requires a full revision and explicit method");
+  const outcome = evidenceOutcome(checks, setupChecks);
+  const selectedScenarios = context.selected_scenarios ?? checks.map((check) => check.scenario);
   const report = {
-    format_version: 1,
+    format_version: 2,
     captured_at: new Date().toISOString(),
     revision,
     platform: process.platform,
@@ -41,8 +54,21 @@ export async function writeEvidence(
     method,
     executable: capturedExecutable ?? (await fileIdentity(executable)),
     inputs,
-    outcome: evidenceOutcome(checks),
+    outcome,
     checks,
+    setup_checks: setupChecks,
+    profile: context.profile ?? null,
+    selected_scenarios: selectedScenarios,
+    setup_scenarios: context.setup_scenarios ?? [],
+    excluded_scenarios: context.excluded_scenarios ?? [],
+    restart_cycles: context.restart_cycles ?? null,
+    reload_cycles: context.reload_cycles ?? null,
+    harness_deadline_ms: context.harness_deadline_ms ?? null,
+    source_state: context.source_state ?? { revision, clean: null },
+    phases: context.phases ?? [],
+    known_gaps: context.known_gaps ?? [],
+    qualification_complete:
+      outcome === "passed" && !(context.known_gaps?.length > 0) && selectedScenarios.length > 0,
     artifacts: await Promise.all(artifacts.map(fileIdentity)),
     interpretation:
       "Execution observations only; no catalog qualification or human observation is inferred.",

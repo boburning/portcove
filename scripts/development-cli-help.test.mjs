@@ -20,6 +20,7 @@ for (const [name, command, args] of [
   ["local validation", process.execPath, ["scripts/local-validation.mjs", "check", "--help"]],
   ["audit", process.execPath, ["scripts/audit.mjs", "--help"]],
   ["desktop testing", process.execPath, ["scripts/desktop-test-cli.mjs", "--help"]],
+  ["desktop verification", process.execPath, ["scripts/desktop-verify.mjs", "--help"]],
 ]) {
   test(`${name} help is available without provisioning`, () => {
     const result = run(command, args);
