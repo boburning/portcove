@@ -8,7 +8,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::application_update::ApplicationChannel;
+use crate::application_update::ApplicationUpdateCandidateSummary;
 use crate::application_update_apply::{
     ApplicationTerminationKind, ApplicationUpdateApplyError, ApplicationUpdateApplyRequest,
     ApplicationUpdateApplyState, ApplicationUpdateApplyStore,
@@ -39,13 +39,6 @@ pub struct ApplicationUpdateScheduleSummary {
     pub last_success_unix_seconds: Option<u64>,
     pub consecutive_failures: u32,
     pub next_automatic_check_unix_seconds: Option<u64>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct ApplicationUpdateCandidateSummary {
-    pub version: String,
-    pub channel: ApplicationChannel,
-    pub bytes: u64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
@@ -214,11 +207,7 @@ fn schedule_summary(schedule: &ApplicationUpdateSchedule) -> ApplicationUpdateSc
 }
 
 fn candidate_summary(staged: &StagedApplicationUpdate) -> ApplicationUpdateCandidateSummary {
-    ApplicationUpdateCandidateSummary {
-        version: staged.candidate.release.version.clone(),
-        channel: staged.candidate.promotion.channel,
-        bytes: staged.candidate.release.artifact.bytes,
-    }
+    (&staged.candidate).into()
 }
 
 fn apply_summary(state: &ApplicationUpdateApplyState) -> Option<ApplicationUpdateApplySummary> {

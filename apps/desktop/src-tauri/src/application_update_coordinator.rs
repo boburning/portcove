@@ -68,6 +68,7 @@ pub enum ApplicationUpdateCoordinatorOutcome {
     Held(ApplicationUpdateCheckDecision),
     Checked {
         preference_revision: u64,
+        preference_choice: ApplicationUpdateChoice,
         selection: Box<AuthenticatedCandidateSelection>,
         schedule: ApplicationUpdateSchedule,
     },
@@ -84,6 +85,40 @@ pub trait ApplicationUpdateChecker: Send + Sync {
         &self,
         choice: ApplicationUpdateChoice,
     ) -> Result<AuthenticatedCandidateSelection, CandidateLoadError>;
+}
+
+#[async_trait]
+pub trait ApplicationUpdateCheckCompletion: Send + Sync {
+    type Error: Send;
+
+    async fn complete(
+        &self,
+        preference_revision: u64,
+        choice: &ApplicationUpdateChoice,
+        selection: &AuthenticatedCandidateSelection,
+    ) -> Result<(), Self::Error>;
+}
+
+#[derive(Debug)]
+pub enum ApplicationUpdateCoordinatorRunError<E> {
+    Coordinator(ApplicationUpdateCoordinatorError),
+    Completion(E),
+}
+
+struct NoopCheckCompletion;
+
+#[async_trait]
+impl ApplicationUpdateCheckCompletion for NoopCheckCompletion {
+    type Error = std::convert::Infallible;
+
+    async fn complete(
+        &self,
+        _preference_revision: u64,
+        _choice: &ApplicationUpdateChoice,
+        _selection: &AuthenticatedCandidateSelection,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
 }
 
 pub trait ApplicationUpdateClock: Send + Sync {
@@ -177,15 +212,50 @@ impl ApplicationUpdateCoordinator {
         environment: ApplicationUpdateCheckEnvironment,
         checker: &dyn ApplicationUpdateChecker,
     ) -> Result<ApplicationUpdateCoordinatorOutcome, ApplicationUpdateCoordinatorError> {
-        let initial = self.decision(environment)?;
+        match self
+            .run_with_completion(environment, checker, &NoopCheckCompletion)
+            .await
+        {
+            Ok(outcome) => Ok(outcome),
+            Err(ApplicationUpdateCoordinatorRunError::Coordinator(error)) => Err(error),
+            Err(ApplicationUpdateCoordinatorRunError::Completion(never)) => match never {},
+        }
+    }
+
+    /// Runs a selected follow-on step while retaining the cross-process check
+    /// owner. A completion failure receives bounded failure cadence; success is
+    /// recorded only after completion. This prevents an automatic payload
+    /// failure from being hidden behind the daily successful-check interval.
+    pub async fn run_with_completion<C: ApplicationUpdateCheckCompletion + ?Sized>(
+        &self,
+        environment: ApplicationUpdateCheckEnvironment,
+        checker: &dyn ApplicationUpdateChecker,
+        completion: &C,
+    ) -> Result<ApplicationUpdateCoordinatorOutcome, ApplicationUpdateCoordinatorRunError<C::Error>>
+    {
+        let initial = self
+            .decision(environment)
+            .map_err(ApplicationUpdateCoordinatorRunError::Coordinator)?;
         if !matches!(initial, ApplicationUpdateCheckDecision::CheckNow) {
             return Ok(ApplicationUpdateCoordinatorOutcome::Held(initial));
         }
 
-        let _check_lock = self.lock()?;
-        let preferences = self.preferences.load()?;
-        let schedule = self.schedule.load()?;
-        let now = self.now()?;
+        let _check_lock = self
+            .lock()
+            .map_err(ApplicationUpdateCoordinatorRunError::Coordinator)?;
+        let preferences = self
+            .preferences
+            .load()
+            .map_err(ApplicationUpdateCoordinatorError::from)
+            .map_err(ApplicationUpdateCoordinatorRunError::Coordinator)?;
+        let schedule = self
+            .schedule
+            .load()
+            .map_err(ApplicationUpdateCoordinatorError::from)
+            .map_err(ApplicationUpdateCoordinatorRunError::Coordinator)?;
+        let now = self
+            .now()
+            .map_err(ApplicationUpdateCoordinatorRunError::Coordinator)?;
         let decision = schedule.decide(
             &preferences,
             ApplicationUpdateCheckContext {
@@ -200,33 +270,90 @@ impl ApplicationUpdateCoordinator {
             return Ok(ApplicationUpdateCoordinatorOutcome::Held(decision));
         }
         let choice = preferences.choice.clone().ok_or_else(|| {
-            ApplicationUpdateCoordinatorError::InvalidState(
-                "consent changed after the policy decision".into(),
+            ApplicationUpdateCoordinatorRunError::Coordinator(
+                ApplicationUpdateCoordinatorError::InvalidState(
+                    "consent changed after the policy decision".into(),
+                ),
             )
         })?;
         let preference_revision = preferences.revision;
         let schedule_revision = schedule.revision;
 
-        let checked = checker.check(choice).await;
-        let completed_at = self.now()?;
-        let schedule = match checked.as_ref() {
-            Ok(_) => self.schedule.record_success(
-                schedule_revision,
-                preference_revision,
-                completed_at,
-            )?,
-            Err(_) => self.schedule.record_failure(
-                schedule_revision,
-                preference_revision,
-                completed_at,
-                completion_jitter_seed(completed_at, schedule_revision),
-            )?,
+        let checked = checker.check(choice.clone()).await;
+        let selection = match checked {
+            Ok(selection) => selection,
+            Err(source) => {
+                let completed_at = self
+                    .now()
+                    .map_err(ApplicationUpdateCoordinatorRunError::Coordinator)?;
+                self.schedule
+                    .record_failure(
+                        schedule_revision,
+                        preference_revision,
+                        completed_at,
+                        completion_jitter_seed(completed_at, schedule_revision),
+                    )
+                    .map_err(ApplicationUpdateCoordinatorError::from)
+                    .map_err(ApplicationUpdateCoordinatorRunError::Coordinator)?;
+                return Err(ApplicationUpdateCoordinatorRunError::Coordinator(
+                    ApplicationUpdateCoordinatorError::Check {
+                        failure: source.failure_kind(),
+                        source,
+                    },
+                ));
+            }
         };
-        let selection = checked.map_err(|source| ApplicationUpdateCoordinatorError::Check {
-            failure: source.failure_kind(),
-            source,
-        })?;
-        let current_preferences = self.preferences.load()?;
+        let current_preferences = self
+            .preferences
+            .load()
+            .map_err(ApplicationUpdateCoordinatorError::from)
+            .map_err(ApplicationUpdateCoordinatorRunError::Coordinator)?;
+        if current_preferences.revision != preference_revision {
+            let completed_at = self
+                .now()
+                .map_err(ApplicationUpdateCoordinatorRunError::Coordinator)?;
+            let schedule = self
+                .schedule
+                .record_success(schedule_revision, preference_revision, completed_at)
+                .map_err(ApplicationUpdateCoordinatorError::from)
+                .map_err(ApplicationUpdateCoordinatorRunError::Coordinator)?;
+            return Ok(ApplicationUpdateCoordinatorOutcome::Superseded {
+                checked_preference_revision: preference_revision,
+                current_preference_revision: current_preferences.revision,
+                schedule,
+            });
+        }
+        if let Err(error) = completion
+            .complete(preference_revision, &choice, &selection)
+            .await
+        {
+            let completed_at = self
+                .now()
+                .map_err(ApplicationUpdateCoordinatorRunError::Coordinator)?;
+            self.schedule
+                .record_failure(
+                    schedule_revision,
+                    preference_revision,
+                    completed_at,
+                    completion_jitter_seed(completed_at, schedule_revision),
+                )
+                .map_err(ApplicationUpdateCoordinatorError::from)
+                .map_err(ApplicationUpdateCoordinatorRunError::Coordinator)?;
+            return Err(ApplicationUpdateCoordinatorRunError::Completion(error));
+        }
+        let completed_at = self
+            .now()
+            .map_err(ApplicationUpdateCoordinatorRunError::Coordinator)?;
+        let schedule = self
+            .schedule
+            .record_success(schedule_revision, preference_revision, completed_at)
+            .map_err(ApplicationUpdateCoordinatorError::from)
+            .map_err(ApplicationUpdateCoordinatorRunError::Coordinator)?;
+        let current_preferences = self
+            .preferences
+            .load()
+            .map_err(ApplicationUpdateCoordinatorError::from)
+            .map_err(ApplicationUpdateCoordinatorRunError::Coordinator)?;
         if current_preferences.revision != preference_revision {
             return Ok(ApplicationUpdateCoordinatorOutcome::Superseded {
                 checked_preference_revision: preference_revision,
@@ -236,6 +363,7 @@ impl ApplicationUpdateCoordinator {
         }
         Ok(ApplicationUpdateCoordinatorOutcome::Checked {
             preference_revision,
+            preference_choice: choice,
             selection: Box::new(selection),
             schedule,
         })
@@ -379,6 +507,55 @@ mod tests {
         calls: AtomicUsize,
         started: tokio::sync::Semaphore,
         release: tokio::sync::Semaphore,
+    }
+
+    struct FailingCompletion {
+        calls: AtomicUsize,
+    }
+
+    #[async_trait]
+    impl ApplicationUpdateCheckCompletion for FailingCompletion {
+        type Error = &'static str;
+
+        async fn complete(
+            &self,
+            _preference_revision: u64,
+            _choice: &ApplicationUpdateChoice,
+            _selection: &AuthenticatedCandidateSelection,
+        ) -> Result<(), Self::Error> {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            Err("payload failed")
+        }
+    }
+
+    struct BlockingCompletion {
+        started: tokio::sync::Semaphore,
+        release: tokio::sync::Semaphore,
+    }
+
+    impl BlockingCompletion {
+        fn new() -> Self {
+            Self {
+                started: tokio::sync::Semaphore::new(0),
+                release: tokio::sync::Semaphore::new(0),
+            }
+        }
+    }
+
+    #[async_trait]
+    impl ApplicationUpdateCheckCompletion for BlockingCompletion {
+        type Error = std::convert::Infallible;
+
+        async fn complete(
+            &self,
+            _preference_revision: u64,
+            _choice: &ApplicationUpdateChoice,
+            _selection: &AuthenticatedCandidateSelection,
+        ) -> Result<(), Self::Error> {
+            self.started.add_permits(1);
+            self.release.acquire().await.unwrap().forget();
+            Ok(())
+        }
     }
 
     impl BlockingChecker {
@@ -551,6 +728,67 @@ mod tests {
         assert_eq!(persisted.preference_revision, Some(1));
         assert_eq!(persisted.consecutive_failures, 1);
         assert!(persisted.next_automatic_check_unix_seconds.unwrap() > 2_000);
+    }
+
+    #[tokio::test]
+    async fn failed_completion_records_retry_instead_of_daily_success() {
+        let (_temporary, coordinator, preferences, schedule, _clock) = fixture();
+        choose(&preferences, 0, ApplicationUpdateMode::Automatic, false);
+        let checker = checker(Ok(selection()));
+        let completion = FailingCompletion {
+            calls: AtomicUsize::new(0),
+        };
+        assert!(matches!(
+            coordinator
+                .run_with_completion(
+                    environment(ApplicationUpdateCheckRequest::Automatic),
+                    &checker,
+                    &completion,
+                )
+                .await,
+            Err(ApplicationUpdateCoordinatorRunError::Completion(
+                "payload failed"
+            ))
+        ));
+        let persisted = schedule.load().unwrap();
+        assert_eq!(completion.calls.load(Ordering::SeqCst), 1);
+        assert_eq!(persisted.last_success_unix_seconds, None);
+        assert_eq!(persisted.consecutive_failures, 1);
+        assert!(persisted.next_automatic_check_unix_seconds.unwrap() < 2_000 + 24 * 60 * 60);
+    }
+
+    #[tokio::test]
+    async fn completion_retains_cross_process_check_ownership() {
+        let (_temporary, coordinator, preferences, _schedule, _clock) = fixture();
+        choose(&preferences, 0, ApplicationUpdateMode::Automatic, false);
+        let completion = Arc::new(BlockingCompletion::new());
+        let task_completion = completion.clone();
+        let task_coordinator = coordinator.clone();
+        let running = tokio::spawn(async move {
+            task_coordinator
+                .run_with_completion(
+                    environment(ApplicationUpdateCheckRequest::Automatic),
+                    &checker(Ok(selection())),
+                    task_completion.as_ref(),
+                )
+                .await
+        });
+        completion.started.acquire().await.unwrap().forget();
+
+        assert!(matches!(
+            coordinator
+                .run(
+                    environment(ApplicationUpdateCheckRequest::Manual),
+                    &checker(Ok(selection())),
+                )
+                .await,
+            Err(ApplicationUpdateCoordinatorError::Busy)
+        ));
+        completion.release.add_permits(1);
+        assert!(matches!(
+            running.await.unwrap().unwrap(),
+            ApplicationUpdateCoordinatorOutcome::Checked { .. }
+        ));
     }
 
     #[tokio::test]

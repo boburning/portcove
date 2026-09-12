@@ -199,6 +199,23 @@ pub struct CandidateSelection {
     pub reasons: Vec<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, schemars::JsonSchema)]
+pub struct ApplicationUpdateCandidateSummary {
+    pub version: String,
+    pub channel: ApplicationChannel,
+    pub bytes: u64,
+}
+
+impl From<&SelectedCandidate> for ApplicationUpdateCandidateSummary {
+    fn from(candidate: &SelectedCandidate) -> Self {
+        Self {
+            version: candidate.release.version.clone(),
+            channel: candidate.promotion.channel,
+            bytes: candidate.release.artifact.bytes,
+        }
+    }
+}
+
 fn parse_record<T: for<'de> Deserialize<'de>>(bytes: &[u8]) -> Result<T, UpdateMetadataError> {
     if bytes.is_empty() || bytes.len() > MAX_RECORD_BYTES {
         return Err(UpdateMetadataError::TooLarge);
