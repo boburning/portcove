@@ -32,6 +32,19 @@ the missing-choice state. The Stable explanation promises only a newer eligible
 production release and never a downgrade. Automatic-mode disclosure names staging
 and makes safe exit or an explicit Restart to update action a separate apply boundary.
 
+Starting with the first non-prerelease 1.x build, an installation with a saved
+Preview choice receives one production-channel offer. Use Stable performs a
+compare-and-swap preference update that retains mode and pause. Keep Preview leaves
+the preference revision and choice unchanged. Either decision atomically writes a
+fixed acknowledgement marker beside the preference document; keeping this
+presentation state separate preserves the schema-1 preference format for an older
+executable. The marker names the decision and the preference revision that completes
+it. Stable writes the marker for the next revision before publishing that revision;
+an interruption therefore leaves an incomplete marker that reoffers safely. Missing,
+malformed or incomplete marker content reoffers the choice and either explicit action
+repairs it. Stable preferences, missing consent and prerelease builds never receive
+the offer. Session deferral is renderer-only and returns after restart.
+
 The same Settings card reads a sanitized host status containing only check cadence,
 the verified staged version/channel/size, a pending safe-exit or restart request, its
 durable native-launch state, and named recovery requirements. It explains that an

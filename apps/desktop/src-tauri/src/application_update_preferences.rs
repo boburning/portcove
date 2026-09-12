@@ -10,6 +10,7 @@ use std::sync::{Mutex, OnceLock};
 
 use fs2::FileExt;
 use schemars::JsonSchema;
+use semver::Version;
 use serde::{Deserialize, Serialize};
 
 use crate::application_update::ApplicationChannel;
@@ -17,6 +18,8 @@ use crate::application_update_storage::write_bytes_atomically;
 use crate::{DesktopError, DesktopResult, blocking_worker};
 
 const PREFERENCE_SCHEMA_VERSION: u32 = 1;
+const PRODUCTION_TRANSITION_SCHEMA_VERSION: u32 = 1;
+const MAX_PRODUCTION_TRANSITION_BYTES: u64 = 1024;
 const MAX_PREFERENCE_BYTES: u64 = 64 * 1024;
 const DEFAULT_FILE: &str = "application-updates.json";
 
@@ -63,6 +66,34 @@ pub struct ApplicationUpdatePreferences {
     pub revision: u64,
     /// `None` means the user has not completed the one-time choice.
     pub choice: Option<ApplicationUpdateChoice>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum ApplicationUpdateProductionDecision {
+    UseStable,
+    KeepPreview,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ApplicationUpdateProductionTransitionMarker {
+    schema_version: u32,
+    decision: ApplicationUpdateProductionDecision,
+    completed_preference_revision: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct ApplicationUpdateProductionTransition {
+    pub schema_version: u32,
+    pub preference_revision: u64,
+    pub offer_required: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct ApplicationUpdateProductionTransitionResult {
+    pub preferences: ApplicationUpdatePreferences,
+    pub transition: ApplicationUpdateProductionTransition,
 }
 
 impl Default for ApplicationUpdatePreferences {
@@ -175,6 +206,66 @@ impl ApplicationUpdatePreferenceStore {
             })?;
         validate_preferences(&preferences)?;
         Ok(preferences)
+    }
+
+    pub fn production_transition(
+        &self,
+        current_version: &str,
+    ) -> Result<ApplicationUpdateProductionTransition, ApplicationUpdatePreferenceError> {
+        let preferences = self.load()?;
+        self.production_transition_for(current_version, &preferences)
+    }
+
+    pub fn complete_production_transition(
+        &self,
+        current_version: &str,
+        expected_revision: u64,
+        decision: ApplicationUpdateProductionDecision,
+    ) -> Result<ApplicationUpdateProductionTransitionResult, ApplicationUpdatePreferenceError> {
+        let _lock = self.lock()?;
+        let mut preferences = self.load()?;
+        if preferences.revision != expected_revision {
+            return Err(ApplicationUpdatePreferenceError::RevisionConflict {
+                expected: expected_revision,
+                actual: preferences.revision,
+            });
+        }
+        if !self
+            .production_transition_for(current_version, &preferences)?
+            .offer_required
+        {
+            return Err(ApplicationUpdatePreferenceError::InvalidState(
+                "the production channel offer is no longer required".into(),
+            ));
+        }
+
+        match decision {
+            ApplicationUpdateProductionDecision::UseStable => {
+                let completed_revision = preferences.revision.checked_add(1).ok_or_else(|| {
+                    ApplicationUpdatePreferenceError::InvalidState(
+                        "preference revision is exhausted".into(),
+                    )
+                })?;
+                self.publish_production_transition_marker(decision, completed_revision)?;
+                let choice = preferences.choice.as_mut().ok_or_else(|| {
+                    ApplicationUpdatePreferenceError::InvalidState(
+                        "the production channel offer requires a saved choice".into(),
+                    )
+                })?;
+                choice.channel = ApplicationChannel::Stable;
+                preferences.revision = completed_revision;
+                self.publish(&preferences)?;
+            }
+            ApplicationUpdateProductionDecision::KeepPreview => {
+                self.publish_production_transition_marker(decision, preferences.revision)?;
+            }
+        }
+
+        let transition = self.production_transition_for(current_version, &preferences)?;
+        Ok(ApplicationUpdateProductionTransitionResult {
+            preferences,
+            transition,
+        })
     }
 
     /// Saves a complete explicit choice if the caller observed the current
@@ -328,6 +419,93 @@ impl ApplicationUpdatePreferenceStore {
             )
         })
     }
+
+    fn production_transition_for(
+        &self,
+        current_version: &str,
+        preferences: &ApplicationUpdatePreferences,
+    ) -> Result<ApplicationUpdateProductionTransition, ApplicationUpdatePreferenceError> {
+        let version = Version::parse(current_version).map_err(|error| {
+            ApplicationUpdatePreferenceError::InvalidState(format!(
+                "compiled application version is invalid: {error}"
+            ))
+        })?;
+        let preview_choice = matches!(
+            preferences.choice.as_ref().map(|choice| choice.channel),
+            Some(ApplicationChannel::Preview)
+        );
+        let production = version.major >= 1 && version.pre.is_empty();
+        let acknowledged = if production && preview_choice {
+            self.production_transition_acknowledged(preferences)?
+        } else {
+            false
+        };
+        Ok(ApplicationUpdateProductionTransition {
+            schema_version: PRODUCTION_TRANSITION_SCHEMA_VERSION,
+            preference_revision: preferences.revision,
+            offer_required: production && preview_choice && !acknowledged,
+        })
+    }
+
+    fn production_transition_acknowledged(
+        &self,
+        preferences: &ApplicationUpdatePreferences,
+    ) -> Result<bool, ApplicationUpdatePreferenceError> {
+        let path = sibling_path(&self.path, ".production-transition")?;
+        let parent = path.parent().ok_or_else(|| {
+            ApplicationUpdatePreferenceError::InvalidPath(
+                "production transition path needs a parent directory".into(),
+            )
+        })?;
+        refuse_symlink_ancestors(parent)?;
+        let metadata = match fs::symlink_metadata(&path) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+            Err(error) => return Err(error.into()),
+            Ok(metadata) => metadata,
+        };
+        if !metadata.is_file()
+            || metadata.file_type().is_symlink()
+            || metadata.len() == 0
+            || metadata.len() > MAX_PRODUCTION_TRANSITION_BYTES
+        {
+            return Ok(false);
+        }
+        let bytes = fs::read(path)?;
+        let Ok(marker) =
+            serde_json::from_slice::<ApplicationUpdateProductionTransitionMarker>(&bytes)
+        else {
+            return Ok(false);
+        };
+        Ok(
+            marker.schema_version == PRODUCTION_TRANSITION_SCHEMA_VERSION
+                && marker.completed_preference_revision <= preferences.revision,
+        )
+    }
+
+    fn publish_production_transition_marker(
+        &self,
+        decision: ApplicationUpdateProductionDecision,
+        completed_preference_revision: u64,
+    ) -> Result<(), ApplicationUpdatePreferenceError> {
+        let path = sibling_path(&self.path, ".production-transition")?;
+        let parent = path.parent().ok_or_else(|| {
+            ApplicationUpdatePreferenceError::InvalidPath(
+                "production transition path needs a parent directory".into(),
+            )
+        })?;
+        refuse_symlink_ancestors(parent)?;
+        let destination = file_name(&path)?;
+        let temporary = format!(".{destination}.tmp");
+        let marker = ApplicationUpdateProductionTransitionMarker {
+            schema_version: PRODUCTION_TRANSITION_SCHEMA_VERSION,
+            decision,
+            completed_preference_revision,
+        };
+        let mut bytes = serde_json::to_vec_pretty(&marker)?;
+        bytes.push(b'\n');
+        write_bytes_atomically(parent, &temporary, destination, &bytes)?;
+        Ok(())
+    }
 }
 
 pub(crate) fn configured_state() -> ApplicationUpdatePreferenceState {
@@ -342,6 +520,41 @@ pub(crate) async fn get_application_update_preferences(
 ) -> DesktopResult<ApplicationUpdatePreferences> {
     let store = state.store.as_ref().map_err(Clone::clone)?.clone();
     blocking_worker(move || store.load().map_err(desktop_error)).await
+}
+
+#[tauri::command]
+pub(crate) async fn get_application_update_production_transition(
+    state: tauri::State<'_, ApplicationUpdatePreferenceState>,
+) -> DesktopResult<ApplicationUpdateProductionTransition> {
+    let store = state.store.as_ref().map_err(Clone::clone)?.clone();
+    blocking_worker(move || {
+        store
+            .production_transition(env!("CARGO_PKG_VERSION"))
+            .map_err(desktop_error)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn complete_application_update_production_transition(
+    state: tauri::State<'_, ApplicationUpdatePreferenceState>,
+    updates: tauri::State<'_, crate::application_update_commands::ApplicationUpdateCommandState>,
+    app: tauri::AppHandle,
+    expected_revision: u64,
+    decision: ApplicationUpdateProductionDecision,
+) -> DesktopResult<ApplicationUpdateProductionTransitionResult> {
+    let store = state.store.as_ref().map_err(Clone::clone)?.clone();
+    let result = blocking_worker(move || {
+        store
+            .complete_production_transition(env!("CARGO_PKG_VERSION"), expected_revision, decision)
+            .map_err(desktop_error)
+    })
+    .await?;
+    if result.preferences.revision != expected_revision {
+        updates.clear_notice(&app);
+        updates.wake_automatic();
+    }
+    Ok(result)
 }
 
 #[tauri::command]
@@ -504,6 +717,13 @@ mod tests {
         }
     }
 
+    fn production_marker(path: &Path) -> ApplicationUpdateProductionTransitionMarker {
+        serde_json::from_slice(
+            &fs::read(sibling_path(path, ".production-transition").unwrap()).unwrap(),
+        )
+        .unwrap()
+    }
+
     #[test]
     fn missing_state_is_unconsented_and_read_only() {
         let temporary = tempfile::tempdir().unwrap();
@@ -626,5 +846,209 @@ mod tests {
             Err(ApplicationUpdatePreferenceError::InvalidState(_))
         ));
         assert!(ApplicationUpdatePreferenceStore::new(PathBuf::from("relative.json")).is_err());
+    }
+
+    #[test]
+    fn production_offer_targets_only_saved_preview_choices_after_one_point_zero() {
+        let temporary = tempfile::tempdir().unwrap();
+        let store = ApplicationUpdatePreferenceStore::new(
+            temporary.path().join("application-updates.json"),
+        )
+        .unwrap();
+
+        assert!(!store.production_transition("1.0.0").unwrap().offer_required);
+        let preview = store
+            .save_choice(0, choice(ApplicationUpdateMode::NotifyOnly))
+            .unwrap();
+        assert!(
+            !store
+                .production_transition("1.0.0-beta.9")
+                .unwrap()
+                .offer_required
+        );
+        let transition = store.production_transition("1.0.0").unwrap();
+        assert_eq!(transition.preference_revision, preview.revision);
+        assert!(transition.offer_required);
+
+        let mut stable = preview.choice.unwrap();
+        stable.channel = ApplicationChannel::Stable;
+        store.save_choice(preview.revision, stable).unwrap();
+        assert!(!store.production_transition("2.0.0").unwrap().offer_required);
+    }
+
+    #[test]
+    fn keeping_preview_acknowledges_the_offer_without_changing_the_choice() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("application-updates.json");
+        let store = ApplicationUpdatePreferenceStore::new(path.clone()).unwrap();
+        let preview = store
+            .save_choice(0, choice(ApplicationUpdateMode::Manual))
+            .unwrap();
+
+        let completed = store
+            .complete_production_transition(
+                "1.0.0",
+                preview.revision,
+                ApplicationUpdateProductionDecision::KeepPreview,
+            )
+            .unwrap();
+        assert_eq!(completed.preferences, preview);
+        assert!(!completed.transition.offer_required);
+        assert_eq!(store.load().unwrap(), preview);
+        assert_eq!(
+            production_marker(&path),
+            ApplicationUpdateProductionTransitionMarker {
+                schema_version: 1,
+                decision: ApplicationUpdateProductionDecision::KeepPreview,
+                completed_preference_revision: preview.revision,
+            }
+        );
+        assert!(
+            !ApplicationUpdatePreferenceStore::new(path)
+                .unwrap()
+                .production_transition("1.1.0")
+                .unwrap()
+                .offer_required
+        );
+    }
+
+    #[test]
+    fn accepting_stable_preserves_mode_and_pause_under_revision_lock() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("application-updates.json");
+        let store = ApplicationUpdatePreferenceStore::new(path.clone()).unwrap();
+        let preview = store
+            .save_choice(
+                0,
+                ApplicationUpdateChoice {
+                    channel: ApplicationChannel::Preview,
+                    mode: ApplicationUpdateMode::Automatic,
+                    paused: true,
+                },
+            )
+            .unwrap();
+
+        let completed = store
+            .complete_production_transition(
+                "1.0.0",
+                preview.revision,
+                ApplicationUpdateProductionDecision::UseStable,
+            )
+            .unwrap();
+        assert_eq!(completed.preferences.revision, preview.revision + 1);
+        assert_eq!(
+            completed.preferences.choice,
+            Some(ApplicationUpdateChoice {
+                channel: ApplicationChannel::Stable,
+                mode: ApplicationUpdateMode::Automatic,
+                paused: true,
+            })
+        );
+        assert!(!completed.transition.offer_required);
+        assert_eq!(
+            production_marker(&path),
+            ApplicationUpdateProductionTransitionMarker {
+                schema_version: 1,
+                decision: ApplicationUpdateProductionDecision::UseStable,
+                completed_preference_revision: completed.preferences.revision,
+            }
+        );
+        let mut preview_again = completed.preferences.choice.unwrap();
+        preview_again.channel = ApplicationChannel::Preview;
+        store
+            .save_choice(completed.preferences.revision, preview_again)
+            .unwrap();
+        assert!(!store.production_transition("1.0.1").unwrap().offer_required);
+    }
+
+    #[test]
+    fn stale_or_repeated_transition_actions_cannot_replace_current_preferences() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("application-updates.json");
+        let store = ApplicationUpdatePreferenceStore::new(path.clone()).unwrap();
+        let preview = store
+            .save_choice(0, choice(ApplicationUpdateMode::Automatic))
+            .unwrap();
+        store
+            .save_choice(preview.revision, choice(ApplicationUpdateMode::Manual))
+            .unwrap();
+
+        assert!(matches!(
+            store.complete_production_transition(
+                "1.0.0",
+                preview.revision,
+                ApplicationUpdateProductionDecision::UseStable,
+            ),
+            Err(ApplicationUpdatePreferenceError::RevisionConflict { .. })
+        ));
+        let current = store.load().unwrap();
+        let completed = store
+            .complete_production_transition(
+                "1.0.0",
+                current.revision,
+                ApplicationUpdateProductionDecision::KeepPreview,
+            )
+            .unwrap();
+        assert!(
+            store
+                .complete_production_transition(
+                    "1.0.0",
+                    completed.preferences.revision,
+                    ApplicationUpdateProductionDecision::KeepPreview,
+                )
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn malformed_transition_marker_reoffers_and_is_repaired_by_explicit_choice() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("application-updates.json");
+        let store = ApplicationUpdatePreferenceStore::new(path.clone()).unwrap();
+        let preview = store
+            .save_choice(0, choice(ApplicationUpdateMode::Automatic))
+            .unwrap();
+        fs::write(
+            sibling_path(&path, ".production-transition").unwrap(),
+            b"damaged",
+        )
+        .unwrap();
+
+        assert!(store.production_transition("1.0.0").unwrap().offer_required);
+        store
+            .complete_production_transition(
+                "1.0.0",
+                preview.revision,
+                ApplicationUpdateProductionDecision::KeepPreview,
+            )
+            .unwrap();
+        assert!(!store.production_transition("1.0.0").unwrap().offer_required);
+    }
+
+    #[test]
+    fn incomplete_stable_decision_reoffers_until_the_preference_revision_commits() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("application-updates.json");
+        let store = ApplicationUpdatePreferenceStore::new(path).unwrap();
+        let preview = store
+            .save_choice(0, choice(ApplicationUpdateMode::Automatic))
+            .unwrap();
+        store
+            .publish_production_transition_marker(
+                ApplicationUpdateProductionDecision::UseStable,
+                preview.revision + 1,
+            )
+            .unwrap();
+
+        assert!(store.production_transition("1.0.0").unwrap().offer_required);
+        let completed = store
+            .complete_production_transition(
+                "1.0.0",
+                preview.revision,
+                ApplicationUpdateProductionDecision::UseStable,
+            )
+            .unwrap();
+        assert_eq!(completed.preferences.revision, preview.revision + 1);
+        assert!(!completed.transition.offer_required);
     }
 }

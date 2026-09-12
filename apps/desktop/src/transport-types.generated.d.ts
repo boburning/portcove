@@ -476,7 +476,9 @@ export interface TransportOutputs {
   desktop_application_update_check_phase: OutputDesktopApplicationUpdateCheckPhase;
   desktop_application_update_check_result: ApplicationUpdateCheckResult;
   desktop_application_update_notice: OutputDesktopApplicationUpdateNotice;
-  desktop_application_update_preferences: OutputDesktopApplicationUpdatePreferences;
+  desktop_application_update_preferences: ApplicationUpdatePreferences;
+  desktop_application_update_production_transition: ApplicationUpdateProductionTransition;
+  desktop_application_update_production_transition_result: OutputDesktopApplicationUpdateProductionTransitionResult;
   desktop_application_update_status: OutputDesktopApplicationUpdateStatus;
   desktop_backup_review: OutputDesktopBackupReview;
   desktop_bootstrap_status: OutputDesktopBootstrapStatus;
@@ -1988,7 +1990,7 @@ export interface ApplicationUpdateNotice {
   result: ApplicationUpdateCheckResult;
   [k: string]: unknown;
 }
-export interface OutputDesktopApplicationUpdatePreferences {
+export interface ApplicationUpdatePreferences {
   /**
    * `None` means the user has not completed the one-time choice.
    */
@@ -2000,6 +2002,17 @@ export interface ApplicationUpdateChoice {
   channel: ApplicationChannel;
   mode: ApplicationUpdateMode;
   paused: boolean;
+}
+export interface ApplicationUpdateProductionTransition {
+  offer_required: boolean;
+  preference_revision: number;
+  schema_version: number;
+  [k: string]: unknown;
+}
+export interface OutputDesktopApplicationUpdateProductionTransitionResult {
+  preferences: ApplicationUpdatePreferences;
+  transition: ApplicationUpdateProductionTransition;
+  [k: string]: unknown;
 }
 export interface OutputDesktopApplicationUpdateStatus {
   apply: ApplicationUpdateApplySummary | null;

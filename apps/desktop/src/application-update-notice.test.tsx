@@ -1,12 +1,16 @@
 // @vitest-environment jsdom
-import { act } from "react";
+import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { listen } from "@tauri-apps/api/event";
 import { desktopApi } from "./api";
 import { StatusLayer } from "./components/Chrome";
-import type { ApplicationUpdateNoticeSnapshot } from "./types";
-import { useApplicationUpdateChoice, useApplicationUpdateNotice } from "./use-portcove";
+import type { ApplicationUpdateNoticeSnapshot, ApplicationUpdatePreferences } from "./types";
+import {
+  useApplicationUpdateChoice,
+  useApplicationUpdateNotice,
+  useApplicationUpdateProductionTransition,
+} from "./use-portcove";
 
 vi.mock("@tauri-apps/api/event", () => ({
   listen: vi.fn().mockResolvedValue(() => {}),
@@ -185,5 +189,134 @@ describe("application update notice", () => {
     await act(async () => buttons[1].click());
     expect(review).toHaveBeenCalledOnce();
     expect(dismiss).toHaveBeenCalledOnce();
+  });
+
+  it("completes the production transition against the exact preference revision", async () => {
+    const preview: ApplicationUpdatePreferences = {
+      schema_version: 1,
+      revision: 4,
+      choice: { channel: "preview", mode: "notify-only", paused: true },
+    };
+    const stable: ApplicationUpdatePreferences = {
+      ...preview,
+      revision: 5,
+      choice: { channel: "stable", mode: "notify-only", paused: true },
+    };
+    vi.spyOn(desktopApi, "applicationUpdateProductionTransition")
+      .mockResolvedValueOnce({ schema_version: 1, preference_revision: 4, offer_required: true })
+      .mockResolvedValue({ schema_version: 1, preference_revision: 5, offer_required: false });
+    const complete = vi
+      .spyOn(desktopApi, "completeApplicationUpdateProductionTransition")
+      .mockResolvedValue({
+        preferences: stable,
+        transition: { schema_version: 1, preference_revision: 5, offer_required: false },
+      });
+    let current!: ReturnType<typeof useApplicationUpdateProductionTransition>;
+    let currentPreferences!: ApplicationUpdatePreferences;
+    function Fixture() {
+      const [preferences, setPreferences] = useState(preview);
+      currentPreferences = preferences;
+      current = useApplicationUpdateProductionTransition({
+        preferences,
+        acceptPreferences: setPreferences,
+      });
+      return null;
+    }
+
+    await act(async () => root.render(<Fixture />));
+    await act(async () => {});
+    expect(current.offerRequired).toBe(true);
+    await act(async () => current.complete("use-stable"));
+    expect(complete).toHaveBeenCalledExactlyOnceWith(4, "use-stable");
+    expect(currentPreferences).toEqual(stable);
+    expect(current.offerRequired).toBe(false);
+    expect(current.busy).toBe(false);
+  });
+
+  it("refreshes transition state after a stale production choice", async () => {
+    const preview: ApplicationUpdatePreferences = {
+      schema_version: 1,
+      revision: 4,
+      choice: { channel: "preview", mode: "automatic", paused: false },
+    };
+    const currentPreferences: ApplicationUpdatePreferences = {
+      ...preview,
+      revision: 6,
+      choice: { channel: "stable", mode: "automatic", paused: false },
+    };
+    vi.spyOn(desktopApi, "applicationUpdateProductionTransition").mockResolvedValue({
+      schema_version: 1,
+      preference_revision: 4,
+      offer_required: true,
+    });
+    vi.spyOn(desktopApi, "completeApplicationUpdateProductionTransition").mockRejectedValue(
+      new Error("preference changed"),
+    );
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(currentPreferences);
+    const reportError = vi.fn();
+    const acceptPreferences = vi.fn();
+    let current!: ReturnType<typeof useApplicationUpdateProductionTransition>;
+    function Fixture() {
+      current = useApplicationUpdateProductionTransition({
+        preferences: preview,
+        acceptPreferences,
+        reportError,
+      });
+      return null;
+    }
+
+    await act(async () => root.render(<Fixture />));
+    await act(async () => {});
+    await act(async () => current.complete("keep-preview"));
+    expect(reportError).toHaveBeenCalledExactlyOnceWith(new Error("preference changed"));
+    expect(acceptPreferences).toHaveBeenCalledWith(currentPreferences);
+  });
+
+  it("offers the production channels once with accessible explicit actions", async () => {
+    const useStable = vi.fn();
+    const keepPreview = vi.fn();
+    const dismiss = vi.fn();
+    await act(async () =>
+      root.render(
+        <StatusLayer
+          clearError={() => {}}
+          productionTransitionRequired
+          useStable={useStable}
+          keepPreview={keepPreview}
+          dismissProductionTransition={dismiss}
+        />,
+      ),
+    );
+
+    const status = host.querySelector<HTMLElement>('[role="status"]')!;
+    expect(status.getAttribute("aria-live")).toBe("polite");
+    expect(status.textContent).toContain("Choose your production channel");
+    expect(status.textContent).toContain("it never downgrades Portcove");
+    expect(status.textContent).toContain("update mode and pause setting stay unchanged");
+    const buttons = [...status.querySelectorAll<HTMLButtonElement>("button")];
+    expect(buttons.map((button) => button.textContent)).toEqual([
+      "Use Stable",
+      "Keep Preview",
+      "Not now",
+    ]);
+    expect(buttons.every((button) => button.hasAttribute("data-focusable"))).toBe(true);
+    await act(async () => buttons.forEach((button) => button.click()));
+    expect(useStable).toHaveBeenCalledOnce();
+    expect(keepPreview).toHaveBeenCalledOnce();
+    expect(dismiss).toHaveBeenCalledOnce();
+  });
+
+  it("keeps a current update notice ahead of the production transition offer", async () => {
+    await act(async () =>
+      root.render(
+        <StatusLayer
+          clearError={() => {}}
+          updateNotice={notice(2, "1.0.1").notice}
+          productionTransitionRequired
+        />,
+      ),
+    );
+    expect(host.textContent).toContain("Portcove 1.0.1 is available");
+    expect(host.textContent).not.toContain("Choose your production channel");
   });
 });
