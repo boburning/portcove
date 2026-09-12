@@ -61,7 +61,10 @@ against the schedule revision that admitted the check, so a concurrent explicit
 reset wins. Cancellation releases ownership without manufacturing an outcome. An
 observed preference change returns only a superseded result. A candidate result
 carries the preference revision that staging and apply work must revalidate. The
-coordinator adds no URL, key, network, staging or apply authority.
+coordinator classifies transport failures as unreachable, expired/replayed metadata
+and clock regression as stale, and all other rejected metadata separately. The
+original error remains available for host diagnostics, but no failed check returns a
+candidate. The coordinator adds no URL, key, network, staging or apply authority.
 
 Core supplies a pre-apply quiescence guard under the current library's exclusive
 lifetime lease. Every open CLI or Desktop library already holds the shared side, so

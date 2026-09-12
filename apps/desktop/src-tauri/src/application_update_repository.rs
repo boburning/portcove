@@ -13,7 +13,9 @@ use crate::application_update::{
 use crate::application_update_payload::{
     PayloadKeyError, PayloadVerificationKey, select_payload_verification_key,
 };
-use crate::application_update_trust::{TrustedRepository, TrustedRepositoryError};
+use crate::application_update_trust::{
+    TrustedRepository, TrustedRepositoryError, TrustedRepositoryFailureKind,
+};
 
 const MAX_INDEXED_TARGETS: usize = 1_024;
 const MAX_CHANNEL_RECORDS: usize = 64;
@@ -33,6 +35,26 @@ pub enum CandidateLoadError {
     InvalidIndex(String),
     #[error("authenticated update record set exceeds its byte budget")]
     TooLarge,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CandidateLoadFailureKind {
+    Unreachable,
+    Stale,
+    Rejected,
+}
+
+impl CandidateLoadError {
+    pub fn failure_kind(&self) -> CandidateLoadFailureKind {
+        match self {
+            Self::Trust(error) => match error.failure_kind() {
+                TrustedRepositoryFailureKind::Unreachable => CandidateLoadFailureKind::Unreachable,
+                TrustedRepositoryFailureKind::Stale => CandidateLoadFailureKind::Stale,
+                TrustedRepositoryFailureKind::Rejected => CandidateLoadFailureKind::Rejected,
+            },
+            _ => CandidateLoadFailureKind::Rejected,
+        }
+    }
 }
 
 impl From<tough::error::Error> for CandidateLoadError {
@@ -232,7 +254,7 @@ pub async fn select_repository_candidate(
                 .find(|role| role.name == "releases")
         })
         .and_then(|role| role.targets.as_ref())
-        .expect("promotion path validation requires a loaded release role");
+        .ok_or_else(|| CandidateLoadError::InvalidIndex("release role was not loaded".into()))?;
     let mut total_bytes = 0;
     let mut owned = Vec::with_capacity(paths.len());
     for (version, promotion_path) in paths {
