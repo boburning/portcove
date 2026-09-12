@@ -1,8 +1,8 @@
 //! Durable host trust for application-update TUF metadata.
 //!
-//! This loader is deliberately limited to local fixture repositories until the
-//! production HTTPS transport enforces the documented origin, redirect, DNS and
-//! aggregate-stream bounds. `tough` remains the sole TUF verifier.
+//! Local fixture repositories remain test-only. Production HTTPS bases pass
+//! through the host's pinned, no-redirect, bounded transport. `tough` remains
+//! the sole TUF verifier.
 
 use std::collections::BTreeSet;
 use std::fs::{self, File, OpenOptions};
@@ -17,6 +17,8 @@ use sha2::{Digest, Sha256};
 use tough::schema::{Root, Signed};
 use tough::{ExpirationEnforcement, Limits, Repository, RepositoryLoader};
 use url::Url;
+
+use crate::application_update_transport::{PinnedHttpsTransport, TransportSetupError};
 
 const STATE_SCHEMA_VERSION: u32 = 1;
 const MAX_STATE_BYTES: u64 = 64 * 1024;
@@ -49,6 +51,8 @@ pub enum TrustedRepositoryError {
     },
     #[error("application update repository source is not permitted: {0}")]
     InvalidSource(String),
+    #[error("application update metadata transport failed: {0}")]
+    Transport(String),
     #[error("application update trust state I/O failed: {0}")]
     Io(#[from] std::io::Error),
     #[error("application update metadata authentication failed: {0}")]
@@ -59,15 +63,23 @@ pub enum TrustedRepositoryError {
 
 impl From<tough::error::Error> for TrustedRepositoryError {
     fn from(error: tough::error::Error) -> Self {
-        Self::Authentication(Box::new(error))
+        match error {
+            error @ tough::error::Error::Transport { .. } => Self::Transport(error.to_string()),
+            error => Self::Authentication(Box::new(error)),
+        }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct TrustedRepositoryRequest<'a> {
+    /// The host-owned trust anchor bundled with the application.
     pub bundled_root: &'a [u8],
+    /// Host-selected metadata base. This request is a Rust-only boundary and is
+    /// deliberately not deserializable from frontend IPC.
     pub metadata_base_url: Url,
+    /// Host-selected target-record base, separate from the metadata namespace.
     pub targets_base_url: Url,
+    /// Host-owned state outside downloaded payloads and game libraries.
     pub state_directory: &'a Path,
 }
 
@@ -141,6 +153,31 @@ fn validate_fixture_url(url: &Url, label: &str) -> Result<(), TrustedRepositoryE
         return Err(TrustedRepositoryError::InvalidSource(label.into()));
     }
     Ok(())
+}
+
+async fn repository_transport(
+    metadata_base_url: &Url,
+    targets_base_url: &Url,
+) -> Result<Option<PinnedHttpsTransport>, TrustedRepositoryError> {
+    match (metadata_base_url.scheme(), targets_base_url.scheme()) {
+        ("file", "file") => {
+            validate_fixture_url(metadata_base_url, "metadata URL")?;
+            validate_fixture_url(targets_base_url, "targets URL")?;
+            Ok(None)
+        }
+        ("https", "https") => PinnedHttpsTransport::new(metadata_base_url, targets_base_url)
+            .await
+            .map(Some)
+            .map_err(|error| match error {
+                TransportSetupError::InvalidSource(message) => {
+                    TrustedRepositoryError::InvalidSource(message)
+                }
+                TransportSetupError::Network(message) => TrustedRepositoryError::Transport(message),
+            }),
+        _ => Err(TrustedRepositoryError::InvalidSource(
+            "metadata and target bases must both be local fixtures or trusted HTTPS".into(),
+        )),
+    }
 }
 
 fn ensure_directory(path: &Path) -> Result<(), TrustedRepositoryError> {
@@ -498,16 +535,17 @@ fn persisted_root_after_load(
     Ok(current)
 }
 
-/// Loads a local authenticated repository while retaining trust across restarts.
+/// Loads an authenticated repository while retaining trust across restarts.
 ///
-/// The file-only source restriction is intentional. Production HTTPS transport
-/// remains unavailable until it enforces the updater trust contract's network
-/// boundary. Metadata failures never clear the retained replay or time floors.
+/// Local files are accepted only by the fixture transport. HTTPS metadata is
+/// constrained by trusted base paths, pinned public DNS results, no redirects,
+/// and per-request plus aggregate deadlines and byte limits. Metadata failures
+/// never clear the retained replay or time floors.
 pub async fn load_trusted_repository(
     request: TrustedRepositoryRequest<'_>,
 ) -> Result<TrustedRepository, TrustedRepositoryError> {
-    validate_fixture_url(&request.metadata_base_url, "metadata URL")?;
-    validate_fixture_url(&request.targets_base_url, "targets URL")?;
+    let transport =
+        repository_transport(&request.metadata_base_url, &request.targets_base_url).await?;
     root_identity(request.bundled_root)?;
     if !request.state_directory.is_absolute() {
         return Err(TrustedRepositoryError::InvalidState(
@@ -566,16 +604,18 @@ pub async fn load_trusted_repository(
         max_targets_size: MAX_TARGETS_BYTES,
         max_root_updates: MAX_ROOT_UPDATES,
     };
-    let loaded = RepositoryLoader::new(
+    let loader = RepositoryLoader::new(
         &trusted_root,
         request.metadata_base_url,
         request.targets_base_url,
     )
     .datastore(&metadata_directory)
     .limits(limits)
-    .expiration_enforcement(ExpirationEnforcement::Safe)
-    .load()
-    .await;
+    .expiration_enforcement(ExpirationEnforcement::Safe);
+    let loaded = match transport {
+        Some(transport) => loader.transport(transport).load().await,
+        None => loader.load().await,
+    };
 
     state.root = persisted_root_after_load(&metadata_directory, &root)?;
     let repository = match loaded {

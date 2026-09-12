@@ -263,7 +263,7 @@ async fn greatest_accepted_time_rejects_clock_regression() {
 }
 
 #[tokio::test]
-async fn host_loader_refuses_network_sources_before_state_mutation() {
+async fn host_loader_refuses_untrusted_source_schemes_before_state_mutation() {
     let f = Fixture::new().await;
     let root = f.root(1, &f.offline, &f.online).await;
     let trusted = f.sign_root(&root, &root, &f.offline).await;
@@ -271,8 +271,8 @@ async fn host_loader_refuses_network_sources_before_state_mutation() {
     assert!(matches!(
         load_trusted_repository(TrustedRepositoryRequest {
             bundled_root: &trusted,
-            metadata_base_url: Url::parse("https://updates.invalid/metadata/").unwrap(),
-            targets_base_url: Url::parse("https://updates.invalid/targets/").unwrap(),
+            metadata_base_url: Url::parse("http://updates.invalid/metadata/").unwrap(),
+            targets_base_url: Url::parse("http://updates.invalid/targets/").unwrap(),
             state_directory: &refused_state,
         })
         .await,

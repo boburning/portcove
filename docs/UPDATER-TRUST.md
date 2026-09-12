@@ -99,9 +99,15 @@ so a valid re-signing of unchanged metadata does not create false equivocation.
 Time advances before remote metadata is read, role floors never fall, and a verified
 root transition remains trusted even when later metadata fails.
 Clock regression, missing/corrupt state and concurrent ownership fail closed. The
-loader currently accepts only local `file:` fixture repositories, so it cannot be
-used as an accidental production network path. Payload download, signing,
-publication, replacement and the bounded HTTPS transport remain later slices.
+loader accepts disposable local `file:` repositories for tests and host-selected
+HTTPS bases for production metadata. The HTTPS transport resolves each domain once
+under the shared deadline, rejects any non-public result, pins the accepted address
+set into a no-proxy client, refuses redirects and limits requests, idle time,
+per-role bytes and aggregate metadata bytes while streaming. Metadata and target
+record bases must use separate path prefixes on port 443. The request boundary is
+Rust-only and cannot be populated from frontend IPC. No production origin is
+configured and no updater check is activated by this transport slice. Payload
+download, signing, publication and replacement remain later slices.
 
 ## Freshness, replay and bounds
 

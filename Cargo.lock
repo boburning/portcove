@@ -3420,12 +3420,14 @@ dependencies = [
 name = "portcove-desktop"
 version = "0.1.0-alpha.2"
 dependencies = [
+ "async-trait",
  "aws-lc-rs",
  "fs2",
  "futures-util",
  "hex",
  "jiff",
  "portcove-core",
+ "reqwest",
  "schemars 1.2.2",
  "semver",
  "serde",
