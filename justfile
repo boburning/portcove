@@ -105,7 +105,7 @@ oxlint:
     {{storage}} node scripts/lint-tools.integration.mjs oxlint
 
 stylelint:
-    {{storage}} corepack pnpm --dir apps/desktop lint:style
+    {{storage}} pnpm --dir apps/desktop lint:style
     {{storage}} node scripts/lint-tools.integration.mjs stylelint
 
 ui-check: ui-transport ui-build ui-test fallow oxlint stylelint

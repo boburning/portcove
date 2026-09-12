@@ -64,6 +64,8 @@ pub enum ApplicationUpdateNativeLaunchSummary {
     Starting,
     Started,
     Failed,
+    InstallerSucceeded,
+    InstallerFailed,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
@@ -259,6 +261,12 @@ fn native_launch_summary(
             ApplicationUpdateNativeLaunchSummary::Started
         }
         ApplicationUpdateNativeLaunchState::Failed => ApplicationUpdateNativeLaunchSummary::Failed,
+        ApplicationUpdateNativeLaunchState::InstallerSucceeded => {
+            ApplicationUpdateNativeLaunchSummary::InstallerSucceeded
+        }
+        ApplicationUpdateNativeLaunchState::InstallerFailed => {
+            ApplicationUpdateNativeLaunchSummary::InstallerFailed
+        }
     }
 }
 
@@ -352,6 +360,14 @@ mod tests {
             (
                 ApplicationUpdateNativeLaunchState::Failed,
                 ApplicationUpdateNativeLaunchSummary::Failed,
+            ),
+            (
+                ApplicationUpdateNativeLaunchState::InstallerSucceeded,
+                ApplicationUpdateNativeLaunchSummary::InstallerSucceeded,
+            ),
+            (
+                ApplicationUpdateNativeLaunchState::InstallerFailed,
+                ApplicationUpdateNativeLaunchSummary::InstallerFailed,
             ),
         ] {
             assert_eq!(native_launch_summary(state), expected);

@@ -71,6 +71,16 @@ const nativeLaunchCopy = {
     description:
       "No installer process was created. A retry will still repeat the fresh trust, consent, ownership, compatibility and idle-state checks.",
   },
+  "installer-succeeded": {
+    title: "Installer process completed",
+    description:
+      "The installer reported success. Portcove still needs to confirm the installed version and application health before clearing the update request.",
+  },
+  "installer-failed": {
+    title: "Installer process did not complete",
+    description:
+      "The installer process exited unsuccessfully and is no longer running. A retry will repeat every update safety check.",
+  },
 } as const;
 
 function applicationUpdateApplyCopy(apply: NonNullable<ApplicationUpdateStatus["apply"]>) {

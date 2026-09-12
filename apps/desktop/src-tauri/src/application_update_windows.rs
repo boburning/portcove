@@ -12,9 +12,9 @@ use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
 
-use crate::application_update::{InstallOwner, InstalledApplicationContext};
+use crate::application_update::{InstallOwner, InstalledApplicationContext, SelectedCandidate};
 use crate::application_update_apply::{
-    ApplicationUpdateApplyError, ApplicationUpdateRevalidationLease,
+    ApplicationUpdateApplyError, ApplicationUpdateApplyStore, ApplicationUpdateRevalidationLease,
 };
 use crate::application_update_staging::StagedApplicationUpdate;
 
@@ -72,6 +72,10 @@ pub enum WindowsApplicationUpdateError {
     Permission(String),
     #[error("the Windows application update could not be launched: {0}")]
     Launch(String),
+    #[error("the Windows application update process could not be observed: {0}")]
+    Wait(String),
+    #[error("the Windows application update installer exited with code {0}")]
+    InstallerExit(i32),
     #[error("the Windows application update launch state could not be recorded: {0}")]
     LaunchJournal(#[from] ApplicationUpdateApplyError),
     #[error(
@@ -92,7 +96,22 @@ struct WindowsNsisUpdatePlan {
     _installer_guard: File,
 }
 
-/// Holds every shared updater authority until the native installer is started.
+#[derive(Debug)]
+struct WindowsNsisInstallation {
+    install_root: PathBuf,
+    current_executable: PathBuf,
+    uninstaller: PathBuf,
+    registration_path: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WindowsApplicationUpdateReconciliation {
+    NoAttempt,
+    CandidateNotInstalled,
+    Reconciled,
+}
+
+/// Holds every shared updater authority until the native installer exits.
 pub struct WindowsNsisUpdateAdmission {
     _lease: ApplicationUpdateRevalidationLease,
     plan: WindowsNsisUpdatePlan,
@@ -119,9 +138,11 @@ impl WindowsNsisUpdateAdmission {
         &self.plan.uninstaller
     }
 
-    /// Starts the verified installer with the passive update arguments
+    /// Runs the verified installer with the passive update arguments
     /// documented by Tauri's NSIS updater contract. The installer receives no
-    /// destination override and therefore keeps its registered identity.
+    /// destination override and therefore keeps its registered identity. This
+    /// helper retains every updater lock until the child exits and records the
+    /// process outcome before returning.
     #[cfg(windows)]
     pub fn launch(self) -> Result<(), WindowsApplicationUpdateError> {
         let Self {
@@ -130,9 +151,22 @@ impl WindowsNsisUpdateAdmission {
         } = self;
         let launch = lease.begin_native_launch()?;
         match launch_windows_nsis_installer(&plan.installer) {
-            Ok(()) => {
-                launch.record_started()?;
-                Ok(())
+            Ok(mut child) => {
+                let status = child
+                    .wait()
+                    .map_err(|error| WindowsApplicationUpdateError::Wait(error.to_string()))?;
+                let exit_code = status.code().ok_or_else(|| {
+                    WindowsApplicationUpdateError::Wait(
+                        "the installer exited without a Windows exit code".into(),
+                    )
+                })?;
+                if status.success() {
+                    launch.record_succeeded()?;
+                    Ok(())
+                } else {
+                    launch.record_installer_failed(exit_code)?;
+                    Err(WindowsApplicationUpdateError::InstallerExit(exit_code))
+                }
             }
             Err(error) => match launch.record_failed() {
                 Ok(_) => Err(error),
@@ -171,14 +205,41 @@ pub fn admit_windows_nsis_update(
     })
 }
 
+/// Reconciles a native attempt only after the new desktop has acquired its
+/// runtime lease and crossed its application-health boundary. Exact current-
+/// user NSIS registration, executable ownership, and candidate version must
+/// all describe the running process before the durable request can clear.
+#[cfg(windows)]
+pub fn reconcile_windows_application_update(
+    apply: &ApplicationUpdateApplyStore,
+    staging: &crate::application_update_staging::ApplicationUpdateStagingStore,
+) -> Result<WindowsApplicationUpdateReconciliation, WindowsApplicationUpdateError> {
+    let state = apply.load()?;
+    let Some(intent) = state.intent.as_ref() else {
+        return Ok(WindowsApplicationUpdateReconciliation::NoAttempt);
+    };
+    if state.native_launch.is_none() {
+        return Ok(WindowsApplicationUpdateReconciliation::NoAttempt);
+    }
+    validate_windows_candidate(&intent.candidate, &intent.installed)?;
+    let current_version = env!("CARGO_PKG_VERSION");
+    if current_version != intent.candidate.release.version {
+        return Ok(WindowsApplicationUpdateReconciliation::CandidateNotInstalled);
+    }
+    let current_executable = std::env::current_exe()?;
+    let registrations = inventory_portcove_registrations()?;
+    evaluate_windows_nsis_installation(current_version, &current_executable, &registrations)?;
+    apply.reconcile_installed_application(state.revision, current_version, staging)?;
+    Ok(WindowsApplicationUpdateReconciliation::Reconciled)
+}
+
 fn evaluate_windows_nsis_update(
     staged: &StagedApplicationUpdate,
     installed: &InstalledApplicationContext,
     current_executable: &Path,
     registrations: &[WindowsUninstallRegistration],
 ) -> Result<WindowsNsisUpdatePlan, WindowsApplicationUpdateError> {
-    validate_windows_candidate(staged, installed)?;
-    let current_executable = canonical_direct_file(current_executable, APPLICATION_FILENAME)?;
+    validate_windows_candidate(&staged.candidate, installed)?;
     let installer = canonical_direct_file(&staged.payload_path, "candidate-installer.exe")?;
     let installer_guard = lock_and_verify_installer(
         &installer,
@@ -186,6 +247,28 @@ fn evaluate_windows_nsis_update(
         &staged.candidate.release.artifact.sha256,
     )?;
 
+    let installation = evaluate_windows_nsis_installation(
+        &installed.current_version,
+        current_executable,
+        registrations,
+    )?;
+
+    Ok(WindowsNsisUpdatePlan {
+        installer,
+        install_root: installation.install_root,
+        current_executable: installation.current_executable,
+        uninstaller: installation.uninstaller,
+        registration_path: installation.registration_path,
+        _installer_guard: installer_guard,
+    })
+}
+
+fn evaluate_windows_nsis_installation(
+    current_version: &str,
+    current_executable: &Path,
+    registrations: &[WindowsUninstallRegistration],
+) -> Result<WindowsNsisInstallation, WindowsApplicationUpdateError> {
+    let current_executable = canonical_direct_file(current_executable, APPLICATION_FILENAME)?;
     if registrations.len() > 1 {
         return Err(WindowsApplicationUpdateError::AmbiguousRegistration);
     }
@@ -200,7 +283,7 @@ fn evaluate_windows_nsis_update(
             "display name does not match Portcove".into(),
         ));
     }
-    if registration.display_version != installed.current_version {
+    if registration.display_version != current_version {
         return Err(WindowsApplicationUpdateError::InvalidRegistration(
             "registered version does not match the running application".into(),
         ));
@@ -228,21 +311,19 @@ fn evaluate_windows_nsis_update(
         ));
     }
 
-    Ok(WindowsNsisUpdatePlan {
-        installer,
+    Ok(WindowsNsisInstallation {
         install_root,
         current_executable,
         uninstaller: registered_uninstaller,
         registration_path: registration.registry_path.clone(),
-        _installer_guard: installer_guard,
     })
 }
 
 fn validate_windows_candidate(
-    staged: &StagedApplicationUpdate,
+    candidate: &SelectedCandidate,
     installed: &InstalledApplicationContext,
 ) -> Result<(), WindowsApplicationUpdateError> {
-    let release = &staged.candidate.release;
+    let release = &candidate.release;
     let candidate_matches = release.target == WINDOWS_TARGET
         && release.os == "windows"
         && release.architecture == "x86_64"
@@ -684,7 +765,9 @@ fn wide(value: &str) -> Vec<u16> {
 }
 
 #[cfg(windows)]
-fn launch_windows_nsis_installer(path: &Path) -> Result<(), WindowsApplicationUpdateError> {
+fn launch_windows_nsis_installer(
+    path: &Path,
+) -> Result<std::process::Child, WindowsApplicationUpdateError> {
     use std::process::Stdio;
 
     let mut command = portcove_core::ChildProcessPolicy::native_command(
@@ -704,8 +787,7 @@ fn launch_windows_nsis_installer(path: &Path) -> Result<(), WindowsApplicationUp
         .stderr(Stdio::null());
     command
         .spawn()
-        .map_err(|error| WindowsApplicationUpdateError::Launch(error.to_string()))?;
-    Ok(())
+        .map_err(|error| WindowsApplicationUpdateError::Launch(error.to_string()))
 }
 
 #[cfg(windows)]
@@ -878,6 +960,32 @@ mod tests {
             fs::canonicalize(staged.payload_path).unwrap()
         );
         probe_install_root_write(&plan.install_root).unwrap();
+    }
+
+    #[test]
+    fn proves_the_candidate_owns_the_running_registered_installation() {
+        let (_temporary, staged, _installed, current, mut registration) = fixture();
+        registration.display_version = staged.candidate.release.version.clone();
+        let installation = evaluate_windows_nsis_installation(
+            &staged.candidate.release.version,
+            &current,
+            std::slice::from_ref(&registration),
+        )
+        .unwrap();
+
+        assert_eq!(
+            installation.install_root,
+            fs::canonicalize(registration.install_location).unwrap()
+        );
+        assert_eq!(
+            installation.current_executable,
+            fs::canonicalize(current).unwrap()
+        );
+        assert_eq!(
+            installation.uninstaller,
+            fs::canonicalize(registration.uninstall_executable).unwrap()
+        );
+        assert_eq!(installation.registration_path, registration.registry_path);
     }
 
     #[test]
