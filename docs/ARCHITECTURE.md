@@ -593,7 +593,12 @@ target-count, selector-count and bounded-name/path policy; unavailable delegated
 metadata fails closed, and rejected authenticated versions still advance replay floors.
 It supplies the latest persisted root on restart and retains verified root progress
 when later metadata fails. Disposable local-file repositories remain available to
-tests. For production metadata, a sibling host transport accepts only host-selected
+tests.
+The sibling payload boundary independently binds an already obtained stream to the
+selected release length, SHA-256 and exact registry key using bounded, prehashed
+Minisign verification. Only its Rust-only verified identity may cross into later
+staging work; it owns no download, eligibility, replacement or installation state.
+For production metadata, a sibling host transport accepts only host-selected
 HTTPS bases with separate path prefixes on port 443, resolves and pins public DNS
 results, bypasses proxies, refuses redirects and enforces request, deadline, idle,
 per-role and aggregate byte limits. Its Rust-only request cannot be populated from
