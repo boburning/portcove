@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { LatestRequestGeneration } from "../concurrency-state";
-import type { ApplicationUpdateChoice, ApplicationUpdatePreferences } from "../types";
+import type {
+  ApplicationUpdateChoice,
+  ApplicationUpdatePreferences,
+  ApplicationUpdateRecoveryArea,
+  ApplicationUpdateStatus,
+} from "../types";
 import { errorText } from "../view-model";
 
 const recommendedChoice: ApplicationUpdateChoice = {
@@ -16,6 +21,149 @@ function choicesMatch(left: ApplicationUpdateChoice | null, right: ApplicationUp
   );
 }
 
+const recoveryCopy: Record<
+  ApplicationUpdateRecoveryArea,
+  { title: string; description: string; action: string }
+> = {
+  schedule: {
+    title: "Update check history needs repair",
+    description: "Reset its check timing and retry history. Your update choice stays unchanged.",
+    action: "Repair update check history",
+  },
+  staging: {
+    title: "The staged update needs repair",
+    description:
+      "Clear the damaged staged download. Portcove will require a fresh verified download.",
+    action: "Clear damaged staged update",
+  },
+  apply: {
+    title: "The pending update request needs repair",
+    description: "Clear the damaged exit or restart request. The verified staged download is kept.",
+    action: "Clear damaged update request",
+  },
+};
+
+function formatTimestamp(value: number) {
+  return new Date(value * 1000).toLocaleString();
+}
+
+function formatBytes(value: number) {
+  return new Intl.NumberFormat(undefined, {
+    style: "unit",
+    unit: "megabyte",
+    maximumFractionDigits: 1,
+  }).format(value / (1024 * 1024));
+}
+
+function isRecoverableStateError(value: unknown) {
+  if (typeof value !== "object" || !value || !("code" in value)) return false;
+  const code = String(value.code);
+  return code === "state" || code === "unsupported";
+}
+
+function ApplicationUpdateStatusPanel({
+  status,
+  busy,
+  error,
+  disabled,
+  onRefresh,
+  onRecover,
+}: {
+  status: ApplicationUpdateStatus | undefined;
+  busy: string;
+  error: string | undefined;
+  disabled: boolean;
+  onRefresh: () => Promise<void>;
+  onRecover: (area: ApplicationUpdateRecoveryArea) => Promise<void>;
+}) {
+  return (
+    <section className="application-update-status" aria-labelledby="application-status-title">
+      <div className="application-update-status-heading">
+        <div>
+          <h3 id="application-status-title">Update activity</h3>
+          <p>Host-owned status. Verified candidates are rechecked before replacement.</p>
+        </div>
+        <button
+          data-focusable
+          className="small-control"
+          disabled={disabled || Boolean(busy)}
+          onClick={() => void onRefresh()}
+        >
+          Refresh update status
+        </button>
+      </div>
+
+      {status && (
+        <>
+          {status.recovery_required.map((recovery) => {
+            const copy = recoveryCopy[recovery.area];
+            return (
+              <div className="application-update-recovery" role="alert" key={recovery.area}>
+                <div>
+                  <strong>{copy.title}</strong>
+                  <p>{copy.description}</p>
+                </div>
+                <button
+                  data-focusable
+                  disabled={disabled || Boolean(busy)}
+                  onClick={() => void onRecover(recovery.area)}
+                >
+                  {copy.action}
+                </button>
+              </div>
+            );
+          })}
+
+          {status.staged && (
+            <div className="application-update-status-item">
+              <strong>Verified update staged</strong>
+              <p>
+                {status.staged.channel === "preview" ? "Preview" : "Stable"} version{" "}
+                {status.staged.version} ({formatBytes(status.staged.bytes)}) is ready for a safe
+                apply request.
+              </p>
+            </div>
+          )}
+
+          {status.apply && (
+            <div className="application-update-status-item">
+              <strong>
+                {status.apply.request === "restart-to-apply"
+                  ? "Restart to update requested"
+                  : "Update on safe exit requested"}
+              </strong>
+              <p>
+                {status.apply.termination
+                  ? `Portcove recorded ${status.apply.termination.replaceAll("-", " ")}. Fresh trust, consent, ownership, compatibility and idle-state checks still run before replacement.`
+                  : "The request is saved. Closing or restarting Portcove does not bypass fresh trust, consent, ownership, compatibility or idle-state checks."}
+              </p>
+            </div>
+          )}
+
+          {!status.staged && !status.apply && status.recovery_required.length === 0 && (
+            <p className="application-update-idle">No verified application update is staged.</p>
+          )}
+
+          {status.schedule && (
+            <p className="application-update-schedule">
+              {status.schedule.last_success_unix_seconds
+                ? `Last successful check: ${formatTimestamp(status.schedule.last_success_unix_seconds)}.`
+                : "No successful application update check is recorded."}{" "}
+              {status.schedule.consecutive_failures > 0 &&
+                `${status.schedule.consecutive_failures} consecutive check failure${status.schedule.consecutive_failures === 1 ? "" : "s"} recorded.`}{" "}
+              {status.schedule.next_automatic_check_unix_seconds &&
+                `Next automatic attempt: ${formatTimestamp(status.schedule.next_automatic_check_unix_seconds)}.`}
+            </p>
+          )}
+        </>
+      )}
+
+      {busy && <p role="status">{busy}</p>}
+      {error && <p role="alert">{error}</p>}
+    </section>
+  );
+}
+
 export function ApplicationUpdateSettings({
   currentVersion,
   disabled = false,
@@ -24,29 +172,53 @@ export function ApplicationUpdateSettings({
   disabled?: boolean;
 }) {
   const requests = useRef(new LatestRequestGeneration());
+  const statusRequests = useRef(new LatestRequestGeneration());
   const [preferences, setPreferences] = useState<ApplicationUpdatePreferences>();
+  const [status, setStatus] = useState<ApplicationUpdateStatus>();
   const [draft, setDraft] = useState<ApplicationUpdateChoice>(recommendedChoice);
   const [busy, setBusy] = useState("Loading application update settings…");
+  const [statusBusy, setStatusBusy] = useState("Loading application update status…");
   const [error, setError] = useState<string>();
+  const [canRecoverPreferences, setCanRecoverPreferences] = useState(false);
+  const [statusError, setStatusError] = useState<string>();
   const [notice, setNotice] = useState<string>();
 
   const applyPreferences = (value: ApplicationUpdatePreferences) => {
     setPreferences(value);
     setDraft(value.choice ?? recommendedChoice);
+    setCanRecoverPreferences(false);
   };
 
   const load = async () => {
     const request = requests.current.begin();
     setBusy("Loading application update settings…");
     setError(undefined);
+    setCanRecoverPreferences(false);
     setNotice(undefined);
     try {
       const value = await desktopApi.applicationUpdatePreferences();
       if (requests.current.isCurrent(request)) applyPreferences(value);
     } catch (value) {
-      if (requests.current.isCurrent(request)) setError(errorText(value));
+      if (requests.current.isCurrent(request)) {
+        setError(errorText(value));
+        setCanRecoverPreferences(isRecoverableStateError(value));
+      }
     } finally {
       if (requests.current.isCurrent(request)) setBusy("");
+    }
+  };
+
+  const loadStatus = async () => {
+    const request = statusRequests.current.begin();
+    setStatusBusy("Refreshing application update status…");
+    setStatusError(undefined);
+    try {
+      const value = await desktopApi.applicationUpdateStatus();
+      if (statusRequests.current.isCurrent(request)) setStatus(value);
+    } catch (value) {
+      if (statusRequests.current.isCurrent(request)) setStatusError(errorText(value));
+    } finally {
+      if (statusRequests.current.isCurrent(request)) setStatusBusy("");
     }
   };
 
@@ -62,13 +234,30 @@ export function ApplicationUpdateSettings({
         }
       })
       .catch((value: unknown) => {
-        if (requestTracker.isCurrent(request)) setError(errorText(value));
+        if (requestTracker.isCurrent(request)) {
+          setError(errorText(value));
+          setCanRecoverPreferences(isRecoverableStateError(value));
+        }
       })
       .finally(() => {
         if (requestTracker.isCurrent(request)) setBusy("");
       });
+    const statusTracker = statusRequests.current;
+    const statusRequest = statusTracker.begin();
+    void desktopApi
+      .applicationUpdateStatus()
+      .then((value) => {
+        if (statusTracker.isCurrent(statusRequest)) setStatus(value);
+      })
+      .catch((value: unknown) => {
+        if (statusTracker.isCurrent(statusRequest)) setStatusError(errorText(value));
+      })
+      .finally(() => {
+        if (statusTracker.isCurrent(statusRequest)) setStatusBusy("");
+      });
     return () => {
       requestTracker.begin();
+      statusTracker.begin();
     };
   }, []);
 
@@ -103,20 +292,48 @@ export function ApplicationUpdateSettings({
   };
 
   const reset = async () => {
-    if (!preferences?.choice) return;
+    if (preferences && !preferences.choice) return;
+    const recovering = !preferences;
     const request = requests.current.begin();
-    setBusy("Clearing the saved application update choice…");
+    setBusy(
+      recovering
+        ? "Resetting damaged application update settings…"
+        : "Clearing the saved application update choice…",
+    );
     setError(undefined);
     setNotice(undefined);
     try {
-      const value = await desktopApi.resetApplicationUpdatePreferences();
+      const value = preferences
+        ? await desktopApi.resetApplicationUpdatePreferences()
+        : await desktopApi.recoverApplicationUpdatePreferences();
       if (!requests.current.isCurrent(request)) return;
       applyPreferences(value);
-      setNotice("Saved choice cleared. Automatic application update checks remain off.");
+      setNotice(
+        recovering
+          ? "Damaged update settings reset. No choice is saved, and automatic application update checks remain off."
+          : "Saved choice cleared. Automatic application update checks remain off.",
+      );
     } catch (value) {
       if (requests.current.isCurrent(request)) setError(errorText(value));
     } finally {
       if (requests.current.isCurrent(request)) setBusy("");
+    }
+  };
+
+  const recover = async (area: ApplicationUpdateRecoveryArea) => {
+    const request = statusRequests.current.begin();
+    setStatusBusy(`Repairing ${area} state…`);
+    setStatusError(undefined);
+    setNotice(undefined);
+    try {
+      const value = await desktopApi.recoverApplicationUpdateState(area);
+      if (!statusRequests.current.isCurrent(request)) return;
+      setStatus(value);
+      setNotice(`Application update ${area} state repaired.`);
+    } catch (value) {
+      if (statusRequests.current.isCurrent(request)) setStatusError(errorText(value));
+    } finally {
+      if (statusRequests.current.isCurrent(request)) setStatusBusy("");
     }
   };
 
@@ -141,14 +358,21 @@ export function ApplicationUpdateSettings({
       </div>
 
       {!preferences && !busy && (
-        <button
-          data-focusable
-          className="small-control"
-          disabled={disabled}
-          onClick={() => void load()}
-        >
-          Retry loading settings
-        </button>
+        <div className="actions compact">
+          <button
+            data-focusable
+            className="small-control"
+            disabled={disabled}
+            onClick={() => void load()}
+          >
+            Retry loading settings
+          </button>
+          {canRecoverPreferences && (
+            <button data-focusable disabled={disabled} onClick={() => void reset()}>
+              Reset update settings
+            </button>
+          )}
+        </div>
       )}
 
       {preferences && (
@@ -267,6 +491,15 @@ export function ApplicationUpdateSettings({
           </div>
         </>
       )}
+
+      <ApplicationUpdateStatusPanel
+        status={status}
+        busy={statusBusy}
+        error={statusError}
+        disabled={disabled}
+        onRefresh={loadStatus}
+        onRecover={recover}
+      />
 
       {busy && <p role="status">{busy}</p>}
       {notice && <p role="status">{notice}</p>}

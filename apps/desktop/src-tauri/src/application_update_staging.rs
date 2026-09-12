@@ -174,6 +174,15 @@ impl ApplicationUpdateStagingStore {
         Ok(preferences.with_file_name("application-update"))
     }
 
+    pub fn open_configured() -> Result<Self, ApplicationUpdateStagingError> {
+        let root = std::env::var_os("PORTCOVE_APPLICATION_UPDATE_STAGING")
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from)
+            .map(Ok)
+            .unwrap_or_else(Self::default_root)?;
+        Self::new(root)
+    }
+
     pub fn new(root: PathBuf) -> Result<Self, ApplicationUpdateStagingError> {
         validate_root(&root)?;
         Ok(Self { root })
@@ -191,6 +200,35 @@ impl ApplicationUpdateStagingStore {
     ) -> Result<Option<StagedApplicationUpdate>, ApplicationUpdateStagingError> {
         let _lock = self.lock()?;
         self.reconcile_locked().await
+    }
+
+    /// Reads presentation state without creating an empty staging directory.
+    /// Existing journal or payload slots still receive normal restart reconciliation.
+    pub(crate) async fn status(
+        &self,
+    ) -> Result<Option<StagedApplicationUpdate>, ApplicationUpdateStagingError> {
+        let metadata = match fs::symlink_metadata(&self.root) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(error) => return Err(error.into()),
+            Ok(metadata) => metadata,
+        };
+        if !metadata.is_dir() || metadata.file_type().is_symlink() {
+            return Err(ApplicationUpdateStagingError::InvalidPath(
+                "staging root is not a direct directory".into(),
+            ));
+        }
+        let mut has_state = false;
+        for name in [JOURNAL_FILE, ACTIVE_PAYLOAD_FILE, INCOMING_PAYLOAD_FILE] {
+            match fs::symlink_metadata(self.root.join(name)) {
+                Ok(_) => has_state = true,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => return Err(error.into()),
+            }
+        }
+        if !has_state {
+            return Ok(None);
+        }
+        self.reconcile().await
     }
 
     pub(crate) async fn snapshot(
@@ -304,6 +342,24 @@ impl ApplicationUpdateStagingStore {
     /// Explicitly clears only the fixed application-update staging files.
     pub fn reset(&self) -> Result<(), ApplicationUpdateStagingError> {
         let _lock = self.lock()?;
+        self.clear_locked()
+    }
+
+    /// Repairs malformed or future state only while it is still invalid.
+    /// A stale recovery action cannot discard a candidate another process repaired.
+    pub async fn recover_invalid(&self) -> Result<(), ApplicationUpdateStagingError> {
+        let _lock = self.lock()?;
+        match self.reconcile_locked().await {
+            Ok(_) => Err(ApplicationUpdateStagingError::InvalidState(
+                "staging state no longer requires recovery".into(),
+            )),
+            Err(ApplicationUpdateStagingError::InvalidState(_))
+            | Err(ApplicationUpdateStagingError::UnsupportedSchema(_)) => self.clear_locked(),
+            Err(error) => Err(error),
+        }
+    }
+
+    fn clear_locked(&self) -> Result<(), ApplicationUpdateStagingError> {
         for path in [
             self.root.join(INCOMING_PAYLOAD_FILE),
             self.root.join(ACTIVE_PAYLOAD_FILE),

@@ -378,6 +378,8 @@ try {
         PORTCOVE_LIBRARY: library,
         PORTCOVE_PREFERENCES: path.join(output, "preferences.json"),
         PORTCOVE_APPLICATION_UPDATE_PREFERENCES: path.join(output, "application-updates.json"),
+        PORTCOVE_APPLICATION_UPDATE_SCHEDULE: path.join(output, "application-update-schedule.json"),
+        PORTCOVE_APPLICATION_UPDATE_STAGING: path.join(output, "application-update-state"),
         WEBVIEW2_USER_DATA_FOLDER: profile,
       },
     },
@@ -435,6 +437,10 @@ try {
     const before = await invoke("get_application_update_preferences");
     assert.equal(before.ok, true);
     assert.equal(before.value.choice, null);
+    const initialStatus = await invoke("get_application_update_status");
+    assert.equal(initialStatus.ok, true);
+    assert.equal(initialStatus.value.staged, null);
+    assert.deepEqual(initialStatus.value.recovery_required, []);
     const activities = await invoke("get_activities");
     assert.equal(activities.ok, true);
 
@@ -511,6 +517,61 @@ try {
       "Manual",
     );
     assert.equal(await browser.findElement(By.id("pause-application-updates")).isSelected(), true);
+
+    await writeFile(path.join(output, "application-update-schedule.json"), "not-json\n", {
+      flag: "wx",
+    });
+    await browser
+      .findElement(By.xpath('//button[normalize-space(.)="Refresh update status"]'))
+      .click();
+    await browser.wait(
+      until.elementLocated(By.xpath('//button[normalize-space(.)="Repair update check history"]')),
+      15_000,
+    );
+    assert.equal(
+      (await invoke("get_application_update_status")).value.recovery_required[0].area,
+      "schedule",
+    );
+    await browser
+      .findElement(By.xpath('//button[normalize-space(.)="Repair update check history"]'))
+      .click();
+    await browser.wait(async () => {
+      const result = await invoke("get_application_update_status");
+      return result.ok && result.value.recovery_required.length === 0;
+    }, 15_000);
+    await browser.wait(
+      until.elementLocated(
+        By.xpath('//p[@role="status" and contains(., "schedule state repaired")]'),
+      ),
+      15_000,
+    );
+    assert.deepEqual((await invoke("get_activities")).value, activities.value);
+
+    await writeFile(path.join(output, "application-updates.json"), "not-json\n");
+    await browser.navigate().refresh();
+    await browser.wait(
+      until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
+      15_000,
+    );
+    await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+    await browser.wait(
+      until.elementLocated(By.xpath('//button[normalize-space(.)="Reset update settings"]')),
+      15_000,
+    );
+    await browser
+      .findElement(By.xpath('//button[normalize-space(.)="Reset update settings"]'))
+      .click();
+    await browser.wait(async () => {
+      const result = await invoke("get_application_update_preferences");
+      return result.ok && result.value.choice === null && result.value.revision > 0;
+    }, 15_000);
+    await browser.wait(
+      until.elementLocated(
+        By.xpath('//p[@role="status" and contains(., "Damaged update settings reset.")]'),
+      ),
+      15_000,
+    );
+    assert.deepEqual((await invoke("get_activities")).value, activities.value);
     await browser.wait(
       () =>
         browser.executeScript(() => {

@@ -2502,6 +2502,61 @@ select {
 .application-update-settings .actions {
   margin-top: 0;
 }
+.application-update-status {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+.application-update-status-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.application-update-status-heading > div {
+  display: grid;
+  gap: var(--space-1);
+}
+.application-update-status-heading p,
+.application-update-status-item p,
+.application-update-recovery p,
+.application-update-recovery small,
+.application-update-idle,
+.application-update-schedule {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-relaxed);
+}
+.application-update-status-item,
+.application-update-recovery,
+.application-update-idle,
+.application-update-schedule {
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-subtle);
+}
+.application-update-status-item,
+.application-update-recovery > div {
+  display: grid;
+  gap: var(--space-1);
+}
+.application-update-recovery {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  border-color: var(--color-danger-border);
+  background: var(--color-danger-subtle);
+}
+.application-update-recovery :is(strong, p, small) {
+  color: var(--color-danger-text);
+}
+.application-update-recovery button,
+.application-update-status-heading button {
+  flex: none;
+}
 .library-selection-review {
   margin-top: var(--space-4);
 }
@@ -3923,7 +3978,9 @@ select:disabled {
   .about-art .brand-wordmark {
     max-height: 4.5rem;
   }
-  .application-update-heading {
+  .application-update-heading,
+  .application-update-status-heading,
+  .application-update-recovery {
     flex-direction: column;
   }
   .application-update-heading > p {

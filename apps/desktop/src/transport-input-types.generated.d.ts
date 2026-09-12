@@ -14,6 +14,7 @@ export type InputCatalogUpdateSource =
     };
 export type ApplicationChannel = "preview" | "stable";
 export type ApplicationUpdateMode = "automatic" | "notify-only" | "manual";
+export type InputDesktopApplicationUpdateRecoveryArea = "schedule" | "staging" | "apply";
 export type ReleaseChannel = "stable" | "beta" | "rolling";
 
 export interface TransportInputs {
@@ -22,6 +23,7 @@ export interface TransportInputs {
   source_discovery_limits: SourceDiscoveryLimits;
   source_discovery_request: InputSourceDiscoveryRequest;
   desktop_application_update_choice: InputDesktopApplicationUpdateChoice;
+  desktop_application_update_recovery_area: InputDesktopApplicationUpdateRecoveryArea;
   desktop_install_input: InputDesktopInstallInput;
 }
 export interface InputDefinitionCapabilityRequest {

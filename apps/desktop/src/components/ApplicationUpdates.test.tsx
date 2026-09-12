@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { desktopApi } from "../api";
-import type { ApplicationUpdatePreferences } from "../types";
+import type { ApplicationUpdatePreferences, ApplicationUpdateStatus } from "../types";
 import { ApplicationUpdateSettings } from "./ApplicationUpdates";
 
 const missingChoice: ApplicationUpdatePreferences = {
@@ -18,6 +18,17 @@ const savedChoice: ApplicationUpdatePreferences = {
   choice: { channel: "preview", mode: "notify-only", paused: false },
 };
 
+const idleStatus: ApplicationUpdateStatus = {
+  schedule: {
+    last_success_unix_seconds: null,
+    consecutive_failures: 0,
+    next_automatic_check_unix_seconds: null,
+  },
+  staged: null,
+  apply: null,
+  recovery_required: [],
+};
+
 describe("ApplicationUpdateSettings", () => {
   let root: Root;
   let host: HTMLDivElement;
@@ -27,6 +38,7 @@ describe("ApplicationUpdateSettings", () => {
     host = document.createElement("div");
     document.body.append(host);
     root = createRoot(host);
+    vi.spyOn(desktopApi, "applicationUpdateStatus").mockResolvedValue(idleStatus);
   });
 
   afterEach(async () => {
@@ -111,6 +123,7 @@ describe("ApplicationUpdateSettings", () => {
 
     await click("Clear saved choice");
     expect(reset).toHaveBeenCalledOnce();
+    expect(host.textContent).toContain("Saved choice cleared.");
     expect(host.textContent).toContain("Automatic application update checks remain off.");
   });
 
@@ -167,6 +180,7 @@ describe("ApplicationUpdateSettings", () => {
     );
     const retry = button("Retry loading settings");
     expect(retry.hasAttribute("data-focusable")).toBe(true);
+    expect(host.textContent).not.toContain("Reset update settings");
 
     await click("Retry loading settings");
     expect(host.querySelector('[role="alert"]')).toBeNull();
@@ -174,5 +188,58 @@ describe("ApplicationUpdateSettings", () => {
     for (const control of host.querySelectorAll("button, input")) {
       expect(control.hasAttribute("data-focusable")).toBe(true);
     }
+  });
+
+  it("repairs corrupt preferences only through the explicit reset action", async () => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockRejectedValue({
+      code: "state",
+      message: "Update settings are damaged",
+    });
+    const reset = vi
+      .spyOn(desktopApi, "recoverApplicationUpdatePreferences")
+      .mockResolvedValue({ ...missingChoice, revision: 9 });
+
+    await render();
+    expect(host.querySelector('[role="alert"]')?.textContent).toBe("Update settings are damaged");
+    await click("Reset update settings");
+
+    expect(reset).toHaveBeenCalledOnce();
+    expect(host.textContent).toContain("Damaged update settings reset.");
+    expect(host.textContent).toContain("automatic application update checks remain off.");
+  });
+
+  it("shows sanitized recovery states and repairs only the selected host store", async () => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
+    vi.mocked(desktopApi.applicationUpdateStatus).mockResolvedValueOnce({
+      schedule: null,
+      staged: {
+        version: "0.2.0-beta.3",
+        channel: "preview",
+        bytes: 25 * 1024 * 1024,
+      },
+      apply: {
+        revision: 4,
+        request: "restart-to-apply",
+        termination: null,
+      },
+      recovery_required: [
+        {
+          area: "schedule",
+        },
+      ],
+    });
+    const recover = vi
+      .spyOn(desktopApi, "recoverApplicationUpdateState")
+      .mockResolvedValue(idleStatus);
+
+    await render();
+    expect(host.textContent).toContain("Preview version 0.2.0-beta.3");
+    expect(host.textContent).toContain("Restart to update requested");
+    expect(host.textContent).toContain("Update check history needs repair");
+
+    await click("Repair update check history");
+    expect(recover).toHaveBeenCalledExactlyOnceWith("schedule");
+    expect(host.textContent).toContain("No verified application update is staged.");
+    expect(host.textContent).toContain("Application update schedule state repaired.");
   });
 });

@@ -96,11 +96,11 @@ output without building or launching.
 The curated profiles are:
 
 - `smoke`: native bootstrap/error recovery, keyboard/compact layout, isolated
-  application-update preference persistence, appearance restart, accessibility,
-  injected controller, expanded navigation and workspace refresh. Reviewed install
-  progress/cancellation remains an explicit gap.
-- `presentation`: empty-library, keyboard, isolated application-update preferences,
-  accessibility, controller and expanded navigation presentation checks.
+  application-update preference persistence and updater-state recovery, appearance
+  restart, accessibility, injected controller, expanded navigation and workspace
+  refresh. Reviewed install progress/cancellation remains an explicit gap.
+- `presentation`: empty-library, keyboard, isolated application-update preferences
+  and recovery, accessibility, controller and expanded navigation presentation checks.
 - `restart`: appearance restart and workspace refresh. Positive `--reload-cycles`
   opts this and other profiles into the repeated reload probe.
 - `artwork`: owned local artwork and the real native file picker.
@@ -156,7 +156,7 @@ Cached drivers are the default. Explicit absolute `--driver` and `--native-drive
 overrides remain available for controlled qualification. The output parent must
 already exist. `--port` defaults to 4444 and the native
 driver uses the following port; choose unused ports. The new output directory
-contains an isolated library, host preference file, WebView2 profile on Windows,
+contains an isolated library, host and application-update state files, WebView2 profile on Windows,
 screenshots, bounded driver logs, accessibility results and `evidence.json`.
 Never reuse a failed run directory or point this harness at an existing library.
 

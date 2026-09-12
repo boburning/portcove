@@ -38,6 +38,16 @@
     "title": "ApplicationUpdateChoice",
     "type": "object"
   },
+  "application_update_recovery_area": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "enum": [
+      "schedule",
+      "staging",
+      "apply"
+    ],
+    "title": "ApplicationUpdateRecoveryArea",
+    "type": "string"
+  },
   "install_input": {
     "$defs": {
       "ReleaseChannel": {

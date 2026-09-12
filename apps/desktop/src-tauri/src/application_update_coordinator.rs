@@ -133,6 +133,7 @@ impl Drop for CheckLock {
 impl ApplicationUpdateCoordinator {
     pub fn open_configured() -> Result<Self, ApplicationUpdateCoordinatorError> {
         let preferences = ApplicationUpdatePreferenceStore::open_configured()?;
+        let schedule = ApplicationUpdateScheduleStore::open_configured()?;
         let schedule_path = std::env::var_os("PORTCOVE_APPLICATION_UPDATE_SCHEDULE")
             .filter(|value| !value.is_empty())
             .map(PathBuf::from)
@@ -141,7 +142,7 @@ impl ApplicationUpdateCoordinator {
         let lock_path = schedule_path.with_file_name(CHECK_LOCK_FILE);
         Self::new(
             preferences,
-            ApplicationUpdateScheduleStore::new(schedule_path)?,
+            schedule,
             lock_path,
             Arc::new(SystemApplicationUpdateClock),
         )

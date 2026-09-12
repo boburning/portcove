@@ -34,6 +34,8 @@ import type {
   AdoptionPreview,
   ApplicationUpdateChoice,
   ApplicationUpdatePreferences,
+  ApplicationUpdateRecoveryArea,
+  ApplicationUpdateStatus,
   BackupInventory,
   BackupRecord,
   BootstrapStatus,
@@ -76,6 +78,11 @@ export const desktopApi = {
     }),
   resetApplicationUpdatePreferences: () =>
     invoke<ApplicationUpdatePreferences>("reset_application_update_preferences"),
+  recoverApplicationUpdatePreferences: () =>
+    invoke<ApplicationUpdatePreferences>("recover_application_update_preferences"),
+  applicationUpdateStatus: () => invoke<ApplicationUpdateStatus>("get_application_update_status"),
+  recoverApplicationUpdateState: (area: ApplicationUpdateRecoveryArea) =>
+    invoke<ApplicationUpdateStatus>("recover_application_update_state", { area }),
   artwork: (portId: string, slot: ArtworkSlot, generation: number) =>
     invoke<ArtworkState>("get_artwork", { portId, slot, generation }),
   artworkThumbnail: (

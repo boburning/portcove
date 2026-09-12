@@ -12,6 +12,23 @@ export function assessRscheckReport(report) {
   };
 }
 
+export function parseRscheckReport({ status, stdout }) {
+  let report;
+  try {
+    report = JSON.parse(stdout);
+  } catch (error) {
+    if (status !== 0 && status !== 1)
+      throw new Error(`rscheck could not analyze the workspace (exit ${status ?? "unknown"}).`);
+    throw new Error(`rscheck returned an invalid JSON report: ${error.message}`);
+  }
+  if (!report || !Array.isArray(report.findings)) {
+    if (status !== 0 && status !== 1)
+      throw new Error(`rscheck could not analyze the workspace (exit ${status ?? "unknown"}).`);
+    throw new Error("rscheck returned a JSON report without a findings array.");
+  }
+  return report;
+}
+
 function location(finding) {
   const file = relative(repositoryRoot, finding.primary?.file ?? "unknown");
   const line = finding.primary?.start?.line ?? "?";
@@ -24,20 +41,13 @@ export function main() {
     cwd: repositoryRoot,
     encoding: "utf8",
   });
-  if (result.status !== 0 && result.status !== 1) {
-    process.stderr.write(result.stderr ?? "");
-    if (result.error) console.error(result.error.message);
-    throw new Error(
-      `rscheck could not analyze the workspace (exit ${result.status ?? "unknown"}).`,
-    );
-  }
-
   let report;
   try {
-    report = JSON.parse(result.stdout);
+    report = parseRscheckReport(result);
   } catch (error) {
     process.stderr.write(result.stderr ?? "");
-    throw new Error(`rscheck returned an invalid JSON report: ${error.message}`);
+    if (result.error) console.error(result.error.message);
+    throw error;
   }
 
   const assessment = assessRscheckReport(report);

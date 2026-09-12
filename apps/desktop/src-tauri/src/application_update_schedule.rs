@@ -202,6 +202,15 @@ impl ApplicationUpdateScheduleStore {
         Ok(preferences.with_file_name(DEFAULT_FILE))
     }
 
+    pub fn open_configured() -> Result<Self, ApplicationUpdateScheduleError> {
+        let path = std::env::var_os("PORTCOVE_APPLICATION_UPDATE_SCHEDULE")
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from)
+            .map(Ok)
+            .unwrap_or_else(Self::default_path)?;
+        Self::new(path)
+    }
+
     pub fn new(path: PathBuf) -> Result<Self, ApplicationUpdateScheduleError> {
         validate_path(&path)?;
         Ok(Self {
@@ -290,7 +299,28 @@ impl ApplicationUpdateScheduleStore {
     /// revision. It cannot start an updater operation.
     pub fn reset(&self) -> Result<ApplicationUpdateSchedule, ApplicationUpdateScheduleError> {
         let _lock = self.lock()?;
+        self.reset_locked(false)
+    }
+
+    /// Repairs malformed or future state only while it is still invalid.
+    /// A stale recovery action cannot clear a schedule that another process repaired.
+    pub fn recover_invalid(
+        &self,
+    ) -> Result<ApplicationUpdateSchedule, ApplicationUpdateScheduleError> {
+        let _lock = self.lock()?;
+        self.reset_locked(true)
+    }
+
+    fn reset_locked(
+        &self,
+        require_invalid: bool,
+    ) -> Result<ApplicationUpdateSchedule, ApplicationUpdateScheduleError> {
         let revision = match self.load() {
+            Ok(_) if require_invalid => {
+                return Err(ApplicationUpdateScheduleError::InvalidState(
+                    "schedule state no longer requires recovery".into(),
+                ));
+            }
             Ok(current) => next_revision(current.revision)?,
             Err(ApplicationUpdateScheduleError::InvalidState(_))
             | Err(ApplicationUpdateScheduleError::UnsupportedSchema(_)) => {

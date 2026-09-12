@@ -32,6 +32,15 @@ the missing-choice state. The Stable explanation promises only a newer eligible
 production release and never a downgrade. Automatic-mode disclosure names staging
 and makes safe exit or an explicit Restart to update action a separate apply boundary.
 
+The same Settings card reads a sanitized host status containing only check cadence,
+the verified staged version/channel/size, a pending safe-exit or restart request, and
+named recovery requirements. It does not receive repository URLs, signatures, keys,
+payload paths, installation paths, library roots or raw storage errors. Corrupt
+schedule, staging and apply journals remain separate visible recovery states. An
+explicit repair command locks and rechecks the selected fixed journal before clearing
+it, so a stale renderer cannot erase state that another process already repaired.
+Preference corruption has its own explicit reset and returns to no consent.
+
 The separate host schedule records successful-check cadence and bounded retry state,
 not a device identity or updater operation. A pure decision delays automatic work
 for 30 seconds after startup, at least 24 hours after success, and 15 minutes through

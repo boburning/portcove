@@ -6,6 +6,9 @@ use portcove_core::{ReconcileResult, UpdateCheck};
 use portcove_desktop::application_update_preferences::{
     ApplicationUpdateChoice, ApplicationUpdatePreferences,
 };
+use portcove_desktop::application_update_status::{
+    ApplicationUpdateRecoveryArea, ApplicationUpdateStatus,
+};
 use schemars::{JsonSchema, generate::SchemaSettings};
 use serde_json::{Value, json};
 use transport::{
@@ -36,10 +39,12 @@ fn main() {
                 "source_verification_outcome": output::<SourceBatchOutcome>(),
                 "launch_result": output::<LaunchResult>(),
                 "application_update_preferences": output::<ApplicationUpdatePreferences>(),
+                "application_update_status": output::<ApplicationUpdateStatus>(),
             },
             "input": {
                 "install_input": schemars::schema_for!(InstallInput),
                 "application_update_choice": schemars::schema_for!(ApplicationUpdateChoice),
+                "application_update_recovery_area": schemars::schema_for!(ApplicationUpdateRecoveryArea),
             },
         })
     );

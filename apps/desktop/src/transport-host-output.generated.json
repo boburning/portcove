@@ -70,6 +70,180 @@
     "title": "ApplicationUpdatePreferences",
     "type": "object"
   },
+  "application_update_status": {
+    "$defs": {
+      "ApplicationChannel": {
+        "enum": [
+          "preview",
+          "stable"
+        ],
+        "type": "string"
+      },
+      "ApplicationUpdateApplySummary": {
+        "properties": {
+          "request": {
+            "$ref": "#/$defs/ApplicationUpdateRequestedAction"
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "termination": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ApplicationUpdateObservedTermination"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "revision",
+          "request",
+          "termination"
+        ],
+        "type": "object"
+      },
+      "ApplicationUpdateCandidateSummary": {
+        "properties": {
+          "bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "channel": {
+            "$ref": "#/$defs/ApplicationChannel"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "channel",
+          "bytes"
+        ],
+        "type": "object"
+      },
+      "ApplicationUpdateObservedTermination": {
+        "enum": [
+          "normal-exit",
+          "restart-to-apply",
+          "crash",
+          "os-shutdown",
+          "steam-stop"
+        ],
+        "type": "string"
+      },
+      "ApplicationUpdateRecoveryArea": {
+        "enum": [
+          "schedule",
+          "staging",
+          "apply"
+        ],
+        "type": "string"
+      },
+      "ApplicationUpdateRecoveryNotice": {
+        "properties": {
+          "area": {
+            "$ref": "#/$defs/ApplicationUpdateRecoveryArea"
+          }
+        },
+        "required": [
+          "area"
+        ],
+        "type": "object"
+      },
+      "ApplicationUpdateRequestedAction": {
+        "enum": [
+          "safe-exit",
+          "restart-to-apply"
+        ],
+        "type": "string"
+      },
+      "ApplicationUpdateScheduleSummary": {
+        "properties": {
+          "consecutive_failures": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "last_success_unix_seconds": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "next_automatic_check_unix_seconds": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "last_success_unix_seconds",
+          "consecutive_failures",
+          "next_automatic_check_unix_seconds"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "apply": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ApplicationUpdateApplySummary"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "recovery_required": {
+        "items": {
+          "$ref": "#/$defs/ApplicationUpdateRecoveryNotice"
+        },
+        "type": "array"
+      },
+      "schedule": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ApplicationUpdateScheduleSummary"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "staged": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ApplicationUpdateCandidateSummary"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "required": [
+      "schedule",
+      "staged",
+      "apply",
+      "recovery_required"
+    ],
+    "title": "ApplicationUpdateStatus",
+    "type": "object"
+  },
   "backup_review": {
     "$defs": {
       "BackupAction": {
