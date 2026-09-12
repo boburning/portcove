@@ -580,7 +580,10 @@ release and channel records against installed identity and compatibility context
 then selects by SemVer precedence. `application_update_repository` is the bounded
 bridge from TUF to that selector: it discovers the installed package's versioned
 promotions, requires separate direct release/channel delegation, rejects top-level
-or duplicate records and fully consumes authenticated streams before parsing.
+or duplicate records and fully consumes authenticated streams before parsing. A
+sibling strict payload-key parser validates the offline-authorized top-level
+`keys/payload.json`, including the exact decoded public-key SHA-256 and minisign
+format, and the bridge returns only the selected release's Tauri-compatible key.
 `application_update_trust` wraps the maintained `tough` client with path-keyed
 process ownership plus one host OS lock, atomically persisted greatest accepted
 time, the latest verified root and explicit

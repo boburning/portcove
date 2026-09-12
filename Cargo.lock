@@ -3422,10 +3422,12 @@ version = "0.1.0-alpha.2"
 dependencies = [
  "async-trait",
  "aws-lc-rs",
+ "base64 0.22.1",
  "fs2",
  "futures-util",
  "hex",
  "jiff",
+ "minisign-verify",
  "portcove-core",
  "reqwest",
  "schemars 1.2.2",

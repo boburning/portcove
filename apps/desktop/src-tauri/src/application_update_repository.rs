@@ -10,12 +10,16 @@ use crate::application_update::{
     ApplicationChannel, AuthenticatedRecordPair, CandidateSelection, InstalledApplicationContext,
     UpdateMetadataError, select_authenticated_candidate, validate_context,
 };
+use crate::application_update_payload::{
+    PayloadKeyError, PayloadVerificationKey, select_payload_verification_key,
+};
 use crate::application_update_trust::{TrustedRepository, TrustedRepositoryError};
 
 const MAX_INDEXED_TARGETS: usize = 1_024;
 const MAX_CHANNEL_RECORDS: usize = 64;
 const MAX_RECORD_BYTES: usize = 256 * 1024;
 const MAX_RECORD_SET_BYTES: usize = 8 * 1024 * 1024;
+const PAYLOAD_KEY_REGISTRY_PATH: &str = "keys/payload.json";
 
 #[derive(Debug, thiserror::Error)]
 pub enum CandidateLoadError {
@@ -23,6 +27,8 @@ pub enum CandidateLoadError {
     Trust(#[from] TrustedRepositoryError),
     #[error(transparent)]
     Metadata(#[from] UpdateMetadataError),
+    #[error(transparent)]
+    PayloadKey(#[from] PayloadKeyError),
     #[error("authenticated update repository index is invalid: {0}")]
     InvalidIndex(String),
     #[error("authenticated update record set exceeds its byte budget")]
@@ -39,6 +45,12 @@ struct OwnedRecordPair {
     release_path: String,
     release_bytes: Vec<u8>,
     promotion_bytes: Vec<u8>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AuthenticatedCandidateSelection {
+    pub selection: CandidateSelection,
+    pub payload_key: Option<PayloadVerificationKey>,
 }
 
 fn channel_name(channel: ApplicationChannel) -> &'static str {
@@ -205,7 +217,7 @@ pub async fn select_repository_candidate(
     trusted: &TrustedRepository,
     channel: ApplicationChannel,
     context: &InstalledApplicationContext,
-) -> Result<CandidateSelection, CandidateLoadError> {
+) -> Result<AuthenticatedCandidateSelection, CandidateLoadError> {
     let paths = promotion_paths(trusted, channel, context)?;
     let release_targets = trusted
         .repository
@@ -250,5 +262,31 @@ pub async fn select_repository_candidate(
             promotion_bytes: &pair.promotion_bytes,
         })
         .collect();
-    Ok(select_authenticated_candidate(&borrowed, channel, context)?)
+    let selection = select_authenticated_candidate(&borrowed, channel, context)?;
+    let payload_key = if let Some(candidate) = &selection.candidate {
+        let registry_name = TargetName::new(PAYLOAD_KEY_REGISTRY_PATH)?;
+        if !trusted
+            .repository
+            .targets()
+            .signed
+            .targets
+            .contains_key(&registry_name)
+        {
+            return Err(CandidateLoadError::InvalidIndex(
+                "top-level targets does not contain the payload-key registry".into(),
+            ));
+        }
+        let registry_bytes =
+            read_record(trusted, PAYLOAD_KEY_REGISTRY_PATH, &mut total_bytes).await?;
+        Some(select_payload_verification_key(
+            &registry_bytes,
+            &candidate.release.artifact.payload_key_id,
+        )?)
+    } else {
+        None
+    };
+    Ok(AuthenticatedCandidateSelection {
+        selection,
+        payload_key,
+    })
 }

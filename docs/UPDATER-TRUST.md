@@ -75,6 +75,15 @@ Never accept a key from arbitrary feed JSON. Legacy single-key clients need an
 old-key-signed compatible bridge while that key is trustworthy, or an independently
 verified manual bootstrap. The plugin alone does not implement TUF or key rotation.
 
+Registry format 1 is the strict `keys/payload.json` top-level target with only
+`schema_version` and `keys`. It carries at most 16 entries containing the lowercase
+SHA-256 identity and Tauri's base64 encoding of the exact minisign public-key file.
+The host decodes and parses every entry with the same minisign implementation used
+by Tauri, recomputes the identity over the decoded bytes, rejects duplicates and
+unknown fields, and returns only the key named by the selected release. Removing a
+key from a newer authenticated registry revokes it for later selection; update apply
+must recheck fresh trust instead of retaining registry bytes as independent authority.
+
 Keep immutable release records after withdrawal for diagnosis. Increasing channel
 metadata excludes withdrawn versions from staging/application and normally offers
 a newer forward repair. Withdrawal neither deletes user data nor terminates an
@@ -95,7 +104,10 @@ promotion and release records to be directly owned by separate top-level delegat
 roles. It rejects direct top-level records, duplicate target paths, malformed or
 unbounded indexes and missing referenced releases. It fully consumes each
 authenticated stream under per-record and aggregate byte limits before handing
-the borrowed bytes to the selector.
+the borrowed bytes to the selector. When that selector returns a candidate, the
+bridge requires the exact payload key from the offline-authorized top-level registry
+and returns its Tauri encoding beside the selection. A release or channel role
+cannot supply or override that key.
 
 The sibling `application_update_trust` module owns the durable host trust boundary.
 Under path-keyed process ownership and one OS file lock it supplies `tough` with the
