@@ -123,6 +123,7 @@
         "(?<depName>PSScriptAnalyzer)[\\s\\S]*?version\\s*=\\s*'(?<currentValue>\\d+\\.\\d+\\.\\d+)'"
       ],
       "datasourceTemplate": "nuget",
+      "registryUrlTemplate": "https://www.powershellgallery.com/api/v2/",
       "versioningTemplate": "nuget"
     },
     {

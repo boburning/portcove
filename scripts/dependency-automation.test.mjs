@@ -83,6 +83,15 @@ test("Renovate is conservative complete and staged behind existing Dependabot", 
       expected,
     );
   }
+  const powershellAnalyzerManager = renovate.customManagers.find((manager) =>
+    manager.managerFilePatterns.some((pattern) => pattern.includes("powershell-resources")),
+  );
+  assert.equal(powershellAnalyzerManager.datasourceTemplate, "nuget");
+  assert.equal(
+    powershellAnalyzerManager.registryUrlTemplate,
+    "https://www.powershellgallery.com/api/v2/",
+  );
+  assert.equal(powershellAnalyzerManager.versioningTemplate, "nuget");
   assert.match(await read(".github/dependabot.yml"), /package-ecosystem:/u);
 });
 
