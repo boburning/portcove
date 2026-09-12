@@ -5,10 +5,19 @@ mod updater_trust_support;
 
 use std::collections::BTreeSet;
 use std::fs;
+use std::sync::Arc;
 
 use futures_util::TryStreamExt;
 use portcove_desktop::application_update::{
     ApplicationChannel, CandidateState, InstallOwner, InstalledApplicationContext,
+};
+use portcove_desktop::application_update_helper::ApplicationUpdateFreshSelectionProvider;
+use portcove_desktop::application_update_host::{
+    ApplicationUpdateHostProvider, ApplicationUpdateRepositoryConfiguration,
+    InstalledApplicationContextSource,
+};
+use portcove_desktop::application_update_preferences::{
+    ApplicationUpdateChoice, ApplicationUpdateMode,
 };
 use portcove_desktop::application_update_repository::{
     CandidateLoadError, select_repository_candidate,
@@ -39,6 +48,14 @@ fn installed_context() -> InstalledApplicationContext {
         library_schema: 1,
         library_write_schema: 1,
         lock_protocol: "library-lock-v1".into(),
+    }
+}
+
+struct FixedInstalledContext(InstalledApplicationContext);
+
+impl InstalledApplicationContextSource for FixedInstalledContext {
+    fn observe(&self) -> Result<InstalledApplicationContext, String> {
+        Ok(self.0.clone())
     }
 }
 
@@ -688,4 +705,36 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
     let key = selection.payload_key.unwrap();
     assert_eq!(key.id, payload_key_id);
     assert_eq!(key.tauri_public_key, tauri_public_key);
+
+    let provider = ApplicationUpdateHostProvider::new(
+        ApplicationUpdateRepositoryConfiguration::new(
+            trusted,
+            f.metadata_url(),
+            f.targets_url(),
+            f.directory.path().join("host-provider-trust"),
+        )
+        .unwrap(),
+        Arc::new(FixedInstalledContext(installed_context())),
+    );
+    let fresh = ApplicationUpdateFreshSelectionProvider::select(
+        &provider,
+        &ApplicationUpdateChoice {
+            channel: ApplicationChannel::Stable,
+            mode: ApplicationUpdateMode::Manual,
+            paused: false,
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(fresh.installed, installed_context());
+    assert_eq!(
+        fresh
+            .authenticated
+            .selection
+            .candidate
+            .unwrap()
+            .release
+            .version,
+        "1.0.0"
+    );
 }
