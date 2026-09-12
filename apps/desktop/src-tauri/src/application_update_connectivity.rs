@@ -80,6 +80,7 @@ fn observe_windows_connectivity() -> windows::core::Result<ApplicationUpdateConn
     Ok(classify_connectivity(true, metered))
 }
 
+#[cfg(any(windows, test))]
 fn classify_connectivity(online: bool, windows_cost: Option<u32>) -> ApplicationUpdateConnectivity {
     if !online {
         return ApplicationUpdateConnectivity {
@@ -98,11 +99,13 @@ fn classify_connectivity(online: bool, windows_cost: Option<u32>) -> Application
     }
 }
 
+#[cfg(any(windows, test))]
 fn windows_cost_is_unrestricted(cost: u32) -> bool {
     const UNRESTRICTED: u32 = 0x1;
     cost == UNRESTRICTED
 }
 
+#[cfg(any(windows, test))]
 fn windows_cost_is_metered(cost: u32) -> bool {
     const FIXED: u32 = 0x2;
     const VARIABLE: u32 = 0x4;
