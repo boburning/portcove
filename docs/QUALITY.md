@@ -510,7 +510,12 @@ Suite aggregate durations are not individual test durations.
 Windows qualification session integration tests remain a separate required step;
 they exercise compiled processes and installer lifecycle behavior using their
 existing integration deadlines. The static qualification contract runs with the
-Node hang guard. No integration coverage is removed.
+Node hang guard. Uninstaller-child discovery ignores descendants of a reused
+parent PID until the process also matches the session-owned temporary path. An
+owned child must still match that path in both the retained handle and CIM
+snapshot, its exact journaled executable hash, and the bounded timestamp identity
+check before the harness can wait on or terminate it. No integration coverage is
+removed.
 
 Rust tests run two at a time by default on every platform, including local
 Windows and its exhaustive CI partitions. This bounds filesystem contention

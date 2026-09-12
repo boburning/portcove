@@ -81,6 +81,15 @@ test("installer lifecycle waits for managed files and uninstall registration to 
   );
   assert.match(source, /if \(\$process\.HasExited\) \{ continue \}/);
   assert.match(source, /Uninstaller child executable image path could not be observed/);
+  assert.match(source, /\$ProcessIdentityClockToleranceMilliseconds = 1000/);
+  assert.match(source, /Windows may reuse its[\s\S]*PID/);
+  const childWait = source.indexOf("function Wait-JournaledUninstallerChild");
+  const ownershipFilter = source.indexOf("$cimPath = [string]$child.ExecutablePath", childWait);
+  const identityCheck = source.indexOf(
+    "Owned uninstaller child process identity changed before observation",
+    childWait,
+  );
+  assert.ok(childWait >= 0 && ownershipFilter > childWait && identityCheck > ownershipFilter);
   assert.match(source, /Stop-JournaledProcess \$launch\.run \$launch\.process "timed_out"/);
   const start = source.indexOf("function Start-JournaledProcess");
   const spawn = source.indexOf("$process = Start-Process", start);
