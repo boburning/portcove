@@ -37,6 +37,15 @@ compare-and-swap revisions, path-keyed process and OS locks, durable atomic writ
 and explicit reset for malformed or future state. No decision performs network,
 download, staging or application work.
 
+One host coordinator serializes due and manual checks across processes, re-evaluates
+policy after taking ownership, and awaits the injected authenticated repository
+checker off the startup path. Completion records success or bounded failure backoff
+against the schedule revision that admitted the check, so a concurrent explicit
+reset wins. Cancellation releases ownership without manufacturing an outcome. An
+observed preference change returns only a superseded result. A candidate result
+carries the preference revision that staging and apply work must revalidate. The
+coordinator adds no URL, key, network, staging or apply authority.
+
 | Claim                           | Mechanism                                                        | Limit                                                                       |
 | ------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | Payload authenticity            | Mandatory maintained Tauri updater signature                     | Does not authenticate feed JSON or current eligibility                      |

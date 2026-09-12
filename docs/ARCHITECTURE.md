@@ -596,6 +596,17 @@ metered status holds automatic work so the user can choose manually. Strict pars
 compare-and-swap revisions, path-keyed process and OS locks, atomic durable writes,
 and explicit corrupt-state reset match the preference boundary. The module has no
 network, download, staging, application or persistent-device-identifier authority.
+The `application_update_coordinator` is the single host owner for manual and due
+automatic checks. It re-evaluates policy after acquiring one process and OS lock,
+awaits an injected authenticated checker off the startup path, and records success
+or failure only after completion against the schedule revision that admitted the
+check, so a concurrent explicit reset wins. Dropping a check releases ownership
+without inventing an outcome. An observed preference change during the check makes
+its result superseded; the coordinator records it against the old revision but
+returns no candidate for staging. A returned candidate carries the preference
+revision that downstream work must revalidate. Current policy ignores old cadence.
+The checker remains the existing authenticated repository boundary, so coordination
+adds no URL, key, network, staging or apply authority.
 The host's `application_update` module validates separately authenticated immutable
 release and channel records against installed identity and compatibility context,
 then selects by SemVer precedence. `application_update_repository` is the bounded
