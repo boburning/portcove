@@ -348,6 +348,34 @@ impl ApplicationUpdateStagingStore {
         self.clear_locked()
     }
 
+    /// Retires only the exact verified candidate confirmed as installed by the
+    /// host. A newer independently staged candidate is preserved. This sync
+    /// path intentionally reads durable metadata without rehashing bytes that
+    /// are about to be deleted.
+    pub(crate) fn retire_installed_candidate(
+        &self,
+        candidate: &SelectedCandidate,
+    ) -> Result<bool, ApplicationUpdateStagingError> {
+        let _lock = self.lock()?;
+        let Some(journal) = self.read_journal()? else {
+            return Ok(false);
+        };
+        validate_journal(&journal)?;
+        match journal.phase {
+            StagingPhase::Empty => Ok(false),
+            StagingPhase::Verified if journal.candidate.as_ref() == Some(candidate) => {
+                self.clear_locked()?;
+                Ok(true)
+            }
+            StagingPhase::Verified => Ok(false),
+            StagingPhase::Staged | StagingPhase::PayloadVerified => {
+                Err(ApplicationUpdateStagingError::InvalidState(
+                    "cannot retire a candidate while staging is incomplete".into(),
+                ))
+            }
+        }
+    }
+
     /// Repairs malformed or future state only while it is still invalid.
     /// A stale recovery action cannot discard a candidate another process repaired.
     pub async fn recover_invalid(&self) -> Result<(), ApplicationUpdateStagingError> {
@@ -806,6 +834,29 @@ mod tests {
 
         let restarted = ApplicationUpdateStagingStore::new(store.root.clone()).unwrap();
         assert_eq!(restarted.reconcile().await.unwrap().unwrap(), staged);
+    }
+
+    #[tokio::test]
+    async fn installed_candidate_retirement_preserves_a_newer_staged_candidate() {
+        let temporary = tempfile::tempdir().unwrap();
+        let store = ApplicationUpdateStagingStore::new(temporary.path().join("staging")).unwrap();
+        let installed = candidate("1.0.0", b"test");
+        let mut reader = &b"test"[..];
+        store
+            .stage(&mut reader, &installed, &payload_key())
+            .await
+            .unwrap();
+        assert!(store.retire_installed_candidate(&installed).unwrap());
+        assert!(store.reconcile().await.unwrap().is_none());
+
+        let newer = candidate("1.1.0", b"test");
+        let mut reader = &b"test"[..];
+        store
+            .stage(&mut reader, &newer, &payload_key())
+            .await
+            .unwrap();
+        assert!(!store.retire_installed_candidate(&installed).unwrap());
+        assert_eq!(store.reconcile().await.unwrap().unwrap().candidate, newer);
     }
 
     #[tokio::test]

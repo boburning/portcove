@@ -718,7 +718,16 @@ The retained and newly observed installed contexts must match. A process that st
 during the fresh check wins the shared runtime lock and safely defers replacement.
 No command-line mode,
 production repository provider or native launch invokes this sequence yet, so
-production replacement remains inactive.
+production replacement remains inactive. On a later Windows startup, reconciliation
+runs only after the new process holds the application runtime lease, initializes its
+selected library and diagnostics, creates the Tauri application, focuses the main
+window, and restores every retained launch-session observer. It then requires the
+compiled version to equal the retained candidate and one
+exact current-user NSIS registration to report that version and own the running
+executable and uninstaller. The host retires only that exact staged candidate under
+the apply-before-staging lock order; a newer staged candidate is preserved. It clears
+the apply request last, so interruption during cleanup remains restart-reconcilable.
+Installer exit status alone never grants this installed-identity or health proof.
 The adapter-local `application_update_status` command combines sanitized summaries
 of check cadence, a verified staged candidate, and any pending safe-exit or restart
 request. Its apply summary includes the durable `starting`, `started`, `failed`,

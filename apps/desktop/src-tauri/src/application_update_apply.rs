@@ -557,6 +557,47 @@ impl ApplicationUpdateApplyStore {
         Ok(state)
     }
 
+    /// Clears a recorded native attempt only after a trusted host adapter has
+    /// observed the candidate version running past its application-health
+    /// boundary. Exact installed identity remains the adapter's responsibility.
+    pub(crate) fn reconcile_installed_application(
+        &self,
+        expected_revision: u64,
+        installed_version: &str,
+        staging: &ApplicationUpdateStagingStore,
+    ) -> Result<ApplicationUpdateApplyState, ApplicationUpdateApplyError> {
+        let _lock = self.lock()?;
+        let mut state = self.load()?;
+        require_revision(&state, expected_revision)?;
+        if state.native_launch.is_none() {
+            return Err(ApplicationUpdateApplyError::InvalidState(
+                "no native application update attempt exists to reconcile".into(),
+            ));
+        }
+        let candidate = state
+            .intent
+            .as_ref()
+            .map(|intent| intent.candidate.clone())
+            .ok_or_else(|| {
+                ApplicationUpdateApplyError::InvalidState(
+                    "the native application update attempt has no candidate".into(),
+                )
+            })?;
+        if installed_version != candidate.release.version {
+            return Err(ApplicationUpdateApplyError::InvalidState(
+                "the running installed version does not match the update candidate".into(),
+            ));
+        }
+        staging.retire_installed_candidate(&candidate)?;
+        state.revision = next_revision(state.revision)?;
+        state.intent = None;
+        state.termination = None;
+        state.native_launch = None;
+        state.native_exit_code = None;
+        self.publish(&state)?;
+        Ok(state)
+    }
+
     /// Repairs malformed or future state only while it is still invalid.
     /// A stale recovery action cannot clear an intent another process repaired.
     pub fn recover_invalid(
@@ -1358,7 +1399,24 @@ mod tests {
             Err(ApplicationUpdateApplyError::InvalidState(message))
                 if message.contains("must be reconciled")
         ));
-        assert!(staging_store.reset().is_ok());
+        assert!(matches!(
+            apply.reconcile_installed_application(
+                succeeded.revision,
+                "0.1.0",
+                &staging_store
+            ),
+            Err(ApplicationUpdateApplyError::InvalidState(message))
+                if message.contains("does not match")
+        ));
+        assert_eq!(apply.load().unwrap(), succeeded);
+        let reconciled = apply
+            .reconcile_installed_application(succeeded.revision, "0.2.0-beta.1", &staging_store)
+            .unwrap();
+        assert_eq!(reconciled.revision, 11);
+        assert!(reconciled.intent.is_none());
+        assert!(reconciled.native_launch.is_none());
+        assert!(reconciled.native_exit_code.is_none());
+        assert!(staging_store.status().await.unwrap().is_none());
     }
 
     #[tokio::test]
