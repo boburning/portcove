@@ -33,6 +33,8 @@ import type {
   ActivityRecord,
   AdoptionPreview,
   ApplicationUpdateChoice,
+  ApplicationUpdateCheckPhase,
+  ApplicationUpdateCheckResult,
   ApplicationUpdatePreferences,
   ApplicationUpdateRecoveryArea,
   ApplicationUpdateStatus,
@@ -83,6 +85,12 @@ export const desktopApi = {
   applicationUpdateStatus: () => invoke<ApplicationUpdateStatus>("get_application_update_status"),
   recoverApplicationUpdateState: (area: ApplicationUpdateRecoveryArea) =>
     invoke<ApplicationUpdateStatus>("recover_application_update_state", { area }),
+  checkApplicationUpdate: (onEvent: (event: ApplicationUpdateCheckPhase) => void) => {
+    const channel = new Channel<ApplicationUpdateCheckPhase>();
+    channel.onmessage = onEvent;
+    return invoke<ApplicationUpdateCheckResult>("check_application_update", { onEvent: channel });
+  },
+  cancelApplicationUpdateCheck: () => invoke<boolean>("cancel_application_update_check"),
   artwork: (portId: string, slot: ArtworkSlot, generation: number) =>
     invoke<ArtworkState>("get_artwork", { portId, slot, generation }),
   artworkThumbnail: (

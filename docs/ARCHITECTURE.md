@@ -657,8 +657,14 @@ variables and React cannot supply those authorities. The Windows context source
 proves the running package through the exact current-user NSIS registration and
 combines it with compiled target, API, catalog, library and lock compatibility plus
 the actual operating-system version. The provider serves both ordinary checks and
-fresh helper revalidation. No production root or origin is present, and no command,
-schedule, exit hook or helper launch currently activates it.
+fresh helper revalidation. A fixed manual-check command now invokes that provider,
+streams only checking, acquiring-and-verifying, staged and complete phases, and
+returns only candidate version/channel/size, policy reasons and staging outcome.
+One process-owned cancellation token prevents overlapping renderer requests and
+cooperatively stops the existing restart-reconcilable operation. The command is
+unavailable in ordinary unconfigured alpha builds. No production root or origin is
+present, and no automatic schedule, exit hook or helper launch currently activates
+the provider.
 The sibling payload boundary independently binds an already obtained stream to the
 selected release length, SHA-256 and exact registry key using bounded, prehashed
 Minisign verification. Only its Rust-only verified identity may cross into later

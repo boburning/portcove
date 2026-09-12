@@ -366,7 +366,23 @@ export type SourceImportOutcome =
   "copied" | "moved" | "reused_existing" | "registered_current_location" | "copied_original_retained";
 export type SourceInboxResolutionState =
   "registered" | "exact_match" | "approval_required" | "unresolved" | "conflict" | "incomplete";
+export type OutputDesktopApplicationUpdateCheckPhase = "checking" | "acquiring-and-verifying" | "staged" | "complete";
 export type ApplicationChannel = "preview" | "stable";
+export type ApplicationUpdateCheckResultKind =
+  | "consent-required"
+  | "paused"
+  | "manual-mode"
+  | "offline"
+  | "metered"
+  | "metered-state-unknown"
+  | "startup-delay"
+  | "cadence"
+  | "superseded"
+  | "current"
+  | "update-available"
+  | "held"
+  | "incompatible"
+  | "no-candidate";
 export type ApplicationUpdateMode = "automatic" | "notify-only" | "manual";
 export type ApplicationUpdateNativeLaunchSummary =
   "starting" | "started" | "failed" | "installer-succeeded" | "installer-failed";
@@ -457,6 +473,8 @@ export interface TransportOutputs {
   update_check: UpdateCheck;
   update_snapshot: UpdateSnapshot;
   upstream_observation_report: OutputUpstreamObservationReport;
+  desktop_application_update_check_phase: OutputDesktopApplicationUpdateCheckPhase;
+  desktop_application_update_check_result: OutputDesktopApplicationUpdateCheckResult;
   desktop_application_update_preferences: OutputDesktopApplicationUpdatePreferences;
   desktop_application_update_status: OutputDesktopApplicationUpdateStatus;
   desktop_backup_review: OutputDesktopBackupReview;
@@ -1947,6 +1965,19 @@ export interface ObservedResolution {
   release_id: number;
   [k: string]: unknown;
 }
+export interface OutputDesktopApplicationUpdateCheckResult {
+  candidate: ApplicationUpdateCandidateSummary | null;
+  kind: ApplicationUpdateCheckResultKind;
+  reasons: string[];
+  staged: boolean;
+  [k: string]: unknown;
+}
+export interface ApplicationUpdateCandidateSummary {
+  bytes: number;
+  channel: ApplicationChannel;
+  version: string;
+  [k: string]: unknown;
+}
 export interface OutputDesktopApplicationUpdatePreferences {
   /**
    * `None` means the user has not completed the one-time choice.
@@ -1982,12 +2013,6 @@ export interface ApplicationUpdateScheduleSummary {
   consecutive_failures: number;
   last_success_unix_seconds: number | null;
   next_automatic_check_unix_seconds: number | null;
-  [k: string]: unknown;
-}
-export interface ApplicationUpdateCandidateSummary {
-  bytes: number;
-  channel: ApplicationChannel;
-  version: string;
   [k: string]: unknown;
 }
 export interface OutputDesktopBackupReview {

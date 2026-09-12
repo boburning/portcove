@@ -190,6 +190,53 @@ describe("ApplicationUpdateSettings", () => {
     }
   });
 
+  it("runs one host-owned check and reports verified staging progress", async () => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue({
+      ...savedChoice,
+      choice: { channel: "preview", mode: "automatic", paused: false },
+    });
+    const check = vi.spyOn(desktopApi, "checkApplicationUpdate").mockImplementation((onEvent) => {
+      onEvent("checking");
+      onEvent("acquiring-and-verifying");
+      onEvent("staged");
+      return Promise.resolve({
+        kind: "update-available",
+        candidate: { version: "0.2.0-beta.3", channel: "preview", bytes: 25 * 1024 * 1024 },
+        reasons: [],
+        staged: true,
+      });
+    });
+
+    await render();
+    await click("Check for updates");
+
+    expect(check).toHaveBeenCalledOnce();
+    expect(host.textContent).toContain("0.2.0-beta.3 is verified and staged");
+    expect(host.textContent).toContain("Manual checks never use a URL supplied by this screen.");
+  });
+
+  it("offers cancellation while a check is active", async () => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
+    let rejectCheck!: (reason: unknown) => void;
+    vi.spyOn(desktopApi, "checkApplicationUpdate").mockImplementation(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectCheck = reject;
+        }),
+    );
+    const cancel = vi.spyOn(desktopApi, "cancelApplicationUpdateCheck").mockResolvedValue(true);
+
+    await render();
+    await act(async () => button("Check for updates").click());
+    expect(button("Cancel check").hasAttribute("data-focusable")).toBe(true);
+
+    await click("Cancel check");
+    expect(cancel).toHaveBeenCalledOnce();
+    await act(async () => rejectCheck({ code: "cancelled", message: "Update check cancelled" }));
+    expect(host.querySelector('[role="alert"]')?.textContent).toBe("Update check cancelled");
+    expect(button("Check for updates")).toBeDefined();
+  });
+
   it("repairs corrupt preferences only through the explicit reset action", async () => {
     vi.spyOn(desktopApi, "applicationUpdatePreferences").mockRejectedValue({
       code: "state",
