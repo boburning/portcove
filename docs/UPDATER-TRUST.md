@@ -214,8 +214,20 @@ set into a no-proxy client, refuses redirects and limits requests, idle time,
 per-role bytes and aggregate metadata bytes while streaming. Metadata and target
 record bases must use separate path prefixes on port 443. The request boundary is
 Rust-only and cannot be populated from frontend IPC. No production origin is
-configured and no updater check is activated by this transport slice. Payload
-download, signing, publication and replacement remain later slices.
+configured and no updater check is activated by this transport slice.
+
+The sibling `application_update_download` boundary accepts only an authenticated,
+selected candidate. It requires the exact Portcove `github.com` repository and
+release-version path, then manually follows at most five redirects through
+`release-assets.githubusercontent.com` release-asset identities. Each request uses
+anonymous, no-proxy HTTPS with public DNS results pinned into the client; credentials,
+referrers, encoded responses, unexpected content lengths, loops, unapproved hosts and
+special-use destinations fail closed. Connection and idle timeouts sit inside a
+30-minute total deadline, and the returned reader cannot exceed the authenticated
+payload length. The staging verifier still establishes length, SHA-256 and Minisign
+identity before retaining bytes. This boundary configures no production metadata
+origin or update check and grants no staging, apply, signing, publication or native
+replacement authority.
 
 ## Freshness, replay and bounds
 

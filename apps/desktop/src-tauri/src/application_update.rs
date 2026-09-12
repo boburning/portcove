@@ -18,6 +18,7 @@ const MAX_RECORD_BYTES: usize = 256 * 1024;
 const MAX_PAYLOAD_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 const MAX_SIGNATURE_CHARS: usize = 16 * 1024;
 const MAX_REASON_CHARS: usize = 512;
+const MAX_ARTIFACT_URL_BYTES: usize = 8 * 1024;
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum UpdateMetadataError {
@@ -286,13 +287,22 @@ fn validate_asset(asset: &ArtifactIdentity, version: &str) -> Result<(), UpdateM
         "Tauri signature",
         MAX_SIGNATURE_CHARS,
     )?;
-    let url = Url::parse(&asset.url)
+    validate_artifact_url(&asset.url, version)?;
+    Ok(())
+}
+
+pub(crate) fn validate_artifact_url(
+    value: &str,
+    version: &str,
+) -> Result<Url, UpdateMetadataError> {
+    let url = Url::parse(value)
         .map_err(|_| UpdateMetadataError::InvalidIdentity("artifact URL".into()))?;
     let segments = url
         .path_segments()
         .map(Iterator::collect::<Vec<_>>)
         .unwrap_or_default();
-    if url.scheme() != "https"
+    if value.len() > MAX_ARTIFACT_URL_BYTES
+        || url.scheme() != "https"
         || url.host_str() != Some("github.com")
         || url.port_or_known_default() != Some(443)
         || !url.username().is_empty()
@@ -302,12 +312,12 @@ fn validate_asset(asset: &ArtifactIdentity, version: &str) -> Result<(), UpdateM
         || segments.len() != 6
         || segments[..4] != ["boburning", "portcove", "releases", "download"]
         || segments[4] != format!("v{version}")
-        || segments[5].is_empty()
+        || target_path(segments[5], "artifact filename").is_err()
         || url.path().contains('%')
     {
         return Err(UpdateMetadataError::InvalidIdentity("artifact URL".into()));
     }
-    Ok(())
+    Ok(url)
 }
 
 fn validate_release(record: &ReleaseRecord) -> Result<Version, UpdateMetadataError> {
