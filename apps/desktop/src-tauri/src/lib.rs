@@ -3,6 +3,7 @@ pub mod application_update;
 pub mod application_update_payload;
 pub mod application_update_preferences;
 pub mod application_update_repository;
+pub mod application_update_schedule;
 pub mod application_update_staging;
 mod application_update_storage;
 mod application_update_transport;

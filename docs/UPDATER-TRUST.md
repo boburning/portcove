@@ -24,6 +24,19 @@ future schemas fail closed; explicit reset clears consent while advancing the
 revision. The typed get, save and reset commands perform no update check, download,
 staging or application side effect.
 
+The separate host schedule records successful-check cadence and bounded retry state,
+not a device identity or updater operation. A pure decision delays automatic work
+for 30 seconds after startup, at least 24 hours after success, and 15 minutes through
+at most six hours after failure with bounded jitter. Automatic checks require a
+recorded nonmanual, unpaused choice and unmetered connectivity. Each outcome binds
+the preference revision observed by its check, so a later channel or mode change
+ignores stale cadence. Unknown metering holds for an explicit manual choice. Manual
+checks bypass local cadence and policy
+holds but still refuse known offline state. The strict bounded document uses
+compare-and-swap revisions, path-keyed process and OS locks, durable atomic writes,
+and explicit reset for malformed or future state. No decision performs network,
+download, staging or application work.
+
 | Claim                           | Mechanism                                                        | Limit                                                                       |
 | ------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | Payload authenticity            | Mandatory maintained Tauri updater signature                     | Does not authenticate feed JSON or current eligibility                      |
