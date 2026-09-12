@@ -560,6 +560,7 @@ impl ApplicationUpdateApplyStore {
     /// Clears a recorded native attempt only after a trusted host adapter has
     /// observed the candidate version running past its application-health
     /// boundary. Exact installed identity remains the adapter's responsibility.
+    #[cfg(any(windows, test))]
     pub(crate) fn reconcile_installed_application(
         &self,
         expected_revision: u64,

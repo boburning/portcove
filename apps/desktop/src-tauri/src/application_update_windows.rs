@@ -13,8 +13,10 @@ use std::path::{Path, PathBuf};
 use sha2::{Digest, Sha256};
 
 use crate::application_update::{InstallOwner, InstalledApplicationContext, SelectedCandidate};
+#[cfg(windows)]
+use crate::application_update_apply::ApplicationUpdateApplyStore;
 use crate::application_update_apply::{
-    ApplicationUpdateApplyError, ApplicationUpdateApplyStore, ApplicationUpdateRevalidationLease,
+    ApplicationUpdateApplyError, ApplicationUpdateRevalidationLease,
 };
 use crate::application_update_staging::StagedApplicationUpdate;
 
