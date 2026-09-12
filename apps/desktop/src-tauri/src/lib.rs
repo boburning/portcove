@@ -14,6 +14,8 @@ pub mod application_update_status;
 mod application_update_storage;
 mod application_update_transport;
 pub mod application_update_trust;
+#[cfg(any(windows, test))]
+pub mod application_update_windows;
 mod artwork;
 mod backup_review;
 mod catalog;

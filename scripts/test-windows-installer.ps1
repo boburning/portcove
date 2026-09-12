@@ -494,7 +494,11 @@ try {
     $sentinelHash = (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash
     Write-InstallerEvidence "candidate_installing"
     $installFlag = if ($InstallMode -eq "Passive") { "/P" } else { "/S" }
-    $install = Invoke-JournaledProcess -Role "candidate_installer" -Executable $installer -Arguments @($installFlag, "/D=$installRoot") -AllowedRelocationRoot $runRoot
+    # A predecessor establishes the exact registered destination. Exercise the
+    # same updater path used by the application instead of silently forcing a
+    # destination with /D, which could conceal relocation or ownership drift.
+    $candidateArguments = if ($predecessor) { @($installFlag, "/UPDATE") } else { @($installFlag, "/D=$installRoot") }
+    $install = Invoke-JournaledProcess -Role "candidate_installer" -Executable $installer -Arguments $candidateArguments -AllowedRelocationRoot $runRoot
     if ($install.ExitCode -ne 0) {
         throw "$InstallMode installer exited with code $($install.ExitCode)"
     }
@@ -598,6 +602,7 @@ try {
         signature_status = $signature.Status.ToString()
         install_exit_code = $install.ExitCode
         install_mode = $InstallMode
+        update_path = if ($predecessor) { "registered_nsis_update" } else { "explicit_bootstrap_destination" }
         registered_version = $registryEntries[0].DisplayVersion
         registration_path = $registryEntries[0].PSPath
         installed_executable_sha256 = $installedHash
