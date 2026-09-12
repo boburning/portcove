@@ -26,8 +26,11 @@ const WINDOWS_TARGET: &str = "windows-x86_64";
 const WINDOWS_EXECUTION_CONTEXT: &str = "installed-current-user";
 #[cfg(windows)]
 const NSIS_UPDATE_ARGUMENT_NAMES: [&str; 2] = ["P", "UPDATE"];
+#[cfg(windows)]
 const MAX_REGISTRY_SUBKEYS: u32 = 4_096;
+#[cfg(windows)]
 const MAX_REGISTRY_NAME_UNITS: usize = 512;
+#[cfg(windows)]
 const MAX_REGISTRY_VALUE_BYTES: u32 = 32 * 1024;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
