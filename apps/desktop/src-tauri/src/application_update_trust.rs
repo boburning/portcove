@@ -59,6 +59,8 @@ pub enum TrustedRepositoryError {
     InvalidSource(String),
     #[error("application update metadata transport failed: {0}")]
     Transport(String),
+    #[error("application update metadata is stale: {0}")]
+    Replay(String),
     #[error("application update trust state I/O failed: {0}")]
     Io(#[from] std::io::Error),
     #[error("application update metadata authentication failed: {0}")]
@@ -67,6 +69,38 @@ pub enum TrustedRepositoryError {
     MetadataPolicy(String),
     #[error("application update trust state serialization failed: {0}")]
     Serialization(#[from] serde_json::Error),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TrustedRepositoryFailureKind {
+    Unreachable,
+    Stale,
+    Rejected,
+}
+
+impl TrustedRepositoryError {
+    pub fn failure_kind(&self) -> TrustedRepositoryFailureKind {
+        match self {
+            Self::Transport(_) => TrustedRepositoryFailureKind::Unreachable,
+            Self::Replay(_) | Self::ClockRegression { .. } => TrustedRepositoryFailureKind::Stale,
+            Self::Authentication(error) if authentication_failure_is_stale(error) => {
+                TrustedRepositoryFailureKind::Stale
+            }
+            _ => TrustedRepositoryFailureKind::Rejected,
+        }
+    }
+}
+
+fn authentication_failure_is_stale(error: &tough::error::Error) -> bool {
+    matches!(
+        error,
+        tough::error::Error::ExpiredMetadata { .. }
+            | tough::error::Error::OlderMetadata { .. }
+            | tough::error::Error::OlderSnapshotInTimestamp { .. }
+            | tough::error::Error::SnapshotRoleMissing { .. }
+            | tough::error::Error::SnapshotRoleRollback { .. }
+            | tough::error::Error::SystemTimeSteppedBackward { .. }
+    )
 }
 
 impl From<tough::error::Error> for TrustedRepositoryError {
@@ -380,7 +414,7 @@ fn select_trusted_root(
             || (identity.version == state.root.version
                 && identity.signed_sha256 != state.root.signed_sha256)
         {
-            return Err(TrustedRepositoryError::InvalidState(
+            return Err(TrustedRepositoryError::Replay(
                 "persisted trusted root is below or differs from its replay floor".into(),
             ));
         }
@@ -407,7 +441,7 @@ fn ensure_floor(
         current.version < floor.version
             || (current.version == floor.version && current.signed_sha256 != floor.signed_sha256)
     }) {
-        return Err(TrustedRepositoryError::InvalidState(format!(
+        return Err(TrustedRepositoryError::Replay(format!(
             "{label} metadata is below or differs from its replay floor"
         )));
     }
@@ -602,7 +636,7 @@ fn persisted_root_after_load(
     if current.version < previous.version
         || (current.version == previous.version && current.signed_sha256 != previous.signed_sha256)
     {
-        return Err(TrustedRepositoryError::InvalidState(
+        return Err(TrustedRepositoryError::Replay(
             "trusted root moved below or differs from its replay floor".into(),
         ));
     }

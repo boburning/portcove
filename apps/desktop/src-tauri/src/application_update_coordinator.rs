@@ -18,7 +18,9 @@ use fs2::FileExt;
 use crate::application_update_preferences::{
     ApplicationUpdateChoice, ApplicationUpdatePreferenceError, ApplicationUpdatePreferenceStore,
 };
-use crate::application_update_repository::{AuthenticatedCandidateSelection, CandidateLoadError};
+use crate::application_update_repository::{
+    AuthenticatedCandidateSelection, CandidateLoadError, CandidateLoadFailureKind,
+};
 use crate::application_update_schedule::{
     ApplicationUpdateCheckContext, ApplicationUpdateCheckDecision, ApplicationUpdateCheckRequest,
     ApplicationUpdateSchedule, ApplicationUpdateScheduleError, ApplicationUpdateScheduleStore,
@@ -43,8 +45,12 @@ pub enum ApplicationUpdateCoordinatorError {
     Preferences(#[from] ApplicationUpdatePreferenceError),
     #[error(transparent)]
     Schedule(#[from] ApplicationUpdateScheduleError),
-    #[error(transparent)]
-    Check(#[from] CandidateLoadError),
+    #[error("application update check failed ({failure:?}): {source}")]
+    Check {
+        failure: CandidateLoadFailureKind,
+        #[source]
+        source: CandidateLoadError,
+    },
     #[error("application update coordinator I/O failed: {0}")]
     Io(#[from] std::io::Error),
 }
@@ -216,7 +222,10 @@ impl ApplicationUpdateCoordinator {
                 completion_jitter_seed(completed_at, schedule_revision),
             )?,
         };
-        let selection = checked?;
+        let selection = checked.map_err(|source| ApplicationUpdateCoordinatorError::Check {
+            failure: source.failure_kind(),
+            source,
+        })?;
         let current_preferences = self.preferences.load()?;
         if current_preferences.revision != preference_revision {
             return Ok(ApplicationUpdateCoordinatorOutcome::Superseded {
@@ -533,14 +542,50 @@ mod tests {
                     &checker
                 )
                 .await,
-            Err(ApplicationUpdateCoordinatorError::Check(
-                CandidateLoadError::InvalidIndex(_)
-            ))
+            Err(ApplicationUpdateCoordinatorError::Check {
+                failure: CandidateLoadFailureKind::Rejected,
+                source: CandidateLoadError::InvalidIndex(_),
+            })
         ));
         let persisted = schedule.load().unwrap();
         assert_eq!(persisted.preference_revision, Some(1));
         assert_eq!(persisted.consecutive_failures, 1);
         assert!(persisted.next_automatic_check_unix_seconds.unwrap() > 2_000);
+    }
+
+    #[tokio::test]
+    async fn check_failures_preserve_unreachable_and_stale_outcomes() {
+        for (source, expected) in [
+            (
+                CandidateLoadError::Trust(
+                    crate::application_update_trust::TrustedRepositoryError::Transport(
+                        "offline".into(),
+                    ),
+                ),
+                CandidateLoadFailureKind::Unreachable,
+            ),
+            (
+                CandidateLoadError::Trust(
+                    crate::application_update_trust::TrustedRepositoryError::Replay(
+                        "timestamp replay".into(),
+                    ),
+                ),
+                CandidateLoadFailureKind::Stale,
+            ),
+        ] {
+            let (_temporary, coordinator, preferences, _schedule, _clock) = fixture();
+            choose(&preferences, 0, ApplicationUpdateMode::Manual, false);
+            let checker = checker(Err(source));
+            let error = coordinator
+                .run(environment(ApplicationUpdateCheckRequest::Manual), &checker)
+                .await
+                .unwrap_err();
+            assert!(matches!(
+                error,
+                ApplicationUpdateCoordinatorError::Check { failure, .. }
+                    if failure == expected
+            ));
+        }
     }
 
     #[tokio::test]

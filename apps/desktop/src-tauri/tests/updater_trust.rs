@@ -175,7 +175,7 @@ async fn persisted_metadata_rejects_replay_and_expiry_without_touching_user_data
     fs::write(f.metadata.join("targets.json"), targets).unwrap();
     assert!(matches!(
         f.load_persisted(&trusted, &state).await,
-        Err(TrustedRepositoryError::InvalidState(message))
+        Err(TrustedRepositoryError::Replay(message))
             if message == "timestamp metadata is below or differs from its replay floor"
     ));
     f.publish(
@@ -186,6 +186,10 @@ async fn persisted_metadata_rejects_replay_and_expiry_without_touching_user_data
     )
     .await;
     let expired = f.load_persisted(&trusted, &state).await;
+    assert_eq!(
+        expired.as_ref().unwrap_err().failure_kind(),
+        portcove_desktop::application_update_trust::TrustedRepositoryFailureKind::Stale
+    );
     assert!(
         matches!(
         expired,
@@ -326,7 +330,7 @@ async fn retained_body_hash_rejects_equal_version_equivocation_without_tuf_cache
         .await;
     assert!(matches!(
         f.load_persisted(&trusted, &state).await,
-        Err(TrustedRepositoryError::InvalidState(message))
+        Err(TrustedRepositoryError::Replay(message))
             if message == "timestamp metadata is below or differs from its replay floor"
     ));
 }
