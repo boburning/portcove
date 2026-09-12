@@ -583,6 +583,19 @@ sibling atomically. Missing state means no consent; malformed or future state fa
 closed until an explicit reset clears the choice and advances its revision. These
 typed host commands only read or persist policy and cannot check, download, stage or
 apply an update.
+The sibling `application_update_schedule` store persists only successful-check
+cadence and bounded retry state. Its pure decision boundary combines that state
+with the explicit preference, a 30-second startup delay, and observable offline or
+metered status. Successful checks defer the next automatic check by at least 24
+hours. Failures use a 15-minute exponential retry with bounded jitter and a six-hour
+cap without shortening an existing hold. Each outcome binds the preference revision
+observed by its check, so a later channel or mode change ignores stale cadence.
+Manual checks bypass cadence, startup, pause, mode and metered holds but still refuse
+a known offline state. Unknown
+metered status holds automatic work so the user can choose manually. Strict parsing,
+compare-and-swap revisions, path-keyed process and OS locks, atomic durable writes,
+and explicit corrupt-state reset match the preference boundary. The module has no
+network, download, staging, application or persistent-device-identifier authority.
 The host's `application_update` module validates separately authenticated immutable
 release and channel records against installed identity and compatibility context,
 then selects by SemVer precedence. `application_update_repository` is the bounded
