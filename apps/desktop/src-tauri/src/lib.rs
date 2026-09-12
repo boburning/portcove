@@ -150,19 +150,19 @@ impl Drop for ActiveBlockingWorker {
     }
 }
 
-#[cfg(any(windows, test))]
+#[cfg(windows)]
 struct BlockingWorkerRestartGuard {
     committed: bool,
 }
 
-#[cfg(any(windows, test))]
+#[cfg(windows)]
 impl BlockingWorkerRestartGuard {
     fn commit(mut self) {
         self.committed = true;
     }
 }
 
-#[cfg(any(windows, test))]
+#[cfg(windows)]
 impl Drop for BlockingWorkerRestartGuard {
     fn drop(&mut self) {
         if !self.committed
@@ -173,7 +173,7 @@ impl Drop for BlockingWorkerRestartGuard {
     }
 }
 
-#[cfg(any(windows, test))]
+#[cfg(windows)]
 fn block_workers_for_restart() -> DesktopResult<BlockingWorkerRestartGuard> {
     let mut state = BLOCKING_WORKERS.lock().map_err(|_| {
         DesktopError::from(PortcoveError::state("Desktop worker state is unavailable."))
