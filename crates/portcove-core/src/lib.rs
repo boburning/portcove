@@ -131,7 +131,7 @@ pub use host_tools::{
 pub use import_execution::LibraryImportResult;
 pub use install::{InstallQualification, InstallRequest, Installer, VerificationReport};
 pub use launch::forward_launch_signal;
-pub use library::{Library, PortOperationGuard};
+pub use library::{ApplicationUpdateQuiescenceGuard, Library, PortOperationGuard};
 pub use library_import::LibraryImportPlan;
 pub use library_move::LibraryMoveResult;
 pub use library_transfer::{LibraryMovePlan, LibraryTreePlan};

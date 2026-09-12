@@ -46,6 +46,15 @@ observed preference change returns only a superseded result. A candidate result
 carries the preference revision that staging and apply work must revalidate. The
 coordinator adds no URL, key, network, staging or apply authority.
 
+Core supplies a pre-apply quiescence guard under the current library's exclusive
+lifetime lease. Every open CLI or Desktop library already holds the shared side, so
+another process or dispatched operation blocks admission without a new daemon. Once
+exclusive, core rejects a relocated source root, an old schema, any unfinished launch
+session and any running activity until recovery. The host retains the guard while
+performing its checks and replacement, closing the race with a newly opened library.
+This proof is limited to current-library quiescence; it grants no candidate freshness,
+executable ownership, permission, consent or replacement authority.
+
 | Claim                           | Mechanism                                                        | Limit                                                                       |
 | ------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | Payload authenticity            | Mandatory maintained Tauri updater signature                     | Does not authenticate feed JSON or current eligibility                      |

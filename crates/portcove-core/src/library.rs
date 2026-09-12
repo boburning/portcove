@@ -84,6 +84,14 @@ pub struct PortOperationGuard {
     file: File,
 }
 
+/// Exclusive current-library proof retained by the host across its final
+/// application-update checks and native replacement operation.
+#[derive(Debug)]
+pub struct ApplicationUpdateQuiescenceGuard {
+    root: PathBuf,
+    _lease: crate::library_access::LibraryLease,
+}
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(crate) struct StatusReadMetrics {
     pub sqlite_query_count: usize,
@@ -99,6 +107,100 @@ impl Drop for PortOperationGuard {
     fn drop(&mut self) {
         let _ = FileExt::unlock(&self.file);
     }
+}
+
+impl ApplicationUpdateQuiescenceGuard {
+    /// Acquires the current library's exclusive lifetime lease and rejects
+    /// unfinished durable work. This proves library quiescence only; it grants
+    /// no candidate, installation, ownership, permission, or replacement authority.
+    pub fn acquire(root: &Path) -> Result<Self> {
+        let root = Library::validate_selection_target(root)?;
+        require_current_application_update_library(&root)?;
+        let lease = crate::library_access::LibraryLease::with_access(
+            &root,
+            crate::library_access::LibraryAccess::Exclusive,
+        )?;
+        let locked_root = Library::validate_selection_target(&root)?;
+        if locked_root != root {
+            return Err(PortcoveError::conflict(
+                "the current library identity changed before application-update admission",
+            )
+            .detail("expected_library_root", root.display().to_string())
+            .detail("actual_library_root", locked_root.display().to_string())
+            .detail("application_update_held", "true"));
+        }
+        require_current_application_update_library(&root)?;
+
+        let connection = database::connect(&root)?;
+        let active_launch: Option<(String, String, String)> = connection
+            .query_row(
+                "SELECT id, port_id, phase FROM launch_sessions
+                 WHERE outcome IS NULL ORDER BY started_at, id LIMIT 1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .optional()?;
+        if let Some((id, port_id, phase)) = active_launch {
+            return Err(PortcoveError::conflict(
+                "an unfinished game launch requires recovery before applying an application update",
+            )
+            .detail("library_root", root.display().to_string())
+            .detail("launch_session_id", id)
+            .detail("port_id", port_id)
+            .detail("launch_phase", phase)
+            .detail("application_update_held", "true"));
+        }
+        let running_activity: Option<(String, String, Option<String>)> = connection
+            .query_row(
+                "SELECT id, operation, target_id FROM activity_history
+                 WHERE status='running' ORDER BY started_at, id LIMIT 1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .optional()?;
+        if let Some((id, activity_operation, target_id)) = running_activity {
+            let mut error = PortcoveError::conflict(
+                "an unfinished Portcove operation requires recovery before applying an application update",
+            )
+            .detail("library_root", root.display().to_string())
+            .detail("activity_id", id)
+            .detail("activity_operation", activity_operation)
+            .detail("application_update_held", "true");
+            if let Some(target_id) = target_id {
+                error = error.detail("activity_target_id", target_id);
+            }
+            return Err(error);
+        }
+        drop(connection);
+        Ok(Self {
+            root,
+            _lease: lease,
+        })
+    }
+
+    /// Returns the canonical library root protected for this guard's lifetime.
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+}
+
+fn require_current_application_update_library(root: &Path) -> Result<()> {
+    if let Some(destination) = crate::library_authority::open_target(root)? {
+        return Err(PortcoveError::conflict(
+            "the selected library has relocated; reopen its current destination before applying an application update",
+        )
+        .detail("library_root", root.display().to_string())
+        .detail("library_destination", destination.display().to_string())
+        .detail("application_update_held", "true"));
+    }
+    if database::requires_migration(root)? {
+        return Err(PortcoveError::conflict(
+            "the current library requires recovery or migration before applying an application update",
+        )
+        .detail("library_root", root.display().to_string())
+        .detail("application_update_held", "true"));
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone)]

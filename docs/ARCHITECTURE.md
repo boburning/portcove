@@ -607,6 +607,17 @@ returns no candidate for staging. A returned candidate carries the preference
 revision that downstream work must revalidate. Current policy ignores old cadence.
 The checker remains the existing authenticated repository boundary, so coordination
 adds no URL, key, network, staging or apply authority.
+Immediately before a host application replacement, core's
+`ApplicationUpdateQuiescenceGuard` acquires the current library's
+exclusive lifetime lease. Every CLI and Desktop library instance already retains the
+shared side for its lifetime, so another process or previously dispatched operation
+prevents admission. After ownership, core requires the current schema and rejects any
+unfinished launch session or running activity until explicit recovery. The host
+retains the guard across its checks and replacement, preventing a new library
+operation from winning the recheck-to-apply interval. Relocated source roots are
+rejected in favor of their current destination. This proves current-library
+quiescence only; candidate freshness, executable ownership, permissions, consent and
+native replacement remain host checks.
 The host's `application_update` module validates separately authenticated immutable
 release and channel records against installed identity and compatibility context,
 then selects by SemVer precedence. `application_update_repository` is the bounded
