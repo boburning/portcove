@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { lstatSync, mkdirSync, realpathSync, statSync, statfsSync } from "node:fs";
+import { lstatSync, mkdirSync, realpathSync, rmSync, statSync, statfsSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -299,6 +299,39 @@ function cleanCargoTarget(paths) {
   return result.status ?? 1;
 }
 
+export function validateIncrementalCache(paths) {
+  const target = validateCleanTarget(paths);
+  const debug = path.join(target, "debug");
+  const incremental = path.join(debug, "incremental");
+  for (const candidate of [debug, incremental]) {
+    try {
+      const stats = lstatSync(candidate);
+      if (stats.isSymbolicLink() || !stats.isDirectory()) {
+        throw new Error(
+          `Refusing to prune through a symlink, junction, or non-directory: ${candidate}`,
+        );
+      }
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+  }
+  return incremental;
+}
+
+function pruneCargoIncremental(paths) {
+  const incremental = validateIncrementalCache(paths);
+  try {
+    lstatSync(incremental);
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+    console.log(`Cargo incremental cache is already absent: ${incremental}`);
+    return 0;
+  }
+  console.log(`Pruning exact Cargo incremental cache: ${incremental}`);
+  rmSync(incremental, { recursive: true, maxRetries: 3, retryDelay: 100 });
+  return 0;
+}
+
 export function parseArguments(argv) {
   const remaining = [...argv];
   let action = "preflight";
@@ -316,8 +349,10 @@ export function parseArguments(argv) {
     } else throw new Error(`Unknown option: ${option}`);
   }
   if (remaining[0] === "--") remaining.shift();
-  if (!["preflight", "run", "clean"].includes(action)) {
-    throw new Error(`Unknown action ${action}; expected preflight, run, or clean`);
+  if (!["preflight", "run", "clean", "prune-incremental"].includes(action)) {
+    throw new Error(
+      `Unknown action ${action}; expected preflight, run, clean, or prune-incremental`,
+    );
   }
   if (action === "run" && !remaining.length) throw new Error("run requires a command after --");
   if (action !== "run" && remaining.length) throw new Error(`${action} does not accept a command`);
@@ -355,6 +390,9 @@ function main() {
   const configuredPaths = getPaths();
   if (action === "clean") {
     return cleanCargoTarget(configuredPaths);
+  }
+  if (action === "prune-incremental") {
+    return pruneCargoIncremental(configuredPaths);
   }
 
   const requiredFreeGiB = minimumFreeGiB(requestedMinimum);
