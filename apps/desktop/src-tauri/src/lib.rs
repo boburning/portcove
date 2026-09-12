@@ -3,6 +3,7 @@ pub mod application_update;
 pub mod application_update_apply;
 pub mod application_update_coordinator;
 pub mod application_update_download;
+pub mod application_update_helper;
 mod application_update_network;
 pub mod application_update_operation;
 pub mod application_update_payload;
