@@ -151,6 +151,7 @@ pub struct ApplicationUpdateRevalidationLease {
     apply: ApplicationUpdateApplySnapshot,
     preferences: ApplicationUpdatePreferenceSnapshot,
     staging: ApplicationUpdateStagingSnapshot,
+    application: portcove_core::ApplicationUpdateExclusivityGuard,
     library: portcove_core::ApplicationUpdateQuiescenceGuard,
 }
 
@@ -169,6 +170,10 @@ impl ApplicationUpdateRevalidationLease {
 
     pub fn library_root(&self) -> &Path {
         self.library.root()
+    }
+
+    pub fn application_runtime_lock(&self) -> &Path {
+        self.application.path()
     }
 }
 
@@ -249,6 +254,7 @@ impl ApplicationUpdateApplyStore {
         staging_store: &ApplicationUpdateStagingStore,
         fresh_candidate: &SelectedCandidate,
         installed: &InstalledApplicationContext,
+        application_runtime_lock: &Path,
     ) -> Result<ApplicationUpdateRevalidationLease, ApplicationUpdateApplyError> {
         let apply = self.snapshot()?;
         require_revision(&apply.state, expected_revision)?;
@@ -291,12 +297,15 @@ impl ApplicationUpdateApplyStore {
             installed,
         )?;
 
+        let application =
+            portcove_core::ApplicationUpdateExclusivityGuard::acquire(application_runtime_lock)?;
         let library =
             portcove_core::ApplicationUpdateQuiescenceGuard::acquire(&intent.library_root)?;
         Ok(ApplicationUpdateRevalidationLease {
             apply,
             preferences,
             staging,
+            application,
             library,
         })
     }
@@ -1000,6 +1009,7 @@ mod tests {
         let preferences = preferences_store.save_choice(0, chosen.clone()).unwrap();
         let installed = installed("0.1.0");
         let library = library_root(&temporary);
+        let runtime_lock = temporary.path().join("host/runtime.lock");
         let prepared = apply
             .prepare(
                 &preferences,
@@ -1020,6 +1030,7 @@ mod tests {
                 &staging_store,
                 &selected,
                 &installed,
+                &runtime_lock,
             )
             .await
             .unwrap();
@@ -1027,6 +1038,11 @@ mod tests {
         assert_eq!(lease.preferences(), &preferences);
         assert_eq!(lease.staged(), &staged);
         assert_eq!(lease.library_root(), fs::canonicalize(&library).unwrap());
+        assert_eq!(
+            lease.application_runtime_lock(),
+            fs::canonicalize(&runtime_lock).unwrap()
+        );
+        assert!(portcove_core::ApplicationRuntimeGuard::acquire(&runtime_lock).is_err());
         assert!(matches!(
             apply.clear(terminated.revision),
             Err(ApplicationUpdateApplyError::Busy)
@@ -1069,6 +1085,7 @@ mod tests {
             )
             .unwrap();
         let installed = installed("0.1.0");
+        let runtime_lock = temporary.path().join("host/runtime.lock");
         let prepared = apply
             .prepare(
                 &preferences,
@@ -1091,6 +1108,7 @@ mod tests {
                     &staging_store,
                     &newer,
                     &installed,
+                    &runtime_lock,
                 )
                 .await,
             Err(ApplicationUpdateApplyError::InvalidState(message))
@@ -1115,6 +1133,7 @@ mod tests {
                     &staging_store,
                     &selected,
                     &installed,
+                    &runtime_lock,
                 )
                 .await,
             Err(ApplicationUpdateApplyError::InvalidState(message))

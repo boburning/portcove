@@ -96,6 +96,17 @@ impl HostPreferenceStore {
             .unwrap_or_else(Self::open_default)
     }
 
+    /// User-scoped lock shared by CLI and Desktop process lifetimes. The
+    /// explicit override supports isolated development and qualification.
+    pub fn application_runtime_lock_path() -> Result<PathBuf> {
+        if let Some(path) =
+            std::env::var_os("PORTCOVE_APPLICATION_RUNTIME_LOCK").filter(|value| !value.is_empty())
+        {
+            return Ok(PathBuf::from(path));
+        }
+        crate::application_runtime::sibling_lock_path(&Self::default_path()?)
+    }
+
     pub fn new(path: PathBuf) -> Result<Self> {
         validate_absolute(&path)?;
         if path.file_name().is_none() {

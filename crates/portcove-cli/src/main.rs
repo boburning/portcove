@@ -6,12 +6,12 @@ use std::{
 
 use clap::{Args, Parser, Subcommand, ValueEnum, error::ErrorKind};
 use portcove_core::{
-    API_SCHEMA_VERSION, BackupAction, CapabilityDocument, ChildProcessClass, ChildProcessPolicy,
-    ErrorCode, GithubDeviceLogin, GithubDeviceLoginState, GithubReleaseProvider,
-    HostPreferenceStore, IdentifiedLaunchRequest, InstallOverrides, LaunchSignal, LaunchStdio,
-    OperationCoordinator, OperationEvent, OperationEventKind, PortcoveError, PortcoveService,
-    ReleaseChannel, Result, SourceImportMode, SourceVerification, UpdatePolicy,
-    forward_launch_signal,
+    API_SCHEMA_VERSION, ApplicationRuntimeGuard, BackupAction, CapabilityDocument,
+    ChildProcessClass, ChildProcessPolicy, ErrorCode, GithubDeviceLogin, GithubDeviceLoginState,
+    GithubReleaseProvider, HostPreferenceStore, IdentifiedLaunchRequest, InstallOverrides,
+    LaunchSignal, LaunchStdio, OperationCoordinator, OperationEvent, OperationEventKind,
+    PortcoveError, PortcoveService, ReleaseChannel, Result, SourceImportMode, SourceVerification,
+    UpdatePolicy, forward_launch_signal,
 };
 use schemars::JsonSchema;
 use serde::Serialize;
@@ -794,6 +794,9 @@ fn requested_output_mode(args: &[std::ffi::OsString]) -> OutputMode {
 }
 
 async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
+    let preferences = host_preference_store()?;
+    let _application_runtime =
+        ApplicationRuntimeGuard::acquire(&HostPreferenceStore::application_runtime_lock_path()?)?;
     if let Commands::Catalog {
         command: CatalogCommand::CheckCapabilities { file },
     } = &cli.command
@@ -831,7 +834,6 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         render_success(mode, "catalog.inspect-observation", report)?;
         return Ok(ExitCode::SUCCESS);
     }
-    let preferences = host_preference_store()?;
     let platform_default = portcove_core::Library::default_root()?;
     if let Commands::Library { command } = &cli.command {
         execute_library(

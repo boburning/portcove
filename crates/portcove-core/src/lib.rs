@@ -1,5 +1,6 @@
 mod activity_diagnostics;
 mod adapter;
+mod application_runtime;
 mod archive;
 mod artwork;
 mod artwork_image;
@@ -77,6 +78,7 @@ mod types;
 pub use activity_diagnostics::{ActivityDiagnostic, DiagnosticStream};
 pub use adapter::{Adapter, AdapterRegistry, LaunchSpecRequest};
 pub use adapter::{host_tool_statuses, recheck_host_tool};
+pub use application_runtime::{ApplicationRuntimeGuard, ApplicationUpdateExclusivityGuard};
 pub use artwork::{
     ArtworkAvailability, ArtworkCacheClear, ArtworkChoice, ArtworkImageFormat, ArtworkMetadata,
     ArtworkSlot, ArtworkState, ArtworkThumbnail, LocalArtworkAsset,
