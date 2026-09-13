@@ -6,7 +6,7 @@ use portcove_desktop::application_update::{
     LibraryCompatibility, VersionRange,
 };
 use portcove_desktop::application_update_apply::{
-    ApplicationTerminationKind, ApplicationUpdateApplyRequest, ApplicationUpdateApplyStore,
+    ApplicationTerminationKind, ApplicationUpdateApplyStore,
 };
 use portcove_desktop::application_update_helper::ApplicationUpdateFreshSelectionProvider;
 use portcove_desktop::application_update_host::{
@@ -167,12 +167,11 @@ async fn prepare(arguments: &[String]) -> Result<PreparedUpdate, String> {
     let apply =
         ApplicationUpdateApplyStore::new(staging_root).map_err(|error| error.to_string())?;
     let prepared = apply
-        .prepare(
+        .prepare_explicit_restart(
             &saved_preferences,
             &staged,
             &contract.installed,
             &library_root,
-            ApplicationUpdateApplyRequest::RestartToApply,
         )
         .map_err(|error| error.to_string())?;
     let terminated = apply

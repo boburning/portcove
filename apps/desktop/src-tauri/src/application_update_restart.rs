@@ -61,6 +61,7 @@ const DESKTOP_UPDATE_PROCESS_ENVIRONMENT: &[&str] = &[
     "PORTCOVE_APPLICATION_UPDATE_METADATA_URL",
     "PORTCOVE_APPLICATION_UPDATE_PREFERENCES",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT",
+    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE",
     "PORTCOVE_APPLICATION_UPDATE_SCHEDULE",
     "PORTCOVE_APPLICATION_UPDATE_STAGING",
@@ -550,6 +551,10 @@ mod tests {
                     OsString::from("staging"),
                 ),
                 (
+                    OsString::from("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT"),
+                    OsString::from("during-swap-copy"),
+                ),
+                (
                     OsString::from("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE"),
                     OsString::from("stage"),
                 ),
@@ -578,6 +583,12 @@ mod tests {
         assert_eq!(
             environment.get("PORTCOVE_LIBRARY").map(String::as_str),
             Some("library")
+        );
+        assert_eq!(
+            environment
+                .get("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT")
+                .map(String::as_str),
+            Some("during-swap-copy")
         );
         assert_eq!(
             environment

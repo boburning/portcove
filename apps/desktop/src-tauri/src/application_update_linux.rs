@@ -671,6 +671,7 @@ fn prepare_appimage_swap(
             }
             digest.update(&buffer[..count]);
             output.write_all(&buffer[..count])?;
+            interrupt_qualification_during_swap_copy();
         }
         if bytes != plan.expected_bytes || hex::encode(digest.finalize()) != plan.expected_sha256 {
             return Err(LinuxApplicationUpdateError::InvalidPayload(
@@ -691,6 +692,18 @@ fn prepare_appimage_swap(
     plan.swap_guard = Some(output);
     Ok(())
 }
+
+#[cfg(all(target_os = "linux", feature = "application-update-qualification"))]
+fn interrupt_qualification_during_swap_copy() {
+    if std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT").as_deref()
+        == Some(std::ffi::OsStr::new("during-swap-copy"))
+    {
+        std::process::exit(86);
+    }
+}
+
+#[cfg(all(target_os = "linux", not(feature = "application-update-qualification")))]
+fn interrupt_qualification_during_swap_copy() {}
 
 #[cfg(target_os = "linux")]
 fn exchange_appimage(plan: &LinuxAppImageUpdatePlan) -> Result<(), LinuxApplicationUpdateError> {
