@@ -214,6 +214,7 @@ test("Linux package ownership rehearsal is focused and preserves managed executa
   assert.match(rehearsal, /actions\/download-artifact@/);
   assert.match(rehearsal, /test-linux-package-ownership\.sh deb/);
   assert.match(rehearsal, /test-linux-package-ownership\.sh rpm/);
+  assert.match(rehearsal, /dnf --assumeyes install findutils git nodejs rpm/);
   assert.doesNotMatch(rehearsal, /appimage|desktop-test|e2e/iu);
   assert.match(rehearsal, /\.\/scripts\/test-linux-package-ownership\.sh/);
   assert.match(rehearsal, /retention-days: 1/);

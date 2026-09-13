@@ -104,7 +104,7 @@ jobs:
           name: linux-native-packages
           path: target/release/bundle
       - name: Install Fedora qualification tools
-        run: dnf --assumeyes install findutils nodejs rpm
+        run: dnf --assumeyes install findutils git nodejs rpm
       - name: Verify installed RPM ownership guidance
         run: ./scripts/test-linux-package-ownership.sh rpm
       - name: Retain bounded RPM ownership evidence
