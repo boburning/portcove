@@ -10,7 +10,8 @@ export async function workspaceRefreshScenario({ browser, scenario, output, arti
     await browser.wait(until.elementLocated(By.css(".port-card")), 10_000);
     const before = await browser.findElements(By.css(".port-card"));
     const observations = {
-      injection: "one synthetic get_catalog rejection; subsequent requests use actual native IPC",
+      injection:
+        "one synthetic get_workspace_snapshot rejection; subsequent requests use actual native IPC",
       before_cards: before.length,
     };
     try {
@@ -18,7 +19,7 @@ export async function workspaceRefreshScenario({ browser, scenario, output, arti
         .executeAsyncScript((done) => {
           const native = window.__TAURI_INTERNALS__;
           const original = window.fetch;
-          const target = native.convertFileSrc("get_catalog", "ipc");
+          const target = native.convertFileSrc("get_workspace_snapshot", "ipc");
           window.__portcoveRefreshProbe = {
             original,
             calls: [],
@@ -77,7 +78,10 @@ export async function workspaceRefreshScenario({ browser, scenario, output, arti
         until.elementLocated(By.xpath('//button[normalize-space(.)="Retry refresh"]')),
         10_000,
       );
-      observations.failure_text = await browser.findElement(By.css(".error-banner")).getText();
+      observations.failure_text = await browser.executeScript(
+        (button) => button.closest(".error-banner")?.textContent ?? "",
+        retry,
+      );
       assert.match(observations.failure_text, /Showing the last loaded information/);
       assert.doesNotMatch(
         observations.failure_text,
@@ -93,10 +97,7 @@ export async function workspaceRefreshScenario({ browser, scenario, output, arti
       });
       artifacts.push(screenshot);
       await retry.click();
-      await browser.wait(
-        async () => (await browser.findElements(By.css(".error-banner"))).length === 0,
-        10_000,
-      );
+      await browser.wait(until.stalenessOf(retry), 10_000);
       await browser.wait(
         async () =>
           browser.executeScript(
@@ -112,7 +113,10 @@ export async function workspaceRefreshScenario({ browser, scenario, output, arti
         () => window.__portcoveRefreshProbe.calls,
       );
       assert.equal(await browser.executeScript(() => window.__portcoveRefreshProbe.injected), 1);
-      assert.equal(observations.commands.filter((command) => command === "get_catalog").length, 2);
+      assert.equal(
+        observations.commands.filter((command) => command === "get_workspace_snapshot").length,
+        2,
+      );
       assert.ok(
         observations.commands.every(
           (command) => command.startsWith("get_") || command.startsWith("plugin:"),

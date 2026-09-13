@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type SetStateAction,
@@ -26,6 +27,7 @@ import type {
   SourceRecord,
   SourceVerificationOutcome,
   UpdateCheckOutcome,
+  WorkspaceSnapshot,
 } from "./types";
 import type { DetailActions } from "./components/DetailPanel";
 import { errorText, isCancellation, type Filter, type View } from "./view-model";
@@ -33,10 +35,13 @@ import { currentUpdateSnapshot } from "./view-model";
 import { applyOperationEvent, mostRecentOperation } from "./operation-state";
 import {
   addPendingOperation,
+  closeCoalescedRequest,
+  CoalescedRequest,
   LatestRequestGeneration,
   mostRecentPendingOperation,
   removePendingOperation,
 } from "./concurrency-state";
+import { startManagedSubscription } from "./subscription-lifecycle";
 
 export function useApplicationUpdateChoice(reportError?: (error: unknown) => void) {
   const [preferences, setPreferences] = useState<ApplicationUpdatePreferences>();
@@ -162,21 +167,15 @@ export function useApplicationUpdateNotice(reportError?: (error: unknown) => voi
   }, []);
   useEffect(() => {
     let disposed = false;
-    let disposeListener: (() => void) | undefined;
+    const subscription = startManagedSubscription<ApplicationUpdateNoticeSnapshot>({
+      register: (acceptEvent) =>
+        listen<ApplicationUpdateNoticeSnapshot>("portcove://application-update-notice", (event) =>
+          acceptEvent(event.payload),
+        ),
+      onEvent: accept,
+    });
     void (async () => {
-      try {
-        const dispose = await listen<ApplicationUpdateNoticeSnapshot>(
-          "portcove://application-update-notice",
-          (event) => accept(event.payload),
-        );
-        if (disposed) {
-          dispose();
-          return;
-        }
-        disposeListener = dispose;
-      } catch {
-        /* The snapshot read below still provides the current optional notice. */
-      }
+      await subscription.ready;
       if (disposed) return;
       try {
         accept(await desktopApi.applicationUpdateNotice());
@@ -186,7 +185,7 @@ export function useApplicationUpdateNotice(reportError?: (error: unknown) => voi
     })();
     return () => {
       disposed = true;
-      disposeListener?.();
+      subscription.stop();
     };
   }, [accept]);
   const dismiss = useCallback(async () => {
@@ -200,7 +199,11 @@ export function useApplicationUpdateNotice(reportError?: (error: unknown) => voi
   return { snapshot, notice: snapshot?.notice, dismiss };
 }
 
-export function usePortcoveData() {
+function activitySnapshotIdentity(activities: ActivityRecord[]) {
+  return JSON.stringify(activities);
+}
+
+export function usePortcoveData(libraryGeneration = 0) {
   const [catalog, setCatalog] = useState<CatalogDocument>();
   const [statuses, setStatuses] = useState<PortStatus[]>([]);
   const [sources, setSources] = useState<SourceRecord[]>([]);
@@ -208,27 +211,32 @@ export function usePortcoveData() {
   const [doctor, setDoctor] = useState<DoctorReport>();
   const [refreshFailure, setRefreshFailure] = useState<{ error: unknown }>();
   const [refreshing, setRefreshing] = useState(false);
+  const [diagnosticFailure, setDiagnosticFailure] = useState<{ error: unknown }>();
+  const [diagnosticRefreshing, setDiagnosticRefreshing] = useState(false);
+  const [diagnosticsStale, setDiagnosticsStale] = useState(true);
+  const [subscriptionFailure, setSubscriptionFailure] = useState<{ error: unknown }>();
   const refreshGeneration = useRef(new LatestRequestGeneration());
   const activityGeneration = useRef(new LatestRequestGeneration());
-  const refresh = useCallback(async () => {
+  const diagnosticGeneration = useRef(new LatestRequestGeneration());
+  const activityIdentity = useRef(activitySnapshotIdentity([]));
+  const acceptActivities = useCallback((next: ActivityRecord[]) => {
+    const identity = activitySnapshotIdentity(next);
+    if (identity === activityIdentity.current) return;
+    activityIdentity.current = identity;
+    setActivities(next);
+  }, []);
+  const runRefresh = useCallback(async () => {
     const generation = refreshGeneration.current.begin();
     const activityRequest = activityGeneration.current.begin();
     setRefreshing(true);
     try {
-      const [nextCatalog, nextStatuses, nextSources, nextActivities, nextDoctor] =
-        await Promise.all([
-          desktopApi.catalog(),
-          desktopApi.statuses(),
-          desktopApi.sources(),
-          desktopApi.activities(),
-          desktopApi.doctor(),
-        ]);
+      const snapshot: WorkspaceSnapshot = await desktopApi.workspaceSnapshot(libraryGeneration);
       if (!refreshGeneration.current.isCurrent(generation)) return;
-      setCatalog(nextCatalog);
-      setStatuses(nextStatuses);
-      setSources(nextSources);
-      if (activityGeneration.current.isCurrent(activityRequest)) setActivities(nextActivities);
-      setDoctor(nextDoctor);
+      setCatalog(snapshot.catalog);
+      setStatuses(snapshot.statuses);
+      setSources(snapshot.sources);
+      if (activityGeneration.current.isCurrent(activityRequest))
+        acceptActivities(snapshot.activities);
       setRefreshFailure(undefined);
     } catch (error) {
       if (!refreshGeneration.current.isCurrent(generation)) return;
@@ -237,7 +245,12 @@ export function usePortcoveData() {
     } finally {
       if (refreshGeneration.current.isCurrent(generation)) setRefreshing(false);
     }
-  }, []);
+  }, [acceptActivities, libraryGeneration]);
+  const refreshCoordinator = useMemo(() => new CoalescedRequest(), []);
+  const refresh = useCallback(
+    () => refreshCoordinator.request(runRefresh, libraryGeneration),
+    [libraryGeneration, refreshCoordinator, runRefresh],
+  );
   const retryRefresh = useCallback(async () => {
     try {
       await refresh();
@@ -245,42 +258,119 @@ export function usePortcoveData() {
       /* The refresh failure remains visible independently of mutation outcomes. */
     }
   }, [refresh]);
+
+  const runDiagnostics = useCallback(async () => {
+    const generation = diagnosticGeneration.current.begin();
+    setDiagnosticRefreshing(true);
+    try {
+      const next = await desktopApi.doctor(libraryGeneration);
+      if (!diagnosticGeneration.current.isCurrent(generation)) return;
+      setDoctor(next);
+      setDiagnosticFailure(undefined);
+      setDiagnosticsStale(false);
+    } catch (error) {
+      if (!diagnosticGeneration.current.isCurrent(generation)) return;
+      setDiagnosticFailure({ error });
+    } finally {
+      if (diagnosticGeneration.current.isCurrent(generation)) setDiagnosticRefreshing(false);
+    }
+  }, [libraryGeneration]);
+  const diagnosticCoordinator = useMemo(() => new CoalescedRequest(), []);
+  const refreshDiagnostics = useCallback(
+    () => diagnosticCoordinator.request(runDiagnostics, libraryGeneration),
+    [diagnosticCoordinator, libraryGeneration, runDiagnostics],
+  );
+  const invalidateDiagnostics = useCallback(() => {
+    diagnosticGeneration.current.begin();
+    setDiagnosticRefreshing(false);
+    setDiagnosticsStale(true);
+  }, []);
+
+  const runActivityRefresh = useCallback(async () => {
+    const generation = activityGeneration.current.begin();
+    try {
+      const next = await desktopApi.activities();
+      if (activityGeneration.current.isCurrent(generation)) acceptActivities(next);
+    } catch {
+      /* Essential refresh remains the actionable IPC failure surface. */
+    }
+  }, [acceptActivities]);
+  const activityCoordinator = useMemo(() => new CoalescedRequest(), []);
+  const refreshActivities = useCallback(
+    () => activityCoordinator.request(runActivityRefresh, libraryGeneration),
+    [activityCoordinator, libraryGeneration, runActivityRefresh],
+  );
+
+  useEffect(
+    () => () => {
+      closeCoalescedRequest(refreshCoordinator);
+      closeCoalescedRequest(diagnosticCoordinator);
+      closeCoalescedRequest(activityCoordinator);
+    },
+    [activityCoordinator, diagnosticCoordinator, refreshCoordinator],
+  );
+
   useEffect(() => {
     const refreshRequests = refreshGeneration.current;
     const activityRequests = activityGeneration.current;
-    const unlisten = listen<string>("portcove://library-changed", () => {
-      void retryRefresh();
+    const diagnosticRequests = diagnosticGeneration.current;
+    let closed = false;
+    const subscription = startManagedSubscription<string>({
+      register: (accept) =>
+        listen<string>("portcove://library-changed", (event) => accept(event.payload)),
+      onEvent: () => {
+        invalidateDiagnostics();
+        void retryRefresh();
+      },
+      onFailure: (error) => setSubscriptionFailure({ error }),
     });
+    void (async () => {
+      await subscription.ready;
+      if (closed) return;
+      await retryRefresh();
+      if (closed) return;
+      void refreshDiagnostics();
+    })();
     return () => {
+      closed = true;
       refreshRequests.begin();
       activityRequests.begin();
-      void unlisten.then((dispose) => dispose());
+      diagnosticRequests.begin();
+      subscription.stop();
     };
-  }, [retryRefresh]);
+  }, [
+    activityCoordinator,
+    diagnosticCoordinator,
+    invalidateDiagnostics,
+    refreshCoordinator,
+    refreshDiagnostics,
+    retryRefresh,
+  ]);
+
+  const hasRunningActivity = activities.some((activity) => activity.status === "running");
   useEffect(() => {
     let closed = false;
     let timer = 0;
-    const poll = async () => {
-      const generation = activityGeneration.current.begin();
-      try {
-        const next = await desktopApi.activities();
-        if (!closed && activityGeneration.current.isCurrent(generation)) setActivities(next);
-      } catch {
-        /* Full refresh reports IPC failures; keep the last known ledger while polling. */
-      }
-      if (!closed)
-        timer = window.setTimeout(() => {
-          void poll();
-        }, 1000);
+    const interval = () => (hasRunningActivity ? 1000 : document.hidden ? 30_000 : 10_000);
+    const schedule = () => {
+      if (!closed) timer = window.setTimeout(poll, interval());
     };
-    timer = window.setTimeout(() => {
-      void poll();
-    }, 1000);
+    const poll = () => {
+      void refreshActivities().finally(schedule);
+    };
+    const refreshWhenVisible = () => {
+      if (!document.hidden) void refreshActivities();
+    };
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    schedule();
     return () => {
       closed = true;
       window.clearTimeout(timer);
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
-  }, []);
+  }, [hasRunningActivity, refreshActivities]);
   return {
     catalog,
     statuses,
@@ -290,12 +380,36 @@ export function usePortcoveData() {
     storage: doctor?.library,
     refresh,
     retryRefresh,
+    refreshActivities,
     refreshFailure,
     refreshing,
+    refreshDiagnostics,
+    invalidateDiagnostics,
+    diagnosticFailure,
+    diagnosticRefreshing,
+    diagnosticsStale,
+    subscriptionFailure,
   };
 }
 
-export function useOperationState(refresh: () => Promise<void>) {
+export type OperationRefresh = "workspace" | "activities" | "none";
+
+export function useOperationState(
+  configuration:
+    | (() => Promise<void>)
+    | {
+        refresh: () => Promise<void>;
+        refreshActivities?: () => Promise<void>;
+        invalidateDiagnostics?: () => void;
+      },
+) {
+  const refresh = typeof configuration === "function" ? configuration : configuration.refresh;
+  const refreshActivities =
+    typeof configuration === "function"
+      ? configuration
+      : (configuration.refreshActivities ?? configuration.refresh);
+  const invalidateDiagnostics =
+    typeof configuration === "function" ? undefined : configuration.invalidateDiagnostics;
   const [pendingOperations, setPendingOperations] = useState<ReadonlyMap<number, string>>(
     new Map(),
   );
@@ -305,41 +419,49 @@ export function useOperationState(refresh: () => Promise<void>) {
   const [operationEvents, setOperationEvents] = useState<ReadonlyMap<string, OperationEvent>>(
     new Map(),
   );
+  const [subscriptionFailure, setSubscriptionFailure] = useState<unknown>();
   const operation = mostRecentOperation(operationEvents);
   useEffect(() => {
-    const unlisten = listen<OperationEvent>("portcove://operation", (event) => {
-      setOperationEvents((current) => applyOperationEvent(current, event.payload));
+    const subscription = startManagedSubscription<OperationEvent>({
+      register: (accept) =>
+        listen<OperationEvent>("portcove://operation", (event) => accept(event.payload)),
+      onEvent: (payload) => {
+        setOperationEvents((current) => applyOperationEvent(current, payload));
+        void refreshActivities();
+      },
+      onFailure: setSubscriptionFailure,
     });
-    return () => {
-      void unlisten.then((dispose) => dispose());
-    };
-  }, []);
+    return () => subscription.stop();
+  }, [refreshActivities]);
   const perform = useCallback(
-    async <T>(name: string, task: () => Promise<T>): Promise<T | undefined> => {
+    async <T>(
+      name: string,
+      task: () => Promise<T>,
+      options: { refresh?: OperationRefresh; invalidateDiagnostics?: boolean } = {},
+    ): Promise<T | undefined> => {
       const pendingId = ++nextPendingId.current;
       setPendingOperations((current) => addPendingOperation(current, pendingId, name));
       setError(undefined);
-      const runningRefresh = window.setTimeout(() => {
-        void refresh().catch((value: unknown) => setError((current: unknown) => current ?? value));
-      }, 250);
       try {
         const result = await task();
         return result;
       } catch (value) {
         if (!isCancellation(value)) setError(value);
       } finally {
-        window.clearTimeout(runningRefresh);
+        if (options.invalidateDiagnostics ?? true) invalidateDiagnostics?.();
         try {
-          await refresh();
+          const effect = options.refresh ?? "workspace";
+          if (effect === "workspace") await refresh();
+          else if (effect === "activities") await refreshActivities();
         } catch (value) {
           setError((current: unknown) => current ?? value);
         }
         setPendingOperations((current) => removePendingOperation(current, pendingId));
       }
     },
-    [refresh],
+    [invalidateDiagnostics, refresh, refreshActivities],
   );
-  return { busy, error, operation, pendingOperations, perform, setError };
+  return { busy, error, operation, pendingOperations, perform, setError, subscriptionFailure };
 }
 
 export function useUpdateCenter(perform: Perform, statuses: PortStatus[]) {
@@ -368,7 +490,10 @@ export function useUpdateCenter(perform: Perform, statuses: PortStatus[]) {
   }>();
   const outcomes = checked?.baseline === snapshotBaseline ? checked.outcomes : snapshots;
   const checkAll = useCallback(async () => {
-    const result = await perform("check installed", desktopApi.checkInstalled);
+    const result = await perform("check installed", desktopApi.checkInstalled, {
+      refresh: "workspace",
+      invalidateDiagnostics: false,
+    });
     if (result) {
       setChecked({ baseline: snapshotBaseline, outcomes: result });
     }
@@ -391,14 +516,18 @@ function useReviewRequest<T>(identity: string, perform: Perform) {
     const request = generation.current.begin();
     setReviewed(undefined);
     const current = () => generation.current.isCurrent(request);
-    const result = await perform(name, async () => {
-      try {
-        return await task();
-      } catch (error) {
-        if (current()) throw error;
-        return undefined;
-      }
-    });
+    const result = await perform(
+      name,
+      async () => {
+        try {
+          return await task();
+        } catch (error) {
+          if (current()) throw error;
+          return undefined;
+        }
+      },
+      { refresh: "none", invalidateDiagnostics: false },
+    );
     if (result !== undefined && current()) setReviewed({ identity, value: result });
   };
   const guard = () => {
@@ -662,18 +791,27 @@ export function useGithubAuth(perform: Perform, setError: (error?: string) => vo
     };
   }, [deviceLogin, setError]);
   const saveToken = useCallback(async () => {
-    const result = await perform("GitHub authentication", () => desktopApi.setGithubToken(token));
+    const result = await perform("GitHub authentication", () => desktopApi.setGithubToken(token), {
+      refresh: "none",
+      invalidateDiagnostics: false,
+    });
     if (result) {
       setStatus(result);
       setToken("");
     }
   }, [perform, token]);
   const logout = useCallback(async () => {
-    const result = await perform("GitHub logout", desktopApi.logoutGithub);
+    const result = await perform("GitHub logout", desktopApi.logoutGithub, {
+      refresh: "none",
+      invalidateDiagnostics: false,
+    });
     if (result) setStatus(result);
   }, [perform]);
   const beginDeviceLogin = useCallback(async () => {
-    const result = await perform("GitHub login", desktopApi.beginGithubDeviceLogin);
+    const result = await perform("GitHub login", desktopApi.beginGithubDeviceLogin, {
+      refresh: "none",
+      invalidateDiagnostics: false,
+    });
     if (result) setDeviceLogin(result);
   }, [perform]);
   return {
@@ -721,7 +859,11 @@ export function usePortcoveUi() {
   };
 }
 
-export type Perform = <T>(name: string, task: () => Promise<T>) => Promise<T | undefined>;
+export type Perform = <T>(
+  name: string,
+  task: () => Promise<T>,
+  options?: { refresh?: OperationRefresh; invalidateDiagnostics?: boolean },
+) => Promise<T | undefined>;
 
 export function detailActions(
   port: PortDefinition,
@@ -749,7 +891,11 @@ export function detailActions(
     backup: async () => {
       if (await perform("back up data", () => desktopApi.backup(port.id))) await backupsChanged();
     },
-    check: () => perform("check", () => desktopApi.check(port.id, libraryGeneration)),
+    check: () =>
+      perform("check", () => desktopApi.check(port.id, libraryGeneration), {
+        refresh: "workspace",
+        invalidateDiagnostics: false,
+      }),
     close,
     install: () =>
       perform("install", () =>
@@ -762,7 +908,11 @@ export function detailActions(
         ),
       ),
     launch: () => perform("launch", () => desktopApi.launch(port.id, sourcePath)),
-    openUserData: () => perform("open data folder", () => desktopApi.openUserData(port.id)),
+    openUserData: () =>
+      perform("open data folder", () => desktopApi.openUserData(port.id), {
+        refresh: "none",
+        invalidateDiagnostics: false,
+      }),
     reviewInstall,
     remove: async (expectedPreview) => {
       const removed = await perform("remove", () =>

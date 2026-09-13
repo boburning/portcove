@@ -11,6 +11,85 @@ export class LatestRequestGeneration {
   }
 }
 
+type Deferred = {
+  resolve: () => void;
+  reject: (error: unknown) => void;
+  task: () => Promise<void>;
+};
+
+/** Coalesces same-turn requests and permits at most one queued follow-up. */
+class CoalescedBatch {
+  private pending: Deferred[] = [];
+  private scheduled = false;
+  private running = false;
+  private closed = false;
+
+  request(task: () => Promise<void>) {
+    if (this.closed) return Promise.resolve();
+    const result = new Promise<void>((resolve, reject) => {
+      this.pending.push({ resolve, reject, task });
+    });
+    if (!this.scheduled && !this.running) {
+      this.scheduled = true;
+      queueMicrotask(() => {
+        this.scheduled = false;
+        void this.drain();
+      });
+    }
+    return result;
+  }
+
+  close() {
+    this.closed = true;
+    const pending = this.pending.splice(0);
+    for (const request of pending) request.resolve();
+  }
+
+  private async drain() {
+    if (this.running || this.closed) return;
+    this.running = true;
+    try {
+      while (!this.closed && this.pending.length > 0) {
+        const batch = this.pending.splice(0);
+        try {
+          await batch.at(-1)!.task();
+          for (const request of batch) request.resolve();
+        } catch (error) {
+          for (const request of batch) request.reject(error);
+        }
+      }
+    } finally {
+      this.running = false;
+    }
+  }
+}
+
+/** Keeps coalescing independent across request-authority generations. */
+export class CoalescedRequest {
+  private readonly batches = new Map<number, CoalescedBatch>();
+  private closed = false;
+
+  request(task: () => Promise<void>, scope = 0) {
+    if (this.closed) return Promise.resolve();
+    let batch = this.batches.get(scope);
+    if (!batch) {
+      batch = new CoalescedBatch();
+      this.batches.set(scope, batch);
+    }
+    return batch.request(task);
+  }
+
+  close() {
+    this.closed = true;
+    for (const batch of this.batches.values()) batch.close();
+    this.batches.clear();
+  }
+}
+
+export function closeCoalescedRequest(request: CoalescedRequest) {
+  request.close();
+}
+
 export function addPendingOperation(
   operations: ReadonlyMap<number, string>,
   id: number,

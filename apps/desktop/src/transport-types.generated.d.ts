@@ -393,7 +393,7 @@ export type ApplicationUpdateRecoveryArea = "schedule" | "staging" | "apply";
 
 export interface TransportOutputs {
   about: OutputAbout;
-  activity: OutputActivity;
+  activity: ActivityRecord;
   activity_diagnostic: OutputActivityDiagnostic;
   adoption_preview: OutputAdoptionPreview;
   api_response_port_status: OutputApiResponsePortStatus;
@@ -488,6 +488,7 @@ export interface TransportOutputs {
   desktop_reconcile_outcome: OutputReconcileBatchOutcome;
   desktop_source_verification_outcome: OutputSourceBatchOutcome;
   desktop_update_check_outcome: OutputCheckBatchOutcome;
+  desktop_workspace_snapshot: OutputDesktopWorkspaceSnapshot;
 }
 export interface OutputAbout {
   description: string;
@@ -497,7 +498,7 @@ export interface OutputAbout {
   version: string;
   [k: string]: unknown;
 }
-export interface OutputActivity {
+export interface ActivityRecord {
   cancellation: CancellationState | null;
   failure: FailureReport | null;
   finished_at: number | null;
@@ -2060,5 +2061,12 @@ export interface OutputDesktopCliCommandContext {
 export interface OutputDesktopLaunchResult {
   processId: number | null;
   sessionId: string;
+  [k: string]: unknown;
+}
+export interface OutputDesktopWorkspaceSnapshot {
+  activities: ActivityRecord[];
+  catalog: CatalogDocument;
+  sources: SourceRecord[];
+  statuses: PortStatus[];
   [k: string]: unknown;
 }

@@ -73,6 +73,7 @@ import type {
   UpdateCheck,
   UpdateCheckOutcome,
   UpdatePolicy,
+  WorkspaceSnapshot,
 } from "./types";
 
 export const desktopApi = {
@@ -200,6 +201,8 @@ export const desktopApi = {
     invoke<GithubDeviceLoginResult>("poll_github_device_login", { sessionId }),
   catalog: () => invoke<CatalogDocument>("get_catalog"),
   statuses: () => invoke<PortStatus[]>("get_statuses"),
+  workspaceSnapshot: (generation: number) =>
+    invoke<WorkspaceSnapshot>("get_workspace_snapshot", { generation }),
   planPreparation: (portId: string, generation: number) =>
     invoke<PreparationPlan>("plan_preparation", { portId, generation }),
   planGameUpdate: (portId: string, activate: boolean, generation: number) =>
@@ -389,7 +392,7 @@ export const desktopApi = {
   check: (portId: string, generation: number) =>
     invoke<UpdateCheck>("check_port", { portId, generation }),
   checkInstalled: () => invoke<UpdateCheckOutcome[]>("check_installed"),
-  doctor: () => invoke<DoctorReport>("get_doctor_report"),
+  doctor: (generation: number) => invoke<DoctorReport>("get_doctor_report", { generation }),
   hostTools: () => invoke<HostToolStatus[]>("get_host_tools"),
   setHostToolPath: (toolId: string, path: string) =>
     invoke<HostToolProbeResult>("set_host_tool_path", { toolId, path }),
