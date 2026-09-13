@@ -625,26 +625,39 @@ impl PortcoveService {
 
     pub fn status(&self, port_id: &str) -> Result<PortStatus> {
         let port = self.catalog.port(port_id)?;
-        let registered_sources = self
-            .library
-            .sources()?
-            .into_iter()
-            .map(|source| (source.profile_id.clone(), source))
-            .collect::<HashMap<_, _>>();
         let (mut statuses, metrics) = self
             .library
             .statuses_with_metrics(&[(port_id.to_owned(), default_channel(port))])?;
-        tracing::debug!(
-            port_count = 1,
-            sqlite_query_count = metrics.sqlite_query_count + 1,
-            "loaded status read model"
-        );
         let status = statuses
             .pop()
             .ok_or_else(|| PortcoveError::state("status read model returned no row"))?;
-        let status =
-            self.with_launch_readiness(port, status, &registered_sources, &mut HashMap::new())?;
-        self.with_definition_operations(port, status)
+        let retained_catalog = self.retained_catalog_for_status(&status);
+        let source_profiles = self.launch_source_profiles(port, retained_catalog.as_ref())?;
+        let source_query_count = usize::from(!source_profiles.is_empty());
+        let registered_sources = self
+            .library
+            .sources_for(&source_profiles)?
+            .into_iter()
+            .map(|source| (source.profile_id.clone(), source))
+            .collect::<HashMap<_, _>>();
+        tracing::debug!(
+            port_count = 1,
+            sqlite_query_count = metrics.sqlite_query_count + source_query_count,
+            settings_row_count = metrics.settings_row_count,
+            install_row_count = metrics.install_row_count,
+            launch_history_row_count = metrics.launch_history_row_count,
+            update_snapshot_row_count = metrics.update_snapshot_row_count,
+            "loaded status read model"
+        );
+        let status = self.with_launch_readiness(
+            &self.catalog,
+            port,
+            status,
+            &registered_sources,
+            &mut HashMap::new(),
+            retained_catalog,
+        )?;
+        self.with_definition_operations(&self.catalog, port, status)
     }
 
     pub fn statuses(&self) -> Result<Vec<PortStatus>> {
@@ -659,44 +672,127 @@ impl PortcoveService {
             .iter()
             .map(|port| (port.id.clone(), default_channel(port)))
             .collect::<Vec<_>>();
+        let (statuses, metrics) = self.library.statuses_with_metrics(&ports)?;
+        tracing::debug!(
+            port_count = statuses.len(),
+            sqlite_query_count = metrics.sqlite_query_count + 1,
+            settings_row_count = metrics.settings_row_count,
+            install_row_count = metrics.install_row_count,
+            launch_history_row_count = metrics.launch_history_row_count,
+            update_snapshot_row_count = metrics.update_snapshot_row_count,
+            "loaded status read model"
+        );
+        self.hydrate_statuses(&self.catalog, statuses, sources)
+    }
+
+    fn hydrate_statuses(
+        &self,
+        catalog: &Catalog,
+        statuses: Vec<PortStatus>,
+        sources: &[SourceRecord],
+    ) -> Result<Vec<PortStatus>> {
+        let mut checked_sources = HashMap::new();
         let registered_sources = sources
             .iter()
             .cloned()
             .map(|source| (source.profile_id.clone(), source))
             .collect::<HashMap<_, _>>();
-        let (statuses, metrics) = self.library.statuses_with_metrics(&ports)?;
-        tracing::debug!(
-            port_count = statuses.len(),
-            sqlite_query_count = metrics.sqlite_query_count + 1,
-            "loaded status read model"
-        );
-        let mut checked_sources = HashMap::new();
-        self.catalog
+        catalog
             .ports()
             .iter()
             .zip(statuses)
             .map(|(port, status)| {
+                let retained_catalog = self.retained_catalog_for_status(&status);
                 let status = self.with_launch_readiness(
+                    catalog,
                     port,
                     status,
                     &registered_sources,
                     &mut checked_sources,
+                    retained_catalog,
                 )?;
-                self.with_definition_operations(port, status)
+                self.with_definition_operations(catalog, port, status)
             })
             .collect()
     }
 
     pub fn workspace_snapshot(&self, activity_limit: usize) -> Result<WorkspaceSnapshot> {
-        let sources = self.library.sources()?;
-        let statuses = self.statuses_with_sources(&sources)?;
-        let activities = self.library.activities(activity_limit)?;
-        Ok(WorkspaceSnapshot {
-            catalog: self.catalog.document().clone(),
-            statuses,
-            sources,
-            activities,
-        })
+        self.workspace_snapshot_with_barriers(activity_limit, || {}, |_| {})
+    }
+
+    #[cfg(test)]
+    fn workspace_snapshot_with_read_barrier(
+        &self,
+        activity_limit: usize,
+        after_status_settings: impl FnOnce(),
+    ) -> Result<WorkspaceSnapshot> {
+        self.workspace_snapshot_with_barriers(activity_limit, after_status_settings, |_| {})
+    }
+
+    fn workspace_snapshot_with_barriers(
+        &self,
+        activity_limit: usize,
+        after_status_settings: impl FnOnce(),
+        mut before_consistency_check: impl FnMut(usize),
+    ) -> Result<WorkspaceSnapshot> {
+        let mut after_status_settings = Some(after_status_settings);
+        for attempt in 0..2 {
+            let mut connection = self.library.connection()?;
+            let observed_before_catalog = data_version(&connection)?;
+            let (catalog, _) = self.library.load_catalog()?;
+            let ports = catalog
+                .ports()
+                .iter()
+                .map(|port| (port.id.clone(), default_channel(port)))
+                .collect::<Vec<_>>();
+            let transaction = connection.transaction()?;
+            let _: i64 =
+                transaction
+                    .query_row("SELECT count(*) FROM sqlite_schema", [], |row| row.get(0))?;
+            let observed_at_snapshot = data_version(&transaction)?;
+            if observed_at_snapshot != observed_before_catalog {
+                transaction.rollback()?;
+                continue;
+            }
+            let sources = Library::sources_from(&transaction)?;
+            let (statuses, metrics) = self.library.statuses_from_with_metrics_and_barrier(
+                &transaction,
+                &ports,
+                || {
+                    if let Some(after_status_settings) = after_status_settings.take() {
+                        after_status_settings();
+                    }
+                },
+            )?;
+            let activities = Library::activities_from(&transaction, activity_limit)?;
+            transaction.commit()?;
+            tracing::debug!(
+                port_count = statuses.len(),
+                sqlite_query_count = metrics.sqlite_query_count + 2,
+                settings_row_count = metrics.settings_row_count,
+                install_row_count = metrics.install_row_count,
+                launch_history_row_count = metrics.launch_history_row_count,
+                update_snapshot_row_count = metrics.update_snapshot_row_count,
+                consistency_attempt = attempt + 1,
+                "loaded transactional workspace read model"
+            );
+            let statuses = self.hydrate_statuses(&catalog, statuses, &sources)?;
+            before_consistency_check(attempt);
+            if data_version(&connection)? != observed_at_snapshot {
+                continue;
+            }
+            return Ok(WorkspaceSnapshot {
+                catalog: catalog.document().clone(),
+                statuses,
+                sources,
+                activities,
+            });
+        }
+        Err(PortcoveError::conflict(
+            "the library changed while its workspace snapshot was being assembled; retry the read",
+        )
+        .detail("workspace_snapshot_stale", "true")
+        .detail("retryable", "true"))
     }
 
     pub async fn plan_install(
@@ -1643,18 +1739,15 @@ impl PortcoveService {
 
     fn with_launch_readiness(
         &self,
+        current_catalog: &Catalog,
         port: &PortDefinition,
         mut status: PortStatus,
         registered_sources: &HashMap<String, SourceRecord>,
         checked_sources: &mut HashMap<String, SourceHealth>,
+        retained_catalog: Result<Option<Catalog>>,
     ) -> Result<PortStatus> {
         let mut blockers = Vec::new();
-        let retained_catalog = match status
-            .active
-            .as_ref()
-            .map(|install| self.installed_catalog(install))
-            .transpose()
-        {
+        let retained_catalog = match retained_catalog {
             Ok(catalog) => catalog,
             Err(_) => {
                 status.readiness = Some(LaunchReadiness {
@@ -1667,7 +1760,7 @@ impl PortcoveService {
                 return Ok(status);
             }
         };
-        let catalog = retained_catalog.as_ref().unwrap_or(&self.catalog);
+        let catalog = retained_catalog.as_ref().unwrap_or(current_catalog);
         let port = catalog.port(&port.id)?;
         let installed = status.active.is_some();
         let source = port
@@ -1730,13 +1823,42 @@ impl PortcoveService {
         Ok(status)
     }
 
+    fn retained_catalog_for_status(&self, status: &PortStatus) -> Result<Option<Catalog>> {
+        status
+            .active
+            .as_ref()
+            .map(|install| self.installed_catalog(install))
+            .transpose()
+    }
+
+    fn launch_source_profiles(
+        &self,
+        current_port: &PortDefinition,
+        retained_catalog: std::result::Result<&Option<Catalog>, &PortcoveError>,
+    ) -> Result<Vec<String>> {
+        let Ok(retained_catalog) = retained_catalog else {
+            return Ok(Vec::new());
+        };
+        let catalog = retained_catalog.as_ref().unwrap_or(&self.catalog);
+        let port = catalog.port(&current_port.id)?;
+        Ok([
+            port.source_profile.as_ref(),
+            port.bios_source_profile.as_ref(),
+        ]
+        .into_iter()
+        .flatten()
+        .cloned()
+        .collect())
+    }
+
     fn with_definition_operations(
         &self,
+        current_catalog: &Catalog,
         current_port: &PortDefinition,
         mut status: PortStatus,
     ) -> Result<PortStatus> {
         status.definition_operations.clear();
-        if let Some(identity) = self.catalog.definition_selection(&current_port.id) {
+        if let Some(identity) = current_catalog.definition_selection(&current_port.id) {
             status
                 .definition_operations
                 .push(DefinitionOperationAssessment {
@@ -4598,6 +4720,10 @@ fn default_channel(port: &PortDefinition) -> ReleaseChannel {
     }
 }
 
+fn data_version(connection: &rusqlite::Connection) -> Result<i64> {
+    Ok(connection.query_row("PRAGMA data_version", [], |row| row.get(0))?)
+}
+
 fn output_authorization_target(port_id: &str, output_directory: Option<&Path>) -> Result<String> {
     let destination = output_directory
         .map(|path| crate::path::unicode(path, "port output directory"))
@@ -6401,6 +6527,162 @@ mod tests {
         assert_eq!(snapshot.statuses.len(), snapshot.catalog.ports.len());
         assert!(snapshot.sources.is_empty());
         assert!(snapshot.activities.is_empty());
+    }
+
+    #[test]
+    fn workspace_snapshot_uses_one_durable_library_revision_during_cli_write() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_zelda_install(&library, "before", true);
+        register_zelda_install(&library, "after", false);
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let (start_writer, writer_started) = mpsc::channel();
+        let (writer_finished, wait_for_writer) = mpsc::channel();
+        let writer = thread::spawn(move || {
+            writer_started.recv().unwrap();
+            library.activate_staged("zelda64-recomp").unwrap();
+            library
+                .connection()
+                .unwrap()
+                .execute(
+                    "UPDATE definition_selection_state SET revision=revision+1 WHERE singleton=1",
+                    [],
+                )
+                .unwrap();
+            writer_finished.send(()).unwrap();
+        });
+
+        let snapshot = service
+            .workspace_snapshot_with_read_barrier(50, || {
+                start_writer.send(()).unwrap();
+                wait_for_writer.recv().unwrap();
+            })
+            .unwrap();
+        writer.join().unwrap();
+
+        let status = snapshot
+            .statuses
+            .iter()
+            .find(|status| status.port_id == "zelda64-recomp")
+            .unwrap();
+        assert_eq!(status.active.as_ref().unwrap().version, "after");
+        assert_eq!(status.previous.as_ref().unwrap().version, "before");
+        assert!(status.staged.is_none());
+    }
+
+    #[test]
+    fn workspace_snapshot_retries_source_and_port_removal_without_mixing_rows() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_zelda_install(&library, "installed", true);
+        library
+            .register_source(&SourceRecord {
+                profile_id: "snapshot-source".into(),
+                path: temporary.path().join("source.bin"),
+                sha256: "a".repeat(64),
+                size: 1,
+                storage_sha256: "a".repeat(64),
+                storage_size: 1,
+                updated_at: 7,
+                observed_identity: None,
+            })
+            .unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let (start_writer, writer_started) = mpsc::channel();
+        let (writer_finished, wait_for_writer) = mpsc::channel();
+        let writer = thread::spawn(move || {
+            writer_started.recv().unwrap();
+            library.remove_source("snapshot-source").unwrap();
+            library.remove_port("zelda64-recomp").unwrap();
+            writer_finished.send(()).unwrap();
+        });
+
+        let snapshot = service
+            .workspace_snapshot_with_read_barrier(50, || {
+                start_writer.send(()).unwrap();
+                wait_for_writer.recv().unwrap();
+            })
+            .unwrap();
+        writer.join().unwrap();
+
+        assert!(snapshot.sources.is_empty());
+        let status = snapshot
+            .statuses
+            .iter()
+            .find(|status| status.port_id == "zelda64-recomp")
+            .unwrap();
+        assert!(status.active.is_none());
+        assert!(status.previous.is_none());
+        assert!(status.staged.is_none());
+    }
+
+    #[test]
+    fn workspace_snapshot_decode_error_releases_its_read_transaction() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "INSERT INTO port_settings(port_id, channel, update_policy)
+                 VALUES ('zelda64-recomp', 'invalid', 'notify')",
+                [],
+            )
+            .unwrap();
+
+        let error = service.workspace_snapshot(50).unwrap_err();
+        assert!(error.message.contains("unknown release channel"));
+
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE port_settings SET channel='stable'
+                 WHERE port_id='zelda64-recomp'",
+                [],
+            )
+            .unwrap();
+        assert!(service.workspace_snapshot(50).is_ok());
+    }
+
+    #[test]
+    fn workspace_snapshot_bounds_retries_during_sustained_writes() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let revisions = AtomicUsize::new(0);
+
+        let error = service
+            .workspace_snapshot_with_barriers(
+                50,
+                || {},
+                |_| {
+                    let revision = revisions.fetch_add(1, Ordering::SeqCst);
+                    library
+                        .connection()
+                        .unwrap()
+                        .execute(
+                            "INSERT INTO port_settings(port_id, channel, update_policy)
+                             VALUES ('zelda64-recomp', 'stable', ?1)
+                             ON CONFLICT(port_id) DO UPDATE SET update_policy=excluded.update_policy",
+                            [if revision == 0 { "stage" } else { "automatic" }],
+                        )
+                        .unwrap();
+                },
+            )
+            .unwrap_err();
+
+        assert_eq!(revisions.load(Ordering::SeqCst), 2);
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert_eq!(
+            error
+                .details
+                .get("workspace_snapshot_stale")
+                .map(String::as_str),
+            Some("true")
+        );
+        assert!(service.workspace_snapshot(50).is_ok());
     }
 
     #[test]

@@ -47,6 +47,7 @@ reqwest = { version = "0.13.5", default-features = false, features = [
 rusqlite = { git = "https://github.com/rusqlite/rusqlite", rev = "b2b2592ecf40dcce20641aeb94af82e7d3a0b26d", features = [
   "bundled",
   "fallible_uint",
+  "limits",
 ] }
 schemars = { version = "1.2.2", features = ["derive"] }
 serde = { version = "1.0.229", features = ["derive"] }

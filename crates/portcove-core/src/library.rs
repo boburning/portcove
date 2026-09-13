@@ -8,7 +8,7 @@ use std::{
 
 use directories::ProjectDirs;
 use fs2::FileExt;
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{Connection, OptionalExtension, limits::Limit, params, params_from_iter};
 use sha2::{Digest, Sha256};
 
 use crate::{
@@ -155,15 +155,42 @@ pub struct ApplicationUpdateQuiescenceGuard {
     _lease: crate::library_access::LibraryLease,
 }
 
+/// Connection-scoped observer for durable writes committed by another Portcove client.
+///
+/// SQLite's `data_version` is meaningful only when successive values come from
+/// this same connection. Replacing the observer establishes a new baseline.
+pub struct LibraryChangeObserver {
+    connection: Connection,
+    observed_version: i64,
+}
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(crate) struct StatusReadMetrics {
     pub sqlite_query_count: usize,
+    pub settings_row_count: usize,
+    pub install_row_count: usize,
+    pub launch_history_row_count: usize,
+    pub update_snapshot_row_count: usize,
 }
 
 impl StatusReadMetrics {
     fn record_query(&mut self) {
         self.sqlite_query_count += 1;
     }
+}
+
+const PREFERRED_STATUS_PORTS_PER_QUERY: usize = 4_000;
+
+fn sql_placeholders(count: usize) -> String {
+    std::iter::repeat_n("?", count)
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn status_ports_per_query(connection: &Connection) -> Result<usize> {
+    let variable_limit = usize::try_from(connection.limit(Limit::SQLITE_LIMIT_VARIABLE_NUMBER)?)
+        .map_err(|_| PortcoveError::state("SQLite reported an invalid variable limit"))?;
+    Ok((variable_limit / 3).clamp(1, PREFERRED_STATUS_PORTS_PER_QUERY))
 }
 
 impl Drop for PortOperationGuard {
@@ -204,6 +231,19 @@ impl ApplicationUpdateQuiescenceGuard {
     pub fn root(&self) -> &Path {
         &self.root
     }
+}
+
+impl LibraryChangeObserver {
+    pub fn changed(&mut self) -> Result<bool> {
+        let current = data_version(&self.connection)?;
+        let changed = current != self.observed_version;
+        self.observed_version = current;
+        Ok(changed)
+    }
+}
+
+fn data_version(connection: &Connection) -> Result<i64> {
+    Ok(connection.query_row("PRAGMA data_version", [], |row| row.get(0))?)
 }
 
 fn require_application_update_idle(root: &Path) -> Result<()> {
@@ -679,6 +719,15 @@ impl Library {
         database::connect(&self.root)
     }
 
+    pub fn change_observer(&self) -> Result<LibraryChangeObserver> {
+        let connection = self.connection()?;
+        let observed_version = data_version(&connection)?;
+        Ok(LibraryChangeObserver {
+            connection,
+            observed_version,
+        })
+    }
+
     fn migrate(&self) -> Result<()> {
         database::migrate(&self.root)
     }
@@ -815,6 +864,13 @@ impl Library {
 
     pub fn activities(&self, limit: usize) -> Result<Vec<ActivityRecord>> {
         let connection = self.connection()?;
+        Self::activities_from(&connection, limit)
+    }
+
+    pub(crate) fn activities_from(
+        connection: &Connection,
+        limit: usize,
+    ) -> Result<Vec<ActivityRecord>> {
         let mut statement = connection.prepare(
             "SELECT id, operation, target_kind, target_id, status, message, started_at, finished_at, cancellation_phase, cancel_requested, failure_json
              FROM activity_history
@@ -1163,6 +1219,27 @@ impl Library {
         rows.map(|row| row?.into_record()).collect()
     }
 
+    pub(crate) fn sources_for(&self, profile_ids: &[String]) -> Result<Vec<SourceRecord>> {
+        if profile_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let mut profile_ids = profile_ids.to_vec();
+        profile_ids.sort_unstable();
+        profile_ids.dedup();
+        let connection = self.connection()?;
+        let sql = format!(
+            "SELECT profile_id, path, sha256, size, storage_sha256, storage_size, updated_at, observed_identity_json
+             FROM sources
+             WHERE profile_id IN ({})
+             ORDER BY profile_id",
+            sql_placeholders(profile_ids.len())
+        );
+        let mut statement = connection.prepare(&sql)?;
+        let rows =
+            statement.query_map(params_from_iter(&profile_ids), StoredSourceRow::from_row)?;
+        rows.map(|row| row?.into_record()).collect()
+    }
+
     pub(crate) fn remove_source(&self, profile_id: &str) -> Result<bool> {
         Ok(self
             .connection()?
@@ -1458,15 +1535,46 @@ impl Library {
         ports: &[(String, ReleaseChannel)],
     ) -> Result<(Vec<PortStatus>, StatusReadMetrics)> {
         let connection = self.connection()?;
-        let mut metrics = StatusReadMetrics::default();
+        self.statuses_from_with_metrics(&connection, ports)
+    }
 
-        metrics.record_query();
-        let settings = {
-            let mut statement = connection.prepare(
+    pub(crate) fn statuses_from_with_metrics(
+        &self,
+        connection: &Connection,
+        ports: &[(String, ReleaseChannel)],
+    ) -> Result<(Vec<PortStatus>, StatusReadMetrics)> {
+        self.statuses_from_with_metrics_and_barrier(connection, ports, || {})
+    }
+
+    pub(crate) fn statuses_from_with_metrics_and_barrier(
+        &self,
+        connection: &Connection,
+        ports: &[(String, ReleaseChannel)],
+        after_settings: impl FnOnce(),
+    ) -> Result<(Vec<PortStatus>, StatusReadMetrics)> {
+        let mut metrics = StatusReadMetrics::default();
+        if ports.is_empty() {
+            return Ok((Vec::new(), metrics));
+        }
+        let mut port_ids = ports
+            .iter()
+            .map(|(port_id, _)| port_id.clone())
+            .collect::<Vec<_>>();
+        port_ids.sort_unstable();
+        port_ids.dedup();
+        let ports_per_query = status_ports_per_query(connection)?;
+
+        let mut settings = HashMap::new();
+        for port_ids in port_ids.chunks(ports_per_query) {
+            metrics.record_query();
+            let sql = format!(
                 "SELECT port_id, channel, update_policy, active_install_id, previous_install_id
-                 FROM port_settings",
-            )?;
-            let rows = statement.query_map([], |row| {
+                 FROM port_settings
+                 WHERE port_id IN ({})",
+                sql_placeholders(port_ids.len())
+            );
+            let mut statement = connection.prepare(&sql)?;
+            let rows = statement.query_map(params_from_iter(port_ids), |row| {
                 Ok((
                     row.get::<_, String>(0)?,
                     (
@@ -1477,23 +1585,44 @@ impl Library {
                     ),
                 ))
             })?;
-            rows.collect::<std::result::Result<HashMap<_, _>, _>>()?
-        };
+            for row in rows {
+                let (port_id, setting) = row?;
+                metrics.settings_row_count += 1;
+                settings.insert(port_id, setting);
+            }
+        }
+        after_settings();
 
-        metrics.record_query();
-        let (installs, staged) = {
-            let mut statement = connection.prepare(
+        let mut installs = HashMap::new();
+        let mut staged = HashMap::new();
+        for port_ids in port_ids.chunks(ports_per_query) {
+            metrics.record_query();
+            let placeholders = sql_placeholders(port_ids.len());
+            let sql = format!(
                 "SELECT id, port_id, version, path, channel, installed_at, verified, staged,
                         artifact_name, artifact_sha256, artifact_size, manifest_sha256,
                         selected_executable, runtime_json
                  FROM installs
-                 ORDER BY installed_at DESC, rowid DESC",
-            )?;
-            let rows = statement.query_map([], StoredInstallRow::from_row)?;
-            let mut installs = HashMap::new();
-            let mut staged = HashMap::new();
+                 WHERE port_id IN ({placeholders})
+                    OR id IN (
+                        SELECT active_install_id FROM port_settings
+                        WHERE port_id IN ({placeholders})
+                        UNION
+                        SELECT previous_install_id FROM port_settings
+                        WHERE port_id IN ({placeholders})
+                    )
+                 ORDER BY installed_at DESC, rowid DESC"
+            );
+            let mut statement = connection.prepare(&sql)?;
+            let parameters = port_ids
+                .iter()
+                .chain(port_ids.iter())
+                .chain(port_ids.iter());
+            let rows =
+                statement.query_map(params_from_iter(parameters), StoredInstallRow::from_row)?;
             for row in rows {
                 let install = row?.into_record()?;
+                metrics.install_row_count += 1;
                 let id = install.id.clone();
                 let port_id = install.port_id.clone();
                 if install.staged {
@@ -1501,38 +1630,50 @@ impl Library {
                 }
                 installs.insert(id, install);
             }
-            (installs, staged)
-        };
+        }
 
-        metrics.record_query();
-        let launch_history = {
-            let mut statement = connection.prepare(
-                "SELECT port_id, last_launched_at, successful_launches FROM launch_history",
-            )?;
-            let rows = statement.query_map([], |row| {
+        let mut launch_history = HashMap::new();
+        for port_ids in port_ids.chunks(ports_per_query) {
+            metrics.record_query();
+            let sql = format!(
+                "SELECT port_id, last_launched_at, successful_launches FROM launch_history
+                 WHERE port_id IN ({})",
+                sql_placeholders(port_ids.len())
+            );
+            let mut statement = connection.prepare(&sql)?;
+            let rows = statement.query_map(params_from_iter(port_ids), |row| {
                 Ok((
                     row.get::<_, String>(0)?,
                     (row.get::<_, i64>(1)?, row.get::<_, i64>(2)?),
                 ))
             })?;
-            rows.collect::<std::result::Result<HashMap<_, _>, _>>()?
-        };
+            for row in rows {
+                let (port_id, history) = row?;
+                metrics.launch_history_row_count += 1;
+                launch_history.insert(port_id, history);
+            }
+        }
 
-        metrics.record_query();
-        let update_snapshots = {
-            let mut statement = connection
-                .prepare("SELECT port_id, check_json, checked_at FROM update_snapshots")?;
-            let rows = statement.query_map([], |row| {
+        let mut update_snapshots = HashMap::new();
+        for port_ids in port_ids.chunks(ports_per_query) {
+            metrics.record_query();
+            let sql = format!(
+                "SELECT port_id, check_json, checked_at FROM update_snapshots
+                 WHERE port_id IN ({})",
+                sql_placeholders(port_ids.len())
+            );
+            let mut statement = connection.prepare(&sql)?;
+            let rows = statement.query_map(params_from_iter(port_ids), |row| {
                 Ok((
                     row.get::<_, String>(0)?,
                     row.get::<_, String>(1)?,
                     row.get::<_, i64>(2)?,
                 ))
             })?;
-            let mut snapshots = HashMap::new();
             for row in rows {
                 let (port_id, json, checked_at) = row?;
-                snapshots.insert(
+                metrics.update_snapshot_row_count += 1;
+                update_snapshots.insert(
                     port_id,
                     UpdateSnapshot {
                         checked_at,
@@ -1540,8 +1681,7 @@ impl Library {
                     },
                 );
             }
-            snapshots
-        };
+        }
 
         let statuses = ports
             .iter()
@@ -2031,13 +2171,14 @@ mod tests {
     }
 
     #[test]
-    fn bulk_status_read_query_count_is_constant_at_scale() {
-        for record_count in [250, 500, 1_000] {
-            let temporary = tempdir().unwrap();
-            let library = Library::open(temporary.path()).unwrap();
-            let mut connection = library.connection().unwrap();
-            let transaction = connection.transaction().unwrap();
-            for index in 0..record_count {
+    fn bulk_status_read_query_count_is_bounded_at_scale() {
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let mut connection = library.connection().unwrap();
+        let transaction = connection.transaction().unwrap();
+        let mut prior_count = 0;
+        for record_count in [250, 500, 1_000, 5_000] {
+            for index in prior_count..record_count {
                 let port_id = format!("port-{index:04}");
                 transaction
                     .execute(
@@ -2054,21 +2195,255 @@ mod tests {
                     )
                     .unwrap();
             }
-            transaction.commit().unwrap();
+            prior_count = record_count;
             let ports = (0..record_count)
                 .map(|index| (format!("port-{index:04}"), ReleaseChannel::Stable))
                 .collect::<Vec<_>>();
 
-            let (statuses, metrics) = library.statuses_with_metrics(&ports).unwrap();
+            let (statuses, metrics) = library
+                .statuses_from_with_metrics(&transaction, &ports)
+                .unwrap();
 
             assert_eq!(statuses.len(), record_count);
-            assert_eq!(metrics.sqlite_query_count, 4);
+            assert_eq!(
+                metrics.sqlite_query_count,
+                4 * record_count.div_ceil(status_ports_per_query(&transaction).unwrap())
+            );
+            assert_eq!(metrics.settings_row_count, record_count);
+            assert_eq!(metrics.install_row_count, 0);
+            assert_eq!(metrics.launch_history_row_count, record_count);
+            assert_eq!(metrics.update_snapshot_row_count, 0);
             assert_eq!(statuses.first().unwrap().port_id, "port-0000");
             assert_eq!(
                 statuses.last().unwrap().successful_launches,
                 (record_count - 1) as u64
             );
         }
+        transaction.commit().unwrap();
+    }
+
+    #[test]
+    fn status_reads_chunk_to_the_connection_variable_limit_and_preserve_order() {
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let connection = library.connection().unwrap();
+        connection
+            .set_limit(Limit::SQLITE_LIMIT_VARIABLE_NUMBER, 9)
+            .unwrap();
+        for index in 0..10 {
+            connection
+                .execute(
+                    "INSERT INTO port_settings(port_id, channel, update_policy)
+                     VALUES (?1, 'stable', 'notify')",
+                    [format!("port-{index:02}")],
+                )
+                .unwrap();
+        }
+        let ports = (0..10)
+            .rev()
+            .map(|index| (format!("port-{index:02}"), ReleaseChannel::Stable))
+            .collect::<Vec<_>>();
+
+        let (statuses, metrics) = library
+            .statuses_from_with_metrics(&connection, &ports)
+            .unwrap();
+
+        assert_eq!(metrics.sqlite_query_count, 16);
+        assert_eq!(statuses.len(), 10);
+        assert_eq!(statuses[0].port_id, "port-09");
+        assert_eq!(statuses[9].port_id, "port-00");
+    }
+
+    #[test]
+    fn single_status_read_decodes_only_requested_port_rows() {
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let target_install = InstallRecord {
+            id: "target-install".into(),
+            port_id: "target-port".into(),
+            version: "1.0.0".into(),
+            path: temporary.path().join("target-port"),
+            channel: ReleaseChannel::Stable,
+            installed_at: Library::now(),
+            verified: true,
+            staged: false,
+            artifact: ArtifactIdentity::default(),
+            manifest_sha256: String::new(),
+            selected_executable: PathBuf::from("game.exe"),
+            runtime: None,
+        };
+        library.register_install(&target_install, true).unwrap();
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "INSERT INTO launch_history(port_id, last_launched_at, successful_launches)
+                 VALUES ('target-port', 7, 3)",
+                [],
+            )
+            .unwrap();
+        library
+            .store_update_snapshot(&UpdateCheck {
+                port_id: "target-port".into(),
+                channel: ReleaseChannel::Stable,
+                installed_version: Some("1.0.0".into()),
+                installed_artifact: None,
+                installed_runtime: None,
+                required_runtime: None,
+                update_available: false,
+                release: crate::ResolvedRelease {
+                    version: "1.0.0".into(),
+                    channel: ReleaseChannel::Stable,
+                    published_at: None,
+                    asset: crate::ReleaseAsset {
+                        name: "archive.zip".into(),
+                        url: "https://example.invalid/archive.zip".into(),
+                        size: 1,
+                        sha256: "a".repeat(64),
+                    },
+                },
+            })
+            .unwrap();
+
+        let mut connection = library.connection().unwrap();
+        let transaction = connection.transaction().unwrap();
+        let mut prior_count = 0;
+        for unrelated_count in [1, 250, 1_000, 5_000] {
+            for index in prior_count..unrelated_count {
+                let port_id = format!("unrelated-{index:04}");
+                transaction
+                    .execute(
+                        "INSERT INTO port_settings(port_id, channel, update_policy)
+                         VALUES (?1, 'not-a-channel', 'notify')",
+                        [&port_id],
+                    )
+                    .unwrap();
+                transaction
+                    .execute(
+                        "INSERT INTO installs(
+                            id, port_id, version, path, channel, installed_at, verified, staged,
+                            artifact_name, artifact_sha256, artifact_size, manifest_sha256,
+                            selected_executable, runtime_json
+                         ) VALUES (?1, ?2, '1.0.0', 'C:/unrelated', 'stable', 0, 1, 0,
+                                   'archive.zip', ?3, 1, ?3, 'game.exe', 'not-json')",
+                        params![
+                            format!("unrelated-install-{index:04}"),
+                            port_id,
+                            "b".repeat(64)
+                        ],
+                    )
+                    .unwrap();
+                transaction
+                    .execute(
+                        "INSERT INTO launch_history(port_id, last_launched_at, successful_launches)
+                         VALUES (?1, 0, 0)",
+                        [&port_id],
+                    )
+                    .unwrap();
+                transaction
+                    .execute(
+                        "INSERT INTO update_snapshots(port_id, check_json, checked_at)
+                         VALUES (?1, 'not-json', 0)",
+                        [&port_id],
+                    )
+                    .unwrap();
+            }
+            prior_count = unrelated_count;
+
+            let (statuses, metrics) = library
+                .statuses_from_with_metrics(
+                    &transaction,
+                    &[("target-port".into(), ReleaseChannel::Stable)],
+                )
+                .unwrap();
+            assert_eq!(statuses.len(), 1);
+            assert_eq!(statuses[0].active.as_ref().unwrap().id, "target-install");
+            assert_eq!(statuses[0].successful_launches, 3);
+            assert_eq!(metrics.sqlite_query_count, 4);
+            assert_eq!(metrics.settings_row_count, 1);
+            assert_eq!(metrics.install_row_count, 1);
+            assert_eq!(metrics.launch_history_row_count, 1);
+            assert_eq!(metrics.update_snapshot_row_count, 1);
+        }
+        transaction.commit().unwrap();
+    }
+
+    #[test]
+    fn scoped_status_read_still_rejects_relevant_corruption() {
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "INSERT INTO port_settings(port_id, channel, update_policy)
+                 VALUES ('target-port', 'not-a-channel', 'notify')",
+                [],
+            )
+            .unwrap();
+
+        let error = library
+            .status("target-port", ReleaseChannel::Stable)
+            .unwrap_err();
+
+        assert_eq!(error.code, crate::ErrorCode::Usage);
+        assert!(error.message.contains("unknown release channel"));
+    }
+
+    #[test]
+    fn scoped_source_read_does_not_decode_unrelated_records() {
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let connection = library.connection().unwrap();
+        connection
+            .execute(
+                "INSERT INTO sources(
+                    profile_id, path, sha256, size, storage_sha256, storage_size,
+                    updated_at, observed_identity_json
+                 ) VALUES ('target-source', 'target.bin', ?1, 1, ?1, 1, 7, NULL)",
+                ["a".repeat(64)],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO sources(
+                    profile_id, path, sha256, size, storage_sha256, storage_size,
+                    updated_at, observed_identity_json
+                 ) VALUES ('unrelated-source', 'other.bin', ?1, 1, ?1, 1, 7, 'not-json')",
+                ["b".repeat(64)],
+            )
+            .unwrap();
+
+        let sources = library.sources_for(&["target-source".into()]).unwrap();
+
+        assert_eq!(sources.len(), 1);
+        assert_eq!(sources[0].profile_id, "target-source");
+        assert!(library.sources().is_err());
+    }
+
+    #[test]
+    fn change_observer_compares_data_version_on_one_persistent_connection() {
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let mut observer = library.change_observer().unwrap();
+
+        assert!(!observer.changed().unwrap());
+        library
+            .ensure_settings("target-port", ReleaseChannel::Stable)
+            .unwrap();
+        assert!(observer.changed().unwrap());
+        assert!(!observer.changed().unwrap());
+
+        let mut replacement = library.change_observer().unwrap();
+        assert!(!replacement.changed().unwrap());
+        library
+            .set_update_policy(
+                "target-port",
+                UpdatePolicy::Automatic,
+                ReleaseChannel::Stable,
+            )
+            .unwrap();
+        assert!(replacement.changed().unwrap());
     }
 
     #[test]
