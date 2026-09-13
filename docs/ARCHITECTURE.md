@@ -814,14 +814,16 @@ requires the exact eligible apply-journal revision, then waits up to two minutes
 the persistent user-scoped application-runtime lock to become exclusively available.
 Using the runtime lock avoids the process-ID race where a fast parent can disappear
 before a child opens its handle and also accounts for other Portcove processes.
-Packaged qualification first proves an unsupported future apply-journal schema
-fails closed while the stable predecessor restarts and every pending byte remains
-unchanged. It then holds the shared lock in another process, verifies the helper
-leaves the stable AppImage and pending state unchanged while blocked, and releases
-the peer so the same helper can continue. The
-helper releases that probe, obtains a newly observed installed context and fresh
-authenticated selection through its host-owned Rust provider, and immediately
-acquires the canonical apply, preference, staging, application and library lease.
+Packaged qualification first proves an unsupported future apply-journal schema and
+an update-state directory without owner write permission each fail closed while the
+stable predecessor restarts and every pending byte remains unchanged. It restores
+only the fixture schema or owner permission needed to continue. It then holds the
+shared lock in another process, verifies the helper leaves the stable AppImage and
+pending state unchanged while blocked, and releases the peer so the same helper can
+continue. The helper releases that probe, obtains a newly observed installed context
+and fresh authenticated selection through its host-owned Rust provider, and
+immediately acquires the canonical apply, preference, staging, application and
+library lease.
 The retained and newly observed installed contexts must match. A process that starts
 during the fresh check wins the shared runtime lock and safely defers replacement.
 The exact `--portcove-apply-update <revision>` helper mode is reachable only from
