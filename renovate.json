@@ -6,7 +6,6 @@
   "automerge": false,
   "minimumReleaseAge": "3 days",
   "internalChecksFilter": "strict",
-  "prCreation": "not-pending",
   "prConcurrentLimit": 5,
   "branchConcurrentLimit": 5,
   "rangeStrategy": "bump",
@@ -55,7 +54,10 @@
     },
     {
       "description": "Do not replace the reviewed SQLite upstream revision automatically",
-      "matchPackageNames": ["rusqlite"],
+      "matchManagers": ["cargo"],
+      "matchDatasources": ["git-refs"],
+      "matchDepNames": ["rusqlite"],
+      "matchPackageNames": ["https://github.com/rusqlite/rusqlite"],
       "enabled": false
     }
   ],

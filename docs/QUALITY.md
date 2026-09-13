@@ -374,9 +374,12 @@ operation-lock behavior.
 npm, GitHub Actions and Rust toolchains, plus regex-managed Node, repository
 quality crates, tauri-driver, Aqua and its registry/tools, PSScriptAnalyzer, and
 the release Syft version. It groups coupled ecosystems, pins action digests,
-waits three days for new releases, disables automerge, and refuses pending
-release-age checks. Repository tests require those nonstandard authorities and
-every external action to remain covered.
+waits three days before proposing new releases, disables automerge, and opens
+eligible pull requests immediately so pull-request-only CI can evaluate them.
+The reviewed `rusqlite` Git revision is excluded by its Cargo-extracted URL,
+short dependency name, manager, and datasource. Repository tests reproduce that
+identity and require every nonstandard authority and external action to remain
+covered.
 
 GitHub vulnerability alerts and automated Dependabot security fixes remain
 enabled. Weekly Cargo, npm, and GitHub Actions updates stay configured in

@@ -76,6 +76,12 @@ test("assembler reconciles the full matrix then generates and checksums the rele
   assert(reconcile >= 0 && sbom > reconcile && finalize > sbom && upload > finalize);
   assert.match(assembleSection, /syft-version: v1\.51\.1/);
   assert.match(assembleSection, /upload-release-assets: false/);
+  assert.match(
+    assembleSection,
+    /--sbom-subject-checksums release-attestation\/sbom-subject-checksums\.txt/,
+  );
+  assert.match(assembleSection, /name: release-attestation-metadata/);
+  assert.match(assembleSection, /path: release-attestation\/sbom-subject-checksums\.txt/);
   assert.match(assembleSection, /Refusing to modify non-draft release/);
   assert.match(assembleSection, /Refusing to rewrite existing release notes/);
   assert.doesNotMatch(assembleSection, /releases\/generate-notes/);
@@ -86,6 +92,11 @@ test("manual rehearsal verifies every finalized checksum without release write a
   assert.match(rehearseSection, /^ {4}needs: assemble$/m);
   assert.match(rehearseSection, /name: release-final/);
   assert.match(rehearseSection, /sha256sum --check --strict SHA256SUMS\.txt/);
+  assert.match(rehearseSection, /name: release-attestation-metadata/);
+  assert.match(
+    rehearseSection,
+    /sha256sum --check --strict \.\.\/release-attestation\/sbom-subject-checksums\.txt/,
+  );
   assert.doesNotMatch(rehearseSection, /gh release/);
 });
 
@@ -94,7 +105,15 @@ test("tag releases attest exact final bytes and the SBOM before draft mutation",
   assert.match(attestSection, /^ {4}needs: assemble$/m);
   assert.equal((attestSection.match(/actions\/attest@/g) ?? []).length, 2);
   assert.match(attestSection, /subject-path: release-assets-aggregate\/\*/);
-  assert.match(attestSection, /subject-checksums: release-assets-aggregate\/SHA256SUMS\.txt/);
+  assert.match(attestSection, /name: release-attestation-metadata/);
+  assert.match(
+    attestSection,
+    /subject-checksums: release-attestation\/sbom-subject-checksums\.txt/,
+  );
+  assert.doesNotMatch(
+    attestSection,
+    /subject-checksums: release-assets-aggregate\/SHA256SUMS\.txt/,
+  );
   assert.match(attestSection, /sbom-path: release-assets-aggregate\/Portcove-SBOM\.spdx\.json/);
   assert.match(publishSection, /^ {4}needs: \[assemble, attest\]$/m);
 });
@@ -108,6 +127,7 @@ test("publisher mutates drafts only from precomputed metadata and attested asset
     publishSection,
     /gh release create "\$RELEASE_TAG"[\s\S]*--generate-notes[\s\S]*--notes-file release-metadata\/generated-release-body\.md/,
   );
+  assert.match(publishSection, /gh release create "\$RELEASE_TAG"[\s\S]*--verify-tag/);
   assert.doesNotMatch(publishSection, /gh release edit/);
   assert.match(publishSection, /gh release delete-asset/);
   assert.match(publishSection, /gh release upload/);
@@ -125,5 +145,6 @@ test("cleanup deletes transient artifacts only after successful rehearsal or pub
   assert.match(cleanupSection, /needs\.publish\.result == 'success'/);
   assert.match(cleanupSection, /release-build-/);
   assert.match(cleanupSection, /release-final/);
+  assert.match(cleanupSection, /release-attestation-metadata/);
   assert.match(cleanupSection, /release-publication-metadata/);
 });

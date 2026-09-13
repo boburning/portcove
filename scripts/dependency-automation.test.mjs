@@ -60,15 +60,10 @@ test("Renovate is conservative complete and staged behind existing Dependabot", 
   assert.equal(renovate.automerge, false);
   assert.equal(renovate.minimumReleaseAge, "3 days");
   assert.equal(renovate.internalChecksFilter, "strict");
-  assert.equal(renovate.prCreation, "not-pending");
+  assert.equal(Object.hasOwn(renovate, "prCreation"), false);
   for (const manager of ["cargo", "npm", "github-actions", "rust-toolchain", "custom.regex"])
     assert(renovate.enabledManagers.includes(manager));
   assert(renovate.packageRules.some((rule) => rule.pinDigests === true));
-  assert(
-    renovate.packageRules.some(
-      (rule) => rule.matchPackageNames?.includes("rusqlite") && rule.enabled === false,
-    ),
-  );
   const managedFiles = renovate.customManagers.flatMap((manager) => manager.managerFilePatterns);
   for (const expected of [
     "quality-tools",
@@ -93,6 +88,33 @@ test("Renovate is conservative complete and staged behind existing Dependabot", 
   );
   assert.equal(powershellAnalyzerManager.versioningTemplate, "nuget");
   assert.match(await read(".github/dependabot.yml"), /package-ecosystem:/u);
+});
+
+test("Renovate excludes the extracted rusqlite Git dependency identity", async () => {
+  const renovate = JSON.parse(await read("renovate.json"));
+  const cargo = await read("Cargo.toml");
+  const declaration = cargo.match(
+    /^rusqlite\s*=\s*\{\s*git\s*=\s*"([^"]+)",\s*rev\s*=\s*"([a-f0-9]{40})"/mu,
+  );
+  assert(declaration, "workspace rusqlite Git dependency is missing");
+  const extraction = {
+    manager: "cargo",
+    datasource: "git-refs",
+    depName: "rusqlite",
+    packageName: declaration[1],
+    currentDigest: declaration[2],
+  };
+  assert.equal(extraction.packageName, "https://github.com/rusqlite/rusqlite");
+
+  const matchingRules = renovate.packageRules.filter(
+    (rule) =>
+      rule.matchManagers?.includes(extraction.manager) &&
+      rule.matchDatasources?.includes(extraction.datasource) &&
+      rule.matchDepNames?.includes(extraction.depName) &&
+      rule.matchPackageNames?.includes(extraction.packageName),
+  );
+  assert.equal(matchingRules.length, 1);
+  assert.equal(matchingRules[0].enabled, false);
 });
 
 test("every Renovate custom manager matches its committed authority", async () => {
