@@ -15,6 +15,7 @@ import { BackupHistory } from "./BackupHistory";
 import { DetailPanel, type DetailActions } from "./DetailPanel";
 import { PortBrowser } from "./PortBrowser";
 import { UpdateCenter } from "./UpdateCenter";
+import { RecoveryReview } from "./RecoveryReview";
 import { AdoptionModal } from "./AdoptionModal";
 import { applyOperationEvent, mostRecentOperation } from "../operation-state";
 
@@ -134,6 +135,9 @@ describe("desktop components", () => {
             },
           ]}
           outcomes={[]}
+          diagnosticsRefreshing={false}
+          diagnosticsStale={false}
+          refreshDiagnostics={vi.fn()}
           checkAll={vi.fn()}
           onSelect={vi.fn()}
           onOpenSources={vi.fn()}
@@ -1644,6 +1648,9 @@ describe("desktop components", () => {
           },
         ]}
         busy={undefined}
+        diagnosticsRefreshing={false}
+        diagnosticsStale={false}
+        refreshDiagnostics={vi.fn()}
         checkAll={vi.fn()}
         onSelect={vi.fn()}
         onOpenSources={vi.fn()}
@@ -1698,5 +1705,27 @@ describe("desktop components", () => {
     expect(html).toContain("No completion recorded");
     expect(html).toContain('<button data-focusable="true">sample-rom</button>');
     expect(html).toContain("Completed, failed, and interrupted work recorded on this device");
+  });
+
+  it("distinguishes never-loaded and stale recovery diagnostics from a healthy empty report", () => {
+    const neverLoaded = renderToStaticMarkup(
+      <RecoveryReview ports={[port]} refreshing={false} stale refresh={vi.fn()} />,
+    );
+    expect(neverLoaded).toContain('data-diagnostic-state="never-loaded"');
+    expect(neverLoaded).toContain("has not been checked");
+    expect(neverLoaded).toContain("Refresh recovery information");
+    expect(neverLoaded).not.toContain("No recovery items were recorded");
+
+    const stale = renderToStaticMarkup(
+      <RecoveryReview
+        ports={[port]}
+        repair={{ generated_at: 1, items: [] }}
+        refreshing
+        stale
+        refresh={vi.fn()}
+      />,
+    );
+    expect(stale).toContain("last completed check remains visible");
+    expect(stale).toContain("No recovery items were recorded");
   });
 });

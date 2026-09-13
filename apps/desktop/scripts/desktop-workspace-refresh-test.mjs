@@ -1,10 +1,20 @@
 import assert from "node:assert/strict";
 import path from "node:path";
-import { writeFile } from "node:fs/promises";
+import { copyFile, mkdir, writeFile } from "node:fs/promises";
 import { By, until } from "selenium-webdriver";
+import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 import { captureAccessibilityReport } from "./desktop-review-controls.mjs";
 
-export async function workspaceRefreshScenario({ browser, scenario, output, artifacts }) {
+export async function workspaceRefreshScenario({
+  browser,
+  invoke,
+  scenario,
+  library,
+  output,
+  artifacts,
+  cli,
+  tool,
+}) {
   await scenario("native-workspace-refresh-recovery", async () => {
     await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
     await browser.wait(until.elementLocated(By.css(".port-card")), 10_000);
@@ -148,6 +158,144 @@ export async function workspaceRefreshScenario({ browser, scenario, output, arti
         });
         artifacts.push(report);
       }
+    }
+  });
+
+  await scenario("native-external-cli-reconciliation", async () => {
+    assert.ok(cli && tool, "external CLI reconciliation requires owned fixture inputs");
+    const command = (args) => {
+      const result = spawnCommand(
+        cli,
+        ["--library", library, "--json", "--non-interactive", ...args],
+        {
+          encoding: "utf8",
+          windowsHide: true,
+          timeout: 15_000,
+          env: { ...process.env, PORTCOVE_PREFERENCES: path.join(output, "preferences.json") },
+        },
+      );
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+      const response = JSON.parse(result.stdout);
+      assert.equal(response.ok, true);
+      return response.data;
+    };
+    const platform =
+      process.platform === "win32"
+        ? "windows-x86-64"
+        : process.platform === "darwin"
+          ? process.arch === "arm64"
+            ? "macos-aarch64"
+            : "macos-x86-64"
+          : "linux-x86-64";
+    const port = command(["catalog", "show", "opengoal-jak1"]);
+    const original = path.join(output, "external-cli-owned-install");
+    await mkdir(original);
+    for (const relative of [
+      port.executable_hints[platform][0],
+      port.setup_executable_hints[platform][0],
+    ]) {
+      const destination = path.join(original, relative);
+      await mkdir(path.dirname(destination), { recursive: true });
+      await copyFile(tool, destination);
+    }
+    const observations = {
+      mutation_process: "standalone CLI",
+      synthetic_desktop_events: 0,
+      intervals_ms: { visible_idle_database: 10_000, visible_filesystem_fallback: 60_000 },
+      commands: [],
+    };
+    await browser.executeScript(() => {
+      const originalFetch = window.fetch;
+      window.__portcoveExternalReconciliationProbe = { originalFetch, commands: [] };
+      window.fetch = function (input, ...args) {
+        const url = typeof input === "string" ? input : (input.url ?? String(input));
+        const parsed = new URL(url, location.href);
+        if (parsed.hostname === "ipc.localhost")
+          window.__portcoveExternalReconciliationProbe.commands.push(
+            decodeURIComponent(parsed.pathname.slice(1)),
+          );
+        return originalFetch.call(window, input, ...args);
+      };
+    });
+    try {
+      const started = Date.now();
+      const install = command(["adopt", original, "--port", port.id, "--yes"]);
+      await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
+      await browser.wait(until.elementLocated(By.css('b[aria-label="1 installed"]')), 15_000);
+      const cardLocator = By.xpath(
+        `//button[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
+      );
+      const card = await browser.wait(until.elementLocated(cardLocator), 15_000);
+      const beforeSource = await card.getAttribute("aria-label");
+      observations.install = {
+        id: install.id,
+        version: install.version,
+        converged_ms: Date.now() - started,
+        card_before_source: beforeSource,
+      };
+
+      const source = path.join(output, "external-cli-source.iso");
+      await writeFile(source, "owned source awaiting upstream validation");
+      const sourceStarted = Date.now();
+      command(["source", "add", port.source_profile, source]);
+      await browser.wait(
+        async () => (await card.getAttribute("aria-label")) !== beforeSource,
+        15_000,
+      );
+      observations.source = {
+        profile_id: port.source_profile,
+        converged_ms: Date.now() - sourceStarted,
+        card_after_source: await card.getAttribute("aria-label"),
+      };
+
+      await card.click();
+      const activityBefore = await invoke("get_activities");
+      assert.equal(activityBefore.ok, true);
+      const policyStarted = Date.now();
+      command(["policy", "set", port.id, "automatic"]);
+      const policyControl = By.xpath('//button[contains(., "Saved update policy")]');
+      await browser.wait(
+        async () =>
+          (await browser.findElement(policyControl).getText()).includes(
+            "Install when running updates",
+          ),
+        15_000,
+      );
+      const activityAfter = await invoke("get_activities");
+      assert.equal(activityAfter.ok, true);
+      assert.equal(
+        activityAfter.value.length,
+        activityBefore.value.length,
+        "policy mutation must exercise reconciliation without a new activity row",
+      );
+      const adoptedActivity = activityAfter.value.find(
+        (activity) => activity.operation === "adopt" && activity.target_id === port.id,
+      );
+      assert.equal(adoptedActivity?.status, "succeeded");
+      observations.policy = {
+        value: "automatic",
+        converged_ms: Date.now() - policyStarted,
+        activity_rows_before: activityBefore.value.length,
+        activity_rows_after: activityAfter.value.length,
+      };
+      observations.commands = await browser.executeScript(
+        () => window.__portcoveExternalReconciliationProbe.commands,
+      );
+      assert.ok(observations.commands.includes("get_workspace_changed"));
+      assert.ok(observations.commands.includes("get_workspace_snapshot"));
+    } finally {
+      const probe = await browser.executeScript(() => {
+        const current = window.__portcoveExternalReconciliationProbe;
+        if (!current) return { restored: false, commands: [] };
+        window.fetch = current.originalFetch;
+        delete window.__portcoveExternalReconciliationProbe;
+        return { restored: window.fetch === current.originalFetch, commands: current.commands };
+      });
+      assert.equal(probe.restored, true);
+      observations.commands = probe.commands;
+      const report = path.join(output, "external-cli-reconciliation-observations.json");
+      await writeFile(report, JSON.stringify(observations, null, 2), { flag: "wx" });
+      artifacts.push(report);
     }
   });
 }

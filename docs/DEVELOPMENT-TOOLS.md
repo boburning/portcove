@@ -113,8 +113,9 @@ The curated profiles are:
 - `restart`: appearance restart and workspace refresh. Positive `--reload-cycles`
   opts this and other profiles into the repeated reload probe.
 - `artwork`: owned local artwork and the real native file picker.
-- `owned-lifecycle`: reviewed preparation, readiness, recovery, settings, channel,
-  backup/removal, source/adoption, library-move and CLI-handoff scenarios.
+- `owned-lifecycle`: external CLI-to-Desktop reconciliation plus reviewed preparation,
+  readiness, recovery, settings, channel, backup/removal, source/adoption,
+  library-move and CLI-handoff scenarios.
 - `full`: smoke, owned lifecycle and artwork. Its reviewed-install gap means it is
   incomplete rather than universal desktop qualification.
 

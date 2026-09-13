@@ -1,11 +1,14 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  ActivityRefreshScheduler,
   addPendingOperation,
   CoalescedRequest,
   LatestRequestGeneration,
   mostRecentPendingOperation,
   removePendingOperation,
 } from "./concurrency-state";
+
+afterEach(() => vi.useRealTimers());
 
 function deferred() {
   let resolve!: () => void;
@@ -115,6 +118,85 @@ describe("overlapping desktop work", () => {
     await expect(requests.request(task)).resolves.toBe("disposed");
     first.resolve();
     await first.promise;
+    expect(task).toHaveBeenCalledOnce();
+  });
+
+  it("bounds separate-turn progress reads without starving sustained progress", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const task = vi.fn().mockResolvedValue(undefined);
+    const scheduler = new ActivityRefreshScheduler(task, 500);
+
+    await scheduler.request("progress");
+    for (let elapsed = 100; elapsed <= 2_000; elapsed += 100) {
+      await vi.advanceTimersByTimeAsync(100);
+      void scheduler.request("progress");
+    }
+
+    expect(task).toHaveBeenCalledTimes(5);
+    scheduler.close();
+  });
+
+  it("coalesces event, poll, and focus hints and flushes boundaries promptly", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const task = vi.fn().mockResolvedValue(undefined);
+    const scheduler = new ActivityRefreshScheduler(task, 500);
+
+    await Promise.all([
+      scheduler.request("prompt"),
+      scheduler.request("prompt"),
+      scheduler.request("progress"),
+    ]);
+    expect(task).toHaveBeenCalledOnce();
+
+    vi.setSystemTime(100);
+    const delayed = scheduler.request("progress");
+    vi.setSystemTime(150);
+    await scheduler.request("prompt");
+    await expect(delayed).resolves.toBe("completed");
+    expect(task).toHaveBeenCalledTimes(2);
+    scheduler.close();
+  });
+
+  it("keeps slow overlapping reads to one in flight plus one follow-up", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const first = deferred();
+    const task = vi
+      .fn()
+      .mockImplementationOnce(() => first.promise)
+      .mockResolvedValue(undefined);
+    const scheduler = new ActivityRefreshScheduler(task, 500);
+
+    const initial = scheduler.request("progress");
+    await Promise.resolve();
+    for (let elapsed = 100; elapsed <= 1_500; elapsed += 100) {
+      await vi.advanceTimersByTimeAsync(100);
+      void scheduler.request("progress");
+    }
+    expect(task).toHaveBeenCalledOnce();
+    first.resolve();
+    await initial;
+    await vi.runAllTimersAsync();
+    expect(task).toHaveBeenCalledTimes(2);
+    scheduler.close();
+  });
+
+  it("does not retry failed reads and disposes delayed waiters", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const error = new Error("activity read failed");
+    const task = vi.fn().mockRejectedValue(error);
+    const scheduler = new ActivityRefreshScheduler(task, 500);
+
+    await expect(scheduler.request("progress")).rejects.toBe(error);
+    vi.setSystemTime(100);
+    const delayed = scheduler.request("progress");
+    scheduler.close();
+
+    await expect(delayed).resolves.toBe("disposed");
+    await vi.runAllTimersAsync();
     expect(task).toHaveBeenCalledOnce();
   });
 });
