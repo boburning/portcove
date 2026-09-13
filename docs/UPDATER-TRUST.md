@@ -345,7 +345,14 @@ same exact current-user NSIS registration used by replacement admission, then ad
 the compiled target, API, catalog, library reader/writer and lock compatibility
 identity plus the actual Windows version. The provider implements both the regular
 authenticated checker and the helper's fresh post-exit selection boundary. The
-The ordinary alpha build supplies no production root or origin. In an updater-enabled
+Linux provider accepts only an absolute, direct AppImage source with owner write
+and execute bits whose running executable is inside the native read-only FUSE
+`APPDIR` mount recorded by the Linux kernel. It reports the shared compiled
+compatibility identity and current kernel version;
+DEB, RPM, unpackaged, linked and foreign-owned launches remain under their existing
+owner and cannot enter the in-app update path. This observation enables trusted
+selection and staging only; Linux replacement and package qualification remain
+separate gates. The ordinary alpha build supplies no production root or origin. In an updater-enabled
 build, the fixed manual check and explicit restart helper are the only commands that
 activate this provider; no automatic startup schedule or safe-exit hook does so.
 

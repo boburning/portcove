@@ -129,7 +129,12 @@ impl InstalledApplicationContextSource for CurrentInstalledApplicationContext {
                     "the running package is not an eligible registered installation".into()
                 })
         }
-        #[cfg(not(windows))]
+        #[cfg(target_os = "linux")]
+        {
+            crate::application_update_linux::current_linux_appimage_context()
+                .map_err(|error| error.to_string())
+        }
+        #[cfg(not(any(windows, target_os = "linux")))]
         {
             Err("this build has no installed application update adapter".into())
         }
