@@ -7,6 +7,8 @@ pub mod application_update_coordinator;
 pub mod application_update_download;
 pub mod application_update_helper;
 pub mod application_update_host;
+#[cfg(any(target_os = "linux", test))]
+pub mod application_update_linux;
 mod application_update_network;
 pub mod application_update_operation;
 pub mod application_update_payload;

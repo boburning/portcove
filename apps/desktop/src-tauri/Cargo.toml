@@ -52,3 +52,6 @@ windows = { version = "0.61.3", features = [
 ] }
 windows-sys.workspace = true
 windows-version.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libc.workspace = true
