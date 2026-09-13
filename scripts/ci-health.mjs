@@ -21,6 +21,12 @@ export function summarizeAttempt(run, jobs) {
       job.status === "completed" && job.conclusion !== "skipped"
         ? secondsBetween(job.started_at, job.completed_at)
         : null,
+    preStartSeconds:
+      job.status === "completed" && job.conclusion !== "skipped"
+        ? secondsBetween(job.created_at, job.started_at)
+        : null,
+    runner: job.runner_group_name ?? null,
+    labels: Array.isArray(job.labels) ? job.labels : [],
     steps: (job.steps ?? [])
       .filter((step) => step.status === "completed")
       .map((step) => ({
@@ -31,6 +37,25 @@ export function summarizeAttempt(run, jobs) {
       .sort((a, b) => b.seconds - a.seconds)
       .slice(0, 3),
   }));
+  const completed = measuredJobs.filter((job) => job.seconds !== null);
+  const completedJobs = jobs.filter(
+    (job) =>
+      job.status === "completed" &&
+      job.conclusion !== "skipped" &&
+      secondsBetween(job.started_at, job.completed_at) !== null,
+  );
+  const firstJobStarted = completedJobs
+    .map((job) => job.started_at)
+    .filter((stamp) => Number.isFinite(Date.parse(stamp)))
+    .sort((left, right) => Date.parse(left) - Date.parse(right))[0];
+  const lastJobCompleted = completedJobs
+    .map((job) => job.completed_at)
+    .filter((stamp) => Number.isFinite(Date.parse(stamp)))
+    .sort((left, right) => Date.parse(right) - Date.parse(left))[0];
+  const runnerCohort = [
+    ...new Set(measuredJobs.flatMap((job) => [job.runner, ...job.labels].filter(Boolean))),
+  ].sort();
+  const workflowSeconds = run.status === "completed" ? secondsBetween(start, run.updated_at) : null;
   return {
     runId: run.id,
     attempt: run.run_attempt,
@@ -40,11 +65,36 @@ export function summarizeAttempt(run, jobs) {
     status: run.status,
     conclusion: run.conclusion,
     url: `${run.html_url}/attempts/${run.run_attempt}`,
-    seconds: run.status === "completed" ? secondsBetween(start, run.updated_at) : null,
+    workflowId: run.workflow_id ?? null,
+    workflowName: run.name ?? null,
+    cohort: `workflow:${run.workflow_id ?? run.name ?? "unknown"};runners:${runnerCohort.join(",") || "unknown"};toolchain:unreported`,
+    seconds: workflowSeconds,
+    timing: {
+      workflowSeconds,
+      preJobSeconds: firstJobStarted ? secondsBetween(start, firstJobStarted) : null,
+      observedJobWindowSeconds:
+        firstJobStarted && lastJobCompleted
+          ? secondsBetween(firstJobStarted, lastJobCompleted)
+          : null,
+      aggregationSeconds: lastJobCompleted
+        ? secondsBetween(lastJobCompleted, run.updated_at)
+        : null,
+      summedRunnerSeconds:
+        completed.length > 0 ? completed.reduce((total, job) => total + job.seconds, 0) : null,
+    },
     jobs: measuredJobs,
     failedJobs: measuredJobs
       .filter((job) => job.conclusion === "failure" || job.conclusion === "timed_out")
       .map((job) => job.name),
+    failures: jobs
+      .filter((job) => job.conclusion === "failure" || job.conclusion === "timed_out")
+      .map((job) => ({
+        job: job.name,
+        url: job.html_url,
+        steps: (job.steps ?? [])
+          .filter((step) => step.conclusion === "failure" || step.conclusion === "timed_out")
+          .map((step) => step.name),
+      })),
   };
 }
 
@@ -58,6 +108,13 @@ function distribution(values) {
     p95Seconds: sorted.length >= 20 ? percentile(0.95) : null,
     maxSeconds: sorted.at(-1) ?? null,
   };
+}
+
+function stepCategory(name) {
+  if (/checkout|setup|install|cache|restore|download|read .*pin|prepare .*fixture/iu.test(name))
+    return "setup/tool acquisition";
+  if (/test|build|clippy|lint|check|execute|archive|verify/iu.test(name)) return "execution";
+  return "other";
 }
 
 export function summarizeHistory(attempts) {
@@ -93,13 +150,27 @@ export function summarizeHistory(attempts) {
         : [];
     });
   const jobSamples = new Map();
+  const stepSamples = new Map();
   for (const attempt of successful.filter((attempt) => attempt.attempt === 1)) {
     for (const job of attempt.jobs) {
       if (job.seconds === null) continue;
       const samples = jobSamples.get(job.name) ?? [];
       samples.push(job.seconds);
       jobSamples.set(job.name, samples);
+      for (const step of job.steps) {
+        const key = `${job.name}\0${step.name}`;
+        const values = stepSamples.get(key) ?? [];
+        values.push(step.seconds);
+        stepSamples.set(key, values);
+      }
     }
+  }
+  const successfulFirst = successful.filter((attempt) => attempt.attempt === 1);
+  const cohorts = new Map();
+  for (const attempt of successfulFirst) {
+    const samples = cohorts.get(attempt.cohort) ?? [];
+    samples.push(attempt);
+    cohorts.set(attempt.cohort, samples);
   }
   return {
     runs: new Set(attempts.map((attempt) => attempt.runId)).size,
@@ -130,10 +201,52 @@ export function summarizeHistory(attempts) {
       (attempt) => attempt.status === "completed" && attempt.seconds === null,
     ).length,
     slowestJobs: [...jobSamples]
-      .map(([name, values]) => ({ name, ...distribution(values) }))
+      .map(([name, values]) => ({
+        name,
+        ...distribution(values),
+        slowestSteps: [...stepSamples]
+          .filter(([key]) => key.startsWith(`${name}\0`))
+          .map(([key, stepValues]) => ({
+            name: key.split("\0")[1],
+            category: stepCategory(key.split("\0")[1]),
+            ...distribution(stepValues),
+          }))
+          .sort((left, right) => right.p50Seconds - left.p50Seconds)
+          .slice(0, 3),
+      }))
       .sort((a, b) => b.p50Seconds - a.p50Seconds)
       .slice(0, 8),
     rerunRecoveries: recoveries,
+    timing: {
+      preJob: distribution(successfulFirst.map((attempt) => attempt.timing.preJobSeconds)),
+      observedJobWindow: distribution(
+        successfulFirst.map((attempt) => attempt.timing.observedJobWindowSeconds),
+      ),
+      aggregation: distribution(
+        successfulFirst.map((attempt) => attempt.timing.aggregationSeconds),
+      ),
+      summedRunner: distribution(
+        successfulFirst.map((attempt) => attempt.timing.summedRunnerSeconds),
+      ),
+    },
+    cohorts: [...cohorts]
+      .map(([name, samples]) => ({
+        name,
+        attempts: samples.length,
+        workflow: distribution(samples.map((attempt) => attempt.seconds)),
+      }))
+      .sort((left, right) => right.attempts - left.attempts),
+    failureLeads: attempts
+      .filter((attempt) => attempt.failures.length > 0)
+      .flatMap((attempt) =>
+        attempt.failures.map((failure) => ({
+          runId: attempt.runId,
+          attempt: attempt.attempt,
+          sha: attempt.sha,
+          ...failure,
+        })),
+      )
+      .slice(0, 10),
   };
 }
 
@@ -206,7 +319,7 @@ export function renderReport(report) {
     `${summary.runs} runs, ${summary.attempts} attempts, ${summary.commits} commits. Generated ${report.generatedAt}.`,
     `Sample: latest ${report.requestedRuns} runs${report.since ? ` created since ${report.since}` : " (no date cutoff)"}. Workflow changes within this sample can make aggregate comparisons misleading.`,
     "",
-    "Durations include setup, execution, queueing and aggregation. Cache state is unclassified; first attempts are not necessarily cold and reruns are not necessarily warm.",
+    "GitHub timestamps separate only observable boundaries. Pre-job time can include dependency or runner scheduling; the job window includes dependency gaps; aggregation is the interval after the last observed job. Cache state is unclassified: first attempts are not necessarily cold and reruns are not necessarily warm.",
     "",
     "| Successful cohort | Samples | p50 | p95 (20+ samples) | Maximum |",
     "|---|---:|---:|---:|---:|",
@@ -228,14 +341,56 @@ export function renderReport(report) {
     }.`,
     `Completed attempts with missing timing: ${summary.missingCompletedTimings}. Cancelled, failed and incomplete attempts are not included in successful-duration percentiles.`,
     "",
+    "## Recent failure leads",
+    "",
+  );
+  if (!summary.failureLeads.length) lines.push("No failed job observed in this sample.");
+  else {
+    lines.push("| Run / attempt | Commit | Failed job | Failed steps |", "|---|---|---|---|");
+    for (const failure of summary.failureLeads)
+      lines.push(
+        `| ${failure.runId}/${failure.attempt} | ${cell(failure.sha?.slice(0, 8))} | [${cell(failure.job)}](${failure.url}) | ${failure.steps.map(cell).join(", ") || "Open the job log; no failed step was identified by the API."} |`,
+      );
+  }
+  lines.push(
+    "",
+    "## Observed workflow timing",
+    "",
+    "| Boundary in successful first attempts | Samples | p50 | Maximum |",
+    "|---|---:|---:|---:|",
+  );
+  for (const [label, stats] of [
+    ["Before first observed job (dependency or scheduling)", summary.timing.preJob],
+    ["First job start through last job completion", summary.timing.observedJobWindow],
+    ["After last job through workflow update", summary.timing.aggregation],
+    ["Summed runner execution (not elapsed or billing)", summary.timing.summedRunner],
+  ])
+    lines.push(
+      `| ${label} | ${stats.count} | ${duration(stats.p50Seconds)} | ${duration(stats.maxSeconds)} |`,
+    );
+  lines.push(
+    "",
+    "## Comparable cohorts",
+    "",
+    "Cohorts preserve workflow identity and reported runner labels. GitHub's run API does not expose installed tool versions, so an unreported toolchain remains explicit rather than being inferred.",
+    "",
+    "| Cohort | Attempts | Workflow p50 | Maximum |",
+    "|---|---:|---:|---:|",
+  );
+  for (const cohort of summary.cohorts)
+    lines.push(
+      `| ${cell(cohort.name)} | ${cohort.attempts} | ${duration(cohort.workflow.p50Seconds)} | ${duration(cohort.workflow.maxSeconds)} |`,
+    );
+  lines.push(
+    "",
     "## Slow jobs in successful first attempts",
     "",
-    "| Job | Samples | p50 | Maximum |",
-    "|---|---:|---:|---:|",
+    "| Job | Samples | p50 | Maximum | Slowest observed steps |",
+    "|---|---:|---:|---:|---|",
   );
   for (const job of summary.slowestJobs)
     lines.push(
-      `| ${cell(job.name)} | ${job.count} | ${duration(job.p50Seconds)} | ${duration(job.maxSeconds)} |`,
+      `| ${cell(job.name)} | ${job.count} | ${duration(job.p50Seconds)} | ${duration(job.maxSeconds)} | ${job.slowestSteps.map((step) => `${cell(step.name)} (${step.category}, p50 ${duration(step.p50Seconds)}, n=${step.count})`).join("; ") || "unavailable"} |`,
     );
   lines.push(
     "",

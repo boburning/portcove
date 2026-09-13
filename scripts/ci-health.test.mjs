@@ -15,14 +15,19 @@ const run = (overrides) => ({
   run_started_at: stamp(5),
   updated_at: stamp(240),
   html_url: "https://github.com/example/repo/actions/runs/1",
+  workflow_id: 99,
+  name: "CI",
   ...overrides,
 });
 const job = (overrides) => ({
   name: "rust",
   status: "completed",
   conclusion: "success",
+  created_at: stamp(8),
   started_at: stamp(10),
   completed_at: stamp(235),
+  runner_group_name: "GitHub Actions",
+  labels: ["windows-latest"],
   steps: [],
   ...overrides,
 });
@@ -142,11 +147,117 @@ test("job and step timings preserve setup costs but do not measure skipped jobs"
     job({ name: "dependency-review", conclusion: "skipped" }),
   ]);
   assert.equal(result.jobs[0].seconds, 225);
+  assert.equal(result.jobs[0].preStartSeconds, 2);
   assert.equal(result.jobs[0].steps[0].name, "build");
   assert.equal(result.jobs[1].seconds, null);
   assert.deepEqual(
     summarizeHistory([result]).slowestJobs.map((item) => item.name),
     ["rust"],
+  );
+});
+
+test("workflow timing separates only boundaries supported by GitHub timestamps", () => {
+  const result = summarizeAttempt(run(), [
+    job(),
+    job({
+      name: "frontend",
+      created_at: stamp(20),
+      started_at: stamp(30),
+      completed_at: stamp(100),
+      labels: ["ubuntu-latest"],
+    }),
+  ]);
+  assert.deepEqual(result.timing, {
+    workflowSeconds: 240,
+    preJobSeconds: 10,
+    observedJobWindowSeconds: 225,
+    aggregationSeconds: 5,
+    summedRunnerSeconds: 295,
+  });
+  assert.match(result.cohort, /workflow:99/);
+  assert.match(result.cohort, /toolchain:unreported/);
+  assert.match(result.cohort, /ubuntu-latest/);
+  assert.match(result.cohort, /windows-latest/);
+});
+
+test("missing job boundaries stay unavailable and never become zero timing", () => {
+  const result = summarizeAttempt(run(), [
+    job({ started_at: null, completed_at: null }),
+    job({ name: "skipped", conclusion: "skipped" }),
+  ]);
+  assert.deepEqual(result.timing, {
+    workflowSeconds: 240,
+    preJobSeconds: null,
+    observedJobWindowSeconds: null,
+    aggregationSeconds: null,
+    summedRunnerSeconds: null,
+  });
+  assert.equal(summarizeHistory([result]).timing.summedRunner.count, 0);
+});
+
+test("failure leads retain job links and API-identified failed steps", () => {
+  const failed = summarizeAttempt(run({ conclusion: "failure" }), [
+    job({
+      conclusion: "failure",
+      html_url: "https://github.com/example/repo/jobs/7",
+      steps: [
+        { name: "setup", status: "completed", conclusion: "success" },
+        { name: "compile", status: "completed", conclusion: "failure" },
+      ],
+    }),
+  ]);
+  assert.deepEqual(summarizeHistory([failed]).failureLeads, [
+    {
+      runId: 1,
+      attempt: 1,
+      sha: "a".repeat(40),
+      job: "rust",
+      url: "https://github.com/example/repo/jobs/7",
+      steps: ["compile"],
+    },
+  ]);
+});
+
+test("failure leads retain the latest ten attempts in collection order", () => {
+  const failures = Array.from({ length: 12 }, (_, index) =>
+    summarizeAttempt(run({ id: index + 1, conclusion: "failure" }), [
+      job({ conclusion: "failure" }),
+    ]),
+  );
+  assert.deepEqual(
+    summarizeHistory(failures).failureLeads.map((failure) => failure.runId),
+    Array.from({ length: 10 }, (_, index) => index + 1),
+  );
+});
+
+test("slow job evidence distinguishes setup acquisition from command execution", () => {
+  const result = summarizeAttempt(run(), [
+    job({
+      steps: [
+        {
+          name: "Install pinned test runner",
+          status: "completed",
+          started_at: stamp(10),
+          completed_at: stamp(70),
+        },
+        {
+          name: "Run exhaustive Rust test shard",
+          status: "completed",
+          started_at: stamp(70),
+          completed_at: stamp(200),
+        },
+      ],
+    }),
+  ]);
+  assert.deepEqual(
+    summarizeHistory([result]).slowestJobs[0].slowestSteps.map((step) => [
+      step.name,
+      step.category,
+    ]),
+    [
+      ["Run exhaustive Rust test shard", "execution"],
+      ["Install pinned test runner", "setup/tool acquisition"],
+    ],
   );
 });
 
@@ -242,4 +353,9 @@ test("report makes sample and cache limitations explicit and includes investigat
   assert.match(text, /not a measured flake rate/);
   assert.match(text, /actions\/runs\/1\/attempts\/1/);
   assert.match(text, /First attempts \| 0 \| unavailable/);
+  assert.match(text, /Observed workflow timing/);
+  assert.match(text, /Summed runner execution \(not elapsed or billing\)/);
+  assert.match(text, /Comparable cohorts/);
+  assert.match(text, /unreported toolchain/);
+  assert.match(text, /Slowest observed steps/);
 });
