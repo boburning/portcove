@@ -77,6 +77,45 @@ test("stages only manifest-covered release files", async (t) => {
   assert.equal(result.staged.length, 3);
 });
 
+test("binds staged artifacts to their workflow producer", async (t) => {
+  const root = await fixture(t);
+  const stage = path.join(root, "release-upload");
+  const lineage = { runId: "34727305533", runAttempt: 2, revision: "a".repeat(40) };
+
+  const result = await stageReleaseArtifacts(root, "macos-aarch64", stage, fixtureVersion, lineage);
+  assert.deepEqual(
+    JSON.parse(await readFile(path.join(stage, "release-producer-macos-aarch64.json"))),
+    {
+      schema_version: 1,
+      platform_label: "macos-aarch64",
+      version: fixtureVersion,
+      revision: "a".repeat(40),
+      run_id: "34727305533",
+      run_attempt: 2,
+    },
+  );
+  assert.equal(result.staged.length, 4);
+});
+
+test("collects cross-compiled desktop packages from an explicit target root", async (t) => {
+  const root = await fixture(t);
+  const targetRoot = path.join(root, "target/x86_64-apple-darwin");
+  await mkdir(path.join(targetRoot, "release/bundle"), { recursive: true });
+  await rm(path.join(root, "target/release/bundle"), { recursive: true });
+  for (const entry of packagesForPlatform(policy, "macos-aarch64").filter(
+    (entry) => entry.interface === "desktop",
+  )) {
+    await mkdir(path.join(targetRoot, "release/bundle", entry.format), { recursive: true });
+    await writeFile(
+      path.join(targetRoot, "release/bundle", entry.format, artifactName(entry, fixtureVersion)),
+      `${entry.interface}:${entry.id}`,
+    );
+  }
+
+  const result = await collectReleaseArtifacts(root, "macos-aarch64", fixtureVersion, targetRoot);
+  assert.equal(result.length, 2);
+});
+
 test("ignores internal AppImage links while selecting direct policy-declared packages", async (t) => {
   const root = await fixture(t, "linux-x86_64");
   const appDirectory = path.join(root, "target/release/bundle/appimage/Portcove.AppDir");

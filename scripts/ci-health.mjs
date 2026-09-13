@@ -1,7 +1,9 @@
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { parseArgs, promisify } from "node:util";
 import { pathToFileURL } from "node:url";
+import { parseProvenanceArchive, validateWorkflowProvenance } from "./workflow-provenance.mjs";
 
 const execute = promisify(execFile);
 
@@ -10,7 +12,12 @@ function secondsBetween(start, end) {
   return Number.isFinite(seconds) && seconds >= 0 ? seconds : null;
 }
 
-export function summarizeAttempt(run, jobs) {
+const unknownProvenance = (reason = "missing-attempt-artifact") => ({
+  status: "unknown",
+  reason,
+});
+
+export function summarizeAttempt(run, jobs, provenance = unknownProvenance()) {
   // created_at belongs to the original run, even when inspecting a later attempt.
   const start = run.run_attempt === 1 ? run.created_at : run.run_started_at;
   const measuredJobs = jobs.map((job) => ({
@@ -56,6 +63,10 @@ export function summarizeAttempt(run, jobs) {
     ...new Set(measuredJobs.flatMap((job) => [job.runner, ...job.labels].filter(Boolean))),
   ].sort();
   const workflowSeconds = run.status === "completed" ? secondsBetween(start, run.updated_at) : null;
+  const pullRequest =
+    Array.isArray(run.pull_requests) && run.pull_requests.length === 1
+      ? run.pull_requests[0]
+      : null;
   return {
     runId: run.id,
     attempt: run.run_attempt,
@@ -67,7 +78,18 @@ export function summarizeAttempt(run, jobs) {
     url: `${run.html_url}/attempts/${run.run_attempt}`,
     workflowId: run.workflow_id ?? null,
     workflowName: run.name ?? null,
-    cohort: `workflow:${run.workflow_id ?? run.name ?? "unknown"};runners:${runnerCohort.join(",") || "unknown"};toolchain:unreported`,
+    pullRequest: pullRequest
+      ? {
+          number: pullRequest.number ?? null,
+          headSha: pullRequest.head?.sha ?? null,
+          baseSha: pullRequest.base?.sha ?? null,
+        }
+      : null,
+    provenance,
+    cohort:
+      provenance.status === "verified"
+        ? `exact:${provenance.record.equivalent_cohort};runners:${runnerCohort.join(",") || "unknown"}`
+        : null,
     seconds: workflowSeconds,
     timing: {
       workflowSeconds,
@@ -168,6 +190,7 @@ export function summarizeHistory(attempts) {
   const successfulFirst = successful.filter((attempt) => attempt.attempt === 1);
   const cohorts = new Map();
   for (const attempt of successfulFirst) {
+    if (!attempt.cohort) continue;
     const samples = cohorts.get(attempt.cohort) ?? [];
     samples.push(attempt);
     cohorts.set(attempt.cohort, samples);
@@ -200,6 +223,22 @@ export function summarizeHistory(attempts) {
     missingCompletedTimings: attempts.filter(
       (attempt) => attempt.status === "completed" && attempt.seconds === null,
     ).length,
+    provenance: {
+      verified: attempts.filter((attempt) => attempt.provenance.status === "verified").length,
+      unknown: attempts.filter((attempt) => attempt.provenance.status !== "verified").length,
+      unknownReasons: Object.fromEntries(
+        [
+          ...new Set(
+            attempts
+              .filter((attempt) => attempt.provenance.status !== "verified")
+              .map((attempt) => attempt.provenance.reason),
+          ),
+        ].map((reason) => [
+          reason,
+          attempts.filter((attempt) => attempt.provenance.reason === reason).length,
+        ]),
+      ),
+    },
     slowestJobs: [...jobSamples]
       .map(([name, values]) => ({
         name,
@@ -250,10 +289,54 @@ export function summarizeHistory(attempts) {
   };
 }
 
-export async function collectHistory(request, { repository, branch, event, limit, since }) {
+async function collectAttemptProvenance(request, root, run, reference, { repository, workflow }) {
+  const pages = await request(`${root}/runs/${reference.id}/artifacts?per_page=100`, true);
+  if (!Array.isArray(pages) || !pages.every((page) => Array.isArray(page.artifacts)))
+    throw new Error(`Missing artifact inventory for ${reference.id}/${reference.attempt}`);
+  const artifacts = pages.flatMap((page) => page.artifacts);
+  if (artifacts.length !== pages[0]?.total_count)
+    throw new Error(`Incomplete artifacts for ${reference.id}/${reference.attempt}`);
+  const expectedName = `workflow-provenance-${reference.id}-${reference.attempt}`;
+  const matches = artifacts.filter((artifact) => artifact.name === expectedName);
+  if (matches.length === 0) return unknownProvenance();
+  if (matches.length !== 1)
+    throw new Error(`Ambiguous provenance for ${reference.id}/${reference.attempt}`);
+  const artifact = matches[0];
+  if (artifact.expired) return unknownProvenance("expired-attempt-artifact");
+  if (
+    artifact.workflow_run?.id !== reference.id ||
+    artifact.workflow_run?.head_sha !== run.head_sha
+  )
+    throw new Error(
+      `Provenance artifact run identity mismatch for ${reference.id}/${reference.attempt}`,
+    );
+  const archive = await request(
+    `repos/${root.split("/")[1]}/${root.split("/")[2]}/actions/artifacts/${artifact.id}/zip`,
+    false,
+    "buffer",
+  );
+  const expectedDigest = /^sha256:([a-f0-9]{64})$/u.exec(artifact.digest ?? "")?.[1];
+  if (!expectedDigest || createHash("sha256").update(archive).digest("hex") !== expectedDigest)
+    throw new Error(`Provenance artifact digest mismatch for ${reference.id}/${reference.attempt}`);
+  const record = validateWorkflowProvenance(parseProvenanceArchive(archive), {
+    runId: reference.id,
+    attempt: reference.attempt,
+    headSha: run.head_sha,
+    repository,
+    workflow,
+    event: run.event,
+  });
+  return { status: "verified", record };
+}
+
+export async function collectHistory(
+  request,
+  { repository, workflow = "ci.yml", branch, event, limit, since },
+) {
   const root = `repos/${repository}/actions`;
-  const query = new URLSearchParams({ branch, event, per_page: String(limit) });
-  const listing = await request(`${root}/workflows/ci.yml/runs?${query}`);
+  const query = new URLSearchParams({ event, per_page: String(limit) });
+  if (branch) query.set("branch", branch);
+  const listing = await request(`${root}/workflows/${workflow}/runs?${query}`);
   if (!Array.isArray(listing.workflow_runs)) throw new Error("Missing workflow run inventory");
   const runs = since
     ? listing.workflow_runs.filter((run) => {
@@ -288,13 +371,18 @@ export async function collectHistory(request, { repository, branch, event, limit
             throw new Error(`Incomplete jobs for ${reference.id}/${reference.attempt}`);
           if (run.id !== reference.id || run.run_attempt !== reference.attempt)
             throw new Error("Attempt identity mismatch");
-          return summarizeAttempt(run, jobs);
+          const provenance = await collectAttemptProvenance(request, root, run, reference, {
+            repository,
+            workflow,
+          });
+          return summarizeAttempt(run, jobs, provenance);
         }),
       )),
     );
   }
   return {
     repository,
+    workflow,
     branch,
     event,
     since: since ?? null,
@@ -314,10 +402,10 @@ const cell = (value) => String(value).replaceAll("|", "\\|").replaceAll(/\r?\n/g
 export function renderReport(report) {
   const { summary } = report;
   const lines = [
-    `# CI health: ${cell(report.repository)} / ${cell(report.branch)} / ${cell(report.event)}`,
+    `# CI health: ${cell(report.repository)} / ${cell(report.workflow ?? "ci.yml")} / ${cell(report.branch ?? "all branches")} / ${cell(report.event)}`,
     "",
     `${summary.runs} runs, ${summary.attempts} attempts, ${summary.commits} commits. Generated ${report.generatedAt}.`,
-    `Sample: latest ${report.requestedRuns} runs${report.since ? ` created since ${report.since}` : " (no date cutoff)"}. Workflow changes within this sample can make aggregate comparisons misleading.`,
+    `Sample: latest ${report.requestedRuns} runs${report.branch ? ` filtered to ${report.branch}` : " across all branches"}${report.since ? ` and created since ${report.since}` : " (no date cutoff)"}. Workflow changes within this sample can make aggregate comparisons misleading.`,
     "",
     "GitHub timestamps separate only observable boundaries. Pre-job time can include dependency or runner scheduling; the job window includes dependency gaps; aggregation is the interval after the last observed job. Cache state is unclassified: first attempts are not necessarily cold and reruns are not necessarily warm.",
     "",
@@ -372,7 +460,12 @@ export function renderReport(report) {
     "",
     "## Comparable cohorts",
     "",
-    "Cohorts preserve workflow identity and reported runner labels. GitHub's run API does not expose installed tool versions, so an unreported toolchain remains explicit rather than being inferred.",
+    "Equivalent cohorts require an attempt-specific artifact that binds the official workflow source SHA/ref, exact workflow bytes, checked-out code SHA, desired and observed toolchain/build configuration, and reported runner labels. Historical missing or expired evidence is unknown and excluded rather than inferred.",
+    `Provenance: verified=${summary.provenance.verified}, unknown=${summary.provenance.unknown}${Object.entries(
+      summary.provenance.unknownReasons,
+    )
+      .map(([reason, count]) => `, ${reason}=${count}`)
+      .join("")}.`,
     "",
     "| Cohort | Attempts | Workflow p50 | Maximum |",
     "|---|---:|---:|---:|",
@@ -381,6 +474,8 @@ export function renderReport(report) {
     lines.push(
       `| ${cell(cohort.name)} | ${cohort.attempts} | ${duration(cohort.workflow.p50Seconds)} | ${duration(cohort.workflow.maxSeconds)} |`,
     );
+  if (!summary.cohorts.length)
+    lines.push("| No verified equivalent cohort in this sample | 0 | unavailable | unavailable |");
   lines.push(
     "",
     "## Slow jobs in successful first attempts",
@@ -412,12 +507,12 @@ export function renderReport(report) {
     "",
     "## Attempts",
     "",
-    "| Run / attempt | Commit | Result | Elapsed |",
-    "|---|---|---|---:|",
+    "| Run / attempt | Commit | Provenance | Result | Elapsed |",
+    "|---|---|---|---|---:|",
   );
   for (const attempt of report.attempts)
     lines.push(
-      `| [${attempt.runId}/${attempt.attempt}](${attempt.url}) | ${cell(attempt.sha?.slice(0, 8))} | ${cell(attempt.conclusion ?? attempt.status)} | ${duration(attempt.seconds)} |`,
+      `| [${attempt.runId}/${attempt.attempt}](${attempt.url}) | ${cell(attempt.sha?.slice(0, 8))} | ${attempt.provenance.status === "verified" ? `verified ${attempt.provenance.record.equivalent_cohort.slice(0, 12)}` : `unknown (${cell(attempt.provenance.reason)})`} | ${cell(attempt.conclusion ?? attempt.status)} | ${duration(attempt.seconds)} |`,
     );
   return `${lines.join("\n")}\n`;
 }
@@ -425,7 +520,8 @@ export function renderReport(report) {
 async function main() {
   const { values } = parseArgs({
     options: {
-      branch: { type: "string", default: "main" },
+      workflow: { type: "string", default: "ci.yml" },
+      branch: { type: "string" },
       event: { type: "string", default: "push" },
       runs: { type: "string", default: "20" },
       since: { type: "string" },
@@ -435,32 +531,36 @@ async function main() {
   });
   if (values.help) {
     console.log(
-      "Usage: node scripts/ci-health.mjs [--branch main] [--event push] [--runs 20] [--since ISO-date] [--json]\nRead-only GitHub CLI access is required. All attempts of the selected runs are inspected.",
+      "Usage: node scripts/ci-health.mjs [--workflow ci.yml] [--branch main] [--event push] [--runs 20] [--since ISO-date] [--json]\nRead-only GitHub CLI access is required. Push reports default to main; other events cover all branches unless --branch is supplied. All attempts of the selected runs are inspected.",
     );
     return;
   }
   const limit = Number(values.runs);
   if (!Number.isInteger(limit) || limit < 1 || limit > 100)
     throw new Error("--runs must be between 1 and 100");
+  if (!/^[A-Za-z0-9._-]+\.ya?ml$/u.test(values.workflow))
+    throw new Error("--workflow must be a workflow YAML filename");
   if (values.since && !Number.isFinite(Date.parse(values.since)))
     throw new Error("--since must be a valid ISO date");
+  const branch = values.branch ?? (values.event === "push" ? "main" : undefined);
   const { repository } = JSON.parse(
     await readFile(new URL("../.github/roadmap.json", import.meta.url), "utf8"),
   );
-  const request = async (route, paginate = false) => {
+  const request = async (route, paginate = false, responseType = "json") => {
     const args = ["api", "--method", "GET", route];
     if (paginate) args.push("--paginate", "--slurp");
     const { stdout } = await execute("gh", args, {
-      encoding: "utf8",
+      encoding: responseType === "buffer" ? "buffer" : "utf8",
       windowsHide: true,
       timeout: 30_000,
       maxBuffer: 20 * 1024 * 1024,
     });
-    return JSON.parse(stdout);
+    return responseType === "buffer" ? stdout : JSON.parse(stdout);
   };
   const report = await collectHistory(request, {
     repository,
-    branch: values.branch,
+    workflow: values.workflow,
+    branch,
     event: values.event,
     limit,
     since: values.since ? new Date(values.since).toISOString() : undefined,

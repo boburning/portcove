@@ -21,6 +21,11 @@ import {
 } from "./desktop-scenarios.mjs";
 import { acquireNativeSessionLock } from "./native-session-lock.mjs";
 import { cachedDesktopDrivers, readToolPins } from "./tool-cache.mjs";
+import {
+  checkFrontendBuildReuse,
+  createFrontendBuildIdentity,
+  recordFrontendBuild,
+} from "./desktop-build-cache.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -230,6 +235,23 @@ async function executePhase({ id, command, args, cwd, environment, log, timings 
   if (result.status !== 0) throw new Error(`${id} failed with exit code ${result.status}`);
 }
 
+async function recordReusePhase({ log, timings, details }) {
+  const stamp = new Date().toISOString();
+  const timing = {
+    phase: "frontend-build",
+    started_at: stamp,
+    finished_at: stamp,
+    duration_ms: 0,
+    status: 0,
+    reuse: details,
+  };
+  timings.push(timing);
+  console.log(
+    `desktop-verify: frontend-build reused ${details.output_files} exact files (${details.output_fingerprint})`,
+  );
+  await appendFile(log, `${JSON.stringify(timing)}\n`);
+}
+
 async function runVerification(options, selection) {
   const configuredPaths = getPaths();
   const storage = preflight(configuredPaths, minimumFreeGiB());
@@ -316,12 +338,49 @@ async function runVerification(options, selection) {
     const environment = childEnvironment(paths);
     const phase = (id, command, args) =>
       executePhase({ id, command, args, cwd: root, environment, log, timings });
-    await phase("frontend-build", "corepack", [
-      readToolPins().packageManager,
-      "--dir",
-      "apps/desktop",
-      "build",
-    ]);
+    const pins = readToolPins();
+    const packageManagerVersion = spawnCommand("corepack", ["pnpm", "--version"], {
+      cwd: path.join(root, "apps", "desktop"),
+      env: environment,
+      encoding: "utf8",
+      windowsHide: true,
+    });
+    if (packageManagerVersion.status !== 0)
+      throw new Error("Unable to observe the pinned frontend package-manager version");
+    const frontendIdentity = await createFrontendBuildIdentity({
+      root,
+      packageManager: pins.packageManager,
+      packageManagerVersion: packageManagerVersion.stdout.trim(),
+      environment,
+    });
+    const frontendStamp = path.join(
+      paths.temporary_directory,
+      "desktop-build-cache",
+      `frontend-v1-${process.platform}-${process.arch}.json`,
+    );
+    await mkdir(path.dirname(frontendStamp), { recursive: true });
+    let frontendReuse = await checkFrontendBuildReuse({
+      identity: frontendIdentity,
+      outputDirectory: paths.frontend_output,
+      stampPath: frontendStamp,
+    });
+    if (frontendReuse.reused) {
+      await recordReusePhase({ log, timings, details: frontendReuse });
+    } else {
+      console.log(`desktop-verify: frontend-build cannot reuse (${frontendReuse.reason})`);
+      await phase("frontend-build", "corepack", [
+        pins.packageManager,
+        "--dir",
+        "apps/desktop",
+        "build",
+      ]);
+      frontendReuse = await recordFrontendBuild({
+        identity: frontendIdentity,
+        outputDirectory: paths.frontend_output,
+        stampPath: frontendStamp,
+      });
+      timings.at(-1).reuse = frontendReuse;
+    }
     await phase("desktop-build", "cargo", [
       "build",
       "-p",
@@ -355,6 +414,7 @@ async function runVerification(options, selection) {
           restart_cycles: options.restartCycles,
           reload_cycles: options.reloadCycles,
           source_state: source,
+          build_reuse: frontendReuse,
           phases: timings,
         },
         null,

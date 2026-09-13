@@ -15,6 +15,18 @@ fn main() {
     tauri_build::build()
 }
 
+fn write_if_changed(path: &PathBuf, contents: &[u8]) {
+    if fs::read(path).ok().as_deref() == Some(contents) {
+        return;
+    }
+    fs::write(path, contents).unwrap_or_else(|error| {
+        panic!(
+            "could not write generated build input {}: {error}",
+            path.display()
+        )
+    });
+}
+
 fn write_application_update_configuration() {
     let output = PathBuf::from(env::var_os("OUT_DIR").expect("Cargo must provide OUT_DIR"));
     let generated = output.join("application-update-build.rs");
@@ -29,7 +41,7 @@ fn write_application_update_configuration() {
 
     let source = match (root, metadata_url, targets_url) {
         (None, None, None) => {
-            fs::write(&embedded_root, []).expect("write disabled updater root");
+            write_if_changed(&embedded_root, &[]);
             "pub const ENABLED: bool = false;\n\
              pub const METADATA_BASE_URL: &str = \"\";\n\
              pub const TARGETS_BASE_URL: &str = \"\";\n"
@@ -45,7 +57,7 @@ fn write_application_update_configuration() {
                 !bytes.is_empty() && bytes.len() <= MAX_ROOT_BYTES,
                 "{ROOT_FILE_ENV} must contain 1..={MAX_ROOT_BYTES} bytes"
             );
-            fs::write(&embedded_root, bytes).expect("write embedded updater root");
+            write_if_changed(&embedded_root, &bytes);
             format!(
                 "pub const ENABLED: bool = true;\n\
                  pub const METADATA_BASE_URL: &str = {metadata_url:?};\n\
@@ -56,5 +68,5 @@ fn write_application_update_configuration() {
             "{ROOT_FILE_ENV}, {METADATA_URL_ENV}, and {TARGETS_URL_ENV} must be set together"
         ),
     };
-    fs::write(generated, source).expect("write application updater build configuration");
+    write_if_changed(&generated, source.as_bytes());
 }

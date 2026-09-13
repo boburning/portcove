@@ -8,6 +8,15 @@ implemented and proven replacement is activated. The live
 canonical issues own acceptance and evidence. Immutable release records own
 shipped provenance; catalog data owns actual port availability and support.
 
+The current protected release implementation starts full validation, a read-only
+three-platform build matrix, and the dedicated read-only Intel producer concurrently
+after a cheap identity gate. Native Intel verification begins as soon as that
+producer completes instead of waiting for unrelated platforms. Finalization remains
+serialized behind an explicit all-results gate, native Intel execution of the
+cross-built x86_64 artifacts, and exact run/revision producer lineage. This latency
+optimization does not activate unattended publication,
+change signing authority, or make a rehearsal equivalent to a released artifact.
+
 ## Versions, channels and readiness
 
 Application versions, update channels, capability workstreams and readiness

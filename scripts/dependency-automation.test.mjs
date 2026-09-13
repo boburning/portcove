@@ -60,7 +60,14 @@ test("Renovate is the sole conservative routine update authority", async () => {
   assert.equal(renovate.automerge, false);
   assert.equal(renovate.minimumReleaseAge, "3 days");
   assert.equal(renovate.internalChecksFilter, "strict");
+  assert.equal(renovate.prConcurrentLimit, 2);
+  assert.equal(renovate.branchConcurrentLimit, 2);
+  assert.equal(renovate.prHourlyLimit, 2);
+  assert.equal(renovate.commitHourlyLimit, 4);
   assert.equal(Object.hasOwn(renovate, "prCreation"), false);
+  assert.notEqual(renovate.vulnerabilityAlerts?.enabled, false);
+  assert.equal(renovate.vulnerabilityAlerts?.prConcurrentLimit, undefined);
+  assert.equal(renovate.vulnerabilityAlerts?.branchConcurrentLimit, undefined);
   for (const manager of ["cargo", "npm", "github-actions", "rust-toolchain", "custom.regex"])
     assert(renovate.enabledManagers.includes(manager));
   assert(renovate.packageRules.some((rule) => rule.pinDigests === true));
