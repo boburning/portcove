@@ -360,12 +360,14 @@ payload into a synchronized sibling file and atomically exchanges it with the st
 AppImage source. The apply journal records the exact prior bytes and retained backup
 path before mutation. Healthy startup verifies the candidate at that same source and
 the retained prior identity before cleanup; an ambiguous exchange never automatically
-relaunches. If the helper disappears before the atomic exchange, a predecessor startup
-may make the attempt retryable only after it holds the configured shared application
-runtime lease, verifies the predecessor at the exact stable path, re-verifies the staged
-candidate, and removes no swap unless it is absent or an exact byte prefix of that
-candidate. Unknown paths or bytes remain untouched for explicit recovery. A candidate
-already present at the stable path continues through healthy-startup reconciliation.
+relaunches. If the helper disappears before the atomic exchange, either predecessor
+startup or the fixed GUI-independent recovery command may make the attempt retryable
+only after it holds the configured shared application runtime lease, verifies the
+predecessor at the exact stable path, re-verifies the staged candidate, and removes no
+swap unless it is absent or an exact byte prefix of that candidate. Unknown paths or
+bytes remain untouched for explicit recovery. The command cannot race a running
+desktop or replacement helper, and a candidate already present at the stable path
+continues through normal healthy-startup reconciliation.
 Package qualification remains a separate gate. The ordinary alpha build
 supplies no production root or origin. In an updater-enabled
 build, the fixed manual check and explicit restart helper are the only commands that

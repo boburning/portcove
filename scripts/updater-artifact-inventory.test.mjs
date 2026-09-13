@@ -221,7 +221,16 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(linuxHarness, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE/);
   assert.match(linuxHarness, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT/);
   assert.match(linuxHarness, /interruption_exit_code/);
+  assert.match(linuxHarness, /interruption_recovery_exit_code/);
+  assert.match(linuxHarness, /interruption_recovery_display/);
   assert.match(linuxHarness, /interruption_recovered/);
   assert.match(linuxHarness, /-ne 86/);
+  assert.match(linuxHarness, /--application-update-recovery recover interrupted-appimage/);
+  assert.match(linuxHarness, /Remove-Item Env:DISPLAY/);
+  assert.ok(
+    linuxHarness.indexOf("command-recovery-starting") <
+      linuxHarness.indexOf('Start-Process -FilePath "Xvfb"'),
+    "interrupted AppImage recovery must complete before any GUI session starts",
+  );
   assert.match(rehearsal, /Invoke-Checked "dbus-run-session"/);
 });

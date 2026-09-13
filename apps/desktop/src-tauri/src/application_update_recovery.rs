@@ -1,13 +1,21 @@
-//! GUI-independent inspection and bounded repair for host-owned updater state.
+//! GUI-independent inspection and bounded recovery for host-owned updater state.
 //!
 //! The command reuses the same stores as the Tauri adapter. It can report or
-//! repair malformed local coordination state, but it cannot contact a release
-//! repository, grant consent, download, install, restart, or answer an OS
-//! security prompt.
+//! repair malformed local coordination state and safely abandon an interrupted
+//! pre-activation AppImage swap. It cannot contact a release repository, grant
+//! consent, download, install, restart, or answer an OS security prompt.
 
 use std::ffi::{OsStr, OsString};
 
 use crate::application_update_apply::{ApplicationUpdateApplyError, ApplicationUpdateApplyStore};
+#[cfg(target_os = "linux")]
+use crate::application_update_apply::{
+    ApplicationUpdateApplyState, ApplicationUpdateNativeLaunchState,
+};
+#[cfg(target_os = "linux")]
+use crate::application_update_linux::{
+    LinuxApplicationUpdateRecovery, recover_linux_application_update_before_startup,
+};
 use crate::application_update_preferences::{
     ApplicationUpdatePreferenceError, ApplicationUpdatePreferenceStore,
 };
@@ -17,8 +25,12 @@ use crate::application_update_schedule::{
 use crate::application_update_staging::{
     ApplicationUpdateStagingError, ApplicationUpdateStagingStore,
 };
+#[cfg(target_os = "linux")]
+use portcove_core::{ApplicationUpdateExclusivityGuard, HostPreferenceStore};
 
 const MODE: &str = "--application-update-recovery";
+#[cfg(target_os = "linux")]
+const INTERRUPTED_APPIMAGE: &str = "interrupted-appimage";
 const NO_OPERATION_NOTICE: &str =
     "No update check, download, install, restart, or native prompt was started.";
 
@@ -79,6 +91,8 @@ impl RecoveryArea {
 enum Inspection {
     Healthy,
     RecoveryRequired,
+    #[cfg(target_os = "linux")]
+    InterruptedAppImage,
 }
 
 pub(crate) fn is_mode(value: &OsStr) -> bool {
@@ -95,6 +109,13 @@ pub(crate) fn run(mut arguments: impl Iterator<Item = OsString>) -> i32 {
                 _ => usage(),
             }
         }
+        #[cfg(target_os = "linux")]
+        Some(command) if command == "recover" => match arguments.next().as_deref() {
+            Some(target) if target == INTERRUPTED_APPIMAGE && arguments.next().is_none() => {
+                recover_interrupted_appimage()
+            }
+            _ => usage(),
+        },
         _ => usage(),
     }
 }
@@ -103,6 +124,8 @@ fn usage() -> i32 {
     eprintln!("Usage:");
     eprintln!("  portcove-desktop {MODE} status");
     eprintln!("  portcove-desktop {MODE} repair <preferences|schedule|staging|apply>");
+    #[cfg(target_os = "linux")]
+    eprintln!("  portcove-desktop {MODE} recover {INTERRUPTED_APPIMAGE}");
     eprintln!("{NO_OPERATION_NOTICE}");
     2
 }
@@ -113,28 +136,97 @@ fn status() -> i32 {
         Err(message) => return unavailable(message),
     };
     let mut required = Vec::new();
+    #[cfg(target_os = "linux")]
+    let mut interrupted_appimage = false;
     for area in RecoveryArea::ALL {
         match inspect(area, &runtime) {
             Ok(Inspection::Healthy) => {}
             Ok(Inspection::RecoveryRequired) => required.push(area),
+            #[cfg(target_os = "linux")]
+            Ok(Inspection::InterruptedAppImage) => interrupted_appimage = true,
             Err(message) => return unavailable(message),
         }
     }
 
-    if required.is_empty() {
+    #[cfg(not(target_os = "linux"))]
+    let interrupted_appimage = false;
+
+    if required.is_empty() && !interrupted_appimage {
         println!("Application update coordination state is healthy.");
         println!("{NO_OPERATION_NOTICE}");
         return 0;
     }
 
-    println!("Application update recovery is required for:");
-    for area in required {
-        println!("  - {}", area.name());
-        println!("    portcove-desktop {MODE} repair {}", area.name());
+    if !required.is_empty() {
+        println!("Application update recovery is required for:");
+        for area in required {
+            println!("  - {}", area.name());
+            println!("    portcove-desktop {MODE} repair {}", area.name());
+        }
+        println!("Run only the listed fixed-area repairs, then run status again.");
     }
-    println!("Run only the listed fixed-area repairs, then run status again.");
+    #[cfg(target_os = "linux")]
+    if interrupted_appimage {
+        println!("An AppImage replacement is awaiting safe recovery or startup reconciliation.");
+        println!("  portcove-desktop {MODE} recover {INTERRUPTED_APPIMAGE}");
+    }
     println!("{NO_OPERATION_NOTICE}");
     1
+}
+
+#[cfg(target_os = "linux")]
+fn is_interrupted_appimage_pending(state: &ApplicationUpdateApplyState) -> bool {
+    state.native_launch == Some(ApplicationUpdateNativeLaunchState::Starting)
+}
+
+#[cfg(target_os = "linux")]
+fn recover_interrupted_appimage() -> i32 {
+    let runtime_path = match HostPreferenceStore::application_runtime_lock_path() {
+        Ok(path) => path,
+        Err(_) => return unavailable("The application runtime lease could not be located."),
+    };
+    let runtime = match ApplicationUpdateExclusivityGuard::acquire(&runtime_path) {
+        Ok(runtime) => runtime,
+        Err(_) => {
+            return unavailable(
+                "Portcove or an application update helper still holds the runtime lease.",
+            );
+        }
+    };
+    let apply = match ApplicationUpdateApplyStore::open_configured() {
+        Ok(apply) => apply,
+        Err(_) => return unavailable("Application update request state could not be opened."),
+    };
+    let staging = match ApplicationUpdateStagingStore::open_configured() {
+        Ok(staging) => staging,
+        Err(_) => return unavailable("Application update staging could not be opened."),
+    };
+
+    match recover_linux_application_update_before_startup(&runtime, &apply, &staging) {
+        Ok(LinuxApplicationUpdateRecovery::RecoveredPreActivation) => {
+            println!("Recovered the interrupted AppImage replacement before activation.");
+            println!("The verified staged candidate remains available for a fresh update retry.");
+            println!("{NO_OPERATION_NOTICE}");
+            0
+        }
+        Ok(LinuxApplicationUpdateRecovery::NoAttempt) => {
+            eprintln!("No interrupted AppImage replacement requires recovery.");
+            eprintln!("{NO_OPERATION_NOTICE}");
+            1
+        }
+        Ok(LinuxApplicationUpdateRecovery::CandidateInstalled) => {
+            eprintln!("The candidate AppImage is already present at the stable path.");
+            eprintln!("Start Portcove normally to complete healthy-startup reconciliation.");
+            eprintln!("{NO_OPERATION_NOTICE}");
+            1
+        }
+        Err(error) => {
+            eprintln!("The interrupted AppImage recovery could not safely complete: {error}");
+            eprintln!("Review the retained local state before retrying the update.");
+            eprintln!("{NO_OPERATION_NOTICE}");
+            1
+        }
+    }
 }
 
 fn repair(area: RecoveryArea) -> i32 {
@@ -143,14 +235,9 @@ fn repair(area: RecoveryArea) -> i32 {
         Err(message) => return unavailable(message),
     };
     match inspect(area, &runtime) {
-        Ok(Inspection::Healthy) => {
-            eprintln!(
-                "Application update {} state does not require repair.",
-                area.name()
-            );
-            eprintln!("{NO_OPERATION_NOTICE}");
-            return 1;
-        }
+        Ok(Inspection::Healthy) => return repair_not_required(area),
+        #[cfg(target_os = "linux")]
+        Ok(Inspection::InterruptedAppImage) => return repair_not_required(area),
         Ok(Inspection::RecoveryRequired) => {}
         Err(message) => return unavailable(message),
     }
@@ -184,6 +271,15 @@ fn repair(area: RecoveryArea) -> i32 {
         }
         Err(message) => unavailable(message),
     }
+}
+
+fn repair_not_required(area: RecoveryArea) -> i32 {
+    eprintln!(
+        "Application update {} state does not require repair.",
+        area.name()
+    );
+    eprintln!("{NO_OPERATION_NOTICE}");
+    1
 }
 
 fn inspect(
@@ -225,7 +321,13 @@ fn inspect(
         }),
         RecoveryArea::Apply => {
             match ApplicationUpdateApplyStore::open_configured().and_then(|store| store.load()) {
-                Ok(_) => Ok(Inspection::Healthy),
+                Ok(_state) => {
+                    #[cfg(target_os = "linux")]
+                    if is_interrupted_appimage_pending(&_state) {
+                        return Ok(Inspection::InterruptedAppImage);
+                    }
+                    Ok(Inspection::Healthy)
+                }
                 Err(ApplicationUpdateApplyError::InvalidState(_))
                 | Err(ApplicationUpdateApplyError::UnsupportedSchema(_)) => {
                     Ok(Inspection::RecoveryRequired)
@@ -318,6 +420,14 @@ mod tests {
         }
         for invalid in ["", "all", "Preferences", "../staging", "apply.json"] {
             assert_eq!(RecoveryArea::parse(OsStr::new(invalid)), None);
+        }
+        #[cfg(target_os = "linux")]
+        {
+            assert_eq!(INTERRUPTED_APPIMAGE, "interrupted-appimage");
+            let mut state = ApplicationUpdateApplyState::default();
+            assert!(!is_interrupted_appimage_pending(&state));
+            state.native_launch = Some(ApplicationUpdateNativeLaunchState::Starting);
+            assert!(is_interrupted_appimage_pending(&state));
         }
     }
 }

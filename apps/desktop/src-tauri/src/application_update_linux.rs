@@ -23,7 +23,9 @@ use rustix::fs::{CWD, RenameFlags, renameat_with};
 use sha2::{Digest, Sha256};
 
 #[cfg(target_os = "linux")]
-use portcove_core::{ApplicationRuntimeGuard, HostPreferenceStore};
+use portcove_core::{
+    ApplicationRuntimeGuard, ApplicationUpdateExclusivityGuard, HostPreferenceStore,
+};
 
 #[cfg(target_os = "linux")]
 use crate::application_update::{
@@ -125,6 +127,25 @@ pub enum LinuxApplicationUpdateRecovery {
     NoAttempt,
     CandidateInstalled,
     RecoveredPreActivation,
+}
+
+#[cfg(target_os = "linux")]
+pub(crate) trait LinuxApplicationUpdateRecoveryLease {
+    fn path(&self) -> &Path;
+}
+
+#[cfg(target_os = "linux")]
+impl LinuxApplicationUpdateRecoveryLease for ApplicationRuntimeGuard {
+    fn path(&self) -> &Path {
+        self.path()
+    }
+}
+
+#[cfg(target_os = "linux")]
+impl LinuxApplicationUpdateRecoveryLease for ApplicationUpdateExclusivityGuard {
+    fn path(&self) -> &Path {
+        self.path()
+    }
 }
 
 #[cfg(target_os = "linux")]
@@ -247,11 +268,11 @@ pub fn reconcile_linux_application_update(
 }
 
 /// Makes a replacement interrupted before activation explicitly retryable.
-/// Holding the configured shared runtime guard proves that no replacement
-/// helper still owns the exclusive process-lifetime lease.
+/// Holding either the configured process guard or its stronger exclusive form
+/// proves that no replacement helper still owns the exclusive runtime lease.
 #[cfg(target_os = "linux")]
-pub fn recover_linux_application_update_before_startup(
-    runtime: &ApplicationRuntimeGuard,
+pub(crate) fn recover_linux_application_update_before_startup(
+    runtime: &impl LinuxApplicationUpdateRecoveryLease,
     apply: &ApplicationUpdateApplyStore,
     staging: &ApplicationUpdateStagingStore,
 ) -> Result<LinuxApplicationUpdateRecovery, LinuxApplicationUpdateError> {
