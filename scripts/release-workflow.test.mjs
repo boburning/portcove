@@ -106,6 +106,9 @@ test("cross-built Intel artifacts receive native Intel package and launch verifi
   assert.match(intelSection, /Architecture x86_64/);
   assert.match(macosVerifier, /StandardInput\.WriteLine\(\$Response\)/);
   assert.match(macosVerifier, /Environment\["PAGER"\] = "\/bin\/cat"/);
+  assert.match(macosVerifier, /IndexOf\("<\?xml"\)/);
+  assert.match(macosVerifier, /Substring\(\$plistStart\)/);
+  assert.match(macosVerifier, /WriteAllText\(\$attachPath, \$attachPlist\)/);
   assert.doesNotMatch(macosVerifier, /-acceptlicense/);
 });
 

@@ -47,8 +47,13 @@ function Invoke-CheckedWithResponse([string]$Command, [string[]]$Arguments, [str
 
 try {
     $attach = Invoke-CheckedWithResponse "hdiutil" @("attach", "-readonly", "-nobrowse", "-plist", $dmg) "Y"
+    $plistStart = $attach.IndexOf("<?xml")
+    if ($plistStart -lt 0) {
+        throw "hdiutil attach did not return an XML property list`n$attach"
+    }
+    $attachPlist = $attach.Substring($plistStart)
     $attachPath = Join-Path $temporaryRoot "attach.plist"
-    [System.IO.File]::WriteAllText($attachPath, $attach)
+    [System.IO.File]::WriteAllText($attachPath, $attachPlist)
     $attachJson = Invoke-Checked "plutil" @("-convert", "json", "-o", "-", $attachPath)
     $attachData = ($attachJson -join "`n") | ConvertFrom-Json
     $mountedVolume = @($attachData.'system-entities' | Where-Object { $_.'mount-point' })[-1].'mount-point'
