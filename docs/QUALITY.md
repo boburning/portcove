@@ -453,10 +453,14 @@ node scripts/ci-health.mjs --branch my-branch --event pull_request --runs 10
 
 The report separates successful first attempts from successful reruns, reports
 cancelled/incomplete/failed outcomes, and links failed-then-passing attempts for
-investigation. JSON output includes per-job timings and the three longest steps
-in each job. A rerun recovery is not proof of a flaky test: runners, caches and
-external services may differ even when the commit does not. No retries are
-scheduled by this report, and it never changes issues, checks, caches or runs.
+investigation. It also shows the observable pre-job, job-window and post-job
+aggregation boundaries, comparable workflow and runner-label cohorts, recent
+API-identified failure leads, and the three longest steps in each slow job.
+GitHub's run API does not expose installed tool versions, so an unreported
+toolchain stays explicit instead of being inferred. A rerun recovery is not proof
+of a flaky test: runners, caches and external services may differ even when the
+commit does not. No retries are scheduled by this report, and it never changes
+issues, checks, caches or runs.
 
 Use `--since <ISO-date>` to restrict the selected recent runs to those created
 after a workflow change. Main contains already-reviewed merges; inspect the
@@ -470,9 +474,14 @@ changes describes history, not the current design. Cache warmth is deliberately
 unclassified without job-log evidence. First attempts can be warm, and reruns
 can miss caches. Cold rebuilds remain visible rather than being counted as flakes.
 
-Durations run from creation (first attempt) or the attempt start (reruns) to the
-attempt's terminal update, including queueing, setup and aggregation. In-progress
-attempts have no completed duration. Percentiles use nearest-rank selection.
+Workflow durations run from creation (first attempt) or the attempt start
+(reruns) to the attempt's terminal update. The additional timing boundaries are
+limited to timestamps the API actually supplies: before the first observed job,
+first job start through last job completion, and last job completion through the
+workflow update. Summed job execution is not elapsed time or a billing claim.
+In-progress attempts have no completed duration. Missing or backwards timestamps
+remain unavailable rather than becoming zeroes. Percentiles use nearest-rank
+selection.
 The report omits p95 until a cohort has at
 least 20 valid successful samples; that minimum alone does not establish a
 representative long-term rate. Confirm improvements over ordinary subsequent
