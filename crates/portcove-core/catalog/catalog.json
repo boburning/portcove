@@ -100,6 +100,16 @@
         "claim": "Limits Snap64 Recomp 1.0.5 to the US Pokemon Snap source and documents portable data-root isolation",
         "immutable_url": "https://github.com/JackandBeans/Snap64Recomp/blob/0b1a67eb4fd15ff3a87957110c428eb4905c36cc/README.md",
         "live_url": "https://github.com/JackandBeans/Snap64Recomp/blob/main/README.md"
+      },
+      {
+        "id": "snap64-recomp-windows-2026-09-13",
+        "role": "portcove_qualification",
+        "authority": "boburning/portcove",
+        "authority_ref": "bde8b91440620599aa08e1a9d7d02674d45eb9a8",
+        "reviewed_at": "2026-09-13",
+        "claim": "Records exact Windows structural and lifecycle passes plus bounded upstream replay failures for Snap64 Recomp 1.0.5",
+        "immutable_url": "https://github.com/boburning/portcove/blob/bde8b91440620599aa08e1a9d7d02674d45eb9a8/docs/qualification/snap64-recomp-windows-2026-09-13.md",
+        "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/snap64-recomp-windows-2026-09-13.md"
       }
     ],
     "identities": [
@@ -5533,7 +5543,89 @@
         ]
       }
     ],
-    "qualification": []
+    "qualification": [
+      {
+        "scope": {
+          "port_id": "snap64-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "e3ab514df95d4a8133d2504ddc2ce43c12e376f5be74f076b3f90c09f8baf6b7",
+          "upstream_ref": "v1.0.5",
+          "contract_id": "snap64-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "pokemon-snap",
+              "variant_id": "usa-rev0",
+              "representation_id": "canonical-rom"
+            }
+          },
+          "check_version": "snap64-windows-qualification-v1"
+        },
+        "kind": "structural_check",
+        "outcome": "passed",
+        "observed_at": 1789309720,
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "bde8b91440620599aa08e1a9d7d02674d45eb9a8",
+        "method": "Catalog, source identity, artifact binding, persistence ownership, and migration contract checks",
+        "evidence_ids": [
+          "snap64-recomp-windows-2026-09-13"
+        ]
+      },
+      {
+        "scope": {
+          "port_id": "snap64-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "e3ab514df95d4a8133d2504ddc2ce43c12e376f5be74f076b3f90c09f8baf6b7",
+          "upstream_ref": "v1.0.5",
+          "contract_id": "snap64-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "pokemon-snap",
+              "variant_id": "usa-rev0",
+              "representation_id": "canonical-rom"
+            }
+          },
+          "check_version": "snap64-windows-qualification-v1"
+        },
+        "kind": "automated_lifecycle",
+        "outcome": "passed",
+        "observed_at": 1789309720,
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "bde8b91440620599aa08e1a9d7d02674d45eb9a8",
+        "method": "Exact archive registration, mismatch rejection, install, verify, responsive native launch, backup restore, update, rollback, and immutable-install isolation",
+        "evidence_ids": [
+          "snap64-recomp-windows-2026-09-13"
+        ]
+      },
+      {
+        "scope": {
+          "port_id": "snap64-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "e3ab514df95d4a8133d2504ddc2ce43c12e376f5be74f076b3f90c09f8baf6b7",
+          "upstream_ref": "v1.0.5",
+          "contract_id": "snap64-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "pokemon-snap",
+              "variant_id": "usa-rev0",
+              "representation_id": "canonical-rom"
+            }
+          },
+          "check_version": "snap64-windows-qualification-v1"
+        },
+        "kind": "known_failure",
+        "outcome": "failed",
+        "observed_at": 1789305500,
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "bde8b91440620599aa08e1a9d7d02674d45eb9a8",
+        "method": "Upstream tools/release_check.py default suite: 18/22 passed; pacing, coherence, tick-count, and scoring-route checks failed on the 165 Hz host",
+        "evidence_ids": [
+          "snap64-recomp-windows-2026-09-13"
+        ]
+      }
+    ]
   },
   "ports": [
     {

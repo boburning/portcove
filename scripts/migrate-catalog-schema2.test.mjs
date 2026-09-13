@@ -63,4 +63,11 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
   }
   assert.deepEqual(contract("snap64-recomp").supported_variant_ids, ["usa-rev0"]);
   assert.equal(profile("pokemon-snap").variants[0].representations[0].kind, "canonical-n64");
+  assert.equal(migrated.source_catalog.qualification.length, 3);
+  assert.equal(
+    migrated.source_catalog.qualification.every(
+      (record) => record.scope.port_id === "snap64-recomp",
+    ),
+    true,
+  );
 });

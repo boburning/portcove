@@ -1138,7 +1138,15 @@ mod tests {
             serde_json::to_value(migrated_legacy_ports).unwrap(),
             serde_json::to_value(expected_ports).unwrap()
         );
-        assert!(migrated.source_catalog().unwrap().qualification.is_empty());
+        assert_eq!(migrated.source_catalog().unwrap().qualification.len(), 3);
+        assert!(
+            migrated
+                .source_catalog()
+                .unwrap()
+                .qualification
+                .iter()
+                .all(|record| record.scope.port_id == "snap64-recomp")
+        );
         assert!(migrated.document().ports.iter().any(|port| {
             !port.automated_tested_platforms.is_empty()
                 || !port.manually_validated_platforms.is_empty()
@@ -2470,6 +2478,43 @@ mod tests {
         );
         assert!(port.automated_tested_platforms.is_empty());
         assert!(port.manually_validated_platforms.is_empty());
+        let scope = crate::SourceEvidenceScope {
+            port_id: port.id.clone(),
+            platform: Platform::WindowsX86_64,
+            artifact_sha256: Some(
+                "e3ab514df95d4a8133d2504ddc2ce43c12e376f5be74f076b3f90c09f8baf6b7".into(),
+            ),
+            upstream_ref: Some("v1.0.5".into()),
+            contract_id: Some("snap64-recomp-game-source".into()),
+            variant: crate::SourceVariantScope::Exact {
+                identity: crate::SourceIdentity {
+                    game_id: "pokemon-snap".into(),
+                    variant_id: "usa-rev0".into(),
+                    representation_id: "canonical-rom".into(),
+                },
+            },
+            check_version: Some("snap64-windows-qualification-v1".into()),
+        };
+        let qualification = catalog
+            .source_catalog()
+            .unwrap()
+            .assess_qualification(&scope);
+        assert_eq!(
+            qualification.structural_check,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            qualification.automated_lifecycle,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            qualification.hands_on,
+            crate::QualificationEvidenceState::Missing
+        );
+        assert_eq!(
+            qualification.known_failure,
+            crate::QualificationEvidenceState::Failed
+        );
         for path in [
             "snapsettings.json",
             "saves",
