@@ -116,6 +116,8 @@ test("Linux desktop prerequisite installation is shared, bounded, and retrying",
     "patchelf",
     "libfuse2",
     "xvfb",
+    "dbus-x11",
+    "at-spi2-core",
   ]) {
     assert.ok(installer.includes(packageName), `${packageName} is missing`);
   }

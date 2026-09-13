@@ -217,5 +217,7 @@ test("manual rehearsal retains the complete matrix without production credential
     new URL("./test-linux-appimage-update.ps1", import.meta.url),
     "utf8",
   );
-  assert.match(linuxHarness, /WEBKIT_DISABLE_COMPOSITING_MODE/);
+  assert.doesNotMatch(linuxHarness, /WEBKIT_DISABLE_COMPOSITING_MODE/);
+  assert.match(linuxHarness, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE/);
+  assert.match(rehearsal, /Invoke-Checked "dbus-run-session"/);
 });

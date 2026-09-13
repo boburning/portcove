@@ -207,15 +207,17 @@ try {
         $candidate = Join-Path $runRoot "0.3.0-$PlatformLabel/Portcove_0.3.0_amd64.AppImage"
         Remove-Item -LiteralPath (Join-Path $fixtureRoot "private") -Recurse -Force
         Remove-Item -LiteralPath (Join-Path $fixtureRoot "build-tuf.json") -Force
-        & (Join-Path $PSScriptRoot "test-linux-appimage-update.ps1") `
-            -PredecessorPath $predecessor `
-            -CandidatePath $candidate `
-            -TrustedRootPath (Join-Path $fixtureRoot "trusted-root.json") `
-            -MetadataPath $metadataDirectory `
-            -TargetsPath $targetsDirectory `
-            -StateRoot (Join-Path $fixtureRoot "state") `
-            -EvidencePath (Join-Path $fixtureRoot "application-update-evidence.json")
-        if ($LASTEXITCODE -ne 0) { throw "Linux AppImage packaged update qualification failed" }
+        $linuxHarnessArguments = @(
+            "-NoProfile", "-File", (Join-Path $PSScriptRoot "test-linux-appimage-update.ps1"),
+            "-PredecessorPath", $predecessor,
+            "-CandidatePath", $candidate,
+            "-TrustedRootPath", (Join-Path $fixtureRoot "trusted-root.json"),
+            "-MetadataPath", $metadataDirectory,
+            "-TargetsPath", $targetsDirectory,
+            "-StateRoot", (Join-Path $fixtureRoot "state"),
+            "-EvidencePath", (Join-Path $fixtureRoot "application-update-evidence.json")
+        )
+        Invoke-Checked "dbus-run-session" (@("--", "pwsh") + $linuxHarnessArguments)
         Move-RehearsalInput $bundleRoot "qualified-0.1.0-bundles"
     }
 } catch {

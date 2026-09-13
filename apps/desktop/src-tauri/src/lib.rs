@@ -111,6 +111,27 @@ fn report_application_update_qualification_failure(stage: &str, error: &str) {
     let _ = (stage, error);
 }
 
+#[cfg(any(windows, target_os = "linux"))]
+fn report_application_update_qualification_stage(stage: &str) {
+    #[cfg(feature = "application-update-qualification")]
+    if std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT").as_deref()
+        == Some(std::ffi::OsStr::new("after-reconciliation"))
+    {
+        eprintln!("Portcove application-update qualification startup reached {stage}");
+        if let Some(path) = std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE") {
+            let report = serde_json::json!({
+                "schema_version": 1,
+                "stage": stage,
+                "process_id": std::process::id(),
+            });
+            if let Ok(bytes) = serde_json::to_vec_pretty(&report) {
+                let _ = std::fs::write(path, bytes);
+            }
+        }
+    }
+    let _ = stage;
+}
+
 #[derive(Default)]
 struct BlockingWorkerState {
     active: usize,
@@ -1839,6 +1860,8 @@ fn reconcile_application_update_after_healthy_startup() {
 }
 
 pub fn run() {
+    #[cfg(any(windows, target_os = "linux"))]
+    report_application_update_qualification_stage("process entry");
     let preferences = host_preference_store();
     let application_runtime = preferences.as_ref().map_err(Clone::clone).and_then(|_| {
         HostPreferenceStore::application_runtime_lock_path()
@@ -1855,6 +1878,8 @@ pub fn run() {
             return;
         }
     };
+    #[cfg(any(windows, target_os = "linux"))]
+    report_application_update_qualification_stage("runtime lease");
     let configured_root = std::env::var_os("PORTCOVE_LIBRARY")
         .filter(|path| !path.is_empty())
         .map(PathBuf::from);
@@ -1865,6 +1890,8 @@ pub fn run() {
     let initialization = std::sync::Arc::new(std::sync::Mutex::new(
         initialization_result.and_then(|state| {
             diagnostics::initialize(&state.library.logs_dir()).map_err(DesktopError::from)?;
+            #[cfg(any(windows, target_os = "linux"))]
+            report_application_update_qualification_stage("desktop initialization");
             tracing::info!(
                 operation_id = "desktop-startup",
                 library_root = %state.library.root().display(),
@@ -1996,6 +2023,8 @@ pub fn run() {
             report_frontend_error,
         ])
         .setup(|app| {
+            #[cfg(any(windows, target_os = "linux"))]
+            report_application_update_qualification_stage("Tauri setup");
             if let Some(window) = app.get_webview_window("main") {
                 window.set_focus()?;
             }
