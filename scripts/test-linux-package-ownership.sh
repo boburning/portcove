@@ -158,7 +158,7 @@ if [[ -e "$installed_executable" ]]; then
 fi
 
 export PORTCOVE_EVIDENCE_ROOT="$evidence_root"
-checkout_commit=$(git -C "$repo_root" rev-parse HEAD)
+checkout_commit=$(git -c safe.directory="$repo_root" -C "$repo_root" rev-parse HEAD)
 PORTCOVE_SOURCE_COMMIT=${PORTCOVE_SOURCE_COMMIT:-${GITHUB_SHA:-$checkout_commit}}
 if [[ ! "$PORTCOVE_SOURCE_COMMIT" =~ ^[a-f0-9]{40}$ || "$PORTCOVE_SOURCE_COMMIT" != "$checkout_commit" ]]; then
   echo "source commit must equal the exact checked-out commit" >&2

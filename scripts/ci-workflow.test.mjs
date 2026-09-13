@@ -230,7 +230,11 @@ test("Linux package ownership rehearsal is focused and preserves managed executa
   assert.match(qualification, /dnf --assumeyes install/);
   assert.match(qualification, /\$format-owners\.txt/);
   assert.match(qualification, /hash_before.*hash_after/s);
-  assert.match(qualification, /git -C "\$repo_root" rev-parse HEAD/);
+  assert.match(
+    qualification,
+    /git -c safe\.directory="\$repo_root" -C "\$repo_root" rev-parse HEAD/,
+  );
+  assert.doesNotMatch(qualification, /safe\.directory=(?:"?\*)/);
   assert.match(qualification, /checkout_commit.*PORTCOVE_SOURCE_COMMIT/s);
   assert.match(qualification, /package_managed_files_unchanged: true/);
 });
