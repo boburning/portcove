@@ -653,7 +653,16 @@ try {
   });
   await controllerScenario({ browser, scenario, output, artifacts });
   await accessibleNavigationScenario({ browser, scenario, output, artifacts });
-  await workspaceRefreshScenario({ browser, scenario, output, artifacts });
+  await workspaceRefreshScenario({
+    browser,
+    invoke,
+    scenario,
+    library,
+    output,
+    artifacts,
+    cli: values["preparation-cli"],
+    tool: values["preparation-tool"],
+  });
   for (const gap of selection.known_gaps)
     checks.push({ scenario: gap.scenario, outcome: "not-run", reason: gap.reason });
   if (selection.prerequisites.includes("owned-fixture")) {

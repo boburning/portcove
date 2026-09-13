@@ -33,6 +33,7 @@ import { errorText, isCancellation, type Filter, type View } from "./view-model"
 import { currentUpdateSnapshot } from "./view-model";
 import { applyOperationEvent, mostRecentOperation } from "./operation-state";
 import {
+  ActivityRefreshScheduler,
   addPendingOperation,
   closeCoalescedRequest,
   CoalescedRequest,
@@ -202,6 +203,10 @@ function activitySnapshotIdentity(activities: ActivityRecord[]) {
   return JSON.stringify(activities);
 }
 
+function essentialSnapshotIdentity(snapshot: WorkspaceSnapshot) {
+  return JSON.stringify([snapshot.catalog, snapshot.statuses, snapshot.sources]);
+}
+
 export function usePortcoveData(libraryGeneration = 0) {
   const [catalog, setCatalog] = useState<CatalogDocument>();
   const [statuses, setStatuses] = useState<PortStatus[]>([]);
@@ -213,16 +218,29 @@ export function usePortcoveData(libraryGeneration = 0) {
   const [diagnosticFailure, setDiagnosticFailure] = useState<{ error: unknown }>();
   const [diagnosticRefreshing, setDiagnosticRefreshing] = useState(false);
   const [diagnosticsStale, setDiagnosticsStale] = useState(true);
+  const [diagnosticRevision, setDiagnosticRevision] = useState(0);
   const [subscriptionFailure, setSubscriptionFailure] = useState<{ error: unknown }>();
   const refreshGeneration = useRef(new LatestRequestGeneration());
   const activityGeneration = useRef(new LatestRequestGeneration());
   const diagnosticGeneration = useRef(new LatestRequestGeneration());
+  const externalGeneration = useRef(new LatestRequestGeneration());
+  const diagnosticInvalidationRevision = useRef(0);
   const activityIdentity = useRef(activitySnapshotIdentity([]));
+  const essentialIdentity = useRef<string | undefined>(undefined);
+  const lastFullReconciliationAt = useRef(0);
+  const forceWorkspaceReconciliation = useRef(false);
   const acceptActivities = useCallback((next: ActivityRecord[]) => {
     const identity = activitySnapshotIdentity(next);
     if (identity === activityIdentity.current) return;
     activityIdentity.current = identity;
     setActivities(next);
+  }, []);
+  const invalidateDiagnostics = useCallback(() => {
+    diagnosticInvalidationRevision.current += 1;
+    diagnosticGeneration.current.begin();
+    setDiagnosticRevision((revision) => revision + 1);
+    setDiagnosticRefreshing(false);
+    setDiagnosticsStale(true);
   }, []);
   const runRefresh = useCallback(async () => {
     const generation = refreshGeneration.current.begin();
@@ -231,6 +249,11 @@ export function usePortcoveData(libraryGeneration = 0) {
     try {
       const snapshot: WorkspaceSnapshot = await desktopApi.workspaceSnapshot(libraryGeneration);
       if (!refreshGeneration.current.isCurrent(generation)) return;
+      const identity = essentialSnapshotIdentity(snapshot);
+      if (essentialIdentity.current !== undefined && essentialIdentity.current !== identity)
+        invalidateDiagnostics();
+      essentialIdentity.current = identity;
+      lastFullReconciliationAt.current = Date.now();
       setCatalog(snapshot.catalog);
       setStatuses(snapshot.statuses);
       setSources(snapshot.sources);
@@ -244,12 +267,13 @@ export function usePortcoveData(libraryGeneration = 0) {
     } finally {
       if (refreshGeneration.current.isCurrent(generation)) setRefreshing(false);
     }
-  }, [acceptActivities, libraryGeneration]);
+  }, [acceptActivities, invalidateDiagnostics, libraryGeneration]);
   const coordinators = useRef<
     | {
         refresh: CoalescedRequest;
         diagnostics: CoalescedRequest;
-        activity: CoalescedRequest;
+        activity: ActivityRefreshScheduler;
+        external: CoalescedRequest;
       }
     | undefined
   >(undefined);
@@ -266,13 +290,22 @@ export function usePortcoveData(libraryGeneration = 0) {
       /* The refresh failure remains visible independently of mutation outcomes. */
     }
   }, [refresh]);
+  const refreshAfterMutation = useCallback(() => {
+    invalidateDiagnostics();
+    return refresh();
+  }, [invalidateDiagnostics, refresh]);
 
   const runDiagnostics = useCallback(async () => {
     const generation = diagnosticGeneration.current.begin();
+    const invalidationRevision = diagnosticInvalidationRevision.current;
     setDiagnosticRefreshing(true);
     try {
       const next = await desktopApi.doctor(libraryGeneration);
-      if (!diagnosticGeneration.current.isCurrent(generation)) return;
+      if (
+        !diagnosticGeneration.current.isCurrent(generation) ||
+        invalidationRevision !== diagnosticInvalidationRevision.current
+      )
+        return;
       setDoctor(next);
       setDiagnosticFailure(undefined);
       setDiagnosticsStale(false);
@@ -289,11 +322,10 @@ export function usePortcoveData(libraryGeneration = 0) {
       Promise.resolve("disposed" as const),
     [libraryGeneration, runDiagnostics],
   );
-  const invalidateDiagnostics = useCallback(() => {
-    diagnosticGeneration.current.begin();
-    setDiagnosticRefreshing(false);
-    setDiagnosticsStale(true);
-  }, []);
+  const refreshDiagnosticsAfterMutation = useCallback(() => {
+    invalidateDiagnostics();
+    return refreshDiagnostics();
+  }, [invalidateDiagnostics, refreshDiagnostics]);
 
   const runActivityRefresh = useCallback(async () => {
     const generation = activityGeneration.current.begin();
@@ -305,38 +337,67 @@ export function usePortcoveData(libraryGeneration = 0) {
     }
   }, [acceptActivities]);
   const refreshActivities = useCallback(
-    () =>
-      coordinators.current?.activity.request(runActivityRefresh, libraryGeneration) ??
-      Promise.resolve("disposed" as const),
-    [libraryGeneration, runActivityRefresh],
+    (priority: "progress" | "prompt" = "prompt") =>
+      coordinators.current?.activity.request(priority) ?? Promise.resolve("disposed" as const),
+    [],
   );
 
   useEffect(() => {
     const lifetime = {
       refresh: new CoalescedRequest(),
       diagnostics: new CoalescedRequest(),
-      activity: new CoalescedRequest(),
+      activity: new ActivityRefreshScheduler(runActivityRefresh),
+      external: new CoalescedRequest(),
     };
     coordinators.current = lifetime;
     return () => {
       if (coordinators.current === lifetime) coordinators.current = undefined;
       closeCoalescedRequest(lifetime.refresh);
       closeCoalescedRequest(lifetime.diagnostics);
-      closeCoalescedRequest(lifetime.activity);
+      lifetime.activity.close();
+      closeCoalescedRequest(lifetime.external);
     };
-  }, [libraryGeneration]);
+  }, [libraryGeneration, runActivityRefresh]);
+
+  const runWorkspaceReconciliation = useCallback(async () => {
+    const requestGeneration = externalGeneration.current.begin();
+    const force = forceWorkspaceReconciliation.current;
+    forceWorkspaceReconciliation.current = false;
+    let changed = false;
+    try {
+      changed = await desktopApi.workspaceChanged(libraryGeneration);
+    } catch {
+      /* A forced or periodic full read remains the actionable fallback. */
+    }
+    if (!externalGeneration.current.isCurrent(requestGeneration)) return;
+    if (changed) invalidateDiagnostics();
+    const periodicFullReadDue =
+      !document.hidden && Date.now() - lastFullReconciliationAt.current >= 60_000;
+    if (force || changed || periodicFullReadDue) await refresh();
+  }, [invalidateDiagnostics, libraryGeneration, refresh]);
+  const reconcileWorkspace = useCallback(
+    (force = false) => {
+      if (force) forceWorkspaceReconciliation.current = true;
+      return (
+        coordinators.current?.external.request(runWorkspaceReconciliation, libraryGeneration) ??
+        Promise.resolve("disposed" as const)
+      );
+    },
+    [libraryGeneration, runWorkspaceReconciliation],
+  );
 
   useEffect(() => {
     const refreshRequests = refreshGeneration.current;
     const activityRequests = activityGeneration.current;
     const diagnosticRequests = diagnosticGeneration.current;
+    const externalRequests = externalGeneration.current;
     let closed = false;
     const subscription = startManagedSubscription<string>({
       register: (accept) =>
         listen<string>("portcove://library-changed", (event) => accept(event.payload)),
       onEvent: () => {
         invalidateDiagnostics();
-        void retryRefresh();
+        void reconcileWorkspace(true);
       },
       onFailure: (error) => setSubscriptionFailure({ error }),
     });
@@ -352,9 +413,10 @@ export function usePortcoveData(libraryGeneration = 0) {
       refreshRequests.begin();
       activityRequests.begin();
       diagnosticRequests.begin();
+      externalRequests.begin();
       subscription.stop();
     };
-  }, [invalidateDiagnostics, refreshDiagnostics, retryRefresh]);
+  }, [invalidateDiagnostics, reconcileWorkspace, refreshDiagnostics, retryRefresh]);
 
   const hasRunningActivity = activities.some((activity) => activity.status === "running");
   useEffect(() => {
@@ -365,10 +427,13 @@ export function usePortcoveData(libraryGeneration = 0) {
       if (!closed) timer = window.setTimeout(poll, interval());
     };
     const poll = () => {
-      void refreshActivities().finally(schedule);
+      void Promise.allSettled([reconcileWorkspace(), refreshActivities("prompt")]).finally(
+        schedule,
+      );
     };
     const refreshWhenVisible = () => {
-      if (!document.hidden) void refreshActivities();
+      if (!document.hidden)
+        void Promise.allSettled([reconcileWorkspace(true), refreshActivities("prompt")]);
     };
     window.addEventListener("focus", refreshWhenVisible);
     document.addEventListener("visibilitychange", refreshWhenVisible);
@@ -379,7 +444,7 @@ export function usePortcoveData(libraryGeneration = 0) {
       window.removeEventListener("focus", refreshWhenVisible);
       document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
-  }, [hasRunningActivity, refreshActivities]);
+  }, [hasRunningActivity, reconcileWorkspace, refreshActivities]);
   return {
     catalog,
     statuses,
@@ -388,15 +453,18 @@ export function usePortcoveData(libraryGeneration = 0) {
     doctor,
     storage: doctor?.library,
     refresh,
+    refreshAfterMutation,
     retryRefresh,
     refreshActivities,
     refreshFailure,
     refreshing,
     refreshDiagnostics,
+    refreshDiagnosticsAfterMutation,
     invalidateDiagnostics,
     diagnosticFailure,
     diagnosticRefreshing,
     diagnosticsStale,
+    diagnosticRevision,
     subscriptionFailure,
   };
 }
@@ -408,7 +476,7 @@ export function useOperationState(
     | (() => Promise<unknown>)
     | {
         refresh: () => Promise<unknown>;
-        refreshActivities?: () => Promise<unknown>;
+        refreshActivities?: (priority?: "progress" | "prompt") => Promise<unknown>;
         invalidateDiagnostics?: () => void;
       },
 ) {
@@ -436,7 +504,9 @@ export function useOperationState(
         listen<OperationEvent>("portcove://operation", (event) => accept(event.payload)),
       onEvent: (payload) => {
         setOperationEvents((current) => applyOperationEvent(current, payload));
-        void refreshActivities();
+        void refreshActivities(
+          payload.type === "started" || payload.type === "finished" ? "prompt" : "progress",
+        );
       },
       onFailure: setSubscriptionFailure,
     });

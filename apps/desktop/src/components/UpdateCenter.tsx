@@ -37,9 +37,17 @@ export function UpdateCenter({
   onOpenSources,
   generation,
   repair,
+  diagnosticsRefreshing,
+  diagnosticsStale,
+  diagnosticFailure,
+  refreshDiagnostics,
 }: {
   generation: number;
   repair?: DoctorReport["repair"];
+  diagnosticsRefreshing: boolean;
+  diagnosticsStale: boolean;
+  diagnosticFailure?: unknown;
+  refreshDiagnostics: () => Promise<unknown>;
   ports: PortDefinition[];
   statuses: Map<string, PortStatus>;
   activities: ActivityRecord[];
@@ -129,7 +137,14 @@ export function UpdateCenter({
           })}
         </div>
       )}
-      <RecoveryReview repair={repair} ports={ports} />
+      <RecoveryReview
+        repair={repair}
+        ports={ports}
+        refreshing={diagnosticsRefreshing}
+        stale={diagnosticsStale}
+        failure={diagnosticFailure}
+        refresh={refreshDiagnostics}
+      />
       <ActivityHistory
         ports={ports}
         activities={activities}

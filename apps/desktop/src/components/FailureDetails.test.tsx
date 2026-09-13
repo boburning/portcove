@@ -135,6 +135,10 @@ describe("core-owned failure presentation", () => {
       statuses: new Map(),
       outcomes: [],
       checkAll: vi.fn(),
+      diagnosticsRefreshing: false,
+      diagnosticsStale: false,
+      diagnosticFailure: undefined,
+      refreshDiagnostics: vi.fn().mockResolvedValue("completed"),
       onSelect,
       onOpenSources: vi.fn(),
       activities: [

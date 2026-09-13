@@ -57,10 +57,10 @@ use portcove_core::{
     ChildProcessClass, ChildProcessPolicy, CompositeReleaseProvider, DoctorReport,
     GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, GithubReleaseProvider,
     HostPreferenceStore, HostToolProbeResult, HostToolStatus, IdentifiedLaunchRequest, InstallPlan,
-    InstallRecord, LaunchStdio, Library, LibraryMetadataFile, LibrarySelection,
-    LibrarySelectionSource, OperationCoordinator, OperationEvent, OperationResult, PortStatus,
-    PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel, ReleaseProvider,
-    SourceDiscoveryLimits, SourceImportMode, SourceImportPlan, SourceImportResult,
+    InstallRecord, LaunchStdio, Library, LibraryChangeObserver, LibraryMetadataFile,
+    LibrarySelection, LibrarySelectionSource, OperationCoordinator, OperationEvent,
+    OperationResult, PortStatus, PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel,
+    ReleaseProvider, SourceDiscoveryLimits, SourceImportMode, SourceImportPlan, SourceImportResult,
     SourceInboxPaths, SourceInboxResolution, SourceInspectionReport, SourceIntakeInspection,
     SourceRecord, SourceRelinkPlan, SourceVerification, UpdateCheck, UpdatePolicy,
     VerificationReport,
@@ -84,6 +84,7 @@ enum LaunchObservationState {
 #[derive(Clone)]
 struct ReadyDesktopState {
     library: Library,
+    workspace_observer: std::sync::Arc<std::sync::Mutex<LibraryChangeObserver>>,
     selection: LibrarySelection,
     github: std::sync::Arc<GithubReleaseProvider>,
     releases: std::sync::Arc<CompositeReleaseProvider>,
@@ -484,6 +485,28 @@ async fn get_workspace_snapshot(
         Ok(snapshot)
     })
     .await
+}
+
+#[tauri::command]
+async fn get_workspace_changed(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+) -> DesktopResult<bool> {
+    let state = state.inner().clone();
+    blocking_worker(move || workspace_changed_at_generation(&state, generation)).await
+}
+
+fn workspace_changed_at_generation(state: &DesktopState, generation: u64) -> DesktopResult<bool> {
+    require_library_generation(state_generation(state), generation)?;
+    let ready = ready(state)?;
+    let mut observer = ready.workspace_observer.lock().map_err(|_| {
+        DesktopError::from(PortcoveError::state(
+            "workspace change observer lock was poisoned",
+        ))
+    })?;
+    let changed = observer.changed().map_err(DesktopError::from)?;
+    require_library_generation(state_generation(state), generation)?;
+    Ok(changed)
 }
 
 fn workspace_snapshot_with_service(
@@ -1798,12 +1821,16 @@ fn application_runtime_guard() -> portcove_core::Result<ApplicationRuntimeGuard>
 fn initialize_desktop_selection(selection: LibrarySelection) -> DesktopResult<ReadyDesktopState> {
     let library = Library::open(&selection.root).map_err(DesktopError::from)?;
     start_stale_launch_recovery(&library).map_err(DesktopError::from)?;
+    let workspace_observer = std::sync::Arc::new(std::sync::Mutex::new(
+        library.change_observer().map_err(DesktopError::from)?,
+    ));
     let releases = std::sync::Arc::new(
         CompositeReleaseProvider::for_library(&library).map_err(DesktopError::from)?,
     );
     let github = releases.github();
     Ok(ReadyDesktopState {
         library,
+        workspace_observer,
         selection,
         github,
         releases,
@@ -2028,6 +2055,7 @@ pub fn run() {
             get_sources,
             get_activities,
             get_workspace_snapshot,
+            get_workspace_changed,
             get_activity_diagnostic,
             cancel_operation,
             get_backups,
@@ -2146,6 +2174,39 @@ mod tests {
         let error = require_library_generation(8, 7).unwrap_err();
         assert_eq!(error.code, portcove_core::ErrorCode::Conflict);
         assert!(error.message.contains("open library changed"));
+    }
+
+    #[test]
+    fn workspace_change_observer_detects_external_commits_and_resets_with_library_generation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let first_root = temporary.path().join("first-library");
+        let first = initialize_desktop_at(Some(first_root.clone())).unwrap();
+        let state = DesktopState {
+            initialization: std::sync::Arc::new(std::sync::Mutex::new(Ok(first))),
+            preferences: HostPreferenceStore::new(temporary.path().join("preferences.json"))
+                .map_err(DesktopError::from),
+            generation: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(1)),
+            launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        };
+
+        assert!(!workspace_changed_at_generation(&state, 1).unwrap());
+        Library::open(&first_root)
+            .unwrap()
+            .ensure_settings("external-port", ReleaseChannel::Stable)
+            .unwrap();
+        assert!(workspace_changed_at_generation(&state, 1).unwrap());
+        assert!(!workspace_changed_at_generation(&state, 1).unwrap());
+
+        let second_root = temporary.path().join("second-library");
+        let second = initialize_desktop_at(Some(second_root)).unwrap();
+        *state.initialization.lock().unwrap() = Ok(second);
+        state
+            .generation
+            .store(2, std::sync::atomic::Ordering::Release);
+
+        let stale = workspace_changed_at_generation(&state, 1).unwrap_err();
+        assert!(stale.message.contains("open library changed"));
+        assert!(!workspace_changed_at_generation(&state, 2).unwrap());
     }
 
     #[test]

@@ -37,6 +37,14 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     source: "desktop-workspace-refresh-test.mjs",
   }),
   scenario(
+    "native-external-cli-reconciliation",
+    "An open Desktop reconciles actual CLI commits without a synthetic event.",
+    {
+      prerequisites: ["desktop", "owned-fixture"],
+      source: "desktop-workspace-refresh-test.mjs",
+    },
+  ),
+  scenario(
     "install-progress-cancellation",
     "Reviewed install progress and cancellation acceptance gap.",
     {
@@ -166,6 +174,7 @@ const smoke = [
   "install-progress-cancellation",
 ];
 const ownedLifecycle = [
+  "native-external-cli-reconciliation",
   "native-preparation-review-and-play",
   "native-missing-readiness-recovery",
   "native-retained-contract-repair-state",

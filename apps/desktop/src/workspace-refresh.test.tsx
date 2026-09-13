@@ -114,6 +114,8 @@ beforeEach(() => {
     return () => eventHandlers.delete(event);
   });
   vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
+  vi.spyOn(desktopApi, "workspaceChanged").mockResolvedValue(false);
+  vi.spyOn(desktopApi, "workspaceChanged").mockResolvedValue(false);
   vi.spyOn(desktopApi, "activities").mockResolvedValue([]);
   vi.spyOn(desktopApi, "doctor").mockResolvedValue(doctor);
 });
@@ -224,6 +226,26 @@ describe("workspace refresh recovery", () => {
     expect(data.doctor).toEqual(current);
   });
 
+  it("discards an external observer result from a replaced library generation", async () => {
+    await render();
+    const previous = deferred<boolean>();
+    vi.mocked(desktopApi.workspaceChanged).mockReturnValueOnce(previous.promise);
+    window.dispatchEvent(new Event("focus"));
+    await act(async () => Promise.resolve());
+    expect(desktopApi.workspaceChanged).toHaveBeenCalledWith(7);
+
+    await act(async () => {
+      root.render(<Fixture key="observer-generation-8" generation={8} />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    vi.mocked(desktopApi.workspaceSnapshot).mockClear();
+    previous.resolve(true);
+    await act(async () => previous.promise);
+
+    expect(desktopApi.workspaceSnapshot).not.toHaveBeenCalled();
+  });
+
   it("coalesces a burst and runs one follow-up when invalidated during a request", async () => {
     await render();
     vi.mocked(desktopApi.workspaceSnapshot).mockClear();
@@ -258,6 +280,18 @@ describe("workspace refresh recovery", () => {
     expect(data.diagnosticsStale).toBe(true);
   });
 
+  it("observes an external durable change while idle without a desktop event", async () => {
+    await render();
+    vi.mocked(desktopApi.workspaceSnapshot).mockClear();
+    vi.mocked(desktopApi.workspaceChanged).mockResolvedValueOnce(true);
+
+    await act(async () => vi.advanceTimersByTimeAsync(10_000));
+
+    expect(desktopApi.workspaceChanged).toHaveBeenCalledWith(7);
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledOnce();
+    expect(data.diagnosticsStale).toBe(true);
+  });
+
   it("retains the last essential snapshot and exposes a failed refresh", async () => {
     await render();
     vi.mocked(desktopApi.workspaceSnapshot).mockRejectedValueOnce(failureReport());
@@ -276,13 +310,37 @@ describe("workspace refresh recovery", () => {
     expect(data.diagnosticFailure).toBeDefined();
   });
 
+  it("queues a fresh diagnostic read when a mutation invalidates an in-flight result", async () => {
+    await render();
+    const stale = deferred<DoctorReport>();
+    const fresh = { ...doctor, registered_source_count: 1 };
+    vi.mocked(desktopApi.doctor).mockClear();
+    vi.mocked(desktopApi.doctor).mockReturnValueOnce(stale.promise).mockResolvedValueOnce(fresh);
+
+    let first!: ReturnType<typeof data.refreshDiagnostics>;
+    let followup!: ReturnType<typeof data.refreshDiagnostics>;
+    await act(async () => {
+      data.invalidateDiagnostics();
+      first = data.refreshDiagnostics();
+      await Promise.resolve();
+      void data.refreshAfterMutation();
+      followup = data.refreshDiagnostics();
+      stale.resolve(doctor);
+      await Promise.all([first, followup]);
+    });
+
+    expect(desktopApi.doctor).toHaveBeenCalledTimes(2);
+    expect(data.doctor).toEqual(fresh);
+    expect(data.diagnosticsStale).toBe(false);
+  });
+
   it("uses reduced visible-idle polling and refreshes immediately on focus", async () => {
     await render();
     vi.mocked(desktopApi.activities).mockClear();
-    const settledRenderCount = renderCount;
+    vi.mocked(desktopApi.workspaceSnapshot).mockClear();
     await act(async () => vi.advanceTimersByTimeAsync(60_000));
     expect(desktopApi.activities).toHaveBeenCalledTimes(6);
-    expect(renderCount).toBe(settledRenderCount);
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledOnce();
     window.dispatchEvent(new Event("focus"));
     await act(async () => Promise.resolve());
     expect(desktopApi.activities).toHaveBeenCalledTimes(7);
@@ -388,6 +446,40 @@ describe("workspace refresh recovery", () => {
       await Promise.resolve();
     });
     expect(desktopApi.activities).toHaveBeenCalled();
+  });
+
+  it("keeps visual progress immediate while bounding durable activity reads", async () => {
+    await render();
+    vi.mocked(desktopApi.activities).mockClear();
+    const handler = eventHandlers.get("portcove://operation")!;
+    const event = (sequence: number, type: OperationEvent["type"]): OperationEvent => ({
+      schema_version: 2,
+      operation_id: "bounded-operation",
+      parent_operation_id: null,
+      sequence,
+      timestamp_ms: sequence * 100,
+      target: null,
+      operation: "install",
+      ...(type === "started"
+        ? { type }
+        : type === "finished"
+          ? { type, result: "succeeded" }
+          : { type: "progress", phase: "running", completed: sequence, total: 20 }),
+    });
+
+    await act(async () => {
+      handler({ payload: event(0, "started") });
+      await Promise.resolve();
+      for (let sequence = 1; sequence <= 20; sequence += 1) {
+        handler({ payload: event(sequence, "progress") });
+        await vi.advanceTimersByTimeAsync(100);
+      }
+      handler({ payload: event(21, "finished") });
+      await Promise.resolve();
+    });
+
+    expect(operations.operation?.type).toBe("finished");
+    expect(desktopApi.activities).toHaveBeenCalledTimes(6);
   });
 
   it("does not invalidate workspace or diagnostics for a read-only operation", async () => {
