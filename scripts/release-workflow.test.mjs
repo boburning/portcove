@@ -104,7 +104,9 @@ test("cross-built Intel artifacts receive native Intel package and launch verifi
   assert.match(intelSection, /scripts\/smoke-test-cli-archive\.ps1/);
   assert.match(intelSection, /scripts\/verify-macos-release\.ps1/);
   assert.match(intelSection, /Architecture x86_64/);
-  assert.match(macosVerifier, /"-acceptlicense"/);
+  assert.match(macosVerifier, /StandardInput\.WriteLine\(\$Response\)/);
+  assert.match(macosVerifier, /Environment\["PAGER"\] = "\/bin\/cat"/);
+  assert.doesNotMatch(macosVerifier, /-acceptlicense/);
 });
 
 test("CLI packaging uses the BSD-compatible chmod form required by macOS", () => {

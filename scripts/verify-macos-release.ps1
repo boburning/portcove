@@ -19,10 +19,36 @@ function Invoke-Checked([string]$Command, [string[]]$Arguments) {
     return $output
 }
 
+function Invoke-CheckedWithResponse([string]$Command, [string[]]$Arguments, [string]$Response) {
+    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = $Command
+    $startInfo.UseShellExecute = $false
+    $startInfo.RedirectStandardInput = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $startInfo.Environment["PAGER"] = "/bin/cat"
+    foreach ($argument in $Arguments) { $startInfo.ArgumentList.Add($argument) }
+
+    $process = [System.Diagnostics.Process]::new()
+    $process.StartInfo = $startInfo
+    [void]$process.Start()
+    $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+    $stderrTask = $process.StandardError.ReadToEndAsync()
+    $process.StandardInput.WriteLine($Response)
+    $process.StandardInput.Close()
+    $process.WaitForExit()
+    $stdout = $stdoutTask.GetAwaiter().GetResult()
+    $stderr = $stderrTask.GetAwaiter().GetResult()
+    if ($process.ExitCode -ne 0) {
+        throw "$Command failed with exit code $($process.ExitCode)`n$stderr`n$stdout"
+    }
+    return $stdout
+}
+
 try {
-    $attach = Invoke-Checked "hdiutil" @("attach", "-readonly", "-nobrowse", "-plist", "-acceptlicense", $dmg)
+    $attach = Invoke-CheckedWithResponse "hdiutil" @("attach", "-readonly", "-nobrowse", "-plist", $dmg) "Y"
     $attachPath = Join-Path $temporaryRoot "attach.plist"
-    [System.IO.File]::WriteAllLines($attachPath, $attach)
+    [System.IO.File]::WriteAllText($attachPath, $attach)
     $attachJson = Invoke-Checked "plutil" @("-convert", "json", "-o", "-", $attachPath)
     $attachData = ($attachJson -join "`n") | ConvertFrom-Json
     $mountedVolume = @($attachData.'system-entities' | Where-Object { $_.'mount-point' })[-1].'mount-point'
