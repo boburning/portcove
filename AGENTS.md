@@ -122,15 +122,15 @@ recovery, security, physical-platform, or human evidence whenever acceptance
 intrinsically requires it; focused validation and hosted CI do not replace that
 evidence.
 
-The workflow contains a tested narrow prose lane, but it remains held off until
-a separate independently approved validation-policy change activates it. While
-held, even an allowlisted prose-only diff selects full CI. Activation must itself
-run exhaustive CI and must not be approved by the candidate rule it enables.
-Once independently activated, additions, deletions, renames, unusual filenames,
-file-type or mode changes, classifier errors, and every unclassified path still
-fail closed to full CI. Changing the activation, allowlist, or selector is a
-validation-contract change and requires its adversarial tests plus `just audit
---fresh`.
+Pull requests whose complete merge-base diff contains only files in the tested
+prose allowlist may use the workflow's narrow prose lane while preserving the
+same required check names. Activation was separated from the mechanism change,
+independently authorized, and required exhaustive CI because the activation
+diff changed the workflow itself. Additions, deletions, renames, unusual
+filenames, file-type or mode changes, classifier errors, and every unclassified
+path fail closed to full CI. Changing the activation, allowlist, or selector is
+a validation-contract change and requires independent authorization, its
+adversarial tests, and `just audit --fresh`.
 
 The aggregate commands remain available for explicit purposes:
 

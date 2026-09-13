@@ -39,9 +39,9 @@ jobs:
         env:
           PORTCOVE_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PORTCOVE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          # A separate independently approved validation-policy change may activate this.
-          # The transition PR itself must retain exhaustive CI.
-          PORTCOVE_PROSE_POLICY_ACTIVATED: "false"
+          # The independently authorized activation change itself is not prose-only,
+          # so it must receive exhaustive CI before this policy becomes trusted on main.
+          PORTCOVE_PROSE_POLICY_ACTIVATED: "true"
         run: node scripts/select-ci-plan.mjs
       - name: Report compared revisions and expected lanes
         env:
