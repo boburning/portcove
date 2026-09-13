@@ -37,10 +37,14 @@ Linux builds a disposable test-signed TUF repository, embeds its public trust an
 local repository URLs in a qualification-only 0.1.0 AppImage, and exercises the
 packaged helper through an interrupted candidate copy, GUI-independent command
 recovery without a display server, and retrying 0.1.0-to-0.3.0 replacement under
-Xvfb. Before the retry, a separate process holds the shared application-runtime
-lock; the helper must remain blocked with the stable predecessor, staged payload,
-and apply journal unchanged, then continue after that peer exits. The retry is
-interrupted after the atomic exchange and directory sync but before journal success.
+Xvfb. Before replacement, the harness presents an unsupported future apply-journal
+schema to the packaged helper, requires exit code 1 without replacement and a
+stable-predecessor restart, and proves the journal, staged payload, staging state,
+predecessor, and user data remain exact before restoring the supported fixture. A
+separate process then holds the shared application-runtime lock; the helper must
+remain blocked with the stable predecessor, staged payload, and apply journal
+unchanged, then continue after that peer exits. The retry is interrupted after the
+atomic exchange and directory sync but before journal success.
 The run verifies the partial swap, exact predecessor and retryable journal after
 pre-activation recovery, then the candidate at the stable path and the exact
 predecessor backup before a candidate startup reconciles the request. It finally

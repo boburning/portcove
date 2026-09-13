@@ -59,7 +59,7 @@ $sentinel = Join-Path $sentinelRoot "preserve.txt"
 $sentinelHash = (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash
 
 $evidence = [ordered]@{
-    schema_version = 5
+    schema_version = 6
     phase = "preparing"
     source_commit = (& git rev-parse HEAD | Out-String).Trim()
     platform = "linux-x86_64"
@@ -74,6 +74,12 @@ $evidence = [ordered]@{
     interruption_recovery_exit_code = $null
     interruption_recovered = $false
     interruption_stable_preserved = $false
+    incompatible_schema_supported_version = $null
+    incompatible_schema_version = 99
+    incompatible_schema_exit_code = $null
+    incompatible_schema_predecessor_restart_observed = $false
+    incompatible_schema_state_preserved = $false
+    incompatible_schema_recovery_action = "restore exact supported journal fixture"
     runtime_contention_hold_seconds = 2
     runtime_contention_helper_blocked = $false
     runtime_contention_stable_preserved = $false
@@ -193,6 +199,71 @@ try {
     $xvfb = Start-Process -FilePath "Xvfb" -ArgumentList @($displayNumber, "-screen", "0", "1280x720x24", "-nolisten", "tcp") -PassThru
     Start-Sleep -Milliseconds 500
     if ($xvfb.HasExited) { throw "Xvfb exited before the packaged candidate launch" }
+
+    $validApplyBytes = [IO.File]::ReadAllBytes($applyPath)
+    $futureApply = Get-Content -LiteralPath $applyPath -Raw | ConvertFrom-Json
+    $supportedApplySchema = $futureApply.schema_version
+    $evidence.incompatible_schema_supported_version = $supportedApplySchema
+    $futureApply.schema_version = $evidence.incompatible_schema_version
+    [IO.File]::WriteAllText(
+        $applyPath,
+        ($futureApply | ConvertTo-Json -Depth 8),
+        [Text.UTF8Encoding]::new($false)
+    )
+    $futureApplyHash = (Get-FileHash -LiteralPath $applyPath -Algorithm SHA256).Hash
+    $stagedCandidatePath = Join-Path $updateRoot "candidate.payload"
+    $stagedCandidateHash = (Get-FileHash -LiteralPath $stagedCandidatePath -Algorithm SHA256).Hash
+    $stagingPath = Join-Path $updateRoot "staging.json"
+    $stagingHash = (Get-FileHash -LiteralPath $stagingPath -Algorithm SHA256).Hash
+    $qualificationStage = $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE
+    Remove-Item -LiteralPath $qualificationStage -Force -ErrorAction SilentlyContinue
+    Write-Evidence "incompatible-schema-starting"
+    & $stable --portcove-apply-update ([string]$prepared.apply_revision)
+    $evidence.incompatible_schema_exit_code = $LASTEXITCODE
+    if ($LASTEXITCODE -ne 1) { throw "Future-schema helper exited with code $LASTEXITCODE instead of 1" }
+
+    $restartDeadline = [DateTime]::UtcNow.AddSeconds($StartupTimeoutSeconds)
+    $restartStage = $null
+    do {
+        if (Test-Path -LiteralPath $qualificationStage -PathType Leaf) {
+            try {
+                $restartStage = Get-Content -LiteralPath $qualificationStage -Raw | ConvertFrom-Json
+            } catch {
+                $restartStage = $null
+            }
+        }
+        if ($restartStage.stage -eq "Tauri setup") { break }
+        Start-Sleep -Milliseconds 50
+    } while ([DateTime]::UtcNow -lt $restartDeadline)
+    if ($restartStage.stage -ne "Tauri setup" -or $restartStage.process_id -le 0) {
+        throw "Future-schema failure did not restart the stable predecessor through Tauri setup"
+    }
+    $restartExitDeadline = [DateTime]::UtcNow.AddSeconds($StartupTimeoutSeconds)
+    do {
+        & flock --exclusive --nonblock $env:PORTCOVE_APPLICATION_RUNTIME_LOCK /usr/bin/true 2>$null
+        if ($LASTEXITCODE -eq 0) { break }
+        Start-Sleep -Milliseconds 50
+    } while ([DateTime]::UtcNow -lt $restartExitDeadline)
+    if ($LASTEXITCODE -ne 0) {
+        throw "Future-schema predecessor restart did not release the runtime lock within $StartupTimeoutSeconds seconds"
+    }
+    $evidence.incompatible_schema_predecessor_restart_observed = $true
+
+    if ((Get-FileHash -LiteralPath $applyPath -Algorithm SHA256).Hash -ne $futureApplyHash -or
+        (Get-FileHash -LiteralPath $stagedCandidatePath -Algorithm SHA256).Hash -ne $stagedCandidateHash -or
+        (Get-FileHash -LiteralPath $stagingPath -Algorithm SHA256).Hash -ne $stagingHash -or
+        (Get-FileHash -LiteralPath $stable -Algorithm SHA256).Hash.ToLowerInvariant() -ne $predecessorHash -or
+        (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -ne $sentinelHash) {
+        throw "Future-schema failure changed the journal, staging, stable AppImage, or persistent data"
+    }
+    $evidence.incompatible_schema_state_preserved = $true
+    Write-Evidence "incompatible-schema-preserved"
+    [IO.File]::WriteAllBytes($applyPath, $validApplyBytes)
+    $restoredApply = Get-Content -LiteralPath $applyPath -Raw | ConvertFrom-Json
+    if ($restoredApply.schema_version -ne $supportedApplySchema -or
+        $restoredApply.revision -ne $prepared.apply_revision) {
+        throw "Future-schema fixture recovery did not restore the exact supported apply journal"
+    }
 
     $runtimeLockReady = Join-Path $state "runtime-lock-ready"
     $runtimeLockScript = Join-Path $state "hold-runtime-lock.sh"
