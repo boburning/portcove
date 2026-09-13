@@ -125,6 +125,9 @@ test("Linux desktop prerequisite installation is shared, bounded, and retrying",
   assert.match(installer, /Dir::Etc::sourceparts=-/);
   assert.match(installer, /DEBIAN_FRONTEND=noninteractive/);
   assert.match(installer, /timeout --kill-after=10s/);
+  assert.match(installer, /sudo -n true/);
+  assert.match(installer, /privilege=\(sudo -n\)/);
+  assert.match(installer, /timeout --kill-after=10s "\$deadline" "\$\{privilege\[@\]\}" env/);
   assert.match(installer, /install_from_current_mirror "the runner-configured mirror" 2m 3m/);
   assert.match(installer, /install_from_current_mirror "the archive mirror fallback" 4m 5m/);
   assert.ok(
