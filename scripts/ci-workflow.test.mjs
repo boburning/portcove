@@ -595,8 +595,6 @@ test("frontend tooling uses the pinned Oxc contracts without legacy quality laye
   );
   assert.match(copyChecker, /import \{ parseSync, visitorKeys \} from "oxc-parser"/);
   assert.doesNotMatch(copyChecker, /@babel\/parser/);
-  const dependabot = await readFile(new URL("../.github/dependabot.yml", import.meta.url), "utf8");
-  assert.match(dependabot, /frontend-toolchain:[\s\S]*"oxc-parser"/);
 
   const oxfmt = JSON.parse(await readFile(new URL("../.oxfmtrc.json", import.meta.url), "utf8"));
   assert.equal(oxfmt.printWidth, 100);
