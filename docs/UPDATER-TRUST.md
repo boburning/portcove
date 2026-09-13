@@ -354,7 +354,13 @@ write and execute bits whose running executable is inside the native read-only F
 `APPDIR` mount recorded by the Linux kernel. It reports the shared compiled
 compatibility identity and current kernel version;
 DEB, RPM, unpackaged, linked and foreign-owned launches remain under their existing
-owner and cannot enter the in-app update path. After the shared post-exit
+owner and cannot enter the in-app update path. Without AppImage runtime identity,
+the provider queries only fixed, root-owned `dpkg-query` and `rpm` executables in a
+clean environment for the exact running executable. Each query has a two-second
+deadline and a 64 KiB output limit. Exactly one package owner produces format-specific
+guidance back to the same package source; absent, conflicting or malformed ownership
+remains fail-closed behind the general manual-recovery guidance. The query grants no
+replacement authority and writes no package state. After the shared post-exit
 revalidation lease is held, the Linux adapter rehashes an exact direct x86_64 Type 2 AppImage
 payload into a synchronized sibling file and atomically exchanges it with the stable
 AppImage source. The apply journal records the exact prior bytes and retained backup

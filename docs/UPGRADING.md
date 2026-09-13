@@ -53,6 +53,21 @@ select one internally consistent library, and retain the other until its newer
 user data has been reviewed. Application package rollback alone is not database
 recovery.
 
+## Linux package ownership
+
+Portcove updates a Linux application in place only when it is running from its
+qualified, user-owned AppImage. A DEB or RPM installation remains owned by the
+package manager and package source that installed it. When exactly one of those
+package databases owns the running Portcove executable, **Settings > Application
+updates** identifies the package format and directs you back to that same package
+source. Portcove does not overwrite the managed executable or silently convert the
+installation to an AppImage.
+
+If neither package database owns the executable, or ownership is ambiguous,
+Portcove keeps the installation unchanged and shows the general supported-package
+or manual-recovery guidance. Installations copied or unpacked by hand remain under
+their existing manual owner.
+
 ## Application updater recovery without the GUI
 
 If Portcove cannot open far enough to show **Settings > Application updates**,

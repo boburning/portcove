@@ -727,6 +727,18 @@ fn coordinator_error(error: ApplicationUpdateCoordinatorError) -> DesktopError {
         )
         .into(),
         ApplicationUpdateCoordinatorError::Check {
+            source:
+                CandidateLoadError::InstalledContext(
+                    crate::application_update::InstalledApplicationContextError::PackageManager(
+                        manager,
+                    ),
+                ),
+            ..
+        } => portcove_core::PortcoveError::unsupported(format!(
+            "This Portcove {manager} installation is managed by its package manager. Update it through the same package source; Portcove did not modify package-managed files."
+        ))
+        .into(),
+        ApplicationUpdateCoordinatorError::Check {
             source: CandidateLoadError::InstalledContext(_),
             ..
         } => portcove_core::PortcoveError::unsupported(
@@ -1058,9 +1070,38 @@ mod tests {
     fn installed_context_failures_do_not_expose_host_observation_details() {
         let error = coordinator_error(ApplicationUpdateCoordinatorError::Check {
             failure: CandidateLoadFailureKind::Rejected,
-            source: CandidateLoadError::InstalledContext("sensitive-host-detail".into()),
+            source: CandidateLoadError::InstalledContext(
+                crate::application_update::InstalledApplicationContextError::Unavailable(
+                    "sensitive-host-detail".into(),
+                ),
+            ),
         });
         assert_eq!(error.code, portcove_core::ErrorCode::Unsupported);
         assert!(!error.message.contains("sensitive-host-detail"));
+    }
+
+    #[test]
+    fn package_manager_installations_receive_owner_specific_guidance() {
+        for manager in [
+            crate::application_update::ApplicationPackageManager::Deb,
+            crate::application_update::ApplicationPackageManager::Rpm,
+        ] {
+            let error = coordinator_error(ApplicationUpdateCoordinatorError::Check {
+                failure: CandidateLoadFailureKind::Rejected,
+                source: CandidateLoadError::InstalledContext(
+                    crate::application_update::InstalledApplicationContextError::PackageManager(
+                        manager,
+                    ),
+                ),
+            });
+            assert_eq!(error.code, portcove_core::ErrorCode::Unsupported);
+            assert!(error.message.contains(&manager.to_string()));
+            assert!(error.message.contains("same package source"));
+            assert!(
+                error
+                    .message
+                    .contains("did not modify package-managed files")
+            );
+        }
     }
 }

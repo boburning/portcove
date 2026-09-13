@@ -12,7 +12,9 @@ use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
 
-use crate::application_update::{CandidateState, InstalledApplicationContext};
+use crate::application_update::{
+    CandidateState, InstalledApplicationContext, InstalledApplicationContextError,
+};
 use crate::application_update_apply::{
     ApplicationUpdateApplyError, ApplicationUpdateApplyStore, ApplicationUpdateRevalidationLease,
 };
@@ -72,8 +74,8 @@ pub struct ApplicationUpdateFreshSelection {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ApplicationUpdateFreshSelectionError {
-    #[error("the current installed application context could not be observed: {0}")]
-    InstalledContext(String),
+    #[error(transparent)]
+    InstalledContext(InstalledApplicationContextError),
     #[error(transparent)]
     Candidate(#[from] CandidateLoadError),
 }

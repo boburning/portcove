@@ -11,7 +11,9 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use url::Url;
 
-use crate::application_update::{ApplicationChannel, InstalledApplicationContext};
+use crate::application_update::{
+    ApplicationChannel, InstalledApplicationContext, InstalledApplicationContextError,
+};
 use crate::application_update_coordinator::ApplicationUpdateChecker;
 use crate::application_update_helper::{
     ApplicationUpdateFreshSelection, ApplicationUpdateFreshSelectionError,
@@ -111,29 +113,32 @@ impl ApplicationUpdateRepositoryConfiguration {
 }
 
 pub trait InstalledApplicationContextSource: Send + Sync {
-    fn observe(&self) -> Result<InstalledApplicationContext, String>;
+    fn observe(&self) -> Result<InstalledApplicationContext, InstalledApplicationContextError>;
 }
 
 #[derive(Debug, Default)]
 pub struct CurrentInstalledApplicationContext;
 
 impl InstalledApplicationContextSource for CurrentInstalledApplicationContext {
-    fn observe(&self) -> Result<InstalledApplicationContext, String> {
+    fn observe(&self) -> Result<InstalledApplicationContext, InstalledApplicationContextError> {
         #[cfg(windows)]
         {
             crate::application_update_windows::current_windows_installed_application_context()
                 .map_err(|_| {
-                    "the running package is not an eligible registered installation".into()
+                    InstalledApplicationContextError::Unavailable(
+                        "the running package is not an eligible registered installation".into(),
+                    )
                 })
         }
         #[cfg(target_os = "linux")]
         {
-            crate::application_update_linux::current_linux_appimage_context()
-                .map_err(|error| error.to_string())
+            crate::application_update_linux::current_linux_installed_application_context()
         }
         #[cfg(not(any(windows, target_os = "linux")))]
         {
-            Err("this build has no installed application update adapter".into())
+            Err(InstalledApplicationContextError::Unavailable(
+                "this build has no installed application update adapter".into(),
+            ))
         }
     }
 }

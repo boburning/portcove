@@ -54,6 +54,29 @@ pub enum InstallOwner {
     Manual,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ApplicationPackageManager {
+    Deb,
+    Rpm,
+}
+
+impl std::fmt::Display for ApplicationPackageManager {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(match self {
+            Self::Deb => "DEB",
+            Self::Rpm => "RPM",
+        })
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum InstalledApplicationContextError {
+    #[error("this installation is owned by the {0} package manager")]
+    PackageManager(ApplicationPackageManager),
+    #[error("the installed application context is unavailable: {0}")]
+    Unavailable(String),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct QualifiedRun {

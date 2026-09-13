@@ -795,7 +795,11 @@ image, and the previous image remains in the recorded sibling slot until the new
 exact candidate crosses healthy startup. The helper relaunches the stable AppImage
 source after clearing the old mount environment. Healthy startup rechecks the
 running source's candidate bytes, the recorded backup identity and both direct paths
-before retiring staging and the apply intent. A pre-exchange failure is retryable; a
+before retiring staging and the apply intent. A launch without AppImage identity can
+only classify ownership for guidance. The host queries fixed, root-owned DEB and RPM
+database tools with a clean environment, deadline and output bound, and accepts
+exactly one owner for package-specific guidance. This observation never enters
+replacement admission or mutates managed files. A pre-exchange failure is retryable; a
 failure after the atomic exchange remains ambiguous and does not launch another
 process. Other platforms retain their inert generic slot until their own adapters
 define a format-specific replacement. The sibling `application_update_helper` defines the
