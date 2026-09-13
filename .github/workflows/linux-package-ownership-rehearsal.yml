@@ -96,6 +96,8 @@ jobs:
     container: fedora:42
     timeout-minutes: 25
     steps:
+      - name: Install Fedora qualification tools
+        run: dnf --assumeyes install findutils git nodejs rpm
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.PORTCOVE_SOURCE_COMMIT }}
@@ -103,8 +105,6 @@ jobs:
         with:
           name: linux-native-packages
           path: target/release/bundle
-      - name: Install Fedora qualification tools
-        run: dnf --assumeyes install findutils git nodejs rpm
       - name: Verify installed RPM ownership guidance
         run: ./scripts/test-linux-package-ownership.sh rpm
       - name: Retain bounded RPM ownership evidence

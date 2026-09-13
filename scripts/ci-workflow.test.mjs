@@ -215,6 +215,10 @@ test("Linux package ownership rehearsal is focused and preserves managed executa
   assert.match(rehearsal, /test-linux-package-ownership\.sh deb/);
   assert.match(rehearsal, /test-linux-package-ownership\.sh rpm/);
   assert.match(rehearsal, /dnf --assumeyes install findutils git nodejs rpm/);
+  assert.match(
+    rehearsal,
+    /Install Fedora qualification tools[\s\S]*actions\/checkout@[\s\S]*Verify installed RPM ownership guidance/,
+  );
   assert.doesNotMatch(rehearsal, /appimage|desktop-test|e2e/iu);
   assert.match(rehearsal, /\.\/scripts\/test-linux-package-ownership\.sh/);
   assert.match(rehearsal, /retention-days: 1/);
@@ -226,6 +230,7 @@ test("Linux package ownership rehearsal is focused and preserves managed executa
   assert.match(qualification, /dnf --assumeyes install/);
   assert.match(qualification, /\$format-owners\.txt/);
   assert.match(qualification, /hash_before.*hash_after/s);
+  assert.match(qualification, /git -C "\$repo_root" rev-parse HEAD/);
   assert.match(qualification, /checkout_commit.*PORTCOVE_SOURCE_COMMIT/s);
   assert.match(qualification, /package_managed_files_unchanged: true/);
 });
