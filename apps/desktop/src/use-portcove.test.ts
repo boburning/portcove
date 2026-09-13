@@ -49,6 +49,20 @@ describe("detail actions", () => {
     expect(desktopApi.check).toHaveBeenCalledExactlyOnceWith(port.id, 17);
   });
 
+  it("refreshes persisted workspace state after checking one port", async () => {
+    vi.spyOn(desktopApi, "check").mockResolvedValue(undefined!);
+    const perform = vi.fn(async (_name: string, task: () => Promise<unknown>) =>
+      task(),
+    ) as unknown as Perform;
+
+    await detailActions(port, undefined, "", "", perform, vi.fn()).check();
+
+    expect(perform).toHaveBeenCalledWith("check", expect.any(Function), {
+      refresh: "workspace",
+      invalidateDiagnostics: false,
+    });
+  });
+
   it("saves policy in the selected library without invoking install or update", async () => {
     const saved = { ...portStatus(), update_policy: "automatic" as const };
     vi.spyOn(desktopApi, "setPolicy").mockResolvedValue(saved);

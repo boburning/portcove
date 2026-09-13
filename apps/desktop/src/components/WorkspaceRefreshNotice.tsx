@@ -10,11 +10,13 @@ export function WorkspaceRefreshNotice({
   hasSnapshot,
   refreshing,
   retry,
+  subscriptionFailure,
 }: {
   failure?: { error: unknown };
   hasSnapshot: boolean;
   refreshing: boolean;
   retry: () => Promise<void>;
+  subscriptionFailure?: unknown;
 }) {
   const retryButton = useRef<HTMLButtonElement>(null);
   const retryRequested = useRef(false);
@@ -25,7 +27,25 @@ export function WorkspaceRefreshNotice({
     if (failure) focusAndReveal(retryButton.current);
     else focusRegion("workspace");
   }, [failure, refreshing]);
-  if (!failure) return null;
+  if (!failure && !subscriptionFailure) return null;
+  if (!failure)
+    return (
+      <section className="error-banner" role="status" aria-busy={refreshing}>
+        <span className="error-icon">
+          <Icon glyph={AlertTriangle} />
+        </span>
+        <div>
+          <strong>Live workspace updates are unavailable</strong>
+          <p>
+            Portcove will keep checking activity at a reduced rate. Refresh manually after library
+            changes until the desktop is restarted.
+          </p>
+          <button data-focusable disabled={refreshing} onClick={() => void retry()}>
+            {refreshing ? "Refreshing library…" : "Refresh now"}
+          </button>
+        </div>
+      </section>
+    );
   const { error } = failure;
   const presentation = failurePresentation(error);
   const code =

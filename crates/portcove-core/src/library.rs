@@ -72,6 +72,69 @@ impl StoredSourceRow {
     }
 }
 
+struct StoredInstallRow {
+    id: String,
+    port_id: String,
+    version: String,
+    path: String,
+    channel: String,
+    installed_at: i64,
+    verified: i64,
+    staged: i64,
+    artifact_name: String,
+    artifact_sha256: String,
+    artifact_size: u64,
+    manifest_sha256: String,
+    selected_executable: String,
+    runtime_json: Option<String>,
+}
+
+impl StoredInstallRow {
+    fn from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Self> {
+        Ok(Self {
+            id: row.get(0)?,
+            port_id: row.get(1)?,
+            version: row.get(2)?,
+            path: row.get(3)?,
+            channel: row.get(4)?,
+            installed_at: row.get(5)?,
+            verified: row.get(6)?,
+            staged: row.get(7)?,
+            artifact_name: row.get(8)?,
+            artifact_sha256: row.get(9)?,
+            artifact_size: row.get(10)?,
+            manifest_sha256: row.get(11)?,
+            selected_executable: row.get(12)?,
+            runtime_json: row.get(13)?,
+        })
+    }
+
+    fn into_record(self) -> Result<InstallRecord> {
+        Ok(InstallRecord {
+            id: self.id,
+            port_id: self.port_id,
+            version: self.version,
+            path: PathBuf::from(self.path),
+            channel: self.channel.parse()?,
+            installed_at: self.installed_at,
+            verified: self.verified != 0,
+            staged: self.staged != 0,
+            artifact: ArtifactIdentity {
+                asset_name: self.artifact_name,
+                sha256: self.artifact_sha256,
+                size: self.artifact_size,
+            },
+            manifest_sha256: self.manifest_sha256,
+            selected_executable: PathBuf::from(self.selected_executable),
+            runtime: self
+                .runtime_json
+                .as_deref()
+                .map(serde_json::from_str)
+                .transpose()?,
+        })
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Library {
     root: PathBuf,
@@ -1426,64 +1489,13 @@ impl Library {
                  FROM installs
                  ORDER BY installed_at DESC, rowid DESC",
             )?;
-            let rows = statement.query_map([], |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, String>(2)?,
-                    row.get::<_, String>(3)?,
-                    row.get::<_, String>(4)?,
-                    row.get::<_, i64>(5)?,
-                    row.get::<_, i64>(6)?,
-                    row.get::<_, i64>(7)?,
-                    row.get::<_, String>(8)?,
-                    row.get::<_, String>(9)?,
-                    row.get::<_, u64>(10)?,
-                    row.get::<_, String>(11)?,
-                    row.get::<_, String>(12)?,
-                    row.get::<_, Option<String>>(13)?,
-                ))
-            })?;
+            let rows = statement.query_map([], StoredInstallRow::from_row)?;
             let mut installs = HashMap::new();
             let mut staged = HashMap::new();
             for row in rows {
-                let (
-                    id,
-                    port_id,
-                    version,
-                    path,
-                    channel,
-                    installed_at,
-                    verified,
-                    is_staged,
-                    artifact_name,
-                    artifact_sha256,
-                    artifact_size,
-                    manifest_sha256,
-                    selected_executable,
-                    runtime_json,
-                ) = row?;
-                let install = InstallRecord {
-                    id: id.clone(),
-                    port_id: port_id.clone(),
-                    version,
-                    path: PathBuf::from(path),
-                    channel: channel.parse()?,
-                    installed_at,
-                    verified: verified != 0,
-                    staged: is_staged != 0,
-                    artifact: ArtifactIdentity {
-                        asset_name: artifact_name,
-                        sha256: artifact_sha256,
-                        size: artifact_size,
-                    },
-                    manifest_sha256,
-                    selected_executable: PathBuf::from(selected_executable),
-                    runtime: runtime_json
-                        .as_deref()
-                        .map(serde_json::from_str)
-                        .transpose()?,
-                };
+                let install = row?.into_record()?;
+                let id = install.id.clone();
+                let port_id = install.port_id.clone();
                 if install.staged {
                     staged.entry(port_id).or_insert_with(|| id.clone());
                 }
@@ -1581,67 +1593,10 @@ impl Library {
                     selected_executable, runtime_json
              FROM installs WHERE id=?1",
                 [id],
-                |row| {
-                    Ok((
-                        row.get::<_, String>(0)?,
-                        row.get::<_, String>(1)?,
-                        row.get::<_, String>(2)?,
-                        row.get::<_, String>(3)?,
-                        row.get::<_, String>(4)?,
-                        row.get::<_, i64>(5)?,
-                        row.get::<_, i64>(6)?,
-                        row.get::<_, i64>(7)?,
-                        row.get::<_, String>(8)?,
-                        row.get::<_, String>(9)?,
-                        row.get::<_, u64>(10)?,
-                        row.get::<_, String>(11)?,
-                        row.get::<_, String>(12)?,
-                        row.get::<_, Option<String>>(13)?,
-                    ))
-                },
+                StoredInstallRow::from_row,
             )
             .optional()?;
-        raw.map(
-            |(
-                id,
-                port_id,
-                version,
-                path,
-                channel,
-                installed_at,
-                verified,
-                staged,
-                artifact_name,
-                artifact_sha256,
-                artifact_size,
-                manifest_sha256,
-                selected_executable,
-                runtime_json,
-            )| {
-                Ok(InstallRecord {
-                    id,
-                    port_id,
-                    version,
-                    path: PathBuf::from(path),
-                    channel: channel.parse()?,
-                    installed_at,
-                    verified: verified != 0,
-                    staged: staged != 0,
-                    artifact: ArtifactIdentity {
-                        asset_name: artifact_name,
-                        sha256: artifact_sha256,
-                        size: artifact_size,
-                    },
-                    manifest_sha256,
-                    selected_executable: PathBuf::from(selected_executable),
-                    runtime: runtime_json
-                        .as_deref()
-                        .map(serde_json::from_str)
-                        .transpose()?,
-                })
-            },
-        )
-        .transpose()
+        raw.map(StoredInstallRow::into_record).transpose()
     }
 
     pub fn install_by_version(
@@ -1687,31 +1642,51 @@ impl Library {
 
     pub(crate) fn all_installs(&self) -> Result<Vec<InstallRecord>> {
         let connection = self.connection()?;
-        Self::installs_from(&connection)
+        let (installs, metrics) = Self::installs_from_with_metrics(&connection)?;
+        tracing::debug!(
+            install_count = installs.len(),
+            sqlite_query_count = metrics.sqlite_query_count,
+            "loaded install inventory"
+        );
+        Ok(installs)
     }
 
     pub(crate) fn installs_from(connection: &Connection) -> Result<Vec<InstallRecord>> {
-        let ids = {
-            let mut statement = connection.prepare("SELECT id FROM installs ORDER BY rowid")?;
-            let rows = statement.query_map([], |row| row.get::<_, String>(0))?;
-            rows.collect::<std::result::Result<Vec<_>, _>>()?
-        };
-        ids.iter()
-            .map(|id| {
-                Self::install_by_id(connection, Some(id))?.ok_or_else(|| {
-                    PortcoveError::state(format!("install {id} disappeared while reading"))
-                })
+        Ok(Self::installs_from_with_metrics(connection)?.0)
+    }
+
+    fn installs_from_with_metrics(
+        connection: &Connection,
+    ) -> Result<(Vec<InstallRecord>, StatusReadMetrics)> {
+        let mut metrics = StatusReadMetrics::default();
+        metrics.record_query();
+        let mut statement = connection.prepare(
+            "SELECT id, port_id, version, path, channel, installed_at, verified, staged,
+                    artifact_name, artifact_sha256, artifact_size, manifest_sha256,
+                    selected_executable, runtime_json
+             FROM installs
+             ORDER BY rowid",
+        )?;
+        let rows = statement.query_map([], StoredInstallRow::from_row)?;
+        let installs = rows
+            .map(|row| {
+                row.map_err(Into::into)
+                    .and_then(StoredInstallRow::into_record)
             })
-            .collect()
+            .collect::<Result<Vec<_>>>()?;
+        Ok((installs, metrics))
     }
 
     pub(crate) fn port_install_paths(&self, port_id: &str) -> Result<Vec<PathBuf>> {
-        Ok(self
-            .all_installs()?
-            .into_iter()
-            .filter(|install| install.port_id == port_id)
-            .map(|install| install.path)
-            .collect())
+        let connection = self.connection()?;
+        let mut statement = connection.prepare(
+            "SELECT path FROM installs
+             WHERE port_id=?1
+             ORDER BY rowid",
+        )?;
+        let rows = statement.query_map([port_id], |row| row.get::<_, String>(0))?;
+        rows.map(|row| row.map(PathBuf::from).map_err(Into::into))
+            .collect()
     }
 
     pub fn rollback(&self, port_id: &str) -> Result<InstallRecord> {
@@ -2094,6 +2069,87 @@ mod tests {
                 (record_count - 1) as u64
             );
         }
+    }
+
+    #[test]
+    fn complete_install_inventory_uses_one_query_at_scale() {
+        for record_count in [250, 500, 1_000] {
+            let temporary = tempdir().unwrap();
+            let library = Library::open(temporary.path()).unwrap();
+            let mut connection = library.connection().unwrap();
+            let transaction = connection.transaction().unwrap();
+            for index in 0..record_count {
+                transaction
+                    .execute(
+                        "INSERT INTO installs(
+                            id, port_id, version, path, channel, installed_at, verified, staged,
+                            artifact_name, artifact_sha256, artifact_size, manifest_sha256,
+                            selected_executable, runtime_json
+                         ) VALUES (?1, ?2, '1.0.0', ?3, 'stable', ?4, 1, 0,
+                                   'archive.zip', ?5, 1, ?5, 'game.exe', NULL)",
+                        params![
+                            format!("install-{index:04}"),
+                            format!("port-{index:04}"),
+                            format!("C:/library/port-{index:04}"),
+                            index as i64,
+                            "a".repeat(64),
+                        ],
+                    )
+                    .unwrap();
+            }
+            transaction.commit().unwrap();
+
+            let (installs, metrics) = Library::installs_from_with_metrics(&connection).unwrap();
+
+            assert_eq!(installs.len(), record_count);
+            assert_eq!(metrics.sqlite_query_count, 1);
+            assert_eq!(installs.first().unwrap().id, "install-0000");
+            assert_eq!(
+                installs.last().unwrap().id,
+                format!("install-{:04}", record_count - 1)
+            );
+        }
+    }
+
+    #[test]
+    fn port_install_paths_do_not_decode_unrelated_install_rows() {
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        for port_id in ["target", "unrelated"] {
+            library
+                .register_install(
+                    &InstallRecord {
+                        id: format!("{port_id}-install"),
+                        port_id: port_id.into(),
+                        version: "1.0.0".into(),
+                        path: temporary.path().join(port_id),
+                        channel: ReleaseChannel::Stable,
+                        installed_at: Library::now(),
+                        verified: true,
+                        staged: false,
+                        artifact: ArtifactIdentity::default(),
+                        manifest_sha256: "a".repeat(64),
+                        selected_executable: PathBuf::from("game.exe"),
+                        runtime: None,
+                    },
+                    false,
+                )
+                .unwrap();
+        }
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE installs SET channel='invalid' WHERE port_id='unrelated'",
+                [],
+            )
+            .unwrap();
+
+        assert_eq!(
+            library.port_install_paths("target").unwrap(),
+            [temporary.path().join("target")]
+        );
+        assert!(library.all_installs().is_err());
     }
 
     #[test]

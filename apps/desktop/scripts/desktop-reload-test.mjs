@@ -6,13 +6,7 @@ import { By, until } from "selenium-webdriver";
 export async function reloadScenario({ browser, scenario, output, artifacts, cycles }) {
   await scenario("native-repeated-library-reload", async () => {
     const observations = [];
-    const commands = [
-      "get_catalog",
-      "get_statuses",
-      "get_sources",
-      "get_activities",
-      "get_doctor_report",
-    ];
+    const commands = ["get_workspace_snapshot", "get_doctor_report"];
     try {
       for (let cycle = 0; cycle < cycles; cycle++) {
         const observation = {
@@ -25,17 +19,21 @@ export async function reloadScenario({ browser, scenario, output, artifacts, cyc
           until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
           10_000,
         );
-        // Match the actual five concurrent refresh calls while the renderer also
-        // loads. Fail on the first rejected batch; no hidden retry of a failure.
+        // Exercise the same separated essential and diagnostic reads as the renderer.
+        // Fail on the first rejected batch; no hidden retry of a failure.
         observation.commands = await browser.executeAsyncScript((commands, done) => {
-          void Promise.all(
-            commands.map((command) =>
-              window.__TAURI_INTERNALS__.invoke(command).then(
-                () => ({ command, ok: true }),
-                (error) => ({ command, ok: false, error }),
+          void window.__TAURI_INTERNALS__.invoke("get_bootstrap_status").then((bootstrap) =>
+            Promise.all(
+              commands.map((command) =>
+                window.__TAURI_INTERNALS__
+                  .invoke(command, { generation: bootstrap.generation })
+                  .then(
+                    () => ({ command, ok: true }),
+                    (error) => ({ command, ok: false, error }),
+                  ),
               ),
-            ),
-          ).then(done);
+            ).then(done),
+          );
         }, commands);
         assert.ok(
           observation.commands.every((result) => result.ok),
@@ -47,7 +45,7 @@ export async function reloadScenario({ browser, scenario, output, artifacts, cyc
         );
         observation.errors = await browser.executeScript(() =>
           Array.from(
-            document.querySelectorAll(".error-banner, .bootstrap-error"),
+            document.querySelectorAll('.error-banner[role="alert"], .bootstrap-error'),
             (element) => element.textContent,
           ),
         );

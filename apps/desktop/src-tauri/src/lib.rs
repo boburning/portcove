@@ -39,7 +39,8 @@ mod source_removal;
 mod transport;
 
 use transport::{
-    BatchOutcome, BootstrapStatus, DesktopError, InstallInput, LaunchResult, SourceBatchOutcome,
+    BatchOutcome, BootstrapStatus, DesktopError, DesktopWorkspaceSnapshot, InstallInput,
+    LaunchResult, SourceBatchOutcome,
 };
 
 use std::{
@@ -434,6 +435,30 @@ async fn get_activities(
 ) -> DesktopResult<Vec<ActivityRecord>> {
     let state = state.inner().clone();
     blocking_worker(move || ready(&state)?.library.activities(50).map_err(Into::into)).await
+}
+
+#[tauri::command]
+async fn get_workspace_snapshot(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+) -> DesktopResult<DesktopWorkspaceSnapshot> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let service = service_at_generation(&state, generation)?;
+        let snapshot = workspace_snapshot_with_service(&service)?;
+        require_library_generation(state_generation(&state), generation)?;
+        Ok(snapshot)
+    })
+    .await
+}
+
+fn workspace_snapshot_with_service(
+    service: &PortcoveService,
+) -> DesktopResult<DesktopWorkspaceSnapshot> {
+    service
+        .workspace_snapshot(50)
+        .map(Into::into)
+        .map_err(Into::into)
 }
 
 #[tauri::command]
@@ -1472,13 +1497,17 @@ fn start_stale_launch_recovery(library: &Library) -> portcove_core::Result<()> {
 }
 
 #[tauri::command]
-async fn get_doctor_report(state: tauri::State<'_, DesktopState>) -> DesktopResult<DoctorReport> {
+async fn get_doctor_report(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+) -> DesktopResult<DoctorReport> {
     let state = state.inner().clone();
     blocking_worker(move || {
         let preferences = state.preferences.as_ref().map_err(Clone::clone)?;
-        service(&state)?
-            .doctor_with_preferences(preferences)
-            .map_err(Into::into)
+        let service = service_at_generation(&state, generation)?;
+        let report = service.doctor_with_preferences(preferences)?;
+        require_library_generation(state_generation(&state), generation)?;
+        Ok(report)
     })
     .await
 }
@@ -1904,6 +1933,7 @@ pub fn run() {
             output_location::get_output_relocation_status,
             get_sources,
             get_activities,
+            get_workspace_snapshot,
             get_activity_diagnostic,
             cancel_operation,
             get_backups,
@@ -2121,6 +2151,21 @@ mod tests {
 
         let core = service.statuses().unwrap();
         let desktop = statuses_with_service(&service).unwrap();
+
+        assert_eq!(
+            serde_json::to_value(desktop).unwrap(),
+            serde_json::to_value(core).unwrap()
+        );
+    }
+
+    #[test]
+    fn desktop_workspace_snapshot_is_the_exact_core_result() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = PortcoveService::new(library).unwrap();
+
+        let core = service.workspace_snapshot(50).unwrap();
+        let desktop = workspace_snapshot_with_service(&service).unwrap();
 
         assert_eq!(
             serde_json::to_value(desktop).unwrap(),

@@ -218,11 +218,20 @@ function Workspace({
   switchLibrary: (path: string) => Promise<void>;
   resetLibrary: () => Promise<void>;
 }) {
-  const data = usePortcoveData();
-  const operations = useOperationState(data.retryRefresh);
+  const data = usePortcoveData(bootstrap.generation);
+  const operations = useOperationState({
+    refresh: data.retryRefresh,
+    refreshActivities: data.refreshActivities,
+    invalidateDiagnostics: data.invalidateDiagnostics,
+  });
   const github = useGithubAuth(operations.perform, operations.setError);
   const updates = useUpdateCenter(operations.perform, data.statuses);
   const ui = usePortcoveUi();
+  const { catalog, diagnosticsStale, doctor, refreshDiagnostics } = data;
+  useEffect(() => {
+    if (catalog && ui.view === "settings" && (diagnosticsStale || !doctor))
+      void refreshDiagnostics();
+  }, [catalog, diagnosticsStale, doctor, refreshDiagnostics, ui.view]);
   const applicationUpdate = useApplicationUpdateNotice(operations.setError);
   const applicationUpdateChoice = useApplicationUpdateChoice(operations.setError);
   const applicationUpdateProductionTransition = useApplicationUpdateProductionTransition({
@@ -299,12 +308,12 @@ function Workspace({
       const path = await pickHostToolExecutable(tool.display_name, tool.path ?? "");
       if (!path) return undefined;
       const result = await desktopApi.setHostToolPath(tool.id, path);
-      await data.refresh();
+      await data.refreshDiagnostics();
       return result;
     },
     clear: async (toolId: string) => {
       await desktopApi.clearHostToolPath(toolId);
-      await data.refresh();
+      await data.refreshDiagnostics();
     },
     recheck: async (toolId: string) => desktopApi.recheckHostTool(toolId),
     openOfficial: (toolId: string) => desktopApi.openHostToolOfficialSite(toolId),
@@ -374,6 +383,7 @@ function Workspace({
             hasSnapshot={Boolean(data.catalog)}
             refreshing={data.refreshing}
             retry={data.retryRefresh}
+            subscriptionFailure={data.subscriptionFailure?.error ?? operations.subscriptionFailure}
           />
           <CurrentView
             data={data}
@@ -416,8 +426,10 @@ function Workspace({
             close={() => setSourceIntake(undefined)}
             onAdded={data.refresh}
             openEvidence={(evidenceId) => {
-              void operations.perform("open source evidence", () =>
-                desktopApi.openSourceEvidence(evidenceId),
+              void operations.perform(
+                "open source evidence",
+                () => desktopApi.openSourceEvidence(evidenceId),
+                { refresh: "none", invalidateDiagnostics: false },
               );
             }}
             hostTools={data.doctor?.host_tools}
@@ -440,11 +452,7 @@ type InstallPlanningState = ReturnType<typeof useInstallPlanning>;
 type BackupState = ReturnType<typeof usePortBackups>;
 
 function useAppModel(data: DataState, ui: UiState) {
-  const { retryRefresh } = data;
   const { selectedId, setBiosPath, setSourcePath } = ui;
-  useEffect(() => {
-    void retryRefresh();
-  }, [retryRefresh]);
   const statusMap = useMemo(() => indexStatuses(data.statuses), [data.statuses]);
   const visible = useMemo(
     () => filterPorts(data.catalog?.ports ?? [], statusMap, ui.view, ui.filter, ui.query),
@@ -581,14 +589,25 @@ function CurrentView({
         hostToolActions={hostToolActions}
         applicationUpdateNotice={applicationUpdateNotice}
         onApplicationUpdatePreferencesChanged={onApplicationUpdatePreferencesChanged}
+        diagnosticsRefreshing={data.diagnosticRefreshing}
+        diagnosticsStale={data.diagnosticsStale}
+        diagnosticFailure={data.diagnosticFailure?.error}
+        refreshDiagnostics={data.refreshDiagnostics}
         createSupportBundle={() =>
-          operations.perform("support bundle", desktopApi.createSupportBundle)
+          operations.perform("support bundle", desktopApi.createSupportBundle, {
+            refresh: "none",
+            invalidateDiagnostics: false,
+          })
         }
         exportMetadata={() =>
-          operations.perform("export library metadata", async () => {
-            const path = await pickMetadataExportPath();
-            return path ? desktopApi.exportLibraryMetadata(path) : undefined;
-          })
+          operations.perform(
+            "export library metadata",
+            async () => {
+              const path = await pickMetadataExportPath();
+              return path ? desktopApi.exportLibraryMetadata(path) : undefined;
+            },
+            { refresh: "none", invalidateDiagnostics: false },
+          )
         }
         sourceOutcomes={sourceHealth.outcomes}
         sourceInspections={sourceHealth.inspections}
@@ -596,8 +615,10 @@ function CurrentView({
           void sourceHealth.verifyAll();
         }}
         openSourceEvidence={(evidenceId) => {
-          void operations.perform("open source evidence", () =>
-            desktopApi.openSourceEvidence(evidenceId),
+          void operations.perform(
+            "open source evidence",
+            () => desktopApi.openSourceEvidence(evidenceId),
+            { refresh: "none", invalidateDiagnostics: false },
           );
         }}
         replaceSource={(source) => {
@@ -729,8 +750,10 @@ function SelectedPortPanel({
       setBiosPath={ui.setBiosPath}
       pickBios={pickBios}
       openSourceEvidence={(evidenceId) => {
-        void operations.perform("open source evidence", () =>
-          desktopApi.openSourceEvidence(evidenceId),
+        void operations.perform(
+          "open source evidence",
+          () => desktopApi.openSourceEvidence(evidenceId),
+          { refresh: "none", invalidateDiagnostics: false },
         );
       }}
       inspectSource={(profile) => openSourceIntake(model.port.id, profile.id)}
