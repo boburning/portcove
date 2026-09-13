@@ -90,6 +90,16 @@
         "claim": "Limits Zelda 64: Recompiled 1.2.2 to the US Majora's Mask source",
         "immutable_url": "https://github.com/Zelda64Recomp/Zelda64Recomp/blob/54950a10408599d1d63802ee21cc2c4b05bfd378/README.md",
         "live_url": "https://github.com/Zelda64Recomp/Zelda64Recomp/blob/dev/README.md"
+      },
+      {
+        "id": "snap64-recomp-1-0-5-source-contract",
+        "role": "upstream_support",
+        "authority": "JackandBeans/Snap64Recomp",
+        "authority_ref": "0b1a67eb4fd15ff3a87957110c428eb4905c36cc",
+        "reviewed_at": "2026-09-13",
+        "claim": "Limits Snap64 Recomp 1.0.5 to the US Pokemon Snap source and documents portable data-root isolation",
+        "immutable_url": "https://github.com/JackandBeans/Snap64Recomp/blob/0b1a67eb4fd15ff3a87957110c428eb4905c36cc/README.md",
+        "live_url": "https://github.com/JackandBeans/Snap64Recomp/blob/main/README.md"
       }
     ],
     "identities": [
@@ -3878,6 +3888,48 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "pokemon-snap",
+        "label": "Pokemon Snap (USA) source",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "usa-rev0",
+            "title": "Pokemon Snap",
+            "region": "USA",
+            "revision": "Rev 0",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "edc7c49cc568c045fe48be0d18011c30f393cbaf",
+                    "sha256": "a1d5d816db7f8557ee04c35a011326d058b2c1fbca76b57b352b1d705a1ec1cc",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "snap64-recomp-1-0-5-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "snap64-recomp-1-0-5-source-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -5424,6 +5476,33 @@
         "live_review_url": null,
         "evidence_gap": null,
         "applicability": [],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "snap64-recomp-game-source",
+        "port_id": "snap64-recomp",
+        "role": "game",
+        "profile_id": "pokemon-snap",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa-rev0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "snap64-recomp-1-0-5-source-contract"
+        ],
+        "authority_ref": "0b1a67eb4fd15ff3a87957110c428eb4905c36cc",
+        "reviewed_at": "2026-09-13",
+        "immutable_review_url": "https://github.com/JackandBeans/Snap64Recomp/blob/0b1a67eb4fd15ff3a87957110c428eb4905c36cc/README.md",
+        "live_review_url": "https://github.com/JackandBeans/Snap64Recomp/blob/main/README.md",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v1.0.5",
+            "artifact_sha256": "e3ab514df95d4a8133d2504ddc2ce43c12e376f5be74f076b3f90c09f8baf6b7"
+          }
+        ],
         "aliases": [],
         "tombstones": []
       }
@@ -9483,6 +9562,59 @@
       "persistent_paths": [
         "Paper Mario ReCut/user"
       ]
+    },
+    {
+      "id": "snap64-recomp",
+      "name": "Snap64 Recomp",
+      "summary": "Native Pokemon Snap static recompilation with isolated portable user data.",
+      "project_url": "https://github.com/JackandBeans/Snap64Recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "n64-recomp-portable",
+      "release": {
+        "repository": "JackandBeans/Snap64Recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "win64.zip"
+          ],
+          "linux-x86-64": [
+            "linux-x86_64.tar.gz"
+          ]
+        }
+      },
+      "source_profile": "pokemon-snap",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Snap64Recomp.exe"
+        ],
+        "linux-x86-64": [
+          "Snap64Recomp"
+        ]
+      },
+      "persistent_paths": [
+        "pokemonsnap.z64",
+        "snapsettings.json",
+        "snapsettings.json.bak",
+        "saves",
+        "photos",
+        "mods",
+        "mods.json",
+        "mod_config",
+        "texture_packs",
+        "stickers"
+      ],
+      "portable_marker": true,
+      "user_data_environment": "SNAP_DATA_DIR",
+      "runtime_source_filename": "pokemonsnap.z64",
+      "runtime_source_materialization": "n64-big-endian"
     }
   ]
 }

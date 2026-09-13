@@ -1047,10 +1047,17 @@ mod tests {
         let source_catalog = migrated.source_catalog().expect("schema-2 authority");
         assert_eq!(
             source_catalog.identities.len(),
-            legacy.document().source_profiles.len()
+            legacy.document().source_profiles.len() + 1
         );
+        let projected_legacy_profiles = migrated
+            .document()
+            .source_profiles
+            .iter()
+            .filter(|profile| profile.id != "pokemon-snap")
+            .cloned()
+            .collect::<Vec<_>>();
         assert_eq!(
-            serde_json::to_value(&migrated.document().source_profiles).unwrap(),
+            serde_json::to_value(projected_legacy_profiles).unwrap(),
             serde_json::to_value(&legacy.document().source_profiles).unwrap()
         );
         // Keep frozen port facts except the reviewed runtime/persistence
@@ -1120,8 +1127,15 @@ mod tests {
                 "data/out".into(),
             ];
         }
+        let migrated_legacy_ports = migrated
+            .document()
+            .ports
+            .iter()
+            .filter(|port| port.id != "snap64-recomp")
+            .cloned()
+            .collect::<Vec<_>>();
         assert_eq!(
-            serde_json::to_value(&migrated.document().ports).unwrap(),
+            serde_json::to_value(migrated_legacy_ports).unwrap(),
             serde_json::to_value(expected_ports).unwrap()
         );
         assert!(migrated.source_catalog().unwrap().qualification.is_empty());
@@ -1228,7 +1242,7 @@ mod tests {
 
         assert!(document.get("source_catalog").is_some());
         assert!(document.get("source_profiles").is_none());
-        assert_eq!(document["ports"].as_array().unwrap().len(), 67);
+        assert_eq!(document["ports"].as_array().unwrap().len(), 68);
     }
 
     #[test]
@@ -1390,8 +1404,15 @@ mod tests {
         );
 
         let legacy = Catalog::from_json(SCHEMA_1_CATALOG_FIXTURE).unwrap();
+        let projected_legacy_profiles = catalog
+            .document()
+            .source_profiles
+            .iter()
+            .filter(|profile| profile.id != "pokemon-snap")
+            .cloned()
+            .collect::<Vec<_>>();
         assert_eq!(
-            serde_json::to_value(&catalog.document().source_profiles).unwrap(),
+            serde_json::to_value(projected_legacy_profiles).unwrap(),
             serde_json::to_value(&legacy.document().source_profiles).unwrap()
         );
     }
@@ -2424,6 +2445,45 @@ mod tests {
                 .iter()
                 .any(|path| path == "bm64_us.z64")
         );
+    }
+
+    #[test]
+    fn snap64_uses_an_exact_isolated_portable_source_contract() {
+        let catalog = Catalog::embedded().expect("catalog should load");
+        let profile = catalog.source_profile("pokemon-snap").unwrap();
+        assert_eq!(profile.accepted_extensions, vec!["z64", "n64", "v64"]);
+        assert_eq!(
+            profile.accepted_sha1,
+            vec!["edc7c49cc568c045fe48be0d18011c30f393cbaf"]
+        );
+        assert_eq!(
+            profile.accepted_sha256,
+            vec!["a1d5d816db7f8557ee04c35a011326d058b2c1fbca76b57b352b1d705a1ec1cc"]
+        );
+        let port = catalog.port("snap64-recomp").unwrap();
+        assert_eq!(port.adapter, AdapterKind::N64RecompPortable);
+        assert!(port.portable_marker);
+        assert_eq!(port.user_data_environment.as_deref(), Some("SNAP_DATA_DIR"));
+        assert_eq!(
+            port.runtime_source_filename.as_deref(),
+            Some("pokemonsnap.z64")
+        );
+        assert!(port.automated_tested_platforms.is_empty());
+        assert!(port.manually_validated_platforms.is_empty());
+        for path in [
+            "snapsettings.json",
+            "saves",
+            "photos",
+            "mods",
+            "mod_config",
+            "texture_packs",
+            "stickers",
+        ] {
+            assert!(
+                port.persistent_paths.iter().any(|value| value == path),
+                "Snap64 persistence contract is missing {path}"
+            );
+        }
     }
 
     #[test]
