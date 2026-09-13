@@ -3434,6 +3434,7 @@ dependencies = [
  "futures-util",
  "hex",
  "jiff",
+ "libc",
  "minisign-verify",
  "portcove-core",
  "reqwest",
