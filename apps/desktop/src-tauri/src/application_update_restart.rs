@@ -354,10 +354,18 @@ fn restart_executable_if_runtime_available(
     let mut command =
         ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, executable)
             .map_err(|_| ())?;
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+    command.stdin(Stdio::null());
+    #[cfg(feature = "application-update-qualification")]
+    let retain_qualification_output =
+        std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT").as_deref()
+            == Some(OsStr::new("after-reconciliation"));
+    #[cfg(not(feature = "application-update-qualification"))]
+    let retain_qualification_output = false;
+    if retain_qualification_output {
+        command.stdout(Stdio::inherit()).stderr(Stdio::inherit());
+    } else {
+        command.stdout(Stdio::null()).stderr(Stdio::null());
+    }
     if clear_appimage_environment {
         command.env_remove("APPDIR").env_remove("APPIMAGE");
     }

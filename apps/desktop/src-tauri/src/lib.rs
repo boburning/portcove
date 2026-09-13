@@ -98,6 +98,19 @@ struct DesktopState {
 
 type DesktopResult<T> = std::result::Result<T, DesktopError>;
 
+#[cfg(any(windows, target_os = "linux"))]
+fn report_application_update_qualification_failure(stage: &str, error: &str) {
+    #[cfg(feature = "application-update-qualification")]
+    if std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT").as_deref()
+        == Some(std::ffi::OsStr::new("after-reconciliation"))
+    {
+        eprintln!(
+            "Portcove application-update qualification startup failed during {stage}: {error}"
+        );
+    }
+    let _ = (stage, error);
+}
+
 #[derive(Default)]
 struct BlockingWorkerState {
     active: usize,
@@ -1764,16 +1777,25 @@ fn reconcile_application_update_after_healthy_startup() {
             operation_id = "application-update-reconciliation",
             "confirmed the running Windows application update"
         ),
-        Ok(WindowsApplicationUpdateReconciliation::CandidateNotInstalled) => tracing::info!(
-            operation_id = "application-update-reconciliation",
-            "retained the application update request because the candidate is not running"
-        ),
+        Ok(WindowsApplicationUpdateReconciliation::CandidateNotInstalled) => {
+            report_application_update_qualification_failure(
+                "reconciliation",
+                "the candidate version is not running",
+            );
+            tracing::info!(
+                operation_id = "application-update-reconciliation",
+                "retained the application update request because the candidate is not running"
+            );
+        }
         Ok(WindowsApplicationUpdateReconciliation::NoAttempt) => {}
-        Err(error) => tracing::warn!(
-            operation_id = "application-update-reconciliation",
-            error = %error,
-            "retained the application update request because startup reconciliation failed"
-        ),
+        Err(error) => {
+            report_application_update_qualification_failure("reconciliation", &error.to_string());
+            tracing::warn!(
+                operation_id = "application-update-reconciliation",
+                error = %error,
+                "retained the application update request because startup reconciliation failed"
+            );
+        }
     }
 }
 
@@ -1791,19 +1813,28 @@ fn reconcile_application_update_after_healthy_startup() {
     })();
     match result {
         Ok(LinuxApplicationUpdateReconciliation::NoAttempt) => {}
-        Ok(LinuxApplicationUpdateReconciliation::CandidateNotInstalled) => tracing::warn!(
-            operation_id = "application-update-reconciliation",
-            "retained the Linux application update request because the candidate is not running"
-        ),
+        Ok(LinuxApplicationUpdateReconciliation::CandidateNotInstalled) => {
+            report_application_update_qualification_failure(
+                "reconciliation",
+                "the candidate version is not running",
+            );
+            tracing::warn!(
+                operation_id = "application-update-reconciliation",
+                "retained the Linux application update request because the candidate is not running"
+            );
+        }
         Ok(LinuxApplicationUpdateReconciliation::Reconciled) => tracing::info!(
             operation_id = "application-update-reconciliation",
             "confirmed the running Linux application update"
         ),
-        Err(error) => tracing::warn!(
-            operation_id = "application-update-reconciliation",
-            error = %error,
-            "retained the Linux application update request because startup reconciliation failed"
-        ),
+        Err(error) => {
+            report_application_update_qualification_failure("reconciliation", &error.to_string());
+            tracing::warn!(
+                operation_id = "application-update-reconciliation",
+                error = %error,
+                "retained the Linux application update request because startup reconciliation failed"
+            );
+        }
     }
 }
 
@@ -1969,18 +2000,27 @@ pub fn run() {
                 window.set_focus()?;
             }
             let state = app.state::<DesktopState>();
-            if let Ok(ready_state) = ready(&state) {
-                for session in ready_state.library.launch_sessions()? {
-                    observe_launch_completion(
-                        app.handle(),
-                        state.inner(),
-                        ready_state.library.clone(),
-                        session.id,
-                    )
-                    .map_err(|error| std::io::Error::other(error.message))?;
+            match ready(&state) {
+                Ok(ready_state) => {
+                    for session in ready_state.library.launch_sessions()? {
+                        observe_launch_completion(
+                            app.handle(),
+                            state.inner(),
+                            ready_state.library.clone(),
+                            session.id,
+                        )
+                        .map_err(|error| std::io::Error::other(error.message))?;
+                    }
+                    #[cfg(any(windows, target_os = "linux"))]
+                    reconcile_application_update_after_healthy_startup();
                 }
                 #[cfg(any(windows, target_os = "linux"))]
-                reconcile_application_update_after_healthy_startup();
+                Err(error) => report_application_update_qualification_failure(
+                    "desktop initialization",
+                    &error.message,
+                ),
+                #[cfg(not(any(windows, target_os = "linux")))]
+                Err(_) => {}
             }
             #[cfg(feature = "application-update-qualification")]
             if std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT").as_deref()

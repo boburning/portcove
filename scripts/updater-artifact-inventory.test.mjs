@@ -191,6 +191,8 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(workflow, /retention-days: 1/);
   assert.doesNotMatch(workflow, /updater-rehearsal\/\*\*|\.key\b/);
   assert.match(workflow, /linux-appimage-qualification\/application-update-evidence\.json/);
+  assert.match(workflow, /state\/update-state\/\*\.json/);
+  assert.match(workflow, /state\/library\/logs\/portcove-desktop\.jsonl\*/);
   assert.doesNotMatch(workflow, /linux-appimage-qualification\/(?:private|state)\/\*\*/);
   const lifecycle = await readFile(
     new URL("./test-windows-installer.ps1", import.meta.url),
