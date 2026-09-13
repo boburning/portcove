@@ -316,7 +316,7 @@ Required pull-request CI has a five-minute warm-cache target for the complete pi
 
 A lockfile or toolchain change is expected to pay each lane's cold-build cost once. [Run 33832768415](https://github.com/boburning/portcove/actions/runs/33832768415) established the initial 7m45s cold baseline and exposed the shared-key race. After isolating the non-core jobs, [run 33833781499](https://github.com/boburning/portcove/actions/runs/33833781499) passed in 6m49s while populating both new lane-specific caches.
 
-Frontend pull requests use the required GitHub dependency-review check to block newly introduced high-severity vulnerabilities. GitHub vulnerability alerts and automated Dependabot security fixes remain active during the staged Renovate transition. The frontend build lane therefore does not make a second live request to npm's advisory endpoint on every commit, including pnpm's install-time audit; those duplicate requests added no change-specific coverage and could hold all otherwise-passing checks open for repeated network timeouts. Frozen lockfile installation, production build, tests, Fallow, and the pnpm/`just` development-storage integration cases remain required. The Windows and Linux Rust lanes retain every platform-relevant development-storage test while delegating only those two tool-integration cases to the prepared frontend lane.
+Frontend pull requests use the required GitHub dependency-review check to block newly introduced high-severity vulnerabilities. GitHub vulnerability alerts and automated Dependabot security fixes remain active independently of routine Renovate updates. The frontend build lane therefore does not make a second live request to npm's advisory endpoint on every commit, including pnpm's install-time audit; those duplicate requests added no change-specific coverage and could hold all otherwise-passing checks open for repeated network timeouts. Frozen lockfile installation, production build, tests, Fallow, and the pnpm/`just` development-storage integration cases remain required. The Windows and Linux Rust lanes retain every platform-relevant development-storage test while delegating only those two tool-integration cases to the prepared frontend lane.
 
 The manually triggered `.github/workflows/deep-quality.yml` workflow provides a reproducible Ubuntu 24.04 environment for the full advisory pass, including semdup and Hawk. Ubuntu 24.04 is intentional: semdup's bundled ONNX Runtime currently requires newer glibc C23 symbols than the Ubuntu 22.04 runner provides. It runs the same `just deep` constituents as independent audit, Hawk, and semantic-duplication jobs so they execute in parallel, but is deliberately not a required pull-request status check. Start it after broad refactors or when the Windows host cannot link semdup:
 
@@ -381,12 +381,11 @@ short dependency name, manager, and datasource. Repository tests reproduce that
 identity and require every nonstandard authority and external action to remain
 covered.
 
-GitHub vulnerability alerts and automated Dependabot security fixes remain
-enabled. Weekly Cargo, npm, and GitHub Actions updates stay configured in
-`.github/dependabot.yml` until the hosted Renovate App is authorized for this
-repository and its first real run and pull request prove the integration. Only
-then may a focused follow-up remove Dependabot; this staged overlap prevents an
-automation gap.
+Renovate is the sole routine dependency-version update authority. GitHub
+vulnerability alerts and automated Dependabot security fixes remain enabled
+independently; the absence of `.github/dependabot.yml` retires scheduled
+Dependabot version-update jobs without disabling those repository security
+capabilities.
 
 Current Tauri Linux dependencies transitively include the unmaintained GTK3 binding family; other transitive build paths include `proc-macro-error` and the `unic-*` family. `cargo deny check --hide-inclusion-graph -W unmaintained` keeps these visible while continuing to deny security advisories, while omitting thousands of lines of repeated transitive paths from the normal audit. There is no safe direct Portcove upgrade that removes the GTK3 set without changing Tauri's Linux webview architecture.
 

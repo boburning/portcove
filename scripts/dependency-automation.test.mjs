@@ -55,7 +55,7 @@ test("all external GitHub Actions are immutable SHA references", async () => {
   }
 });
 
-test("Renovate is conservative complete and staged behind existing Dependabot", async () => {
+test("Renovate is the sole conservative routine update authority", async () => {
   const renovate = JSON.parse(await read("renovate.json"));
   assert.equal(renovate.automerge, false);
   assert.equal(renovate.minimumReleaseAge, "3 days");
@@ -87,7 +87,7 @@ test("Renovate is conservative complete and staged behind existing Dependabot", 
     "https://www.powershellgallery.com/api/v2/",
   );
   assert.equal(powershellAnalyzerManager.versioningTemplate, "nuget");
-  assert.match(await read(".github/dependabot.yml"), /package-ecosystem:/u);
+  await assert.rejects(read(".github/dependabot.yml"), (error) => error.code === "ENOENT");
 });
 
 test("Renovate excludes the extracted rusqlite Git dependency identity", async () => {
