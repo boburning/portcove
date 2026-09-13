@@ -1,5 +1,5 @@
 import type { DoctorReport, PortDefinition } from "../types";
-import { formatCountMessage } from "../view-model";
+import { errorText, formatCountMessage } from "../view-model";
 
 type Repair = DoctorReport["repair"];
 type Item = Repair["items"][number];
@@ -18,12 +18,65 @@ const countMessages = {
   unknown: "Recovery information is unavailable.",
 };
 
-export function RecoveryReview({ repair, ports }: { repair?: Repair; ports: PortDefinition[] }) {
+export function RecoveryReview({
+  repair,
+  ports,
+  refreshing,
+  stale,
+  failure,
+  refresh,
+}: {
+  repair?: Repair;
+  ports: PortDefinition[];
+  refreshing: boolean;
+  stale: boolean;
+  failure?: unknown;
+  refresh: () => Promise<unknown>;
+}) {
   const names = new Map(ports.map((port) => [port.id, port.name]));
+  const state =
+    refreshing && !repair
+      ? "loading"
+      : failure
+        ? "failed"
+        : stale && repair
+          ? "stale"
+          : repair
+            ? "fresh"
+            : "never-loaded";
   return (
-    <section className="recovery-review" aria-label="Retained work and repairs">
+    <section
+      className="recovery-review"
+      aria-label="Retained work and repairs"
+      data-diagnostic-state={state}
+    >
       <h2>Retained work and repairs</h2>
-      <p>{formatCountMessage(repair?.items.length, countMessages)}</p>
+      {refreshing && (
+        <p role="status">
+          {repair
+            ? "Refreshing recovery information. The last completed check remains visible."
+            : "Checking the library for retained work and repairs…"}
+        </p>
+      )}
+      {!refreshing && Boolean(failure) && (
+        <p role="alert">
+          Recovery information could not be refreshed: {errorText(failure)}
+          {repair ? " The last completed check remains visible." : ""}
+        </p>
+      )}
+      {!refreshing && !failure && stale && (
+        <p role="status">
+          {repair
+            ? "Recovery information is out of date. The last completed check remains visible."
+            : "Recovery information has not been checked for the current library state."}
+        </p>
+      )}
+      {(!stale || repair) && <p>{formatCountMessage(repair?.items.length, countMessages)}</p>}
+      {(stale || Boolean(failure)) && !refreshing && (
+        <button data-focusable className="small-control" onClick={() => void refresh()}>
+          Refresh recovery information
+        </button>
+      )}
       {!!repair?.items.length && (
         <>
           <p>

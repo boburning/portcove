@@ -203,6 +203,8 @@ export const desktopApi = {
   statuses: () => invoke<PortStatus[]>("get_statuses"),
   workspaceSnapshot: (generation: number) =>
     invoke<WorkspaceSnapshot>("get_workspace_snapshot", { generation }),
+  workspaceChanged: (generation: number) =>
+    invoke<boolean>("get_workspace_changed", { generation }),
   planPreparation: (portId: string, generation: number) =>
     invoke<PreparationPlan>("plan_preparation", { portId, generation }),
   planGameUpdate: (portId: string, activate: boolean, generation: number) =>

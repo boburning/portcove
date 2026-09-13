@@ -17,16 +17,23 @@ const item = (): Repair["items"][number] => ({
   message: "raw-machine-secret",
   proposed_action: "Review the retained work before another attempt.",
 });
+const freshDiagnostics = {
+  refreshing: false,
+  stale: false,
+  refresh: vi.fn().mockResolvedValue("completed"),
+};
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
 it("keeps unavailable information distinct from an empty recorded repair list", () => {
-  const unavailable = renderToStaticMarkup(<RecoveryReview ports={[port]} />);
-  const empty = renderToStaticMarkup(
-    <RecoveryReview ports={[port]} repair={{ generated_at: 1, items: [] }} />,
+  const unavailable = renderToStaticMarkup(
+    <RecoveryReview {...freshDiagnostics} ports={[port]} stale />,
   );
-  expect(unavailable).toContain("Recovery information is unavailable.");
+  const empty = renderToStaticMarkup(
+    <RecoveryReview {...freshDiagnostics} ports={[port]} repair={{ generated_at: 1, items: [] }} />,
+  );
+  expect(unavailable).toContain("has not been checked for the current library state");
   expect(unavailable).not.toContain("No recovery items");
   expect(empty).toContain("No recovery items were recorded in the last check.");
 });
@@ -38,7 +45,9 @@ it("puts paths behind a collapsed review and omits raw errors and execution cont
   const host = document.createElement("div");
   const root = createRoot(host);
   try {
-    await act(async () => root.render(<RecoveryReview repair={repair} ports={[port]} />));
+    await act(async () =>
+      root.render(<RecoveryReview {...freshDiagnostics} repair={repair} ports={[port]} />),
+    );
     expect(host.textContent).toContain("1 recorded item needs review.");
     expect(host.querySelector("summary")?.textContent).toContain(port.name);
     const details = host.querySelector("details")!;
@@ -53,7 +62,13 @@ it("puts paths behind a collapsed review and omits raw errors and execution cont
     expect(host.querySelectorAll("button,a")).toHaveLength(0);
     expect(JSON.stringify(repair)).toBe(original);
     await act(async () =>
-      root.render(<RecoveryReview repair={{ generated_at: 2, items: [] }} ports={[port]} />),
+      root.render(
+        <RecoveryReview
+          {...freshDiagnostics}
+          repair={{ generated_at: 2, items: [] }}
+          ports={[port]}
+        />,
+      ),
     );
     expect(host.querySelector("details")).toBeNull();
     expect(host.textContent).not.toContain("owned-operation");
@@ -72,7 +87,11 @@ it.each(["future_kind", "constructor", "__proto__"])("uses a neutral label for %
     operation_id: null,
   };
   const html = renderToStaticMarkup(
-    <RecoveryReview repair={{ generated_at: 1, items: [entry] }} ports={[]} />,
+    <RecoveryReview
+      {...freshDiagnostics}
+      repair={{ generated_at: 1, items: [entry] }}
+      ports={[]}
+    />,
   );
   expect(html).toContain("Library · Recovery information needs review");
   expect(html).toContain("No location was recorded.");
@@ -89,6 +108,7 @@ it("retains every recorded item and full long names and paths", () => {
   }));
   const html = renderToStaticMarkup(
     <RecoveryReview
+      {...freshDiagnostics}
       repair={{ generated_at: 1, items }}
       ports={[{ ...port, name: "A long game name ".repeat(10) }]}
     />,

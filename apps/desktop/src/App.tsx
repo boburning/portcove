@@ -227,11 +227,15 @@ function Workspace({
   const github = useGithubAuth(operations.perform, operations.setError);
   const updates = useUpdateCenter(operations.perform, data.statuses);
   const ui = usePortcoveUi();
-  const { catalog, diagnosticsStale, doctor, refreshDiagnostics } = data;
+  const { catalog, diagnosticRevision, diagnosticsStale, doctor, refreshDiagnostics } = data;
   useEffect(() => {
-    if (catalog && ui.view === "settings" && (diagnosticsStale || !doctor))
+    if (
+      catalog &&
+      (ui.view === "settings" || ui.view === "updates") &&
+      (diagnosticsStale || !doctor)
+    )
       void refreshDiagnostics();
-  }, [catalog, diagnosticsStale, doctor, refreshDiagnostics, ui.view]);
+  }, [catalog, diagnosticRevision, diagnosticsStale, doctor, refreshDiagnostics, ui.view]);
   const applicationUpdate = useApplicationUpdateNotice(operations.setError);
   const applicationUpdateChoice = useApplicationUpdateChoice(operations.setError);
   const applicationUpdateProductionTransition = useApplicationUpdateProductionTransition({
@@ -308,12 +312,12 @@ function Workspace({
       const path = await pickHostToolExecutable(tool.display_name, tool.path ?? "");
       if (!path) return undefined;
       const result = await desktopApi.setHostToolPath(tool.id, path);
-      await data.refreshDiagnostics();
+      await data.refreshDiagnosticsAfterMutation();
       return result;
     },
     clear: async (toolId: string) => {
       await desktopApi.clearHostToolPath(toolId);
-      await data.refreshDiagnostics();
+      await data.refreshDiagnosticsAfterMutation();
     },
     recheck: async (toolId: string) => desktopApi.recheckHostTool(toolId),
     openOfficial: (toolId: string) => desktopApi.openHostToolOfficialSite(toolId),
@@ -424,7 +428,7 @@ function Workspace({
           <SourceIntakeDialog
             request={sourceIntake}
             close={() => setSourceIntake(undefined)}
-            onAdded={data.refresh}
+            onAdded={data.refreshAfterMutation}
             openEvidence={(evidenceId) => {
               void operations.perform(
                 "open source evidence",
@@ -453,7 +457,8 @@ type BackupState = ReturnType<typeof usePortBackups>;
 
 function useAppModel(data: DataState, ui: UiState) {
   const { selectedId, setBiosPath, setSourcePath } = ui;
-  const statusMap = useMemo(() => indexStatuses(data.statuses), [data.statuses]);
+  const { catalog, sources, statuses } = data;
+  const statusMap = useMemo(() => indexStatuses(statuses), [statuses]);
   const visible = useMemo(
     () => filterPorts(data.catalog?.ports ?? [], statusMap, ui.view, ui.filter, ui.query),
     [data.catalog, statusMap, ui.view, ui.filter, ui.query],
@@ -477,8 +482,8 @@ function useAppModel(data: DataState, ui: UiState) {
     [data.catalog, data.sources, statusMap],
   );
   const selection = useMemo(
-    () => selectedPort(data, selectedId, statusMap),
-    [data, selectedId, statusMap],
+    () => selectedPort(catalog, sources, selectedId, statusMap),
+    [catalog, selectedId, sources, statusMap],
   );
   useEffect(() => {
     setSourcePath(selection.source?.path ?? "");
@@ -490,11 +495,12 @@ function useAppModel(data: DataState, ui: UiState) {
 }
 
 function selectedPort(
-  data: DataState,
+  catalog: DataState["catalog"],
+  sources: DataState["sources"],
   selectedId: string | undefined,
   statuses: ReturnType<typeof indexStatuses>,
 ) {
-  const port = data.catalog?.ports.find((candidate) => candidate.id === selectedId);
+  const port = catalog?.ports.find((candidate) => candidate.id === selectedId);
   if (!port)
     return {
       port: undefined,
@@ -507,12 +513,10 @@ function selectedPort(
   return {
     port,
     status: statuses.get(port.id),
-    source: data.sources.find((source) => source.profile_id === port.source_profile),
-    sourceProfile: data.catalog?.source_profiles?.find(
-      (profile) => profile.id === port.source_profile,
-    ),
-    bios: data.sources.find((source) => source.profile_id === port.bios_source_profile),
-    biosProfile: data.catalog?.source_profiles?.find(
+    source: sources.find((source) => source.profile_id === port.source_profile),
+    sourceProfile: catalog?.source_profiles?.find((profile) => profile.id === port.source_profile),
+    bios: sources.find((source) => source.profile_id === port.bios_source_profile),
+    biosProfile: catalog?.source_profiles?.find(
       (profile) => profile.id === port.bios_source_profile,
     ),
   };
@@ -561,6 +565,10 @@ function CurrentView({
         outcomes={updates.outcomes}
         busy={operations.busy}
         repair={data.doctor?.repair}
+        diagnosticsRefreshing={data.diagnosticRefreshing}
+        diagnosticsStale={data.diagnosticsStale}
+        diagnosticFailure={data.diagnosticFailure?.error}
+        refreshDiagnostics={data.refreshDiagnostics}
         checkAll={() => {
           void updates.checkAll();
         }}
@@ -584,8 +592,8 @@ function CurrentView({
         switchLibrary={switchLibrary}
         resetLibrary={resetLibrary}
         sourceProfiles={data.catalog?.source_profiles ?? []}
-        onSourceAdded={data.refresh}
-        onCatalogChanged={data.refresh}
+        onSourceAdded={data.refreshAfterMutation}
+        onCatalogChanged={data.refreshAfterMutation}
         hostToolActions={hostToolActions}
         applicationUpdateNotice={applicationUpdateNotice}
         onApplicationUpdatePreferencesChanged={onApplicationUpdatePreferencesChanged}
