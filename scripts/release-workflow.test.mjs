@@ -49,6 +49,10 @@ test("write authority is split across isolated attestation publication and clean
 test("cheap identity unlocks validation and builds concurrently behind an explicit result gate", () => {
   assert.match(identitySection, /actions\/setup-node/);
   assert.doesNotMatch(identitySection, /pnpm install|rust-toolchain|just audit/);
+  assert.doesNotMatch(
+    identitySection,
+    /select-release-channel\.test|reconstruct-application-update-records\.test/,
+  );
   assert.match(validateSection, /^ {4}needs: identity$/m);
   assert.match(validateSection, /just audit --fresh/);
   assert.match(buildSection, /^ {4}needs: identity$/m);
