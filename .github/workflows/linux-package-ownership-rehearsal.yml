@@ -1,6 +1,18 @@
 name: Linux package ownership rehearsal
 
 on:
+  pull_request:
+    paths:
+      - .github/workflows/linux-package-ownership-rehearsal.yml
+      - apps/desktop/package.json
+      - apps/desktop/pnpm-lock.yaml
+      - apps/desktop/src-tauri/Cargo.toml
+      - apps/desktop/src-tauri/src/application_update.rs
+      - apps/desktop/src-tauri/src/application_update_commands.rs
+      - apps/desktop/src-tauri/src/application_update_linux.rs
+      - apps/desktop/src-tauri/src/application_update_recovery.rs
+      - apps/desktop/src-tauri/tauri.conf.json
+      - scripts/test-linux-package-ownership.sh
   workflow_dispatch:
 
 permissions:

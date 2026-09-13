@@ -193,7 +193,16 @@ test("Linux package ownership rehearsal is focused and preserves managed executa
     "utf8",
   );
 
-  assert.match(rehearsal, /^on:\r?\n {2}workflow_dispatch:$/m);
+  assert.match(rehearsal, /^on:\r?\n {2}pull_request:\r?\n {4}paths:/m);
+  assert.match(rehearsal, /^ {2}workflow_dispatch:$/m);
+  for (const governedPath of [
+    "apps/desktop/src-tauri/src/application_update_linux.rs",
+    "apps/desktop/src-tauri/src/application_update_recovery.rs",
+    "apps/desktop/src-tauri/tauri.conf.json",
+    "scripts/test-linux-package-ownership.sh",
+  ]) {
+    assert.ok(rehearsal.includes(`- ${governedPath}`));
+  }
   assert.match(rehearsal, /runs-on: ubuntu-22\.04/);
   assert.match(rehearsal, /pnpm tauri build --bundles deb,rpm --ci/);
   assert.doesNotMatch(rehearsal, /appimage|desktop-test|e2e/iu);
