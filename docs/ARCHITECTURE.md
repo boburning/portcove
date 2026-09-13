@@ -747,7 +747,7 @@ Portcove GitHub release/version path, follows at most five redirects through the
 reviewed GitHub release-asset host, resolves and pins public addresses, bypasses
 ambient proxies and streams anonymously under connection, idle, total-time and
 authenticated-length bounds. It returns only a reader for the existing verifier and
-staging boundary; no platform replacement is active.
+staging boundary and grants no replacement authority by itself.
 The sibling `application_update_apply` journal binds a requested safe exit or
 explicit one-restart action to the exact staged candidate, preference revision and
 choice, installed application context, and canonical current-library root. Its
@@ -785,8 +785,20 @@ records `installer-failed`. Both are known to have no live child and are eligibl
 only for an explicit retry. A legacy `started` state and any crash while `starting`
 remain ambiguous and held. Windows staging uses one fixed
 `.exe` payload slot so the operating system can execute the authenticated bytes;
-other platforms retain their inert generic slot until their own adapters define a
-format-specific replacement. The sibling `application_update_helper` defines the
+on Linux, `application_update_linux` admits only the freshly observed direct,
+current-user AppImage source and an exact x86_64 Type 2 AppImage payload from the locked staging
+slot. The helper records the source path, backup path, prior byte length and prior
+SHA-256 in the apply journal, copies and rehashes the candidate into a synchronized
+sibling file with the existing executable permissions, then uses Linux
+`RENAME_EXCHANGE`. The stable AppImage path therefore always names one complete
+image, and the previous image remains in the recorded sibling slot until the new
+exact candidate crosses healthy startup. The helper relaunches the stable AppImage
+source after clearing the old mount environment. Healthy startup rechecks the
+running source's candidate bytes, the recorded backup identity and both direct paths
+before retiring staging and the apply intent. A pre-exchange failure is retryable; a
+failure after the atomic exchange remains ambiguous and does not launch another
+process. Other platforms retain their inert generic slot until their own adapters
+define a format-specific replacement. The sibling `application_update_helper` defines the
 post-exit revalidation sequence for a dedicated process without accepting paths,
 repository locations, trust roots, candidates or keys in its request. It first
 requires the exact eligible apply-journal revision, then waits up to two minutes for

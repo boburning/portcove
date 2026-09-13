@@ -355,7 +355,7 @@ impl ApplicationUpdateStagingStore {
     /// host. A newer independently staged candidate is preserved. This sync
     /// path intentionally reads durable metadata without rehashing bytes that
     /// are about to be deleted.
-    #[cfg(any(windows, test))]
+    #[cfg(any(windows, target_os = "linux", test))]
     pub(crate) fn retire_installed_candidate(
         &self,
         candidate: &SelectedCandidate,

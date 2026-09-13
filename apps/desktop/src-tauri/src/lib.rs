@@ -117,7 +117,7 @@ impl BlockingWorkerState {
         self.active = self.active.saturating_sub(1);
     }
 
-    #[cfg(any(windows, test))]
+    #[cfg(any(windows, target_os = "linux", test))]
     fn begin_restart(&mut self) -> Result<(), ()> {
         if self.active != 0 || self.restart_pending {
             return Err(());
@@ -154,19 +154,19 @@ impl Drop for ActiveBlockingWorker {
     }
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 struct BlockingWorkerRestartGuard {
     committed: bool,
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 impl BlockingWorkerRestartGuard {
     fn commit(mut self) {
         self.committed = true;
     }
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 impl Drop for BlockingWorkerRestartGuard {
     fn drop(&mut self) {
         if !self.committed
@@ -177,7 +177,7 @@ impl Drop for BlockingWorkerRestartGuard {
     }
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 fn block_workers_for_restart() -> DesktopResult<BlockingWorkerRestartGuard> {
     let mut state = BLOCKING_WORKERS.lock().map_err(|_| {
         DesktopError::from(PortcoveError::state("Desktop worker state is unavailable."))
@@ -1777,6 +1777,36 @@ fn reconcile_application_update_after_healthy_startup() {
     }
 }
 
+#[cfg(target_os = "linux")]
+fn reconcile_application_update_after_healthy_startup() {
+    use application_update_linux::LinuxApplicationUpdateReconciliation;
+
+    let result = (|| {
+        let apply = application_update_apply::ApplicationUpdateApplyStore::open_configured()
+            .map_err(application_update_linux::LinuxApplicationUpdateError::from)?;
+        let staging = application_update_staging::ApplicationUpdateStagingStore::open_configured()
+            .map_err(application_update_apply::ApplicationUpdateApplyError::from)
+            .map_err(application_update_linux::LinuxApplicationUpdateError::from)?;
+        application_update_linux::reconcile_linux_application_update(&apply, &staging)
+    })();
+    match result {
+        Ok(LinuxApplicationUpdateReconciliation::NoAttempt) => {}
+        Ok(LinuxApplicationUpdateReconciliation::CandidateNotInstalled) => tracing::warn!(
+            operation_id = "application-update-reconciliation",
+            "retained the Linux application update request because the candidate is not running"
+        ),
+        Ok(LinuxApplicationUpdateReconciliation::Reconciled) => tracing::info!(
+            operation_id = "application-update-reconciliation",
+            "confirmed the running Linux application update"
+        ),
+        Err(error) => tracing::warn!(
+            operation_id = "application-update-reconciliation",
+            error = %error,
+            "retained the Linux application update request because startup reconciliation failed"
+        ),
+    }
+}
+
 pub fn run() {
     let preferences = host_preference_store();
     let application_runtime = preferences.as_ref().map_err(Clone::clone).and_then(|_| {
@@ -1949,7 +1979,7 @@ pub fn run() {
                     )
                     .map_err(|error| std::io::Error::other(error.message))?;
                 }
-                #[cfg(windows)]
+                #[cfg(any(windows, target_os = "linux"))]
                 reconcile_application_update_after_healthy_startup();
             }
             application_update_commands::start_automatic_checks(
