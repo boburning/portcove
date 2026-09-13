@@ -3438,6 +3438,7 @@ dependencies = [
  "minisign-verify",
  "portcove-core",
  "reqwest",
+ "rustix",
  "schemars 1.2.2",
  "semver",
  "serde",

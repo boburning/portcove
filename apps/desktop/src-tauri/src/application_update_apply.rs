@@ -27,8 +27,8 @@ use crate::application_update_staging::{
 };
 use crate::application_update_storage::write_bytes_atomically;
 
-const APPLY_SCHEMA_VERSION: u32 = 3;
-const LEGACY_APPLY_SCHEMA_VERSION: u32 = 2;
+const APPLY_SCHEMA_VERSION: u32 = 4;
+const LEGACY_APPLY_SCHEMA_VERSIONS: [u32; 2] = [2, 3];
 const MAX_APPLY_STATE_BYTES: u64 = 512 * 1024;
 const APPLY_FILE: &str = "apply.json";
 const APPLY_TEMP_FILE: &str = ".apply.json.tmp";
@@ -93,6 +93,15 @@ pub enum ApplicationUpdateNativeLaunchState {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct ApplicationUpdateNativeReplacement {
+    pub source_path: PathBuf,
+    pub backup_path: PathBuf,
+    pub previous_bytes: u64,
+    pub previous_sha256: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ApplicationUpdateApplyIntent {
     pub preference_revision: u64,
     pub preference_choice: ApplicationUpdateChoice,
@@ -112,6 +121,8 @@ pub struct ApplicationUpdateApplyState {
     pub native_launch: Option<ApplicationUpdateNativeLaunchState>,
     #[serde(default)]
     pub native_exit_code: Option<i32>,
+    #[serde(default)]
+    pub native_replacement: Option<ApplicationUpdateNativeReplacement>,
 }
 
 impl Default for ApplicationUpdateApplyState {
@@ -123,6 +134,7 @@ impl Default for ApplicationUpdateApplyState {
             termination: None,
             native_launch: None,
             native_exit_code: None,
+            native_replacement: None,
         }
     }
 }
@@ -204,7 +216,21 @@ impl ApplicationUpdateRevalidationLease {
     /// Durably closes automatic retry before native process creation. A crash
     /// after this transition remains an ambiguous attempt for reconciliation.
     pub fn begin_native_launch(
+        self,
+    ) -> Result<ApplicationUpdateNativeLaunchLease, ApplicationUpdateApplyError> {
+        self.begin_native_launch_inner(None)
+    }
+
+    pub fn begin_native_replacement(
+        self,
+        replacement: ApplicationUpdateNativeReplacement,
+    ) -> Result<ApplicationUpdateNativeLaunchLease, ApplicationUpdateApplyError> {
+        self.begin_native_launch_inner(Some(replacement))
+    }
+
+    fn begin_native_launch_inner(
         mut self,
+        replacement: Option<ApplicationUpdateNativeReplacement>,
     ) -> Result<ApplicationUpdateNativeLaunchLease, ApplicationUpdateApplyError> {
         if !self.apply.state.may_attempt_revalidation() {
             return Err(ApplicationUpdateApplyError::InvalidState(
@@ -214,6 +240,7 @@ impl ApplicationUpdateRevalidationLease {
         self.apply.state.revision = next_revision(self.apply.state.revision)?;
         self.apply.state.native_launch = Some(ApplicationUpdateNativeLaunchState::Starting);
         self.apply.state.native_exit_code = None;
+        self.apply.state.native_replacement = replacement;
         self.apply.store.publish(&self.apply.state)?;
         Ok(ApplicationUpdateNativeLaunchLease { revalidation: self })
     }
@@ -354,7 +381,7 @@ impl ApplicationUpdateApplyStore {
         }
         let mut state: ApplicationUpdateApplyState = serde_json::from_slice(&bytes)
             .map_err(|error| ApplicationUpdateApplyError::InvalidState(error.to_string()))?;
-        if state.schema_version == LEGACY_APPLY_SCHEMA_VERSION {
+        if LEGACY_APPLY_SCHEMA_VERSIONS.contains(&state.schema_version) {
             state.schema_version = APPLY_SCHEMA_VERSION;
         }
         validate_state(&state)?;
@@ -491,6 +518,7 @@ impl ApplicationUpdateApplyStore {
                     state.revision = next_revision(state.revision)?;
                     state.native_launch = None;
                     state.native_exit_code = None;
+                    state.native_replacement = None;
                     publish = true;
                 }
                 None if state.termination.is_none()
@@ -561,6 +589,7 @@ impl ApplicationUpdateApplyStore {
         state.termination = None;
         state.native_launch = None;
         state.native_exit_code = None;
+        state.native_replacement = None;
         self.publish(&state)?;
         Ok(state)
     }
@@ -589,6 +618,7 @@ impl ApplicationUpdateApplyStore {
         state.revision = next_revision(state.revision)?;
         state.native_launch = None;
         state.native_exit_code = None;
+        state.native_replacement = None;
         self.publish(&state)?;
         Ok(state)
     }
@@ -596,7 +626,7 @@ impl ApplicationUpdateApplyStore {
     /// Clears a recorded native attempt only after a trusted host adapter has
     /// observed the candidate version running past its application-health
     /// boundary. Exact installed identity remains the adapter's responsibility.
-    #[cfg(any(windows, test))]
+    #[cfg(any(windows, target_os = "linux", test))]
     pub(crate) fn reconcile_installed_application(
         &self,
         expected_revision: u64,
@@ -631,6 +661,7 @@ impl ApplicationUpdateApplyStore {
         state.termination = None;
         state.native_launch = None;
         state.native_exit_code = None;
+        state.native_replacement = None;
         self.publish(&state)?;
         Ok(state)
     }
@@ -801,6 +832,14 @@ fn validate_state(state: &ApplicationUpdateApplyState) -> Result<(), Application
             "native launch state requires a matching terminated apply intent".into(),
         ));
     }
+    if state.native_replacement.is_some() && state.native_launch.is_none() {
+        return Err(ApplicationUpdateApplyError::InvalidState(
+            "native replacement identity requires a native launch state".into(),
+        ));
+    }
+    if let Some(replacement) = &state.native_replacement {
+        validate_native_replacement(replacement)?;
+    }
     match (state.native_launch, state.native_exit_code) {
         (Some(ApplicationUpdateNativeLaunchState::InstallerSucceeded), Some(0)) => {}
         (Some(ApplicationUpdateNativeLaunchState::InstallerFailed), Some(code)) if code != 0 => {}
@@ -851,6 +890,46 @@ fn validate_intent(
         ));
     }
     validate_library_path(&intent.library_root)
+}
+
+fn validate_native_replacement(
+    replacement: &ApplicationUpdateNativeReplacement,
+) -> Result<(), ApplicationUpdateApplyError> {
+    for (path, label) in [
+        (&replacement.source_path, "source"),
+        (&replacement.backup_path, "backup"),
+    ] {
+        if !path.is_absolute()
+            || path.file_name().is_none()
+            || path
+                .components()
+                .any(|component| matches!(component, std::path::Component::ParentDir))
+        {
+            return Err(ApplicationUpdateApplyError::InvalidPath(format!(
+                "native replacement {label} path must be absolute and contain no parent traversal"
+            )));
+        }
+    }
+    if replacement.source_path == replacement.backup_path
+        || replacement.source_path.parent() != replacement.backup_path.parent()
+    {
+        return Err(ApplicationUpdateApplyError::InvalidState(
+            "native replacement source and backup must be distinct siblings".into(),
+        ));
+    }
+    if replacement.previous_bytes == 0
+        || replacement.previous_bytes > 2 * 1024 * 1024 * 1024
+        || replacement.previous_sha256.len() != 64
+        || !replacement
+            .previous_sha256
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        return Err(ApplicationUpdateApplyError::InvalidState(
+            "native replacement previous artifact identity is invalid".into(),
+        ));
+    }
+    Ok(())
 }
 
 fn require_revision(
@@ -1330,15 +1409,19 @@ mod tests {
         let cleared = store.clear(first.revision).unwrap();
         assert!(cleared.intent.is_none());
 
-        fs::write(
-            store.root.join(APPLY_FILE),
-            br#"{"schema_version":2,"revision":0,"intent":null,"termination":null,"native_launch":null}"#,
-        )
-        .unwrap();
-        assert_eq!(
-            store.load().unwrap(),
-            ApplicationUpdateApplyState::default()
-        );
+        for schema in [2, 3] {
+            fs::write(
+                store.root.join(APPLY_FILE),
+                format!(
+                    r#"{{"schema_version":{schema},"revision":0,"intent":null,"termination":null,"native_launch":null}}"#
+                ),
+            )
+            .unwrap();
+            assert_eq!(
+                store.load().unwrap(),
+                ApplicationUpdateApplyState::default()
+            );
+        }
 
         fs::write(
             store.root.join(APPLY_FILE),
@@ -1455,6 +1538,12 @@ mod tests {
         assert_eq!(retry.revision, 5);
         assert!(retry.native_launch.is_none());
         assert!(retry.may_attempt_revalidation());
+        let replacement = ApplicationUpdateNativeReplacement {
+            source_path: temporary.path().join("Portcove.AppImage"),
+            backup_path: temporary.path().join(".portcove-appimage.swap"),
+            previous_bytes: 128,
+            previous_sha256: "a".repeat(64),
+        };
         let launch = apply
             .admit_revalidation(
                 retry.revision,
@@ -1466,7 +1555,7 @@ mod tests {
             )
             .await
             .unwrap()
-            .begin_native_launch()
+            .begin_native_replacement(replacement.clone())
             .unwrap();
         let starting = launch.state().clone();
         assert_eq!(starting.revision, 6);
@@ -1474,6 +1563,7 @@ mod tests {
             starting.native_launch,
             Some(ApplicationUpdateNativeLaunchState::Starting)
         );
+        assert_eq!(starting.native_replacement, Some(replacement));
         assert!(!starting.may_attempt_revalidation());
         assert!(matches!(
             apply.retry_failed_native_launch(starting.revision),
@@ -1495,6 +1585,7 @@ mod tests {
             .unwrap();
         assert_eq!(retry.revision, 8);
         assert_eq!(retry.native_exit_code, None);
+        assert!(retry.native_replacement.is_none());
 
         let launch = apply
             .admit_revalidation(

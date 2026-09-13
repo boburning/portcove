@@ -143,10 +143,14 @@ production root, origin, key or native-launch authority.
 
 Select TUF 1.x with maintained Rust `tough`; the fixtures lock version 0.24.0.
 Its editor and client own canonicalization, signing and verification, with no
-Portcove crypto implementation. Select `tauri-plugin-updater` 2.11.0 or a later
-reviewed compatible version for payload verification and native replacement.
-Its source uses `minisign-verify`. The plugin is not installed by this design.
-Recheck current versions/advisories at integration; pins may change with validation.
+Portcove crypto implementation. Tauri updater signatures use the maintained
+`minisign-verify` implementation also used by `tauri-plugin-updater` 2.11.0. That
+plugin remains unsuitable for the post-exit helper boundary because its public
+install method is attached to an in-process Tauri `Update`, and its AppImage path
+writes the destination after moving the prior image rather than publishing with an
+atomic exchange. Portcove therefore keeps Tauri-compatible signature bytes and uses
+the Linux kernel's atomic exchange for the staged payload. Recheck current upstream
+APIs, versions and advisories when this boundary changes; pins may move with validation.
 
 ## Metadata and promotion
 
@@ -345,14 +349,19 @@ same exact current-user NSIS registration used by replacement admission, then ad
 the compiled target, API, catalog, library reader/writer and lock compatibility
 identity plus the actual Windows version. The provider implements both the regular
 authenticated checker and the helper's fresh post-exit selection boundary. The
-Linux provider accepts only an absolute, direct AppImage source with owner write
-and execute bits whose running executable is inside the native read-only FUSE
+Linux provider accepts only an absolute, direct AppImage source with owner read,
+write and execute bits whose running executable is inside the native read-only FUSE
 `APPDIR` mount recorded by the Linux kernel. It reports the shared compiled
 compatibility identity and current kernel version;
 DEB, RPM, unpackaged, linked and foreign-owned launches remain under their existing
-owner and cannot enter the in-app update path. This observation enables trusted
-selection and staging only; Linux replacement and package qualification remain
-separate gates. The ordinary alpha build supplies no production root or origin. In an updater-enabled
+owner and cannot enter the in-app update path. After the shared post-exit
+revalidation lease is held, the Linux adapter rehashes an exact direct x86_64 Type 2 AppImage
+payload into a synchronized sibling file and atomically exchanges it with the stable
+AppImage source. The apply journal records the exact prior bytes and retained backup
+path before mutation. Healthy startup verifies the candidate at that same source and
+the retained prior identity before cleanup; an ambiguous exchange never automatically
+relaunches. Package qualification remains a separate gate. The ordinary alpha build
+supplies no production root or origin. In an updater-enabled
 build, the fixed manual check and explicit restart helper are the only commands that
 activate this provider; no automatic startup schedule or safe-exit hook does so.
 

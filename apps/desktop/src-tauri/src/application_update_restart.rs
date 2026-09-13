@@ -5,40 +5,43 @@
 //! library state, then starts a helper carrying only the journal revision.
 
 use std::ffi::OsStr;
-#[cfg(any(windows, test))]
+#[cfg(any(windows, target_os = "linux", test))]
 use std::process::Stdio;
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 use portcove_core::HostPreferenceStore;
 use portcove_core::PortcoveError;
-#[cfg(any(windows, test))]
+#[cfg(any(windows, target_os = "linux", test))]
 use portcove_core::{ChildProcessClass, ChildProcessPolicy};
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 use crate::DesktopError;
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 use crate::application_update_apply::{
     ApplicationTerminationKind, ApplicationUpdateApplyError, ApplicationUpdateApplyStore,
+    ApplicationUpdateRevalidationLease,
 };
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 use crate::application_update_helper::{
     ApplicationUpdateHelperRequest, BoundedApplicationUpdateRuntimeWaiter,
     revalidate_application_update_after_parent_exit,
 };
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 use crate::application_update_host::{
     ApplicationUpdateHostProvider, CurrentInstalledApplicationContext,
     InstalledApplicationContextSource,
 };
-#[cfg(windows)]
+#[cfg(any(target_os = "linux", test))]
+use crate::application_update_linux::LinuxApplicationUpdateError;
+#[cfg(any(windows, target_os = "linux"))]
 use crate::application_update_preferences::ApplicationUpdatePreferenceStore;
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 use crate::application_update_staging::ApplicationUpdateStagingStore;
 #[cfg(any(windows, test))]
 use crate::application_update_windows::WindowsApplicationUpdateError;
 #[cfg(windows)]
 use crate::application_update_windows::WindowsNsisUpdateAdmission;
-#[cfg(any(windows, test))]
+#[cfg(any(windows, target_os = "linux", test))]
 use crate::configure_independent_process;
 use crate::{DesktopResult, DesktopState};
 
@@ -54,7 +57,7 @@ pub(crate) async fn restart_to_apply_application_update(
     >,
     generation: u64,
 ) -> DesktopResult<()> {
-    #[cfg(not(windows))]
+    #[cfg(not(any(windows, target_os = "linux")))]
     {
         let _ = (app, state, update_state, generation);
         Err(PortcoveError::unsupported(
@@ -63,7 +66,7 @@ pub(crate) async fn restart_to_apply_application_update(
         .into())
     }
 
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "linux"))]
     {
         crate::require_library_generation(crate::state_generation(&state), generation)?;
         if ApplicationUpdateHostProvider::compiled()
@@ -141,7 +144,7 @@ pub(crate) fn is_helper_mode(value: &OsStr) -> bool {
     value == HELPER_MODE
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 fn spawn_update_helper(expected_revision: u64) -> DesktopResult<()> {
     let executable = std::env::current_exe().map_err(PortcoveError::from)?;
     let mut command = update_helper_command(&executable, expected_revision)?;
@@ -153,7 +156,7 @@ fn spawn_update_helper(expected_revision: u64) -> DesktopResult<()> {
     Ok(())
 }
 
-#[cfg(any(windows, test))]
+#[cfg(any(windows, target_os = "linux", test))]
 fn update_helper_command(
     executable: &std::path::Path,
     expected_revision: u64,
@@ -185,13 +188,32 @@ pub(crate) fn run_update_helper(expected_revision: u64) -> i32 {
     }
 }
 
-#[cfg(not(windows))]
+#[cfg(target_os = "linux")]
+pub(crate) fn run_update_helper(expected_revision: u64) -> i32 {
+    let source = crate::application_update_linux::current_linux_appimage_source().ok();
+    let outcome = run_linux_update_helper_inner(expected_revision);
+    let restart_result = if outcome != UpdateHelperOutcome::Ambiguous {
+        source
+            .as_deref()
+            .ok_or(())
+            .and_then(restart_linux_appimage_if_runtime_available)
+    } else {
+        Err(())
+    };
+    if outcome == UpdateHelperOutcome::Succeeded && restart_result.is_ok() {
+        0
+    } else {
+        1
+    }
+}
+
+#[cfg(not(any(windows, target_os = "linux")))]
 pub(crate) fn run_update_helper(_expected_revision: u64) -> i32 {
     1
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg(any(windows, test))]
+#[cfg(any(windows, target_os = "linux", test))]
 enum UpdateHelperOutcome {
     Succeeded,
     FailedSafe,
@@ -207,8 +229,29 @@ fn run_update_helper_inner(expected_revision: u64) -> UpdateHelperOutcome {
     classify_launch_result(admission.launch())
 }
 
+#[cfg(target_os = "linux")]
+fn run_linux_update_helper_inner(expected_revision: u64) -> UpdateHelperOutcome {
+    let lease = match prepare_revalidation_lease(expected_revision) {
+        Ok(lease) => lease,
+        Err(()) => return UpdateHelperOutcome::FailedSafe,
+    };
+    let admission = match crate::application_update_linux::admit_linux_appimage_update(lease) {
+        Ok(admission) => admission,
+        Err(_) => return UpdateHelperOutcome::FailedSafe,
+    };
+    classify_linux_launch_result(admission.launch())
+}
+
 #[cfg(windows)]
 fn prepare_update_admission(expected_revision: u64) -> Result<WindowsNsisUpdateAdmission, ()> {
+    let lease = prepare_revalidation_lease(expected_revision)?;
+    crate::application_update_windows::admit_windows_nsis_update(lease).map_err(|_| ())
+}
+
+#[cfg(any(windows, target_os = "linux"))]
+fn prepare_revalidation_lease(
+    expected_revision: u64,
+) -> Result<ApplicationUpdateRevalidationLease, ()> {
     let request = ApplicationUpdateHelperRequest::new(expected_revision).map_err(|_| ())?;
     let provider = ApplicationUpdateHostProvider::compiled()
         .map_err(|_| ())?
@@ -217,7 +260,7 @@ fn prepare_update_admission(expected_revision: u64) -> Result<WindowsNsisUpdateA
     let preferences = ApplicationUpdatePreferenceStore::open_configured().map_err(|_| ())?;
     let staging = ApplicationUpdateStagingStore::open_configured().map_err(|_| ())?;
     let runtime_lock = HostPreferenceStore::application_runtime_lock_path().map_err(|_| ())?;
-    let lease = tauri::async_runtime::block_on(revalidate_application_update_after_parent_exit(
+    tauri::async_runtime::block_on(revalidate_application_update_after_parent_exit(
         request,
         &BoundedApplicationUpdateRuntimeWaiter::default(),
         &provider,
@@ -226,8 +269,7 @@ fn prepare_update_admission(expected_revision: u64) -> Result<WindowsNsisUpdateA
         &staging,
         &runtime_lock,
     ))
-    .map_err(|_| ())?;
-    crate::application_update_windows::admit_windows_nsis_update(lease).map_err(|_| ())
+    .map_err(|_| ())
 }
 
 #[cfg(any(windows, test))]
@@ -241,25 +283,52 @@ fn classify_launch_result(
     }
 }
 
+#[cfg(any(target_os = "linux", test))]
+fn classify_linux_launch_result(
+    result: Result<(), LinuxApplicationUpdateError>,
+) -> UpdateHelperOutcome {
+    match result {
+        Ok(()) => UpdateHelperOutcome::Succeeded,
+        Err(LinuxApplicationUpdateError::Ambiguous(_)) => UpdateHelperOutcome::Ambiguous,
+        Err(_) => UpdateHelperOutcome::FailedSafe,
+    }
+}
+
 #[cfg(windows)]
 fn restart_desktop_if_runtime_available() -> Result<(), ()> {
+    let executable = std::env::current_exe().map_err(|_| ())?;
+    restart_executable_if_runtime_available(&executable, false)
+}
+
+#[cfg(target_os = "linux")]
+fn restart_linux_appimage_if_runtime_available(executable: &std::path::Path) -> Result<(), ()> {
+    restart_executable_if_runtime_available(executable, true)
+}
+
+#[cfg(any(windows, target_os = "linux"))]
+fn restart_executable_if_runtime_available(
+    executable: &std::path::Path,
+    clear_appimage_environment: bool,
+) -> Result<(), ()> {
     let runtime_lock = HostPreferenceStore::application_runtime_lock_path().map_err(|_| ())?;
     let runtime =
         portcove_core::ApplicationUpdateExclusivityGuard::acquire(&runtime_lock).map_err(|_| ())?;
-    let executable = std::env::current_exe().map_err(|_| ())?;
     let mut command =
-        ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, &executable)
+        ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, executable)
             .map_err(|_| ())?;
     command
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null());
+    if clear_appimage_environment {
+        command.env_remove("APPDIR").env_remove("APPIMAGE");
+    }
     configure_independent_process(&mut command);
     drop(runtime);
     command.spawn().map(|_| ()).map_err(|_| ())
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 fn unsupported_installation() -> DesktopError {
     PortcoveError::unsupported(
         "This Portcove installation cannot be updated in place. Use the documented manual recovery path.",
@@ -267,7 +336,7 @@ fn unsupported_installation() -> DesktopError {
     .into()
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 fn library_busy_error() -> DesktopError {
     PortcoveError::conflict(
         "Portcove is using the current library. Finish or recover active work before restarting to update.",
@@ -275,7 +344,7 @@ fn library_busy_error() -> DesktopError {
     .into()
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 fn configuration_error() -> DesktopError {
     PortcoveError::state(
         "Application update configuration is unavailable. Reinstall Portcove or use the documented manual recovery path.",
@@ -283,7 +352,7 @@ fn configuration_error() -> DesktopError {
     .into()
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 fn preference_error(
     error: crate::application_update_preferences::ApplicationUpdatePreferenceError,
 ) -> DesktopError {
@@ -305,7 +374,7 @@ fn preference_error(
     }
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 fn staging_error(
     error: crate::application_update_staging::ApplicationUpdateStagingError,
 ) -> DesktopError {
@@ -325,7 +394,7 @@ fn staging_error(
     }
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 fn apply_error(error: ApplicationUpdateApplyError) -> DesktopError {
     if matches!(
         error,
@@ -393,6 +462,18 @@ mod tests {
                 "fixture wait failure".into(),
             ))),
             UpdateHelperOutcome::Ambiguous
+        );
+        assert_eq!(
+            classify_linux_launch_result(Err(LinuxApplicationUpdateError::Ambiguous(
+                "fixture durability failure".into(),
+            ))),
+            UpdateHelperOutcome::Ambiguous
+        );
+        assert_eq!(
+            classify_linux_launch_result(Err(LinuxApplicationUpdateError::InvalidPayload(
+                "fixture payload failure".into(),
+            ))),
+            UpdateHelperOutcome::FailedSafe
         );
     }
 }
