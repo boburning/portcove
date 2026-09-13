@@ -1982,6 +1982,13 @@ pub fn run() {
                 #[cfg(any(windows, target_os = "linux"))]
                 reconcile_application_update_after_healthy_startup();
             }
+            #[cfg(feature = "application-update-qualification")]
+            if std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT").as_deref()
+                == Some(std::ffi::OsStr::new("after-reconciliation"))
+            {
+                app.handle().exit(0);
+                return Ok(());
+            }
             application_update_commands::start_automatic_checks(
                 app.state::<application_update_commands::ApplicationUpdateCommandState>()
                     .inner()

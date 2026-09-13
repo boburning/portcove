@@ -44,7 +44,7 @@ jobs:
       - name: Install Linux packaging prerequisites
         if: runner.os == 'Linux'
         timeout-minutes: 15
-        run: ./scripts/install-linux-desktop-prerequisites.sh --include-rpm
+        run: ./scripts/install-linux-desktop-prerequisites.sh --include-rpm --include-appimage-runtime
       - run: pnpm install --frozen-lockfile
         working-directory: apps/desktop
       - name: Test signature rejection and inventory identity
@@ -65,5 +65,11 @@ jobs:
             work/updater-rehearsal/*.pub
             work/updater-rehearsal/0.1.0-${{ matrix.label }}/**
             work/updater-rehearsal/0.3.0-${{ matrix.label }}/**
+            work/updater-rehearsal/linux-appimage-qualification/TEST-ONLY
+            work/updater-rehearsal/linux-appimage-qualification/application-update-evidence.json
+            work/updater-rehearsal/linux-appimage-qualification/inputs/*.json
+            work/updater-rehearsal/linux-appimage-qualification/records/**
+            work/updater-rehearsal/linux-appimage-qualification/repository/**
+            work/updater-rehearsal/linux-appimage-qualification/trusted-root.json
           if-no-files-found: error
           retention-days: 1

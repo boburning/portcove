@@ -104,7 +104,7 @@ test("Linux desktop prerequisite installation is shared, bounded, and retrying",
   assert.equal((release.match(invocation) ?? []).length, 2);
   assert.match(
     updaterRehearsal,
-    /timeout-minutes: 15\r?\n\s+run: \.\/scripts\/install-linux-desktop-prerequisites\.sh --include-rpm/,
+    /timeout-minutes: 15\r?\n\s+run: \.\/scripts\/install-linux-desktop-prerequisites\.sh --include-rpm --include-appimage-runtime/,
   );
   for (const hostedWorkflow of [workflow, deepQuality, release, updaterRehearsal]) {
     assert.doesNotMatch(hostedWorkflow, /sudo apt-get/);
@@ -114,6 +114,8 @@ test("Linux desktop prerequisite installation is shared, bounded, and retrying",
     "libappindicator3-dev",
     "librsvg2-dev",
     "patchelf",
+    "libfuse2",
+    "xvfb",
   ]) {
     assert.ok(installer.includes(packageName), `${packageName} is missing`);
   }

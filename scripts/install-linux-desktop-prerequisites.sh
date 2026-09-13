@@ -7,18 +7,16 @@ packages=(
   librsvg2-dev
   patchelf
 )
-if (( $# > 1 )); then
-  echo "usage: $0 [--include-rpm]" >&2
-  exit 2
-fi
-case "${1:-}" in
-  "") ;;
-  --include-rpm) packages+=(rpm) ;;
-  *)
-    echo "usage: $0 [--include-rpm]" >&2
-    exit 2
-    ;;
-esac
+for option in "$@"; do
+  case "$option" in
+    --include-rpm) packages+=(rpm) ;;
+    --include-appimage-runtime) packages+=(libfuse2 xvfb) ;;
+    *)
+      echo "usage: $0 [--include-rpm] [--include-appimage-runtime]" >&2
+      exit 2
+      ;;
+  esac
+done
 readonly packages
 
 missing_packages=()

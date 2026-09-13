@@ -22,7 +22,16 @@ New-Item -ItemType Directory -Path $runRoot | Out-Null
 $metadataPaths = @("Cargo.toml", "Cargo.lock", "apps/desktop/package.json", "apps/desktop/src-tauri/tauri.conf.json")
 $original = @{}
 foreach ($relative in $metadataPaths) { $original[$relative] = [IO.File]::ReadAllBytes((Join-Path $root $relative)) }
-$environmentNames = @("TAURI_SIGNING_PRIVATE_KEY", "TAURI_SIGNING_PRIVATE_KEY_PASSWORD", "CARGO_TARGET_DIR", "PORTCOVE_PREFERENCES", "WEBVIEW2_USER_DATA_FOLDER")
+$environmentNames = @(
+    "TAURI_SIGNING_PRIVATE_KEY",
+    "TAURI_SIGNING_PRIVATE_KEY_PASSWORD",
+    "CARGO_TARGET_DIR",
+    "PORTCOVE_PREFERENCES",
+    "WEBVIEW2_USER_DATA_FOLDER",
+    "PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE",
+    "PORTCOVE_APPLICATION_UPDATE_METADATA_URL",
+    "PORTCOVE_APPLICATION_UPDATE_TARGETS_URL"
+)
 $previousEnvironment = @{}
 foreach ($name in $environmentNames) { $previousEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, "Process") }
 $privateKey = Join-Path $runRoot "disposable.key"
@@ -51,6 +60,18 @@ function Move-RehearsalInput([string]$Source, [string]$Name) {
     }
 }
 
+function Set-FixtureVersion([string]$Version) {
+    $cargo = [Text.Encoding]::UTF8.GetString($original["Cargo.toml"])
+    $cargo = [regex]::Replace($cargo, '(?ms)(^\[workspace\.package\]\r?\n(?:(?!^\[).)*?^version\s*=\s*)"[^"]+"', ('$1"' + $Version + '"'))
+    [IO.File]::WriteAllText((Join-Path $root "Cargo.toml"), $cargo)
+    foreach ($relative in @("apps/desktop/package.json", "apps/desktop/src-tauri/tauri.conf.json")) {
+        $data = [Text.Encoding]::UTF8.GetString($original[$relative]) | ConvertFrom-Json
+        $data.version = $Version
+        [IO.File]::WriteAllText((Join-Path $root $relative), ($data | ConvertTo-Json -Depth 30))
+    }
+    Invoke-Checked "node" @("scripts/check-release-metadata.mjs")
+}
+
 try {
     $env:CARGO_TARGET_DIR = Join-Path $root "target"
     $env:PORTCOVE_PREFERENCES = Join-Path $runRoot "preferences.json"
@@ -68,21 +89,15 @@ try {
     Move-RehearsalInput $bundleRoot "previous-bundles"
     Move-RehearsalInput $cliRoot "previous-cli-assets"
     foreach ($version in @("0.1.0", "0.3.0")) {
-        $cargo = [Text.Encoding]::UTF8.GetString($original["Cargo.toml"])
-        $cargo = [regex]::Replace($cargo, '(?ms)(^\[workspace\.package\]\r?\n(?:(?!^\[).)*?^version\s*=\s*)"[^"]+"', ('$1"' + $version + '"'))
-        [IO.File]::WriteAllText((Join-Path $root "Cargo.toml"), $cargo)
-        foreach ($relative in @("apps/desktop/package.json", "apps/desktop/src-tauri/tauri.conf.json")) {
-            $data = [Text.Encoding]::UTF8.GetString($original[$relative]) | ConvertFrom-Json
-            $data.version = $version
-            [IO.File]::WriteAllText((Join-Path $root $relative), ($data | ConvertTo-Json -Depth 30))
-        }
-        Invoke-Checked "node" @("scripts/check-release-metadata.mjs")
+        Set-FixtureVersion $version
         Invoke-Checked "cargo" @("build", "--release", "-p", "portcove-cli", "-p", "portcove-release-tools")
         & (Join-Path $PSScriptRoot "package-cli.ps1") -PlatformLabel $PlatformLabel
         $cliName = (& node scripts/release-package-policy.mjs --platform $PlatformLabel --interface cli --version $version | Out-String).Trim()
         if ($LASTEXITCODE -ne 0) { throw "Cannot select packaged CLI" }
         & (Join-Path $PSScriptRoot "smoke-test-cli-archive.ps1") -ArchivePath (Join-Path $cliRoot $cliName) -PlatformLabel $PlatformLabel -Version $version
-        Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "build", "--bundles", $bundles, "--config", $configPath, "--ci")
+        $tauriArguments = @($pnpmSpec, "--dir", "apps/desktop", "tauri", "build", "--bundles", $bundles, "--config", $configPath, "--ci")
+        if ($IsLinux) { $tauriArguments += @("--features", "application-update-qualification") }
+        Invoke-Checked "corepack" $tauriArguments
         $stage = Join-Path $runRoot "$version-$PlatformLabel"
         Invoke-Checked "node" @("scripts/updater-artifact-inventory.mjs", "stage", "--output", $stage, "--label", $PlatformLabel, "--public-key", $publicKey, "--verifier", $verifier, "--revision", $revision)
         Invoke-Checked "node" @("scripts/updater-artifact-inventory.mjs", "verify", "--input", $stage, "--label", $PlatformLabel, "--public-key", $publicKey, "--verifier", $verifier, "--revision", $revision)
@@ -137,6 +152,72 @@ try {
         Move-RehearsalInput $bundleRoot "$version-bundles"
         Move-RehearsalInput $cliRoot "$version-cli-assets"
     }
+    if ($IsLinux) {
+        $fixtureRoot = Join-Path $runRoot "linux-appimage-qualification"
+        Invoke-Checked "cargo" @("run", "--locked", "--quiet", "-p", "portcove-release-tools", "--example", "generate_test_updater_repository", "--", $fixtureRoot, $publicKey)
+        $inputs = Join-Path $fixtureRoot "inputs"
+        New-Item -ItemType Directory -Path $inputs | Out-Null
+        Copy-Item -LiteralPath (Join-Path $runRoot "0.3.0-$PlatformLabel/updater-inventory.json") -Destination (Join-Path $inputs "updater-inventory.json")
+        Copy-Item -LiteralPath (Join-Path $runRoot "0.3.0-$PlatformLabel/Portcove_0.3.0_amd64.AppImage.sig") -Destination (Join-Path $inputs "candidate.sig")
+        $contractText = (& cargo run --locked --quiet -p portcove-desktop --example prepare_appimage_update -- describe 0.1.0 | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0) { throw "Could not derive the Linux updater fixture contract" }
+        $contract = $contractText | ConvertFrom-Json
+        $sourceTree = (& git rev-parse "HEAD^{tree}" | Out-String).Trim()
+        $runId = if ($env:GITHUB_RUN_ID -match '^\d+$' -and [UInt64]$env:GITHUB_RUN_ID -gt 0) { [UInt64]$env:GITHUB_RUN_ID } else { [UInt64]1 }
+        $attempt = if ($env:GITHUB_RUN_ATTEMPT -match '^\d+$' -and [UInt64]$env:GITHUB_RUN_ATTEMPT -gt 0) { [UInt64]$env:GITHUB_RUN_ATTEMPT } else { [UInt64]1 }
+        $descriptor = [ordered]@{
+            schema_version = 1
+            releases = @([ordered]@{
+                inventory = "updater-inventory.json"
+                signature = "candidate.sig"
+                source_tree = $sourceTree
+                qualified_run = [ordered]@{
+                    workflow = ".github/workflows/updater-artifact-rehearsal.yml"
+                    workflow_commit = $revision
+                    run_id = $runId
+                    attempt = $attempt
+                }
+                execution_context = "user-owned-appimage"
+                compatibility = $contract.compatibility
+                evidence_ids = @("updater-artifact-rehearsal-$runId-linux-x86_64")
+            })
+        }
+        $descriptorPath = Join-Path $inputs "descriptor.json"
+        $eligibilityPath = Join-Path $inputs "eligibility.json"
+        $descriptor | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $descriptorPath -Encoding utf8
+        [ordered]@{
+            "v0.3.0" = [ordered]@{
+                version = "0.3.0"
+                preview_eligible = $true
+                production_eligible = $false
+                targets = @("linux-x86_64")
+            }
+        } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $eligibilityPath -Encoding utf8
+        Invoke-Checked "node" @("scripts/reconstruct-application-update-records.mjs", "--input", $descriptorPath, "--eligibility", $eligibilityPath, "--output", (Join-Path $fixtureRoot "records"))
+        Invoke-Checked "cargo" @("run", "--locked", "--quiet", "-p", "portcove-release-tools", "--", "build-tuf", (Join-Path $fixtureRoot "build-tuf.json"))
+
+        Set-FixtureVersion "0.1.0"
+        $env:PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE = Join-Path $fixtureRoot "trusted-root.json"
+        $metadataDirectory = (Resolve-Path -LiteralPath (Join-Path $fixtureRoot "repository/metadata")).Path
+        $targetsDirectory = (Resolve-Path -LiteralPath (Join-Path $fixtureRoot "repository/targets")).Path
+        $env:PORTCOVE_APPLICATION_UPDATE_METADATA_URL = ([Uri]::new($metadataDirectory.TrimEnd('/') + '/')).AbsoluteUri
+        $env:PORTCOVE_APPLICATION_UPDATE_TARGETS_URL = ([Uri]::new($targetsDirectory.TrimEnd('/') + '/')).AbsoluteUri
+        Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "build", "--bundles", "appimage", "--config", $configPath, "--ci", "--features", "application-update-qualification")
+        $predecessor = Join-Path $bundleRoot "appimage/Portcove_0.1.0_amd64.AppImage"
+        $candidate = Join-Path $runRoot "0.3.0-$PlatformLabel/Portcove_0.3.0_amd64.AppImage"
+        Remove-Item -LiteralPath (Join-Path $fixtureRoot "private") -Recurse -Force
+        Remove-Item -LiteralPath (Join-Path $fixtureRoot "build-tuf.json") -Force
+        & (Join-Path $PSScriptRoot "test-linux-appimage-update.ps1") `
+            -PredecessorPath $predecessor `
+            -CandidatePath $candidate `
+            -TrustedRootPath (Join-Path $fixtureRoot "trusted-root.json") `
+            -MetadataPath $metadataDirectory `
+            -TargetsPath $targetsDirectory `
+            -StateRoot (Join-Path $fixtureRoot "state") `
+            -EvidencePath (Join-Path $fixtureRoot "application-update-evidence.json")
+        if ($LASTEXITCODE -ne 0) { throw "Linux AppImage packaged update qualification failed" }
+        Move-RehearsalInput $bundleRoot "qualified-0.1.0-bundles"
+    }
 } catch {
     [ordered]@{ source_commit = $revision; platform = $PlatformLabel; status = "failed"; failure = $_.Exception.Message } |
         ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runRoot "rehearsal-result.json") -Encoding utf8
@@ -145,6 +226,8 @@ try {
     foreach ($relative in $metadataPaths) { [IO.File]::WriteAllBytes((Join-Path $root $relative), $original[$relative]) }
     foreach ($name in $environmentNames) { [Environment]::SetEnvironmentVariable($name, $previousEnvironment[$name], "Process") }
     if ([IO.File]::Exists($privateKey)) { [IO.File]::Delete($privateKey) }
+    $fixturePrivate = Join-Path $runRoot "linux-appimage-qualification/private"
+    if ([IO.Directory]::Exists($fixturePrivate)) { [IO.Directory]::Delete($fixturePrivate, $true) }
 }
 [ordered]@{ source_commit = $revision; platform = $PlatformLabel; status = "passed"; fixture_versions = @("0.1.0", "0.3.0"); production_signing = $false } |
     ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runRoot "rehearsal-result.json") -Encoding utf8
