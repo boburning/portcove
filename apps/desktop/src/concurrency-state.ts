@@ -17,7 +17,7 @@ type Deferred = {
   task: () => Promise<void>;
 };
 
-export type CoalescedRequestOutcome = "completed" | "disposed";
+type CoalescedRequestOutcome = "completed" | "disposed";
 
 /** Coalesces same-turn requests and permits at most one queued follow-up. */
 class CoalescedBatch {
