@@ -78,12 +78,9 @@ impl ApplicationUpdateRepositoryConfiguration {
             .map_err(|error| ApplicationUpdateHostConfigurationError::Invalid(error.to_string()))?;
         let targets_base_url = Url::parse(compiled::TARGETS_BASE_URL)
             .map_err(|error| ApplicationUpdateHostConfigurationError::Invalid(error.to_string()))?;
-        let state_directory =
-            crate::application_update_apply::ApplicationUpdateApplyStore::default_root()
-                .map_err(|error| {
-                    ApplicationUpdateHostConfigurationError::Invalid(error.to_string())
-                })?
-                .join(TRUST_DIRECTORY);
+        let apply = crate::application_update_apply::ApplicationUpdateApplyStore::open_configured()
+            .map_err(|error| ApplicationUpdateHostConfigurationError::Invalid(error.to_string()))?;
+        let state_directory = apply.root().join(TRUST_DIRECTORY);
         Self::new(
             include_bytes!(concat!(env!("OUT_DIR"), "/application-update-root.json")).to_vec(),
             metadata_base_url,

@@ -354,6 +354,10 @@ impl ApplicationUpdateApplyStore {
         Ok(Self { root })
     }
 
+    pub(crate) fn root(&self) -> &Path {
+        &self.root
+    }
+
     pub fn load(&self) -> Result<ApplicationUpdateApplyState, ApplicationUpdateApplyError> {
         let path = self.root.join(APPLY_FILE);
         refuse_symlink_ancestors(&path)?;

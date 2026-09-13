@@ -15,7 +15,9 @@ use std::collections::BTreeSet;
 
 use sha2::{Digest, Sha256};
 
-use crate::application_update::{InstallOwner, InstalledApplicationContext, SelectedCandidate};
+use crate::application_update::{
+    APPLICATION_PRODUCT_ID, InstallOwner, InstalledApplicationContext, SelectedCandidate,
+};
 #[cfg(windows)]
 use crate::application_update_apply::ApplicationUpdateApplyStore;
 use crate::application_update_apply::{
@@ -24,7 +26,6 @@ use crate::application_update_apply::{
 use crate::application_update_staging::StagedApplicationUpdate;
 
 const PRODUCT_NAME: &str = "Portcove";
-const PRODUCT_ID: &str = "portcove-desktop";
 const APPLICATION_FILENAME: &str = "portcove-desktop.exe";
 const UNINSTALLER_FILENAME: &str = "uninstall.exe";
 const WINDOWS_TARGET: &str = "windows-x86_64";
@@ -267,7 +268,7 @@ pub fn current_windows_installed_application_context()
         execution_context: WINDOWS_EXECUTION_CONTEXT.into(),
         package_kind: "nsis".into(),
         install_owner: InstallOwner::Portcove,
-        product_id: PRODUCT_ID.into(),
+        product_id: APPLICATION_PRODUCT_ID.into(),
         capabilities: BTreeSet::from([portcove_core::APPLICATION_UPDATE_LOCK_PROTOCOL.to_owned()]),
         cli_protocol: portcove_core::API_SCHEMA_VERSION,
         catalog_format,
@@ -374,7 +375,7 @@ fn validate_windows_candidate(
         && release.execution_context == WINDOWS_EXECUTION_CONTEXT
         && release.package.kind == "nsis"
         && release.package.owner == InstallOwner::Portcove
-        && release.package.product_id == PRODUCT_ID;
+        && release.package.product_id == APPLICATION_PRODUCT_ID;
     if !candidate_matches {
         return Err(WindowsApplicationUpdateError::UnsupportedCandidate(
             "target, execution context, package, or owner does not match".into(),
@@ -386,7 +387,7 @@ fn validate_windows_candidate(
         && installed.execution_context == WINDOWS_EXECUTION_CONTEXT
         && installed.package_kind == "nsis"
         && installed.install_owner == InstallOwner::Portcove
-        && installed.product_id == PRODUCT_ID;
+        && installed.product_id == APPLICATION_PRODUCT_ID;
     if !installation_matches {
         return Err(WindowsApplicationUpdateError::UnsupportedInstallation(
             "target, execution context, package, or owner does not match".into(),
@@ -866,7 +867,7 @@ mod tests {
             execution_context: WINDOWS_EXECUTION_CONTEXT.into(),
             package_kind: "nsis".into(),
             install_owner: InstallOwner::Portcove,
-            product_id: PRODUCT_ID.into(),
+            product_id: APPLICATION_PRODUCT_ID.into(),
             capabilities: BTreeSet::from(["library-lock-v1".into()]),
             cli_protocol: 47,
             catalog_format: 2,
@@ -902,7 +903,7 @@ mod tests {
                     package: PackageIdentity {
                         kind: "nsis".into(),
                         owner: InstallOwner::Portcove,
-                        product_id: PRODUCT_ID.into(),
+                        product_id: APPLICATION_PRODUCT_ID.into(),
                     },
                     artifact: ArtifactIdentity {
                         url: format!(

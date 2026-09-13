@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use base64::{Engine, engine::general_purpose::STANDARD};
 use minisign::KeyPair;
-use portcove_release_tools::{VerificationError, verify_artifact};
+use portcove_release_tools::{VerificationError, decode_tauri_public_key, verify_artifact};
 use sha2::{Digest, Sha256};
 
 struct Fixture {
@@ -60,6 +60,11 @@ fn verifies_tauri_wrapped_signature_over_all_payload_bytes() {
     let result = fixture.verify().unwrap();
     assert_eq!(result.sha256, fixture.hash);
     assert_eq!(result.bytes, fixture.bytes);
+    let decoded_key = decode_tauri_public_key(&fixture.public_key).unwrap();
+    assert_eq!(
+        result.public_key_sha256,
+        hex::encode(Sha256::digest(decoded_key.as_bytes()))
+    );
     assert!(result.signature_verified);
 }
 

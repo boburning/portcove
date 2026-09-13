@@ -6,6 +6,8 @@
 
 use std::ffi::OsStr;
 #[cfg(any(windows, target_os = "linux", test))]
+use std::ffi::OsString;
+#[cfg(any(windows, target_os = "linux", test))]
 use std::process::Stdio;
 
 #[cfg(any(windows, target_os = "linux"))]
@@ -46,6 +48,30 @@ use crate::configure_independent_process;
 use crate::{DesktopResult, DesktopState};
 
 const HELPER_MODE: &str = "--portcove-apply-update";
+
+/// Configuration owned by the Portcove desktop process must survive the
+/// trusted update helper and a successful same-application relaunch. The
+/// general child-process policy intentionally carries only host session state,
+/// so keep this overlay exact rather than admitting arbitrary `PORTCOVE_*`
+/// variables.
+#[cfg(any(windows, target_os = "linux", test))]
+const DESKTOP_UPDATE_PROCESS_ENVIRONMENT: &[&str] = &[
+    "PORTCOVE_APPLICATION_RUNTIME_LOCK",
+    "PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE",
+    "PORTCOVE_APPLICATION_UPDATE_METADATA_URL",
+    "PORTCOVE_APPLICATION_UPDATE_PREFERENCES",
+    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT",
+    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE",
+    "PORTCOVE_APPLICATION_UPDATE_SCHEDULE",
+    "PORTCOVE_APPLICATION_UPDATE_STAGING",
+    "PORTCOVE_APPLICATION_UPDATE_TARGETS_URL",
+    "PORTCOVE_CHDMAN",
+    "PORTCOVE_DOLPHIN_TOOL",
+    "PORTCOVE_GITHUB_CLIENT_ID",
+    "PORTCOVE_LIBRARY",
+    "PORTCOVE_PREFERENCES",
+    "PORTCOVE_TEMP_DIR",
+];
 
 #[tauri::command]
 pub(crate) async fn restart_to_apply_application_update(
@@ -163,6 +189,7 @@ fn update_helper_command(
 ) -> DesktopResult<std::process::Command> {
     let mut command =
         ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, executable)?;
+    copy_desktop_update_environment(&mut command, std::env::vars_os());
     command
         .arg(HELPER_MODE)
         .arg(expected_revision.to_string())
@@ -181,6 +208,9 @@ pub(crate) fn run_update_helper(expected_revision: u64) -> i32 {
     } else {
         Err(())
     };
+    if outcome == UpdateHelperOutcome::Succeeded && restart_result.is_err() {
+        report_qualification_helper_failure("relaunch", "the updated application could not start");
+    }
     if outcome == UpdateHelperOutcome::Succeeded && restart_result.is_ok() {
         0
     } else {
@@ -200,6 +230,9 @@ pub(crate) fn run_update_helper(expected_revision: u64) -> i32 {
     } else {
         Err(())
     };
+    if outcome == UpdateHelperOutcome::Succeeded && restart_result.is_err() {
+        report_qualification_helper_failure("relaunch", "the updated AppImage could not start");
+    }
     if outcome == UpdateHelperOutcome::Succeeded && restart_result.is_ok() {
         0
     } else {
@@ -224,7 +257,10 @@ enum UpdateHelperOutcome {
 fn run_update_helper_inner(expected_revision: u64) -> UpdateHelperOutcome {
     let admission = match prepare_update_admission(expected_revision) {
         Ok(admission) => admission,
-        Err(()) => return UpdateHelperOutcome::FailedSafe,
+        Err(error) => {
+            report_qualification_helper_failure("revalidation", &error);
+            return UpdateHelperOutcome::FailedSafe;
+        }
     };
     classify_launch_result(admission.launch())
 }
@@ -233,33 +269,49 @@ fn run_update_helper_inner(expected_revision: u64) -> UpdateHelperOutcome {
 fn run_linux_update_helper_inner(expected_revision: u64) -> UpdateHelperOutcome {
     let lease = match prepare_revalidation_lease(expected_revision) {
         Ok(lease) => lease,
-        Err(()) => return UpdateHelperOutcome::FailedSafe,
+        Err(error) => {
+            report_qualification_helper_failure("revalidation", &error);
+            return UpdateHelperOutcome::FailedSafe;
+        }
     };
     let admission = match crate::application_update_linux::admit_linux_appimage_update(lease) {
         Ok(admission) => admission,
-        Err(_) => return UpdateHelperOutcome::FailedSafe,
+        Err(error) => {
+            report_qualification_helper_failure("admission", &error.to_string());
+            return UpdateHelperOutcome::FailedSafe;
+        }
     };
-    classify_linux_launch_result(admission.launch())
+    let result = admission.launch();
+    if let Err(error) = &result {
+        report_qualification_helper_failure("replacement", &error.to_string());
+    }
+    classify_linux_launch_result(result)
 }
 
 #[cfg(windows)]
-fn prepare_update_admission(expected_revision: u64) -> Result<WindowsNsisUpdateAdmission, ()> {
+fn prepare_update_admission(expected_revision: u64) -> Result<WindowsNsisUpdateAdmission, String> {
     let lease = prepare_revalidation_lease(expected_revision)?;
-    crate::application_update_windows::admit_windows_nsis_update(lease).map_err(|_| ())
+    crate::application_update_windows::admit_windows_nsis_update(lease)
+        .map_err(|error| error.to_string())
 }
 
 #[cfg(any(windows, target_os = "linux"))]
 fn prepare_revalidation_lease(
     expected_revision: u64,
-) -> Result<ApplicationUpdateRevalidationLease, ()> {
-    let request = ApplicationUpdateHelperRequest::new(expected_revision).map_err(|_| ())?;
+) -> Result<ApplicationUpdateRevalidationLease, String> {
+    let request = ApplicationUpdateHelperRequest::new(expected_revision)
+        .map_err(|error| error.to_string())?;
     let provider = ApplicationUpdateHostProvider::compiled()
-        .map_err(|_| ())?
-        .ok_or(())?;
-    let apply = ApplicationUpdateApplyStore::open_configured().map_err(|_| ())?;
-    let preferences = ApplicationUpdatePreferenceStore::open_configured().map_err(|_| ())?;
-    let staging = ApplicationUpdateStagingStore::open_configured().map_err(|_| ())?;
-    let runtime_lock = HostPreferenceStore::application_runtime_lock_path().map_err(|_| ())?;
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| "application update host configuration is unavailable".to_owned())?;
+    let apply =
+        ApplicationUpdateApplyStore::open_configured().map_err(|error| error.to_string())?;
+    let preferences =
+        ApplicationUpdatePreferenceStore::open_configured().map_err(|error| error.to_string())?;
+    let staging =
+        ApplicationUpdateStagingStore::open_configured().map_err(|error| error.to_string())?;
+    let runtime_lock =
+        HostPreferenceStore::application_runtime_lock_path().map_err(|error| error.to_string())?;
     tauri::async_runtime::block_on(revalidate_application_update_after_parent_exit(
         request,
         &BoundedApplicationUpdateRuntimeWaiter::default(),
@@ -269,7 +321,20 @@ fn prepare_revalidation_lease(
         &staging,
         &runtime_lock,
     ))
-    .map_err(|_| ())
+    .map_err(|error| error.to_string())
+}
+
+#[cfg(any(windows, target_os = "linux"))]
+fn report_qualification_helper_failure(stage: &str, error: &str) {
+    #[cfg(feature = "application-update-qualification")]
+    if std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT").as_deref()
+        == Some(OsStr::new("after-reconciliation"))
+    {
+        eprintln!(
+            "Portcove application-update qualification helper failed during {stage}: {error}"
+        );
+    }
+    let _ = (stage, error);
 }
 
 #[cfg(any(windows, test))]
@@ -316,16 +381,39 @@ fn restart_executable_if_runtime_available(
     let mut command =
         ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, executable)
             .map_err(|_| ())?;
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+    copy_desktop_update_environment(&mut command, std::env::vars_os());
+    command.stdin(Stdio::null());
+    #[cfg(feature = "application-update-qualification")]
+    let retain_qualification_output =
+        std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT").as_deref()
+            == Some(OsStr::new("after-reconciliation"));
+    #[cfg(not(feature = "application-update-qualification"))]
+    let retain_qualification_output = false;
+    if retain_qualification_output {
+        command.stdout(Stdio::inherit()).stderr(Stdio::inherit());
+    } else {
+        command.stdout(Stdio::null()).stderr(Stdio::null());
+    }
     if clear_appimage_environment {
         command.env_remove("APPDIR").env_remove("APPIMAGE");
     }
     configure_independent_process(&mut command);
     drop(runtime);
     command.spawn().map(|_| ()).map_err(|_| ())
+}
+
+#[cfg(any(windows, target_os = "linux", test))]
+fn copy_desktop_update_environment(
+    command: &mut std::process::Command,
+    environment: impl IntoIterator<Item = (OsString, OsString)>,
+) {
+    command.envs(environment.into_iter().filter(|(name, _)| {
+        name.to_str().is_some_and(|name| {
+            DESKTOP_UPDATE_PROCESS_ENVIRONMENT
+                .iter()
+                .any(|candidate| name.eq_ignore_ascii_case(candidate))
+        })
+    }));
 }
 
 #[cfg(any(windows, target_os = "linux"))]
@@ -416,7 +504,7 @@ fn apply_error(error: ApplicationUpdateApplyError) -> DesktopError {
 
 #[cfg(test)]
 mod tests {
-    use std::ffi::OsStr;
+    use std::ffi::{OsStr, OsString};
 
     use super::*;
 
@@ -443,6 +531,68 @@ mod tests {
             arguments,
             [OsStr::new("--portcove-apply-update"), OsStr::new("42")]
         );
+    }
+
+    #[test]
+    fn application_update_processes_carry_only_reviewed_portcove_configuration() {
+        let mut command =
+            ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, "unused")
+                .unwrap();
+        copy_desktop_update_environment(
+            &mut command,
+            [
+                (
+                    OsString::from("PORTCOVE_LIBRARY"),
+                    OsString::from("library"),
+                ),
+                (
+                    OsString::from("portcove_application_update_staging"),
+                    OsString::from("staging"),
+                ),
+                (
+                    OsString::from("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE"),
+                    OsString::from("stage"),
+                ),
+                (
+                    OsString::from("PORTCOVE_GITHUB_TOKEN"),
+                    OsString::from("secret"),
+                ),
+                (
+                    OsString::from("PORTCOVE_PORT_ID"),
+                    OsString::from("game-child-only"),
+                ),
+            ],
+        );
+        let environment = command
+            .get_envs()
+            .filter_map(|(name, value)| {
+                value.map(|value| {
+                    (
+                        name.to_string_lossy().into_owned(),
+                        value.to_string_lossy().into_owned(),
+                    )
+                })
+            })
+            .collect::<std::collections::BTreeMap<_, _>>();
+
+        assert_eq!(
+            environment.get("PORTCOVE_LIBRARY").map(String::as_str),
+            Some("library")
+        );
+        assert_eq!(
+            environment
+                .get("portcove_application_update_staging")
+                .map(String::as_str),
+            Some("staging")
+        );
+        assert_eq!(
+            environment
+                .get("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE")
+                .map(String::as_str),
+            Some("stage")
+        );
+        assert!(!environment.contains_key("PORTCOVE_GITHUB_TOKEN"));
+        assert!(!environment.contains_key("PORTCOVE_PORT_ID"));
     }
 
     #[test]

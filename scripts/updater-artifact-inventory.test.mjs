@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -56,8 +57,10 @@ async function fixture(t, label = "windows-x86_64") {
     verifySignature: async (_verifier, artifact, signature, key, expected) => {
       assert.equal((await readFile(artifact)).length, expected.bytes);
       assert.equal(await readFile(signature, "utf8"), "signature fixture");
-      assert.equal(await readFile(key, "utf8"), "public key fixture");
       verified += 1;
+      return createHash("sha256")
+        .update(await readFile(key))
+        .digest("hex");
     },
   };
   return { root, source, identity, options, verified: () => verified };
@@ -187,6 +190,10 @@ test("manual rehearsal retains the complete matrix without production credential
   for (const label of releaseLabels(policy)) assert.deepEqual(matrix[label], [label]);
   assert.match(workflow, /retention-days: 1/);
   assert.doesNotMatch(workflow, /updater-rehearsal\/\*\*|\.key\b/);
+  assert.match(workflow, /linux-appimage-qualification\/application-update-evidence\.json/);
+  assert.match(workflow, /state\/update-state\/\*\.json/);
+  assert.match(workflow, /state\/library\/logs\/portcove-desktop\.jsonl\*/);
+  assert.doesNotMatch(workflow, /linux-appimage-qualification\/(?:private|state)\/\*\*/);
   const lifecycle = await readFile(
     new URL("./test-windows-installer.ps1", import.meta.url),
     "utf8",
@@ -203,4 +210,14 @@ test("manual rehearsal retains the complete matrix without production credential
   // A DMG-only Tauri build creates the bootstrap disk image but does not return
   // an app bundle target for updater archive/signature generation.
   assert.match(rehearsal, /else \{ "app,dmg" \}/);
+  assert.match(rehearsal, /test-linux-appimage-update\.ps1/);
+  assert.match(rehearsal, /application-update-qualification/);
+  assert.match(rehearsal, /Remove-Item -LiteralPath \(Join-Path \$fixtureRoot "private"\)/);
+  const linuxHarness = await readFile(
+    new URL("./test-linux-appimage-update.ps1", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(linuxHarness, /WEBKIT_DISABLE_COMPOSITING_MODE/);
+  assert.match(linuxHarness, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE/);
+  assert.match(rehearsal, /Invoke-Checked "dbus-run-session"/);
 });

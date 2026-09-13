@@ -11,6 +11,9 @@ rust-version.workspace = true
 name = "portcove-desktop"
 path = "src/main.rs"
 
+[features]
+application-update-qualification = []
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 

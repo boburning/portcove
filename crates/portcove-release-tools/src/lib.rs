@@ -40,6 +40,7 @@ pub struct VerifiedArtifact {
     pub schema_version: u32,
     pub bytes: u64,
     pub sha256: String,
+    pub public_key_sha256: String,
     pub signature_verified: bool,
 }
 
@@ -69,6 +70,13 @@ fn decode_metadata(path: &Path) -> Result<String, VerificationError> {
     String::from_utf8(decoded).map_err(|_| VerificationError::Encoding)
 }
 
+/// Decode and validate Tauri's base64-wrapped Minisign public-key file.
+pub fn decode_tauri_public_key(path: &Path) -> Result<String, VerificationError> {
+    let decoded = decode_metadata(path)?;
+    PublicKey::decode(&decoded)?;
+    Ok(decoded)
+}
+
 /// Verify Tauri's base64-wrapped Minisign format and the independently supplied
 /// expected hash/size over one bounded stream. No payload is executed or modified.
 pub fn verify_artifact(
@@ -85,7 +93,9 @@ pub fn verify_artifact(
     {
         return Err(VerificationError::InvalidIdentity);
     }
-    let key = PublicKey::decode(&decode_metadata(public_key)?)?;
+    let public_key = decode_tauri_public_key(public_key)?;
+    let public_key_sha256 = hex::encode(Sha256::digest(public_key.as_bytes()));
+    let key = PublicKey::decode(&public_key)?;
     let signature = Signature::decode(&decode_metadata(signature)?)?;
     // New Tauri signatures are prehashed. Refuse legacy non-streaming signatures
     // instead of allocating an artifact-sized buffer or weakening verification.
@@ -121,6 +131,7 @@ pub fn verify_artifact(
         schema_version: 1,
         bytes,
         sha256,
+        public_key_sha256,
         signature_verified: true,
     })
 }
