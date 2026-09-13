@@ -113,10 +113,12 @@ deb_installed=false
 
 "${privilege[@]}" rpm --install --nodeps "$rpm_file"
 rpm_installed=true
-mapfile -t rpm_owners < <(
-  rpm --query --queryformat '%{NAME}\n' --file "$installed_executable" |
-    tee "$evidence_root/rpm-owners.txt"
-)
+if ! rpm --query --queryformat '%{NAME}\n' --file "$installed_executable" \
+  >"$evidence_root/rpm-owners.txt"; then
+  echo "installed RPM executable ownership query failed" >&2
+  exit 1
+fi
+mapfile -t rpm_owners <"$evidence_root/rpm-owners.txt"
 if (( ${#rpm_owners[@]} != 1 )) || [[ "${rpm_owners[0]}" != "$rpm_package" ]]; then
   echo "installed RPM executable does not have exactly one expected package owner" >&2
   printf 'expected: %s\nobserved: %s\n' "$rpm_package" "${rpm_owners[*]:-<none>}" >&2
