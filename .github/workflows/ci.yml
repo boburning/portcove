@@ -52,6 +52,34 @@ jobs:
           printf 'CI plan: mode=%s reason=%s base=%s merge-base=%s head=%s checkout=%s\n' \
             "$PLAN_MODE" "$PLAN_REASON" "$PLAN_BASE" "$PLAN_MERGE_BASE" "$PLAN_HEAD" "$PLAN_CHECKOUT"
 
+  provenance:
+    name: record-workflow-provenance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: apps/desktop/package.json
+      - uses: ./.github/actions/setup-rust
+      - name: Record exact workflow, checkout, toolchain, and build configuration
+        run: |
+          mkdir -p work/workflow-provenance
+          node scripts/workflow-provenance.mjs \
+            --workflow ci.yml \
+            --mode ci \
+            --runner ubuntu-latest \
+            --output work/workflow-provenance/workflow-provenance.json
+      - name: Upload attempt-specific workflow provenance
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: workflow-provenance-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/workflow-provenance/workflow-provenance.json
+          retention-days: 30
+          if-no-files-found: error
+
   prose_checks:
     name: prose-only-checks
     needs: classify
@@ -478,7 +506,7 @@ jobs:
 
   rust-quality:
     if: always()
-    needs: [classify, prose_checks, rust_quality_full]
+    needs: [classify, provenance, prose_checks, rust_quality_full]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -487,6 +515,7 @@ jobs:
           PORTCOVE_CLASSIFIER_RESULT: ${{ needs.classify.result }}
           PORTCOVE_CI_MODE: ${{ needs.classify.outputs.mode }}
           PORTCOVE_PROSE_RESULT: ${{ needs.prose_checks.result }}
+          PORTCOVE_ALWAYS_RESULTS: '{"provenance":"${{ needs.provenance.result }}"}'
           PORTCOVE_REQUIRED_RESULTS: '{"rust_quality_full":"${{ needs.rust_quality_full.result }}"}'
         run: node scripts/ci-result-gate.mjs
 
@@ -570,7 +599,7 @@ jobs:
       - name: Verify repository and release contracts
         run: |
           node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/upstream-observer.test.mjs
-          node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/audit.test.mjs scripts/check-release-metadata.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/updater-artifact-inventory.test.mjs scripts/reconcile-release-assets.test.mjs scripts/finalize-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/release-workflow.test.mjs scripts/release-result-gate.test.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/select-ci-plan.test.mjs scripts/ci-result-gate.test.mjs scripts/test-duration-reporter.test.mjs scripts/quality-tools.test.mjs scripts/dependency-automation.test.mjs scripts/repository-settings.test.mjs scripts/pr-conventions.test.mjs scripts/source-provenance-audit.test.mjs scripts/check-child-process-policy.test.mjs scripts/check-transport-contract.test.mjs scripts/check-fallow-report.test.mjs scripts/migrate-catalog-schema2.test.mjs scripts/roadmap.test.mjs
+          node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/audit.test.mjs scripts/check-release-metadata.test.mjs scripts/desktop-build-cache.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/updater-artifact-inventory.test.mjs scripts/reconcile-release-assets.test.mjs scripts/finalize-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/release-workflow.test.mjs scripts/release-result-gate.test.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/workflow-provenance.test.mjs scripts/select-ci-plan.test.mjs scripts/ci-result-gate.test.mjs scripts/test-duration-reporter.test.mjs scripts/quality-tools.test.mjs scripts/dependency-automation.test.mjs scripts/repository-settings.test.mjs scripts/pr-conventions.test.mjs scripts/source-provenance-audit.test.mjs scripts/check-child-process-policy.test.mjs scripts/check-transport-contract.test.mjs scripts/check-fallow-report.test.mjs scripts/migrate-catalog-schema2.test.mjs scripts/roadmap.test.mjs
           node scripts/check-release-metadata.mjs
           node scripts/quality-tools.mjs --validate
           node scripts/repository-settings.mjs --validate

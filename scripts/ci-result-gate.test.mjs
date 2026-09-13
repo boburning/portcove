@@ -30,6 +30,8 @@ test("classifier failures missing outputs and unexpected prose execution fail", 
   assert.throws(() => evaluate({ mode: "" }), /classifier mode/u);
   assert.throws(() => evaluate({ prose: "success" }), /expected skipped/u);
   assert.throws(() => evaluate({ required: {} }), /plan is empty/u);
+  for (const result of ["failure", "cancelled", "timed_out", "skipped", ""])
+    assert.throws(() => evaluate({ always: { provenance: result } }), /every plan/u);
 });
 
 test("prose mode requires its checks and rejects missing or unexpectedly executed native lanes", () => {

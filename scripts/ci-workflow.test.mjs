@@ -14,7 +14,8 @@ function jobSection(name, nextName) {
   return workflow.match(new RegExp(`^  ${name}:\\r?\\n([\\s\\S]*?)${end}`, "m"))?.[1] ?? "";
 }
 
-const classify = jobSection("classify", "prose_checks");
+const classify = jobSection("classify", "provenance");
+const provenance = jobSection("provenance", "prose_checks");
 const proseChecks = jobSection("prose_checks", "rust_tests");
 const rustTests = jobSection("rust_tests", "rust_workspace_tests");
 const rustWorkspaceTests = jobSection("rust_workspace_tests", "rust_clippy");
@@ -86,6 +87,14 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   }
   assert.match(classify, /fetch-depth: 0/);
   assert.match(classify, /node scripts\/select-ci-plan\.mjs/);
+  assert.match(provenance, /node scripts\/workflow-provenance\.mjs/);
+  assert.match(
+    provenance,
+    /workflow-provenance-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}/,
+  );
+  assert.match(provenance, /retention-days: 30/);
+  assert.match(rustQualityGate, /needs: \[classify, provenance, prose_checks, rust_quality_full\]/);
+  assert.match(rustQualityGate, /PORTCOVE_ALWAYS_RESULTS: '\{"provenance"/);
   assert.match(proseChecks, /^ {4}if: needs\.classify\.outputs\.mode == 'prose'$/m);
   assert.match(proseChecks, /pnpm install --frozen-lockfile/);
   assert.match(proseChecks, /node scripts\/check-ci-prose\.mjs/);

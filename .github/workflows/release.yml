@@ -69,6 +69,21 @@ jobs:
         run: ./scripts/install-linux-desktop-prerequisites.sh
       - run: pnpm install --frozen-lockfile
         working-directory: apps/desktop
+      - name: Record exact workflow, checkout, toolchain, and build configuration
+        run: |
+          mkdir -p work/workflow-provenance
+          node scripts/workflow-provenance.mjs \
+            --workflow release.yml \
+            --mode release \
+            --runner ubuntu-22.04 \
+            --output work/workflow-provenance/workflow-provenance.json
+      - name: Upload attempt-specific workflow provenance
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: workflow-provenance-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/workflow-provenance/workflow-provenance.json
+          retention-days: 30
+          if-no-files-found: error
       - run: pnpm audit --prod --audit-level high
         working-directory: apps/desktop
       - run: just audit --fresh

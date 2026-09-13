@@ -35,6 +35,11 @@ the current control. Directional movement measures the current region once per
 accepted move, using fresh geometry rather than a stale layout cache. The harness
 restores its injected input and DOM fixture afterward. These measurements are
 native rendering evidence, not physical-controller or human-navigation evidence.
+It preserves exact frontend outputs across reruns only when a content-addressed
+record proves the complete declared input, build-environment/toolchain, and output
+inventories match. Cargo still checks the native build and every selected native
+scenario still runs; see [Development tools](DEVELOPMENT-TOOLS.md) for the cache
+boundary and retained evidence.
 
 | Scope                                | Command                            | Purpose                                                                                                                                       |
 | ------------------------------------ | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -481,10 +486,17 @@ node scripts/ci-health.mjs --branch my-branch --event pull_request --runs 10
 The report separates successful first attempts from successful reruns, reports
 cancelled/incomplete/failed outcomes, and links failed-then-passing attempts for
 investigation. It also shows the observable pre-job, job-window and post-job
-aggregation boundaries, comparable workflow and runner-label cohorts, recent
+aggregation boundaries, exact comparable cohorts, recent
 API-identified failure leads, and the three longest steps in each slow job.
-GitHub's run API does not expose installed tool versions, so an unreported
-toolchain stays explicit instead of being inferred. A rerun recovery is not proof
+CI and release validation upload one attempt-specific provenance record named with
+the run ID and attempt. It binds GitHub's `GITHUB_WORKFLOW_SHA` workflow-file
+source commit and `GITHUB_WORKFLOW_REF`, a SHA-256 of the checked-out workflow
+bytes, the checked-out `GITHUB_SHA`, and desired versus observed Node, pnpm, Rust,
+Cargo, build environment, and runner configuration. `ci-health` verifies the
+artifact digest and every embedded identity before forming a cohort. Earlier or
+expired runs without this record are explicitly unknown and excluded from
+equivalent-cohort claims rather than receiving an inferred toolchain or workflow
+identity. A rerun recovery is not proof
 of a flaky test: runners, caches and external services may differ even when the
 commit does not. No retries are scheduled by this report, and it never changes
 issues, checks, caches or runs.

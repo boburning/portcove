@@ -3,8 +3,11 @@ import { fileURLToPath } from "node:url";
 
 const scriptPath = fileURLToPath(import.meta.url);
 
-export function evaluateCiResults({ classifier, mode, prose, required }) {
+export function evaluateCiResults({ classifier, mode, prose, required, always = {} }) {
   if (classifier !== "success") throw new Error(`classifier result is ${classifier || "missing"}`);
+  for (const [name, result] of Object.entries(always))
+    if (result !== "success")
+      throw new Error(`${name} was ${result || "missing"}, expected success in every plan`);
   if (!required || Object.keys(required).length === 0)
     throw new Error("required lane plan is empty");
   if (mode === "full") {
@@ -26,9 +29,10 @@ export function evaluateCiResults({ classifier, mode, prose, required }) {
 }
 
 function main() {
-  let required;
+  let required, always;
   try {
     required = JSON.parse(process.env.PORTCOVE_REQUIRED_RESULTS ?? "");
+    always = JSON.parse(process.env.PORTCOVE_ALWAYS_RESULTS ?? "{}");
   } catch {
     throw new Error("PORTCOVE_REQUIRED_RESULTS must be valid JSON");
   }
@@ -38,6 +42,7 @@ function main() {
       mode: process.env.PORTCOVE_CI_MODE,
       prose: process.env.PORTCOVE_PROSE_RESULT,
       required,
+      always,
     }),
   );
 }
