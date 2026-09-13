@@ -101,6 +101,7 @@ pub(crate) fn is_mode(value: &OsStr) -> bool {
 
 pub(crate) fn run(mut arguments: impl Iterator<Item = OsString>) -> i32 {
     match arguments.next().as_deref() {
+        Some(command) if command == "eligibility" && arguments.next().is_none() => eligibility(),
         Some(command) if command == "status" && arguments.next().is_none() => status(),
         Some(command) if command == "repair" => {
             let area = arguments.next().as_deref().and_then(RecoveryArea::parse);
@@ -122,12 +123,44 @@ pub(crate) fn run(mut arguments: impl Iterator<Item = OsString>) -> i32 {
 
 fn usage() -> i32 {
     eprintln!("Usage:");
+    eprintln!("  portcove-desktop {MODE} eligibility");
     eprintln!("  portcove-desktop {MODE} status");
     eprintln!("  portcove-desktop {MODE} repair <preferences|schedule|staging|apply>");
     #[cfg(target_os = "linux")]
     eprintln!("  portcove-desktop {MODE} recover {INTERRUPTED_APPIMAGE}");
     eprintln!("{NO_OPERATION_NOTICE}");
     2
+}
+
+#[cfg(target_os = "linux")]
+fn eligibility() -> i32 {
+    match crate::application_update_linux::current_linux_installed_application_context() {
+        Ok(_) => {
+            println!("This Portcove AppImage is eligible for built-in application updates.");
+            println!("{NO_OPERATION_NOTICE}");
+            0
+        }
+        Err(crate::application_update::InstalledApplicationContextError::PackageManager(
+            manager,
+        )) => {
+            println!(
+                "{}",
+                crate::application_update_commands::package_manager_update_guidance(manager)
+            );
+            println!("{NO_OPERATION_NOTICE}");
+            1
+        }
+        Err(crate::application_update::InstalledApplicationContextError::Unavailable(_)) => {
+            unavailable(
+                "This Portcove installation is not eligible for built-in application updates. Use the documented installation-specific update path.",
+            )
+        }
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+fn eligibility() -> i32 {
+    unavailable("Package ownership eligibility inspection is available only on Linux.")
 }
 
 fn status() -> i32 {

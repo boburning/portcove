@@ -360,7 +360,10 @@ clean environment for the exact running executable. Each query has a two-second
 deadline and a 64 KiB output limit. Exactly one package owner produces format-specific
 guidance back to the same package source; absent, conflicting or malformed ownership
 remains fail-closed behind the general manual-recovery guidance. The query grants no
-replacement authority and writes no package state. After the shared post-exit
+replacement authority and writes no package state. The GUI-independent `eligibility`
+inspection uses that same observation and sanitized guidance; the focused Ubuntu
+ownership rehearsal installs real DEB and RPM packages and proves inspection leaves
+their executable bytes unchanged. After the shared post-exit
 revalidation lease is held, the Linux adapter rehashes an exact direct x86_64 Type 2 AppImage
 payload into a synchronized sibling file and atomically exchanges it with the stable
 AppImage source. The apply journal records the exact prior bytes and retained backup

@@ -712,6 +712,14 @@ fn configuration_error(_error: ApplicationUpdateHostConfigurationError) -> Deskt
     .into()
 }
 
+pub(crate) fn package_manager_update_guidance(
+    manager: crate::application_update::ApplicationPackageManager,
+) -> String {
+    format!(
+        "This Portcove {manager} installation is managed by its package manager. Update it through the same package source; Portcove did not modify package-managed files."
+    )
+}
+
 fn coordinator_error(error: ApplicationUpdateCoordinatorError) -> DesktopError {
     match error {
         ApplicationUpdateCoordinatorError::Busy
@@ -734,9 +742,7 @@ fn coordinator_error(error: ApplicationUpdateCoordinatorError) -> DesktopError {
                     ),
                 ),
             ..
-        } => portcove_core::PortcoveError::unsupported(format!(
-            "This Portcove {manager} installation is managed by its package manager. Update it through the same package source; Portcove did not modify package-managed files."
-        ))
+        } => portcove_core::PortcoveError::unsupported(package_manager_update_guidance(manager))
         .into(),
         ApplicationUpdateCoordinatorError::Check {
             source: CandidateLoadError::InstalledContext(_),

@@ -63,6 +63,15 @@ updates** identifies the package format and directs you back to that same packag
 source. Portcove does not overwrite the managed executable or silently convert the
 installation to an AppImage.
 
+The same ownership check is available without starting the GUI:
+
+```text
+portcove-desktop --application-update-recovery eligibility
+```
+
+It reports AppImage eligibility or the detected DEB/RPM owner and never starts an
+update check, download, installation, restart, or native prompt.
+
 If neither package database owns the executable, or ownership is ambiguous,
 Portcove keeps the installation unchanged and shows the general supported-package
 or manual-recovery guidance. Installations copied or unpacked by hand remain under

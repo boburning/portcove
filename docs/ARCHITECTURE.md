@@ -799,7 +799,10 @@ before retiring staging and the apply intent. A launch without AppImage identity
 only classify ownership for guidance. The host queries fixed, root-owned DEB and RPM
 database tools with a clean environment, deadline and output bound, and accepts
 exactly one owner for package-specific guidance. This observation never enters
-replacement admission or mutates managed files. A pre-exchange failure is retryable; a
+replacement admission or mutates managed files. The recovery entry point's
+`eligibility` command exposes the same sanitized result without initializing Tauri or
+starting update work, so packaged qualification can exercise the installed binary
+without a display. A pre-exchange failure is retryable; a
 failure after the atomic exchange remains ambiguous and does not launch another
 process. Other platforms retain their inert generic slot until their own adapters
 define a format-specific replacement. The sibling `application_update_helper` defines the
