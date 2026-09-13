@@ -361,9 +361,9 @@ deadline and a 64 KiB output limit. Exactly one package owner produces format-sp
 guidance back to the same package source; absent, conflicting or malformed ownership
 remains fail-closed behind the general manual-recovery guidance. The query grants no
 replacement authority and writes no package state. The GUI-independent `eligibility`
-inspection uses that same observation and sanitized guidance; the focused Ubuntu
-ownership rehearsal installs real DEB and RPM packages and proves inspection leaves
-their executable bytes unchanged. After the shared post-exit
+inspection uses that same observation and sanitized guidance; the focused ownership
+rehearsal installs the real DEB through Ubuntu and the real RPM through Fedora, then
+proves inspection leaves each executable unchanged. After the shared post-exit
 revalidation lease is held, the Linux adapter rehashes an exact direct x86_64 Type 2 AppImage
 payload into a synchronized sibling file and atomically exchanges it with the stable
 AppImage source. The apply journal records the exact prior bytes and retained backup

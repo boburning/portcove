@@ -477,6 +477,18 @@ fn run_package_query(
         .stdout(Stdio::piped())
         .stderr(Stdio::null());
     let mut child = command.spawn()?;
+    let stdout = child.stdout.take().ok_or_else(|| {
+        LinuxApplicationUpdateError::InstalledContext(
+            "the package ownership query output was unavailable".into(),
+        )
+    })?;
+    let output_reader = thread::spawn(move || {
+        let mut output = Vec::new();
+        stdout
+            .take((MAX_PACKAGE_QUERY_OUTPUT_BYTES + 1) as u64)
+            .read_to_end(&mut output)
+            .map(|_| output)
+    });
     let deadline = Instant::now() + PACKAGE_QUERY_TIMEOUT;
     let status = loop {
         if let Some(status) = child.try_wait()? {
@@ -485,6 +497,7 @@ fn run_package_query(
         if Instant::now() >= deadline {
             let _ = child.kill();
             let _ = child.wait();
+            let _ = output_reader.join();
             return Err(LinuxApplicationUpdateError::InstalledContext(format!(
                 "the package ownership query tool {} timed out",
                 tool.display()
@@ -492,17 +505,11 @@ fn run_package_query(
         }
         thread::sleep(PACKAGE_QUERY_POLL_INTERVAL);
     };
-    let mut output = Vec::new();
-    child
-        .stdout
-        .take()
-        .ok_or_else(|| {
-            LinuxApplicationUpdateError::InstalledContext(
-                "the package ownership query output was unavailable".into(),
-            )
-        })?
-        .take((MAX_PACKAGE_QUERY_OUTPUT_BYTES + 1) as u64)
-        .read_to_end(&mut output)?;
+    let output = output_reader.join().map_err(|_| {
+        LinuxApplicationUpdateError::InstalledContext(
+            "the package ownership query output reader failed".into(),
+        )
+    })??;
     if output.len() > MAX_PACKAGE_QUERY_OUTPUT_BYTES {
         return Err(LinuxApplicationUpdateError::InstalledContext(
             "the package ownership query exceeded its output limit".into(),
@@ -1661,6 +1668,19 @@ mod tests {
         );
         assert!(parse_dpkg_owners(b"malformed\n", executable).is_err());
         assert!(parse_rpm_owners(b"unsafe owner\n").is_err());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn package_query_rejects_large_output_without_blocking_on_a_full_pipe() {
+        let tool = Path::new(DPKG_QUERY_PATH);
+        if tool.exists() {
+            let error = run_package_query(tool, &[std::ffi::OsStr::new("--list")]).unwrap_err();
+            assert!(
+                error.to_string().contains("exceeded its output limit"),
+                "{error}"
+            );
+        }
     }
 
     #[cfg(target_os = "linux")]
