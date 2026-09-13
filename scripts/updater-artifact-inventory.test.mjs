@@ -213,4 +213,9 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(rehearsal, /test-linux-appimage-update\.ps1/);
   assert.match(rehearsal, /application-update-qualification/);
   assert.match(rehearsal, /Remove-Item -LiteralPath \(Join-Path \$fixtureRoot "private"\)/);
+  const linuxHarness = await readFile(
+    new URL("./test-linux-appimage-update.ps1", import.meta.url),
+    "utf8",
+  );
+  assert.match(linuxHarness, /WEBKIT_DISABLE_COMPOSITING_MODE/);
 });

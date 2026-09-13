@@ -93,7 +93,8 @@ $environmentNames = @(
     "PORTCOVE_APPLICATION_UPDATE_STAGING",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT",
     "PORTCOVE_LIBRARY",
-    "PORTCOVE_PREFERENCES"
+    "PORTCOVE_PREFERENCES",
+    "WEBKIT_DISABLE_COMPOSITING_MODE"
 )
 $previousEnvironment = @{}
 foreach ($name in $environmentNames) { $previousEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, "Process") }
@@ -116,6 +117,9 @@ try {
     $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT = "after-reconciliation"
     $env:PORTCOVE_LIBRARY = $libraryRoot
     $env:PORTCOVE_PREFERENCES = $hostPreferences
+    # Xvfb has no accelerated compositor. WebKitGTK can otherwise stall while
+    # creating the webview before Tauri reaches the healthy-startup hook.
+    $env:WEBKIT_DISABLE_COMPOSITING_MODE = "1"
     $displayNumber = ":$([System.Random]::Shared.Next(100, 500))"
     $env:DISPLAY = $displayNumber
     $xvfb = Start-Process -FilePath "Xvfb" -ArgumentList @($displayNumber, "-screen", "0", "1280x720x24", "-nolisten", "tcp") -PassThru
