@@ -44,7 +44,7 @@ windows-sys.workspace = true
 
 [dev-dependencies]
 aws-lc-rs = "1"
-jiff = "0.2"
+jiff = "0.2.35"
 proptest = { version = "=1.11.0", default-features = false, features = ["std"] }
 filetime.workspace = true
 tempfile.workspace = true
