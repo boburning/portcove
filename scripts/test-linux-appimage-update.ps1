@@ -59,7 +59,7 @@ $sentinel = Join-Path $sentinelRoot "preserve.txt"
 $sentinelHash = (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash
 
 $evidence = [ordered]@{
-    schema_version = 4
+    schema_version = 5
     phase = "preparing"
     source_commit = (& git rev-parse HEAD | Out-String).Trim()
     platform = "linux-x86_64"
@@ -74,6 +74,10 @@ $evidence = [ordered]@{
     interruption_recovery_exit_code = $null
     interruption_recovered = $false
     interruption_stable_preserved = $false
+    runtime_contention_hold_seconds = 2
+    runtime_contention_helper_blocked = $false
+    runtime_contention_stable_preserved = $false
+    runtime_contention_journal_preserved = $false
     post_exchange_exit_code = $null
     post_exchange_candidate_installed = $false
     post_exchange_backup_preserved = $false
@@ -112,6 +116,8 @@ $environmentNames = @(
 $previousEnvironment = @{}
 foreach ($name in $environmentNames) { $previousEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, "Process") }
 $xvfb = $null
+$runtimeHolder = $null
+$updateHelper = $null
 try {
     Write-Evidence "preparing"
     $prepareOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_appimage_update -- prepare 0.1.0 $trustedRoot $metadata $targets $candidate $updatePreferences $updateRoot $libraryRoot | Out-String
@@ -188,11 +194,80 @@ try {
     Start-Sleep -Milliseconds 500
     if ($xvfb.HasExited) { throw "Xvfb exited before the packaged candidate launch" }
 
+    $runtimeLockReady = Join-Path $state "runtime-lock-ready"
+    $runtimeLockScript = Join-Path $state "hold-runtime-lock.sh"
+    $runtimeLockBody = @'
+#!/usr/bin/env bash
+set -euo pipefail
+exec 9>"$1"
+flock --shared 9
+: >"$2"
+sleep "$3"
+'@
+    [IO.File]::WriteAllText($runtimeLockScript, $runtimeLockBody.Replace("`r`n", "`n"))
+    $runtimeHolderStart = [Diagnostics.ProcessStartInfo]::new()
+    $runtimeHolderStart.FileName = "/usr/bin/bash"
+    $runtimeHolderStart.UseShellExecute = $false
+    foreach ($argument in @(
+        $runtimeLockScript,
+        $env:PORTCOVE_APPLICATION_RUNTIME_LOCK,
+        $runtimeLockReady,
+        ([string]$evidence.runtime_contention_hold_seconds)
+    )) {
+        $runtimeHolderStart.ArgumentList.Add($argument)
+    }
+    $runtimeHolder = [Diagnostics.Process]::Start($runtimeHolderStart)
+    if ($null -eq $runtimeHolder) { throw "Could not start the runtime lock holder" }
+    $runtimeLockDeadline = [DateTime]::UtcNow.AddSeconds(10)
+    while (-not (Test-Path -LiteralPath $runtimeLockReady -PathType Leaf)) {
+        if ($runtimeHolder.HasExited) { throw "Runtime lock holder exited before acquiring the shared lock" }
+        if ([DateTime]::UtcNow -ge $runtimeLockDeadline) { throw "Runtime lock holder did not acquire the shared lock" }
+        Start-Sleep -Milliseconds 50
+    }
+
     $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT = "after-exchange-sync"
-    Write-Evidence "post-exchange-interruption-starting"
-    & $stable --portcove-apply-update ([string]$prepared.apply_revision)
-    $evidence.post_exchange_exit_code = $LASTEXITCODE
-    if ($LASTEXITCODE -ne 87) { throw "Post-exchange helper exited with code $LASTEXITCODE instead of 87" }
+    Write-Evidence "runtime-contention-starting"
+    $updateHelperStart = [Diagnostics.ProcessStartInfo]::new()
+    $updateHelperStart.FileName = $stable
+    $updateHelperStart.UseShellExecute = $false
+    foreach ($argument in @(
+        "--portcove-apply-update",
+        ([string]$prepared.apply_revision)
+    )) {
+        $updateHelperStart.ArgumentList.Add($argument)
+    }
+    $updateHelper = [Diagnostics.Process]::Start($updateHelperStart)
+    if ($null -eq $updateHelper) { throw "Could not start the packaged update helper" }
+    Start-Sleep -Milliseconds 500
+    if ($runtimeHolder.HasExited) { throw "Runtime peer released the shared lock before observation" }
+    if ($updateHelper.HasExited) { throw "Packaged update helper did not wait for the live runtime peer" }
+    if ((Get-FileHash -LiteralPath $stable -Algorithm SHA256).Hash.ToLowerInvariant() -ne $predecessorHash) {
+        throw "Packaged update helper changed the stable AppImage while a runtime peer held the lock"
+    }
+    $contendedApply = Get-Content -LiteralPath (Join-Path $updateRoot "apply.json") -Raw | ConvertFrom-Json
+    if ($contendedApply.revision -ne $prepared.apply_revision -or $null -eq $contendedApply.intent -or
+        $null -ne $contendedApply.native_launch -or $null -ne $contendedApply.native_replacement -or
+        -not (Test-Path -LiteralPath (Join-Path $updateRoot "candidate.payload") -PathType Leaf)) {
+        throw "Packaged update helper changed the journal while a runtime peer held the lock"
+    }
+    $evidence.runtime_contention_helper_blocked = $true
+    $evidence.runtime_contention_stable_preserved = $true
+    $evidence.runtime_contention_journal_preserved = $true
+    Write-Evidence "runtime-contention-observed"
+
+    Wait-Process -InputObject $runtimeHolder -Timeout 10
+    $runtimeHolder.Refresh()
+    if ($runtimeHolder.ExitCode -ne 0) { throw "Runtime lock holder exited with code $($runtimeHolder.ExitCode)" }
+    $runtimeHolder.Dispose()
+    $runtimeHolder = $null
+    Wait-Process -InputObject $updateHelper -Timeout $StartupTimeoutSeconds
+    $updateHelper.Refresh()
+    $evidence.post_exchange_exit_code = $updateHelper.ExitCode
+    $updateHelper.Dispose()
+    $updateHelper = $null
+    if ($evidence.post_exchange_exit_code -ne 87) {
+        throw "Post-exchange helper exited with code $($evidence.post_exchange_exit_code) instead of 87"
+    }
     Remove-Item Env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT
     $postExchangeStableHash = (Get-FileHash -LiteralPath $stable -Algorithm SHA256).Hash.ToLowerInvariant()
     if ($postExchangeStableHash -ne $candidateHash) {
@@ -256,6 +331,20 @@ try {
     Write-Evidence "failed"
     throw
 } finally {
+    if ($updateHelper) {
+        try {
+            if (-not $updateHelper.HasExited) { Stop-Process -InputObject $updateHelper -Force }
+        } finally {
+            $updateHelper.Dispose()
+        }
+    }
+    if ($runtimeHolder) {
+        try {
+            if (-not $runtimeHolder.HasExited) { Stop-Process -InputObject $runtimeHolder -Force }
+        } finally {
+            $runtimeHolder.Dispose()
+        }
+    }
     if ($xvfb) {
         try {
             if (-not $xvfb.HasExited) { Stop-Process -InputObject $xvfb -Force }

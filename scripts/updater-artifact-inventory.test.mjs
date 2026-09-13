@@ -220,10 +220,14 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.doesNotMatch(linuxHarness, /WEBKIT_DISABLE_COMPOSITING_MODE/);
   assert.match(linuxHarness, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE/);
   assert.match(linuxHarness, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT/);
+  assert.match(linuxHarness, /schema_version = 5/);
   assert.match(linuxHarness, /interruption_exit_code/);
   assert.match(linuxHarness, /interruption_recovery_exit_code/);
   assert.match(linuxHarness, /interruption_recovery_display/);
   assert.match(linuxHarness, /interruption_recovered/);
+  assert.match(linuxHarness, /runtime_contention_helper_blocked/);
+  assert.match(linuxHarness, /runtime_contention_stable_preserved/);
+  assert.match(linuxHarness, /runtime_contention_journal_preserved/);
   assert.match(linuxHarness, /post_exchange_exit_code/);
   assert.match(linuxHarness, /post_exchange_backup_preserved/);
   assert.match(linuxHarness, /post_exchange_reconciled/);
@@ -232,10 +236,19 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(linuxHarness, /after-exchange-sync/);
   assert.match(linuxHarness, /--application-update-recovery recover interrupted-appimage/);
   assert.match(linuxHarness, /Remove-Item Env:DISPLAY/);
+  assert.match(linuxHarness, /flock --shared 9/);
+  assert.match(linuxHarness, /\.ArgumentList\.Add\(\$argument\)/);
   assert.ok(
     linuxHarness.indexOf("command-recovery-starting") <
       linuxHarness.indexOf('Start-Process -FilePath "Xvfb"'),
     "interrupted AppImage recovery must complete before any GUI session starts",
+  );
+  assert.ok(
+    linuxHarness.indexOf("$updateHelperStart.FileName = $stable") <
+      linuxHarness.indexOf("runtime-contention-observed") &&
+      linuxHarness.indexOf("runtime-contention-observed") <
+        linuxHarness.indexOf("post-exchange-interrupted"),
+    "a live runtime peer must block the packaged helper before replacement",
   );
   assert.ok(
     linuxHarness.indexOf(

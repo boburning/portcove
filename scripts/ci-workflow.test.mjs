@@ -159,6 +159,7 @@ test("Linux desktop prerequisite installation is shared, bounded, and retrying",
     "xvfb",
     "dbus-x11",
     "at-spi2-core",
+    "util-linux",
   ]) {
     assert.ok(installer.includes(packageName), `${packageName} is missing`);
   }
