@@ -84,7 +84,7 @@ function checkedSha(value, label) {
 }
 
 export function discoverCiPlan(
-  { eventName, baseSha, headSha, checkoutSha },
+  { eventName, baseSha, headSha, checkoutSha, proseOnlyEnabled = false },
   runGit = (args, options = {}) => execFileSync("git", args, { cwd: projectRoot, ...options }),
 ) {
   const checkout = checkedSha(checkoutSha, "checkout SHA");
@@ -111,6 +111,17 @@ export function discoverCiPlan(
       maxBuffer: 16 * 1024 * 1024,
     });
     const classified = classifyChanges(parseRawDiff(raw));
+    if (classified.mode === "prose" && !proseOnlyEnabled) {
+      return {
+        ...classified,
+        mode: "full",
+        reason: "prose-policy-awaiting-independent-activation",
+        base,
+        mergeBase,
+        head,
+        checkout,
+      };
+    }
     return { ...classified, base, mergeBase, head, checkout };
   } catch (error) {
     return {
@@ -154,6 +165,7 @@ async function main() {
     baseSha: process.env.PORTCOVE_BASE_SHA,
     headSha: process.env.PORTCOVE_HEAD_SHA,
     checkoutSha: process.env.GITHUB_SHA,
+    proseOnlyEnabled: process.env.PORTCOVE_PROSE_POLICY_ACTIVATED === "true",
   });
   await writeGithubOutputs(process.env.GITHUB_OUTPUT, plan);
   console.log(JSON.stringify(plan, null, 2));

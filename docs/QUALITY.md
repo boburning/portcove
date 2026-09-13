@@ -94,8 +94,12 @@ diagnosing a hosted failure. Native desktop, installer, recovery, security,
 physical-platform, and human evidence remains separate and is still required
 when the issue's acceptance scope calls for it.
 
-The sole exception is a tested prose-only path for a deliberately tiny allowlist:
-`docs/README.md` and `docs/GUI-COMPETITIVE-REVIEW.md`. The classifier reads the
+The workflow contains a tested prose-only path for a deliberately tiny allowlist:
+`docs/README.md` and `docs/GUI-COMPETITIVE-REVIEW.md`. Activation is deliberately
+held at `PORTCOVE_PROSE_POLICY_ACTIVATED: "false"` until a separate independently
+approved validation-policy change enables it. While held, even these two files
+select full CI. The activation change must itself receive exhaustive CI and must
+not rely on the candidate acceptance rule it enables. The classifier reads the
 complete pull-request merge-base diff using NUL-delimited Git records. It accepts
 ordinary file additions, modifications, deletions, and renames only when every
 old and new path is allowlisted and the file type remains regular. Mixed changes,
@@ -107,11 +111,12 @@ classifier and every producer result; a missing, failed, cancelled, timed-out,
 unexpectedly skipped, or unexpectedly executed producer fails the wrapper.
 Protected check names therefore stay unchanged.
 
-To disable this optimization immediately, remove both allowlist entries from
-`scripts/select-ci-plan.mjs` (which makes every nonempty diff select full CI) or
-revert the classifier/wrapper change. Any allowlist expansion is a protected
-validation-contract change: add adversarial selector coverage and run
-`just audit --fresh` before relying on it.
+After independent activation, disable the optimization immediately by setting
+`PORTCOVE_PROSE_POLICY_ACTIVATED` back to `"false"`, removing both allowlist
+entries from `scripts/select-ci-plan.mjs`, or reverting the classifier/wrapper
+change. Activation and any allowlist expansion are protected validation-contract
+changes: obtain the required independent approval, add adversarial selector
+coverage, and run `just audit --fresh` before relying on them.
 
 ## Staged audit receipts
 

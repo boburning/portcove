@@ -90,7 +90,13 @@ test("malformed incomplete or empty change discovery fails closed", () => {
 test("pull requests compare the complete merge-base range and record tested checkout", () => {
   const calls = [];
   const plan = discoverCiPlan(
-    { eventName: "pull_request", baseSha: sha("a"), headSha: sha("b"), checkoutSha: sha("c") },
+    {
+      eventName: "pull_request",
+      baseSha: sha("a"),
+      headSha: sha("b"),
+      checkoutSha: sha("c"),
+      proseOnlyEnabled: true,
+    },
     (args) => {
       calls.push(args);
       return args[0] === "merge-base" ? `${sha("d")}\n` : raw(modified("docs/README.md"));
@@ -100,6 +106,16 @@ test("pull requests compare the complete merge-base range and record tested chec
   assert.equal(plan.mergeBase, sha("d"));
   assert.equal(plan.checkout, sha("c"));
   assert.deepEqual(calls[1], ["diff", "--raw", "-z", "--find-renames", sha("d"), sha("b")]);
+});
+
+test("prose selection remains full CI until independently activated", () => {
+  const plan = discoverCiPlan(
+    { eventName: "pull_request", baseSha: sha("a"), headSha: sha("b"), checkoutSha: sha("c") },
+    (args) => (args[0] === "merge-base" ? `${sha("d")}\n` : raw(modified("docs/README.md"))),
+  );
+  assert.equal(plan.mode, "full");
+  assert.equal(plan.reason, "prose-policy-awaiting-independent-activation");
+  assert.deepEqual(plan.files, ["docs/README.md"]);
 });
 
 test("missing refs and Git errors select safe full validation", () => {
