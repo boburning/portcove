@@ -12,21 +12,24 @@ export class LatestRequestGeneration {
 }
 
 type Deferred = {
-  resolve: () => void;
+  resolve: (outcome: CoalescedRequestOutcome) => void;
   reject: (error: unknown) => void;
   task: () => Promise<void>;
 };
 
+export type CoalescedRequestOutcome = "completed" | "disposed";
+
 /** Coalesces same-turn requests and permits at most one queued follow-up. */
 class CoalescedBatch {
   private pending: Deferred[] = [];
+  private active = new Set<Deferred>();
   private scheduled = false;
   private running = false;
   private closed = false;
 
   request(task: () => Promise<void>) {
-    if (this.closed) return Promise.resolve();
-    const result = new Promise<void>((resolve, reject) => {
+    if (this.closed) return Promise.resolve<CoalescedRequestOutcome>("disposed");
+    const result = new Promise<CoalescedRequestOutcome>((resolve, reject) => {
       this.pending.push({ resolve, reject, task });
     });
     if (!this.scheduled && !this.running) {
@@ -41,8 +44,9 @@ class CoalescedBatch {
 
   close() {
     this.closed = true;
-    const pending = this.pending.splice(0);
-    for (const request of pending) request.resolve();
+    const unsettled = [...this.pending.splice(0), ...this.active];
+    this.active.clear();
+    for (const request of unsettled) request.resolve("disposed");
   }
 
   private async drain() {
@@ -51,11 +55,14 @@ class CoalescedBatch {
     try {
       while (!this.closed && this.pending.length > 0) {
         const batch = this.pending.splice(0);
+        for (const request of batch) this.active.add(request);
         try {
           await batch.at(-1)!.task();
-          for (const request of batch) request.resolve();
+          if (!this.closed) for (const request of batch) request.resolve("completed");
         } catch (error) {
-          for (const request of batch) request.reject(error);
+          if (!this.closed) for (const request of batch) request.reject(error);
+        } finally {
+          for (const request of batch) this.active.delete(request);
         }
       }
     } finally {
@@ -70,7 +77,7 @@ export class CoalescedRequest {
   private closed = false;
 
   request(task: () => Promise<void>, scope = 0) {
-    if (this.closed) return Promise.resolve();
+    if (this.closed) return Promise.resolve<CoalescedRequestOutcome>("disposed");
     let batch = this.batches.get(scope);
     if (!batch) {
       batch = new CoalescedBatch();

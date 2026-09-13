@@ -2,7 +2,6 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
   type SetStateAction,
@@ -246,10 +245,19 @@ export function usePortcoveData(libraryGeneration = 0) {
       if (refreshGeneration.current.isCurrent(generation)) setRefreshing(false);
     }
   }, [acceptActivities, libraryGeneration]);
-  const refreshCoordinator = useMemo(() => new CoalescedRequest(), []);
+  const coordinators = useRef<
+    | {
+        refresh: CoalescedRequest;
+        diagnostics: CoalescedRequest;
+        activity: CoalescedRequest;
+      }
+    | undefined
+  >(undefined);
   const refresh = useCallback(
-    () => refreshCoordinator.request(runRefresh, libraryGeneration),
-    [libraryGeneration, refreshCoordinator, runRefresh],
+    () =>
+      coordinators.current?.refresh.request(runRefresh, libraryGeneration) ??
+      Promise.resolve("disposed" as const),
+    [libraryGeneration, runRefresh],
   );
   const retryRefresh = useCallback(async () => {
     try {
@@ -275,10 +283,11 @@ export function usePortcoveData(libraryGeneration = 0) {
       if (diagnosticGeneration.current.isCurrent(generation)) setDiagnosticRefreshing(false);
     }
   }, [libraryGeneration]);
-  const diagnosticCoordinator = useMemo(() => new CoalescedRequest(), []);
   const refreshDiagnostics = useCallback(
-    () => diagnosticCoordinator.request(runDiagnostics, libraryGeneration),
-    [diagnosticCoordinator, libraryGeneration, runDiagnostics],
+    () =>
+      coordinators.current?.diagnostics.request(runDiagnostics, libraryGeneration) ??
+      Promise.resolve("disposed" as const),
+    [libraryGeneration, runDiagnostics],
   );
   const invalidateDiagnostics = useCallback(() => {
     diagnosticGeneration.current.begin();
@@ -295,20 +304,27 @@ export function usePortcoveData(libraryGeneration = 0) {
       /* Essential refresh remains the actionable IPC failure surface. */
     }
   }, [acceptActivities]);
-  const activityCoordinator = useMemo(() => new CoalescedRequest(), []);
   const refreshActivities = useCallback(
-    () => activityCoordinator.request(runActivityRefresh, libraryGeneration),
-    [activityCoordinator, libraryGeneration, runActivityRefresh],
+    () =>
+      coordinators.current?.activity.request(runActivityRefresh, libraryGeneration) ??
+      Promise.resolve("disposed" as const),
+    [libraryGeneration, runActivityRefresh],
   );
 
-  useEffect(
-    () => () => {
-      closeCoalescedRequest(refreshCoordinator);
-      closeCoalescedRequest(diagnosticCoordinator);
-      closeCoalescedRequest(activityCoordinator);
-    },
-    [activityCoordinator, diagnosticCoordinator, refreshCoordinator],
-  );
+  useEffect(() => {
+    const lifetime = {
+      refresh: new CoalescedRequest(),
+      diagnostics: new CoalescedRequest(),
+      activity: new CoalescedRequest(),
+    };
+    coordinators.current = lifetime;
+    return () => {
+      if (coordinators.current === lifetime) coordinators.current = undefined;
+      closeCoalescedRequest(lifetime.refresh);
+      closeCoalescedRequest(lifetime.diagnostics);
+      closeCoalescedRequest(lifetime.activity);
+    };
+  }, [libraryGeneration]);
 
   useEffect(() => {
     const refreshRequests = refreshGeneration.current;
@@ -338,14 +354,7 @@ export function usePortcoveData(libraryGeneration = 0) {
       diagnosticRequests.begin();
       subscription.stop();
     };
-  }, [
-    activityCoordinator,
-    diagnosticCoordinator,
-    invalidateDiagnostics,
-    refreshCoordinator,
-    refreshDiagnostics,
-    retryRefresh,
-  ]);
+  }, [invalidateDiagnostics, refreshDiagnostics, retryRefresh]);
 
   const hasRunningActivity = activities.some((activity) => activity.status === "running");
   useEffect(() => {
@@ -396,10 +405,10 @@ export type OperationRefresh = "workspace" | "activities" | "none";
 
 export function useOperationState(
   configuration:
-    | (() => Promise<void>)
+    | (() => Promise<unknown>)
     | {
-        refresh: () => Promise<void>;
-        refreshActivities?: () => Promise<void>;
+        refresh: () => Promise<unknown>;
+        refreshActivities?: () => Promise<unknown>;
         invalidateDiagnostics?: () => void;
       },
 ) {

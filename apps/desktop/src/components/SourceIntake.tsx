@@ -30,7 +30,7 @@ export interface SourceIntakeRequest {
 interface SourceIntakeDialogProps {
   request: SourceIntakeRequest;
   close: () => void;
-  onAdded?: () => Promise<void>;
+  onAdded?: () => Promise<unknown>;
   openEvidence?: (evidenceId: string) => void;
   hostTools?: HostToolStatus[];
   hostToolActions?: HostToolActions;
