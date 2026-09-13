@@ -59,7 +59,7 @@ $sentinel = Join-Path $sentinelRoot "preserve.txt"
 $sentinelHash = (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash
 
 $evidence = [ordered]@{
-    schema_version = 2
+    schema_version = 3
     phase = "preparing"
     source_commit = (& git rev-parse HEAD | Out-String).Trim()
     platform = "linux-x86_64"
@@ -69,6 +69,9 @@ $evidence = [ordered]@{
     apply_revision = $null
     interruption_exit_code = $null
     interruption_partial_bytes = $null
+    interruption_recovery = "gui-independent-command"
+    interruption_recovery_display = $null
+    interruption_recovery_exit_code = $null
     interruption_recovered = $false
     interruption_stable_preserved = $false
     helper_exit_code = $null
@@ -92,6 +95,7 @@ function Write-Evidence([string]$Phase) {
 $environmentNames = @(
     "APPIMAGE_EXTRACT_AND_RUN",
     "DISPLAY",
+    "PORTCOVE_APPLICATION_RUNTIME_LOCK",
     "PORTCOVE_APPLICATION_UPDATE_PREFERENCES",
     "PORTCOVE_APPLICATION_UPDATE_SCHEDULE",
     "PORTCOVE_APPLICATION_UPDATE_STAGING",
@@ -117,18 +121,14 @@ try {
 
     Remove-Item Env:APPIMAGE_EXTRACT_AND_RUN -ErrorAction SilentlyContinue
     $env:PORTCOVE_APPLICATION_UPDATE_PREFERENCES = $updatePreferences
+    $env:PORTCOVE_APPLICATION_RUNTIME_LOCK = Join-Path $state "application-runtime.lock"
     $env:PORTCOVE_APPLICATION_UPDATE_SCHEDULE = Join-Path $state "application-update-schedule.json"
     $env:PORTCOVE_APPLICATION_UPDATE_STAGING = $updateRoot
     $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT = "after-reconciliation"
     $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE = Join-Path $state "application-update-qualification-stage.json"
     $env:PORTCOVE_LIBRARY = $libraryRoot
     $env:PORTCOVE_PREFERENCES = $hostPreferences
-    $displayNumber = ":$([System.Random]::Shared.Next(100, 500))"
-    $env:DISPLAY = $displayNumber
-    $xvfb = Start-Process -FilePath "Xvfb" -ArgumentList @($displayNumber, "-screen", "0", "1280x720x24", "-nolisten", "tcp") -PassThru
-    Start-Sleep -Milliseconds 500
-    if ($xvfb.HasExited) { throw "Xvfb exited before the packaged update run" }
-
+    Remove-Item Env:DISPLAY -ErrorAction SilentlyContinue
     $swap = Join-Path $installedRoot ".portcove-appimage-$($candidateHash.Substring(0, 16)).swap"
     $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT = "during-swap-copy"
     Write-Evidence "interruption-helper-starting"
@@ -142,24 +142,29 @@ try {
         throw "Interrupted helper did not stop during the candidate copy"
     }
     $evidence.interruption_partial_bytes = $partialBytes
-    Write-Evidence "predecessor-recovery-starting"
+    if ($null -ne [Environment]::GetEnvironmentVariable("DISPLAY", "Process")) {
+        throw "GUI-independent recovery must run without a display environment"
+    }
+    $evidence.interruption_recovery_display = "unset"
+    Write-Evidence "command-recovery-starting"
 
-    & $stable
-    if ($LASTEXITCODE -ne 0) { throw "Predecessor recovery launch exited with code $LASTEXITCODE" }
+    & $stable --application-update-recovery recover interrupted-appimage
+    $evidence.interruption_recovery_exit_code = $LASTEXITCODE
+    if ($LASTEXITCODE -ne 0) { throw "GUI-independent recovery command exited with code $LASTEXITCODE" }
     $applyPath = Join-Path $updateRoot "apply.json"
     $recoveredApply = Get-Content -LiteralPath $applyPath -Raw | ConvertFrom-Json
     if ($recoveredApply.native_launch -ne "failed" -or $null -ne $recoveredApply.native_replacement) {
-        throw "Predecessor startup did not make the interrupted attempt retryable"
+        throw "Recovery command did not make the interrupted attempt retryable"
     }
-    if (Test-Path -LiteralPath $swap) { throw "Predecessor startup retained the verified partial candidate swap" }
+    if (Test-Path -LiteralPath $swap) { throw "Recovery command retained the verified partial candidate swap" }
     if (-not (Test-Path -LiteralPath (Join-Path $updateRoot "candidate.payload") -PathType Leaf)) {
-        throw "Predecessor startup removed the verified staged candidate"
+        throw "Recovery command removed the verified staged candidate"
     }
     if ((Get-FileHash -LiteralPath $stable -Algorithm SHA256).Hash.ToLowerInvariant() -ne $predecessorHash) {
-        throw "Predecessor startup changed the stable AppImage"
+        throw "Recovery command changed the stable AppImage"
     }
     if ((Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -ne $sentinelHash) {
-        throw "Predecessor recovery changed the persistent-data marker"
+        throw "Recovery command changed the persistent-data marker"
     }
     $evidence.interruption_recovered = $true
     $evidence.interruption_stable_preserved = $true
@@ -172,6 +177,12 @@ try {
         throw "Retried update identity does not match the candidate AppImage"
     }
     $evidence.apply_revision = $prepared.apply_revision
+
+    $displayNumber = ":$([System.Random]::Shared.Next(100, 500))"
+    $env:DISPLAY = $displayNumber
+    $xvfb = Start-Process -FilePath "Xvfb" -ArgumentList @($displayNumber, "-screen", "0", "1280x720x24", "-nolisten", "tcp") -PassThru
+    Start-Sleep -Milliseconds 500
+    if ($xvfb.HasExited) { throw "Xvfb exited before the packaged candidate launch" }
 
     Write-Evidence "helper-starting"
     & $stable --portcove-apply-update ([string]$prepared.apply_revision)
