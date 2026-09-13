@@ -35,9 +35,11 @@ executable permissions; Windows also runs the existing isolated installer harnes
 through a passive skipped-version upgrade and uninstall with data preservation.
 Linux builds a disposable test-signed TUF repository, embeds its public trust and
 local repository URLs in a qualification-only 0.1.0 AppImage, and exercises the
-packaged helper through a 0.1.0-to-0.3.0 replacement under Xvfb. The run verifies
-the stable path's exact candidate hash and executable bit, healthy-startup journal
-reconciliation, staging and backup cleanup, and preservation of a library sentinel.
+packaged helper through an interrupted candidate copy, predecessor restart and retrying
+0.1.0-to-0.3.0 replacement under Xvfb. The run verifies the partial swap, exact
+predecessor and retryable journal after recovery, then the stable path's exact candidate
+hash and executable bit, healthy-startup journal reconciliation, staging and backup
+cleanup, and preservation of a library sentinel throughout both attempts.
 It deletes the disposable TUF private keys before starting either AppImage and does
 not upload private keys or mutable updater state.
 These are fixture versions, never publication or release-readiness declarations.
@@ -47,7 +49,7 @@ key. Prior build outputs are preserved under its new evidence directory.
 
 The Linux packaged run is Ubuntu-hosted AppImage evidence with disposable keys. It
 does not establish production signing, universal distribution compatibility, Steam
-Deck behavior, interruption recovery, or the remaining distro evidence tracked by
+Deck behavior, every interruption phase, or the remaining distro evidence tracked by
 the live roadmap issue.
 
 `scripts/updater-artifact-inventory.mjs stage` selects the complete existing package

@@ -59,7 +59,7 @@ $sentinel = Join-Path $sentinelRoot "preserve.txt"
 $sentinelHash = (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash
 
 $evidence = [ordered]@{
-    schema_version = 1
+    schema_version = 2
     phase = "preparing"
     source_commit = (& git rev-parse HEAD | Out-String).Trim()
     platform = "linux-x86_64"
@@ -67,6 +67,10 @@ $evidence = [ordered]@{
     candidate = [ordered]@{ path = $candidate; sha256 = $candidateHash }
     stable_path = $stable
     apply_revision = $null
+    interruption_exit_code = $null
+    interruption_partial_bytes = $null
+    interruption_recovered = $false
+    interruption_stable_preserved = $false
     helper_exit_code = $null
     stable_sha256 = $null
     executable_mode = $null
@@ -92,6 +96,7 @@ $environmentNames = @(
     "PORTCOVE_APPLICATION_UPDATE_SCHEDULE",
     "PORTCOVE_APPLICATION_UPDATE_STAGING",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT",
+    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE",
     "PORTCOVE_LIBRARY",
     "PORTCOVE_PREFERENCES"
@@ -124,6 +129,50 @@ try {
     Start-Sleep -Milliseconds 500
     if ($xvfb.HasExited) { throw "Xvfb exited before the packaged update run" }
 
+    $swap = Join-Path $installedRoot ".portcove-appimage-$($candidateHash.Substring(0, 16)).swap"
+    $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT = "during-swap-copy"
+    Write-Evidence "interruption-helper-starting"
+    & $stable --portcove-apply-update ([string]$prepared.apply_revision)
+    $evidence.interruption_exit_code = $LASTEXITCODE
+    if ($LASTEXITCODE -ne 86) { throw "Interrupted helper exited with code $LASTEXITCODE instead of 86" }
+    Remove-Item Env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT
+    if (-not (Test-Path -LiteralPath $swap -PathType Leaf)) { throw "Interrupted helper did not retain a partial candidate swap" }
+    $partialBytes = (Get-Item -LiteralPath $swap -Force).Length
+    if ($partialBytes -le 0 -or $partialBytes -ge (Get-Item -LiteralPath $candidate -Force).Length) {
+        throw "Interrupted helper did not stop during the candidate copy"
+    }
+    $evidence.interruption_partial_bytes = $partialBytes
+    Write-Evidence "predecessor-recovery-starting"
+
+    & $stable
+    if ($LASTEXITCODE -ne 0) { throw "Predecessor recovery launch exited with code $LASTEXITCODE" }
+    $applyPath = Join-Path $updateRoot "apply.json"
+    $recoveredApply = Get-Content -LiteralPath $applyPath -Raw | ConvertFrom-Json
+    if ($recoveredApply.native_launch -ne "failed" -or $null -ne $recoveredApply.native_replacement) {
+        throw "Predecessor startup did not make the interrupted attempt retryable"
+    }
+    if (Test-Path -LiteralPath $swap) { throw "Predecessor startup retained the verified partial candidate swap" }
+    if (-not (Test-Path -LiteralPath (Join-Path $updateRoot "candidate.payload") -PathType Leaf)) {
+        throw "Predecessor startup removed the verified staged candidate"
+    }
+    if ((Get-FileHash -LiteralPath $stable -Algorithm SHA256).Hash.ToLowerInvariant() -ne $predecessorHash) {
+        throw "Predecessor startup changed the stable AppImage"
+    }
+    if ((Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -ne $sentinelHash) {
+        throw "Predecessor recovery changed the persistent-data marker"
+    }
+    $evidence.interruption_recovered = $true
+    $evidence.interruption_stable_preserved = $true
+    Write-Evidence "interruption-recovered"
+
+    $retryOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_appimage_update -- prepare 0.1.0 $trustedRoot $metadata $targets $candidate $updatePreferences $updateRoot $libraryRoot | Out-String
+    if ($LASTEXITCODE -ne 0) { throw "Application update retry preparation failed" }
+    $prepared = $retryOutput.Trim() | ConvertFrom-Json
+    if ($prepared.candidate_version -ne "0.3.0" -or $prepared.candidate_sha256 -ne $candidateHash) {
+        throw "Retried update identity does not match the candidate AppImage"
+    }
+    $evidence.apply_revision = $prepared.apply_revision
+
     Write-Evidence "helper-starting"
     & $stable --portcove-apply-update ([string]$prepared.apply_revision)
     $evidence.helper_exit_code = $LASTEXITCODE
@@ -137,7 +186,7 @@ try {
         if (Test-Path -LiteralPath $applyPath) {
             $apply = Get-Content -LiteralPath $applyPath -Raw | ConvertFrom-Json
             $payloadPresent = Test-Path -LiteralPath (Join-Path $updateRoot "candidate.payload")
-            $swapPresent = Test-Path -LiteralPath (Join-Path $installedRoot ".portcove-appimage-$($candidateHash.Substring(0, 16)).swap")
+            $swapPresent = Test-Path -LiteralPath $swap
             if ($null -eq $apply.intent -and -not $payloadPresent -and -not $swapPresent) {
                 $reconciled = $true
                 break
