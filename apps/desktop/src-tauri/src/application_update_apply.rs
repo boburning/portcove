@@ -627,6 +627,33 @@ impl ApplicationUpdateApplyStore {
         Ok(state)
     }
 
+    /// Records a Linux replacement helper that disappeared before activation.
+    /// The host adapter must first prove that the predecessor still owns the
+    /// stable path and that any candidate swap is absent or safely removed.
+    #[cfg(any(target_os = "linux", test))]
+    pub(crate) fn record_interrupted_native_replacement_failed(
+        &self,
+        expected_revision: u64,
+        expected_replacement: &ApplicationUpdateNativeReplacement,
+    ) -> Result<ApplicationUpdateApplyState, ApplicationUpdateApplyError> {
+        let _lock = self.lock()?;
+        let mut state = self.load()?;
+        require_revision(&state, expected_revision)?;
+        if state.native_launch != Some(ApplicationUpdateNativeLaunchState::Starting)
+            || state.native_replacement.as_ref() != Some(expected_replacement)
+        {
+            return Err(ApplicationUpdateApplyError::InvalidState(
+                "only the exact interrupted native replacement can be marked failed".into(),
+            ));
+        }
+        state.revision = next_revision(state.revision)?;
+        state.native_launch = Some(ApplicationUpdateNativeLaunchState::Failed);
+        state.native_exit_code = None;
+        state.native_replacement = None;
+        self.publish(&state)?;
+        Ok(state)
+    }
+
     /// Clears a recorded native attempt only after a trusted host adapter has
     /// observed the candidate version running past its application-health
     /// boundary. Exact installed identity remains the adapter's responsibility.
@@ -1714,5 +1741,61 @@ mod tests {
             Err(ApplicationUpdateApplyError::InvalidState(message))
                 if message.contains("consent changed")
         ));
+    }
+
+    #[test]
+    fn interrupted_replacement_requires_exact_starting_identity_before_retry() {
+        let temporary = tempfile::tempdir().unwrap();
+        let apply = ApplicationUpdateApplyStore::new(temporary.path().join("apply")).unwrap();
+        let library = library_root(&temporary);
+        let preferences = preferences(ApplicationUpdateMode::Manual, true);
+        let staged = staged(
+            candidate("0.2.0-beta.1", ApplicationChannel::Preview),
+            temporary.path(),
+        );
+        let prepared = apply
+            .prepare_explicit_restart(&preferences, &staged, &installed("0.1.0"), &library)
+            .unwrap();
+        let terminated = apply
+            .record_termination(
+                prepared.revision,
+                ApplicationTerminationKind::RestartToApply,
+            )
+            .unwrap();
+        let replacement = ApplicationUpdateNativeReplacement {
+            source_path: temporary.path().join("Portcove.AppImage"),
+            backup_path: temporary.path().join(".portcove-appimage.swap"),
+            previous_bytes: 128,
+            previous_sha256: "a".repeat(64),
+        };
+        let mut starting = terminated;
+        starting.revision += 1;
+        starting.native_launch = Some(ApplicationUpdateNativeLaunchState::Starting);
+        starting.native_replacement = Some(replacement.clone());
+        apply.publish(&starting).unwrap();
+
+        let mut wrong_replacement = replacement.clone();
+        wrong_replacement.backup_path = temporary.path().join("different.swap");
+        assert!(matches!(
+            apply.record_interrupted_native_replacement_failed(
+                starting.revision,
+                &wrong_replacement,
+            ),
+            Err(ApplicationUpdateApplyError::InvalidState(_))
+        ));
+        assert_eq!(apply.load().unwrap(), starting);
+
+        let failed = apply
+            .record_interrupted_native_replacement_failed(starting.revision, &replacement)
+            .unwrap();
+        assert_eq!(failed.revision, starting.revision + 1);
+        assert_eq!(
+            failed.native_launch,
+            Some(ApplicationUpdateNativeLaunchState::Failed)
+        );
+        assert!(failed.native_replacement.is_none());
+        let retry = apply.retry_failed_native_launch(failed.revision).unwrap();
+        assert!(retry.native_launch.is_none());
+        assert!(retry.may_attempt_revalidation());
     }
 }

@@ -23,6 +23,9 @@ use rustix::fs::{CWD, RenameFlags, renameat_with};
 use sha2::{Digest, Sha256};
 
 #[cfg(target_os = "linux")]
+use portcove_core::{ApplicationRuntimeGuard, HostPreferenceStore};
+
+#[cfg(target_os = "linux")]
 use crate::application_update::{
     APPLICATION_PRODUCT_ID, InstallOwner, InstalledApplicationContext, SelectedCandidate,
 };
@@ -115,6 +118,13 @@ pub enum LinuxApplicationUpdateReconciliation {
     NoAttempt,
     CandidateNotInstalled,
     Reconciled,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LinuxApplicationUpdateRecovery {
+    NoAttempt,
+    CandidateInstalled,
+    RecoveredPreActivation,
 }
 
 #[cfg(target_os = "linux")]
@@ -234,6 +244,78 @@ pub fn reconcile_linux_application_update(
     sync_parent(&execution.source)?;
     apply.reconcile_installed_application(state.revision, current_version, staging)?;
     Ok(LinuxApplicationUpdateReconciliation::Reconciled)
+}
+
+/// Makes a replacement interrupted before activation explicitly retryable.
+/// Holding the configured shared runtime guard proves that no replacement
+/// helper still owns the exclusive process-lifetime lease.
+#[cfg(target_os = "linux")]
+pub fn recover_linux_application_update_before_startup(
+    runtime: &ApplicationRuntimeGuard,
+    apply: &ApplicationUpdateApplyStore,
+    staging: &ApplicationUpdateStagingStore,
+) -> Result<LinuxApplicationUpdateRecovery, LinuxApplicationUpdateError> {
+    let configured_runtime = HostPreferenceStore::application_runtime_lock_path()
+        .map_err(|error| LinuxApplicationUpdateError::InstalledContext(error.to_string()))?;
+    if fs::canonicalize(configured_runtime)? != runtime.path() {
+        return Err(LinuxApplicationUpdateError::RecoveryRequired(
+            "the retained runtime guard does not cover the configured application update lock"
+                .into(),
+        ));
+    }
+
+    let state = apply.load()?;
+    if state.native_launch
+        != Some(crate::application_update_apply::ApplicationUpdateNativeLaunchState::Starting)
+    {
+        return Ok(LinuxApplicationUpdateRecovery::NoAttempt);
+    }
+    let intent = state.intent.as_ref().ok_or_else(|| {
+        LinuxApplicationUpdateError::RecoveryRequired(
+            "the interrupted native attempt has no retained apply intent".into(),
+        )
+    })?;
+    validate_linux_candidate(&intent.candidate, &intent.installed)?;
+    let current_version = env!("CARGO_PKG_VERSION");
+    if current_version == intent.candidate.release.version {
+        return Ok(LinuxApplicationUpdateRecovery::CandidateInstalled);
+    }
+    if current_version != intent.installed.current_version {
+        return Err(LinuxApplicationUpdateError::RecoveryRequired(
+            "the running AppImage version matches neither the predecessor nor the candidate".into(),
+        ));
+    }
+
+    let execution = current_linux_appimage_execution()?;
+    let replacement = state.native_replacement.as_ref().ok_or_else(|| {
+        LinuxApplicationUpdateError::RecoveryRequired(
+            "the interrupted native attempt has no retained replacement identity".into(),
+        )
+    })?;
+    if execution.source != replacement.source_path {
+        return Err(LinuxApplicationUpdateError::RecoveryRequired(
+            "the running predecessor path differs from the interrupted replacement".into(),
+        ));
+    }
+    let candidate = &intent.candidate.release.artifact;
+    let expected_swap = appimage_swap_path(&execution.source, &candidate.sha256)?;
+    if replacement.backup_path != expected_swap {
+        return Err(LinuxApplicationUpdateError::RecoveryRequired(
+            "the retained swap path differs from the authenticated candidate identity".into(),
+        ));
+    }
+
+    recover_pre_activation_files(
+        &execution.source,
+        &expected_swap,
+        &staging.payload_path(),
+        replacement.previous_bytes,
+        &replacement.previous_sha256,
+        candidate.bytes,
+        &candidate.sha256,
+    )?;
+    apply.record_interrupted_native_replacement_failed(state.revision, replacement)?;
+    Ok(LinuxApplicationUpdateRecovery::RecoveredPreActivation)
 }
 
 /// Observes only the AppImage identity supplied by the native runtime. APPIMAGE
@@ -676,6 +758,98 @@ fn remove_verified_backup_if_present(
 }
 
 #[cfg(target_os = "linux")]
+fn recover_pre_activation_files(
+    source: &Path,
+    swap: &Path,
+    staged_payload: &Path,
+    previous_bytes: u64,
+    previous_sha256: &str,
+    candidate_bytes: u64,
+    candidate_sha256: &str,
+) -> Result<(), LinuxApplicationUpdateError> {
+    verify_file_identity(source, previous_bytes, previous_sha256, true).map_err(|error| {
+        LinuxApplicationUpdateError::RecoveryRequired(format!(
+            "the stable AppImage does not match the recorded predecessor: {error}"
+        ))
+    })?;
+    let mut candidate =
+        verify_file_identity(staged_payload, candidate_bytes, candidate_sha256, true).map_err(
+            |error| {
+                LinuxApplicationUpdateError::RecoveryRequired(format!(
+                    "the staged candidate cannot identify an interrupted swap: {error}"
+                ))
+            },
+        )?;
+    remove_candidate_prefix_if_present(swap, &mut candidate, candidate_bytes)?;
+    sync_parent(source)?;
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn remove_candidate_prefix_if_present(
+    path: &Path,
+    candidate: &mut File,
+    candidate_bytes: u64,
+) -> Result<(), LinuxApplicationUpdateError> {
+    match fs::symlink_metadata(path) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(error.into()),
+        Ok(_) => {}
+    }
+    let direct = direct_absolute_path(path).map_err(|error| {
+        LinuxApplicationUpdateError::RecoveryRequired(format!(
+            "the interrupted candidate swap is not a direct file: {error}"
+        ))
+    })?;
+    let mut swap = OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC)
+        .open(&direct)?;
+    let metadata = swap.metadata()?;
+    if !metadata.is_file()
+        || metadata.uid() != unsafe { libc::geteuid() }
+        || metadata.len() > candidate_bytes
+    {
+        return Err(LinuxApplicationUpdateError::RecoveryRequired(
+            "the interrupted candidate swap has an unrecognized file identity".into(),
+        ));
+    }
+
+    candidate.seek(SeekFrom::Start(0))?;
+    let mut remaining = metadata.len();
+    let mut swap_buffer = [0_u8; 64 * 1024];
+    let mut candidate_buffer = [0_u8; 64 * 1024];
+    while remaining > 0 {
+        let count = usize::try_from(remaining.min(swap_buffer.len() as u64)).map_err(|_| {
+            LinuxApplicationUpdateError::InvalidPayload(
+                "the interrupted candidate length overflowed".into(),
+            )
+        })?;
+        swap.read_exact(&mut swap_buffer[..count])?;
+        candidate.read_exact(&mut candidate_buffer[..count])?;
+        if swap_buffer[..count] != candidate_buffer[..count] {
+            return Err(LinuxApplicationUpdateError::RecoveryRequired(
+                "the interrupted swap is not an exact prefix of the authenticated candidate".into(),
+            ));
+        }
+        remaining -= count as u64;
+    }
+    let mut trailing = [0_u8; 1];
+    if swap.read(&mut trailing)? != 0 {
+        return Err(LinuxApplicationUpdateError::RecoveryRequired(
+            "the interrupted candidate swap changed while it was inspected".into(),
+        ));
+    }
+    require_same_file(&direct, &swap, "interrupted candidate swap").map_err(|error| {
+        LinuxApplicationUpdateError::RecoveryRequired(format!(
+            "the interrupted candidate swap changed before cleanup: {error}"
+        ))
+    })?;
+    fs::remove_file(&direct)?;
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
 fn sync_parent(path: &Path) -> Result<(), LinuxApplicationUpdateError> {
     let parent = path.parent().ok_or_else(|| {
         LinuxApplicationUpdateError::InvalidPath("the AppImage has no parent directory".into())
@@ -1069,6 +1243,112 @@ mod tests {
             verify_file_identity(&payload, generic_elf.len() as u64, &digest, true),
             Err(LinuxApplicationUpdateError::InvalidPayload(_))
         ));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn interrupted_candidate_prefixes_are_removed_only_after_exact_proof() {
+        for retained_bytes in [0, 47, 128] {
+            let root = TempDir::new().unwrap();
+            let (plan, old, candidate) = replacement_plan(&root);
+            fs::write(&plan.swap, &candidate[..retained_bytes]).unwrap();
+
+            recover_pre_activation_files(
+                &plan.source,
+                &plan.swap,
+                &root.path().join("candidate.payload"),
+                old.len() as u64,
+                &hex::encode(Sha256::digest(&old)),
+                candidate.len() as u64,
+                &hex::encode(Sha256::digest(&candidate)),
+            )
+            .unwrap();
+            assert_eq!(fs::read(&plan.source).unwrap(), old);
+            assert!(!plan.swap.exists());
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn interrupted_candidate_cleanup_accepts_a_missing_swap() {
+        let root = TempDir::new().unwrap();
+        let (plan, old, candidate) = replacement_plan(&root);
+
+        recover_pre_activation_files(
+            &plan.source,
+            &plan.swap,
+            &root.path().join("candidate.payload"),
+            old.len() as u64,
+            &hex::encode(Sha256::digest(&old)),
+            candidate.len() as u64,
+            &hex::encode(Sha256::digest(&candidate)),
+        )
+        .unwrap();
+        assert_eq!(fs::read(&plan.source).unwrap(), old);
+        assert!(!plan.swap.exists());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn unrecognized_interrupted_swap_is_retained_for_manual_recovery() {
+        let root = TempDir::new().unwrap();
+        let (plan, old, candidate) = replacement_plan(&root);
+        let unrecognized = fake_appimage(0x44)[..47].to_vec();
+        fs::write(&plan.swap, &unrecognized).unwrap();
+
+        assert!(matches!(
+            recover_pre_activation_files(
+                &plan.source,
+                &plan.swap,
+                &root.path().join("candidate.payload"),
+                old.len() as u64,
+                &hex::encode(Sha256::digest(&old)),
+                candidate.len() as u64,
+                &hex::encode(Sha256::digest(&candidate)),
+            ),
+            Err(LinuxApplicationUpdateError::RecoveryRequired(_))
+        ));
+        assert_eq!(fs::read(&plan.source).unwrap(), old);
+        assert_eq!(fs::read(&plan.swap).unwrap(), unrecognized);
+
+        fs::write(&plan.source, fake_appimage(0x55)).unwrap();
+        fs::write(&plan.swap, &candidate[..47]).unwrap();
+        assert!(matches!(
+            recover_pre_activation_files(
+                &plan.source,
+                &plan.swap,
+                &root.path().join("candidate.payload"),
+                old.len() as u64,
+                &hex::encode(Sha256::digest(&old)),
+                candidate.len() as u64,
+                &hex::encode(Sha256::digest(&candidate)),
+            ),
+            Err(LinuxApplicationUpdateError::RecoveryRequired(_))
+        ));
+        assert!(plan.swap.exists());
+
+        fs::write(&plan.source, &old).unwrap();
+        fs::remove_file(&plan.swap).unwrap();
+        std::os::unix::fs::symlink(root.path().join("candidate.payload"), &plan.swap).unwrap();
+        assert!(matches!(
+            recover_pre_activation_files(
+                &plan.source,
+                &plan.swap,
+                &root.path().join("candidate.payload"),
+                old.len() as u64,
+                &hex::encode(Sha256::digest(&old)),
+                candidate.len() as u64,
+                &hex::encode(Sha256::digest(&candidate)),
+            ),
+            Err(LinuxApplicationUpdateError::RecoveryRequired(_))
+        ));
+        assert!(
+            fs::symlink_metadata(&plan.swap)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+        assert!(root.path().join("candidate.payload").exists());
     }
 
     #[cfg(target_os = "linux")]
