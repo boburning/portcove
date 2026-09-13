@@ -64,7 +64,7 @@ test("cheap identity unlocks validation and builds concurrently behind an explic
     validateSection,
     /workflow-provenance-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}/,
   );
-  assert.match(validateSection, /retention-days: 30/);
+  assert.match(validateSection, /retention-days: 7/);
   assert.match(buildSection, /^ {4}needs: identity$/m);
   assert.doesNotMatch(buildSection, /needs: validate/);
   assert.match(gateSection, /^ {4}if: always\(\)$/m);

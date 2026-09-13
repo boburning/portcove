@@ -188,11 +188,7 @@ async function main(args = process.argv.slice(2)) {
     cargo_profile_dev_debug: values.mode === "ci" ? "line-tables-only" : null,
     cargo_profile_test_debug: values.mode === "ci" ? "line-tables-only" : null,
   };
-  const packageManagerVersion = command(
-    "corepack",
-    ["pnpm", "--version"],
-    path.join(root, "apps/desktop"),
-  );
+  const packageManagerVersion = command("pnpm", ["--version"], path.join(root, "apps/desktop"));
   const record = buildWorkflowProvenance({
     workflow: values.workflow,
     mode: values.mode,

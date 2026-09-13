@@ -92,7 +92,7 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
     provenance,
     /workflow-provenance-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}/,
   );
-  assert.match(provenance, /retention-days: 30/);
+  assert.match(provenance, /retention-days: 7/);
   assert.match(rustQualityGate, /needs: \[classify, provenance, prose_checks, rust_quality_full\]/);
   assert.match(rustQualityGate, /PORTCOVE_ALWAYS_RESULTS: '\{"provenance"/);
   assert.match(proseChecks, /^ {4}if: needs\.classify\.outputs\.mode == 'prose'$/m);

@@ -77,7 +77,7 @@ jobs:
         with:
           name: workflow-provenance-${{ github.run_id }}-${{ github.run_attempt }}
           path: work/workflow-provenance/workflow-provenance.json
-          retention-days: 30
+          retention-days: 7
           if-no-files-found: error
 
   prose_checks:
