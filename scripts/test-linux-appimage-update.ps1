@@ -59,7 +59,7 @@ $sentinel = Join-Path $sentinelRoot "preserve.txt"
 $sentinelHash = (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash
 
 $evidence = [ordered]@{
-    schema_version = 7
+    schema_version = 8
     phase = "preparing"
     source_commit = (& git rev-parse HEAD | Out-String).Trim()
     platform = "linux-x86_64"
@@ -86,6 +86,13 @@ $evidence = [ordered]@{
     read_only_state_preserved = $false
     read_only_state_write_restored = $false
     read_only_state_recovery_action = "restore exact Unix modes"
+    full_disk_state_enforced = $false
+    full_disk_state_available_bytes = $null
+    full_disk_state_exit_code = $null
+    full_disk_state_predecessor_restart_observed = $false
+    full_disk_state_preserved = $false
+    full_disk_state_write_restored = $false
+    full_disk_state_recovery_action = "remove bounded filler and unmount disposable tmpfs"
     runtime_contention_hold_seconds = 2
     runtime_contention_helper_blocked = $false
     runtime_contention_stable_preserved = $false
@@ -157,6 +164,9 @@ foreach ($name in $environmentNames) { $previousEnvironment[$name] = [Environmen
 $xvfb = $null
 $runtimeHolder = $null
 $updateHelper = $null
+$fullDiskMount = Join-Path $state "full-disk-update-state"
+$fullDiskFiller = Join-Path $fullDiskMount ".qualification-full-disk-filler"
+$fullDiskMounted = $false
 try {
     Write-Evidence "preparing"
     $prepareOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_appimage_update -- prepare 0.1.0 $trustedRoot $metadata $targets $candidate $updatePreferences $updateRoot $libraryRoot | Out-String
@@ -339,6 +349,98 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Application update journal did not regain owner write permission" }
     $evidence.read_only_state_write_restored = $true
     Write-Evidence "read-only-state-recovered"
+
+    New-Item -ItemType Directory -Path $fullDiskMount | Out-Null
+    & /usr/bin/sudo -n /usr/bin/true
+    if ($LASTEXITCODE -ne 0) { throw "Full-disk qualification requires non-interactive sudo" }
+    $fullDiskBytes = (Get-Item -LiteralPath $stagedCandidatePath -Force).Length + (32 * 1024 * 1024)
+    $userId = (& /usr/bin/id -u | Out-String).Trim()
+    $groupId = (& /usr/bin/id -g | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or $userId -notmatch '^\d+$' -or $groupId -notmatch '^\d+$') {
+        throw "Could not determine the qualification user identity"
+    }
+    $mountOptions = "size=$fullDiskBytes,mode=0700,uid=$userId,gid=$groupId"
+    & /usr/bin/sudo -n /usr/bin/mount -t tmpfs -o $mountOptions tmpfs $fullDiskMount
+    if ($LASTEXITCODE -ne 0) { throw "Could not mount the bounded full-disk qualification filesystem" }
+    $fullDiskMounted = $true
+    try {
+        & /usr/bin/cp --archive -- "${updateRoot}/." "${fullDiskMount}/"
+        if ($LASTEXITCODE -ne 0) { throw "Could not copy the pending update state into the bounded filesystem" }
+
+        $fullDiskApplyPath = Join-Path $fullDiskMount "apply.json"
+        $fullDiskStagingPath = Join-Path $fullDiskMount "staging.json"
+        $fullDiskCandidatePath = Join-Path $fullDiskMount "candidate.payload"
+        $fullDiskApplyHash = (Get-FileHash -LiteralPath $fullDiskApplyPath -Algorithm SHA256).Hash
+        $fullDiskStagingHash = (Get-FileHash -LiteralPath $fullDiskStagingPath -Algorithm SHA256).Hash
+        $fullDiskCandidateHash = (Get-FileHash -LiteralPath $fullDiskCandidatePath -Algorithm SHA256).Hash
+        if ($fullDiskApplyHash -ne (Get-FileHash -LiteralPath $applyPath -Algorithm SHA256).Hash -or
+            $fullDiskStagingHash -ne (Get-FileHash -LiteralPath $stagingPath -Algorithm SHA256).Hash -or
+            $fullDiskCandidateHash -ne (Get-FileHash -LiteralPath $stagedCandidatePath -Algorithm SHA256).Hash) {
+            throw "The bounded filesystem did not receive the exact pending update state"
+        }
+        $fullDiskEntries = @(Get-ChildItem -LiteralPath $fullDiskMount -Recurse -Force |
+                ForEach-Object { [IO.Path]::GetRelativePath($fullDiskMount, $_.FullName) } |
+                Sort-Object)
+
+        $fillLog = Join-Path $state "full-disk-fill.log"
+        & /usr/bin/dd if=/dev/zero "of=$fullDiskFiller" bs=1M status=none 2> $fillLog
+        if ($LASTEXITCODE -eq 0) { throw "The bounded filesystem filler unexpectedly reached end-of-input" }
+        $availableText = (& /usr/bin/df --output=avail -B1 -- $fullDiskMount | Select-Object -Last 1 | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0 -or $availableText -notmatch '^\d+$') {
+            throw "Could not measure the bounded filesystem after filling it"
+        }
+        $evidence.full_disk_state_available_bytes = [uint64]::Parse($availableText, [Globalization.CultureInfo]::InvariantCulture)
+        if ($evidence.full_disk_state_available_bytes -ne 0) {
+            throw "The bounded filesystem retained $($evidence.full_disk_state_available_bytes) writable bytes"
+        }
+        $fullDiskProbe = Join-Path $fullDiskMount ".qualification-write-probe"
+        & /usr/bin/dd if=/dev/zero "of=$fullDiskProbe" bs=1 count=1 status=none 2> $null
+        $probeExitCode = $LASTEXITCODE
+        if (Test-Path -LiteralPath $fullDiskProbe) { Remove-Item -LiteralPath $fullDiskProbe -Force }
+        if ($probeExitCode -eq 0) { throw "The full-disk qualification filesystem accepted a one-byte write" }
+        $evidence.full_disk_state_enforced = $true
+
+        $env:PORTCOVE_APPLICATION_UPDATE_STAGING = $fullDiskMount
+        Remove-Item -LiteralPath $qualificationStage -Force -ErrorAction SilentlyContinue
+        Write-Evidence "full-disk-state-starting"
+        & $stable --portcove-apply-update ([string]$prepared.apply_revision)
+        $evidence.full_disk_state_exit_code = $LASTEXITCODE
+        if ($LASTEXITCODE -ne 1) { throw "Full-disk-state helper exited with code $LASTEXITCODE instead of 1" }
+        Wait-StablePredecessorRestart $qualificationStage $env:PORTCOVE_APPLICATION_RUNTIME_LOCK $StartupTimeoutSeconds "Full-disk-state failure"
+        $evidence.full_disk_state_predecessor_restart_observed = $true
+
+        $fullDiskEntriesAfter = @(Get-ChildItem -LiteralPath $fullDiskMount -Recurse -Force |
+                Where-Object FullName -ne $fullDiskFiller |
+                ForEach-Object { [IO.Path]::GetRelativePath($fullDiskMount, $_.FullName) } |
+                Sort-Object)
+        $entryChanges = @(Compare-Object -ReferenceObject $fullDiskEntries -DifferenceObject $fullDiskEntriesAfter)
+        if ($entryChanges.Count -ne 0 -or
+            (Get-FileHash -LiteralPath $fullDiskApplyPath -Algorithm SHA256).Hash -ne $fullDiskApplyHash -or
+            (Get-FileHash -LiteralPath $fullDiskStagingPath -Algorithm SHA256).Hash -ne $fullDiskStagingHash -or
+            (Get-FileHash -LiteralPath $fullDiskCandidatePath -Algorithm SHA256).Hash -ne $fullDiskCandidateHash -or
+            (Get-FileHash -LiteralPath $stable -Algorithm SHA256).Hash.ToLowerInvariant() -ne $predecessorHash -or
+            (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -ne $sentinelHash -or
+            (Test-Path -LiteralPath $swap)) {
+            throw "Full-disk-state failure changed the pending inventory, journal, staging, stable AppImage, or persistent data"
+        }
+        $evidence.full_disk_state_preserved = $true
+        Write-Evidence "full-disk-state-preserved"
+
+        Remove-Item -LiteralPath $fullDiskFiller -Force
+        [IO.File]::WriteAllText($fullDiskProbe, "write-restored")
+        Remove-Item -LiteralPath $fullDiskProbe -Force
+        $evidence.full_disk_state_write_restored = $true
+    } finally {
+        $env:PORTCOVE_APPLICATION_UPDATE_STAGING = $updateRoot
+        if (Test-Path -LiteralPath $fullDiskFiller) { Remove-Item -LiteralPath $fullDiskFiller -Force }
+        if ($fullDiskMounted) {
+            & /usr/bin/sudo -n /usr/bin/umount -- $fullDiskMount
+            if ($LASTEXITCODE -ne 0) { throw "Could not unmount the full-disk qualification filesystem" }
+            $fullDiskMounted = $false
+        }
+        if (Test-Path -LiteralPath $fullDiskMount) { Remove-Item -LiteralPath $fullDiskMount -Force }
+    }
+    Write-Evidence "full-disk-state-recovered"
 
     $runtimeLockReady = Join-Path $state "runtime-lock-ready"
     $runtimeLockScript = Join-Path $state "hold-runtime-lock.sh"
