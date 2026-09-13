@@ -160,6 +160,14 @@ test("Rust setup installs the repository pin instead of an unrelated stable tool
     assert.match(section, /uses: \.\/\.github\/actions\/setup-rust/);
   }
   assert.match(setup, /node scripts\/run-rust-tests\.mjs --prepare-only/);
+  assert.match(setup, /Record exact Rust toolchain and job context/);
+  assert.match(setup, /rustc --version --verbose/);
+  assert.match(setup, /cargo --version/);
+  assert.match(setup, /github\.run_attempt/);
+  assert.match(setup, /github\.sha/);
+  assert.match(setup, /IsNullOrWhiteSpace\(\$env:PORTCOVE_TARGETS\)/);
+  assert.match(setup, /host only/);
+  assert.match(setup, /Cache state is not inferred from the attempt number/);
   for (const section of [rustTests, rustWorkspaceTests, nativeRust, intelTests, rustQuality]) {
     assert.match(section, /test-fixtures: true/);
   }

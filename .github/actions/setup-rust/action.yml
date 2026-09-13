@@ -41,6 +41,44 @@ runs:
       with:
         toolchain: ${{ steps.repository-toolchain.outputs.channel }}
         targets: ${{ inputs.targets }}
+    - name: Record exact Rust toolchain and job context
+      shell: pwsh
+      env:
+        PORTCOVE_TOOLCHAIN: ${{ steps.repository-toolchain.outputs.channel }}
+        PORTCOVE_TARGETS: ${{ inputs.targets }}
+        PORTCOVE_RUNNER: ${{ runner.os }}-${{ runner.arch }}
+        PORTCOVE_JOB: ${{ github.job }}
+        PORTCOVE_ATTEMPT: ${{ github.run_attempt }}
+        PORTCOVE_SHA: ${{ github.sha }}
+      run: |
+        $ErrorActionPreference = 'Stop'
+        function Cell([string] $Value) {
+          return $Value.Replace('|', '\|').Replace("`r", '').Replace("`n", '<br>')
+        }
+        $rustc = Cell ((& rustc --version --verbose) -join "`n")
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        $cargo = Cell ((& cargo --version) -join "`n")
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        $targets = if ([string]::IsNullOrWhiteSpace($env:PORTCOVE_TARGETS)) {
+          'host only'
+        } else {
+          Cell $env:PORTCOVE_TARGETS
+        }
+        @(
+          '### Rust toolchain context'
+          ''
+          '| Field | Observed value |'
+          '|---|---|'
+          "| Repository pin | $(Cell $env:PORTCOVE_TOOLCHAIN) |"
+          "| Installed rustc | $rustc |"
+          "| Installed Cargo | $cargo |"
+          "| Requested targets | $targets |"
+          "| Runner | $(Cell $env:PORTCOVE_RUNNER) |"
+          "| Job / attempt | $(Cell $env:PORTCOVE_JOB) / $(Cell $env:PORTCOVE_ATTEMPT) |"
+          "| Commit | $(Cell $env:PORTCOVE_SHA) |"
+          ''
+          'Setup and tool acquisition remain separate workflow steps from build and test execution. Cache state is not inferred from the attempt number.'
+        ) >> $env:GITHUB_STEP_SUMMARY
     - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       if: inputs.test-fixtures == 'true'
       with:
