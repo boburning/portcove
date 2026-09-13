@@ -128,7 +128,7 @@ export async function finalizeReleaseAssets(assetRoot, inventoryFile, options = 
     download_url: `https://github.com/${inventory.repository}/releases/download/${inventory.tag}/${releaseSbomName}`,
   };
   await writeFile(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`, "utf8");
-  return { assets: expectedNames.sort(), inventory, sbomSubjects: `${sbomSubjects}\n` };
+  return { assets: expectedNames.sort(), inventory };
 }
 
 function parseArguments(argv) {

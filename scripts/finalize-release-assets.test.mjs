@@ -19,10 +19,21 @@ async function fixture(t) {
   const sbomSubjectChecksums = path.join(root, "attestation", "sbom-subject-checksums.txt");
   await mkdir(assets, { recursive: true });
   await mkdir(path.dirname(inventoryPath), { recursive: true });
-  const packageBytes = Buffer.from("package");
-  const filename = "portcove-cli-1.2.3-windows-x86_64.zip";
-  await writeFile(path.join(assets, filename), packageBytes);
-  await writeFile(path.join(assets, "SHA256SUMS.txt"), `${sha256(packageBytes)}  ${filename}\n`);
+  const packages = [
+    {
+      filename: "portcove-cli-1.2.3-windows-x86_64.zip",
+      contents: Buffer.from("windows package"),
+    },
+    {
+      filename: "portcove-cli-1.2.3-linux-x86_64.tar.gz",
+      contents: Buffer.from("linux package"),
+    },
+  ];
+  for (const item of packages) await writeFile(path.join(assets, item.filename), item.contents);
+  await writeFile(
+    path.join(assets, "SHA256SUMS.txt"),
+    `${packages.map((item) => `${sha256(item.contents)}  ${item.filename}`).join("\n")}\n`,
+  );
   await writeFile(
     path.join(assets, releaseSbomName),
     `${JSON.stringify({ spdxVersion: "SPDX-2.3", dataLicense: "CC0-1.0", packages: [{ name: "portcove" }] })}\n`,
@@ -35,10 +46,14 @@ async function fixture(t) {
       version: "1.2.3",
       tag: "v1.2.3",
       checksum_manifest: "SHA256SUMS.txt",
-      packages: [{ filename, bytes: packageBytes.length, sha256: sha256(packageBytes) }],
+      packages: packages.map((item) => ({
+        filename: item.filename,
+        bytes: item.contents.length,
+        sha256: sha256(item.contents),
+      })),
     })}\n`,
   );
-  return { root, assets, inventoryPath, sbomSubjectChecksums, filename };
+  return { root, assets, inventoryPath, sbomSubjectChecksums, packages };
 }
 
 test("binds the SBOM publicly while limiting SBOM attestation subjects to packages", async (t) => {
@@ -50,9 +65,14 @@ test("binds the SBOM publicly while limiting SBOM attestation subjects to packag
   const manifest = await readFile(path.join(item.assets, "SHA256SUMS.txt"), "utf8");
   assert.match(manifest, new RegExp(`  ${releaseSbomName}\\n`, "u"));
   const subjectChecksums = await readFile(item.sbomSubjectChecksums, "utf8");
-  assert.equal(subjectChecksums, `${sha256(Buffer.from("package"))}  ${item.filename}\n`);
+  assert.equal(
+    subjectChecksums,
+    `${item.packages
+      .toSorted((left, right) => left.filename.localeCompare(right.filename))
+      .map((entry) => `${sha256(entry.contents)}  ${entry.filename}`)
+      .join("\n")}\n`,
+  );
   assert.doesNotMatch(subjectChecksums, new RegExp(releaseSbomName, "u"));
-  assert.equal(first.sbomSubjects, subjectChecksums);
   assert.equal(first.inventory.sbom.filename, releaseSbomName);
   assert.match(first.inventory.sbom.sha256, /^[a-f0-9]{64}$/u);
   const second = await finalizeReleaseAssets(item.assets, item.inventoryPath, {
