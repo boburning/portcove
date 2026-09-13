@@ -87,7 +87,7 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   }
   assert.match(classify, /fetch-depth: 0/);
   assert.match(classify, /node scripts\/select-ci-plan\.mjs/);
-  assert.match(classify, /PORTCOVE_PROSE_POLICY_ACTIVATED: "false"/);
+  assert.match(classify, /PORTCOVE_PROSE_POLICY_ACTIVATED: "true"/);
   assert.match(provenance, /node scripts\/workflow-provenance\.mjs/);
   assert.match(
     provenance,
