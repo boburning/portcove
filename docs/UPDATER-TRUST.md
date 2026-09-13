@@ -380,7 +380,9 @@ continues through normal healthy-startup reconciliation. Qualification interrupt
 the helper after the atomic exchange and directory sync but before journal success,
 proves the exact candidate and predecessor backup remain, then launches the stable
 candidate and requires normal startup reconciliation to retire only those verified
-bytes and the staged request.
+bytes and the staged request. The packaged qualification also holds the shared
+runtime lock in a separate process and proves the replacement helper waits without
+changing the predecessor, staged payload, or journal before it continues.
 Package qualification remains a separate gate. The ordinary alpha build
 supplies no production root or origin. In an updater-enabled
 build, the fixed manual check and explicit restart helper are the only commands that

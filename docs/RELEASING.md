@@ -37,11 +37,14 @@ Linux builds a disposable test-signed TUF repository, embeds its public trust an
 local repository URLs in a qualification-only 0.1.0 AppImage, and exercises the
 packaged helper through an interrupted candidate copy, GUI-independent command
 recovery without a display server, and retrying 0.1.0-to-0.3.0 replacement under
-Xvfb. The retry is interrupted after the atomic exchange and directory sync but
-before journal success. The run verifies the partial swap, exact predecessor and
-retryable journal after pre-activation recovery, then the candidate at the stable
-path and the exact predecessor backup before a candidate startup reconciles the
-request. It finally verifies the stable candidate hash and executable bit,
+Xvfb. Before the retry, a separate process holds the shared application-runtime
+lock; the helper must remain blocked with the stable predecessor, staged payload,
+and apply journal unchanged, then continue after that peer exits. The retry is
+interrupted after the atomic exchange and directory sync but before journal success.
+The run verifies the partial swap, exact predecessor and retryable journal after
+pre-activation recovery, then the candidate at the stable path and the exact
+predecessor backup before a candidate startup reconciles the request. It finally
+verifies the stable candidate hash and executable bit,
 healthy-startup journal reconciliation, staging and backup cleanup, and preservation
 of a library sentinel throughout both attempts.
 It deletes the disposable TUF private keys before starting either AppImage and does
