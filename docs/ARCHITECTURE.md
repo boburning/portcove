@@ -804,7 +804,9 @@ replacement admission or mutates managed files. The recovery entry point's
 starting update work, so packaged qualification can exercise the installed binary
 without a display. A pre-exchange failure is retryable; a
 failure after the atomic exchange remains ambiguous and does not launch another
-process. Other platforms retain their inert generic slot until their own adapters
+process. A later launch of the candidate from the exact stable source can cross the
+normal health boundary, verify the retained predecessor backup, and retire the
+staging and apply records. Other platforms retain their inert generic slot until their own adapters
 define a format-specific replacement. The sibling `application_update_helper` defines the
 post-exit revalidation sequence for a dedicated process without accepting paths,
 repository locations, trust roots, candidates or keys in its request. It first

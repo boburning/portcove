@@ -127,7 +127,9 @@ the same exact predecessor, staged-candidate, stable-path, swap-path, hash and
 byte-prefix checks as desktop startup. Only a verified pre-activation
 interruption becomes retryable. Unknown bytes or paths remain unchanged. If the
 candidate already occupies the stable path, start Portcove normally so its
-healthy-startup boundary can reconcile the update.
+healthy-startup boundary can recheck the candidate and exact predecessor backup,
+then retire the backup, staged payload, and apply request. Portcove does not
+automatically start another process after an ambiguous post-activation interruption.
 
 After **Restart to update**, Windows or macOS may own the visible installer,
 UAC, SmartScreen, or Gatekeeper prompt. Portcove cannot move focus into that

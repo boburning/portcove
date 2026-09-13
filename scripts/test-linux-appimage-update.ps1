@@ -59,7 +59,7 @@ $sentinel = Join-Path $sentinelRoot "preserve.txt"
 $sentinelHash = (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash
 
 $evidence = [ordered]@{
-    schema_version = 3
+    schema_version = 4
     phase = "preparing"
     source_commit = (& git rev-parse HEAD | Out-String).Trim()
     platform = "linux-x86_64"
@@ -74,11 +74,15 @@ $evidence = [ordered]@{
     interruption_recovery_exit_code = $null
     interruption_recovered = $false
     interruption_stable_preserved = $false
-    helper_exit_code = $null
+    post_exchange_exit_code = $null
+    post_exchange_candidate_installed = $false
+    post_exchange_backup_preserved = $false
+    candidate_restart_exit_code = $null
+    post_exchange_reconciled = $false
     stable_sha256 = $null
     executable_mode = $null
     persistent_data_preserved = $false
-    native_relaunch_observed = $false
+    candidate_restart_observed = $false
     production_signing = $false
     failure = $null
 }
@@ -184,11 +188,36 @@ try {
     Start-Sleep -Milliseconds 500
     if ($xvfb.HasExited) { throw "Xvfb exited before the packaged candidate launch" }
 
-    Write-Evidence "helper-starting"
+    $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT = "after-exchange-sync"
+    Write-Evidence "post-exchange-interruption-starting"
     & $stable --portcove-apply-update ([string]$prepared.apply_revision)
-    $evidence.helper_exit_code = $LASTEXITCODE
-    if ($LASTEXITCODE -ne 0) { throw "Packaged AppImage update helper exited with code $LASTEXITCODE" }
-    Write-Evidence "helper-complete"
+    $evidence.post_exchange_exit_code = $LASTEXITCODE
+    if ($LASTEXITCODE -ne 87) { throw "Post-exchange helper exited with code $LASTEXITCODE instead of 87" }
+    Remove-Item Env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT
+    $postExchangeStableHash = (Get-FileHash -LiteralPath $stable -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($postExchangeStableHash -ne $candidateHash) {
+        throw "Post-exchange interruption did not retain the candidate at the stable path"
+    }
+    if (-not (Test-Path -LiteralPath $swap -PathType Leaf)) {
+        throw "Post-exchange interruption did not retain the predecessor backup"
+    }
+    $postExchangeBackupHash = (Get-FileHash -LiteralPath $swap -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($postExchangeBackupHash -ne $predecessorHash) {
+        throw "Post-exchange interruption did not retain the exact predecessor backup"
+    }
+    $interruptedApply = Get-Content -LiteralPath (Join-Path $updateRoot "apply.json") -Raw | ConvertFrom-Json
+    if ($interruptedApply.native_launch -ne "starting" -or $null -eq $interruptedApply.native_replacement) {
+        throw "Post-exchange interruption did not retain the starting replacement journal"
+    }
+    $evidence.post_exchange_candidate_installed = $true
+    $evidence.post_exchange_backup_preserved = $true
+    Write-Evidence "post-exchange-interrupted"
+
+    & $stable
+    $evidence.candidate_restart_exit_code = $LASTEXITCODE
+    if ($LASTEXITCODE -ne 0) { throw "Candidate recovery launch exited with code $LASTEXITCODE" }
+    $evidence.candidate_restart_observed = $true
+    Write-Evidence "candidate-restart-complete"
 
     $deadline = [DateTime]::UtcNow.AddSeconds($StartupTimeoutSeconds)
     $reconciled = $false
@@ -206,6 +235,7 @@ try {
         Start-Sleep -Milliseconds 100
     } while ([DateTime]::UtcNow -lt $deadline)
     if (-not $reconciled) { throw "The candidate AppImage did not reconcile within $StartupTimeoutSeconds seconds" }
+    $evidence.post_exchange_reconciled = $true
 
     $stableHash = (Get-FileHash -LiteralPath $stable -Algorithm SHA256).Hash.ToLowerInvariant()
     if ($stableHash -ne $candidateHash) { throw "The stable AppImage path does not contain the candidate bytes" }
@@ -219,7 +249,6 @@ try {
     $evidence.stable_sha256 = $stableHash
     $evidence.executable_mode = $mode
     $evidence.persistent_data_preserved = $true
-    $evidence.native_relaunch_observed = $true
     Write-Evidence "complete"
     $evidence | ConvertTo-Json -Depth 8 -Compress
 } catch {

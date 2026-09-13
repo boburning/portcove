@@ -207,6 +207,7 @@ impl LinuxAppImageUpdateAdmission {
                 "the stable AppImage path was exchanged but its directory could not be synchronized: {error}"
             ))
         })?;
+        interrupt_qualification_after_exchange_sync();
         launch.record_succeeded().map_err(|error| {
             LinuxApplicationUpdateError::Ambiguous(format!(
                 "the stable AppImage path was exchanged but success could not be recorded: {error}"
@@ -962,6 +963,18 @@ fn interrupt_qualification_during_swap_copy() {
 
 #[cfg(all(target_os = "linux", not(feature = "application-update-qualification")))]
 fn interrupt_qualification_during_swap_copy() {}
+
+#[cfg(all(target_os = "linux", feature = "application-update-qualification"))]
+fn interrupt_qualification_after_exchange_sync() {
+    if std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT").as_deref()
+        == Some(std::ffi::OsStr::new("after-exchange-sync"))
+    {
+        std::process::exit(87);
+    }
+}
+
+#[cfg(all(target_os = "linux", not(feature = "application-update-qualification")))]
+fn interrupt_qualification_after_exchange_sync() {}
 
 #[cfg(target_os = "linux")]
 fn exchange_appimage(plan: &LinuxAppImageUpdatePlan) -> Result<(), LinuxApplicationUpdateError> {

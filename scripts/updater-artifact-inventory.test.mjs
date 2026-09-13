@@ -224,7 +224,12 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(linuxHarness, /interruption_recovery_exit_code/);
   assert.match(linuxHarness, /interruption_recovery_display/);
   assert.match(linuxHarness, /interruption_recovered/);
+  assert.match(linuxHarness, /post_exchange_exit_code/);
+  assert.match(linuxHarness, /post_exchange_backup_preserved/);
+  assert.match(linuxHarness, /post_exchange_reconciled/);
   assert.match(linuxHarness, /-ne 86/);
+  assert.match(linuxHarness, /-ne 87/);
+  assert.match(linuxHarness, /after-exchange-sync/);
   assert.match(linuxHarness, /--application-update-recovery recover interrupted-appimage/);
   assert.match(linuxHarness, /Remove-Item Env:DISPLAY/);
   assert.ok(
@@ -232,5 +237,29 @@ test("manual rehearsal retains the complete matrix without production credential
       linuxHarness.indexOf('Start-Process -FilePath "Xvfb"'),
     "interrupted AppImage recovery must complete before any GUI session starts",
   );
+  assert.ok(
+    linuxHarness.indexOf(
+      'PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT = "after-exchange-sync"',
+    ) < linuxHarness.indexOf("candidate-restart-complete"),
+    "post-exchange interruption must precede candidate startup reconciliation",
+  );
+  const linuxAdapter = await readFile(
+    new URL("../apps/desktop/src-tauri/src/application_update_linux.rs", import.meta.url),
+    "utf8",
+  );
+  const launch = linuxAdapter.slice(
+    linuxAdapter.indexOf("impl LinuxAppImageUpdateAdmission"),
+    linuxAdapter.indexOf("/// Adds direct, user-owned AppImage replacement authority"),
+  );
+  assert.ok(
+    launch.indexOf("sync_parent(&plan.source)") <
+      launch.indexOf("interrupt_qualification_after_exchange_sync()") &&
+      launch.indexOf("interrupt_qualification_after_exchange_sync()") <
+        launch.indexOf("launch.record_succeeded()"),
+    "post-exchange interruption must follow directory sync and precede journal success",
+  );
+  assert.match(linuxAdapter, /feature = "application-update-qualification"/);
+  assert.match(linuxAdapter, /Some\(std::ffi::OsStr::new\("after-exchange-sync"\)\)/);
+  assert.match(linuxAdapter, /std::process::exit\(87\)/);
   assert.match(rehearsal, /Invoke-Checked "dbus-run-session"/);
 });

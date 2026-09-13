@@ -376,7 +376,11 @@ predecessor at the exact stable path, re-verifies the staged candidate, and remo
 swap unless it is absent or an exact byte prefix of that candidate. Unknown paths or
 bytes remain untouched for explicit recovery. The command cannot race a running
 desktop or replacement helper, and a candidate already present at the stable path
-continues through normal healthy-startup reconciliation.
+continues through normal healthy-startup reconciliation. Qualification interrupts
+the helper after the atomic exchange and directory sync but before journal success,
+proves the exact candidate and predecessor backup remain, then launches the stable
+candidate and requires normal startup reconciliation to retire only those verified
+bytes and the staged request.
 Package qualification remains a separate gate. The ordinary alpha build
 supplies no production root or origin. In an updater-enabled
 build, the fixed manual check and explicit restart helper are the only commands that
