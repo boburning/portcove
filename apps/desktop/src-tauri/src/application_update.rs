@@ -12,6 +12,11 @@ use std::collections::BTreeSet;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+
+/// Stable package identity shared by release records and every native updater
+/// adapter. This is the Tauri application identifier, not an executable or
+/// crate name.
+pub const APPLICATION_PRODUCT_ID: &str = "io.github.portcove.portcove";
 use url::Url;
 
 const MAX_RECORD_BYTES: usize = 256 * 1024;
@@ -750,6 +755,12 @@ mod tests {
     use serde_json::{Value, json};
 
     use super::*;
+
+    #[test]
+    fn application_product_id_matches_tauri_identifier() {
+        let config: Value = serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        assert_eq!(config["identifier"], APPLICATION_PRODUCT_ID);
+    }
 
     fn context(version: &str) -> InstalledApplicationContext {
         InstalledApplicationContext {

@@ -126,9 +126,10 @@ async fn prepare(arguments: &[String]) -> Result<PreparedUpdate, String> {
         .await
         .map_err(|error| error.to_string())?;
     if selected.authenticated.selection.state != CandidateState::UpdateAvailable {
+        let reasons = selected.authenticated.selection.reasons.join("; ");
         return Err(format!(
-            "fixture repository did not offer an update: {:?}",
-            selected.authenticated.selection.state
+            "fixture repository did not offer an update: {:?}: {reasons}",
+            selected.authenticated.selection.state,
         ));
     }
     let candidate = selected

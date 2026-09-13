@@ -23,7 +23,9 @@ use rustix::fs::{CWD, RenameFlags, renameat_with};
 use sha2::{Digest, Sha256};
 
 #[cfg(target_os = "linux")]
-use crate::application_update::{InstallOwner, InstalledApplicationContext, SelectedCandidate};
+use crate::application_update::{
+    APPLICATION_PRODUCT_ID, InstallOwner, InstalledApplicationContext, SelectedCandidate,
+};
 #[cfg(any(target_os = "linux", test))]
 use crate::application_update_apply::ApplicationUpdateApplyError;
 #[cfg(target_os = "linux")]
@@ -38,8 +40,6 @@ use crate::application_update_staging::{ApplicationUpdateStagingStore, StagedApp
 const LINUX_TARGET: &str = "linux-x86_64";
 #[cfg(target_os = "linux")]
 const LINUX_EXECUTION_CONTEXT: &str = "user-owned-appimage";
-#[cfg(target_os = "linux")]
-const PRODUCT_ID: &str = "portcove-desktop";
 
 #[derive(Debug, thiserror::Error)]
 pub enum LinuxApplicationUpdateError {
@@ -275,7 +275,7 @@ pub fn linux_appimage_context_for_version(
         execution_context: LINUX_EXECUTION_CONTEXT.into(),
         package_kind: "appimage".into(),
         install_owner: InstallOwner::Portcove,
-        product_id: PRODUCT_ID.into(),
+        product_id: APPLICATION_PRODUCT_ID.into(),
         capabilities: BTreeSet::from([portcove_core::APPLICATION_UPDATE_LOCK_PROTOCOL.to_owned()]),
         cli_protocol: portcove_core::API_SCHEMA_VERSION,
         catalog_format,
@@ -357,7 +357,7 @@ fn validate_linux_candidate(
         || release.execution_context != LINUX_EXECUTION_CONTEXT
         || release.package.kind != "appimage"
         || release.package.owner != InstallOwner::Portcove
-        || release.package.product_id != PRODUCT_ID
+        || release.package.product_id != APPLICATION_PRODUCT_ID
     {
         return Err(LinuxApplicationUpdateError::UnsupportedCandidate(
             "the release target, package or ownership identity does not match".into(),
@@ -369,7 +369,7 @@ fn validate_linux_candidate(
         || installed.execution_context != LINUX_EXECUTION_CONTEXT
         || installed.package_kind != "appimage"
         || installed.install_owner != InstallOwner::Portcove
-        || installed.product_id != PRODUCT_ID
+        || installed.product_id != APPLICATION_PRODUCT_ID
     {
         return Err(LinuxApplicationUpdateError::UnsupportedCandidate(
             "the installed application is not a Portcove-owned x86_64 AppImage".into(),
@@ -1078,7 +1078,7 @@ mod tests {
         assert_eq!(context.current_version, "0.1.0");
         assert_eq!(context.target, LINUX_TARGET);
         assert_eq!(context.execution_context, LINUX_EXECUTION_CONTEXT);
-        assert_eq!(context.product_id, PRODUCT_ID);
+        assert_eq!(context.product_id, APPLICATION_PRODUCT_ID);
     }
 
     #[cfg(target_os = "linux")]
