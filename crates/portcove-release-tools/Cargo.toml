@@ -24,5 +24,5 @@ tough.workspace = true
 url.workspace = true
 
 [dev-dependencies]
-aws-lc-rs = "1"
+aws-lc-rs = "1.18.1"
 minisign = "0.9.1"
