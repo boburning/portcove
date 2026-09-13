@@ -430,6 +430,7 @@ fn query_rpm_owners(executable: &Path) -> Result<BTreeSet<String>, LinuxApplicat
     let Some(output) = run_package_query(
         Path::new(RPM_QUERY_PATH),
         &[
+            std::ffi::OsStr::new("--query"),
             std::ffi::OsStr::new("--queryformat"),
             std::ffi::OsStr::new("%{NAME}\\n"),
             std::ffi::OsStr::new("--file"),
