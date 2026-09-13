@@ -19,6 +19,8 @@ type Deferred = {
 
 type CoalescedRequestOutcome = "completed" | "disposed";
 
+export type ActivityRefreshPriority = "progress" | "prompt";
+
 /** Coalesces same-turn requests and permits at most one queued follow-up. */
 class CoalescedBatch {
   private pending: Deferred[] = [];
@@ -95,6 +97,103 @@ export class CoalescedRequest {
 
 export function closeCoalescedRequest(request: CoalescedRequest) {
   request.close();
+}
+
+type ScheduledWaiter = {
+  resolve: (outcome: CoalescedRequestOutcome) => void;
+  reject: (error: unknown) => void;
+};
+
+/**
+ * Keeps durable activity reads bounded while visual operation events remain immediate.
+ * Prompt boundaries flush a pending progress read; progress uses a non-resetting budget.
+ */
+export class ActivityRefreshScheduler {
+  private readonly requests = new CoalescedRequest();
+  private readonly scheduled: ScheduledWaiter[] = [];
+  private lastSubmittedAt = Number.NEGATIVE_INFINITY;
+  private submissionTurnOpen = false;
+  private unsettledSubmissions = 0;
+  private turnResult: Promise<CoalescedRequestOutcome> | undefined;
+  private latestResult: Promise<CoalescedRequestOutcome> | undefined;
+  private timer: ReturnType<typeof globalThis.setTimeout> | undefined;
+  private closed = false;
+
+  constructor(
+    private readonly task: () => Promise<void>,
+    readonly progressBudgetMs = 500,
+    private readonly now: () => number = Date.now,
+  ) {}
+
+  request(priority: ActivityRefreshPriority) {
+    if (this.closed) return Promise.resolve<CoalescedRequestOutcome>("disposed");
+    if (priority === "prompt") return this.submit();
+    if (this.unsettledSubmissions >= 2 && this.latestResult) return this.latestResult;
+    const now = this.now();
+    if (this.submissionTurnOpen) return this.submit();
+    const delay = Math.max(0, this.lastSubmittedAt + this.progressBudgetMs - now);
+    if (delay === 0) return this.submit();
+    const result = new Promise<CoalescedRequestOutcome>((resolve, reject) => {
+      this.scheduled.push({ resolve, reject });
+    });
+    if (this.timer === undefined)
+      this.timer = globalThis.setTimeout(() => {
+        this.timer = undefined;
+        void this.submit();
+      }, delay);
+    return result;
+  }
+
+  close() {
+    if (this.closed) return;
+    this.closed = true;
+    if (this.timer !== undefined) globalThis.clearTimeout(this.timer);
+    this.timer = undefined;
+    for (const waiter of this.scheduled.splice(0)) waiter.resolve("disposed");
+    this.requests.close();
+  }
+
+  private submit() {
+    if (this.closed) return Promise.resolve<CoalescedRequestOutcome>("disposed");
+    if (this.timer !== undefined) globalThis.clearTimeout(this.timer);
+    this.timer = undefined;
+    const scheduled = this.scheduled.splice(0);
+    if (this.submissionTurnOpen && this.turnResult) {
+      this.settleScheduled(scheduled, this.turnResult);
+      return this.turnResult;
+    }
+    this.lastSubmittedAt = this.now();
+    const result = this.requests.request(this.task);
+    this.submissionTurnOpen = true;
+    this.turnResult = result;
+    this.latestResult = result;
+    this.unsettledSubmissions += 1;
+    queueMicrotask(() => {
+      this.submissionTurnOpen = false;
+      this.turnResult = undefined;
+    });
+    void result.then(
+      () => {
+        this.unsettledSubmissions -= 1;
+      },
+      () => {
+        this.unsettledSubmissions -= 1;
+      },
+    );
+    this.settleScheduled(scheduled, result);
+    return result;
+  }
+
+  private settleScheduled(scheduled: ScheduledWaiter[], result: Promise<CoalescedRequestOutcome>) {
+    void result.then(
+      (outcome) => {
+        for (const waiter of scheduled) waiter.resolve(outcome);
+      },
+      (error: unknown) => {
+        for (const waiter of scheduled) waiter.reject(error);
+      },
+    );
+  }
 }
 
 export function addPendingOperation(
