@@ -67,10 +67,12 @@ async function verifySignature(verifier, artifact, signature, key, identity) {
     result.schema_version !== 1 ||
     result.signature_verified !== true ||
     result.bytes !== identity.bytes ||
-    result.sha256 !== identity.sha256
+    result.sha256 !== identity.sha256 ||
+    !/^[a-f0-9]{64}$/.test(result.public_key_sha256 ?? "")
   ) {
     throw new Error("signature verifier returned a different artifact identity");
   }
+  return result.public_key_sha256;
 }
 
 function assertRevision(revision) {
@@ -132,7 +134,7 @@ export async function stageUpdaterInventory(options) {
   }
   const artifact = path.join(stage, identity.filename);
   const finalIdentity = await fileIdentity(root, artifact);
-  await (options.verifySignature ?? verifySignature)(
+  const publicKeySha256 = await (options.verifySignature ?? verifySignature)(
     options.verifier,
     artifact,
     `${artifact}.sig`,
@@ -140,7 +142,6 @@ export async function stageUpdaterInventory(options) {
     finalIdentity,
   );
   const signatureIdentity = await fileIdentity(root, `${artifact}.sig`);
-  const keyIdentity = await fileIdentity(root, key);
   const inventory = {
     schema_version: 1,
     repository: policy.repository,
@@ -156,7 +157,7 @@ export async function stageUpdaterInventory(options) {
       filename: identity.filename,
       ...finalIdentity,
       signature: { filename: `${identity.filename}.sig`, ...signatureIdentity },
-      public_key_sha256: keyIdentity.sha256,
+      public_key_sha256: publicKeySha256,
     },
   };
   await writeFile(
@@ -221,15 +222,14 @@ export async function verifyUpdaterInventory(options) {
   );
   if ((await lstat(key)).size > 16 * 1024)
     throw new Error("updater public key exceeds its size limit");
-  if ((await fileIdentity(root, key)).sha256 !== updater.public_key_sha256)
-    throw new Error("updater public key mismatch");
-  await (options.verifySignature ?? verifySignature)(
+  const publicKeySha256 = await (options.verifySignature ?? verifySignature)(
     options.verifier,
     path.join(directory, updater.filename),
     path.join(directory, updater.signature.filename),
     key,
     updater,
   );
+  if (publicKeySha256 !== updater.public_key_sha256) throw new Error("updater public key mismatch");
   return inventory;
 }
 

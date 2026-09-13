@@ -52,7 +52,9 @@ the live roadmap issue.
 
 `scripts/updater-artifact-inventory.mjs stage` selects the complete existing package
 matrix, copies final distributed bytes into a new directory, hashes them, verifies
-the updater signature, and writes `updater-inventory.json` last. Windows and Linux
+the updater signature, records the SHA-256 of the decoded canonical Minisign public-key
+file, and writes `updater-inventory.json` last. The outer Tauri base64 wrapper is an
+input encoding rather than the payload-key identity. Windows and Linux
 reuse NSIS/AppImage bytes. Mac updater archives are copied without rebuilding to
 versioned architecture-specific filenames, avoiding the shared `Portcove.app.tar.gz`
 name. CLI, DEB/RPM and DMG remain inventoried companions with their existing owners;

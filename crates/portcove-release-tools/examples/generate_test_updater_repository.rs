@@ -135,14 +135,15 @@ async fn run() -> Result<serde_json::Value, AnyError> {
     let trusted_root = fixture_root.join("trusted-root.json");
     write_root(&trusted_root, &offline, &role_keys[..3]).await?;
 
-    let public_key = fs::read(&payload_public_key)?;
+    let public_key = portcove_release_tools::decode_tauri_public_key(&payload_public_key)?;
+    let public_key = public_key.as_bytes();
     fs::write(
         fixture_root.join("payload.json"),
         serde_json::to_vec_pretty(&json!({
             "schema_version": 1,
             "keys": [{
-                "id": sha256(&public_key),
-                "tauri_public_key": STANDARD.encode(&public_key)
+                "id": sha256(public_key),
+                "tauri_public_key": STANDARD.encode(public_key)
             }]
         }))?,
     )?;
@@ -191,7 +192,7 @@ async fn run() -> Result<serde_json::Value, AnyError> {
         "fixture_root": fixture_root,
         "trusted_root": trusted_root,
         "build_config": config_path,
-        "payload_public_key_sha256": sha256(&public_key),
+        "payload_public_key_sha256": sha256(public_key),
         "production_signing": false
     }))
 }

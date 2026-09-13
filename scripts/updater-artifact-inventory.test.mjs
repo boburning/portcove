@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -56,8 +57,10 @@ async function fixture(t, label = "windows-x86_64") {
     verifySignature: async (_verifier, artifact, signature, key, expected) => {
       assert.equal((await readFile(artifact)).length, expected.bytes);
       assert.equal(await readFile(signature, "utf8"), "signature fixture");
-      assert.equal(await readFile(key, "utf8"), "public key fixture");
       verified += 1;
+      return createHash("sha256")
+        .update(await readFile(key))
+        .digest("hex");
     },
   };
   return { root, source, identity, options, verified: () => verified };
