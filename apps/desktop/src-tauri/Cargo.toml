@@ -42,7 +42,7 @@ url.workspace = true
 zip.workspace = true
 
 [dev-dependencies]
-aws-lc-rs = "1"
+aws-lc-rs = "1.18.1"
 tempfile.workspace = true
 
 [target.'cfg(windows)'.dependencies]
