@@ -158,7 +158,13 @@ if [[ -e "$installed_executable" ]]; then
 fi
 
 export PORTCOVE_EVIDENCE_ROOT="$evidence_root"
-export PORTCOVE_SOURCE_COMMIT="${GITHUB_SHA:-$(git rev-parse HEAD)}"
+checkout_commit=$(git rev-parse HEAD)
+PORTCOVE_SOURCE_COMMIT=${PORTCOVE_SOURCE_COMMIT:-${GITHUB_SHA:-$checkout_commit}}
+if [[ ! "$PORTCOVE_SOURCE_COMMIT" =~ ^[a-f0-9]{40}$ || "$PORTCOVE_SOURCE_COMMIT" != "$checkout_commit" ]]; then
+  echo "source commit must equal the exact checked-out commit" >&2
+  exit 1
+fi
+export PORTCOVE_SOURCE_COMMIT
 export PORTCOVE_PACKAGE_FORMAT="$format"
 PORTCOVE_PACKAGE_FILE=$(basename "$package_file")
 PORTCOVE_PACKAGE_SHA256=$(sha256sum "$package_file" | cut -d ' ' -f 1)

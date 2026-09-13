@@ -205,6 +205,11 @@ test("Linux package ownership rehearsal is focused and preserves managed executa
   }
   assert.match(rehearsal, /runs-on: ubuntu-22\.04/);
   assert.match(rehearsal, /container: fedora:42/);
+  assert.match(
+    rehearsal,
+    /PORTCOVE_SOURCE_COMMIT: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/,
+  );
+  assert.equal(rehearsal.match(/ref: \$\{\{ env\.PORTCOVE_SOURCE_COMMIT \}\}/g)?.length, 3);
   assert.match(rehearsal, /pnpm tauri build --bundles deb,rpm --ci/);
   assert.match(rehearsal, /actions\/download-artifact@/);
   assert.match(rehearsal, /test-linux-package-ownership\.sh deb/);
@@ -220,6 +225,7 @@ test("Linux package ownership rehearsal is focused and preserves managed executa
   assert.match(qualification, /dnf --assumeyes install/);
   assert.match(qualification, /\$format-owners\.txt/);
   assert.match(qualification, /hash_before.*hash_after/s);
+  assert.match(qualification, /checkout_commit.*PORTCOVE_SOURCE_COMMIT/s);
   assert.match(qualification, /package_managed_files_unchanged: true/);
 });
 
