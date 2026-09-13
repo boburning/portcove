@@ -5,18 +5,21 @@ import path from "node:path";
 const FORMAT_VERSION = 1;
 const FRONTEND_INPUTS = [
   ".node-version",
-  "apps/desktop/assets",
   "apps/desktop/public",
-  "apps/desktop/scripts",
   "apps/desktop/src",
   "apps/desktop/index.html",
   "apps/desktop/package.json",
   "apps/desktop/pnpm-lock.yaml",
   "apps/desktop/pnpm-workspace.yaml",
-  "apps/desktop/stylelint.config.mjs",
   "apps/desktop/tsconfig.json",
   "apps/desktop/tsconfig.node.json",
   "apps/desktop/vite.config.ts",
+];
+const FRONTEND_OPTIONAL_INPUTS = [
+  "apps/desktop/.env",
+  "apps/desktop/.env.local",
+  "apps/desktop/.env.production",
+  "apps/desktop/.env.production.local",
 ];
 
 const portable = (value) => value.split(path.sep).join("/");
@@ -55,6 +58,19 @@ async function inventory(root, names) {
   return entries.sort((left, right) => left.path.localeCompare(right.path));
 }
 
+async function optionalInventory(root, names) {
+  const entries = [];
+  for (const name of names) {
+    try {
+      await inventoryEntry(path.join(root, name), name, entries);
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+      entries.push({ path: portable(name), missing: true });
+    }
+  }
+  return entries.sort((left, right) => left.path.localeCompare(right.path));
+}
+
 function buildEnvironment(environment) {
   return Object.fromEntries(
     Object.entries(environment)
@@ -84,7 +100,10 @@ export async function createFrontendBuildIdentity({
       architecture,
     },
     environment: buildEnvironment(environment),
-    inputs: await inventory(root, FRONTEND_INPUTS),
+    inputs: [
+      ...(await inventory(root, FRONTEND_INPUTS)),
+      ...(await optionalInventory(root, FRONTEND_OPTIONAL_INPUTS)),
+    ].sort((left, right) => left.path.localeCompare(right.path)),
   };
   return { ...identity, fingerprint: sha256(JSON.stringify(identity)) };
 }

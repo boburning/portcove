@@ -7,6 +7,7 @@ const success = {
   identity: "success",
   validate: "success",
   build: "success",
+  build_intel: "success",
   verify_intel: "success",
 };
 

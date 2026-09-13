@@ -25,7 +25,8 @@ function job(name, next) {
 
 const identitySection = job("identity", "validate");
 const validateSection = job("validate", "build");
-const buildSection = job("build", "verify_intel");
+const buildSection = job("build", "build_intel");
+const intelBuildSection = job("build_intel", "verify_intel");
 const intelSection = job("verify_intel", "release_gate");
 const gateSection = job("release_gate", "assemble");
 const assembleSection = job("assemble", "rehearse");
@@ -37,6 +38,7 @@ const cleanupSection = job("cleanup");
 test("write authority is split across isolated attestation publication and cleanup jobs", () => {
   assert.match(workflow, /^permissions:\r?\n {2}contents: read$/m);
   assert.match(buildSection, /^ {4}permissions:\r?\n {6}contents: read$/m);
+  assert.match(intelBuildSection, /^ {4}permissions:\r?\n {6}contents: read$/m);
   assert.match(assembleSection, /^ {4}permissions:\r?\n {6}contents: read$/m);
   assert.match(rehearseSection, /^ {4}permissions:\r?\n {6}contents: read$/m);
   assert.match(
@@ -66,20 +68,30 @@ test("cheap identity unlocks validation and builds concurrently behind an explic
   );
   assert.match(validateSection, /retention-days: 7/);
   assert.match(buildSection, /^ {4}needs: identity$/m);
+  assert.match(intelBuildSection, /^ {4}needs: identity$/m);
   assert.doesNotMatch(buildSection, /needs: validate/);
+  assert.doesNotMatch(intelBuildSection, /needs: validate/);
   assert.match(gateSection, /^ {4}if: always\(\)$/m);
-  assert.match(gateSection, /^ {4}needs: \[identity, validate, build, verify_intel\]$/m);
+  assert.match(
+    gateSection,
+    /^ {4}needs: \[identity, validate, build, build_intel, verify_intel\]$/m,
+  );
   assert.match(gateSection, /scripts\/release-result-gate\.mjs/);
   assert.match(assembleSection, /^ {4}needs: release_gate$/m);
 });
 
 test("every builder uploads only the staged checksummed payload with short fallback retention", () => {
-  for (const label of releaseLabels) assert.match(buildSection, new RegExp(`label: ${label}`));
+  for (const label of releaseLabels.filter((label) => label !== "macos-x86_64"))
+    assert.match(buildSection, new RegExp(`label: ${label}`));
+  assert.match(intelBuildSection, /--label macos-x86_64/);
   assert.match(buildSection, /name: release-build-\$\{\{ matrix\.label \}\}/);
+  assert.match(intelBuildSection, /name: release-build-macos-x86_64/);
   assert.match(buildSection, /--stage-dir release-upload/);
   assert.match(buildSection, /path: release-upload\/\*\*/);
   assert.match(buildSection, /retention-days: 1/);
   assert.match(buildSection, /overwrite: true/);
+  assert.match(intelBuildSection, /retention-days: 1/);
+  assert.match(intelBuildSection, /overwrite: true/);
   assert.match(buildSection, /--run-id "\$\{\{ github\.run_id \}\}"/);
   assert.match(buildSection, /--revision "\$\{\{ github\.sha \}\}"/);
   assert.doesNotMatch(buildSection, /target\/release\/bundle\/\*\*/);
@@ -91,20 +103,21 @@ test("builders package the versioned CLI smoke test it and request explicit Taur
   assert.match(buildSection, /scripts\/smoke-test-cli-archive\.ps1/);
   assert.match(buildSection, /bundles: nsis/);
   assert.match(buildSection, /bundles: appimage,deb,rpm/);
-  assert.equal((buildSection.match(/bundles: dmg/g) ?? []).length, 2);
+  assert.equal((buildSection.match(/bundles: dmg/g) ?? []).length, 1);
   assert.match(
     buildSection,
     /\$arguments = @\("tauri", "build", "--bundles", "\$\{\{ matrix\.bundles \}\}"\)/,
   );
-  assert.match(buildSection, /target: x86_64-apple-darwin/);
   assert.match(buildSection, /target: aarch64-apple-darwin/);
-  assert.match(buildSection, /os: macos-15\r?\n {12}label: macos-x86_64/);
+  assert.match(intelBuildSection, /^ {4}runs-on: macos-15$/m);
+  assert.match(intelBuildSection, /--target x86_64-apple-darwin/);
+  assert.match(intelBuildSection, /--bundles dmg/);
   assert.doesNotMatch(buildSection, /os: macos-15-intel/);
   assert.match(buildSection, /shared-key: release-\$\{\{ matrix\.label \}\}/);
 });
 
 test("cross-built Intel artifacts receive native Intel package and launch verification", () => {
-  assert.match(intelSection, /^ {4}needs: \[identity, build\]$/m);
+  assert.match(intelSection, /^ {4}needs: \[identity, build_intel\]$/m);
   assert.match(intelSection, /^ {4}runs-on: macos-15-intel$/m);
   assert.match(intelSection, /name: release-build-macos-x86_64/);
   assert.match(intelSection, /scripts\/smoke-test-cli-archive\.ps1/);

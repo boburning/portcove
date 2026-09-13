@@ -16,7 +16,6 @@ const inputFiles = [
   "apps/desktop/package.json",
   "apps/desktop/pnpm-lock.yaml",
   "apps/desktop/pnpm-workspace.yaml",
-  "apps/desktop/stylelint.config.mjs",
   "apps/desktop/tsconfig.json",
   "apps/desktop/tsconfig.node.json",
   "apps/desktop/vite.config.ts",
@@ -24,7 +23,7 @@ const inputFiles = [
 
 async function fixture() {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-desktop-cache-"));
-  for (const directory of ["assets", "public", "scripts", "src"])
+  for (const directory of ["public", "scripts", "src"])
     await mkdir(path.join(root, "apps/desktop", directory), { recursive: true });
   for (const name of inputFiles) {
     await mkdir(path.dirname(path.join(root, name)), { recursive: true });
@@ -96,3 +95,65 @@ test("input changes and linked inputs fail closed", async (t) => {
   await symlink(target, path.join(state.root, "apps/desktop/src/linked"), "junction");
   await assert.rejects(identity(state.root), /refuses linked input/u);
 });
+
+test("assertion-only desktop scripts preserve exact frontend reuse", async (t) => {
+  const state = await fixture();
+  t.after(() => rm(state.root, { recursive: true, force: true }));
+  await mkdir(path.dirname(state.stampPath), { recursive: true });
+  const first = await identity(state.root);
+  await recordFrontendBuild({ identity: first, ...state });
+
+  await writeFile(
+    path.join(state.root, "apps/desktop/scripts/desktop-workspace-refresh-test.mjs"),
+    "assert.equal(actual, expected);\n",
+  );
+  const afterAssertionEdit = await identity(state.root);
+  assert.equal(afterAssertionEdit.fingerprint, first.fingerprint);
+  assert.equal(
+    (await checkFrontendBuildReuse({ identity: afterAssertionEdit, ...state })).reused,
+    true,
+  );
+});
+
+for (const frontendInput of [
+  "apps/desktop/src/main.ts",
+  "apps/desktop/public/new-input.txt",
+  "apps/desktop/index.html",
+  "apps/desktop/vite.config.ts",
+  "apps/desktop/package.json",
+]) {
+  test(`changing ${frontendInput} invalidates frontend reuse`, async (t) => {
+    const state = await fixture();
+    t.after(() => rm(state.root, { recursive: true, force: true }));
+    await mkdir(path.dirname(state.stampPath), { recursive: true });
+    const first = await identity(state.root);
+    await recordFrontendBuild({ identity: first, ...state });
+
+    await writeFile(path.join(state.root, frontendInput), `changed ${frontendInput}\n`);
+    assert.equal(
+      (await checkFrontendBuildReuse({ identity: await identity(state.root), ...state })).reason,
+      "frontend-inputs-changed",
+    );
+  });
+}
+
+for (const viteEnvironmentFile of [
+  ".env",
+  ".env.local",
+  ".env.production",
+  ".env.production.local",
+]) {
+  test(`Vite ${viteEnvironmentFile} presence invalidates frontend reuse`, async (t) => {
+    const state = await fixture();
+    t.after(() => rm(state.root, { recursive: true, force: true }));
+    await mkdir(path.dirname(state.stampPath), { recursive: true });
+    const first = await identity(state.root);
+    await recordFrontendBuild({ identity: first, ...state });
+
+    await writeFile(path.join(state.root, "apps/desktop", viteEnvironmentFile), "VITE_NEW=1\n");
+    assert.equal(
+      (await checkFrontendBuildReuse({ identity: await identity(state.root), ...state })).reason,
+      "frontend-inputs-changed",
+    );
+  });
+}

@@ -2,7 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const scriptPath = fileURLToPath(import.meta.url);
-const requiredJobs = ["identity", "validate", "build", "verify_intel"];
+const requiredJobs = ["identity", "validate", "build", "build_intel", "verify_intel"];
 
 export function evaluateReleaseResults(results) {
   if (!results || typeof results !== "object" || Array.isArray(results)) {

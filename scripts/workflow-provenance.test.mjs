@@ -35,12 +35,21 @@ const build = (overrides = {}) =>
       package_manager: "12.4.1",
       rust: "1.98.1",
       cargo: "1.98.1",
+      runner: { os: "Linux", architecture: "X64" },
       build_configuration: { ci: true },
     },
     environment,
     checkoutSha: sha("b"),
     ...overrides,
   });
+const validationContext = {
+  runId: 42,
+  attempt: 3,
+  headSha: sha("b"),
+  repository: "example/repo",
+  workflow: "ci.yml",
+  event: "pull_request",
+};
 
 function storedZip(name, contents) {
   const data = Buffer.from(contents);
@@ -75,10 +84,7 @@ test("binds official workflow source context, checked-out code, and exact config
     createHash("sha256").update("name: CI\n").digest("hex"),
   );
   assert.ok(Object.values(record.matches).every(Boolean));
-  assert.equal(
-    validateWorkflowProvenance(record, { runId: 42, attempt: 3, headSha: sha("b") }),
-    record,
-  );
+  assert.equal(validateWorkflowProvenance(record, validationContext), record);
   assert.throws(
     () => build({ observed: { ...build().observed, node: "25.0.0" } }),
     /differs from desired/u,
@@ -95,7 +101,27 @@ test("rejects substituted workflow refs, checkout SHAs, and artifact identities"
   );
   assert.throws(() => build({ checkoutSha: sha("c") }), /does not match GITHUB_SHA/u);
   assert.throws(
-    () => validateWorkflowProvenance(build(), { runId: 42, attempt: 2, headSha: sha("b") }),
+    () => validateWorkflowProvenance(build(), { ...validationContext, attempt: 2 }),
+    /identity/u,
+  );
+});
+
+test("rejects incomplete match evidence and substituted cohort identities", () => {
+  const withoutMatches = build();
+  delete withoutMatches.matches;
+  assert.throws(() => validateWorkflowProvenance(withoutMatches, validationContext), /identity/u);
+  const substitutedCohort = build();
+  substitutedCohort.equivalent_cohort = "f".repeat(64);
+  assert.throws(
+    () => validateWorkflowProvenance(substitutedCohort, validationContext),
+    /identity/u,
+  );
+  assert.throws(
+    () =>
+      validateWorkflowProvenance(build(), {
+        ...validationContext,
+        workflow: "release.yml",
+      }),
     /identity/u,
   );
 });

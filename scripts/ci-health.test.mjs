@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import { collectHistory, renderReport, summarizeAttempt, summarizeHistory } from "./ci-health.mjs";
+import { buildWorkflowProvenance } from "./workflow-provenance.mjs";
 
 const stamp = (seconds) => new Date(Date.UTC(2026, 8, 7) + seconds * 1000).toISOString();
 const run = (overrides) => ({
@@ -419,14 +420,36 @@ function storedZip(contents) {
 }
 
 test("collector admits only digest-bound attempt provenance to equivalent cohorts", async () => {
-  const record = {
-    format_version: 1,
-    run: { id: 1, attempt: 1 },
-    workflow: { source_sha: "d".repeat(40), content_sha256: "e".repeat(64) },
-    checkout: { sha: "a".repeat(40), github_sha: "a".repeat(40) },
-    matches: { node: true, package_manager: true, rust: true, cargo: true },
-    equivalent_cohort: "f".repeat(64),
-  };
+  const record = buildWorkflowProvenance({
+    workflow: "ci.yml",
+    mode: "ci",
+    desiredRunner: "ubuntu-latest",
+    workflowContents: "name: CI\n",
+    desired: {
+      node: "24.21.0",
+      package_manager: "12.4.1",
+      rust: "1.98.1",
+      build_configuration: { ci: true },
+    },
+    observed: {
+      node: "24.21.0",
+      package_manager: "12.4.1",
+      rust: "1.98.1",
+      cargo: "1.98.1",
+      runner: { os: "Linux", architecture: "X64" },
+      build_configuration: { ci: true },
+    },
+    environment: {
+      GITHUB_WORKFLOW_SHA: "d".repeat(40),
+      GITHUB_SHA: "a".repeat(40),
+      GITHUB_RUN_ID: "1",
+      GITHUB_RUN_ATTEMPT: "1",
+      GITHUB_REPOSITORY: "example/repo",
+      GITHUB_WORKFLOW_REF: "example/repo/.github/workflows/ci.yml@refs/heads/main",
+      GITHUB_EVENT_NAME: "push",
+    },
+    checkoutSha: "a".repeat(40),
+  });
   const archive = storedZip(JSON.stringify(record));
   const request = async (route, paginate, responseType) => {
     if (route.includes("/workflows/")) return { workflow_runs: [{ id: 1, run_attempt: 1 }] };
@@ -460,5 +483,8 @@ test("collector admits only digest-bound attempt provenance to equivalent cohort
   assert.equal(report.summary.provenance.verified, 1);
   assert.equal(report.summary.provenance.unknown, 0);
   assert.equal(report.summary.cohorts.length, 1);
-  assert.match(report.summary.cohorts[0].name, /exact:f{64}/u);
+  assert.match(
+    report.summary.cohorts[0].name,
+    new RegExp(`exact:${record.equivalent_cohort}`, "u"),
+  );
 });

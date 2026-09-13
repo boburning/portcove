@@ -13,6 +13,15 @@ const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const exactSha = (value) => /^[a-f0-9]{40}$/u.test(value ?? "");
 const exactPositiveInteger = (value) => /^[1-9]\d*$/u.test(value ?? "");
 
+function cohortInputs(record) {
+  return {
+    workflow: record.workflow,
+    checkout: record.checkout,
+    desired: record.desired,
+    observed: record.observed,
+  };
+}
+
 function command(commandName, args, cwd = root) {
   return execFileSync(commandName, args, {
     cwd,
@@ -82,13 +91,7 @@ export function buildWorkflowProvenance({
     observed,
     matches,
   };
-  const cohortInputs = {
-    workflow: record.workflow,
-    checkout: record.checkout,
-    desired: record.desired,
-    observed: record.observed,
-  };
-  return { ...record, equivalent_cohort: sha256(JSON.stringify(cohortInputs)) };
+  return { ...record, equivalent_cohort: sha256(JSON.stringify(cohortInputs(record))) };
 }
 
 export function parseProvenanceArchive(archive) {
@@ -139,17 +142,45 @@ export function parseProvenanceArchive(archive) {
   return JSON.parse(matches[0].toString("utf8"));
 }
 
-export function validateWorkflowProvenance(record, { runId, attempt, headSha }) {
+export function validateWorkflowProvenance(
+  record,
+  { runId, attempt, headSha, repository, workflow, event },
+) {
+  const expectedPath = `.github/workflows/${workflow}`;
+  const expectedRefPrefix = `${repository}/${expectedPath}@`;
+  const desired = record?.desired;
+  const observed = record?.observed;
+  const expectedMatches = {
+    node: desired?.node === observed?.node,
+    package_manager: desired?.package_manager === observed?.package_manager,
+    rust: desired?.rust === observed?.rust,
+    cargo: desired?.rust === observed?.cargo,
+    build_configuration:
+      JSON.stringify(desired?.build_configuration) ===
+      JSON.stringify(observed?.build_configuration),
+  };
+  const expectedCohort = sha256(JSON.stringify(cohortInputs(record ?? {})));
   if (
     record?.format_version !== 1 ||
     record.run?.id !== runId ||
     record.run?.attempt !== attempt ||
+    record.run?.event !== event ||
+    record.workflow?.path !== expectedPath ||
+    !record.workflow?.ref?.startsWith(expectedRefPrefix) ||
     record.checkout?.sha !== headSha ||
     record.checkout?.github_sha !== headSha ||
     !exactSha(record.workflow?.source_sha) ||
     !/^[a-f0-9]{64}$/u.test(record.workflow?.content_sha256 ?? "") ||
-    !/^[a-f0-9]{64}$/u.test(record.equivalent_cohort ?? "") ||
-    Object.values(record.matches ?? {}).some((matches) => matches !== true)
+    !["ci", "release"].includes(desired?.mode) ||
+    typeof desired?.runner !== "string" ||
+    desired.runner.length === 0 ||
+    typeof observed?.runner?.os !== "string" ||
+    observed.runner.os.length === 0 ||
+    typeof observed?.runner?.architecture !== "string" ||
+    observed.runner.architecture.length === 0 ||
+    JSON.stringify(record.matches) !== JSON.stringify(expectedMatches) ||
+    Object.values(expectedMatches).some((matches) => matches !== true) ||
+    record.equivalent_cohort !== expectedCohort
   )
     throw new Error("Provenance artifact identity or configuration mismatch");
   return record;

@@ -110,10 +110,6 @@ jobs:
             label: linux-x86_64
             bundles: appimage,deb,rpm
             target: ""
-          - os: macos-15
-            label: macos-x86_64
-            bundles: dmg
-            target: x86_64-apple-darwin
           - os: macos-14
             label: macos-aarch64
             bundles: dmg
@@ -193,8 +189,59 @@ jobs:
           retention-days: 1
           overwrite: true
 
+  build_intel:
+    needs: identity
+    runs-on: macos-15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: apps/desktop/package.json
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: apps/desktop/pnpm-lock.yaml
+      - uses: ./.github/actions/setup-rust
+        with:
+          targets: x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: release-macos-x86_64
+      - run: pnpm install --frozen-lockfile
+        working-directory: apps/desktop
+      - name: Build Intel CLI
+        shell: pwsh
+        run: cargo build --release -p portcove-cli --target x86_64-apple-darwin
+      - name: Package Intel CLI
+        shell: pwsh
+        run: ./scripts/package-cli.ps1 -PlatformLabel macos-x86_64 -TargetRoot target/x86_64-apple-darwin
+      - name: Smoke-test packaged Intel CLI under translation
+        shell: pwsh
+        run: |
+          $version = (& node scripts/check-release-metadata.mjs --print-version | Out-String).Trim()
+          $archive = (& node scripts/release-package-policy.mjs --platform macos-x86_64 --interface cli --version $version | Out-String).Trim()
+          ./scripts/smoke-test-cli-archive.ps1 -ArchivePath "release-assets/$archive" -PlatformLabel macos-x86_64 -Version $version
+      - name: Build Intel desktop bundle
+        shell: pwsh
+        working-directory: apps/desktop
+        run: pnpm tauri build --bundles dmg --target x86_64-apple-darwin
+      - name: Stage checksummed Intel release payload
+        shell: pwsh
+        run: node scripts/write-release-checksums.mjs --label macos-x86_64 --stage-dir release-upload --target-root target/x86_64-apple-darwin --run-id "${{ github.run_id }}" --run-attempt "${{ github.run_attempt }}" --revision "${{ github.sha }}"
+      - name: Upload transient Intel platform artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-build-macos-x86_64
+          path: release-upload/**
+          if-no-files-found: error
+          retention-days: 1
+          overwrite: true
+
   verify_intel:
-    needs: [identity, build]
+    needs: [identity, build_intel]
     runs-on: macos-15-intel
     permissions:
       contents: read
@@ -224,7 +271,7 @@ jobs:
 
   release_gate:
     if: always()
-    needs: [identity, validate, build, verify_intel]
+    needs: [identity, validate, build, build_intel, verify_intel]
     runs-on: ubuntu-22.04
     permissions:
       contents: read
@@ -236,7 +283,7 @@ jobs:
       - name: Require every release producer and validator
         env:
           PORTCOVE_RELEASE_RESULTS: >-
-            {"identity":"${{ needs.identity.result }}","validate":"${{ needs.validate.result }}","build":"${{ needs.build.result }}","verify_intel":"${{ needs.verify_intel.result }}"}
+            {"identity":"${{ needs.identity.result }}","validate":"${{ needs.validate.result }}","build":"${{ needs.build.result }}","build_intel":"${{ needs.build_intel.result }}","verify_intel":"${{ needs.verify_intel.result }}"}
         run: node scripts/release-result-gate.mjs
 
   assemble:

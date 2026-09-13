@@ -289,7 +289,7 @@ export function summarizeHistory(attempts) {
   };
 }
 
-async function collectAttemptProvenance(request, root, run, reference) {
+async function collectAttemptProvenance(request, root, run, reference, { repository, workflow }) {
   const pages = await request(`${root}/runs/${reference.id}/artifacts?per_page=100`, true);
   if (!Array.isArray(pages) || !pages.every((page) => Array.isArray(page.artifacts)))
     throw new Error(`Missing artifact inventory for ${reference.id}/${reference.attempt}`);
@@ -322,6 +322,9 @@ async function collectAttemptProvenance(request, root, run, reference) {
     runId: reference.id,
     attempt: reference.attempt,
     headSha: run.head_sha,
+    repository,
+    workflow,
+    event: run.event,
   });
   return { status: "verified", record };
 }
@@ -368,7 +371,10 @@ export async function collectHistory(
             throw new Error(`Incomplete jobs for ${reference.id}/${reference.attempt}`);
           if (run.id !== reference.id || run.run_attempt !== reference.attempt)
             throw new Error("Attempt identity mismatch");
-          const provenance = await collectAttemptProvenance(request, root, run, reference);
+          const provenance = await collectAttemptProvenance(request, root, run, reference, {
+            repository,
+            workflow,
+          });
           return summarizeAttempt(run, jobs, provenance);
         }),
       )),
