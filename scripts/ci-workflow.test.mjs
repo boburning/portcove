@@ -212,7 +212,8 @@ test("Linux package ownership rehearsal is focused and preserves managed executa
   assert.match(qualification, /env -u APPIMAGE -u APPDIR -u DISPLAY/);
   assert.match(qualification, /--application-update-recovery eligibility/);
   assert.match(qualification, /dpkg-query --search/);
-  assert.match(qualification, /rpm -qf --queryformat/);
+  assert.match(qualification, /rpm --query --queryformat .* --file/);
+  assert.match(qualification, /tee .*rpm-owners\.txt/);
   assert.match(qualification, /deb_hash_before.*deb_hash_after/s);
   assert.match(qualification, /rpm_hash_before.*rpm_hash_after/s);
   assert.match(qualification, /package_managed_files_unchanged: true/);
