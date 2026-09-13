@@ -35,11 +35,12 @@ executable permissions; Windows also runs the existing isolated installer harnes
 through a passive skipped-version upgrade and uninstall with data preservation.
 Linux builds a disposable test-signed TUF repository, embeds its public trust and
 local repository URLs in a qualification-only 0.1.0 AppImage, and exercises the
-packaged helper through an interrupted candidate copy, predecessor restart and retrying
-0.1.0-to-0.3.0 replacement under Xvfb. The run verifies the partial swap, exact
-predecessor and retryable journal after recovery, then the stable path's exact candidate
-hash and executable bit, healthy-startup journal reconciliation, staging and backup
-cleanup, and preservation of a library sentinel throughout both attempts.
+packaged helper through an interrupted candidate copy, GUI-independent command
+recovery without a display server, and retrying 0.1.0-to-0.3.0 replacement under
+Xvfb. The run verifies the partial swap, exact predecessor and retryable journal after
+recovery, then the stable path's exact candidate hash and executable bit,
+healthy-startup journal reconciliation, staging and backup cleanup, and preservation
+of a library sentinel throughout both attempts.
 It deletes the disposable TUF private keys before starting either AppImage and does
 not upload private keys or mutable updater state.
 These are fixture versions, never publication or release-readiness declarations.
