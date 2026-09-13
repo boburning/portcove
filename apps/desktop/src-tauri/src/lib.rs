@@ -1810,6 +1810,40 @@ fn initialize_desktop_selection(selection: LibrarySelection) -> DesktopResult<Re
     })
 }
 
+#[cfg(target_os = "linux")]
+fn recover_application_update_after_interrupted_replacement(runtime: &ApplicationRuntimeGuard) {
+    use application_update_linux::LinuxApplicationUpdateRecovery;
+
+    let result = (|| {
+        let apply = application_update_apply::ApplicationUpdateApplyStore::open_configured()
+            .map_err(application_update_linux::LinuxApplicationUpdateError::from)?;
+        let staging = application_update_staging::ApplicationUpdateStagingStore::open_configured()
+            .map_err(application_update_apply::ApplicationUpdateApplyError::from)
+            .map_err(application_update_linux::LinuxApplicationUpdateError::from)?;
+        application_update_linux::recover_linux_application_update_before_startup(
+            runtime, &apply, &staging,
+        )
+    })();
+    match result {
+        Ok(LinuxApplicationUpdateRecovery::RecoveredPreActivation) => tracing::warn!(
+            operation_id = "application-update-recovery",
+            "recovered an interrupted Linux AppImage replacement before activation"
+        ),
+        Ok(
+            LinuxApplicationUpdateRecovery::NoAttempt
+            | LinuxApplicationUpdateRecovery::CandidateInstalled,
+        ) => {}
+        Err(error) => {
+            report_application_update_qualification_failure("startup recovery", &error.to_string());
+            tracing::warn!(
+                operation_id = "application-update-recovery",
+                error = %error,
+                "retained the interrupted Linux AppImage replacement because startup recovery could not prove safe cleanup"
+            );
+        }
+    }
+}
+
 #[cfg(windows)]
 fn reconcile_application_update_after_healthy_startup() {
     use application_update_windows::WindowsApplicationUpdateReconciliation;
@@ -1909,6 +1943,8 @@ pub fn run() {
     };
     #[cfg(any(windows, target_os = "linux"))]
     report_application_update_qualification_stage("runtime lease");
+    #[cfg(target_os = "linux")]
+    recover_application_update_after_interrupted_replacement(&_application_runtime);
     let configured_root = std::env::var_os("PORTCOVE_LIBRARY")
         .filter(|path| !path.is_empty())
         .map(PathBuf::from);

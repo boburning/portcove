@@ -219,5 +219,9 @@ test("manual rehearsal retains the complete matrix without production credential
   );
   assert.doesNotMatch(linuxHarness, /WEBKIT_DISABLE_COMPOSITING_MODE/);
   assert.match(linuxHarness, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE/);
+  assert.match(linuxHarness, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT/);
+  assert.match(linuxHarness, /interruption_exit_code/);
+  assert.match(linuxHarness, /interruption_recovered/);
+  assert.match(linuxHarness, /-ne 86/);
   assert.match(rehearsal, /Invoke-Checked "dbus-run-session"/);
 });
