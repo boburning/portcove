@@ -59,7 +59,7 @@ $sentinel = Join-Path $sentinelRoot "preserve.txt"
 $sentinelHash = (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash
 
 $evidence = [ordered]@{
-    schema_version = 6
+    schema_version = 7
     phase = "preparing"
     source_commit = (& git rev-parse HEAD | Out-String).Trim()
     platform = "linux-x86_64"
@@ -80,6 +80,12 @@ $evidence = [ordered]@{
     incompatible_schema_predecessor_restart_observed = $false
     incompatible_schema_state_preserved = $false
     incompatible_schema_recovery_action = "restore exact supported journal fixture"
+    read_only_state_enforced = $false
+    read_only_state_exit_code = $null
+    read_only_state_predecessor_restart_observed = $false
+    read_only_state_preserved = $false
+    read_only_state_write_restored = $false
+    read_only_state_recovery_action = "restore exact Unix modes"
     runtime_contention_hold_seconds = 2
     runtime_contention_helper_blocked = $false
     runtime_contention_stable_preserved = $false
@@ -104,6 +110,33 @@ function Write-Evidence([string]$Phase) {
     $temporary = "$evidenceFile.tmp"
     $evidence | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $temporary -Encoding utf8
     Move-Item -LiteralPath $temporary -Destination $evidenceFile -Force
+}
+
+function Wait-StablePredecessorRestart([string]$StagePath, [string]$RuntimeLockPath, [int]$TimeoutSeconds, [string]$FailureLabel) {
+    $restartDeadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    $restartStage = $null
+    do {
+        if (Test-Path -LiteralPath $StagePath -PathType Leaf) {
+            try {
+                $restartStage = Get-Content -LiteralPath $StagePath -Raw | ConvertFrom-Json
+            } catch {
+                $restartStage = $null
+            }
+        }
+        if ($restartStage.stage -eq "Tauri setup") { break }
+        Start-Sleep -Milliseconds 50
+    } while ([DateTime]::UtcNow -lt $restartDeadline)
+    if ($restartStage.stage -ne "Tauri setup" -or $restartStage.process_id -le 0) {
+        throw "$FailureLabel did not restart the stable predecessor through Tauri setup"
+    }
+
+    $restartExitDeadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    do {
+        & flock --exclusive --nonblock $RuntimeLockPath /usr/bin/true 2>$null
+        if ($LASTEXITCODE -eq 0) { return }
+        Start-Sleep -Milliseconds 50
+    } while ([DateTime]::UtcNow -lt $restartExitDeadline)
+    throw "$FailureLabel predecessor restart did not release the runtime lock within $TimeoutSeconds seconds"
 }
 
 $environmentNames = @(
@@ -222,31 +255,7 @@ try {
     $evidence.incompatible_schema_exit_code = $LASTEXITCODE
     if ($LASTEXITCODE -ne 1) { throw "Future-schema helper exited with code $LASTEXITCODE instead of 1" }
 
-    $restartDeadline = [DateTime]::UtcNow.AddSeconds($StartupTimeoutSeconds)
-    $restartStage = $null
-    do {
-        if (Test-Path -LiteralPath $qualificationStage -PathType Leaf) {
-            try {
-                $restartStage = Get-Content -LiteralPath $qualificationStage -Raw | ConvertFrom-Json
-            } catch {
-                $restartStage = $null
-            }
-        }
-        if ($restartStage.stage -eq "Tauri setup") { break }
-        Start-Sleep -Milliseconds 50
-    } while ([DateTime]::UtcNow -lt $restartDeadline)
-    if ($restartStage.stage -ne "Tauri setup" -or $restartStage.process_id -le 0) {
-        throw "Future-schema failure did not restart the stable predecessor through Tauri setup"
-    }
-    $restartExitDeadline = [DateTime]::UtcNow.AddSeconds($StartupTimeoutSeconds)
-    do {
-        & flock --exclusive --nonblock $env:PORTCOVE_APPLICATION_RUNTIME_LOCK /usr/bin/true 2>$null
-        if ($LASTEXITCODE -eq 0) { break }
-        Start-Sleep -Milliseconds 50
-    } while ([DateTime]::UtcNow -lt $restartExitDeadline)
-    if ($LASTEXITCODE -ne 0) {
-        throw "Future-schema predecessor restart did not release the runtime lock within $StartupTimeoutSeconds seconds"
-    }
+    Wait-StablePredecessorRestart $qualificationStage $env:PORTCOVE_APPLICATION_RUNTIME_LOCK $StartupTimeoutSeconds "Future-schema failure"
     $evidence.incompatible_schema_predecessor_restart_observed = $true
 
     if ((Get-FileHash -LiteralPath $applyPath -Algorithm SHA256).Hash -ne $futureApplyHash -or
@@ -264,6 +273,72 @@ try {
         $restoredApply.revision -ne $prepared.apply_revision) {
         throw "Future-schema fixture recovery did not restore the exact supported apply journal"
     }
+
+    $readOnlyApplyHash = (Get-FileHash -LiteralPath $applyPath -Algorithm SHA256).Hash
+    $readOnlyStagingHash = (Get-FileHash -LiteralPath $stagingPath -Algorithm SHA256).Hash
+    $readOnlyCandidateHash = (Get-FileHash -LiteralPath $stagedCandidatePath -Algorithm SHA256).Hash
+    $readOnlyItems = @((Get-Item -LiteralPath $updateRoot -Force)) +
+        @(Get-ChildItem -LiteralPath $updateRoot -Recurse -Force)
+    $readOnlyModes = @($readOnlyItems | ForEach-Object {
+            if ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+                throw "Application update state contains an unexpected link: $($_.FullName)"
+            }
+            $mode = (& stat -c '%a' -- $_.FullName | Out-String).Trim()
+            if ($LASTEXITCODE -ne 0) { throw "Could not record the mode for application update state: $($_.FullName)" }
+            [pscustomobject]@{ Path = $_.FullName; Mode = $mode }
+        })
+    & /usr/bin/test -w $updateRoot
+    if ($LASTEXITCODE -ne 0) { throw "Application update state was not owner-writable before qualification" }
+    & /usr/bin/test -w $applyPath
+    if ($LASTEXITCODE -ne 0) { throw "Application update journal was not owner-writable before qualification" }
+    $readOnlyApplied = $false
+    try {
+        $readOnlyApplied = $true
+        & chmod --recursive u-w -- $updateRoot
+        if ($LASTEXITCODE -ne 0) { throw "Could not make the application update state read-only" }
+        & /usr/bin/test '!' -w $updateRoot
+        if ($LASTEXITCODE -ne 0) { throw "Application update state remained owner-writable" }
+        & /usr/bin/test '!' -w $applyPath
+        if ($LASTEXITCODE -ne 0) { throw "Application update journal remained owner-writable" }
+        $evidence.read_only_state_enforced = $true
+
+        Remove-Item -LiteralPath $qualificationStage -Force -ErrorAction SilentlyContinue
+        Write-Evidence "read-only-state-starting"
+        & $stable --portcove-apply-update ([string]$prepared.apply_revision)
+        $evidence.read_only_state_exit_code = $LASTEXITCODE
+        if ($LASTEXITCODE -ne 1) { throw "Read-only-state helper exited with code $LASTEXITCODE instead of 1" }
+        Wait-StablePredecessorRestart $qualificationStage $env:PORTCOVE_APPLICATION_RUNTIME_LOCK $StartupTimeoutSeconds "Read-only-state failure"
+        $evidence.read_only_state_predecessor_restart_observed = $true
+
+        if ((Get-FileHash -LiteralPath $applyPath -Algorithm SHA256).Hash -ne $readOnlyApplyHash -or
+            (Get-FileHash -LiteralPath $stagingPath -Algorithm SHA256).Hash -ne $readOnlyStagingHash -or
+            (Get-FileHash -LiteralPath $stagedCandidatePath -Algorithm SHA256).Hash -ne $readOnlyCandidateHash -or
+            (Get-FileHash -LiteralPath $stable -Algorithm SHA256).Hash.ToLowerInvariant() -ne $predecessorHash -or
+            (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -ne $sentinelHash) {
+            throw "Read-only-state failure changed the journal, staging, stable AppImage, or persistent data"
+        }
+        $evidence.read_only_state_preserved = $true
+        Write-Evidence "read-only-state-preserved"
+    } finally {
+        if ($readOnlyApplied) {
+            foreach ($entry in $readOnlyModes) {
+                & chmod $entry.Mode -- $entry.Path
+                if ($LASTEXITCODE -ne 0) { throw "Could not restore an exact application update state mode" }
+            }
+        }
+    }
+    foreach ($entry in $readOnlyModes) {
+        $restoredMode = (& stat -c '%a' -- $entry.Path | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0 -or $restoredMode -ne $entry.Mode) {
+            throw "Application update state did not regain its exact Unix modes"
+        }
+    }
+    & /usr/bin/test -w $updateRoot
+    if ($LASTEXITCODE -ne 0) { throw "Application update state did not regain owner write permission" }
+    & /usr/bin/test -w $applyPath
+    if ($LASTEXITCODE -ne 0) { throw "Application update journal did not regain owner write permission" }
+    $evidence.read_only_state_write_restored = $true
+    Write-Evidence "read-only-state-recovered"
 
     $runtimeLockReady = Join-Path $state "runtime-lock-ready"
     $runtimeLockScript = Join-Path $state "hold-runtime-lock.sh"

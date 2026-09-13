@@ -220,7 +220,7 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.doesNotMatch(linuxHarness, /WEBKIT_DISABLE_COMPOSITING_MODE/);
   assert.match(linuxHarness, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE/);
   assert.match(linuxHarness, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT/);
-  assert.match(linuxHarness, /schema_version = 6/);
+  assert.match(linuxHarness, /schema_version = 7/);
   assert.match(linuxHarness, /interruption_exit_code/);
   assert.match(linuxHarness, /interruption_recovery_exit_code/);
   assert.match(linuxHarness, /interruption_recovery_display/);
@@ -230,6 +230,11 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(linuxHarness, /incompatible_schema_exit_code/);
   assert.match(linuxHarness, /incompatible_schema_predecessor_restart_observed/);
   assert.match(linuxHarness, /incompatible_schema_state_preserved/);
+  assert.match(linuxHarness, /read_only_state_enforced/);
+  assert.match(linuxHarness, /read_only_state_exit_code/);
+  assert.match(linuxHarness, /read_only_state_predecessor_restart_observed/);
+  assert.match(linuxHarness, /read_only_state_preserved/);
+  assert.match(linuxHarness, /read_only_state_write_restored/);
   assert.match(linuxHarness, /runtime_contention_helper_blocked/);
   assert.match(linuxHarness, /runtime_contention_stable_preserved/);
   assert.match(linuxHarness, /runtime_contention_journal_preserved/);
@@ -243,7 +248,21 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(linuxHarness, /Remove-Item Env:DISPLAY/);
   assert.match(linuxHarness, /flock --shared 9/);
   assert.match(linuxHarness, /flock --exclusive --nonblock/);
+  assert.match(linuxHarness, /chmod --recursive u-w/);
+  assert.match(linuxHarness, /chmod \$entry\.Mode -- \$entry\.Path/);
+  assert.match(linuxHarness, /restoredMode -ne \$entry\.Mode/);
   assert.match(linuxHarness, /\.ArgumentList\.Add\(\$argument\)/);
+  assert.ok(
+    linuxHarness.indexOf("incompatible-schema-preserved") <
+      linuxHarness.indexOf("read-only-state-starting") &&
+      linuxHarness.indexOf("read-only-state-starting") <
+        linuxHarness.indexOf("read-only-state-preserved") &&
+      linuxHarness.indexOf("read-only-state-preserved") <
+        linuxHarness.indexOf("read-only-state-recovered") &&
+      linuxHarness.indexOf("read-only-state-recovered") <
+        linuxHarness.indexOf("runtime-contention-starting"),
+    "read-only update state must fail closed before runtime contention and replacement",
+  );
   assert.ok(
     linuxHarness.indexOf("incompatible-schema-starting") <
       linuxHarness.indexOf("incompatible-schema-preserved") &&

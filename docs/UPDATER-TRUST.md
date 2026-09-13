@@ -383,9 +383,12 @@ candidate and requires normal startup reconciliation to retire only those verifi
 bytes and the staged request. The packaged qualification first presents an
 unsupported future apply-journal schema and requires the helper to fail safely,
 restart the stable predecessor, and preserve the exact journal, staging, executable,
-and user-data state. It also holds the shared runtime lock in a separate process and
-proves the replacement helper waits without changing the predecessor, staged
-payload, or journal before it continues.
+and user-data state. The same packaged sequence removes owner write permission from
+the complete update-state directory, requires another exit code 1 and predecessor
+restart with no state change, and restores every exact prior Unix mode before
+continuing. It also holds the shared runtime lock in a separate process and proves
+the replacement helper waits without changing the predecessor, staged payload, or
+journal before it continues.
 Package qualification remains a separate gate. The ordinary alpha build
 supplies no production root or origin. In an updater-enabled
 build, the fixed manual check and explicit restart helper are the only commands that

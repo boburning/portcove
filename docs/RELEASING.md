@@ -41,7 +41,11 @@ Xvfb. Before replacement, the harness presents an unsupported future apply-journ
 schema to the packaged helper, requires exit code 1 without replacement and a
 stable-predecessor restart, and proves the journal, staged payload, staging state,
 predecessor, and user data remain exact before restoring the supported fixture. A
-separate process then holds the shared application-runtime lock; the helper must
+A second attempt removes owner write permission from the complete update-state
+directory, requires exit code 1 without replacement and a stable-predecessor
+restart, and proves the supported journal and the same pending bytes remain exact
+before restoring every file and directory to its exact prior Unix mode.
+A separate process then holds the shared application-runtime lock; the helper must
 remain blocked with the stable predecessor, staged payload, and apply journal
 unchanged, then continue after that peer exits. The retry is interrupted after the
 atomic exchange and directory sync but before journal success.
