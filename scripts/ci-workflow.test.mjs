@@ -280,7 +280,7 @@ test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () 
     "intel_tests",
     "rust_docs",
   ])
-    assert.ok(rust.includes(`\"${dependency}\":\"` + "${{ needs." + dependency + '.result }}"'));
+    assert.ok(rust.includes(`"${dependency}":"` + "${{ needs." + dependency + '.result }}"'));
   assert.doesNotMatch(rust, /continue-on-error/);
 });
 
@@ -431,7 +431,7 @@ test("Intel tests build once on Apple Silicon and execute every partition on Int
     assert.doesNotMatch(section, /continue-on-error/);
   }
   for (const job of ["intel_build", "intel_tests"])
-    assert.ok(rust.includes(`\"${job}\":\"` + "${{ needs." + job + '.result }}"'));
+    assert.ok(rust.includes(`"${job}":"` + "${{ needs." + job + '.result }}"'));
 });
 
 test("Linux Rust quality keeps its platform-specific and policy gates without pnpm", () => {
@@ -848,7 +848,7 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
   for (const platform of ["windows-x86_64", "linux-x86_64", "macos-x86_64", "macos-aarch64"]) {
     assert.ok(rustDocs.includes(`platform: ${platform}`));
   }
-  assert.ok(rust.includes(`\"rust_docs\":\"` + '${{ needs.rust_docs.result }}"'));
+  assert.ok(rust.includes(`"rust_docs":"` + '${{ needs.rust_docs.result }}"'));
   for (const section of [rustTests, rustWorkspaceTests, nativeRust, intelBuild, intelTests]) {
     assert.match(section, /Install pinned test runner/);
     assert.match(section, /Get-Content \.github\/quality-tools\.json/);
