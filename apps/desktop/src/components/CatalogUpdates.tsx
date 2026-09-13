@@ -20,7 +20,7 @@ export function CatalogSettings({
 }: {
   provenance?: CatalogProvenance;
   disabled: boolean;
-  onChanged?: () => Promise<void>;
+  onChanged?: () => Promise<unknown>;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -70,7 +70,7 @@ function CatalogUpdatesDialog({
   onChanged,
 }: {
   close: () => void;
-  onChanged?: () => Promise<void>;
+  onChanged?: () => Promise<unknown>;
 }) {
   const [status, setStatus] = useState<CatalogStatus>();
   const [busy, setBusy] = useState("Loading catalog settings…");

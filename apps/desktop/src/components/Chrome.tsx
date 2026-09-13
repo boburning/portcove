@@ -715,7 +715,7 @@ function SourceHealth({
   add?: (profile: SourceProfile, archive: boolean) => void;
   profiles: SourceProfile[];
   inspections: ReadonlyMap<string, SourceInspectionReport>;
-  onAdded?: () => Promise<void>;
+  onAdded?: () => Promise<unknown>;
   openEvidence?: (evidenceId: string) => void;
 }) {
   const byProfile = new Map(outcomes.map((outcome) => [outcome.profile_id, outcome]));
@@ -777,7 +777,7 @@ function SourceHealthRow({
 }: {
   generation: number;
   ports: PortDefinition[];
-  onRemoved?: () => Promise<void>;
+  onRemoved?: () => Promise<unknown>;
   source: SourceRecord;
   report?: SourceInspectionReport;
   outcome?: SourceVerificationOutcome;
@@ -959,7 +959,7 @@ function DiagnosticsCard({
   refreshing?: boolean;
   stale?: boolean;
   failure?: unknown;
-  refresh?: () => Promise<void>;
+  refresh?: () => Promise<unknown>;
   hasSnapshot?: boolean;
 }) {
   const [bundlePath, setBundlePath] = useState<string>();
@@ -1095,15 +1095,15 @@ export function SettingsView({
   createSupportBundle?: () => Promise<string | undefined>;
   exportMetadata?: () => Promise<LibraryMetadataFile | undefined>;
   sourceProfiles?: SourceProfile[];
-  onSourceAdded?: () => Promise<void>;
-  onCatalogChanged?: () => Promise<void>;
+  onSourceAdded?: () => Promise<unknown>;
+  onCatalogChanged?: () => Promise<unknown>;
   hostToolActions?: HostToolActions;
   applicationUpdateNotice?: ApplicationUpdateNoticeSnapshot["notice"];
   onApplicationUpdatePreferencesChanged?: (preferences: ApplicationUpdatePreferences) => void;
   diagnosticsRefreshing?: boolean;
   diagnosticsStale?: boolean;
   diagnosticFailure?: unknown;
-  refreshDiagnostics?: () => Promise<void>;
+  refreshDiagnostics?: () => Promise<unknown>;
 }) {
   return (
     <section className="settings-grid">

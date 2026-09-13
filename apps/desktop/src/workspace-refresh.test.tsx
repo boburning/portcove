@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act } from "react";
+import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { listen } from "@tauri-apps/api/event";
@@ -89,6 +89,18 @@ async function render() {
   });
 }
 
+async function renderStrict() {
+  await act(async () => {
+    root.render(
+      <StrictMode>
+        <Fixture />
+      </StrictMode>,
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.useFakeTimers();
@@ -116,6 +128,27 @@ afterEach(async () => {
 });
 
 describe("workspace refresh recovery", () => {
+  it("keeps workspace, diagnostics, and activity refreshes live after Strict Mode replay", async () => {
+    await renderStrict();
+
+    expect(data.catalog).toEqual(snapshot.catalog);
+    expect(data.doctor).toEqual(doctor);
+    vi.mocked(desktopApi.workspaceSnapshot).mockClear();
+    vi.mocked(desktopApi.activities).mockClear();
+    vi.mocked(desktopApi.doctor).mockClear();
+
+    await act(async () => {
+      await data.refresh();
+      await data.refreshActivities();
+      data.invalidateDiagnostics();
+      await data.refreshDiagnostics();
+    });
+
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledOnce();
+    expect(desktopApi.activities).toHaveBeenCalledOnce();
+    expect(desktopApi.doctor).toHaveBeenCalledOnce();
+  });
+
   it("registers the library listener before acquiring the initial snapshot", async () => {
     const registration = deferred<() => void>();
     vi.mocked(listen).mockImplementationOnce((event, handler) => {
@@ -198,8 +231,8 @@ describe("workspace refresh recovery", () => {
     vi.mocked(desktopApi.workspaceSnapshot)
       .mockReturnValueOnce(first.promise)
       .mockResolvedValue(snapshot);
-    let initial!: Promise<void>;
-    let followups!: Promise<void>[];
+    let initial!: ReturnType<typeof data.refresh>;
+    let followups!: ReturnType<typeof data.refresh>[];
     await act(async () => {
       initial = data.refresh();
       await Promise.resolve();

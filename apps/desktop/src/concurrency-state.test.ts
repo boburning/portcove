@@ -96,7 +96,25 @@ describe("overlapping desktop work", () => {
     const followup = requests.request(task);
     first.reject(error);
     await expect(failed).rejects.toBe(error);
-    await expect(followup).resolves.toBeUndefined();
+    await expect(followup).resolves.toBe("completed");
     expect(task).toHaveBeenCalledTimes(2);
+  });
+
+  it("settles queued and in-flight callers as disposed when their lifecycle closes", async () => {
+    const first = deferred();
+    const task = vi.fn().mockReturnValue(first.promise);
+    const requests = new CoalescedRequest();
+    const active = requests.request(task);
+    await Promise.resolve();
+    const queued = requests.request(task);
+
+    requests.close();
+
+    await expect(active).resolves.toBe("disposed");
+    await expect(queued).resolves.toBe("disposed");
+    await expect(requests.request(task)).resolves.toBe("disposed");
+    first.resolve();
+    await first.promise;
+    expect(task).toHaveBeenCalledOnce();
   });
 });

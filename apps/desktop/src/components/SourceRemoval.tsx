@@ -15,7 +15,7 @@ export function SourceRemovalControl({
   generation: number;
   ports: PortDefinition[];
   disabled: boolean;
-  onRemoved?: () => Promise<void>;
+  onRemoved?: () => Promise<unknown>;
 }) {
   const [open, setOpen] = useState(false);
   const [refreshError, setRefreshError] = useState(false);
@@ -77,7 +77,7 @@ export function SourceRemovalDialog({
   generation: number;
   ports: PortDefinition[];
   close: () => void;
-  onRemoved: () => Promise<void>;
+  onRemoved: () => Promise<unknown>;
 }) {
   const { preview, pending, error, review, execute, dismiss } = useActionReview({
     identity: `${profileId}:${generation}`,

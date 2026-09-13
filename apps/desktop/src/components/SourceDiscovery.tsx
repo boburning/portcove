@@ -58,7 +58,7 @@ export function SourceDiscoveryButton({
 }: {
   profiles: SourceProfile[];
   disabled: boolean;
-  onAdded?: () => Promise<void>;
+  onAdded?: () => Promise<unknown>;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -95,7 +95,7 @@ export function sourceImportNotice(result: SourceImportResult) {
   }
 }
 
-function useSourceDiscoveryWorkflow(onAdded?: () => Promise<void>) {
+function useSourceDiscoveryWorkflow(onAdded?: () => Promise<unknown>) {
   const [root, setRoot] = useState("");
   const [profile, setProfile] = useState("");
   const [report, setReport] = useState<SourceDiscoveryReport>();
@@ -342,7 +342,7 @@ function SourceDiscoveryDialog({
   close,
 }: {
   profiles: SourceProfile[];
-  onAdded?: () => Promise<void>;
+  onAdded?: () => Promise<unknown>;
   close: () => void;
 }) {
   const workflow = useSourceDiscoveryWorkflow(onAdded);
