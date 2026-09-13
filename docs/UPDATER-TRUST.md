@@ -389,9 +389,16 @@ restart with no state change, and restores every exact prior Unix mode before
 continuing. It then copies the pending state into a bounded disposable `tmpfs`, fills
 that filesystem to an independently measured zero available bytes, and requires the
 same failure, predecessor restart, and exact state preservation before removing its
-filler, proving writes recover, and unmounting the fixture. It also holds the shared
-runtime lock in a separate process and proves the replacement helper waits without
-changing the predecessor, staged payload, or journal before it continues.
+filler, proving writes recover, and unmounting the fixture. It next keeps an isolated
+update-state copy writable while hosting the stable predecessor on a second bounded
+`tmpfs` filled to zero available bytes. Candidate-copy failure must remove any
+partial sibling, preserve the exact predecessor and staged candidate, and record the
+failed launch with its exact attempted replacement identity. After the predecessor
+restarts, qualification exercises the explicit retry transition and requires it to
+clear that failed attempt while retaining the intent and staged candidate, then
+recovers writes after the bounded filler is removed. It then holds the shared runtime
+lock in a separate process and proves the replacement helper waits without changing
+the predecessor, staged payload, or journal before it continues.
 Package qualification remains a separate gate. The ordinary alpha build
 supplies no production root or origin. In an updater-enabled
 build, the fixed manual check and explicit restart helper are the only commands that

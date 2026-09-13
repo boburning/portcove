@@ -50,6 +50,14 @@ that filesystem to zero available bytes, and requires the packaged helper to fai
 with exit code 1 and restart the predecessor while the complete pending inventory,
 stable AppImage, and user data remain exact. The harness removes only its filler,
 proves writes work again, and unmounts the fixture before continuing.
+A fourth attempt keeps an isolated update-state copy writable while hosting the
+stable predecessor on another bounded `tmpfs` filled to zero available bytes. It
+requires the candidate-copy failure to remove any partial sibling, preserve the
+exact predecessor and staged candidate, record the failed launch with its exact
+attempted replacement identity, and restart the predecessor. The harness then
+exercises the explicit retry transition and requires it to clear that failed attempt
+while retaining the intent and staged candidate. It removes its filler, proves
+writes recover, and unmounts the AppImage fixture before continuing.
 A separate process then holds the shared application-runtime lock; the helper must
 remain blocked with the stable predecessor, staged payload, and apply journal
 unchanged, then continue after that peer exits. The retry is interrupted after the
@@ -59,7 +67,7 @@ pre-activation recovery, then the candidate at the stable path and the exact
 predecessor backup before a candidate startup reconciles the request. It finally
 verifies the stable candidate hash and executable bit,
 healthy-startup journal reconciliation, staging and backup cleanup, and preservation
-of a library sentinel throughout both attempts.
+of a library sentinel throughout the sequence.
 It deletes the disposable TUF private keys before starting either AppImage and does
 not upload private keys or mutable updater state.
 These are fixture versions, never publication or release-readiness declarations.

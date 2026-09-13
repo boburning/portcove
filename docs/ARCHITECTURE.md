@@ -815,14 +815,19 @@ the persistent user-scoped application-runtime lock to become exclusively availa
 Using the runtime lock avoids the process-ID race where a fast parent can disappear
 before a child opens its handle and also accounts for other Portcove processes.
 Packaged qualification first proves an unsupported future apply-journal schema, an
-update-state directory without owner write permission, and a bounded update-state
-filesystem with zero available bytes each fail closed while the stable predecessor
-restarts and every pending byte remains unchanged. It restores only the fixture
-schema or storage condition needed to continue. The full-filesystem fixture copies
-the pending state into a disposable `tmpfs`, fills it to an independently measured
-zero-byte boundary, and removes the bounded filler before unmounting it. It then
-holds the shared lock in another process, verifies the helper leaves the stable AppImage and
-pending state unchanged while blocked, and releases the peer so the same helper can
+update-state directory without owner write permission, a bounded update-state
+filesystem with zero available bytes, and a bounded stable-AppImage filesystem with
+zero available bytes each fail closed while the predecessor restarts. The state
+fixture leaves every pending byte unchanged. The AppImage fixture leaves the stable
+predecessor and staged candidate exact while advancing only its isolated apply copy
+to a failed launch with the exact attempted replacement identity. It then exercises
+the explicit retry transition, which clears that failed attempt while retaining the
+intent and staged candidate. Each full-filesystem fixture uses a disposable
+`tmpfs`, fills it to an independently measured zero-byte boundary, removes the
+bounded filler, proves writes recover, and unmounts it. It restores only the fixture
+schema or storage condition needed to continue. It then holds the shared lock in
+another process, verifies the helper leaves the stable AppImage and pending state
+unchanged while blocked, and releases the peer so the same helper can
 continue. The helper releases that probe, obtains a newly observed installed context
 and fresh authenticated selection through its host-owned Rust provider, and
 immediately acquires the canonical apply, preference, staging, application and

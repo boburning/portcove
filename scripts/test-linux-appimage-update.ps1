@@ -59,7 +59,7 @@ $sentinel = Join-Path $sentinelRoot "preserve.txt"
 $sentinelHash = (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash
 
 $evidence = [ordered]@{
-    schema_version = 8
+    schema_version = 9
     phase = "preparing"
     source_commit = (& git rev-parse HEAD | Out-String).Trim()
     platform = "linux-x86_64"
@@ -93,6 +93,17 @@ $evidence = [ordered]@{
     full_disk_state_preserved = $false
     full_disk_state_write_restored = $false
     full_disk_state_recovery_action = "remove bounded filler and unmount disposable tmpfs"
+    full_appimage_filesystem_enforced = $false
+    full_appimage_filesystem_available_bytes = $null
+    full_appimage_filesystem_exit_code = $null
+    full_appimage_filesystem_predecessor_restart_observed = $false
+    full_appimage_filesystem_stable_preserved = $false
+    full_appimage_filesystem_staging_preserved = $false
+    full_appimage_filesystem_failed_revision = $null
+    full_appimage_filesystem_retry_revision = $null
+    full_appimage_filesystem_retryable_journal = $false
+    full_appimage_filesystem_write_restored = $false
+    full_appimage_filesystem_recovery_action = "remove bounded filler and unmount disposable tmpfs"
     runtime_contention_hold_seconds = 2
     runtime_contention_helper_blocked = $false
     runtime_contention_stable_preserved = $false
@@ -146,6 +157,50 @@ function Wait-StablePredecessorRestart([string]$StagePath, [string]$RuntimeLockP
     throw "$FailureLabel predecessor restart did not release the runtime lock within $TimeoutSeconds seconds"
 }
 
+function Mount-BoundedTmpfs([string]$Path, [long]$SizeBytes) {
+    if ($SizeBytes -le 0) { throw "Bounded tmpfs size must be positive" }
+    if (Test-Path -LiteralPath $Path) { throw "Bounded tmpfs mount path must be new" }
+    New-Item -ItemType Directory -Path $Path | Out-Null
+    & /usr/bin/sudo -n /usr/bin/true
+    if ($LASTEXITCODE -ne 0) { throw "Full-disk qualification requires non-interactive sudo" }
+    $userId = (& /usr/bin/id -u | Out-String).Trim()
+    $groupId = (& /usr/bin/id -g | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or $userId -notmatch '^\d+$' -or $groupId -notmatch '^\d+$') {
+        throw "Could not determine the qualification user identity"
+    }
+    $mountOptions = "size=$SizeBytes,mode=0700,uid=$userId,gid=$groupId"
+    & /usr/bin/sudo -n /usr/bin/mount -t tmpfs -o $mountOptions tmpfs $Path
+    if ($LASTEXITCODE -ne 0) { throw "Could not mount the bounded full-disk qualification filesystem" }
+}
+
+function Set-BoundedFilesystemFull([string]$Path, [string]$FillerPath, [string]$ProbePath, [string]$LogPath) {
+    & /usr/bin/dd if=/dev/zero "of=$FillerPath" bs=1M status=none 2> $LogPath
+    if ($LASTEXITCODE -eq 0) { throw "The bounded filesystem filler unexpectedly reached end-of-input" }
+    $availableText = (& /usr/bin/df --output=avail -B1 -- $Path | Select-Object -Last 1 | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or $availableText -notmatch '^\d+$') {
+        throw "Could not measure the bounded filesystem after filling it"
+    }
+    $availableBytes = [uint64]::Parse($availableText, [Globalization.CultureInfo]::InvariantCulture)
+    if ($availableBytes -ne 0) { throw "The bounded filesystem retained $availableBytes writable bytes" }
+    & /usr/bin/dd if=/dev/zero "of=$ProbePath" bs=1 count=1 status=none 2> $null
+    $probeExitCode = $LASTEXITCODE
+    if (Test-Path -LiteralPath $ProbePath) { Remove-Item -LiteralPath $ProbePath -Force }
+    if ($probeExitCode -eq 0) { throw "The full-disk qualification filesystem accepted a one-byte write" }
+    return $availableBytes
+}
+
+function Restore-BoundedFilesystemWrites([string]$FillerPath, [string]$ProbePath) {
+    Remove-Item -LiteralPath $FillerPath -Force
+    [IO.File]::WriteAllText($ProbePath, "write-restored")
+    Remove-Item -LiteralPath $ProbePath -Force
+}
+
+function Dismount-BoundedTmpfs([string]$Path) {
+    & /usr/bin/sudo -n /usr/bin/umount -- $Path
+    if ($LASTEXITCODE -ne 0) { throw "Could not unmount the full-disk qualification filesystem" }
+    Remove-Item -LiteralPath $Path -Force
+}
+
 $environmentNames = @(
     "APPIMAGE_EXTRACT_AND_RUN",
     "DISPLAY",
@@ -167,6 +222,11 @@ $updateHelper = $null
 $fullDiskMount = Join-Path $state "full-disk-update-state"
 $fullDiskFiller = Join-Path $fullDiskMount ".qualification-full-disk-filler"
 $fullDiskMounted = $false
+$fullAppImageMount = Join-Path $state "full-appimage-filesystem"
+$fullAppImageStable = Join-Path $fullAppImageMount "Portcove.AppImage"
+$fullAppImageFiller = Join-Path $fullAppImageMount ".qualification-full-disk-filler"
+$fullAppImageState = Join-Path $state "full-appimage-update-state"
+$fullAppImageMounted = $false
 try {
     Write-Evidence "preparing"
     $prepareOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_appimage_update -- prepare 0.1.0 $trustedRoot $metadata $targets $candidate $updatePreferences $updateRoot $libraryRoot | Out-String
@@ -350,20 +410,10 @@ try {
     $evidence.read_only_state_write_restored = $true
     Write-Evidence "read-only-state-recovered"
 
-    New-Item -ItemType Directory -Path $fullDiskMount | Out-Null
-    & /usr/bin/sudo -n /usr/bin/true
-    if ($LASTEXITCODE -ne 0) { throw "Full-disk qualification requires non-interactive sudo" }
     $fullDiskBytes = (Get-Item -LiteralPath $stagedCandidatePath -Force).Length + (32 * 1024 * 1024)
-    $userId = (& /usr/bin/id -u | Out-String).Trim()
-    $groupId = (& /usr/bin/id -g | Out-String).Trim()
-    if ($LASTEXITCODE -ne 0 -or $userId -notmatch '^\d+$' -or $groupId -notmatch '^\d+$') {
-        throw "Could not determine the qualification user identity"
-    }
-    $mountOptions = "size=$fullDiskBytes,mode=0700,uid=$userId,gid=$groupId"
-    & /usr/bin/sudo -n /usr/bin/mount -t tmpfs -o $mountOptions tmpfs $fullDiskMount
-    if ($LASTEXITCODE -ne 0) { throw "Could not mount the bounded full-disk qualification filesystem" }
-    $fullDiskMounted = $true
     try {
+        Mount-BoundedTmpfs $fullDiskMount $fullDiskBytes
+        $fullDiskMounted = $true
         & /usr/bin/cp --archive -- "${updateRoot}/." "${fullDiskMount}/"
         if ($LASTEXITCODE -ne 0) { throw "Could not copy the pending update state into the bounded filesystem" }
 
@@ -382,22 +432,9 @@ try {
                 ForEach-Object { [IO.Path]::GetRelativePath($fullDiskMount, $_.FullName) } |
                 Sort-Object)
 
-        $fillLog = Join-Path $state "full-disk-fill.log"
-        & /usr/bin/dd if=/dev/zero "of=$fullDiskFiller" bs=1M status=none 2> $fillLog
-        if ($LASTEXITCODE -eq 0) { throw "The bounded filesystem filler unexpectedly reached end-of-input" }
-        $availableText = (& /usr/bin/df --output=avail -B1 -- $fullDiskMount | Select-Object -Last 1 | Out-String).Trim()
-        if ($LASTEXITCODE -ne 0 -or $availableText -notmatch '^\d+$') {
-            throw "Could not measure the bounded filesystem after filling it"
-        }
-        $evidence.full_disk_state_available_bytes = [uint64]::Parse($availableText, [Globalization.CultureInfo]::InvariantCulture)
-        if ($evidence.full_disk_state_available_bytes -ne 0) {
-            throw "The bounded filesystem retained $($evidence.full_disk_state_available_bytes) writable bytes"
-        }
         $fullDiskProbe = Join-Path $fullDiskMount ".qualification-write-probe"
-        & /usr/bin/dd if=/dev/zero "of=$fullDiskProbe" bs=1 count=1 status=none 2> $null
-        $probeExitCode = $LASTEXITCODE
-        if (Test-Path -LiteralPath $fullDiskProbe) { Remove-Item -LiteralPath $fullDiskProbe -Force }
-        if ($probeExitCode -eq 0) { throw "The full-disk qualification filesystem accepted a one-byte write" }
+        $fillLog = Join-Path $state "full-disk-fill.log"
+        $evidence.full_disk_state_available_bytes = Set-BoundedFilesystemFull $fullDiskMount $fullDiskFiller $fullDiskProbe $fillLog
         $evidence.full_disk_state_enforced = $true
 
         $env:PORTCOVE_APPLICATION_UPDATE_STAGING = $fullDiskMount
@@ -426,21 +463,147 @@ try {
         $evidence.full_disk_state_preserved = $true
         Write-Evidence "full-disk-state-preserved"
 
-        Remove-Item -LiteralPath $fullDiskFiller -Force
-        [IO.File]::WriteAllText($fullDiskProbe, "write-restored")
-        Remove-Item -LiteralPath $fullDiskProbe -Force
+        Restore-BoundedFilesystemWrites $fullDiskFiller $fullDiskProbe
         $evidence.full_disk_state_write_restored = $true
     } finally {
         $env:PORTCOVE_APPLICATION_UPDATE_STAGING = $updateRoot
         if (Test-Path -LiteralPath $fullDiskFiller) { Remove-Item -LiteralPath $fullDiskFiller -Force }
         if ($fullDiskMounted) {
-            & /usr/bin/sudo -n /usr/bin/umount -- $fullDiskMount
-            if ($LASTEXITCODE -ne 0) { throw "Could not unmount the full-disk qualification filesystem" }
+            Dismount-BoundedTmpfs $fullDiskMount
             $fullDiskMounted = $false
         }
         if (Test-Path -LiteralPath $fullDiskMount) { Remove-Item -LiteralPath $fullDiskMount -Force }
     }
     Write-Evidence "full-disk-state-recovered"
+
+    $fullAppImageBytes = (Get-Item -LiteralPath $stable -Force).Length + (16 * 1024 * 1024)
+    try {
+        & /usr/bin/cp --archive -- $updateRoot $fullAppImageState
+        if ($LASTEXITCODE -ne 0) { throw "Could not copy the pending update state for AppImage-filesystem qualification" }
+        $fullAppImageApplyPath = Join-Path $fullAppImageState "apply.json"
+        $fullAppImageStagingPath = Join-Path $fullAppImageState "staging.json"
+        $fullAppImageCandidatePath = Join-Path $fullAppImageState "candidate.payload"
+        $fullAppImageStagingHash = (Get-FileHash -LiteralPath $fullAppImageStagingPath -Algorithm SHA256).Hash
+        $fullAppImageCandidateHash = (Get-FileHash -LiteralPath $fullAppImageCandidatePath -Algorithm SHA256).Hash
+        $fullAppImageStateEntries = @(Get-ChildItem -LiteralPath $fullAppImageState -Recurse -Force |
+                ForEach-Object { [IO.Path]::GetRelativePath($fullAppImageState, $_.FullName) } |
+                Sort-Object)
+        Mount-BoundedTmpfs $fullAppImageMount $fullAppImageBytes
+        $fullAppImageMounted = $true
+        & /usr/bin/cp --preserve=mode,timestamps -- $stable $fullAppImageStable
+        if ($LASTEXITCODE -ne 0) { throw "Could not copy the stable AppImage into the bounded filesystem" }
+        & chmod u+rwx,go+rx -- $fullAppImageStable
+        if ($LASTEXITCODE -ne 0) { throw "Could not make the bounded stable AppImage executable" }
+        $fullAppImageStableHash = (Get-FileHash -LiteralPath $fullAppImageStable -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($fullAppImageStableHash -ne $predecessorHash) {
+            throw "The bounded filesystem did not receive the exact stable AppImage"
+        }
+        $fullAppImageStableMode = (& stat -c '%a' -- $fullAppImageStable | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0 -or (([Convert]::ToInt32($fullAppImageStableMode, 8) -band 64) -eq 0)) {
+            throw "The bounded stable AppImage was not owner-executable"
+        }
+        $fullAppImageEntries = @(Get-ChildItem -LiteralPath $fullAppImageMount -Recurse -Force |
+                ForEach-Object { [IO.Path]::GetRelativePath($fullAppImageMount, $_.FullName) } |
+                Sort-Object)
+        $fullAppImageSwap = Join-Path $fullAppImageMount ".portcove-appimage-$($candidateHash.Substring(0, 16)).swap"
+        $fullAppImageProbe = Join-Path $fullAppImageMount ".qualification-write-probe"
+        $fullAppImageFillLog = Join-Path $state "full-appimage-fill.log"
+        $evidence.full_appimage_filesystem_available_bytes = Set-BoundedFilesystemFull $fullAppImageMount $fullAppImageFiller $fullAppImageProbe $fullAppImageFillLog
+        $evidence.full_appimage_filesystem_enforced = $true
+
+        $env:PORTCOVE_APPLICATION_UPDATE_STAGING = $fullAppImageState
+        Remove-Item -LiteralPath $qualificationStage -Force -ErrorAction SilentlyContinue
+        Write-Evidence "full-appimage-filesystem-starting"
+        & $fullAppImageStable --portcove-apply-update ([string]$prepared.apply_revision)
+        $evidence.full_appimage_filesystem_exit_code = $LASTEXITCODE
+        if ($LASTEXITCODE -ne 1) { throw "Full-AppImage-filesystem helper exited with code $LASTEXITCODE instead of 1" }
+        Wait-StablePredecessorRestart $qualificationStage $env:PORTCOVE_APPLICATION_RUNTIME_LOCK $StartupTimeoutSeconds "Full-AppImage-filesystem failure"
+        $evidence.full_appimage_filesystem_predecessor_restart_observed = $true
+
+        $fullAppImageEntriesAfter = @(Get-ChildItem -LiteralPath $fullAppImageMount -Recurse -Force |
+                Where-Object FullName -ne $fullAppImageFiller |
+                ForEach-Object { [IO.Path]::GetRelativePath($fullAppImageMount, $_.FullName) } |
+                Sort-Object)
+        $fullAppImageStateEntriesAfter = @(Get-ChildItem -LiteralPath $fullAppImageState -Recurse -Force |
+                ForEach-Object { [IO.Path]::GetRelativePath($fullAppImageState, $_.FullName) } |
+                Sort-Object)
+        $appImageEntryChanges = @(Compare-Object -ReferenceObject $fullAppImageEntries -DifferenceObject $fullAppImageEntriesAfter)
+        $appImageStateEntryChanges = @(Compare-Object -ReferenceObject $fullAppImageStateEntries -DifferenceObject $fullAppImageStateEntriesAfter)
+        $fullAppImageApply = Get-Content -LiteralPath $fullAppImageApplyPath -Raw | ConvertFrom-Json
+        $fullAppImageStableModeAfter = (& stat -c '%a' -- $fullAppImageStable | Out-String).Trim()
+        if ($appImageEntryChanges.Count -ne 0 -or $appImageStateEntryChanges.Count -ne 0 -or
+            (Get-FileHash -LiteralPath $fullAppImageStable -Algorithm SHA256).Hash.ToLowerInvariant() -ne $predecessorHash -or
+            $fullAppImageStableModeAfter -ne $fullAppImageStableMode -or
+            (Get-FileHash -LiteralPath $fullAppImageStagingPath -Algorithm SHA256).Hash -ne $fullAppImageStagingHash -or
+            (Get-FileHash -LiteralPath $fullAppImageCandidatePath -Algorithm SHA256).Hash -ne $fullAppImageCandidateHash -or
+            (Get-FileHash -LiteralPath $applyPath -Algorithm SHA256).Hash -ne $readOnlyApplyHash -or
+            (Get-FileHash -LiteralPath $stagingPath -Algorithm SHA256).Hash -ne $readOnlyStagingHash -or
+            (Get-FileHash -LiteralPath $stagedCandidatePath -Algorithm SHA256).Hash -ne $readOnlyCandidateHash -or
+            (Get-FileHash -LiteralPath $stable -Algorithm SHA256).Hash.ToLowerInvariant() -ne $predecessorHash -or
+            (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -ne $sentinelHash) {
+            throw "Full-AppImage-filesystem failure changed the AppImage, staging, inventory, or persistent data"
+        }
+        if (Test-Path -LiteralPath $fullAppImageSwap) {
+            throw "Full-AppImage-filesystem failure retained a partial candidate swap"
+        }
+        if ($fullAppImageApply.revision -le $prepared.apply_revision -or
+            $null -eq $fullAppImageApply.intent -or
+            $fullAppImageApply.native_launch -ne "failed" -or
+            $null -eq $fullAppImageApply.native_replacement -or
+            $fullAppImageApply.native_replacement.source_path -ne $fullAppImageStable -or
+            $fullAppImageApply.native_replacement.backup_path -ne $fullAppImageSwap -or
+            $fullAppImageApply.native_replacement.previous_bytes -ne (Get-Item -LiteralPath $fullAppImageStable -Force).Length -or
+            $fullAppImageApply.native_replacement.previous_sha256 -ne $predecessorHash) {
+            throw "Full-AppImage-filesystem failure did not retain the exact failed replacement journal"
+        }
+        $evidence.full_appimage_filesystem_failed_revision = $fullAppImageApply.revision
+        $evidence.full_appimage_filesystem_stable_preserved = $true
+        $evidence.full_appimage_filesystem_staging_preserved = $true
+        Write-Evidence "full-appimage-filesystem-preserved"
+
+        $fullAppImageRetryOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_appimage_update -- prepare 0.1.0 $trustedRoot $metadata $targets $candidate $updatePreferences $fullAppImageState $libraryRoot | Out-String
+        if ($LASTEXITCODE -ne 0) { throw "Full-AppImage-filesystem explicit retry preparation failed" }
+        $fullAppImageRetry = $fullAppImageRetryOutput.Trim() | ConvertFrom-Json
+        $fullAppImageRetryApply = Get-Content -LiteralPath $fullAppImageApplyPath -Raw | ConvertFrom-Json
+        $fullAppImageStateEntriesAfterRetry = @(Get-ChildItem -LiteralPath $fullAppImageState -Recurse -Force |
+                ForEach-Object { [IO.Path]::GetRelativePath($fullAppImageState, $_.FullName) } |
+                Sort-Object)
+        $appImageRetryEntryChanges = @(Compare-Object -ReferenceObject $fullAppImageStateEntries -DifferenceObject $fullAppImageStateEntriesAfterRetry)
+        if ($fullAppImageRetry.candidate_version -ne "0.3.0" -or
+            $fullAppImageRetry.candidate_sha256 -ne $candidateHash -or
+            $fullAppImageRetry.apply_revision -ne $fullAppImageRetryApply.revision -or
+            $fullAppImageRetryApply.revision -le $fullAppImageApply.revision -or
+            $null -eq $fullAppImageRetryApply.intent -or
+            $null -ne $fullAppImageRetryApply.native_launch -or
+            $null -ne $fullAppImageRetryApply.native_replacement -or
+            $appImageRetryEntryChanges.Count -ne 0 -or
+            (Get-FileHash -LiteralPath $fullAppImageStable -Algorithm SHA256).Hash.ToLowerInvariant() -ne $predecessorHash -or
+            (& stat -c '%a' -- $fullAppImageStable | Out-String).Trim() -ne $fullAppImageStableMode -or
+            (Get-FileHash -LiteralPath $fullAppImageStagingPath -Algorithm SHA256).Hash -ne $fullAppImageStagingHash -or
+            (Get-FileHash -LiteralPath $fullAppImageCandidatePath -Algorithm SHA256).Hash -ne $fullAppImageCandidateHash -or
+            (Get-FileHash -LiteralPath $applyPath -Algorithm SHA256).Hash -ne $readOnlyApplyHash -or
+            (Get-FileHash -LiteralPath $stagingPath -Algorithm SHA256).Hash -ne $readOnlyStagingHash -or
+            (Get-FileHash -LiteralPath $stagedCandidatePath -Algorithm SHA256).Hash -ne $readOnlyCandidateHash -or
+            (Test-Path -LiteralPath $fullAppImageSwap)) {
+            throw "Full-AppImage-filesystem failure could not be prepared for an explicit retry"
+        }
+        $evidence.full_appimage_filesystem_retry_revision = $fullAppImageRetryApply.revision
+        $evidence.full_appimage_filesystem_retryable_journal = $true
+        Write-Evidence "full-appimage-filesystem-retryable"
+
+        Restore-BoundedFilesystemWrites $fullAppImageFiller $fullAppImageProbe
+        $evidence.full_appimage_filesystem_write_restored = $true
+    } finally {
+        $env:PORTCOVE_APPLICATION_UPDATE_STAGING = $updateRoot
+        if (Test-Path -LiteralPath $fullAppImageFiller) { Remove-Item -LiteralPath $fullAppImageFiller -Force }
+        if ($fullAppImageMounted) {
+            Dismount-BoundedTmpfs $fullAppImageMount
+            $fullAppImageMounted = $false
+        }
+        if (Test-Path -LiteralPath $fullAppImageMount) { Remove-Item -LiteralPath $fullAppImageMount -Force }
+        if (Test-Path -LiteralPath $fullAppImageState) { Remove-Item -LiteralPath $fullAppImageState -Recurse -Force }
+    }
+    Write-Evidence "full-appimage-filesystem-recovered"
 
     $runtimeLockReady = Join-Path $state "runtime-lock-ready"
     $runtimeLockScript = Join-Path $state "hold-runtime-lock.sh"
