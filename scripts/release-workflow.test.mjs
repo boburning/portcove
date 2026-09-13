@@ -13,6 +13,10 @@ const workflow = await readFile(
   "utf8",
 );
 const cliPackager = await readFile(new URL("./package-cli.ps1", import.meta.url), "utf8");
+const macosVerifier = await readFile(
+  new URL("./verify-macos-release.ps1", import.meta.url),
+  "utf8",
+);
 
 function job(name, next) {
   const suffix = next ? `(?=^ {2}${next}:)` : "(?![\\s\\S])";
@@ -100,6 +104,7 @@ test("cross-built Intel artifacts receive native Intel package and launch verifi
   assert.match(intelSection, /scripts\/smoke-test-cli-archive\.ps1/);
   assert.match(intelSection, /scripts\/verify-macos-release\.ps1/);
   assert.match(intelSection, /Architecture x86_64/);
+  assert.match(macosVerifier, /"-acceptlicense"/);
 });
 
 test("CLI packaging uses the BSD-compatible chmod form required by macOS", () => {

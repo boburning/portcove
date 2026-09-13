@@ -20,7 +20,7 @@ function Invoke-Checked([string]$Command, [string[]]$Arguments) {
 }
 
 try {
-    $attach = Invoke-Checked "hdiutil" @("attach", "-readonly", "-nobrowse", "-plist", $dmg)
+    $attach = Invoke-Checked "hdiutil" @("attach", "-readonly", "-nobrowse", "-plist", "-acceptlicense", $dmg)
     $attachPath = Join-Path $temporaryRoot "attach.plist"
     [System.IO.File]::WriteAllLines($attachPath, $attach)
     $attachJson = Invoke-Checked "plutil" @("-convert", "json", "-o", "-", $attachPath)
