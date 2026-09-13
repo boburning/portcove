@@ -74,8 +74,12 @@ fn canonical_kernel_version(value: &str) -> Result<String, String> {
 }
 
 fn installed_context(current_version: &str) -> Result<InstalledApplicationContext, String> {
-    let kernel =
-        std::fs::read_to_string("/proc/sys/kernel/osrelease").map_err(|error| error.to_string())?;
+    let kernel_release = Path::new(std::path::MAIN_SEPARATOR_STR)
+        .join("proc")
+        .join("sys")
+        .join("kernel")
+        .join("osrelease");
+    let kernel = std::fs::read_to_string(kernel_release).map_err(|error| error.to_string())?;
     let catalog_format = portcove_core::Catalog::embedded()
         .map_err(|error| error.to_string())?
         .document()
