@@ -12,7 +12,7 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 #[cfg(target_os = "linux")]
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 #[cfg(target_os = "linux")]
 use std::thread;
 #[cfg(target_os = "linux")]
@@ -30,7 +30,8 @@ use sha2::{Digest, Sha256};
 
 #[cfg(target_os = "linux")]
 use portcove_core::{
-    ApplicationRuntimeGuard, ApplicationUpdateExclusivityGuard, HostPreferenceStore,
+    ApplicationRuntimeGuard, ApplicationUpdateExclusivityGuard, ChildProcessClass,
+    ChildProcessPolicy, HostPreferenceStore,
 };
 
 #[cfg(target_os = "linux")]
@@ -465,15 +466,17 @@ fn run_package_query(
             tool.display()
         )));
     }
-    let mut child = Command::new(tool)
+    let mut command = ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, tool)
+        .map_err(|error| LinuxApplicationUpdateError::InstalledContext(error.to_string()))?;
+    command
         .args(arguments)
         .env_clear()
         .env("LC_ALL", "C")
         .env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()?;
+        .stderr(Stdio::null());
+    let mut child = command.spawn()?;
     let deadline = Instant::now() + PACKAGE_QUERY_TIMEOUT;
     let status = loop {
         if let Some(status) = child.try_wait()? {

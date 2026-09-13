@@ -176,6 +176,7 @@ test("changed shell scripts run shellcheck across the maintained shell set", () 
   assert.ok(shellLint);
   assert.ok(shellLint.args.includes("scripts/install-linux-desktop-prerequisites.sh"));
   assert.ok(shellLint.args.includes("scripts/bootstrap-quality-tools.sh"));
+  assert.ok(shellLint.args.includes("scripts/test-linux-package-ownership.sh"));
 });
 
 test("release-script changes select deterministic release contracts without packaged qualification", () => {

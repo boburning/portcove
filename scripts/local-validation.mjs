@@ -604,6 +604,7 @@ export function buildPlan(selection, context = {}) {
         "--severity=warning",
         "scripts/bootstrap-quality-tools.sh",
         "scripts/install-linux-desktop-prerequisites.sh",
+        "scripts/test-linux-package-ownership.sh",
       ]),
     );
   if (selection.pythonLint)

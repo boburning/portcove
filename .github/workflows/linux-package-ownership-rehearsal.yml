@@ -26,7 +26,7 @@ env:
   pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
 
 jobs:
-  packages:
+  build:
     runs-on: ubuntu-22.04
     timeout-minutes: 45
     steps:
@@ -51,13 +51,60 @@ jobs:
       - name: Build DEB and RPM packages only
         run: pnpm tauri build --bundles deb,rpm --ci
         working-directory: apps/desktop
-      - name: Verify installed package ownership guidance
-        run: ./scripts/test-linux-package-ownership.sh
-      - name: Retain bounded package ownership evidence
+      - name: Retain packages for native ownership jobs
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: linux-native-packages
+          path: |
+            target/release/bundle/deb/*.deb
+            target/release/bundle/rpm/*.rpm
+          if-no-files-found: error
+          retention-days: 1
+
+  deb:
+    needs: build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: linux-native-packages
+          path: target/release/bundle
+      - name: Install DEB runtime prerequisites
+        timeout-minutes: 15
+        run: ./scripts/install-linux-desktop-prerequisites.sh
+      - name: Verify installed DEB ownership guidance
+        run: ./scripts/test-linux-package-ownership.sh deb
+      - name: Retain bounded DEB ownership evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: linux-package-ownership-evidence
-          path: work/linux-package-ownership/**
+          name: linux-package-ownership-deb
+          path: work/linux-package-ownership-deb/**
+          if-no-files-found: error
+          retention-days: 1
+
+  rpm:
+    needs: build
+    runs-on: ubuntu-22.04
+    container: fedora:42
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: linux-native-packages
+          path: target/release/bundle
+      - name: Install Fedora qualification tools
+        run: dnf --assumeyes install findutils nodejs rpm
+      - name: Verify installed RPM ownership guidance
+        run: ./scripts/test-linux-package-ownership.sh rpm
+      - name: Retain bounded RPM ownership evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: linux-package-ownership-rpm
+          path: work/linux-package-ownership-rpm/**
           if-no-files-found: error
           retention-days: 1

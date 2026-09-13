@@ -204,7 +204,11 @@ test("Linux package ownership rehearsal is focused and preserves managed executa
     assert.ok(rehearsal.includes(`- ${governedPath}`));
   }
   assert.match(rehearsal, /runs-on: ubuntu-22\.04/);
+  assert.match(rehearsal, /container: fedora:42/);
   assert.match(rehearsal, /pnpm tauri build --bundles deb,rpm --ci/);
+  assert.match(rehearsal, /actions\/download-artifact@/);
+  assert.match(rehearsal, /test-linux-package-ownership\.sh deb/);
+  assert.match(rehearsal, /test-linux-package-ownership\.sh rpm/);
   assert.doesNotMatch(rehearsal, /appimage|desktop-test|e2e/iu);
   assert.match(rehearsal, /\.\/scripts\/test-linux-package-ownership\.sh/);
   assert.match(rehearsal, /retention-days: 1/);
@@ -213,9 +217,9 @@ test("Linux package ownership rehearsal is focused and preserves managed executa
   assert.match(qualification, /--application-update-recovery eligibility/);
   assert.match(qualification, /dpkg-query --search/);
   assert.match(qualification, /rpm --query --queryformat .* --file/);
-  assert.match(qualification, />.*rpm-owners\.txt/);
-  assert.match(qualification, /deb_hash_before.*deb_hash_after/s);
-  assert.match(qualification, /rpm_hash_before.*rpm_hash_after/s);
+  assert.match(qualification, /dnf --assumeyes install/);
+  assert.match(qualification, /\$format-owners\.txt/);
+  assert.match(qualification, /hash_before.*hash_after/s);
   assert.match(qualification, /package_managed_files_unchanged: true/);
 });
 
