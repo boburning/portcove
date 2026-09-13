@@ -9218,6 +9218,11 @@ fn main() {
     fn direct_user_data_roots_are_not_mirrored_into_immutable_installs() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let port = service.catalog().port("snap64-recomp").unwrap();
+        if !port.platforms.contains(&Platform::current().unwrap()) {
+            return;
+        }
         let install = library.versions_dir().join("snap64-recomp").join("fixture");
         fs::create_dir_all(&install).unwrap();
         write_host_test_executable_with_contents(&install, "snap64-recomp", b"test");
@@ -9225,8 +9230,6 @@ fn main() {
         let user_rom = library.user_dir("snap64-recomp").join("pokemonsnap.z64");
         fs::create_dir_all(user_rom.parent().unwrap()).unwrap();
         fs::write(&user_rom, b"verified source").unwrap();
-        let service = PortcoveService::new(library.clone()).unwrap();
-        let port = service.catalog().port("snap64-recomp").unwrap();
 
         service.restore_user_data_to(port, &install).unwrap();
         service
