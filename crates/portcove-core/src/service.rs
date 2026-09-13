@@ -26,7 +26,7 @@ use crate::{
     PortcoveError, ReconcileAction, ReconcileResult, ReleaseChannel, ReleaseProvider, RepairItem,
     RepairItemKind, RepairPlan, ResolvedRelease, RestoreResult, Result, SourceHealth, SourceRecord,
     SourceRemovalPreview, SourceRequirementRole, SourceVerification, SupervisedLaunchOutcome,
-    UpdateCheck, UpdatePolicy, VerificationReport,
+    UpdateCheck, UpdatePolicy, VerificationReport, WorkspaceSnapshot,
     definition_eligibility::DefinitionOperationContext,
     durability::{prepare_backup_publication, publish_backup_directory},
     operation::{
@@ -648,16 +648,20 @@ impl PortcoveService {
     }
 
     pub fn statuses(&self) -> Result<Vec<PortStatus>> {
+        let sources = self.library.sources()?;
+        self.statuses_with_sources(&sources)
+    }
+
+    fn statuses_with_sources(&self, sources: &[SourceRecord]) -> Result<Vec<PortStatus>> {
         let ports = self
             .catalog
             .ports()
             .iter()
             .map(|port| (port.id.clone(), default_channel(port)))
             .collect::<Vec<_>>();
-        let registered_sources = self
-            .library
-            .sources()?
-            .into_iter()
+        let registered_sources = sources
+            .iter()
+            .cloned()
             .map(|source| (source.profile_id.clone(), source))
             .collect::<HashMap<_, _>>();
         let (statuses, metrics) = self.library.statuses_with_metrics(&ports)?;
@@ -681,6 +685,18 @@ impl PortcoveService {
                 self.with_definition_operations(port, status)
             })
             .collect()
+    }
+
+    pub fn workspace_snapshot(&self, activity_limit: usize) -> Result<WorkspaceSnapshot> {
+        let sources = self.library.sources()?;
+        let statuses = self.statuses_with_sources(&sources)?;
+        let activities = self.library.activities(activity_limit)?;
+        Ok(WorkspaceSnapshot {
+            catalog: self.catalog.document().clone(),
+            statuses,
+            sources,
+            activities,
+        })
     }
 
     pub async fn plan_install(
@@ -6368,6 +6384,23 @@ mod tests {
                 .collect::<Vec<_>>(),
             ["chdman", "dolphin_tool"]
         );
+    }
+
+    #[test]
+    fn workspace_snapshot_hydrates_the_essential_read_model() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = PortcoveService::new(library).unwrap();
+
+        let snapshot = service.workspace_snapshot(50).unwrap();
+
+        assert_eq!(
+            serde_json::to_value(&snapshot.catalog).unwrap(),
+            serde_json::to_value(service.catalog().document()).unwrap()
+        );
+        assert_eq!(snapshot.statuses.len(), snapshot.catalog.ports.len());
+        assert!(snapshot.sources.is_empty());
+        assert!(snapshot.activities.is_empty());
     }
 
     #[test]

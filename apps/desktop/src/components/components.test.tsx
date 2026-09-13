@@ -581,6 +581,20 @@ describe("desktop components", () => {
     expect(html).toContain("Recheck");
   });
 
+  it("labels unavailable diagnostics instead of presenting them as healthy", () => {
+    const html = renderToStaticMarkup(
+      <SettingsView
+        diagnosticsStale
+        diagnosticFailure={new Error("host probe failed")}
+        refreshDiagnostics={vi.fn()}
+      />,
+    );
+    expect(html).toContain("Diagnostics could not be checked");
+    expect(html).toContain("Host readiness is unavailable until diagnostics succeed");
+    expect(html).toContain("Retry diagnostics");
+    expect(html).not.toContain("Diagnostics are current");
+  });
+
   it("renders an accessible system, dark, and light appearance choice", () => {
     const html = renderToStaticMarkup(
       <SettingsView

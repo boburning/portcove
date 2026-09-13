@@ -948,9 +948,19 @@ function AboutCard() {
 function DiagnosticsCard({
   busy,
   createSupportBundle,
+  refreshing,
+  stale = true,
+  failure,
+  refresh,
+  hasSnapshot,
 }: {
   busy?: string;
   createSupportBundle?: () => Promise<string | undefined>;
+  refreshing?: boolean;
+  stale?: boolean;
+  failure?: unknown;
+  refresh?: () => Promise<void>;
+  hasSnapshot?: boolean;
 }) {
   const [bundlePath, setBundlePath] = useState<string>();
   const create = async () => {
@@ -968,6 +978,26 @@ function DiagnosticsCard({
         Collect rotated desktop logs, recent operation records, and host readiness without game
         sources or stored credentials.
       </p>
+      <p role="status">
+        {refreshing
+          ? "Checking current host and library diagnostics…"
+          : failure
+            ? hasSnapshot
+              ? "The last diagnostic snapshot is retained, but the current check failed."
+              : "Diagnostics could not be checked."
+            : stale
+              ? "Diagnostics may be out of date."
+              : "Diagnostics are current."}
+      </p>
+      {failure ? <p role="alert">{errorText(failure)}</p> : null}
+      <button
+        data-focusable
+        className="small-control"
+        disabled={Boolean(busy) || refreshing || !refresh}
+        onClick={() => void refresh?.()}
+      >
+        {failure ? "Retry diagnostics" : "Refresh diagnostics"}
+      </button>
       <button
         data-focusable
         className="small-control"
@@ -1037,6 +1067,10 @@ export function SettingsView({
   openSourceEvidence,
   applicationUpdateNotice,
   onApplicationUpdatePreferencesChanged,
+  diagnosticsRefreshing,
+  diagnosticsStale,
+  diagnosticFailure,
+  refreshDiagnostics,
 }: {
   generation?: number;
   ports?: PortDefinition[];
@@ -1066,6 +1100,10 @@ export function SettingsView({
   hostToolActions?: HostToolActions;
   applicationUpdateNotice?: ApplicationUpdateNoticeSnapshot["notice"];
   onApplicationUpdatePreferencesChanged?: (preferences: ApplicationUpdatePreferences) => void;
+  diagnosticsRefreshing?: boolean;
+  diagnosticsStale?: boolean;
+  diagnosticFailure?: unknown;
+  refreshDiagnostics?: () => Promise<void>;
 }) {
   return (
     <section className="settings-grid">
@@ -1112,8 +1150,22 @@ export function SettingsView({
         disabled={Boolean(busy)}
         onChanged={onCatalogChanged}
       />
-      <HostReadiness doctor={doctor} busy={busy} actions={hostToolActions} />
-      <DiagnosticsCard busy={busy} createSupportBundle={createSupportBundle} />
+      <HostReadiness
+        doctor={doctor}
+        busy={busy}
+        actions={hostToolActions}
+        stale={diagnosticsStale}
+        failure={diagnosticFailure}
+      />
+      <DiagnosticsCard
+        busy={busy}
+        createSupportBundle={createSupportBundle}
+        refreshing={diagnosticsRefreshing}
+        stale={diagnosticsStale}
+        failure={diagnosticFailure}
+        refresh={refreshDiagnostics}
+        hasSnapshot={Boolean(doctor)}
+      />
       <AboutCard />
       <ApplicationUpdateSettings
         currentVersion={desktopPackage.version}
@@ -1277,10 +1329,14 @@ function HostReadiness({
   doctor,
   busy,
   actions,
+  stale,
+  failure,
 }: {
   doctor?: DoctorReport;
   busy?: string;
   actions?: HostToolActions;
+  stale?: boolean;
+  failure?: unknown;
 }) {
   return (
     <article className="settings-card host-readiness">
@@ -1291,6 +1347,7 @@ function HostReadiness({
       </h2>
       {doctor ? (
         <>
+          {stale && <p role="status">Showing the last successful host check.</p>}
           <p className="host-summary">
             <code>{doctor.platform}</code>
             <span>
@@ -1304,6 +1361,8 @@ function HostReadiness({
             ))}
           </div>
         </>
+      ) : failure ? (
+        <p>Host readiness is unavailable until diagnostics succeed.</p>
       ) : (
         <p>Checking disc-tool readiness…</p>
       )}

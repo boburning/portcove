@@ -4,6 +4,25 @@ use portcove_core::{LibrarySelection, ReleaseChannel, SourceVerification};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Serialize, JsonSchema)]
+pub(crate) struct DesktopWorkspaceSnapshot {
+    pub(crate) catalog: portcove_core::CatalogDocument,
+    pub(crate) statuses: Vec<portcove_core::PortStatus>,
+    pub(crate) sources: Vec<portcove_core::SourceRecord>,
+    pub(crate) activities: Vec<portcove_core::ActivityRecord>,
+}
+
+impl From<portcove_core::WorkspaceSnapshot> for DesktopWorkspaceSnapshot {
+    fn from(snapshot: portcove_core::WorkspaceSnapshot) -> Self {
+        Self {
+            catalog: snapshot.catalog,
+            statuses: snapshot.statuses,
+            sources: snapshot.sources,
+            activities: snapshot.activities,
+        }
+    }
+}
+
 pub(crate) type DesktopError = portcove_core::FailureReport;
 
 #[derive(Debug, Serialize, JsonSchema)]

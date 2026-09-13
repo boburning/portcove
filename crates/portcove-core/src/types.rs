@@ -772,6 +772,18 @@ pub struct ActivityRecord {
     pub cancellation: Option<crate::CancellationState>,
 }
 
+/// Essential read model used to hydrate one interactive workspace.
+///
+/// Diagnostics are intentionally excluded because they may perform slower host
+/// probes and must not delay catalog, library, source, or activity rendering.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct WorkspaceSnapshot {
+    pub catalog: CatalogDocument,
+    pub statuses: Vec<PortStatus>,
+    pub sources: Vec<SourceRecord>,
+    pub activities: Vec<ActivityRecord>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct StorageSummary {
     pub library_root: PathBuf,

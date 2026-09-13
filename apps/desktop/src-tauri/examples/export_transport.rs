@@ -17,8 +17,8 @@ use portcove_desktop::application_update_status::{
 use schemars::{JsonSchema, generate::SchemaSettings};
 use serde_json::{Value, json};
 use transport::{
-    BackupReview, BatchOutcome, BootstrapStatus, CliCommandContext, DesktopError, InstallInput,
-    LaunchResult, SourceBatchOutcome,
+    BackupReview, BatchOutcome, BootstrapStatus, CliCommandContext, DesktopError,
+    DesktopWorkspaceSnapshot, InstallInput, LaunchResult, SourceBatchOutcome,
 };
 
 fn output<T: JsonSchema>() -> Value {
@@ -50,6 +50,7 @@ fn main() {
                 "application_update_check_result": output::<ApplicationUpdateCheckResult>(),
                 "application_update_check_phase": output::<ApplicationUpdateCheckPhase>(),
                 "application_update_notice": output::<ApplicationUpdateNoticeSnapshot>(),
+                "workspace_snapshot": output::<DesktopWorkspaceSnapshot>(),
             },
             "input": {
                 "install_input": schemars::schema_for!(InstallInput),
