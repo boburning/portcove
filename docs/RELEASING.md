@@ -33,10 +33,22 @@ each runner and builds every required Windows, Linux, Intel Mac and Apple Silico
 package at fixture versions 0.1.0 and 0.3.0. It checks native package versions and
 executable permissions; Windows also runs the existing isolated installer harness
 through a passive skipped-version upgrade and uninstall with data preservation.
+Linux builds a disposable test-signed TUF repository, embeds its public trust and
+local repository URLs in a qualification-only 0.1.0 AppImage, and exercises the
+packaged helper through a 0.1.0-to-0.3.0 replacement under Xvfb. The run verifies
+the stable path's exact candidate hash and executable bit, healthy-startup journal
+reconciliation, staging and backup cleanup, and preservation of a library sentinel.
+It deletes the disposable TUF private keys before starting either AppImage and does
+not upload private keys or mutable updater state.
 These are fixture versions, never publication or release-readiness declarations.
 The script requires a clean tracked checkout, records the exact source commit and
 version-only source patch, restores metadata, and deletes its disposable private
 key. Prior build outputs are preserved under its new evidence directory.
+
+The Linux packaged run is Ubuntu-hosted AppImage evidence with disposable keys. It
+does not establish production signing, universal distribution compatibility, Steam
+Deck behavior, interruption recovery, or the remaining distro evidence tracked by
+the live roadmap issue.
 
 `scripts/updater-artifact-inventory.mjs stage` selects the complete existing package
 matrix, copies final distributed bytes into a new directory, hashes them, verifies
