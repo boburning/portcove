@@ -4356,15 +4356,18 @@ impl PortcoveService {
             let retained_port = self.persistence_port(port, &install_root)?;
             let port = &retained_port;
             let persistent_root = self.persistence_root(port, &install_root)?;
-            for relative in crate::persistence::entries(port, &[&user_root, &persistent_root])? {
-                let source = user_root.join(&relative);
-                let destination = persistent_root.join(&relative);
-                refuse_symlink_ancestors(&source)?;
-                refuse_symlink_ancestors(&destination)?;
-                if source.exists() {
-                    sync_entry(&source, &destination)?;
-                } else if destination.exists() {
-                    remove_managed_entry(&destination)?;
+            if !writes_directly_to_user_root(port) {
+                for relative in crate::persistence::entries(port, &[&user_root, &persistent_root])?
+                {
+                    let source = user_root.join(&relative);
+                    let destination = persistent_root.join(&relative);
+                    refuse_symlink_ancestors(&source)?;
+                    refuse_symlink_ancestors(&destination)?;
+                    if source.exists() {
+                        sync_entry(&source, &destination)?;
+                    } else if destination.exists() {
+                        remove_managed_entry(&destination)?;
+                    }
                 }
             }
             let marker = install_root.join(LAUNCH_MARKER);
@@ -4389,13 +4392,11 @@ impl PortcoveService {
         self.require_completed_restore(&port.id)?;
         let user_root = self.library.user_dir(&port.id);
         let persistent_root = self.persistence_root(port, install_root)?;
-        let writes_directly_to_user_root = port.user_data_environment.is_some()
-            || port.adapter == crate::AdapterKind::LibultrashipPortable;
         let mut copied = Vec::new();
         for relative in crate::persistence::entries(port, &[&persistent_root, &user_root])? {
             let source = persistent_root.join(&relative);
             let destination = user_root.join(&relative);
-            if writes_directly_to_user_root {
+            if writes_directly_to_user_root(port) {
                 if destination.exists() {
                     copied.push(destination);
                 }
@@ -4424,15 +4425,17 @@ impl PortcoveService {
         let marker = install_root.join(LAUNCH_MARKER);
         refuse_symlink_ancestors(&marker)?;
         let previously_launched = marker.is_file();
-        for relative in crate::persistence::entries(port, &[&user_root, &persistent_root])? {
-            let source = user_root.join(&relative);
-            let destination = persistent_root.join(&relative);
-            refuse_symlink_ancestors(&source)?;
-            refuse_symlink_ancestors(&destination)?;
-            if source.exists() {
-                sync_entry(&source, &destination)?;
-            } else if previously_launched && destination.exists() {
-                remove_managed_entry(&destination)?;
+        if !writes_directly_to_user_root(port) {
+            for relative in crate::persistence::entries(port, &[&user_root, &persistent_root])? {
+                let source = user_root.join(&relative);
+                let destination = persistent_root.join(&relative);
+                refuse_symlink_ancestors(&source)?;
+                refuse_symlink_ancestors(&destination)?;
+                if source.exists() {
+                    sync_entry(&source, &destination)?;
+                } else if previously_launched && destination.exists() {
+                    remove_managed_entry(&destination)?;
+                }
             }
         }
         Ok(())
@@ -4718,6 +4721,10 @@ fn default_channel(port: &PortDefinition) -> ReleaseChannel {
     } else {
         port.channels[0]
     }
+}
+
+fn writes_directly_to_user_root(port: &PortDefinition) -> bool {
+    port.user_data_environment.is_some() || port.adapter == crate::AdapterKind::LibultrashipPortable
 }
 
 fn data_version(connection: &rusqlite::Connection) -> Result<i64> {
@@ -9205,6 +9212,32 @@ fn main() {
             .unwrap(),
             b"ready"
         );
+    }
+
+    #[test]
+    fn direct_user_data_roots_are_not_mirrored_into_immutable_installs() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let port = service.catalog().port("snap64-recomp").unwrap();
+        if !port.platforms.contains(&Platform::current().unwrap()) {
+            return;
+        }
+        let install = library.versions_dir().join("snap64-recomp").join("fixture");
+        fs::create_dir_all(&install).unwrap();
+        write_host_test_executable_with_contents(&install, "snap64-recomp", b"test");
+        register_existing_test_install(&library, "snap64-recomp", "v1.0.5", &install, true);
+        let user_rom = library.user_dir("snap64-recomp").join("pokemonsnap.z64");
+        fs::create_dir_all(user_rom.parent().unwrap()).unwrap();
+        fs::write(&user_rom, b"verified source").unwrap();
+
+        service.restore_user_data_to(port, &install).unwrap();
+        service
+            .synchronize_restored_user_data("snap64-recomp")
+            .unwrap();
+
+        assert_eq!(fs::read(user_rom).unwrap(), b"verified source");
+        assert!(!install.join("pokemonsnap.z64").exists());
     }
 
     #[test]

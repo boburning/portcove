@@ -227,7 +227,14 @@ impl Adapter for StandardAdapter {
             && !crate::preparation::managed(port)
             && let (Some(source), Some(filename)) = (source, &port.runtime_source_filename)
         {
-            let stored_source = working_directory.join(filename);
+            let source_root = if self.0 == AdapterKind::N64RecompPortable
+                && port.user_data_environment.is_some()
+            {
+                &user_data
+            } else {
+                &working_directory
+            };
+            let stored_source = source_root.join(filename);
             if let Some(parent) = stored_source.parent() {
                 std::fs::create_dir_all(parent)?;
             }
@@ -2787,6 +2794,56 @@ mod tests {
         let destination = temporary.path().join("materialized.z64");
         prepare_n64_source(&record.path, &destination).unwrap();
         assert_eq!(std::fs::read(destination).unwrap(), rom);
+    }
+
+    #[test]
+    fn n64_user_data_environment_keeps_the_verified_rom_out_of_the_runtime() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = temporary.path().join("install");
+        std::fs::create_dir_all(&install).unwrap();
+        let executable = install.join("Snap64Recomp.exe");
+        std::fs::write(&executable, b"test").unwrap();
+        let source = temporary.path().join("pokemon-snap.z64");
+        let rom = [0x80, 0x37, 0x12, 0x40, 1, 2, 3, 4];
+        std::fs::write(&source, rom).unwrap();
+        let mut port = Catalog::embedded()
+            .unwrap()
+            .port("banjo-recomp")
+            .unwrap()
+            .clone();
+        port.id = "snap64-recomp-test".into();
+        port.executable_hints
+            .insert(Platform::WindowsX86_64, vec!["Snap64Recomp.exe".into()]);
+        port.runtime_source_filename = Some("pokemonsnap.z64".into());
+        port.user_data_environment = Some("SNAP_DATA_DIR".into());
+
+        let spec = AdapterRegistry
+            .get(AdapterKind::N64RecompPortable)
+            .launch_spec_with_executable(
+                LaunchSpecRequest {
+                    library: &library,
+                    port: &port,
+                    platform: Platform::WindowsX86_64,
+                    install_root: &install,
+                    selected_executable: &executable,
+                    source: Some(&source),
+                    source_record: None,
+                },
+                &|| Ok(()),
+            )
+            .unwrap();
+
+        let user_data = library.user_dir(&port.id);
+        assert_eq!(
+            spec.environment.get("SNAP_DATA_DIR"),
+            Some(&user_data.to_string_lossy().into_owned())
+        );
+        assert_eq!(
+            std::fs::read(user_data.join("pokemonsnap.z64")).unwrap(),
+            rom
+        );
+        assert!(!install.join("pokemonsnap.z64").exists());
     }
 
     #[test]

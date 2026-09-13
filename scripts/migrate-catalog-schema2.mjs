@@ -76,6 +76,15 @@ const reviewedSources = {
     liveRef: "dev",
     path: "README.md",
   },
+  snap64Recomp: {
+    evidenceId: "snap64-recomp-1-0-5-source-contract",
+    repository: "JackandBeans/Snap64Recomp",
+    ref: "0b1a67eb4fd15ff3a87957110c428eb4905c36cc",
+    tag: "v1.0.5",
+    liveRef: "main",
+    path: "README.md",
+    reviewedAt: "2026-09-13",
+  },
 };
 
 function upstreamEvidence(source, claim) {
@@ -84,7 +93,7 @@ function upstreamEvidence(source, claim) {
     role: "upstream_support",
     authority: source.repository,
     authority_ref: source.ref,
-    reviewed_at: "2026-09-05",
+    reviewed_at: source.reviewedAt ?? "2026-09-05",
     claim,
     immutable_url: `https://github.com/${source.repository}/blob/${source.ref}/${source.path}`,
     live_url: `https://github.com/${source.repository}/blob/${source.liveRef}/${source.path}`,
@@ -141,6 +150,23 @@ const evidence = [
     reviewedSources.zelda64Recomp,
     "Limits Zelda 64: Recompiled 1.2.2 to the US Majora's Mask source",
   ),
+  upstreamEvidence(
+    reviewedSources.snap64Recomp,
+    "Limits Snap64 Recomp 1.0.5 to the US Pokemon Snap source and documents portable data-root isolation",
+  ),
+  {
+    id: "snap64-recomp-windows-2026-09-13",
+    role: "portcove_qualification",
+    authority: "boburning/portcove",
+    authority_ref: "bde8b91440620599aa08e1a9d7d02674d45eb9a8",
+    reviewed_at: "2026-09-13",
+    claim:
+      "Records exact Windows structural and lifecycle passes plus bounded upstream replay failures for Snap64 Recomp 1.0.5",
+    immutable_url:
+      "https://github.com/boburning/portcove/blob/bde8b91440620599aa08e1a9d7d02674d45eb9a8/docs/qualification/snap64-recomp-windows-2026-09-13.md",
+    live_url:
+      "https://github.com/boburning/portcove/blob/main/docs/qualification/snap64-recomp-windows-2026-09-13.md",
+  },
 ];
 
 function digest(scope, sha1, sha256, crc32) {
@@ -353,6 +379,30 @@ function applyReviewedVariants(profileId, variants) {
   profile.variants = [legacyVariant, ...variants];
   profile.evidence_gap = null;
 }
+
+identities.push({
+  id: "pokemon-snap",
+  label: "Pokemon Snap (USA) source",
+  kind: "file",
+  variants: [
+    n64Variant(
+      "usa-rev0",
+      "Pokemon Snap",
+      "USA",
+      "Rev 0",
+      [
+        {
+          sha1: "edc7c49cc568c045fe48be0d18011c30f393cbaf",
+          sha256: "a1d5d816db7f8557ee04c35a011326d058b2c1fbca76b57b352b1d705a1ec1cc",
+        },
+      ],
+      reviewedSources.snap64Recomp.evidenceId,
+    ),
+  ],
+  aliases: [],
+  tombstones: [],
+  evidence_gap: null,
+});
 
 applyReviewedVariants("ghostship-source", [
   n64Variant(
@@ -623,6 +673,30 @@ for (const port of legacy.ports) {
   }
 }
 
+contracts.push({
+  id: "snap64-recomp-game-source",
+  port_id: "snap64-recomp",
+  role: "game",
+  profile_id: "pokemon-snap",
+  admission_mode: "enforced",
+  supported_variant_ids: ["usa-rev0"],
+  validator_contract_id: null,
+  evidence_ids: [reviewedSources.snap64Recomp.evidenceId],
+  authority_ref: reviewedSources.snap64Recomp.ref,
+  reviewed_at: reviewedSources.snap64Recomp.reviewedAt,
+  immutable_review_url: `https://github.com/${reviewedSources.snap64Recomp.repository}/blob/${reviewedSources.snap64Recomp.ref}/${reviewedSources.snap64Recomp.path}`,
+  live_review_url: `https://github.com/${reviewedSources.snap64Recomp.repository}/blob/${reviewedSources.snap64Recomp.liveRef}/${reviewedSources.snap64Recomp.path}`,
+  evidence_gap: null,
+  applicability: [
+    {
+      upstream_ref: reviewedSources.snap64Recomp.tag,
+      artifact_sha256: "e3ab514df95d4a8133d2504ddc2ce43c12e376f5be74f076b3f90c09f8baf6b7",
+    },
+  ],
+  aliases: [],
+  tombstones: [],
+});
+
 function reviewContract(portId, source, supportedVariantIds, extraEvidenceIds = []) {
   const contract = contracts.find(
     (candidate) => candidate.port_id === portId && candidate.role === "game",
@@ -674,70 +748,194 @@ const migrated = {
     identities,
     contracts,
     validators,
-    qualification: [],
+    qualification: [
+      {
+        scope: {
+          port_id: "snap64-recomp",
+          platform: "windows-x86-64",
+          artifact_sha256: "e3ab514df95d4a8133d2504ddc2ce43c12e376f5be74f076b3f90c09f8baf6b7",
+          upstream_ref: "v1.0.5",
+          contract_id: "snap64-recomp-game-source",
+          variant: {
+            state: "exact",
+            identity: {
+              game_id: "pokemon-snap",
+              variant_id: "usa-rev0",
+              representation_id: "canonical-rom",
+            },
+          },
+          check_version: "snap64-windows-qualification-v1",
+        },
+        kind: "structural_check",
+        outcome: "passed",
+        observed_at: 1789309720,
+        portcove_version: "0.1.0-alpha.2",
+        portcove_commit: "bde8b91440620599aa08e1a9d7d02674d45eb9a8",
+        method:
+          "Catalog, source identity, artifact binding, persistence ownership, and migration contract checks",
+        evidence_ids: ["snap64-recomp-windows-2026-09-13"],
+      },
+      {
+        scope: {
+          port_id: "snap64-recomp",
+          platform: "windows-x86-64",
+          artifact_sha256: "e3ab514df95d4a8133d2504ddc2ce43c12e376f5be74f076b3f90c09f8baf6b7",
+          upstream_ref: "v1.0.5",
+          contract_id: "snap64-recomp-game-source",
+          variant: {
+            state: "exact",
+            identity: {
+              game_id: "pokemon-snap",
+              variant_id: "usa-rev0",
+              representation_id: "canonical-rom",
+            },
+          },
+          check_version: "snap64-windows-qualification-v1",
+        },
+        kind: "automated_lifecycle",
+        outcome: "passed",
+        observed_at: 1789309720,
+        portcove_version: "0.1.0-alpha.2",
+        portcove_commit: "bde8b91440620599aa08e1a9d7d02674d45eb9a8",
+        method:
+          "Exact archive registration, mismatch rejection, install, verify, responsive native launch, backup restore, update, rollback, and immutable-install isolation",
+        evidence_ids: ["snap64-recomp-windows-2026-09-13"],
+      },
+      {
+        scope: {
+          port_id: "snap64-recomp",
+          platform: "windows-x86-64",
+          artifact_sha256: "e3ab514df95d4a8133d2504ddc2ce43c12e376f5be74f076b3f90c09f8baf6b7",
+          upstream_ref: "v1.0.5",
+          contract_id: "snap64-recomp-game-source",
+          variant: {
+            state: "exact",
+            identity: {
+              game_id: "pokemon-snap",
+              variant_id: "usa-rev0",
+              representation_id: "canonical-rom",
+            },
+          },
+          check_version: "snap64-windows-qualification-v1",
+        },
+        kind: "known_failure",
+        outcome: "failed",
+        observed_at: 1789305500,
+        portcove_version: "0.1.0-alpha.2",
+        portcove_commit: "bde8b91440620599aa08e1a9d7d02674d45eb9a8",
+        method:
+          "Upstream tools/release_check.py default suite: 18/22 passed; pacing, coherence, tick-count, and scoring-route checks failed on the 165 Hz host",
+        evidence_ids: ["snap64-recomp-windows-2026-09-13"],
+      },
+    ],
   },
-  ports: legacy.ports.map((port) =>
-    port.id === "ghostship"
-      ? {
-          ...port,
-          // Ghostship 3.0.0 and its pinned libultraship/Torch dependencies write these
-          // disposable outputs. Preserve the frozen migration input and all user data.
-          runtime_mutable_paths: [
-            "torch.hash.yml",
-            "logs/Ghostship.log",
-            ...Array.from({ length: 10 }, (_, index) => `logs/Ghostship.${index + 1}.log`),
-          ],
-        }
-      : port.id === "yu-gi-oh-forbidden-memories-recompiled"
+  ports: [
+    ...legacy.ports.map((port) =>
+      port.id === "ghostship"
         ? {
             ...port,
-            // v0.5.7 separates player data and launcher caches unless portable mode is
-            // explicit. Remember user selections and ignore only reproducible outputs.
-            persistent_paths: [...port.persistent_paths, "disc.cfg", "bios.cfg"],
+            // Ghostship 3.0.0 and its pinned libultraship/Torch dependencies write these
+            // disposable outputs. Preserve the frozen migration input and all user data.
             runtime_mutable_paths: [
-              ...port.runtime_mutable_paths,
-              "disc_verified.cfg",
-              "diagnostics/psx_freeze_heartbeat.json",
+              "torch.hash.yml",
+              "logs/Ghostship.log",
+              ...Array.from({ length: 10 }, (_, index) => `logs/Ghostship.${index + 1}.log`),
             ],
-            launch_environment: {
-              ...port.launch_environment,
-              PSX_PORTABLE: "1",
-            },
           }
-        : port.id === "bomberman-party-edition-recompiled"
+        : port.id === "yu-gi-oh-forbidden-memories-recompiled"
           ? {
               ...port,
-              // The managed runtime creates these player selections and disposable
-              // reports after the frozen schema-1 catalog was recorded.
-              persistent_paths: [...port.persistent_paths, "input.ini", "keybinds.ini"],
+              // v0.5.7 separates player data and launcher caches unless portable mode is
+              // explicit. Remember user selections and ignore only reproducible outputs.
+              persistent_paths: [...port.persistent_paths, "disc.cfg", "bios.cfg"],
               runtime_mutable_paths: [
-                ...(port.runtime_mutable_paths ?? []),
-                "bios.cfg",
-                "disc.cfg",
-                "psx_freeze_heartbeat.json",
-                "psx_last_run_report.json",
+                ...port.runtime_mutable_paths,
+                "disc_verified.cfg",
+                "diagnostics/psx_freeze_heartbeat.json",
               ],
+              launch_environment: {
+                ...port.launch_environment,
+                PSX_PORTABLE: "1",
+              },
             }
-          : port.id === "revelations-persona-recompiled"
+          : port.id === "bomberman-party-edition-recompiled"
             ? {
                 ...port,
-                persistent_paths: [
-                  ...port.persistent_paths,
-                  "keybinds.ini",
-                  "disc.cfg",
+                // The managed runtime creates these player selections and disposable
+                // reports after the frozen schema-1 catalog was recorded.
+                persistent_paths: [...port.persistent_paths, "input.ini", "keybinds.ini"],
+                runtime_mutable_paths: [
+                  ...(port.runtime_mutable_paths ?? []),
                   "bios.cfg",
+                  "disc.cfg",
+                  "psx_freeze_heartbeat.json",
+                  "psx_last_run_report.json",
                 ],
-                runtime_mutable_paths: [...port.runtime_mutable_paths, "psx_freeze_heartbeat.json"],
               }
-            : ["opengoal-jak1", "opengoal-jak2", "opengoal-jak3"].includes(port.id)
+            : port.id === "revelations-persona-recompiled"
               ? {
                   ...port,
-                  // Reviewed extractor output ownership; this is not a manifest exclusion.
-                  // Pinned upstream evidence is recorded in docs/CATALOG.md.
-                  setup_output_paths: ["data/iso_data", "data/decompiler_out", "data/out"],
+                  persistent_paths: [
+                    ...port.persistent_paths,
+                    "keybinds.ini",
+                    "disc.cfg",
+                    "bios.cfg",
+                  ],
+                  runtime_mutable_paths: [
+                    ...port.runtime_mutable_paths,
+                    "psx_freeze_heartbeat.json",
+                  ],
                 }
-              : port,
-  ),
+              : ["opengoal-jak1", "opengoal-jak2", "opengoal-jak3"].includes(port.id)
+                ? {
+                    ...port,
+                    // Reviewed extractor output ownership; this is not a manifest exclusion.
+                    // Pinned upstream evidence is recorded in docs/CATALOG.md.
+                    setup_output_paths: ["data/iso_data", "data/decompiler_out", "data/out"],
+                  }
+                : port,
+    ),
+    {
+      id: "snap64-recomp",
+      name: "Snap64 Recomp",
+      summary: "Native Pokemon Snap static recompilation with isolated portable user data.",
+      project_url: "https://github.com/JackandBeans/Snap64Recomp",
+      support_tier: "beta",
+      channels: ["stable"],
+      platforms: ["windows-x86-64", "linux-x86-64"],
+      automated_tested_platforms: [],
+      manually_validated_platforms: [],
+      adapter: "n64-recomp-portable",
+      release: {
+        repository: "JackandBeans/Snap64Recomp",
+        asset_hints: {
+          "windows-x86-64": ["win64.zip"],
+          "linux-x86-64": ["linux-x86_64.tar.gz"],
+        },
+      },
+      source_profile: "pokemon-snap",
+      executable_hints: {
+        "windows-x86-64": ["Snap64Recomp.exe"],
+        "linux-x86-64": ["Snap64Recomp"],
+      },
+      persistent_paths: [
+        "pokemonsnap.z64",
+        "snapsettings.json",
+        "snapsettings.json.bak",
+        "saves",
+        "photos",
+        "mods",
+        "mods.json",
+        "mod_config",
+        "texture_packs",
+        "stickers",
+      ],
+      portable_marker: true,
+      user_data_environment: "SNAP_DATA_DIR",
+      runtime_source_filename: "pokemonsnap.z64",
+      runtime_source_materialization: "n64-big-endian",
+    },
+  ],
 };
 const output = `${JSON.stringify(migrated, null, 2)}\n`;
 if (process.argv.includes("--check")) {

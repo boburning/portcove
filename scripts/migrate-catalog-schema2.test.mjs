@@ -21,15 +21,15 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
   const migrated = JSON.parse(readFileSync(join(catalogRoot, "catalog.json"), "utf8"));
   assert.equal(migrated.schema_version, 2);
   assert.equal("source_profiles" in migrated, false);
-  assert.equal(migrated.source_catalog.identities.length, legacy.source_profiles.length);
-  assert.equal(migrated.ports.length, legacy.ports.length);
+  assert.equal(migrated.source_catalog.identities.length, legacy.source_profiles.length + 1);
+  assert.equal(migrated.ports.length, legacy.ports.length + 1);
   assert.equal(
     migrated.source_catalog.contracts.length,
     legacy.ports.reduce(
       (count, port) =>
         count + Number(Boolean(port.source_profile)) + Number(Boolean(port.bios_source_profile)),
       0,
-    ),
+    ) + 1,
   );
 
   const profile = (id) => migrated.source_catalog.identities.find((item) => item.id === id);
@@ -61,4 +61,13 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
   ]) {
     assert.equal(contract(portId).supported_variant_ids.includes("legacy-accepted"), false);
   }
+  assert.deepEqual(contract("snap64-recomp").supported_variant_ids, ["usa-rev0"]);
+  assert.equal(profile("pokemon-snap").variants[0].representations[0].kind, "canonical-n64");
+  assert.equal(migrated.source_catalog.qualification.length, 3);
+  assert.equal(
+    migrated.source_catalog.qualification.every(
+      (record) => record.scope.port_id === "snap64-recomp",
+    ),
+    true,
+  );
 });
