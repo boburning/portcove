@@ -53,6 +53,17 @@ does not establish production signing, universal distribution compatibility, Ste
 Deck behavior, every interruption phase, or the remaining distro evidence tracked by
 the live roadmap issue.
 
+The manual **Linux package ownership rehearsal** is the smaller DEB/RPM companion.
+It builds only those two native packages on Ubuntu 22.04, then verifies DEB through
+Ubuntu's package database and RPM through a Fedora container's native DNF transaction
+and RPM database. Each installed desktop executable runs the GUI-independent
+eligibility inspection with no display. The run requires format-specific guidance
+back to the same package source, hashes the installed executable before and after
+inspection, and removes the package. Its one-day per-format evidence records the
+exact commit, package hash, installed executable hash and mode, package name, native
+platform, and displayed guidance. This is focused ownership evidence; it does not
+repeat the AppImage update lifecycle or establish broader distro qualification.
+
 `scripts/updater-artifact-inventory.mjs stage` selects the complete existing package
 matrix, copies final distributed bytes into a new directory, hashes them, verifies
 the updater signature, records the SHA-256 of the decoded canonical Minisign public-key

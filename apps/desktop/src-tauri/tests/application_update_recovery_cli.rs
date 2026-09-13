@@ -179,3 +179,21 @@ fn gui_independent_appimage_recovery_refuses_a_live_runtime_lease() {
     assert_eq!(output.status.code(), Some(1));
     assert!(stderr(&output).contains("still holds the runtime lease"));
 }
+
+#[cfg(target_os = "linux")]
+#[test]
+fn unpackaged_entry_point_reports_ineligible_without_exposing_its_path() {
+    let executable = desktop_executable();
+    let temporary = tempfile::tempdir().unwrap();
+    let output = run(
+        &executable,
+        temporary.path(),
+        &["--application-update-recovery", "eligibility"],
+    );
+
+    assert_eq!(output.status.code(), Some(1));
+    let message = stderr(&output);
+    assert!(message.contains("not eligible for built-in application updates"));
+    assert!(message.contains("No update check, download, install, restart"));
+    assert!(!message.contains(&executable.display().to_string()));
+}

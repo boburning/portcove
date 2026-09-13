@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use portcove_desktop::application_update::{
     ApplicationChannel, ApplicationCompatibility, CandidateState, InstalledApplicationContext,
-    LibraryCompatibility, VersionRange,
+    InstalledApplicationContextError, LibraryCompatibility, VersionRange,
 };
 use portcove_desktop::application_update_apply::{
     ApplicationTerminationKind, ApplicationUpdateApplyStore,
@@ -24,7 +24,7 @@ use url::Url;
 struct FixedInstalledContext(InstalledApplicationContext);
 
 impl InstalledApplicationContextSource for FixedInstalledContext {
-    fn observe(&self) -> Result<InstalledApplicationContext, String> {
+    fn observe(&self) -> Result<InstalledApplicationContext, InstalledApplicationContextError> {
         Ok(self.0.clone())
     }
 }

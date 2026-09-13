@@ -10,6 +10,7 @@ use std::sync::Arc;
 use futures_util::TryStreamExt;
 use portcove_desktop::application_update::{
     ApplicationChannel, CandidateState, InstallOwner, InstalledApplicationContext,
+    InstalledApplicationContextError,
 };
 use portcove_desktop::application_update_helper::ApplicationUpdateFreshSelectionProvider;
 use portcove_desktop::application_update_host::{
@@ -54,7 +55,7 @@ fn installed_context() -> InstalledApplicationContext {
 struct FixedInstalledContext(InstalledApplicationContext);
 
 impl InstalledApplicationContextSource for FixedInstalledContext {
-    fn observe(&self) -> Result<InstalledApplicationContext, String> {
+    fn observe(&self) -> Result<InstalledApplicationContext, InstalledApplicationContextError> {
         Ok(self.0.clone())
     }
 }

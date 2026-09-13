@@ -8,7 +8,8 @@ use tough::TargetName;
 
 use crate::application_update::{
     ApplicationChannel, AuthenticatedRecordPair, CandidateSelection, InstalledApplicationContext,
-    UpdateMetadataError, select_authenticated_candidate, validate_context,
+    InstalledApplicationContextError, UpdateMetadataError, select_authenticated_candidate,
+    validate_context,
 };
 use crate::application_update_payload::{
     PayloadKeyError, PayloadVerificationKey, select_payload_verification_key,
@@ -33,8 +34,8 @@ pub enum CandidateLoadError {
     PayloadKey(#[from] PayloadKeyError),
     #[error("authenticated update repository index is invalid: {0}")]
     InvalidIndex(String),
-    #[error("the installed application context is unavailable: {0}")]
-    InstalledContext(String),
+    #[error(transparent)]
+    InstalledContext(InstalledApplicationContextError),
     #[error("authenticated update record set exceeds its byte budget")]
     TooLarge,
 }

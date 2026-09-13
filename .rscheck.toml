@@ -45,6 +45,10 @@ allow_regex = [
   '^/usr/local/bin/chdman$',
   '^/opt/homebrew/bin/chdman$',
   '^/Applications/MAME/chdman$',
+  '^/usr/bin/dpkg-query$',
+  '^/usr/bin/rpm$',
+  '^/usr/sbin:/usr/bin:/sbin:/bin$',
+  '^/usr/bin/portcove-desktop$',
   '^D:\\ROMs\\Example \(Disc [12]\)\.chd$',
   '^D:\\ROMs\\Game\.chd$',
 ]

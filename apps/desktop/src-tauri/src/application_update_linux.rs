@@ -11,6 +11,12 @@ use std::fs::{self, File, OpenOptions};
 #[cfg(target_os = "linux")]
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
+#[cfg(target_os = "linux")]
+use std::process::Stdio;
+#[cfg(target_os = "linux")]
+use std::thread;
+#[cfg(target_os = "linux")]
+use std::time::{Duration, Instant};
 
 #[cfg(target_os = "linux")]
 use std::os::unix::ffi::OsStrExt;
@@ -24,12 +30,14 @@ use sha2::{Digest, Sha256};
 
 #[cfg(target_os = "linux")]
 use portcove_core::{
-    ApplicationRuntimeGuard, ApplicationUpdateExclusivityGuard, HostPreferenceStore,
+    ApplicationRuntimeGuard, ApplicationUpdateExclusivityGuard, ChildProcessClass,
+    ChildProcessPolicy, HostPreferenceStore,
 };
 
 #[cfg(target_os = "linux")]
 use crate::application_update::{
-    APPLICATION_PRODUCT_ID, InstallOwner, InstalledApplicationContext, SelectedCandidate,
+    APPLICATION_PRODUCT_ID, ApplicationPackageManager, InstallOwner, InstalledApplicationContext,
+    InstalledApplicationContextError, SelectedCandidate,
 };
 #[cfg(any(target_os = "linux", test))]
 use crate::application_update_apply::ApplicationUpdateApplyError;
@@ -45,6 +53,16 @@ use crate::application_update_staging::{ApplicationUpdateStagingStore, StagedApp
 const LINUX_TARGET: &str = "linux-x86_64";
 #[cfg(target_os = "linux")]
 const LINUX_EXECUTION_CONTEXT: &str = "user-owned-appimage";
+#[cfg(target_os = "linux")]
+const DPKG_QUERY_PATH: &str = "/usr/bin/dpkg-query";
+#[cfg(target_os = "linux")]
+const RPM_QUERY_PATH: &str = "/usr/bin/rpm";
+#[cfg(target_os = "linux")]
+const MAX_PACKAGE_QUERY_OUTPUT_BYTES: usize = 64 * 1024;
+#[cfg(target_os = "linux")]
+const PACKAGE_QUERY_TIMEOUT: Duration = Duration::from_secs(2);
+#[cfg(target_os = "linux")]
+const PACKAGE_QUERY_POLL_INTERVAL: Duration = Duration::from_millis(10);
 
 #[derive(Debug, thiserror::Error)]
 pub enum LinuxApplicationUpdateError {
@@ -347,6 +365,225 @@ pub fn current_linux_appimage_context()
 -> Result<InstalledApplicationContext, LinuxApplicationUpdateError> {
     let _execution = current_linux_appimage_execution()?;
     linux_appimage_context_for_version(env!("CARGO_PKG_VERSION"))
+}
+
+/// Observes the eligible AppImage context or identifies a single native package
+/// manager that owns the running executable. Package ownership only changes the
+/// guidance returned to the user; it never grants in-place replacement authority.
+#[cfg(target_os = "linux")]
+pub fn current_linux_installed_application_context()
+-> Result<InstalledApplicationContext, InstalledApplicationContextError> {
+    if std::env::var_os("APPIMAGE").is_some() || std::env::var_os("APPDIR").is_some() {
+        return current_linux_appimage_context()
+            .map_err(|error| InstalledApplicationContextError::Unavailable(error.to_string()));
+    }
+
+    let executable = std::env::current_exe()
+        .map_err(|error| InstalledApplicationContextError::Unavailable(error.to_string()))?;
+    match detect_linux_package_manager(&executable)
+        .map_err(|error| InstalledApplicationContextError::Unavailable(error.to_string()))?
+    {
+        Some(manager) => Err(InstalledApplicationContextError::PackageManager(manager)),
+        None => Err(InstalledApplicationContextError::Unavailable(
+            LinuxApplicationUpdateError::MissingAppImage.to_string(),
+        )),
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn detect_linux_package_manager(
+    executable: &Path,
+) -> Result<Option<ApplicationPackageManager>, LinuxApplicationUpdateError> {
+    let deb = query_dpkg_owners(executable)?;
+    let rpm = query_rpm_owners(executable)?;
+    classify_linux_package_manager(&deb, &rpm)
+}
+
+#[cfg(target_os = "linux")]
+fn classify_linux_package_manager(
+    deb: &BTreeSet<String>,
+    rpm: &BTreeSet<String>,
+) -> Result<Option<ApplicationPackageManager>, LinuxApplicationUpdateError> {
+    match (deb.len(), rpm.len()) {
+        (1, 0) => Ok(Some(ApplicationPackageManager::Deb)),
+        (0, 1) => Ok(Some(ApplicationPackageManager::Rpm)),
+        (0, 0) => Ok(None),
+        _ => Err(LinuxApplicationUpdateError::InstalledContext(
+            "the running executable does not have one unambiguous native package owner".into(),
+        )),
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn query_dpkg_owners(executable: &Path) -> Result<BTreeSet<String>, LinuxApplicationUpdateError> {
+    let Some(output) = run_package_query(
+        Path::new(DPKG_QUERY_PATH),
+        &[std::ffi::OsStr::new("--search"), executable.as_os_str()],
+    )?
+    else {
+        return Ok(BTreeSet::new());
+    };
+    parse_dpkg_owners(&output, executable)
+}
+
+#[cfg(target_os = "linux")]
+fn query_rpm_owners(executable: &Path) -> Result<BTreeSet<String>, LinuxApplicationUpdateError> {
+    let Some(output) = run_package_query(
+        Path::new(RPM_QUERY_PATH),
+        &[
+            std::ffi::OsStr::new("--query"),
+            std::ffi::OsStr::new("--queryformat"),
+            std::ffi::OsStr::new("%{NAME}\\n"),
+            std::ffi::OsStr::new("--file"),
+            executable.as_os_str(),
+        ],
+    )?
+    else {
+        return Ok(BTreeSet::new());
+    };
+    parse_rpm_owners(&output)
+}
+
+#[cfg(target_os = "linux")]
+fn run_package_query(
+    tool: &Path,
+    arguments: &[&std::ffi::OsStr],
+) -> Result<Option<Vec<u8>>, LinuxApplicationUpdateError> {
+    let metadata = match fs::symlink_metadata(tool) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(error.into()),
+    };
+    let mode = metadata.permissions().mode();
+    if !metadata.is_file()
+        || metadata.file_type().is_symlink()
+        || metadata.uid() != 0
+        || mode & 0o022 != 0
+        || mode & 0o111 == 0
+    {
+        return Err(LinuxApplicationUpdateError::InstalledContext(format!(
+            "the package ownership query tool {} is not a trusted system executable",
+            tool.display()
+        )));
+    }
+    let mut command = ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, tool)
+        .map_err(|error| LinuxApplicationUpdateError::InstalledContext(error.to_string()))?;
+    command
+        .args(arguments)
+        .env_clear()
+        .env("LC_ALL", "C")
+        .env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null());
+    let mut child = command.spawn()?;
+    let stdout = child.stdout.take().ok_or_else(|| {
+        LinuxApplicationUpdateError::InstalledContext(
+            "the package ownership query output was unavailable".into(),
+        )
+    })?;
+    let output_reader = thread::spawn(move || {
+        let mut output = Vec::new();
+        stdout
+            .take((MAX_PACKAGE_QUERY_OUTPUT_BYTES + 1) as u64)
+            .read_to_end(&mut output)
+            .map(|_| output)
+    });
+    let deadline = Instant::now() + PACKAGE_QUERY_TIMEOUT;
+    let status = loop {
+        if let Some(status) = child.try_wait()? {
+            break status;
+        }
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            let _ = output_reader.join();
+            return Err(LinuxApplicationUpdateError::InstalledContext(format!(
+                "the package ownership query tool {} timed out",
+                tool.display()
+            )));
+        }
+        thread::sleep(PACKAGE_QUERY_POLL_INTERVAL);
+    };
+    let output = output_reader.join().map_err(|_| {
+        LinuxApplicationUpdateError::InstalledContext(
+            "the package ownership query output reader failed".into(),
+        )
+    })??;
+    if output.len() > MAX_PACKAGE_QUERY_OUTPUT_BYTES {
+        return Err(LinuxApplicationUpdateError::InstalledContext(
+            "the package ownership query exceeded its output limit".into(),
+        ));
+    }
+    if status.code() == Some(1) {
+        return Ok(Some(Vec::new()));
+    }
+    if !status.success() {
+        return Err(LinuxApplicationUpdateError::InstalledContext(format!(
+            "the package ownership query tool {} failed",
+            tool.display()
+        )));
+    }
+    Ok(Some(output))
+}
+
+#[cfg(target_os = "linux")]
+fn parse_dpkg_owners(
+    output: &[u8],
+    executable: &Path,
+) -> Result<BTreeSet<String>, LinuxApplicationUpdateError> {
+    let output = std::str::from_utf8(output).map_err(|_| {
+        LinuxApplicationUpdateError::InstalledContext(
+            "the DEB package ownership response was not UTF-8".into(),
+        )
+    })?;
+    let expected = executable.to_str().ok_or_else(|| {
+        LinuxApplicationUpdateError::InstalledContext(
+            "the running executable path was not UTF-8".into(),
+        )
+    })?;
+    let mut owners = BTreeSet::new();
+    for line in output.lines().filter(|line| !line.trim().is_empty()) {
+        let Some((owner, path)) = line.rsplit_once(": ") else {
+            return Err(LinuxApplicationUpdateError::InstalledContext(
+                "the DEB package ownership response was malformed".into(),
+            ));
+        };
+        if path == expected {
+            owners.insert(package_owner_name(owner)?);
+        }
+    }
+    Ok(owners)
+}
+
+#[cfg(target_os = "linux")]
+fn parse_rpm_owners(output: &[u8]) -> Result<BTreeSet<String>, LinuxApplicationUpdateError> {
+    let output = std::str::from_utf8(output).map_err(|_| {
+        LinuxApplicationUpdateError::InstalledContext(
+            "the RPM package ownership response was not UTF-8".into(),
+        )
+    })?;
+    output
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .map(package_owner_name)
+        .collect()
+}
+
+#[cfg(target_os = "linux")]
+fn package_owner_name(value: &str) -> Result<String, LinuxApplicationUpdateError> {
+    let value = value.trim();
+    if value.is_empty()
+        || value.len() > 256
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"+.-_:".contains(&byte))
+    {
+        return Err(LinuxApplicationUpdateError::InstalledContext(
+            "the package ownership response contained an invalid owner".into(),
+        ));
+    }
+    Ok(value.to_owned())
 }
 
 /// Builds the compatibility identity used by the Linux AppImage adapter without
@@ -1383,6 +1620,79 @@ mod tests {
                 .is_symlink()
         );
         assert!(root.path().join("candidate.payload").exists());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn package_manager_requires_one_exact_owner() {
+        let empty = BTreeSet::new();
+        let deb = BTreeSet::from(["portcove".into()]);
+        let rpm = BTreeSet::from(["portcove-desktop".into()]);
+        assert_eq!(
+            classify_linux_package_manager(&deb, &empty).unwrap(),
+            Some(ApplicationPackageManager::Deb)
+        );
+        assert_eq!(
+            classify_linux_package_manager(&empty, &rpm).unwrap(),
+            Some(ApplicationPackageManager::Rpm)
+        );
+        assert_eq!(
+            classify_linux_package_manager(&empty, &empty).unwrap(),
+            None
+        );
+        assert!(classify_linux_package_manager(&deb, &rpm).is_err());
+        assert!(
+            classify_linux_package_manager(
+                &BTreeSet::from(["portcove".into(), "portcove-preview".into()]),
+                &empty,
+            )
+            .is_err()
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn package_owner_parsers_reject_ambiguous_or_unrelated_records() {
+        let executable = Path::new("/usr/bin/portcove-desktop");
+        assert_eq!(
+            parse_dpkg_owners(
+                b"portcove:amd64: /usr/bin/portcove-desktop\nunrelated: /usr/share/portcove\n",
+                executable,
+            )
+            .unwrap(),
+            BTreeSet::from(["portcove:amd64".into()])
+        );
+        assert_eq!(
+            parse_rpm_owners(b"portcove-desktop\n").unwrap(),
+            BTreeSet::from(["portcove-desktop".into()])
+        );
+        assert!(parse_dpkg_owners(b"malformed\n", executable).is_err());
+        assert!(parse_rpm_owners(b"unsafe owner\n").is_err());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn package_query_rejects_large_output_without_blocking_on_a_full_pipe() {
+        let tool = Path::new(DPKG_QUERY_PATH);
+        if tool.exists() {
+            let error = run_package_query(tool, &[std::ffi::OsStr::new("--list")]).unwrap_err();
+            assert!(
+                error.to_string().contains("exceeded its output limit"),
+                "{error}"
+            );
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn installed_deb_query_tool_has_one_deb_owner_when_present() {
+        let tool = Path::new(DPKG_QUERY_PATH);
+        if tool.exists() {
+            assert_eq!(
+                detect_linux_package_manager(tool).unwrap(),
+                Some(ApplicationPackageManager::Deb)
+            );
+        }
     }
 
     #[cfg(target_os = "linux")]

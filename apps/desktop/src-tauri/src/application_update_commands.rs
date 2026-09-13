@@ -712,6 +712,14 @@ fn configuration_error(_error: ApplicationUpdateHostConfigurationError) -> Deskt
     .into()
 }
 
+pub(crate) fn package_manager_update_guidance(
+    manager: crate::application_update::ApplicationPackageManager,
+) -> String {
+    format!(
+        "This Portcove {manager} installation is managed by its package manager. Update it through the same package source; Portcove did not modify package-managed files."
+    )
+}
+
 fn coordinator_error(error: ApplicationUpdateCoordinatorError) -> DesktopError {
     match error {
         ApplicationUpdateCoordinatorError::Busy
@@ -725,6 +733,16 @@ fn coordinator_error(error: ApplicationUpdateCoordinatorError) -> DesktopError {
         ) => portcove_core::PortcoveError::conflict(
             "Application update state changed or another check is active. Refresh and try again.",
         )
+        .into(),
+        ApplicationUpdateCoordinatorError::Check {
+            source:
+                CandidateLoadError::InstalledContext(
+                    crate::application_update::InstalledApplicationContextError::PackageManager(
+                        manager,
+                    ),
+                ),
+            ..
+        } => portcove_core::PortcoveError::unsupported(package_manager_update_guidance(manager))
         .into(),
         ApplicationUpdateCoordinatorError::Check {
             source: CandidateLoadError::InstalledContext(_),
@@ -1058,9 +1076,38 @@ mod tests {
     fn installed_context_failures_do_not_expose_host_observation_details() {
         let error = coordinator_error(ApplicationUpdateCoordinatorError::Check {
             failure: CandidateLoadFailureKind::Rejected,
-            source: CandidateLoadError::InstalledContext("sensitive-host-detail".into()),
+            source: CandidateLoadError::InstalledContext(
+                crate::application_update::InstalledApplicationContextError::Unavailable(
+                    "sensitive-host-detail".into(),
+                ),
+            ),
         });
         assert_eq!(error.code, portcove_core::ErrorCode::Unsupported);
         assert!(!error.message.contains("sensitive-host-detail"));
+    }
+
+    #[test]
+    fn package_manager_installations_receive_owner_specific_guidance() {
+        for manager in [
+            crate::application_update::ApplicationPackageManager::Deb,
+            crate::application_update::ApplicationPackageManager::Rpm,
+        ] {
+            let error = coordinator_error(ApplicationUpdateCoordinatorError::Check {
+                failure: CandidateLoadFailureKind::Rejected,
+                source: CandidateLoadError::InstalledContext(
+                    crate::application_update::InstalledApplicationContextError::PackageManager(
+                        manager,
+                    ),
+                ),
+            });
+            assert_eq!(error.code, portcove_core::ErrorCode::Unsupported);
+            assert!(error.message.contains(&manager.to_string()));
+            assert!(error.message.contains("same package source"));
+            assert!(
+                error
+                    .message
+                    .contains("did not modify package-managed files")
+            );
+        }
     }
 }

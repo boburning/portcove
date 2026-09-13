@@ -119,6 +119,10 @@ test("Linux desktop prerequisite installation is shared, bounded, and retrying",
     new URL("../.github/workflows/updater-artifact-rehearsal.yml", import.meta.url),
     "utf8",
   );
+  const packageOwnershipRehearsal = await readFile(
+    new URL("../.github/workflows/linux-package-ownership-rehearsal.yml", import.meta.url),
+    "utf8",
+  );
   const installer = await readFile(
     new URL("./install-linux-desktop-prerequisites.sh", import.meta.url),
     "utf8",
@@ -133,7 +137,17 @@ test("Linux desktop prerequisite installation is shared, bounded, and retrying",
     updaterRehearsal,
     /timeout-minutes: 15\r?\n\s+run: \.\/scripts\/install-linux-desktop-prerequisites\.sh --include-rpm --include-appimage-runtime/,
   );
-  for (const hostedWorkflow of [workflow, deepQuality, release, updaterRehearsal]) {
+  assert.match(
+    packageOwnershipRehearsal,
+    /timeout-minutes: 15\r?\n\s+run: \.\/scripts\/install-linux-desktop-prerequisites\.sh --include-rpm/,
+  );
+  for (const hostedWorkflow of [
+    workflow,
+    deepQuality,
+    release,
+    updaterRehearsal,
+    packageOwnershipRehearsal,
+  ]) {
     assert.doesNotMatch(hostedWorkflow, /sudo apt-get/);
   }
   for (const packageName of [
@@ -167,6 +181,62 @@ test("Linux desktop prerequisite installation is shared, bounded, and retrying",
   );
   assert.match(installer, /--include-rpm\) packages\+=\(rpm\)/);
   assert.match(installer, /usage: \$0 \[--include-rpm\]/);
+});
+
+test("Linux package ownership rehearsal is focused and preserves managed executables", async () => {
+  const rehearsal = await readFile(
+    new URL("../.github/workflows/linux-package-ownership-rehearsal.yml", import.meta.url),
+    "utf8",
+  );
+  const qualification = await readFile(
+    new URL("./test-linux-package-ownership.sh", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(rehearsal, /^on:\r?\n {2}pull_request:\r?\n {4}paths:/m);
+  assert.match(rehearsal, /^ {2}workflow_dispatch:$/m);
+  for (const governedPath of [
+    "apps/desktop/src-tauri/src/application_update_linux.rs",
+    "apps/desktop/src-tauri/src/application_update_recovery.rs",
+    "apps/desktop/src-tauri/tauri.conf.json",
+    "scripts/test-linux-package-ownership.sh",
+  ]) {
+    assert.ok(rehearsal.includes(`- ${governedPath}`));
+  }
+  assert.match(rehearsal, /runs-on: ubuntu-22\.04/);
+  assert.match(rehearsal, /container: fedora:42/);
+  assert.match(
+    rehearsal,
+    /PORTCOVE_SOURCE_COMMIT: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/,
+  );
+  assert.equal(rehearsal.match(/ref: \$\{\{ env\.PORTCOVE_SOURCE_COMMIT \}\}/g)?.length, 3);
+  assert.match(rehearsal, /pnpm tauri build --bundles deb,rpm --ci/);
+  assert.match(rehearsal, /actions\/download-artifact@/);
+  assert.match(rehearsal, /test-linux-package-ownership\.sh deb/);
+  assert.match(rehearsal, /test-linux-package-ownership\.sh rpm/);
+  assert.match(rehearsal, /dnf --assumeyes install findutils git nodejs rpm/);
+  assert.match(
+    rehearsal,
+    /Install Fedora qualification tools[\s\S]*actions\/checkout@[\s\S]*Verify installed RPM ownership guidance/,
+  );
+  assert.doesNotMatch(rehearsal, /appimage|desktop-test|e2e/iu);
+  assert.match(rehearsal, /\.\/scripts\/test-linux-package-ownership\.sh/);
+  assert.match(rehearsal, /retention-days: 1/);
+
+  assert.match(qualification, /env -u APPIMAGE -u APPDIR -u DISPLAY/);
+  assert.match(qualification, /--application-update-recovery eligibility/);
+  assert.match(qualification, /dpkg-query --search/);
+  assert.match(qualification, /rpm --query --queryformat .* --file/);
+  assert.match(qualification, /dnf --assumeyes install/);
+  assert.match(qualification, /\$format-owners\.txt/);
+  assert.match(qualification, /hash_before.*hash_after/s);
+  assert.match(
+    qualification,
+    /git -c safe\.directory="\$repo_root" -C "\$repo_root" rev-parse HEAD/,
+  );
+  assert.doesNotMatch(qualification, /safe\.directory=(?:"?\*)/);
+  assert.match(qualification, /checkout_commit.*PORTCOVE_SOURCE_COMMIT/s);
+  assert.match(qualification, /package_managed_files_unchanged: true/);
 });
 
 test("Rust setup installs the repository pin instead of an unrelated stable toolchain", async () => {
