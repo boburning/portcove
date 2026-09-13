@@ -91,6 +91,7 @@ export function PortBrowser({
       <BrowserResults
         view={view}
         ports={ports}
+        installedCount={overview.installed}
         statuses={statuses}
         onSelect={onSelect}
         onBrowseCatalog={onBrowseCatalog}
@@ -105,6 +106,7 @@ export function PortBrowser({
 function BrowserResults({
   view,
   ports,
+  installedCount,
   statuses,
   onSelect,
   onBrowseCatalog,
@@ -114,6 +116,7 @@ function BrowserResults({
 }: {
   view: View;
   ports: PortDefinition[];
+  installedCount: number;
   statuses: Map<string, PortStatus>;
   onSelect: (portId: string) => void;
   onBrowseCatalog?: () => void;
@@ -126,6 +129,7 @@ function BrowserResults({
     return (
       <BrowserEmptyState
         view={view}
+        installedCount={installedCount}
         clearFilters={clearFilters}
         onBrowseCatalog={onBrowseCatalog}
       />
@@ -166,14 +170,16 @@ function LoadingState() {
 
 function BrowserEmptyState({
   view,
+  installedCount,
   clearFilters,
   onBrowseCatalog,
 }: {
   view: View;
+  installedCount: number;
   clearFilters?: () => void;
   onBrowseCatalog?: () => void;
 }) {
-  if (view === "library")
+  if (view === "library" && installedCount === 0)
     return (
       <EmptyState
         visual={
@@ -191,6 +197,21 @@ function BrowserEmptyState({
               Browse port catalog
             </button>
           </>
+        }
+      />
+    );
+  if (view === "library")
+    return (
+      <EmptyState
+        icon={Settings2}
+        eyebrow="NO MATCHES"
+        title="No installed ports match your search and filters"
+        description="Your installed ports are still in this library. Clear the current search and readiness filters to show them again."
+        action={
+          <button data-focusable className="button-with-icon" onClick={clearFilters}>
+            <Icon glyph={Settings2} />
+            Clear search and filters
+          </button>
         }
       />
     );

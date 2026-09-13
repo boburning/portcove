@@ -1203,6 +1203,19 @@ describe("desktop components", () => {
         loading={false}
       />,
     );
+    const filteredEmptyLibrary = renderToStaticMarkup(
+      <PortBrowser
+        view="library"
+        ports={[]}
+        statuses={new Map()}
+        overview={{ ...overview, installed: 2, needsSetup: 2 }}
+        filter="setup"
+        setFilter={vi.fn()}
+        onSelect={vi.fn()}
+        clearFilters={vi.fn()}
+        loading={false}
+      />,
+    );
     const loading = renderToStaticMarkup(
       <PortBrowser
         view="library"
@@ -1223,6 +1236,11 @@ describe("desktop components", () => {
     expect(empty).toContain("Clear search and filters");
     expect(emptyLibrary).toContain("/brand/mascot/portcove-mascot-v2-front.png");
     expect(emptyLibrary).toContain('aria-hidden="true"');
+    expect(emptyLibrary).toContain("No installed ports yet");
+    expect(emptyLibrary).not.toContain("Clear search and filters");
+    expect(filteredEmptyLibrary).toContain("No installed ports match your search and filters");
+    expect(filteredEmptyLibrary).toContain("Clear search and filters");
+    expect(filteredEmptyLibrary).not.toContain("No installed ports yet");
     expect(loading).toContain("/brand/logo/portcove-logo-v2-transparent.png");
     expect(loading).toContain('alt="Portcove"');
   });
