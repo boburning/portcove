@@ -6,6 +6,8 @@
 
 use std::ffi::OsStr;
 #[cfg(any(windows, target_os = "linux", test))]
+use std::ffi::OsString;
+#[cfg(any(windows, target_os = "linux", test))]
 use std::process::Stdio;
 
 #[cfg(any(windows, target_os = "linux"))]
@@ -46,6 +48,30 @@ use crate::configure_independent_process;
 use crate::{DesktopResult, DesktopState};
 
 const HELPER_MODE: &str = "--portcove-apply-update";
+
+/// Configuration owned by the Portcove desktop process must survive the
+/// trusted update helper and a successful same-application relaunch. The
+/// general child-process policy intentionally carries only host session state,
+/// so keep this overlay exact rather than admitting arbitrary `PORTCOVE_*`
+/// variables.
+#[cfg(any(windows, target_os = "linux", test))]
+const DESKTOP_UPDATE_PROCESS_ENVIRONMENT: &[&str] = &[
+    "PORTCOVE_APPLICATION_RUNTIME_LOCK",
+    "PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE",
+    "PORTCOVE_APPLICATION_UPDATE_METADATA_URL",
+    "PORTCOVE_APPLICATION_UPDATE_PREFERENCES",
+    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT",
+    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE",
+    "PORTCOVE_APPLICATION_UPDATE_SCHEDULE",
+    "PORTCOVE_APPLICATION_UPDATE_STAGING",
+    "PORTCOVE_APPLICATION_UPDATE_TARGETS_URL",
+    "PORTCOVE_CHDMAN",
+    "PORTCOVE_DOLPHIN_TOOL",
+    "PORTCOVE_GITHUB_CLIENT_ID",
+    "PORTCOVE_LIBRARY",
+    "PORTCOVE_PREFERENCES",
+    "PORTCOVE_TEMP_DIR",
+];
 
 #[tauri::command]
 pub(crate) async fn restart_to_apply_application_update(
@@ -163,6 +189,7 @@ fn update_helper_command(
 ) -> DesktopResult<std::process::Command> {
     let mut command =
         ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, executable)?;
+    copy_desktop_update_environment(&mut command, std::env::vars_os());
     command
         .arg(HELPER_MODE)
         .arg(expected_revision.to_string())
@@ -354,6 +381,7 @@ fn restart_executable_if_runtime_available(
     let mut command =
         ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, executable)
             .map_err(|_| ())?;
+    copy_desktop_update_environment(&mut command, std::env::vars_os());
     command.stdin(Stdio::null());
     #[cfg(feature = "application-update-qualification")]
     let retain_qualification_output =
@@ -372,6 +400,20 @@ fn restart_executable_if_runtime_available(
     configure_independent_process(&mut command);
     drop(runtime);
     command.spawn().map(|_| ()).map_err(|_| ())
+}
+
+#[cfg(any(windows, target_os = "linux", test))]
+fn copy_desktop_update_environment(
+    command: &mut std::process::Command,
+    environment: impl IntoIterator<Item = (OsString, OsString)>,
+) {
+    command.envs(environment.into_iter().filter(|(name, _)| {
+        name.to_str().is_some_and(|name| {
+            DESKTOP_UPDATE_PROCESS_ENVIRONMENT
+                .iter()
+                .any(|candidate| name.eq_ignore_ascii_case(candidate))
+        })
+    }));
 }
 
 #[cfg(any(windows, target_os = "linux"))]
@@ -462,7 +504,7 @@ fn apply_error(error: ApplicationUpdateApplyError) -> DesktopError {
 
 #[cfg(test)]
 mod tests {
-    use std::ffi::OsStr;
+    use std::ffi::{OsStr, OsString};
 
     use super::*;
 
@@ -489,6 +531,68 @@ mod tests {
             arguments,
             [OsStr::new("--portcove-apply-update"), OsStr::new("42")]
         );
+    }
+
+    #[test]
+    fn application_update_processes_carry_only_reviewed_portcove_configuration() {
+        let mut command =
+            ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, "unused")
+                .unwrap();
+        copy_desktop_update_environment(
+            &mut command,
+            [
+                (
+                    OsString::from("PORTCOVE_LIBRARY"),
+                    OsString::from("library"),
+                ),
+                (
+                    OsString::from("portcove_application_update_staging"),
+                    OsString::from("staging"),
+                ),
+                (
+                    OsString::from("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE"),
+                    OsString::from("stage"),
+                ),
+                (
+                    OsString::from("PORTCOVE_GITHUB_TOKEN"),
+                    OsString::from("secret"),
+                ),
+                (
+                    OsString::from("PORTCOVE_PORT_ID"),
+                    OsString::from("game-child-only"),
+                ),
+            ],
+        );
+        let environment = command
+            .get_envs()
+            .filter_map(|(name, value)| {
+                value.map(|value| {
+                    (
+                        name.to_string_lossy().into_owned(),
+                        value.to_string_lossy().into_owned(),
+                    )
+                })
+            })
+            .collect::<std::collections::BTreeMap<_, _>>();
+
+        assert_eq!(
+            environment.get("PORTCOVE_LIBRARY").map(String::as_str),
+            Some("library")
+        );
+        assert_eq!(
+            environment
+                .get("portcove_application_update_staging")
+                .map(String::as_str),
+            Some("staging")
+        );
+        assert_eq!(
+            environment
+                .get("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE")
+                .map(String::as_str),
+            Some("stage")
+        );
+        assert!(!environment.contains_key("PORTCOVE_GITHUB_TOKEN"));
+        assert!(!environment.contains_key("PORTCOVE_PORT_ID"));
     }
 
     #[test]
