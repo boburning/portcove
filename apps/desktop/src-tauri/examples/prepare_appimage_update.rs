@@ -1,10 +1,9 @@
-use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use portcove_desktop::application_update::{
-    ApplicationChannel, ApplicationCompatibility, CandidateState, InstallOwner,
-    InstalledApplicationContext, LibraryCompatibility, VersionRange,
+    ApplicationChannel, ApplicationCompatibility, CandidateState, InstalledApplicationContext,
+    LibraryCompatibility, VersionRange,
 };
 use portcove_desktop::application_update_apply::{
     ApplicationTerminationKind, ApplicationUpdateApplyRequest, ApplicationUpdateApplyStore,
@@ -49,58 +48,15 @@ fn usage() -> &'static str {
     "usage: prepare_appimage_update describe CURRENT_VERSION\n       prepare_appimage_update prepare CURRENT_VERSION ROOT METADATA TARGETS CANDIDATE PREFERENCES STAGING LIBRARY"
 }
 
-fn canonical_kernel_version(value: &str) -> Result<String, String> {
-    let mut parts = value
-        .trim()
-        .split(['.', '-'])
-        .take(3)
-        .map(|part| part.parse::<u64>());
-    let major = parts
-        .next()
-        .transpose()
-        .map_err(|error| error.to_string())?;
-    let minor = parts
-        .next()
-        .transpose()
-        .map_err(|error| error.to_string())?;
-    let patch = parts
-        .next()
-        .transpose()
-        .map_err(|error| error.to_string())?;
-    match (major, minor) {
-        (Some(major), Some(minor)) => Ok(format!("{major}.{minor}.{}", patch.unwrap_or(0))),
-        _ => Err("Linux kernel version is unavailable".into()),
-    }
+#[cfg(target_os = "linux")]
+fn installed_context(current_version: &str) -> Result<InstalledApplicationContext, String> {
+    portcove_desktop::application_update_linux::linux_appimage_context_for_version(current_version)
+        .map_err(|error| error.to_string())
 }
 
-fn installed_context(current_version: &str) -> Result<InstalledApplicationContext, String> {
-    let kernel_release = Path::new(std::path::MAIN_SEPARATOR_STR)
-        .join("proc")
-        .join("sys")
-        .join("kernel")
-        .join("osrelease");
-    let kernel = std::fs::read_to_string(kernel_release).map_err(|error| error.to_string())?;
-    let catalog_format = portcove_core::Catalog::embedded()
-        .map_err(|error| error.to_string())?
-        .document()
-        .schema_version;
-    Ok(InstalledApplicationContext {
-        current_version: current_version.into(),
-        target: "linux-x86_64".into(),
-        os: "linux".into(),
-        os_version: canonical_kernel_version(&kernel)?,
-        architecture: std::env::consts::ARCH.into(),
-        execution_context: "user-owned-appimage".into(),
-        package_kind: "appimage".into(),
-        install_owner: InstallOwner::Portcove,
-        product_id: "io.github.portcove.portcove".into(),
-        capabilities: BTreeSet::from([portcove_core::APPLICATION_UPDATE_LOCK_PROTOCOL.to_owned()]),
-        cli_protocol: portcove_core::API_SCHEMA_VERSION,
-        catalog_format,
-        library_schema: portcove_core::MIN_LIBRARY_SCHEMA_VERSION,
-        library_write_schema: portcove_core::LIBRARY_SCHEMA_VERSION,
-        lock_protocol: portcove_core::APPLICATION_UPDATE_LOCK_PROTOCOL.into(),
-    })
+#[cfg(not(target_os = "linux"))]
+fn installed_context(_current_version: &str) -> Result<InstalledApplicationContext, String> {
+    Err("the AppImage qualification fixture requires Linux".into())
 }
 
 fn fixture_contract(current_version: &str) -> Result<FixtureContract, String> {

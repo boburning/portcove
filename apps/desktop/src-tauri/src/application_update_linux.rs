@@ -243,8 +243,22 @@ pub fn reconcile_linux_application_update(
 pub fn current_linux_appimage_context()
 -> Result<InstalledApplicationContext, LinuxApplicationUpdateError> {
     let _execution = current_linux_appimage_execution()?;
-    let kernel =
-        std::fs::read_to_string(linux_absolute_path(&["proc", "sys", "kernel", "osrelease"]))?;
+    linux_appimage_context_for_version(env!("CARGO_PKG_VERSION"))
+}
+
+/// Builds the compatibility identity used by the Linux AppImage adapter without
+/// claiming that the current process owns an AppImage. Qualification tooling uses
+/// this to describe a fixture; runtime callers must use `current_linux_appimage_context`.
+#[cfg(target_os = "linux")]
+pub fn linux_appimage_context_for_version(
+    current_version: &str,
+) -> Result<InstalledApplicationContext, LinuxApplicationUpdateError> {
+    let kernel = std::fs::read_to_string(platform_absolute_path(&[
+        "proc",
+        "sys",
+        "kernel",
+        "osrelease",
+    ]))?;
     let os_version = canonical_kernel_version(&kernel)
         .ok_or(LinuxApplicationUpdateError::MissingKernelVersion)?;
     let catalog_format = portcove_core::Catalog::embedded()
@@ -253,7 +267,7 @@ pub fn current_linux_appimage_context()
         .schema_version;
 
     Ok(InstalledApplicationContext {
-        current_version: env!("CARGO_PKG_VERSION").into(),
+        current_version: current_version.into(),
         target: LINUX_TARGET.into(),
         os: "linux".into(),
         os_version,
@@ -282,7 +296,7 @@ fn current_linux_appimage_execution() -> Result<AppImageExecution, LinuxApplicat
         std::env::current_exe()?,
         std::env::temp_dir(),
     )?;
-    let mount_table = fs::read(linux_absolute_path(&["proc", "self", "mountinfo"]))?;
+    let mount_table = fs::read(platform_absolute_path(&["proc", "self", "mountinfo"]))?;
     if !is_native_appimage_mount(&execution.mount, &mount_table) {
         return Err(LinuxApplicationUpdateError::InvalidPath(
             "the runtime mount is not a read-only AppImage FUSE mount".into(),
@@ -671,7 +685,7 @@ fn sync_parent(path: &Path) -> Result<(), LinuxApplicationUpdateError> {
 }
 
 #[cfg(target_os = "linux")]
-fn linux_absolute_path(components: &[&str]) -> PathBuf {
+fn platform_absolute_path(components: &[&str]) -> PathBuf {
     let mut path = PathBuf::from(std::path::MAIN_SEPARATOR.to_string());
     path.extend(components);
     path
@@ -1059,8 +1073,18 @@ mod tests {
 
     #[cfg(target_os = "linux")]
     #[test]
+    fn qualification_context_uses_the_authoritative_appimage_identity() {
+        let context = linux_appimage_context_for_version("0.1.0").unwrap();
+        assert_eq!(context.current_version, "0.1.0");
+        assert_eq!(context.target, LINUX_TARGET);
+        assert_eq!(context.execution_context, LINUX_EXECUTION_CONTEXT);
+        assert_eq!(context.product_id, PRODUCT_ID);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
     fn appimage_mount_must_be_an_exact_read_only_fuse_mount() {
-        let mount = linux_absolute_path(&["tmp", ".mount_Port cove"]);
+        let mount = platform_absolute_path(&["tmp", ".mount_Port cove"]);
         let native = b"297 41 0:54 / /tmp/.mount_Port\\040cove ro,nosuid,nodev - fuse.Portcove.AppImage Portcove.AppImage ro,user_id=1000\n";
         assert!(is_native_appimage_mount(&mount, native));
 
