@@ -50,7 +50,7 @@ jobs:
             ~/.cargo/bin/rscheck
           key: quality-rscheck-binaries-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/quality-tools.json') }}
       - name: Install pinned prebuilt audit tools
-        uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2
+        uses: taiki-e/install-action@fa23953489c080190314742a9b907f8e97c6767c # v2
         with:
           tool: ${{ steps.quality-pins.outputs.required_prebuilt }}
       - name: Check cached pinned rscheck version
@@ -64,7 +64,7 @@ jobs:
           fi
       - name: Install pinned rscheck
         if: steps.rscheck-tool.outputs.ready != 'true'
-        uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2
+        uses: taiki-e/install-action@fa23953489c080190314742a9b907f8e97c6767c # v2
         with:
           tool: ${{ steps.quality-pins.outputs.rscheck_spec }}
       - name: Read pinned aqua version
@@ -174,7 +174,7 @@ jobs:
           fi
       - name: Install pinned semdup
         if: steps.semdup-tool.outputs.ready != 'true'
-        uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2
+        uses: taiki-e/install-action@fa23953489c080190314742a9b907f8e97c6767c # v2
         with:
           tool: ${{ steps.quality-pins.outputs.semdup_spec }}
       - name: Verify exact semdup version

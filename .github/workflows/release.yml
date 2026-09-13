@@ -45,7 +45,7 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Install repository quality tools
-        uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2
+        uses: taiki-e/install-action@fa23953489c080190314742a9b907f8e97c6767c # v2
         with:
           tool: ${{ steps.quality-pins.outputs.required_all }}
       - name: Install Linux desktop prerequisites
@@ -161,7 +161,7 @@ jobs:
             --tag "$tag" \
             --inventory release-metadata/release-inventory.json
       - name: Generate SPDX SBOM from the release checkout and payloads
-        uses: anchore/sbom-action@006b7ce8314066bdf1765b4500370d40fa6917a3 # v0.24.2
+        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
         with:
           path: .
           format: spdx-json
