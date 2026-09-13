@@ -65,6 +65,8 @@ jobs:
           package_json_file: apps/desktop/package.json
       - uses: ./.github/actions/setup-rust
       - name: Record exact workflow, checkout, toolchain, and build configuration
+        env:
+          PORTCOVE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           mkdir -p work/workflow-provenance
           node scripts/workflow-provenance.mjs \

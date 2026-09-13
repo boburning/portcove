@@ -491,7 +491,8 @@ API-identified failure leads, and the three longest steps in each slow job.
 CI and release validation upload one attempt-specific provenance record named with
 the run ID and attempt. It binds GitHub's `GITHUB_WORKFLOW_SHA` workflow-file
 source commit and `GITHUB_WORKFLOW_REF`, a SHA-256 of the checked-out workflow
-bytes, the checked-out `GITHUB_SHA`, and desired versus observed Node, pnpm, Rust,
+bytes, the event source-code head, the separately checked-out `GITHUB_SHA` (including
+GitHub's pull-request merge commit), and desired versus observed Node, pnpm, Rust,
 Cargo, build environment, and runner configuration. `ci-health` verifies the
 artifact digest and every embedded identity before forming a cohort. Earlier or
 expired runs without this record are explicitly unknown and excluded from

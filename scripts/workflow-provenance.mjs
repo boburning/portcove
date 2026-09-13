@@ -52,6 +52,8 @@ export function buildWorkflowProvenance({
     throw new Error("GITHUB_WORKFLOW_SHA must identify the workflow-file source commit");
   if (!exactSha(environment.GITHUB_SHA))
     throw new Error("GITHUB_SHA must identify the triggering workflow commit");
+  const headSha = environment.PORTCOVE_HEAD_SHA || environment.GITHUB_SHA;
+  if (!exactSha(headSha)) throw new Error("PORTCOVE_HEAD_SHA must identify the source-code head");
   if (!exactSha(checkoutSha)) throw new Error("Checked-out code SHA is unavailable");
   if (!exactPositiveInteger(environment.GITHUB_RUN_ID)) throw new Error("Invalid GITHUB_RUN_ID");
   if (!exactPositiveInteger(environment.GITHUB_RUN_ATTEMPT))
@@ -86,7 +88,7 @@ export function buildWorkflowProvenance({
       source_sha: environment.GITHUB_WORKFLOW_SHA,
       content_sha256: sha256(workflowContents),
     },
-    checkout: { sha: checkoutSha, github_sha: environment.GITHUB_SHA },
+    checkout: { sha: checkoutSha, github_sha: environment.GITHUB_SHA, head_sha: headSha },
     desired: { runner: desiredRunner, mode, ...desired },
     observed,
     matches,
@@ -167,8 +169,9 @@ export function validateWorkflowProvenance(
     record.run?.event !== event ||
     record.workflow?.path !== expectedPath ||
     !record.workflow?.ref?.startsWith(expectedRefPrefix) ||
-    record.checkout?.sha !== headSha ||
-    record.checkout?.github_sha !== headSha ||
+    record.checkout?.head_sha !== headSha ||
+    !exactSha(record.checkout?.sha) ||
+    record.checkout?.github_sha !== record.checkout.sha ||
     !exactSha(record.workflow?.source_sha) ||
     !/^[a-f0-9]{64}$/u.test(record.workflow?.content_sha256 ?? "") ||
     !["ci", "release"].includes(desired?.mode) ||

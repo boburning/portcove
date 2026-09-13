@@ -447,6 +447,7 @@ test("collector admits only digest-bound attempt provenance to equivalent cohort
       GITHUB_REPOSITORY: "example/repo",
       GITHUB_WORKFLOW_REF: "example/repo/.github/workflows/ci.yml@refs/heads/main",
       GITHUB_EVENT_NAME: "push",
+      PORTCOVE_HEAD_SHA: "a".repeat(40),
     },
     checkoutSha: "a".repeat(40),
   });

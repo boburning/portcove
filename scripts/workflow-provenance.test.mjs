@@ -17,6 +17,7 @@ const environment = {
   GITHUB_REPOSITORY: "example/repo",
   GITHUB_WORKFLOW_REF: "example/repo/.github/workflows/ci.yml@refs/pull/7/merge",
   GITHUB_EVENT_NAME: "pull_request",
+  PORTCOVE_HEAD_SHA: sha("c"),
 };
 const build = (overrides = {}) =>
   buildWorkflowProvenance({
@@ -45,7 +46,7 @@ const build = (overrides = {}) =>
 const validationContext = {
   runId: 42,
   attempt: 3,
-  headSha: sha("b"),
+  headSha: sha("c"),
   repository: "example/repo",
   workflow: "ci.yml",
   event: "pull_request",
@@ -79,6 +80,7 @@ test("binds official workflow source context, checked-out code, and exact config
   const record = build();
   assert.equal(record.workflow.source_sha, sha("a"));
   assert.equal(record.checkout.sha, sha("b"));
+  assert.equal(record.checkout.head_sha, sha("c"));
   assert.equal(
     record.workflow.content_sha256,
     createHash("sha256").update("name: CI\n").digest("hex"),
