@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { buildDesktopVerifyPlan, parseDesktopVerifyArgs } from "./desktop-verify.mjs";
@@ -67,4 +68,17 @@ test("focused plans omit owned binaries while lifecycle plans include them", () 
     selection: resolveDesktopSelection({ profile: "full" }),
   });
   assert.equal(full.harness_deadline_ms, 600_000);
+});
+
+test("the native build script preserves identical generated inputs for Cargo reuse", async () => {
+  const buildScript = await readFile(
+    new URL("../apps/desktop/src-tauri/build.rs", import.meta.url),
+    "utf8",
+  );
+  assert.match(buildScript, /fn write_if_changed/u);
+  assert.match(buildScript, /fs::read\(path\)\.ok\(\)\.as_deref\(\) == Some\(contents\)/u);
+  assert.match(buildScript, /write_if_changed\(&embedded_root/u);
+  assert.match(buildScript, /write_if_changed\(&generated, source\.as_bytes\(\)\)/u);
+  assert.doesNotMatch(buildScript, /fs::write\(&embedded_root/u);
+  assert.doesNotMatch(buildScript, /fs::write\(generated/u);
 });
