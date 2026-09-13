@@ -51,6 +51,29 @@ async function fixture(t) {
   return { root, input, output, inventoryPath };
 }
 
+async function addProducerRecords(paths, overrides = {}) {
+  for (const [index, label] of releaseLabels(policy).entries()) {
+    const record = {
+      schema_version: 1,
+      platform_label: label,
+      version,
+      revision: "a".repeat(40),
+      run_id: "34727305533",
+      run_attempt: index % 2 === 0 ? 1 : 2,
+      ...overrides,
+    };
+    await writeFile(
+      path.join(
+        paths.input,
+        `release-build-${label}`,
+        "release-upload",
+        `release-producer-${label}.json`,
+      ),
+      `${JSON.stringify(record)}\n`,
+    );
+  }
+}
+
 test("reconciles the exact matrix, keeps platform manifests internal, and is deterministic", async (t) => {
   const { input, output, inventoryPath } = await fixture(t);
   const paths = { root: path.dirname(input), input, output };
@@ -87,6 +110,47 @@ test("inventory binds labels, exact tag links, sizes, and checksums to validated
   );
   assert.equal(typeof windows.bytes, "number");
   assert.match(windows.sha256, /^[a-f0-9]{64}$/);
+});
+
+test("accepts only producers from the current workflow run and revision", async (t) => {
+  const paths = await fixture(t);
+  await addProducerRecords(paths);
+  const lineage = { runId: "34727305533", revision: "a".repeat(40), maxAttempt: 2 };
+  const result = await reconcile(paths, { lineage });
+  assert.equal(result.inventory.workflow_producers.length, releaseLabels(policy).length);
+  assert.deepEqual(
+    [...new Set(result.inventory.workflow_producers.map((record) => record.run_id))],
+    ["34727305533"],
+  );
+
+  const intelProducer = path.join(
+    paths.input,
+    "release-build-macos-x86_64/release-upload/release-producer-macos-x86_64.json",
+  );
+  const producer = JSON.parse(await readFile(intelProducer, "utf8"));
+  await writeFile(intelProducer, `${JSON.stringify({ ...producer, run_id: "1" })}\n`);
+  await assert.rejects(reconcile(paths, { lineage }), /came from another workflow run/);
+});
+
+test("rejects missing, future-attempt, and wrong-revision producer records", async (t) => {
+  const missing = await fixture(t);
+  await addProducerRecords(missing);
+  await rm(
+    path.join(
+      missing.input,
+      "release-build-linux-x86_64/release-upload/release-producer-linux-x86_64.json",
+    ),
+  );
+  const lineage = { runId: "34727305533", revision: "a".repeat(40), maxAttempt: 2 };
+  await assert.rejects(reconcile(missing, { lineage }), /expected exactly one release-producer/);
+
+  const future = await fixture(t);
+  await addProducerRecords(future, { run_attempt: 3 });
+  await assert.rejects(reconcile(future, { lineage }), /newer than the consumer attempt/);
+
+  const changed = await fixture(t);
+  await addProducerRecords(changed, { revision: "b".repeat(40) });
+  await assert.rejects(reconcile(changed, { lineage }), /came from another revision/);
 });
 
 test("rejects missing jobs and package outputs not declared by policy", async (t) => {

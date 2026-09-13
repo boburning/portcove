@@ -56,6 +56,10 @@ export function summarizeAttempt(run, jobs) {
     ...new Set(measuredJobs.flatMap((job) => [job.runner, ...job.labels].filter(Boolean))),
   ].sort();
   const workflowSeconds = run.status === "completed" ? secondsBetween(start, run.updated_at) : null;
+  const pullRequest =
+    Array.isArray(run.pull_requests) && run.pull_requests.length === 1
+      ? run.pull_requests[0]
+      : null;
   return {
     runId: run.id,
     attempt: run.run_attempt,
@@ -67,6 +71,13 @@ export function summarizeAttempt(run, jobs) {
     url: `${run.html_url}/attempts/${run.run_attempt}`,
     workflowId: run.workflow_id ?? null,
     workflowName: run.name ?? null,
+    pullRequest: pullRequest
+      ? {
+          number: pullRequest.number ?? null,
+          headSha: pullRequest.head?.sha ?? null,
+          baseSha: pullRequest.base?.sha ?? null,
+        }
+      : null,
     cohort: `workflow:${run.workflow_id ?? run.name ?? "unknown"};runners:${runnerCohort.join(",") || "unknown"};toolchain:unreported`,
     seconds: workflowSeconds,
     timing: {
@@ -250,10 +261,14 @@ export function summarizeHistory(attempts) {
   };
 }
 
-export async function collectHistory(request, { repository, branch, event, limit, since }) {
+export async function collectHistory(
+  request,
+  { repository, workflow = "ci.yml", branch, event, limit, since },
+) {
   const root = `repos/${repository}/actions`;
-  const query = new URLSearchParams({ branch, event, per_page: String(limit) });
-  const listing = await request(`${root}/workflows/ci.yml/runs?${query}`);
+  const query = new URLSearchParams({ event, per_page: String(limit) });
+  if (branch) query.set("branch", branch);
+  const listing = await request(`${root}/workflows/${workflow}/runs?${query}`);
   if (!Array.isArray(listing.workflow_runs)) throw new Error("Missing workflow run inventory");
   const runs = since
     ? listing.workflow_runs.filter((run) => {
@@ -295,6 +310,7 @@ export async function collectHistory(request, { repository, branch, event, limit
   }
   return {
     repository,
+    workflow,
     branch,
     event,
     since: since ?? null,
@@ -314,10 +330,10 @@ const cell = (value) => String(value).replaceAll("|", "\\|").replaceAll(/\r?\n/g
 export function renderReport(report) {
   const { summary } = report;
   const lines = [
-    `# CI health: ${cell(report.repository)} / ${cell(report.branch)} / ${cell(report.event)}`,
+    `# CI health: ${cell(report.repository)} / ${cell(report.workflow ?? "ci.yml")} / ${cell(report.branch ?? "all branches")} / ${cell(report.event)}`,
     "",
     `${summary.runs} runs, ${summary.attempts} attempts, ${summary.commits} commits. Generated ${report.generatedAt}.`,
-    `Sample: latest ${report.requestedRuns} runs${report.since ? ` created since ${report.since}` : " (no date cutoff)"}. Workflow changes within this sample can make aggregate comparisons misleading.`,
+    `Sample: latest ${report.requestedRuns} runs${report.branch ? ` filtered to ${report.branch}` : " across all branches"}${report.since ? ` and created since ${report.since}` : " (no date cutoff)"}. Workflow changes within this sample can make aggregate comparisons misleading.`,
     "",
     "GitHub timestamps separate only observable boundaries. Pre-job time can include dependency or runner scheduling; the job window includes dependency gaps; aggregation is the interval after the last observed job. Cache state is unclassified: first attempts are not necessarily cold and reruns are not necessarily warm.",
     "",
@@ -425,7 +441,8 @@ export function renderReport(report) {
 async function main() {
   const { values } = parseArgs({
     options: {
-      branch: { type: "string", default: "main" },
+      workflow: { type: "string", default: "ci.yml" },
+      branch: { type: "string" },
       event: { type: "string", default: "push" },
       runs: { type: "string", default: "20" },
       since: { type: "string" },
@@ -435,15 +452,18 @@ async function main() {
   });
   if (values.help) {
     console.log(
-      "Usage: node scripts/ci-health.mjs [--branch main] [--event push] [--runs 20] [--since ISO-date] [--json]\nRead-only GitHub CLI access is required. All attempts of the selected runs are inspected.",
+      "Usage: node scripts/ci-health.mjs [--workflow ci.yml] [--branch main] [--event push] [--runs 20] [--since ISO-date] [--json]\nRead-only GitHub CLI access is required. Push reports default to main; other events cover all branches unless --branch is supplied. All attempts of the selected runs are inspected.",
     );
     return;
   }
   const limit = Number(values.runs);
   if (!Number.isInteger(limit) || limit < 1 || limit > 100)
     throw new Error("--runs must be between 1 and 100");
+  if (!/^[A-Za-z0-9._-]+\.ya?ml$/u.test(values.workflow))
+    throw new Error("--workflow must be a workflow YAML filename");
   if (values.since && !Number.isFinite(Date.parse(values.since)))
     throw new Error("--since must be a valid ISO date");
+  const branch = values.branch ?? (values.event === "push" ? "main" : undefined);
   const { repository } = JSON.parse(
     await readFile(new URL("../.github/roadmap.json", import.meta.url), "utf8"),
   );
@@ -460,7 +480,8 @@ async function main() {
   };
   const report = await collectHistory(request, {
     repository,
-    branch: values.branch,
+    workflow: values.workflow,
+    branch,
     event: values.event,
     limit,
     since: values.since ? new Date(values.since).toISOString() : undefined,

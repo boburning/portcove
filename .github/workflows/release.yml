@@ -16,7 +16,23 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  preflight:
+  identity:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: Verify release identity and workflow contracts
+        run: |
+          node --test scripts/check-release-metadata.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/reconcile-release-assets.test.mjs scripts/finalize-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/select-release-channel.test.mjs scripts/reconstruct-application-update-records.test.mjs scripts/release-result-gate.test.mjs scripts/release-workflow.test.mjs
+          node scripts/check-release-metadata.mjs
+      - name: Verify release tag matches metadata
+        if: github.event_name == 'push'
+        run: node scripts/check-release-metadata.mjs --tag "${{ github.ref_name }}"
+
+  validate:
+    needs: identity
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -55,13 +71,6 @@ jobs:
         working-directory: apps/desktop
       - run: pnpm audit --prod --audit-level high
         working-directory: apps/desktop
-      - name: Verify release identity and required assets
-        run: |
-          node --test scripts/check-release-metadata.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/reconcile-release-assets.test.mjs scripts/finalize-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/select-release-channel.test.mjs scripts/reconstruct-application-update-records.test.mjs scripts/release-workflow.test.mjs
-          node scripts/check-release-metadata.mjs
-      - name: Verify release tag matches metadata
-        if: github.event_name == 'push'
-        run: node scripts/check-release-metadata.mjs --tag "${{ github.ref_name }}"
       - run: just audit --fresh
       - name: Verify active catalog upstreams
         run: node scripts/check-catalog-repositories.mjs
@@ -71,7 +80,7 @@ jobs:
         run: node scripts/check-retcomm-upstreams.mjs
 
   build:
-    needs: preflight
+    needs: identity
     permissions:
       contents: read
     strategy:
@@ -81,15 +90,19 @@ jobs:
           - os: windows-latest
             label: windows-x86_64
             bundles: nsis
+            target: ""
           - os: ubuntu-22.04
             label: linux-x86_64
             bundles: appimage,deb,rpm
-          - os: macos-15-intel
+            target: ""
+          - os: macos-15
             label: macos-x86_64
             bundles: dmg
+            target: x86_64-apple-darwin
           - os: macos-14
             label: macos-aarch64
             bundles: dmg
+            target: aarch64-apple-darwin
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -101,19 +114,36 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
           cache-dependency-path: apps/desktop/pnpm-lock.yaml
-      - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c
+      - uses: ./.github/actions/setup-rust
+        with:
+          targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: release-${{ matrix.label }}
       - name: Install Linux desktop prerequisites
         if: runner.os == 'Linux'
         timeout-minutes: 15
         run: ./scripts/install-linux-desktop-prerequisites.sh
       - run: pnpm install --frozen-lockfile
         working-directory: apps/desktop
-      - run: cargo build --release -p portcove-cli
+      - name: Build CLI
+        shell: pwsh
+        env:
+          RELEASE_TARGET: ${{ matrix.target }}
+        run: |
+          $arguments = @("build", "--release", "-p", "portcove-cli")
+          if (-not [string]::IsNullOrWhiteSpace($env:RELEASE_TARGET)) {
+            $arguments += @("--target", $env:RELEASE_TARGET)
+          }
+          & cargo @arguments
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Package CLI
         shell: pwsh
+        env:
+          RELEASE_TARGET: ${{ matrix.target }}
         run: |
-          ./scripts/package-cli.ps1 -PlatformLabel "${{ matrix.label }}"
+          $targetRoot = if ([string]::IsNullOrWhiteSpace($env:RELEASE_TARGET)) { "target" } else { "target/$env:RELEASE_TARGET" }
+          ./scripts/package-cli.ps1 -PlatformLabel "${{ matrix.label }}" -TargetRoot $targetRoot
       - name: Smoke-test packaged CLI
         shell: pwsh
         run: |
@@ -121,10 +151,24 @@ jobs:
           $archive = (& node scripts/release-package-policy.mjs --platform "${{ matrix.label }}" --interface cli --version $version | Out-String).Trim()
           ./scripts/smoke-test-cli-archive.ps1 -ArchivePath "release-assets/$archive" -PlatformLabel "${{ matrix.label }}" -Version $version
       - name: Build desktop bundles
-        run: pnpm tauri build --bundles "${{ matrix.bundles }}"
+        shell: pwsh
         working-directory: apps/desktop
+        env:
+          RELEASE_TARGET: ${{ matrix.target }}
+        run: |
+          $arguments = @("tauri", "build", "--bundles", "${{ matrix.bundles }}")
+          if (-not [string]::IsNullOrWhiteSpace($env:RELEASE_TARGET)) {
+            $arguments += @("--target", $env:RELEASE_TARGET)
+          }
+          & pnpm @arguments
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Stage checksummed release payload
-        run: node scripts/write-release-checksums.mjs --label "${{ matrix.label }}" --stage-dir release-upload
+        shell: pwsh
+        env:
+          RELEASE_TARGET: ${{ matrix.target }}
+        run: |
+          $targetRoot = if ([string]::IsNullOrWhiteSpace($env:RELEASE_TARGET)) { "target" } else { "target/$env:RELEASE_TARGET" }
+          node scripts/write-release-checksums.mjs --label "${{ matrix.label }}" --stage-dir release-upload --target-root $targetRoot --run-id "${{ github.run_id }}" --run-attempt "${{ github.run_attempt }}" --revision "${{ github.sha }}"
       - name: Upload transient platform artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -132,9 +176,56 @@ jobs:
           path: release-upload/**
           if-no-files-found: error
           retention-days: 1
+          overwrite: true
+
+  verify_intel:
+    needs: [identity, build]
+    runs-on: macos-15-intel
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: Download Intel release payload
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-build-macos-x86_64
+          path: release-upload
+      - name: Smoke-test Intel CLI on Intel hardware
+        shell: pwsh
+        run: |
+          $version = (& node scripts/check-release-metadata.mjs --print-version | Out-String).Trim()
+          $archive = (& node scripts/release-package-policy.mjs --platform macos-x86_64 --interface cli --version $version | Out-String).Trim()
+          ./scripts/smoke-test-cli-archive.ps1 -ArchivePath "release-upload/$archive" -PlatformLabel macos-x86_64 -Version $version
+      - name: Verify and launch Intel DMG on Intel hardware
+        shell: pwsh
+        run: |
+          $version = (& node scripts/check-release-metadata.mjs --print-version | Out-String).Trim()
+          $dmg = Get-ChildItem -LiteralPath release-upload -Filter "*.dmg" -File
+          if (@($dmg).Count -ne 1) { throw "Expected exactly one Intel DMG" }
+          ./scripts/verify-macos-release.ps1 -DmgPath $dmg.FullName -Version $version -Architecture x86_64
+
+  release_gate:
+    if: always()
+    needs: [identity, validate, build, verify_intel]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: Require every release producer and validator
+        env:
+          PORTCOVE_RELEASE_RESULTS: >-
+            {"identity":"${{ needs.identity.result }}","validate":"${{ needs.validate.result }}","build":"${{ needs.build.result }}","verify_intel":"${{ needs.verify_intel.result }}"}
+        run: node scripts/release-result-gate.mjs
 
   assemble:
-    needs: build
+    needs: release_gate
     runs-on: ubuntu-22.04
     permissions:
       contents: read
@@ -159,7 +250,10 @@ jobs:
             --output release-assets-aggregate \
             --version "$version" \
             --tag "$tag" \
-            --inventory release-metadata/release-inventory.json
+            --inventory release-metadata/release-inventory.json \
+            --run-id "${{ github.run_id }}" \
+            --revision "${{ github.sha }}" \
+            --max-attempt "${{ github.run_attempt }}"
       - name: Generate SPDX SBOM from the release checkout and payloads
         uses: anchore/sbom-action@006b7ce8314066bdf1765b4500370d40fa6917a3 # v0.24.2
         with:
@@ -205,6 +299,7 @@ jobs:
           path: release-assets-aggregate/**
           if-no-files-found: error
           retention-days: 1
+          overwrite: true
       - name: Upload internal SBOM attestation subjects
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -212,6 +307,7 @@ jobs:
           path: release-attestation/sbom-subject-checksums.txt
           if-no-files-found: error
           retention-days: 1
+          overwrite: true
       - name: Upload reviewed publication metadata
         if: github.event_name == 'push'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -220,6 +316,7 @@ jobs:
           path: release-metadata/**
           if-no-files-found: error
           retention-days: 1
+          overwrite: true
 
   rehearse:
     if: github.event_name == 'workflow_dispatch'

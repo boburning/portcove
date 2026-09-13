@@ -63,12 +63,16 @@ function contains(parent, child) {
   );
 }
 
-export function validateStageRoot(projectRoot, stageRoot) {
+export function validateStageRoot(
+  projectRoot,
+  stageRoot,
+  targetRoot = path.join(projectRoot, "target"),
+) {
   const project = path.resolve(projectRoot);
   const stage = path.resolve(stageRoot);
   const sourceRoots = [
     path.join(project, "release-assets"),
-    path.join(project, "target", "release", "bundle"),
+    path.join(path.resolve(targetRoot), "release", "bundle"),
   ];
   if (stage === path.parse(stage).root || stage === project || !contains(project, stage)) {
     throw new Error("release staging path must be a child directory inside the project");
@@ -79,7 +83,12 @@ export function validateStageRoot(projectRoot, stageRoot) {
   return stage;
 }
 
-export async function collectReleaseArtifacts(projectRoot, label, requestedVersion) {
+export async function collectReleaseArtifacts(
+  projectRoot,
+  label,
+  requestedVersion,
+  targetRoot = path.join(projectRoot, "target"),
+) {
   validateLabel(label);
   const policy = await loadPackagePolicy(projectRoot);
   const version = requestedVersion ?? (await workspaceVersion(projectRoot));
@@ -93,7 +102,7 @@ export async function collectReleaseArtifacts(projectRoot, label, requestedVersi
     )
     .map((entry) => path.join(releaseAssets, entry.name));
 
-  const bundleRoot = path.join(projectRoot, "target", "release", "bundle");
+  const bundleRoot = path.join(path.resolve(targetRoot), "release", "bundle");
   await assertOwnedUnlinkedPath(projectRoot, bundleRoot, "release desktop bundle directory");
   const desktopPackages = await collectDesktopPackages(projectRoot, bundleRoot, expectedEntries);
   const artifacts = [...cliArchives, ...desktopPackages];
@@ -111,8 +120,13 @@ async function sha256(filePath) {
   return hash.digest("hex");
 }
 
-export async function writeReleaseChecksums(projectRoot, label, requestedVersion) {
-  const artifacts = await collectReleaseArtifacts(projectRoot, label, requestedVersion);
+export async function writeReleaseChecksums(
+  projectRoot,
+  label,
+  requestedVersion,
+  targetRoot = path.join(projectRoot, "target"),
+) {
+  const artifacts = await collectReleaseArtifacts(projectRoot, label, requestedVersion, targetRoot);
   const lines = [];
   for (const artifact of artifacts) {
     lines.push(`${await sha256(artifact)}  ${path.basename(artifact)}`);
@@ -123,18 +137,50 @@ export async function writeReleaseChecksums(projectRoot, label, requestedVersion
   return { artifacts, output };
 }
 
-export async function stageReleaseArtifacts(projectRoot, label, stageRoot, requestedVersion) {
-  const stage = validateStageRoot(projectRoot, stageRoot);
+function producerRecord(label, version, lineage) {
+  if (!lineage) return null;
+  if (!/^\d+$/u.test(lineage.runId ?? "")) throw new Error("release producer run ID is invalid");
+  if (!Number.isInteger(lineage.runAttempt) || lineage.runAttempt < 1)
+    throw new Error("release producer attempt is invalid");
+  if (!/^[a-f0-9]{40}$/u.test(lineage.revision ?? ""))
+    throw new Error("release producer revision is invalid");
+  return {
+    schema_version: 1,
+    platform_label: label,
+    version,
+    revision: lineage.revision,
+    run_id: lineage.runId,
+    run_attempt: lineage.runAttempt,
+  };
+}
+
+export async function stageReleaseArtifacts(
+  projectRoot,
+  label,
+  stageRoot,
+  requestedVersion,
+  lineage,
+  targetRoot = path.join(projectRoot, "target"),
+) {
+  const stage = validateStageRoot(projectRoot, stageRoot, targetRoot);
   await assertOwnedUnlinkedPath(projectRoot, stage, "release staging output");
-  const result = await writeReleaseChecksums(projectRoot, label, requestedVersion);
+  const result = await writeReleaseChecksums(projectRoot, label, requestedVersion, targetRoot);
   await assertOwnedUnlinkedPath(projectRoot, stage, "release staging output");
   await mkdir(stage);
   await assertOwnedUnlinkedPath(projectRoot, stage, "release staging output");
+  const version = requestedVersion ?? (await workspaceVersion(projectRoot));
+  const producer = producerRecord(label, version, lineage);
+  const producerPath = producer ? path.join(stage, `release-producer-${label}.json`) : null;
+  if (producerPath) await writeFile(producerPath, `${JSON.stringify(producer, null, 2)}\n`, "utf8");
   const sources = [...result.artifacts, result.output];
   for (const source of sources) await copyFile(source, path.join(stage, path.basename(source)));
   return {
     ...result,
-    staged: sources.map((source) => path.join(stage, path.basename(source))),
+    producer,
+    staged: [
+      ...sources.map((source) => path.join(stage, path.basename(source))),
+      ...(producerPath ? [producerPath] : []),
+    ],
   };
 }
 
@@ -142,13 +188,28 @@ function parseArguments(argv) {
   const options = { projectRoot: defaultProjectRoot };
   for (let index = 0; index < argv.length; index += 1) {
     const name = argv[index];
-    if (!["--label", "--project-root", "--stage-dir", "--version"].includes(name))
+    if (
+      ![
+        "--label",
+        "--project-root",
+        "--stage-dir",
+        "--version",
+        "--run-id",
+        "--run-attempt",
+        "--revision",
+        "--target-root",
+      ].includes(name)
+    )
       throw new Error(`unknown argument: ${name}`);
     const value = argv[index + 1];
     if (!value || value.startsWith("--")) throw new Error(`${name} requires a value`);
     if (name === "--label") options.label = value;
     else if (name === "--project-root") options.projectRoot = path.resolve(value);
     else if (name === "--stage-dir") options.stageRoot = path.resolve(value);
+    else if (name === "--run-id") options.runId = value;
+    else if (name === "--run-attempt") options.runAttempt = Number(value);
+    else if (name === "--revision") options.revision = value;
+    else if (name === "--target-root") options.targetRoot = path.resolve(value);
     else options.version = value;
     index += 1;
   }
@@ -156,19 +217,30 @@ function parseArguments(argv) {
 }
 
 async function main() {
-  const { projectRoot, label, stageRoot, version } = parseArguments(process.argv.slice(2));
+  const { projectRoot, label, stageRoot, version, runId, runAttempt, revision, targetRoot } =
+    parseArguments(process.argv.slice(2));
+  const lineageValues = [runId, runAttempt, revision].filter((value) => value !== undefined);
+  if (lineageValues.length !== 0 && lineageValues.length !== 3)
+    throw new Error("--run-id, --run-attempt and --revision must be supplied together");
   if (stageRoot) {
     const { artifacts, output, staged } = await stageReleaseArtifacts(
       projectRoot,
       label,
       stageRoot,
       version,
+      lineageValues.length === 3 ? { runId, runAttempt, revision } : undefined,
+      targetRoot,
     );
     console.log(
       `Wrote ${path.basename(output)} for ${artifacts.length} release artifacts and staged ${staged.length} files.`,
     );
   } else {
-    const { artifacts, output } = await writeReleaseChecksums(projectRoot, label, version);
+    const { artifacts, output } = await writeReleaseChecksums(
+      projectRoot,
+      label,
+      version,
+      targetRoot,
+    );
     console.log(`Wrote ${path.basename(output)} for ${artifacts.length} release artifacts.`);
   }
 }

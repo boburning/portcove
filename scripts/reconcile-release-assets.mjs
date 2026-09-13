@@ -54,6 +54,28 @@ function parseManifest(contents, label) {
   return entries;
 }
 
+function validateProducer(record, label, version, lineage) {
+  if (
+    record?.schema_version !== 1 ||
+    record.platform_label !== label ||
+    record.version !== version ||
+    !/^\d+$/u.test(record.run_id ?? "") ||
+    !Number.isInteger(record.run_attempt) ||
+    record.run_attempt < 1 ||
+    !/^[a-f0-9]{40}$/u.test(record.revision ?? "")
+  ) {
+    throw new Error(`invalid release producer identity for ${label}`);
+  }
+  if (lineage) {
+    if (record.run_id !== lineage.runId) throw new Error(`${label} came from another workflow run`);
+    if (record.revision !== lineage.revision)
+      throw new Error(`${label} came from another revision`);
+    if (record.run_attempt > lineage.maxAttempt)
+      throw new Error(`${label} producer attempt is newer than the consumer attempt`);
+  }
+  return record;
+}
+
 export async function reconcileReleaseAssets(inputRoot, outputRoot, options = {}) {
   const input = path.resolve(inputRoot);
   const output = path.resolve(outputRoot);
@@ -91,6 +113,7 @@ export async function reconcileReleaseAssets(inputRoot, outputRoot, options = {}
   }
 
   const selected = [];
+  const producers = [];
   const globalNames = new Set();
   for (const label of releaseLabels) {
     const root = path.join(input, `release-build-${label}`);
@@ -105,6 +128,7 @@ export async function reconcileReleaseAssets(inputRoot, outputRoot, options = {}
         );
     }
     const manifestName = `SHA256SUMS-${label}.txt`;
+    const producerName = `release-producer-${label}.json`;
     const manifests = files.filter((file) => path.basename(file) === manifestName);
     if (manifests.length !== 1) throw new Error(`expected exactly one ${manifestName}`);
     const entries = parseManifest(await readFile(manifests[0], "utf8"), label);
@@ -115,8 +139,23 @@ export async function reconcileReleaseAssets(inputRoot, outputRoot, options = {}
       entries.map((entry) => entry.name),
       `${label} checksum entries`,
     );
+    const producerFiles = files.filter((file) => path.basename(file) === producerName);
+    if (options.lineage && producerFiles.length !== 1)
+      throw new Error(`expected exactly one ${producerName}`);
+    if (!options.lineage && producerFiles.length > 1)
+      throw new Error(`expected at most one ${producerName}`);
+    if (producerFiles.length === 1) {
+      producers.push(
+        validateProducer(
+          JSON.parse(await readFile(producerFiles[0], "utf8")),
+          label,
+          version,
+          options.lineage,
+        ),
+      );
+    }
     assertExactArtifactNames(
-      [...expectedNames, manifestName],
+      [...expectedNames, manifestName, ...(producerFiles.length ? [producerName] : [])],
       files.map((file) => path.basename(file)),
       `${label} staged files`,
     );
@@ -158,6 +197,9 @@ export async function reconcileReleaseAssets(inputRoot, outputRoot, options = {}
     version,
     tag,
     checksum_manifest: policy.checksum_manifest,
+    workflow_producers: producers.sort((left, right) =>
+      left.platform_label.localeCompare(right.platform_label),
+    ),
     packages: policy.packages.map((definition) => {
       const artifact = selected.find((item) => item.id === definition.id);
       if (!artifact) throw new Error(`validated inventory is missing ${definition.id}`);
@@ -200,9 +242,17 @@ function parseArguments(argv) {
     const name = argv[index];
     const value = argv[index + 1];
     if (
-      !["--input", "--output", "--project-root", "--version", "--tag", "--inventory"].includes(
-        name,
-      ) ||
+      ![
+        "--input",
+        "--output",
+        "--project-root",
+        "--version",
+        "--tag",
+        "--inventory",
+        "--run-id",
+        "--revision",
+        "--max-attempt",
+      ].includes(name) ||
       !value
     ) {
       throw new Error(
@@ -217,11 +267,28 @@ function parseArguments(argv) {
             ? "inventoryPath"
             : name.slice(2);
       options[key] = path.resolve(value);
-    } else {
-      options[name.slice(2)] = value;
-    }
+    } else if (name === "--run-id") options.runId = value;
+    else if (name === "--revision") options.revision = value;
+    else if (name === "--max-attempt") options.maxAttempt = Number(value);
+    else options[name.slice(2)] = value;
   }
   if (!options.input || !options.output) throw new Error("--input and --output are required");
+  const lineageValues = [options.runId, options.revision, options.maxAttempt].filter(
+    (value) => value !== undefined,
+  );
+  if (lineageValues.length !== 0 && lineageValues.length !== 3)
+    throw new Error("--run-id, --revision and --max-attempt must be supplied together");
+  if (lineageValues.length === 3) {
+    if (!/^\d+$/u.test(options.runId) || !/^[a-f0-9]{40}$/u.test(options.revision))
+      throw new Error("release consumer lineage is invalid");
+    if (!Number.isInteger(options.maxAttempt) || options.maxAttempt < 1)
+      throw new Error("release consumer attempt is invalid");
+    options.lineage = {
+      runId: options.runId,
+      revision: options.revision,
+      maxAttempt: options.maxAttempt,
+    };
+  }
   return options;
 }
 

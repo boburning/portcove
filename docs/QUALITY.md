@@ -89,6 +89,25 @@ diagnosing a hosted failure. Native desktop, installer, recovery, security,
 physical-platform, and human evidence remains separate and is still required
 when the issue's acceptance scope calls for it.
 
+The sole exception is a tested prose-only path for a deliberately tiny allowlist:
+`docs/README.md` and `docs/GUI-COMPETITIVE-REVIEW.md`. The classifier reads the
+complete pull-request merge-base diff using NUL-delimited Git records. It accepts
+ordinary file additions, modifications, deletions, and renames only when every
+old and new path is allowlisted and the file type remains regular. Mixed changes,
+mode or file-type changes, symbolic links, malformed or empty diff output,
+unusual filenames, missing refs, non-pull-request events, and classifier errors
+all select full CI. The prose lane still checks whitespace, repository formatting,
+and Roadmap/document governance. Stable required-check wrappers consume the
+classifier and every producer result; a missing, failed, cancelled, timed-out,
+unexpectedly skipped, or unexpectedly executed producer fails the wrapper.
+Protected check names therefore stay unchanged.
+
+To disable this optimization immediately, remove both allowlist entries from
+`scripts/select-ci-plan.mjs` (which makes every nonempty diff select full CI) or
+revert the classifier/wrapper change. Any allowlist expansion is a protected
+validation-contract change: add adversarial selector coverage and run
+`just audit --fresh` before relying on it.
+
 ## Staged audit receipts
 
 `just audit` executes named formatting, Rust, UI, script-lint, repository-tooling, Roadmap,
@@ -306,6 +325,14 @@ cargo-binstall when available and exact, locked Cargo installs otherwise;
 optional deep tools remain outside required PR CI.
 
 Required CI cancels an older in-progress run when a newer commit reaches the same branch or pull request. This keeps obsolete Windows builds from occupying the queue while preserving a complete run for the newest commit.
+
+Routine Renovate traffic is bounded to two concurrent branches and pull requests,
+two new pull requests per hour, and four branch updates or rebases per hour.
+Security vulnerability alerts retain Renovate's documented bypass of those
+ordinary queue limits, while GitHub vulnerability alerts and Dependabot security
+updates remain independent. Revert the four top-level limits in `renovate.json`
+if dependency freshness suffers; do not compensate by weakening CI or enabling
+broad automerge.
 
 Linux desktop build prerequisites are installed through `scripts/install-linux-desktop-prerequisites.sh` in required CI, deep-quality, release, and updater-rehearsal workflows. The installer skips package-network work when the exact prerequisite set is already present, isolates resolution to Ubuntu sources, and gives APT three bounded fetch retries with explicit connection and package-lock timeouts. It first tries the runner-configured mirror under separate two-minute update and three-minute install deadlines, then applies the established archive mirror fallback with four-minute update and five-minute install deadlines. Its only option adds the updater rehearsal's `rpm` packaging tool; unknown arguments fail before package work. Each calling step has a fifteen-minute outer limit and fails if both mirror attempts are exhausted. These retries cover external package retrieval only; repository tests retain zero retries, and a failed validation is never converted into a passing result.
 The helper never opens an interactive privilege prompt: root runs directly, while

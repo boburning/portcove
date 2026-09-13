@@ -288,7 +288,29 @@ test("collector retrieves failed earlier attempts and every job page", async () 
   assert.equal(report.attempts.length, 2);
   assert.equal(report.attempts[0].conclusion, "failure");
   assert.equal(report.attempts[0].jobs.length, 2);
-  assert.match(calls[0].route, /branch=feature%2Ftest&event=pull_request&per_page=2/);
+  assert.match(
+    calls[0].route,
+    /workflows\/ci\.yml\/runs\?event=pull_request&per_page=2&branch=feature%2Ftest/,
+  );
+});
+
+test("collector can sample all-branch pull requests and a named release workflow", async () => {
+  const calls = [];
+  const request = async (route) => {
+    calls.push(route);
+    if (route.includes("/workflows/")) return { workflow_runs: [] };
+    assert.fail(`unexpected route: ${route}`);
+  };
+  const report = await collectHistory(request, {
+    repository: "example/repo",
+    workflow: "release.yml",
+    event: "workflow_dispatch",
+    limit: 5,
+  });
+  assert.equal(report.workflow, "release.yml");
+  assert.equal(report.branch, undefined);
+  assert.match(calls[0], /workflows\/release\.yml\/runs\?event=workflow_dispatch&per_page=5$/);
+  assert.doesNotMatch(calls[0], /branch=/);
 });
 
 test("collector rejects incomplete job inventories and API failures", async () => {

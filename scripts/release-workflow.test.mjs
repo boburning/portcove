@@ -19,7 +19,11 @@ function job(name, next) {
   return workflow.match(new RegExp(`^ {2}${name}:\\r?\\n([\\s\\S]*?)${suffix}`, "m"))?.[1] ?? "";
 }
 
-const buildSection = job("build", "assemble");
+const identitySection = job("identity", "validate");
+const validateSection = job("validate", "build");
+const buildSection = job("build", "verify_intel");
+const intelSection = job("verify_intel", "release_gate");
+const gateSection = job("release_gate", "assemble");
 const assembleSection = job("assemble", "rehearse");
 const rehearseSection = job("rehearse", "attest");
 const attestSection = job("attest", "publish");
@@ -42,12 +46,28 @@ test("write authority is split across isolated attestation publication and clean
   assert.doesNotMatch(publishSection, /actions\/checkout|setup-node|node scripts/);
 });
 
+test("cheap identity unlocks validation and builds concurrently behind an explicit result gate", () => {
+  assert.match(identitySection, /actions\/setup-node/);
+  assert.doesNotMatch(identitySection, /pnpm install|rust-toolchain|just audit/);
+  assert.match(validateSection, /^ {4}needs: identity$/m);
+  assert.match(validateSection, /just audit --fresh/);
+  assert.match(buildSection, /^ {4}needs: identity$/m);
+  assert.doesNotMatch(buildSection, /needs: validate/);
+  assert.match(gateSection, /^ {4}if: always\(\)$/m);
+  assert.match(gateSection, /^ {4}needs: \[identity, validate, build, verify_intel\]$/m);
+  assert.match(gateSection, /scripts\/release-result-gate\.mjs/);
+  assert.match(assembleSection, /^ {4}needs: release_gate$/m);
+});
+
 test("every builder uploads only the staged checksummed payload with short fallback retention", () => {
   for (const label of releaseLabels) assert.match(buildSection, new RegExp(`label: ${label}`));
   assert.match(buildSection, /name: release-build-\$\{\{ matrix\.label \}\}/);
   assert.match(buildSection, /--stage-dir release-upload/);
   assert.match(buildSection, /path: release-upload\/\*\*/);
   assert.match(buildSection, /retention-days: 1/);
+  assert.match(buildSection, /overwrite: true/);
+  assert.match(buildSection, /--run-id "\$\{\{ github\.run_id \}\}"/);
+  assert.match(buildSection, /--revision "\$\{\{ github\.sha \}\}"/);
   assert.doesNotMatch(buildSection, /target\/release\/bundle\/\*\*/);
   assert.doesNotMatch(buildSection, /github\.event_name/);
 });
@@ -58,7 +78,24 @@ test("builders package the versioned CLI smoke test it and request explicit Taur
   assert.match(buildSection, /bundles: nsis/);
   assert.match(buildSection, /bundles: appimage,deb,rpm/);
   assert.equal((buildSection.match(/bundles: dmg/g) ?? []).length, 2);
-  assert.match(buildSection, /pnpm tauri build --bundles "\$\{\{ matrix\.bundles \}\}"/);
+  assert.match(
+    buildSection,
+    /\$arguments = @\("tauri", "build", "--bundles", "\$\{\{ matrix\.bundles \}\}"\)/,
+  );
+  assert.match(buildSection, /target: x86_64-apple-darwin/);
+  assert.match(buildSection, /target: aarch64-apple-darwin/);
+  assert.match(buildSection, /os: macos-15\r?\n {12}label: macos-x86_64/);
+  assert.doesNotMatch(buildSection, /os: macos-15-intel/);
+  assert.match(buildSection, /shared-key: release-\$\{\{ matrix\.label \}\}/);
+});
+
+test("cross-built Intel artifacts receive native Intel package and launch verification", () => {
+  assert.match(intelSection, /^ {4}needs: \[identity, build\]$/m);
+  assert.match(intelSection, /^ {4}runs-on: macos-15-intel$/m);
+  assert.match(intelSection, /name: release-build-macos-x86_64/);
+  assert.match(intelSection, /scripts\/smoke-test-cli-archive\.ps1/);
+  assert.match(intelSection, /scripts\/verify-macos-release\.ps1/);
+  assert.match(intelSection, /Architecture x86_64/);
 });
 
 test("CLI packaging uses the BSD-compatible chmod form required by macOS", () => {
@@ -67,7 +104,7 @@ test("CLI packaging uses the BSD-compatible chmod form required by macOS", () =>
 });
 
 test("assembler reconciles the full matrix then generates and checksums the release SBOM", () => {
-  assert.match(assembleSection, /^ {4}needs: build$/m);
+  assert.match(assembleSection, /^ {4}needs: release_gate$/m);
   assert.match(assembleSection, /pattern: release-build-\*/);
   const reconcile = assembleSection.indexOf("reconcile-release-assets.mjs");
   const sbom = assembleSection.indexOf("anchore/sbom-action@");
@@ -82,6 +119,8 @@ test("assembler reconciles the full matrix then generates and checksums the rele
   );
   assert.match(assembleSection, /name: release-attestation-metadata/);
   assert.match(assembleSection, /path: release-attestation\/sbom-subject-checksums\.txt/);
+  assert.match(assembleSection, /--run-id "\$\{\{ github\.run_id \}\}"/);
+  assert.match(assembleSection, /--max-attempt "\$\{\{ github\.run_attempt \}\}"/);
   assert.match(assembleSection, /Refusing to modify non-draft release/);
   assert.match(assembleSection, /Refusing to rewrite existing release notes/);
   assert.doesNotMatch(assembleSection, /releases\/generate-notes/);

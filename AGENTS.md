@@ -122,6 +122,13 @@ recovery, security, physical-platform, or human evidence whenever acceptance
 intrinsically requires it; focused validation and hosted CI do not replace that
 evidence.
 
+Pull requests whose complete merge-base diff contains only files in the tested
+prose allowlist may use the workflow's narrow prose lane while preserving the
+same required check names. Additions, deletions, renames, unusual filenames,
+file-type or mode changes, classifier errors, and every unclassified path fail
+closed to full CI. Changing the allowlist or selector is a validation-contract
+change and requires its adversarial tests plus `just audit --fresh`.
+
 The aggregate commands remain available for explicit purposes:
 
 - Rust exhaustive local investigation: `just check-rust`
