@@ -44,6 +44,11 @@ fn run(executable: &Path, root: &Path, arguments: &[&str]) -> Output {
         root.join("schedule.json"),
     )
     .env("PORTCOVE_APPLICATION_UPDATE_STAGING", root.join("staging"))
+    .env(
+        "PORTCOVE_APPLICATION_RUNTIME_LOCK",
+        root.join("application-runtime.lock"),
+    )
+    .env("PORTCOVE_PREFERENCES", root.join("host-preferences.json"))
     .output()
     .expect("recovery command should run")
 }
@@ -130,4 +135,47 @@ fn malformed_recovery_command_exits_without_starting_the_gui() {
 
     assert_eq!(output.status.code(), Some(2));
     assert!(stderr(&output).contains("Usage:"));
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn gui_independent_appimage_recovery_reports_when_no_attempt_exists() {
+    let executable = desktop_executable();
+    let temporary = tempfile::tempdir().unwrap();
+    let output = run(
+        &executable,
+        temporary.path(),
+        &[
+            "--application-update-recovery",
+            "recover",
+            "interrupted-appimage",
+        ],
+    );
+
+    assert_eq!(output.status.code(), Some(1));
+    assert!(stderr(&output).contains("No interrupted AppImage replacement"));
+    assert!(stderr(&output).contains("No update check, download, install, restart"));
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn gui_independent_appimage_recovery_refuses_a_live_runtime_lease() {
+    let executable = desktop_executable();
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path();
+    let _runtime =
+        portcove_core::ApplicationRuntimeGuard::acquire(&root.join("application-runtime.lock"))
+            .unwrap();
+    let output = run(
+        &executable,
+        root,
+        &[
+            "--application-update-recovery",
+            "recover",
+            "interrupted-appimage",
+        ],
+    );
+
+    assert_eq!(output.status.code(), Some(1));
+    assert!(stderr(&output).contains("still holds the runtime lease"));
 }

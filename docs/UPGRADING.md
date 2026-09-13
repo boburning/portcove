@@ -64,13 +64,13 @@ portcove-desktop --application-update-recovery status
 ```
 
 The command locally inspects update preferences, automatic check history,
-staged-download state, and the pending exit or restart request. Existing valid
-staging state receives the same safe interruption reconciliation as desktop
-startup. The command does not contact a release server, acquire a new payload,
-install anything, restart Portcove, or open a native prompt. Exit code 0 means
-these four coordination stores are healthy. Exit code 1 means the output lists
-a fixed-area repair, reports that a requested repair is no longer needed, or
-could not inspect the state. Exit code 2 means the command was malformed.
+staged-download state, the pending exit or restart request, and an interrupted
+Linux AppImage replacement. The command does not contact a release server,
+acquire a new payload, install anything, restart Portcove, or open a native
+prompt. Exit code 0 means these coordination stores are healthy. Exit code 1
+means the output lists a fixed recovery, reports that a requested recovery is
+no longer needed, or could not inspect the state. Exit code 2 means the command
+was malformed.
 
 Run only a repair named by the status output:
 
@@ -89,6 +89,21 @@ timing and retry history. `staging` removes the damaged staged payload and
 requires a fresh authenticated download. `apply` clears only the damaged exit
 or restart request and keeps an independently healthy staged payload. None of
 these commands repairs or rolls back a Portcove library.
+
+On Linux, status may instead report an AppImage replacement awaiting recovery
+or startup reconciliation. With every Portcove process closed, run exactly the
+fixed command it prints:
+
+```text
+portcove-desktop --application-update-recovery recover interrupted-appimage
+```
+
+The command first takes the shared application runtime lease. It then applies
+the same exact predecessor, staged-candidate, stable-path, swap-path, hash and
+byte-prefix checks as desktop startup. Only a verified pre-activation
+interruption becomes retryable. Unknown bytes or paths remain unchanged. If the
+candidate already occupies the stable path, start Portcove normally so its
+healthy-startup boundary can reconcile the update.
 
 After **Restart to update**, Windows or macOS may own the visible installer,
 UAC, SmartScreen, or Gatekeeper prompt. Portcove cannot move focus into that
