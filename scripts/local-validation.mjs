@@ -226,6 +226,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     selection.scopes.add("tooling");
     recognized = true;
     if (/\.(?:mjs|cjs|js)$/.test(file)) {
+      selection.oxlint = true;
       if (file.endsWith(".test.mjs")) {
         if (includeFileChecks) addNodeTest(selection, file);
       } else {
@@ -420,6 +421,7 @@ export function classifyChanges(changes, options = {}) {
     workspaceRust: false,
     ui: false,
     uiFullTests: false,
+    oxlint: false,
     stylelint: false,
     actionsLint: false,
     powershellLint: false,
@@ -552,6 +554,16 @@ export function buildPlan(selection, context = {}) {
         ),
       );
     }
+  }
+  if (selection.oxlint) {
+    commands.push(
+      corepackCommand(
+        "oxlint",
+        "lint changed repository JavaScript with the complete Oxc contract",
+        ["pnpm", "run", "lint:oxlint"],
+        { cwd: desktopRoot },
+      ),
+    );
   }
   if (selection.nodeTests.size) commands.push(nodeTestCommand(sorted(selection.nodeTests)));
 

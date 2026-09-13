@@ -35,6 +35,11 @@ the current control. Directional movement measures the current region once per
 accepted move, using fresh geometry rather than a stale layout cache. The harness
 restores its injected input and DOM fixture afterward. These measurements are
 native rendering evidence, not physical-controller or human-navigation evidence.
+It preserves exact frontend outputs across reruns only when a content-addressed
+record proves the complete declared input, build-environment/toolchain, and output
+inventories match. Cargo still checks the native build and every selected native
+scenario still runs; see [Development tools](DEVELOPMENT-TOOLS.md) for the cache
+boundary and retained evidence.
 
 | Scope                                | Command                            | Purpose                                                                                                                                       |
 | ------------------------------------ | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -88,6 +93,30 @@ explicitly named acceptance requirement, a validation-contract transition, or
 diagnosing a hosted failure. Native desktop, installer, recovery, security,
 physical-platform, and human evidence remains separate and is still required
 when the issue's acceptance scope calls for it.
+
+The workflow contains a tested prose-only path for a deliberately tiny allowlist:
+`docs/README.md` and `docs/GUI-COMPETITIVE-REVIEW.md`. Activation is deliberately
+held at `PORTCOVE_PROSE_POLICY_ACTIVATED: "false"` until a separate independently
+approved validation-policy change enables it. While held, even these two files
+select full CI. The activation change must itself receive exhaustive CI and must
+not rely on the candidate acceptance rule it enables. The classifier reads the
+complete pull-request merge-base diff using NUL-delimited Git records. It accepts
+ordinary file additions, modifications, deletions, and renames only when every
+old and new path is allowlisted and the file type remains regular. Mixed changes,
+mode or file-type changes, symbolic links, malformed or empty diff output,
+unusual filenames, missing refs, non-pull-request events, and classifier errors
+all select full CI. The prose lane still checks whitespace, repository formatting,
+and Roadmap/document governance. Stable required-check wrappers consume the
+classifier and every producer result; a missing, failed, cancelled, timed-out,
+unexpectedly skipped, or unexpectedly executed producer fails the wrapper.
+Protected check names therefore stay unchanged.
+
+After independent activation, disable the optimization immediately by setting
+`PORTCOVE_PROSE_POLICY_ACTIVATED` back to `"false"`, removing both allowlist
+entries from `scripts/select-ci-plan.mjs`, or reverting the classifier/wrapper
+change. Activation and any allowlist expansion are protected validation-contract
+changes: obtain the required independent approval, add adversarial selector
+coverage, and run `just audit --fresh` before relying on them.
 
 ## Staged audit receipts
 
@@ -307,6 +336,14 @@ optional deep tools remain outside required PR CI.
 
 Required CI cancels an older in-progress run when a newer commit reaches the same branch or pull request. This keeps obsolete Windows builds from occupying the queue while preserving a complete run for the newest commit.
 
+Routine Renovate traffic is bounded to two concurrent branches and pull requests,
+two new pull requests per hour, and four branch updates or rebases per hour.
+Security vulnerability alerts retain Renovate's documented bypass of those
+ordinary queue limits, while GitHub vulnerability alerts and Dependabot security
+updates remain independent. Revert the four top-level limits in `renovate.json`
+if dependency freshness suffers; do not compensate by weakening CI or enabling
+broad automerge.
+
 Linux desktop build prerequisites are installed through `scripts/install-linux-desktop-prerequisites.sh` in required CI, deep-quality, release, and updater-rehearsal workflows. The installer skips package-network work when the exact prerequisite set is already present, isolates resolution to Ubuntu sources, and gives APT three bounded fetch retries with explicit connection and package-lock timeouts. It first tries the runner-configured mirror under separate two-minute update and three-minute install deadlines, then applies the established archive mirror fallback with four-minute update and five-minute install deadlines. Its only option adds the updater rehearsal's `rpm` packaging tool; unknown arguments fail before package work. Each calling step has a fifteen-minute outer limit and fails if both mirror attempts are exhausted. These retries cover external package retrieval only; repository tests retain zero retries, and a failed validation is never converted into a passing result.
 The helper never opens an interactive privilege prompt: root runs directly, while
 other callers must already have noninteractive sudo authority. Each APT process,
@@ -454,10 +491,18 @@ node scripts/ci-health.mjs --branch my-branch --event pull_request --runs 10
 The report separates successful first attempts from successful reruns, reports
 cancelled/incomplete/failed outcomes, and links failed-then-passing attempts for
 investigation. It also shows the observable pre-job, job-window and post-job
-aggregation boundaries, comparable workflow and runner-label cohorts, recent
+aggregation boundaries, exact comparable cohorts, recent
 API-identified failure leads, and the three longest steps in each slow job.
-GitHub's run API does not expose installed tool versions, so an unreported
-toolchain stays explicit instead of being inferred. A rerun recovery is not proof
+CI and release validation upload one attempt-specific provenance record named with
+the run ID and attempt. It binds GitHub's `GITHUB_WORKFLOW_SHA` workflow-file
+source commit and `GITHUB_WORKFLOW_REF`, a SHA-256 of the checked-out workflow
+bytes, the event source-code head, the separately checked-out `GITHUB_SHA` (including
+GitHub's pull-request merge commit), and desired versus observed Node, pnpm, Rust,
+Cargo, build environment, and runner configuration. `ci-health` verifies the
+artifact digest and every embedded identity before forming a cohort. Earlier or
+expired runs without this record are explicitly unknown and excluded from
+equivalent-cohort claims rather than receiving an inferred toolchain or workflow
+identity. A rerun recovery is not proof
 of a flaky test: runners, caches and external services may differ even when the
 commit does not. No retries are scheduled by this report, and it never changes
 issues, checks, caches or runs.

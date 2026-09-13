@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 import { collectHistory, renderReport, summarizeAttempt, summarizeHistory } from "./ci-health.mjs";
+import { buildWorkflowProvenance } from "./workflow-provenance.mjs";
 
 const stamp = (seconds) => new Date(Date.UTC(2026, 8, 7) + seconds * 1000).toISOString();
 const run = (overrides) => ({
@@ -32,6 +34,10 @@ const job = (overrides) => ({
   ...overrides,
 });
 const attempt = (overrides) => summarizeAttempt(run(overrides), [job()]);
+const provenance = (cohort = "c".repeat(64)) => ({
+  status: "verified",
+  record: { equivalent_cohort: cohort },
+});
 
 test("first attempts include initial queue time and reruns use their own start", () => {
   assert.equal(attempt().seconds, 240);
@@ -174,10 +180,11 @@ test("workflow timing separates only boundaries supported by GitHub timestamps",
     aggregationSeconds: 5,
     summedRunnerSeconds: 295,
   });
-  assert.match(result.cohort, /workflow:99/);
-  assert.match(result.cohort, /toolchain:unreported/);
-  assert.match(result.cohort, /ubuntu-latest/);
-  assert.match(result.cohort, /windows-latest/);
+  assert.equal(result.cohort, null);
+  const verified = summarizeAttempt(run(), result.jobs, provenance());
+  assert.match(verified.cohort, /exact:c{64}/u);
+  assert.match(verified.cohort, /ubuntu-latest/);
+  assert.match(verified.cohort, /windows-latest/);
 });
 
 test("missing job boundaries stay unavailable and never become zero timing", () => {
@@ -266,6 +273,7 @@ test("collector retrieves failed earlier attempts and every job page", async () 
   const request = async (route, paginate) => {
     calls.push({ route, paginate });
     if (route.includes("/workflows/")) return { workflow_runs: [{ id: 1, run_attempt: 2 }] };
+    if (route.includes("/artifacts?")) return [{ total_count: 0, artifacts: [] }];
     const number = Number(route.match(/attempts\/(\d+)/)[1]);
     if (route.includes("/jobs?")) {
       assert.equal(paginate, true);
@@ -288,16 +296,40 @@ test("collector retrieves failed earlier attempts and every job page", async () 
   assert.equal(report.attempts.length, 2);
   assert.equal(report.attempts[0].conclusion, "failure");
   assert.equal(report.attempts[0].jobs.length, 2);
-  assert.match(calls[0].route, /branch=feature%2Ftest&event=pull_request&per_page=2/);
+  assert.match(
+    calls[0].route,
+    /workflows\/ci\.yml\/runs\?event=pull_request&per_page=2&branch=feature%2Ftest/,
+  );
+});
+
+test("collector can sample all-branch pull requests and a named release workflow", async () => {
+  const calls = [];
+  const request = async (route) => {
+    calls.push(route);
+    if (route.includes("/workflows/")) return { workflow_runs: [] };
+    assert.fail(`unexpected route: ${route}`);
+  };
+  const report = await collectHistory(request, {
+    repository: "example/repo",
+    workflow: "release.yml",
+    event: "workflow_dispatch",
+    limit: 5,
+  });
+  assert.equal(report.workflow, "release.yml");
+  assert.equal(report.branch, undefined);
+  assert.match(calls[0], /workflows\/release\.yml\/runs\?event=workflow_dispatch&per_page=5$/);
+  assert.doesNotMatch(calls[0], /branch=/);
 });
 
 test("collector rejects incomplete job inventories and API failures", async () => {
   const request = async (route) =>
     route.includes("/workflows/")
       ? { workflow_runs: [{ id: 1, run_attempt: 1 }] }
-      : route.includes("/jobs?")
-        ? [{ total_count: 2, jobs: [job()] }]
-        : run();
+      : route.includes("/artifacts?")
+        ? [{ total_count: 0, artifacts: [] }]
+        : route.includes("/jobs?")
+          ? [{ total_count: 2, jobs: [job()] }]
+          : run();
   await assert.rejects(
     collectHistory(request, {
       repository: "example/repo",
@@ -325,7 +357,9 @@ test("date cutoff keeps all attempts of eligible runs without mixing an older wo
         ],
       };
     assert.doesNotMatch(route, /runs\/2\//);
-    return route.includes("/jobs?") ? [{ total_count: 1, jobs: [job()] }] : run();
+    if (route.includes("/jobs?")) return [{ total_count: 1, jobs: [job()] }];
+    if (route.includes("/artifacts?")) return [{ total_count: 0, artifacts: [] }];
+    return run();
   };
   const report = await collectHistory(request, {
     repository: "example/repo",
@@ -356,6 +390,102 @@ test("report makes sample and cache limitations explicit and includes investigat
   assert.match(text, /Observed workflow timing/);
   assert.match(text, /Summed runner execution \(not elapsed or billing\)/);
   assert.match(text, /Comparable cohorts/);
-  assert.match(text, /unreported toolchain/);
+  assert.match(text, /Historical missing or expired evidence is unknown/);
+  assert.match(text, /missing-attempt-artifact=2/);
   assert.match(text, /Slowest observed steps/);
+});
+
+function storedZip(contents) {
+  const data = Buffer.from(contents);
+  const name = Buffer.from("workflow-provenance.json");
+  const local = Buffer.alloc(30 + name.length);
+  local.writeUInt32LE(0x04034b50, 0);
+  local.writeUInt32LE(data.length, 18);
+  local.writeUInt32LE(data.length, 22);
+  local.writeUInt16LE(name.length, 26);
+  name.copy(local, 30);
+  const central = Buffer.alloc(46 + name.length);
+  central.writeUInt32LE(0x02014b50, 0);
+  central.writeUInt32LE(data.length, 20);
+  central.writeUInt32LE(data.length, 24);
+  central.writeUInt16LE(name.length, 28);
+  name.copy(central, 46);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(1, 8);
+  end.writeUInt16LE(1, 10);
+  end.writeUInt32LE(central.length, 12);
+  end.writeUInt32LE(local.length + data.length, 16);
+  return Buffer.concat([local, data, central, end]);
+}
+
+test("collector admits only digest-bound attempt provenance to equivalent cohorts", async () => {
+  const record = buildWorkflowProvenance({
+    workflow: "ci.yml",
+    mode: "ci",
+    desiredRunner: "ubuntu-latest",
+    workflowContents: "name: CI\n",
+    desired: {
+      node: "24.21.0",
+      package_manager: "12.4.1",
+      rust: "1.98.1",
+      build_configuration: { ci: true },
+    },
+    observed: {
+      node: "24.21.0",
+      package_manager: "12.4.1",
+      rust: "1.98.1",
+      cargo: "1.98.1",
+      runner: { os: "Linux", architecture: "X64" },
+      build_configuration: { ci: true },
+    },
+    environment: {
+      GITHUB_WORKFLOW_SHA: "d".repeat(40),
+      GITHUB_SHA: "a".repeat(40),
+      GITHUB_RUN_ID: "1",
+      GITHUB_RUN_ATTEMPT: "1",
+      GITHUB_REPOSITORY: "example/repo",
+      GITHUB_WORKFLOW_REF: "example/repo/.github/workflows/ci.yml@refs/heads/main",
+      GITHUB_EVENT_NAME: "push",
+      PORTCOVE_HEAD_SHA: "a".repeat(40),
+    },
+    checkoutSha: "a".repeat(40),
+  });
+  const archive = storedZip(JSON.stringify(record));
+  const request = async (route, paginate, responseType) => {
+    if (route.includes("/workflows/")) return { workflow_runs: [{ id: 1, run_attempt: 1 }] };
+    if (route.includes("/jobs?")) return [{ total_count: 1, jobs: [job()] }];
+    if (route.includes("/artifacts?"))
+      return [
+        {
+          total_count: 1,
+          artifacts: [
+            {
+              id: 9,
+              name: "workflow-provenance-1-1",
+              expired: false,
+              digest: `sha256:${createHash("sha256").update(archive).digest("hex")}`,
+              workflow_run: { id: 1, head_sha: "a".repeat(40) },
+            },
+          ],
+        },
+      ];
+    if (route.includes("/artifacts/9/zip")) {
+      assert.equal(responseType, "buffer");
+      return archive;
+    }
+    return run();
+  };
+  const report = await collectHistory(request, {
+    repository: "example/repo",
+    event: "push",
+    limit: 1,
+  });
+  assert.equal(report.summary.provenance.verified, 1);
+  assert.equal(report.summary.provenance.unknown, 0);
+  assert.equal(report.summary.cohorts.length, 1);
+  assert.match(
+    report.summary.cohorts[0].name,
+    new RegExp(`exact:${record.equivalent_cohort}`, "u"),
+  );
 });

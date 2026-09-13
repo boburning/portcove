@@ -486,20 +486,45 @@ after publication; the repository setting alone is not that evidence.
 
 ## Tagged build
 
-Pushing `v*` starts `.github/workflows/release.yml`. Its preflight job repeats
-the identity, dependency, test, Fallow, and upstream gates before the Windows,
-Linux x64, Intel macOS, and Apple-silicon macOS matrix can build. Matrix jobs
-have read-only repository permission and stage only the versioned CLI archive,
-explicitly selected native distributable packages, and one internal platform
-SHA-256 manifest as transient workflow artifacts.
+Pushing `v*` starts `.github/workflows/release.yml`. A cheap identity job first
+checks version, tag, package policy, and workflow contracts. It then unlocks the
+full fresh audit/upstream validation, a three-platform build matrix, and the
+dedicated Intel producer in parallel. The native Intel verifier starts as soon as
+that producer is complete, without waiting for unrelated platform builds. A
+fail-closed result gate requires every producer and native Intel verification before
+assembly. Build jobs have read-only
+repository permission and stage only the versioned CLI archive, explicitly
+selected native distributable packages, one internal platform SHA-256 manifest,
+and a producer record bound to the exact run, attempt, revision, platform, and
+version.
 
-After every builder succeeds, the read-only `assemble` job independently
+The Intel CLI and DMG are cross-compiled on the Apple-silicon `macos-15` runner
+with the repository-pinned Rust toolchain and explicit
+`x86_64-apple-darwin` target. A separate `macos-15-intel` job downloads those
+exact staged bytes, executes the CLI archive, verifies the DMG's bundle identity,
+Mach-O architecture, deployment metadata, and dylib references, then performs a
+native launch and clean close. This preserves Intel execution evidence while
+moving compilation off the scarcer Intel runner. Revert the Intel matrix entry
+to `macos-15-intel` and remove its explicit target if hosted cross-compilation or
+native verification becomes unreliable; do not waive the Intel job.
+Each platform label has an independent Rust cache series, so the two
+Apple-silicon-hosted target graphs cannot race to populate one immutable key.
+
+After validation, every builder, and Intel verification succeed, the read-only
+`assemble` job independently
 validates the exact matrix, recomputes every package checksum, generates an SPDX
 2.3 JSON SBOM with the commit-pinned Syft action, and finalizes one immutable
 payload. `SHA256SUMS.txt` covers every public package and
 `Portcove-SBOM.spdx.json`; the SBOM inventory records each package's checksum and
 size. The four platform manifests and build-time inventory remain internal
 validation inputs rather than redundant release assets.
+
+Reruns replace same-named transient artifacts, but assembly accepts producer
+records only from the current workflow run and revision and never from an attempt
+newer than its own. This permits safe whole-workflow or failed-job retries without
+silently combining stale platform outputs. If lineage reconciliation fails,
+rerun the failed producer or the complete workflow; never copy an artifact from
+another run into the matrix.
 
 On a tag run, only the isolated `attest` job receives `id-token: write`,
 `attestations: write`, and `artifact-metadata: write`. It checks out no candidate
@@ -540,7 +565,7 @@ outputs.
 
 ## Release rehearsal
 
-Run the **Release** workflow manually from GitHub Actions before the first v1 tag or after changing packaging. A manual run executes the same preflight, four-platform build matrix, read-only assembly, SBOM generation, payload finalization, public checksum verification, and internal SBOM-subject checksum verification, but the tag-only attestation and publication jobs remain disabled. It deletes the transient copies only after those contracts pass. A failed rehearsal retains its artifacts for no more than one day for diagnosis; a successful rehearsal keeps the run logs and verification result without consuming ongoing Actions artifact storage. A rehearsal never creates an attestation, tag, draft release, or published release.
+Run the **Release** workflow manually from GitHub Actions before the first v1 tag or after changing packaging. A manual run executes the same cheap identity gate, concurrent fresh validation, three-platform matrix and dedicated Intel build, immediate downstream native Intel verification, read-only assembly, SBOM generation, payload finalization, public checksum verification, and internal SBOM-subject checksum verification, but the tag-only attestation and publication jobs remain disabled. It deletes the transient copies only after those contracts pass. A failed rehearsal retains its artifacts for no more than one day for diagnosis; a successful rehearsal keeps the run logs and verification result without consuming ongoing Actions artifact storage. A rehearsal never creates an attestation, tag, draft release, or published release.
 
 From an authenticated GitHub CLI, start and follow the rehearsal with:
 
@@ -551,7 +576,8 @@ gh run list --workflow release.yml --event workflow_dispatch --branch main --lim
 
 Identify the specific dispatch by workflow, event, branch, dispatch time, actor,
 and `head_sha = C`; never select an unrelated latest run. Require successful
-preflight, every expected builder, and reconciliation, with publication skipped.
+identity, validation, every expected builder, Intel native verification, the
+result gate, and reconciliation, with publication skipped.
 Record the run ID, attempt, timestamps, SHA, job outcomes, reconciliation result,
 and cleanup state in the external execution record. If main moves during the
 freeze or dispatch resolves another SHA, stop readiness until the candidate is

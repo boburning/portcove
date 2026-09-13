@@ -166,6 +166,7 @@ test("changed Node implementations select sibling tests and syntax checks", () =
   assert.ok(selection.nodeTests.has("scripts/ci-health.test.mjs"));
   assert.ok(selection.nodeSyntax.has("scripts/ci-health.mjs"));
   assert.ok(ids(plan).includes("node-syntax:scripts/ci-health.mjs"));
+  assert.ok(ids(plan).includes("oxlint"));
   assert.ok(ids(plan).includes("node-tests"));
 });
 

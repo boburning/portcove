@@ -120,14 +120,26 @@ The curated profiles are:
   incomplete rather than universal desktop qualification.
 
 The runner performs the desktop doctor and storage preflight, verifies that the
-pinned Selenium workspace package resolves, builds the frontend with embedded
-assets and the Tauri application, builds the CLI/probe only for owned-fixture
+pinned Selenium workspace package resolves, builds or exactly reuses the frontend
+with embedded assets, asks Cargo to validate/reuse the Tauri application, builds the CLI/probe only for owned-fixture
 scenarios, chooses unused consecutive driver ports, acquires the shared native
 session lock, creates a fresh run directory under
 `PORTCOVE_OUTPUT_DIR/desktop-verify`, and prints the retained evidence path. It
 never installs packages or provisions drivers. Follow the reported bootstrap or
 frozen-install remedy when a prerequisite is missing. Use `--require-clean` for
 final evidence; dirty source is allowed and recorded during iteration.
+
+Frontend reuse is fail closed. A platform/architecture-specific record under the
+configured temporary directory hashes every declared Vite input, the exact Node
+and pnpm versions, all `VITE_`, `TAURI_`, and `NODE_ENV` inputs, and every byte in
+`apps/desktop/dist`. Missing, malformed, linked, added, removed, or changed inputs
+or outputs run the normal frontend build and replace the disposable record only
+after success. An exact match leaves `dist` untouched so a harness-only or
+catalog-only rerun does not manufacture a Tauri relink. Cargo still runs on every
+verification and remains the native dependency/build authority; the selected
+native scenarios always execute in a fresh evidence directory. The run metadata
+records whether frontend bytes were rebuilt or reused, while source revision and
+`--require-clean` evidence remain independent and unchanged.
 
 Every native run can take focus and send input. The shared lock serializes
 Portcove qualification runners across worktrees, but it cannot prevent unrelated
