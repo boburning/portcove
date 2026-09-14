@@ -384,6 +384,7 @@ test("manual coordinator rehearsal is serialized, read-only, and default-branch 
     workflow,
     /PORTCOVE_CONTROLLER_WORKFLOW: \.github\/workflows\/release-coordinator\.yml/u,
   );
+  assert.match(workflow, /set -o pipefail\s+node scripts\/release-coordinator\.mjs[^\n]+\| tee/u);
   assert.doesNotMatch(
     workflow,
     /contents: write|actions: write|secrets\.|gh release|workflow run release/u,
