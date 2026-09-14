@@ -22,6 +22,7 @@ import {
 import desktopPackage from "../../package.json";
 import type { ThemeState, ThemePreference } from "../theme";
 import type {
+  ActivityRecord,
   PortDefinition,
   ApplicationUpdateNoticeSnapshot,
   ApplicationUpdatePreferences,
@@ -43,7 +44,10 @@ import {
   errorText,
   failurePresentation,
   formatBytes,
+  formatCountMessage,
+  navigationActivityState,
   progressPresentation,
+  type NavigationActivityState,
   type SourceRequirement,
   type View,
 } from "../view-model";
@@ -64,6 +68,7 @@ export function Sidebar({
   setView,
   installedCount,
   updateCount,
+  activities,
   onAdopt,
   controller,
 }: {
@@ -71,9 +76,11 @@ export function Sidebar({
   setView: Dispatch<SetStateAction<View>>;
   installedCount: number;
   updateCount: number;
+  activities: ActivityRecord[];
   onAdopt: () => void;
   controller?: string;
 }) {
+  const activityState = navigationActivityState(activities);
   const items = [
     { view: "library", label: "Library", icon: Library, shortcut: "1" },
     { view: "catalog", label: "Port catalog", icon: Boxes, shortcut: "2" },
@@ -108,8 +115,8 @@ export function Sidebar({
             {item.view === "library" && (
               <b aria-label={`${installedCount} installed`}>{installedCount}</b>
             )}
-            {item.view === "updates" && updateCount > 0 && (
-              <b aria-label={`${updateCount} updates available`}>{updateCount}</b>
+            {item.view === "updates" && (updateCount > 0 || activityState) && (
+              <NavigationStatus updateCount={updateCount} activityState={activityState} />
             )}
             <Shortcut>{commandShortcut(item.shortcut)}</Shortcut>
           </button>
@@ -123,6 +130,43 @@ export function Sidebar({
         <NavigationHints controller={controller} workspace />
       </div>
     </aside>
+  );
+}
+
+function NavigationStatus({
+  updateCount,
+  activityState,
+}: {
+  updateCount: number;
+  activityState?: NavigationActivityState;
+}) {
+  const activityLabel =
+    activityState === "running"
+      ? "Activity in progress"
+      : activityState === "attention"
+        ? "Activity needs attention"
+        : undefined;
+  const updateLabel =
+    updateCount > 0
+      ? formatCountMessage(updateCount, {
+          zero: "No updates available",
+          one: "1 update available",
+          other: "{count} updates available",
+          unknown: "Update count unavailable",
+        })
+      : undefined;
+  const label = [activityLabel, updateLabel].filter(Boolean).join(", ");
+  return (
+    <b
+      className={`nav-status${activityState ? ` ${activityState}` : ""}`}
+      aria-label={label}
+      title={label}
+    >
+      {activityState && (
+        <Icon glyph={activityState === "running" ? LoaderCircle : AlertTriangle} size="sm" />
+      )}
+      {updateCount > 0 && <span aria-hidden="true">{updateCount}</span>}
+    </b>
   );
 }
 

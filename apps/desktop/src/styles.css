@@ -619,6 +619,19 @@ nav {
   font-size: var(--text-xs);
 }
 
+.nav-item .nav-status {
+  min-width: var(--icon-lg);
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-item .nav-status.running {
+  color: var(--color-interactive-text-strong);
+  background: var(--color-interactive-subtle);
+}
+
 .sidebar-footer {
   margin-top: auto;
 }
@@ -3436,6 +3449,10 @@ select {
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.update-state.muted {
+  color: var(--color-text-secondary);
 }
 
 .update-state.available {
