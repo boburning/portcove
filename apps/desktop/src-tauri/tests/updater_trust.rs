@@ -506,13 +506,17 @@ async fn channel_role_authenticates_keys_and_transition_candidates() {
     let trusted = f.sign_root(&root, &root, &f.offline).await;
     let release = Key::new(f.directory.path()).await;
     let promotion = Key::new(f.directory.path()).await;
+    let preview = Key::new(f.directory.path()).await;
     let root_path = f.directory.path().join("delegation-root.json");
     fs::write(&root_path, &trusted).unwrap();
     let registry_name = "keys/payload.json";
+    let preview_promotion_name = "channels/preview/linux-x86_64/appimage/1.0.0.json";
     let unrelated_promotion_name = "channels/stable/windows-x86_64/nsis/2.0.0.json";
     let registry_path = f.targets.join(registry_name);
+    let preview_promotion_path = f.targets.join(preview_promotion_name);
     let unrelated_promotion_path = f.targets.join(unrelated_promotion_name);
     fs::create_dir_all(registry_path.parent().unwrap()).unwrap();
+    fs::create_dir_all(preview_promotion_path.parent().unwrap()).unwrap();
     fs::create_dir_all(unrelated_promotion_path.parent().unwrap()).unwrap();
     let decoy_public_key = b"untrusted comment: alternate minisign public key E7620F1842B4E81F\nRWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3\n";
     let decoy_payload_key_id = hex::encode(Sha256::digest(decoy_public_key));
@@ -605,6 +609,27 @@ async fn channel_role_authenticates_keys_and_transition_candidates() {
         fs::write(&promotion_path, &promotion_bytes).unwrap();
         records.push((release_name, release_path, promotion_name, promotion_path));
     }
+    let preview_release_name = records[0].0.clone();
+    let preview_release_bytes = fs::read(&records[0].1).unwrap();
+    fs::write(
+        &preview_promotion_path,
+        serde_json::to_vec(&json!({
+            "schema_version": 1,
+            "channel": "preview",
+            "target": "linux-x86_64",
+            "package": "appimage",
+            "version": "1.0.0",
+            "release_path": preview_release_name,
+            "release_sha256": hex::encode(Sha256::digest(&preview_release_bytes)),
+            "eligible": true,
+            "production_eligible": true,
+            "withdrawn": false,
+            "reason": null,
+            "required_bridge": null
+        }))
+        .unwrap(),
+    )
+    .unwrap();
     fs::write(
         &unrelated_promotion_path,
         b"ignored unrelated package record",
@@ -635,6 +660,18 @@ async fn channel_role_authenticates_keys_and_transition_candidates() {
                     ))
                     .collect(),
             ),
+            true,
+            nz(1),
+            expiration(),
+            nz(1),
+        )
+        .await
+        .unwrap();
+    editor
+        .delegate_role(
+            "preview",
+            &[preview.source()],
+            PathSet::Paths(vec![PathPattern::new(preview_promotion_name).unwrap()]),
             true,
             nz(1),
             expiration(),
@@ -721,6 +758,29 @@ async fn channel_role_authenticates_keys_and_transition_candidates() {
         .sign_targets_editor(&[promotion.source()])
         .await
         .unwrap()
+        .change_delegated_targets("preview")
+        .unwrap()
+        .targets_version(nz(1))
+        .unwrap()
+        .targets_expires(expiration())
+        .unwrap();
+    let (_, preview_promotion_target) = RepositoryEditor::build_target(&preview_promotion_path)
+        .await
+        .unwrap();
+    editor
+        .add_target(preview_promotion_name, preview_promotion_target)
+        .unwrap();
+    match editor.sign_targets_editor(&[promotion.source()]).await {
+        Err(error) => assert!(
+            matches!(error, Error::SigningKeysNotFound { .. }),
+            "{error}"
+        ),
+        Ok(_) => panic!("Stable key must not sign the Preview promotion role"),
+    }
+    editor
+        .sign_targets_editor(&[preview.source()])
+        .await
+        .unwrap()
         .change_delegated_targets("targets")
         .unwrap()
         .targets_version(nz(1))
@@ -774,6 +834,34 @@ async fn channel_role_authenticates_keys_and_transition_candidates() {
     assert_eq!(
         current.selection.candidate.unwrap().release.version,
         "1.1.0"
+    );
+
+    let preview_final_context = linux_context("1.0.0-rc.2");
+    let preview_final =
+        select_repository_candidate(&repo, ApplicationChannel::Preview, &preview_final_context)
+            .await
+            .unwrap();
+    assert_eq!(
+        preview_final.selection.state,
+        CandidateState::UpdateAvailable
+    );
+    assert_eq!(
+        preview_final.selection.candidate.unwrap().release.version,
+        "1.0.0"
+    );
+
+    let waiting_context = linux_context("1.2.0-beta.1");
+    let waiting = select_repository_candidate(&repo, ApplicationChannel::Stable, &waiting_context)
+        .await
+        .unwrap();
+    assert_eq!(waiting.selection.state, CandidateState::Held);
+    assert_eq!(
+        waiting.selection.candidate.unwrap().release.version,
+        "1.1.0"
+    );
+    assert_eq!(
+        waiting.selection.reasons,
+        ["channel has no compatible non-older version"]
     );
 
     let provider = ApplicationUpdateHostProvider::new(
