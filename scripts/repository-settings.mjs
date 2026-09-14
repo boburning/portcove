@@ -133,11 +133,6 @@ export function projectRuleset(ruleset) {
   };
 }
 
-const authorizedPullRequestChanges = [
-  "required_approving_review_count",
-  "require_last_push_approval",
-  "require_code_owner_review",
-];
 const authorizedStatusCheckChanges = ["strict_required_status_checks_policy"];
 
 function assertExactKeys(value, expected, label) {
@@ -174,21 +169,9 @@ export function rulesetMigration(actualRuleset, desiredRuleset) {
     assertExactKeys(check, keys, `Protect main status check ${check.context ?? "<unnamed>"}`);
   }
   const payload = projectRuleset(actualRuleset);
-  const actualPullRequest = requiredRule(payload, "pull_request").parameters;
-  const desiredPullRequest = requiredRule(desiredRuleset, "pull_request").parameters;
   const actualStatusChecks = requiredRule(payload, "required_status_checks").parameters;
   const desiredStatusChecks = requiredRule(desiredRuleset, "required_status_checks").parameters;
   const changes = [];
-  for (const name of authorizedPullRequestChanges) {
-    if (actualPullRequest[name] !== desiredPullRequest[name]) {
-      changes.push({
-        path: `pull_request.${name}`,
-        from: actualPullRequest[name],
-        to: desiredPullRequest[name],
-      });
-      actualPullRequest[name] = desiredPullRequest[name];
-    }
-  }
   for (const name of authorizedStatusCheckChanges) {
     if (actualStatusChecks[name] !== desiredStatusChecks[name]) {
       changes.push({

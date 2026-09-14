@@ -105,11 +105,8 @@ test("validation rejects approval gates, unresolved threads, or weakened status 
   );
 });
 
-test("bounded migration changes only authorized review gates and is idempotent", () => {
+test("bounded migration changes only status-check strictness and is idempotent", () => {
   const old = structuredClone(ruleset);
-  const pullRequest = old.rules.find((rule) => rule.type === "pull_request").parameters;
-  pullRequest.required_approving_review_count = 1;
-  pullRequest.require_last_push_approval = true;
   old.rules.find(
     (rule) => rule.type === "required_status_checks",
   ).parameters.strict_required_status_checks_policy = true;
@@ -117,11 +114,7 @@ test("bounded migration changes only authorized review gates and is idempotent",
   assert.deepEqual(migration.payload, ruleset);
   assert.deepEqual(
     migration.changes.map((change) => change.path),
-    [
-      "pull_request.required_approving_review_count",
-      "pull_request.require_last_push_approval",
-      "required_status_checks.strict_required_status_checks_policy",
-    ],
+    ["required_status_checks.strict_required_status_checks_policy"],
   );
   assert.deepEqual(migration.changes.at(-1), {
     path: "required_status_checks.strict_required_status_checks_policy",
@@ -129,6 +122,16 @@ test("bounded migration changes only authorized review gates and is idempotent",
     to: false,
   });
   assert.deepEqual(rulesetMigration(ruleset, ruleset).changes, []);
+
+  for (const [name, value] of [
+    ["required_approving_review_count", 1],
+    ["require_last_push_approval", true],
+    ["require_code_owner_review", true],
+  ]) {
+    const reviewDrift = structuredClone(old);
+    reviewDrift.rules.find((rule) => rule.type === "pull_request").parameters[name] = value;
+    assert.throws(() => rulesetMigration(reviewDrift, ruleset), /out-of-scope drift/);
+  }
 
   const drifted = structuredClone(old);
   drifted.rules
