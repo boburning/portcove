@@ -24,6 +24,13 @@ execution. This policy does not enforce account billing limits: verify applicabl
 GitHub storage allowances and spending controls separately; free standard-runner
 execution in public repositories does not imply unlimited free storage.
 
+The bounded subscription-backed repair/resume pilot is specified in
+[Engineering automation](ENGINEERING-AUTOMATION.md). Its deterministic planner and
+fixtures do not prove the user-facing GitHub event task is connected or that a
+hosted coding task started. Candidate content never supplies standing authority,
+and local scheduled tasks remain unsuitable for unattended candidate execution
+when they inherit unrestricted host permissions.
+
 See [Development tools](DEVELOPMENT-TOOLS.md) for the read-only host doctor,
 native desktop evidence harness, repository skills and targeted safety experiments.
 
