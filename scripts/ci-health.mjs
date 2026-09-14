@@ -493,7 +493,7 @@ export function renderReport(report) {
     "",
     "## Comparable cohorts",
     "",
-    "Equivalent cohorts require an attempt-specific artifact that binds the official top-level caller source SHA/ref, called workflow bytes, checked-out code SHA, validation-plan digest/class/caller, desired and observed provenance-job toolchain/build configuration, and reported job runner labels. Historical missing or expired evidence is unknown and excluded rather than inferred.",
+    "Equivalent cohorts require an attempt-specific artifact that binds the official top-level caller source SHA/ref, called workflow bytes, checked-out code SHA, validation-plan digest/class/caller, desired configuration, the toolchains actually observed by the provenance job, explicit not-applicable toolchains, and reported job runner labels. Historical missing or expired evidence is unknown and excluded rather than inferred.",
     `Provenance: verified=${summary.provenance.verified}, unknown=${summary.provenance.unknown}${Object.entries(
       summary.provenance.unknownReasons,
     )

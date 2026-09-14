@@ -127,9 +127,11 @@ continue. Superseded hosted runs are cancelled by the workflow concurrency
 contract.
 
 Required GitHub CI remains the exact-reviewed-head merge gate. A versioned
-validation plan is staged to route ordinary frontend and primary-Rust changes to
-complete primary-host groups, while native/IPC, catalog, dependency, platform,
-release/security and protected-policy changes require exhaustive qualification.
+validation plan routes ordinary frontend, primary-Rust, catalog, and
+ecosystem-local dependency changes to complete primary-host groups. Exact
+OS-specific native paths add an affected-platform producer; shared native/IPC,
+shared toolchain, release/security, generic cross-platform, and protected-policy
+changes require exhaustive qualification.
 Fast pull-request routing is active. The activation change itself passed the
 trusted exhaustive plan; future trusted policy changes continue to select
 qualification and cannot exempt themselves.
@@ -152,7 +154,11 @@ old and new path is allowlisted and the file type remains regular. Mixed changes
 use the union of their area routes. Mode or file-type changes require
 qualification; unknown but safe paths use all fast groups. Missing refs,
 malformed or empty discovery, and classifier errors block without authorizing
-guessed work. Main pushes run all five fast groups. The prose lane still checks whitespace, repository formatting,
+guessed work. Main pushes run all five fast groups. Routine package and lockfile
+changes select dependency review plus their owning ecosystem instead of implying
+every platform; shared toolchain and dependency-policy changes still qualify.
+Catalog inputs select the loader/source/install contract owners without desktop
+packaging. The prose lane still checks whitespace, repository formatting,
 and Roadmap/document governance. Stable required-check wrappers consume the
 classifier and every producer result; a missing, failed, cancelled, timed-out,
 unexpectedly skipped, or unexpectedly executed producer fails the wrapper.
@@ -576,14 +582,16 @@ investigation. It also shows work class and caller, qualification failures,
 cache-step observations, the observable pre-job, job-window and post-job
 aggregation boundaries, exact comparable cohorts, recent
 API-identified failure leads, and the three longest steps in each slow job.
-CI and release validation upload one attempt-specific v3 provenance record named with
+CI and release validation upload one attempt-specific v4 provenance record named with
 the run ID and attempt. It binds GitHub's `GITHUB_WORKFLOW_SHA` workflow-file
 source commit and `GITHUB_WORKFLOW_REF`, the top-level caller workflow, the called
 workflow path and SHA-256 of its checked-out bytes, the event source-code head, the separately checked-out `GITHUB_SHA` (including
-GitHub's pull-request merge commit), and desired versus observed Node, pnpm, Rust,
-Cargo, build environment, and runner configuration. The record also binds the
-validation-plan digest, work class, caller, and the provenance job's observed toolchain
-so fast and qualification cohorts cannot be conflated. `ci-health` verifies the
+GitHub's pull-request merge commit), desired Node, pnpm, Rust, Cargo and build
+configuration, and the runner/toolchains actually observed by that job. Unused pnpm,
+Rust, and Cargo are explicit `null` observations in the CI provenance job rather than
+being installed merely to manufacture a receipt; release provenance still observes
+the toolchains it uses. The record also binds the validation-plan digest, work class,
+and caller so fast and qualification cohorts cannot be conflated. `ci-health` verifies the
 artifact digest and every embedded identity before forming a cohort. Earlier or
 expired runs without this record are explicitly unknown and excluded from
 equivalent-cohort claims rather than receiving an inferred toolchain or workflow

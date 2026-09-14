@@ -16,8 +16,25 @@ const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(path.dirname(scriptPath), "..");
 const fullSha = /^[a-f0-9]{40}$/u;
 const regularFileMode = "100644";
+const platformRunners = Object.freeze({
+  "linux-x86_64": "ubuntu-22.04",
+  "macos-aarch64": "macos-15",
+  "macos-x86_64": "macos-15-intel",
+  "windows-x86_64": "windows-latest",
+});
 
 export { proseOnlyAllowlist };
+
+export function fastPlatformMatrix(plan) {
+  if (!plan || !Array.isArray(plan.platforms)) throw new Error("validation platforms are missing");
+  return plan.platforms
+    .filter((platform) => platform !== "primary-host")
+    .map((platform) => {
+      const runner = platformRunners[platform];
+      if (!runner) throw new Error(`validation platform has no runner: ${platform}`);
+      return { platform, runner };
+    });
+}
 
 function normalizePath(value) {
   if (
@@ -170,6 +187,7 @@ export async function writeGithubOutputs(outputPath, plan) {
     files_json: JSON.stringify(plan.changed_files),
     groups_json: JSON.stringify(plan.groups),
     platforms_json: JSON.stringify(plan.platforms),
+    platform_matrix_json: JSON.stringify(fastPlatformMatrix(plan)),
     qualification_required: String(plan.qualification_required),
     plan_digest: plan.digest,
     plan_json: JSON.stringify(plan),

@@ -7,6 +7,7 @@ import test from "node:test";
 import {
   classifyChanges,
   discoverCiPlan,
+  fastPlatformMatrix,
   parseRawDiff,
   proseOnlyAllowlist,
   writeGithubOutputs,
@@ -203,6 +204,18 @@ test("reusable qualification forces the exhaustive plan on the exact checkout", 
   assert.equal(plan.identities.checkout, sha("c"));
 });
 
+test("focused platform plans map only exact maintained runners", () => {
+  assert.deepEqual(fastPlatformMatrix({ platforms: ["windows-x86_64"] }), [
+    { platform: "windows-x86_64", runner: "windows-latest" },
+  ]);
+  assert.deepEqual(fastPlatformMatrix({ platforms: ["macos-aarch64", "macos-x86_64"] }), [
+    { platform: "macos-aarch64", runner: "macos-15" },
+    { platform: "macos-x86_64", runner: "macos-15-intel" },
+  ]);
+  assert.deepEqual(fastPlatformMatrix({ platforms: ["primary-host"] }), []);
+  assert.throws(() => fastPlatformMatrix({ platforms: ["unknown"] }), /no runner/u);
+});
+
 test("GitHub outputs are complete single-line values", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "portcove-ci-plan-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -231,6 +244,7 @@ test("GitHub outputs are complete single-line values", async (t) => {
     "files_json",
     "groups_json",
     "platforms_json",
+    "platform_matrix_json",
     "qualification_required",
     "plan_digest",
     "plan_json",

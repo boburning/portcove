@@ -28,6 +28,7 @@ const evaluate = (overrides = {}) =>
     group: "frontend",
     prose: "skipped",
     fast: { fast_frontend: "success" },
+    targeted: { fast_platform: "skipped" },
     qualification: { frontend_full: "skipped" },
     ...overrides,
   });
@@ -62,6 +63,31 @@ test("qualification plans require qualification and reject fast execution", () =
         qualification: { frontend_full: "success" },
       }),
     /expected skipped/u,
+  );
+});
+
+test("affected-platform fast plans require their exact native producer", () => {
+  const platformPlan = plan("apps/desktop/src-tauri/src/application_update_windows.rs");
+  assert.match(
+    evaluate({
+      plan: platformPlan,
+      group: "rust",
+      fast: { fast_rust: "success" },
+      targeted: { fast_platform: "success" },
+      qualification: { rust_full: "skipped" },
+    }),
+    /Accepted fast/u,
+  );
+  assert.throws(
+    () =>
+      evaluate({
+        plan: platformPlan,
+        group: "rust",
+        fast: { fast_rust: "success" },
+        targeted: { fast_platform: "cancelled" },
+        qualification: { rust_full: "skipped" },
+      }),
+    /expected success/u,
   );
 });
 

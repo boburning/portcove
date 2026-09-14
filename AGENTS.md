@@ -115,22 +115,29 @@ contracts from the complete local diff. Add a tested selection rule when it
 reports an unknown path instead of bypassing the refusal or running every suite.
 
 Open or update a draft pull request after that coherent focused evidence exists.
-Required GitHub CI is the ordinary exhaustive cross-platform gate and must pass
-on the exact reviewed head before merge. Do not repeat `just check` or `just
-audit` locally merely to duplicate CI. Run task-specific native, packaged,
-recovery, security, physical-platform, or human evidence whenever acceptance
-intrinsically requires it; focused validation and hosted CI do not replace that
-evidence.
+Required GitHub CI selects complete area groups from the full merge-base diff
+and must pass on the exact reviewed head before merge. Ordinary frontend,
+primary-host Rust, catalog and ecosystem-local dependency changes stay focused;
+host-specific native changes add the affected maintained host. Shared native,
+toolchain, release/security, trusted policy and uncertain changes require the
+reusable exhaustive qualification. Main runs every fast group, while daily and
+release candidates use the non-cancelling reusable qualification workflow. Do
+not repeat `just check` or `just audit` locally merely to duplicate the selected
+hosted plan.
 
-Pull requests whose complete merge-base diff contains only files in the tested
-prose allowlist may use the workflow's narrow prose lane while preserving the
-same required check names. Activation was separated from the mechanism change,
-independently authorized, and required exhaustive CI because the activation
-diff changed the workflow itself. Additions, deletions, renames, unusual
-filenames, file-type or mode changes, classifier errors, and every unclassified
-path fail closed to full CI. Changing the activation, allowlist, or selector is
-a validation-contract change and requires independent authorization, its
-adversarial tests, and `just audit --fresh`.
+The five protected check names are stable result gates: a required producer
+that is missing, failed, cancelled, timed out or unexpectedly skipped fails its
+wrapper. Intentionally inapplicable work is reported as skipped, never as a
+successful execution. The prose allowlist remains exact. Additions, deletions,
+both sides of renames, unusual filenames and file-type or mode changes remain
+part of discovery. An unknown but safely discovered path runs all fast groups;
+an incomplete or failed diff blocks instead of guessing. Changing routing,
+qualification, merge, release or controller policy is itself a protected-policy
+change: it cannot authorize its own exemption and requires adversarial contract
+tests, `just audit --fresh`, exhaustive hosted qualification and distinct
+review. Run additional packaged, recovery, security, physical-platform or human
+evidence whenever acceptance intrinsically requires it; focused validation and
+hosted CI do not replace that evidence.
 
 The aggregate commands remain available for explicit purposes:
 
