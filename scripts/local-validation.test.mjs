@@ -271,6 +271,7 @@ test("release-script changes select deterministic release contracts without pack
   for (const contract of [
     "scripts/check-release-metadata.test.mjs",
     "scripts/release-package-policy.test.mjs",
+    "scripts/release-coordinator.test.mjs",
     "scripts/release-workflow.test.mjs",
     "scripts/windows-qualification-session.test.mjs",
     "scripts/ci-workflow.test.mjs",
