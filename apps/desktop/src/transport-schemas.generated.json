@@ -4848,6 +4848,7 @@
       },
       "RepairItemKind": {
         "enum": [
+          "retained_preparation",
           "partial_operation",
           "cleanup_pending",
           "orphaned_final_directory",
@@ -10154,6 +10155,142 @@
       "preview_sha256"
     ],
     "title": "PortRemovalPreview",
+    "type": "object"
+  },
+  "preparation_cleanup_preview": {
+    "$defs": {
+      "AdoptionCopyFile": {
+        "properties": {
+          "relative_path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "relative_path",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "AdoptionCopyPlan": {
+        "properties": {
+          "directories": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/$defs/AdoptionCopyFile"
+            },
+            "type": "array"
+          },
+          "skipped_entries": {
+            "items": {
+              "$ref": "#/$defs/AdoptionSkippedEntry"
+            },
+            "type": "array"
+          },
+          "total_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "directories",
+          "files",
+          "skipped_entries",
+          "total_bytes"
+        ],
+        "type": "object"
+      },
+      "AdoptionSkippedEntry": {
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "relative_path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "relative_path",
+          "reason"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Exact retained private work that may be discarded after explicit review.",
+    "properties": {
+      "backup_path": {
+        "type": "string"
+      },
+      "cleanup_is_irreversible": {
+        "type": "boolean"
+      },
+      "format_version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "interrupted_cleanup_will_retry": {
+        "type": "boolean"
+      },
+      "logs_path": {
+        "type": "string"
+      },
+      "operation_id": {
+        "type": "string"
+      },
+      "original_install_path": {
+        "type": "string"
+      },
+      "persistent_data_path": {
+        "type": "string"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "preview_sha256": {
+        "type": "string"
+      },
+      "retained": {
+        "$ref": "#/$defs/AdoptionCopyPlan"
+      },
+      "retained_path": {
+        "type": "string"
+      },
+      "source_path": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "format_version",
+      "operation_id",
+      "port_id",
+      "retained_path",
+      "retained",
+      "original_install_path",
+      "source_path",
+      "persistent_data_path",
+      "backup_path",
+      "logs_path",
+      "cleanup_is_irreversible",
+      "interrupted_cleanup_will_retry",
+      "preview_sha256"
+    ],
+    "title": "PreparationCleanupPreview",
     "type": "object"
   },
   "preparation_options": {

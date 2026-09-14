@@ -51,6 +51,7 @@ fn main() {
                 "application_update_check_phase": output::<ApplicationUpdateCheckPhase>(),
                 "application_update_notice": output::<ApplicationUpdateNoticeSnapshot>(),
                 "workspace_snapshot": output::<DesktopWorkspaceSnapshot>(),
+                "preparation_cleanup_preview": output::<portcove_core::PreparationCleanupPreview>(),
             },
             "input": {
                 "install_input": schemars::schema_for!(InstallInput),

@@ -1,4 +1,5 @@
 use super::*;
+use crate::RepairItemKind;
 use crate::operation::{
     LifecycleFaultInjector, LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind,
     LifecyclePhase, NoLifecycleFaults, OperationStore,
@@ -236,6 +237,268 @@ failure_cases! {
     unsuccessful_native_setup_never_publishes: "failure",
 }
 
+fn retained_cleanup_fixture() -> (Fixture, String, std::path::PathBuf) {
+    let fixture = Fixture::new();
+    let library = fixture.service.library();
+    let plan = fixture
+        .service
+        .plan_preparation(PORT, fixture.options())
+        .unwrap();
+    let activity = library
+        .begin_activity(
+            crate::ActivityOperation::Prepare,
+            crate::ActivityTargetKind::Port,
+            Some(PORT),
+        )
+        .unwrap();
+    library
+        .finish_activity(
+            &activity.id,
+            crate::ActivityStatus::Failed,
+            Some("owned retained preparation fixture"),
+        )
+        .unwrap();
+    let retained = library.staging_dir().join(&activity.id);
+    fs::create_dir_all(retained.join("payload/generated")).unwrap();
+    fs::write(
+        retained.join("payload/generated/private.bin"),
+        b"owned retained bytes",
+    )
+    .unwrap();
+    let mut journal = LifecycleOperation::new(&activity.id, LifecycleOperationKind::Prepare, PORT);
+    journal.paths.staging = Some(retained.clone());
+    journal.paths.final_path = Some(
+        fixture
+            .install
+            .path
+            .parent()
+            .unwrap()
+            .join(crate::signed_catalog::digest(
+                &serde_json::to_vec(&(
+                    "Portcove prepared derivative v1",
+                    &plan.plan_sha256,
+                    &activity.id,
+                ))
+                .unwrap(),
+            )),
+    );
+    journal.preparation = Some(plan);
+    journal.activate = true;
+    journal.last_error = Some("owned retained preparation fixture".into());
+    OperationStore::new(library.clone())
+        .put(&mut journal)
+        .unwrap();
+    (fixture, activity.id, retained)
+}
+
+#[test]
+fn reviewed_preparation_cleanup_is_exact_and_preserves_other_library_state() {
+    let (fixture, operation_id, retained) = retained_cleanup_fixture();
+    let library = fixture.service.library();
+    let user = library.user_dir(PORT).join("save.bin");
+    let backup = library.backups_dir().join(PORT).join("backup.bin");
+    let log = library.logs_dir().join("retained.log");
+    fs::create_dir_all(user.parent().unwrap()).unwrap();
+    fs::create_dir_all(backup.parent().unwrap()).unwrap();
+    fs::write(&user, b"owned save").unwrap();
+    fs::write(&backup, b"owned backup").unwrap();
+    fs::write(&log, b"owned log").unwrap();
+    let original = crate::library_transfer::reviewed_tree(&fixture.install.path).unwrap();
+    let source = fs::read(&fixture.source).unwrap();
+
+    let preview = fixture
+        .service
+        .preview_preparation_cleanup(&operation_id)
+        .unwrap();
+    assert_eq!(preview.operation_id, operation_id);
+    assert_eq!(preview.port_id, PORT);
+    assert_eq!(preview.retained_path, retained);
+    assert_eq!(preview.retained.files.len(), 1);
+    assert_eq!(preview.retained.total_bytes, 20);
+    assert_eq!(preview.original_install_path, fixture.install.path);
+    assert_eq!(preview.source_path, fixture.source);
+    assert!(preview.cleanup_is_irreversible);
+    assert!(preview.interrupted_cleanup_will_retry);
+
+    let authorization = fixture
+        .service
+        .authorize_preparation_cleanup(&operation_id, &preview.preview_sha256)
+        .unwrap();
+    fs::write(retained.join("changed-after-review.bin"), b"changed").unwrap();
+    let stale = fixture
+        .service
+        .cleanup_preparation(&operation_id, &authorization.token)
+        .unwrap_err();
+    assert_eq!(stale.code, ErrorCode::Conflict);
+    assert!(retained.exists());
+
+    let current = fixture
+        .service
+        .preview_preparation_cleanup(&operation_id)
+        .unwrap();
+    let authorization = fixture
+        .service
+        .authorize_preparation_cleanup(&operation_id, &current.preview_sha256)
+        .unwrap();
+    let removed = fixture
+        .service
+        .cleanup_preparation(&operation_id, &authorization.token)
+        .unwrap();
+    assert_eq!(removed.preview_sha256, current.preview_sha256);
+    assert!(!retained.exists());
+    assert!(
+        OperationStore::new(library.clone())
+            .all()
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        crate::library_transfer::reviewed_tree(&fixture.install.path).unwrap(),
+        original
+    );
+    assert_eq!(fs::read(&fixture.source).unwrap(), source);
+    assert_eq!(fs::read(user).unwrap(), b"owned save");
+    assert_eq!(fs::read(backup).unwrap(), b"owned backup");
+    assert_eq!(fs::read(log).unwrap(), b"owned log");
+    assert_eq!(
+        library.activities(1).unwrap()[0].status,
+        crate::ActivityStatus::Failed
+    );
+}
+
+#[test]
+fn reviewed_cleanup_pending_resumes_without_turning_failed_preparation_into_success() {
+    let (fixture, operation_id, retained) = retained_cleanup_fixture();
+    let library = fixture.service.library();
+    let store = OperationStore::new(library.clone());
+    let preview = fixture
+        .service
+        .preview_preparation_cleanup(&operation_id)
+        .unwrap();
+    let mut journal = store.all().unwrap().remove(0);
+    journal.phase = LifecyclePhase::CleanupPending;
+    let quarantine = super::super::execution::cleanup_quarantine_path(
+        &retained,
+        &operation_id,
+        &preview.preview_sha256,
+    )
+    .unwrap();
+    journal.paths.quarantine = Some(quarantine.clone());
+    journal.last_error = None;
+    store.put(&mut journal).unwrap();
+    fs::rename(&retained, &quarantine).unwrap();
+
+    let reopened = PortcoveService::new(Library::open(library.root()).unwrap()).unwrap();
+    assert!(!retained.exists());
+    assert!(!quarantine.exists());
+    assert!(
+        OperationStore::new(library.clone())
+            .all()
+            .unwrap()
+            .is_empty()
+    );
+    let activity = reopened
+        .library()
+        .activities(10)
+        .unwrap()
+        .into_iter()
+        .find(|activity| activity.id == operation_id)
+        .unwrap();
+    assert_eq!(activity.status, crate::ActivityStatus::Failed);
+    assert_eq!(
+        reopened.status(PORT).unwrap().active.unwrap().id,
+        fixture.install.id
+    );
+}
+
+#[test]
+fn cleanup_retry_preserves_private_files_created_after_the_reviewed_tree_was_quarantined() {
+    let (fixture, operation_id, retained) = retained_cleanup_fixture();
+    let library = fixture.service.library();
+    let store = OperationStore::new(library.clone());
+    let preview = fixture
+        .service
+        .preview_preparation_cleanup(&operation_id)
+        .unwrap();
+    let mut journal = store.all().unwrap().remove(0);
+    let quarantine = super::super::execution::cleanup_quarantine_path(
+        &retained,
+        &operation_id,
+        &preview.preview_sha256,
+    )
+    .unwrap();
+    journal.phase = LifecyclePhase::CleanupPending;
+    journal.paths.quarantine = Some(quarantine.clone());
+    journal.last_error = None;
+    store.put(&mut journal).unwrap();
+    fs::rename(&retained, &quarantine).unwrap();
+    fs::create_dir_all(&retained).unwrap();
+    fs::write(retained.join("created-after-consent.bin"), b"unreviewed").unwrap();
+
+    let reopened = PortcoveService::new(Library::open(library.root()).unwrap()).unwrap();
+    assert!(!quarantine.exists());
+    assert_eq!(
+        fs::read(retained.join("created-after-consent.bin")).unwrap(),
+        b"unreviewed"
+    );
+    let pending = OperationStore::new(library.clone())
+        .all()
+        .unwrap()
+        .remove(0);
+    assert_eq!(pending.phase, LifecyclePhase::Preparing);
+    assert!(pending.paths.quarantine.is_none());
+    let current = reopened.preview_preparation_cleanup(&operation_id).unwrap();
+    assert_eq!(current.retained.files.len(), 1);
+    assert_eq!(
+        reopened.library().activities(1).unwrap()[0].status,
+        crate::ActivityStatus::Failed
+    );
+}
+
+#[test]
+fn preparation_cleanup_rejects_busy_wrong_kind_and_out_of_root_work() {
+    let (fixture, operation_id, retained) = retained_cleanup_fixture();
+    let library = fixture.service.library();
+    let store = OperationStore::new(library.clone());
+    let activity_guard = library.try_lock_activity(&operation_id).unwrap();
+    assert_eq!(
+        fixture
+            .service
+            .preview_preparation_cleanup(&operation_id)
+            .unwrap_err()
+            .code,
+        ErrorCode::Conflict
+    );
+    drop(activity_guard);
+
+    let mut journal = store.all().unwrap().remove(0);
+    journal.kind = LifecycleOperationKind::Install;
+    store.put(&mut journal).unwrap();
+    assert_eq!(
+        fixture
+            .service
+            .preview_preparation_cleanup(&operation_id)
+            .unwrap_err()
+            .code,
+        ErrorCode::Conflict
+    );
+    assert!(retained.exists());
+
+    journal.kind = LifecycleOperationKind::Prepare;
+    journal.paths.staging = Some(fixture.source.clone());
+    store.put(&mut journal).unwrap();
+    assert_eq!(
+        fixture
+            .service
+            .preview_preparation_cleanup(&operation_id)
+            .unwrap_err()
+            .code,
+        ErrorCode::Conflict
+    );
+    assert!(fixture.source.is_file());
+    assert!(retained.exists());
+}
+
 struct Fault(LifecycleFaultPoint);
 impl LifecycleFaultInjector for Fault {
     fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
@@ -407,17 +670,24 @@ fn private_preparation_review_does_not_substitute_a_planned_destination() {
         .join("planned-output");
     let mut journal = LifecycleOperation::new(&id, LifecycleOperationKind::Prepare, PORT);
     journal.paths.final_path = Some(planned.clone());
-    for (phase, staging, expected) in [
+    for (phase, staging, expected, expected_kind) in [
         (
             LifecyclePhase::Preparing,
             Some(private.clone()),
             Some(private.clone()),
+            RepairItemKind::RetainedPreparation,
         ),
-        (LifecyclePhase::Preparing, None, None),
+        (
+            LifecyclePhase::Preparing,
+            None,
+            None,
+            RepairItemKind::RetainedPreparation,
+        ),
         (
             LifecyclePhase::Prepared,
             Some(private),
             Some(planned.clone()),
+            RepairItemKind::PartialOperation,
         ),
     ] {
         journal.phase = phase;
@@ -429,6 +699,7 @@ fn private_preparation_review_does_not_substitute_a_planned_destination() {
             .iter()
             .find(|item| item.operation_id.as_deref() == Some(&id))
             .unwrap();
+        assert_eq!(item.kind, expected_kind);
         assert_eq!(item.path, expected);
         assert!(!planned.exists());
         assert_eq!(store.all().unwrap().remove(0).phase, phase);

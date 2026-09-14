@@ -318,6 +318,16 @@ enum PreparationCommand {
         #[arg(long)]
         yes: bool,
     },
+    /// Review the exact private files retained by an interrupted preparation.
+    CleanupPlan { operation_id: String },
+    /// Remove only the unchanged private files from a reviewed cleanup plan.
+    Cleanup {
+        operation_id: String,
+        #[arg(long)]
+        expected_preview: String,
+        #[arg(long)]
+        yes: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -1376,6 +1386,46 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
             )?;
             render_success(mode, "preparation.run", prepared)?;
         }
+        Commands::Preparation {
+            command: PreparationCommand::CleanupPlan { operation_id },
+        } => {
+            render_read_success(
+                mode,
+                "preparation.cleanup-plan",
+                service.preview_preparation_cleanup(&operation_id)?,
+                human::preparation_cleanup,
+            )?;
+        }
+        Commands::Preparation {
+            command:
+                PreparationCommand::Cleanup {
+                    operation_id,
+                    expected_preview,
+                    yes,
+                },
+        } => {
+            let preview = service.preview_preparation_cleanup(&operation_id)?;
+            if mode == OutputMode::Human {
+                println!("{}", human::preparation_cleanup(&preview));
+            }
+            if preview.preview_sha256 != expected_preview {
+                return Err(PortcoveError::conflict(
+                    "retained preparation changed; review cleanup again",
+                ));
+            }
+            require_confirmation(
+                "Permanently discard only these retained private preparation files?",
+                yes,
+                cli.non_interactive,
+            )?;
+            let authorization =
+                service.authorize_preparation_cleanup(&operation_id, &expected_preview)?;
+            render_success(
+                mode,
+                "preparation.cleanup",
+                service.cleanup_preparation(&operation_id, &authorization.token)?,
+            )?;
+        }
         Commands::Paths { port_id } => {
             render_read_success(mode, "paths", service.port_paths(&port_id)?, human::paths)?;
         }
@@ -2360,6 +2410,12 @@ fn command_name(command: &Commands) -> &'static str {
         Commands::Preparation {
             command: PreparationCommand::Run { .. },
         } => "preparation.run",
+        Commands::Preparation {
+            command: PreparationCommand::CleanupPlan { .. },
+        } => "preparation.cleanup-plan",
+        Commands::Preparation {
+            command: PreparationCommand::Cleanup { .. },
+        } => "preparation.cleanup",
         Commands::Paths { .. } => "paths",
         Commands::Output { command } => match command {
             OutputCommand::Show { .. } => "output.show",
@@ -2392,7 +2448,7 @@ mod tests {
 
     use super::{
         AuthCommand, BackupCommand, CapabilityDocument, CatalogCommand, ChannelArg, Cli, Commands,
-        OutputCommand, SourceCommand, normalize_process_exit,
+        OutputCommand, PreparationCommand, SourceCommand, normalize_process_exit,
     };
     use clap::Parser;
 
@@ -2403,6 +2459,33 @@ mod tests {
         assert_eq!(normalize_process_exit(Some(-1_073_741_819)), 1);
         assert_eq!(normalize_process_exit(Some(300)), 1);
         assert_eq!(normalize_process_exit(None), 125);
+    }
+
+    #[test]
+    fn preparation_cleanup_requires_an_exact_review_fingerprint() {
+        let review =
+            Cli::try_parse_from(["portcove", "preparation", "cleanup-plan", "operation-id"])
+                .unwrap();
+        assert!(matches!(
+            review.command,
+            Commands::Preparation {
+                command: PreparationCommand::CleanupPlan { operation_id }
+            } if operation_id == "operation-id"
+        ));
+        assert!(
+            Cli::try_parse_from(["portcove", "preparation", "cleanup", "operation-id"]).is_err()
+        );
+        let apply = Cli::try_parse_from([
+            "portcove",
+            "preparation",
+            "cleanup",
+            "operation-id",
+            "--expected-preview",
+            "reviewed",
+            "--yes",
+        ])
+        .unwrap();
+        assert_eq!(super::command_name(&apply.command), "preparation.cleanup");
     }
 
     #[test]
@@ -2728,7 +2811,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 47);
+        assert_eq!(capabilities.schema_version, 48);
         assert_eq!(
             capabilities.failure_isolated_batches,
             ["check", "reconcile", "update", "source.verify"]

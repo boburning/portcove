@@ -223,6 +223,7 @@ export type DefinitionCapabilityOutcome = "supported" | "unsupported_template" |
 export type HostToolSource = "environment" | "saved" | "discovery";
 export type HostToolState = "available" | "missing" | "misconfigured" | "unsupported";
 export type RepairItemKind =
+  | "retained_preparation"
   | "partial_operation"
   | "cleanup_pending"
   | "orphaned_final_directory"
@@ -456,6 +457,7 @@ export interface TransportOutputs {
   port_output_location: PortOutputLocation;
   port_paths: OutputPortPaths;
   port_removal_preview: OutputPortRemovalPreview;
+  preparation_cleanup_preview: OutputPreparationCleanupPreview;
   preparation_options: PreparationOptions;
   preparation_plan: OutputPreparationPlan;
   reconcile_batch_outcome: OutputReconcileBatchOutcome;
@@ -499,6 +501,7 @@ export interface TransportOutputs {
   desktop_cli_command_context: OutputDesktopCliCommandContext;
   desktop_desktop_error: FailureReport;
   desktop_launch_result: OutputDesktopLaunchResult;
+  desktop_preparation_cleanup_preview: OutputPreparationCleanupPreview;
   desktop_reconcile_outcome: OutputReconcileBatchOutcome;
   desktop_source_verification_outcome: OutputSourceBatchOutcome;
   desktop_update_check_outcome: OutputCheckBatchOutcome;
@@ -1578,6 +1581,25 @@ export interface OutputPortRemovalPreview {
   persistent_data_will_be_preserved: boolean;
   port_id: string;
   preview_sha256: string;
+  [k: string]: unknown;
+}
+/**
+ * Exact retained private work that may be discarded after explicit review.
+ */
+export interface OutputPreparationCleanupPreview {
+  backup_path: string;
+  cleanup_is_irreversible: boolean;
+  format_version: number;
+  interrupted_cleanup_will_retry: boolean;
+  logs_path: string;
+  operation_id: string;
+  original_install_path: string;
+  persistent_data_path: string;
+  port_id: string;
+  preview_sha256: string;
+  retained: AdoptionCopyPlan;
+  retained_path: string;
+  source_path: string;
   [k: string]: unknown;
 }
 export interface PreparationOptions {

@@ -357,7 +357,7 @@ practice, unknown enum behavior, and any identities or operation readback still
 missing from an independent client's workflow. Alpha may make announced breaks;
 clients must negotiate rather than infer compatibility from a version string.
 
-`doctor` is a local, network-free, read-only host report. It returns the current platform, library capacity, catalog/installation/source counts, one typed entry for each optional host tool Portcove can use, and a repair plan. The repair plan reports partial lifecycle operations, cleanup-pending private trees, missing registered install paths, and untracked final directories; it proposes an action but never mutates or deletes them. Tool state is `available`, `missing`, `misconfigured`, or `unsupported`; an available tool includes its resolved path and whether it came from an environment override, saved host preference, or reviewed discovery. Missing optional tools do not fail the command because callers may never select a port or source format that needs them. An invalid environment or saved path remains `misconfigured` instead of silently falling back to another executable. `status` and `doctor` never initialize missing per-port settings; their in-memory defaults come from the catalog, choosing stable when offered and otherwise the port's first declared channel. A later policy-only change persists that same catalog default.
+`doctor` is a local, network-free, read-only host report. It returns the current platform, library capacity, catalog/installation/source counts, one typed entry for each optional host tool Portcove can use, and a repair plan. The repair plan distinguishes retained private preparation from other partial lifecycle operations, cleanup-pending private trees, missing registered install paths, and untracked final directories. It proposes an action but never mutates or deletes files. Tool state is `available`, `missing`, `misconfigured`, or `unsupported`; an available tool includes its resolved path and whether it came from an environment override, saved host preference, or reviewed discovery. Missing optional tools do not fail the command because callers may never select a port or source format that needs them. An invalid environment or saved path remains `misconfigured` instead of silently falling back to another executable. `status` and `doctor` never initialize missing per-port settings; their in-memory defaults come from the catalog, choosing stable when offered and otherwise the port's first declared channel. A later policy-only change persists that same catalog default.
 
 `catalog list` is a concise port array and `catalog show PORT_ID` retrieves one port. The human detail view includes the catalog-owned installation method, required game/BIOS labels and verification method, saves/settings behavior, and upstream state without exposing adapter IDs. `catalog export` returns the complete versioned `CatalogDocument`, including every source profile referenced by a port and its optional additive presentation object. External frontends should use that document when they need accepted source extensions, exact multi-file or disc requirements, source labels, or presentation facts instead of copying Portcove's embedded catalog. Older catalogs can omit presentation; consumers must handle that absence explicitly.
 
@@ -660,6 +660,24 @@ retains failed private work, and publishes only after output validation. `cancel
 <operation-id>` uses the existing cancellation contract; source conversion can
 finish its current step before acknowledging cancellation. A retry requires a
 new review and uses another private directory.
+
+An interrupted attempt stays retained until a caller reviews its exact private
+tree. `preparation cleanup-plan <operation-id>` reports every affected file,
+empty folder, link or special entry; the original installation, registered
+source, saved-data root, backup root and logs that remain outside the action; and
+an exact `preview_sha256`. Apply it with `preparation cleanup <operation-id>
+--expected-preview <preview_sha256> --yes`. Core rehashes the tree under the port
+and original-activity locks, consumes one action-bound authorization, and rejects
+changed content without deleting anything. Accepted cleanup records the reviewed
+fingerprint in an operation-owned quarantine path, then atomically moves the
+reviewed private tree there before deletion. Startup retries only that same
+fingerprint. Files newly created at the original staging path remain retained for
+a fresh review, and the failed preparation never becomes a success. Desktop
+presents the same custom review and still requires its native backend
+confirmation. The user must ensure any external setup process from the failed
+attempt has stopped before accepting cleanup. API schema 48 adds the
+`retained_preparation` repair kind and `preparation_cleanup_preview`; operation
+event schema remains 2.
 
 For definitions with reviewed managed output ownership, `exec` validates the
 prepared installation and launches it without materializing sources or starting

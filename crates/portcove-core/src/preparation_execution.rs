@@ -1,11 +1,14 @@
 use std::{collections::BTreeMap, fs, path::Path};
 
+use rusqlite::OptionalExtension;
+
 use super::{PreparationInputs, PreparationOptions, PreparationPlan, RECEIPT_FILE, tool_identity};
 use crate::{
     ActivityOperation, ActivityTargetKind, AdoptionCopyPlan, ChildProcessClass,
     DestructiveAuthorization, InstallQualification, InstallRecord, Installer, MutationState,
     OperationCoordinator, OperationEvent, OperationResult, PortDefinition, PortcoveError,
-    PortcoveService, RecoveryAction, Result, RuntimeSourceMaterialization,
+    PortcoveService, PreparationCleanupPreview, RecoveryAction, Result,
+    RuntimeSourceMaterialization,
     operation::{
         LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind, LifecyclePhase,
         OperationStore,
@@ -20,6 +23,76 @@ pub(super) struct PreparationReceipt {
 }
 
 impl PortcoveService {
+    /// Review the exact private preparation tree retained by an interrupted attempt.
+    pub fn preview_preparation_cleanup(
+        &self,
+        operation_id: &str,
+    ) -> Result<PreparationCleanupPreview> {
+        let store = OperationStore::new(self.library().clone());
+        let journal = private_preparation_journal(&store, operation_id)?;
+        let _port_guard = self
+            .library()
+            .try_lock_port(&journal.port_id, "review-preparation-cleanup")?;
+        let _activity_guard = self.library().try_lock_activity(operation_id)?;
+        preparation_cleanup_preview(self, &private_preparation_journal(&store, operation_id)?)
+    }
+
+    pub fn authorize_preparation_cleanup(
+        &self,
+        operation_id: &str,
+        expected_preview: &str,
+    ) -> Result<DestructiveAuthorization> {
+        validate_cleanup_fingerprint(expected_preview)?;
+        let preview = self.preview_preparation_cleanup(operation_id)?;
+        if preview.preview_sha256 != expected_preview {
+            return Err(PortcoveError::conflict(
+                "retained preparation changed; review cleanup again",
+            )
+            .with_mutation_state(MutationState::NoChanges)
+            .during("preparation.cleanup.review"));
+        }
+        self.library()
+            .issue_authorization("cleanup_preparation", operation_id, expected_preview)
+    }
+
+    /// Discard only a reviewed private preparation tree and its recovery journal.
+    pub fn cleanup_preparation(
+        &self,
+        operation_id: &str,
+        authorization: &str,
+    ) -> Result<PreparationCleanupPreview> {
+        let store = OperationStore::new(self.library().clone());
+        let journal = private_preparation_journal(&store, operation_id)?;
+        let _port_guard = self
+            .library()
+            .try_lock_port(&journal.port_id, "cleanup-preparation")?;
+        let _activity_guard = self.library().try_lock_activity(operation_id)?;
+        let mut journal = private_preparation_journal(&store, operation_id)?;
+        let preview = preparation_cleanup_preview(self, &journal)?;
+        self.library().consume_authorization_with_state(
+            authorization,
+            "cleanup_preparation",
+            operation_id,
+            || Ok(preview.preview_sha256.clone()),
+        )?;
+        journal.paths.quarantine = Some(cleanup_quarantine_path(
+            &preview.retained_path,
+            &journal.id,
+            &preview.preview_sha256,
+        )?);
+        journal.phase = LifecyclePhase::CleanupPending;
+        journal.last_error = None;
+        store.put(&mut journal)?;
+        if let Err(error) = remove_reviewed_private_preparation(self, &store, &mut journal) {
+            journal.last_error = Some(error.message.clone());
+            let _ = store.put(&mut journal);
+            return Err(error
+                .with_mutation_state(MutationState::RecoveryRequired)
+                .during("preparation.cleanup"));
+        }
+        Ok(preview)
+    }
+
     pub fn authorize_preparation(
         &self,
         port_id: &str,
@@ -431,6 +504,10 @@ pub(crate) fn recover(
             "preparation recovery received another operation kind",
         ));
     }
+    if journal.phase == LifecyclePhase::CleanupPending && journal.install.is_none() {
+        let _activity_guard = service.library().try_lock_activity(&journal.id)?;
+        return remove_reviewed_private_preparation(service, store, journal);
+    }
     if journal.phase == LifecyclePhase::Preparing {
         let _activity_guard = service.library().try_lock_activity(&journal.id)?;
         let mut error = PortcoveError::state(
@@ -523,4 +600,304 @@ pub(crate) fn recover(
         }
     }
     crate::recovery::recover_published_install(service, store, journal)
+}
+
+fn private_preparation_journal(
+    store: &OperationStore,
+    operation_id: &str,
+) -> Result<LifecycleOperation> {
+    store
+        .all()?
+        .into_iter()
+        .find(|entry| entry.id == operation_id)
+        .ok_or_else(|| {
+            PortcoveError::not_found("retained preparation operation was not found")
+                .detail("operation_id", operation_id)
+        })
+}
+
+fn preparation_cleanup_preview(
+    service: &PortcoveService,
+    journal: &LifecycleOperation,
+) -> Result<PreparationCleanupPreview> {
+    if journal.kind != LifecycleOperationKind::Prepare
+        || !matches!(
+            journal.phase,
+            LifecyclePhase::Preparing | LifecyclePhase::CleanupPending
+        )
+        || journal.install.is_some()
+        || journal.relocation.is_some()
+        || journal.source_import.is_some()
+        || !journal.original_paths.is_empty()
+        || !journal.activate
+        || (journal.phase == LifecyclePhase::Preparing && journal.paths.quarantine.is_some())
+        || (journal.phase == LifecyclePhase::CleanupPending && journal.paths.quarantine.is_none())
+    {
+        return Err(PortcoveError::conflict(
+            "only unpublished private preparation work can be discarded",
+        )
+        .detail("operation_id", &journal.id));
+    }
+    let plan = journal
+        .preparation
+        .as_ref()
+        .ok_or_else(|| PortcoveError::state("retained preparation has no reviewed input plan"))?;
+    let mut bound_plan = plan.clone();
+    bound_plan.plan_sha256.clear();
+    if plan.format_version != 1
+        || journal.port_id != plan.port_id
+        || plan.inputs.install.port_id != journal.port_id
+        || crate::signed_catalog::digest(&serde_json::to_vec(&bound_plan)?) != plan.plan_sha256
+    {
+        return Err(PortcoveError::verification(
+            "retained preparation does not match its reviewed operation identity",
+        ));
+    }
+    let activity_status: Option<String> = service.library().connection()?.query_row(
+        "SELECT status FROM activity_history WHERE id=?1 AND operation='prepare' AND target_kind='port' AND target_id=?2",
+        rusqlite::params![journal.id, journal.port_id],
+        |row| row.get(0),
+    ).optional()?;
+    if !activity_status
+        .as_deref()
+        .is_some_and(|status| matches!(status, "failed" | "cancelled"))
+    {
+        return Err(PortcoveError::verification(
+            "retained preparation does not own a terminal failed activity",
+        ));
+    }
+    let retained_path =
+        journal.paths.staging.clone().ok_or_else(|| {
+            PortcoveError::state("retained preparation has no private staging path")
+        })?;
+    crate::output_root::validate_staging_path(
+        service.library(),
+        &journal.port_id,
+        &journal.id,
+        &retained_path,
+    )?;
+    let expected_final = plan
+        .inputs
+        .install
+        .path
+        .parent()
+        .ok_or_else(|| PortcoveError::state("recorded original has no managed parent"))?
+        .join(crate::signed_catalog::digest(&serde_json::to_vec(&(
+            "Portcove prepared derivative v1",
+            &plan.plan_sha256,
+            &journal.id,
+        ))?));
+    if journal.paths.final_path.as_ref() != Some(&expected_final) {
+        return Err(PortcoveError::conflict(
+            "planned preparation destination changed or contains unreviewed data",
+        ));
+    }
+    match fs::symlink_metadata(&expected_final) {
+        Ok(_) => {
+            return Err(PortcoveError::conflict(
+                "planned preparation destination changed or contains unreviewed data",
+            ));
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.into()),
+    }
+    let (inventory_path, reviewed_fingerprint) = if journal.phase == LifecyclePhase::CleanupPending
+    {
+        let quarantine = journal.paths.quarantine.as_ref().ok_or_else(|| {
+            PortcoveError::state("reviewed preparation cleanup has no private quarantine path")
+        })?;
+        let reviewed_fingerprint =
+            cleanup_quarantine_fingerprint(&retained_path, quarantine, &journal.id)?;
+        let inventory_path = if private_directory_exists(quarantine)? {
+            quarantine.as_path()
+        } else {
+            retained_path.as_path()
+        };
+        (inventory_path, Some(reviewed_fingerprint))
+    } else {
+        (retained_path.as_path(), None)
+    };
+    let retained = match fs::symlink_metadata(inventory_path) {
+        Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => {
+            crate::service::adoption_copy_plan(inventory_path)?
+        }
+        Ok(_) => {
+            return Err(PortcoveError::conflict(
+                "private preparation path changed identity",
+            ));
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => AdoptionCopyPlan {
+            directories: Vec::new(),
+            files: Vec::new(),
+            skipped_entries: Vec::new(),
+            total_bytes: 0,
+        },
+        Err(error) => return Err(error.into()),
+    };
+    let mut preview = PreparationCleanupPreview {
+        format_version: 1,
+        operation_id: journal.id.clone(),
+        port_id: journal.port_id.clone(),
+        retained_path,
+        retained,
+        original_install_path: plan.inputs.install.path.clone(),
+        source_path: plan.inputs.source.path.clone(),
+        persistent_data_path: service.library().user_dir(&journal.port_id),
+        backup_path: service.library().backups_dir().join(&journal.port_id),
+        logs_path: service.library().logs_dir(),
+        cleanup_is_irreversible: true,
+        interrupted_cleanup_will_retry: true,
+        preview_sha256: String::new(),
+    };
+    preview.preview_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&preview)?);
+    if reviewed_fingerprint.is_some_and(|expected| expected != preview.preview_sha256) {
+        return Err(PortcoveError::conflict(
+            "retained preparation changed after cleanup was accepted; review it again",
+        )
+        .detail("cleanup_state_changed", "true"));
+    }
+    Ok(preview)
+}
+
+fn remove_reviewed_private_preparation(
+    service: &PortcoveService,
+    store: &OperationStore,
+    journal: &mut LifecycleOperation,
+) -> Result<()> {
+    let staging = journal.paths.staging.clone().ok_or_else(|| {
+        PortcoveError::state("reviewed preparation cleanup has no private staging path")
+    })?;
+    crate::output_root::validate_staging_path(
+        service.library(),
+        &journal.port_id,
+        &journal.id,
+        &staging,
+    )?;
+    let quarantine = journal.paths.quarantine.clone().ok_or_else(|| {
+        PortcoveError::state("reviewed preparation cleanup has no private quarantine path")
+    })?;
+    cleanup_quarantine_fingerprint(&staging, &quarantine, &journal.id)?;
+    let mut staging_exists = private_directory_exists(&staging)?;
+    let mut quarantine_exists = private_directory_exists(&quarantine)?;
+    if !staging_exists && !quarantine_exists {
+        return store.remove(&journal.id);
+    }
+
+    match preparation_cleanup_preview(service, journal) {
+        Ok(_) => {}
+        Err(error) if error.details.contains_key("cleanup_state_changed") => {
+            restore_private_cleanup_for_review(store, journal, &staging, &quarantine)?;
+            return Err(error);
+        }
+        Err(error) => return Err(error),
+    };
+    if !quarantine_exists {
+        fs::rename(&staging, &quarantine)?;
+        staging_exists = false;
+        quarantine_exists = true;
+        if let Err(error) = preparation_cleanup_preview(service, journal) {
+            restore_private_cleanup_for_review(store, journal, &staging, &quarantine)?;
+            return Err(error);
+        }
+    }
+    if quarantine_exists {
+        fs::remove_dir_all(&quarantine)?;
+    }
+    if !staging_exists {
+        staging_exists = private_directory_exists(&staging)?;
+    }
+    if staging_exists {
+        journal.phase = LifecyclePhase::Preparing;
+        journal.paths.quarantine = None;
+        journal.last_error = Some(
+            "reviewed private files were removed, but new private files appeared and require review"
+                .into(),
+        );
+        store.put(journal)?;
+        return Err(PortcoveError::conflict(
+            "reviewed private files were removed, but new private files appeared; review them again",
+        )
+        .with_mutation_state(MutationState::RecoveryRequired));
+    }
+    store.remove(&journal.id)
+}
+
+fn restore_private_cleanup_for_review(
+    store: &OperationStore,
+    journal: &mut LifecycleOperation,
+    staging: &Path,
+    quarantine: &Path,
+) -> Result<()> {
+    if private_directory_exists(quarantine)? {
+        if private_directory_exists(staging)? {
+            return Err(PortcoveError::conflict(
+                "both reviewed and newly retained private preparation files exist; cleanup cannot continue",
+            )
+            .with_mutation_state(MutationState::RecoveryRequired));
+        }
+        fs::rename(quarantine, staging)?;
+    }
+    journal.phase = LifecyclePhase::Preparing;
+    journal.paths.quarantine = None;
+    journal.last_error = Some("retained preparation changed and requires another review".into());
+    store.put(journal)
+}
+
+fn private_directory_exists(path: &Path) -> Result<bool> {
+    match fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => Ok(true),
+        Ok(_) => Err(PortcoveError::conflict(
+            "private preparation path changed identity",
+        )),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(error.into()),
+    }
+}
+
+pub(super) fn cleanup_quarantine_path(
+    staging: &Path,
+    operation_id: &str,
+    fingerprint: &str,
+) -> Result<std::path::PathBuf> {
+    validate_cleanup_fingerprint(fingerprint)?;
+    let parent = staging
+        .parent()
+        .ok_or_else(|| PortcoveError::state("private preparation staging path has no parent"))?;
+    Ok(parent.join(format!("{operation_id}.cleanup.{fingerprint}")))
+}
+
+fn cleanup_quarantine_fingerprint(
+    staging: &Path,
+    quarantine: &Path,
+    operation_id: &str,
+) -> Result<String> {
+    let name = quarantine
+        .file_name()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| PortcoveError::conflict("private cleanup path has no portable identity"))?;
+    let prefix = format!("{operation_id}.cleanup.");
+    let fingerprint = name
+        .strip_prefix(&prefix)
+        .ok_or_else(|| PortcoveError::conflict("private cleanup path changed identity"))?;
+    validate_cleanup_fingerprint(fingerprint)?;
+    if quarantine != cleanup_quarantine_path(staging, operation_id, fingerprint)? {
+        return Err(PortcoveError::conflict(
+            "private cleanup path changed identity",
+        ));
+    }
+    crate::path::refuse_symlink_ancestors(quarantine)?;
+    Ok(fingerprint.to_owned())
+}
+
+fn validate_cleanup_fingerprint(fingerprint: &str) -> Result<()> {
+    if fingerprint.len() != 64
+        || !fingerprint
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
+    {
+        return Err(PortcoveError::usage(
+            "reviewed preparation cleanup fingerprint is not a canonical SHA-256 digest",
+        ));
+    }
+    Ok(())
 }

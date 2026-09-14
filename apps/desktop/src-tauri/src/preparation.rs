@@ -1,7 +1,10 @@
 //! Generation-bound transport for core's reviewed preparation operation.
-use crate::{DesktopResult, DesktopState, blocking_worker, service_at_generation};
+use crate::{
+    DesktopResult, DesktopState, blocking_worker, confirm_destructive, service_at_generation,
+};
 use portcove_core::{
-    InstallRecord, OperationEvent, Platform, PreparationMode, PreparationOptions, PreparationPlan,
+    InstallRecord, OperationEvent, Platform, PortcoveError, PreparationCleanupPreview,
+    PreparationMode, PreparationOptions, PreparationPlan,
 };
 
 fn options() -> portcove_core::Result<PreparationOptions> {
@@ -43,6 +46,65 @@ pub(crate) async fn prepare_port(
             .prepare(&port_id, options, &authorization.token, |event| {
                 let _ = on_event.send(event);
             })
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn preview_preparation_cleanup(
+    state: tauri::State<'_, DesktopState>,
+    operation_id: String,
+    generation: u64,
+) -> DesktopResult<PreparationCleanupPreview> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .preview_preparation_cleanup(&operation_id)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn cleanup_preparation(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, DesktopState>,
+    operation_id: String,
+    expected_preview: String,
+    generation: u64,
+) -> DesktopResult<Option<PreparationCleanupPreview>> {
+    let preview =
+        preview_preparation_cleanup(state.clone(), operation_id.clone(), generation).await?;
+    if preview.preview_sha256 != expected_preview {
+        return Err(
+            PortcoveError::conflict("retained preparation changed; review cleanup again").into(),
+        );
+    }
+    if !confirm_destructive(
+        &app,
+        "Confirm retained preparation cleanup",
+        format!(
+            "Permanently remove the reviewed private preparation folder for {}?\n\nFolder: {}\nFiles: {} ({} bytes)\n\nThe original installation, registered source, saved data, backups, and logs are preserved. Make sure any external setup process from this attempt has stopped.",
+            preview.port_id,
+            preview.retained_path.display(),
+            preview.retained.files.len(),
+            preview.retained.total_bytes,
+        ),
+        "Remove reviewed private files",
+    )
+    .await
+    {
+        return Ok(None);
+    }
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let service = service_at_generation(&state, generation)?;
+        let authorization =
+            service.authorize_preparation_cleanup(&operation_id, &expected_preview)?;
+        service
+            .cleanup_preparation(&operation_id, &authorization.token)
+            .map(Some)
             .map_err(Into::into)
     })
     .await

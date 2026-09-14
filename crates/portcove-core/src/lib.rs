@@ -148,7 +148,8 @@ pub use portability::{
     LibraryMetadataFile, LibraryPortSettings,
 };
 pub use preparation::{
-    PreparationInputs, PreparationMode, PreparationOptions, PreparationPlan, PreparationTool,
+    PreparationCleanupPreview, PreparationInputs, PreparationMode, PreparationOptions,
+    PreparationPlan, PreparationTool,
 };
 pub use process::{ChildProcessClass, ChildProcessPolicy, GameProcessSpec, LaunchKind, LaunchSpec};
 pub use providers::CompositeReleaseProvider;
@@ -192,7 +193,7 @@ pub use source_report::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 47;
+pub const API_SCHEMA_VERSION: u32 = 48;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

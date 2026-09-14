@@ -793,6 +793,25 @@ pub(crate) fn preparation_plan(plan: &portcove_core::PreparationPlan) -> String 
     )
 }
 
+pub(crate) fn preparation_cleanup(preview: &portcove_core::PreparationCleanupPreview) -> String {
+    format!(
+        "Preparation cleanup: {}\nGame: {}\nRetained private folder: {}\nAffected: {} files, {} empty folders, {} skipped links or special entries, {}\nPreserved original installation: {}\nPreserved registered source: {}\nPreserved saved data: {}\nPreserved backups: {}\nPreserved logs: {}\nReversibility: removed private files cannot be recovered\nInterruption: an accepted cleanup remains recorded and will be retried\nPreview: {}",
+        clean(&preview.operation_id),
+        clean(&preview.port_id),
+        clean(&preview.retained_path.display().to_string()),
+        preview.retained.files.len(),
+        preview.retained.directories.len(),
+        preview.retained.skipped_entries.len(),
+        format_bytes(preview.retained.total_bytes),
+        clean(&preview.original_install_path.display().to_string()),
+        clean(&preview.source_path.display().to_string()),
+        clean(&preview.persistent_data_path.display().to_string()),
+        clean(&preview.backup_path.display().to_string()),
+        clean(&preview.logs_path.display().to_string()),
+        clean(&preview.preview_sha256),
+    )
+}
+
 pub(crate) fn paths(paths: &PortPaths) -> String {
     format!(
         "Paths for {}\nLibrary: {}\nPersistent data: {}\nFuture install folder: {} ({})\nActive: {}\nPrevious: {}\nStaged: {}",
@@ -1194,6 +1213,7 @@ fn host_tool_state(state: HostToolState) -> &'static str {
 
 fn repair_kind(kind: RepairItemKind) -> &'static str {
     match kind {
+        RepairItemKind::RetainedPreparation => "retained preparation",
         RepairItemKind::PartialOperation => "partial operation",
         RepairItemKind::CleanupPending => "cleanup pending",
         RepairItemKind::OrphanedFinalDirectory => "orphaned directory",

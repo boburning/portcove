@@ -63,6 +63,24 @@ pub struct PreparationPlan {
     pub plan_sha256: String,
 }
 
+/// Exact retained private work that may be discarded after explicit review.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct PreparationCleanupPreview {
+    pub format_version: u32,
+    pub operation_id: String,
+    pub port_id: String,
+    pub retained_path: PathBuf,
+    pub retained: AdoptionCopyPlan,
+    pub original_install_path: PathBuf,
+    pub source_path: PathBuf,
+    pub persistent_data_path: PathBuf,
+    pub backup_path: PathBuf,
+    pub logs_path: PathBuf,
+    pub cleanup_is_irreversible: bool,
+    pub interrupted_cleanup_will_retry: bool,
+    pub preview_sha256: String,
+}
+
 impl PortcoveService {
     /// Inspect installed inputs without acquiring software, starting setup, or changing readiness.
     pub fn plan_preparation(

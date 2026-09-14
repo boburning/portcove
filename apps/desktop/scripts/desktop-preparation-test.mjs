@@ -278,6 +278,7 @@ export async function preparationScenarios({
     output,
     artifacts,
     command,
+    confirmNative,
   });
   await scenario("native-update-settings-save-without-execution", async () => {
     const port = command(["catalog", "show", "opengoal-jak1"]);
