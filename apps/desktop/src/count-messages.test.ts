@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+
+// CI routing fixture: an ordinary frontend-only change selects the frontend group.
 import { formatCountMessage } from "./view-model";
 
 const messages = {
