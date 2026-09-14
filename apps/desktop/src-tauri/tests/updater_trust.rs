@@ -494,7 +494,7 @@ async fn candidate_loader_refuses_top_level_update_records() {
 }
 
 #[tokio::test]
-async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_bytes() {
+async fn channel_role_authenticates_keys_and_transition_candidates() {
     use base64::Engine as _;
     use serde_json::json;
     use sha2::{Digest, Sha256};
@@ -509,16 +509,10 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
     let root_path = f.directory.path().join("delegation-root.json");
     fs::write(&root_path, &trusted).unwrap();
     let registry_name = "keys/payload.json";
-    let release_name = "releases/1.0.0/windows-x86_64/nsis.json";
-    let promotion_name = "channels/stable/windows-x86_64/nsis/1.0.0.json";
-    let unrelated_promotion_name = "channels/stable/linux-x86_64/appimage/2.0.0.json";
+    let unrelated_promotion_name = "channels/stable/windows-x86_64/nsis/2.0.0.json";
     let registry_path = f.targets.join(registry_name);
-    let release_path = f.targets.join(release_name);
-    let promotion_path = f.targets.join(promotion_name);
     let unrelated_promotion_path = f.targets.join(unrelated_promotion_name);
     fs::create_dir_all(registry_path.parent().unwrap()).unwrap();
-    fs::create_dir_all(release_path.parent().unwrap()).unwrap();
-    fs::create_dir_all(promotion_path.parent().unwrap()).unwrap();
     fs::create_dir_all(unrelated_promotion_path.parent().unwrap()).unwrap();
     let public_key = b"untrusted comment: minisign public key E7620F1842B4E81F\nRWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3\n";
     let payload_key_id = hex::encode(Sha256::digest(public_key));
@@ -532,61 +526,76 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
     }))
     .unwrap();
     fs::write(&registry_path, registry_bytes).unwrap();
-    let release_bytes = serde_json::to_vec(&json!({
-        "schema_version": 1,
-        "version": "1.0.0",
-        "source_commit": "a".repeat(40),
-        "source_tree": "b".repeat(40),
-        "qualified_run": {
-            "workflow": "release.yml",
-            "workflow_commit": "e".repeat(40),
-            "run_id": 42,
-            "attempt": 1,
-            "inventory_sha256": "f".repeat(64)
-        },
-        "target": "windows-x86_64",
-        "os": "windows",
-        "architecture": "x86_64",
-        "execution_context": "native",
-        "package": { "kind": "nsis", "owner": "portcove", "product_id": "portcove-desktop" },
-        "artifact": {
-            "url": "https://github.com/boburning/portcove/releases/download/v1.0.0/Portcove.exe",
-            "sha256": "c".repeat(64),
-            "bytes": 1024,
-            "tauri_signature": "fixture-signature",
-            "payload_key_id": payload_key_id.clone()
-        },
-        "compatibility": {
-            "minimum_os_version": "10.0.19045",
-            "required_capabilities": ["host-api-1"],
-            "cli_protocol": { "min": 1, "max": 1 },
-            "catalog_formats": [2],
-            "library": {
-                "read": { "min": 1, "max": 1 },
-                "write_schema": 1,
-                "lock_protocol": "library-lock-v1"
-            }
-        },
-        "evidence_ids": ["ci-run-42", "windows-package-42"]
-    }))
-    .unwrap();
-    fs::write(&release_path, &release_bytes).unwrap();
-    let promotion_bytes = serde_json::to_vec(&json!({
-        "schema_version": 1,
-        "channel": "stable",
-        "target": "windows-x86_64",
-        "package": "nsis",
-        "version": "1.0.0",
-        "release_path": release_name,
-        "release_sha256": hex::encode(Sha256::digest(&release_bytes)),
-        "eligible": true,
-        "production_eligible": true,
-        "withdrawn": false,
-        "reason": null,
-        "required_bridge": null
-    }))
-    .unwrap();
-    fs::write(&promotion_path, &promotion_bytes).unwrap();
+    let versions = [
+        ("1.0.0", true, false, None),
+        ("1.1.0", true, false, None),
+        ("1.2.0", false, true, Some("withdrawn after qualification")),
+    ];
+    let mut records = Vec::new();
+    for (version, eligible, withdrawn, reason) in versions {
+        let release_name = format!("releases/{version}/linux-x86_64/appimage.json");
+        let promotion_name = format!("channels/stable/linux-x86_64/appimage/{version}.json");
+        let release_path = f.targets.join(&release_name);
+        let promotion_path = f.targets.join(&promotion_name);
+        fs::create_dir_all(release_path.parent().unwrap()).unwrap();
+        fs::create_dir_all(promotion_path.parent().unwrap()).unwrap();
+        let release_bytes = serde_json::to_vec(&json!({
+            "schema_version": 1,
+            "version": version,
+            "source_commit": "a".repeat(40),
+            "source_tree": "b".repeat(40),
+            "qualified_run": {
+                "workflow": "release.yml",
+                "workflow_commit": "e".repeat(40),
+                "run_id": 42,
+                "attempt": 1,
+                "inventory_sha256": "f".repeat(64)
+            },
+            "target": "linux-x86_64",
+            "os": "linux",
+            "architecture": "x86_64",
+            "execution_context": "user-owned-appimage",
+            "package": { "kind": "appimage", "owner": "portcove", "product_id": "portcove-desktop" },
+            "artifact": {
+                "url": format!("https://github.com/boburning/portcove/releases/download/v{version}/Portcove.AppImage"),
+                "sha256": "c".repeat(64),
+                "bytes": 1024,
+                "tauri_signature": "fixture-signature",
+                "payload_key_id": payload_key_id.clone()
+            },
+            "compatibility": {
+                "minimum_os_version": "5.15.0",
+                "required_capabilities": ["host-api-1"],
+                "cli_protocol": { "min": 1, "max": 1 },
+                "catalog_formats": [2],
+                "library": {
+                    "read": { "min": 1, "max": 1 },
+                    "write_schema": 1,
+                    "lock_protocol": "library-lock-v1"
+                }
+            },
+            "evidence_ids": ["ci-run-42", format!("linux-package-{version}")]
+        }))
+        .unwrap();
+        fs::write(&release_path, &release_bytes).unwrap();
+        let promotion_bytes = serde_json::to_vec(&json!({
+            "schema_version": 1,
+            "channel": "stable",
+            "target": "linux-x86_64",
+            "package": "appimage",
+            "version": version,
+            "release_path": release_name,
+            "release_sha256": hex::encode(Sha256::digest(&release_bytes)),
+            "eligible": eligible,
+            "production_eligible": true,
+            "withdrawn": withdrawn,
+            "reason": reason,
+            "required_bridge": null
+        }))
+        .unwrap();
+        fs::write(&promotion_path, &promotion_bytes).unwrap();
+        records.push((release_name, release_path, promotion_name, promotion_path));
+    }
     fs::write(
         &unrelated_promotion_path,
         b"ignored unrelated package record",
@@ -606,10 +615,17 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
         .delegate_role(
             "stable",
             &[promotion.source()],
-            PathSet::Paths(vec![
-                PathPattern::new(promotion_name).unwrap(),
-                PathPattern::new(unrelated_promotion_name).unwrap(),
-            ]),
+            PathSet::Paths(
+                records
+                    .iter()
+                    .map(|(_, _, promotion_name, _)| {
+                        PathPattern::new(promotion_name.as_str()).unwrap()
+                    })
+                    .chain(std::iter::once(
+                        PathPattern::new(unrelated_promotion_name).unwrap(),
+                    ))
+                    .collect(),
+            ),
             true,
             nz(1),
             expiration(),
@@ -621,7 +637,12 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
         .delegate_role(
             "releases",
             &[release.source()],
-            PathSet::Paths(vec![PathPattern::new(release_name).unwrap()]),
+            PathSet::Paths(
+                records
+                    .iter()
+                    .map(|(release_name, _, _, _)| PathPattern::new(release_name.as_str()).unwrap())
+                    .collect(),
+            ),
             true,
             nz(1),
             expiration(),
@@ -643,8 +664,12 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
         .unwrap()
         .targets_expires(expiration())
         .unwrap();
-    let (_, release_target) = RepositoryEditor::build_target(&release_path).await.unwrap();
-    editor.add_target(release_name, release_target).unwrap();
+    for (release_name, release_path, _, _) in &records {
+        let (_, release_target) = RepositoryEditor::build_target(release_path).await.unwrap();
+        editor
+            .add_target(release_name.as_str(), release_target)
+            .unwrap();
+    }
     match editor.sign_targets_editor(&[f.online.source()]).await {
         Err(error) => assert!(
             matches!(error, Error::SigningKeysNotFound { .. }),
@@ -662,10 +687,14 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
         .unwrap()
         .targets_expires(expiration())
         .unwrap();
-    let (_, promotion_target) = RepositoryEditor::build_target(&promotion_path)
-        .await
-        .unwrap();
-    editor.add_target(promotion_name, promotion_target).unwrap();
+    for (_, _, promotion_name, promotion_path) in &records {
+        let (_, promotion_target) = RepositoryEditor::build_target(promotion_path)
+            .await
+            .unwrap();
+        editor
+            .add_target(promotion_name.as_str(), promotion_target)
+            .unwrap();
+    }
     let (_, unrelated_promotion_target) = RepositoryEditor::build_target(&unrelated_promotion_path)
         .await
         .unwrap();
@@ -696,20 +725,47 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
         .write(&f.metadata)
         .await
         .unwrap();
+    let linux_context = |version: &str| {
+        let mut context = installed_context();
+        context.current_version = version.into();
+        context.target = "linux-x86_64".into();
+        context.os = "linux".into();
+        context.os_version = "6.8.0".into();
+        context.execution_context = "user-owned-appimage".into();
+        context.package_kind = "appimage".into();
+        context
+    };
     let state = f.directory.path().join("candidate-trust");
     let repo = f.load_persisted(&trusted, &state).await.unwrap();
-    let selection =
-        select_repository_candidate(&repo, ApplicationChannel::Stable, &installed_context())
-            .await
-            .unwrap();
-    assert_eq!(selection.selection.state, CandidateState::UpdateAvailable);
+    let skipped_context = linux_context("0.3.0");
+    let skipped = select_repository_candidate(&repo, ApplicationChannel::Stable, &skipped_context)
+        .await
+        .unwrap();
+    assert_eq!(skipped.selection.state, CandidateState::UpdateAvailable);
     assert_eq!(
-        selection.selection.candidate.unwrap().release.version,
-        "1.0.0"
+        skipped.selection.candidate.unwrap().release.version,
+        "1.1.0"
     );
-    let key = selection.payload_key.unwrap();
+    let key = skipped.payload_key.unwrap();
     assert_eq!(key.id, payload_key_id);
     assert_eq!(key.tauri_public_key, tauri_public_key);
+
+    let direct_context = linux_context("1.0.0");
+    let direct = select_repository_candidate(&repo, ApplicationChannel::Stable, &direct_context)
+        .await
+        .unwrap();
+    assert_eq!(direct.selection.state, CandidateState::UpdateAvailable);
+    assert_eq!(direct.selection.candidate.unwrap().release.version, "1.1.0");
+
+    let current_context = linux_context("1.1.0");
+    let current = select_repository_candidate(&repo, ApplicationChannel::Stable, &current_context)
+        .await
+        .unwrap();
+    assert_eq!(current.selection.state, CandidateState::Current);
+    assert_eq!(
+        current.selection.candidate.unwrap().release.version,
+        "1.1.0"
+    );
 
     let provider = ApplicationUpdateHostProvider::new(
         ApplicationUpdateRepositoryConfiguration::new(
@@ -719,7 +775,7 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
             f.directory.path().join("host-provider-trust"),
         )
         .unwrap(),
-        Arc::new(FixedInstalledContext(installed_context())),
+        Arc::new(FixedInstalledContext(skipped_context.clone())),
     );
     let fresh = ApplicationUpdateFreshSelectionProvider::select(
         &provider,
@@ -731,7 +787,7 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
     )
     .await
     .unwrap();
-    assert_eq!(fresh.installed, installed_context());
+    assert_eq!(fresh.installed, skipped_context);
     assert_eq!(
         fresh
             .authenticated
@@ -740,6 +796,6 @@ async fn channel_role_requires_its_own_key_and_authenticates_separate_promotion_
             .unwrap()
             .release
             .version,
-        "1.0.0"
+        "1.1.0"
     );
 }

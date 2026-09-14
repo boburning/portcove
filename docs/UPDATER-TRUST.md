@@ -603,6 +603,10 @@ or updater plugin is shipped.
 Fixtures cover quorum and dual-root continuity, one-key loss, insufficient/online
 key rejection, skipped/missing bridges, revoked online signatures, persistent replay,
 expiry, equal-length target tamper and a separately signed channel delegation.
+The signed channel fixture also selects a direct next release and a skipped release,
+falls back below a newer withdrawn promotion, and returns the exact top-level payload
+key for the selected candidate. These are deterministic repository/selection results,
+not packaged application replacement or production-feed observations.
 Host-state fixtures additionally prove version and signed-body floors after the TUF
 cache is removed, same-process serialization, clock-regression refusal, source
 refusal before state mutation, and recovery from a failed initial bridge plus a
