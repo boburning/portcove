@@ -616,7 +616,14 @@ remote tag. A rerun verifies an existing draft body byte for byte and fails
 closed instead of editing it. The publisher rechecks draft
 state before every asset deletion or upload; repository-level immutable releases
 provide the server-side boundary if publication happens between that check and
-the mutation. After a successful rehearsal or publication handoff, an isolated
+the mutation. The release-workflow fixture executes this exact inline publisher
+against a controlled fake GitHub boundary. It proves that an identical retry
+reuses one draft, an interrupted upload leaves a recoverable partial draft, the
+next retry restores the complete exact asset set, and a published release is
+refused without mutation. The fixture has no network, tag, release, credential,
+or publication authority.
+
+After a successful rehearsal or publication handoff, an isolated
 cleanup job with only `actions: write` deletes transient workflow artifacts. A
 failed run retains them for no more than one day for diagnosis. Tags containing
 a SemVer prerelease suffix are marked as prereleases automatically. Tauri updater
