@@ -67,6 +67,17 @@ Keep the five template sections in order:
 5. **Readiness and follow-ups** — state the live Roadmap status, merge authority,
    remaining blockers or linked follow-up issues, or `None`.
 
+Record the reviewed source head and its actual baseline. If `main` advances
+without changing the source head, do not imply the later target revision was
+tested. An unrelated target advance does not by itself require a rebase, a full
+rerun, or a replacement review. A relevant dependency, schema, generated
+contract, patch, or policy interaction does require focused reconciliation.
+Before merging, refetch the pull request, confirm its current head still equals
+the reviewed head, confirm required checks and conflict-free mergeability, and
+use `gh pr merge --auto --match-head-commit <reviewed-head>`. A changed source
+head requires current-head validation and review; administrator bypass remains
+outside the routine path.
+
 Draft pull requests may say that verification or review is pending. Before a
 pull request becomes ready, update its single description with final evidence
 rather than appending a second narrative. Summarize evidence in GitHub-visible

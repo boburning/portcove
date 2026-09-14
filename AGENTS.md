@@ -57,6 +57,22 @@ substantive finding repair, and current-revision/authority confirmation. Honor
 any additional reviewer or approval requirement enforced by the trusted
 repository rules. Never use administrator bypass for the routine path.
 
+Routine pull requests do not have to contain the latest `main` merely because
+the target branch advanced. A behind-main pull request may merge when its
+unchanged source head has the required validation, a real separate reviewer
+subagent has reviewed the applicable current changes and all substantive
+findings are resolved, GitHub reports no merge conflicts, and every remaining
+trusted requirement passes. Record the reviewed head and baseline truthfully;
+later target changes were not tested by that evidence. Fetch target state for
+observation without automatically rebasing or merging it into the working
+branch. Reconcile and revalidate when a target change actually affects the
+patch, its dependencies, schemas, generated contracts, or trusted policy, but
+do not create a general freshness gate. A changed source head invalidates the
+older review; failed or missing required checks and unresolved mergeability
+still block. Guard the normal merge against an unexpected source-head change
+with `gh pr merge --auto --match-head-commit <reviewed-head>` and never use
+administrator bypass.
+
 Ask the owner only when a concrete blocker cannot be resolved within the
 authorized scope, evidence intrinsically requires their manual participation,
 or an action requires authority they have not already granted. Explain the

@@ -79,10 +79,12 @@ export function validateRepositorySettings(ruleset, security) {
   const contexts = statusChecks.required_status_checks.map((check) => check.context).sort();
   if (
     JSON.stringify(contexts) !== JSON.stringify(expectedChecks) ||
-    !statusChecks.strict_required_status_checks_policy ||
+    statusChecks.strict_required_status_checks_policy !== false ||
     !statusChecks.do_not_enforce_on_create
   ) {
-    throw new Error(`required status checks must be exactly: ${expectedChecks.join(", ")}`);
+    throw new Error(
+      `required status checks must be exactly ${expectedChecks.join(", ")} and must allow independently reviewed behind-main heads`,
+    );
   }
 }
 
@@ -131,11 +133,12 @@ export function projectRuleset(ruleset) {
   };
 }
 
-const authorizedReviewChanges = [
+const authorizedPullRequestChanges = [
   "required_approving_review_count",
   "require_last_push_approval",
   "require_code_owner_review",
 ];
+const authorizedStatusCheckChanges = ["strict_required_status_checks_policy"];
 
 function assertExactKeys(value, expected, label) {
   const actual = Object.keys(value ?? {}).sort();
@@ -173,8 +176,10 @@ export function rulesetMigration(actualRuleset, desiredRuleset) {
   const payload = projectRuleset(actualRuleset);
   const actualPullRequest = requiredRule(payload, "pull_request").parameters;
   const desiredPullRequest = requiredRule(desiredRuleset, "pull_request").parameters;
+  const actualStatusChecks = requiredRule(payload, "required_status_checks").parameters;
+  const desiredStatusChecks = requiredRule(desiredRuleset, "required_status_checks").parameters;
   const changes = [];
-  for (const name of authorizedReviewChanges) {
+  for (const name of authorizedPullRequestChanges) {
     if (actualPullRequest[name] !== desiredPullRequest[name]) {
       changes.push({
         path: `pull_request.${name}`,
@@ -182,6 +187,16 @@ export function rulesetMigration(actualRuleset, desiredRuleset) {
         to: desiredPullRequest[name],
       });
       actualPullRequest[name] = desiredPullRequest[name];
+    }
+  }
+  for (const name of authorizedStatusCheckChanges) {
+    if (actualStatusChecks[name] !== desiredStatusChecks[name]) {
+      changes.push({
+        path: `required_status_checks.${name}`,
+        from: actualStatusChecks[name],
+        to: desiredStatusChecks[name],
+      });
+      actualStatusChecks[name] = desiredStatusChecks[name];
     }
   }
   if (!isDeepStrictEqual(payload, desiredRuleset)) {

@@ -147,3 +147,15 @@ result, repair of substantive findings, and the normal merge or auto-merge path.
 Do not use administrator bypass routinely. Protected acceptance, merge,
 signing/publication, and credential boundaries require separate explicit owner
 authorization; neither a candidate nor its automation can authorize itself.
+
+An unrelated advance of `main` does not require rebasing an unchanged pull
+request, rerunning its complete suite, or discarding its review. A behind-main
+pull request remains eligible only when its current source head has passing
+required checks, a real separate reviewer subagent has reviewed those changes,
+substantive findings are resolved, GitHub reports no conflict, and all other
+trusted requirements pass. Record both the reviewed source head and its actual
+baseline without claiming the later target state was tested. Reconcile a target
+advance that really affects dependencies, schemas, generated contracts, the
+patch, or validation policy. Refetch before merging and use
+`gh pr merge --auto --match-head-commit <reviewed-head>` so a new source head
+fails closed; never use administrator bypass.

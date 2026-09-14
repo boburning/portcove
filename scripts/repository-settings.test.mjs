@@ -72,6 +72,24 @@ test("validation rejects approval gates, unresolved threads, or weakened status 
     .parameters.required_status_checks.pop();
   assert.throws(() => validateRepositorySettings(missingCheck, security), /required status checks/);
 
+  const strictChecks = structuredClone(ruleset);
+  strictChecks.rules.find(
+    (rule) => rule.type === "required_status_checks",
+  ).parameters.strict_required_status_checks_policy = true;
+  assert.throws(
+    () => validateRepositorySettings(strictChecks, security),
+    /allow independently reviewed behind-main heads/,
+  );
+
+  const enforceOnCreate = structuredClone(ruleset);
+  enforceOnCreate.rules.find(
+    (rule) => rule.type === "required_status_checks",
+  ).parameters.do_not_enforce_on_create = false;
+  assert.throws(
+    () => validateRepositorySettings(enforceOnCreate, security),
+    /required status checks/,
+  );
+
   const missingAdminBypass = structuredClone(ruleset);
   missingAdminBypass.bypass_actors = [];
   assert.throws(
@@ -92,12 +110,24 @@ test("bounded migration changes only authorized review gates and is idempotent",
   const pullRequest = old.rules.find((rule) => rule.type === "pull_request").parameters;
   pullRequest.required_approving_review_count = 1;
   pullRequest.require_last_push_approval = true;
+  old.rules.find(
+    (rule) => rule.type === "required_status_checks",
+  ).parameters.strict_required_status_checks_policy = true;
   const migration = rulesetMigration(old, ruleset);
   assert.deepEqual(migration.payload, ruleset);
   assert.deepEqual(
     migration.changes.map((change) => change.path),
-    ["pull_request.required_approving_review_count", "pull_request.require_last_push_approval"],
+    [
+      "pull_request.required_approving_review_count",
+      "pull_request.require_last_push_approval",
+      "required_status_checks.strict_required_status_checks_policy",
+    ],
   );
+  assert.deepEqual(migration.changes.at(-1), {
+    path: "required_status_checks.strict_required_status_checks_policy",
+    from: true,
+    to: false,
+  });
   assert.deepEqual(rulesetMigration(ruleset, ruleset).changes, []);
 
   const drifted = structuredClone(old);
@@ -106,11 +136,45 @@ test("bounded migration changes only authorized review gates and is idempotent",
     .parameters.required_status_checks.pop();
   assert.throws(() => rulesetMigration(drifted, ruleset), /out-of-scope drift/);
 
+  const statusPolicyDrift = structuredClone(old);
+  statusPolicyDrift.rules.find(
+    (rule) => rule.type === "required_status_checks",
+  ).parameters.do_not_enforce_on_create = false;
+  assert.throws(() => rulesetMigration(statusPolicyDrift, ruleset), /out-of-scope drift/);
+
   const futureParameter = structuredClone(old);
   futureParameter.rules.find((rule) => rule.type === "pull_request").parameters.future_review_gate =
     true;
   assert.throws(() => rulesetMigration(futureParameter, ruleset), /unexpected parameters/);
+
+  const futureStatusParameter = structuredClone(old);
+  futureStatusParameter.rules.find(
+    (rule) => rule.type === "required_status_checks",
+  ).parameters.future_status_gate = true;
+  assert.throws(() => rulesetMigration(futureStatusParameter, ruleset), /unexpected parameters/);
   assert.throws(() => rulesetMigration(null, ruleset), /refusing to create/);
+});
+
+test("active worker guidance keeps behind-main merges head-guarded and evidence-bounded", async () => {
+  const guidance = (
+    await Promise.all(
+      [
+        new URL("../AGENTS.md", import.meta.url),
+        new URL("../CONTRIBUTING.md", import.meta.url),
+        new URL("../docs/QUALITY.md", import.meta.url),
+        new URL("../docs/CONTRIBUTION-CONVENTIONS.md", import.meta.url),
+      ].map((file) => readFile(file, "utf8")),
+    )
+  ).join("\n");
+
+  assert.match(guidance, /real separate reviewer subagent/);
+  assert.match(guidance, /behind-main pull request/);
+  assert.match(guidance, /--match-head-commit <reviewed-head>/);
+  assert.match(guidance, /failed or missing required checks/);
+  assert.match(guidance, /merge conflict/);
+  assert.match(guidance, /changed source head/);
+  assert.match(guidance, /target\s+advance alone does not invalidate an unchanged patch/);
+  assert.match(guidance, /dependencies, schemas, generated contracts/);
 });
 
 test("application plan preserves stable identity and scopes repository changes", () => {
