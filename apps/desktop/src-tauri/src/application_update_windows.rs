@@ -5,6 +5,7 @@
 //! replaced. It accepts only one exact current-user NSIS registration and
 //! launches the locked staged payload with Tauri's documented passive-update
 //! arguments. It never chooses a URL, relocates an installation, or elevates.
+//! This module remains owned by the maintained Windows target.
 
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
