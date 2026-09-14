@@ -12,7 +12,10 @@ use portcove_desktop::application_update::{
     ApplicationChannel, CandidateState, InstallOwner, InstalledApplicationContext,
     InstalledApplicationContextError,
 };
-use portcove_desktop::application_update_helper::ApplicationUpdateFreshSelectionProvider;
+use portcove_desktop::application_update_helper::{
+    ApplicationUpdateFreshSelection, ApplicationUpdateFreshSelectionError,
+    ApplicationUpdateFreshSelectionProvider,
+};
 use portcove_desktop::application_update_host::{
     ApplicationUpdateHostProvider, ApplicationUpdateRepositoryConfiguration,
     InstalledApplicationContextSource,
@@ -24,7 +27,8 @@ use portcove_desktop::application_update_repository::{
     CandidateLoadError, select_repository_candidate,
 };
 use portcove_desktop::application_update_trust::{
-    TrustedRepositoryError, TrustedRepositoryRequest, load_trusted_repository,
+    TrustedRepositoryError, TrustedRepositoryFailureKind, TrustedRepositoryRequest,
+    load_trusted_repository,
 };
 use tough::TargetName;
 use tough::error::Error;
@@ -58,6 +62,141 @@ impl InstalledApplicationContextSource for FixedInstalledContext {
     fn observe(&self) -> Result<InstalledApplicationContext, InstalledApplicationContextError> {
         Ok(self.0.clone())
     }
+}
+
+async fn publish_delegated_metadata_variant(
+    fixture: &Fixture,
+    root: &tough::schema::Root,
+    role_name: &str,
+    role_bytes: &[u8],
+) {
+    use aws_lc_rs::rand::SystemRandom;
+    use serde_json::json;
+    use sha2::{Digest, Sha256};
+    use tough::editor::signed::SignedRole;
+    use tough::schema::{KeyHolder, Snapshot, Timestamp};
+
+    let role_path = fixture.metadata.join(format!("{role_name}.json"));
+    fs::write(&role_path, role_bytes).unwrap();
+
+    let snapshot_path = fixture.metadata.join("snapshot.json");
+    let mut snapshot_document: serde_json::Value =
+        serde_json::from_slice(&fs::read(&snapshot_path).unwrap()).unwrap();
+    let role_metadata =
+        &mut snapshot_document["signed"]["meta"][format!("{role_name}.json").as_str()];
+    role_metadata["hashes"]["sha256"] = json!(hex::encode(Sha256::digest(role_bytes)));
+    role_metadata["length"] = json!(role_bytes.len());
+    let snapshot: Snapshot = serde_json::from_value(snapshot_document["signed"].clone()).unwrap();
+    let snapshot_bytes = SignedRole::new(
+        snapshot,
+        &KeyHolder::Root(root.clone()),
+        &[fixture.online.source()],
+        &SystemRandom::new(),
+    )
+    .await
+    .unwrap()
+    .buffer()
+    .clone();
+    fs::write(&snapshot_path, &snapshot_bytes).unwrap();
+
+    let timestamp_path = fixture.metadata.join("timestamp.json");
+    let mut timestamp_document: serde_json::Value =
+        serde_json::from_slice(&fs::read(&timestamp_path).unwrap()).unwrap();
+    let snapshot_metadata = &mut timestamp_document["signed"]["meta"]["snapshot.json"];
+    snapshot_metadata["hashes"]["sha256"] = json!(hex::encode(Sha256::digest(&snapshot_bytes)));
+    snapshot_metadata["length"] = json!(snapshot_bytes.len());
+    let timestamp: Timestamp =
+        serde_json::from_value(timestamp_document["signed"].clone()).unwrap();
+    let timestamp_bytes = SignedRole::new(
+        timestamp,
+        &KeyHolder::Root(root.clone()),
+        &[fixture.online.source()],
+        &SystemRandom::new(),
+    )
+    .await
+    .unwrap()
+    .buffer()
+    .clone();
+    fs::write(timestamp_path, timestamp_bytes).unwrap();
+}
+
+async fn sign_delegated_metadata_with(
+    role_name: &str,
+    document: &serde_json::Value,
+    key: &Key,
+) -> Vec<u8> {
+    use std::collections::HashMap;
+
+    use aws_lc_rs::rand::SystemRandom;
+    use tough::editor::signed::SignedRole;
+    use tough::schema::{
+        DelegatedRole, DelegatedTargets, Delegations, KeyHolder, PathPattern, PathSet, Targets,
+    };
+
+    let key_source = key.source();
+    let public_key = key_source.as_sign().await.unwrap().tuf_key();
+    let key_id = public_key.key_id().unwrap();
+    let delegations = Delegations {
+        keys: HashMap::from([(key_id.clone(), public_key)]),
+        roles: vec![DelegatedRole {
+            name: role_name.into(),
+            keyids: vec![key_id],
+            threshold: nz(1),
+            paths: PathSet::Paths(vec![PathPattern::new("*").unwrap()]),
+            terminating: true,
+            targets: None,
+        }],
+    };
+    let targets: Targets = serde_json::from_value(document["signed"].clone()).unwrap();
+    SignedRole::new(
+        DelegatedTargets {
+            name: role_name.into(),
+            targets,
+        },
+        &KeyHolder::Delegations(delegations),
+        &[key.source()],
+        &SystemRandom::new(),
+    )
+    .await
+    .unwrap()
+    .buffer()
+    .clone()
+}
+
+fn assert_consumer_rejected_signature(error: ApplicationUpdateFreshSelectionError) {
+    let ApplicationUpdateFreshSelectionError::Candidate(CandidateLoadError::Trust(error)) = error
+    else {
+        panic!("expected delegated-signature authentication failure, got {error}");
+    };
+    assert!(matches!(&error, TrustedRepositoryError::Authentication(_)));
+    assert_eq!(error.failure_kind(), TrustedRepositoryFailureKind::Rejected);
+}
+
+async fn select_fixture_preview_with_host_consumer(
+    fixture: &Fixture,
+    trusted: &[u8],
+    state_name: &str,
+    installed: InstalledApplicationContext,
+) -> Result<ApplicationUpdateFreshSelection, ApplicationUpdateFreshSelectionError> {
+    let provider = ApplicationUpdateHostProvider::new(
+        ApplicationUpdateRepositoryConfiguration::new(
+            trusted.to_vec(),
+            fixture.metadata_url(),
+            fixture.targets_url(),
+            fixture.directory.path().join(state_name),
+        )
+        .unwrap(),
+        Arc::new(FixedInstalledContext(installed)),
+    );
+    ApplicationUpdateFreshSelectionProvider::select(
+        &provider,
+        &ApplicationUpdateChoice {
+            channel: ApplicationChannel::Preview,
+            mode: ApplicationUpdateMode::Manual,
+            paused: false,
+        },
+    )
+    .await
 }
 
 #[tokio::test]
@@ -862,6 +1001,95 @@ async fn channel_role_authenticates_keys_and_transition_candidates() {
     assert_eq!(
         waiting.selection.reasons,
         ["channel has no compatible non-older version"]
+    );
+
+    let valid_preview = select_fixture_preview_with_host_consumer(
+        &f,
+        &trusted,
+        "valid-preview-signature-trust",
+        preview_final_context.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        valid_preview
+            .authenticated
+            .selection
+            .candidate
+            .unwrap()
+            .release
+            .version,
+        "1.0.0"
+    );
+
+    let valid_preview_metadata = fs::read(f.metadata.join("preview.json")).unwrap();
+    let valid_preview_document: serde_json::Value =
+        serde_json::from_slice(&valid_preview_metadata).unwrap();
+
+    let mut missing_signature_document = valid_preview_document.clone();
+    missing_signature_document["signatures"] = json!([]);
+    assert_eq!(
+        missing_signature_document["signed"],
+        valid_preview_document["signed"]
+    );
+    publish_delegated_metadata_variant(
+        &f,
+        &root,
+        "preview",
+        &serde_json::to_vec_pretty(&missing_signature_document).unwrap(),
+    )
+    .await;
+    let error = select_fixture_preview_with_host_consumer(
+        &f,
+        &trusted,
+        "missing-preview-signature-trust",
+        preview_final_context.clone(),
+    )
+    .await
+    .unwrap_err();
+    assert_consumer_rejected_signature(error);
+
+    let wrong_signature_metadata =
+        sign_delegated_metadata_with("preview", &valid_preview_document, &promotion).await;
+    let wrong_signature_document: serde_json::Value =
+        serde_json::from_slice(&wrong_signature_metadata).unwrap();
+    assert_eq!(
+        wrong_signature_document["signed"],
+        valid_preview_document["signed"]
+    );
+    assert_ne!(
+        wrong_signature_document["signatures"],
+        valid_preview_document["signatures"]
+    );
+    publish_delegated_metadata_variant(&f, &root, "preview", &wrong_signature_metadata).await;
+    let error = select_fixture_preview_with_host_consumer(
+        &f,
+        &trusted,
+        "wrong-preview-signature-trust",
+        preview_final_context.clone(),
+    )
+    .await
+    .unwrap_err();
+    assert_consumer_rejected_signature(error);
+
+    publish_delegated_metadata_variant(&f, &root, "preview", &valid_preview_metadata).await;
+    let restored_preview = select_fixture_preview_with_host_consumer(
+        &f,
+        &trusted,
+        "restored-preview-signature-trust",
+        preview_final_context,
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        restored_preview
+            .authenticated
+            .selection
+            .candidate
+            .unwrap()
+            .release
+            .version,
+        "1.0.0"
     );
 
     let provider = ApplicationUpdateHostProvider::new(
