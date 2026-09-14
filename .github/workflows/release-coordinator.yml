@@ -59,6 +59,7 @@ jobs:
           PORTCOVE_CONTROLLER_REVISION: ${{ github.sha }}
           PORTCOVE_CONTROLLER_WORKFLOW: .github/workflows/release-coordinator.yml
         run: |
+          set -o pipefail
           node scripts/release-coordinator.mjs "$RUNNER_TEMP/release-coordinator-input.json" | tee "$RUNNER_TEMP/release-coordinator-plan.json"
       - name: Retain the nonproduction plan
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
