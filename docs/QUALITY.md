@@ -72,14 +72,52 @@ is intentional, or `--plan` to inspect the exact selection without executing it.
 The selector always checks whitespace and changed supported-file formatting.
 It runs affected Rust packages rather than the workspace, uses Vitest's import
 graph for UI sources, and maps repository scripts and workflows to their exact
-contract tests. Root Cargo/toolchain changes compile and lint the workspace and
-run dependency policy without executing every local test. Combined changes use
-the union of their scopes. The shared hosted plan maps an unknown but
+contract tests. Root Cargo/toolchain changes compile, lint, and test the complete
+workspace and run dependency policy. Combined changes use the union of their
+scopes. The shared hosted plan maps an unknown but
 syntactically safe path to the explicit all-fast-groups fallback on the primary
 host. The local selector reports the path and refuses to run until a tested
 focused rule owns it, so a broad local suite cannot silently replace that rule.
 Unsafe paths and incomplete or failed diff discovery authorize no work and
 block the classifier.
+
+`portcove-core` has a narrower, versioned test-impact contract in
+`.config/rust-test-impact.json`. It owns only cohesive file groups whose
+dependencies are represented by explicit nextest filters, and each group records
+why those tests move together. A complete merge-base diff may select one group
+or the union of several groups. Any unmapped core path, new file, deletion,
+rename, copy, unsupported Git status, crate manifest change, or unavailable map
+uses the complete package test inventory. One such change also makes a mixed
+package change broad. Packages without a focused map remain broad. Unsafe or
+incomplete diff discovery still blocks the classifier before it can authorize
+tests. A selected filter that matches no tests fails through nextest rather than
+becoming an empty success.
+
+The contract is intentionally conservative: shared types, service and lifecycle
+orchestration, database behavior, public module wiring, and package manifests are
+outside the focused groups. Required GitHub CI still runs its exhaustive
+cross-platform plan on the exact reviewed head. To roll back local selection,
+revert the map and selector change; the previous complete-package command remains
+the broad fallback and the aggregate commands are unchanged.
+
+The activating Windows measurement on 2026-09-14 used base and head
+`9cb0b07c3409eeafea37e23f37638a6ec08fdf46` with one working-tree modification,
+`crates/portcove-core/src/source_report.rs`. The complete warm `just local-check`
+selected 74 of 734 core tests, spent 63.0 seconds in that test stage, and passed
+in 67.8 seconds overall. The first temporary-worktree run took 210.5 seconds
+while Cargo rebuilt path-specific artifacts and is not counted as a warm result.
+The other filters also passed independently: catalog contract selected 98 tests
+in 25.4 seconds, definition delivery selected 67 in 13.7 seconds, and release
+discovery selected 44 in 2.9 seconds. A second fixture added the intentionally
+unmapped shared `types.rs`; its plan
+replaced the source group with the complete-package command. Before activation,
+the issue baseline at merge `39b41017407407f0316ac0cb158eca3c5ac45c3c`
+selected all 729 tests for a `types.rs` comment and spent 1,394.1 seconds in the
+test stage and 1,408.7 seconds overall.
+
+Local frontend stages resolve Corepack from the bootstrapped checkout tool path.
+They use the shared Windows command wrapper for `.cmd` shims instead of assuming
+the Node process executable has an adjacent Corepack installation.
 
 A typical warm single-layer local check targets less than two minutes and prints
 every selected stage and elapsed time. The target is diagnostic rather than a

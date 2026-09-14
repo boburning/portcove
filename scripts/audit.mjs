@@ -139,6 +139,7 @@ export function domainsForPath(input) {
     file === "scripts/dev-storage.mjs" ||
     file === "scripts/tool-cache.mjs" ||
     file === "scripts/test-duration-reporter.mjs" ||
+    file === ".config/rust-test-impact.json" ||
     file === ".github/quality-tools.json" ||
     file === ".config/tool-bootstrap.json" ||
     file === "aqua.yaml" ||
@@ -211,7 +212,7 @@ export function domainsForPath(input) {
       add(domains, "release");
     if (/roadmap|source-provenance|catalog-schema/u.test(name)) add(domains, "roadmap");
     if (
-      /dev-|development-|local-validation|native-session|desktop-test|tool-cache|bootstrap-quality/u.test(
+      /dev-|development-|local-validation|rust-test-impact|native-session|desktop-test|tool-cache|bootstrap-quality/u.test(
         name,
       )
     )

@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "packages": {
+    "portcove-core": {
+      "path_prefix": "crates/portcove-core/",
+      "broad_reason": "shared or unmapped core changes require the complete portcove-core test inventory",
+      "groups": [
+        {
+          "id": "catalog-contract",
+          "reason": "catalog parsing, signed updates, source-contract validation, and definition projection share one catalog contract",
+          "paths": [
+            "crates/portcove-core/catalog/catalog.json",
+            "crates/portcove-core/src/catalog.rs",
+            "crates/portcove-core/src/catalog_store.rs",
+            "crates/portcove-core/src/catalog_update.rs",
+            "crates/portcove-core/src/signed_catalog.rs",
+            "crates/portcove-core/src/signed_catalog_tests.rs",
+            "crates/portcove-core/src/source_catalog.rs",
+            "crates/portcove-core/src/source_catalog_tests.rs"
+          ],
+          "filter": "test(/^catalog::tests::/) | test(/^catalog_update::tests::/) | test(/^source_catalog::tests::/) | test(/^definition_projection::tests::/) | test(/^definition_policy_tests::/)"
+        },
+        {
+          "id": "definition-delivery",
+          "reason": "post-client definition parsing, capability negotiation, projection, repository, and retained-contract tests form one delivery boundary",
+          "paths": [
+            "crates/portcove-core/src/definition_candidate.rs",
+            "crates/portcove-core/src/definition_capabilities.rs",
+            "crates/portcove-core/src/definition_eligibility.rs",
+            "crates/portcove-core/src/definition_entry.rs",
+            "crates/portcove-core/src/definition_entry_tests.rs",
+            "crates/portcove-core/src/definition_index.rs",
+            "crates/portcove-core/src/definition_index_tests.rs",
+            "crates/portcove-core/src/definition_loader.rs",
+            "crates/portcove-core/src/definition_policy_tests.rs",
+            "crates/portcove-core/src/definition_projection.rs",
+            "crates/portcove-core/src/definition_projection_tests.rs",
+            "crates/portcove-core/src/definition_repository.rs",
+            "crates/portcove-core/src/definition_repository_tests.rs",
+            "crates/portcove-core/src/definition_selection.rs",
+            "crates/portcove-core/src/installed_contract.rs"
+          ],
+          "filter": "test(/^definition_capabilities::tests::/) | test(/^definition_entry::tests::/) | test(/^definition_index::tests::/) | test(/^definition_loader::tests::/) | test(/^definition_policy_tests::/) | test(/^definition_projection::tests::/) | test(/^definition_repository::tests::/) | test(/^installed_contract::tests::/)"
+        },
+        {
+          "id": "source-inspection",
+          "reason": "source discovery, inspection, reporting, inbox consumption, STFS parsing, and adapter materialization share observed-input semantics",
+          "paths": [
+            "crates/portcove-core/src/source_assessment.rs",
+            "crates/portcove-core/src/source_assessment_tests.rs",
+            "crates/portcove-core/src/source_discovery.rs",
+            "crates/portcove-core/src/source_discovery_tests.rs",
+            "crates/portcove-core/src/source_file.rs",
+            "crates/portcove-core/src/source_inspection.rs",
+            "crates/portcove-core/src/source_report.rs",
+            "crates/portcove-core/src/stfs.rs"
+          ],
+          "filter": "test(/^source_assessment::tests::/) | test(/^source_discovery::tests::/) | test(/^source_inspection::tests::/) | test(/^source_report::tests::/) | test(/^source_inbox::tests::/) | test(/^stfs::tests::/) | test(/^adapter::tests::/) | test(/^adapter::source_conversion_tests::/)"
+        },
+        {
+          "id": "release-discovery",
+          "reason": "GitHub, GitLab, direct-manifest, and observation tests share release discovery and selection semantics",
+          "paths": [
+            "crates/portcove-core/src/gitlab.rs",
+            "crates/portcove-core/src/providers.rs",
+            "crates/portcove-core/src/release.rs",
+            "crates/portcove-core/src/release/observation.rs",
+            "crates/portcove-core/src/release/observation_tests.rs"
+          ],
+          "filter": "test(/^gitlab::tests::/) | test(/^providers::tests::/) | test(/^release::tests::/) | test(/^release::observation::tests::/)"
+        }
+      ]
+    }
+  }
+}
