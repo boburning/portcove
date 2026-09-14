@@ -45,6 +45,22 @@ const destinationPreview = (
   ...overrides,
 });
 
+const currentDestinationPreview = (
+  portId: string,
+  path: string | null = null,
+  overrides: Partial<OutputDestinationPreview> = {},
+): OutputDestinationPreview => {
+  const current = defaultLocation(portId, path ?? undefined);
+  return {
+    ...destinationPreview(portId, current.effective_output_directory),
+    current,
+    proposed: current,
+    reset_to_default: path === null,
+    ownership: path === null ? "library_default" : "owned_by_port",
+    ...overrides,
+  };
+};
+
 function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (error: Error) => void;
@@ -98,6 +114,9 @@ beforeEach(() => {
   document.body.append(container);
   root = createRoot(container);
   vi.spyOn(desktopApi, "outputRelocationStatus").mockResolvedValue(null);
+  vi.spyOn(desktopApi, "previewOutputLocation").mockImplementation(async (portId, path) =>
+    currentDestinationPreview(portId, path),
+  );
 });
 
 afterEach(async () => {
@@ -108,6 +127,91 @@ afterEach(async () => {
 });
 
 describe("per-game Export / install folder", () => {
+  it("shows current destination availability and capacity without requiring a review", async () => {
+    vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(defaultLocation("sample"));
+
+    await render(<OutputLocationControl portId="sample" generation={7} />);
+
+    const current = container.querySelector('[aria-label="Current output destination"]');
+    expect(current?.textContent).toContain("Current destination");
+    expect(current?.textContent).toContain("Available");
+    expect(current?.textContent).toContain("8.0 GiB available of 16.0 GiB");
+    expect(desktopApi.previewOutputLocation).toHaveBeenCalledWith("sample", null, 7);
+  });
+
+  it("keeps an unavailable current folder selected and gives a reviewed recovery action", async () => {
+    const custom = "F:/Disconnected/Sample";
+    vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(defaultLocation("sample", custom));
+    vi.mocked(desktopApi.previewOutputLocation).mockResolvedValue(
+      currentDestinationPreview("sample", custom, {
+        availability: "unavailable",
+        available_bytes: null,
+        total_bytes: null,
+        validation_errors: ["selected drive is unavailable"],
+      }),
+    );
+    const reset = vi.spyOn(desktopApi, "resetOutputLocation");
+
+    await render(<OutputLocationControl portId="sample" generation={7} />);
+
+    const current = container.querySelector('[aria-label="Current output destination"]');
+    expect(current?.textContent).toContain("Unavailable");
+    expect(current?.textContent).toContain("Capacity unavailable");
+    expect(current?.textContent).toContain("selected drive is unavailable");
+    expect(current?.textContent).toContain("This destination stays selected");
+    expect(current?.textContent).toContain("Choose an available folder below");
+    expect(container.textContent).toContain(custom);
+    expect(container.textContent).toContain("Custom for this game");
+    expect(desktopApi.previewOutputLocation).toHaveBeenCalledWith("sample", custom, 7);
+    expect(reset).not.toHaveBeenCalled();
+  });
+
+  it("leaves folder controls usable when current availability cannot be checked", async () => {
+    vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(defaultLocation("sample"));
+    vi.mocked(desktopApi.previewOutputLocation).mockRejectedValue(
+      new Error("volume inspection failed"),
+    );
+
+    await render(<OutputLocationControl portId="sample" generation={7} />);
+
+    expect(container.textContent).toContain(
+      "Current availability could not be checked: volume inspection failed",
+    );
+    expect(button("Review future folder").disabled).toBe(false);
+    expect((container.querySelector("input") as HTMLInputElement).disabled).toBe(false);
+  });
+
+  it("discards a current destination inspection after the game and library change", async () => {
+    const first = deferred<OutputDestinationPreview>();
+    const second = deferred<OutputDestinationPreview>();
+    vi.spyOn(desktopApi, "outputLocation").mockImplementation(async (portId) =>
+      defaultLocation(portId, `F:/${portId}`),
+    );
+    vi.mocked(desktopApi.previewOutputLocation).mockImplementation((portId) =>
+      portId === "first" ? first.promise : second.promise,
+    );
+
+    await render(<OutputLocationControl portId="first" generation={7} />);
+    await render(<OutputLocationControl portId="second" generation={8} />);
+    await act(async () => {
+      second.resolve(currentDestinationPreview("second", "F:/second"));
+      await second.promise;
+    });
+    await act(async () => {
+      first.resolve(
+        currentDestinationPreview("first", "F:/first", {
+          availability: "unavailable",
+          validation_errors: ["old destination is unavailable"],
+        }),
+      );
+      await first.promise;
+    });
+
+    expect(container.textContent).toContain("F:/second");
+    expect(container.textContent).toContain("Available");
+    expect(container.textContent).not.toContain("old destination is unavailable");
+  });
+
   it.each([
     [
       0,
@@ -221,7 +325,8 @@ describe("per-game Export / install folder", () => {
 
   it("renders inherited, unavailable, full, and validation-error states without offering an unsafe apply", async () => {
     vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(defaultLocation("sample"));
-    vi.spyOn(desktopApi, "previewOutputLocation")
+    vi.mocked(desktopApi.previewOutputLocation)
+      .mockResolvedValueOnce(currentDestinationPreview("sample"))
       .mockResolvedValueOnce(
         destinationPreview("sample", "F:/Games/Sample", {
           availability: "unavailable",
@@ -266,13 +371,23 @@ describe("per-game Export / install folder", () => {
     const custom = defaultLocation("sample", "F:/Games/Sample");
     const reset = defaultLocation("sample");
     vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(custom);
-    vi.spyOn(desktopApi, "previewOutputLocation").mockResolvedValue({
+    const resetPreview = {
       ...destinationPreview("sample", reset.effective_output_directory),
       current: custom,
       proposed: reset,
       reset_to_default: true,
       ownership: "library_default",
-    });
+    } satisfies OutputDestinationPreview;
+    vi.mocked(desktopApi.previewOutputLocation)
+      .mockResolvedValueOnce(currentDestinationPreview("sample", custom.effective_output_directory))
+      .mockResolvedValueOnce(resetPreview)
+      .mockResolvedValueOnce(resetPreview)
+      .mockResolvedValueOnce(
+        currentDestinationPreview("sample", null, {
+          available_bytes: 4 * 1024 ** 3,
+          total_bytes: 16 * 1024 ** 3,
+        }),
+      );
     const applyReset = vi.spyOn(desktopApi, "resetOutputLocation").mockResolvedValue(reset);
     const onChanged = vi.fn();
     const onApplying = vi.fn();
@@ -299,6 +414,8 @@ describe("per-game Export / install folder", () => {
     expect(onChanged).toHaveBeenCalledTimes(1);
     expect(onApplying.mock.calls).toEqual([[true], [false]]);
     expect(container.textContent).toContain("Inherited from the Portcove library");
+    expect(container.textContent).toContain("4.0 GiB available of 16.0 GiB");
+    expect(desktopApi.previewOutputLocation).toHaveBeenNthCalledWith(4, "sample", null, 8);
   });
 
   it("keeps mixed roots independent and disables controls during another operation", async () => {
@@ -340,7 +457,8 @@ describe("per-game Export / install folder", () => {
     vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(defaultLocation("sample"));
     const old = deferred<OutputDestinationPreview>();
     const current = deferred<OutputDestinationPreview>();
-    vi.spyOn(desktopApi, "previewOutputLocation")
+    vi.mocked(desktopApi.previewOutputLocation)
+      .mockResolvedValueOnce(currentDestinationPreview("sample"))
       .mockReturnValueOnce(old.promise)
       .mockReturnValueOnce(current.promise);
     const apply = vi
@@ -379,9 +497,10 @@ describe("per-game Export / install folder", () => {
     );
     const old = deferred<OutputDestinationPreview>();
     const current = deferred<OutputDestinationPreview>();
-    vi.spyOn(desktopApi, "previewOutputLocation")
-      .mockReturnValueOnce(old.promise)
-      .mockReturnValueOnce(current.promise);
+    vi.mocked(desktopApi.previewOutputLocation).mockImplementation((_portId, path) => {
+      if (path === null) return Promise.resolve(currentDestinationPreview(_portId));
+      return path === "F:/First" ? old.promise : current.promise;
+    });
 
     await render(<OutputLocationControl key="first:11" portId="first" generation={11} />);
     await changePath("F:/First");
@@ -401,8 +520,8 @@ describe("per-game Export / install folder", () => {
     expect(container.textContent).toContain("F:/Second");
     expect(container.textContent).not.toContain("F:/First");
     expect(container.textContent).not.toContain("old library failed");
-    expect(desktopApi.previewOutputLocation).toHaveBeenNthCalledWith(1, "first", "F:/First", 11);
-    expect(desktopApi.previewOutputLocation).toHaveBeenNthCalledWith(2, "second", "F:/Second", 12);
+    expect(desktopApi.previewOutputLocation).toHaveBeenNthCalledWith(2, "first", "F:/First", 11);
+    expect(desktopApi.previewOutputLocation).toHaveBeenNthCalledWith(4, "second", "F:/Second", 12);
   });
 
   it("releases the detail busy state when the selected game changes during apply", async () => {

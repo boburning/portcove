@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { AlertTriangle, FolderOpen, HardDrive, RotateCcw, ShieldCheck } from "lucide-react";
 import { desktopApi } from "../api";
 import { pickGameOutputFolder } from "../file-picker";
@@ -27,6 +27,9 @@ export function OutputLocationControl({
 }) {
   const [location, setLocation] = useState<PortOutputLocation>();
   const [draft, setDraft] = useState("");
+  const [currentPreview, setCurrentPreview] = useState<OutputDestinationPreview>();
+  const [currentPreviewError, setCurrentPreviewError] = useState<string>();
+  const [currentPreviewPending, setCurrentPreviewPending] = useState(true);
   const [preview, setPreview] = useState<OutputDestinationPreview>();
   const [relocation, setRelocation] = useState<OutputRelocationPlan>();
   const [relocationStatus, setRelocationStatus] = useState<OutputRelocationStatus>();
@@ -34,13 +37,39 @@ export function OutputLocationControl({
   const [error, setError] = useState<string>();
   const [pending, setPending] = useState<"load" | "pick" | "review" | "apply" | undefined>("load");
   const request = useRef(0);
+  const currentInspection = useRef(0);
   const applying = useRef(false);
   const reviewButton = useRef<HTMLButtonElement>(null);
   const resetButton = useRef<HTMLButtonElement>(null);
   const applyButton = useRef<HTMLButtonElement>(null);
 
+  const inspectCurrentDestination = useCallback(
+    async (nextLocation: PortOutputLocation) => {
+      const currentRequest = ++currentInspection.current;
+      setCurrentPreview(undefined);
+      setCurrentPreviewError(undefined);
+      setCurrentPreviewPending(true);
+      try {
+        const result = await desktopApi.previewOutputLocation(
+          portId,
+          nextLocation.configured_output_directory,
+          generation,
+        );
+        if (currentInspection.current !== currentRequest) return;
+        setCurrentPreview(result);
+        setCurrentPreviewPending(false);
+      } catch (value) {
+        if (currentInspection.current !== currentRequest) return;
+        setCurrentPreviewError(errorText(value));
+        setCurrentPreviewPending(false);
+      }
+    },
+    [generation, portId],
+  );
+
   useEffect(() => {
     const currentRequest = ++request.current;
+    currentInspection.current += 1;
     void Promise.all([
       desktopApi.outputLocation(portId, generation),
       desktopApi.outputRelocationStatus(portId, generation),
@@ -51,6 +80,7 @@ export function OutputLocationControl({
         setRelocationStatus(status ?? undefined);
         setDraft(result.configured_output_directory ?? result.effective_output_directory);
         setPending(undefined);
+        void inspectCurrentDestination(result);
       })
       .catch((value) => {
         if (request.current !== currentRequest) return;
@@ -59,12 +89,13 @@ export function OutputLocationControl({
       });
     return () => {
       request.current += 1;
+      currentInspection.current += 1;
       if (applying.current) {
         applying.current = false;
         onApplying?.(false);
       }
     };
-  }, [generation, onApplying, portId]);
+  }, [generation, inspectCurrentDestination, onApplying, portId]);
 
   useEffect(() => {
     if (preview || relocation) applyButton.current?.focus();
@@ -164,6 +195,7 @@ export function OutputLocationControl({
       setRelocation(undefined);
       setPreview(undefined);
       setPending(undefined);
+      void inspectCurrentDestination(result.output_location);
       applying.current = false;
       onApplying?.(false);
       onChanged?.();
@@ -201,6 +233,7 @@ export function OutputLocationControl({
       setDraft(result.configured_output_directory ?? result.effective_output_directory);
       setPreview(undefined);
       setPending(undefined);
+      void inspectCurrentDestination(result);
       applying.current = false;
       onApplying?.(false);
       onChanged?.();
@@ -251,6 +284,13 @@ export function OutputLocationControl({
       <code title={location?.effective_output_directory}>
         {location?.effective_output_directory ?? "Loading current folder…"}
       </code>
+      {location && (
+        <CurrentOutputDestination
+          preview={currentPreview}
+          pending={currentPreviewPending}
+          error={currentPreviewError}
+        />
+      )}
       <p>
         Changing this folder affects future installs for this game only. Existing versions stay
         where Portcove recorded them; relocation is a separate reviewed action.
@@ -329,6 +369,74 @@ export function OutputLocationControl({
       )}
       <OutputLocationStatus result={relocationResult} status={relocationStatus} error={error} />
     </section>
+  );
+}
+
+function CurrentOutputDestination({
+  preview,
+  pending,
+  error,
+}: {
+  preview?: OutputDestinationPreview;
+  pending: boolean;
+  error?: string;
+}) {
+  const safe =
+    preview?.availability === "available" &&
+    preview.validation_errors.length === 0 &&
+    ["library_default", "unclaimed", "owned_by_port"].includes(preview.ownership);
+  const blocked = Boolean(preview) && !safe;
+  const stateClass = safe ? "safe" : blocked ? "blocked" : "";
+  return (
+    <div
+      className={`output-location-review current-output-destination ${stateClass}`}
+      role="group"
+      aria-label="Current output destination"
+    >
+      <div className="output-review-title" aria-live="polite">
+        <strong>Current destination</strong>
+        <span>
+          {pending
+            ? "Checking availability…"
+            : preview
+              ? outputAvailabilityLabel(preview.availability)
+              : "Availability not checked"}
+        </span>
+      </div>
+      {preview && (
+        <dl>
+          <div>
+            <dt>Capacity</dt>
+            <dd>{outputCapacityLabel(preview)}</dd>
+          </div>
+          <div>
+            <dt>Ownership</dt>
+            <dd>{outputOwnershipLabel(preview.ownership)}</dd>
+          </div>
+        </dl>
+      )}
+      {preview && preview.validation_errors.length > 0 && (
+        <ul className="output-validation-errors" aria-label="Current destination problems">
+          {preview.validation_errors.map((message) => (
+            <li key={message}>{message}</li>
+          ))}
+        </ul>
+      )}
+      {blocked && (
+        <p>
+          <Icon glyph={AlertTriangle} size="sm" />
+          This destination stays selected. Choose an available folder below and review the change
+          before applying it.
+        </p>
+      )}
+      {error && (
+        <p className="output-location-error" role="status">
+          <Icon glyph={AlertTriangle} size="sm" />
+          Current availability could not be checked: {error}. You can still review this folder or
+          choose another one below.
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -411,20 +519,8 @@ function OutputLocationReview({
     preview.availability === "available" &&
     preview.validation_errors.length === 0 &&
     ["library_default", "unclaimed", "owned_by_port"].includes(preview.ownership);
-  const availabilityLabels = {
-    full: "Full · no free space",
-    available: "Available",
-    unavailable: "Unavailable",
-  };
-  const availability = Object.hasOwn(availabilityLabels, preview.availability)
-    ? availabilityLabels[preview.availability]
-    : "Availability result unavailable";
-  const capacity =
-    preview.available_bytes == null
-      ? "Capacity unavailable"
-      : preview.total_bytes == null
-        ? `${formatBytes(preview.available_bytes)} available`
-        : `${formatBytes(preview.available_bytes)} available of ${formatBytes(preview.total_bytes)}`;
+  const availability = outputAvailabilityLabel(preview.availability);
+  const capacity = outputCapacityLabel(preview);
   const ownership = outputOwnershipLabel(preview.ownership);
   const action = preview.reset_to_default
     ? "Use library default for future installs"
@@ -519,6 +615,22 @@ function OutputLocationReview({
       </div>
     </div>
   );
+}
+
+function outputAvailabilityLabel(value: OutputDestinationPreview["availability"]) {
+  const labels: Record<OutputDestinationPreview["availability"], string> = {
+    full: "Full · no free space",
+    available: "Available",
+    unavailable: "Unavailable",
+  };
+  return Object.hasOwn(labels, value) ? labels[value] : "Availability result unavailable";
+}
+
+function outputCapacityLabel(preview: OutputDestinationPreview) {
+  if (preview.available_bytes == null) return "Capacity unavailable";
+  return preview.total_bytes == null
+    ? `${formatBytes(preview.available_bytes)} available`
+    : `${formatBytes(preview.available_bytes)} available of ${formatBytes(preview.total_bytes)}`;
 }
 
 function OutputRelocationReview({
