@@ -90,6 +90,9 @@ internal static class ContractTests
         ProtocolStream.Negotiate(bad);
         Check(true, "definition operation eligibility API schema negotiated");
         bad["schema_version"] = 48;
+        ProtocolStream.Negotiate(bad);
+        Check(true, "retained preparation cleanup API schema negotiated");
+        bad["schema_version"] = 49;
         Reject(() => ProtocolStream.Negotiate(bad), "future schema rejected with migration guidance");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
@@ -112,6 +115,7 @@ internal static class ContractTests
         var failure = new ProtocolStream("ensure"); failure.Line(Result("ensure", null, false));
         Reject(() => failure.Finish(14), "structured busy-port failure remains a failure");
         DefinitionOperationRecords();
+        PreparationCleanupRecords();
         LaunchRecords();
         var root = Path.Combine(Path.GetDirectoryName(Binary), "fixture-library");
         var client = new PublicCli(Binary, root);
@@ -202,6 +206,91 @@ internal static class ContractTests
             }
         }));
         Reject(() => DefinitionOperations.Read(duplicate), "duplicate definition operation decision rejected");
+    }
+    private static object Repair(string kind, string operation, string port, string path) => new
+    {
+        kind, operation_id = operation, port_id = port, path,
+        message = "Owned retained preparation", proposed_action = "Review before cleanup"
+    };
+    private static object CleanupPreview() => new
+    {
+        format_version = 1,
+        operation_id = "retained-operation",
+        port_id = "shape-a",
+        retained_path = @"C:\Portcove\staging\retained-operation",
+        retained = new
+        {
+            directories = new[] { "empty" },
+            files = new[] { new { relative_path = "payload/private.bin", size = 4, sha256 = new string('a', 64) } },
+            skipped_entries = new[] { new { relative_path = "linked-save", reason = "symbolic link" } },
+            total_bytes = 4
+        },
+        original_install_path = @"C:\Portcove\versions\shape-a\original",
+        source_path = @"C:\Sources\shape-a.iso",
+        persistent_data_path = @"C:\Portcove\user\shape-a",
+        backup_path = @"C:\Portcove\backups\shape-a",
+        logs_path = @"C:\Portcove\logs",
+        cleanup_is_irreversible = true,
+        interrupted_cleanup_will_retry = true,
+        preview_sha256 = new string('b', 64)
+    };
+    private static void PreparationCleanupRecords()
+    {
+        var doctor = Json.Parse(Json.Print(new
+        {
+            repair = new
+            {
+                generated_at = 1,
+                items = new object[]
+                {
+                    Repair("retained_preparation", "retained-operation", "shape-a", @"C:\Portcove\staging\retained-operation"),
+                    Repair("partial_operation", "other-operation", "shape-a", @"C:\Portcove\staging\other-operation"),
+                    Repair("retained_preparation", "other-port-operation", "shape-b", @"C:\Portcove\staging\other-port-operation")
+                }
+            }
+        }));
+        var repairs = RetainedPreparationRepair.Read(doctor, "shape-a");
+        Check(repairs.Length == 1 && repairs[0].OperationId == "retained-operation" &&
+            repairs[0].Path == @"C:\Portcove\staging\retained-operation",
+            "schema 48 repair plan selects the retained preparation for the stable port identity");
+
+        var preview = PreparationCleanupReview.Read(
+            Json.Parse(Json.Print(CleanupPreview())), "retained-operation", "shape-a");
+        var confirmation = preview.Confirmation(1, 2);
+        Check(preview.TotalBytes == 4 && preview.AffectedEntries.Length == 3 &&
+            confirmation.Contains("payload/private.bin") && confirmation.Contains(new string('a', 64)) &&
+            confirmation.Contains(@"C:\Sources\shape-a.iso") && confirmation.Contains("1 of 2"),
+            "cleanup review consumes exact affected and preserved state");
+
+        var unknownRepair = Json.Object(Json.Parse(Json.Print(doctor)));
+        var unknownItems = Json.Array(Json.Field(Json.Field(unknownRepair, "repair"), "items"));
+        Json.Object(unknownItems[0])["kind"] = "future_repair";
+        Reject(() => RetainedPreparationRepair.Read(unknownRepair, "shape-a"),
+            "unknown repair kind cannot hide a cleanup decision");
+
+        var duplicateRepair = Json.Object(Json.Parse(Json.Print(doctor)));
+        var duplicateItems = Json.Array(Json.Field(Json.Field(duplicateRepair, "repair"), "items"));
+        duplicateItems[2] = Json.Parse(Json.Print(
+            Repair("retained_preparation", "retained-operation", "shape-a", @"C:\Portcove\staging\retained-operation")));
+        Reject(() => RetainedPreparationRepair.Read(duplicateRepair, "shape-a"),
+            "duplicate retained preparation operation rejected");
+
+        var wrongPort = Json.Object(Json.Parse(Json.Print(CleanupPreview())));
+        wrongPort["port_id"] = "shape-b";
+        Reject(() => PreparationCleanupReview.Read(wrongPort, "retained-operation", "shape-a"),
+            "cross-port cleanup preview rejected");
+        var futurePreview = Json.Object(Json.Parse(Json.Print(CleanupPreview())));
+        futurePreview["format_version"] = 2;
+        Reject(() => PreparationCleanupReview.Read(futurePreview, "retained-operation", "shape-a"),
+            "future cleanup preview format rejected");
+        var inconsistentBytes = Json.Object(Json.Parse(Json.Print(CleanupPreview())));
+        Json.Object(Json.Field(inconsistentBytes, "retained"))["total_bytes"] = 5;
+        Reject(() => PreparationCleanupReview.Read(inconsistentBytes, "retained-operation", "shape-a"),
+            "inconsistent cleanup inventory bytes rejected");
+        var invalidRetry = Json.Object(Json.Parse(Json.Print(CleanupPreview())));
+        invalidRetry["interrupted_cleanup_will_retry"] = "unknown";
+        Reject(() => PreparationCleanupReview.Read(invalidRetry, "retained-operation", "shape-a"),
+            "unknown cleanup retry behavior rejected");
     }
     private static void LaunchRecords()
     {

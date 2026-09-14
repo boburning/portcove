@@ -20,12 +20,14 @@ namespace Portcove.ReferenceClient
         private readonly TextBox technical = new TextBox { IsReadOnly = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 220 };
         private readonly List<Button> actions = new List<Button>();
         private readonly Button cancel = new Button { Content = "Request cancellation", IsEnabled = false, Margin = new Thickness(4), Padding = new Thickness(10, 6, 10, 6) };
+        private Button cleanupAction;
         private PublicCli cli;
         private string port;
         private string operationId;
         private bool busy;
         private bool cancellationRequested;
         private bool detached;
+        private bool retainedCleanupAvailable;
         private DateTime lastProgress;
         internal object CurrentStatus { get; private set; }
 
@@ -60,6 +62,8 @@ namespace Portcove.ReferenceClient
             AddAction(buttons, "Install / use existing", () => Manage("ensure"));
             AddAction(buttons, "Check and update", () => Manage("update"));
             AddAction(buttons, "Review preparation", Prepare);
+            cleanupAction = AddAction(buttons, "Review retained cleanup", CleanupPreparation);
+            cleanupAction.IsEnabled = false;
             cancel.Click += async (sender, args) =>
             {
                 cancel.IsEnabled = false;
@@ -101,12 +105,13 @@ namespace Portcove.ReferenceClient
             panel.Children.Add(field);
         }
 
-        private void AddAction(Panel panel, string label, Func<Task> action)
+        private Button AddAction(Panel panel, string label, Func<Task> action)
         {
             var button = new Button { Content = label, Margin = new Thickness(4), Padding = new Thickness(10, 6, 10, 6) };
             button.Click += async (sender, args) => await Execute(action);
             actions.Add(button);
             panel.Children.Add(button);
+            return button;
         }
 
         private async Task Execute(Func<Task> action)
@@ -122,6 +127,7 @@ namespace Portcove.ReferenceClient
                 busy = false; cancel.IsEnabled = false;
                 source.IsEnabled = bios.IsEnabled = true;
                 actions.ForEach(button => button.IsEnabled = cli != null && port != null);
+                if (cleanupAction != null) cleanupAction.IsEnabled = cleanupAction.IsEnabled && retainedCleanupAvailable;
             }
         }
 
@@ -130,11 +136,14 @@ namespace Portcove.ReferenceClient
             if (detached) return;
             await cli.AssertIdentity();
             CurrentStatus = null;
+            retainedCleanupAvailable = false;
             var status = await cli.Read("status", "status", port);
             var activity = Json.Array(await cli.Read("activity", "activity", "--limit", "200"));
             var catalog = await cli.Read("catalog.show", "catalog", "show", port);
+            var repairs = RetainedPreparationRepair.Read(await cli.Read("doctor", "doctor"), port);
             await cli.AssertIdentity();
             if (detached) return;
+            retainedCleanupAvailable = repairs.Length != 0;
             var active = Json.Field(status, "active");
             var readiness = Json.Field(status, "readiness");
             var blockers = readiness == null ? "Readiness unknown" : string.Join(", ", Json.Array(Json.Field(readiness, "blockers")).Select(value => Convert.ToString(value).Replace('_', ' ')));
@@ -144,6 +153,7 @@ namespace Portcove.ReferenceClient
                 "\nSource profile: " + (Json.Field(catalog, "source_profile") ?? "none") +
                 "\nBIOS profile: " + (Json.Field(catalog, "bios_source_profile") ?? "none") +
                 "\nCatalog support: " + Json.Text(catalog, "support_tier") + ". Gameplay evidence is separate from launch readiness." +
+                "\nRetained private preparations: " + repairs.Length + "." +
                 (definitionOperations == null ? "" : "\n" + definitionOperations);
             var entries = activity.Where(item => (Json.Field(item, "target_id") as string) == port).Take(8).ToArray();
             progress.Text = entries.Length == 0 ? "No retained activity for this game in the latest 200 library entries." :
@@ -225,6 +235,31 @@ namespace Portcove.ReferenceClient
             if (MessageBox.Show(window, message, "Review preparation", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
             CurrentStatus = null;
             await cli.Manage("preparation.run", new[] { "preparation", "run", port, "--expected-plan", Json.Text(plan, "plan_sha256"), "--yes" }, OnProgress);
+            await Refresh();
+        }
+
+        private async Task CleanupPreparation()
+        {
+            var doctor = await cli.Read("doctor", "doctor");
+            var repairs = RetainedPreparationRepair.Read(doctor, port);
+            retainedCleanupAvailable = repairs.Length != 0;
+            if (repairs.Length == 0)
+                throw new InvalidOperationException("Portcove reports no retained private preparation for this game. Refresh activity before deciding what to do.");
+            var repair = repairs[0];
+            var rawPreview = await cli.Read(
+                "preparation.cleanup-plan", "preparation", "cleanup-plan", repair.OperationId);
+            var preview = PreparationCleanupReview.Read(rawPreview, repair.OperationId, port);
+            if (preview.RetainedPath != repair.Path)
+                throw new InvalidOperationException("The cleanup preview path changed from the current repair plan. Refresh before changing retained data.");
+            technical.Text = Json.Print(rawPreview);
+            if (MessageBox.Show(window, preview.Confirmation(1, repairs.Length), "Review retained preparation cleanup",
+                MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK) return;
+            CurrentStatus = null;
+            await cli.Manage("preparation.cleanup", new[]
+            {
+                "preparation", "cleanup", repair.OperationId,
+                "--expected-preview", preview.PreviewSha256, "--yes"
+            }, OnProgress);
             await Refresh();
         }
 
