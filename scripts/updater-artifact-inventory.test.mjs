@@ -220,7 +220,7 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.doesNotMatch(linuxHarness, /WEBKIT_DISABLE_COMPOSITING_MODE/);
   assert.match(linuxHarness, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE/);
   assert.match(linuxHarness, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT/);
-  assert.match(linuxHarness, /schema_version = 8/);
+  assert.match(linuxHarness, /schema_version = 9/);
   assert.match(linuxHarness, /interruption_exit_code/);
   assert.match(linuxHarness, /interruption_recovery_exit_code/);
   assert.match(linuxHarness, /interruption_recovery_display/);
@@ -241,6 +241,22 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(linuxHarness, /full_disk_state_predecessor_restart_observed/);
   assert.match(linuxHarness, /full_disk_state_preserved/);
   assert.match(linuxHarness, /full_disk_state_write_restored/);
+  assert.match(linuxHarness, /full_appimage_filesystem_enforced/);
+  assert.match(linuxHarness, /full_appimage_filesystem_available_bytes/);
+  assert.match(linuxHarness, /full_appimage_filesystem_exit_code/);
+  assert.match(linuxHarness, /full_appimage_filesystem_predecessor_restart_observed/);
+  assert.match(linuxHarness, /full_appimage_filesystem_stable_preserved/);
+  assert.match(linuxHarness, /full_appimage_filesystem_staging_preserved/);
+  assert.match(linuxHarness, /full_appimage_filesystem_failed_revision/);
+  assert.match(linuxHarness, /full_appimage_filesystem_retry_revision/);
+  assert.match(linuxHarness, /full_appimage_filesystem_retryable_journal/);
+  assert.match(linuxHarness, /full_appimage_filesystem_write_restored/);
+  assert.match(linuxHarness, /fullAppImageStableModeAfter -ne \$fullAppImageStableMode/);
+  assert.match(linuxHarness, /\$applyPath -Algorithm SHA256\)\.Hash -ne \$readOnlyApplyHash/);
+  assert.match(linuxHarness, /native_replacement\.source_path -ne \$fullAppImageStable/);
+  assert.match(linuxHarness, /native_replacement\.backup_path -ne \$fullAppImageSwap/);
+  assert.match(linuxHarness, /fullAppImageRetryApply\.native_launch/);
+  assert.match(linuxHarness, /appImageRetryEntryChanges\.Count -ne 0/);
   assert.match(linuxHarness, /runtime_contention_helper_blocked/);
   assert.match(linuxHarness, /runtime_contention_stable_preserved/);
   assert.match(linuxHarness, /runtime_contention_journal_preserved/);
@@ -259,8 +275,12 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(linuxHarness, /restoredMode -ne \$entry\.Mode/);
   assert.match(linuxHarness, /\/usr\/bin\/mount -t tmpfs/);
   assert.match(linuxHarness, /\/usr\/bin\/dd if=\/dev\/zero/);
-  assert.match(linuxHarness, /full_disk_state_available_bytes -ne 0/);
-  assert.match(linuxHarness, /\/usr\/bin\/umount -- \$fullDiskMount/);
+  assert.match(linuxHarness, /availableBytes -ne 0/);
+  assert.match(linuxHarness, /\/usr\/bin\/umount -- \$Path/);
+  assert.match(linuxHarness, /Mount-BoundedTmpfs/);
+  assert.match(linuxHarness, /Set-BoundedFilesystemFull/);
+  assert.match(linuxHarness, /Restore-BoundedFilesystemWrites/);
+  assert.match(linuxHarness, /Dismount-BoundedTmpfs/);
   assert.match(linuxHarness, /\.ArgumentList\.Add\(\$argument\)/);
   assert.ok(
     linuxHarness.indexOf("incompatible-schema-preserved") <
@@ -276,8 +296,16 @@ test("manual rehearsal retains the complete matrix without production credential
       linuxHarness.indexOf("full-disk-state-preserved") <
         linuxHarness.indexOf("full-disk-state-recovered") &&
       linuxHarness.indexOf("full-disk-state-recovered") <
+        linuxHarness.indexOf("full-appimage-filesystem-starting") &&
+      linuxHarness.indexOf("full-appimage-filesystem-starting") <
+        linuxHarness.indexOf("full-appimage-filesystem-preserved") &&
+      linuxHarness.indexOf("full-appimage-filesystem-preserved") <
+        linuxHarness.indexOf("full-appimage-filesystem-retryable") &&
+      linuxHarness.indexOf("full-appimage-filesystem-retryable") <
+        linuxHarness.indexOf("full-appimage-filesystem-recovered") &&
+      linuxHarness.indexOf("full-appimage-filesystem-recovered") <
         linuxHarness.indexOf("runtime-contention-starting"),
-    "read-only and full-disk update state must fail closed before runtime contention and replacement",
+    "read-only, full-state, and full-AppImage filesystems must fail closed before runtime contention and replacement",
   );
   assert.ok(
     linuxHarness.indexOf("incompatible-schema-starting") <
