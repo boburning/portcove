@@ -220,7 +220,23 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.doesNotMatch(linuxHarness, /WEBKIT_DISABLE_COMPOSITING_MODE/);
   assert.match(linuxHarness, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE/);
   assert.match(linuxHarness, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT/);
-  assert.match(linuxHarness, /schema_version = 9/);
+  assert.match(linuxHarness, /schema_version = 10/);
+  assert.match(linuxHarness, /truncated_payload_expected_bytes/);
+  assert.match(linuxHarness, /truncated_payload_bytes/);
+  assert.match(linuxHarness, /truncated_payload_exit_code/);
+  assert.match(linuxHarness, /truncated_payload_rejected/);
+  assert.match(linuxHarness, /truncated_payload_stable_preserved/);
+  assert.match(linuxHarness, /truncated_payload_staging_empty/);
+  assert.match(linuxHarness, /truncated_payload_data_preserved/);
+  assert.match(linuxHarness, /\/usr\/bin\/truncate --size=-1/);
+  assert.match(linuxHarness, /payload length mismatch/);
+  assert.ok(
+    linuxHarness.indexOf("truncated-payload-preparing") <
+      linuxHarness.indexOf("truncated-payload-rejected") &&
+      linuxHarness.indexOf("truncated-payload-rejected") <
+        linuxHarness.indexOf('Write-Evidence "prepared"'),
+    "truncated payload rejection must precede successful staging and replacement",
+  );
   assert.match(linuxHarness, /interruption_exit_code/);
   assert.match(linuxHarness, /interruption_recovery_exit_code/);
   assert.match(linuxHarness, /interruption_recovery_display/);
