@@ -1418,6 +1418,49 @@ describe("desktop components", () => {
     expect(html).not.toContain("9.9-stale");
   });
 
+  it("does not present a check for a replaced installation as the current eligible release", () => {
+    const checkedInstall = installRecord();
+    const activeInstall = installRecord({ version: "1.1" });
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={port}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+        status={{
+          ...portStatus(),
+          active: activeInstall,
+          last_update_check: {
+            checked_at: 2,
+            check: {
+              port_id: port.id,
+              channel: "stable",
+              installed_version: checkedInstall.version,
+              installed_runtime: null,
+              required_runtime: null,
+              installed_artifact: checkedInstall.artifact,
+              update_available: true,
+              release: {
+                published_at: null,
+                version: "9.9-stale",
+                channel: "stable",
+                asset: {
+                  name: "sample.zip",
+                  url: "https://example.com/sample.zip",
+                  size: 1,
+                  sha256: "a".repeat(64),
+                },
+              },
+            },
+          },
+        }}
+      />,
+    );
+    expect(html).toContain("Installed version</small>1.1");
+    expect(html).toContain("Unknown — check for updates");
+    expect(html).not.toContain("9.9-stale");
+  });
+
   it("reveals eligible card targets only during native file drag and keeps a keyboard check in details", () => {
     const overview = { installed: 0, ready: 0, needsSetup: 1, staged: 0 };
     const idle = renderToStaticMarkup(

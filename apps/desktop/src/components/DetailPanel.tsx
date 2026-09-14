@@ -42,7 +42,12 @@ import type {
 import { OperationCancellation } from "./OperationCancellation";
 import { OutputLocationControl } from "./OutputLocation";
 import { PreparationControl, type RunPreparation } from "./Preparation";
-import { formatBytes, platformLabel, releaseChannelPresentation } from "../view-model";
+import {
+  currentUpdateSnapshot,
+  formatBytes,
+  platformLabel,
+  releaseChannelPresentation,
+} from "../view-model";
 import { BackupHistory } from "./BackupHistory";
 import { GameUpdateControl, UpdatePolicyControl } from "./GameUpdates";
 import type { Perform } from "../use-portcove";
@@ -619,9 +624,8 @@ function InstallationVersionSummary({
   status?: PortStatus;
   selectedChannel: ReleaseChannel;
 }) {
-  const checked = status?.last_update_check?.check;
-  const latestEligible =
-    checked?.channel === selectedChannel ? checked.release.version : "Unknown — check for updates";
+  const checked = currentUpdateSnapshot(status)?.check;
+  const latestEligible = checked?.release.version ?? "Unknown — check for updates";
   return (
     <div className="metadata" aria-label="Installation and release versions">
       <span>
