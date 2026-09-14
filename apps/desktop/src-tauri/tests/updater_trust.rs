@@ -163,6 +163,51 @@ async fn sign_delegated_metadata_with(
     .clone()
 }
 
+async fn publish_valid_preview_role_version(
+    mut editor: tough::editor::RepositoryEditor,
+    fixture: &Fixture,
+    preview: &Key,
+    version: u64,
+) {
+    editor
+        .targets_version(nz(1))
+        .unwrap()
+        .targets_expires(expiration())
+        .unwrap();
+    editor
+        .sign_targets_editor(&[fixture.online.source()])
+        .await
+        .unwrap();
+    editor
+        .change_delegated_targets("preview")
+        .unwrap()
+        .targets_version(nz(version))
+        .unwrap()
+        .targets_expires(expiration())
+        .unwrap();
+    editor
+        .sign_targets_editor(&[preview.source()])
+        .await
+        .unwrap()
+        .change_delegated_targets("targets")
+        .unwrap()
+        .targets_version(nz(1))
+        .unwrap()
+        .targets_expires(expiration())
+        .unwrap()
+        .snapshot_version(nz(version))
+        .snapshot_expires(expiration())
+        .timestamp_version(nz(version))
+        .timestamp_expires(expiration());
+    editor
+        .sign(&[fixture.online.source()])
+        .await
+        .unwrap()
+        .write(&fixture.metadata)
+        .await
+        .unwrap();
+}
+
 fn assert_consumer_rejected_signature(error: ApplicationUpdateFreshSelectionError) {
     let ApplicationUpdateFreshSelectionError::Candidate(CandidateLoadError::Trust(error)) = error
     else {
@@ -774,7 +819,7 @@ async fn channel_role_authenticates_keys_and_transition_candidates() {
         b"ignored unrelated package record",
     )
     .unwrap();
-    let mut editor = RepositoryEditor::new(root_path).await.unwrap();
+    let mut editor = RepositoryEditor::new(root_path.clone()).await.unwrap();
     editor
         .targets_version(nz(1))
         .unwrap()
@@ -1022,6 +1067,10 @@ async fn channel_role_authenticates_keys_and_transition_candidates() {
         "1.0.0"
     );
 
+    let missing_signature_recovery_editor =
+        RepositoryEditor::from_repo(root_path.clone(), f.load(&trusted).await.unwrap())
+            .await
+            .unwrap();
     let valid_preview_metadata = fs::read(f.metadata.join("preview.json")).unwrap();
     let valid_preview_document: serde_json::Value =
         serde_json::from_slice(&valid_preview_metadata).unwrap();
@@ -1049,6 +1098,43 @@ async fn channel_role_authenticates_keys_and_transition_candidates() {
     .unwrap_err();
     assert_consumer_rejected_signature(error);
 
+    publish_valid_preview_role_version(missing_signature_recovery_editor, &f, &preview, 2).await;
+    let recovered_missing_signature = select_fixture_preview_with_host_consumer(
+        &f,
+        &trusted,
+        "missing-preview-signature-trust",
+        preview_final_context.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        recovered_missing_signature
+            .authenticated
+            .selection
+            .candidate
+            .unwrap()
+            .release
+            .version,
+        "1.0.0"
+    );
+    let recovered_missing_state: serde_json::Value = serde_json::from_slice(
+        &fs::read(
+            f.directory
+                .path()
+                .join("missing-preview-signature-trust/trust-state.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(recovered_missing_state["roles"]["snapshot"]["version"], 2);
+    assert_eq!(recovered_missing_state["roles"]["timestamp"]["version"], 2);
+
+    let wrong_signature_recovery_editor =
+        RepositoryEditor::from_repo(root_path, f.load(&trusted).await.unwrap())
+            .await
+            .unwrap();
+    let valid_preview_document: serde_json::Value =
+        serde_json::from_slice(&fs::read(f.metadata.join("preview.json")).unwrap()).unwrap();
     let wrong_signature_metadata =
         sign_delegated_metadata_with("preview", &valid_preview_document, &promotion).await;
     let wrong_signature_document: serde_json::Value =
@@ -1072,17 +1158,17 @@ async fn channel_role_authenticates_keys_and_transition_candidates() {
     .unwrap_err();
     assert_consumer_rejected_signature(error);
 
-    publish_delegated_metadata_variant(&f, &root, "preview", &valid_preview_metadata).await;
-    let restored_preview = select_fixture_preview_with_host_consumer(
+    publish_valid_preview_role_version(wrong_signature_recovery_editor, &f, &preview, 3).await;
+    let recovered_wrong_signature = select_fixture_preview_with_host_consumer(
         &f,
         &trusted,
-        "restored-preview-signature-trust",
+        "wrong-preview-signature-trust",
         preview_final_context,
     )
     .await
     .unwrap();
     assert_eq!(
-        restored_preview
+        recovered_wrong_signature
             .authenticated
             .selection
             .candidate
@@ -1091,6 +1177,17 @@ async fn channel_role_authenticates_keys_and_transition_candidates() {
             .version,
         "1.0.0"
     );
+    let recovered_wrong_state: serde_json::Value = serde_json::from_slice(
+        &fs::read(
+            f.directory
+                .path()
+                .join("wrong-preview-signature-trust/trust-state.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(recovered_wrong_state["roles"]["snapshot"]["version"], 3);
+    assert_eq!(recovered_wrong_state["roles"]["timestamp"]["version"], 3);
 
     let provider = ApplicationUpdateHostProvider::new(
         ApplicationUpdateRepositoryConfiguration::new(
