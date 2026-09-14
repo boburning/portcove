@@ -812,7 +812,7 @@ pub(crate) fn preparation_cleanup(preview: &portcove_core::PreparationCleanupPre
             .retained
             .directories
             .iter()
-            .map(|directory| format!("Empty folder: {}", clean(&directory.display().to_string()))),
+            .map(|directory| format!("Folder: {}", clean(&directory.display().to_string()))),
     );
     entries.extend(preview.retained.skipped_entries.iter().map(|entry| {
         format!(
@@ -825,7 +825,7 @@ pub(crate) fn preparation_cleanup(preview: &portcove_core::PreparationCleanupPre
         entries.push("The retained private folder is empty.".into());
     }
     format!(
-        "Preparation cleanup: {}\nGame: {}\nRetained private folder: {}\nAffected: {} files, {} empty folders, {} skipped links or special entries, {}\nAffected entries:\n{}\nPreserved original installation: {}\nPreserved registered source: {}\nPreserved saved data: {}\nPreserved backups: {}\nPreserved logs: {}\nReversibility: removed private files cannot be recovered\nInterruption: an accepted cleanup remains recorded and will be retried\nPreview: {}",
+        "Preparation cleanup: {}\nGame: {}\nRetained private folder: {}\nAffected: {} files, {} folders, {} skipped links or special entries, {}\nAffected entries:\n{}\nPreserved original installation: {}\nPreserved registered source: {}\nPreserved saved data: {}\nPreserved backups: {}\nPreserved logs: {}\nReversibility: removed private files cannot be recovered\nInterruption: an accepted cleanup remains recorded and will be retried\nPreview: {}",
         clean(&preview.operation_id),
         clean(&preview.port_id),
         clean(&preview.retained_path.display().to_string()),
@@ -1299,7 +1299,11 @@ mod tests {
             port_id: "owned-port".into(),
             retained_path: PathBuf::from("C:/Portcove/staging/owned-operation"),
             retained: AdoptionCopyPlan {
-                directories: vec![PathBuf::from("empty")],
+                directories: vec![
+                    PathBuf::from("empty"),
+                    PathBuf::from("payload"),
+                    PathBuf::from("payload/generated"),
+                ],
                 files: vec![AdoptionCopyFile {
                     relative_path: PathBuf::from("payload/private.bin"),
                     size: 4,
@@ -1323,7 +1327,9 @@ mod tests {
 
         let output = super::preparation_cleanup(&preview);
         assert!(output.contains("File: payload/private.bin (4 bytes, SHA-256"));
-        assert!(output.contains("Empty folder: empty"));
+        assert!(output.contains("Folder: empty"));
+        assert!(output.contains("Folder: payload"));
+        assert!(output.contains("Folder: payload/generated"));
         assert!(output.contains("Skipped link or special entry: linked-save (symbolic link)"));
     }
 

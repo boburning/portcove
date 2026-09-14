@@ -85,11 +85,7 @@ pub(crate) fn run_tool(
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    #[cfg(unix)]
-    {
-        use std::os::unix::process::CommandExt;
-        command.process_group(0);
-    }
+    ToolProcessGroup::prepare(command);
     let mut child = match command.spawn() {
         Ok(child) => child,
         Err(error) => {
@@ -280,6 +276,11 @@ pub(crate) struct ToolProcessGroup;
 
 #[cfg(unix)]
 impl ToolProcessGroup {
+    pub(crate) fn prepare(command: &mut Command) {
+        use std::os::unix::process::CommandExt;
+        command.process_group(0);
+    }
+
     pub(crate) fn attach(_child: &std::process::Child) -> Result<Self> {
         Ok(Self)
     }
@@ -346,6 +347,16 @@ pub(crate) struct ToolProcessGroup {
 
 #[cfg(windows)]
 impl ToolProcessGroup {
+    /// Keep the process's primary thread suspended until `attach` has placed
+    /// it in the kill-on-close job. Otherwise a fast tool can create a child
+    /// during the spawn/assignment gap that the new job does not inherit.
+    pub(crate) fn prepare(command: &mut Command) {
+        use std::os::windows::process::CommandExt;
+        use windows_sys::Win32::System::Threading::CREATE_SUSPENDED;
+
+        command.creation_flags(CREATE_SUSPENDED);
+    }
+
     pub(crate) fn attach(child: &std::process::Child) -> Result<Self> {
         use std::os::windows::io::AsRawHandle;
         use windows_sys::Win32::System::JobObjects::{
@@ -381,7 +392,14 @@ impl ToolProcessGroup {
                 windows_sys::Win32::Foundation::CloseHandle(candidate);
                 return Err(failure);
             }
-            Ok(Self { job: candidate })
+            let group = Self { job: candidate };
+            if let Err(error) = resume_primary_thread(child.id()) {
+                // Closing this configured job terminates the still-suspended
+                // leader. No admitted tool code has executed on this path.
+                drop(group);
+                return Err(error);
+            }
+            Ok(group)
         }
     }
 
@@ -400,6 +418,70 @@ impl ToolProcessGroup {
         self.terminate(child);
         let _ = child.kill();
         child.wait()
+    }
+}
+
+#[cfg(windows)]
+fn resume_primary_thread(process_id: u32) -> Result<()> {
+    use windows_sys::Win32::{
+        Foundation::{CloseHandle, INVALID_HANDLE_VALUE},
+        System::{
+            Diagnostics::ToolHelp::{
+                CreateToolhelp32Snapshot, TH32CS_SNAPTHREAD, THREADENTRY32, Thread32First,
+                Thread32Next,
+            },
+            Threading::{OpenThread, ResumeThread, THREAD_SUSPEND_RESUME},
+        },
+    };
+
+    unsafe {
+        let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+        if snapshot == INVALID_HANDLE_VALUE {
+            return Err(process_group_failure());
+        }
+        let mut entry = THREADENTRY32 {
+            dwSize: std::mem::size_of::<THREADENTRY32>() as u32,
+            ..Default::default()
+        };
+        let mut thread_id = None;
+        if Thread32First(snapshot, &raw mut entry) != 0 {
+            loop {
+                if entry.th32OwnerProcessID == process_id {
+                    if thread_id.replace(entry.th32ThreadID).is_some() {
+                        CloseHandle(snapshot);
+                        return Err(PortcoveError::state(
+                            "the suspended native tool unexpectedly had multiple threads before containment",
+                        ));
+                    }
+                }
+                if Thread32Next(snapshot, &raw mut entry) == 0 {
+                    break;
+                }
+            }
+        }
+        CloseHandle(snapshot);
+        let thread_id = thread_id.ok_or_else(|| {
+            PortcoveError::state(
+                "could not find the suspended native tool thread before containment",
+            )
+        })?;
+        let thread = OpenThread(THREAD_SUSPEND_RESUME, 0, thread_id);
+        if thread.is_null() {
+            return Err(process_group_failure());
+        }
+        let previous_count = ResumeThread(thread);
+        if previous_count == u32::MAX {
+            let failure = process_group_failure();
+            CloseHandle(thread);
+            return Err(failure);
+        }
+        CloseHandle(thread);
+        if previous_count != 1 {
+            return Err(PortcoveError::state(format!(
+                "the native tool thread had unexpected suspend count {previous_count} before containment"
+            )));
+        }
+        Ok(())
     }
 }
 

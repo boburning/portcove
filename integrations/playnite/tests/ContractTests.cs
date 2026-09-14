@@ -226,7 +226,7 @@ internal static class ContractTests
         retained_path = @"C:\Portcove\staging\retained-operation",
         retained = new
         {
-            directories = new[] { "empty" },
+            directories = new[] { "empty", "payload", "payload/generated" },
             files = new[] { new { relative_path = "payload/private.bin", size = 4, sha256 = new string('a', 64) } },
             skipped_entries = new[] { new { relative_path = "linked-save", reason = "symbolic link" } },
             total_bytes = 4
@@ -263,8 +263,9 @@ internal static class ContractTests
         var preview = PreparationCleanupReview.Read(
             Json.Parse(Json.Print(CleanupPreview())), "retained-operation", "shape-a");
         var confirmation = preview.Confirmation(1, 2);
-        Check(preview.TotalBytes == 4 && preview.AffectedEntries.Length == 3 &&
+        Check(preview.TotalBytes == 4 && preview.AffectedEntries.Length == 5 &&
             confirmation.Contains("payload/private.bin") && confirmation.Contains(new string('a', 64)) &&
+            confirmation.Contains("Folder: payload/generated") &&
             confirmation.Contains(@"C:\Sources\shape-a.iso") && confirmation.Contains("1 of 2"),
             "cleanup review consumes exact affected and preserved state");
         Check(PreparationCleanupReview.ReadApplied(

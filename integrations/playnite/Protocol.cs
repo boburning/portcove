@@ -253,7 +253,7 @@ namespace Portcove.ReferenceClient
                 entries.Add("File: " + relativePath + " (" + size + " bytes, SHA-256 " + sha256 + ")");
             }
             foreach (var raw in Json.Array(Json.Field(retained, "directories")))
-                entries.Add("Empty folder: " + RequiredArrayText(raw, "folder path"));
+                entries.Add("Folder: " + RequiredArrayText(raw, "folder path"));
             foreach (var raw in Json.Array(Json.Field(retained, "skipped_entries")))
                 entries.Add("Link or special entry: " + RequiredText(raw, "relative_path") + " — " + RequiredText(raw, "reason"));
             var totalBytes = Json.Number(retained, "total_bytes");

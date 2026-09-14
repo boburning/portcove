@@ -370,11 +370,7 @@ fn run_fixed_probe(
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    #[cfg(unix)]
-    {
-        use std::os::unix::process::CommandExt;
-        command.process_group(0);
-    }
+    crate::tool_process::ToolProcessGroup::prepare(&mut command);
     let mut child = command.spawn().map_err(|error| ProbeFailure {
         state: spawn_error_state(error.kind()),
         message: format!("could not start the fixed probe: {error}"),

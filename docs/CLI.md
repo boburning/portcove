@@ -663,7 +663,7 @@ new review and uses another private directory.
 
 An interrupted attempt stays retained until a caller reviews its exact private
 tree. `preparation cleanup-plan <operation-id>` reports every affected file,
-empty folder, link or special entry; the original installation, registered
+folder, link or special entry; the original installation, registered
 source, saved-data root, backup root and logs that remain outside the action; and
 an exact `preview_sha256`. Apply it with `preparation cleanup <operation-id>
 --expected-preview <preview_sha256> --yes`. Core rehashes the tree under the port
