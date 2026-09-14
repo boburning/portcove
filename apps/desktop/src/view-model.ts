@@ -10,7 +10,7 @@ import type {
   UpdateSnapshot,
 } from "./types";
 
-export const unfinishedActivityAfterSeconds = 24 * 60 * 60;
+const unfinishedActivityAfterSeconds = 24 * 60 * 60;
 
 export type ActivityPresentationState =
   | "succeeded"
