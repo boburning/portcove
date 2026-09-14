@@ -40,6 +40,12 @@ const LAUNCH_MARKER: &str = ".portcove-launched";
 const BULK_PROVIDER_CONCURRENCY: usize = 4;
 const BACKUP_MANIFEST_MAX_BYTES: u64 = 64 * 1024;
 
+#[cfg(test)]
+std::thread_local! {
+    static ADOPTION_COPY_PLAN_PASSES: std::cell::RefCell<std::collections::BTreeMap<PathBuf, usize>> =
+        const { std::cell::RefCell::new(std::collections::BTreeMap::new()) };
+}
+
 #[path = "game_update_review.rs"]
 mod game_update_review;
 
@@ -3196,6 +3202,40 @@ impl PortcoveService {
         source: &Path,
         selected_port_id: Option<&str>,
     ) -> Result<AdoptionPreview> {
+        let detected = self.detect_adoption_ports(source, selected_port_id)?;
+        let selected = match detected.as_slice() {
+            [only] => Some(only.clone()),
+            _ => None,
+        };
+        let copy_plan = adoption_copy_plan(source)?;
+        let destination = selected
+            .as_deref()
+            .map(|id| self.adoption_destination(source, id, &copy_plan))
+            .transpose()?;
+        let plan_sha256 = adoption_plan_fingerprint(
+            source,
+            &detected,
+            selected.as_deref(),
+            &copy_plan,
+            destination.as_ref(),
+        )?;
+        Ok(AdoptionPreview {
+            source: source.to_path_buf(),
+            detected_port_ids: detected,
+            selected_port_id: selected,
+            application_files_will_be_copied: true,
+            original_will_be_modified: false,
+            copy_plan,
+            destination,
+            plan_sha256,
+        })
+    }
+
+    fn detect_adoption_ports(
+        &self,
+        source: &Path,
+        selected_port_id: Option<&str>,
+    ) -> Result<Vec<String>> {
         crate::path::unicode(source, "adoption source")?;
         if !source.is_dir() {
             return Err(PortcoveError::not_found(format!(
@@ -3234,33 +3274,7 @@ impl PortcoveService {
                 }
             }
         }
-        let selected = match detected.as_slice() {
-            [only] => Some(only.clone()),
-            [] => None,
-            _ => None,
-        };
-        let copy_plan = adoption_copy_plan(source)?;
-        let destination = selected
-            .as_deref()
-            .map(|id| self.adoption_destination(source, id, &copy_plan))
-            .transpose()?;
-        let plan_sha256 = adoption_plan_fingerprint(
-            source,
-            &detected,
-            selected.as_deref(),
-            &copy_plan,
-            destination.as_ref(),
-        )?;
-        Ok(AdoptionPreview {
-            source: source.to_path_buf(),
-            detected_port_ids: detected,
-            selected_port_id: selected,
-            application_files_will_be_copied: true,
-            original_will_be_modified: false,
-            copy_plan,
-            destination,
-            plan_sha256,
-        })
+        Ok(detected)
     }
 
     fn adoption_destination(
@@ -3333,19 +3347,17 @@ impl PortcoveService {
         selected_port_id: Option<&str>,
         authorization_token: &str,
     ) -> Result<InstallRecord> {
-        let preview = self.preview_adoption(source, selected_port_id)?;
-        let port_id = preview.selected_port_id.ok_or_else(|| {
-            if preview.detected_port_ids.is_empty() {
-                PortcoveError::not_found(
-                    "no supported Portcove installation was detected; provide --port",
-                )
-            } else {
-                PortcoveError::conflict(format!(
-                    "multiple ports detected: {}",
-                    preview.detected_port_ids.join(", ")
-                ))
-            }
-        })?;
+        let detected = self.detect_adoption_ports(source, selected_port_id)?;
+        let port_id = match detected.as_slice() {
+            [only] => Ok(only.clone()),
+            [] => Err(PortcoveError::not_found(
+                "no supported Portcove installation was detected; provide --port",
+            )),
+            _ => Err(PortcoveError::conflict(format!(
+                "multiple ports detected: {}",
+                detected.join(", ")
+            ))),
+        }?;
         let activity = self.library.begin_activity(
             ActivityOperation::Adopt,
             ActivityTargetKind::Port,
@@ -4908,6 +4920,10 @@ fn adoption_plan_fingerprint(
 }
 
 pub(crate) fn adoption_copy_plan(source: &Path) -> Result<AdoptionCopyPlan> {
+    #[cfg(test)]
+    ADOPTION_COPY_PLAN_PASSES.with(|passes| {
+        *passes.borrow_mut().entry(source.to_path_buf()).or_default() += 1;
+    });
     let mut plan = AdoptionCopyPlan {
         directories: Vec::new(),
         files: Vec::new(),
@@ -4921,6 +4937,11 @@ pub(crate) fn adoption_copy_plan(source: &Path) -> Result<AdoptionCopyPlan> {
     plan.skipped_entries
         .sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
     Ok(plan)
+}
+
+#[cfg(test)]
+fn reset_adoption_copy_plan_passes() -> std::collections::BTreeMap<PathBuf, usize> {
+    ADOPTION_COPY_PLAN_PASSES.with(|passes| std::mem::take(&mut *passes.borrow_mut()))
 }
 
 fn collect_adoption_entries(
@@ -5736,6 +5757,44 @@ mod tests {
         assert_external_adoption_recovers_after_every_publication_boundary(
             LifecycleFaultPoint::AdoptionMetadataCommitted,
         );
+    }
+
+    #[test]
+    fn adoption_execution_hashes_each_tree_only_at_required_boundaries() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let source = temporary.path().join("existing-install");
+        let assets = source.join("assets");
+        fs::create_dir_all(&assets).unwrap();
+        write_host_test_executable(&source, "zelda64-recomp");
+        for index in 0..8 {
+            fs::write(
+                assets.join(format!("asset-{index:03}.bin")),
+                format!("synthetic adoption asset {index}"),
+            )
+            .unwrap();
+        }
+        let user = library.user_dir("zelda64-recomp");
+        fs::create_dir_all(&user).unwrap();
+        fs::write(user.join("general.json"), b"current settings").unwrap();
+        let service = service_with_release(library, "v2");
+        let preview = service
+            .preview_adoption(&source, Some("zelda64-recomp"))
+            .unwrap();
+        let authorization = service
+            .authorize_adoption(&source, Some("zelda64-recomp"), &preview.plan_sha256)
+            .unwrap();
+
+        reset_adoption_copy_plan_passes();
+        service
+            .adopt(&source, Some("zelda64-recomp"), &authorization.token)
+            .unwrap();
+        let execution_passes = reset_adoption_copy_plan_passes();
+
+        assert_eq!(execution_passes.get(&source), Some(&1));
+        assert_eq!(execution_passes.get(&user), Some(&2));
+        assert_eq!(execution_passes.len(), 3);
+        assert_eq!(execution_passes.values().sum::<usize>(), 4);
     }
 
     #[test]
