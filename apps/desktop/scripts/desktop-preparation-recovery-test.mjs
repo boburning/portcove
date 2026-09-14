@@ -19,8 +19,10 @@ export async function interruptedPreparationScenario({
   artifacts,
   command,
   confirmNative,
+  restartApplication,
 }) {
   await scenario("native-interrupted-preparation-recovery", async () => {
+    browser = await restartApplication("interrupted-preparation-recovery");
     assert.equal(path.resolve(library), path.resolve(output, "library"));
     const before = command(["status", "opengoal-jak2"]);
     const activity = command(["activity"]).find(
@@ -135,7 +137,10 @@ export async function interruptedPreparationScenario({
     );
     artifacts.push(evidence);
     await browser.executeScript('arguments[0].scrollIntoView({ block: "start" });', row);
-    const review = await browser.findElement(By.css(`[data-recovery-operation="${activity.id}"]`));
+    const review = await browser.wait(
+      until.elementLocated(By.css(`[data-recovery-operation="${activity.id}"]`)),
+      15_000,
+    );
     await review.findElement(By.css("summary")).click();
     assert.match(await review.getText(), /Retained preparation files/);
     assert.ok((await review.getText()).includes(privatePath));
@@ -228,8 +233,9 @@ export async function interruptedPreparationScenario({
     );
     await access(privatePath);
 
-    const currentReview = await browser.findElement(
-      By.css(`[data-recovery-operation="${activity.id}"]`),
+    const currentReview = await browser.wait(
+      until.elementLocated(By.css(`[data-recovery-operation="${activity.id}"]`)),
+      15_000,
     );
     await clickVisible(
       browser,
@@ -278,4 +284,5 @@ export async function interruptedPreparationScenario({
     artifacts.push(cleanupEvidence);
     await browser.executeScript('arguments[0].scrollIntoView({ block: "start" });', row);
   });
+  return browser;
 }

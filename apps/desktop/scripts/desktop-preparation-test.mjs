@@ -25,6 +25,7 @@ export async function preparationScenarios({
   cli,
   tool,
   confirmNative,
+  restartApplication,
 }) {
   const command = (args, selectedLibrary = library) => {
     const result = spawnCommand(
@@ -270,7 +271,7 @@ export async function preparationScenarios({
     });
     artifacts.push(screenshot);
   });
-  await interruptedPreparationScenario({
+  browser = await interruptedPreparationScenario({
     browser,
     invoke,
     scenario,
@@ -279,6 +280,7 @@ export async function preparationScenarios({
     artifacts,
     command,
     confirmNative,
+    restartApplication,
   });
   await scenario("native-update-settings-save-without-execution", async () => {
     const port = command(["catalog", "show", "opengoal-jak1"]);
