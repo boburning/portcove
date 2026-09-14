@@ -1,4 +1,8 @@
 import { createHash } from "node:crypto";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const scriptPath = fileURLToPath(import.meta.url);
 
 export const validationPlanVersion = 2;
 
@@ -11,15 +15,15 @@ export const fastGroups = Object.freeze([
 ]);
 
 export const validationAreas = Object.freeze([
-  "documentation",
-  "frontend",
-  "rust",
-  "native-ipc",
   "catalog",
   "dependency",
+  "documentation",
+  "frontend",
+  "native-ipc",
   "platform",
-  "release-security",
   "policy",
+  "release-security",
+  "rust",
 ]);
 
 export const proseOnlyAllowlist = Object.freeze([
@@ -27,7 +31,7 @@ export const proseOnlyAllowlist = Object.freeze([
   "docs/README.md",
 ]);
 
-const platformNames = Object.freeze([
+export const qualificationPlatforms = Object.freeze([
   "linux-x86_64",
   "macos-aarch64",
   "macos-x86_64",
@@ -70,7 +74,7 @@ function classifyPath(file) {
   match(
     file.startsWith("docs/") || /^(?:README|CONTRIBUTING|SECURITY|AGENTS)\.md$/u.test(file),
     "documentation",
-    ["rust-quality"],
+    ["catalog", "rust-quality"],
     "documentation-contract",
   );
   match(
@@ -103,7 +107,7 @@ function classifyPath(file) {
     "native-ipc",
     ["frontend", "rust", "rust-quality"],
     "native-or-ipc-boundary",
-    platformNames,
+    qualificationPlatforms,
   );
   match(
     file === "crates/portcove-core/catalog/catalog.json" ||
@@ -114,20 +118,20 @@ function classifyPath(file) {
     "catalog-or-source-contract",
   );
   match(
-    /(?:^|\/)(?:Cargo\.lock|package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|dependabot\.yml|renovate\.json|aqua\.yaml|aqua-checksums\.json|quality-tools\.json|tool-bootstrap\.json)$/u.test(
+    /(?:^|\/)(?:Cargo\.toml|Cargo\.lock|package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|rust-toolchain\.toml|dependabot\.yml|renovate\.json|aqua\.yaml|aqua-checksums\.json|quality-tools\.json|tool-bootstrap\.json)$/u.test(
       file,
-    ) || file === ".node-version",
+    ) || [".node-version", ".aqua-version", ".config/powershell-resources.psd1"].includes(file),
     "dependency",
     fastGroups,
     "dependency-or-toolchain-input",
-    platformNames,
+    qualificationPlatforms,
   );
   match(
     /(?:windows|linux|macos|appimage|dmg|msi|steam-deck|platform)/iu.test(file),
     "platform",
     ["rust", "rust-quality"],
     "platform-specific-input",
-    platformNames,
+    qualificationPlatforms,
   );
   match(
     file.startsWith("release/") ||
@@ -137,20 +141,35 @@ function classifyPath(file) {
     "release-security",
     fastGroups,
     "release-or-security-boundary",
-    platformNames,
+    qualificationPlatforms,
   );
   match(
-    file.startsWith(".github/workflows/") ||
-      file.startsWith(".github/actions/") ||
-      file === ".github/repository-ruleset.json" ||
-      file === ".github/repository-security.json" ||
-      file === ".github/roadmap.json" ||
+    file.startsWith(".github/") ||
+      file.startsWith("scripts/") ||
+      [
+        ".editorconfig",
+        ".gitattributes",
+        ".oxfmtrc.json",
+        ".oxlintrc.json",
+        ".prettierignore",
+        ".rscheck.toml",
+        "eslint.config.mjs",
+        "hawk.toml",
+        "prettier.config.mjs",
+        "pyproject.toml",
+        "semdup.toml",
+        "taplo.toml",
+        "apps/desktop/.fallowrc.json",
+        "apps/desktop/eslint.config.mjs",
+        "apps/desktop/stylelint.config.mjs",
+        ".config/nextest.toml",
+      ].includes(file) ||
       file === "justfile" ||
       file === "AGENTS.md",
     "policy",
     fastGroups,
     "protected-policy-or-automation",
-    platformNames,
+    qualificationPlatforms,
   );
 
   if (
@@ -278,12 +297,17 @@ export function buildValidationPlan({
   ].sort();
   const unknown = paths.filter((entry) => entry.unknown).map((entry) => entry.path);
   const qualificationRequired = !regular || paths.some((entry) => entry.qualificationRequired);
-  const groups = unknown.length
+  const groups = qualificationRequired
     ? fastGroups
-    : [...new Set(paths.flatMap((entry) => entry.groups))].sort();
-  const platforms = unknown.length
-    ? ["primary-host"]
-    : [...new Set(paths.flatMap((entry) => entry.platforms))].sort();
+    : unknown.length
+      ? fastGroups
+      : [...new Set(paths.flatMap((entry) => entry.groups))].sort();
+  const selectedPlatforms = [...new Set(paths.flatMap((entry) => entry.platforms))].sort();
+  const platforms = qualificationRequired
+    ? qualificationPlatforms
+    : unknown.length || selectedPlatforms.length === 0
+      ? ["primary-host"]
+      : selectedPlatforms;
   const mode = allProse && regular ? "prose" : qualificationRequired ? "qualification" : "fast";
   const plan = {
     format_version: validationPlanVersion,
@@ -310,20 +334,206 @@ export function buildValidationPlan({
 }
 
 export function validateValidationPlan(plan) {
-  if (plan?.format_version !== validationPlanVersion) throw new Error("unsupported plan version");
+  if (!plan || typeof plan !== "object" || Array.isArray(plan))
+    throw new Error("validation plan must be an object");
+  if (plan.format_version !== validationPlanVersion) throw new Error("unsupported plan version");
   if (!/^[a-f0-9]{64}$/u.test(plan.digest ?? "") || digestValidationPlan(plan) !== plan.digest)
     throw new Error("validation plan digest mismatch");
   if (!["blocked", "fast", "prose", "qualification"].includes(plan.mode))
     throw new Error("invalid validation plan mode");
-  for (const group of plan.groups ?? [])
+  if (!["complete", "failed"].includes(plan.discovery))
+    throw new Error("invalid validation plan discovery state");
+  if (typeof plan.reason !== "string" || plan.reason.length === 0)
+    throw new Error("validation plan reason is missing");
+  if (typeof plan.qualification_required !== "boolean")
+    throw new Error("validation qualification authority is invalid");
+  for (const field of ["changed_files", "areas", "groups", "platforms", "paths"])
+    if (!Array.isArray(plan[field])) throw new Error(`validation plan ${field} must be an array`);
+
+  const assertUniqueSorted = (values, label) => {
+    if (new Set(values).size !== values.length) throw new Error(`duplicate validation ${label}`);
+    if (JSON.stringify(values) !== JSON.stringify([...values].sort()))
+      throw new Error(`validation ${label} must be sorted`);
+  };
+  for (const file of plan.changed_files) normalizedPath(file);
+  assertUniqueSorted(plan.changed_files, "changed file");
+  for (const area of plan.areas)
+    if (!validationAreas.includes(area)) throw new Error(`unknown validation area: ${area}`);
+  assertUniqueSorted(plan.areas, "area");
+  for (const group of plan.groups)
     if (!fastGroups.includes(group)) throw new Error(`unknown validation group: ${group}`);
-  if (new Set(plan.groups ?? []).size !== (plan.groups ?? []).length)
-    throw new Error("duplicate validation group");
-  if (plan.mode === "blocked" && (plan.groups.length || plan.qualification_required))
-    throw new Error("blocked plans cannot authorize work");
+  assertUniqueSorted(plan.groups, "group");
+  for (const platform of plan.platforms)
+    if (!["primary-host", ...qualificationPlatforms].includes(platform))
+      throw new Error(`unknown validation platform: ${platform}`);
+  assertUniqueSorted(plan.platforms, "platform");
+
+  const pathNames = [];
+  for (const entry of plan.paths) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry))
+      throw new Error("validation path entry is malformed");
+    pathNames.push(normalizedPath(entry.path));
+    for (const field of ["areas", "groups", "platforms", "reasons"])
+      if (!Array.isArray(entry[field]))
+        throw new Error(`validation path ${field} must be an array`);
+    for (const area of entry.areas)
+      if (!validationAreas.includes(area)) throw new Error(`unknown path validation area: ${area}`);
+    for (const group of entry.groups)
+      if (!fastGroups.includes(group)) throw new Error(`unknown path validation group: ${group}`);
+    for (const platform of entry.platforms)
+      if (!["primary-host", ...qualificationPlatforms].includes(platform))
+        throw new Error(`unknown path validation platform: ${platform}`);
+    if (
+      entry.reasons.length === 0 ||
+      entry.reasons.some((reason) => typeof reason !== "string" || reason.length === 0)
+    )
+      throw new Error("validation path reason is malformed");
+    for (const field of ["areas", "groups", "platforms", "reasons"])
+      assertUniqueSorted(entry[field], `path ${field.slice(0, -1)}`);
+    if (typeof entry.qualificationRequired !== "boolean" || typeof entry.unknown !== "boolean")
+      throw new Error("validation path authority is malformed");
+    if ((entry.unknown && entry.areas.length > 0) || (!entry.unknown && entry.areas.length === 0))
+      throw new Error("validation path unknown state is inconsistent");
+  }
+  assertUniqueSorted(pathNames, "path");
+  if (JSON.stringify(pathNames) !== JSON.stringify(plan.changed_files))
+    throw new Error("validation path inventory does not match changed files");
+
+  if (!plan.identities || typeof plan.identities !== "object" || Array.isArray(plan.identities))
+    throw new Error("validation identities are missing");
+  for (const field of ["base", "merge_base", "head", "checkout"])
+    if (
+      (field === "checkout" && !/^[a-f0-9]{40}$/u.test(plan.identities[field] ?? "")) ||
+      (field !== "checkout" &&
+        plan.identities[field] !== null &&
+        !/^[a-f0-9]{40}$/u.test(plan.identities[field] ?? ""))
+    )
+      throw new Error(`validation identity ${field} is invalid`);
+  if (
+    plan.paths.length > 0 &&
+    ["base", "merge_base", "head"].some(
+      (field) => !/^[a-f0-9]{40}$/u.test(plan.identities[field] ?? ""),
+    )
+  )
+    throw new Error("pull-request validation identities must be exact");
+
+  const unknownPaths = plan.paths.filter((entry) => entry.unknown).map((entry) => entry.path);
+  if (
+    plan.fallback !== null &&
+    (plan.fallback?.kind !== "all-fast-groups" ||
+      !Array.isArray(plan.fallback.paths) ||
+      plan.fallback.paths.length === 0)
+  )
+    throw new Error("validation fallback is malformed");
+  if (plan.fallback) {
+    for (const file of plan.fallback.paths) normalizedPath(file);
+    assertUniqueSorted(plan.fallback.paths, "fallback path");
+    if (JSON.stringify(plan.fallback.paths) !== JSON.stringify(unknownPaths))
+      throw new Error("validation fallback does not match unknown paths");
+  } else if (unknownPaths.length > 0) {
+    throw new Error("validation fallback is missing for unknown paths");
+  }
+
+  if (plan.discovery === "failed" && plan.mode !== "blocked")
+    throw new Error("failed discovery cannot authorize validation");
+  if (plan.mode !== "blocked" && plan.discovery !== "complete")
+    throw new Error("active validation requires complete discovery");
+  if (plan.mode === "blocked") {
+    if (
+      plan.changed_files.length ||
+      plan.areas.length ||
+      plan.groups.length ||
+      plan.platforms.length ||
+      plan.paths.length ||
+      plan.fallback !== null ||
+      plan.qualification_required
+    )
+      throw new Error("blocked plans cannot authorize work");
+    return plan;
+  }
+  if (plan.groups.length === 0) throw new Error("active validation plan must select a group");
   if (plan.mode === "qualification" && !plan.qualification_required)
     throw new Error("qualification mode must require qualification");
   if (plan.mode !== "qualification" && plan.qualification_required)
     throw new Error("only qualification mode may require qualification");
+  if (
+    plan.mode === "qualification" &&
+    (JSON.stringify(plan.groups) !== JSON.stringify(fastGroups) ||
+      JSON.stringify(plan.platforms) !== JSON.stringify(qualificationPlatforms))
+  )
+    throw new Error("qualification plan must include every protected group and platform");
+  if (plan.platforms.length === 0) throw new Error("active validation plan must select a platform");
+
+  if (plan.paths.length === 0) {
+    if (plan.mode === "prose") throw new Error("prose validation requires changed paths");
+    if (
+      plan.changed_files.length ||
+      JSON.stringify(plan.areas) !== JSON.stringify(validationAreas) ||
+      JSON.stringify(plan.groups) !== JSON.stringify(fastGroups) ||
+      (plan.mode === "fast" &&
+        JSON.stringify(plan.platforms) !== JSON.stringify(["primary-host"])) ||
+      plan.fallback !== null ||
+      ["base", "merge_base", "head"].some((field) => plan.identities[field] !== null)
+    )
+      throw new Error("explicit-event validation plan is inconsistent");
+  } else if (["fast", "prose"].includes(plan.mode)) {
+    const expectedAreas = [...new Set(plan.paths.flatMap((entry) => entry.areas))].sort();
+    const expectedGroups = [...new Set(plan.paths.flatMap((entry) => entry.groups))].sort();
+    const routedPlatforms = [...new Set(plan.paths.flatMap((entry) => entry.platforms))].sort();
+    const expectedPlatforms = routedPlatforms.length > 0 ? routedPlatforms : ["primary-host"];
+    if (
+      JSON.stringify(plan.areas) !== JSON.stringify(expectedAreas) ||
+      JSON.stringify(plan.groups) !== JSON.stringify(expectedGroups) ||
+      JSON.stringify(plan.platforms) !== JSON.stringify(expectedPlatforms)
+    )
+      throw new Error("routed validation plan does not match its path inventory");
+    if (
+      plan.paths.some((entry) => entry.qualificationRequired) ||
+      (plan.mode === "prose" &&
+        plan.changed_files.some((file) => !proseOnlyAllowlist.includes(file)))
+    )
+      throw new Error("routed validation mode does not match its path authority");
+  }
   return plan;
+}
+
+export function validateQualificationBinding({ plan, digest, checkout }) {
+  validateValidationPlan(plan);
+  if (plan.mode !== "qualification" || !plan.qualification_required)
+    throw new Error("reusable result is not a qualification plan");
+  if (plan.digest !== digest) throw new Error("reusable qualification digest mismatch");
+  if (plan.identities?.checkout !== checkout || !/^[a-f0-9]{40}$/u.test(checkout ?? ""))
+    throw new Error("reusable qualification checkout mismatch");
+  if (JSON.stringify([...plan.groups].sort()) !== JSON.stringify([...fastGroups].sort()))
+    throw new Error("reusable qualification omitted a protected group");
+  if (
+    JSON.stringify([...plan.platforms].sort()) !==
+    JSON.stringify([...qualificationPlatforms].sort())
+  )
+    throw new Error("reusable qualification omitted a platform");
+  return plan;
+}
+
+function main() {
+  let plan;
+  try {
+    plan = JSON.parse(process.env.PORTCOVE_PLAN_JSON ?? "");
+  } catch {
+    throw new Error("PORTCOVE_PLAN_JSON must contain the reusable qualification plan");
+  }
+  validateQualificationBinding({
+    plan,
+    digest: process.env.PORTCOVE_PLAN_DIGEST,
+    checkout: process.env.PORTCOVE_EXPECTED_CHECKOUT,
+  });
+  console.log(`Reusable qualification ${plan.digest} is bound to ${plan.identities.checkout}.`);
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
+  try {
+    main();
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 1;
+  }
 }

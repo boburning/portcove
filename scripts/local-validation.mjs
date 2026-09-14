@@ -1,9 +1,11 @@
 import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { lstatSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { buildValidationPlan, validateValidationPlan } from "./validation-plan.mjs";
+import { parseRawDiff } from "./select-ci-plan.mjs";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const desktopRoot = path.join(projectRoot, "apps", "desktop");
@@ -502,19 +504,13 @@ function uiRelatedDurationCommand() {
 
 export function buildPlan(selection, context = {}) {
   if (selection.unknown.size) {
-    return [
-      command("diff-check", "reject whitespace errors across the complete local change", "git", [
-        "diff",
-        "--check",
-        context.mergeBase ?? "<merge-base>",
-      ]),
-      command(
-        "all-fast-fallback",
-        `run the complete primary-host validation because no narrower rule owns: ${sorted(selection.unknown).join(", ")}`,
-        "just",
-        ["check"],
-      ),
-    ];
+    throw new Error(
+      `local validation has no selection rule for:\n${sorted(selection.unknown)
+        .map((file) => `- ${file}`)
+        .join(
+          "\n",
+        )}\nAdd and test a focused rule; exhaustive CI must not be replaced by silent local success.`,
+    );
   }
   const mergeBase = context.mergeBase ?? "<merge-base>";
   const commands = [
@@ -829,12 +825,22 @@ export function parseNameStatus(buffer) {
   return changes;
 }
 
+export function localChangesFromRaw(buffer) {
+  return parseRawDiff(buffer).map((change) => ({
+    status: change.status,
+    path: change.newPath,
+    previousPath: change.oldPath === change.newPath ? undefined : change.oldPath,
+    oldMode: change.oldMode,
+    newMode: change.newMode,
+  }));
+}
+
 export function readChangeContext(base = "origin/main") {
   const baseSha = git(["rev-parse", "--verify", `${base}^{commit}`]).trim();
   const headSha = git(["rev-parse", "HEAD"]).trim();
   const mergeBase = git(["merge-base", "HEAD", baseSha]).trim();
-  const tracked = parseNameStatus(
-    git(["diff", "--name-status", "-z", "--find-renames", mergeBase], {
+  const tracked = localChangesFromRaw(
+    git(["diff", "--raw", "-z", "--find-renames", mergeBase], {
       encoding: "buffer",
     }),
   );
@@ -844,7 +850,12 @@ export function readChangeContext(base = "origin/main") {
     .toString("utf8")
     .split("\0")
     .filter(Boolean)
-    .map((file) => ({ status: "?", path: file }));
+    .map((file) => ({
+      status: "?",
+      path: file,
+      oldMode: "000000",
+      newMode: lstatSync(path.join(projectRoot, file)).isSymbolicLink() ? "120000" : "100644",
+    }));
   return {
     base,
     baseSha,
@@ -972,6 +983,8 @@ export function main(argv = process.argv.slice(2)) {
     buildValidationPlan({
       changes: context.changes.map((change) => ({
         status: change.status,
+        oldMode: change.oldMode,
+        newMode: change.newMode,
         oldPath: change.previousPath ?? change.path,
         newPath: change.path,
       })),

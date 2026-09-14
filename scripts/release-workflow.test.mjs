@@ -53,7 +53,7 @@ test("write authority is split across isolated attestation publication and clean
   assert.doesNotMatch(publishSection, /actions\/checkout|setup-node|node scripts/);
 });
 
-test("cheap identity unlocks validation and builds concurrently behind an explicit result gate", () => {
+test("cheap identity unlocks qualification and builds before the explicit result gate", () => {
   assert.match(identitySection, /actions\/setup-node/);
   assert.doesNotMatch(identitySection, /pnpm install|rust-toolchain|just audit/);
   assert.doesNotMatch(
@@ -62,12 +62,18 @@ test("cheap identity unlocks validation and builds concurrently behind an explic
   );
   assert.match(qualificationSection, /^ {4}needs: identity$/m);
   assert.match(qualificationSection, /\.\/\.github\/workflows\/qualification\.yml/);
-  assert.match(validateSection, /^ {4}needs: identity$/m);
+  assert.match(qualificationSection, /qualification_caller: release/);
+  assert.match(qualificationSection, /provenance_scope: release-qualification/);
+  assert.match(validateSection, /^ {4}needs: \[identity, qualification\]$/m);
   assert.match(validateSection, /just audit --fresh --profile release/);
+  assert.match(validateSection, /needs\.qualification\.outputs\.plan_digest/);
+  assert.match(validateSection, /needs\.qualification\.outputs\.plan_json/);
+  assert.match(validateSection, /PORTCOVE_EXPECTED_CHECKOUT: \$\{\{ github\.sha \}\}/);
+  assert.match(validateSection, /node scripts\/validation-plan\.mjs/);
   assert.match(validateSection, /node scripts\/workflow-provenance\.mjs/);
   assert.match(
     validateSection,
-    /workflow-provenance-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}/,
+    /workflow-provenance-release-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}/,
   );
   assert.match(validateSection, /retention-days: 7/);
   assert.match(buildSection, /^ {4}needs: identity$/m);

@@ -83,9 +83,12 @@ function storedZip(name, contents) {
 test("binds official workflow source context, checked-out code, and exact configurations", () => {
   const record = build();
   assert.equal(record.workflow.source_sha, sha("a"));
+  assert.equal(record.workflow.caller_path, ".github/workflows/ci.yml");
+  assert.equal(record.workflow.called_path, ".github/workflows/ci.yml");
+  assert.equal(record.workflow.called_source_sha, sha("b"));
   assert.equal(record.checkout.sha, sha("b"));
   assert.equal(record.checkout.head_sha, sha("c"));
-  assert.equal(record.format_version, 2);
+  assert.equal(record.format_version, 3);
   assert.equal(record.validation.plan_digest, "d".repeat(64));
   assert.equal(record.validation.caller, "pull-request");
   assert.equal(record.job_toolchains.length, 1);
@@ -98,6 +101,27 @@ test("binds official workflow source context, checked-out code, and exact config
   assert.throws(
     () => build({ observed: { ...build().observed, node: "25.0.0" } }),
     /differs from desired/u,
+  );
+});
+
+test("binds a reusable workflow to both its top-level caller and called file", () => {
+  const reusableEnvironment = {
+    ...environment,
+    GITHUB_WORKFLOW_REF: "example/repo/.github/workflows/qualification.yml@refs/heads/main",
+    GITHUB_EVENT_NAME: "schedule",
+    PORTCOVE_CALLER: "schedule",
+  };
+  const record = build({ callerWorkflow: "qualification.yml", environment: reusableEnvironment });
+  assert.equal(record.workflow.caller_path, ".github/workflows/qualification.yml");
+  assert.equal(record.workflow.called_path, ".github/workflows/ci.yml");
+  assert.equal(
+    validateWorkflowProvenance(record, {
+      ...validationContext,
+      workflow: "qualification.yml",
+      calledWorkflow: "ci.yml",
+      event: "schedule",
+    }),
+    record,
   );
 });
 
@@ -136,7 +160,7 @@ test("rejects incomplete match evidence and substituted cohort identities", () =
   );
 });
 
-test("rejects missing plan, caller, and per-job toolchain identity", () => {
+test("rejects missing plan, caller, and provenance-job toolchain identity", () => {
   assert.throws(() => build({ validationPlanDigest: "missing" }), /plan digest/u);
   assert.throws(() => build({ caller: "Bad caller" }), /caller/u);
   const missingJobs = build();

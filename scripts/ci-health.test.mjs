@@ -473,7 +473,7 @@ test("collector admits only digest-bound attempt provenance to equivalent cohort
           artifacts: [
             {
               id: 9,
-              name: "workflow-provenance-1-1",
+              name: "workflow-provenance-ci-1-1",
               expired: false,
               digest: `sha256:${createHash("sha256").update(archive).digest("hex")}`,
               workflow_run: { id: 1, head_sha: "a".repeat(40) },

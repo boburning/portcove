@@ -12,6 +12,10 @@ function median(values) {
 
 export function evaluateFastHostPolicy(policy) {
   if (policy?.format_version !== 1) throw new Error("unsupported fast-host policy");
+  if (policy.primary_host !== "ubuntu-22.04" || policy.challenger_host !== "windows-latest")
+    throw new Error(
+      "fast-host policy must retain the reviewed Linux primary and Windows challenger",
+    );
   if (!Number.isInteger(policy.minimum_comparable_heads) || policy.minimum_comparable_heads < 3)
     throw new Error("fast-host policy requires at least three comparable heads");
   if (
@@ -22,16 +26,20 @@ export function evaluateFastHostPolicy(policy) {
     throw new Error("fast-host median threshold must be at least 20 percent");
   if (!Array.isArray(policy.measurements))
     throw new Error("fast-host measurements must be an array");
+  for (const sample of policy.measurements)
+    if (
+      !/^[a-f0-9]{40}$/u.test(sample?.head ?? "") ||
+      !Number.isFinite(sample?.primary_seconds) ||
+      sample.primary_seconds <= 0 ||
+      !Number.isFinite(sample?.challenger_seconds) ||
+      sample.challenger_seconds <= 0 ||
+      typeof sample.coverage_equal !== "boolean"
+    )
+      throw new Error("fast-host measurement is malformed");
+  if (new Set(policy.measurements.map((sample) => sample.head)).size !== policy.measurements.length)
+    throw new Error("fast-host measurements contain a duplicate head");
 
-  const complete = policy.measurements.filter(
-    (sample) =>
-      /^[a-f0-9]{40}$/u.test(sample?.head ?? "") &&
-      Number.isFinite(sample?.primary_seconds) &&
-      sample.primary_seconds > 0 &&
-      Number.isFinite(sample?.challenger_seconds) &&
-      sample.challenger_seconds > 0 &&
-      sample.coverage_equal === true,
-  );
+  const complete = policy.measurements.filter((sample) => sample.coverage_equal);
   const distinctHeads = new Set(complete.map((sample) => sample.head));
   if (distinctHeads.size < policy.minimum_comparable_heads)
     return {
@@ -58,13 +66,18 @@ export function evaluateFastHostPolicy(policy) {
   };
 }
 
+export function validateFastHostPolicy(policy) {
+  const result = evaluateFastHostPolicy(policy);
+  if (policy.decision !== result.decision)
+    throw new Error("fast-host policy decision does not match its measurements");
+  return result;
+}
+
 async function main() {
   const policy = JSON.parse(
     await readFile(path.join(root, ".github", "fast-host-policy.json"), "utf8"),
   );
-  const result = evaluateFastHostPolicy(policy);
-  if (result.selected !== policy.primary_host && policy.decision !== result.decision)
-    throw new Error("fast-host policy has not recorded the qualified switch decision");
+  const result = validateFastHostPolicy(policy);
   console.log(JSON.stringify(result));
 }
 

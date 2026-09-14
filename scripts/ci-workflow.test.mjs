@@ -75,7 +75,7 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   assert.match(workflow, /^permissions:\r?\n {2}contents: read$/m);
   assert.match(
     workflow,
-    /^concurrency:\r?\n {2}group: ci-\$\{\{ github\.event\.pull_request\.number \|\| github\.ref \}\}\r?\n {2}cancel-in-progress: true$/m,
+    /^concurrency:\r?\n {2}group: ci-\$\{\{ inputs\.force_qualification && format\('qualification-\{0\}', github\.ref\) \|\| github\.event\.pull_request\.number \|\| github\.ref \}\}\r?\n {2}cancel-in-progress: \$\{\{ !inputs\.force_qualification \}\}$/m,
   );
   for (const section of [
     rustTests,
@@ -97,10 +97,11 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   assert.match(classify, /fetch-depth: 0/);
   assert.match(classify, /node scripts\/select-ci-plan\.mjs/);
   assert.match(classify, /PORTCOVE_PROSE_POLICY_ACTIVATED: "true"/);
+  assert.match(classify, /PORTCOVE_FAST_VALIDATION_ACTIVATED: "false"/);
   assert.match(provenance, /node scripts\/workflow-provenance\.mjs/);
   assert.match(
     provenance,
-    /workflow-provenance-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}/,
+    /workflow-provenance-\$\{\{ inputs\.provenance_scope \|\| 'ci' \}\}-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}/,
   );
   assert.match(provenance, /retention-days: 7/);
   assert.match(
@@ -123,7 +124,15 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
     assert.match(fast, /mode == 'fast'/);
     assert.match(fast, /runs-on: ubuntu-22\.04/);
   }
+  assert.match(fastRustQuality, /actions\/setup-node@/);
+  assert.match(fastRustQuality, /pnpm install --frozen-lockfile/);
+  assert.match(fastRustQuality, /run-oxfmt\.mjs --check/);
+  assert.match(fastRustQuality, /lint:oxlint/);
+  assert.match(fastRust, /key: fast-rust-tests-/);
+  assert.match(fastRustQuality, /key: fast-rust-quality-/);
   assert.match(fastDependencyReview, /actions\/dependency-review-action@/);
+  assert.match(fastDependencyReview, /base-ref:/);
+  assert.match(fastDependencyReview, /head-ref:/);
 });
 
 test("reusable qualification is read-only, daily, and coalesces without cancelling", () => {
@@ -137,6 +146,8 @@ test("reusable qualification is read-only, daily, and coalesces without cancelli
   );
   assert.match(qualificationWorkflow, /uses: \.\/\.github\/workflows\/ci\.yml/);
   assert.match(qualificationWorkflow, /force_qualification: true/);
+  assert.match(qualificationWorkflow, /jobs\.qualify\.outputs\.plan_digest/);
+  assert.match(qualificationWorkflow, /provenance_scope:/);
   assert.doesNotMatch(qualificationWorkflow, /secrets:|pull_request_target|contents: write/);
   assert.match(workflow, /^ {2}workflow_call:\r?$/m);
 });

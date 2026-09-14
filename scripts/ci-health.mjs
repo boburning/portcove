@@ -327,7 +327,8 @@ async function collectAttemptProvenance(request, root, run, reference, { reposit
   const artifacts = pages.flatMap((page) => page.artifacts);
   if (artifacts.length !== pages[0]?.total_count)
     throw new Error(`Incomplete artifacts for ${reference.id}/${reference.attempt}`);
-  const expectedName = `workflow-provenance-${reference.id}-${reference.attempt}`;
+  const scope = workflow.replace(/\.ya?ml$/u, "");
+  const expectedName = `workflow-provenance-${scope}-${reference.id}-${reference.attempt}`;
   const matches = artifacts.filter((artifact) => artifact.name === expectedName);
   if (matches.length === 0) return unknownProvenance();
   if (matches.length !== 1)
@@ -355,6 +356,7 @@ async function collectAttemptProvenance(request, root, run, reference, { reposit
     headSha: run.head_sha,
     repository,
     workflow,
+    calledWorkflow: workflow === "qualification.yml" ? "ci.yml" : workflow,
     event: run.event,
   });
   return { status: "verified", record };
@@ -491,7 +493,7 @@ export function renderReport(report) {
     "",
     "## Comparable cohorts",
     "",
-    "Equivalent cohorts require an attempt-specific artifact that binds the official workflow source SHA/ref, exact workflow bytes, checked-out code SHA, validation-plan digest/class/caller, desired and observed toolchain/build configuration, per-job toolchain inventory, and reported runner labels. Historical missing or expired evidence is unknown and excluded rather than inferred.",
+    "Equivalent cohorts require an attempt-specific artifact that binds the official top-level caller source SHA/ref, called workflow bytes, checked-out code SHA, validation-plan digest/class/caller, desired and observed provenance-job toolchain/build configuration, and reported job runner labels. Historical missing or expired evidence is unknown and excluded rather than inferred.",
     `Provenance: verified=${summary.provenance.verified}, unknown=${summary.provenance.unknown}${Object.entries(
       summary.provenance.unknownReasons,
     )

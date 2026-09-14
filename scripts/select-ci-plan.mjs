@@ -8,6 +8,7 @@ import {
   digestValidationPlan,
   fastGroups,
   proseOnlyAllowlist,
+  qualificationPlatforms,
   validateValidationPlan,
 } from "./validation-plan.mjs";
 
@@ -90,6 +91,7 @@ export function discoverCiPlan(
     headSha,
     checkoutSha,
     proseOnlyEnabled = false,
+    fastValidationEnabled = false,
     forceQualification = false,
   },
   runGit = (args, options = {}) => execFileSync("git", args, { cwd: projectRoot, ...options }),
@@ -103,7 +105,7 @@ export function discoverCiPlan(
       mode: "qualification",
       reason: "explicit-reusable-qualification",
       groups: fastGroups,
-      platforms: ["linux-x86_64", "macos-aarch64", "macos-x86_64", "windows-x86_64"],
+      platforms: qualificationPlatforms,
       qualification_required: true,
     };
     delete qualification.digest;
@@ -127,8 +129,20 @@ export function discoverCiPlan(
         ...plan,
         mode: "qualification",
         reason: "prose-policy-awaiting-independent-activation",
-        groups: ["catalog", "dependency-review", "frontend", "rust", "rust-quality"],
-        platforms: ["linux-x86_64", "macos-aarch64", "macos-x86_64", "windows-x86_64"],
+        groups: fastGroups,
+        platforms: qualificationPlatforms,
+        qualification_required: true,
+      };
+      delete replacement.digest;
+      return { ...replacement, digest: digestValidationPlan(replacement) };
+    }
+    if (plan.mode === "fast" && !fastValidationEnabled) {
+      const replacement = {
+        ...plan,
+        mode: "qualification",
+        reason: "fast-validation-awaiting-independent-activation",
+        groups: fastGroups,
+        platforms: qualificationPlatforms,
         qualification_required: true,
       };
       delete replacement.digest;
@@ -183,6 +197,7 @@ async function main() {
     headSha: process.env.PORTCOVE_HEAD_SHA,
     checkoutSha: process.env.GITHUB_SHA,
     proseOnlyEnabled: process.env.PORTCOVE_PROSE_POLICY_ACTIVATED === "true",
+    fastValidationEnabled: process.env.PORTCOVE_FAST_VALIDATION_ACTIVATED === "true",
     forceQualification: process.env.PORTCOVE_FORCE_QUALIFICATION === "true",
   });
   validateValidationPlan(plan);

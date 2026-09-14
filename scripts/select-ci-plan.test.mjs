@@ -123,6 +123,33 @@ test("prose selection requires qualification until independently activated", () 
   assert.deepEqual(plan.changed_files, ["docs/README.md"]);
 });
 
+test("fast routing requires a separate trusted activation change", () => {
+  const run = (fastValidationEnabled) =>
+    discoverCiPlan(
+      {
+        eventName: "pull_request",
+        baseSha: sha("a"),
+        headSha: sha("b"),
+        checkoutSha: sha("c"),
+        proseOnlyEnabled: true,
+        fastValidationEnabled,
+      },
+      (args) =>
+        args[0] === "merge-base" ? `${sha("d")}\n` : raw(modified("apps/desktop/src/App.tsx")),
+    );
+  const staged = run(false);
+  assert.equal(staged.mode, "qualification");
+  assert.equal(staged.reason, "fast-validation-awaiting-independent-activation");
+  assert.deepEqual(staged.groups, [
+    "catalog",
+    "dependency-review",
+    "frontend",
+    "rust",
+    "rust-quality",
+  ]);
+  assert.equal(run(true).mode, "fast");
+});
+
 test("missing refs and Git errors block rather than authorize guessed validation", () => {
   for (const fixture of [
     { baseSha: "missing", runner: () => assert.fail("git must not run") },

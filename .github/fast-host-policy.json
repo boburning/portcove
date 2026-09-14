@@ -5,5 +5,5 @@
   "minimum_comparable_heads": 3,
   "minimum_median_improvement": 0.2,
   "measurements": [],
-  "decision": "retain-primary-until-qualified"
+  "decision": "retain-primary-insufficient-comparable-heads"
 }

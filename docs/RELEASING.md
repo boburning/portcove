@@ -526,10 +526,14 @@ after publication; the repository setting alone is not that evidence.
 
 Pushing `v*` starts `.github/workflows/release.yml`. A cheap identity job first
 checks version, tag, package policy, and workflow contracts. It then unlocks the
-full fresh audit/upstream validation, a three-platform build matrix, and the
-dedicated Intel producer in parallel. The native Intel verifier starts as soon as
+secret-free reusable qualification and a three-platform build matrix plus the
+dedicated Intel producer in parallel. Release validation consumes and verifies
+the qualification plan digest and exact checkout before running the release
+audit profile, dependency audit, and live upstream checks. The reduced release
+audit profile retains dependency policy, rscheck, and release-unit coverage;
+qualification owns the remaining complete cross-platform inventory. The native Intel verifier starts as soon as
 that producer is complete, without waiting for unrelated platform builds. A
-fail-closed result gate requires every producer and native Intel verification before
+fail-closed result gate requires qualification, release validation, every producer, and native Intel verification before
 assembly. Build jobs have read-only
 repository permission and stage only the versioned CLI archive, explicitly
 selected native distributable packages, one internal platform SHA-256 manifest,
@@ -603,7 +607,7 @@ outputs.
 
 ## Release rehearsal
 
-Run the **Release** workflow manually from GitHub Actions before the first v1 tag or after changing packaging. A manual run executes the same cheap identity gate, concurrent fresh validation, three-platform matrix and dedicated Intel build, immediate downstream native Intel verification, read-only assembly, SBOM generation, payload finalization, public checksum verification, and internal SBOM-subject checksum verification, but the tag-only attestation and publication jobs remain disabled. It deletes the transient copies only after those contracts pass. A failed rehearsal retains its artifacts for no more than one day for diagnosis; a successful rehearsal keeps the run logs and verification result without consuming ongoing Actions artifact storage. A rehearsal never creates an attestation, tag, draft release, or published release.
+Run the **Release** workflow manually from GitHub Actions before the first v1 tag or after changing packaging. A manual run executes the same cheap identity gate, reusable exhaustive qualification, bound release validation, three-platform matrix and dedicated Intel build, immediate downstream native Intel verification, read-only assembly, SBOM generation, payload finalization, public checksum verification, and internal SBOM-subject checksum verification, but the tag-only attestation and publication jobs remain disabled. It deletes the transient copies only after those contracts pass. A failed rehearsal retains its artifacts for no more than one day for diagnosis; a successful rehearsal keeps the run logs and verification result without consuming ongoing Actions artifact storage. A rehearsal never creates an attestation, tag, draft release, or published release.
 
 From an authenticated GitHub CLI, start and follow the rehearsal with:
 
@@ -614,7 +618,7 @@ gh run list --workflow release.yml --event workflow_dispatch --branch main --lim
 
 Identify the specific dispatch by workflow, event, branch, dispatch time, actor,
 and `head_sha = C`; never select an unrelated latest run. Require successful
-identity, validation, every expected builder, Intel native verification, the
+identity, qualification, bound validation, every expected builder, Intel native verification, the
 result gate, and reconciliation, with publication skipped.
 Record the run ID, attempt, timestamps, SHA, job outcomes, reconciliation result,
 and cleanup state in the external execution record. If main moves during the

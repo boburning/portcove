@@ -74,9 +74,10 @@ It runs affected Rust packages rather than the workspace, uses Vitest's import
 graph for UI sources, and maps repository scripts and workflows to their exact
 contract tests. Root Cargo/toolchain changes compile and lint the workspace and
 run dependency policy without executing every local test. Combined changes use
-the union of their scopes. An unknown but syntactically safe path selects the
-explicit all-fast-groups fallback on the primary host and is reported in the
-plan. Add and test a narrow rule before depending on a smaller selection.
+the union of their scopes. The shared hosted plan maps an unknown but
+syntactically safe path to the explicit all-fast-groups fallback on the primary
+host. The local selector reports the path and refuses to run until a tested
+focused rule owns it, so a broad local suite cannot silently replace that rule.
 Unsafe paths and incomplete or failed diff discovery authorize no work and
 block the classifier.
 
@@ -88,9 +89,11 @@ continue. Superseded hosted runs are cancelled by the workflow concurrency
 contract.
 
 Required GitHub CI remains the exact-reviewed-head merge gate. A versioned
-validation plan routes ordinary frontend and primary-Rust changes to complete
-primary-host groups, while native/IPC, catalog, dependency, platform,
+validation plan is staged to route ordinary frontend and primary-Rust changes to
+complete primary-host groups, while native/IPC, catalog, dependency, platform,
 release/security and protected-policy changes require exhaustive qualification.
+Fast pull-request routing remains disabled until a separate activation change
+passes the trusted exhaustive plan.
 A local full suite does not replace the selected hosted plan. Ordinary pull
 requests do not repeat `just check` or `just audit` merely to duplicate that
 coverage. Aggregate local commands remain useful for release preflight, an
@@ -122,12 +125,16 @@ reporting. Its v2 record contains complete changed paths including both rename
 sides and deletions, base/merge-base/head/checkout identities, areas, reasons,
 platforms, expected groups, qualification requirement, fallback, and a
 deterministic digest. `.github/qualification-coverage.json` lists every
-qualification job, platform, and protected context; its checker refuses a zero,
-duplicate, missing, or extra inventory. `.github/workflows/qualification.yml`
+reusable job, pull-request-only dependency-review job, platform, and protected
+context; its checker refuses a zero, duplicate, missing, or extra inventory.
+`.github/workflows/qualification.yml`
 reuses the same exact workflow in forced-qualification mode for manual callers
 and daily at 05:17 UTC. Fixed non-canceling concurrency retains one running and
 at most one current pending run; newer pending work coalesces older pending work.
-It has read-only contents permission and no secrets.
+It has read-only contents permission and no secrets. Reusable outputs bind the
+executed plan digest and checkout into release validation. Provenance records
+separate their top-level caller, called workflow bytes, and artifact scope so a
+nested release qualification cannot collide with release provenance.
 
 Fast work initially runs on `ubuntu-22.04`. `.github/fast-host-policy.json`
 retains that host until at least three exact comparable heads execute the same
@@ -374,8 +381,9 @@ The helper never opens an interactive privilege prompt: root runs directly, whil
 other callers must already have noninteractive sudo authority. Each APT process,
 including its privilege wrapper, is inside the declared deadline.
 
-Required pull-request CI has a five-minute warm-cache target for routed fast
-work, measured from run creation to the terminal required-job result.
+After independent activation, required pull-request CI has a five-minute
+warm-cache target for routed fast work, measured from run creation to the
+terminal required-job result.
 Qualification retains the exhaustive Windows Rust partitions, lightweight
 Windows storage job, native Linux/macOS matrix, Intel producer/execution,
 platform documentation, full Linux quality, frontend, catalog, and dependency
@@ -529,13 +537,13 @@ investigation. It also shows work class and caller, qualification failures,
 cache-step observations, the observable pre-job, job-window and post-job
 aggregation boundaries, exact comparable cohorts, recent
 API-identified failure leads, and the three longest steps in each slow job.
-CI and release validation upload one attempt-specific v2 provenance record named with
+CI and release validation upload one attempt-specific v3 provenance record named with
 the run ID and attempt. It binds GitHub's `GITHUB_WORKFLOW_SHA` workflow-file
-source commit and `GITHUB_WORKFLOW_REF`, a SHA-256 of the checked-out workflow
-bytes, the event source-code head, the separately checked-out `GITHUB_SHA` (including
+source commit and `GITHUB_WORKFLOW_REF`, the top-level caller workflow, the called
+workflow path and SHA-256 of its checked-out bytes, the event source-code head, the separately checked-out `GITHUB_SHA` (including
 GitHub's pull-request merge commit), and desired versus observed Node, pnpm, Rust,
 Cargo, build environment, and runner configuration. The record also binds the
-validation-plan digest, work class, caller, and a nonzero job-toolchain inventory
+validation-plan digest, work class, caller, and the provenance job's observed toolchain
 so fast and qualification cohorts cannot be conflated. `ci-health` verifies the
 artifact digest and every embedded identity before forming a cohort. Earlier or
 expired runs without this record are explicitly unknown and excluded from

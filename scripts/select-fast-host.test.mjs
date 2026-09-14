@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { evaluateFastHostPolicy } from "./select-fast-host.mjs";
+import { evaluateFastHostPolicy, validateFastHostPolicy } from "./select-fast-host.mjs";
 
 const sha = (character) => character.repeat(40);
 const base = {
@@ -47,9 +47,48 @@ test("switches only at a 20 percent or better comparable median improvement", ()
 });
 
 test("rejects weakened sample and threshold policy", () => {
+  assert.throws(
+    () => evaluateFastHostPolicy({ ...base, primary_host: "windows-latest" }),
+    /Linux primary/u,
+  );
   assert.throws(() => evaluateFastHostPolicy({ ...base, minimum_comparable_heads: 2 }), /three/u);
   assert.throws(
     () => evaluateFastHostPolicy({ ...base, minimum_median_improvement: 0.19 }),
     /20 percent/u,
+  );
+  assert.throws(
+    () =>
+      evaluateFastHostPolicy({
+        ...base,
+        measurements: [
+          { head: sha("a"), primary_seconds: 100, challenger_seconds: 80, coverage_equal: true },
+          { head: sha("a"), primary_seconds: 100, challenger_seconds: 80, coverage_equal: true },
+        ],
+      }),
+    /duplicate head/u,
+  );
+  assert.throws(
+    () =>
+      evaluateFastHostPolicy({
+        ...base,
+        measurements: [
+          { head: "not-a-sha", primary_seconds: 100, challenger_seconds: 80, coverage_equal: true },
+        ],
+      }),
+    /malformed/u,
+  );
+});
+
+test("recorded host decision must match the current evidence", () => {
+  assert.equal(
+    validateFastHostPolicy({
+      ...base,
+      decision: "retain-primary-insufficient-comparable-heads",
+    }).selected,
+    "ubuntu-22.04",
+  );
+  assert.throws(
+    () => validateFastHostPolicy({ ...base, decision: "switch-to-qualified-challenger" }),
+    /does not match/u,
   );
 });
