@@ -37,7 +37,11 @@ Linux builds a disposable test-signed TUF repository, embeds its public trust an
 local repository URLs in a qualification-only 0.1.0 AppImage, and exercises the
 packaged helper through an interrupted candidate copy, GUI-independent command
 recovery without a display server, and retrying 0.1.0-to-0.3.0 replacement under
-Xvfb. Before replacement, the harness presents an unsupported future apply-journal
+Xvfb. Before granting staged or apply authority, the harness removes one byte from
+the authenticated candidate, requires an exact length-mismatch failure, and proves
+the stable AppImage, empty staging state, and library sentinel remain unchanged.
+It then retries the exact candidate and continues the normal sequence. Before
+replacement, the harness presents an unsupported future apply-journal
 schema to the packaged helper, requires exit code 1 without replacement and a
 stable-predecessor restart, and proves the journal, staged payload, staging state,
 predecessor, and user data remain exact before restoring the supported fixture. A

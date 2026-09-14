@@ -59,7 +59,7 @@ $sentinel = Join-Path $sentinelRoot "preserve.txt"
 $sentinelHash = (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash
 
 $evidence = [ordered]@{
-    schema_version = 9
+    schema_version = 10
     phase = "preparing"
     source_commit = (& git rev-parse HEAD | Out-String).Trim()
     platform = "linux-x86_64"
@@ -67,6 +67,13 @@ $evidence = [ordered]@{
     candidate = [ordered]@{ path = $candidate; sha256 = $candidateHash }
     stable_path = $stable
     apply_revision = $null
+    truncated_payload_expected_bytes = $null
+    truncated_payload_bytes = $null
+    truncated_payload_exit_code = $null
+    truncated_payload_rejected = $false
+    truncated_payload_stable_preserved = $false
+    truncated_payload_staging_empty = $false
+    truncated_payload_data_preserved = $false
     interruption_exit_code = $null
     interruption_partial_bytes = $null
     interruption_recovery = "gui-independent-command"
@@ -227,8 +234,51 @@ $fullAppImageStable = Join-Path $fullAppImageMount "Portcove.AppImage"
 $fullAppImageFiller = Join-Path $fullAppImageMount ".qualification-full-disk-filler"
 $fullAppImageState = Join-Path $state "full-appimage-update-state"
 $fullAppImageMounted = $false
+$truncatedCandidate = Join-Path $state "truncated-candidate.AppImage"
 try {
-    Write-Evidence "preparing"
+    Write-Evidence "truncated-payload-preparing"
+    & /usr/bin/cp --preserve=mode,timestamps -- $candidate $truncatedCandidate
+    if ($LASTEXITCODE -ne 0) { throw "Could not create the truncated candidate fixture" }
+    & /usr/bin/truncate --size=-1 -- $truncatedCandidate
+    if ($LASTEXITCODE -ne 0) { throw "Could not truncate the candidate fixture" }
+    $candidateBytes = (Get-Item -LiteralPath $candidate -Force).Length
+    $truncatedBytes = (Get-Item -LiteralPath $truncatedCandidate -Force).Length
+    if ($candidateBytes -le 1 -or $truncatedBytes -ne ($candidateBytes - 1)) {
+        throw "The truncated candidate fixture does not omit exactly one byte"
+    }
+    $evidence.truncated_payload_expected_bytes = $candidateBytes
+    $evidence.truncated_payload_bytes = $truncatedBytes
+
+    $truncatedOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_appimage_update -- prepare 0.1.0 $trustedRoot $metadata $targets $truncatedCandidate $updatePreferences $updateRoot $libraryRoot 2>&1 | Out-String
+    $evidence.truncated_payload_exit_code = $LASTEXITCODE
+    Remove-Item -LiteralPath $truncatedCandidate -Force
+    if ($evidence.truncated_payload_exit_code -eq 0 -or $truncatedOutput -notmatch "payload length mismatch") {
+        throw "Truncated candidate preparation did not fail with an authenticated length mismatch"
+    }
+    $truncatedStagingPath = Join-Path $updateRoot "staging.json"
+    if (-not (Test-Path -LiteralPath $truncatedStagingPath -PathType Leaf)) {
+        throw "Truncated candidate failure did not retain an explicit empty staging journal"
+    }
+    $truncatedStaging = Get-Content -LiteralPath $truncatedStagingPath -Raw | ConvertFrom-Json
+    if ($truncatedStaging.phase -ne "empty" -or $null -ne $truncatedStaging.candidate -or
+        $null -ne $truncatedStaging.previous_candidate -or
+        (Test-Path -LiteralPath (Join-Path $updateRoot "candidate.payload")) -or
+        (Test-Path -LiteralPath (Join-Path $updateRoot ".candidate.payload.incoming")) -or
+        (Test-Path -LiteralPath (Join-Path $updateRoot "apply.json"))) {
+        throw "Truncated candidate failure retained staged or apply authority"
+    }
+    if ((Get-FileHash -LiteralPath $stable -Algorithm SHA256).Hash.ToLowerInvariant() -ne $predecessorHash) {
+        throw "Truncated candidate failure changed the stable AppImage"
+    }
+    if ((Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -ne $sentinelHash) {
+        throw "Truncated candidate failure changed the persistent-data marker"
+    }
+    $evidence.truncated_payload_rejected = $true
+    $evidence.truncated_payload_stable_preserved = $true
+    $evidence.truncated_payload_staging_empty = $true
+    $evidence.truncated_payload_data_preserved = $true
+    Write-Evidence "truncated-payload-rejected"
+
     $prepareOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_appimage_update -- prepare 0.1.0 $trustedRoot $metadata $targets $candidate $updatePreferences $updateRoot $libraryRoot | Out-String
     if ($LASTEXITCODE -ne 0) { throw "Application update state preparation failed" }
     $prepared = $prepareOutput.Trim() | ConvertFrom-Json
@@ -742,6 +792,9 @@ sleep "$3"
     Write-Evidence "failed"
     throw
 } finally {
+    if (Test-Path -LiteralPath $truncatedCandidate) {
+        Remove-Item -LiteralPath $truncatedCandidate -Force
+    }
     if ($updateHelper) {
         try {
             if (-not $updateHelper.HasExited) { Stop-Process -InputObject $updateHelper -Force }
