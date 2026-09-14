@@ -29,3 +29,10 @@ threads-required = 2
 [[profile.default.overrides]]
 filter = 'package(portcove-core) & test(catalog_update::tests::)'
 threads-required = 2
+
+# This filesystem lifecycle contract can approach the hang deadline when another
+# process-heavy case owns the second slot on Windows. Give it the full fixed
+# two-slot budget while preserving the global thirty-second timeout.
+[[profile.default.overrides]]
+filter = 'package(portcove-core) & test(import_execution::tests::import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empty_library)'
+threads-required = 2

@@ -132,6 +132,14 @@ impl Library {
     }
 
     pub(crate) fn record_activity_diagnostic(&self, capture: &ActivityDiagnostic) -> Result<()> {
+        self.record_activity_diagnostic_with_limit(capture, RETAINED_LIMIT)
+    }
+
+    fn record_activity_diagnostic_with_limit(
+        &self,
+        capture: &ActivityDiagnostic,
+        retained_limit: i64,
+    ) -> Result<()> {
         let payload = serde_json::to_string(capture)?;
         let mut connection = self.connection()?;
         connection.busy_timeout(std::time::Duration::from_millis(250))?;
@@ -153,7 +161,7 @@ impl Library {
             [],
             |row| row.get(0),
         )?;
-        if retained > RETAINED_LIMIT {
+        if retained > retained_limit {
             let candidates = {
                 let mut statement = transaction.prepare(
                     "SELECT d.activity_id,sum(d.payload_bytes) FROM activity_diagnostics AS d
@@ -167,7 +175,7 @@ impl Library {
                     .collect::<std::result::Result<Vec<_>, _>>()?
             };
             for (id, bytes) in candidates {
-                if retained <= RETAINED_LIMIT {
+                if retained <= retained_limit {
                     break;
                 }
                 transaction.execute(
@@ -176,7 +184,7 @@ impl Library {
                 )?;
                 retained -= bytes;
             }
-            if retained > RETAINED_LIMIT {
+            if retained > retained_limit {
                 return Err(PortcoveError::state(
                     "running diagnostic captures reached the library retention limit",
                 ));
@@ -336,36 +344,43 @@ mod tests {
 
     #[test]
     fn retention_removes_only_old_terminal_logs_and_follows_activity_deletion() {
+        const FIXTURE_STREAM_BYTES: usize = 16 * 1024;
+        const FIXTURE_RETAINED_LIMIT: i64 = 48 * 1024;
+
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path()).unwrap();
         let running = activity(&library);
         let small = DiagnosticCapture::default();
         small.record(0, b"running work must remain").unwrap();
         library
-            .record_activity_diagnostic(
+            .record_activity_diagnostic_with_limit(
                 &small
                     .snapshot(&running, "preparation.setup", false)
                     .unwrap(),
+                FIXTURE_RETAINED_LIMIT,
             )
             .unwrap();
         let large = DiagnosticCapture::default();
-        large.record(0, &vec![b'x'; STREAM_LIMIT]).unwrap();
-        large.record(1, &vec![b'y'; STREAM_LIMIT]).unwrap();
+        large.record(0, &vec![b'x'; FIXTURE_STREAM_BYTES]).unwrap();
+        large.record(1, &vec![b'y'; FIXTURE_STREAM_BYTES]).unwrap();
         large.close(0).unwrap();
         large.close(1).unwrap();
         let mut ids = Vec::new();
         let mut snapshot = large
             .snapshot("retention-fixture", "preparation.setup", true)
             .unwrap();
-        for _ in 0..17 {
+        for _ in 0..3 {
             let id = activity(&library);
             snapshot.activity_id = id.clone();
             library
-                .record_activity_diagnostic(
+                .record_activity_diagnostic_with_limit(
                     &small.snapshot(&id, "preparation.extract", true).unwrap(),
+                    FIXTURE_RETAINED_LIMIT,
                 )
                 .unwrap();
-            library.record_activity_diagnostic(&snapshot).unwrap();
+            library
+                .record_activity_diagnostic_with_limit(&snapshot, FIXTURE_RETAINED_LIMIT)
+                .unwrap();
             library
                 .finish_activity(&id, ActivityStatus::Failed, Some("failed setup"))
                 .unwrap();
@@ -386,7 +401,7 @@ mod tests {
             2
         );
         assert!(!library.activity_diagnostic(&running).unwrap().is_empty());
-        assert_eq!(library.activities(50).unwrap().len(), 18);
+        assert_eq!(library.activities(50).unwrap().len(), 4);
         let connection = library.connection().unwrap();
         let retained: i64 = connection
             .query_row(
@@ -395,7 +410,7 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        assert!(retained <= RETAINED_LIMIT);
+        assert!(retained <= FIXTURE_RETAINED_LIMIT);
         connection
             .execute("DELETE FROM activity_history WHERE id=?1", [&running])
             .unwrap();
