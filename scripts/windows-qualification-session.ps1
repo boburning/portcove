@@ -15,6 +15,7 @@ param(
 $ErrorActionPreference = "Stop"
 $null = $CandidateCheckout, $BuildRecordPath, $ExpectedBuildRecordSha256
 $SessionFormat = 2
+# CI routing fixture: a Windows-only change must select exhaustive qualification.
 # Windows exposes process start time through a different clock conversion path.
 # Five seconds covers its observed timestamp granularity without admitting an old run.
 $LaunchStartToleranceSeconds = 5
