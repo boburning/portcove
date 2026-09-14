@@ -602,8 +602,9 @@ or updater plugin is shipped.
 
 Fixtures cover quorum and dual-root continuity, one-key loss, insufficient/online
 key rejection, skipped/missing bridges, revoked online signatures, persistent replay,
-expiry, equal-length target tamper and a separately signed channel delegation.
-The signed channel fixture also selects a direct next release and a skipped release,
+expiry, equal-length target tamper and separately signed channel delegations. The
+signed channel fixture also selects a direct next release, a skipped release and a
+Preview-to-final release, holds Stable rather than downgrade an installed prerelease,
 falls back below a newer withdrawn promotion, and returns the exact top-level payload
 key for the selected candidate. These are deterministic repository/selection results,
 not packaged application replacement or production-feed observations.
