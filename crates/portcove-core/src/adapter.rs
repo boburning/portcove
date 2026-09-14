@@ -437,7 +437,7 @@ fn prepare_runtime_source(
         required_hashes,
         None,
         checkpoint,
-        None,
+        crate::tool_process::ToolProcessObserver::default(),
     )
 }
 
@@ -448,7 +448,7 @@ pub(crate) fn prepare_runtime_source_with_tool(
     required_hashes: &BTreeMap<String, String>,
     chdman: Option<&Path>,
     checkpoint: &dyn Fn() -> Result<()>,
-    diagnostics: Option<crate::tool_process::ToolDiagnosticSink<'_>>,
+    observer: crate::tool_process::ToolProcessObserver<'_>,
 ) -> Result<()> {
     let marker_path = runtime_source_marker_path(destination)?;
     let expected = runtime_source_marker(source, None, materialization, checkpoint)?;
@@ -475,7 +475,7 @@ pub(crate) fn prepare_runtime_source_with_tool(
         RuntimeSourceMaterialization::PsxBinCue => materialize_psx_bin_cue(source, destination)?,
         RuntimeSourceMaterialization::PsxRawSet => materialize_psx_raw_set(source, destination)?,
         RuntimeSourceMaterialization::Ps2Iso => {
-            materialize_ps2_iso(source, destination, chdman, checkpoint, diagnostics)?
+            materialize_ps2_iso(source, destination, chdman, checkpoint, observer)?
         }
         RuntimeSourceMaterialization::StfsDirectory => {
             materialize_stfs_directory(source, destination, required_hashes, checkpoint)?
@@ -940,7 +940,7 @@ fn materialize_ps2_iso(
     destination: &Path,
     pinned_tool: Option<&Path>,
     checkpoint: &dyn Fn() -> Result<()>,
-    diagnostics: Option<crate::tool_process::ToolDiagnosticSink<'_>>,
+    observer: crate::tool_process::ToolProcessObserver<'_>,
 ) -> Result<()> {
     let extension = source
         .extension()
@@ -966,7 +966,7 @@ fn materialize_ps2_iso(
         .arg(source)
         .arg("-o")
         .arg(&temporary);
-    let output = crate::tool_process::run_tool(&mut command, checkpoint, diagnostics)?;
+    let output = crate::tool_process::run_tool(&mut command, checkpoint, observer)?;
     if !output.status.success() {
         // Retain the private partial output for the lifecycle owner to review.
         return Err(

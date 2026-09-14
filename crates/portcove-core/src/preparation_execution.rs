@@ -216,6 +216,9 @@ impl PortcoveService {
         journal.paths.staging = Some(prepared.operation_root.clone());
         journal.paths.final_path = Some(destination.clone());
         journal.preparation = Some(plan.clone());
+        // No child has started. This durable true state is replaced before
+        // either admitted external preparation process can be spawned.
+        journal.preparation_process_quiesced = Some(true);
         journal.activate = true;
         let store = OperationStore::new(self.library().clone());
         store.put(&mut journal)?;
@@ -341,6 +344,11 @@ impl PortcoveService {
             ));
         }
         emit(operation.message("info", "Materializing the reviewed source"));
+        if plan.inputs.conversion_tool.is_some() {
+            record_preparation_process_quiescence(self, operation.operation_id(), false)?;
+        }
+        let mut conversion_quiesced =
+            || record_preparation_process_quiescence(self, operation.operation_id(), true);
         crate::adapter::prepare_runtime_source_with_tool(
             &plan.inputs.source.path,
             &source,
@@ -351,11 +359,18 @@ impl PortcoveService {
                 .as_ref()
                 .map(|tool| tool.path.as_path()),
             &|| operation.checkpoint(),
-            Some(crate::tool_process::ToolDiagnosticSink {
-                activity_id: operation.operation_id(),
-                phase: "preparation.extract",
-                record: &mut |capture| self.library().record_activity_diagnostic(capture),
-            }),
+            crate::tool_process::ToolProcessObserver {
+                diagnostics: Some(crate::tool_process::ToolDiagnosticSink {
+                    activity_id: operation.operation_id(),
+                    phase: "preparation.extract",
+                    record: &mut |capture| self.library().record_activity_diagnostic(capture),
+                }),
+                quiesced: plan
+                    .inputs
+                    .conversion_tool
+                    .as_ref()
+                    .map(|_| &mut conversion_quiesced as &mut dyn FnMut() -> Result<()>),
+            },
         )
         .map_err(|error| error.during("preparation.extract"))?;
         let setup_relative = plan
@@ -387,14 +402,23 @@ impl PortcoveService {
             })
             .collect::<Result<BTreeMap<_, _>>>()?;
         emit(operation.message("info", "Running the reviewed default upstream setup"));
+        record_preparation_process_quiescence(self, operation.operation_id(), false)?;
+        let mut setup_quiesced =
+            || record_preparation_process_quiescence(self, operation.operation_id(), true);
         let output = crate::tool_process::run_setup(
             &setup,
             &port.setup_arguments,
             &source,
             payload,
             &|| operation.checkpoint(),
-            operation.operation_id(),
-            &mut |capture| self.library().record_activity_diagnostic(capture),
+            crate::tool_process::ToolProcessObserver {
+                diagnostics: Some(crate::tool_process::ToolDiagnosticSink {
+                    activity_id: operation.operation_id(),
+                    phase: "preparation.setup",
+                    record: &mut |capture| self.library().record_activity_diagnostic(capture),
+                }),
+                quiesced: Some(&mut setup_quiesced),
+            },
         )
         .map_err(|error| error.during("preparation.setup"))?;
         tracing::info!(
@@ -616,6 +640,25 @@ fn private_preparation_journal(
         })
 }
 
+fn record_preparation_process_quiescence(
+    service: &PortcoveService,
+    operation_id: &str,
+    quiesced: bool,
+) -> Result<()> {
+    let store = OperationStore::new(service.library().clone());
+    let mut journal = private_preparation_journal(&store, operation_id)?;
+    if journal.kind != LifecycleOperationKind::Prepare
+        || journal.phase != LifecyclePhase::Preparing
+        || journal.install.is_some()
+    {
+        return Err(PortcoveError::verification(
+            "preparation process state does not match private preparation ownership",
+        ));
+    }
+    journal.preparation_process_quiesced = Some(quiesced);
+    store.put(&mut journal)
+}
+
 fn preparation_cleanup_preview(
     service: &PortcoveService,
     journal: &LifecycleOperation,
@@ -665,6 +708,13 @@ fn preparation_cleanup_preview(
         return Err(PortcoveError::verification(
             "retained preparation does not own a terminal failed activity",
         ));
+    }
+    if journal.preparation_process_quiesced != Some(true) {
+        return Err(PortcoveError::conflict(
+            "retained preparation process quiescence is not proven; cleanup is refused",
+        )
+        .detail("operation_id", &journal.id)
+        .detail("recovery_action", "manual_review"));
     }
     let retained_path =
         journal.paths.staging.clone().ok_or_else(|| {

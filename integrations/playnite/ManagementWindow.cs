@@ -255,11 +255,12 @@ namespace Portcove.ReferenceClient
             if (MessageBox.Show(window, preview.Confirmation(1, repairs.Length), "Review retained preparation cleanup",
                 MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK) return;
             CurrentStatus = null;
-            await cli.Manage("preparation.cleanup", new[]
+            var applied = await cli.Manage("preparation.cleanup", new[]
             {
                 "preparation", "cleanup", repair.OperationId,
                 "--expected-preview", preview.PreviewSha256, "--yes"
             }, OnProgress);
+            PreparationCleanupReview.ReadApplied(applied, preview);
             await Refresh();
         }
 

@@ -183,7 +183,7 @@ export async function interruptedPreparationScenario({
       "Backups preserved",
       "Logs preserved",
       "cannot be recovered",
-      "external setup process",
+      "process tree stopped",
     ]) {
       assert.ok(cleanupText.includes(expected), expected);
     }

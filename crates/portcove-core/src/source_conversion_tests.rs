@@ -39,11 +39,14 @@ fn failed_and_cancelled_conversion_retains_logs_and_reaps_owned_processes() {
                     Ok(())
                 }
             },
-            Some(crate::tool_process::ToolDiagnosticSink {
-                activity_id: &id,
-                phase: "preparation.extract",
-                record: &mut |capture| library.record_activity_diagnostic(capture),
-            }),
+            crate::tool_process::ToolProcessObserver {
+                diagnostics: Some(crate::tool_process::ToolDiagnosticSink {
+                    activity_id: &id,
+                    phase: "preparation.extract",
+                    record: &mut |capture| library.record_activity_diagnostic(capture),
+                }),
+                quiesced: None,
+            },
         )
         .unwrap_err();
         assert!(started.elapsed() < Duration::from_secs(5));

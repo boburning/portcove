@@ -830,6 +830,7 @@ impl Library {
         connection.execute(
             "DELETE FROM activity_history
              WHERE status != 'running'
+               AND id NOT IN (SELECT id FROM lifecycle_operations)
                AND id NOT IN (
                  SELECT id FROM activity_history
                  WHERE status != 'running'

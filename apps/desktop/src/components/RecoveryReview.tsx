@@ -267,7 +267,10 @@ function PreparationCleanupDetails({ preview }: { preview: PreparationCleanupPre
         cannot be recovered. If cleanup is interrupted, Portcove keeps the accepted cleanup in its
         journal and retries it when the library reopens.
       </p>
-      <p>Before continuing, make sure any external setup process from this attempt has stopped.</p>
+      <p>
+        Portcove requires durable proof that the owned preparation process tree stopped before
+        cleanup.
+      </p>
       <details>
         <summary data-focusable>Affected entries ({entries.length})</summary>
         {entries.length ? (

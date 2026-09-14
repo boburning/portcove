@@ -794,8 +794,38 @@ pub(crate) fn preparation_plan(plan: &portcove_core::PreparationPlan) -> String 
 }
 
 pub(crate) fn preparation_cleanup(preview: &portcove_core::PreparationCleanupPreview) -> String {
+    let mut entries = preview
+        .retained
+        .files
+        .iter()
+        .map(|file| {
+            format!(
+                "File: {} ({} bytes, SHA-256 {})",
+                clean(&file.relative_path.display().to_string()),
+                file.size,
+                clean(&file.sha256),
+            )
+        })
+        .collect::<Vec<_>>();
+    entries.extend(
+        preview
+            .retained
+            .directories
+            .iter()
+            .map(|directory| format!("Empty folder: {}", clean(&directory.display().to_string()))),
+    );
+    entries.extend(preview.retained.skipped_entries.iter().map(|entry| {
+        format!(
+            "Skipped link or special entry: {} ({})",
+            clean(&entry.relative_path.display().to_string()),
+            clean(&entry.reason),
+        )
+    }));
+    if entries.is_empty() {
+        entries.push("The retained private folder is empty.".into());
+    }
     format!(
-        "Preparation cleanup: {}\nGame: {}\nRetained private folder: {}\nAffected: {} files, {} empty folders, {} skipped links or special entries, {}\nPreserved original installation: {}\nPreserved registered source: {}\nPreserved saved data: {}\nPreserved backups: {}\nPreserved logs: {}\nReversibility: removed private files cannot be recovered\nInterruption: an accepted cleanup remains recorded and will be retried\nPreview: {}",
+        "Preparation cleanup: {}\nGame: {}\nRetained private folder: {}\nAffected: {} files, {} empty folders, {} skipped links or special entries, {}\nAffected entries:\n{}\nPreserved original installation: {}\nPreserved registered source: {}\nPreserved saved data: {}\nPreserved backups: {}\nPreserved logs: {}\nReversibility: removed private files cannot be recovered\nInterruption: an accepted cleanup remains recorded and will be retried\nPreview: {}",
         clean(&preview.operation_id),
         clean(&preview.port_id),
         clean(&preview.retained_path.display().to_string()),
@@ -803,6 +833,7 @@ pub(crate) fn preparation_cleanup(preview: &portcove_core::PreparationCleanupPre
         preview.retained.directories.len(),
         preview.retained.skipped_entries.len(),
         format_bytes(preview.retained.total_bytes),
+        entries.join("\n"),
         clean(&preview.original_install_path.display().to_string()),
         clean(&preview.source_path.display().to_string()),
         clean(&preview.persistent_data_path.display().to_string()),
@@ -1241,7 +1272,10 @@ fn optional_path(path: Option<&Path>) -> String {
 mod tests {
     use std::path::PathBuf;
 
-    use portcove_core::{BackupInventory, BackupInventoryState, BackupRecord, StorageSummary};
+    use portcove_core::{
+        AdoptionCopyFile, AdoptionCopyPlan, AdoptionSkippedEntry, BackupInventory,
+        BackupInventoryState, BackupRecord, PreparationCleanupPreview, StorageSummary,
+    };
 
     use super::{backup_list, catalog_show, document, storage, table};
 
@@ -1255,6 +1289,42 @@ mod tests {
         assert!(output.contains("Saves and settings: managed by Portcove"));
         assert!(output.contains("Upstream state: active"));
         assert!(!output.contains("libultraship-portable"));
+    }
+
+    #[test]
+    fn preparation_cleanup_lists_every_reviewed_entry_before_confirmation() {
+        let preview = PreparationCleanupPreview {
+            format_version: 1,
+            operation_id: "owned-operation".into(),
+            port_id: "owned-port".into(),
+            retained_path: PathBuf::from("C:/Portcove/staging/owned-operation"),
+            retained: AdoptionCopyPlan {
+                directories: vec![PathBuf::from("empty")],
+                files: vec![AdoptionCopyFile {
+                    relative_path: PathBuf::from("payload/private.bin"),
+                    size: 4,
+                    sha256: "a".repeat(64),
+                }],
+                skipped_entries: vec![AdoptionSkippedEntry {
+                    relative_path: PathBuf::from("linked-save"),
+                    reason: "symbolic link".into(),
+                }],
+                total_bytes: 4,
+            },
+            original_install_path: PathBuf::from("C:/Portcove/versions/owned-port/original"),
+            source_path: PathBuf::from("C:/Sources/owned.iso"),
+            persistent_data_path: PathBuf::from("C:/Portcove/user/owned-port"),
+            backup_path: PathBuf::from("C:/Portcove/backups/owned-port"),
+            logs_path: PathBuf::from("C:/Portcove/logs"),
+            cleanup_is_irreversible: true,
+            interrupted_cleanup_will_retry: true,
+            preview_sha256: "b".repeat(64),
+        };
+
+        let output = super::preparation_cleanup(&preview);
+        assert!(output.contains("File: payload/private.bin (4 bytes, SHA-256"));
+        assert!(output.contains("Empty folder: empty"));
+        assert!(output.contains("Skipped link or special entry: linked-save (symbolic link)"));
     }
 
     fn failed_activity(private_path: &std::path::Path) -> portcove_core::ActivityRecord {

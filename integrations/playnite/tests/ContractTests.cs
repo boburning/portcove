@@ -267,6 +267,9 @@ internal static class ContractTests
             confirmation.Contains("payload/private.bin") && confirmation.Contains(new string('a', 64)) &&
             confirmation.Contains(@"C:\Sources\shape-a.iso") && confirmation.Contains("1 of 2"),
             "cleanup review consumes exact affected and preserved state");
+        Check(PreparationCleanupReview.ReadApplied(
+                Json.Parse(Json.Print(CleanupPreview())), preview).PreviewSha256 == preview.PreviewSha256,
+            "cleanup mutation result must exactly match its reviewed preview");
 
         var unknownRepair = Json.Object(Json.Parse(Json.Print(doctor)));
         var unknownItems = Json.Array(Json.Field(Json.Field(unknownRepair, "repair"), "items"));
@@ -297,6 +300,14 @@ internal static class ContractTests
         invalidRetry["interrupted_cleanup_will_retry"] = "unknown";
         Reject(() => PreparationCleanupReview.Read(invalidRetry, "retained-operation", "shape-a"),
             "unknown cleanup retry behavior rejected");
+        var changedResult = Json.Object(Json.Parse(Json.Print(CleanupPreview())));
+        var changedRetained = Json.Object(Json.Field(changedResult, "retained"));
+        changedRetained["total_bytes"] = 8L;
+        Json.Object(Json.Array(Json.Field(changedRetained, "files"))[0])["size"] = 8L;
+        Reject(() => PreparationCleanupReview.ReadApplied(changedResult, preview),
+            "cleanup mutation result with another inventory rejected");
+        Reject(() => PreparationCleanupReview.ReadApplied(null, preview),
+            "missing cleanup mutation result rejected");
     }
     private static void LaunchRecords()
     {

@@ -1228,6 +1228,12 @@ Core owns opt-in discovery requests, traversal and hashing budgets, candidate va
 
 ## Install transaction
 
+SQLite schema 28 adds a durable preparation-process quiescence fact. Core clears
+it before an admitted external conversion or setup child may spawn and restores
+it only after the owned process tree has stopped. Missing, legacy, or
+interruption-ambiguous state refuses retained cleanup rather than trusting a
+terminal activity row or a UI warning.
+
 1. Validate catalog, channel, platform, and required source reference.
 2. Query the declared GitHub or GitLab game upstream, or a reviewed pinned direct manifest, and enforce its lifecycle policy.
 3. Select a platform asset and require a SHA-256 digest or checksum sidecar.

@@ -18,8 +18,14 @@ fn run_fixture(root: &Path, checkpoint: &dyn Fn() -> Result<()>) -> Result<Setup
         &root.join("owned-fixture.iso"),
         root,
         checkpoint,
-        "owned-fixture",
-        &mut |_| Ok(()),
+        ToolProcessObserver {
+            diagnostics: Some(ToolDiagnosticSink {
+                activity_id: "owned-fixture",
+                phase: "preparation.setup",
+                record: &mut |_| Ok(()),
+            }),
+            quiesced: Some(&mut || Ok(())),
+        },
     )
 }
 
@@ -122,13 +128,19 @@ fn diagnostic_storage_failure_stops_the_owned_tool_before_returning() {
         &root.join("owned-fixture.iso"),
         root,
         &|| Ok(()),
-        "owned-storage-failure",
-        &mut |capture| {
-            if capture.stdout.observed_bytes > 0 {
-                Err(PortcoveError::state("owned diagnostic storage failure"))
-            } else {
-                Ok(())
-            }
+        ToolProcessObserver {
+            diagnostics: Some(ToolDiagnosticSink {
+                activity_id: "owned-storage-failure",
+                phase: "preparation.setup",
+                record: &mut |capture| {
+                    if capture.stdout.observed_bytes > 0 {
+                        Err(PortcoveError::state("owned diagnostic storage failure"))
+                    } else {
+                        Ok(())
+                    }
+                },
+            }),
+            quiesced: Some(&mut || Ok(())),
         },
     )
     .err()
@@ -186,8 +198,14 @@ fn setup_descendants_cannot_keep_writing_after_completion_or_cancellation() {
                     Ok(())
                 }
             },
-            "owned-descendant-fixture",
-            &mut |_| Ok(()),
+            ToolProcessObserver {
+                diagnostics: Some(ToolDiagnosticSink {
+                    activity_id: "owned-descendant-fixture",
+                    phase: "preparation.setup",
+                    record: &mut |_| Ok(()),
+                }),
+                quiesced: Some(&mut || Ok(())),
+            },
         );
         if cancel {
             assert_eq!(result.err().unwrap().code, crate::ErrorCode::Cancelled);

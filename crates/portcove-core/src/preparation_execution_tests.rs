@@ -283,6 +283,7 @@ fn retained_cleanup_fixture() -> (Fixture, String, std::path::PathBuf) {
             )),
     );
     journal.preparation = Some(plan);
+    journal.preparation_process_quiesced = Some(true);
     journal.activate = true;
     journal.last_error = Some("owned retained preparation fixture".into());
     OperationStore::new(library.clone())
@@ -496,6 +497,73 @@ fn preparation_cleanup_rejects_busy_wrong_kind_and_out_of_root_work() {
         ErrorCode::Conflict
     );
     assert!(fixture.source.is_file());
+    assert!(retained.exists());
+}
+
+#[test]
+fn preparation_cleanup_refuses_unknown_process_quiescence() {
+    let (fixture, operation_id, retained) = retained_cleanup_fixture();
+    let store = OperationStore::new(fixture.service.library().clone());
+    let mut journal = store.all().unwrap().remove(0);
+    journal.preparation_process_quiesced = None;
+    store.put(&mut journal).unwrap();
+
+    let error = fixture
+        .service
+        .preview_preparation_cleanup(&operation_id)
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Conflict);
+    assert!(error.message.contains("quiescence is not proven"));
+    assert!(retained.exists());
+}
+
+#[test]
+fn activity_retention_preserves_rows_owned_by_lifecycle_journals() {
+    let (fixture, operation_id, retained) = retained_cleanup_fixture();
+    let connection = fixture.service.library().connection().unwrap();
+    connection
+        .execute_batch(
+            "WITH RECURSIVE sequence(value) AS (
+               SELECT 1 UNION ALL SELECT value + 1 FROM sequence WHERE value <= 1001
+             )
+             INSERT INTO activity_history(
+               id, operation, target_kind, target_id, status, started_at, finished_at
+             )
+             SELECT printf('retention-%04d', value), 'verify_source', 'library', NULL,
+                    'succeeded', 1000 + value, 1000 + value
+             FROM sequence;",
+        )
+        .unwrap();
+    let trigger = fixture
+        .service
+        .library()
+        .begin_activity(
+            crate::ActivityOperation::VerifySource,
+            crate::ActivityTargetKind::Library,
+            None,
+        )
+        .unwrap();
+    fixture
+        .service
+        .library()
+        .finish_activity(&trigger.id, crate::ActivityStatus::Succeeded, None)
+        .unwrap();
+
+    assert!(
+        fixture
+            .service
+            .library()
+            .activities(2000)
+            .unwrap()
+            .iter()
+            .any(|activity| activity.id == operation_id)
+    );
+    assert!(
+        fixture
+            .service
+            .preview_preparation_cleanup(&operation_id)
+            .is_ok()
+    );
     assert!(retained.exists());
 }
 

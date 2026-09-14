@@ -85,7 +85,7 @@ pub(crate) async fn cleanup_preparation(
         &app,
         "Confirm retained preparation cleanup",
         format!(
-            "Permanently remove the reviewed private preparation folder for {}?\n\nFolder: {}\nFiles: {} ({} bytes)\n\nThe original installation, registered source, saved data, backups, and logs are preserved. Make sure any external setup process from this attempt has stopped.",
+            "Permanently remove the reviewed private preparation folder for {}?\n\nFolder: {}\nFiles: {} ({} bytes)\n\nThe original installation, registered source, saved data, backups, and logs are preserved. Portcove requires durable proof that the owned preparation process tree stopped before cleanup.",
             preview.port_id,
             preview.retained_path.display(),
             preview.retained.files.len(),

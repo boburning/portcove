@@ -283,6 +283,28 @@ namespace Portcove.ReferenceClient
             };
         }
 
+        internal static PreparationCleanupReview ReadApplied(
+            object value,
+            PreparationCleanupReview reviewed)
+        {
+            if (reviewed == null)
+                throw new InvalidOperationException("A cleanup result cannot be accepted without its reviewed preview.");
+            var applied = Read(value, reviewed.OperationId, reviewed.PortId);
+            if (applied.RetainedPath != reviewed.RetainedPath ||
+                applied.OriginalInstallPath != reviewed.OriginalInstallPath ||
+                applied.SourcePath != reviewed.SourcePath ||
+                applied.PersistentDataPath != reviewed.PersistentDataPath ||
+                applied.BackupPath != reviewed.BackupPath ||
+                applied.LogsPath != reviewed.LogsPath ||
+                applied.CleanupIsIrreversible != reviewed.CleanupIsIrreversible ||
+                applied.InterruptedCleanupWillRetry != reviewed.InterruptedCleanupWillRetry ||
+                applied.PreviewSha256 != reviewed.PreviewSha256 ||
+                applied.TotalBytes != reviewed.TotalBytes ||
+                !applied.AffectedEntries.SequenceEqual(reviewed.AffectedEntries, StringComparer.Ordinal))
+                throw new InvalidOperationException("The cleanup result does not match the exact reviewed operation and inventory. Refresh repair state before another action.");
+            return applied;
+        }
+
         internal string Confirmation(int position, int count) =>
             "Discard this exact retained private preparation?" + (count == 1 ? "" : " This is " + position + " of " + count + " retained attempts; repeat this action to review another.") +
             "\n\nRetained folder: " + RetainedPath + "\nAffected entries:\n" + string.Join("\n", AffectedEntries) +
@@ -294,7 +316,7 @@ namespace Portcove.ReferenceClient
             "\nPreserved logs: " + LogsPath +
             "\n\nIrreversible: " + (CleanupIsIrreversible ? "yes; removed private files cannot be recovered." : "no.") +
             "\nInterrupted cleanup will retry: " + (InterruptedCleanupWillRetry ? "yes." : "no; inspect repair state before another action.") +
-            "\nEnsure any external setup process from this failed attempt has stopped before continuing.";
+            "\nPortcove requires durable proof that the owned preparation process tree stopped before cleanup.";
     }
 
     internal static class Identity

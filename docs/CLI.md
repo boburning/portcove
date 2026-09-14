@@ -674,8 +674,10 @@ reviewed private tree there before deletion. Startup retries only that same
 fingerprint. Files newly created at the original staging path remain retained for
 a fresh review, and the failed preparation never becomes a success. Desktop
 presents the same custom review and still requires its native backend
-confirmation. The user must ensure any external setup process from the failed
-attempt has stopped before accepting cleanup. API schema 48 adds the
+confirmation. SQLite schema 28 durably marks the preparation process boundary
+before an external conversion or setup child can start and records quiescence
+only after the owned process tree has stopped. Legacy or interrupted attempts
+without that proof remain retained and cleanup fails closed. API schema 48 adds the
 `retained_preparation` repair kind and `preparation_cleanup_preview`; operation
 event schema remains 2.
 
