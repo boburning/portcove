@@ -49,6 +49,20 @@ test("also accepts name-status records with an embedded tab", () => {
   ]);
 });
 
+test("incomplete diff discovery fails closed before selecting tests", () => {
+  assert.throws(
+    () => parseNameStatus(Buffer.from("R100\0crates/portcove-core/src/old.rs\0")),
+    /incomplete git rename\/copy record/u,
+  );
+  assert.throws(
+    () =>
+      localChangesFromRaw(
+        Buffer.from(":100644 100644 1111111 2222222 R100\0crates/portcove-core/src/old.rs\0"),
+      ),
+    /unsafe changed path|raw diff ended/u,
+  );
+});
+
 test("shared local planning retains raw file modes and both rename paths", () => {
   const raw = Buffer.from(
     ":100644 100755 1111111 2222222 M\0docs/QUALITY.md\0" +
@@ -91,6 +105,56 @@ test("a Rust source change checks and tests only its affected package", () => {
   ]);
 });
 
+test("mapped module-local Rust changes run the owned focused group", () => {
+  const { plan } = planFor(["crates/portcove-core/src/source_report.rs"]);
+  assert.deepEqual(ids(plan), [
+    "diff-check",
+    "rustfmt",
+    "rust-check:portcove-core",
+    "rust-clippy:portcove-core",
+    "rust-tests:portcove-core:source-inspection",
+    "rust-docs:portcove-core",
+  ]);
+  const tests = plan.find((entry) => entry.id.endsWith(":source-inspection"));
+  assert.equal(tests.args.at(-2), "-E");
+  assert.match(tests.args.at(-1), /source_report/u);
+  assert.match(tests.reason, /explicit test-impact ownership/u);
+});
+
+test("mapped Rust responsibilities union as separate attributable groups", () => {
+  const { plan } = planFor([
+    "crates/portcove-core/src/source_report.rs",
+    "crates/portcove-core/src/release/observation.rs",
+  ]);
+  assert.ok(ids(plan).includes("rust-tests:portcove-core:source-inspection"));
+  assert.ok(ids(plan).includes("rust-tests:portcove-core:release-discovery"));
+  assert.ok(!ids(plan).includes("rust-tests:portcove-core"));
+});
+
+test("mapped renames and an unavailable impact contract use the broad package fallback", () => {
+  const renamed = planFor([
+    change("crates/portcove-core/src/source_report.rs", {
+      status: "R100",
+      previousPath: "crates/portcove-core/src/source_summary.rs",
+    }),
+  ]).plan;
+  assert.ok(ids(renamed).includes("rust-tests:portcove-core"));
+  assert.ok(!ids(renamed).some((id) => id.endsWith(":source-inspection")));
+
+  const selection = classifyChanges([change("crates/portcove-core/src/source_report.rs")], {
+    fileExists: allFilesExist,
+  });
+  const unavailable = buildPlan(selection, {
+    mergeBase: "base-sha",
+    rustTestImpactMap: null,
+    rustTestImpactLoadError: "impact map could not be read",
+  });
+  const tests = unavailable.find((entry) => entry.id === "rust-tests:portcove-core");
+  assert.ok(tests);
+  assert.match(tests.reason, /complete portcove-core test inventory/u);
+  assert.match(tests.reason, /impact map could not be read/u);
+});
+
 test("bin-only Rust packages do not schedule an invalid doctest command", () => {
   const { plan } = planFor(["crates/portcove-cli/src/main.rs"]);
   assert.ok(ids(plan).includes("rust-tests:portcove-cli"));
@@ -107,7 +171,7 @@ test("doctest capability comes from Cargo target metadata", () => {
   assert.deepEqual([...packages], ["library"]);
 });
 
-test("root Rust dependency changes compile and lint the workspace without local exhaustive tests", () => {
+test("root Rust dependency changes compile, lint, and use the broad workspace test fallback", () => {
   const { plan } = planFor(["Cargo.lock"]);
   assert.deepEqual(ids(plan), [
     "diff-check",
@@ -115,6 +179,7 @@ test("root Rust dependency changes compile and lint the workspace without local 
     "rust-workspace-check",
     "rust-workspace-clippy",
     "dependency-policy",
+    "rust-workspace-tests",
   ]);
 });
 
@@ -132,10 +197,8 @@ test("UI sources build, lint, and run import-related tests", () => {
     "ui-copy",
   ]);
   const uiBuild = plan.find((entry) => entry.id === "ui-build");
-  if (process.platform === "win32") {
-    assert.equal(uiBuild.executable, process.execPath);
-    assert.match(uiBuild.args[0], /node_modules[\\/]corepack[\\/]dist[\\/]corepack\.js$/);
-  } else assert.equal(uiBuild.executable, "corepack");
+  assert.equal(uiBuild.executable, "corepack");
+  assert.equal(uiBuild.args[0], "pnpm");
   const durations = plan.find((entry) => entry.id === "ui-related-durations");
   assert.ok(durations.args.includes("--allow-empty"));
 });

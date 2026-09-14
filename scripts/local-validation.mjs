@@ -5,18 +5,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { buildValidationPlan, validateValidationPlan } from "./validation-plan.mjs";
+import { spawnCommand } from "./dev-storage.mjs";
 import { parseRawDiff } from "./select-ci-plan.mjs";
+import { readRustTestImpactMap, selectRustTestImpact } from "./rust-test-impact.mjs";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const desktopRoot = path.join(projectRoot, "apps", "desktop");
 const durationReporter = "./scripts/test-duration-reporter.mjs";
-const corepackEntrypoint = path.join(
-  path.dirname(process.execPath),
-  "node_modules",
-  "corepack",
-  "dist",
-  "corepack.js",
-);
 
 const packagePrefixes = new Map([
   ["crates/portcove-core/", "portcove-core"],
@@ -68,6 +63,10 @@ const oxfmtExtensions = new Set([
 ]);
 
 const explicitNodeTests = new Map([
+  [
+    ".config/rust-test-impact.json",
+    ["scripts/rust-test-impact.test.mjs", "scripts/local-validation.test.mjs"],
+  ],
   ["scripts/check-vitest-durations.mjs", ["scripts/test-duration-reporter.test.mjs"]],
   [
     "apps/desktop/scripts/desktop-test.mjs",
@@ -154,9 +153,7 @@ function command(id, reason, executable, args, options = {}) {
 }
 
 function corepackCommand(id, reason, args, options = {}) {
-  return process.platform === "win32"
-    ? command(id, reason, process.execPath, [corepackEntrypoint, ...args], options)
-    : command(id, reason, "corepack", args, options);
+  return command(id, reason, "corepack", args, options);
 }
 
 function addNodeTest(selection, file) {
@@ -419,6 +416,13 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
   if (!recognized) selection.unknown.add(file);
 }
 
+function packageForPath(input) {
+  const file = normalizePath(input);
+  for (const [prefix, packageName] of packagePrefixes)
+    if (file.startsWith(prefix)) return packageName;
+  return null;
+}
+
 export function classifyChanges(changes, options = {}) {
   const fileExists = options.fileExists ?? ((file) => existsSync(path.join(projectRoot, file)));
   const selection = {
@@ -443,6 +447,7 @@ export function classifyChanges(changes, options = {}) {
     fallow: false,
     playnite: false,
     transport: false,
+    rustChanges: [],
   };
   for (const change of changes) {
     classifyOnePath(selection, change.path, fileExists, {
@@ -451,6 +456,16 @@ export function classifyChanges(changes, options = {}) {
     if (change.previousPath)
       classifyOnePath(selection, change.previousPath, fileExists, {
         includeFileChecks: false,
+      });
+    const currentPackage = packageForPath(change.path);
+    if (currentPackage) selection.rustChanges.push({ ...change, packageName: currentPackage });
+    const previousPackage = change.previousPath ? packageForPath(change.previousPath) : null;
+    if (previousPackage && previousPackage !== currentPackage)
+      selection.rustChanges.push({
+        status: change.status,
+        path: change.previousPath,
+        previousPath: change.path,
+        packageName: previousPackage,
       });
   }
   return selection;
@@ -651,10 +666,32 @@ export function buildPlan(selection, context = {}) {
         "cargo",
         ["deny", "check", "--hide-inclusion-graph", "-W", "unmaintained"],
       ),
+      command(
+        "rust-workspace-tests",
+        "root dependency or toolchain changes use the documented broad workspace fallback",
+        process.execPath,
+        ["scripts/run-rust-tests.mjs", "--locked", "--workspace"],
+      ),
     );
   } else {
     const doctestPackages = context.doctestPackages ?? new Set();
+    let rustTestImpactMap = context.rustTestImpactMap;
+    let rustTestImpactLoadError = context.rustTestImpactLoadError;
+    if (!Object.hasOwn(context, "rustTestImpactMap")) {
+      try {
+        rustTestImpactMap = readRustTestImpactMap();
+      } catch (error) {
+        rustTestImpactMap = null;
+        rustTestImpactLoadError = error.message;
+      }
+    }
     for (const packageName of sorted(selection.packages)) {
+      const impact = selectRustTestImpact(
+        rustTestImpactMap,
+        packageName,
+        selection.rustChanges.filter((change) => change.packageName === packageName),
+      );
+      if (rustTestImpactLoadError) impact.reason = `${impact.reason}; ${rustTestImpactLoadError}`;
       commands.push(
         command(
           `rust-check:${packageName}`,
@@ -668,13 +705,26 @@ export function buildPlan(selection, context = {}) {
           "cargo",
           ["clippy", "--locked", "-p", packageName, "--all-targets", "--", "-D", "warnings"],
         ),
-        command(
-          `rust-tests:${packageName}`,
-          `run the affected package ${packageName} without unrelated packages`,
-          process.execPath,
-          ["scripts/run-rust-tests.mjs", "--locked", "-p", packageName],
-        ),
       );
+      if (impact.mode === "broad")
+        commands.push(
+          command(`rust-tests:${packageName}`, impact.reason, process.execPath, [
+            "scripts/run-rust-tests.mjs",
+            "--locked",
+            "-p",
+            packageName,
+          ]),
+        );
+      else
+        for (const group of impact.groups)
+          commands.push(
+            command(
+              `rust-tests:${packageName}:${group.id}`,
+              `${group.reason}; ${impact.reason}`,
+              process.execPath,
+              ["scripts/run-rust-tests.mjs", "--locked", "-p", packageName, "-E", group.filter],
+            ),
+          );
       if (doctestPackages.has(packageName))
         commands.push(
           command(
@@ -896,7 +946,7 @@ function printPlan(context, selection, plan, validationPlan) {
 }
 
 export function executePlan(plan, options = {}) {
-  const spawn = options.spawn ?? spawnSync;
+  const spawn = options.spawn ?? spawnCommand;
   const started = Date.now();
   const timings = [];
   for (const entry of plan) {
