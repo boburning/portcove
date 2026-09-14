@@ -219,3 +219,41 @@ fn setup_descendants_cannot_keep_writing_after_completion_or_cancellation() {
         );
     }
 }
+
+#[cfg(unix)]
+#[test]
+fn detached_unix_descendant_never_records_tree_quiescence() {
+    let native = tempfile::tempdir().unwrap();
+    let program = crate::test_fixture::build_probe(native.path());
+    let working = tempfile::tempdir().unwrap();
+    let marker = working.path().join("escaped-output");
+    let ready = working.path().join("escaped-ready");
+    let arguments = vec![
+        "--setup-tree-escape".into(),
+        marker.display().to_string(),
+        ready.display().to_string(),
+    ];
+    let mut quiesced = false;
+    let output = run_setup(
+        &program,
+        &arguments,
+        &working.path().join("owned.iso"),
+        working.path(),
+        &|| Ok(()),
+        ToolProcessObserver {
+            diagnostics: None,
+            quiesced: Some(&mut || {
+                quiesced = true;
+                Ok(())
+            }),
+        },
+    )
+    .unwrap();
+    assert!(output.status.success());
+    assert!(!quiesced, "a detached helper cannot authorize cleanup");
+    std::thread::sleep(Duration::from_millis(1200));
+    assert!(
+        marker.is_file(),
+        "fixture did not prove process-group escape"
+    );
+}

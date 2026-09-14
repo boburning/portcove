@@ -1230,9 +1230,14 @@ Core owns opt-in discovery requests, traversal and hashing budgets, candidate va
 
 SQLite schema 28 adds a durable preparation-process quiescence fact. Core clears
 it before an admitted external conversion or setup child may spawn and restores
-it only after the owned process tree has stopped. Missing, legacy, or
-interruption-ambiguous state refuses retained cleanup rather than trusting a
-terminal activity row or a UI warning.
+it only after the platform can prove the owned process tree has stopped. Windows
+starts the leader suspended, assigns it to a kill-on-close job, and resumes it
+only after containment. Unix process groups still stop ordinary descendants but
+cannot prove that a helper did not detach with `setsid` or `setpgid`, so a Unix
+attempt that started an external tool retains unproven quiescence and is not
+eligible for reviewed cleanup. Missing, legacy, or interruption-ambiguous state
+likewise refuses cleanup rather than trusting a terminal activity row or a UI
+warning.
 
 1. Validate catalog, channel, platform, and required source reference.
 2. Query the declared GitHub or GitLab game upstream, or a reviewed pinned direct manifest, and enforce its lifecycle policy.

@@ -676,8 +676,11 @@ a fresh review, and the failed preparation never becomes a success. Desktop
 presents the same custom review and still requires its native backend
 confirmation. SQLite schema 28 durably marks the preparation process boundary
 before an external conversion or setup child can start and records quiescence
-only after the owned process tree has stopped. Legacy or interrupted attempts
-without that proof remain retained and cleanup fails closed. API schema 48 adds the
+only after the platform proves the owned process tree has stopped. Windows uses
+a kill-on-close job established before the child can execute. Unix process groups
+cannot prove that a helper did not detach, so an attempt that started an external
+tool remains retained and cleanup fails closed there. Legacy or interrupted
+attempts without proof behave the same way. API schema 48 adds the
 `retained_preparation` repair kind and `preparation_cleanup_preview`; operation
 event schema remains 2.
 

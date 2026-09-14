@@ -132,11 +132,12 @@ pub(crate) fn run_tool(
             Ok(())
         });
         if let Err(error) = observation {
-            let stopped = group.terminate_and_wait(&mut child).is_ok();
+            let stopped =
+                group.terminate_and_wait(&mut child).is_ok() && group.proves_tree_quiescence();
             break (Err(error), stopped);
         }
         match poll_setup(&mut child, &group) {
-            Ok(Some(status)) => break (Ok(status), true),
+            Ok(Some(status)) => break (Ok(status), group.proves_tree_quiescence()),
             Ok(None) => std::thread::sleep(Duration::from_millis(25)),
             Err(error) => {
                 // On Unix an unexpected reaper can invalidate PID ownership.
@@ -285,6 +286,13 @@ impl ToolProcessGroup {
         Ok(Self)
     }
 
+    /// A process group can close ordinary descendants, but membership is
+    /// voluntary: a helper may call setsid/setpgid and escape it. Retained
+    /// cleanup must therefore remain unavailable after any Unix tool starts.
+    fn proves_tree_quiescence(&self) -> bool {
+        false
+    }
+
     pub(crate) fn terminate(&self, child: &std::process::Child) {
         unsafe {
             libc::kill(-(child.id() as i32), libc::SIGKILL);
@@ -401,6 +409,10 @@ impl ToolProcessGroup {
             }
             Ok(group)
         }
+    }
+
+    fn proves_tree_quiescence(&self) -> bool {
+        true
     }
 
     pub(crate) fn terminate(&self, _child: &std::process::Child) {
