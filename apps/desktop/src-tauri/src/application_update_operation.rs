@@ -202,6 +202,15 @@ impl ApplicationUpdateCheckCompletion for StageCheckCompletion<'_> {
         self.staged.store(true, Ordering::SeqCst);
         Ok(())
     }
+
+    fn retry_not_before_unix_seconds(&self, error: &Self::Error) -> Option<u64> {
+        match error {
+            ApplicationUpdateOperationError::Download(PayloadDownloadError::RateLimited {
+                retry_at_unix_seconds,
+            }) => *retry_at_unix_seconds,
+            _ => None,
+        }
+    }
 }
 
 impl ApplicationUpdateOperation {
@@ -420,6 +429,12 @@ mod tests {
 
     struct FailingPayloadSource;
 
+    struct RateLimitedThenPayloadSource {
+        bytes: Vec<u8>,
+        retry_at_unix_seconds: u64,
+        calls: AtomicUsize,
+    }
+
     #[async_trait]
     impl ApplicationUpdatePayloadSource for FakePayloadSource {
         async fn open(
@@ -448,6 +463,21 @@ mod tests {
             _candidate: &SelectedCandidate,
         ) -> Result<ApplicationUpdatePayloadReader, PayloadDownloadError> {
             Err(PayloadDownloadError::Network("offline".into()))
+        }
+    }
+
+    #[async_trait]
+    impl ApplicationUpdatePayloadSource for RateLimitedThenPayloadSource {
+        async fn open(
+            &self,
+            _candidate: &SelectedCandidate,
+        ) -> Result<ApplicationUpdatePayloadReader, PayloadDownloadError> {
+            if self.calls.fetch_add(1, Ordering::SeqCst) == 0 {
+                return Err(PayloadDownloadError::RateLimited {
+                    retry_at_unix_seconds: Some(self.retry_at_unix_seconds),
+                });
+            }
+            Ok(Box::new(std::io::Cursor::new(self.bytes.clone())))
         }
     }
 
@@ -942,6 +972,112 @@ mod tests {
         assert_eq!(schedule.last_success_unix_seconds, None);
         assert_eq!(schedule.consecutive_failures, 1);
         assert!(schedule.next_automatic_check_unix_seconds.unwrap() < 2_000 + 24 * 60 * 60);
+    }
+
+    #[tokio::test]
+    async fn offline_hold_and_rate_limit_retry_preserve_state_until_exact_recovery() {
+        let (temporary, operation, _preferences) = fixture(ApplicationUpdateMode::Automatic);
+        let selected = candidate(b"test");
+        let offline_checker = checker(authenticated(
+            CandidateState::UpdateAvailable,
+            Some(selected.clone()),
+        ));
+        let source = RateLimitedThenPayloadSource {
+            bytes: b"test".to_vec(),
+            retry_at_unix_seconds: 5_000,
+            calls: AtomicUsize::new(0),
+        };
+        let mut offline = environment();
+        offline.network = NetworkAvailability::Offline;
+        let held = operation
+            .check_and_stage(
+                offline,
+                &offline_checker,
+                &source,
+                &NoopApplicationUpdateProgressSink,
+                &CancellationToken::new(),
+            )
+            .await
+            .unwrap();
+        assert!(matches!(
+            held,
+            ApplicationUpdateOperationOutcome::Held(ApplicationUpdateCheckDecision::Hold {
+                reason: crate::application_update_schedule::ApplicationUpdateCheckHold::Offline,
+                retry_at_unix_seconds: None,
+            })
+        ));
+        assert!(offline_checker.result.lock().unwrap().is_some());
+        assert_eq!(source.calls.load(Ordering::SeqCst), 0);
+        let schedule_path = temporary.path().join("schedule.json");
+        assert_eq!(
+            ApplicationUpdateScheduleStore::new(schedule_path.clone())
+                .unwrap()
+                .load()
+                .unwrap(),
+            Default::default()
+        );
+        let staging = ApplicationUpdateStagingStore::new(temporary.path().join("staging")).unwrap();
+        assert_eq!(staging.reconcile().await.unwrap(), None);
+
+        assert!(matches!(
+            operation
+                .check_and_stage(
+                    environment(),
+                    &checker(authenticated(
+                        CandidateState::UpdateAvailable,
+                        Some(selected.clone()),
+                    )),
+                    &source,
+                    &NoopApplicationUpdateProgressSink,
+                    &CancellationToken::new(),
+                )
+                .await,
+            Err(ApplicationUpdateOperationError::Download(
+                PayloadDownloadError::RateLimited {
+                    retry_at_unix_seconds: Some(5_000)
+                }
+            ))
+        ));
+        let limited = ApplicationUpdateScheduleStore::new(schedule_path.clone())
+            .unwrap()
+            .load()
+            .unwrap();
+        assert_eq!(limited.last_success_unix_seconds, None);
+        assert_eq!(limited.consecutive_failures, 1);
+        assert_eq!(limited.next_automatic_check_unix_seconds, Some(5_000));
+        assert_eq!(staging.reconcile().await.unwrap(), None);
+
+        let recovered = operation
+            .check_and_stage(
+                environment(),
+                &checker(authenticated(
+                    CandidateState::UpdateAvailable,
+                    Some(selected),
+                )),
+                &source,
+                &NoopApplicationUpdateProgressSink,
+                &CancellationToken::new(),
+            )
+            .await
+            .unwrap();
+        assert!(matches!(
+            recovered,
+            ApplicationUpdateOperationOutcome::Checked { staged: true, .. }
+        ));
+        assert_eq!(source.calls.load(Ordering::SeqCst), 2);
+        assert_eq!(std::fs::read(staging.payload_path()).unwrap(), b"test");
+        let recovered_schedule = ApplicationUpdateScheduleStore::new(schedule_path)
+            .unwrap()
+            .load()
+            .unwrap();
+        assert_eq!(recovered_schedule.last_success_unix_seconds, Some(2_000));
+        assert_eq!(recovered_schedule.consecutive_failures, 0);
+        assert!(
+            recovered_schedule
+                .next_automatic_check_unix_seconds
+                .unwrap()
+                > 5_000
+        );
     }
 
     #[tokio::test]

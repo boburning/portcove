@@ -81,6 +81,18 @@ compare-and-swap revisions, path-keyed process and OS locks, durable atomic writ
 and explicit reset for malformed or future state. No decision performs network,
 download, staging or application work.
 
+An authenticated payload request that returns HTTP 429, or GitHub HTTP 403 with an
+explicit exhausted rate-limit header, is a transient network failure rather than a
+payload-verification rejection. Numeric `Retry-After` and future
+`X-RateLimit-Reset` values establish a provider retry floor for automatic work;
+the host keeps the later value, caps untrusted provider delay at 24 hours, and never
+shortens an existing cadence hold. Missing, malformed, past, and date-form values
+are ignored; when no usable provider hint remains, the host falls back to the
+ordinary bounded retry. Explicit manual retry still reauthenticates the candidate
+and bypasses cadence, while known-offline state prevents even a manual request.
+Rate-limit failure opens no payload stream, records no successful check, and leaves
+verified staging unchanged.
+
 One host coordinator serializes due and manual checks across processes, re-evaluates
 policy after taking ownership, and awaits the injected authenticated repository
 checker off the startup path. Completion records success or bounded failure backoff
@@ -591,6 +603,10 @@ or updater plugin is shipped.
 Fixtures cover quorum and dual-root continuity, one-key loss, insufficient/online
 key rejection, skipped/missing bridges, revoked online signatures, persistent replay,
 expiry, equal-length target tamper and a separately signed channel delegation.
+The signed channel fixture also selects a direct next release and a skipped release,
+falls back below a newer withdrawn promotion, and returns the exact top-level payload
+key for the selected candidate. These are deterministic repository/selection results,
+not packaged application replacement or production-feed observations.
 Host-state fixtures additionally prove version and signed-body floors after the TUF
 cache is removed, same-process serialization, clock-regression refusal, source
 refusal before state mutation, and recovery from a failed initial bridge plus a

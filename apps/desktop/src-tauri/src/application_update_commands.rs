@@ -826,6 +826,12 @@ fn operation_error(error: ApplicationUpdateOperationError) -> DesktopError {
             "The application update download was interrupted. The previous verified state was preserved.",
         )
         .into(),
+        ApplicationUpdateOperationError::Download(PayloadDownloadError::RateLimited { .. }) => {
+            portcove_core::PortcoveError::network(
+                "The application update service rate limit was reached. The previous verified state was preserved. Wait for the provider retry window before trying again.",
+            )
+            .into()
+        }
         ApplicationUpdateOperationError::Download(_) => portcove_core::PortcoveError::verification(
             "The application update download was rejected. The previous verified state was preserved.",
         )
@@ -1109,5 +1115,22 @@ mod tests {
                     .contains("did not modify package-managed files")
             );
         }
+    }
+
+    #[test]
+    fn payload_rate_limits_are_transient_and_do_not_expose_provider_details() {
+        let error = operation_error(ApplicationUpdateOperationError::Download(
+            PayloadDownloadError::RateLimited {
+                retry_at_unix_seconds: Some(9_999),
+            },
+        ));
+        assert_eq!(error.code, portcove_core::ErrorCode::Network);
+        assert!(error.message.contains("rate limit"));
+        assert!(
+            error
+                .message
+                .contains("previous verified state was preserved")
+        );
+        assert!(!error.message.contains("9999"));
     }
 }
