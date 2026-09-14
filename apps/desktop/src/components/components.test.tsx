@@ -474,6 +474,7 @@ describe("desktop components", () => {
           setView={vi.fn()}
           installedCount={2}
           updateCount={1}
+          activities={[]}
           onAdopt={vi.fn()}
         />,
       ),
@@ -508,6 +509,122 @@ describe("desktop components", () => {
     expect(html).toContain("/brand/icons/portcove-mascot-head-256.png");
     expect(html).toContain("ABOUT &amp; CREDITS");
     expect(html).toContain("/brand/logo/portcove-logo-v2-transparent.png");
+  });
+
+  it("keeps current and abandoned activity discoverable from primary navigation", () => {
+    const now = Math.floor(Date.now() / 1000);
+    const activity = (overrides: Partial<ActivityRecord> = {}): ActivityRecord => ({
+      id: "activity",
+      operation: "prepare",
+      target_kind: "port",
+      target_id: port.id,
+      status: "running",
+      started_at: now,
+      finished_at: null,
+      failure: null,
+      cancellation: null,
+      message: null,
+      ...overrides,
+    });
+    const completed = Array.from({ length: 8 }, (_, index) =>
+      activity({
+        id: `completed-${index}`,
+        operation: "launch",
+        status: "succeeded",
+        started_at: now - index,
+        finished_at: now - index,
+      }),
+    );
+    const current = activity({ id: "current", started_at: now - 60 });
+
+    const running = renderToStaticMarkup(
+      <Sidebar
+        view="library"
+        setView={vi.fn()}
+        installedCount={1}
+        updateCount={2}
+        activities={[...completed, current]}
+        onAdopt={vi.fn()}
+      />,
+    );
+    expect(running).toContain('aria-label="Activity in progress, 2 updates available"');
+
+    const history = renderToStaticMarkup(
+      <UpdateCenter
+        generation={1}
+        ports={[port]}
+        statuses={new Map()}
+        activities={[...completed, current]}
+        outcomes={[]}
+        diagnosticsRefreshing={false}
+        diagnosticsStale={false}
+        refreshDiagnostics={vi.fn()}
+        checkAll={vi.fn()}
+        onSelect={vi.fn()}
+        onOpenSources={vi.fn()}
+      />,
+    );
+    expect(history).toContain("Prepared game data");
+    expect(history).toContain("In progress");
+
+    const abandoned = renderToStaticMarkup(
+      <Sidebar
+        view="catalog"
+        setView={vi.fn()}
+        installedCount={1}
+        updateCount={0}
+        activities={[activity({ started_at: now - 24 * 60 * 60 })]}
+        onAdopt={vi.fn()}
+      />,
+    );
+    expect(abandoned).toContain('aria-label="Activity needs attention"');
+
+    const failed = renderToStaticMarkup(
+      <Sidebar
+        view="catalog"
+        setView={vi.fn()}
+        installedCount={1}
+        updateCount={0}
+        activities={[
+          activity({
+            status: "failed",
+            finished_at: now,
+            failure: failureReport(),
+          }),
+        ]}
+        onAdopt={vi.fn()}
+      />,
+    );
+    expect(failed).toContain('aria-label="Activity needs attention"');
+  });
+
+  it("clears failed preparation attention after a newer successful attempt", () => {
+    const base: ActivityRecord = {
+      id: "failed",
+      operation: "prepare",
+      target_kind: "port",
+      target_id: port.id,
+      status: "failed",
+      started_at: 1,
+      finished_at: 2,
+      failure: failureReport(),
+      cancellation: null,
+      message: null,
+    };
+    const html = renderToStaticMarkup(
+      <Sidebar
+        view="library"
+        setView={vi.fn()}
+        installedCount={1}
+        updateCount={0}
+        activities={[
+          { ...base, id: "succeeded", status: "succeeded", started_at: 3, finished_at: 4 },
+          base,
+        ]}
+        onAdopt={vi.fn()}
+      />,
+    );
+    expect(html).not.toContain("Activity needs attention");
   });
 
   it("shows library selection provenance without implying a move", () => {

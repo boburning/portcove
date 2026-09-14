@@ -356,6 +356,7 @@ function Workspace({
             data.statuses.filter((status) => currentUpdateSnapshot(status)?.check.update_available)
               .length
           }
+          activities={data.activities}
           onAdopt={() => ui.setAdoptOpen(true)}
         />
         <main ref={workspace} data-focus-region="workspace">

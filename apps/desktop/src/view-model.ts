@@ -1,4 +1,5 @@
 import type {
+  ActivityRecord,
   DesktopError,
   OperationEvent,
   PortDefinition,
@@ -8,6 +9,72 @@ import type {
   SourceRecord,
   UpdateSnapshot,
 } from "./types";
+
+export const unfinishedActivityAfterSeconds = 24 * 60 * 60;
+
+export type ActivityPresentationState =
+  | "succeeded"
+  | "failed"
+  | "cancelled"
+  | "running"
+  | "unfinished"
+  | "unknown";
+
+export function activityPresentationState(
+  activity: ActivityRecord,
+  nowSeconds = Date.now() / 1000,
+): ActivityPresentationState {
+  if (activity.status !== "running") {
+    if (["succeeded", "failed", "cancelled"].includes(activity.status)) return activity.status;
+    return "unknown";
+  }
+  return nowSeconds - activity.started_at >= unfinishedActivityAfterSeconds
+    ? "unfinished"
+    : "running";
+}
+
+export type NavigationActivityState = "running" | "attention";
+
+function navigationActivities(
+  activities: ActivityRecord[],
+  nowSeconds = Date.now() / 1000,
+): ActivityRecord[] {
+  const latestPreparationByTarget = new Map<string, ActivityRecord>();
+  for (const activity of activities) {
+    if (activity.operation !== "prepare") continue;
+    const target = `${activity.target_kind}:${activity.target_id ?? ""}`;
+    const current = latestPreparationByTarget.get(target);
+    if (!current || activity.started_at > current.started_at)
+      latestPreparationByTarget.set(target, activity);
+  }
+  return activities.filter((activity) => {
+    const state = activityPresentationState(activity, nowSeconds);
+    if (state === "running" || state === "unfinished") return true;
+    if (activity.operation !== "prepare" || state !== "failed") return false;
+    const target = `${activity.target_kind}:${activity.target_id ?? ""}`;
+    return latestPreparationByTarget.get(target) === activity;
+  });
+}
+
+export function navigationActivityState(
+  activities: ActivityRecord[],
+  nowSeconds = Date.now() / 1000,
+): NavigationActivityState | undefined {
+  const states = navigationActivities(activities, nowSeconds).map((activity) =>
+    activityPresentationState(activity, nowSeconds),
+  );
+  if (states.includes("unfinished") || states.includes("failed")) return "attention";
+  if (states.includes("running")) return "running";
+  return undefined;
+}
+
+export function activityHistoryPreview(
+  activities: ActivityRecord[],
+  nowSeconds = Date.now() / 1000,
+): ActivityRecord[] {
+  const important = new Set(navigationActivities(activities, nowSeconds));
+  return activities.filter((activity, index) => index < 8 || important.has(activity));
+}
 
 /** Display bounds do not turn best-effort progress into a lifecycle outcome. */
 export function progressPresentation(

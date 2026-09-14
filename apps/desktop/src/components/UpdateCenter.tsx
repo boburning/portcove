@@ -1,7 +1,12 @@
 import { FailureDetails } from "./FailureDetails";
 import { ActivityDiagnostic } from "./ActivityDiagnostic";
 import { RecoveryReview } from "./RecoveryReview";
-import { errorText, releaseChannelPresentation } from "../view-model";
+import {
+  activityHistoryPreview,
+  activityPresentationState,
+  errorText,
+  releaseChannelPresentation,
+} from "../view-model";
 import { OperationCancellation } from "./OperationCancellation";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -180,6 +185,7 @@ function ActivityHistory({
   onOpenSources: () => void;
 }) {
   const names = new Map(ports.map((port) => [port.id, port.name]));
+  const visibleActivities = activityHistoryPreview(activities);
   return (
     <section className="activity-history">
       <div className="activity-heading">
@@ -201,7 +207,7 @@ function ActivityHistory({
         </div>
       ) : (
         <div className="activity-list">
-          {activities.slice(0, 8).map((activity) => (
+          {visibleActivities.map((activity) => (
             <ActivityRow
               activity={activity}
               names={names}
@@ -369,8 +375,6 @@ function formatActivityTime(timestamp: number) {
   });
 }
 
-const unfinishedAfterSeconds = 24 * 60 * 60;
-
 const terminalActivityPresentations: ReadonlyMap<
   string,
   { state: string; label: string; icon: LucideIcon }
@@ -381,8 +385,9 @@ const terminalActivityPresentations: ReadonlyMap<
 ]);
 
 function activityPresentation(activity: ActivityRecord) {
-  if (activity.status !== "running") {
-    const presentation = terminalActivityPresentations.get(activity.status) ?? {
+  const state = activityPresentationState(activity);
+  if (state !== "running" && state !== "unfinished") {
+    const presentation = terminalActivityPresentations.get(state) ?? {
       state: "unknown",
       label: "Status unavailable",
       icon: AlertTriangle,
@@ -392,7 +397,7 @@ function activityPresentation(activity: ActivityRecord) {
       time: `Started ${formatActivityTime(activity.started_at)}`,
     };
   }
-  if (Date.now() / 1000 - activity.started_at >= unfinishedAfterSeconds)
+  if (state === "unfinished")
     return {
       state: "unfinished",
       label: "Needs review",

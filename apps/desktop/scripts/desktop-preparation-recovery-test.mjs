@@ -80,7 +80,17 @@ export async function interruptedPreparationScenario({
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
       15_000,
     );
-    await browser.findElement(By.xpath('//nav//button[contains(., "Updates")]')).click();
+    const updatesNavigation = await browser.findElement(
+      By.xpath('//nav//button[contains(., "Updates")]'),
+    );
+    const navigationStatus = await browser.wait(
+      until.elementLocated(
+        By.xpath('//nav//button[contains(., "Updates")]//*[contains(@class,"nav-status")]'),
+      ),
+      10_000,
+    );
+    assert.equal(await navigationStatus.getAttribute("aria-label"), "Activity needs attention");
+    await updatesNavigation.click();
     const row = await browser.wait(
       until.elementLocated(
         By.xpath(
@@ -110,6 +120,7 @@ export async function interruptedPreparationScenario({
           activity: recovered,
           repair,
           captures: retained,
+          navigation_status: "Activity needs attention",
         },
         null,
         2,
