@@ -270,6 +270,35 @@ coordinator, refresh the complete published inventory, and validate input
 authority; separate clones do not constitute a global allocator. The tool neither
 pushes refs nor chooses credentials. Never delete a receipt to recycle a version.
 
+`node scripts/release-coordinator.mjs INPUT.json` is the deterministic decision
+boundary in front of that preparation operation. It requires a complete fresh
+canonically ordered publication inventory, exact candidate commit/tree, matching reviewed
+classification and accumulated-change digest, exact base revision, controller
+revision, pause/capacity state, and any active
+prepared candidate. Routine Preview work is coalesced to one opportunity per 24
+hours; documentation-only, unchanged, and already-published snapshots are
+skipped. Urgency bypasses only that cadence, while Stable remains subject to the
+separate production-eligibility policy. An active candidate always finishes or
+holds first; a newer merge is recorded for the next opportunity and never
+cancels the frozen run. Lost reservations fail closed instead of allocating a
+replacement version.
+
+The planner emits a content-digested action and exact workflow/preparation
+identities. Active-candidate actions retain the frozen intent, phase, recovery
+counters, and bound release run in that digest. The read-only `Release coordinator rehearsal` workflow serializes a
+manual default-branch invocation without cancellation, rejects a controller
+revision mismatch, and retains the plan for seven days. Neither layer performs a
+GitHub, Git, build, signing, feed, or publication mutation. A future activated
+controller must retain the prepared refs and planner state in one coordinator,
+bind the existing reusable qualification and Release workflow to the prepared
+commit, and persist attempts in existing workflow/issue records.
+Two transient retries and three substantive repair attempts are the fixed
+initial bounds; exhaustion, missing authority, the publication pause, or free
+capacity exhaustion produces a hold. Production dispatch, signing, release and
+Pages/feed permissions remain disabled pending #534. The checked-in fixture tests
+are nonproduction evidence, not proof that a subscription task or production
+credential path is active.
+
 ## Standalone CLI integration artifact
 
 Every released external-client claim points to an exact standalone CLI archive,

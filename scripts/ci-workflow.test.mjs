@@ -63,12 +63,15 @@ test("every Node test file is included in required CI and the local quality work
 test("application release records run after the maintained SemVer dependency is installed", () => {
   const installation = frontend.indexOf("pnpm install --frozen-lockfile");
   const selection = frontend.indexOf("scripts/select-release-channel.test.mjs");
+  const coordinator = frontend.indexOf("scripts/release-coordinator.test.mjs");
   const reconstruction = frontend.indexOf(
     "scripts/reconstruct-application-update-records.test.mjs",
   );
   assert.ok(installation >= 0 && selection > installation);
+  assert.ok(coordinator > installation);
   assert.ok(reconstruction > installation);
   assert.ok(!catalog.includes("scripts/select-release-channel.test.mjs"));
+  assert.ok(!catalog.includes("scripts/release-coordinator.test.mjs"));
   assert.ok(!catalog.includes("scripts/reconstruct-application-update-records.test.mjs"));
 });
 
