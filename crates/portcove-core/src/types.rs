@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{PortcoveError, Result};
 
+// CI routing fixture: an ordinary core-only change selects the Rust groups.
+
 /// Durable library identity and its current effective location.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct LibraryIdentity {
