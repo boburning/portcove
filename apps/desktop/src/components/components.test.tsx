@@ -1081,6 +1081,47 @@ describe("desktop components", () => {
     expect(html).toContain("Install · 64.0 MiB");
   });
 
+  it("keeps an untested port in the default catalog with its eligible install enabled", () => {
+    const untestedPort = {
+      ...port,
+      automated_tested_platforms: [],
+      manually_validated_platforms: [],
+      source_profile: null,
+    };
+    const catalog = renderToStaticMarkup(
+      <PortBrowser
+        view="catalog"
+        ports={[untestedPort]}
+        statuses={new Map()}
+        overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
+        filter="all"
+        setFilter={vi.fn()}
+        onSelect={vi.fn()}
+        loading={false}
+      />,
+    );
+    expect(catalog).toContain("Sample Port");
+
+    const details = renderToStaticMarkup(
+      <DetailPanel
+        port={untestedPort}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+        installPlan={reviewedInstallPlan()}
+      />,
+    );
+    expect(details).toContain("Not yet tested");
+    expect(details).toContain("No completed device test");
+    const label = details.indexOf("Install · 64.0 MiB");
+    const button = details.lastIndexOf("<button", label);
+    const openingTag = details.slice(button, details.indexOf(">", button));
+    expect(label).toBeGreaterThan(-1);
+    expect(button).toBeGreaterThan(-1);
+    expect(label).toBeGreaterThan(button);
+    expect(openingTag).not.toContain("disabled");
+  });
+
   it("does not describe a blocked local copy as verified", () => {
     const html = renderToStaticMarkup(
       <DetailPanel
