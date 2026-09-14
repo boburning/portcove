@@ -97,6 +97,10 @@ pub trait ApplicationUpdateCheckCompletion: Send + Sync {
         choice: &ApplicationUpdateChoice,
         selection: &AuthenticatedCandidateSelection,
     ) -> Result<(), Self::Error>;
+
+    fn retry_not_before_unix_seconds(&self, _error: &Self::Error) -> Option<u64> {
+        None
+    }
 }
 
 #[derive(Debug)]
@@ -292,6 +296,7 @@ impl ApplicationUpdateCoordinator {
                         preference_revision,
                         completed_at,
                         completion_jitter_seed(completed_at, schedule_revision),
+                        None,
                     )
                     .map_err(ApplicationUpdateCoordinatorError::from)
                     .map_err(ApplicationUpdateCoordinatorRunError::Coordinator)?;
@@ -330,12 +335,14 @@ impl ApplicationUpdateCoordinator {
             let completed_at = self
                 .now()
                 .map_err(ApplicationUpdateCoordinatorRunError::Coordinator)?;
+            let retry_not_before = completion.retry_not_before_unix_seconds(&error);
             self.schedule
                 .record_failure(
                     schedule_revision,
                     preference_revision,
                     completed_at,
                     completion_jitter_seed(completed_at, schedule_revision),
+                    retry_not_before,
                 )
                 .map_err(ApplicationUpdateCoordinatorError::from)
                 .map_err(ApplicationUpdateCoordinatorRunError::Coordinator)?;
