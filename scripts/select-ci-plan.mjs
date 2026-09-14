@@ -3,19 +3,20 @@ import { appendFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  buildValidationPlan,
+  digestValidationPlan,
+  fastGroups,
+  proseOnlyAllowlist,
+  validateValidationPlan,
+} from "./validation-plan.mjs";
+
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(path.dirname(scriptPath), "..");
 const fullSha = /^[a-f0-9]{40}$/u;
 const regularFileMode = "100644";
 
-// These files are navigation/research prose. Stable contracts, generated or
-// historical evidence, release notes, user instructions, and root metadata are
-// deliberately absent. Widening this set changes this protected classifier and
-// therefore receives full CI itself.
-export const proseOnlyAllowlist = Object.freeze([
-  "docs/GUI-COMPETITIVE-REVIEW.md",
-  "docs/README.md",
-]);
+export { proseOnlyAllowlist };
 
 function normalizePath(value) {
   if (
@@ -59,20 +60,19 @@ function isRegularChange(change) {
 }
 
 export function classifyChanges(changes) {
-  if (!Array.isArray(changes) || changes.length === 0) {
-    return { mode: "full", reason: "unexplained-empty-change-set", files: [] };
-  }
+  if (!Array.isArray(changes) || changes.length === 0)
+    return { mode: "blocked", reason: "unexplained-empty-change-set", files: [] };
   const allowed = new Set(proseOnlyAllowlist);
   const files = [...new Set(changes.flatMap((change) => [change.oldPath, change.newPath]))].sort();
   for (const change of changes) {
     if (!["A", "D", "M", "R"].includes(change.status)) {
-      return { mode: "full", reason: `unsupported-change-status:${change.status}`, files };
+      return { mode: "qualification", reason: `unsupported-change-status:${change.status}`, files };
     }
     if (!isRegularChange(change)) {
-      return { mode: "full", reason: "file-type-or-mode-change", files };
+      return { mode: "qualification", reason: "file-type-or-mode-change", files };
     }
     if (!allowed.has(change.oldPath) || !allowed.has(change.newPath)) {
-      return { mode: "full", reason: "path-not-in-prose-allowlist", files };
+      return { mode: "fast", reason: "path-not-in-prose-allowlist", files };
     }
   }
   return { mode: "prose", reason: "reviewed-informational-prose-only", files };
@@ -84,20 +84,30 @@ function checkedSha(value, label) {
 }
 
 export function discoverCiPlan(
-  { eventName, baseSha, headSha, checkoutSha, proseOnlyEnabled = false },
+  {
+    eventName,
+    baseSha,
+    headSha,
+    checkoutSha,
+    proseOnlyEnabled = false,
+    forceQualification = false,
+  },
   runGit = (args, options = {}) => execFileSync("git", args, { cwd: projectRoot, ...options }),
 ) {
   const checkout = checkedSha(checkoutSha, "checkout SHA");
   if (eventName !== "pull_request") {
-    return {
-      mode: "full",
-      reason: "non-pull-request-event",
-      files: [],
-      base: null,
-      mergeBase: null,
-      head: null,
-      checkout,
+    const plan = buildValidationPlan({ changes: [], eventName, checkout });
+    if (!forceQualification) return plan;
+    const qualification = {
+      ...plan,
+      mode: "qualification",
+      reason: "explicit-reusable-qualification",
+      groups: fastGroups,
+      platforms: ["linux-x86_64", "macos-aarch64", "macos-x86_64", "windows-x86_64"],
+      qualification_required: true,
     };
+    delete qualification.digest;
+    return { ...qualification, digest: digestValidationPlan(qualification) };
   }
   try {
     const base = checkedSha(baseSha, "base SHA");
@@ -110,29 +120,31 @@ export function discoverCiPlan(
       encoding: "buffer",
       maxBuffer: 16 * 1024 * 1024,
     });
-    const classified = classifyChanges(parseRawDiff(raw));
-    if (classified.mode === "prose" && !proseOnlyEnabled) {
-      return {
-        ...classified,
-        mode: "full",
+    const changes = parseRawDiff(raw);
+    const plan = buildValidationPlan({ changes, eventName, base, mergeBase, head, checkout });
+    if (plan.mode === "prose" && !proseOnlyEnabled) {
+      const replacement = {
+        ...plan,
+        mode: "qualification",
         reason: "prose-policy-awaiting-independent-activation",
-        base,
-        mergeBase,
-        head,
-        checkout,
+        groups: ["catalog", "dependency-review", "frontend", "rust", "rust-quality"],
+        platforms: ["linux-x86_64", "macos-aarch64", "macos-x86_64", "windows-x86_64"],
+        qualification_required: true,
       };
+      delete replacement.digest;
+      return { ...replacement, digest: digestValidationPlan(replacement) };
     }
-    return { ...classified, base, mergeBase, head, checkout };
+    return plan;
   } catch (error) {
-    return {
-      mode: "full",
-      reason: `diff-discovery-failed:${error.code ?? error.name ?? "error"}`,
-      files: [],
+    return buildValidationPlan({
+      changes: [],
+      eventName,
       base: fullSha.test(baseSha ?? "") ? baseSha : null,
-      mergeBase: null,
       head: fullSha.test(headSha ?? "") ? headSha : null,
       checkout,
-    };
+      discovery: "failed",
+      blockedReason: `diff-discovery-failed:${error.code ?? error.name ?? "error"}`,
+    });
   }
 }
 
@@ -141,11 +153,16 @@ export async function writeGithubOutputs(outputPath, plan) {
   const fields = {
     mode: plan.mode,
     reason: plan.reason,
-    files_json: JSON.stringify(plan.files),
-    base: plan.base ?? "",
-    merge_base: plan.mergeBase ?? "",
-    head: plan.head ?? "",
-    checkout: plan.checkout,
+    files_json: JSON.stringify(plan.changed_files),
+    groups_json: JSON.stringify(plan.groups),
+    platforms_json: JSON.stringify(plan.platforms),
+    qualification_required: String(plan.qualification_required),
+    plan_digest: plan.digest,
+    plan_json: JSON.stringify(plan),
+    base: plan.identities.base ?? "",
+    merge_base: plan.identities.merge_base ?? "",
+    head: plan.identities.head ?? "",
+    checkout: plan.identities.checkout,
   };
   if (Object.values(fields).some((value) => String(value).includes("\n"))) {
     throw new Error("CI plan outputs must remain single-line values");
@@ -166,9 +183,12 @@ async function main() {
     headSha: process.env.PORTCOVE_HEAD_SHA,
     checkoutSha: process.env.GITHUB_SHA,
     proseOnlyEnabled: process.env.PORTCOVE_PROSE_POLICY_ACTIVATED === "true",
+    forceQualification: process.env.PORTCOVE_FORCE_QUALIFICATION === "true",
   });
+  validateValidationPlan(plan);
   await writeGithubOutputs(process.env.GITHUB_OUTPUT, plan);
   console.log(JSON.stringify(plan, null, 2));
+  if (plan.mode === "blocked") throw new Error(`CI plan is blocked: ${plan.reason}`);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {

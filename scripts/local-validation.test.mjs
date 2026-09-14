@@ -261,14 +261,16 @@ test("every tracked repository path has an explicit local selection owner", () =
   assert.deepEqual([...selection.unknown].sort(), []);
 });
 
-test("unknown paths fail instead of silently passing or choosing the full suite", () => {
+test("unknown paths select the explicit all-fast fallback", () => {
   const selection = classifyChanges([change("new-subsystem/input.bin")], {
     fileExists: allFilesExist,
   });
-  assert.throws(
-    () => buildPlan(selection, { mergeBase: "base-sha" }),
-    /no selection rule.*new-subsystem\/input\.bin/s,
+  const plan = buildPlan(selection, { mergeBase: "base-sha" });
+  assert.deepEqual(
+    plan.map((entry) => entry.id),
+    ["diff-check", "all-fast-fallback"],
   );
+  assert.deepEqual(plan[1].args, ["check"]);
 });
 
 test("ordinary plans never invoke aggregate, deep, release, installer, or native gates", () => {

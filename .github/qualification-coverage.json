@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "workflow": ".github/workflows/ci.yml",
+  "jobs": [
+    "catalog_full",
+    "dependency_review_full",
+    "frontend_full",
+    "intel_build",
+    "intel_tests",
+    "native_rust",
+    "rust_clippy",
+    "rust_docs",
+    "rust_quality_full",
+    "rust_tests",
+    "rust_workspace_tests",
+    "windows_storage"
+  ],
+  "platforms": ["linux-x86_64", "macos-aarch64", "macos-x86_64", "windows-x86_64"],
+  "protected_contexts": ["catalog", "dependency-review", "frontend", "rust", "rust-quality"]
+}

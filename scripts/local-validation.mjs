@@ -3,6 +3,8 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { buildValidationPlan, validateValidationPlan } from "./validation-plan.mjs";
+
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const desktopRoot = path.join(projectRoot, "apps", "desktop");
 const durationReporter = "./scripts/test-duration-reporter.mjs";
@@ -95,6 +97,14 @@ const explicitNodeTests = new Map([
   [".github/roadmap.json", ["scripts/roadmap.test.mjs"]],
   [".github/pr-conventions.json", ["scripts/pr-conventions.test.mjs"]],
   [
+    ".github/qualification-coverage.json",
+    ["scripts/qualification-coverage.test.mjs", "scripts/ci-workflow.test.mjs"],
+  ],
+  [
+    ".github/fast-host-policy.json",
+    ["scripts/select-fast-host.test.mjs", "scripts/ci-workflow.test.mjs"],
+  ],
+  [
     "justfile",
     [
       "scripts/local-validation.test.mjs",
@@ -109,6 +119,7 @@ const explicitNodeTests = new Map([
 
 const workflowTests = new Map([
   ["release.yml", ["scripts/release-workflow.test.mjs"]],
+  ["qualification.yml", ["scripts/qualification-coverage.test.mjs"]],
   ["configured-upstream-observer.yml", ["scripts/upstream-observer.test.mjs"]],
   ["upstream-health.yml", ["scripts/upstream-observer.test.mjs"]],
   ["updater-artifact-rehearsal.yml", ["scripts/updater-artifact-inventory.test.mjs"]],
@@ -491,13 +502,19 @@ function uiRelatedDurationCommand() {
 
 export function buildPlan(selection, context = {}) {
   if (selection.unknown.size) {
-    throw new Error(
-      `local validation has no selection rule for:\n${sorted(selection.unknown)
-        .map((file) => `- ${file}`)
-        .join(
-          "\n",
-        )}\nAdd and test a focused rule; exhaustive CI must not be replaced by silent local success.`,
-    );
+    return [
+      command("diff-check", "reject whitespace errors across the complete local change", "git", [
+        "diff",
+        "--check",
+        context.mergeBase ?? "<merge-base>",
+      ]),
+      command(
+        "all-fast-fallback",
+        `run the complete primary-host validation because no narrower rule owns: ${sorted(selection.unknown).join(", ")}`,
+        "just",
+        ["check"],
+      ),
+    ];
   }
   const mergeBase = context.mergeBase ?? "<merge-base>";
   const commands = [
@@ -846,13 +863,16 @@ export function formatCommand(entry) {
   return [entry.executable, ...entry.args].map(quote).join(" ");
 }
 
-function printPlan(context, selection, plan) {
+function printPlan(context, selection, plan, validationPlan) {
   console.log("# Focused local validation");
   console.log(`Base: ${context.base} (${context.baseSha})`);
   console.log(`Merge base: ${context.mergeBase}`);
   console.log(`Head: ${context.headSha}`);
   console.log(`Changed paths: ${context.changes.length}`);
   console.log(`Scopes: ${sorted(selection.scopes).join(", ") || "none"}`);
+  console.log(`Validation plan: ${validationPlan.mode} (${validationPlan.digest})`);
+  console.log(`Validation groups: ${validationPlan.groups.join(", ") || "none"}`);
+  console.log(`Qualification required: ${validationPlan.qualification_required}`);
   for (const change of context.changes) {
     const rename = change.previousPath ? ` <- ${change.previousPath}` : "";
     console.log(`- ${change.status} ${change.path}${rename}`);
@@ -948,13 +968,27 @@ export function main(argv = process.argv.slice(2)) {
   if (kind !== "check") throw new Error(`unknown local validation command: ${kind}`);
   const { base, planOnly } = parseCheckArgs(args);
   const context = readChangeContext(base);
+  const validationPlan = validateValidationPlan(
+    buildValidationPlan({
+      changes: context.changes.map((change) => ({
+        status: change.status,
+        oldPath: change.previousPath ?? change.path,
+        newPath: change.path,
+      })),
+      eventName: "pull_request",
+      base: context.baseSha,
+      mergeBase: context.mergeBase,
+      head: context.headSha,
+      checkout: context.headSha,
+    }),
+  );
   const selection = classifyChanges(context.changes);
   const planContext =
     selection.packages.size > 0 && !selection.workspaceRust
       ? { ...context, doctestPackages: readDoctestPackages() }
       : context;
   const plan = buildPlan(selection, planContext);
-  printPlan(context, selection, plan);
+  printPlan(context, selection, plan, validationPlan);
   if (planOnly) return;
   const result = executePlan(plan);
   console.log(`\nFocused local validation passed in ${(result.elapsedMs / 1000).toFixed(1)}s.`);
@@ -963,7 +997,7 @@ export function main(argv = process.argv.slice(2)) {
       "Warm local validation exceeded the two-minute agility target; inspect the stage timings above without weakening checks.",
     );
   console.log(
-    "The exhaustive cross-platform suite remains mandatory in GitHub CI on the exact pull-request head.",
+    "The selected hosted validation plan remains mandatory in GitHub CI on the exact pull-request head.",
   );
 }
 

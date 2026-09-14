@@ -18,6 +18,10 @@ const environment = {
   GITHUB_WORKFLOW_REF: "example/repo/.github/workflows/ci.yml@refs/pull/7/merge",
   GITHUB_EVENT_NAME: "pull_request",
   PORTCOVE_HEAD_SHA: sha("c"),
+  PORTCOVE_PLAN_DIGEST: "d".repeat(64),
+  PORTCOVE_PLAN_MODE: "qualification",
+  PORTCOVE_CALLER: "pull-request",
+  GITHUB_JOB: "provenance",
 };
 const build = (overrides = {}) =>
   buildWorkflowProvenance({
@@ -81,6 +85,10 @@ test("binds official workflow source context, checked-out code, and exact config
   assert.equal(record.workflow.source_sha, sha("a"));
   assert.equal(record.checkout.sha, sha("b"));
   assert.equal(record.checkout.head_sha, sha("c"));
+  assert.equal(record.format_version, 2);
+  assert.equal(record.validation.plan_digest, "d".repeat(64));
+  assert.equal(record.validation.caller, "pull-request");
+  assert.equal(record.job_toolchains.length, 1);
   assert.equal(
     record.workflow.content_sha256,
     createHash("sha256").update("name: CI\n").digest("hex"),
@@ -126,6 +134,14 @@ test("rejects incomplete match evidence and substituted cohort identities", () =
       }),
     /identity/u,
   );
+});
+
+test("rejects missing plan, caller, and per-job toolchain identity", () => {
+  assert.throws(() => build({ validationPlanDigest: "missing" }), /plan digest/u);
+  assert.throws(() => build({ caller: "Bad caller" }), /caller/u);
+  const missingJobs = build();
+  missingJobs.job_toolchains = [];
+  assert.throws(() => validateWorkflowProvenance(missingJobs, validationContext), /identity/u);
 });
 
 test("extracts exactly one bounded provenance JSON file from an artifact ZIP", () => {

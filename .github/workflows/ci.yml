@@ -4,6 +4,13 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_call:
+    inputs:
+      force_qualification:
+        description: Run the complete secret-free qualification plan.
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -30,6 +37,11 @@ jobs:
       merge_base: ${{ steps.plan.outputs.merge_base }}
       head: ${{ steps.plan.outputs.head }}
       checkout: ${{ steps.plan.outputs.checkout }}
+      groups_json: ${{ steps.plan.outputs.groups_json }}
+      platforms_json: ${{ steps.plan.outputs.platforms_json }}
+      qualification_required: ${{ steps.plan.outputs.qualification_required }}
+      plan_digest: ${{ steps.plan.outputs.plan_digest }}
+      plan_json: ${{ steps.plan.outputs.plan_json }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -42,6 +54,7 @@ jobs:
           # The independently authorized activation change itself is not prose-only,
           # so it must receive exhaustive CI before this policy becomes trusted on main.
           PORTCOVE_PROSE_POLICY_ACTIVATED: "true"
+          PORTCOVE_FORCE_QUALIFICATION: ${{ inputs.force_qualification || false }}
         run: node scripts/select-ci-plan.mjs
       - name: Report compared revisions and expected lanes
         env:
@@ -51,12 +64,15 @@ jobs:
           PLAN_MERGE_BASE: ${{ steps.plan.outputs.merge_base }}
           PLAN_HEAD: ${{ steps.plan.outputs.head }}
           PLAN_CHECKOUT: ${{ steps.plan.outputs.checkout }}
+          PLAN_DIGEST: ${{ steps.plan.outputs.plan_digest }}
+          PLAN_GROUPS: ${{ steps.plan.outputs.groups_json }}
         run: |
-          printf 'CI plan: mode=%s reason=%s base=%s merge-base=%s head=%s checkout=%s\n' \
-            "$PLAN_MODE" "$PLAN_REASON" "$PLAN_BASE" "$PLAN_MERGE_BASE" "$PLAN_HEAD" "$PLAN_CHECKOUT"
+          printf 'CI plan: mode=%s reason=%s digest=%s groups=%s base=%s merge-base=%s head=%s checkout=%s\n' \
+            "$PLAN_MODE" "$PLAN_REASON" "$PLAN_DIGEST" "$PLAN_GROUPS" "$PLAN_BASE" "$PLAN_MERGE_BASE" "$PLAN_HEAD" "$PLAN_CHECKOUT"
 
   provenance:
     name: record-workflow-provenance
+    needs: classify
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -70,6 +86,9 @@ jobs:
       - name: Record exact workflow, checkout, toolchain, and build configuration
         env:
           PORTCOVE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PORTCOVE_PLAN_DIGEST: ${{ needs.classify.outputs.plan_digest }}
+          PORTCOVE_PLAN_MODE: ${{ needs.classify.outputs.mode }}
+          PORTCOVE_CALLER: ${{ github.event_name }}
         run: |
           mkdir -p work/workflow-provenance
           node scripts/workflow-provenance.mjs \
@@ -111,10 +130,116 @@ jobs:
           PORTCOVE_HEAD_SHA: ${{ needs.classify.outputs.head }}
         run: node scripts/check-ci-prose.mjs
 
+  fast_rust:
+    name: fast-rust (linux-x86_64)
+    needs: classify
+    if: needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-rust
+        with:
+          test-fixtures: true
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          cache-on-failure: true
+          key: fast-${{ hashFiles('Cargo.toml') }}
+      - name: Install Linux desktop prerequisites
+        timeout-minutes: 15
+        run: ./scripts/install-linux-desktop-prerequisites.sh
+      - name: Read pinned test runner
+        id: test-runner
+        shell: pwsh
+        run: |
+          $manifest = Get-Content .github/quality-tools.json -Raw | ConvertFrom-Json
+          $version = ($manifest.tools | Where-Object id -eq "cargo-nextest").version
+          if (-not $version) { throw "Missing cargo-nextest version" }
+          "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
+      - name: Install pinned test runner
+        uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2
+        with:
+          tool: ${{ steps.test-runner.outputs.spec }}
+      - name: Test the primary-host Rust workspace
+        run: |
+          node scripts/run-rust-tests.mjs --locked --workspace
+          cargo test --locked --workspace --doc
+
+  fast_rust_quality:
+    name: fast-rust-quality (linux-x86_64)
+    needs: classify
+    if: needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'rust-quality')
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-rust
+        if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
+        with:
+          cache-on-failure: true
+          key: fast-${{ hashFiles('Cargo.toml') }}
+      - name: Check Rust formatting
+        if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
+        run: cargo fmt --all -- --check
+      - name: Install Linux desktop prerequisites
+        if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
+        timeout-minutes: 15
+        run: ./scripts/install-linux-desktop-prerequisites.sh
+      - name: Lint the primary-host Rust workspace
+        if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
+      - name: Check validation-plan and result-gate contracts
+        run: node --test --test-timeout=30000 scripts/validation-plan.test.mjs scripts/select-ci-plan.test.mjs scripts/ci-result-gate.test.mjs scripts/qualification-coverage.test.mjs scripts/select-fast-host.test.mjs
+
+  fast_frontend:
+    name: fast-frontend (linux-x86_64)
+    needs: classify
+    if: needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'frontend')
+    runs-on: ubuntu-22.04
+    env:
+      npm_config_audit: "false"
+    defaults:
+      run:
+        working-directory: apps/desktop
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: apps/desktop/package.json
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: apps/desktop/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm build
+      - run: pnpm test
+
+  fast_catalog:
+    name: fast-catalog (linux-x86_64)
+    needs: classify
+    if: needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'catalog')
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: Check catalog and repository contracts
+        run: |
+          node --test --test-timeout=30000 scripts/roadmap.test.mjs scripts/source-provenance-audit.test.mjs scripts/check-release-metadata.test.mjs scripts/release-package-policy.test.mjs scripts/ci-workflow.test.mjs scripts/validation-plan.test.mjs scripts/qualification-coverage.test.mjs
+          node scripts/check-release-metadata.mjs
+          node scripts/check-retcomm-upstreams.mjs --offline
+          node scripts/qualification-coverage.mjs
+          node scripts/select-fast-host.mjs
+          node scripts/roadmap.mjs check
+
   rust_tests:
     name: rust-test (${{ matrix.shard }})
     needs: classify
-    if: needs.classify.outputs.mode == 'full'
+    if: needs.classify.outputs.mode == 'qualification'
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -176,7 +301,7 @@ jobs:
   rust_workspace_tests:
     name: rust-test (workspace-other)
     needs: classify
-    if: needs.classify.outputs.mode == 'full'
+    if: needs.classify.outputs.mode == 'qualification'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -211,7 +336,7 @@ jobs:
   rust_clippy:
     name: rust-clippy
     needs: classify
-    if: needs.classify.outputs.mode == 'full'
+    if: needs.classify.outputs.mode == 'qualification'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -228,7 +353,7 @@ jobs:
   windows_storage:
     name: windows-storage
     needs: classify
-    if: needs.classify.outputs.mode == 'full'
+    if: needs.classify.outputs.mode == 'qualification'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -256,7 +381,7 @@ jobs:
   native_rust:
     name: native-rust (${{ matrix.platform }}, ${{ matrix.partition }})
     needs: classify
-    if: needs.classify.outputs.mode == 'full'
+    if: needs.classify.outputs.mode == 'qualification'
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -301,7 +426,7 @@ jobs:
   intel_build:
     name: build-intel-tests
     needs: classify
-    if: needs.classify.outputs.mode == 'full'
+    if: needs.classify.outputs.mode == 'qualification'
     runs-on: macos-15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -338,7 +463,7 @@ jobs:
   intel_tests:
     name: native-rust (macos-x86_64, ${{ matrix.partition }})
     needs: [classify, intel_build]
-    if: needs.classify.outputs.mode == 'full'
+    if: needs.classify.outputs.mode == 'qualification'
     runs-on: macos-15-intel
     strategy:
       fail-fast: false
@@ -374,7 +499,7 @@ jobs:
   rust_docs:
     name: rust-doc (${{ matrix.platform }})
     needs: classify
-    if: needs.classify.outputs.mode == 'full'
+    if: needs.classify.outputs.mode == 'qualification'
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -408,6 +533,7 @@ jobs:
       [
         classify,
         prose_checks,
+        fast_rust,
         rust_tests,
         rust_workspace_tests,
         rust_clippy,
@@ -423,15 +549,17 @@ jobs:
       - name: Require every Rust lane
         env:
           PORTCOVE_CLASSIFIER_RESULT: ${{ needs.classify.result }}
-          PORTCOVE_CI_MODE: ${{ needs.classify.outputs.mode }}
+          PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
+          PORTCOVE_GROUP: rust
           PORTCOVE_PROSE_RESULT: ${{ needs.prose_checks.result }}
-          PORTCOVE_REQUIRED_RESULTS: '{"rust_tests":"${{ needs.rust_tests.result }}","rust_workspace_tests":"${{ needs.rust_workspace_tests.result }}","rust_clippy":"${{ needs.rust_clippy.result }}","windows_storage":"${{ needs.windows_storage.result }}","native_rust":"${{ needs.native_rust.result }}","intel_build":"${{ needs.intel_build.result }}","intel_tests":"${{ needs.intel_tests.result }}","rust_docs":"${{ needs.rust_docs.result }}"}'
+          PORTCOVE_FAST_RESULTS: '{"fast_rust":"${{ needs.fast_rust.result }}"}'
+          PORTCOVE_QUALIFICATION_RESULTS: '{"rust_tests":"${{ needs.rust_tests.result }}","rust_workspace_tests":"${{ needs.rust_workspace_tests.result }}","rust_clippy":"${{ needs.rust_clippy.result }}","windows_storage":"${{ needs.windows_storage.result }}","native_rust":"${{ needs.native_rust.result }}","intel_build":"${{ needs.intel_build.result }}","intel_tests":"${{ needs.intel_tests.result }}","rust_docs":"${{ needs.rust_docs.result }}"}'
         run: node scripts/ci-result-gate.mjs
 
   rust_quality_full:
     name: rust-quality-full
     needs: classify
-    if: needs.classify.outputs.mode == 'full'
+    if: needs.classify.outputs.mode == 'qualification'
     runs-on: ubuntu-latest
     env:
       AQUA_ENFORCE_CHECKSUM: "true"
@@ -511,23 +639,25 @@ jobs:
 
   rust-quality:
     if: always()
-    needs: [classify, provenance, prose_checks, rust_quality_full]
+    needs: [classify, provenance, prose_checks, fast_rust_quality, rust_quality_full]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Require the expected Rust quality lane
         env:
           PORTCOVE_CLASSIFIER_RESULT: ${{ needs.classify.result }}
-          PORTCOVE_CI_MODE: ${{ needs.classify.outputs.mode }}
+          PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
+          PORTCOVE_GROUP: rust-quality
           PORTCOVE_PROSE_RESULT: ${{ needs.prose_checks.result }}
           PORTCOVE_ALWAYS_RESULTS: '{"provenance":"${{ needs.provenance.result }}"}'
-          PORTCOVE_REQUIRED_RESULTS: '{"rust_quality_full":"${{ needs.rust_quality_full.result }}"}'
+          PORTCOVE_FAST_RESULTS: '{"fast_rust_quality":"${{ needs.fast_rust_quality.result }}"}'
+          PORTCOVE_QUALIFICATION_RESULTS: '{"rust_quality_full":"${{ needs.rust_quality_full.result }}"}'
         run: node scripts/ci-result-gate.mjs
 
   frontend_full:
     name: frontend-full
     needs: classify
-    if: needs.classify.outputs.mode == 'full'
+    if: needs.classify.outputs.mode == 'qualification'
     runs-on: ubuntu-latest
     env:
       npm_config_audit: "false"
@@ -579,22 +709,24 @@ jobs:
 
   frontend:
     if: always()
-    needs: [classify, prose_checks, frontend_full]
+    needs: [classify, prose_checks, fast_frontend, frontend_full]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Require the expected frontend lane
         env:
           PORTCOVE_CLASSIFIER_RESULT: ${{ needs.classify.result }}
-          PORTCOVE_CI_MODE: ${{ needs.classify.outputs.mode }}
+          PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
+          PORTCOVE_GROUP: frontend
           PORTCOVE_PROSE_RESULT: ${{ needs.prose_checks.result }}
-          PORTCOVE_REQUIRED_RESULTS: '{"frontend_full":"${{ needs.frontend_full.result }}"}'
+          PORTCOVE_FAST_RESULTS: '{"fast_frontend":"${{ needs.fast_frontend.result }}"}'
+          PORTCOVE_QUALIFICATION_RESULTS: '{"frontend_full":"${{ needs.frontend_full.result }}"}'
         run: node scripts/ci-result-gate.mjs
 
   catalog_full:
     name: catalog-full
     needs: classify
-    if: needs.classify.outputs.mode == 'full'
+    if: needs.classify.outputs.mode == 'qualification'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -604,9 +736,10 @@ jobs:
       - name: Verify repository and release contracts
         run: |
           node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/upstream-observer.test.mjs
-          node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/audit.test.mjs scripts/check-release-metadata.test.mjs scripts/desktop-build-cache.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/updater-artifact-inventory.test.mjs scripts/reconcile-release-assets.test.mjs scripts/finalize-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/release-workflow.test.mjs scripts/release-result-gate.test.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/workflow-provenance.test.mjs scripts/select-ci-plan.test.mjs scripts/ci-result-gate.test.mjs scripts/test-duration-reporter.test.mjs scripts/quality-tools.test.mjs scripts/dependency-automation.test.mjs scripts/repository-settings.test.mjs scripts/pr-conventions.test.mjs scripts/source-provenance-audit.test.mjs scripts/check-child-process-policy.test.mjs scripts/check-transport-contract.test.mjs scripts/check-fallow-report.test.mjs scripts/migrate-catalog-schema2.test.mjs scripts/roadmap.test.mjs
+          node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/audit.test.mjs scripts/check-release-metadata.test.mjs scripts/desktop-build-cache.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/updater-artifact-inventory.test.mjs scripts/reconcile-release-assets.test.mjs scripts/finalize-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/release-workflow.test.mjs scripts/release-result-gate.test.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/workflow-provenance.test.mjs scripts/validation-plan.test.mjs scripts/select-ci-plan.test.mjs scripts/ci-result-gate.test.mjs scripts/qualification-coverage.test.mjs scripts/select-fast-host.test.mjs scripts/test-duration-reporter.test.mjs scripts/quality-tools.test.mjs scripts/dependency-automation.test.mjs scripts/repository-settings.test.mjs scripts/pr-conventions.test.mjs scripts/source-provenance-audit.test.mjs scripts/check-child-process-policy.test.mjs scripts/check-transport-contract.test.mjs scripts/check-fallow-report.test.mjs scripts/migrate-catalog-schema2.test.mjs scripts/roadmap.test.mjs
           node scripts/check-release-metadata.mjs
           node scripts/quality-tools.mjs --validate
+          node scripts/qualification-coverage.mjs
           node scripts/repository-settings.mjs --validate
           node scripts/roadmap.mjs check
       - name: Validate local RetComM mappings
@@ -614,22 +747,35 @@ jobs:
 
   catalog:
     if: always()
-    needs: [classify, prose_checks, catalog_full]
+    needs: [classify, prose_checks, fast_catalog, catalog_full]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Require the expected repository contract lane
         env:
           PORTCOVE_CLASSIFIER_RESULT: ${{ needs.classify.result }}
-          PORTCOVE_CI_MODE: ${{ needs.classify.outputs.mode }}
+          PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
+          PORTCOVE_GROUP: catalog
           PORTCOVE_PROSE_RESULT: ${{ needs.prose_checks.result }}
-          PORTCOVE_REQUIRED_RESULTS: '{"catalog_full":"${{ needs.catalog_full.result }}"}'
+          PORTCOVE_FAST_RESULTS: '{"fast_catalog":"${{ needs.fast_catalog.result }}"}'
+          PORTCOVE_QUALIFICATION_RESULTS: '{"catalog_full":"${{ needs.catalog_full.result }}"}'
         run: node scripts/ci-result-gate.mjs
+
+  fast_dependency_review:
+    name: fast-dependency-review
+    needs: classify
+    if: github.event_name == 'pull_request' && needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'dependency-review')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
 
   dependency_review_full:
     name: dependency-review-full
     needs: classify
-    if: github.event_name == 'pull_request' && needs.classify.outputs.mode == 'full'
+    if: github.event_name == 'pull_request' && needs.classify.outputs.mode == 'qualification'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -639,14 +785,16 @@ jobs:
 
   dependency-review:
     if: github.event_name == 'pull_request' && always()
-    needs: [classify, prose_checks, dependency_review_full]
+    needs: [classify, prose_checks, fast_dependency_review, dependency_review_full]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Require the expected dependency review lane
         env:
           PORTCOVE_CLASSIFIER_RESULT: ${{ needs.classify.result }}
-          PORTCOVE_CI_MODE: ${{ needs.classify.outputs.mode }}
+          PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
+          PORTCOVE_GROUP: dependency-review
           PORTCOVE_PROSE_RESULT: ${{ needs.prose_checks.result }}
-          PORTCOVE_REQUIRED_RESULTS: '{"dependency_review_full":"${{ needs.dependency_review_full.result }}"}'
+          PORTCOVE_FAST_RESULTS: '{"fast_dependency_review":"${{ needs.fast_dependency_review.result }}"}'
+          PORTCOVE_QUALIFICATION_RESULTS: '{"dependency_review_full":"${{ needs.dependency_review_full.result }}"}'
         run: node scripts/ci-result-gate.mjs

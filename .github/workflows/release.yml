@@ -31,6 +31,10 @@ jobs:
         if: github.event_name == 'push'
         run: node scripts/check-release-metadata.mjs --tag "${{ github.ref_name }}"
 
+  qualification:
+    needs: identity
+    uses: ./.github/workflows/qualification.yml
+
   validate:
     needs: identity
     runs-on: ubuntu-22.04
@@ -72,6 +76,9 @@ jobs:
       - name: Record exact workflow, checkout, toolchain, and build configuration
         env:
           PORTCOVE_HEAD_SHA: ${{ github.sha }}
+          PORTCOVE_PLAN_DIGEST: ${{ hashFiles('.github/qualification-coverage.json') }}
+          PORTCOVE_PLAN_MODE: qualification
+          PORTCOVE_CALLER: release
         run: |
           mkdir -p work/workflow-provenance
           node scripts/workflow-provenance.mjs \
@@ -88,7 +95,7 @@ jobs:
           if-no-files-found: error
       - run: pnpm audit --prod --audit-level high
         working-directory: apps/desktop
-      - run: just audit --fresh
+      - run: just audit --fresh --profile release
       - name: Verify active catalog upstreams
         run: node scripts/check-catalog-repositories.mjs
         env:
@@ -273,7 +280,7 @@ jobs:
 
   release_gate:
     if: always()
-    needs: [identity, validate, build, build_intel, verify_intel]
+    needs: [identity, qualification, validate, build, build_intel, verify_intel]
     runs-on: ubuntu-22.04
     permissions:
       contents: read
@@ -285,7 +292,7 @@ jobs:
       - name: Require every release producer and validator
         env:
           PORTCOVE_RELEASE_RESULTS: >-
-            {"identity":"${{ needs.identity.result }}","validate":"${{ needs.validate.result }}","build":"${{ needs.build.result }}","build_intel":"${{ needs.build_intel.result }}","verify_intel":"${{ needs.verify_intel.result }}"}
+            {"identity":"${{ needs.identity.result }}","qualification":"${{ needs.qualification.result }}","validate":"${{ needs.validate.result }}","build":"${{ needs.build.result }}","build_intel":"${{ needs.build_intel.result }}","verify_intel":"${{ needs.verify_intel.result }}"}
         run: node scripts/release-result-gate.mjs
 
   assemble:

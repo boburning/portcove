@@ -70,6 +70,19 @@ export const AUDIT_STAGES = Object.freeze([
   },
 ]);
 
+export const RELEASE_AUDIT_STAGE_IDS = Object.freeze([
+  "dependency-policy",
+  "rscheck",
+  "release-unit",
+]);
+
+export function auditStagesForProfile(profile = "complete") {
+  if (profile === "complete") return AUDIT_STAGES;
+  if (profile === "release")
+    return AUDIT_STAGES.filter((stage) => RELEASE_AUDIT_STAGE_IDS.includes(stage.id));
+  throw new Error(`unknown audit profile: ${profile}`);
+}
+
 const environmentWhitelist = Object.freeze([
   "CI",
   "RUSTFLAGS",
@@ -687,25 +700,33 @@ export function executeAudit(plan, options = {}) {
 function parseArguments(argv) {
   let fresh = false;
   let planOnly = false;
-  for (const argument of argv) {
+  let profile = "complete";
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index];
     if (argument === "--fresh") fresh = true;
     else if (argument === "--plan") planOnly = true;
-    else if (argument === "--help") return { help: true, fresh: false, planOnly: false };
+    else if (argument === "--profile") {
+      profile = argv[++index];
+      if (!profile) throw new Error("--profile requires complete or release");
+    } else if (argument === "--help")
+      return { help: true, fresh: false, planOnly: false, profile: "complete" };
     else throw new Error(`unknown audit option: ${argument}`);
   }
   if (fresh && planOnly) throw new Error("--fresh and --plan cannot be combined");
-  return { help: false, fresh, planOnly };
+  auditStagesForProfile(profile);
+  return { help: false, fresh, planOnly, profile };
 }
 
 export function main(argv = process.argv.slice(2)) {
   const options = parseArguments(argv);
   if (options.help) {
-    console.log("usage: audit.mjs [--plan|--fresh]");
+    console.log("usage: audit.mjs [--plan|--fresh] [--profile complete|release]");
     console.log("  --plan   report stage execution/reuse without running or writing receipts");
     console.log("  --fresh  ignore receipts and execute every applicable stage");
+    console.log("  --profile release  delegate source/platform coverage to qualification");
     return;
   }
-  const plan = planAudit({ fresh: options.fresh });
+  const plan = planAudit({ fresh: options.fresh, stages: auditStagesForProfile(options.profile) });
   displayPlan(plan);
   if (options.planOnly) return;
   const result = executeAudit(plan);

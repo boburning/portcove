@@ -115,9 +115,12 @@ contracts from the complete local diff. Add a tested selection rule when it
 reports an unknown path instead of bypassing the refusal or running every suite.
 
 Open or update a draft pull request after that coherent focused evidence exists.
-Required GitHub CI is the ordinary exhaustive cross-platform gate and must pass
-on the exact reviewed head before merge. Do not repeat `just check` or `just
-audit` locally merely to duplicate CI. Run task-specific native, packaged,
+Required GitHub CI is the exact-reviewed-head merge gate. Its versioned,
+fail-closed validation plan routes ordinary work through complete primary-host
+groups and requires reusable exhaustive cross-platform qualification for
+native/IPC, catalog, dependency, platform, release/security, protected-policy,
+and uncertain high-risk changes. Do not repeat `just check` or `just audit`
+locally merely to duplicate the selected hosted plan. Run task-specific native, packaged,
 recovery, security, physical-platform, or human evidence whenever acceptance
 intrinsically requires it; focused validation and hosted CI do not replace that
 evidence.

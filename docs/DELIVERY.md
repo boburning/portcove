@@ -17,6 +17,17 @@ cross-built x86_64 artifacts, and exact run/revision producer lineage. This late
 optimization does not activate unattended publication,
 change signing authority, or make a rehearsal equivalent to a released artifact.
 
+The validated CI foundation uses one deterministic v2 plan for local reporting
+and hosted routing. Ordinary frontend and primary-Rust pull requests run their
+complete groups on the qualified primary host; native/IPC, catalog, dependency,
+platform, release/security, and protected-policy changes retain exhaustive
+cross-platform qualification. The five protected check identities are stable
+wrappers over the expected plan results. Main runs every fast group, while the
+secret-free reusable qualification entry point is also available to exact
+release candidates, manual dispatch, and a coalesced daily controller. This
+changes validation scheduling only: it grants no merge, signing, tag, feed, or
+publication authority.
+
 ## Versions, channels and readiness
 
 Application versions, update channels, capability workstreams and readiness

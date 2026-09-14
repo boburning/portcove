@@ -23,7 +23,8 @@ function job(name, next) {
   return workflow.match(new RegExp(`^ {2}${name}:\\r?\\n([\\s\\S]*?)${suffix}`, "m"))?.[1] ?? "";
 }
 
-const identitySection = job("identity", "validate");
+const identitySection = job("identity", "qualification");
+const qualificationSection = job("qualification", "validate");
 const validateSection = job("validate", "build");
 const buildSection = job("build", "build_intel");
 const intelBuildSection = job("build_intel", "verify_intel");
@@ -59,8 +60,10 @@ test("cheap identity unlocks validation and builds concurrently behind an explic
     identitySection,
     /select-release-channel\.test|reconstruct-application-update-records\.test/,
   );
+  assert.match(qualificationSection, /^ {4}needs: identity$/m);
+  assert.match(qualificationSection, /\.\/\.github\/workflows\/qualification\.yml/);
   assert.match(validateSection, /^ {4}needs: identity$/m);
-  assert.match(validateSection, /just audit --fresh/);
+  assert.match(validateSection, /just audit --fresh --profile release/);
   assert.match(validateSection, /node scripts\/workflow-provenance\.mjs/);
   assert.match(
     validateSection,
@@ -74,7 +77,7 @@ test("cheap identity unlocks validation and builds concurrently behind an explic
   assert.match(gateSection, /^ {4}if: always\(\)$/m);
   assert.match(
     gateSection,
-    /^ {4}needs: \[identity, validate, build, build_intel, verify_intel\]$/m,
+    /^ {4}needs: \[identity, qualification, validate, build, build_intel, verify_intel\]$/m,
   );
   assert.match(gateSection, /scripts\/release-result-gate\.mjs/);
   assert.match(assembleSection, /^ {4}needs: release_gate$/m);

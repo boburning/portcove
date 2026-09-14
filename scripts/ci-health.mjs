@@ -86,6 +86,9 @@ export function summarizeAttempt(run, jobs, provenance = unknownProvenance()) {
         }
       : null,
     provenance,
+    workClass: provenance.status === "verified" ? provenance.record.validation.mode : "unknown",
+    caller: provenance.status === "verified" ? provenance.record.validation.caller : "unknown",
+    planDigest: provenance.status === "verified" ? provenance.record.validation.plan_digest : null,
     cohort:
       provenance.status === "verified"
         ? `exact:${provenance.record.equivalent_cohort};runners:${runnerCohort.join(",") || "unknown"}`
@@ -108,6 +111,11 @@ export function summarizeAttempt(run, jobs, provenance = unknownProvenance()) {
     failedJobs: measuredJobs
       .filter((job) => job.conclusion === "failure" || job.conclusion === "timed_out")
       .map((job) => job.name),
+    cacheSteps: measuredJobs.flatMap((job) =>
+      job.steps
+        .filter((step) => /cache|restore/iu.test(step.name))
+        .map((step) => ({ job: job.name, name: step.name, seconds: step.seconds })),
+    ),
     failures: jobs
       .filter((job) => job.conclusion === "failure" || job.conclusion === "timed_out")
       .map((job) => ({
@@ -214,6 +222,29 @@ export function summarizeHistory(attempts) {
         ).length,
       ]),
     ),
+    workClasses: Object.fromEntries(
+      [...new Set(attempts.map((attempt) => attempt.workClass))].map((workClass) => [
+        workClass,
+        attempts.filter((attempt) => attempt.workClass === workClass).length,
+      ]),
+    ),
+    callers: Object.fromEntries(
+      [...new Set(attempts.map((attempt) => attempt.caller))].map((caller) => [
+        caller,
+        attempts.filter((attempt) => attempt.caller === caller).length,
+      ]),
+    ),
+    qualificationFailures: attempts
+      .filter((attempt) => attempt.workClass === "qualification" && attempt.failures.length > 0)
+      .flatMap((attempt) =>
+        attempt.failures.map((failure) => ({
+          runId: attempt.runId,
+          attempt: attempt.attempt,
+          planDigest: attempt.planDigest,
+          ...failure,
+        })),
+      ),
+    cacheObservations: attempts.reduce((total, attempt) => total + attempt.cacheSteps.length, 0),
     successfulFirstAttempts: distribution(
       successful.filter((attempt) => attempt.attempt === 1).map((attempt) => attempt.seconds),
     ),
@@ -460,7 +491,7 @@ export function renderReport(report) {
     "",
     "## Comparable cohorts",
     "",
-    "Equivalent cohorts require an attempt-specific artifact that binds the official workflow source SHA/ref, exact workflow bytes, checked-out code SHA, desired and observed toolchain/build configuration, and reported runner labels. Historical missing or expired evidence is unknown and excluded rather than inferred.",
+    "Equivalent cohorts require an attempt-specific artifact that binds the official workflow source SHA/ref, exact workflow bytes, checked-out code SHA, validation-plan digest/class/caller, desired and observed toolchain/build configuration, per-job toolchain inventory, and reported runner labels. Historical missing or expired evidence is unknown and excluded rather than inferred.",
     `Provenance: verified=${summary.provenance.verified}, unknown=${summary.provenance.unknown}${Object.entries(
       summary.provenance.unknownReasons,
     )
@@ -507,12 +538,12 @@ export function renderReport(report) {
     "",
     "## Attempts",
     "",
-    "| Run / attempt | Commit | Provenance | Result | Elapsed |",
-    "|---|---|---|---|---:|",
+    "| Run / attempt | Commit | Class / caller | Provenance | Result | Elapsed |",
+    "|---|---|---|---|---|---:|",
   );
   for (const attempt of report.attempts)
     lines.push(
-      `| [${attempt.runId}/${attempt.attempt}](${attempt.url}) | ${cell(attempt.sha?.slice(0, 8))} | ${attempt.provenance.status === "verified" ? `verified ${attempt.provenance.record.equivalent_cohort.slice(0, 12)}` : `unknown (${cell(attempt.provenance.reason)})`} | ${cell(attempt.conclusion ?? attempt.status)} | ${duration(attempt.seconds)} |`,
+      `| [${attempt.runId}/${attempt.attempt}](${attempt.url}) | ${cell(attempt.sha?.slice(0, 8))} | ${cell(attempt.workClass)} / ${cell(attempt.caller)} | ${attempt.provenance.status === "verified" ? `verified ${attempt.provenance.record.equivalent_cohort.slice(0, 12)}` : `unknown (${cell(attempt.provenance.reason)})`} | ${cell(attempt.conclusion ?? attempt.status)} | ${duration(attempt.seconds)} |`,
     );
   return `${lines.join("\n")}\n`;
 }

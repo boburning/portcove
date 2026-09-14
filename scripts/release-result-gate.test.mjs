@@ -5,6 +5,7 @@ import { evaluateReleaseResults } from "./release-result-gate.mjs";
 
 const success = {
   identity: "success",
+  qualification: "success",
   validate: "success",
   build: "success",
   build_intel: "success",

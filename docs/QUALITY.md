@@ -74,9 +74,11 @@ It runs affected Rust packages rather than the workspace, uses Vitest's import
 graph for UI sources, and maps repository scripts and workflows to their exact
 contract tests. Root Cargo/toolchain changes compile and lint the workspace and
 run dependency policy without executing every local test. Combined changes use
-the union of their scopes. An unknown path is a hard selection error: add and
-test its narrow rule rather than silently passing or falling back to the full
-suite.
+the union of their scopes. An unknown but syntactically safe path selects the
+explicit all-fast-groups fallback on the primary host and is reported in the
+plan. Add and test a narrow rule before depending on a smaller selection.
+Unsafe paths and incomplete or failed diff discovery authorize no work and
+block the classifier.
 
 A typical warm single-layer local check targets less than two minutes and prints
 every selected stage and elapsed time. The target is diagnostic rather than a
@@ -85,9 +87,12 @@ coherent focused pass so required CI can run while review and remaining work
 continue. Superseded hosted runs are cancelled by the workflow concurrency
 contract.
 
-Required GitHub CI remains the exhaustive cross-platform merge gate. It must
-pass on the exact reviewed head; a local full suite does not replace it. Ordinary
-pull requests do not repeat `just check` or `just audit` merely to duplicate that
+Required GitHub CI remains the exact-reviewed-head merge gate. A versioned
+validation plan routes ordinary frontend and primary-Rust changes to complete
+primary-host groups, while native/IPC, catalog, dependency, platform,
+release/security and protected-policy changes require exhaustive qualification.
+A local full suite does not replace the selected hosted plan. Ordinary pull
+requests do not repeat `just check` or `just audit` merely to duplicate that
 coverage. Aggregate local commands remain useful for release preflight, an
 explicitly named acceptance requirement, a validation-contract transition, or
 diagnosing a hosted failure. Native desktop, installer, recovery, security,
@@ -101,14 +106,34 @@ authorized activation change set it to `"true"` and received exhaustive CI
 because its workflow diff was not allowlisted. The classifier reads the
 complete pull-request merge-base diff using NUL-delimited Git records. It accepts
 ordinary file additions, modifications, deletions, and renames only when every
-old and new path is allowlisted and the file type remains regular. Mixed changes,
-mode or file-type changes, symbolic links, malformed or empty diff output,
-unusual filenames, missing refs, non-pull-request events, and classifier errors
-all select full CI. The prose lane still checks whitespace, repository formatting,
+old and new path is allowlisted and the file type remains regular. Mixed changes
+use the union of their area routes. Mode or file-type changes require
+qualification; unknown but safe paths use all fast groups. Missing refs,
+malformed or empty discovery, and classifier errors block without authorizing
+guessed work. Main pushes run all five fast groups. The prose lane still checks whitespace, repository formatting,
 and Roadmap/document governance. Stable required-check wrappers consume the
 classifier and every producer result; a missing, failed, cancelled, timed-out,
 unexpectedly skipped, or unexpectedly executed producer fails the wrapper.
-Protected check names therefore stay unchanged.
+Protected check names therefore stay unchanged. Their wrappers validate the
+plan digest and exact expected fast, qualification, and skipped result set.
+
+`scripts/validation-plan.mjs` owns the area map for hosted selection and local
+reporting. Its v2 record contains complete changed paths including both rename
+sides and deletions, base/merge-base/head/checkout identities, areas, reasons,
+platforms, expected groups, qualification requirement, fallback, and a
+deterministic digest. `.github/qualification-coverage.json` lists every
+qualification job, platform, and protected context; its checker refuses a zero,
+duplicate, missing, or extra inventory. `.github/workflows/qualification.yml`
+reuses the same exact workflow in forced-qualification mode for manual callers
+and daily at 05:17 UTC. Fixed non-canceling concurrency retains one running and
+at most one current pending run; newer pending work coalesces older pending work.
+It has read-only contents permission and no secrets.
+
+Fast work initially runs on `ubuntu-22.04`. `.github/fast-host-policy.json`
+retains that host until at least three exact comparable heads execute the same
+inventory on Linux and Windows, coverage is equal, and the Windows median is at
+least 20 percent faster. A host switch must record those measurements and pass
+the policy test; one favorable run is not sufficient.
 
 Disable the optimization immediately by setting
 `PORTCOVE_PROSE_POLICY_ACTIVATED` back to `"false"`, removing both allowlist
@@ -349,7 +374,17 @@ The helper never opens an interactive privilege prompt: root runs directly, whil
 other callers must already have noninteractive sudo authority. Each APT process,
 including its privilege wrapper, is inside the declared deadline.
 
-Required pull-request CI has a five-minute warm-cache target for the complete pipeline, measured from run creation to the terminal required-job result. The Windows Rust suite is exhaustively partitioned into service, recovery, remaining-core, non-core workspace-test, and format/Clippy lanes, while a lightweight Windows job covers development-storage behavior. A native matrix also runs the full workspace through cargo-nextest on Linux x86-64, macOS x86-64, and macOS arm64 so platform-specific filesystem, process, and permission behavior cannot be represented by Windows compilation alone. Native tests use the runner-owned temporary directory so macOS's system `/var` compatibility symlink is not mistaken for a library-controlled symlink ancestor. Giving the non-core test and lint lanes independent job identities also gives them independent Rust cache keys; a fast core shard therefore cannot win a shared-key save race and leave the slower graphs uncached. The required `rust` job fails closed unless every Windows and native producer passes. Clippy's all-target compilation replaces a duplicate standalone `cargo check`; the Linux quality lane likewise avoids installing pnpm because it invokes Node and Rust tools directly. These boundaries are enforced by `scripts/ci-workflow.test.mjs` so missing shards, native platforms, unused setup, a shared-key race, or accidental serialization cannot silently return to the critical path.
+Required pull-request CI has a five-minute warm-cache target for routed fast
+work, measured from run creation to the terminal required-job result.
+Qualification retains the exhaustive Windows Rust partitions, lightweight
+Windows storage job, native Linux/macOS matrix, Intel producer/execution,
+platform documentation, full Linux quality, frontend, catalog, and dependency
+review lanes. Native tests use the runner-owned temporary directory so macOS's
+system `/var` compatibility symlink is not mistaken for a library-controlled
+symlink ancestor. Independent test and lint identities retain independent Rust
+cache keys. The required `rust` wrapper fails closed unless the exact selected
+fast lane or every qualification producer passes. These boundaries are enforced
+by the workflow, result-gate, validation-plan, and qualification-coverage tests.
 
 A lockfile or toolchain change is expected to pay each lane's cold-build cost once. [Run 33832768415](https://github.com/boburning/portcove/actions/runs/33832768415) established the initial 7m45s cold baseline and exposed the shared-key race. After isolating the non-core jobs, [run 33833781499](https://github.com/boburning/portcove/actions/runs/33833781499) passed in 6m49s while populating both new lane-specific caches.
 
@@ -490,15 +525,18 @@ node scripts/ci-health.mjs --branch my-branch --event pull_request --runs 10
 
 The report separates successful first attempts from successful reruns, reports
 cancelled/incomplete/failed outcomes, and links failed-then-passing attempts for
-investigation. It also shows the observable pre-job, job-window and post-job
+investigation. It also shows work class and caller, qualification failures,
+cache-step observations, the observable pre-job, job-window and post-job
 aggregation boundaries, exact comparable cohorts, recent
 API-identified failure leads, and the three longest steps in each slow job.
-CI and release validation upload one attempt-specific provenance record named with
+CI and release validation upload one attempt-specific v2 provenance record named with
 the run ID and attempt. It binds GitHub's `GITHUB_WORKFLOW_SHA` workflow-file
 source commit and `GITHUB_WORKFLOW_REF`, a SHA-256 of the checked-out workflow
 bytes, the event source-code head, the separately checked-out `GITHUB_SHA` (including
 GitHub's pull-request merge commit), and desired versus observed Node, pnpm, Rust,
-Cargo, build environment, and runner configuration. `ci-health` verifies the
+Cargo, build environment, and runner configuration. The record also binds the
+validation-plan digest, work class, caller, and a nonzero job-toolchain inventory
+so fast and qualification cohorts cannot be conflated. `ci-health` verifies the
 artifact digest and every embedded identity before forming a cohort. Earlier or
 expired runs without this record are explicitly unknown and excluded from
 equivalent-cohort claims rather than receiving an inferred toolchain or workflow
