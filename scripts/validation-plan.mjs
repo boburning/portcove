@@ -63,6 +63,19 @@ function classifyPath(file) {
   const reasons = [];
   let qualificationRequired = false;
 
+  const platformMatches = [];
+  if (/(?:windows|\.msi\b)/iu.test(file)) platformMatches.push("windows-x86_64");
+  if (/(?:linux|appimage|steam-deck)/iu.test(file)) platformMatches.push("linux-x86_64");
+  if (/(?:macos|\.dmg\b)/iu.test(file)) platformMatches.push("macos-aarch64", "macos-x86_64");
+  const hasPlatformSignal =
+    platformMatches.length > 0 || /(?:^|[/_-])platform(?:[/_-]|\.|$)/iu.test(file);
+  const affectedPlatforms = platformMatches.length > 0 ? platformMatches : qualificationPlatforms;
+  const trustedPolicyScript =
+    file.startsWith("scripts/") &&
+    /^scripts\/(?:audit|bootstrap-quality-tools|check-child-process-policy|check-ci-prose|check-rust-architecture|ci|dependency-automation|desktop-build-cache|local-validation|pr-conventions|repository-settings|run-(?:actionlint|fallow|hawk|oxfmt|oxlint|powershell-lint|rscheck|rust-tests|semdup)|select-ci-plan|select-fast-host|test-duration-reporter|tool-cache|validation-plan|workflow-provenance)(?:\.|-)/u.test(
+      file,
+    );
+
   const match = (condition, area, selectedGroups, reason, selectedPlatforms = []) => {
     if (!condition) return;
     areas.add(area);
@@ -102,12 +115,12 @@ function classifyPath(file) {
   );
   match(
     file.startsWith("apps/desktop/src-tauri/") ||
-      /(?:transport|schema|ipc)/iu.test(file) ||
+      (!/catalog/iu.test(file) && /(?:transport|schema|ipc)/iu.test(file)) ||
       file.startsWith("integrations/"),
     "native-ipc",
     ["frontend", "rust", "rust-quality"],
     "native-or-ipc-boundary",
-    qualificationPlatforms,
+    hasPlatformSignal ? affectedPlatforms : qualificationPlatforms,
   );
   match(
     file === "crates/portcove-core/catalog/catalog.json" ||
@@ -118,24 +131,36 @@ function classifyPath(file) {
     "catalog-or-source-contract",
   );
   match(
-    /(?:^|\/)(?:Cargo\.toml|Cargo\.lock|package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|rust-toolchain\.toml|dependabot\.yml|renovate\.json|aqua\.yaml|aqua-checksums\.json|quality-tools\.json|tool-bootstrap\.json)$/u.test(
+    /(?:^|\/)(?:package\.json|pnpm-lock\.yaml)$/u.test(file),
+    "dependency",
+    ["dependency-review", "frontend", "rust-quality"],
+    "frontend-dependency-input",
+  );
+  match(
+    /(?:^|\/)(?:Cargo\.toml|Cargo\.lock)$/u.test(file),
+    "dependency",
+    ["dependency-review", "rust", "rust-quality"],
+    "rust-dependency-input",
+  );
+  match(
+    /(?:^|\/)(?:pnpm-workspace\.yaml|rust-toolchain\.toml|dependabot\.yml|renovate\.json|aqua\.yaml|aqua-checksums\.json|quality-tools\.json|tool-bootstrap\.json)$/u.test(
       file,
     ) || [".node-version", ".aqua-version", ".config/powershell-resources.psd1"].includes(file),
     "dependency",
     fastGroups,
-    "dependency-or-toolchain-input",
+    "shared-toolchain-or-dependency-policy",
     qualificationPlatforms,
   );
   match(
-    /(?:windows|linux|macos|appimage|dmg|msi|steam-deck|platform)/iu.test(file),
+    hasPlatformSignal,
     "platform",
     ["rust", "rust-quality"],
     "platform-specific-input",
-    qualificationPlatforms,
+    affectedPlatforms,
   );
   match(
     file.startsWith("release/") ||
-      /(?:release|updater|package|installer|qualification|checksum|channel|provenance|attest|sbom|security)/iu.test(
+      /(?:release|updater|package(?!\.json)|installer|qualification|checksum|channel|provenance|attest|sbom|security|sign(?:ing)?)/iu.test(
         file,
       ),
     "release-security",
@@ -145,7 +170,7 @@ function classifyPath(file) {
   );
   match(
     file.startsWith(".github/") ||
-      file.startsWith("scripts/") ||
+      trustedPolicyScript ||
       [
         ".editorconfig",
         ".gitattributes",
@@ -172,15 +197,14 @@ function classifyPath(file) {
     qualificationPlatforms,
   );
 
-  if (
-    [...areas].some((area) =>
-      ["native-ipc", "catalog", "dependency", "platform", "release-security", "policy"].includes(
-        area,
-      ),
-    )
-  ) {
+  if ([...areas].some((area) => ["release-security", "policy"].includes(area))) {
     qualificationRequired = true;
   }
+  if (
+    ["native-ipc", "platform", "dependency"].some((area) => areas.has(area)) &&
+    qualificationPlatforms.every((platform) => platforms.has(platform))
+  )
+    qualificationRequired = true;
 
   if (areas.size === 0) {
     add(groups, ...fastGroups);

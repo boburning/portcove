@@ -21,7 +21,8 @@ function jobSection(name, nextName) {
 const classify = jobSection("classify", "provenance");
 const provenance = jobSection("provenance", "prose_checks");
 const proseChecks = jobSection("prose_checks", "fast_rust");
-const fastRust = jobSection("fast_rust", "fast_rust_quality");
+const fastRust = jobSection("fast_rust", "fast_platform");
+const fastPlatform = jobSection("fast_platform", "fast_rust_quality");
 const fastRustQuality = jobSection("fast_rust_quality", "fast_frontend");
 const fastFrontend = jobSection("fast_frontend", "fast_catalog");
 const fastCatalog = jobSection("fast_catalog", "rust_tests");
@@ -99,6 +100,8 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   assert.match(classify, /PORTCOVE_PROSE_POLICY_ACTIVATED: "true"/);
   assert.match(classify, /PORTCOVE_FAST_VALIDATION_ACTIVATED: "true"/);
   assert.match(provenance, /node scripts\/workflow-provenance\.mjs/);
+  assert.match(provenance, /--observed-toolchains node/);
+  assert.doesNotMatch(provenance, /pnpm\/action-setup|\.\/\.github\/actions\/setup-rust/);
   assert.match(
     provenance,
     /workflow-provenance-\$\{\{ inputs\.provenance_scope \|\| 'ci' \}\}-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}/,
@@ -106,7 +109,7 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   assert.match(provenance, /retention-days: 7/);
   assert.match(
     rustQualityGate,
-    /needs: \[classify, provenance, prose_checks, fast_rust_quality, rust_quality_full\]/,
+    /\[classify, provenance, prose_checks, fast_rust_quality, fast_platform, rust_quality_full\]/,
   );
   assert.match(rustQualityGate, /PORTCOVE_ALWAYS_RESULTS: '\{"provenance"/);
   assert.match(proseChecks, /^ {4}if: needs\.classify\.outputs\.mode == 'prose'$/m);
@@ -118,12 +121,17 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
     assert.match(gate, /PORTCOVE_PROSE_RESULT/);
     assert.match(gate, /PORTCOVE_PLAN_JSON/);
     assert.match(gate, /PORTCOVE_FAST_RESULTS/);
+    assert.match(gate, /PORTCOVE_TARGETED_RESULTS/);
     assert.match(gate, /PORTCOVE_QUALIFICATION_RESULTS/);
   }
   for (const fast of [fastRust, fastRustQuality, fastFrontend, fastCatalog]) {
     assert.match(fast, /mode == 'fast'/);
     assert.match(fast, /runs-on: ubuntu-22\.04/);
   }
+  assert.match(fastPlatform, /mode == 'fast'/);
+  assert.match(fastPlatform, /platform_matrix_json/);
+  assert.match(fastPlatform, /runs-on: \$\{\{ matrix\.runner \}\}/);
+  assert.match(fastPlatform, /cargo nextest run --locked --workspace/);
   assert.match(fastRustQuality, /actions\/setup-node@/);
   assert.match(fastRustQuality, /pnpm install --frozen-lockfile/);
   assert.match(fastRustQuality, /run-oxfmt\.mjs --check/);
@@ -176,7 +184,7 @@ test("Linux desktop prerequisite installation is shared, bounded, and retrying",
   const invocation =
     /timeout-minutes: 15\r?\n\s+run: \.\/scripts\/install-linux-desktop-prerequisites\.sh/g;
 
-  assert.equal((workflow.match(invocation) ?? []).length, 5);
+  assert.equal((workflow.match(invocation) ?? []).length, 6);
   assert.equal((deepQuality.match(invocation) ?? []).length, 2);
   assert.equal((release.match(invocation) ?? []).length, 2);
   assert.match(

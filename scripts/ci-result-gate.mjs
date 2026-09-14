@@ -18,6 +18,7 @@ export function evaluateCiResults({
   group,
   prose,
   fast,
+  targeted,
   qualification,
   always = {},
 }) {
@@ -32,21 +33,30 @@ export function evaluateCiResults({
     if (result !== "success")
       throw new Error(`${name} was ${result || "missing"}, expected success in every plan`);
   const selected = plan.groups.includes(group);
+  const targetsAffectedPlatform =
+    plan.mode === "fast" && plan.platforms.some((platform) => platform !== "primary-host");
   if (plan.mode === "qualification") {
     if (!selected) throw new Error(`qualification plan omitted protected group ${group}`);
     if (prose !== "skipped")
       throw new Error(`prose lane was ${prose || "missing"}, expected skipped`);
     requireResults(fast, "skipped", "qualification");
+    requireResults(targeted, "skipped", "qualification targeted-platform");
     requireResults(qualification, "success", "qualification");
   } else if (plan.mode === "fast") {
     if (prose !== "skipped")
       throw new Error(`prose lane was ${prose || "missing"}, expected skipped`);
     requireResults(qualification, "skipped", "fast");
     requireResults(fast, selected ? "success" : "skipped", "fast");
+    requireResults(
+      targeted,
+      targetsAffectedPlatform ? "success" : "skipped",
+      "fast targeted-platform",
+    );
   } else if (plan.mode === "prose") {
     if (prose !== "success")
       throw new Error(`prose lane was ${prose || "missing"}, expected success`);
     requireResults(fast, "skipped", "prose");
+    requireResults(targeted, "skipped", "prose targeted-platform");
     requireResults(qualification, "skipped", "prose");
   } else {
     throw new Error(`classifier mode is ${plan.mode || "missing"}`);
@@ -55,10 +65,11 @@ export function evaluateCiResults({
 }
 
 function main() {
-  let plan, fast, qualification, always;
+  let plan, fast, targeted, qualification, always;
   try {
     plan = JSON.parse(process.env.PORTCOVE_PLAN_JSON ?? "");
     fast = JSON.parse(process.env.PORTCOVE_FAST_RESULTS ?? "");
+    targeted = JSON.parse(process.env.PORTCOVE_TARGETED_RESULTS ?? "");
     qualification = JSON.parse(process.env.PORTCOVE_QUALIFICATION_RESULTS ?? "");
     always = JSON.parse(process.env.PORTCOVE_ALWAYS_RESULTS ?? "{}");
   } catch {
@@ -71,6 +82,7 @@ function main() {
       group: process.env.PORTCOVE_GROUP,
       prose: process.env.PORTCOVE_PROSE_RESULT,
       fast,
+      targeted,
       qualification,
       always,
     }),

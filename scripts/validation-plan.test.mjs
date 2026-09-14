@@ -54,9 +54,9 @@ test("routes every maintained area and unions mixed changes", () => {
     validateValidationPlan(result);
   }
   const mixed = plan([change("apps/desktop/src/App.tsx"), change("Cargo.lock")]);
-  assert.equal(mixed.mode, "qualification");
-  assert.deepEqual(mixed.groups, fastGroups);
-  assert.deepEqual(mixed.platforms, qualificationPlatforms);
+  assert.equal(mixed.mode, "fast");
+  assert.deepEqual(mixed.groups, ["dependency-review", "frontend", "rust", "rust-quality"]);
+  assert.deepEqual(mixed.platforms, ["primary-host"]);
   assert.deepEqual(mixed.identities, {
     base: sha("a"),
     merge_base: sha("b"),
@@ -88,7 +88,8 @@ test("validation authorities and GitHub policy always require qualification", ()
     "scripts/local-validation.mjs",
     "scripts/check-ci-prose.mjs",
     "scripts/workflow-provenance.mjs",
-    "scripts/unlisted-new-check.mjs",
+    "scripts/pr-conventions.mjs",
+    "scripts/run-rust-tests.mjs",
     ".oxlintrc.json",
   ]) {
     const result = plan([change(path)]);
@@ -99,20 +100,76 @@ test("validation authorities and GitHub policy always require qualification", ()
   }
 });
 
-test("dependency and toolchain manifests require cross-platform qualification", () => {
+test("ordinary repository tools and new unlisted paths retain explicit fast fallback", () => {
+  const ordinaryTool = plan([change("scripts/dev-doctor.mjs")]);
+  assert.equal(ordinaryTool.mode, "fast");
+  assert.deepEqual(ordinaryTool.groups, fastGroups);
+  assert.deepEqual(ordinaryTool.platforms, ["primary-host"]);
+  assert.deepEqual(ordinaryTool.fallback, {
+    kind: "all-fast-groups",
+    paths: ["scripts/dev-doctor.mjs"],
+  });
+
+  const unlisted = plan([change("scripts/unlisted-new-check.mjs")]);
+  assert.equal(unlisted.mode, "fast");
+  assert.deepEqual(unlisted.fallback, {
+    kind: "all-fast-groups",
+    paths: ["scripts/unlisted-new-check.mjs"],
+  });
+
+  const catalogMigration = plan([change("scripts/migrate-catalog-schema2.mjs")]);
+  assert.equal(catalogMigration.mode, "fast");
+  assert.ok(catalogMigration.groups.includes("catalog"));
+  assert.deepEqual(catalogMigration.platforms, ["primary-host"]);
+});
+
+test("routine dependency manifests stay ecosystem-focused while shared toolchains qualify", () => {
+  for (const [path, groups] of [
+    ["Cargo.toml", ["dependency-review", "rust", "rust-quality"]],
+    ["crates/portcove-core/Cargo.toml", ["dependency-review", "rust", "rust-quality"]],
+    ["Cargo.lock", ["dependency-review", "rust", "rust-quality"]],
+    ["apps/desktop/package.json", ["dependency-review", "frontend", "rust-quality"]],
+    ["apps/desktop/pnpm-lock.yaml", ["dependency-review", "frontend", "rust-quality"]],
+  ]) {
+    const result = plan([change(path)]);
+    assert.equal(result.mode, "fast", path);
+    assert.ok(result.areas.includes("dependency"), path);
+    assert.deepEqual(result.groups, groups, path);
+    assert.deepEqual(result.platforms, ["primary-host"], path);
+  }
+
   for (const path of [
-    "Cargo.toml",
-    "crates/portcove-core/Cargo.toml",
     "rust-toolchain.toml",
     ".node-version",
     ".aqua-version",
-    "apps/desktop/package.json",
+    "pnpm-workspace.yaml",
   ]) {
     const result = plan([change(path)]);
     assert.equal(result.mode, "qualification", path);
     assert.ok(result.areas.includes("dependency"), path);
     assert.deepEqual(result.platforms, qualificationPlatforms, path);
   }
+});
+
+test("catalog changes stay focused and platform-specific native changes add only affected hosts", () => {
+  const catalog = plan([change("crates/portcove-core/catalog/catalog.json")]);
+  assert.equal(catalog.mode, "fast");
+  assert.deepEqual(catalog.groups, ["catalog", "rust", "rust-quality"]);
+  assert.deepEqual(catalog.platforms, ["primary-host"]);
+
+  const windows = plan([change("apps/desktop/src-tauri/src/application_update_windows.rs")]);
+  assert.equal(windows.mode, "fast");
+  assert.deepEqual(windows.groups, ["frontend", "rust", "rust-quality"]);
+  assert.deepEqual(windows.platforms, ["windows-x86_64"]);
+  assert.equal(windows.qualification_required, false);
+
+  const macos = plan([change("crates/portcove-core/src/macos_launch.rs")]);
+  assert.equal(macos.mode, "fast");
+  assert.deepEqual(macos.platforms, ["macos-aarch64", "macos-x86_64"]);
+
+  const sharedNative = plan([change("apps/desktop/src-tauri/src/main.rs")]);
+  assert.equal(sharedNative.mode, "qualification");
+  assert.deepEqual(sharedNative.platforms, qualificationPlatforms);
 });
 
 test("normative documentation retains repository governance checks", () => {
@@ -211,7 +268,7 @@ test("validation rejects correctly digested malformed structures and identities"
     /fallback is missing/u,
   );
 
-  const qualification = plan([change("Cargo.lock")]);
+  const qualification = plan([change(".github/workflows/ci.yml")]);
   assert.throws(
     () => validateValidationPlan(redigest({ ...qualification, groups: ["rust"] })),
     /every protected group/u,

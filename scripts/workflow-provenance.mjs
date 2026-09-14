@@ -39,6 +39,17 @@ function rustVersion(value, commandName) {
   return match[1];
 }
 
+function observedMatch(desired, observed) {
+  if (observed === null) return null;
+  return (
+    typeof desired === "string" &&
+    desired.length > 0 &&
+    typeof observed === "string" &&
+    observed.length > 0 &&
+    desired === observed
+  );
+}
+
 export function buildWorkflowProvenance({
   workflow,
   callerWorkflow = workflow,
@@ -78,10 +89,10 @@ export function buildWorkflowProvenance({
   if (checkoutSha !== environment.GITHUB_SHA)
     throw new Error("Checked-out code does not match GITHUB_SHA");
   const matches = {
-    node: desired.node === observed.node,
-    package_manager: desired.package_manager === observed.package_manager,
-    rust: desired.rust === observed.rust,
-    cargo: desired.rust === observed.cargo,
+    node: observedMatch(desired.node, observed.node),
+    package_manager: observedMatch(desired.package_manager, observed.package_manager),
+    rust: observedMatch(desired.rust, observed.rust),
+    cargo: observedMatch(desired.rust, observed.cargo),
     build_configuration:
       JSON.stringify(desired.build_configuration) === JSON.stringify(observed.build_configuration),
   };
@@ -90,7 +101,7 @@ export function buildWorkflowProvenance({
       `Observed workflow configuration differs from desired: ${JSON.stringify(matches)}`,
     );
   const record = {
-    format_version: 3,
+    format_version: 4,
     run: {
       id: Number(environment.GITHUB_RUN_ID),
       attempt: Number(environment.GITHUB_RUN_ATTEMPT),
@@ -185,17 +196,17 @@ export function validateWorkflowProvenance(
   const desired = record?.desired;
   const observed = record?.observed;
   const expectedMatches = {
-    node: desired?.node === observed?.node,
-    package_manager: desired?.package_manager === observed?.package_manager,
-    rust: desired?.rust === observed?.rust,
-    cargo: desired?.rust === observed?.cargo,
+    node: observedMatch(desired?.node, observed?.node),
+    package_manager: observedMatch(desired?.package_manager, observed?.package_manager),
+    rust: observedMatch(desired?.rust, observed?.rust),
+    cargo: observedMatch(desired?.rust, observed?.cargo),
     build_configuration:
       JSON.stringify(desired?.build_configuration) ===
       JSON.stringify(observed?.build_configuration),
   };
   const expectedCohort = sha256(JSON.stringify(cohortInputs(record ?? {})));
   if (
-    record?.format_version !== 3 ||
+    record?.format_version !== 4 ||
     record.run?.id !== runId ||
     record.run?.attempt !== attempt ||
     record.run?.event !== event ||
@@ -214,6 +225,12 @@ export function validateWorkflowProvenance(
     !["ci", "release"].includes(desired?.mode) ||
     typeof desired?.runner !== "string" ||
     desired.runner.length === 0 ||
+    ![desired?.node, desired?.package_manager, desired?.rust].every(
+      (value) => typeof value === "string" && value.length > 0,
+    ) ||
+    ![observed?.node, observed?.package_manager, observed?.rust, observed?.cargo].every(
+      (value) => value === null || (typeof value === "string" && value.length > 0),
+    ) ||
     typeof observed?.runner?.os !== "string" ||
     observed.runner.os.length === 0 ||
     typeof observed?.runner?.architecture !== "string" ||
@@ -225,10 +242,13 @@ export function validateWorkflowProvenance(
         typeof job?.job !== "string" ||
         job.job.length === 0 ||
         typeof job?.runner?.os !== "string" ||
-        typeof job?.runner?.architecture !== "string",
+        typeof job?.runner?.architecture !== "string" ||
+        ![job.node, job.package_manager, job.rust, job.cargo].some(
+          (value) => typeof value === "string" && value.length > 0,
+        ),
     ) ||
     JSON.stringify(record.matches) !== JSON.stringify(expectedMatches) ||
-    Object.values(expectedMatches).some((matches) => matches !== true) ||
+    Object.values(expectedMatches).some((matches) => matches === false) ||
     record.equivalent_cohort !== expectedCohort
   )
     throw new Error("Provenance artifact identity or configuration mismatch");
@@ -245,6 +265,7 @@ async function main(args = process.argv.slice(2)) {
       mode: { type: "string" },
       runner: { type: "string" },
       output: { type: "string" },
+      "observed-toolchains": { type: "string", default: "all" },
     },
   });
   if (
@@ -269,7 +290,12 @@ async function main(args = process.argv.slice(2)) {
     cargo_profile_dev_debug: values.mode === "ci" ? "line-tables-only" : null,
     cargo_profile_test_debug: values.mode === "ci" ? "line-tables-only" : null,
   };
-  const packageManagerVersion = command("pnpm", ["--version"], path.join(root, "apps/desktop"));
+  if (!["all", "node"].includes(values["observed-toolchains"]))
+    throw new Error("observed toolchains must be all or node");
+  const observeAll = values["observed-toolchains"] === "all";
+  const packageManagerVersion = observeAll
+    ? command("pnpm", ["--version"], path.join(root, "apps/desktop"))
+    : null;
   const record = buildWorkflowProvenance({
     workflow: values.workflow,
     callerWorkflow: values["caller-workflow"] ?? values.workflow,
@@ -285,8 +311,8 @@ async function main(args = process.argv.slice(2)) {
     observed: {
       node: process.version.replace(/^v/u, ""),
       package_manager: packageManagerVersion,
-      rust: rustVersion(command("rustc", ["--version"]), "rustc"),
-      cargo: rustVersion(command("cargo", ["--version"]), "cargo"),
+      rust: observeAll ? rustVersion(command("rustc", ["--version"]), "rustc") : null,
+      cargo: observeAll ? rustVersion(command("cargo", ["--version"]), "cargo") : null,
       runner: {
         os: process.env.RUNNER_OS,
         architecture: process.env.RUNNER_ARCH,

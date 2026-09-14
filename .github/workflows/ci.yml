@@ -64,6 +64,7 @@ jobs:
       checkout: ${{ steps.plan.outputs.checkout }}
       groups_json: ${{ steps.plan.outputs.groups_json }}
       platforms_json: ${{ steps.plan.outputs.platforms_json }}
+      platform_matrix_json: ${{ steps.plan.outputs.platform_matrix_json }}
       qualification_required: ${{ steps.plan.outputs.qualification_required }}
       plan_digest: ${{ steps.plan.outputs.plan_digest }}
       plan_json: ${{ steps.plan.outputs.plan_json }}
@@ -107,10 +108,6 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-        with:
-          package_json_file: apps/desktop/package.json
-      - uses: ./.github/actions/setup-rust
       - name: Record exact workflow, checkout, toolchain, and build configuration
         env:
           PORTCOVE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -125,6 +122,7 @@ jobs:
             --caller-workflow "$PORTCOVE_CALLER_WORKFLOW" \
             --mode ci \
             --runner ubuntu-latest \
+            --observed-toolchains node \
             --output work/workflow-provenance/workflow-provenance.json
       - name: Upload attempt-specific workflow provenance
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -193,6 +191,43 @@ jobs:
         run: |
           node scripts/run-rust-tests.mjs --locked --workspace
           cargo test --locked --workspace --doc
+
+  fast_platform:
+    name: fast-platform-native (${{ matrix.platform }})
+    needs: classify
+    if: needs.classify.outputs.mode == 'fast' && needs.classify.outputs.platform_matrix_json != '[]'
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.classify.outputs.platform_matrix_json) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-rust
+        with:
+          test-fixtures: true
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          cache-on-failure: true
+          key: fast-platform-${{ matrix.platform }}-${{ hashFiles('Cargo.toml') }}
+      - name: Read pinned test runner
+        id: test-runner
+        shell: pwsh
+        run: |
+          $manifest = Get-Content .github/quality-tools.json -Raw | ConvertFrom-Json
+          $version = ($manifest.tools | Where-Object id -eq "cargo-nextest").version
+          if (-not $version) { throw "Missing cargo-nextest version" }
+          "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
+      - name: Install pinned test runner
+        uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2
+        with:
+          tool: ${{ steps.test-runner.outputs.spec }}
+      - name: Install Linux desktop prerequisites
+        if: runner.os == 'Linux'
+        timeout-minutes: 15
+        run: ./scripts/install-linux-desktop-prerequisites.sh
+      - name: Test the affected platform natively
+        run: cargo nextest run --locked --workspace
 
   fast_rust_quality:
     name: fast-rust-quality (linux-x86_64)
@@ -578,6 +613,7 @@ jobs:
         classify,
         prose_checks,
         fast_rust,
+        fast_platform,
         rust_tests,
         rust_workspace_tests,
         rust_clippy,
@@ -597,6 +633,7 @@ jobs:
           PORTCOVE_GROUP: rust
           PORTCOVE_PROSE_RESULT: ${{ needs.prose_checks.result }}
           PORTCOVE_FAST_RESULTS: '{"fast_rust":"${{ needs.fast_rust.result }}"}'
+          PORTCOVE_TARGETED_RESULTS: '{"fast_platform":"${{ needs.fast_platform.result }}"}'
           PORTCOVE_QUALIFICATION_RESULTS: '{"rust_tests":"${{ needs.rust_tests.result }}","rust_workspace_tests":"${{ needs.rust_workspace_tests.result }}","rust_clippy":"${{ needs.rust_clippy.result }}","windows_storage":"${{ needs.windows_storage.result }}","native_rust":"${{ needs.native_rust.result }}","intel_build":"${{ needs.intel_build.result }}","intel_tests":"${{ needs.intel_tests.result }}","rust_docs":"${{ needs.rust_docs.result }}"}'
         run: node scripts/ci-result-gate.mjs
 
@@ -683,7 +720,7 @@ jobs:
 
   rust-quality:
     if: always()
-    needs: [classify, provenance, prose_checks, fast_rust_quality, rust_quality_full]
+    needs: [classify, provenance, prose_checks, fast_rust_quality, fast_platform, rust_quality_full]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -695,6 +732,7 @@ jobs:
           PORTCOVE_PROSE_RESULT: ${{ needs.prose_checks.result }}
           PORTCOVE_ALWAYS_RESULTS: '{"provenance":"${{ needs.provenance.result }}"}'
           PORTCOVE_FAST_RESULTS: '{"fast_rust_quality":"${{ needs.fast_rust_quality.result }}"}'
+          PORTCOVE_TARGETED_RESULTS: '{"fast_platform":"${{ needs.fast_platform.result }}"}'
           PORTCOVE_QUALIFICATION_RESULTS: '{"rust_quality_full":"${{ needs.rust_quality_full.result }}"}'
         run: node scripts/ci-result-gate.mjs
 
@@ -753,7 +791,7 @@ jobs:
 
   frontend:
     if: always()
-    needs: [classify, prose_checks, fast_frontend, frontend_full]
+    needs: [classify, prose_checks, fast_frontend, fast_platform, frontend_full]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -764,6 +802,7 @@ jobs:
           PORTCOVE_GROUP: frontend
           PORTCOVE_PROSE_RESULT: ${{ needs.prose_checks.result }}
           PORTCOVE_FAST_RESULTS: '{"fast_frontend":"${{ needs.fast_frontend.result }}"}'
+          PORTCOVE_TARGETED_RESULTS: '{"fast_platform":"${{ needs.fast_platform.result }}"}'
           PORTCOVE_QUALIFICATION_RESULTS: '{"frontend_full":"${{ needs.frontend_full.result }}"}'
         run: node scripts/ci-result-gate.mjs
 
@@ -791,7 +830,7 @@ jobs:
 
   catalog:
     if: always()
-    needs: [classify, prose_checks, fast_catalog, catalog_full]
+    needs: [classify, prose_checks, fast_catalog, fast_platform, catalog_full]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -802,6 +841,7 @@ jobs:
           PORTCOVE_GROUP: catalog
           PORTCOVE_PROSE_RESULT: ${{ needs.prose_checks.result }}
           PORTCOVE_FAST_RESULTS: '{"fast_catalog":"${{ needs.fast_catalog.result }}"}'
+          PORTCOVE_TARGETED_RESULTS: '{"fast_platform":"${{ needs.fast_platform.result }}"}'
           PORTCOVE_QUALIFICATION_RESULTS: '{"catalog_full":"${{ needs.catalog_full.result }}"}'
         run: node scripts/ci-result-gate.mjs
 
@@ -831,7 +871,7 @@ jobs:
 
   dependency-review:
     if: github.event_name == 'pull_request' && always()
-    needs: [classify, prose_checks, fast_dependency_review, dependency_review_full]
+    needs: [classify, prose_checks, fast_dependency_review, fast_platform, dependency_review_full]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -842,5 +882,6 @@ jobs:
           PORTCOVE_GROUP: dependency-review
           PORTCOVE_PROSE_RESULT: ${{ needs.prose_checks.result }}
           PORTCOVE_FAST_RESULTS: '{"fast_dependency_review":"${{ needs.fast_dependency_review.result }}"}'
+          PORTCOVE_TARGETED_RESULTS: '{"fast_platform":"${{ needs.fast_platform.result }}"}'
           PORTCOVE_QUALIFICATION_RESULTS: '{"dependency_review_full":"${{ needs.dependency_review_full.result }}"}'
         run: node scripts/ci-result-gate.mjs

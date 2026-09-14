@@ -88,7 +88,7 @@ test("binds official workflow source context, checked-out code, and exact config
   assert.equal(record.workflow.called_source_sha, sha("b"));
   assert.equal(record.checkout.sha, sha("b"));
   assert.equal(record.checkout.head_sha, sha("c"));
-  assert.equal(record.format_version, 3);
+  assert.equal(record.format_version, 4);
   assert.equal(record.validation.plan_digest, "d".repeat(64));
   assert.equal(record.validation.caller, "pull-request");
   assert.equal(record.job_toolchains.length, 1);
@@ -102,6 +102,28 @@ test("binds official workflow source context, checked-out code, and exact config
     () => build({ observed: { ...build().observed, node: "25.0.0" } }),
     /differs from desired/u,
   );
+});
+
+test("records unused package and Rust toolchains as not applicable", () => {
+  const full = build();
+  const record = build({
+    observed: {
+      ...full.observed,
+      package_manager: null,
+      rust: null,
+      cargo: null,
+    },
+  });
+  assert.deepEqual(record.matches, {
+    node: true,
+    package_manager: null,
+    rust: null,
+    cargo: null,
+    build_configuration: true,
+  });
+  assert.equal(record.job_toolchains[0].node, "24.21.0");
+  assert.equal(record.job_toolchains[0].rust, null);
+  assert.equal(validateWorkflowProvenance(record, validationContext), record);
 });
 
 test("binds a reusable workflow to both its top-level caller and called file", () => {
@@ -166,6 +188,23 @@ test("rejects missing plan, caller, and provenance-job toolchain identity", () =
   const missingJobs = build();
   missingJobs.job_toolchains = [];
   assert.throws(() => validateWorkflowProvenance(missingJobs, validationContext), /identity/u);
+
+  const missingDesiredRust = build({
+    desired: {
+      node: "24.21.0",
+      package_manager: "12.4.1",
+      build_configuration: { ci: true },
+    },
+    observed: {
+      ...build().observed,
+      rust: null,
+      cargo: null,
+    },
+  });
+  assert.throws(
+    () => validateWorkflowProvenance(missingDesiredRust, validationContext),
+    /identity/u,
+  );
 });
 
 test("extracts exactly one bounded provenance JSON file from an artifact ZIP", () => {
