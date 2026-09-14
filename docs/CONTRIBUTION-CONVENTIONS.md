@@ -58,8 +58,8 @@ Keep the five template sections in order:
    `Not run — <reason>` or `Not applicable — <reason>` instead of silence.
    For an ordinary pull request, record the focused local checks, the selected
    hosted validation plan, and the required exact-head GitHub CI result
-   separately. Until fast routing is independently activated, that selected plan
-   remains exhaustive. `Not run — full local suite delegated to required exact-head CI` is valid when no task-specific acceptance requires
+   separately. The selected plan may be focused fast validation, exhaustive
+   qualification, or the narrow prose contract. `Not run — full local suite delegated to required exact-head CI` is valid when no task-specific acceptance requires
    an aggregate local run; it does not excuse pending or failed hosted checks.
 4. **Review and risk** — record the distinct final-diff review against the
    exact head commit, repairs and re-review result, important invariants, and

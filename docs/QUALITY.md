@@ -92,8 +92,9 @@ Required GitHub CI remains the exact-reviewed-head merge gate. A versioned
 validation plan is staged to route ordinary frontend and primary-Rust changes to
 complete primary-host groups, while native/IPC, catalog, dependency, platform,
 release/security and protected-policy changes require exhaustive qualification.
-Fast pull-request routing remains disabled until a separate activation change
-passes the trusted exhaustive plan.
+Fast pull-request routing is active. The activation change itself passed the
+trusted exhaustive plan; future trusted policy changes continue to select
+qualification and cannot exempt themselves.
 A local full suite does not replace the selected hosted plan. Ordinary pull
 requests do not repeat `just check` or `just audit` merely to duplicate that
 coverage. Aggregate local commands remain useful for release preflight, an
