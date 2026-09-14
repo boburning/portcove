@@ -514,15 +514,24 @@ async fn channel_role_authenticates_keys_and_transition_candidates() {
     let unrelated_promotion_path = f.targets.join(unrelated_promotion_name);
     fs::create_dir_all(registry_path.parent().unwrap()).unwrap();
     fs::create_dir_all(unrelated_promotion_path.parent().unwrap()).unwrap();
+    let decoy_public_key = b"untrusted comment: alternate minisign public key E7620F1842B4E81F\nRWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3\n";
+    let decoy_payload_key_id = hex::encode(Sha256::digest(decoy_public_key));
+    let decoy_tauri_public_key = base64::engine::general_purpose::STANDARD.encode(decoy_public_key);
     let public_key = b"untrusted comment: minisign public key E7620F1842B4E81F\nRWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3\n";
     let payload_key_id = hex::encode(Sha256::digest(public_key));
     let tauri_public_key = base64::engine::general_purpose::STANDARD.encode(public_key);
     let registry_bytes = serde_json::to_vec(&json!({
         "schema_version": 1,
-        "keys": [{
-            "id": payload_key_id.clone(),
-            "tauri_public_key": tauri_public_key.clone()
-        }]
+        "keys": [
+            {
+                "id": decoy_payload_key_id,
+                "tauri_public_key": decoy_tauri_public_key
+            },
+            {
+                "id": payload_key_id.clone(),
+                "tauri_public_key": tauri_public_key.clone()
+            }
+        ]
     }))
     .unwrap();
     fs::write(&registry_path, registry_bytes).unwrap();
