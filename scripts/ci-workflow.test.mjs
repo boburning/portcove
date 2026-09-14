@@ -3,6 +3,10 @@ import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 
 const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+const qualificationWorkflow = await readFile(
+  new URL("../.github/workflows/qualification.yml", import.meta.url),
+  "utf8",
+);
 const windowsQualificationRunner = await readFile(
   new URL("./run-windows-qualification.ps1", import.meta.url),
   "utf8",
@@ -16,7 +20,11 @@ function jobSection(name, nextName) {
 
 const classify = jobSection("classify", "provenance");
 const provenance = jobSection("provenance", "prose_checks");
-const proseChecks = jobSection("prose_checks", "rust_tests");
+const proseChecks = jobSection("prose_checks", "fast_rust");
+const fastRust = jobSection("fast_rust", "fast_rust_quality");
+const fastRustQuality = jobSection("fast_rust_quality", "fast_frontend");
+const fastFrontend = jobSection("fast_frontend", "fast_catalog");
+const fastCatalog = jobSection("fast_catalog", "rust_tests");
 const rustTests = jobSection("rust_tests", "rust_workspace_tests");
 const rustWorkspaceTests = jobSection("rust_workspace_tests", "rust_clippy");
 const rustClippy = jobSection("rust_clippy", "windows_storage");
@@ -31,7 +39,8 @@ const rustQualityGate = jobSection("rust-quality", "frontend_full");
 const frontend = jobSection("frontend_full", "frontend");
 const frontendGate = jobSection("frontend", "catalog_full");
 const catalog = jobSection("catalog_full", "catalog");
-const catalogGate = jobSection("catalog", "dependency_review_full");
+const catalogGate = jobSection("catalog", "fast_dependency_review");
+const fastDependencyReview = jobSection("fast_dependency_review", "dependency_review_full");
 const dependencyReview = jobSection("dependency_review_full", "dependency-review");
 const dependencyReviewGate = jobSection("dependency-review");
 
@@ -66,7 +75,7 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   assert.match(workflow, /^permissions:\r?\n {2}contents: read$/m);
   assert.match(
     workflow,
-    /^concurrency:\r?\n {2}group: ci-\$\{\{ github\.event\.pull_request\.number \|\| github\.ref \}\}\r?\n {2}cancel-in-progress: true$/m,
+    /^concurrency:\r?\n {2}group: ci-\$\{\{ inputs\.force_qualification && format\('qualification-\{0\}', github\.ref\) \|\| github\.event\.pull_request\.number \|\| github\.ref \}\}\r?\n {2}cancel-in-progress: \$\{\{ !inputs\.force_qualification \}\}$/m,
   );
   for (const section of [
     rustTests,
@@ -83,18 +92,22 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   ]) {
     assert.notEqual(section, "");
     assert.match(section, /^ {4}needs: (?:classify|\[classify, intel_build\])$/m);
-    assert.match(section, /^ {4}if: .*classify\.outputs\.mode == 'full'$/m);
+    assert.match(section, /^ {4}if: .*classify\.outputs\.mode == 'qualification'$/m);
   }
   assert.match(classify, /fetch-depth: 0/);
   assert.match(classify, /node scripts\/select-ci-plan\.mjs/);
   assert.match(classify, /PORTCOVE_PROSE_POLICY_ACTIVATED: "true"/);
+  assert.match(classify, /PORTCOVE_FAST_VALIDATION_ACTIVATED: "false"/);
   assert.match(provenance, /node scripts\/workflow-provenance\.mjs/);
   assert.match(
     provenance,
-    /workflow-provenance-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}/,
+    /workflow-provenance-\$\{\{ inputs\.provenance_scope \|\| 'ci' \}\}-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}/,
   );
   assert.match(provenance, /retention-days: 7/);
-  assert.match(rustQualityGate, /needs: \[classify, provenance, prose_checks, rust_quality_full\]/);
+  assert.match(
+    rustQualityGate,
+    /needs: \[classify, provenance, prose_checks, fast_rust_quality, rust_quality_full\]/,
+  );
   assert.match(rustQualityGate, /PORTCOVE_ALWAYS_RESULTS: '\{"provenance"/);
   assert.match(proseChecks, /^ {4}if: needs\.classify\.outputs\.mode == 'prose'$/m);
   assert.match(proseChecks, /pnpm install --frozen-lockfile/);
@@ -103,7 +116,40 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
     assert.match(gate, /node scripts\/ci-result-gate\.mjs/);
     assert.match(gate, /PORTCOVE_CLASSIFIER_RESULT/);
     assert.match(gate, /PORTCOVE_PROSE_RESULT/);
+    assert.match(gate, /PORTCOVE_PLAN_JSON/);
+    assert.match(gate, /PORTCOVE_FAST_RESULTS/);
+    assert.match(gate, /PORTCOVE_QUALIFICATION_RESULTS/);
   }
+  for (const fast of [fastRust, fastRustQuality, fastFrontend, fastCatalog]) {
+    assert.match(fast, /mode == 'fast'/);
+    assert.match(fast, /runs-on: ubuntu-22\.04/);
+  }
+  assert.match(fastRustQuality, /actions\/setup-node@/);
+  assert.match(fastRustQuality, /pnpm install --frozen-lockfile/);
+  assert.match(fastRustQuality, /run-oxfmt\.mjs --check/);
+  assert.match(fastRustQuality, /lint:oxlint/);
+  assert.match(fastRust, /key: fast-rust-tests-/);
+  assert.match(fastRustQuality, /key: fast-rust-quality-/);
+  assert.match(fastDependencyReview, /actions\/dependency-review-action@/);
+  assert.match(fastDependencyReview, /base-ref:/);
+  assert.match(fastDependencyReview, /head-ref:/);
+});
+
+test("reusable qualification is read-only, daily, and coalesces without cancelling", () => {
+  assert.match(qualificationWorkflow, /^ {2}workflow_call:\r?$/m);
+  assert.match(qualificationWorkflow, /^ {2}workflow_dispatch:\r?$/m);
+  assert.match(qualificationWorkflow, /cron: "17 5 \* \* \*"/);
+  assert.match(qualificationWorkflow, /^permissions:\r?\n {2}contents: read$/m);
+  assert.match(
+    qualificationWorkflow,
+    /^concurrency:\r?\n {2}group: portcove-qualification-.*\r?\n {2}cancel-in-progress: false$/m,
+  );
+  assert.match(qualificationWorkflow, /uses: \.\/\.github\/workflows\/ci\.yml/);
+  assert.match(qualificationWorkflow, /force_qualification: true/);
+  assert.match(qualificationWorkflow, /jobs\.qualify\.outputs\.plan_digest/);
+  assert.match(qualificationWorkflow, /provenance_scope:/);
+  assert.doesNotMatch(qualificationWorkflow, /secrets:|pull_request_target|contents: write/);
+  assert.match(workflow, /^ {2}workflow_call:\r?$/m);
 });
 
 test("Linux desktop prerequisite installation is shared, bounded, and retrying", async () => {
@@ -130,7 +176,7 @@ test("Linux desktop prerequisite installation is shared, bounded, and retrying",
   const invocation =
     /timeout-minutes: 15\r?\n\s+run: \.\/scripts\/install-linux-desktop-prerequisites\.sh/g;
 
-  assert.equal((workflow.match(invocation) ?? []).length, 3);
+  assert.equal((workflow.match(invocation) ?? []).length, 5);
   assert.equal((deepQuality.match(invocation) ?? []).length, 2);
   assert.equal((release.match(invocation) ?? []).length, 2);
   assert.match(

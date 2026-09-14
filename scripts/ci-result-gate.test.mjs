@@ -2,47 +2,96 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { evaluateCiResults } from "./ci-result-gate.mjs";
+import { buildValidationPlan } from "./validation-plan.mjs";
 
+const sha = (character) => character.repeat(40);
+const changed = (path) => ({
+  status: "M",
+  oldMode: "100644",
+  newMode: "100644",
+  oldPath: path,
+  newPath: path,
+});
+const plan = (path) =>
+  buildValidationPlan({
+    changes: [changed(path)],
+    eventName: "pull_request",
+    base: sha("a"),
+    mergeBase: sha("b"),
+    head: sha("c"),
+    checkout: sha("d"),
+  });
 const evaluate = (overrides = {}) =>
   evaluateCiResults({
     classifier: "success",
-    mode: "full",
+    plan: plan("apps/desktop/src/App.tsx"),
+    group: "frontend",
     prose: "skipped",
-    required: { first: "success", second: "success" },
+    fast: { fast_frontend: "success" },
+    qualification: { frontend_full: "skipped" },
     ...overrides,
   });
 
-test("full and prose plans accept only their exact expected lane results", () => {
-  assert.match(evaluate(), /Accepted full/u);
+test("fast plans require only selected fast group work", () => {
+  assert.match(evaluate(), /Accepted fast/u);
   assert.match(
-    evaluate({ mode: "prose", prose: "success", required: { first: "skipped" } }),
+    evaluate({
+      group: "rust",
+      fast: { fast_rust: "skipped" },
+      qualification: { rust_full: "skipped" },
+    }),
+    /Accepted fast/u,
+  );
+});
+
+test("qualification plans require qualification and reject fast execution", () => {
+  const qualificationPlan = plan(".github/workflows/ci.yml");
+  assert.match(
+    evaluate({
+      plan: qualificationPlan,
+      fast: { fast_frontend: "skipped" },
+      qualification: { frontend_full: "success" },
+    }),
+    /Accepted qualification/u,
+  );
+  assert.throws(
+    () =>
+      evaluate({
+        plan: qualificationPlan,
+        fast: { fast_frontend: "success" },
+        qualification: { frontend_full: "success" },
+      }),
+    /expected skipped/u,
+  );
+});
+
+test("prose plans require prose and skip every product lane", () => {
+  const prosePlan = plan("docs/README.md");
+  assert.match(
+    evaluate({
+      plan: prosePlan,
+      group: "catalog",
+      prose: "success",
+      fast: { fast_catalog: "skipped" },
+      qualification: { catalog_full: "skipped" },
+    }),
     /Accepted prose/u,
   );
 });
 
-test("failed cancelled timed-out missing or unexpectedly skipped full work fails", () => {
+test("failed cancelled timed-out missing or unexpected results fail closed", () => {
   for (const result of ["failure", "cancelled", "timed_out", "", "skipped"])
-    assert.throws(() => evaluate({ required: { lane: result } }), /expected success/u);
-});
-
-test("classifier failures missing outputs and unexpected prose execution fail", () => {
+    assert.throws(() => evaluate({ fast: { fast_frontend: result } }), /expected success/u);
   assert.throws(() => evaluate({ classifier: "failure" }), /classifier result/u);
-  assert.throws(() => evaluate({ mode: "" }), /classifier mode/u);
-  assert.throws(() => evaluate({ prose: "success" }), /expected skipped/u);
-  assert.throws(() => evaluate({ required: {} }), /plan is empty/u);
-  for (const result of ["failure", "cancelled", "timed_out", "skipped", ""])
-    assert.throws(() => evaluate({ always: { provenance: result } }), /every plan/u);
+  assert.throws(() => evaluate({ always: { provenance: "failure" } }), /every plan/u);
+  assert.throws(() => evaluate({ fast: {} }), /plan is empty/u);
 });
 
-test("prose mode requires its checks and rejects missing or unexpectedly executed native lanes", () => {
-  for (const prose of ["failure", "cancelled", "skipped", ""])
-    assert.throws(
-      () => evaluate({ mode: "prose", prose, required: { lane: "skipped" } }),
-      /prose lane/u,
-    );
-  for (const result of ["success", "failure", "cancelled", ""])
-    assert.throws(
-      () => evaluate({ mode: "prose", prose: "success", required: { lane: result } }),
-      /expected skipped/u,
-    );
+test("stale plan content and protected-group omissions are rejected", () => {
+  const stale = { ...plan("apps/desktop/src/App.tsx"), reason: "substituted" };
+  assert.throws(() => evaluate({ plan: stale }), /digest/u);
+  assert.throws(() => evaluate({ group: "unknown" }), /protected group/u);
+  const qualificationPlan = plan(".github/workflows/ci.yml");
+  qualificationPlan.groups = qualificationPlan.groups.filter((group) => group !== "frontend");
+  assert.throws(() => evaluate({ plan: qualificationPlan }), /digest|omitted/u);
 });

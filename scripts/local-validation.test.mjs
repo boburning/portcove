@@ -7,6 +7,7 @@ import {
   classifyChanges,
   executePlan,
   formatCommand,
+  localChangesFromRaw,
   packagesWithDoctests,
   parseNameStatus,
   requireFocusedArguments,
@@ -45,6 +46,29 @@ test("parses modified, deleted, renamed, and copied Git records", () => {
 test("also accepts name-status records with an embedded tab", () => {
   assert.deepEqual(parseNameStatus(Buffer.from("M\tdocs/QUALITY.md\0")), [
     { status: "M", path: "docs/QUALITY.md" },
+  ]);
+});
+
+test("shared local planning retains raw file modes and both rename paths", () => {
+  const raw = Buffer.from(
+    ":100644 100755 1111111 2222222 M\0docs/QUALITY.md\0" +
+      ":100644 100644 1111111 2222222 R100\0old.rs\0new.rs\0",
+  );
+  assert.deepEqual(localChangesFromRaw(raw), [
+    {
+      status: "M",
+      path: "docs/QUALITY.md",
+      previousPath: undefined,
+      oldMode: "100644",
+      newMode: "100755",
+    },
+    {
+      status: "R",
+      path: "new.rs",
+      previousPath: "old.rs",
+      oldMode: "100644",
+      newMode: "100644",
+    },
   ]);
 });
 
@@ -261,13 +285,13 @@ test("every tracked repository path has an explicit local selection owner", () =
   assert.deepEqual([...selection.unknown].sort(), []);
 });
 
-test("unknown paths fail instead of silently passing or choosing the full suite", () => {
+test("unknown paths refuse local execution until a focused rule owns them", () => {
   const selection = classifyChanges([change("new-subsystem/input.bin")], {
     fileExists: allFilesExist,
   });
   assert.throws(
     () => buildPlan(selection, { mergeBase: "base-sha" }),
-    /no selection rule.*new-subsystem\/input\.bin/s,
+    /no selection rule.*new-subsystem\/input\.bin/su,
   );
 });
 

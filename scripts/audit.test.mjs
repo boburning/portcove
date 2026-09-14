@@ -8,6 +8,8 @@ import { fileURLToPath } from "node:url";
 
 import {
   AUDIT_STAGES,
+  RELEASE_AUDIT_STAGE_IDS,
+  auditStagesForProfile,
   assertNoSplitIndex,
   domainsForPath,
   executeAudit,
@@ -17,6 +19,16 @@ import {
   repositoryInventory,
   validateReceipt,
 } from "./audit.mjs";
+
+test("release audit profile delegates source and platform coverage without going empty", () => {
+  const stages = auditStagesForProfile("release");
+  assert.ok(stages.length > 0);
+  assert.deepEqual(
+    stages.map((stage) => stage.id),
+    RELEASE_AUDIT_STAGE_IDS,
+  );
+  assert.throws(() => auditStagesForProfile("unknown"), /unknown audit profile/u);
+});
 
 const runtime = Object.freeze({
   platform: "win32",

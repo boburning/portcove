@@ -31,8 +31,16 @@ jobs:
         if: github.event_name == 'push'
         run: node scripts/check-release-metadata.mjs --tag "${{ github.ref_name }}"
 
-  validate:
+  qualification:
     needs: identity
+    uses: ./.github/workflows/qualification.yml
+    with:
+      qualification_caller: release
+      caller_workflow: release.yml
+      provenance_scope: release-qualification
+
+  validate:
+    needs: [identity, qualification]
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -69,26 +77,36 @@ jobs:
         run: ./scripts/install-linux-desktop-prerequisites.sh
       - run: pnpm install --frozen-lockfile
         working-directory: apps/desktop
+      - name: Bind reusable qualification to this release candidate
+        env:
+          PORTCOVE_PLAN_JSON: ${{ needs.qualification.outputs.plan_json }}
+          PORTCOVE_PLAN_DIGEST: ${{ needs.qualification.outputs.plan_digest }}
+          PORTCOVE_EXPECTED_CHECKOUT: ${{ github.sha }}
+        run: node scripts/validation-plan.mjs
       - name: Record exact workflow, checkout, toolchain, and build configuration
         env:
           PORTCOVE_HEAD_SHA: ${{ github.sha }}
+          PORTCOVE_PLAN_DIGEST: ${{ needs.qualification.outputs.plan_digest }}
+          PORTCOVE_PLAN_MODE: qualification
+          PORTCOVE_CALLER: release
         run: |
           mkdir -p work/workflow-provenance
           node scripts/workflow-provenance.mjs \
             --workflow release.yml \
+            --caller-workflow release.yml \
             --mode release \
             --runner ubuntu-22.04 \
             --output work/workflow-provenance/workflow-provenance.json
       - name: Upload attempt-specific workflow provenance
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: workflow-provenance-${{ github.run_id }}-${{ github.run_attempt }}
+          name: workflow-provenance-release-${{ github.run_id }}-${{ github.run_attempt }}
           path: work/workflow-provenance/workflow-provenance.json
           retention-days: 7
           if-no-files-found: error
       - run: pnpm audit --prod --audit-level high
         working-directory: apps/desktop
-      - run: just audit --fresh
+      - run: just audit --fresh --profile release
       - name: Verify active catalog upstreams
         run: node scripts/check-catalog-repositories.mjs
         env:
@@ -273,7 +291,7 @@ jobs:
 
   release_gate:
     if: always()
-    needs: [identity, validate, build, build_intel, verify_intel]
+    needs: [identity, qualification, validate, build, build_intel, verify_intel]
     runs-on: ubuntu-22.04
     permissions:
       contents: read
@@ -285,7 +303,7 @@ jobs:
       - name: Require every release producer and validator
         env:
           PORTCOVE_RELEASE_RESULTS: >-
-            {"identity":"${{ needs.identity.result }}","validate":"${{ needs.validate.result }}","build":"${{ needs.build.result }}","build_intel":"${{ needs.build_intel.result }}","verify_intel":"${{ needs.verify_intel.result }}"}
+            {"identity":"${{ needs.identity.result }}","qualification":"${{ needs.qualification.result }}","validate":"${{ needs.validate.result }}","build":"${{ needs.build.result }}","build_intel":"${{ needs.build_intel.result }}","verify_intel":"${{ needs.verify_intel.result }}"}
         run: node scripts/release-result-gate.mjs
 
   assemble:

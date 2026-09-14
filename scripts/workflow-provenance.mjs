@@ -17,8 +17,10 @@ function cohortInputs(record) {
   return {
     workflow: record.workflow,
     checkout: record.checkout,
+    validation: record.validation,
     desired: record.desired,
     observed: record.observed,
+    job_toolchains: record.job_toolchains,
   };
 }
 
@@ -39,6 +41,7 @@ function rustVersion(value, commandName) {
 
 export function buildWorkflowProvenance({
   workflow,
+  callerWorkflow = workflow,
   mode,
   desiredRunner,
   workflowContents,
@@ -46,8 +49,13 @@ export function buildWorkflowProvenance({
   observed,
   environment,
   checkoutSha,
+  validationPlanDigest = environment.PORTCOVE_PLAN_DIGEST,
+  validationPlanMode = environment.PORTCOVE_PLAN_MODE,
+  caller = environment.PORTCOVE_CALLER ?? environment.GITHUB_EVENT_NAME,
 }) {
   if (!/^[A-Za-z0-9._-]+\.ya?ml$/u.test(workflow)) throw new Error("Invalid workflow filename");
+  if (!/^[A-Za-z0-9._-]+\.ya?ml$/u.test(callerWorkflow))
+    throw new Error("Invalid caller workflow filename");
   if (!exactSha(environment.GITHUB_WORKFLOW_SHA))
     throw new Error("GITHUB_WORKFLOW_SHA must identify the workflow-file source commit");
   if (!exactSha(environment.GITHUB_SHA))
@@ -58,7 +66,13 @@ export function buildWorkflowProvenance({
   if (!exactPositiveInteger(environment.GITHUB_RUN_ID)) throw new Error("Invalid GITHUB_RUN_ID");
   if (!exactPositiveInteger(environment.GITHUB_RUN_ATTEMPT))
     throw new Error("Invalid GITHUB_RUN_ATTEMPT");
-  const expectedRefPrefix = `${environment.GITHUB_REPOSITORY}/.github/workflows/${workflow}@`;
+  if (!/^[a-f0-9]{64}$/u.test(validationPlanDigest ?? ""))
+    throw new Error("validation plan digest must be exact");
+  if (!["fast", "prose", "qualification"].includes(validationPlanMode))
+    throw new Error("validation plan mode is invalid");
+  if (!/^[a-z0-9][a-z0-9._-]{0,63}$/u.test(caller ?? ""))
+    throw new Error("workflow caller identity is invalid");
+  const expectedRefPrefix = `${environment.GITHUB_REPOSITORY}/.github/workflows/${callerWorkflow}@`;
   if (!environment.GITHUB_WORKFLOW_REF?.startsWith(expectedRefPrefix))
     throw new Error("GITHUB_WORKFLOW_REF does not identify the selected repository workflow");
   if (checkoutSha !== environment.GITHUB_SHA)
@@ -76,22 +90,39 @@ export function buildWorkflowProvenance({
       `Observed workflow configuration differs from desired: ${JSON.stringify(matches)}`,
     );
   const record = {
-    format_version: 1,
+    format_version: 3,
     run: {
       id: Number(environment.GITHUB_RUN_ID),
       attempt: Number(environment.GITHUB_RUN_ATTEMPT),
       event: environment.GITHUB_EVENT_NAME,
     },
     workflow: {
-      path: `.github/workflows/${workflow}`,
-      ref: environment.GITHUB_WORKFLOW_REF,
+      caller_path: `.github/workflows/${callerWorkflow}`,
+      caller_ref: environment.GITHUB_WORKFLOW_REF,
       source_sha: environment.GITHUB_WORKFLOW_SHA,
+      called_path: `.github/workflows/${workflow}`,
+      called_source_sha: checkoutSha,
       content_sha256: sha256(workflowContents),
     },
     checkout: { sha: checkoutSha, github_sha: environment.GITHUB_SHA, head_sha: headSha },
+    validation: {
+      plan_digest: validationPlanDigest,
+      mode: validationPlanMode,
+      caller,
+    },
     desired: { runner: desiredRunner, mode, ...desired },
     observed,
     matches,
+    job_toolchains: [
+      {
+        job: environment.GITHUB_JOB ?? "provenance",
+        runner: observed.runner,
+        node: observed.node,
+        package_manager: observed.package_manager,
+        rust: observed.rust,
+        cargo: observed.cargo,
+      },
+    ],
   };
   return { ...record, equivalent_cohort: sha256(JSON.stringify(cohortInputs(record))) };
 }
@@ -146,9 +177,10 @@ export function parseProvenanceArchive(archive) {
 
 export function validateWorkflowProvenance(
   record,
-  { runId, attempt, headSha, repository, workflow, event },
+  { runId, attempt, headSha, repository, workflow, calledWorkflow = workflow, event },
 ) {
   const expectedPath = `.github/workflows/${workflow}`;
+  const expectedCalledPath = `.github/workflows/${calledWorkflow}`;
   const expectedRefPrefix = `${repository}/${expectedPath}@`;
   const desired = record?.desired;
   const observed = record?.observed;
@@ -163,15 +195,20 @@ export function validateWorkflowProvenance(
   };
   const expectedCohort = sha256(JSON.stringify(cohortInputs(record ?? {})));
   if (
-    record?.format_version !== 1 ||
+    record?.format_version !== 3 ||
     record.run?.id !== runId ||
     record.run?.attempt !== attempt ||
     record.run?.event !== event ||
-    record.workflow?.path !== expectedPath ||
-    !record.workflow?.ref?.startsWith(expectedRefPrefix) ||
+    record.workflow?.caller_path !== expectedPath ||
+    !record.workflow?.caller_ref?.startsWith(expectedRefPrefix) ||
+    record.workflow?.called_path !== expectedCalledPath ||
+    record.workflow?.called_source_sha !== record.checkout?.sha ||
     record.checkout?.head_sha !== headSha ||
     !exactSha(record.checkout?.sha) ||
     record.checkout?.github_sha !== record.checkout.sha ||
+    !/^[a-f0-9]{64}$/u.test(record.validation?.plan_digest ?? "") ||
+    !["fast", "prose", "qualification"].includes(record.validation?.mode) ||
+    !/^[a-z0-9][a-z0-9._-]{0,63}$/u.test(record.validation?.caller ?? "") ||
     !exactSha(record.workflow?.source_sha) ||
     !/^[a-f0-9]{64}$/u.test(record.workflow?.content_sha256 ?? "") ||
     !["ci", "release"].includes(desired?.mode) ||
@@ -181,6 +218,15 @@ export function validateWorkflowProvenance(
     observed.runner.os.length === 0 ||
     typeof observed?.runner?.architecture !== "string" ||
     observed.runner.architecture.length === 0 ||
+    !Array.isArray(record.job_toolchains) ||
+    record.job_toolchains.length === 0 ||
+    record.job_toolchains.some(
+      (job) =>
+        typeof job?.job !== "string" ||
+        job.job.length === 0 ||
+        typeof job?.runner?.os !== "string" ||
+        typeof job?.runner?.architecture !== "string",
+    ) ||
     JSON.stringify(record.matches) !== JSON.stringify(expectedMatches) ||
     Object.values(expectedMatches).some((matches) => matches !== true) ||
     record.equivalent_cohort !== expectedCohort
@@ -195,6 +241,7 @@ async function main(args = process.argv.slice(2)) {
     strict: true,
     options: {
       workflow: { type: "string" },
+      "caller-workflow": { type: "string" },
       mode: { type: "string" },
       runner: { type: "string" },
       output: { type: "string" },
@@ -225,6 +272,7 @@ async function main(args = process.argv.slice(2)) {
   const packageManagerVersion = command("pnpm", ["--version"], path.join(root, "apps/desktop"));
   const record = buildWorkflowProvenance({
     workflow: values.workflow,
+    callerWorkflow: values["caller-workflow"] ?? values.workflow,
     mode: values.mode,
     desiredRunner: values.runner,
     workflowContents: await readFile(path.join(root, ".github/workflows", values.workflow)),

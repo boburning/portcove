@@ -36,7 +36,14 @@ const job = (overrides) => ({
 const attempt = (overrides) => summarizeAttempt(run(overrides), [job()]);
 const provenance = (cohort = "c".repeat(64)) => ({
   status: "verified",
-  record: { equivalent_cohort: cohort },
+  record: {
+    equivalent_cohort: cohort,
+    validation: {
+      mode: "qualification",
+      caller: "pull-request",
+      plan_digest: "d".repeat(64),
+    },
+  },
 });
 
 test("first attempts include initial queue time and reruns use their own start", () => {
@@ -448,6 +455,10 @@ test("collector admits only digest-bound attempt provenance to equivalent cohort
       GITHUB_WORKFLOW_REF: "example/repo/.github/workflows/ci.yml@refs/heads/main",
       GITHUB_EVENT_NAME: "push",
       PORTCOVE_HEAD_SHA: "a".repeat(40),
+      PORTCOVE_PLAN_DIGEST: "e".repeat(64),
+      PORTCOVE_PLAN_MODE: "fast",
+      PORTCOVE_CALLER: "push",
+      GITHUB_JOB: "provenance",
     },
     checkoutSha: "a".repeat(40),
   });
@@ -462,7 +473,7 @@ test("collector admits only digest-bound attempt provenance to equivalent cohort
           artifacts: [
             {
               id: 9,
-              name: "workflow-provenance-1-1",
+              name: "workflow-provenance-ci-1-1",
               expired: false,
               digest: `sha256:${createHash("sha256").update(archive).digest("hex")}`,
               workflow_run: { id: 1, head_sha: "a".repeat(40) },

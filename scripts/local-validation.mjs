@@ -1,7 +1,11 @@
 import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { lstatSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { buildValidationPlan, validateValidationPlan } from "./validation-plan.mjs";
+import { parseRawDiff } from "./select-ci-plan.mjs";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const desktopRoot = path.join(projectRoot, "apps", "desktop");
@@ -95,6 +99,14 @@ const explicitNodeTests = new Map([
   [".github/roadmap.json", ["scripts/roadmap.test.mjs"]],
   [".github/pr-conventions.json", ["scripts/pr-conventions.test.mjs"]],
   [
+    ".github/qualification-coverage.json",
+    ["scripts/qualification-coverage.test.mjs", "scripts/ci-workflow.test.mjs"],
+  ],
+  [
+    ".github/fast-host-policy.json",
+    ["scripts/select-fast-host.test.mjs", "scripts/ci-workflow.test.mjs"],
+  ],
+  [
     "justfile",
     [
       "scripts/local-validation.test.mjs",
@@ -109,6 +121,7 @@ const explicitNodeTests = new Map([
 
 const workflowTests = new Map([
   ["release.yml", ["scripts/release-workflow.test.mjs"]],
+  ["qualification.yml", ["scripts/qualification-coverage.test.mjs"]],
   ["configured-upstream-observer.yml", ["scripts/upstream-observer.test.mjs"]],
   ["upstream-health.yml", ["scripts/upstream-observer.test.mjs"]],
   ["updater-artifact-rehearsal.yml", ["scripts/updater-artifact-inventory.test.mjs"]],
@@ -812,12 +825,22 @@ export function parseNameStatus(buffer) {
   return changes;
 }
 
+export function localChangesFromRaw(buffer) {
+  return parseRawDiff(buffer).map((change) => ({
+    status: change.status,
+    path: change.newPath,
+    previousPath: change.oldPath === change.newPath ? undefined : change.oldPath,
+    oldMode: change.oldMode,
+    newMode: change.newMode,
+  }));
+}
+
 export function readChangeContext(base = "origin/main") {
   const baseSha = git(["rev-parse", "--verify", `${base}^{commit}`]).trim();
   const headSha = git(["rev-parse", "HEAD"]).trim();
   const mergeBase = git(["merge-base", "HEAD", baseSha]).trim();
-  const tracked = parseNameStatus(
-    git(["diff", "--name-status", "-z", "--find-renames", mergeBase], {
+  const tracked = localChangesFromRaw(
+    git(["diff", "--raw", "-z", "--find-renames", mergeBase], {
       encoding: "buffer",
     }),
   );
@@ -827,7 +850,12 @@ export function readChangeContext(base = "origin/main") {
     .toString("utf8")
     .split("\0")
     .filter(Boolean)
-    .map((file) => ({ status: "?", path: file }));
+    .map((file) => ({
+      status: "?",
+      path: file,
+      oldMode: "000000",
+      newMode: lstatSync(path.join(projectRoot, file)).isSymbolicLink() ? "120000" : "100644",
+    }));
   return {
     base,
     baseSha,
@@ -846,13 +874,16 @@ export function formatCommand(entry) {
   return [entry.executable, ...entry.args].map(quote).join(" ");
 }
 
-function printPlan(context, selection, plan) {
+function printPlan(context, selection, plan, validationPlan) {
   console.log("# Focused local validation");
   console.log(`Base: ${context.base} (${context.baseSha})`);
   console.log(`Merge base: ${context.mergeBase}`);
   console.log(`Head: ${context.headSha}`);
   console.log(`Changed paths: ${context.changes.length}`);
   console.log(`Scopes: ${sorted(selection.scopes).join(", ") || "none"}`);
+  console.log(`Validation plan: ${validationPlan.mode} (${validationPlan.digest})`);
+  console.log(`Validation groups: ${validationPlan.groups.join(", ") || "none"}`);
+  console.log(`Qualification required: ${validationPlan.qualification_required}`);
   for (const change of context.changes) {
     const rename = change.previousPath ? ` <- ${change.previousPath}` : "";
     console.log(`- ${change.status} ${change.path}${rename}`);
@@ -948,13 +979,29 @@ export function main(argv = process.argv.slice(2)) {
   if (kind !== "check") throw new Error(`unknown local validation command: ${kind}`);
   const { base, planOnly } = parseCheckArgs(args);
   const context = readChangeContext(base);
+  const validationPlan = validateValidationPlan(
+    buildValidationPlan({
+      changes: context.changes.map((change) => ({
+        status: change.status,
+        oldMode: change.oldMode,
+        newMode: change.newMode,
+        oldPath: change.previousPath ?? change.path,
+        newPath: change.path,
+      })),
+      eventName: "pull_request",
+      base: context.baseSha,
+      mergeBase: context.mergeBase,
+      head: context.headSha,
+      checkout: context.headSha,
+    }),
+  );
   const selection = classifyChanges(context.changes);
   const planContext =
     selection.packages.size > 0 && !selection.workspaceRust
       ? { ...context, doctestPackages: readDoctestPackages() }
       : context;
   const plan = buildPlan(selection, planContext);
-  printPlan(context, selection, plan);
+  printPlan(context, selection, plan, validationPlan);
   if (planOnly) return;
   const result = executePlan(plan);
   console.log(`\nFocused local validation passed in ${(result.elapsedMs / 1000).toFixed(1)}s.`);
@@ -963,7 +1010,7 @@ export function main(argv = process.argv.slice(2)) {
       "Warm local validation exceeded the two-minute agility target; inspect the stage timings above without weakening checks.",
     );
   console.log(
-    "The exhaustive cross-platform suite remains mandatory in GitHub CI on the exact pull-request head.",
+    "The selected hosted validation plan remains mandatory in GitHub CI on the exact pull-request head.",
   );
 }
 
