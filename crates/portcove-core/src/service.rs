@@ -1431,16 +1431,11 @@ impl PortcoveService {
         action: BackupAction,
         expected_preview_sha256: &str,
     ) -> Result<crate::DestructiveAuthorization> {
-        let preview = self.preview_backup_action(port_id, backup_id, action)?;
-        if preview.preview_sha256 != expected_preview_sha256 {
-            return Err(PortcoveError::conflict(
-                "backup or persistent data changed after preview; review the operation again",
-            ));
-        }
+        validate_reviewed_fingerprint("backup action", expected_preview_sha256)?;
         self.library.issue_authorization(
             action.authorization_action(),
             &backup_authorization_target(port_id, backup_id),
-            &preview.preview_sha256,
+            expected_preview_sha256,
         )
     }
 
@@ -3330,15 +3325,10 @@ impl PortcoveService {
         selected_port_id: Option<&str>,
         expected_plan_sha256: &str,
     ) -> Result<crate::DestructiveAuthorization> {
-        let preview = self.preview_adoption(source, selected_port_id)?;
-        if preview.plan_sha256 != expected_plan_sha256 {
-            return Err(PortcoveError::conflict(
-                "adoption contents or destination changed after preview; review the copy plan again",
-            ));
-        }
+        validate_reviewed_fingerprint("adoption plan", expected_plan_sha256)?;
         let target = adoption_authorization_target(source, selected_port_id)?;
         self.library
-            .issue_authorization("adopt", &target, &preview.plan_sha256)
+            .issue_authorization("adopt", &target, expected_plan_sha256)
     }
 
     pub fn adopt(
@@ -4884,6 +4874,19 @@ fn backup_authorization_target(port_id: &str, backup_id: &str) -> String {
     format!("{port_id}\n{backup_id}")
 }
 
+fn validate_reviewed_fingerprint(label: &str, fingerprint: &str) -> Result<()> {
+    if fingerprint.len() != 64
+        || !fingerprint
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
+    {
+        return Err(PortcoveError::usage(format!(
+            "reviewed {label} fingerprint is not a canonical SHA-256 digest"
+        )));
+    }
+    Ok(())
+}
+
 fn backup_action_fingerprint(
     action: BackupAction,
     backup: &BackupRecord,
@@ -5761,13 +5764,15 @@ mod tests {
 
     #[test]
     fn adoption_execution_hashes_each_tree_only_at_required_boundaries() {
+        const ASSET_COUNT: usize = 256;
+
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let source = temporary.path().join("existing-install");
         let assets = source.join("assets");
         fs::create_dir_all(&assets).unwrap();
         write_host_test_executable(&source, "zelda64-recomp");
-        for index in 0..8 {
+        for index in 0..ASSET_COUNT {
             fs::write(
                 assets.join(format!("asset-{index:03}.bin")),
                 format!("synthetic adoption asset {index}"),
@@ -5781,9 +5786,20 @@ mod tests {
         let preview = service
             .preview_adoption(&source, Some("zelda64-recomp"))
             .unwrap();
+        assert_eq!(
+            preview
+                .copy_plan
+                .files
+                .iter()
+                .filter(|file| file.relative_path.starts_with("assets"))
+                .count(),
+            ASSET_COUNT
+        );
+        reset_adoption_copy_plan_passes();
         let authorization = service
             .authorize_adoption(&source, Some("zelda64-recomp"), &preview.plan_sha256)
             .unwrap();
+        assert!(reset_adoption_copy_plan_passes().is_empty());
 
         reset_adoption_copy_plan_passes();
         service
@@ -5798,7 +5814,7 @@ mod tests {
     }
 
     #[test]
-    fn adoption_rejects_changed_destination_or_saved_data_after_authorization() {
+    fn adoption_execution_rejects_changed_destination_or_saved_data_after_review() {
         for change_output in [true, false] {
             let temporary = tempfile::tempdir().unwrap();
             let library = Library::open(temporary.path().join("library")).unwrap();
@@ -5821,9 +5837,6 @@ mod tests {
                     .imported_user_data_paths
                     .contains(&PathBuf::from("general.json"))
             );
-            let authorization = service
-                .authorize_adoption(&source, Some("zelda64-recomp"), &preview.plan_sha256)
-                .unwrap();
             if change_output {
                 service
                     .set_output_directory("zelda64-recomp", &temporary.path().join("other-output"))
@@ -5831,13 +5844,9 @@ mod tests {
             } else {
                 fs::write(user.join("general.json"), b"newer settings").unwrap();
             }
-            assert_eq!(
-                service
-                    .authorize_adoption(&source, Some("zelda64-recomp"), &preview.plan_sha256)
-                    .unwrap_err()
-                    .code,
-                crate::ErrorCode::Conflict
-            );
+            let authorization = service
+                .authorize_adoption(&source, Some("zelda64-recomp"), &preview.plan_sha256)
+                .unwrap();
             assert_eq!(
                 service
                     .adopt(&source, Some("zelda64-recomp"), &authorization.token)
@@ -7352,6 +7361,8 @@ fn main() {
         let preview = service
             .preview_backup_action("zelda64-recomp", &backup.id, BackupAction::Restore)
             .unwrap();
+        fs::write(user_root.join("save.dat"), b"new live data").unwrap();
+        reset_adoption_copy_plan_passes();
         let authorization = service
             .authorize_backup_action(
                 "zelda64-recomp",
@@ -7360,7 +7371,7 @@ fn main() {
                 &preview.preview_sha256,
             )
             .unwrap();
-        fs::write(user_root.join("save.dat"), b"new live data").unwrap();
+        assert!(reset_adoption_copy_plan_passes().is_empty());
 
         let error = service
             .restore_backup("zelda64-recomp", &backup.id, &authorization.token)
