@@ -64,6 +64,8 @@ window reads the current doctor repair plan, accepts only the known
 `retained_preparation` kind for the selected stable port identity, validates the
 complete cleanup preview and exact affected inventory, and shows the original
 installation, registered source, saved data, backups, and logs that core preserves.
+Schema-48 negotiation also requires the advertised `preparation.cleanup`
+capability before this management contract is accepted.
 Cleanup is submitted only with the exact reviewed fingerprint and explicit
 confirmation. Changed, missing, duplicated, unknown, or cross-port repair values
 fail closed; the compiled CLI remains authoritative and revalidates under its

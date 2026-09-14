@@ -397,11 +397,14 @@ namespace Portcove.ReferenceClient
 
         internal static void Negotiate(object capabilities)
         {
-            if (!SupportedSchema(Json.Number(capabilities, "schema_version")) || Json.Text(capabilities, "product") != "Portcove")
+            var schema = Json.Number(capabilities, "schema_version");
+            if (!SupportedSchema(schema) || Json.Text(capabilities, "product") != "Portcove")
                 throw new InvalidOperationException("This reference client requires Portcove API schema 42 through 48. Select a compatible CLI or update the client.");
             var commands = Json.Array(Json.Field(capabilities, "commands")).OfType<string>().ToArray();
             foreach (var required in new[] { "catalog", "source", "status", "activity", "cancel", "library.identity", "launch.show", "exec", "ensure", "update", "preparation" })
                 if (!commands.Contains(required)) throw new InvalidOperationException("The CLI lacks " + required + ". Select a compatible standalone Portcove CLI.");
+            if (schema >= 48 && !commands.Contains("preparation.cleanup"))
+                throw new InvalidOperationException("The schema-48 CLI lacks preparation.cleanup. Select a complete matching CLI or update the client.");
             var formats = Json.Array(Json.Field(capabilities, "machine_formats")).OfType<string>();
             if (!formats.Contains("json") || !formats.Contains("jsonl") || !Json.Array(Json.Field(capabilities, "raw_stream_commands")).Contains("exec"))
                 throw new InvalidOperationException("The CLI lacks the required JSON/JSONL and raw supervised launch contracts.");
