@@ -25,6 +25,7 @@ const SUCCESS_INTERVAL_SECONDS: u64 = 24 * 60 * 60;
 const RETRY_BASE_SECONDS: u64 = 15 * 60;
 const RETRY_BASE_CAP_SECONDS: u64 = 5 * 60 * 60;
 const RETRY_TOTAL_CAP_SECONDS: u64 = 6 * 60 * 60;
+const PROVIDER_RETRY_CAP_SECONDS: u64 = 24 * 60 * 60;
 const MAX_FAILURE_COUNT: u32 = 32;
 
 type ProcessLock = Arc<Mutex<()>>;
@@ -274,6 +275,7 @@ impl ApplicationUpdateScheduleStore {
         preference_revision: u64,
         now_unix_seconds: u64,
         jitter_seed: u64,
+        retry_not_before_unix_seconds: Option<u64>,
     ) -> Result<ApplicationUpdateSchedule, ApplicationUpdateScheduleError> {
         self.update(expected_revision, |schedule| {
             if schedule.preference_revision != Some(preference_revision) {
@@ -286,10 +288,17 @@ impl ApplicationUpdateScheduleStore {
                 .consecutive_failures
                 .saturating_add(1)
                 .min(MAX_FAILURE_COUNT);
-            let retry_at = now_unix_seconds.saturating_add(retry_delay_seconds(
+            let local_retry_at = now_unix_seconds.saturating_add(retry_delay_seconds(
                 schedule.consecutive_failures,
                 jitter_seed,
             ));
+            let provider_retry_at = retry_not_before_unix_seconds
+                .filter(|retry_at| *retry_at > now_unix_seconds)
+                .map(|retry_at| {
+                    retry_at.min(now_unix_seconds.saturating_add(PROVIDER_RETRY_CAP_SECONDS))
+                });
+            let retry_at = later_timestamp(Some(local_retry_at), provider_retry_at)
+                .expect("local retry is always present");
             schedule.next_automatic_check_unix_seconds =
                 later_timestamp(schedule.next_automatic_check_unix_seconds, Some(retry_at));
         })
@@ -757,7 +766,7 @@ mod tests {
             Some(10_000 + SUCCESS_INTERVAL_SECONDS)
         );
 
-        let failed = store.record_failure(1, 3, 10_001, 7).unwrap();
+        let failed = store.record_failure(1, 3, 10_001, 7, None).unwrap();
         assert_eq!(failed.revision, 2);
         assert_eq!(
             failed.next_automatic_check_unix_seconds,
@@ -778,7 +787,7 @@ mod tests {
         let path = temporary.path().join(DEFAULT_FILE);
         let first = ApplicationUpdateScheduleStore::new(path.clone()).unwrap();
         let stale = ApplicationUpdateScheduleStore::new(path).unwrap();
-        let failed = first.record_failure(0, 2, 2_000, 11).unwrap();
+        let failed = first.record_failure(0, 2, 2_000, 11, None).unwrap();
         let retry_at = failed.next_automatic_check_unix_seconds.unwrap();
         assert!(retry_at > 2_000);
         assert!(retry_at <= 2_000 + RETRY_TOTAL_CAP_SECONDS);
@@ -789,6 +798,38 @@ mod tests {
                 actual: 1
             })
         ));
+    }
+
+    #[test]
+    fn provider_retry_floor_is_bounded_and_never_shortens_a_hold() {
+        let temporary = tempfile::tempdir().unwrap();
+        let store =
+            ApplicationUpdateScheduleStore::new(temporary.path().join(DEFAULT_FILE)).unwrap();
+        let provider_retry_at = 2_000 + RETRY_TOTAL_CAP_SECONDS + 60;
+        let limited = store
+            .record_failure(0, 2, 2_000, 0, Some(provider_retry_at))
+            .unwrap();
+        assert_eq!(
+            limited.next_automatic_check_unix_seconds,
+            Some(provider_retry_at)
+        );
+
+        let excessive = u64::MAX;
+        let bounded = store
+            .record_failure(limited.revision, 2, 2_001, 0, Some(excessive))
+            .unwrap();
+        assert_eq!(
+            bounded.next_automatic_check_unix_seconds,
+            Some(2_001 + PROVIDER_RETRY_CAP_SECONDS)
+        );
+
+        let past = store
+            .record_failure(bounded.revision, 2, 2_002, 0, Some(1))
+            .unwrap();
+        assert_eq!(
+            past.next_automatic_check_unix_seconds,
+            bounded.next_automatic_check_unix_seconds
+        );
     }
 
     #[test]

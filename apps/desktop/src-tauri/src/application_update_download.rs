@@ -4,13 +4,13 @@ use std::collections::BTreeSet;
 use std::io;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use bytes::Bytes;
 use futures_util::stream::{self, BoxStream};
 use futures_util::{StreamExt, TryStreamExt};
-use reqwest::header::{CONTENT_ENCODING, LOCATION};
-use reqwest::{Client, Response};
+use reqwest::header::{CONTENT_ENCODING, HeaderMap, LOCATION, RETRY_AFTER};
+use reqwest::{Client, Response, StatusCode};
 use tokio::io::{AsyncRead, ReadBuf};
 use tokio_util::io::StreamReader;
 use url::Url;
@@ -41,6 +41,8 @@ pub enum PayloadDownloadError {
     TooManyRedirects,
     #[error("application update payload returned HTTP {0}")]
     HttpStatus(u16),
+    #[error("application update payload provider rate limit was reached")]
+    RateLimited { retry_at_unix_seconds: Option<u64> },
     #[error(
         "application update payload content length differs from authenticated metadata: expected {expected}, received {actual}"
     )]
@@ -115,8 +117,12 @@ pub async fn download_payload(
             redirects += 1;
             continue;
         }
-        if !response.status().is_success() {
-            return Err(PayloadDownloadError::HttpStatus(response.status().as_u16()));
+        if let Some(error) = response_failure(
+            response.status(),
+            response.headers(),
+            current_unix_seconds(),
+        ) {
+            return Err(error);
         }
         if response.headers().contains_key(CONTENT_ENCODING) {
             return Err(PayloadDownloadError::InvalidSource(
@@ -133,6 +139,51 @@ pub async fn download_payload(
             reader: StreamReader::new(bounded_body(response, expected, deadline)),
         });
     }
+}
+
+fn response_failure(
+    status: StatusCode,
+    headers: &HeaderMap,
+    now_unix_seconds: Option<u64>,
+) -> Option<PayloadDownloadError> {
+    if status.is_success() {
+        return None;
+    }
+    let exhausted = headers
+        .get("x-ratelimit-remaining")
+        .and_then(|value| value.to_str().ok())
+        == Some("0");
+    if status == StatusCode::TOO_MANY_REQUESTS || (status == StatusCode::FORBIDDEN && exhausted) {
+        return Some(PayloadDownloadError::RateLimited {
+            retry_at_unix_seconds: now_unix_seconds.and_then(|now| provider_retry_at(headers, now)),
+        });
+    }
+    Some(PayloadDownloadError::HttpStatus(status.as_u16()))
+}
+
+fn provider_retry_at(headers: &HeaderMap, now_unix_seconds: u64) -> Option<u64> {
+    let retry_after = headers
+        .get(RETRY_AFTER)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<u64>().ok())
+        .map(|seconds| now_unix_seconds.saturating_add(seconds));
+    let reset = headers
+        .get("x-ratelimit-reset")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<u64>().ok())
+        .filter(|reset| *reset > now_unix_seconds);
+    match (retry_after, reset) {
+        (Some(left), Some(right)) => Some(left.max(right)),
+        (Some(value), None) | (None, Some(value)) => Some(value),
+        (None, None) => None,
+    }
+}
+
+fn current_unix_seconds() -> Option<u64> {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .ok()
+        .map(|duration| duration.as_secs())
 }
 
 async fn request(url: &Url, deadline: Instant) -> Result<Response, PayloadDownloadError> {
@@ -260,6 +311,7 @@ fn bounded_stream(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use reqwest::header::HeaderValue;
     use tokio::io::AsyncReadExt;
 
     #[test]
@@ -329,5 +381,33 @@ mod tests {
         let mut reader = StreamReader::new(bounded_stream(source, 4, Instant::now()));
         let error = reader.read_to_end(&mut Vec::new()).await.unwrap_err();
         assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+    }
+
+    #[test]
+    fn rate_limits_preserve_provider_retry_hints() {
+        let mut headers = HeaderMap::new();
+        headers.insert(RETRY_AFTER, HeaderValue::from_static("120"));
+        headers.insert("x-ratelimit-reset", HeaderValue::from_static("1300"));
+        assert!(matches!(
+            response_failure(StatusCode::TOO_MANY_REQUESTS, &headers, Some(1_000)),
+            Some(PayloadDownloadError::RateLimited {
+                retry_at_unix_seconds: Some(1_300)
+            })
+        ));
+
+        headers.insert("x-ratelimit-remaining", HeaderValue::from_static("0"));
+        headers.insert(RETRY_AFTER, HeaderValue::from_static("not-a-delay"));
+        headers.insert("x-ratelimit-reset", HeaderValue::from_static("900"));
+        assert!(matches!(
+            response_failure(StatusCode::FORBIDDEN, &headers, Some(1_000)),
+            Some(PayloadDownloadError::RateLimited {
+                retry_at_unix_seconds: None
+            })
+        ));
+        assert!(matches!(
+            response_failure(StatusCode::FORBIDDEN, &HeaderMap::new(), Some(1_000)),
+            Some(PayloadDownloadError::HttpStatus(403))
+        ));
+        assert!(response_failure(StatusCode::OK, &headers, Some(1_000)).is_none());
     }
 }
