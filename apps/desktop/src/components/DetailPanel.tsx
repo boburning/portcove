@@ -452,6 +452,7 @@ function RequirementsGroup({
   if (!port.source_profile && !port.bios_source_profile && !managedPreparation) return null;
   return (
     <DetailGroup title="Requirements">
+      <RequirementsSummary port={port} />
       <SourceFields mode="missing" controls={sources} />
       <SourceFields mode="registered" controls={sources} />
       <SourceIntakeActions controls={sources} busy={Boolean(busy)} />
@@ -574,6 +575,7 @@ function SavesStorageGroup({
   return (
     <DetailGroup title="Saves and storage">
       <TrustStrip status={status} />
+      <SavesAndSettingsSummary port={port} />
       <StorageSummary status={status} />
       <OutputLocationControl
         key={`${port.id}:${libraryGeneration}`}
@@ -670,9 +672,7 @@ function CompatibilitySummary({ port }: { port: PortDefinition }) {
       </span>
       <span>
         <small>Installation method</small>
-        {Object.hasOwn(adapterPresentation, port.adapter)
-          ? adapterPresentation[port.adapter]
-          : "Installation method unavailable"}
+        {installationMethodLabel(port)}
       </span>
       <span>
         <small>Automated testing</small>
@@ -692,13 +692,64 @@ function CompatibilitySummary({ port }: { port: PortDefinition }) {
 
 function ProjectReleaseSummary({ port }: { port: PortDefinition }) {
   return (
-    <div className="upstream-link">
-      <ProjectLink href={port.project_url}>
-        Open upstream project <Icon glyph={ExternalLink} size="sm" />
-      </ProjectLink>
-      <span>Portcove checks this project for releases.</span>
+    <>
+      <div className="metadata">
+        <span>
+          <small>Upstream project</small>
+          {upstreamStatusPresentation[port.upstream_status]}
+        </span>
+        <span>
+          <small>Portcove support</small>
+          {supportTierPresentation[port.support_tier]}
+        </span>
+        <span>
+          <small>Available release channels</small>
+          {port.channels.map((channel) => releaseChannelPresentation(channel).label).join(" · ")}
+        </span>
+      </div>
+      <div className="upstream-link">
+        <ProjectLink href={port.project_url}>
+          Open upstream project <Icon glyph={ExternalLink} size="sm" />
+        </ProjectLink>
+        <span>Portcove checks this project for releases.</span>
+      </div>
+    </>
+  );
+}
+
+function RequirementsSummary({ port }: { port: PortDefinition }) {
+  if (!port.presentation)
+    return <p>Structured requirement details are unavailable in this catalog.</p>;
+  return (
+    <div className="metadata" aria-label="Required game files and verification">
+      {port.presentation.source_requirements.map((requirement) => (
+        <span key={requirement.role}>
+          <small>{requirement.role === "bios" ? "Required BIOS" : "Required game files"}</small>
+          {requirement.label} · {sourceVerificationPresentation[requirement.verification]}
+        </span>
+      ))}
     </div>
   );
+}
+
+function SavesAndSettingsSummary({ port }: { port: PortDefinition }) {
+  return (
+    <div className="metadata">
+      <span>
+        <small>Saved data handling</small>
+        {port.presentation?.saves_and_settings === "portcove-managed"
+          ? "Managed by Portcove for backup and restore"
+          : "Unavailable in this catalog"}
+      </span>
+    </div>
+  );
+}
+
+function installationMethodLabel(port: PortDefinition) {
+  const method = port.presentation?.installation_method;
+  return method && Object.hasOwn(installationMethodPresentation, method)
+    ? installationMethodPresentation[method]
+    : "Unavailable in this catalog";
 }
 
 function ReadinessCard({ state }: { state: DetailState }) {
@@ -967,14 +1018,39 @@ function TechnicalDetails({
   );
 }
 
-const adapterPresentation: Record<PortDefinition["adapter"], string> = {
-  "libultraship-portable": "Portable upstream package",
-  "n64-recomp-portable": "Portable N64 recompilation",
-  "staged-source-portable": "Prepared source beside the game",
+const installationMethodPresentation: Record<
+  NonNullable<PortDefinition["presentation"]>["installation_method"],
+  string
+> = {
+  "portable-package": "Portable upstream package",
+  "portable-recompilation": "Portable native recompilation",
+  "staged-game-files": "Prepared game files beside the port",
   "referenced-disc": "Original disc referenced at launch",
-  "generated-cache": "Generated game data",
-  "upstream-managed-setup": "Upstream setup process",
-  "psx-recomp-managed": "Managed PS1 recompilation",
+  "generated-game-data": "Generated game data",
+  "upstream-setup": "Managed upstream setup",
+  "managed-recompilation": "Managed native recompilation",
+};
+
+const sourceVerificationPresentation: Record<
+  NonNullable<PortDefinition["presentation"]>["source_requirements"][number]["verification"],
+  string
+> = {
+  "catalog-identity": "Compared with reviewed catalog identity",
+  "upstream-validator": "Checked by the upstream validator",
+  "catalog-rules": "Checked with catalog-declared file rules",
+};
+
+const upstreamStatusPresentation: Record<PortDefinition["upstream_status"], string> = {
+  active: "Active",
+  retired: "Retired",
+  superseded: "Superseded",
+  abandoned: "Abandoned",
+};
+
+const supportTierPresentation: Record<PortDefinition["support_tier"], string> = {
+  stable: "Stable",
+  beta: "Beta",
+  rolling: "Rolling",
 };
 
 function SourceField({

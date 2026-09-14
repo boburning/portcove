@@ -146,25 +146,52 @@ pub(crate) fn catalog_list(ports: &[PortDefinition]) -> String {
 }
 
 pub(crate) fn catalog_show(port: &PortDefinition) -> String {
-    format!(
-        "{} ({})\nSupport: {}\nChannels: {}\nPlatforms: {}\nSource: {}\nProject: {}\n{}",
-        clean(&port.name),
-        clean(&port.id),
-        support_tier(port.support_tier),
-        port.channels
-            .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<_>>()
-            .join(", "),
-        port.platforms
-            .iter()
-            .map(|platform| platform_name(*platform))
-            .collect::<Vec<_>>()
-            .join(", "),
-        clean(port.source_profile.as_deref().unwrap_or("none")),
-        clean(&port.project_url),
+    let mut lines = vec![
+        format!("{} ({})", clean(&port.name), clean(&port.id)),
+        format!("Support: {}", support_tier(port.support_tier)),
+        format!(
+            "Channels: {}",
+            port.channels
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        format!(
+            "Platforms: {}",
+            port.platforms
+                .iter()
+                .map(|platform| platform_name(*platform))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        format!("Upstream state: {}", upstream_status(port.upstream_status)),
+    ];
+    if let Some(presentation) = &port.presentation {
+        lines.push(format!(
+            "Installation: {}",
+            installation_method(presentation.installation_method)
+        ));
+        for requirement in &presentation.source_requirements {
+            lines.push(format!(
+                "{}: {} ({})",
+                match requirement.role {
+                    portcove_core::PortSourceRole::Game => "Game files",
+                    portcove_core::PortSourceRole::Bios => "BIOS",
+                },
+                clean(&requirement.label),
+                source_verification(requirement.verification)
+            ));
+        }
+        lines.push("Saves and settings: managed by Portcove for backup and restore".into());
+    } else {
+        lines.push("Presentation details: unavailable in this catalog".into());
+    }
+    lines.extend([
+        format!("Project: {}", clean(&port.project_url)),
         clean(&port.summary),
-    )
+    ]);
+    lines.join("\n")
 }
 
 pub(crate) fn backup_list(port_id: &str, inventory: &BackupInventory) -> String {
@@ -1118,6 +1145,35 @@ fn support_tier(tier: SupportTier) -> &'static str {
     }
 }
 
+fn installation_method(method: portcove_core::InstallationMethod) -> &'static str {
+    match method {
+        portcove_core::InstallationMethod::PortablePackage => "portable upstream package",
+        portcove_core::InstallationMethod::PortableRecompilation => "portable native recompilation",
+        portcove_core::InstallationMethod::StagedGameFiles => "prepared game files beside the port",
+        portcove_core::InstallationMethod::ReferencedDisc => "original disc referenced at launch",
+        portcove_core::InstallationMethod::GeneratedGameData => "generated game data",
+        portcove_core::InstallationMethod::UpstreamSetup => "managed upstream setup",
+        portcove_core::InstallationMethod::ManagedRecompilation => "managed native recompilation",
+    }
+}
+
+fn source_verification(method: portcove_core::SourceVerificationMethod) -> &'static str {
+    match method {
+        portcove_core::SourceVerificationMethod::CatalogIdentity => "reviewed catalog identity",
+        portcove_core::SourceVerificationMethod::UpstreamValidator => "upstream validator",
+        portcove_core::SourceVerificationMethod::CatalogRules => "catalog-declared file rules",
+    }
+}
+
+fn upstream_status(status: portcove_core::UpstreamStatus) -> &'static str {
+    match status {
+        portcove_core::UpstreamStatus::Active => "active",
+        portcove_core::UpstreamStatus::Retired => "retired",
+        portcove_core::UpstreamStatus::Superseded => "superseded",
+        portcove_core::UpstreamStatus::Abandoned => "abandoned",
+    }
+}
+
 fn platform_name(platform: Platform) -> &'static str {
     match platform {
         Platform::WindowsX86_64 => "windows-x86_64",
@@ -1167,7 +1223,19 @@ mod tests {
 
     use portcove_core::{BackupInventory, BackupInventoryState, BackupRecord, StorageSummary};
 
-    use super::{backup_list, document, storage, table};
+    use super::{backup_list, catalog_show, document, storage, table};
+
+    #[test]
+    fn catalog_show_uses_structured_presentation_without_adapter_ids() {
+        let catalog = portcove_core::Catalog::embedded().unwrap();
+        let output = catalog_show(catalog.port("shipwright").unwrap());
+        assert!(output.contains("Installation: portable upstream package"));
+        assert!(output.contains("Game files: The Legend of Zelda: Ocarina of Time source"));
+        assert!(output.contains("catalog-declared file rules"));
+        assert!(output.contains("Saves and settings: managed by Portcove"));
+        assert!(output.contains("Upstream state: active"));
+        assert!(!output.contains("libultraship-portable"));
+    }
 
     fn failed_activity(private_path: &std::path::Path) -> portcove_core::ActivityRecord {
         portcove_core::ActivityRecord {

@@ -180,6 +180,7 @@ impl InstallQualification {
             .clone();
         port.id = "sample".into();
         port.source_profile = None;
+        port.presentation = None;
         port.source_environment = None;
         port.runtime_source_filename = None;
         port.runtime_source_materialization = None;

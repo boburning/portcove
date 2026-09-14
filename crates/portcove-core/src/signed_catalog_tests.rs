@@ -281,7 +281,7 @@ fn signed_runtime_updates_can_change_artifacts_but_not_execution_or_mutable_owne
 }
 
 #[test]
-fn signed_format_one_allows_additive_artifact_qualification_only() {
+fn signed_format_one_allows_presentation_and_additive_artifact_qualification() {
     let now = 1_800_000_000;
     let key = crate::CatalogTrustKey::from_public_key(&hex::encode(
         signing_key().verifying_key().as_bytes(),
@@ -290,6 +290,14 @@ fn signed_format_one_allows_additive_artifact_qualification_only() {
     let mut payload = fixture(1, now);
     let record = append_exact_qualification(&mut payload);
     assert!(signed_catalog::verify(&sign(&payload), std::slice::from_ref(&key), now).is_ok());
+
+    let mut presented = fixture(1, now);
+    presented.catalog.ports[0]
+        .presentation
+        .as_mut()
+        .unwrap()
+        .installation_method = crate::InstallationMethod::GeneratedGameData;
+    assert!(signed_catalog::verify(&sign(&presented), std::slice::from_ref(&key), now).is_ok());
 
     let mut unreferenced = payload.clone();
     unreferenced

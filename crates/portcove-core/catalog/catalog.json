@@ -5681,7 +5681,19 @@
         "shipofharkinian.json",
         "oot.o2r",
         "oot-mq.o2r"
-      ]
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "ocarina-of-time",
+            "label": "The Legend of Zelda: Ocarina of Time source",
+            "verification": "catalog-rules"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "2ship2harkinian",
@@ -5733,7 +5745,19 @@
         "screenshots",
         "2ship2harkinian.json",
         "mm.o2r"
-      ]
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "majoras-mask",
+            "label": "The Legend of Zelda: Majora's Mask source",
+            "verification": "catalog-rules"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "spaghetti-kart",
@@ -5814,7 +5838,19 @@
         "controllerPak_file_13.sav",
         "controllerPak_file_14.sav",
         "controllerPak_file_15.sav"
-      ]
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "mario-kart-64",
+            "label": "Mario Kart 64 source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "ghostship",
@@ -5871,7 +5907,19 @@
         "logs/Ghostship.8.log",
         "logs/Ghostship.9.log",
         "logs/Ghostship.10.log"
-      ]
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "ghostship-source",
+            "label": "Super Mario 64 (US) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "starship",
@@ -5911,7 +5959,19 @@
         "mods",
         "saves",
         "config.json"
-      ]
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "star-fox-64",
+            "label": "Star Fox 64 source",
+            "verification": "catalog-rules"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "lighthouse",
@@ -5961,7 +6021,19 @@
         "lighthouse.cfg.json",
         "torch.hash.yml",
         "bk.o2r"
-      ]
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "banjo-kazooie",
+            "label": "Banjo-Kazooie (US 1.0) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "dusklight",
@@ -6007,7 +6079,19 @@
         "imgui.ini",
         "keyboard_bindings.dat",
         "states.json"
-      ]
+      ],
+      "presentation": {
+        "installation_method": "referenced-disc",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "twilight-princess",
+            "label": "The Legend of Zelda: Twilight Princess GameCube disc",
+            "verification": "catalog-rules"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "zelda64-recomp",
@@ -6065,7 +6149,19 @@
         "sound.json.bak",
         "mm.n64.us.1.0.z64"
       ],
-      "runtime_source_filename": "mm.n64.us.1.0.z64"
+      "runtime_source_filename": "mm.n64.us.1.0.z64",
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "majoras-mask",
+            "label": "The Legend of Zelda: Majora's Mask source",
+            "verification": "catalog-rules"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "banjo-recomp",
@@ -6123,7 +6219,19 @@
         "sound.json.bak",
         "bk.n64.us.1.0.z64"
       ],
-      "runtime_source_filename": "bk.n64.us.1.0.z64"
+      "runtime_source_filename": "bk.n64.us.1.0.z64",
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "banjo-kazooie",
+            "label": "Banjo-Kazooie (US 1.0) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "bm64-recomp",
@@ -6173,7 +6281,19 @@
         "sound.json.bak",
         "bm64_us.z64"
       ],
-      "runtime_source_filename": "bm64_us.z64"
+      "runtime_source_filename": "bm64_us.z64",
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "bomberman-64",
+            "label": "Bomberman 64 (US 1.0) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "harvest-moon-64-recomp",
@@ -6231,7 +6351,19 @@
         "sound.json.bak",
         "harvest_moon_64.z64"
       ],
-      "runtime_source_filename": "harvest_moon_64.z64"
+      "runtime_source_filename": "harvest_moon_64.z64",
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "harvest-moon-64",
+            "label": "Harvest Moon 64 (US) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "dinosaur-planet",
@@ -6282,12 +6414,24 @@
         "sound.json.bak",
         "dino.z64"
       ],
-      "runtime_source_filename": "dino.z64"
+      "runtime_source_filename": "dino.z64",
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "dinosaur-planet",
+            "label": "Dinosaur Planet December 2000 prototype source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "dkr-r",
       "name": "DKR-R",
-      "summary": "Cross-platform Diddy Kong Racing recompilation with portable user data.",
+      "summary": "Native Diddy Kong Racing recompilation.",
       "project_url": "https://github.com/ThatGuyMcd/DKR-R",
       "support_tier": "beta",
       "channels": [
@@ -6329,7 +6473,19 @@
         "dkr-us-v80.z64",
         "--config",
         "dkr-runtime-data"
-      ]
+      ],
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "diddy-kong-racing",
+            "label": "Diddy Kong Racing US v1.0 or Rev A/v1.1 source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "donkey-kong-64-recompiled",
@@ -6389,7 +6545,19 @@
         "technical.json.bak",
         "DK64.z64"
       ],
-      "runtime_source_filename": "DK64.z64"
+      "runtime_source_filename": "DK64.z64",
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "donkey-kong-64",
+            "label": "Donkey Kong 64 (US 1.0) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "automobili-lamborghini-recompiled",
@@ -6443,7 +6611,19 @@
         "Automobili Lamborghini (USA).z64",
         "lamborghini.us.z64"
       ],
-      "runtime_source_filename": "Automobili Lamborghini (USA).z64"
+      "runtime_source_filename": "Automobili Lamborghini (USA).z64",
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "automobili-lamborghini",
+            "label": "Automobili Lamborghini (US) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "aerogauge-recompiled",
@@ -6494,12 +6674,24 @@
         "AeroGauge (USA).z64",
         "aerogauge.us.z64"
       ],
-      "runtime_source_filename": "AeroGauge (USA).z64"
+      "runtime_source_filename": "AeroGauge (USA).z64",
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "aerogauge",
+            "label": "AeroGauge (US) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "extreme-g-recompiled",
       "name": "Extreme-G: Recompiled",
-      "summary": "Native Extreme-G recompilation with an upstream portable mode.",
+      "summary": "Native Extreme-G recompilation.",
       "project_url": "https://gitlab.com/sonicdcer/ExtremeGRecomp",
       "support_tier": "stable",
       "channels": [
@@ -6568,12 +6760,24 @@
         "extremeg.us.z64"
       ],
       "portable_marker": true,
-      "runtime_source_filename": "extremeg.us.z64"
+      "runtime_source_filename": "extremeg.us.z64",
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "extreme-g",
+            "label": "Extreme-G (North America 1.0) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "bomberman-fantasy-race-recompiled",
       "name": "Bomberman Fantasy Race: Recompiled",
-      "summary": "PS1 static recompilation built locally from the verified original disc.",
+      "summary": "Native Bomberman Fantasy Race recompilation.",
       "project_url": "https://github.com/TechnicallyComputers/Bomberman-Fantasy-Race-Recomp",
       "support_tier": "beta",
       "channels": [
@@ -6634,12 +6838,24 @@
         "input.json",
         "sound.json"
       ],
-      "runtime_subdirectory": "build-portcove"
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "bomberman-fantasy-race-psx",
+            "label": "Bomberman Fantasy Race (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "bomberman-party-edition-recompiled",
       "name": "Bomberman Party Edition: Recompiled",
-      "summary": "PS1 static recompilation built locally from the verified original disc.",
+      "summary": "Native Bomberman Party Edition recompilation.",
       "project_url": "https://github.com/TechnicallyComputers/BombermanPartyEditionRecomp",
       "support_tier": "beta",
       "channels": [
@@ -6708,12 +6924,24 @@
         "disc.cfg",
         "psx_freeze_heartbeat.json",
         "psx_last_run_report.json"
-      ]
+      ],
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "bomberman-party-edition-psx",
+            "label": "Bomberman Party Edition (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "bomberman-world-recompiled",
       "name": "Bomberman World: Recompiled",
-      "summary": "PS1 static recompilation built locally from the verified original disc.",
+      "summary": "Native Bomberman World recompilation.",
       "project_url": "https://github.com/TechnicallyComputers/Bomberman-World-Recomp",
       "support_tier": "beta",
       "channels": [
@@ -6774,12 +7002,24 @@
         "input.json",
         "sound.json"
       ],
-      "runtime_subdirectory": "build-portcove"
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "bomberman-world-psx",
+            "label": "Bomberman World (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "final-fantasy-vii-recompiled",
       "name": "Final Fantasy VII: Recompiled",
-      "summary": "Three-disc PS1 static recompilation with managed CHD-set verification.",
+      "summary": "Native Final Fantasy VII recompilation.",
       "project_url": "https://github.com/TechnicallyComputers/Final-Fantasy-VII",
       "support_tier": "beta",
       "channels": [
@@ -6853,12 +7093,24 @@
       "runtime_source_materialization": "psx-raw-set",
       "launch_arguments": [
         "--no-launcher"
-      ]
+      ],
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "final-fantasy-vii-psx",
+            "label": "Final Fantasy VII (USA) three-disc set",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "klonoa-door-to-phantomile-recompiled",
       "name": "Klonoa: Door to Phantomile Recompiled",
-      "summary": "PS1 static recompilation built locally from the verified original disc.",
+      "summary": "Native Klonoa: Door to Phantomile recompilation.",
       "project_url": "https://github.com/TechnicallyComputers/Klonoa-Door-to-Phantomile",
       "support_tier": "beta",
       "channels": [
@@ -6919,12 +7171,24 @@
         "input.json",
         "sound.json"
       ],
-      "runtime_subdirectory": "build-portcove"
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "klonoa-door-to-phantomile-psx",
+            "label": "Klonoa: Door to Phantomile (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "legend-of-mana-recompiled",
       "name": "Legend of Mana: Recompiled",
-      "summary": "PS1 static recompilation built locally from the verified original disc.",
+      "summary": "Native Legend of Mana recompilation.",
       "project_url": "https://github.com/TechnicallyComputers/Legend-of-Mana-Recomp",
       "support_tier": "beta",
       "channels": [
@@ -6985,12 +7249,24 @@
         "input.json",
         "sound.json"
       ],
-      "runtime_subdirectory": "build-portcove"
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "legend-of-mana-psx",
+            "label": "Legend of Mana (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "marvel-vs-capcom-recompiled",
       "name": "Marvel vs. Capcom: Recompiled",
-      "summary": "PS1 static recompilation built locally from the verified original disc.",
+      "summary": "Native Marvel vs. Capcom recompilation.",
       "project_url": "https://github.com/TechnicallyComputers/Marvel-vs.-Capcom-Clash-of-Super-Heroes-Recomp",
       "support_tier": "beta",
       "channels": [
@@ -7051,12 +7327,24 @@
         "input.json",
         "sound.json"
       ],
-      "runtime_subdirectory": "build-portcove"
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "marvel-vs-capcom-psx",
+            "label": "Marvel vs. Capcom: Clash of Super Heroes (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "masters-of-teras-kasi-recompiled",
       "name": "Masters of Teräs Käsi: Recompiled",
-      "summary": "PS1 static recompilation built locally from the verified original disc.",
+      "summary": "Native Masters of Teräs Käsi recompilation.",
       "project_url": "https://github.com/TechnicallyComputers/MastersOfTerasKasiRecomp",
       "support_tier": "beta",
       "channels": [
@@ -7117,12 +7405,24 @@
         "input.json",
         "sound.json"
       ],
-      "runtime_subdirectory": "build-portcove"
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "masters-of-teras-kasi-psx",
+            "label": "Star Wars: Masters of Teräs Käsi (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "metal-slug-x-recompiled",
       "name": "Metal Slug X: Recompiled",
-      "summary": "PS1 static recompilation built locally from the verified original disc.",
+      "summary": "Native Metal Slug X recompilation.",
       "project_url": "https://github.com/TechnicallyComputers/Metal-Slug-X-Recomp",
       "support_tier": "beta",
       "channels": [
@@ -7183,12 +7483,24 @@
         "input.json",
         "sound.json"
       ],
-      "runtime_subdirectory": "build-portcove"
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "metal-slug-x-psx",
+            "label": "Metal Slug X (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "mortal-kombat-4-recompiled",
       "name": "Mortal Kombat 4: Recompiled",
-      "summary": "PS1 static recompilation built locally from the verified original disc.",
+      "summary": "Native Mortal Kombat 4 recompilation.",
       "project_url": "https://github.com/Alexbeav/mortal-kombat-4-recomp",
       "support_tier": "beta",
       "channels": [
@@ -7250,12 +7562,30 @@
         "input.json",
         "sound.json"
       ],
-      "runtime_subdirectory": "build-portcove"
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "mortal-kombat-4-psx",
+            "label": "Mortal Kombat 4 (USA) disc",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-1001-bios",
+            "label": "PlayStation SCPH-1001 BIOS",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "rampage-through-time-recompiled",
       "name": "Rampage Through Time: Recompiled",
-      "summary": "PS1 static recompilation built locally from the verified original disc.",
+      "summary": "Native Rampage: Through Time recompilation.",
       "project_url": "https://github.com/TechnicallyComputers/Rampage---Through-Time-Recomp",
       "support_tier": "beta",
       "channels": [
@@ -7316,12 +7646,24 @@
         "input.json",
         "sound.json"
       ],
-      "runtime_subdirectory": "build-portcove"
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "rampage-through-time-psx",
+            "label": "Rampage Through Time (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "jedi-power-battles-recompiled",
       "name": "Jedi Power Battles: Recompiled",
-      "summary": "PS1 static recompilation built locally from the verified original disc.",
+      "summary": "Native Star Wars: Episode I – Jedi Power Battles recompilation.",
       "project_url": "https://github.com/TechnicallyComputers/Star-wars---Episode-I---Jedi-Power-Battles-Recomp",
       "support_tier": "beta",
       "channels": [
@@ -7382,12 +7724,24 @@
         "input.json",
         "sound.json"
       ],
-      "runtime_subdirectory": "build-portcove"
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "jedi-power-battles-psx",
+            "label": "Star Wars Episode I: Jedi Power Battles (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "street-fighter-alpha-3-recompiled",
       "name": "Street Fighter Alpha 3: Recompiled",
-      "summary": "PS1 static recompilation built locally from the verified original disc.",
+      "summary": "Native Street Fighter Alpha 3 recompilation.",
       "project_url": "https://github.com/TechnicallyComputers/Street-Fighter-Alpha-3-Recomp",
       "support_tier": "beta",
       "channels": [
@@ -7448,12 +7802,24 @@
         "input.json",
         "sound.json"
       ],
-      "runtime_subdirectory": "build-portcove"
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "street-fighter-alpha-3-psx",
+            "label": "Street Fighter Alpha 3 (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "tomba-recompiled",
       "name": "Tomba!: Recompiled",
-      "summary": "PS1 static recompilation built locally from the verified original disc.",
+      "summary": "Native Tomba! recompilation.",
       "project_url": "https://github.com/mstan/TombaRecomp",
       "support_tier": "beta",
       "channels": [
@@ -7514,12 +7880,24 @@
         "input.json",
         "sound.json"
       ],
-      "runtime_subdirectory": "build-portcove"
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "tomba-psx",
+            "label": "Tomba! (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "twisted-metal-4-recompiled",
       "name": "Twisted Metal 4: Recompiled",
-      "summary": "PS1 static recompilation with a managed local generation workflow.",
+      "summary": "Native Twisted Metal 4 recompilation.",
       "project_url": "https://github.com/TechnicallyComputers/TwistedMetal4Recomp",
       "support_tier": "beta",
       "channels": [
@@ -7578,12 +7956,24 @@
         "input.json",
         "sound.json"
       ],
-      "runtime_subdirectory": "build-portcove"
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "twisted-metal-4-psx",
+            "label": "Twisted Metal 4 (USA Rev 1) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "yu-gi-oh-forbidden-memories-recompiled",
       "name": "Yu-Gi-Oh! Forbidden Memories: Recompiled",
-      "summary": "PS1 static recompilation built locally from the verified original disc.",
+      "summary": "Native Yu-Gi-Oh! Forbidden Memories recompilation.",
       "project_url": "https://github.com/Unchiga/YuGiOhForbiddenMemoriesRecomp",
       "support_tier": "beta",
       "channels": [
@@ -7629,12 +8019,24 @@
       "runtime_subdirectory": "build-portcove",
       "launch_environment": {
         "PSX_PORTABLE": "1"
+      },
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "yu-gi-oh-forbidden-memories-psx",
+            "label": "Yu-Gi-Oh! Forbidden Memories (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
       }
     },
     {
       "id": "revelations-persona-recompiled",
       "name": "Revelations: Persona Recompiled",
-      "summary": "PS1 static recompilation built locally from the verified original disc.",
+      "summary": "Native Revelations: Persona recompilation.",
       "project_url": "https://github.com/NJH-1001/RevPRecompile",
       "support_tier": "beta",
       "channels": [
@@ -7676,12 +8078,24 @@
         "psx_last_run_report.json",
         "psx_freeze_heartbeat.json"
       ],
-      "runtime_subdirectory": "build-portcove"
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "revelations-persona-psx",
+            "label": "Revelations: Persona (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "beetle-recomp",
       "name": "Beetle Adventure Racing: Recompiled",
-      "summary": "Native Beetle Adventure Racing recompilation with stable and opt-in continuous builds.",
+      "summary": "Native Beetle Adventure Racing recompilation.",
       "project_url": "https://github.com/bryankruman/BeetleRecomp",
       "support_tier": "beta",
       "channels": [
@@ -7728,7 +8142,19 @@
         "BeetleRecomp-Windows-x64/bar.n64.us.z64"
       ],
       "runtime_subdirectory": "BeetleRecomp-Windows-x64",
-      "runtime_source_filename": "bar.n64.us.z64"
+      "runtime_source_filename": "bar.n64.us.z64",
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "beetle-adventure-racing",
+            "label": "Beetle Adventure Racing (US) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "quest-64-recompiled",
@@ -7779,12 +8205,24 @@
         "sound.json.bak",
         "quest64_us.z64"
       ],
-      "runtime_source_filename": "quest64_us.z64"
+      "runtime_source_filename": "quest64_us.z64",
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "quest-64",
+            "label": "Quest 64 (US 1.0) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "wcw-world-tour-recompiled",
       "name": "WCW vs. nWo World Tour: Recompiled",
-      "summary": "Opt-in beta native WCW vs. nWo World Tour recompilation.",
+      "summary": "Native WCW vs. nWo World Tour recompilation.",
       "project_url": "https://github.com/jessetbh/WCWvsNWOWorldTourRecomp",
       "support_tier": "beta",
       "channels": [
@@ -7831,12 +8269,24 @@
         "sound.json.bak",
         "wcw.nwo.worldtour.us.z64"
       ],
-      "runtime_source_filename": "wcw.nwo.worldtour.us.z64"
+      "runtime_source_filename": "wcw.nwo.worldtour.us.z64",
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "wcw-world-tour",
+            "label": "WCW vs. nWo World Tour (US 1.0) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "vpw64-recompiled",
       "name": "Virtual Pro Wrestling 64: Recompiled",
-      "summary": "Opt-in beta native Virtual Pro Wrestling 64 recompilation.",
+      "summary": "Native Virtual Pro Wrestling 64 recompilation.",
       "project_url": "https://github.com/jessetbh/VPW64Recomp",
       "support_tier": "beta",
       "channels": [
@@ -7883,12 +8333,24 @@
         "sound.json.bak",
         "vpw.vpw64.jp.z64"
       ],
-      "runtime_source_filename": "vpw.vpw64.jp.z64"
+      "runtime_source_filename": "vpw.vpw64.jp.z64",
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "vpw64",
+            "label": "Virtual Pro Wrestling 64 (Japan) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "wcw-nwo-revenge-recompiled",
       "name": "WCW/nWo Revenge: Recompiled",
-      "summary": "Opt-in beta native WCW/nWo Revenge recompilation.",
+      "summary": "Native WCW/nWo Revenge recompilation.",
       "project_url": "https://github.com/jessetbh/WCWnWoRevengeRecomp",
       "support_tier": "beta",
       "channels": [
@@ -7935,12 +8397,24 @@
         "sound.json.bak",
         "wcw.nwo.revenge.us.z64"
       ],
-      "runtime_source_filename": "wcw.nwo.revenge.us.z64"
+      "runtime_source_filename": "wcw.nwo.revenge.us.z64",
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "wcw-nwo-revenge",
+            "label": "WCW/nWo Revenge (US) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "wwf-wrestlemania-2000-recompiled",
       "name": "WWF WrestleMania 2000: Recompiled",
-      "summary": "Opt-in beta native WWF WrestleMania 2000 recompilation.",
+      "summary": "Native WWF WrestleMania 2000 recompilation.",
       "project_url": "https://github.com/jessetbh/WWFWrestleMania2000Recomp",
       "support_tier": "beta",
       "channels": [
@@ -7987,12 +8461,24 @@
         "sound.json.bak",
         "wwf.wm2k.us.z64"
       ],
-      "runtime_source_filename": "wwf.wm2k.us.z64"
+      "runtime_source_filename": "wwf.wm2k.us.z64",
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "wwf-wrestlemania-2000",
+            "label": "WWF WrestleMania 2000 (US V1.2) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "vpw2-recompiled",
       "name": "Virtual Pro Wrestling 2: Recompiled",
-      "summary": "Opt-in beta native Virtual Pro Wrestling 2 recompilation.",
+      "summary": "Native Virtual Pro Wrestling 2 recompilation.",
       "project_url": "https://github.com/jessetbh/VPW2Recomp",
       "support_tier": "beta",
       "channels": [
@@ -8033,12 +8519,24 @@
         "sound.json.bak",
         "vpw.vpw2.jp.z64"
       ],
-      "runtime_source_filename": "vpw.vpw2.jp.z64"
+      "runtime_source_filename": "vpw.vpw2.jp.z64",
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "vpw2",
+            "label": "Virtual Pro Wrestling 2 (Japan) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "wwf-no-mercy-recompiled",
       "name": "WWF No Mercy: Recompiled",
-      "summary": "Opt-in beta native WWF No Mercy recompilation.",
+      "summary": "Native WWF No Mercy recompilation.",
       "project_url": "https://github.com/jessetbh/WWFNoMercyRecomp",
       "support_tier": "beta",
       "channels": [
@@ -8085,7 +8583,19 @@
         "sound.json.bak",
         "wwf.nomercy.us.z64"
       ],
-      "runtime_source_filename": "wwf.nomercy.us.z64"
+      "runtime_source_filename": "wwf.nomercy.us.z64",
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "wwf-no-mercy",
+            "label": "WWF No Mercy (US Rev 1) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "mega-man-64-recompiled",
@@ -8143,12 +8653,24 @@
         "sound.json.bak",
         "megaman.n64.us.1.0.z64"
       ],
-      "runtime_source_filename": "megaman.n64.us.1.0.z64"
+      "runtime_source_filename": "megaman.n64.us.1.0.z64",
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "mega-man-64",
+            "label": "Mega Man 64 (US) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "dr-mario-64-recomp",
       "name": "Dr. Mario 64 Recompiled",
-      "summary": "Windows-native Dr. Mario 64 recompilation.",
+      "summary": "Native Dr. Mario 64 recompilation.",
       "project_url": "https://github.com/AngheloAlf/drmario64_recomp",
       "support_tier": "stable",
       "channels": [
@@ -8171,7 +8693,19 @@
         "mods",
         "saves",
         "config"
-      ]
+      ],
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "dr-mario-64",
+            "label": "Dr. Mario 64 source",
+            "verification": "catalog-rules"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "gen1recomp",
@@ -8235,12 +8769,24 @@
         "save.lua",
         "save.lua.bak",
         "options.lua"
-      ]
+      ],
+      "presentation": {
+        "installation_method": "generated-game-data",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "pokemon-gen-1",
+            "label": "Pokémon Red (US) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "gen2recomp-gold",
       "name": "Gen2Recomped: Pokémon Gold",
-      "summary": "Opt-in Phase 2B native Lua/LÖVE recreation of Pokémon Gold.",
+      "summary": "Native Lua/LÖVE recreation of Pokémon Gold.",
       "project_url": "https://github.com/UNDERdecoded/Gen2Recomped",
       "support_tier": "beta",
       "channels": [
@@ -8295,12 +8841,24 @@
         "options.lua",
         "boot_trace.txt",
         "crash.txt"
-      ]
+      ],
+      "presentation": {
+        "installation_method": "generated-game-data",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "pokemon-gold",
+            "label": "Pokémon Gold (US) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "gen2recomp-silver",
       "name": "Gen2Recomped: Pokémon Silver",
-      "summary": "Opt-in Phase 2B native Lua/LÖVE recreation of Pokémon Silver.",
+      "summary": "Native Lua/LÖVE recreation of Pokémon Silver.",
       "project_url": "https://github.com/UNDERdecoded/Gen2Recomped",
       "support_tier": "beta",
       "channels": [
@@ -8355,12 +8913,24 @@
         "options.lua",
         "boot_trace.txt",
         "crash.txt"
-      ]
+      ],
+      "presentation": {
+        "installation_method": "generated-game-data",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "pokemon-silver",
+            "label": "Pokémon Silver (US) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "gen2recomp-crystal",
       "name": "Gen2Recomped: Pokémon Crystal",
-      "summary": "Opt-in beta native Lua/LÖVE recreation of Pokémon Crystal.",
+      "summary": "Native Lua/LÖVE recreation of Pokémon Crystal.",
       "project_url": "https://github.com/UNDERdecoded/Gen2Recomped",
       "support_tier": "beta",
       "channels": [
@@ -8415,12 +8985,24 @@
         "options.lua",
         "boot_trace.txt",
         "crash.txt"
-      ]
+      ],
+      "presentation": {
+        "installation_method": "generated-game-data",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "pokemon-crystal",
+            "label": "Pokémon Crystal (US) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "nocturne-recomp",
       "name": "NocturneRecomp",
-      "summary": "Native Windows recompilation of Castlevania: Symphony of the Night for Xbox Live Arcade.",
+      "summary": "Native recompilation of Castlevania: Symphony of the Night for Xbox Live Arcade.",
       "project_url": "https://github.com/birabittoh/NocturneRecomp",
       "support_tier": "stable",
       "channels": [
@@ -8465,6 +9047,18 @@
       "launch_environment": {
         "REX_AUTO_UPDATE_ENABLED": "false",
         "REX_GAME_DATA_ROOT": "assets"
+      },
+      "presentation": {
+        "installation_method": "staged-game-files",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "sotn-xbla",
+            "label": "Castlevania: Symphony of the Night Xbox Live Arcade package",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
       }
     },
     {
@@ -8495,12 +9089,24 @@
         "mods",
         "saves",
         "config"
-      ]
+      ],
+      "presentation": {
+        "installation_method": "generated-game-data",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "blue-dragon",
+            "label": "Blue Dragon source disc",
+            "verification": "catalog-rules"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "bomberman-hero-recomp",
       "name": "Bomberman Hero Recompiled",
-      "summary": "Opt-in beta native Bomberman Hero recompilation.",
+      "summary": "Native Bomberman Hero recompilation.",
       "project_url": "https://github.com/RevoSucks/BMHeroRecomp",
       "support_tier": "beta",
       "channels": [
@@ -8545,12 +9151,24 @@
         "sound.json.bak",
         "bmhero.z64"
       ],
-      "runtime_source_filename": "bmhero.z64"
+      "runtime_source_filename": "bmhero.z64",
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "bomberman-hero",
+            "label": "Bomberman Hero (US) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "snowboard-kids-2-recomp",
       "name": "Snowboard Kids 2 Recompiled",
-      "summary": "Opt-in beta native Snowboard Kids 2 recompilation.",
+      "summary": "Native Snowboard Kids 2 recompilation.",
       "project_url": "https://github.com/cdlewis/snowboardkids2-recomp",
       "support_tier": "beta",
       "channels": [
@@ -8603,12 +9221,24 @@
         "sound.json.bak",
         "snowboardkids2.n64.us.z64"
       ],
-      "runtime_source_filename": "snowboardkids2.n64.us.z64"
+      "runtime_source_filename": "snowboardkids2.n64.us.z64",
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "snowboard-kids-2",
+            "label": "Snowboard Kids 2 (US) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "trouble-makers-recomp",
       "name": "Trouble Makers Recompiled",
-      "summary": "Opt-in beta native Mischief Makers recompilation.",
+      "summary": "Native Mischief Makers recompilation.",
       "project_url": "https://github.com/ThiagoLira/trouble-makers-pc-recomp",
       "support_tier": "beta",
       "channels": [
@@ -8651,12 +9281,24 @@
       "runtime_source_filename": "troublemakers.n64.us.1.z64",
       "launch_arguments": [
         "troublemakers.n64.us.1.z64"
-      ]
+      ],
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "trouble-makers",
+            "label": "Mischief Makers (US 1.1) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "goemon64-recomp",
       "name": "Goemon 64 Recompiled",
-      "summary": "Opt-in beta native Mystical Ninja recompilation.",
+      "summary": "Native Mystical Ninja recompilation.",
       "project_url": "https://github.com/klorfmorf/Goemon64Recomp",
       "support_tier": "beta",
       "channels": [
@@ -8701,12 +9343,24 @@
         "sound.json.bak",
         "mnsg.us.z64"
       ],
-      "runtime_source_filename": "mnsg.us.z64"
+      "runtime_source_filename": "mnsg.us.z64",
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "goemon-64",
+            "label": "Mystical Ninja Starring Goemon (US) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "perfect-dark",
       "name": "Perfect Dark",
-      "summary": "Opt-in rolling builds of the Perfect Dark PC port.",
+      "summary": "Native Perfect Dark PC port.",
       "project_url": "https://github.com/perfect-dark-pc-port/perfect_dark",
       "support_tier": "rolling",
       "channels": [
@@ -8756,12 +9410,24 @@
         "modconfig.txt",
         "data/pd.ntsc-final.z64"
       ],
-      "runtime_source_filename": "data/pd.ntsc-final.z64"
+      "runtime_source_filename": "data/pd.ntsc-final.z64",
+      "presentation": {
+        "installation_method": "generated-game-data",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "perfect-dark",
+            "label": "Perfect Dark (US Rev 1) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "sssv-recompiled",
       "name": "Space Station Silicon Valley: Recompiled",
-      "summary": "Native recompilation of Space Station Silicon Valley with upstream portable storage.",
+      "summary": "Native Space Station Silicon Valley recompilation.",
       "project_url": "https://github.com/Cellenseres/SSSV_Recomp",
       "support_tier": "stable",
       "channels": [
@@ -8829,12 +9495,24 @@
         "controls.json.bak",
         "sound.json",
         "sound.json.bak"
-      ]
+      ],
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "space-station-silicon-valley",
+            "label": "Space Station Silicon Valley (USA 1.0) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "animal-crossing-pc-port",
       "name": "Animal Crossing PC Port",
-      "summary": "Opt-in playtest of the native Animal Crossing GameCube port.",
+      "summary": "Native Animal Crossing GameCube port.",
       "project_url": "https://github.com/flyngmt/ACGC-PC-Port",
       "support_tier": "beta",
       "channels": [
@@ -8871,12 +9549,24 @@
         "settings.ini",
         "keybindings.ini",
         "texture_pack"
-      ]
+      ],
+      "presentation": {
+        "installation_method": "staged-game-files",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "animal-crossing-gamecube",
+            "label": "Animal Crossing (USA Rev 0) GameCube disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "project-picori",
       "name": "Project Picori",
-      "summary": "Opt-in native port of The Legend of Zelda: The Minish Cap.",
+      "summary": "Native port of The Legend of Zelda: The Minish Cap.",
       "project_url": "https://github.com/999sian/tmc",
       "support_tier": "beta",
       "channels": [
@@ -8961,12 +9651,24 @@
           "prefix": "tmc_",
           "suffix": ".randomizer"
         }
-      ]
+      ],
+      "presentation": {
+        "installation_method": "staged-game-files",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "minish-cap-gba",
+            "label": "The Legend of Zelda: The Minish Cap source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "battleship",
       "name": "BattleShip",
-      "summary": "Native Super Smash Bros. 64 port with a managed first-run asset cache.",
+      "summary": "Native Super Smash Bros. 64 port.",
       "project_url": "https://github.com/JRickey/BattleShip",
       "support_tier": "stable",
       "channels": [
@@ -9021,12 +9723,24 @@
         "logs",
         "mods",
         "screenshots"
-      ]
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "super-smash-bros-64",
+            "label": "Super Smash Bros. 64 (USA 1.0) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "g-diffuser",
       "name": "F-Zero X G-Diffuser",
-      "summary": "Native F-Zero X and Expansion Kit port with an exact three-file source set.",
+      "summary": "Native F-Zero X and Expansion Kit port.",
       "project_url": "https://github.com/Zorkats/G-Diffuser",
       "support_tier": "stable",
       "channels": [
@@ -9094,12 +9808,24 @@
         "mods",
         "shaders",
         "screenshots"
-      ]
+      ],
+      "presentation": {
+        "installation_method": "staged-game-files",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "g-diffuser-source-set",
+            "label": "F-Zero X G-Diffuser cartridge, Expansion Kit, and 64DD IPL set",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "severed-chains",
       "name": "Severed Chains",
-      "summary": "Opt-in rolling native port of The Legend of Dragoon with exact upstream disc-region validation.",
+      "summary": "Native port of The Legend of Dragoon.",
       "project_url": "https://github.com/Legend-of-Dragoon-Modding/Severed-Chains",
       "support_tier": "rolling",
       "channels": [
@@ -9211,12 +9937,24 @@
         "update_log.txt",
         "debug.log",
         "debug-updater.log"
-      ]
+      ],
+      "presentation": {
+        "installation_method": "staged-game-files",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "legend-of-dragoon-usa",
+            "label": "The Legend of Dragoon (USA) four-disc set",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "openpete",
       "name": "OpenPete",
-      "summary": "Native Windows port of Spyro the Dragon with a checksum-pinned direct upstream release.",
+      "summary": "Native port of Spyro the Dragon.",
       "project_url": "https://openpete.com/",
       "support_tier": "stable",
       "channels": [
@@ -9255,12 +9993,24 @@
         "cards",
         "states",
         "library"
-      ]
+      ],
+      "presentation": {
+        "installation_method": "staged-game-files",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "spyro-dragon-openpete",
+            "label": "Spyro the Dragon (NTSC-U SCUS-94228) OpenPete source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "opengoal-jak1",
       "name": "OpenGOAL: Jak and Daxter",
-      "summary": "Direct, portable OpenGOAL build of Jak and Daxter: The Precursor Legacy.",
+      "summary": "Native OpenGOAL port of Jak and Daxter: The Precursor Legacy.",
       "project_url": "https://github.com/open-goal/jak-project",
       "support_tier": "stable",
       "channels": [
@@ -9353,12 +10103,24 @@
         "data/iso_data",
         "data/decompiler_out",
         "data/out"
-      ]
+      ],
+      "presentation": {
+        "installation_method": "upstream-setup",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "opengoal-jak1-disc",
+            "label": "Jak and Daxter retail disc validated by the pinned OpenGOAL extractor",
+            "verification": "upstream-validator"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "opengoal-jak2",
       "name": "OpenGOAL: Jak II",
-      "summary": "Direct, portable OpenGOAL build of Jak II.",
+      "summary": "Native OpenGOAL port of Jak II.",
       "project_url": "https://github.com/open-goal/jak-project",
       "support_tier": "beta",
       "channels": [
@@ -9451,12 +10213,24 @@
         "data/iso_data",
         "data/decompiler_out",
         "data/out"
-      ]
+      ],
+      "presentation": {
+        "installation_method": "upstream-setup",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "opengoal-jak2-disc",
+            "label": "Jak II retail disc validated by the pinned OpenGOAL extractor",
+            "verification": "upstream-validator"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "opengoal-jak3",
       "name": "OpenGOAL: Jak 3",
-      "summary": "Direct, portable OpenGOAL build of Jak 3.",
+      "summary": "Native OpenGOAL port of Jak 3.",
       "project_url": "https://github.com/open-goal/jak-project",
       "support_tier": "beta",
       "channels": [
@@ -9549,12 +10323,24 @@
         "data/iso_data",
         "data/decompiler_out",
         "data/out"
-      ]
+      ],
+      "presentation": {
+        "installation_method": "upstream-setup",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "opengoal-jak3-disc",
+            "label": "Jak 3 retail disc validated by the pinned OpenGOAL extractor",
+            "verification": "upstream-validator"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "mega-man-x6-recompiled",
       "name": "Mega Man X6 Recompiled",
-      "summary": "Native Windows recompilation of Mega Man X6 with a checksum-qualified direct upstream release.",
+      "summary": "Native Mega Man X6 recompilation.",
       "project_url": "https://github.com/mstan/MegaManX6Recomp",
       "support_tier": "stable",
       "channels": [
@@ -9613,12 +10399,24 @@
         "overlay_captures.json.d",
         "psx_freeze_heartbeat.json",
         "psx_last_run_report.json"
-      ]
+      ],
+      "presentation": {
+        "installation_method": "staged-game-files",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "mega-man-x6-psx",
+            "label": "Mega Man X6 (USA Rev 1) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "paper-mario-recut",
       "name": "Paper Mario ReCut",
-      "summary": "Opt-in beta Windows recompilation of Paper Mario with a release-local user-data boundary.",
+      "summary": "Native Paper Mario recompilation.",
       "project_url": "https://github.com/SMCGames/Paper-Mario-ReCut",
       "support_tier": "beta",
       "channels": [
@@ -9653,12 +10451,24 @@
       },
       "persistent_paths": [
         "Paper Mario ReCut/user"
-      ]
+      ],
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "paper-mario-us",
+            "label": "Paper Mario (North America) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     },
     {
       "id": "snap64-recomp",
       "name": "Snap64 Recomp",
-      "summary": "Native Pokemon Snap static recompilation with isolated portable user data.",
+      "summary": "Native Pokémon Snap static recompilation.",
       "project_url": "https://github.com/JackandBeans/Snap64Recomp",
       "support_tier": "beta",
       "channels": [
@@ -9706,7 +10516,19 @@
       "portable_marker": true,
       "user_data_environment": "SNAP_DATA_DIR",
       "runtime_source_filename": "pokemonsnap.z64",
-      "runtime_source_materialization": "n64-big-endian"
+      "runtime_source_materialization": "n64-big-endian",
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "pokemon-snap",
+            "label": "Pokemon Snap (USA) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
     }
   ]
 }

@@ -141,6 +141,51 @@ pub enum AdapterKind {
     PsxRecompManaged,
 }
 
+/// User-facing installation behavior supplied by the catalog. Adapters remain an
+/// implementation detail and must not be translated into product copy by clients.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum InstallationMethod {
+    PortablePackage,
+    PortableRecompilation,
+    StagedGameFiles,
+    ReferencedDisc,
+    GeneratedGameData,
+    UpstreamSetup,
+    ManagedRecompilation,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum SourceVerificationMethod {
+    CatalogIdentity,
+    UpstreamValidator,
+    CatalogRules,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SourceRequirementPresentation {
+    pub role: crate::PortSourceRole,
+    pub profile_id: String,
+    pub label: String,
+    pub verification: SourceVerificationMethod,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum SavesAndSettingsBehavior {
+    PortcoveManaged,
+}
+
+/// Additive catalog-owned facts intended for user-facing clients. Older catalog
+/// documents may omit this object; current embedded definitions provide it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct PortPresentation {
+    pub installation_method: InstallationMethod,
+    pub source_requirements: Vec<SourceRequirementPresentation>,
+    pub saves_and_settings: SavesAndSettingsBehavior,
+}
+
 impl AdapterKind {
     pub const ALL: [Self; 7] = [
         Self::LibultrashipPortable,
@@ -342,6 +387,8 @@ pub struct PortDefinition {
     pub setup_output_paths: Vec<String>,
     #[serde(default)]
     pub upstream_status: UpstreamStatus,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub presentation: Option<PortPresentation>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

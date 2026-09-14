@@ -34,6 +34,18 @@ const port: PortDefinition = {
   source_profile: "sample-rom",
   persistent_paths: ["save"],
   upstream_status: "active",
+  presentation: {
+    installation_method: "staged-game-files",
+    source_requirements: [
+      {
+        role: "game",
+        profile_id: "sample-rom",
+        label: "Sample cartridge",
+        verification: "catalog-identity",
+      },
+    ],
+    saves_and_settings: "portcove-managed",
+  },
   release: portDefinition().release,
   executable_hints: {},
 };
@@ -213,12 +225,17 @@ describe("desktop components", () => {
 
   it.each(["future-method", "constructor", "__proto__"])(
     "renders unknown installation method %s without assuming support",
-    (adapter) => {
+    (method) => {
       const html = renderToStaticMarkup(
         <DetailPanel
           port={{
             ...port,
-            adapter: adapter as PortDefinition["adapter"],
+            presentation: {
+              ...port.presentation!,
+              installation_method: method as NonNullable<
+                PortDefinition["presentation"]
+              >["installation_method"],
+            },
             source_profile: null,
           }}
           sourcePath=""
@@ -226,10 +243,24 @@ describe("desktop components", () => {
           actions={actions}
         />,
       );
-      expect(html).toContain("Installation method unavailable");
+      expect(html).toContain("Unavailable in this catalog");
       expect(html).not.toContain("[object Object]");
     },
   );
+
+  it("labels presentation omitted by an older catalog", () => {
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={{ ...port, presentation: null }}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+      />,
+    );
+    expect(html).toContain("Structured requirement details are unavailable in this catalog.");
+    expect(html).toContain("Installation method</small>Unavailable in this catalog");
+    expect(html).toContain("Saved data handling</small>Unavailable in this catalog");
+  });
 
   it("routes a missing verified runtime to reviewed installation instead of Play", () => {
     const html = renderToStaticMarkup(
@@ -1269,7 +1300,12 @@ describe("desktop components", () => {
     );
     expect(html).toContain("Windows");
     expect(html).toContain("Installation method");
-    expect(html).toContain("Prepared source beside the game");
+    expect(html).toContain("Prepared game files beside the port");
+    expect(html).toContain("Sample cartridge");
+    expect(html).toContain("Compared with reviewed catalog identity");
+    expect(html).toContain("Managed by Portcove for backup and restore");
+    expect(html).toContain("Active");
+    expect(html).toContain("Stable · Beta");
     expect(html).not.toContain("staged-source-portable");
   });
 

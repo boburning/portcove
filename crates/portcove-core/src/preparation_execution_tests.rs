@@ -636,13 +636,14 @@ fn retained_definition_survives_catalog_changes_but_missing_receipt_blocks_play(
         .find(|profile| &profile.id == profile_id)
         .unwrap()
         .label = "Changed after preparation".into();
-    document
+    let port = document
         .ports
         .iter_mut()
         .find(|port| port.id == PORT)
-        .unwrap()
-        .setup_arguments
-        .push("--changed-option".into());
+        .unwrap();
+    port.presentation.as_mut().unwrap().source_requirements[0].label =
+        "Changed after preparation".into();
+    port.setup_arguments.push("--changed-option".into());
     fixture.service.replace_catalog_for_test(
         Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
     );

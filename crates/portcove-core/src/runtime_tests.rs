@@ -736,6 +736,7 @@ async fn runtime_follows_a_nested_working_directory_and_rejects_resolved_mutable
     fixture.port.runtime_subdirectory = Some("bundle".into());
     fixture.port.persistent_paths = vec!["bundle/user".into()];
     fixture.port.source_profile = None;
+    fixture.port.presentation = None;
     fixture.port.runtime_source_filename = None;
     fixture.port.runtime_source_materialization = None;
     let platform = Platform::current().unwrap();
