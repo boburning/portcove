@@ -79,9 +79,9 @@ jobs:
           # The independently authorized activation change itself is not prose-only,
           # so it must receive exhaustive CI before this policy becomes trusted on main.
           PORTCOVE_PROSE_POLICY_ACTIVATED: "true"
-          # The routing foundation must merge under qualification before a separate
-          # reviewed change may activate fast pull-request plans.
-          PORTCOVE_FAST_VALIDATION_ACTIVATED: "false"
+          # The routing foundation merged under exhaustive qualification. This
+          # policy change also qualifies itself because workflow paths escalate.
+          PORTCOVE_FAST_VALIDATION_ACTIVATED: "true"
           PORTCOVE_FORCE_QUALIFICATION: ${{ inputs.force_qualification || false }}
         run: node scripts/select-ci-plan.mjs
       - name: Report compared revisions and expected lanes
