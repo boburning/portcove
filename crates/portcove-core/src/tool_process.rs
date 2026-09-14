@@ -458,13 +458,13 @@ fn resume_primary_thread(process_id: u32) -> Result<()> {
         let mut thread_id = None;
         if Thread32First(snapshot, &raw mut entry) != 0 {
             loop {
-                if entry.th32OwnerProcessID == process_id {
-                    if thread_id.replace(entry.th32ThreadID).is_some() {
-                        CloseHandle(snapshot);
-                        return Err(PortcoveError::state(
-                            "the suspended native tool unexpectedly had multiple threads before containment",
-                        ));
-                    }
+                if entry.th32OwnerProcessID == process_id
+                    && thread_id.replace(entry.th32ThreadID).is_some()
+                {
+                    CloseHandle(snapshot);
+                    return Err(PortcoveError::state(
+                        "the suspended native tool unexpectedly had multiple threads before containment",
+                    ));
                 }
                 if Thread32Next(snapshot, &raw mut entry) == 0 {
                     break;
