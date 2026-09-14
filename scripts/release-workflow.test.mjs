@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import {
@@ -35,6 +39,25 @@ const rehearseSection = job("rehearse", "attest");
 const attestSection = job("attest", "publish");
 const publishSection = job("publish", "cleanup");
 const cleanupSection = job("cleanup");
+
+function inlineRunScript(section, stepName) {
+  const escaped = stepName.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  const block = section.match(
+    new RegExp(`^ {6}- name: ${escaped}\\r?\\n[\\s\\S]*?^ {8}run: \\|\\r?\\n([\\s\\S]*)`, "m"),
+  )?.[1];
+  assert.ok(block, `missing inline run script for ${stepName}`);
+  return block
+    .split(/\r?\n/u)
+    .map((line) => line.replace(/^ {10}/u, ""))
+    .join("\n")
+    .trimEnd();
+}
+
+const publicationScript = inlineRunScript(publishSection, "Create or reconcile draft release");
+// The publisher runs only on Ubuntu. Windows Git Bash process startup is both
+// materially slower and a different host contract; exact hosted Linux CI runs
+// this fixture against the same Bash boundary as the privileged job.
+const bashExecutable = process.platform === "win32" ? undefined : "bash";
 
 test("write authority is split across isolated attestation publication and cleanup jobs", () => {
   assert.match(workflow, /^permissions:\r?\n {2}contents: read$/m);
@@ -219,6 +242,116 @@ test("publisher mutates drafts only from precomputed metadata and attested asset
   assert(publishSection.lastIndexOf("assert_draft_release", upload) > deletion);
   assert.doesNotMatch(publishSection, /releases\/latest|latest\/download/);
 });
+
+test(
+  "publisher retries and recovers an interrupted draft without touching a published release",
+  { skip: !bashExecutable },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "portcove-draft-publication-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const assets = path.join(root, "release-assets-aggregate");
+    const metadata = path.join(root, "release-metadata");
+    const bin = path.join(root, "bin");
+    const stateRoot = path.join(root, "release-state");
+    await mkdir(assets);
+    await mkdir(metadata);
+    await mkdir(bin);
+    await mkdir(stateRoot);
+    await writeFile(path.join(assets, "alpha.bin"), "alpha");
+    await writeFile(path.join(assets, "beta.bin"), "beta");
+    await writeFile(path.join(metadata, "generated-release-body.md"), "fixture release\n");
+    await writeFile(path.join(stateRoot, "draft"), "false\n");
+    await writeFile(path.join(stateRoot, "assets"), "");
+    await writeFile(path.join(stateRoot, "create-calls"), "0\n");
+    const ghShim = path.join(bin, "gh");
+    await writeFile(
+      ghShim,
+      [
+        "#!/usr/bin/env bash",
+        "set -euo pipefail",
+        'state="$FAKE_GH_STATE"',
+        '[[ "${1:-}" == "release" ]] || exit 2',
+        'operation="${2:-}"',
+        "shift 3",
+        'if [[ "$operation" == "view" ]]; then',
+        '  [[ -f "$state/exists" ]] || exit 1',
+        '  if [[ "${2:-}" == "isDraft" ]]; then cat "$state/draft"',
+        '  elif [[ "${2:-}" == "assets" ]]; then cat "$state/assets"',
+        "  else exit 2",
+        "  fi",
+        'elif [[ "$operation" == "create" ]]; then',
+        '  [[ ! -f "$state/exists" ]] || { echo "duplicate release create" >&2; exit 1; }',
+        '  touch "$state/exists"',
+        '  printf "true\\n" > "$state/draft"',
+        '  : > "$state/assets"',
+        '  calls="$(cat "$state/create-calls")"',
+        '  printf "%s\\n" "$((calls + 1))" > "$state/create-calls"',
+        'elif [[ "$operation" == "delete-asset" ]]; then',
+        '  [[ -f "$state/exists" && "$(cat "$state/draft")" == "true" ]] || exit 1',
+        '  asset="${1:-}"',
+        '  grep -Fvx -- "$asset" "$state/assets" > "$state/assets.next" || true',
+        '  mv "$state/assets.next" "$state/assets"',
+        'elif [[ "$operation" == "upload" ]]; then',
+        '  [[ -f "$state/exists" && "$(cat "$state/draft")" == "true" ]] || exit 1',
+        '  asset="$(basename "${1:-}")"',
+        '  [[ "$asset" != "${FAKE_GH_FAIL_UPLOAD:-}" ]] || { echo "injected upload interruption" >&2; exit 1; }',
+        '  grep -Fxq -- "$asset" "$state/assets" || printf "%s\\n" "$asset" >> "$state/assets"',
+        '  sort -u -o "$state/assets" "$state/assets"',
+        "else exit 2",
+        "fi",
+        "",
+      ].join("\n"),
+    );
+    await chmod(ghShim, 0o755);
+
+    const runPublisher = (overrides = {}) =>
+      spawnSync(bashExecutable, ["-euo", "pipefail", "-c", publicationScript], {
+        cwd: root,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          GH_TOKEN: "controlled-fixture-only",
+          RELEASE_TAG: "v0.3.0-fixture",
+          FAKE_GH_STATE: stateRoot,
+          PATH: `${bin}${path.delimiter}${process.env.PATH}`,
+          ...overrides,
+        },
+      });
+    const readState = async () => {
+      const assetLines = (await readFile(path.join(stateRoot, "assets"), "utf8")).trim();
+      return {
+        exists: existsSync(path.join(stateRoot, "exists")),
+        draft: (await readFile(path.join(stateRoot, "draft"), "utf8")).trim() === "true",
+        assets: assetLines ? assetLines.split("\n") : [],
+        create_calls: Number((await readFile(path.join(stateRoot, "create-calls"), "utf8")).trim()),
+      };
+    };
+
+    assert.equal(runPublisher().status, 0);
+    assert.deepEqual(await readState(), {
+      exists: true,
+      draft: true,
+      assets: ["alpha.bin", "beta.bin"],
+      create_calls: 1,
+    });
+    assert.equal(runPublisher().status, 0);
+    assert.equal((await readState()).create_calls, 1);
+
+    const interrupted = runPublisher({ FAKE_GH_FAIL_UPLOAD: "beta.bin" });
+    assert.notEqual(interrupted.status, 0);
+    assert.match(interrupted.stderr, /injected upload interruption/u);
+    assert.deepEqual((await readState()).assets, ["alpha.bin"]);
+    assert.equal(runPublisher().status, 0);
+    assert.deepEqual((await readState()).assets, ["alpha.bin", "beta.bin"]);
+
+    const published = { ...(await readState()), draft: false };
+    await writeFile(path.join(stateRoot, "draft"), "false\n");
+    const refused = runPublisher();
+    assert.notEqual(refused.status, 0);
+    assert.match(refused.stderr, /Refusing to modify non-draft release/u);
+    assert.deepEqual(await readState(), published);
+  },
+);
 
 test("cleanup deletes transient artifacts only after successful rehearsal or publication", () => {
   assert.match(cleanupSection, /always\(\).*needs\.assemble\.result == 'success'/);
