@@ -143,6 +143,7 @@ mod tests {
             setup_marker: None,
             setup_output_paths: vec![],
             upstream_status: UpstreamStatus::Retired,
+            presentation: None,
         };
         let release =
             resolve_direct(&port, ReleaseChannel::Stable, Platform::WindowsX86_64).unwrap();

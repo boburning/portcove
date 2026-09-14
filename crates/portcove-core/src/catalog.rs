@@ -400,6 +400,78 @@ impl Catalog {
                     }
                 }
             }
+            if let Some(presentation) = &port.presentation {
+                let expected_requirements = [
+                    (
+                        crate::PortSourceRole::Game,
+                        crate::PortSourceRole::Game,
+                        port.source_profile.as_ref(),
+                    ),
+                    (
+                        crate::PortSourceRole::Bios,
+                        crate::PortSourceRole::Bios,
+                        port.bios_source_profile.as_ref(),
+                    ),
+                ];
+                if presentation.source_requirements.len()
+                    != expected_requirements
+                        .iter()
+                        .filter(|(_, _, profile)| profile.is_some())
+                        .count()
+                {
+                    return Err(PortcoveError::conflict(format!(
+                        "{} presentation does not match its source requirements",
+                        port.id
+                    )));
+                }
+                for (presentation_role, contract_role, profile_id) in expected_requirements {
+                    let Some(profile_id) = profile_id else {
+                        continue;
+                    };
+                    let Some(requirement) = presentation
+                        .source_requirements
+                        .iter()
+                        .find(|requirement| requirement.role == presentation_role)
+                    else {
+                        return Err(PortcoveError::conflict(format!(
+                            "{} presentation is missing its {presentation_role:?} requirement",
+                            port.id
+                        )));
+                    };
+                    let profile = self.source_profile(profile_id)?;
+                    if requirement.profile_id != *profile_id || requirement.label != profile.label {
+                        return Err(PortcoveError::conflict(format!(
+                            "{} presentation disagrees with source profile {profile_id}",
+                            port.id
+                        )));
+                    }
+                    if let Some(source_catalog) = self.source_catalog() {
+                        let contract = source_catalog
+                            .contracts
+                            .iter()
+                            .find(|contract| {
+                                contract.port_id == port.id && contract.role == contract_role
+                            })
+                            .expect("schema-2 source bindings were validated above");
+                        let expected_verification = match (
+                            contract.admission_mode,
+                            contract.validator_contract_id.is_some(),
+                        ) {
+                            (crate::CatalogAdmissionMode::Informational, _) => {
+                                crate::SourceVerificationMethod::CatalogRules
+                            }
+                            (_, true) => crate::SourceVerificationMethod::UpstreamValidator,
+                            _ => crate::SourceVerificationMethod::CatalogIdentity,
+                        };
+                        if requirement.verification != expected_verification {
+                            return Err(PortcoveError::conflict(format!(
+                                "{} presentation has the wrong verification method for {profile_id}",
+                                port.id
+                            )));
+                        }
+                    }
+                }
+            }
             let mut environment_names = HashSet::new();
             if let Some(variable) = &port.source_environment
                 && (port.source_profile.is_none()
@@ -1127,13 +1199,24 @@ mod tests {
                 "data/out".into(),
             ];
         }
-        let migrated_legacy_ports = migrated
+        let mut migrated_legacy_ports = migrated
             .document()
             .ports
             .iter()
             .filter(|port| port.id != "snap64-recomp")
             .cloned()
             .collect::<Vec<_>>();
+        // Presentation and concise summaries are additive schema-2 client
+        // contracts. Exclude them from the frozen schema-1 lifecycle comparison.
+        for port in &mut migrated_legacy_ports {
+            port.presentation = None;
+            port.summary = expected_ports
+                .iter()
+                .find(|expected| expected.id == port.id)
+                .unwrap()
+                .summary
+                .clone();
+        }
         assert_eq!(
             serde_json::to_value(migrated_legacy_ports).unwrap(),
             serde_json::to_value(expected_ports).unwrap()
@@ -1251,6 +1334,78 @@ mod tests {
         assert!(document.get("source_catalog").is_some());
         assert!(document.get("source_profiles").is_none());
         assert_eq!(document["ports"].as_array().unwrap().len(), 68);
+    }
+
+    #[test]
+    fn embedded_ports_have_catalog_owned_presentation() {
+        let catalog = Catalog::embedded().unwrap();
+        assert!(catalog.ports().iter().all(|port| {
+            port.presentation.as_ref().is_some_and(|presentation| {
+                presentation.source_requirements.len()
+                    == usize::from(port.source_profile.is_some())
+                        + usize::from(port.bios_source_profile.is_some())
+            })
+        }));
+    }
+
+    #[test]
+    fn embedded_summaries_leave_structured_facts_to_structured_fields() {
+        let catalog = Catalog::embedded().unwrap();
+        let structured_terms = [
+            "opt-in",
+            " beta ",
+            " rolling ",
+            " portable ",
+            " managed ",
+            " verified ",
+            " checksum",
+            " release",
+        ];
+        for port in catalog.ports() {
+            let summary = format!(" {} ", port.summary.to_ascii_lowercase());
+            assert!(
+                port.summary.ends_with('.')
+                    && structured_terms.iter().all(|term| !summary.contains(term)),
+                "{} has a non-outcome summary: {}",
+                port.id,
+                port.summary
+            );
+        }
+    }
+
+    #[test]
+    fn schema_1_ports_remain_readable_without_presentation() {
+        let catalog = Catalog::from_json(SCHEMA_1_CATALOG_FIXTURE).unwrap();
+        assert!(
+            catalog
+                .ports()
+                .iter()
+                .all(|port| port.presentation.is_none())
+        );
+    }
+
+    #[test]
+    fn additive_presentation_is_ignored_by_an_older_port_reader() {
+        #[derive(serde::Deserialize)]
+        struct LegacyPortReader {
+            id: String,
+            adapter: AdapterKind,
+        }
+
+        let current = serde_json::to_value(&Catalog::embedded().unwrap().ports()[0]).unwrap();
+        let legacy: LegacyPortReader = serde_json::from_value(current).unwrap();
+        assert_eq!(legacy.id, "shipwright");
+        assert_eq!(legacy.adapter, AdapterKind::LibultrashipPortable);
+    }
+
+    #[test]
+    fn presentation_cannot_disagree_with_source_authority() {
+        let catalog = Catalog::embedded().unwrap();
+        let mut document = serde_json::to_value(catalog.authoritative_document()).unwrap();
+        document["ports"][0]["presentation"]["source_requirements"][0]["label"] =
+            "Different game files".into();
+        let error = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap_err();
+        assert!(error.to_string().contains("disagrees with source profile"));
     }
 
     #[test]

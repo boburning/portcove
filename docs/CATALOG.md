@@ -218,6 +218,19 @@ migration emits an empty exact-qualification collection while preserving the
 legacy arrays because their missing artifact and source dimensions cannot be
 guessed.
 
+Current embedded ports include an additive `presentation` object for installation
+method, required game/BIOS labels, verification method, and saves/settings
+behavior. The migration generates these facts from the same adapter, profile,
+and source-contract authority, and core rejects labels or verification methods
+that disagree with those bindings. Existing platform, channel, support,
+upstream-state, and qualification fields remain the structured authority for
+those facts. Older catalogs may omit presentation and remain readable; clients
+must report the missing detail instead of inferring it from an adapter ID.
+Signed format 1 may update presentation without changing its frozen execution,
+source, persistence, or installed-code contracts.
+Summaries remain one outcome sentence and do not duplicate channel, platform,
+verification, setup, or storage claims.
+
 `catalog-schema1-fixture.json` preserves the full pre-migration document, while
 `catalog-schema1-admission-baseline.json` fingerprints every source profile and
 the complete port/profile/adapter binding set. Tests compare every projected

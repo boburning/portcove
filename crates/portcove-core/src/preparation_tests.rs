@@ -253,6 +253,16 @@ fn preparation_retains_source_contract_and_review_after_catalog_changes() {
         .find(|profile| profile.id == profile_id)
         .unwrap();
     profile.label = "A later catalog description".into();
+    document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == PORT)
+        .unwrap()
+        .presentation
+        .as_mut()
+        .unwrap()
+        .source_requirements[0]
+        .label = "A later catalog description".into();
     fixture.service.replace_catalog_for_test(
         Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
     );

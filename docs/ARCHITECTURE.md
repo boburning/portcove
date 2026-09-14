@@ -985,6 +985,18 @@ this keeps the old matcher unchanged without treating the projection as current
 schema-2 identity. The projection retires when #180 moves all consumers to the
 shared inspector.
 
+Each current embedded port also carries an additive `presentation` object. Core
+owns its installation method, required game/BIOS labels, verification method,
+and saves/settings behavior; catalog validation binds every displayed source
+requirement to the exact profile and schema-2 contract. CLI and Tauri transport
+the same object, while React translates its stable enums into interface copy and
+combines it with existing structured project state, platforms, channels, support
+tier, and qualification arrays. Older schema-1 and signed schema-2 documents may
+omit presentation and remain readable; clients show that absence explicitly.
+Signed format 1 may update presentation independently of its frozen installed-code
+contract, while core still rejects presentation that disagrees with source
+authority. The field adds no lifecycle behavior, qualification, or source authority.
+
 `SourceInspection` is the read-only core result for selected source bytes. Its
 observed digests retain algorithm and byte scope, schema-2 digest fields match
 conjunctively, representations match as alternatives, and more than one matching

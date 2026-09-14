@@ -150,6 +150,14 @@ pub(crate) fn post_client_catalog() -> (crate::Catalog, String) {
     port.name = "Post-client definition fixture".to_string();
     port.summary = "A valid port definition published after this client was built.".to_string();
     port.source_profile = Some(profile_id);
+    port.presentation
+        .as_mut()
+        .unwrap()
+        .source_requirements
+        .iter_mut()
+        .find(|requirement| requirement.role == crate::PortSourceRole::Game)
+        .unwrap()
+        .profile_id = port.source_profile.clone().unwrap();
     port.automated_tested_platforms.clear();
     port.manually_validated_platforms.clear();
     document.ports.push(port);

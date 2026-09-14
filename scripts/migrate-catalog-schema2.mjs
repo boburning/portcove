@@ -738,6 +738,110 @@ reviewContract(
 );
 reviewContract("starship", reviewedSources.starship, ["usa-1-0", "usa-1-1"]);
 
+const installationMethods = {
+  "libultraship-portable": "portable-package",
+  "n64-recomp-portable": "portable-recompilation",
+  "staged-source-portable": "staged-game-files",
+  "referenced-disc": "referenced-disc",
+  "generated-cache": "generated-game-data",
+  "upstream-managed-setup": "upstream-setup",
+  "psx-recomp-managed": "managed-recompilation",
+};
+
+const normalizedSummaries = {
+  "dkr-r": "Native Diddy Kong Racing recompilation.",
+  "extreme-g-recompiled": "Native Extreme-G recompilation.",
+  "bomberman-fantasy-race-recompiled": "Native Bomberman Fantasy Race recompilation.",
+  "bomberman-party-edition-recompiled": "Native Bomberman Party Edition recompilation.",
+  "bomberman-world-recompiled": "Native Bomberman World recompilation.",
+  "final-fantasy-vii-recompiled": "Native Final Fantasy VII recompilation.",
+  "klonoa-door-to-phantomile-recompiled": "Native Klonoa: Door to Phantomile recompilation.",
+  "legend-of-mana-recompiled": "Native Legend of Mana recompilation.",
+  "marvel-vs-capcom-recompiled": "Native Marvel vs. Capcom recompilation.",
+  "masters-of-teras-kasi-recompiled": "Native Masters of Teräs Käsi recompilation.",
+  "metal-slug-x-recompiled": "Native Metal Slug X recompilation.",
+  "mortal-kombat-4-recompiled": "Native Mortal Kombat 4 recompilation.",
+  "rampage-through-time-recompiled": "Native Rampage: Through Time recompilation.",
+  "jedi-power-battles-recompiled":
+    "Native Star Wars: Episode I – Jedi Power Battles recompilation.",
+  "street-fighter-alpha-3-recompiled": "Native Street Fighter Alpha 3 recompilation.",
+  "tomba-recompiled": "Native Tomba! recompilation.",
+  "twisted-metal-4-recompiled": "Native Twisted Metal 4 recompilation.",
+  "yu-gi-oh-forbidden-memories-recompiled": "Native Yu-Gi-Oh! Forbidden Memories recompilation.",
+  "revelations-persona-recompiled": "Native Revelations: Persona recompilation.",
+  "beetle-recomp": "Native Beetle Adventure Racing recompilation.",
+  "wcw-world-tour-recompiled": "Native WCW vs. nWo World Tour recompilation.",
+  "vpw64-recompiled": "Native Virtual Pro Wrestling 64 recompilation.",
+  "wcw-nwo-revenge-recompiled": "Native WCW/nWo Revenge recompilation.",
+  "wwf-wrestlemania-2000-recompiled": "Native WWF WrestleMania 2000 recompilation.",
+  "vpw2-recompiled": "Native Virtual Pro Wrestling 2 recompilation.",
+  "wwf-no-mercy-recompiled": "Native WWF No Mercy recompilation.",
+  "dr-mario-64-recomp": "Native Dr. Mario 64 recompilation.",
+  "gen2recomp-gold": "Native Lua/LÖVE recreation of Pokémon Gold.",
+  "gen2recomp-silver": "Native Lua/LÖVE recreation of Pokémon Silver.",
+  "gen2recomp-crystal": "Native Lua/LÖVE recreation of Pokémon Crystal.",
+  "nocturne-recomp":
+    "Native recompilation of Castlevania: Symphony of the Night for Xbox Live Arcade.",
+  "bomberman-hero-recomp": "Native Bomberman Hero recompilation.",
+  "snowboard-kids-2-recomp": "Native Snowboard Kids 2 recompilation.",
+  "trouble-makers-recomp": "Native Mischief Makers recompilation.",
+  "goemon64-recomp": "Native Mystical Ninja recompilation.",
+  "perfect-dark": "Native Perfect Dark PC port.",
+  "sssv-recompiled": "Native Space Station Silicon Valley recompilation.",
+  "animal-crossing-pc-port": "Native Animal Crossing GameCube port.",
+  "project-picori": "Native port of The Legend of Zelda: The Minish Cap.",
+  battleship: "Native Super Smash Bros. 64 port.",
+  "g-diffuser": "Native F-Zero X and Expansion Kit port.",
+  "severed-chains": "Native port of The Legend of Dragoon.",
+  openpete: "Native port of Spyro the Dragon.",
+  "opengoal-jak1": "Native OpenGOAL port of Jak and Daxter: The Precursor Legacy.",
+  "opengoal-jak2": "Native OpenGOAL port of Jak II.",
+  "opengoal-jak3": "Native OpenGOAL port of Jak 3.",
+  "mega-man-x6-recompiled": "Native Mega Man X6 recompilation.",
+  "paper-mario-recut": "Native Paper Mario recompilation.",
+  "snap64-recomp": "Native Pokémon Snap static recompilation.",
+};
+
+function sourceRequirement(port, role, field) {
+  const profileId = port[field];
+  if (!profileId) return null;
+  const profile = profiles.get(profileId);
+  const contract = contracts.find(
+    (candidate) => candidate.port_id === port.id && candidate.role === role,
+  );
+  if (!profile || !contract || contract.profile_id !== profileId) {
+    throw new Error(`missing presentation source contract for ${port.id}:${role}`);
+  }
+  return {
+    role,
+    profile_id: profileId,
+    label: profile.label,
+    verification:
+      contract.admission_mode === "informational"
+        ? "catalog-rules"
+        : contract.validator_contract_id
+          ? "upstream-validator"
+          : "catalog-identity",
+  };
+}
+
+function withPresentation(port) {
+  const installationMethod = installationMethods[port.adapter];
+  if (!installationMethod) throw new Error(`missing installation method for ${port.adapter}`);
+  return {
+    ...port,
+    summary: normalizedSummaries[port.id] ?? port.summary,
+    presentation: {
+      installation_method: installationMethod,
+      source_requirements: [
+        sourceRequirement(port, "game", "source_profile"),
+        sourceRequirement(port, "bios", "bios_source_profile"),
+      ].filter(Boolean),
+      saves_and_settings: "portcove-managed",
+    },
+  };
+}
+
 const migrated = {
   schema_version: 2,
   // Legacy qualification arrays intentionally remain on each port. They do
@@ -830,72 +934,74 @@ const migrated = {
     ],
   },
   ports: [
-    ...legacy.ports.map((port) =>
-      port.id === "ghostship"
-        ? {
-            ...port,
-            // Ghostship 3.0.0 and its pinned libultraship/Torch dependencies write these
-            // disposable outputs. Preserve the frozen migration input and all user data.
-            runtime_mutable_paths: [
-              "torch.hash.yml",
-              "logs/Ghostship.log",
-              ...Array.from({ length: 10 }, (_, index) => `logs/Ghostship.${index + 1}.log`),
-            ],
-          }
-        : port.id === "yu-gi-oh-forbidden-memories-recompiled"
+    ...legacy.ports
+      .map((port) =>
+        port.id === "ghostship"
           ? {
               ...port,
-              // v0.5.7 separates player data and launcher caches unless portable mode is
-              // explicit. Remember user selections and ignore only reproducible outputs.
-              persistent_paths: [...port.persistent_paths, "disc.cfg", "bios.cfg"],
+              // Ghostship 3.0.0 and its pinned libultraship/Torch dependencies write these
+              // disposable outputs. Preserve the frozen migration input and all user data.
               runtime_mutable_paths: [
-                ...port.runtime_mutable_paths,
-                "disc_verified.cfg",
-                "diagnostics/psx_freeze_heartbeat.json",
+                "torch.hash.yml",
+                "logs/Ghostship.log",
+                ...Array.from({ length: 10 }, (_, index) => `logs/Ghostship.${index + 1}.log`),
               ],
-              launch_environment: {
-                ...port.launch_environment,
-                PSX_PORTABLE: "1",
-              },
             }
-          : port.id === "bomberman-party-edition-recompiled"
+          : port.id === "yu-gi-oh-forbidden-memories-recompiled"
             ? {
                 ...port,
-                // The managed runtime creates these player selections and disposable
-                // reports after the frozen schema-1 catalog was recorded.
-                persistent_paths: [...port.persistent_paths, "input.ini", "keybinds.ini"],
+                // v0.5.7 separates player data and launcher caches unless portable mode is
+                // explicit. Remember user selections and ignore only reproducible outputs.
+                persistent_paths: [...port.persistent_paths, "disc.cfg", "bios.cfg"],
                 runtime_mutable_paths: [
-                  ...(port.runtime_mutable_paths ?? []),
-                  "bios.cfg",
-                  "disc.cfg",
-                  "psx_freeze_heartbeat.json",
-                  "psx_last_run_report.json",
+                  ...port.runtime_mutable_paths,
+                  "disc_verified.cfg",
+                  "diagnostics/psx_freeze_heartbeat.json",
                 ],
+                launch_environment: {
+                  ...port.launch_environment,
+                  PSX_PORTABLE: "1",
+                },
               }
-            : port.id === "revelations-persona-recompiled"
+            : port.id === "bomberman-party-edition-recompiled"
               ? {
                   ...port,
-                  persistent_paths: [
-                    ...port.persistent_paths,
-                    "keybinds.ini",
-                    "disc.cfg",
-                    "bios.cfg",
-                  ],
+                  // The managed runtime creates these player selections and disposable
+                  // reports after the frozen schema-1 catalog was recorded.
+                  persistent_paths: [...port.persistent_paths, "input.ini", "keybinds.ini"],
                   runtime_mutable_paths: [
-                    ...port.runtime_mutable_paths,
+                    ...(port.runtime_mutable_paths ?? []),
+                    "bios.cfg",
+                    "disc.cfg",
                     "psx_freeze_heartbeat.json",
+                    "psx_last_run_report.json",
                   ],
                 }
-              : ["opengoal-jak1", "opengoal-jak2", "opengoal-jak3"].includes(port.id)
+              : port.id === "revelations-persona-recompiled"
                 ? {
                     ...port,
-                    // Reviewed extractor output ownership; this is not a manifest exclusion.
-                    // Pinned upstream evidence is recorded in docs/CATALOG.md.
-                    setup_output_paths: ["data/iso_data", "data/decompiler_out", "data/out"],
+                    persistent_paths: [
+                      ...port.persistent_paths,
+                      "keybinds.ini",
+                      "disc.cfg",
+                      "bios.cfg",
+                    ],
+                    runtime_mutable_paths: [
+                      ...port.runtime_mutable_paths,
+                      "psx_freeze_heartbeat.json",
+                    ],
                   }
-                : port,
-    ),
-    {
+                : ["opengoal-jak1", "opengoal-jak2", "opengoal-jak3"].includes(port.id)
+                  ? {
+                      ...port,
+                      // Reviewed extractor output ownership; this is not a manifest exclusion.
+                      // Pinned upstream evidence is recorded in docs/CATALOG.md.
+                      setup_output_paths: ["data/iso_data", "data/decompiler_out", "data/out"],
+                    }
+                  : port,
+      )
+      .map(withPresentation),
+    withPresentation({
       id: "snap64-recomp",
       name: "Snap64 Recomp",
       summary: "Native Pokemon Snap static recompilation with isolated portable user data.",
@@ -934,7 +1040,7 @@ const migrated = {
       user_data_environment: "SNAP_DATA_DIR",
       runtime_source_filename: "pokemonsnap.z64",
       runtime_source_materialization: "n64-big-endian",
-    },
+    }),
   ],
 };
 const output = `${JSON.stringify(migrated, null, 2)}\n`;

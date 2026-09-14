@@ -2280,6 +2280,19 @@
         ],
         "type": "object"
       },
+      "InstallationMethod": {
+        "description": "User-facing installation behavior supplied by the catalog. Adapters remain an\nimplementation detail and must not be translated into product copy by clients.",
+        "enum": [
+          "portable-package",
+          "portable-recompilation",
+          "staged-game-files",
+          "referenced-disc",
+          "generated-game-data",
+          "upstream-setup",
+          "managed-recompilation"
+        ],
+        "type": "string"
+      },
       "PersistentFilePattern": {
         "properties": {
           "prefix": {
@@ -2433,6 +2446,16 @@
           "portable_marker": {
             "default": false,
             "type": "boolean"
+          },
+          "presentation": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PortPresentation"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "project_url": {
             "type": "string"
@@ -2605,6 +2628,29 @@
           "setup_marker",
           "setup_output_paths",
           "upstream_status"
+        ],
+        "type": "object"
+      },
+      "PortPresentation": {
+        "description": "Additive catalog-owned facts intended for user-facing clients. Older catalog\ndocuments may omit this object; current embedded definitions provide it.",
+        "properties": {
+          "installation_method": {
+            "$ref": "#/$defs/InstallationMethod"
+          },
+          "saves_and_settings": {
+            "$ref": "#/$defs/SavesAndSettingsBehavior"
+          },
+          "source_requirements": {
+            "items": {
+              "$ref": "#/$defs/SourceRequirementPresentation"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "installation_method",
+          "source_requirements",
+          "saves_and_settings"
         ],
         "type": "object"
       },
@@ -2867,6 +2913,12 @@
           "materialization"
         ],
         "type": "object"
+      },
+      "SavesAndSettingsBehavior": {
+        "enum": [
+          "portcove-managed"
+        ],
+        "type": "string"
       },
       "SourceCatalog": {
         "additionalProperties": false,
@@ -3582,6 +3634,29 @@
         ],
         "type": "object"
       },
+      "SourceRequirementPresentation": {
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "profile_id": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/$defs/PortSourceRole"
+          },
+          "verification": {
+            "$ref": "#/$defs/SourceVerificationMethod"
+          }
+        },
+        "required": [
+          "role",
+          "profile_id",
+          "label",
+          "verification"
+        ],
+        "type": "object"
+      },
       "SourceValidatorContract": {
         "additionalProperties": false,
         "properties": {
@@ -3698,6 +3773,14 @@
             "type": "object"
           }
         ]
+      },
+      "SourceVerificationMethod": {
+        "enum": [
+          "catalog-identity",
+          "upstream-validator",
+          "catalog-rules"
+        ],
+        "type": "string"
       },
       "SupportTier": {
         "enum": [
@@ -9308,6 +9391,19 @@
         ],
         "type": "object"
       },
+      "InstallationMethod": {
+        "description": "User-facing installation behavior supplied by the catalog. Adapters remain an\nimplementation detail and must not be translated into product copy by clients.",
+        "enum": [
+          "portable-package",
+          "portable-recompilation",
+          "staged-game-files",
+          "referenced-disc",
+          "generated-game-data",
+          "upstream-setup",
+          "managed-recompilation"
+        ],
+        "type": "string"
+      },
       "PersistentFilePattern": {
         "properties": {
           "prefix": {
@@ -9329,6 +9425,36 @@
           "linux-x86-64",
           "macos-x86-64",
           "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "PortPresentation": {
+        "description": "Additive catalog-owned facts intended for user-facing clients. Older catalog\ndocuments may omit this object; current embedded definitions provide it.",
+        "properties": {
+          "installation_method": {
+            "$ref": "#/$defs/InstallationMethod"
+          },
+          "saves_and_settings": {
+            "$ref": "#/$defs/SavesAndSettingsBehavior"
+          },
+          "source_requirements": {
+            "items": {
+              "$ref": "#/$defs/SourceRequirementPresentation"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "installation_method",
+          "source_requirements",
+          "saves_and_settings"
+        ],
+        "type": "object"
+      },
+      "PortSourceRole": {
+        "enum": [
+          "game",
+          "bios"
         ],
         "type": "string"
       },
@@ -9484,6 +9610,43 @@
         ],
         "type": "object"
       },
+      "SavesAndSettingsBehavior": {
+        "enum": [
+          "portcove-managed"
+        ],
+        "type": "string"
+      },
+      "SourceRequirementPresentation": {
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "profile_id": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/$defs/PortSourceRole"
+          },
+          "verification": {
+            "$ref": "#/$defs/SourceVerificationMethod"
+          }
+        },
+        "required": [
+          "role",
+          "profile_id",
+          "label",
+          "verification"
+        ],
+        "type": "object"
+      },
+      "SourceVerificationMethod": {
+        "enum": [
+          "catalog-identity",
+          "upstream-validator",
+          "catalog-rules"
+        ],
+        "type": "string"
+      },
       "SupportTier": {
         "enum": [
           "stable",
@@ -9631,6 +9794,16 @@
       "portable_marker": {
         "default": false,
         "type": "boolean"
+      },
+      "presentation": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/PortPresentation"
+          },
+          {
+            "type": "null"
+          }
+        ]
       },
       "project_url": {
         "type": "string"
@@ -13142,6 +13315,19 @@
         ],
         "type": "object"
       },
+      "InstallationMethod": {
+        "description": "User-facing installation behavior supplied by the catalog. Adapters remain an\nimplementation detail and must not be translated into product copy by clients.",
+        "enum": [
+          "portable-package",
+          "portable-recompilation",
+          "staged-game-files",
+          "referenced-disc",
+          "generated-game-data",
+          "upstream-setup",
+          "managed-recompilation"
+        ],
+        "type": "string"
+      },
       "PersistentFilePattern": {
         "properties": {
           "prefix": {
@@ -13295,6 +13481,16 @@
           "portable_marker": {
             "default": false,
             "type": "boolean"
+          },
+          "presentation": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PortPresentation"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "project_url": {
             "type": "string"
@@ -13467,6 +13663,29 @@
           "setup_marker",
           "setup_output_paths",
           "upstream_status"
+        ],
+        "type": "object"
+      },
+      "PortPresentation": {
+        "description": "Additive catalog-owned facts intended for user-facing clients. Older catalog\ndocuments may omit this object; current embedded definitions provide it.",
+        "properties": {
+          "installation_method": {
+            "$ref": "#/$defs/InstallationMethod"
+          },
+          "saves_and_settings": {
+            "$ref": "#/$defs/SavesAndSettingsBehavior"
+          },
+          "source_requirements": {
+            "items": {
+              "$ref": "#/$defs/SourceRequirementPresentation"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "installation_method",
+          "source_requirements",
+          "saves_and_settings"
         ],
         "type": "object"
       },
@@ -13729,6 +13948,12 @@
           "materialization"
         ],
         "type": "object"
+      },
+      "SavesAndSettingsBehavior": {
+        "enum": [
+          "portcove-managed"
+        ],
+        "type": "string"
       },
       "SourceCatalog": {
         "additionalProperties": false,
@@ -14444,6 +14669,29 @@
         ],
         "type": "object"
       },
+      "SourceRequirementPresentation": {
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "profile_id": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/$defs/PortSourceRole"
+          },
+          "verification": {
+            "$ref": "#/$defs/SourceVerificationMethod"
+          }
+        },
+        "required": [
+          "role",
+          "profile_id",
+          "label",
+          "verification"
+        ],
+        "type": "object"
+      },
       "SourceValidatorContract": {
         "additionalProperties": false,
         "properties": {
@@ -14560,6 +14808,14 @@
             "type": "object"
           }
         ]
+      },
+      "SourceVerificationMethod": {
+        "enum": [
+          "catalog-identity",
+          "upstream-validator",
+          "catalog-rules"
+        ],
+        "type": "string"
       },
       "SupportTier": {
         "enum": [

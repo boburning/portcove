@@ -106,11 +106,25 @@ export type AdapterKind =
   | "upstream-managed-setup"
   | "psx-recomp-managed";
 export type Platform = "windows-x86-64" | "linux-x86-64" | "macos-x86-64" | "macos-aarch64";
+/**
+ * User-facing installation behavior supplied by the catalog. Adapters remain an
+ * implementation detail and must not be translated into product copy by clients.
+ */
+export type InstallationMethod =
+  | "portable-package"
+  | "portable-recompilation"
+  | "staged-game-files"
+  | "referenced-disc"
+  | "generated-game-data"
+  | "upstream-setup"
+  | "managed-recompilation";
+export type SavesAndSettingsBehavior = "portcove-managed";
+export type PortSourceRole = "game" | "bios";
+export type SourceVerificationMethod = "catalog-identity" | "upstream-validator" | "catalog-rules";
 export type RuntimeSourceMaterialization =
   "n64-big-endian" | "copy" | "gamecube-iso" | "psx-bin-cue" | "psx-raw-set" | "ps2-iso" | "stfs-directory";
 export type SupportTier = "stable" | "beta" | "rolling";
 export type CatalogAdmissionMode = "enforced" | "informational";
-export type PortSourceRole = "game" | "bios";
 export type CatalogEvidenceRole =
   "upstream_support" | "byte_identity" | "preservation_crosswalk" | "portcove_qualification";
 export type SourceIdentityKind = "file" | "file-set" | "optical-disc" | "multi-disc-set" | "compound";
@@ -851,6 +865,7 @@ export interface PortDefinition {
   persistent_paths: string[];
   platforms: Platform[];
   portable_marker: boolean;
+  presentation?: PortPresentation | null;
   project_url: string;
   release: ReleaseSpec;
   runtime_mutable_paths: string[];
@@ -888,6 +903,23 @@ export interface BundledRuntime {
 export interface PersistentFilePattern {
   prefix: string;
   suffix: string;
+  [k: string]: unknown;
+}
+/**
+ * Additive catalog-owned facts intended for user-facing clients. Older catalog
+ * documents may omit this object; current embedded definitions provide it.
+ */
+export interface PortPresentation {
+  installation_method: InstallationMethod;
+  saves_and_settings: SavesAndSettingsBehavior;
+  source_requirements: SourceRequirementPresentation[];
+  [k: string]: unknown;
+}
+export interface SourceRequirementPresentation {
+  label: string;
+  profile_id: string;
+  role: PortSourceRole;
+  verification: SourceVerificationMethod;
   [k: string]: unknown;
 }
 export interface ReleaseSpec {
