@@ -133,10 +133,70 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
     "states",
     "Starfox-MSU1.PAK",
   ]);
-  assert.equal(migrated.source_catalog.qualification.length, 3);
+  assert.equal(migrated.source_catalog.qualification.length, 7);
+  const ygofmQualification = migrated.source_catalog.qualification.filter(
+    (record) => record.scope.port_id === "yu-gi-oh-forbidden-memories-recompiled",
+  );
+  assert.deepEqual(
+    ygofmQualification.map((record) => [record.kind, record.outcome]),
+    [
+      ["structural_check", "passed"],
+      ["automated_lifecycle", "passed"],
+    ],
+  );
   assert.equal(
-    migrated.source_catalog.qualification.every(
-      (record) => record.scope.port_id === "snap64-recomp",
+    ygofmQualification.every(
+      (record) =>
+        record.scope.artifact_sha256 ===
+          "4eed315000952dee7a751a05de4413a88777cf49609d29ab77ee3765a44d0f53" &&
+        record.scope.upstream_ref === "v0.6.1" &&
+        record.scope.check_version === "ygofm-windows-qualification-v1" &&
+        record.evidence_ids.includes("yu-gi-oh-forbidden-memories-recompiled-windows-2026-09-15"),
+    ),
+    true,
+  );
+  assert.deepEqual(contract("yu-gi-oh-forbidden-memories-recompiled").applicability, [
+    {
+      upstream_ref: "v0.6.1",
+      artifact_sha256: "4eed315000952dee7a751a05de4413a88777cf49609d29ab77ee3765a44d0f53",
+    },
+  ]);
+  assert.equal(
+    contract("yu-gi-oh-forbidden-memories-recompiled").evidence_ids.includes(
+      "yu-gi-oh-forbidden-memories-recompiled-windows-2026-09-15",
+    ),
+    true,
+  );
+  const personaQualification = migrated.source_catalog.qualification.filter(
+    (record) => record.scope.port_id === "revelations-persona-recompiled",
+  );
+  assert.deepEqual(
+    personaQualification.map((record) => [record.kind, record.outcome]),
+    [
+      ["structural_check", "passed"],
+      ["automated_lifecycle", "passed"],
+    ],
+  );
+  assert.equal(
+    personaQualification.every(
+      (record) =>
+        record.scope.artifact_sha256 ===
+          "f4336030ba9c0e032061ad6892aa5ce9ff01c4cedcbaf3a5355428e6d728158a" &&
+        record.scope.upstream_ref === "v0.1.1" &&
+        record.scope.check_version === "persona-windows-qualification-v1" &&
+        record.evidence_ids.includes("revelations-persona-recompiled-windows-2026-09-15"),
+    ),
+    true,
+  );
+  assert.deepEqual(contract("revelations-persona-recompiled").applicability, [
+    {
+      upstream_ref: "v0.1.1",
+      artifact_sha256: "f4336030ba9c0e032061ad6892aa5ce9ff01c4cedcbaf3a5355428e6d728158a",
+    },
+  ]);
+  assert.equal(
+    contract("revelations-persona-recompiled").evidence_ids.includes(
+      "revelations-persona-recompiled-windows-2026-09-15",
     ),
     true,
   );

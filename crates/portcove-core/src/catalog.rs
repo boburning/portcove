@@ -1301,14 +1301,30 @@ mod tests {
             serde_json::to_value(migrated_legacy_ports).unwrap(),
             serde_json::to_value(expected_ports).unwrap()
         );
-        assert_eq!(migrated.source_catalog().unwrap().qualification.len(), 3);
-        assert!(
-            migrated
-                .source_catalog()
-                .unwrap()
-                .qualification
+        let qualification = &migrated.source_catalog().unwrap().qualification;
+        assert_eq!(qualification.len(), 7);
+        assert_eq!(
+            qualification
                 .iter()
-                .all(|record| record.scope.port_id == "snap64-recomp")
+                .filter(|record| record.scope.port_id == "snap64-recomp")
+                .count(),
+            3
+        );
+        assert_eq!(
+            qualification
+                .iter()
+                .filter(|record| {
+                    record.scope.port_id == "yu-gi-oh-forbidden-memories-recompiled"
+                })
+                .count(),
+            2
+        );
+        assert_eq!(
+            qualification
+                .iter()
+                .filter(|record| record.scope.port_id == "revelations-persona-recompiled")
+                .count(),
+            2
         );
         assert!(migrated.document().ports.iter().any(|port| {
             !port.automated_tested_platforms.is_empty()
@@ -2776,6 +2792,116 @@ mod tests {
                 "Snap64 persistence contract is missing {path}"
             );
         }
+    }
+
+    #[test]
+    fn yu_gi_oh_v061_has_exact_bounded_windows_qualification() {
+        let catalog = Catalog::embedded().expect("catalog should load");
+        let port = catalog
+            .port("yu-gi-oh-forbidden-memories-recompiled")
+            .unwrap();
+        assert!(port.automated_tested_platforms.is_empty());
+        assert!(port.manually_validated_platforms.is_empty());
+        let scope = crate::SourceEvidenceScope {
+            port_id: port.id.clone(),
+            platform: Platform::WindowsX86_64,
+            artifact_sha256: Some(
+                "4eed315000952dee7a751a05de4413a88777cf49609d29ab77ee3765a44d0f53".into(),
+            ),
+            upstream_ref: Some("v0.6.1".into()),
+            contract_id: Some("yu-gi-oh-forbidden-memories-recompiled-game-source".into()),
+            variant: crate::SourceVariantScope::Exact {
+                identity: crate::SourceIdentity {
+                    game_id: "yu-gi-oh-forbidden-memories-psx".into(),
+                    variant_id: "legacy-accepted".into(),
+                    representation_id: "normalized-track-set".into(),
+                },
+            },
+            check_version: Some("ygofm-windows-qualification-v1".into()),
+        };
+        let qualification = catalog
+            .source_catalog()
+            .unwrap()
+            .assess_qualification(&scope);
+        assert_eq!(
+            qualification.structural_check,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            qualification.automated_lifecycle,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            qualification.hands_on,
+            crate::QualificationEvidenceState::Missing
+        );
+        assert_eq!(
+            qualification.known_failure,
+            crate::QualificationEvidenceState::Missing
+        );
+    }
+
+    #[test]
+    fn persona_v011_has_exact_bounded_windows_qualification() {
+        let catalog = Catalog::embedded().expect("catalog should load");
+        let port = catalog.port("revelations-persona-recompiled").unwrap();
+        assert!(port.automated_tested_platforms.is_empty());
+        assert!(port.manually_validated_platforms.is_empty());
+        let scope = crate::SourceEvidenceScope {
+            port_id: port.id.clone(),
+            platform: Platform::WindowsX86_64,
+            artifact_sha256: Some(
+                "f4336030ba9c0e032061ad6892aa5ce9ff01c4cedcbaf3a5355428e6d728158a".into(),
+            ),
+            upstream_ref: Some("v0.1.1".into()),
+            contract_id: Some("revelations-persona-recompiled-game-source".into()),
+            variant: crate::SourceVariantScope::Exact {
+                identity: crate::SourceIdentity {
+                    game_id: "revelations-persona-psx".into(),
+                    variant_id: "legacy-accepted".into(),
+                    representation_id: "normalized-track-set".into(),
+                },
+            },
+            check_version: Some("persona-windows-qualification-v1".into()),
+        };
+        let qualification = catalog
+            .source_catalog()
+            .unwrap()
+            .assess_qualification(&scope);
+        assert_eq!(
+            qualification.structural_check,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            qualification.automated_lifecycle,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            qualification.hands_on,
+            crate::QualificationEvidenceState::Missing
+        );
+        assert_eq!(
+            qualification.known_failure,
+            crate::QualificationEvidenceState::Missing
+        );
+        let mismatched_artifact_scope = crate::SourceEvidenceScope {
+            artifact_sha256: Some(
+                "0000000000000000000000000000000000000000000000000000000000000000".into(),
+            ),
+            ..scope
+        };
+        let mismatched_artifact = catalog
+            .source_catalog()
+            .unwrap()
+            .assess_qualification(&mismatched_artifact_scope);
+        assert_eq!(
+            mismatched_artifact.structural_check,
+            crate::QualificationEvidenceState::Missing
+        );
+        assert_eq!(
+            mismatched_artifact.automated_lifecycle,
+            crate::QualificationEvidenceState::Missing
+        );
     }
 
     #[test]

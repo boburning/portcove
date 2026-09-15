@@ -128,15 +128,20 @@ entries with source, release, upstream, or native-platform blockers remain
 unqualified. This attestation does not imply qualification for any other
 declared platform.
 
-Yu-Gi-Oh! Forbidden Memories v0.5.3 and Revelations: Persona v0.1.1 have exact
-upstream Track 01 contracts and completed clean Windows managed builds,
-post-build manifest verification, registered-source rechecks, and responsive
-named-launcher checks from matching RomM CHDs. Removal and clean reinstallation
-also restored their generated input configuration byte-for-byte. Their
-`input.ini` files are persistent user configuration and
-`psx_last_run_report.json` is reviewed disposable runtime output. Neither entry
-claims automated or hands-on qualification until update, rollback, controls,
-gameplay, and real save/load evidence is complete.
+Yu-Gi-Oh! Forbidden Memories v0.6.1 has exact Windows structural and bounded
+automated lifecycle records for its Track 01 contract, checksum-qualified
+artifact, clean managed build, immutable verification, responsive native
+launches, persistence, backup restore, removal, and clean reinstall. Its check
+contract does not claim hands-on gameplay, controls, audio, in-game save/load,
+non-Windows platforms, or v0.5.7-to-v0.6.1 update/rollback. Revelations: Persona
+v0.1.1 has exact Windows structural and bounded automated lifecycle records for
+its owned-input artifact and Track 01 contract, including v0.1.0 installation,
+v0.1.1 update, no-op, rollback/reactivation, fail-closed verification, repaired
+native launches, persistence, and backup restore. It does not claim hands-on
+gameplay, controls, audio, in-game save/load, non-Windows platforms, or removal
+and clean reinstall under the repaired configuration-copy contract. For both
+ports, `input.ini` is persistent user configuration and
+`psx_last_run_report.json` is reviewed disposable runtime output.
 
 ## Adding or changing a port
 
