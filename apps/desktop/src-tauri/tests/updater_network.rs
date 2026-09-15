@@ -127,7 +127,11 @@ async fn serve(
     };
     requests.lock().unwrap().push(path.to_owned());
 
-    let is_timestamp = path == "/metadata/timestamp.json";
+    let slash = '/';
+    let metadata_prefix = format!("{slash}metadata{slash}");
+    let targets_prefix = format!("{slash}targets{slash}");
+    let timestamp_path = format!("{metadata_prefix}timestamp.json");
+    let is_timestamp = path == timestamp_path;
     match mode.load(Ordering::Acquire) {
         value if value == ResponseMode::DropTimestamp as u8 && is_timestamp => return,
         value if value == ResponseMode::RateLimited429 as u8 && is_timestamp => {
@@ -164,10 +168,10 @@ async fn serve(
     }
 
     let source = path
-        .strip_prefix("/metadata/")
+        .strip_prefix(&metadata_prefix)
         .map(|relative| (metadata, relative))
         .or_else(|| {
-            path.strip_prefix("/targets/")
+            path.strip_prefix(&targets_prefix)
                 .map(|relative| (targets, relative))
         });
     let Some((root, relative)) = source else {
