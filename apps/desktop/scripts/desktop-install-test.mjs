@@ -297,18 +297,24 @@ export async function installScenarios({
       observations.commands_after_retry = await browser.executeScript(
         () => window.__portcoveInstallRefreshProbe.calls,
       );
+      observations.retry_commands = observations.commands_after_retry.slice(
+        observations.commands_before_retry.length,
+      );
+      const retryReads = new Set([
+        "get_activities",
+        "get_workspace_changed",
+        "get_workspace_snapshot",
+      ]);
+      assert.ok(observations.retry_commands.includes("get_workspace_snapshot"));
+      assert.ok(
+        observations.retry_commands.every((command) => retryReads.has(command)),
+        JSON.stringify(observations.retry_commands),
+      );
       assert.equal(
         observations.commands_after_retry.filter((command) => command === "install_port").length,
         1,
       );
       assert.equal(fixture.requests.length, requestIndex + 1);
-      assert.ok(
-        observations.commands_after_retry.filter((command) => command === "get_workspace_snapshot")
-          .length >
-          observations.commands_before_retry.filter(
-            (command) => command === "get_workspace_snapshot",
-          ).length,
-      );
       observations.retry_read_only = true;
     } catch (error) {
       observations.failure = error.message;
