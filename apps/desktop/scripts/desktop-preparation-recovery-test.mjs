@@ -399,11 +399,18 @@ export async function interruptedPreparationScenario({
     controls = reviewControls(browser);
     await dismissApplicationUpdateChoice();
     await browser.findElement(By.xpath('//nav//button[contains(., "Updates")]')).click();
-    await controls.click(By.css(`[data-recovery-operation="${journalOnlyId}"] summary`));
-    const journalOnlyCleanupReview = await browser.findElement(
-      By.xpath(
-        `//*[@data-recovery-operation="${journalOnlyId}"]//button[normalize-space(.)="Review private-file cleanup"]`,
-      ),
+    const journalOnlyReview = await browser.wait(
+      until.elementLocated(By.css(`[data-recovery-operation="${journalOnlyId}"]`)),
+      15_000,
+    );
+    await journalOnlyReview.findElement(By.css("summary")).click();
+    await browser.wait(
+      async () => (await journalOnlyReview.getAttribute("open")) !== null,
+      5_000,
+      "The journal-only recovery disclosure must be open before cleanup review",
+    );
+    const journalOnlyCleanupReview = await journalOnlyReview.findElement(
+      By.xpath('.//button[normalize-space(.)="Review private-file cleanup"]'),
     );
     await browser.executeScript(
       'arguments[0].scrollIntoView({ block: "center", inline: "nearest" });',
