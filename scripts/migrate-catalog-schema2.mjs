@@ -223,12 +223,12 @@ const evidence = [
     id: "revelations-persona-recompiled-windows-2026-09-15",
     role: "portcove_qualification",
     authority: "boburning/portcove",
-    authority_ref: "31b1f244876d77ccbe66a566ba7a41366764aa38",
+    authority_ref: "b4eb674efe0415350eab0b42f71d4c900ef1a465",
     reviewed_at: "2026-09-15",
     claim:
       "Records exact Windows structural and bounded automated lifecycle passes for Revelations: Persona Recompiled v0.1.1",
     immutable_url:
-      "https://github.com/boburning/portcove/blob/31b1f244876d77ccbe66a566ba7a41366764aa38/docs/qualification/revelations-persona-recompiled-windows-2026-09-15.md",
+      "https://github.com/boburning/portcove/blob/b4eb674efe0415350eab0b42f71d4c900ef1a465/docs/qualification/revelations-persona-recompiled-windows-2026-09-15.md",
     live_url:
       "https://github.com/boburning/portcove/blob/main/docs/qualification/revelations-persona-recompiled-windows-2026-09-15.md",
   },
@@ -1007,10 +1007,10 @@ personaContract.evidence_ids = [
     "revelations-persona-recompiled-windows-2026-09-15",
   ]),
 ];
-personaContract.authority_ref = "31b1f244876d77ccbe66a566ba7a41366764aa38";
+personaContract.authority_ref = "b4eb674efe0415350eab0b42f71d4c900ef1a465";
 personaContract.reviewed_at = "2026-09-15";
 personaContract.immutable_review_url =
-  "https://github.com/boburning/portcove/blob/31b1f244876d77ccbe66a566ba7a41366764aa38/docs/qualification/revelations-persona-recompiled-windows-2026-09-15.md";
+  "https://github.com/boburning/portcove/blob/b4eb674efe0415350eab0b42f71d4c900ef1a465/docs/qualification/revelations-persona-recompiled-windows-2026-09-15.md";
 personaContract.live_review_url =
   "https://github.com/boburning/portcove/blob/main/docs/qualification/revelations-persona-recompiled-windows-2026-09-15.md";
 personaContract.applicability = [
