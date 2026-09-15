@@ -434,7 +434,7 @@ export async function interruptedPreparationScenario({
     await controls.click(controls.button("Remove empty private state"));
     await confirmNative(
       "Confirm retained preparation cleanup",
-      "Remove reviewed private files",
+      "Remove empty private state",
       journalOnlyPath,
       "journal-only-preparation-cleanup-confirmed",
     );
