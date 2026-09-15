@@ -103,6 +103,15 @@ const reviewedSources = {
     path: "platform/rom_validation.c",
     reviewedAt: "2026-09-15",
   },
+  starFoxEnhanced: {
+    evidenceId: "star-fox-enhanced-0-0-6-7-source-contract",
+    repository: "kandowontu/starfox-enhanced",
+    ref: "2455f8cc7a2f71a0dcd4b9d6f0c80e0ef2d83273",
+    tag: "v0.0.6.7",
+    liveRef: "main",
+    path: "src/app/starfox_pc.cpp",
+    reviewedAt: "2026-09-15",
+  },
 };
 
 function upstreamEvidence(source, claim) {
@@ -179,6 +188,10 @@ const evidence = [
   upstreamEvidence(
     reviewedSources.goldenBalloon,
     "Limits Golden Balloon 1.7.0 to verified US Rev 1 and European Rev 1 Diddy Kong Racing sources",
+  ),
+  upstreamEvidence(
+    reviewedSources.starFoxEnhanced,
+    "Validates supported retail Star Fox and Starwing revisions before locally generating portable runtime assets",
   ),
   {
     id: "snap64-recomp-windows-2026-09-13",
@@ -479,6 +492,40 @@ identities.push({
       ],
       reviewedSources.goldenBalloon.evidenceId,
     ),
+  ],
+  aliases: [],
+  tombstones: [],
+  evidence_gap: null,
+});
+
+identities.push({
+  id: "star-fox-enhanced-usa-v1-0",
+  label: "Star Fox (USA) v1.0 source for Star Fox Enhanced",
+  kind: "file",
+  variants: [
+    {
+      id: "usa-v1-0",
+      title: "Star Fox",
+      region: "USA",
+      revision: "v1.0",
+      product_codes: [],
+      representations: [
+        {
+          id: "unheadered-rom",
+          extensions: ["sfc", "smc"],
+          kind: "raw-file",
+          identities: [
+            digest(
+              "normalized-content",
+              "1f5355534ccfaf26ae6c8f055f3e4768f9d72a7e",
+              "3857b5294ea8f7468849437bb2d8271564e8a0ff30774622e9c872bcbd53a84d",
+            ),
+          ],
+          evidence_ids: [reviewedSources.starFoxEnhanced.evidenceId],
+        },
+      ],
+      evidence_ids: [reviewedSources.starFoxEnhanced.evidenceId],
+    },
   ],
   aliases: [],
   tombstones: [],
@@ -834,6 +881,30 @@ contracts.push({
   tombstones: [],
 });
 
+contracts.push({
+  id: "star-fox-enhanced-game-source",
+  port_id: "star-fox-enhanced",
+  role: "game",
+  profile_id: "star-fox-enhanced-usa-v1-0",
+  admission_mode: "enforced",
+  supported_variant_ids: ["usa-v1-0"],
+  validator_contract_id: null,
+  evidence_ids: [reviewedSources.starFoxEnhanced.evidenceId],
+  authority_ref: reviewedSources.starFoxEnhanced.ref,
+  reviewed_at: reviewedSources.starFoxEnhanced.reviewedAt,
+  immutable_review_url: `https://github.com/${reviewedSources.starFoxEnhanced.repository}/blob/${reviewedSources.starFoxEnhanced.ref}/${reviewedSources.starFoxEnhanced.path}`,
+  live_review_url: `https://github.com/${reviewedSources.starFoxEnhanced.repository}/blob/${reviewedSources.starFoxEnhanced.liveRef}/${reviewedSources.starFoxEnhanced.path}`,
+  evidence_gap: null,
+  applicability: [
+    {
+      upstream_ref: reviewedSources.starFoxEnhanced.tag,
+      artifact_sha256: "e1b8569fe5712b4e2cb99effa50b8527d86311ede55f3570ae1537d414f29abe",
+    },
+  ],
+  aliases: [],
+  tombstones: [],
+});
+
 function reviewContract(portId, source, supportedVariantIds, extraEvidenceIds = []) {
   const contract = contracts.find(
     (candidate) => candidate.port_id === portId && candidate.role === "game",
@@ -940,6 +1011,8 @@ const normalizedSummaries = {
   "cvlod-recomp": "Native Castlevania: Legacy of Darkness recompilation.",
   "diddy-kong-racing-golden-balloon":
     "Native Diddy Kong Racing recompilation with strict Rev 1 source validation.",
+  "star-fox-enhanced":
+    "Expands Star Fox and Star Fox EX with widescreen presentation and configurable controls.",
 };
 
 function sourceRequirement(port, role, field) {
@@ -1260,6 +1333,40 @@ const migrated = {
       runtime_source_filename: "dkr-v80.z64",
       runtime_source_materialization: "n64-big-endian",
       launch_arguments: ["--rom", "dkr-v80.z64"],
+    }),
+    withPresentation({
+      id: "star-fox-enhanced",
+      name: "Star Fox Enhanced",
+      summary:
+        "Expands Star Fox and Star Fox EX with widescreen presentation and configurable controls.",
+      project_url: "https://github.com/kandowontu/starfox-enhanced",
+      support_tier: "beta",
+      channels: ["beta"],
+      platforms: ["windows-x86-64"],
+      automated_tested_platforms: [],
+      manually_validated_platforms: [],
+      adapter: "staged-source-portable",
+      release: {
+        repository: "kandowontu/starfox-enhanced",
+        asset_hints: {
+          "windows-x86-64": ["StarFoxEnhanced-", "windows-x64.zip"],
+        },
+      },
+      source_profile: "star-fox-enhanced-usa-v1-0",
+      executable_hints: {
+        "windows-x86-64": ["starfox_pc.exe"],
+      },
+      persistent_paths: [
+        "Starfox-Assets.BIN",
+        "starfox-ex.srm",
+        "pregame.cfg",
+        "input-bindings.cfg",
+        "hud-layout.cfg",
+        "states",
+        "Starfox-MSU1.PAK",
+      ],
+      runtime_mutable_paths: ["Starfox-Assets.BIN.tmp"],
+      source_environment: "STARFOX_RETAIL_ROM",
     }),
   ],
 };
