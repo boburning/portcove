@@ -86,6 +86,25 @@ fn lowercase_sha256(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
 }
 
+fn payload_verification_key(
+    public_key_file: &[u8],
+    expected_id: &str,
+) -> Result<PayloadVerificationKey, String> {
+    let public_key_wrapper = std::str::from_utf8(public_key_file)
+        .map_err(|_| "Tauri public-key file is not UTF-8".to_owned())?;
+    let public_key = base64::engine::general_purpose::STANDARD
+        .decode(public_key_wrapper.trim())
+        .map_err(|_| "Tauri public-key file is not base64".to_owned())?;
+    let id = lowercase_sha256(&public_key);
+    if id != expected_id {
+        return Err("public key does not match the verified inventory".into());
+    }
+    Ok(PayloadVerificationKey {
+        id,
+        tauri_public_key: base64::engine::general_purpose::STANDARD.encode(public_key),
+    })
+}
+
 fn direct_filename(path: &Path) -> Result<&str, String> {
     path.file_name()
         .and_then(|name| name.to_str())
@@ -210,11 +229,9 @@ async fn verify(arguments: &[String]) -> Result<Evidence, String> {
     if direct_filename(&payload_path)? != inventory.updater.filename {
         return Err("payload filename does not match the verified inventory".into());
     }
-    let public_key = std::fs::read(public_key_path).map_err(|error| error.to_string())?;
-    let payload_key_id = lowercase_sha256(&public_key);
-    if payload_key_id != inventory.updater.public_key_sha256 {
-        return Err("public key does not match the verified inventory".into());
-    }
+    let public_key_file = std::fs::read(public_key_path).map_err(|error| error.to_string())?;
+    let key = payload_verification_key(&public_key_file, &inventory.updater.public_key_sha256)?;
+    let payload_key_id = key.id.clone();
     let signature = if matches!(case, VerificationCase::Missing) {
         if signature_path != "-" {
             return Err("missing-signature requires '-' instead of a signature path".into());
@@ -237,10 +254,6 @@ async fn verify(arguments: &[String]) -> Result<Evidence, String> {
             .to_owned()
     };
     let candidate = build_candidate(&inventory, &lowercase_sha256(&inventory_bytes), signature)?;
-    let key = PayloadVerificationKey {
-        id: payload_key_id.clone(),
-        tauri_public_key: base64::engine::general_purpose::STANDARD.encode(public_key),
-    };
     let store = ApplicationUpdateStagingStore::new(PathBuf::from(staging_root))
         .map_err(|error| error.to_string())?;
     let mut payload = tokio::fs::File::open(&payload_path)
@@ -303,6 +316,29 @@ async fn verify(arguments: &[String]) -> Result<Evidence, String> {
             })
         }
         (_, Ok(_)) => Err("invalid packaged payload was accepted".into()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const PUBLIC_KEY: &str = "untrusted comment: minisign public key E7620F1842B4E81F\nRWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3\n";
+
+    #[test]
+    fn tauri_wrapper_is_decoded_before_key_identity_is_hashed() {
+        let wrapped = format!(
+            "{}\n",
+            base64::engine::general_purpose::STANDARD.encode(PUBLIC_KEY)
+        );
+        let expected_id = lowercase_sha256(PUBLIC_KEY.as_bytes());
+        let key = payload_verification_key(wrapped.as_bytes(), &expected_id).unwrap();
+        assert_eq!(key.id, expected_id);
+        assert_eq!(
+            key.tauri_public_key,
+            base64::engine::general_purpose::STANDARD.encode(PUBLIC_KEY)
+        );
+        assert_ne!(key.id, lowercase_sha256(wrapped.as_bytes()));
     }
 }
 
