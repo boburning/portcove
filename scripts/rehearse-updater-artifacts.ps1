@@ -11,7 +11,9 @@ $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 Set-Location -LiteralPath $root
 if ($TransitionProfile -eq "preview-final" -and $PlatformLabel -ne "linux-x86_64") {
-    throw "The preview-final packaged transition is currently qualified only for linux-x86_64"
+    $message = "The preview-final packaged transition is currently qualified only for linux-x86_64"
+    [Console]::Error.WriteLine($message)
+    throw $message
 }
 $transition = [ordered]@{
     profile = $TransitionProfile
