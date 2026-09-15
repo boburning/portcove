@@ -7,21 +7,22 @@ port to Supported or manufacturing hands-on evidence.
 
 ## Scope
 
-| Identity              | Value                                                              |
-| --------------------- | ------------------------------------------------------------------ |
-| Portcove commit       | `623fd1e215a81d530ef0bf0d372b33a92445cb35`                         |
-| Portcove version      | `0.1.0-alpha.2`                                                    |
-| Platform              | `windows-x86-64`                                                   |
-| Upstream ref          | `v0.1.1`                                                           |
-| Upstream commit       | `38fa6f4cf49a9a03244a64d2a12762074ed23348`                         |
-| Release asset         | `revp-0.1.1-windows-x86_64-owned-input.zip`                        |
-| Artifact size         | `29,260,787` bytes                                                 |
-| Artifact SHA-256      | `f4336030ba9c0e032061ad6892aa5ce9ff01c4cedcbaf3a5355428e6d728158a` |
-| Source contract       | `revelations-persona-recompiled-game-source`                       |
-| Source variant        | `legacy-accepted`                                                  |
-| Source representation | `normalized-track-set`                                             |
-| Check contract        | `persona-windows-qualification-v1`                                 |
-| Isolated library      | `H:\Portcove-Worktrees\persona-fixed-evidence`                     |
+| Identity              | Value                                                                         |
+| --------------------- | ----------------------------------------------------------------------------- |
+| Portcove commit       | `623fd1e215a81d530ef0bf0d372b33a92445cb35`                                    |
+| Portcove version      | `0.1.0-alpha.2`                                                               |
+| Platform              | `windows-x86-64`                                                              |
+| Upstream ref          | `v0.1.1`                                                                      |
+| Upstream commit       | `38fa6f4cf49a9a03244a64d2a12762074ed23348`                                    |
+| Release asset         | `revp-0.1.1-windows-x86_64-owned-input.zip`                                   |
+| Artifact size         | `29,260,787` bytes                                                            |
+| Artifact SHA-256      | `f4336030ba9c0e032061ad6892aa5ce9ff01c4cedcbaf3a5355428e6d728158a`            |
+| Source contract       | `revelations-persona-recompiled-game-source`                                  |
+| Source variant        | `legacy-accepted`                                                             |
+| Source representation | `normalized-track-set`                                                        |
+| Check contract        | `persona-windows-qualification-v1`                                            |
+| Original library path | `H:\Portcove-Worktrees\persona-fixed-evidence`                                |
+| Retained evidence     | `H:\Portcove-Maintenance\2026-09-14\retained-evidence\persona-fixed-evidence` |
 
 The v0.1.1 tag points directly to the commit above. GitHub's published digest,
 the release checksum inventory, and the independently downloaded asset agreed.
@@ -74,8 +75,9 @@ verification correctly rejected the installation. Upstream had written
 `controller.multitap_analog` into the immutable `game.toml` template and created
 undeclared `bios.cfg`, `disc.cfg`, and `psx_freeze_heartbeat.json`; the packaged
 `keybinds.ini` was also classified incorrectly as immutable player data. The
-failed library and reports remain preserved at
-`H:\Portcove-Worktrees\persona-evidence`.
+failed library and reports were produced at
+`H:\Portcove-Worktrees\persona-evidence` and remain preserved at
+`H:\Portcove-Maintenance\2026-09-14\retained-evidence\persona-evidence`.
 
 PR #504 repaired the generic managed-PS1 boundary. Each launch now regenerates
 the runtime configuration from the verified template and the current verified
