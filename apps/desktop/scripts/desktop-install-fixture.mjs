@@ -5,7 +5,7 @@ import path from "node:path";
 import { gzipSync } from "node:zlib";
 
 export const INSTALL_FIXTURE_PORT_ID = "portcove-install-fixture";
-export const INSTALL_FIXTURE_NAME = "Portcove Install Fixture";
+const INSTALL_FIXTURE_NAME = "Portcove Install Fixture";
 const artifactName = "portcove-install-fixture.tar.gz";
 
 function platformContract() {
@@ -63,7 +63,7 @@ function deterministicPayload(size = 3 * 1024 * 1024) {
   return payload;
 }
 
-export function createInstallArtifact() {
+function createInstallArtifact() {
   const { executable } = platformContract();
   const payload = deterministicPayload();
   const tar = Buffer.concat([tarEntry(executable, payload, 0o755), Buffer.alloc(1024)]);
