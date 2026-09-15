@@ -240,6 +240,14 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(rehearsal, /application-update-qualification/);
   assert.match(rehearsal, /private_signing_inputs_absent/);
   assert.match(rehearsal, /-PayloadPrivateKeyPath \$privateKey -RequireSigningAuthorityAbsent/);
+  assert.match(rehearsal, /windows-payload-consumer\.json/);
+  assert.match(rehearsal, /verify_packaged_application_update/);
+  assert.match(rehearsal, /name = "missing-signature"/);
+  assert.match(rehearsal, /name = "wrong-signature"/);
+  assert.match(rehearsal, /name = "valid-signature"/);
+  assert.match(rehearsal, /wrong_signature_verified_with_distinct_key = \$true/);
+  assert.match(rehearsal, /Remove-Item -LiteralPath \$wrongPrivateRoot -Recurse -Force/);
+  const windowsConsumer = rehearsal.indexOf("verify_packaged_application_update");
   const windowsHarness = rehearsal.indexOf("test-windows-installer.ps1");
   const windowsPrivateKeyRemoval = rehearsal.lastIndexOf(
     "Remove-Item -LiteralPath $privateKey -Force",
@@ -252,6 +260,22 @@ test("manual rehearsal retains the complete matrix without production credential
   const windowsPasswordEnvironmentRemoval = rehearsal.lastIndexOf(
     "Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue",
     windowsHarness,
+  );
+  assert.ok(
+    windowsConsumer >= 0 && windowsConsumer < windowsHarness,
+    "packaged payload rejection and positive controls must precede Windows installation",
+  );
+  assert.ok(
+    windowsPrivateKeyRemoval >= 0 && windowsPrivateKeyRemoval < windowsConsumer,
+    "the disposable payload private key must be removed before Windows consumer execution",
+  );
+  const windowsWrongPrivateRootRemoval = rehearsal.lastIndexOf(
+    "Remove-Item -LiteralPath $wrongPrivateRoot -Recurse -Force",
+    windowsConsumer,
+  );
+  assert.ok(
+    windowsWrongPrivateRootRemoval >= 0 && windowsWrongPrivateRootRemoval < windowsConsumer,
+    "the wrong-signature private key root must be removed before Windows consumer execution",
   );
   assert.ok(
     windowsHarness >= 0 &&
@@ -268,6 +292,17 @@ test("manual rehearsal retains the complete matrix without production credential
   );
   assert.match(rehearsal, /Remove-Item -LiteralPath \(Join-Path \$fixtureRoot "private"\)/);
   assert.match(rehearsal, /Remove-Item -LiteralPath \$privateKey -Force/);
+  const windowsConsumerExample = await readFile(
+    new URL(
+      "../apps/desktop/src-tauri/examples/verify_packaged_application_update.rs",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  assert.match(windowsConsumerExample, /ApplicationUpdateStagingStore::new/);
+  assert.match(windowsConsumerExample, /store\.stage\(&mut payload, &candidate, &key\)\.await/);
+  assert.match(windowsConsumerExample, /rejected packaged payload retained staged authority/);
+  assert.match(windowsConsumerExample, /staged payload does not match the verified inventory/);
   const linuxConsumer = rehearsal.indexOf('Invoke-Checked "dbus-run-session"');
   const linuxPrivateKeyRemoval = rehearsal.lastIndexOf(
     "Remove-Item -LiteralPath $privateKey -Force",
