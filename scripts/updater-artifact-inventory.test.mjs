@@ -247,6 +247,11 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(rehearsal, /name = "valid-signature"/);
   assert.match(rehearsal, /wrong_signature_verified_with_distinct_key = \$true/);
   assert.match(rehearsal, /Remove-Item -LiteralPath \$wrongPrivateRoot -Recurse -Force/);
+  assert.match(
+    rehearsal,
+    /Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue[\s\S]*Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue[\s\S]*"sign", "--private-key-path", \$wrongPrivateKey, \$wrongCandidate/,
+  );
+  assert.doesNotMatch(rehearsal, /"--private-key-path", \$wrongPrivateKey, "--password", ""/);
   const windowsConsumer = rehearsal.indexOf("verify_packaged_application_update");
   const windowsHarness = rehearsal.indexOf("test-windows-installer.ps1");
   const windowsPrivateKeyRemoval = rehearsal.lastIndexOf(

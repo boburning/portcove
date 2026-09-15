@@ -147,7 +147,16 @@ try {
                 Copy-Item -LiteralPath $installer -Destination $wrongCandidate
                 Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "signer", "generate", "--ci", "--write-keys", $wrongPrivateKey) | Out-Null
                 $wrongPublicKey = "$wrongPrivateKey.pub"
-                Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "signer", "sign", "--private-key-path", $wrongPrivateKey, "--password", "", $wrongCandidate) | Out-Null
+                $savedSigningPrivateKey = $env:TAURI_SIGNING_PRIVATE_KEY
+                $savedSigningPassword = $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+                try {
+                    Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue
+                    Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue
+                    Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "signer", "sign", "--private-key-path", $wrongPrivateKey, $wrongCandidate) | Out-Null
+                } finally {
+                    $env:TAURI_SIGNING_PRIVATE_KEY = $savedSigningPrivateKey
+                    $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = $savedSigningPassword
+                }
                 $wrongVerificationText = (& $verifier verify $wrongCandidate "$wrongCandidate.sig" $wrongPublicKey $candidateInventory.updater.sha256 $candidateInventory.updater.bytes | Out-String).Trim()
                 if ($LASTEXITCODE -ne 0) { throw "The distinct disposable Windows payload signature did not verify with its own key" }
                 $wrongVerification = $wrongVerificationText | ConvertFrom-Json
