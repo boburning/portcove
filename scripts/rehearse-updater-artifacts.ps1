@@ -60,6 +60,7 @@ foreach ($name in $environmentNames) { $previousEnvironment[$name] = [Environmen
 $privateKey = Join-Path $runRoot "disposable.key"
 $publicKey = "$privateKey.pub"
 $wrongPrivateRoot = Join-Path $runRoot "windows-payload-consumer-private"
+$wrongPassword = $null
 $bundleRoot = Join-Path $root "target/release/bundle"
 $cliRoot = Join-Path $root "release-assets"
 $bundles = if ($IsWindows) { "nsis" } elseif ($IsLinux) { "appimage,deb,rpm" } else { "app,dmg" }
@@ -140,22 +141,24 @@ try {
                 $candidateInventory = Get-Content -LiteralPath $candidateInventoryPath -Raw | ConvertFrom-Json
                 $consumerRoot = Join-Path $runRoot "windows-payload-consumer"
                 $wrongPrivateKey = Join-Path $wrongPrivateRoot "wrong-disposable.key"
+                $wrongPassword = [Guid]::NewGuid().ToString("N")
                 $wrongCandidate = Join-Path $wrongPrivateRoot $candidateInventory.updater.filename
                 $wrongSignatureRoot = Join-Path $consumerRoot "wrong-signature"
                 $wrongSignature = Join-Path $wrongSignatureRoot $candidateInventory.updater.signature.filename
                 New-Item -ItemType Directory -Path $wrongPrivateRoot, $wrongSignatureRoot | Out-Null
                 Copy-Item -LiteralPath $installer -Destination $wrongCandidate
-                Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "signer", "generate", "--ci", "--write-keys", $wrongPrivateKey) | Out-Null
+                Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "signer", "generate", "--ci", "--password", $wrongPassword, "--write-keys", $wrongPrivateKey) | Out-Null
                 $wrongPublicKey = "$wrongPrivateKey.pub"
                 $savedSigningPrivateKey = $env:TAURI_SIGNING_PRIVATE_KEY
                 $savedSigningPassword = $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD
                 try {
                     Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue
                     Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue
-                    Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "signer", "sign", "--private-key-path", $wrongPrivateKey, $wrongCandidate) | Out-Null
+                    Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "signer", "sign", "--private-key-path", $wrongPrivateKey, "--password", $wrongPassword, $wrongCandidate) | Out-Null
                 } finally {
                     $env:TAURI_SIGNING_PRIVATE_KEY = $savedSigningPrivateKey
                     $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = $savedSigningPassword
+                    $wrongPassword = $null
                 }
                 $wrongVerificationText = (& $verifier verify $wrongCandidate "$wrongCandidate.sig" $wrongPublicKey $candidateInventory.updater.sha256 $candidateInventory.updater.bytes | Out-String).Trim()
                 if ($LASTEXITCODE -ne 0) { throw "The distinct disposable Windows payload signature did not verify with its own key" }
@@ -171,6 +174,7 @@ try {
                 $native.private_signing_inputs_absent = [ordered]@{
                     payload_private_key = -not [IO.File]::Exists($privateKey)
                     wrong_payload_private_root = -not [IO.Directory]::Exists($wrongPrivateRoot)
+                    wrong_payload_password = $null -eq $wrongPassword
                     signing_private_key_environment = $null -eq [Environment]::GetEnvironmentVariable("TAURI_SIGNING_PRIVATE_KEY", "Process")
                     signing_password_environment = $null -eq [Environment]::GetEnvironmentVariable("TAURI_SIGNING_PRIVATE_KEY_PASSWORD", "Process")
                 }
@@ -458,6 +462,7 @@ try {
         ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runRoot "rehearsal-result.json") -Encoding utf8
     throw
 } finally {
+    $wrongPassword = $null
     foreach ($relative in $metadataPaths) { [IO.File]::WriteAllBytes((Join-Path $root $relative), $original[$relative]) }
     foreach ($name in $environmentNames) { [Environment]::SetEnvironmentVariable($name, $previousEnvironment[$name], "Process") }
     if ([IO.File]::Exists($privateKey)) { [IO.File]::Delete($privateKey) }

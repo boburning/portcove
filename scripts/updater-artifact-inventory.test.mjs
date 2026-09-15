@@ -257,9 +257,10 @@ test("manual rehearsal retains the complete matrix without production credential
   );
   assert.match(
     rehearsal,
-    /Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue[\s\S]*Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue[\s\S]*"sign", "--private-key-path", \$wrongPrivateKey, \$wrongCandidate/,
+    /\$wrongPassword = \[Guid\]::NewGuid\(\)\.ToString\("N"\)[\s\S]*"generate", "--ci", "--password", \$wrongPassword, "--write-keys", \$wrongPrivateKey[\s\S]*Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue[\s\S]*Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue[\s\S]*"sign", "--private-key-path", \$wrongPrivateKey, "--password", \$wrongPassword, \$wrongCandidate[\s\S]*\$wrongPassword = \$null/,
   );
   assert.doesNotMatch(rehearsal, /"--private-key-path", \$wrongPrivateKey, "--password", ""/);
+  assert.match(rehearsal, /wrong_payload_password = \$null -eq \$wrongPassword/);
   const windowsConsumer = rehearsal.indexOf("verify_packaged_application_update");
   const windowsHarness = rehearsal.indexOf("test-windows-installer.ps1");
   const windowsPrivateKeyRemoval = rehearsal.lastIndexOf(
