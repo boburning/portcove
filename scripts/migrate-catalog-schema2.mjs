@@ -206,6 +206,19 @@ const evidence = [
     live_url:
       "https://github.com/boburning/portcove/blob/main/docs/qualification/snap64-recomp-windows-2026-09-13.md",
   },
+  {
+    id: "yu-gi-oh-forbidden-memories-recompiled-windows-2026-09-15",
+    role: "portcove_qualification",
+    authority: "boburning/portcove",
+    authority_ref: "102c393121949695855e57db135319cc0c963d33",
+    reviewed_at: "2026-09-15",
+    claim:
+      "Records exact Windows structural and bounded automated lifecycle passes for Yu-Gi-Oh! Forbidden Memories Recompiled v0.6.1",
+    immutable_url:
+      "https://github.com/boburning/portcove/blob/102c393121949695855e57db135319cc0c963d33/docs/qualification/yu-gi-oh-forbidden-memories-recompiled-windows-2026-09-15.md",
+    live_url:
+      "https://github.com/boburning/portcove/blob/main/docs/qualification/yu-gi-oh-forbidden-memories-recompiled-windows-2026-09-15.md",
+  },
 ];
 
 function digest(scope, sha1, sha256, crc32) {
@@ -946,6 +959,30 @@ reviewContract(
 );
 reviewContract("starship", reviewedSources.starship, ["usa-1-0", "usa-1-1"]);
 
+const ygofmContract = contracts.find(
+  (candidate) =>
+    candidate.port_id === "yu-gi-oh-forbidden-memories-recompiled" && candidate.role === "game",
+);
+if (!ygofmContract) throw new Error("missing Yu-Gi-Oh source contract");
+ygofmContract.evidence_ids = [
+  ...new Set([
+    ...ygofmContract.evidence_ids,
+    "yu-gi-oh-forbidden-memories-recompiled-windows-2026-09-15",
+  ]),
+];
+ygofmContract.authority_ref = "102c393121949695855e57db135319cc0c963d33";
+ygofmContract.reviewed_at = "2026-09-15";
+ygofmContract.immutable_review_url =
+  "https://github.com/boburning/portcove/blob/102c393121949695855e57db135319cc0c963d33/docs/qualification/yu-gi-oh-forbidden-memories-recompiled-windows-2026-09-15.md";
+ygofmContract.live_review_url =
+  "https://github.com/boburning/portcove/blob/main/docs/qualification/yu-gi-oh-forbidden-memories-recompiled-windows-2026-09-15.md";
+ygofmContract.applicability = [
+  {
+    upstream_ref: "v0.6.1",
+    artifact_sha256: "4eed315000952dee7a751a05de4413a88777cf49609d29ab77ee3765a44d0f53",
+  },
+];
+
 const installationMethods = {
   "libultraship-portable": "portable-package",
   "n64-recomp-portable": "portable-recompilation",
@@ -1143,6 +1180,58 @@ const migrated = {
         method:
           "Upstream tools/release_check.py default suite: 18/22 passed; pacing, coherence, tick-count, and scoring-route checks failed on the 165 Hz host",
         evidence_ids: ["snap64-recomp-windows-2026-09-13"],
+      },
+      {
+        scope: {
+          port_id: "yu-gi-oh-forbidden-memories-recompiled",
+          platform: "windows-x86-64",
+          artifact_sha256: "4eed315000952dee7a751a05de4413a88777cf49609d29ab77ee3765a44d0f53",
+          upstream_ref: "v0.6.1",
+          contract_id: "yu-gi-oh-forbidden-memories-recompiled-game-source",
+          variant: {
+            state: "exact",
+            identity: {
+              game_id: "yu-gi-oh-forbidden-memories-psx",
+              variant_id: "legacy-accepted",
+              representation_id: "normalized-track-set",
+            },
+          },
+          check_version: "ygofm-windows-qualification-v1",
+        },
+        kind: "structural_check",
+        outcome: "passed",
+        observed_at: 1789487491,
+        portcove_version: "0.1.0-alpha.2",
+        portcove_commit: "327626b154a45f2af52de77ab06fae54c4794ef2",
+        method:
+          "Exact release, artifact, source-contract, portable persistence, executable, and immutable-manifest binding checks",
+        evidence_ids: ["yu-gi-oh-forbidden-memories-recompiled-windows-2026-09-15"],
+      },
+      {
+        scope: {
+          port_id: "yu-gi-oh-forbidden-memories-recompiled",
+          platform: "windows-x86-64",
+          artifact_sha256: "4eed315000952dee7a751a05de4413a88777cf49609d29ab77ee3765a44d0f53",
+          upstream_ref: "v0.6.1",
+          contract_id: "yu-gi-oh-forbidden-memories-recompiled-game-source",
+          variant: {
+            state: "exact",
+            identity: {
+              game_id: "yu-gi-oh-forbidden-memories-psx",
+              variant_id: "legacy-accepted",
+              representation_id: "normalized-track-set",
+            },
+          },
+          check_version: "ygofm-windows-qualification-v1",
+        },
+        kind: "automated_lifecycle",
+        outcome: "passed",
+        observed_at: 1789487491,
+        portcove_version: "0.1.0-alpha.2",
+        portcove_commit: "327626b154a45f2af52de77ab06fae54c4794ef2",
+        method:
+          "Exact source admission and malformed rejection, fresh install, 2,516-file verification, three responsive native launches, collection, backup restore, removal preservation, reinstall, and restored-state relaunch",
+        evidence_ids: ["yu-gi-oh-forbidden-memories-recompiled-windows-2026-09-15"],
       },
     ],
   },
