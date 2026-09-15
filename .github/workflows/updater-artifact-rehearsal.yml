@@ -8,6 +8,11 @@ on:
         type: choice
         default: all
         options: [all, windows-x86_64, linux-x86_64, macos-x86_64, macos-aarch64]
+      transition_profile:
+        description: Packaged version transition to exercise
+        type: choice
+        default: legacy-skipped
+        options: [legacy-skipped, preview-final]
 
 permissions:
   contents: read
@@ -51,9 +56,9 @@ jobs:
         run: |
           cargo test --locked -p portcove-release-tools
           node --test scripts/updater-artifact-inventory.test.mjs
-      - name: Build and verify disposable signed packages and skipped version upgrade
+      - name: Build and verify disposable signed packages and selected version transition
         shell: pwsh
-        run: ./scripts/rehearse-updater-artifacts.ps1 -PlatformLabel '${{ matrix.label }}'
+        run: ./scripts/rehearse-updater-artifacts.ps1 -PlatformLabel '${{ matrix.label }}' -TransitionProfile '${{ inputs.transition_profile }}'
       - name: Retain bounded rehearsal evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -65,6 +70,8 @@ jobs:
             work/updater-rehearsal/*.pub
             work/updater-rehearsal/0.1.0-${{ matrix.label }}/**
             work/updater-rehearsal/0.3.0-${{ matrix.label }}/**
+            work/updater-rehearsal/1.0.0-rc.2-${{ matrix.label }}/**
+            work/updater-rehearsal/1.0.0-${{ matrix.label }}/**
             work/updater-rehearsal/linux-appimage-qualification/TEST-ONLY
             work/updater-rehearsal/linux-appimage-qualification/application-update-evidence.json
             work/updater-rehearsal/linux-appimage-qualification/inputs/*.json

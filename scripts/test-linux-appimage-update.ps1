@@ -6,6 +6,10 @@ param(
     [Parameter(Mandatory = $true)][string]$TargetsPath,
     [Parameter(Mandatory = $true)][string]$StateRoot,
     [Parameter(Mandatory = $true)][string]$EvidencePath,
+    [ValidatePattern('^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$')]
+    [string]$PredecessorVersion = "0.1.0",
+    [ValidatePattern('^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$')]
+    [string]$CandidateVersion = "0.3.0",
     [int]$StartupTimeoutSeconds = 30
 )
 
@@ -59,12 +63,12 @@ $sentinel = Join-Path $sentinelRoot "preserve.txt"
 $sentinelHash = (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash
 
 $evidence = [ordered]@{
-    schema_version = 10
+    schema_version = 11
     phase = "preparing"
     source_commit = (& git rev-parse HEAD | Out-String).Trim()
     platform = "linux-x86_64"
-    predecessor = [ordered]@{ path = $predecessor; sha256 = $predecessorHash }
-    candidate = [ordered]@{ path = $candidate; sha256 = $candidateHash }
+    predecessor = [ordered]@{ version = $PredecessorVersion; path = $predecessor; sha256 = $predecessorHash }
+    candidate = [ordered]@{ version = $CandidateVersion; path = $candidate; sha256 = $candidateHash }
     stable_path = $stable
     apply_revision = $null
     truncated_payload_expected_bytes = $null
@@ -249,7 +253,7 @@ try {
     $evidence.truncated_payload_expected_bytes = $candidateBytes
     $evidence.truncated_payload_bytes = $truncatedBytes
 
-    $truncatedOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_appimage_update -- prepare 0.1.0 $trustedRoot $metadata $targets $truncatedCandidate $updatePreferences $updateRoot $libraryRoot 2>&1 | Out-String
+    $truncatedOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_appimage_update -- prepare $PredecessorVersion $trustedRoot $metadata $targets $truncatedCandidate $updatePreferences $updateRoot $libraryRoot 2>&1 | Out-String
     $evidence.truncated_payload_exit_code = $LASTEXITCODE
     Remove-Item -LiteralPath $truncatedCandidate -Force
     if ($evidence.truncated_payload_exit_code -eq 0 -or $truncatedOutput -notmatch "payload length mismatch") {
@@ -279,10 +283,10 @@ try {
     $evidence.truncated_payload_data_preserved = $true
     Write-Evidence "truncated-payload-rejected"
 
-    $prepareOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_appimage_update -- prepare 0.1.0 $trustedRoot $metadata $targets $candidate $updatePreferences $updateRoot $libraryRoot | Out-String
+    $prepareOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_appimage_update -- prepare $PredecessorVersion $trustedRoot $metadata $targets $candidate $updatePreferences $updateRoot $libraryRoot | Out-String
     if ($LASTEXITCODE -ne 0) { throw "Application update state preparation failed" }
     $prepared = $prepareOutput.Trim() | ConvertFrom-Json
-    if ($prepared.candidate_version -ne "0.3.0" -or $prepared.candidate_sha256 -ne $candidateHash) {
+    if ($prepared.candidate_version -ne $CandidateVersion -or $prepared.candidate_sha256 -ne $candidateHash) {
         throw "Prepared update identity does not match the candidate AppImage"
     }
     $evidence.apply_revision = $prepared.apply_revision
@@ -339,10 +343,10 @@ try {
     $evidence.interruption_stable_preserved = $true
     Write-Evidence "interruption-recovered"
 
-    $retryOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_appimage_update -- prepare 0.1.0 $trustedRoot $metadata $targets $candidate $updatePreferences $updateRoot $libraryRoot | Out-String
+    $retryOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_appimage_update -- prepare $PredecessorVersion $trustedRoot $metadata $targets $candidate $updatePreferences $updateRoot $libraryRoot | Out-String
     if ($LASTEXITCODE -ne 0) { throw "Application update retry preparation failed" }
     $prepared = $retryOutput.Trim() | ConvertFrom-Json
-    if ($prepared.candidate_version -ne "0.3.0" -or $prepared.candidate_sha256 -ne $candidateHash) {
+    if ($prepared.candidate_version -ne $CandidateVersion -or $prepared.candidate_sha256 -ne $candidateHash) {
         throw "Retried update identity does not match the candidate AppImage"
     }
     $evidence.apply_revision = $prepared.apply_revision
@@ -611,7 +615,7 @@ try {
         $evidence.full_appimage_filesystem_staging_preserved = $true
         Write-Evidence "full-appimage-filesystem-preserved"
 
-        $fullAppImageRetryOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_appimage_update -- prepare 0.1.0 $trustedRoot $metadata $targets $candidate $updatePreferences $fullAppImageState $libraryRoot | Out-String
+        $fullAppImageRetryOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_appimage_update -- prepare $PredecessorVersion $trustedRoot $metadata $targets $candidate $updatePreferences $fullAppImageState $libraryRoot | Out-String
         if ($LASTEXITCODE -ne 0) { throw "Full-AppImage-filesystem explicit retry preparation failed" }
         $fullAppImageRetry = $fullAppImageRetryOutput.Trim() | ConvertFrom-Json
         $fullAppImageRetryApply = Get-Content -LiteralPath $fullAppImageApplyPath -Raw | ConvertFrom-Json
@@ -619,7 +623,7 @@ try {
                 ForEach-Object { [IO.Path]::GetRelativePath($fullAppImageState, $_.FullName) } |
                 Sort-Object)
         $appImageRetryEntryChanges = @(Compare-Object -ReferenceObject $fullAppImageStateEntries -DifferenceObject $fullAppImageStateEntriesAfterRetry)
-        if ($fullAppImageRetry.candidate_version -ne "0.3.0" -or
+        if ($fullAppImageRetry.candidate_version -ne $CandidateVersion -or
             $fullAppImageRetry.candidate_sha256 -ne $candidateHash -or
             $fullAppImageRetry.apply_revision -ne $fullAppImageRetryApply.revision -or
             $fullAppImageRetryApply.revision -le $fullAppImageApply.revision -or

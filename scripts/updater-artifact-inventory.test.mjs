@@ -185,6 +185,10 @@ test("manual rehearsal retains the complete matrix without production credential
     /secrets\.|contents: write|actions: write|gh release|pull_request_target/,
   );
   assert.match(workflow, /default: all/);
+  assert.match(workflow, /transition_profile:/);
+  assert.match(workflow, /default: legacy-skipped/);
+  assert.match(workflow, /options: \[legacy-skipped, preview-final\]/);
+  assert.match(workflow, /-TransitionProfile '\$\{\{ inputs\.transition_profile \}\}'/);
   const matrix = JSON.parse(workflow.match(/label:.*fromJSON\('([^']+)'\)/)[1]);
   assert.deepEqual(matrix.all.toSorted(), releaseLabels(policy).toSorted());
   for (const label of releaseLabels(policy)) assert.deepEqual(matrix[label], [label]);
@@ -211,6 +215,11 @@ test("manual rehearsal retains the complete matrix without production credential
   // an app bundle target for updater archive/signature generation.
   assert.match(rehearsal, /else \{ "app,dmg" \}/);
   assert.match(rehearsal, /test-linux-appimage-update\.ps1/);
+  assert.match(rehearsal, /ValidateSet\("legacy-skipped", "preview-final"\)/);
+  assert.match(rehearsal, /"1\.0\.0-rc\.2"/);
+  assert.match(rehearsal, /"1\.0\.0"/);
+  assert.match(rehearsal, /-PredecessorVersion/);
+  assert.match(rehearsal, /-CandidateVersion/);
   assert.match(rehearsal, /application-update-qualification/);
   assert.match(rehearsal, /Remove-Item -LiteralPath \(Join-Path \$fixtureRoot "private"\)/);
   const linuxHarness = await readFile(
@@ -220,7 +229,9 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.doesNotMatch(linuxHarness, /WEBKIT_DISABLE_COMPOSITING_MODE/);
   assert.match(linuxHarness, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE/);
   assert.match(linuxHarness, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT/);
-  assert.match(linuxHarness, /schema_version = 10/);
+  assert.match(linuxHarness, /schema_version = 11/);
+  assert.match(linuxHarness, /\$PredecessorVersion = "0\.1\.0"/);
+  assert.match(linuxHarness, /\$CandidateVersion = "0\.3\.0"/);
   assert.match(linuxHarness, /truncated_payload_expected_bytes/);
   assert.match(linuxHarness, /truncated_payload_bytes/);
   assert.match(linuxHarness, /truncated_payload_exit_code/);
