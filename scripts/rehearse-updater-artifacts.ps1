@@ -47,6 +47,7 @@ $original = @{}
 foreach ($relative in $metadataPaths) { $original[$relative] = [IO.File]::ReadAllBytes((Join-Path $root $relative)) }
 $environmentNames = @(
     "TAURI_SIGNING_PRIVATE_KEY",
+    "TAURI_SIGNING_PRIVATE_KEY_PATH",
     "TAURI_SIGNING_PRIVATE_KEY_PASSWORD",
     "CARGO_TARGET_DIR",
     "PORTCOVE_PREFERENCES",
@@ -59,6 +60,8 @@ $previousEnvironment = @{}
 foreach ($name in $environmentNames) { $previousEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, "Process") }
 $privateKey = Join-Path $runRoot "disposable.key"
 $publicKey = "$privateKey.pub"
+$wrongPrivateRoot = Join-Path $runRoot "windows-payload-consumer-private"
+$wrongPassword = $null
 $bundleRoot = Join-Path $root "target/release/bundle"
 $cliRoot = Join-Path $root "release-assets"
 $bundles = if ($IsWindows) { "nsis" } elseif ($IsLinux) { "appimage,deb,rpm" } else { "app,dmg" }
@@ -135,17 +138,96 @@ try {
             if ($native.installer_product_version -notin @($version, "$version.0")) { throw "NSIS product version mismatch" }
             if ($version -eq $candidateVersion) {
                 $predecessor = Join-Path $runRoot "$predecessorVersion-$PlatformLabel/Portcove_$($predecessorVersion)_x64-setup.exe"
+                $candidateInventoryPath = Join-Path $stage "updater-inventory.json"
+                $candidateInventory = Get-Content -LiteralPath $candidateInventoryPath -Raw | ConvertFrom-Json
+                $consumerRoot = Join-Path $runRoot "windows-payload-consumer"
+                $wrongPrivateKey = Join-Path $wrongPrivateRoot "wrong-disposable.key"
+                $wrongPassword = [Guid]::NewGuid().ToString("N")
+                $wrongCandidate = Join-Path $wrongPrivateRoot $candidateInventory.updater.filename
+                $wrongSignatureRoot = Join-Path $consumerRoot "wrong-signature"
+                $wrongSignature = Join-Path $wrongSignatureRoot $candidateInventory.updater.signature.filename
+                New-Item -ItemType Directory -Path $wrongPrivateRoot, $wrongSignatureRoot | Out-Null
+                Copy-Item -LiteralPath $installer -Destination $wrongCandidate
+                Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "signer", "generate", "--ci", "--password", $wrongPassword, "--write-keys", $wrongPrivateKey) | Out-Null
+                $wrongPublicKey = "$wrongPrivateKey.pub"
+                $savedSigningPrivateKey = $env:TAURI_SIGNING_PRIVATE_KEY
+                $savedSigningPrivateKeyPath = $env:TAURI_SIGNING_PRIVATE_KEY_PATH
+                $savedSigningPassword = $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+                try {
+                    Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue
+                    Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PATH -ErrorAction SilentlyContinue
+                    Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue
+                    Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "signer", "sign", "--private-key-path", $wrongPrivateKey, "--password", $wrongPassword, $wrongCandidate) | Out-Null
+                } finally {
+                    $env:TAURI_SIGNING_PRIVATE_KEY = $savedSigningPrivateKey
+                    $env:TAURI_SIGNING_PRIVATE_KEY_PATH = $savedSigningPrivateKeyPath
+                    $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = $savedSigningPassword
+                    $wrongPassword = $null
+                }
+                $wrongVerificationText = (& $verifier verify $wrongCandidate "$wrongCandidate.sig" $wrongPublicKey $candidateInventory.updater.sha256 $candidateInventory.updater.bytes | Out-String).Trim()
+                if ($LASTEXITCODE -ne 0) { throw "The distinct disposable Windows payload signature did not verify with its own key" }
+                $wrongVerification = $wrongVerificationText | ConvertFrom-Json
+                if ($wrongVerification.public_key_sha256 -eq $candidateInventory.updater.public_key_sha256) {
+                    throw "The wrong-signature control did not use a distinct disposable key"
+                }
+                Copy-Item -LiteralPath "$wrongCandidate.sig" -Destination $wrongSignature
                 Remove-Item -LiteralPath $privateKey -Force
+                Remove-Item -LiteralPath $wrongPrivateRoot -Recurse -Force
                 Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue
+                Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PATH -ErrorAction SilentlyContinue
                 Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue
                 $native.private_signing_inputs_absent = [ordered]@{
                     payload_private_key = -not [IO.File]::Exists($privateKey)
+                    wrong_payload_private_root = -not [IO.Directory]::Exists($wrongPrivateRoot)
+                    wrong_payload_password = $null -eq $wrongPassword
                     signing_private_key_environment = $null -eq [Environment]::GetEnvironmentVariable("TAURI_SIGNING_PRIVATE_KEY", "Process")
+                    signing_private_key_path_environment = $null -eq [Environment]::GetEnvironmentVariable("TAURI_SIGNING_PRIVATE_KEY_PATH", "Process")
                     signing_password_environment = $null -eq [Environment]::GetEnvironmentVariable("TAURI_SIGNING_PRIVATE_KEY_PASSWORD", "Process")
                 }
                 if ($native.private_signing_inputs_absent.Values -contains $false) {
-                    throw "Disposable signing authority remained available before Windows package execution"
+                    throw "Disposable signing authority remained available before Windows consumer execution"
                 }
+                $consumerCases = [ordered]@{}
+                foreach ($consumerCase in @(
+                    [ordered]@{ name = "missing-signature"; signature = "-"; expected_outcome = "rejected"; error = "^authenticated update identity is invalid: Tauri signature$" },
+                    [ordered]@{ name = "wrong-signature"; signature = $wrongSignature; expected_outcome = "rejected"; error = "signature does not use the selected key or streaming format|payload Minisign signature verification failed" },
+                    [ordered]@{ name = "valid-signature"; signature = Join-Path $stage $candidateInventory.updater.signature.filename; expected_outcome = "staged"; error = $null }
+                )) {
+                    $consumerStaging = Join-Path $consumerRoot "staging-$($consumerCase.name)"
+                    $consumerText = (& cargo run --locked --quiet --release -p portcove-desktop --example verify_packaged_application_update -- $consumerCase.name $candidateInventoryPath $installer $consumerCase.signature $publicKey $consumerStaging | Out-String).Trim()
+                    if ($LASTEXITCODE -ne 0) { throw "Windows $($consumerCase.name) payload consumer failed" }
+                    $consumer = $consumerText | ConvertFrom-Json
+                    if ($consumer.outcome -ne $consumerCase.expected_outcome -or
+                        $consumer.candidate_version -ne $candidateVersion -or
+                        $consumer.candidate_sha256 -ne $candidateInventory.updater.sha256 -or
+                        [UInt64]$consumer.candidate_bytes -ne [UInt64]$candidateInventory.updater.bytes -or
+                        $consumer.payload_key_id -ne $candidateInventory.updater.public_key_sha256) {
+                        throw "Windows $($consumerCase.name) payload consumer returned different candidate evidence"
+                    }
+                    if ($consumerCase.expected_outcome -eq "rejected") {
+                        if ($consumer.staging_has_candidate -or $consumer.error -notmatch $consumerCase.error) {
+                            throw "Windows $($consumerCase.name) payload rejection did not fail closed"
+                        }
+                    } elseif (-not $consumer.staging_has_candidate -or
+                        $consumer.staged_payload_sha256 -ne $candidateInventory.updater.sha256 -or
+                        [UInt64]$consumer.staged_payload_bytes -ne [UInt64]$candidateInventory.updater.bytes) {
+                        throw "Windows valid-signature payload consumer did not stage the exact packaged bytes"
+                    }
+                    $consumerCases[$consumerCase.name] = $consumer
+                    if (Test-Path -LiteralPath $consumerStaging) { Remove-Item -LiteralPath $consumerStaging -Recurse -Force }
+                }
+                [ordered]@{
+                    schema_version = 1
+                    source_commit = $revision
+                    platform = $PlatformLabel
+                    candidate_version = $candidateVersion
+                    consumer_boundary = "ApplicationUpdateStagingStore with an inventory-bound synthetic SelectedCandidate; excludes selection, TUF, feed, network, and installer application"
+                    production_signing = $false
+                    private_signing_inputs_absent = $native.private_signing_inputs_absent
+                    wrong_signature_verified_with_distinct_key = $true
+                    wrong_public_key_sha256 = $wrongVerification.public_key_sha256
+                    cases = $consumerCases
+                } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $runRoot "windows-payload-consumer.json") -Encoding utf8
                 & (Join-Path $PSScriptRoot "test-windows-installer.ps1") -InstallerPath $installer -UpgradeFromInstallerPath $predecessor -ExpectedExecutablePath (Join-Path $root "target/release/portcove-desktop.exe") -TestBase (Join-Path $runRoot "installer-test") -EvidencePath (Join-Path $runRoot "windows-passive-upgrade.json") -InstallMode Passive -ExpectedVersion $version -PayloadPrivateKeyPath $privateKey -RequireSigningAuthorityAbsent
                 if ((Get-FileHash -LiteralPath $env:PORTCOVE_PREFERENCES -Algorithm SHA256).Hash -ne $preferencesHash) { throw "Installer rehearsal changed isolated host preferences" }
             }
@@ -356,6 +438,7 @@ try {
         Remove-Item -LiteralPath $privateKey -Force
         Remove-Item -LiteralPath (Join-Path $fixtureRoot "private") -Recurse -Force
         Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue
+        Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PATH -ErrorAction SilentlyContinue
         Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue
         foreach ($tufConfigPath in @((Join-Path $fixtureRoot "build-tuf.json")) + $tufVariantConfigs) {
             Remove-Item -LiteralPath $tufConfigPath -Force
@@ -386,9 +469,11 @@ try {
         ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runRoot "rehearsal-result.json") -Encoding utf8
     throw
 } finally {
+    $wrongPassword = $null
     foreach ($relative in $metadataPaths) { [IO.File]::WriteAllBytes((Join-Path $root $relative), $original[$relative]) }
     foreach ($name in $environmentNames) { [Environment]::SetEnvironmentVariable($name, $previousEnvironment[$name], "Process") }
     if ([IO.File]::Exists($privateKey)) { [IO.File]::Delete($privateKey) }
+    if ([IO.Directory]::Exists($wrongPrivateRoot)) { [IO.Directory]::Delete($wrongPrivateRoot, $true) }
     $fixturePrivate = Join-Path $runRoot "linux-appimage-qualification/private"
     if ([IO.Directory]::Exists($fixturePrivate)) { [IO.Directory]::Delete($fixturePrivate, $true) }
 }

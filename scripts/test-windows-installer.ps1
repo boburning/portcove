@@ -267,6 +267,7 @@ if ($RequireSigningAuthorityAbsent) {
     $privateSigningInputsAbsent = [ordered]@{
         payload_private_key = -not [System.IO.File]::Exists([System.IO.Path]::GetFullPath($PayloadPrivateKeyPath))
         signing_private_key_environment = $null -eq [Environment]::GetEnvironmentVariable("TAURI_SIGNING_PRIVATE_KEY", "Process")
+        signing_private_key_path_environment = $null -eq [Environment]::GetEnvironmentVariable("TAURI_SIGNING_PRIVATE_KEY_PATH", "Process")
         signing_password_environment = $null -eq [Environment]::GetEnvironmentVariable("TAURI_SIGNING_PRIVATE_KEY_PASSWORD", "Process")
     }
     if ($evidence) { $evidence.private_signing_inputs_absent = $privateSigningInputsAbsent }

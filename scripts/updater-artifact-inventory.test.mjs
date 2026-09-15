@@ -240,6 +240,32 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(rehearsal, /application-update-qualification/);
   assert.match(rehearsal, /private_signing_inputs_absent/);
   assert.match(rehearsal, /-PayloadPrivateKeyPath \$privateKey -RequireSigningAuthorityAbsent/);
+  assert.match(rehearsal, /windows-payload-consumer\.json/);
+  assert.match(rehearsal, /verify_packaged_application_update/);
+  assert.match(rehearsal, /name = "missing-signature"/);
+  assert.match(
+    rehearsal,
+    /error = "\^authenticated update identity is invalid: Tauri signature\$"/,
+  );
+  assert.match(rehearsal, /name = "wrong-signature"/);
+  assert.match(rehearsal, /name = "valid-signature"/);
+  assert.match(rehearsal, /wrong_signature_verified_with_distinct_key = \$true/);
+  assert.match(rehearsal, /Remove-Item -LiteralPath \$wrongPrivateRoot -Recurse -Force/);
+  const outerFinally = rehearsal.match(
+    /} finally \{\r?\n(?<body>(?:    [^\r\n]*\r?\n)+)}\r?\n\[ordered]@\{ source_commit = \$revision; platform = \$PlatformLabel; status = "passed"/,
+  );
+  assert.ok(outerFinally?.groups?.body);
+  assert.match(
+    outerFinally.groups.body,
+    /\[IO\.Directory\]::Exists\(\$wrongPrivateRoot\)[^\r\n]*\[IO\.Directory\]::Delete\(\$wrongPrivateRoot, \$true\)/,
+  );
+  assert.match(
+    rehearsal,
+    /\$wrongPassword = \[Guid\]::NewGuid\(\)\.ToString\("N"\)[\s\S]*"generate", "--ci", "--password", \$wrongPassword, "--write-keys", \$wrongPrivateKey[\s\S]*Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue[\s\S]*Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PATH -ErrorAction SilentlyContinue[\s\S]*Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue[\s\S]*"sign", "--private-key-path", \$wrongPrivateKey, "--password", \$wrongPassword, \$wrongCandidate[\s\S]*\$wrongPassword = \$null/,
+  );
+  assert.doesNotMatch(rehearsal, /"--private-key-path", \$wrongPrivateKey, "--password", ""/);
+  assert.match(rehearsal, /wrong_payload_password = \$null -eq \$wrongPassword/);
+  const windowsConsumer = rehearsal.indexOf("verify_packaged_application_update");
   const windowsHarness = rehearsal.indexOf("test-windows-installer.ps1");
   const windowsPrivateKeyRemoval = rehearsal.lastIndexOf(
     "Remove-Item -LiteralPath $privateKey -Force",
@@ -249,9 +275,29 @@ test("manual rehearsal retains the complete matrix without production credential
     "Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue",
     windowsHarness,
   );
+  const windowsPrivateKeyPathEnvironmentRemoval = rehearsal.lastIndexOf(
+    "Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PATH -ErrorAction SilentlyContinue",
+    windowsHarness,
+  );
   const windowsPasswordEnvironmentRemoval = rehearsal.lastIndexOf(
     "Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue",
     windowsHarness,
+  );
+  assert.ok(
+    windowsConsumer >= 0 && windowsConsumer < windowsHarness,
+    "packaged payload rejection and positive controls must precede Windows installation",
+  );
+  assert.ok(
+    windowsPrivateKeyRemoval >= 0 && windowsPrivateKeyRemoval < windowsConsumer,
+    "the disposable payload private key must be removed before Windows consumer execution",
+  );
+  const windowsWrongPrivateRootRemoval = rehearsal.lastIndexOf(
+    "Remove-Item -LiteralPath $wrongPrivateRoot -Recurse -Force",
+    windowsConsumer,
+  );
+  assert.ok(
+    windowsWrongPrivateRootRemoval >= 0 && windowsWrongPrivateRootRemoval < windowsConsumer,
+    "the wrong-signature private key root must be removed before Windows consumer execution",
   );
   assert.ok(
     windowsHarness >= 0 &&
@@ -261,13 +307,26 @@ test("manual rehearsal retains the complete matrix without production credential
   );
   assert.ok(
     windowsPrivateKeyEnvironmentRemoval >= 0 &&
+      windowsPrivateKeyPathEnvironmentRemoval >= 0 &&
       windowsPasswordEnvironmentRemoval >= 0 &&
       windowsPrivateKeyEnvironmentRemoval < windowsHarness &&
+      windowsPrivateKeyPathEnvironmentRemoval < windowsHarness &&
       windowsPasswordEnvironmentRemoval < windowsHarness,
     "the Tauri signing environment must be removed before Windows package execution",
   );
   assert.match(rehearsal, /Remove-Item -LiteralPath \(Join-Path \$fixtureRoot "private"\)/);
   assert.match(rehearsal, /Remove-Item -LiteralPath \$privateKey -Force/);
+  const windowsConsumerExample = await readFile(
+    new URL(
+      "../apps/desktop/src-tauri/examples/verify_packaged_application_update.rs",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  assert.match(windowsConsumerExample, /ApplicationUpdateStagingStore::new/);
+  assert.match(windowsConsumerExample, /store\.stage\(&mut payload, &candidate, &key\)\.await/);
+  assert.match(windowsConsumerExample, /rejected packaged payload retained staged authority/);
+  assert.match(windowsConsumerExample, /staged payload does not match the verified inventory/);
   const linuxConsumer = rehearsal.indexOf('Invoke-Checked "dbus-run-session"');
   const linuxPrivateKeyRemoval = rehearsal.lastIndexOf(
     "Remove-Item -LiteralPath $privateKey -Force",
@@ -275,6 +334,10 @@ test("manual rehearsal retains the complete matrix without production credential
   );
   const linuxPrivateKeyEnvironmentRemoval = rehearsal.lastIndexOf(
     "Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue",
+    linuxConsumer,
+  );
+  const linuxPrivateKeyPathEnvironmentRemoval = rehearsal.lastIndexOf(
+    "Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PATH -ErrorAction SilentlyContinue",
     linuxConsumer,
   );
   const linuxPasswordEnvironmentRemoval = rehearsal.lastIndexOf(
@@ -287,8 +350,10 @@ test("manual rehearsal retains the complete matrix without production credential
   );
   assert.ok(
     linuxPrivateKeyEnvironmentRemoval >= 0 &&
+      linuxPrivateKeyPathEnvironmentRemoval >= 0 &&
       linuxPasswordEnvironmentRemoval >= 0 &&
       linuxPrivateKeyEnvironmentRemoval < linuxConsumer &&
+      linuxPrivateKeyPathEnvironmentRemoval < linuxConsumer &&
       linuxPasswordEnvironmentRemoval < linuxConsumer,
     "the Tauri signing environment must be removed before consumer execution",
   );
@@ -575,23 +640,30 @@ test(
     await writeFile(privateKey, "disposable private key fixture");
     const installer = path.join(process.env.SystemRoot, "System32", "where.exe");
 
-    const environment = (signingAuthorityPresent) => {
+    const environment = (signingAuthorityPresent, pathOnly = false) => {
       const env = { ...process.env };
       for (const name of Object.keys(env)) {
         if (
           name.toUpperCase() === "TAURI_SIGNING_PRIVATE_KEY" ||
+          name.toUpperCase() === "TAURI_SIGNING_PRIVATE_KEY_PATH" ||
           name.toUpperCase() === "TAURI_SIGNING_PRIVATE_KEY_PASSWORD"
         )
           delete env[name];
       }
       if (signingAuthorityPresent) {
-        env.TAURI_SIGNING_PRIVATE_KEY = privateKey;
-        env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD = "fixture-password";
+        env.TAURI_SIGNING_PRIVATE_KEY_PATH = privateKey;
+        if (!pathOnly) {
+          env.TAURI_SIGNING_PRIVATE_KEY = privateKey;
+          env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD = "fixture-password";
+        }
       }
       return env;
     };
 
-    const runHarness = async (label, { requireAbsent, signingAuthorityPresent }) => {
+    const runHarness = async (
+      label,
+      { requireAbsent, signingAuthorityPresent, pathOnly = false },
+    ) => {
       const caseRoot = path.join(root, label);
       const evidencePath = path.join(caseRoot, "evidence.json");
       await mkdir(caseRoot);
@@ -610,11 +682,11 @@ test(
       if (requireAbsent)
         args.push(
           "-PayloadPrivateKeyPath",
-          signingAuthorityPresent ? privateKey : removedPrivateKey,
+          signingAuthorityPresent && !pathOnly ? privateKey : removedPrivateKey,
           "-RequireSigningAuthorityAbsent",
         );
       const result = runPowerShellScript("./test-windows-installer.ps1", args, {
-        env: environment(signingAuthorityPresent),
+        env: environment(signingAuthorityPresent, pathOnly),
       });
       return { result, evidence: JSON.parse(await readFile(evidencePath, "utf8")) };
     };
@@ -632,9 +704,28 @@ test(
     assert.deepEqual(rejected.evidence.private_signing_inputs_absent, {
       payload_private_key: false,
       signing_private_key_environment: false,
+      signing_private_key_path_environment: false,
       signing_password_environment: false,
     });
     assert.deepEqual(rejected.evidence.process_runs, []);
+
+    const pathOnlyRejected = await runHarness("path-only-rejected", {
+      requireAbsent: true,
+      signingAuthorityPresent: true,
+      pathOnly: true,
+    });
+    assert.equal(pathOnlyRejected.result.status, 1);
+    assert.match(
+      pathOnlyRejected.result.stderr,
+      /Disposable signing authority is available to the Windows package lifecycle/,
+    );
+    assert.deepEqual(pathOnlyRejected.evidence.private_signing_inputs_absent, {
+      payload_private_key: true,
+      signing_private_key_environment: true,
+      signing_private_key_path_environment: false,
+      signing_password_environment: true,
+    });
+    assert.deepEqual(pathOnlyRejected.evidence.process_runs, []);
 
     const accepted = await runHarness("accepted-positive-control", {
       requireAbsent: true,
@@ -645,6 +736,7 @@ test(
     assert.deepEqual(accepted.evidence.private_signing_inputs_absent, {
       payload_private_key: true,
       signing_private_key_environment: true,
+      signing_private_key_path_environment: true,
       signing_password_environment: true,
     });
     assert.equal(accepted.evidence.process_runs.length, 1);
