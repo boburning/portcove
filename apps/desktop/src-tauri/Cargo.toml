@@ -16,7 +16,7 @@ application-update-qualification = []
 qualification-fixtures = ["portcove-core/qualification-fixtures"]
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "2.6.3", features = [] }
 
 [dependencies]
 async-trait.workspace = true
@@ -34,8 +34,8 @@ serde_json.workspace = true
 semver.workspace = true
 schemars.workspace = true
 sha2.workspace = true
-tauri = { version = "2", features = [] }
-tauri-plugin-dialog = "2"
+tauri = { version = "2.11.5", features = [] }
+tauri-plugin-dialog = "2.7.3"
 thiserror.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
