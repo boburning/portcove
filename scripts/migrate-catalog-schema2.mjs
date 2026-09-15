@@ -232,6 +232,19 @@ const evidence = [
     live_url:
       "https://github.com/boburning/portcove/blob/main/docs/qualification/revelations-persona-recompiled-windows-2026-09-15.md",
   },
+  {
+    id: "dr-mario-64-recompiled-windows-2026-09-15",
+    role: "portcove_qualification",
+    authority: "boburning/portcove",
+    authority_ref: "ecee7d02cb30bd8081b3181e09b7aa5c8ed8436f",
+    reviewed_at: "2026-09-15",
+    claim:
+      "Records the exact Dr. Mario 64 Recompiled Plus 1.0.0 Windows source, successor, runtime-root, and bounded lifecycle qualification",
+    immutable_url:
+      "https://github.com/boburning/portcove/blob/ecee7d02cb30bd8081b3181e09b7aa5c8ed8436f/docs/qualification/dr-mario-64-recompiled-windows-2026-09-15.md",
+    live_url:
+      "https://github.com/boburning/portcove/blob/main/docs/qualification/dr-mario-64-recompiled-windows-2026-09-15.md",
+  },
 ];
 
 function digest(scope, sha1, sha256, crc32) {
@@ -780,6 +793,22 @@ applyReviewedVariants("star-fox-64", [
   ]),
 ]);
 
+applyReviewedVariants("dr-mario-64", [
+  n64Variant(
+    "usa-rev0",
+    "Dr. Mario 64",
+    "USA",
+    "Rev 0",
+    [
+      {
+        sha1: "a130d3622ce40e0158db2da4247101f6e92206fc",
+        sha256: "bb2c0dec0a8287ad256929563d0509801c2f239df883c1cf52cab05b23bd77b6",
+      },
+    ],
+    "dr-mario-64-recompiled-windows-2026-09-15",
+  ),
+]);
+
 const validators = legacy.source_profiles
   .filter((profile) => profile.kind === "upstream-validated-disc")
   .map((profile) => ({
@@ -1017,6 +1046,27 @@ personaContract.applicability = [
   {
     upstream_ref: "v0.1.1",
     artifact_sha256: "f4336030ba9c0e032061ad6892aa5ce9ff01c4cedcbaf3a5355428e6d728158a",
+  },
+];
+
+const drMarioContract = contracts.find(
+  (candidate) => candidate.port_id === "dr-mario-64-recomp" && candidate.role === "game",
+);
+if (!drMarioContract) throw new Error("missing Dr. Mario 64 source contract");
+drMarioContract.admission_mode = "enforced";
+drMarioContract.supported_variant_ids = ["usa-rev0"];
+drMarioContract.evidence_ids = ["dr-mario-64-recompiled-windows-2026-09-15"];
+drMarioContract.authority_ref = "ecee7d02cb30bd8081b3181e09b7aa5c8ed8436f";
+drMarioContract.reviewed_at = "2026-09-15";
+drMarioContract.immutable_review_url =
+  "https://github.com/boburning/portcove/blob/ecee7d02cb30bd8081b3181e09b7aa5c8ed8436f/docs/qualification/dr-mario-64-recompiled-windows-2026-09-15.md";
+drMarioContract.live_review_url =
+  "https://github.com/boburning/portcove/blob/main/docs/qualification/dr-mario-64-recompiled-windows-2026-09-15.md";
+drMarioContract.evidence_gap = null;
+drMarioContract.applicability = [
+  {
+    upstream_ref: "1.0.0",
+    artifact_sha256: "ba749f48725e23636845c9a79a89e17859172ac80fa7b98bf4523d12c1f0d2cf",
   },
 ];
 
@@ -1322,6 +1372,84 @@ const migrated = {
           "Exact v0.1.0 install, v0.1.1 update, no-op, rollback, retained-version reactivation, fail-closed verification, repaired native launches, 2,094-file verification, collection, and backup restore",
         evidence_ids: ["revelations-persona-recompiled-windows-2026-09-15"],
       },
+      {
+        scope: {
+          port_id: "dr-mario-64-recomp",
+          platform: "windows-x86-64",
+          artifact_sha256: "ba749f48725e23636845c9a79a89e17859172ac80fa7b98bf4523d12c1f0d2cf",
+          upstream_ref: "1.0.0",
+          contract_id: "dr-mario-64-recomp-game-source",
+          variant: {
+            state: "exact",
+            identity: {
+              game_id: "dr-mario-64",
+              variant_id: "usa-rev0",
+              representation_id: "canonical-rom",
+            },
+          },
+          check_version: "dr-mario-windows-qualification-v1",
+        },
+        kind: "structural_check",
+        outcome: "passed",
+        observed_at: 1789503747,
+        portcove_version: "0.1.0-alpha.2",
+        portcove_commit: "48a46e6a97d7fd6f1ca5e5dfe089bba60dc7ff85",
+        method:
+          "Exact successor release, source identity and mismatch rejection, artifact, runtime-root, executable, persistence, and immutable-manifest binding checks",
+        evidence_ids: ["dr-mario-64-recompiled-windows-2026-09-15"],
+      },
+      {
+        scope: {
+          port_id: "dr-mario-64-recomp",
+          platform: "windows-x86-64",
+          artifact_sha256: "ba749f48725e23636845c9a79a89e17859172ac80fa7b98bf4523d12c1f0d2cf",
+          upstream_ref: "1.0.0",
+          contract_id: "dr-mario-64-recomp-game-source",
+          variant: {
+            state: "exact",
+            identity: {
+              game_id: "dr-mario-64",
+              variant_id: "usa-rev0",
+              representation_id: "canonical-rom",
+            },
+          },
+          check_version: "dr-mario-windows-qualification-v1",
+        },
+        kind: "automated_lifecycle",
+        outcome: "passed",
+        observed_at: 1789503747,
+        portcove_version: "0.1.0-alpha.2",
+        portcove_commit: "48a46e6a97d7fd6f1ca5e5dfe089bba60dc7ff85",
+        method:
+          "Exact source verification, one-byte mismatch rejection, install, 83-file verification, three responsive D3D12 launches, normal close, no-op update, absent-rollback refusal, removal preservation, clean reinstall, and restored-state relaunch",
+        evidence_ids: ["dr-mario-64-recompiled-windows-2026-09-15"],
+      },
+      {
+        scope: {
+          port_id: "dr-mario-64-recomp",
+          platform: "windows-x86-64",
+          artifact_sha256: "ba749f48725e23636845c9a79a89e17859172ac80fa7b98bf4523d12c1f0d2cf",
+          upstream_ref: "1.0.0",
+          contract_id: "dr-mario-64-recomp-game-source",
+          variant: {
+            state: "exact",
+            identity: {
+              game_id: "dr-mario-64",
+              variant_id: "usa-rev0",
+              representation_id: "canonical-rom",
+            },
+          },
+          check_version: "dr-mario-windows-qualification-v1",
+        },
+        kind: "known_failure",
+        outcome: "failed",
+        observed_at: 1788498223,
+        portcove_version: "0.1.0-alpha.2",
+        portcove_commit: "48a46e6a97d7fd6f1ca5e5dfe089bba60dc7ff85",
+        method:
+          "Automatic and explicit Vulkan rendering reached the Nintendo boot logo, then failed in amdxc64.dll 32.0.31041.1004 with exception 0xc0000005",
+        evidence_ids: ["dr-mario-64-recompiled-windows-2026-09-15"],
+      },
     ],
   },
   ports: [
@@ -1382,14 +1510,49 @@ const migrated = {
                       "psx_freeze_heartbeat.json",
                     ],
                   }
-                : ["opengoal-jak1", "opengoal-jak2", "opengoal-jak3"].includes(port.id)
+                : port.id === "dr-mario-64-recomp"
                   ? {
                       ...port,
-                      // Reviewed extractor output ownership; this is not a manifest exclusion.
-                      // Pinned upstream evidence is recorded in docs/CATALOG.md.
-                      setup_output_paths: ["data/iso_data", "data/decompiler_out", "data/out"],
+                      project_url: "https://github.com/theboy181/drmario64_recomp_plus",
+                      support_tier: "beta",
+                      release: {
+                        repository: "theboy181/drmario64_recomp_plus",
+                        asset_hints: {
+                          "windows-x86-64": ["Dr.Mario.64.Recompiled-v1.0.0-Windows.zip"],
+                        },
+                      },
+                      executable_hints: {
+                        "windows-x86-64": ["drmario64_recomp.exe"],
+                      },
+                      portable_marker: true,
+                      runtime_subdirectory: "Dr. Mario 64 Recompiled x64-Release",
+                      runtime_source_filename: "drmario64.us.z64",
+                      runtime_source_materialization: "n64-big-endian",
+                      launch_arguments: ["drmario64.us.z64"],
+                      persistent_paths: [
+                        "Dr. Mario 64 Recompiled x64-Release/drmario64.us.z64",
+                        "Dr. Mario 64 Recompiled x64-Release/general.json",
+                        "Dr. Mario 64 Recompiled x64-Release/general.json.bak",
+                        "Dr. Mario 64 Recompiled x64-Release/graphics.json",
+                        "Dr. Mario 64 Recompiled x64-Release/graphics.json.bak",
+                        "Dr. Mario 64 Recompiled x64-Release/controls.json",
+                        "Dr. Mario 64 Recompiled x64-Release/controls.json.bak",
+                        "Dr. Mario 64 Recompiled x64-Release/sound.json",
+                        "Dr. Mario 64 Recompiled x64-Release/sound.json.bak",
+                        "Dr. Mario 64 Recompiled x64-Release/mods",
+                        "Dr. Mario 64 Recompiled x64-Release/mods.json",
+                        "Dr. Mario 64 Recompiled x64-Release/mod_config",
+                        "Dr. Mario 64 Recompiled x64-Release/saves",
+                      ],
                     }
-                  : port,
+                  : ["opengoal-jak1", "opengoal-jak2", "opengoal-jak3"].includes(port.id)
+                    ? {
+                        ...port,
+                        // Reviewed extractor output ownership; this is not a manifest exclusion.
+                        // Pinned upstream evidence is recorded in docs/CATALOG.md.
+                        setup_output_paths: ["data/iso_data", "data/decompiler_out", "data/out"],
+                      }
+                    : port,
       )
       .map(withPresentation),
     withPresentation({

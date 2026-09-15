@@ -1257,6 +1257,44 @@ mod tests {
         persona
             .runtime_mutable_paths
             .push("psx_freeze_heartbeat.json".into());
+        let dr_mario = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "dr-mario-64-recomp")
+            .unwrap();
+        dr_mario.project_url = "https://github.com/theboy181/drmario64_recomp_plus".into();
+        dr_mario.support_tier = crate::SupportTier::Beta;
+        dr_mario.release.repository = "theboy181/drmario64_recomp_plus".into();
+        dr_mario.release.asset_hints.insert(
+            Platform::WindowsX86_64,
+            vec!["Dr.Mario.64.Recompiled-v1.0.0-Windows.zip".into()],
+        );
+        dr_mario
+            .executable_hints
+            .insert(Platform::WindowsX86_64, vec!["drmario64_recomp.exe".into()]);
+        dr_mario.portable_marker = true;
+        dr_mario.runtime_subdirectory = Some("Dr. Mario 64 Recompiled x64-Release".into());
+        dr_mario.runtime_source_filename = Some("drmario64.us.z64".into());
+        dr_mario.runtime_source_materialization =
+            Some(crate::RuntimeSourceMaterialization::N64BigEndian);
+        dr_mario.launch_arguments = vec!["drmario64.us.z64".into()];
+        dr_mario.persistent_paths = [
+            "drmario64.us.z64",
+            "general.json",
+            "general.json.bak",
+            "graphics.json",
+            "graphics.json.bak",
+            "controls.json",
+            "controls.json.bak",
+            "sound.json",
+            "sound.json.bak",
+            "mods",
+            "mods.json",
+            "mod_config",
+            "saves",
+        ]
+        .into_iter()
+        .map(|path| format!("Dr. Mario 64 Recompiled x64-Release/{path}"))
+        .collect();
         for id in ["opengoal-jak1", "opengoal-jak2", "opengoal-jak3"] {
             let port = expected_ports
                 .iter_mut()
@@ -1302,7 +1340,7 @@ mod tests {
             serde_json::to_value(expected_ports).unwrap()
         );
         let qualification = &migrated.source_catalog().unwrap().qualification;
-        assert_eq!(qualification.len(), 7);
+        assert_eq!(qualification.len(), 10);
         assert_eq!(
             qualification
                 .iter()
@@ -1325,6 +1363,13 @@ mod tests {
                 .filter(|record| record.scope.port_id == "revelations-persona-recompiled")
                 .count(),
             2
+        );
+        assert_eq!(
+            qualification
+                .iter()
+                .filter(|record| record.scope.port_id == "dr-mario-64-recomp")
+                .count(),
+            3
         );
         assert!(migrated.document().ports.iter().any(|port| {
             !port.automated_tested_platforms.is_empty()
@@ -2900,6 +2945,118 @@ mod tests {
         );
         assert_eq!(
             mismatched_artifact.automated_lifecycle,
+            crate::QualificationEvidenceState::Missing
+        );
+    }
+
+    #[test]
+    fn dr_mario_v100_has_exact_bounded_windows_qualification() {
+        let catalog = Catalog::embedded().expect("catalog should load");
+        let port = catalog.port("dr-mario-64-recomp").unwrap();
+        assert_eq!(port.support_tier, crate::SupportTier::Beta);
+        assert_eq!(
+            port.project_url,
+            "https://github.com/theboy181/drmario64_recomp_plus"
+        );
+        assert_eq!(port.release.repository, "theboy181/drmario64_recomp_plus");
+        assert_eq!(
+            port.runtime_subdirectory.as_deref(),
+            Some("Dr. Mario 64 Recompiled x64-Release")
+        );
+        assert_eq!(
+            port.runtime_source_filename.as_deref(),
+            Some("drmario64.us.z64")
+        );
+        assert_eq!(
+            port.runtime_source_materialization,
+            Some(crate::RuntimeSourceMaterialization::N64BigEndian)
+        );
+        assert!(
+            port.persistent_paths
+                .iter()
+                .any(|path| { path == "Dr. Mario 64 Recompiled x64-Release/mod_config" })
+        );
+        assert!(port.automated_tested_platforms.is_empty());
+        assert!(port.manually_validated_platforms.is_empty());
+
+        let source_catalog = catalog.source_catalog().unwrap();
+        let profile = source_catalog
+            .identities
+            .iter()
+            .find(|profile| profile.id == "dr-mario-64")
+            .expect("Dr. Mario profile should exist");
+        let exact_variant = profile
+            .variants
+            .iter()
+            .find(|variant| variant.id == "usa-rev0")
+            .expect("exact US source should exist");
+        assert_eq!(exact_variant.representations[0].id, "canonical-rom");
+        let contract = source_catalog
+            .contracts
+            .iter()
+            .find(|contract| {
+                contract.port_id == "dr-mario-64-recomp"
+                    && contract.role == crate::PortSourceRole::Game
+            })
+            .expect("Dr. Mario contract should exist");
+        assert_eq!(
+            contract.admission_mode,
+            crate::CatalogAdmissionMode::Enforced
+        );
+        assert_eq!(contract.supported_variant_ids, vec!["usa-rev0"]);
+
+        let scope = crate::SourceEvidenceScope {
+            port_id: port.id.clone(),
+            platform: Platform::WindowsX86_64,
+            artifact_sha256: Some(
+                "ba749f48725e23636845c9a79a89e17859172ac80fa7b98bf4523d12c1f0d2cf".into(),
+            ),
+            upstream_ref: Some("1.0.0".into()),
+            contract_id: Some("dr-mario-64-recomp-game-source".into()),
+            variant: crate::SourceVariantScope::Exact {
+                identity: crate::SourceIdentity {
+                    game_id: "dr-mario-64".into(),
+                    variant_id: "usa-rev0".into(),
+                    representation_id: "canonical-rom".into(),
+                },
+            },
+            check_version: Some("dr-mario-windows-qualification-v1".into()),
+        };
+        let qualification = source_catalog.assess_qualification(&scope);
+        assert_eq!(
+            qualification.structural_check,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            qualification.automated_lifecycle,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            qualification.hands_on,
+            crate::QualificationEvidenceState::Missing
+        );
+        assert_eq!(
+            qualification.known_failure,
+            crate::QualificationEvidenceState::Failed
+        );
+
+        let mismatched_artifact_scope = crate::SourceEvidenceScope {
+            artifact_sha256: Some(
+                "0000000000000000000000000000000000000000000000000000000000000000".into(),
+            ),
+            ..scope
+        };
+        let mismatched_artifact = source_catalog.assess_qualification(&mismatched_artifact_scope);
+        assert_eq!(
+            mismatched_artifact.structural_check,
+            crate::QualificationEvidenceState::Missing
+        );
+        assert_eq!(
+            mismatched_artifact.automated_lifecycle,
+            crate::QualificationEvidenceState::Missing
+        );
+        assert_eq!(
+            mismatched_artifact.known_failure,
             crate::QualificationEvidenceState::Missing
         );
     }

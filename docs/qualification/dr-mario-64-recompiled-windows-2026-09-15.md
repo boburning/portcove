@@ -18,11 +18,11 @@ Supported or manufacturing hands-on gameplay evidence.
 | Release asset         | `Dr.Mario.64.Recompiled-v1.0.0-Windows.zip`                        |
 | Artifact size         | `24,225,142` bytes                                                 |
 | Artifact SHA-256      | `ba749f48725e23636845c9a79a89e17859172ac80fa7b98bf4523d12c1f0d2cf` |
-| Source contract       | `dr-mario-64-recomp-game-source`                                  |
-| Source variant        | `usa-rev0`                                                        |
-| Source representation | `canonical-rom`                                                   |
-| Check contract        | `dr-mario-windows-qualification-v1`                               |
-| Isolated evidence     | `H:\Portcove-Worktrees\dr-mario-64-successor-2026-09-15`         |
+| Source contract       | `dr-mario-64-recomp-game-source`                                   |
+| Source variant        | `usa-rev0`                                                         |
+| Source representation | `canonical-rom`                                                    |
+| Check contract        | `dr-mario-windows-qualification-v1`                                |
+| Isolated evidence     | `H:\Portcove-Worktrees\dr-mario-64-successor-2026-09-15`           |
 
 The `1.0.0` tag points directly to the commit above. The tag commit and the
 11,843,072-byte Windows executable are unsigned. GitHub's published asset
