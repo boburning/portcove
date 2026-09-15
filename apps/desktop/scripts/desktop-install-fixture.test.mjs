@@ -10,6 +10,7 @@ import {
   INSTALL_FIXTURE_PORT_ID,
   INSTALL_REFRESH_FIXTURE_PORT_ID,
 } from "./desktop-install-fixture.mjs";
+import { installScenarios } from "./desktop-install-test.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 
@@ -65,4 +66,15 @@ test("install fixture is isolated, pinned, interruptible, and retryable", async 
   } finally {
     await fixture.close();
   }
+});
+
+test("unselected install scenarios do not require an initialized fixture", async () => {
+  const registered = [];
+  await installScenarios({
+    scenario: async (id) => registered.push(id),
+  });
+  assert.deepEqual(registered, [
+    "install-progress-cancellation",
+    "install-commit-refresh-recovery",
+  ]);
 });

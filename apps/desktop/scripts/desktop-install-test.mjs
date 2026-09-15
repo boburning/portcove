@@ -28,7 +28,6 @@ export async function installScenarios({
   artifacts,
   fixture,
 }) {
-  assert.ok(fixture, "install fixture must be initialized before the Desktop starts");
   const button = (label) => By.xpath(`//button[normalize-space(.)="${label}"]`);
   const buttonStarting = (label) =>
     By.xpath(`//button[starts-with(normalize-space(.),"${label}")]`);
@@ -64,6 +63,7 @@ export async function installScenarios({
   };
 
   await scenario("install-progress-cancellation", async () => {
+    assert.ok(fixture, "install fixture must be initialized before the Desktop starts");
     const port = fixture.port;
 
     await openFixture(port);
@@ -149,6 +149,7 @@ export async function installScenarios({
   });
 
   await scenario("install-commit-refresh-recovery", async () => {
+    assert.ok(fixture, "install fixture must be initialized before the Desktop starts");
     const port = fixture.refreshPort;
     assert.ok(port, "install refresh fixture must be present in the isolated catalog");
     const requestIndex = fixture.requests.length;
