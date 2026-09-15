@@ -53,6 +53,14 @@ test("focused plans omit owned binaries while lifecycle plans include them", () 
   assert.equal(focused.paths.cli, null);
   assert.ok(!focused.phases.includes("owned-probe-build"));
   assert.equal(focused.harness_deadline_ms, 180_000);
+  assert.deepEqual(focused.qualification_features, []);
+
+  const install = buildDesktopVerifyPlan({
+    ...common,
+    selection: resolveDesktopSelection({ scenarios: ["install-progress-cancellation"] }),
+  });
+  assert.equal(install.paths.cli, null);
+  assert.deepEqual(install.qualification_features, ["qualification-fixtures"]);
 
   const lifecycle = buildDesktopVerifyPlan({
     ...common,

@@ -13,6 +13,7 @@ path = "src/main.rs"
 
 [features]
 application-update-qualification = []
+qualification-fixtures = ["portcove-core/qualification-fixtures"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

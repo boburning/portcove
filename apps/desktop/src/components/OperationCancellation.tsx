@@ -45,7 +45,7 @@ export function OperationCancellation({
             : label}
       </button>
       {(requested || state?.requested) && (
-        <p role="status">Waiting for the current preparation step to stop safely.</p>
+        <p role="status">Waiting for the current safe step to stop.</p>
       )}
       {error && <p role="alert">{error}</p>}
     </div>

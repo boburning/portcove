@@ -121,6 +121,7 @@ function executableSuffix(platform = process.platform) {
 export function buildDesktopVerifyPlan({ selection, paths, drivers, source, packages }) {
   const suffix = executableSuffix();
   const ownedFixture = selection.prerequisites.includes("owned-fixture");
+  const installFixture = selection.prerequisites.includes("install-fixture");
   return {
     format_version: 1,
     profile: selection.profile,
@@ -132,6 +133,7 @@ export function buildDesktopVerifyPlan({ selection, paths, drivers, source, pack
     harness_deadline_ms: desktopHarnessDeadlineMs(selection),
     prerequisites: selection.prerequisites,
     host_resources: selection.host_resources,
+    qualification_features: installFixture ? ["qualification-fixtures"] : [],
     source,
     workspace_packages: packages,
     drivers: drivers
@@ -381,12 +383,16 @@ async function runVerification(options, selection) {
       });
       timings.at(-1).reuse = frontendReuse;
     }
+    const desktopFeatures = [
+      "tauri/custom-protocol",
+      ...(selection.prerequisites.includes("install-fixture") ? ["qualification-fixtures"] : []),
+    ];
     await phase("desktop-build", "cargo", [
       "build",
       "-p",
       "portcove-desktop",
       "--features",
-      "tauri/custom-protocol",
+      desktopFeatures.join(","),
     ]);
     let probe;
     if (selection.prerequisites.includes("owned-fixture")) {

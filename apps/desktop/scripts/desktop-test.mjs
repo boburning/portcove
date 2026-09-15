@@ -16,6 +16,8 @@ import { accessibleNavigationScenario } from "./desktop-accessibility-test.mjs";
 import { reloadScenario } from "./desktop-reload-test.mjs";
 import { workspaceRefreshScenario } from "./desktop-workspace-refresh-test.mjs";
 import { captureAccessibilityReport } from "./desktop-review-controls.mjs";
+import { createInstallFixture } from "./desktop-install-fixture.mjs";
+import { installProgressCancellationScenario } from "./desktop-install-test.mjs";
 import {
   desktopHarnessDeadlineMs,
   desktopScenarioById,
@@ -161,6 +163,14 @@ if (selection.prerequisites.includes("owned-fixture")) {
     await fileIdentity(fileURLToPath(new URL("./native-confirmation.ps1", import.meta.url))),
   );
 }
+if (selection.prerequisites.includes("install-fixture")) {
+  inputs.push(
+    await fileIdentity(fileURLToPath(new URL("./desktop-install-fixture.mjs", import.meta.url))),
+  );
+  inputs.push(
+    await fileIdentity(fileURLToPath(new URL("./desktop-install-test.mjs", import.meta.url))),
+  );
+}
 inputs.push(
   await fileIdentity(
     fileURLToPath(new URL("../../../scripts/desktop-scenarios.mjs", import.meta.url)),
@@ -185,6 +195,7 @@ const revision = spawnCommand("git", ["rev-parse", "HEAD"], {
 }).stdout.trim();
 const output = path.resolve(values.output);
 await mkdir(output); // Existing output is never reused, including after failed runs.
+let installFixture;
 const library = path.join(output, "library");
 const profile = path.join(output, "webview");
 const checks = [];
@@ -378,6 +389,11 @@ function observeNativeSession(mode, snapshot) {
 }
 
 try {
+  if (selection.prerequisites.includes("install-fixture")) {
+    installFixture = await createInstallFixture({ root, output });
+    inputs.push(await fileIdentity(installFixture.artifactPath));
+    inputs.push(await fileIdentity(installFixture.catalogPath));
+  }
   await requireUnusedPort(port);
   await requireUnusedPort(port + 1);
   driver = spawn(
@@ -396,6 +412,7 @@ try {
       stdio: ["ignore", "pipe", "pipe"],
       env: {
         ...process.env,
+        ...(installFixture ? { PORTCOVE_QUALIFICATION_CATALOG: installFixture.catalogPath } : {}),
         PORTCOVE_LIBRARY: library,
         PORTCOVE_PREFERENCES: path.join(output, "preferences.json"),
         PORTCOVE_APPLICATION_UPDATE_PREFERENCES: path.join(output, "application-updates.json"),
@@ -684,6 +701,15 @@ try {
     cli: values["preparation-cli"],
     tool: values["preparation-tool"],
   });
+  await installProgressCancellationScenario({
+    browser,
+    invoke,
+    scenario,
+    library,
+    output,
+    artifacts,
+    fixture: installFixture,
+  });
   for (const gap of selection.known_gaps)
     checks.push({ scenario: gap.scenario, outcome: "not-run", reason: gap.reason });
   if (selection.prerequisites.includes("owned-fixture")) {
@@ -791,6 +817,7 @@ try {
     });
     console.log(JSON.stringify(checks, null, 2));
   } finally {
+    if (installFixture) await installFixture.close();
     await nativeLock.release();
   }
 }

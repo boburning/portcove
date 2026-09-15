@@ -35,14 +35,13 @@ test("desktop scenario catalog is nonempty, unique, and fully profiled", () => {
   }
 });
 
-test("smoke is the default and preserves the explicit install gap", () => {
+test("smoke is the default and includes isolated reviewed install cancellation", () => {
   const selection = resolveDesktopSelection();
   assert.equal(selection.profile, "smoke");
   assert.ok(selection.selected_scenarios.includes("keyboard-layout"));
-  assert.deepEqual(
-    selection.known_gaps.map((item) => item.scenario),
-    ["install-progress-cancellation"],
-  );
+  assert.ok(selection.selected_scenarios.includes("install-progress-cancellation"));
+  assert.ok(selection.prerequisites.includes("install-fixture"));
+  assert.deepEqual(selection.known_gaps, []);
 });
 
 test("exact selections are deduplicated and returned in catalog order", () => {
@@ -67,7 +66,7 @@ test("focused lifecycle selection resolves setup without claiming it", () => {
   assert.ok(selection.host_resources.includes("native-dialog"));
 });
 
-test("selection rejects ambiguity, unknown IDs, gaps, and invalid reload requests", () => {
+test("selection rejects ambiguity, unknown IDs, and invalid reload requests", () => {
   assert.throws(
     () => resolveDesktopSelection({ profile: "smoke", scenarios: ["accessibility"] }),
     /cannot be combined/,
@@ -77,10 +76,9 @@ test("selection rejects ambiguity, unknown IDs, gaps, and invalid reload request
     () => resolveDesktopSelection({ scenarios: ["missing"] }),
     /Unknown desktop scenario/,
   );
-  assert.throws(
-    () => resolveDesktopSelection({ scenarios: ["install-progress-cancellation"] }),
-    /acceptance gap/,
-  );
+  const install = resolveDesktopSelection({ scenarios: ["install-progress-cancellation"] });
+  assert.deepEqual(install.selected_scenarios, ["install-progress-cancellation"]);
+  assert.ok(install.prerequisites.includes("install-fixture"));
   assert.throws(
     () => resolveDesktopSelection({ scenarios: ["native-repeated-library-reload"] }),
     /requires --reload-cycles/,

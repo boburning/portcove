@@ -20,6 +20,19 @@ pub struct Catalog {
 
 impl Catalog {
     pub fn embedded() -> Result<Self> {
+        #[cfg(feature = "qualification-fixtures")]
+        if let Some(path) = std::env::var_os("PORTCOVE_QUALIFICATION_CATALOG") {
+            let path = Path::new(&path);
+            if !path.is_absolute() {
+                return Err(PortcoveError::usage(
+                    "qualification catalog path must be absolute",
+                ));
+            }
+            let bytes = crate::path::read_bounded_regular(path, 4 * 1024 * 1024)?;
+            let value = std::str::from_utf8(&bytes)
+                .map_err(|_| PortcoveError::usage("qualification catalog must be valid UTF-8"))?;
+            return Self::from_json(value);
+        }
         Self::from_json(EMBEDDED_CATALOG)
     }
 
@@ -584,7 +597,7 @@ impl Catalog {
                         };
                         if release.version.trim().is_empty()
                             || release.size == 0
-                            || !release.url.starts_with("https://")
+                            || !valid_direct_release_url(&release.url)
                             || !is_sha256(&release.sha256)
                         {
                             return Err(PortcoveError::usage(format!(
@@ -982,6 +995,27 @@ fn valid_repository_path(value: &str) -> bool {
     matches!((parts.next(), parts.next(), parts.next()), (Some(owner), Some(project), None) if !owner.is_empty() && !project.is_empty())
 }
 
+fn valid_direct_release_url(value: &str) -> bool {
+    if value.starts_with("https://") {
+        return true;
+    }
+    #[cfg(feature = "qualification-fixtures")]
+    {
+        let Ok(url) = reqwest::Url::parse(value) else {
+            return false;
+        };
+        return url.scheme() == "http"
+            && url.host_str() == Some("127.0.0.1")
+            && url.port().is_some()
+            && url.username().is_empty()
+            && url.password().is_none()
+            && url.query().is_none()
+            && url.fragment().is_none();
+    }
+    #[cfg(not(feature = "qualification-fixtures"))]
+    false
+}
+
 fn is_safe_environment_name(value: &str) -> bool {
     let mut characters = value.chars();
     characters
@@ -1052,6 +1086,34 @@ mod tests {
     fn contract_digest(mut value: serde_json::Value) -> String {
         canonical_json(&mut value);
         hex::encode(Sha256::digest(serde_json::to_vec(&value).unwrap()))
+    }
+
+    #[test]
+    fn direct_release_urls_remain_https_by_default() {
+        assert!(valid_direct_release_url(
+            "https://downloads.example.invalid/fixture.zip"
+        ));
+        #[cfg(not(feature = "qualification-fixtures"))]
+        assert!(!valid_direct_release_url(
+            "http://127.0.0.1:43210/fixture.tar.gz"
+        ));
+    }
+
+    #[cfg(feature = "qualification-fixtures")]
+    #[test]
+    fn qualification_direct_release_is_loopback_only() {
+        assert!(valid_direct_release_url(
+            "http://127.0.0.1:43210/fixture.tar.gz"
+        ));
+        for rejected in [
+            "http://localhost:43210/fixture.tar.gz",
+            "http://127.0.0.1/fixture.tar.gz",
+            "http://127.0.0.1:43210/fixture.tar.gz?token=secret",
+            "http://127.0.0.2:43210/fixture.tar.gz",
+            "http://example.invalid:43210/fixture.tar.gz",
+        ] {
+            assert!(!valid_direct_release_url(rejected), "{rejected}");
+        }
     }
 
     #[test]
