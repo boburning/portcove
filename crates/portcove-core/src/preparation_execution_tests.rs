@@ -89,7 +89,7 @@ impl Fixture {
 #[test]
 fn preparation_publishes_a_verified_derivative_and_preserves_the_staged_update() {
     let fixture = Fixture::native("success");
-    let library = fixture.service.library();
+    let library = fixture.service.library().clone();
     let mut staged = fixture.install.clone();
     staged.id = uuid::Uuid::new_v4().to_string();
     staged.artifact.sha256 = crate::signed_catalog::digest(b"separately staged artifact");
@@ -268,9 +268,8 @@ fn retained_cleanup_fixture() -> (Fixture, String, std::path::PathBuf) {
     let mut journal = LifecycleOperation::new(&activity.id, LifecycleOperationKind::Prepare, PORT);
     journal.paths.staging = Some(retained.clone());
     journal.paths.final_path = Some(
-        fixture
-            .install
-            .path
+        crate::output_root::validate_install_path(library, PORT, &fixture.install.path)
+            .unwrap()
             .parent()
             .unwrap()
             .join(crate::signed_catalog::digest(
@@ -576,6 +575,107 @@ impl LifecycleFaultInjector for Fault {
             Ok(())
         }
     }
+}
+
+#[test]
+fn journal_only_preparation_cleanup_removes_only_the_stale_journal() {
+    let mut fixture = Fixture::native("success");
+    let library = fixture.service.library().clone();
+    let active = fixture.service.status(PORT).unwrap().active.unwrap();
+    let original = crate::library_transfer::reviewed_tree(&active.path).unwrap();
+    let source = fs::read(&fixture.source).unwrap();
+    let user = library.user_dir(PORT).join("journal-only-save.bin");
+    let backup = library
+        .backups_dir()
+        .join(PORT)
+        .join("journal-only-backup.bin");
+    let log = library.logs_dir().join("journal-only-cleanup.log");
+    fs::create_dir_all(user.parent().unwrap()).unwrap();
+    fs::create_dir_all(backup.parent().unwrap()).unwrap();
+    fs::write(&user, b"owned save").unwrap();
+    fs::write(&backup, b"owned backup").unwrap();
+    fs::write(&log, b"owned log").unwrap();
+
+    fixture.set_faults(Arc::new(Fault(LifecycleFaultPoint::PreparationJournaled)));
+    assert_eq!(
+        fixture.run(|_| {}).unwrap_err().message,
+        "owned preparation interruption"
+    );
+    fixture.set_faults(Arc::new(NoLifecycleFaults));
+
+    let store = OperationStore::new(library.clone());
+    let journal = store.all().unwrap().remove(0);
+    let retained = journal.paths.staging.unwrap();
+    assert!(!retained.exists());
+    let plan = journal.preparation.as_ref().unwrap();
+    let original_install = crate::output_root::validate_install_path(
+        &library,
+        &journal.port_id,
+        &plan.inputs.install.path,
+    )
+    .unwrap();
+    let expected_final = original_install
+        .parent()
+        .unwrap()
+        .join(crate::signed_catalog::digest(
+            &serde_json::to_vec(&(
+                "Portcove prepared derivative v1",
+                &plan.plan_sha256,
+                &journal.id,
+            ))
+            .unwrap(),
+        ));
+    assert_eq!(journal.paths.final_path.as_ref(), Some(&expected_final));
+    assert!(!expected_final.exists(), "{expected_final:?}");
+    let activity = library
+        .activities(10)
+        .unwrap()
+        .into_iter()
+        .find(|activity| activity.id == journal.id)
+        .unwrap();
+    assert_eq!(activity.status, crate::ActivityStatus::Failed);
+
+    let preview = fixture
+        .service
+        .preview_preparation_cleanup(&journal.id)
+        .unwrap();
+    assert_eq!(preview.retained_path, retained);
+    assert!(preview.retained.directories.is_empty());
+    assert!(preview.retained.files.is_empty());
+    assert!(preview.retained.skipped_entries.is_empty());
+    assert_eq!(preview.retained.total_bytes, 0);
+    let authorization = fixture
+        .service
+        .authorize_preparation_cleanup(&journal.id, &preview.preview_sha256)
+        .unwrap();
+    let removed = fixture
+        .service
+        .cleanup_preparation(&journal.id, &authorization.token)
+        .unwrap();
+    assert_eq!(removed.preview_sha256, preview.preview_sha256);
+    assert!(!retained.exists());
+    assert!(store.all().unwrap().is_empty());
+    assert_eq!(
+        serde_json::to_value(fixture.service.status(PORT).unwrap().active.unwrap()).unwrap(),
+        serde_json::to_value(&active).unwrap()
+    );
+    assert_eq!(
+        crate::library_transfer::reviewed_tree(&active.path).unwrap(),
+        original
+    );
+    assert_eq!(fs::read(&fixture.source).unwrap(), source);
+    assert_eq!(fs::read(user).unwrap(), b"owned save");
+    assert_eq!(fs::read(backup).unwrap(), b"owned backup");
+    assert_eq!(fs::read(log).unwrap(), b"owned log");
+    assert_eq!(
+        library
+            .activities(10)
+            .unwrap()
+            .into_iter()
+            .find(|current| current.id == activity.id)
+            .unwrap(),
+        activity
+    );
 }
 
 fn assert_recovery(point: LifecycleFaultPoint, publishable: bool) {

@@ -1,5 +1,6 @@
 // An isolated durable-state fixture followed by real core recovery and native rendering.
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { access, writeFile } from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
@@ -9,6 +10,26 @@ import {
   clickVisible,
   reviewControls,
 } from "./desktop-review-controls.mjs";
+
+function insertOwnedRow(database, table, source, overrides = {}) {
+  const tableName =
+    table === "lifecycle_operations"
+      ? '"lifecycle_operations"'
+      : table === "activity_history"
+        ? '"activity_history"'
+        : undefined;
+  assert.ok(tableName, `unsupported fixture table: ${table}`);
+  assert.ok(source, `${table} source row`);
+  const columns = Object.keys(source);
+  const quotedColumns = columns.map((name) => `"${name.replaceAll('"', '""')}"`);
+  const clone = { ...source, ...overrides };
+  database
+    .prepare(
+      `INSERT INTO ${tableName}(${quotedColumns.join(",")}) VALUES (${columns.map(() => "?").join(",")})`,
+    )
+    .run(...columns.map((name) => clone[name]));
+  return clone;
+}
 
 export async function interruptedPreparationScenario({
   browser,
@@ -23,6 +44,27 @@ export async function interruptedPreparationScenario({
 }) {
   await scenario("native-interrupted-preparation-recovery", async () => {
     browser = await restartApplication("interrupted-preparation-recovery");
+    const applicationUpdateChoice = By.xpath(
+      '//section[@role="status" and .//strong[normalize-space(.)="Choose how Portcove updates"]]',
+    );
+    const dismissApplicationUpdateChoice = async () => {
+      const preferences = await invoke("get_application_update_preferences");
+      assert.equal(preferences.ok, true);
+      if (preferences.value.choice !== null) return;
+      await browser.wait(until.elementLocated(applicationUpdateChoice), 15_000);
+      await browser
+        .findElement(
+          By.xpath(
+            '//section[@role="status" and .//strong[normalize-space(.)="Choose how Portcove updates"]]//button[normalize-space(.)="Not now"]',
+          ),
+        )
+        .click();
+      await browser.wait(
+        async () => (await browser.findElements(applicationUpdateChoice)).length === 0,
+        15_000,
+      );
+    };
+    await dismissApplicationUpdateChoice();
     assert.equal(path.resolve(library), path.resolve(output, "library"));
     const before = command(["status", "opengoal-jak2"]);
     const activity = command(["activity"]).find(
@@ -38,16 +80,32 @@ export async function interruptedPreparationScenario({
     // in this harness's owned library. This is not a physical process-crash test.
     const database = new DatabaseSync(path.join(library, "portcove.sqlite3"));
     let privatePath;
+    let journalOnlyId;
+    let journalOnlyPath;
+    let journalOnlyActivityRow;
+    let journalOnlyOperationRow;
     try {
       database.exec("PRAGMA busy_timeout=1000");
       const operation = database
         .prepare(
-          "SELECT staging_path,final_path FROM lifecycle_operations WHERE id=? AND kind='prepare' AND phase='preparing'",
+          "SELECT * FROM lifecycle_operations WHERE id=? AND kind='prepare' AND phase='preparing'",
         )
         .get(activity.id);
+      const activityRow = database
+        .prepare("SELECT * FROM activity_history WHERE id=? AND operation='prepare'")
+        .get(activity.id);
       assert.ok(operation?.staging_path);
+      assert.ok(activityRow);
       assert.notEqual(operation.staging_path, operation.final_path);
       privatePath = operation.staging_path;
+      journalOnlyId = `${activity.id}-journal-only`;
+      journalOnlyPath = path.join(path.dirname(privatePath), journalOnlyId);
+      const plan = JSON.parse(operation.preparation_json);
+      const journalOnlyDestination = createHash("sha256")
+        .update(
+          JSON.stringify(["Portcove prepared derivative v1", plan.plan_sha256, journalOnlyId]),
+        )
+        .digest("hex");
       database.exec("BEGIN IMMEDIATE");
       const changed = database
         .prepare(
@@ -55,6 +113,28 @@ export async function interruptedPreparationScenario({
         )
         .run(activity.id);
       assert.equal(changed.changes, 1);
+      journalOnlyActivityRow = {
+        ...activityRow,
+        id: journalOnlyId,
+        status: "running",
+        message: null,
+        finished_at: null,
+        failure_json: null,
+        cancellation_phase: "preparing",
+        cancel_requested: 1,
+        cancellation_owner: null,
+      };
+      journalOnlyOperationRow = {
+        ...operation,
+        id: journalOnlyId,
+        phase: "preparing",
+        staging_path: journalOnlyPath,
+        final_path: path.join(path.dirname(operation.final_path), journalOnlyDestination),
+        quarantine_path: null,
+        install_json: null,
+        last_error: "owned journal-only preparation fixture",
+        preparation_process_quiesced: 1,
+      };
       for (const capture of retained) {
         const payload = JSON.stringify(capture);
         assert.equal(
@@ -70,6 +150,7 @@ export async function interruptedPreparationScenario({
     } finally {
       database.close();
     }
+    await assert.rejects(access(journalOnlyPath));
     const doctor = command(["doctor"]); // A fresh CLI executes real core startup recovery.
     const recovered = command(["activity"]).find((item) => item.id === activity.id);
     assert.equal(recovered.status, "failed");
@@ -88,6 +169,7 @@ export async function interruptedPreparationScenario({
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
       15_000,
     );
+    await dismissApplicationUpdateChoice();
     const updatesNavigation = await browser.findElement(
       By.xpath('//nav//button[contains(., "Updates")]'),
     );
@@ -99,24 +181,46 @@ export async function interruptedPreparationScenario({
     );
     assert.equal(await navigationStatus.getAttribute("aria-label"), "Activity needs attention");
     await updatesNavigation.click();
-    const row = await browser.wait(
-      until.elementLocated(
-        By.xpath(
-          '//div[contains(@class,"activity-row")][.//p[contains(.,"Game preparation stopped before its outcome could be recorded")]]',
-        ),
-      ),
-      10_000,
+    const interruptedRows = By.xpath(
+      '//div[contains(@class,"activity-row")][.//p[contains(.,"Game preparation stopped before its outcome could be recorded")]]',
     );
-    assert.match(await row.getText(), /Review game preparation/);
-    assert.doesNotMatch(await row.getText(), /No files were changed|The operation was cancelled/);
+    const rows = await browser.wait(async () => {
+      const candidates = await browser.findElements(interruptedRows);
+      if (candidates.length !== 1) return false;
+      return (await candidates[0].getText()).includes("Review game preparation")
+        ? candidates
+        : false;
+    }, 15_000);
+    let row;
+    for (const candidate of rows) {
+      const text = await candidate.getText();
+      assert.match(text, /Review game preparation/);
+      assert.doesNotMatch(text, /No files were changed|The operation was cancelled/);
+      const log = await candidate.findElement(
+        By.xpath('.//summary[normalize-space(.)="View preparation log"]'),
+      );
+      await log.click();
+      const loadedText = await browser.wait(async () => {
+        const current = await candidate.getText();
+        return current.includes("Reading the retained log")
+          ? false
+          : current.includes("Capture reached the end") ||
+              current.includes("Capture is incomplete") ||
+              current.includes("No retained diagnostic capture")
+            ? current
+            : false;
+      }, 15_000);
+      if (loadedText.includes("Capture is incomplete")) {
+        row = candidate;
+        break;
+      }
+      await log.click();
+    }
+    assert.ok(row, "original retained preparation row with incomplete diagnostic capture");
     assert.deepEqual(
       (await invoke("get_activities")).value.find((item) => item.id === activity.id),
       recovered,
     );
-    await row
-      .findElement(By.xpath('.//summary[normalize-space(.)="View preparation log"]'))
-      .click();
-    await browser.wait(async () => (await row.getText()).includes("Capture is incomplete"), 5_000);
     const report = path.join(output, "interrupted-preparation-accessibility.json");
     await captureAccessibilityReport(browser, report, artifacts);
     const evidence = path.join(output, "interrupted-preparation-recovery.json");
@@ -145,7 +249,7 @@ export async function interruptedPreparationScenario({
     assert.match(await review.getText(), /Retained preparation files/);
     assert.ok((await review.getText()).includes(privatePath));
     assert.match(await review.getText(), /cannot be resumed/);
-    const controls = reviewControls(browser);
+    let controls = reviewControls(browser);
     const cleanupReview = await review.findElement(
       By.xpath('.//button[normalize-space(.)="Review private-file cleanup"]'),
     );
@@ -169,6 +273,57 @@ export async function interruptedPreparationScenario({
     artifacts.push(recoveryImage);
     await clickVisible(browser, cleanupReview);
     const cleanupDialog = By.css('[aria-labelledby="preparation-cleanup-title"]');
+    const visibleControl = async (locator) => {
+      for (const element of await browser.findElements(locator)) {
+        try {
+          if (await element.isDisplayed()) return element;
+        } catch (error) {
+          if (!error.message.includes("stale element reference")) throw error;
+        }
+      }
+      return false;
+    };
+    const waitForCleanupReview = (expectedPath) =>
+      browser.wait(async () => {
+        const dialogs = await browser.findElements(cleanupDialog);
+        if (dialogs.length === 0) return false;
+        try {
+          const text = await dialogs.at(-1).getText();
+          const removal = await visibleControl(
+            controls.button("Remove reviewed private files permanently"),
+          );
+          if (text.includes(expectedPath) && removal) return removal;
+          const reviewAgain = await visibleControl(controls.button("Review again"));
+          if (reviewAgain) await clickVisible(browser, reviewAgain);
+        } catch (error) {
+          if (!error.message.includes("stale element reference")) throw error;
+        }
+        return false;
+      }, 60_000);
+    const confirmReviewedCleanup = async (expectedPath, evidenceName) => {
+      let lastError;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await clickVisible(browser, await waitForCleanupReview(expectedPath));
+          await confirmNative(
+            "Confirm retained preparation cleanup",
+            "Remove reviewed private files",
+            expectedPath,
+            evidenceName,
+          );
+          return;
+        } catch (error) {
+          lastError = error;
+          if (
+            !error.message.includes("stale element reference") &&
+            !error.message.includes("Wait timed out")
+          ) {
+            throw error;
+          }
+        }
+      }
+      throw lastError;
+    };
     await browser.wait(until.elementLocated(cleanupDialog), 15_000);
     await browser.wait(
       async () => (await browser.findElement(cleanupDialog).getText()).includes(privatePath),
@@ -232,25 +387,18 @@ export async function interruptedPreparationScenario({
       15_000,
     );
     await access(privatePath);
+    browser = await restartApplication("interrupted-preparation-recovery-after-cancel");
+    controls = reviewControls(browser);
+    await dismissApplicationUpdateChoice();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Updates")]')).click();
 
-    const currentReview = await browser.wait(
-      until.elementLocated(By.css(`[data-recovery-operation="${activity.id}"]`)),
-      15_000,
-    );
-    await clickVisible(
-      browser,
-      await currentReview.findElement(
-        By.xpath('.//button[normalize-space(.)="Review private-file cleanup"]'),
+    await controls.click(
+      By.xpath(
+        `//*[@data-recovery-operation="${activity.id}"]//button[normalize-space(.)="Review private-file cleanup"]`,
       ),
     );
     await browser.wait(until.elementLocated(cleanupDialog), 15_000);
-    await controls.click(controls.button("Remove reviewed private files permanently"));
-    await confirmNative(
-      "Confirm retained preparation cleanup",
-      "Remove reviewed private files",
-      privatePath,
-      "preparation-cleanup-confirmed",
-    );
+    await confirmReviewedCleanup(privatePath, "preparation-cleanup-confirmed");
     await browser.wait(
       async () => (await browser.findElements(cleanupDialog)).length === 0,
       15_000,
@@ -262,6 +410,96 @@ export async function interruptedPreparationScenario({
     );
     assert.deepEqual(command(["status", before.port_id]).active, before.active);
     assert.deepEqual(command(["activity", "log", activity.id]), retained);
+    const journalDatabase = new DatabaseSync(path.join(library, "portcove.sqlite3"));
+    try {
+      journalDatabase.exec("PRAGMA busy_timeout=1000");
+      journalDatabase.exec("BEGIN IMMEDIATE");
+      insertOwnedRow(journalDatabase, "activity_history", journalOnlyActivityRow);
+      insertOwnedRow(journalDatabase, "lifecycle_operations", journalOnlyOperationRow);
+      journalDatabase.exec("COMMIT");
+    } finally {
+      journalDatabase.close();
+    }
+    await assert.rejects(access(journalOnlyPath));
+    const journalOnlyDoctor = command(["doctor"]);
+    const journalOnlyActivity = command(["activity"]).find((item) => item.id === journalOnlyId);
+    assert.equal(journalOnlyActivity.status, "failed");
+    assert.equal(
+      journalOnlyActivity.failure.presentation.presentation_key,
+      "preparation_interrupted",
+    );
+    assert.equal(journalOnlyActivity.failure.presentation.mutation_state, "recovery_required");
+    const journalOnlyRepair = journalOnlyDoctor.repair.items.find(
+      (item) => item.operation_id === journalOnlyId,
+    );
+    assert.equal(journalOnlyRepair.kind, "retained_preparation");
+    assert.equal(journalOnlyRepair.path, journalOnlyPath);
+    assert.deepEqual(command(["status", before.port_id]).active, before.active);
+    assert.deepEqual(command(["activity", "log", activity.id]), retained);
+    browser = await restartApplication("journal-only-preparation-recovery");
+    controls = reviewControls(browser);
+    await dismissApplicationUpdateChoice();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Updates")]')).click();
+    await controls.click(By.css(`[data-recovery-operation="${journalOnlyId}"] summary`));
+    await controls.click(
+      By.xpath(
+        `//*[@data-recovery-operation="${journalOnlyId}"]//button[normalize-space(.)="Review private-file cleanup"]`,
+      ),
+    );
+    await browser.wait(until.elementLocated(cleanupDialog), 15_000);
+    await waitForCleanupReview(journalOnlyPath);
+    const journalOnlyText = await browser.findElement(cleanupDialog).getText();
+    assert.match(journalOnlyText, /0 files/);
+    assert.match(
+      journalOnlyText,
+      /The private folder is already absent; cleanup removes only its stale journal/,
+    );
+    await assert.rejects(access(journalOnlyPath));
+    const journalOnlyAccessibility = path.join(
+      output,
+      "journal-only-preparation-cleanup-accessibility.json",
+    );
+    await captureAccessibilityReport(browser, journalOnlyAccessibility, artifacts);
+    const journalOnlyImage = path.join(
+      output,
+      "native-journal-only-preparation-cleanup-review.png",
+    );
+    await writeFile(journalOnlyImage, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(journalOnlyImage);
+    await confirmReviewedCleanup(journalOnlyPath, "journal-only-preparation-cleanup-confirmed");
+    await browser.wait(
+      async () => (await browser.findElements(cleanupDialog)).length === 0,
+      15_000,
+    );
+    await assert.rejects(access(journalOnlyPath));
+    assert.equal(
+      command(["doctor"]).repair.items.some((item) => item.operation_id === journalOnlyId),
+      false,
+    );
+    assert.deepEqual(command(["status", before.port_id]).active, before.active);
+    assert.equal(command(["activity"]).find((item) => item.id === journalOnlyId).status, "failed");
+    const journalOnlyEvidence = path.join(output, "journal-only-preparation-cleanup.json");
+    await writeFile(
+      journalOnlyEvidence,
+      JSON.stringify(
+        {
+          method: "journal-only durable fixture with real CLI recovery and native reviewed cleanup",
+          operation_id: journalOnlyId,
+          absent_private_path: journalOnlyPath,
+          private_path_absent_before_review: true,
+          accepted_cleanup_removed_only_stale_journal: true,
+          active_install_preserved: true,
+          failed_activity_preserved: true,
+        },
+        null,
+        2,
+      ),
+      { flag: "wx" },
+    );
+    artifacts.push(journalOnlyEvidence);
     const cleanupEvidence = path.join(output, "reviewed-preparation-cleanup.json");
     await writeFile(
       cleanupEvidence,

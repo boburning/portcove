@@ -726,10 +726,12 @@ fn preparation_cleanup_preview(
         &journal.id,
         &retained_path,
     )?;
-    let expected_final = plan
-        .inputs
-        .install
-        .path
+    let original_install = crate::output_root::validate_install_path(
+        service.library(),
+        &journal.port_id,
+        &plan.inputs.install.path,
+    )?;
+    let expected_final = original_install
         .parent()
         .ok_or_else(|| PortcoveError::state("recorded original has no managed parent"))?
         .join(crate::signed_catalog::digest(&serde_json::to_vec(&(
