@@ -26,7 +26,7 @@ program/argument objects, not shell command strings:
 
 Check the envelope's schema, command, `ok`, data/error and exit status. Negotiate
 required command names, JSON/JSONL formats and raw `exec`. The reference's current
-window is API 42–47/event 2; tolerate additive object fields within it and reject
+window is API 42–48/event 2; tolerate additive object fields within it and reject
 unknown consequential enum values or a different schema with a migration message.
 Future client revisions should extend that window only after matching fixtures
 and package tests. The product version is descriptive, never a substitute for
@@ -81,7 +81,7 @@ failure does not imply earlier registration was undone.
 
 Event records have **event schema 2 at the root**; they are not nested in API
 envelopes. A final root record has `type: "result"` and a negotiated API
-schema within the client's 42–47 window. Some
+schema within the client's 42–48 window. Some
 commands emit only the result. Track sequences per operation ID and parent IDs;
 do not fabricate progress when a phase or event is missing. A valid terminal
 result and matching exit status establish the command response; refresh core
@@ -104,6 +104,16 @@ outcome or reason as a compatibility failure. Do not reduce publisher trust,
 artifact integrity, source compatibility, scoped evidence or missing gameplay to
 one client-maintained support flag, and do not cache a decision as authorization;
 core revalidates current state when execution begins.
+
+Schema 48 adds reviewed cleanup for a retained private preparation. Negotiate
+the `preparation.cleanup` capability, read the current `retained_preparation`
+repair from `doctor`, and validate its stable port and operation identities
+before requesting `preparation cleanup-plan`. Show the complete affected
+inventory and the installation, source, saved data, backups and logs that remain
+outside the action. Submit `preparation cleanup` only with the exact reviewed
+`preview_sha256` and explicit confirmation. Changed, missing, duplicated,
+unknown or cross-port repair values require a fresh read and review; never reuse
+an earlier fingerprint or infer cleanup from an interrupted preparation.
 
 ## Troubleshooting and conformance
 
