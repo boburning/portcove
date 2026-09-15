@@ -85,6 +85,15 @@ const reviewedSources = {
     path: "README.md",
     reviewedAt: "2026-09-13",
   },
+  cvlodRecomp: {
+    evidenceId: "cvlod-recomp-0-2-26-source-contract",
+    repository: "fliperama86/cvlod_recomp",
+    ref: "89566dd74781d39e19944c8ba29a116ee31b963e",
+    tag: "v0.2.26",
+    liveRef: "main",
+    path: "castlevania2.yaml",
+    reviewedAt: "2026-09-14",
+  },
 };
 
 function upstreamEvidence(source, claim) {
@@ -153,6 +162,10 @@ const evidence = [
   upstreamEvidence(
     reviewedSources.snap64Recomp,
     "Limits Snap64 Recomp 1.0.5 to the US Pokemon Snap source and documents portable data-root isolation",
+  ),
+  upstreamEvidence(
+    reviewedSources.cvlodRecomp,
+    "Limits LodRecomp 0.2.26 to the North American Castlevania: Legacy of Darkness source",
   ),
   {
     id: "snap64-recomp-windows-2026-09-13",
@@ -397,6 +410,25 @@ identities.push({
         },
       ],
       reviewedSources.snap64Recomp.evidenceId,
+    ),
+  ],
+  aliases: [],
+  tombstones: [],
+  evidence_gap: null,
+});
+
+identities.push({
+  id: "castlevania-legacy-of-darkness",
+  label: "Castlevania: Legacy of Darkness (North America) source",
+  kind: "file",
+  variants: [
+    n64Variant(
+      "north-america",
+      "Castlevania: Legacy of Darkness",
+      "North America",
+      null,
+      [{ sha1: "879ead98f197fd05edda867655da5b1ce25aa5b8" }],
+      reviewedSources.cvlodRecomp.evidenceId,
     ),
   ],
   aliases: [],
@@ -697,6 +729,38 @@ contracts.push({
   tombstones: [],
 });
 
+contracts.push({
+  id: "cvlod-recomp-game-source",
+  port_id: "cvlod-recomp",
+  role: "game",
+  profile_id: "castlevania-legacy-of-darkness",
+  admission_mode: "enforced",
+  supported_variant_ids: ["north-america"],
+  validator_contract_id: null,
+  evidence_ids: [reviewedSources.cvlodRecomp.evidenceId],
+  authority_ref: reviewedSources.cvlodRecomp.ref,
+  reviewed_at: reviewedSources.cvlodRecomp.reviewedAt,
+  immutable_review_url: `https://github.com/${reviewedSources.cvlodRecomp.repository}/blob/${reviewedSources.cvlodRecomp.ref}/${reviewedSources.cvlodRecomp.path}`,
+  live_review_url: `https://github.com/${reviewedSources.cvlodRecomp.repository}/blob/${reviewedSources.cvlodRecomp.liveRef}/${reviewedSources.cvlodRecomp.path}`,
+  evidence_gap: null,
+  applicability: [
+    {
+      upstream_ref: reviewedSources.cvlodRecomp.tag,
+      artifact_sha256: "be60fefdbc4a98d1cf2ab6932e69825f39268e5ad1daab950ea7b8a19e53b40a",
+    },
+    {
+      upstream_ref: reviewedSources.cvlodRecomp.tag,
+      artifact_sha256: "c88af33bb3d4d676ca6cd5b3676b9fe99d1a3c39904592e30ddfc06a383cea2f",
+    },
+    {
+      upstream_ref: reviewedSources.cvlodRecomp.tag,
+      artifact_sha256: "0086f1aae522d1934af20cba6d9037e27ed96cf81de93a4be352fcc11cdf1408",
+    },
+  ],
+  aliases: [],
+  tombstones: [],
+});
+
 function reviewContract(portId, source, supportedVariantIds, extraEvidenceIds = []) {
   const contract = contracts.find(
     (candidate) => candidate.port_id === portId && candidate.role === "game",
@@ -800,6 +864,7 @@ const normalizedSummaries = {
   "mega-man-x6-recompiled": "Native Mega Man X6 recompilation.",
   "paper-mario-recut": "Native Paper Mario recompilation.",
   "snap64-recomp": "Native Pokémon Snap static recompilation.",
+  "cvlod-recomp": "Native Castlevania: Legacy of Darkness recompilation.",
 };
 
 function sourceRequirement(port, role, field) {
@@ -1039,6 +1104,48 @@ const migrated = {
       portable_marker: true,
       user_data_environment: "SNAP_DATA_DIR",
       runtime_source_filename: "pokemonsnap.z64",
+      runtime_source_materialization: "n64-big-endian",
+    }),
+    withPresentation({
+      id: "cvlod-recomp",
+      name: "Castlevania: Legacy of Darkness Recompiled",
+      summary: "Native Castlevania: Legacy of Darkness recompilation.",
+      project_url: "https://github.com/fliperama86/cvlod_recomp",
+      support_tier: "beta",
+      channels: ["stable"],
+      platforms: ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
+      automated_tested_platforms: [],
+      manually_validated_platforms: [],
+      adapter: "n64-recomp-portable",
+      release: {
+        repository: "fliperama86/cvlod_recomp",
+        asset_hints: {
+          "windows-x86-64": ["windows-x64.zip"],
+          "linux-x86-64": ["linux-x64.tar.gz"],
+          "macos-aarch64": ["macos-arm64.zip"],
+        },
+      },
+      source_profile: "castlevania-legacy-of-darkness",
+      executable_hints: {
+        "windows-x86-64": ["LodRecomp.exe"],
+        "linux-x86-64": ["LodRecomp"],
+        "macos-aarch64": ["LodRecomp.app/Contents/MacOS/LodRecomp"],
+      },
+      persistent_paths: [
+        "rom.z64",
+        "castlevania2.n64.us.z64",
+        "saves",
+        "mods",
+        "mods.json",
+        "mod_config",
+        "graphics.json",
+        "audio.json",
+        "controls.json",
+        "rom_path.txt",
+      ],
+      runtime_mutable_paths: ["LodRecomp.log"],
+      portable_marker: true,
+      runtime_source_filename: "rom.z64",
       runtime_source_materialization: "n64-big-endian",
     }),
   ],
