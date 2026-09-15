@@ -94,6 +94,15 @@ const reviewedSources = {
     path: "castlevania2.yaml",
     reviewedAt: "2026-09-14",
   },
+  goldenBalloon: {
+    evidenceId: "golden-balloon-1-7-0-source-contract",
+    repository: "akratch/goldenballoon",
+    ref: "106bad37244a2f8829bab21c655d25ff4b4dcdbf",
+    tag: "v1.7.0",
+    liveRef: "main",
+    path: "platform/rom_validation.c",
+    reviewedAt: "2026-09-15",
+  },
 };
 
 function upstreamEvidence(source, claim) {
@@ -166,6 +175,10 @@ const evidence = [
   upstreamEvidence(
     reviewedSources.cvlodRecomp,
     "Limits LodRecomp 0.2.26 to the North American Castlevania: Legacy of Darkness source",
+  ),
+  upstreamEvidence(
+    reviewedSources.goldenBalloon,
+    "Limits Golden Balloon 1.7.0 to verified US Rev 1 and European Rev 1 Diddy Kong Racing sources",
   ),
   {
     id: "snap64-recomp-windows-2026-09-13",
@@ -429,6 +442,42 @@ identities.push({
       null,
       [{ sha1: "879ead98f197fd05edda867655da5b1ce25aa5b8" }],
       reviewedSources.cvlodRecomp.evidenceId,
+    ),
+  ],
+  aliases: [],
+  tombstones: [],
+  evidence_gap: null,
+});
+
+identities.push({
+  id: "diddy-kong-racing-golden-balloon",
+  label: "Diddy Kong Racing Rev 1 source for Golden Balloon",
+  kind: "file",
+  variants: [
+    n64Variant(
+      "usa-rev1",
+      "Diddy Kong Racing",
+      "USA",
+      "Rev 1",
+      [
+        {
+          sha1: "6d96743d46f8c0cd0edb0ec5600b003c89b93755",
+          sha256: "7de1a8fb2a9558cfc3d9ad4497df698c1e89cf7095ac1531557df2af40ba8bcf",
+        },
+      ],
+      reviewedSources.goldenBalloon.evidenceId,
+    ),
+    n64Variant(
+      "europe-rev1",
+      "Diddy Kong Racing",
+      "Europe",
+      "Rev 1",
+      [
+        {
+          sha256: "584d59412b3a8c675f5569516a0406128028929e31544490a4dbc3ab16a038b9",
+        },
+      ],
+      reviewedSources.goldenBalloon.evidenceId,
     ),
   ],
   aliases: [],
@@ -761,6 +810,30 @@ contracts.push({
   tombstones: [],
 });
 
+contracts.push({
+  id: "diddy-kong-racing-golden-balloon-game-source",
+  port_id: "diddy-kong-racing-golden-balloon",
+  role: "game",
+  profile_id: "diddy-kong-racing-golden-balloon",
+  admission_mode: "enforced",
+  supported_variant_ids: ["usa-rev1", "europe-rev1"],
+  validator_contract_id: null,
+  evidence_ids: [reviewedSources.goldenBalloon.evidenceId],
+  authority_ref: reviewedSources.goldenBalloon.ref,
+  reviewed_at: reviewedSources.goldenBalloon.reviewedAt,
+  immutable_review_url: `https://github.com/${reviewedSources.goldenBalloon.repository}/blob/${reviewedSources.goldenBalloon.ref}/${reviewedSources.goldenBalloon.path}`,
+  live_review_url: `https://github.com/${reviewedSources.goldenBalloon.repository}/blob/${reviewedSources.goldenBalloon.liveRef}/${reviewedSources.goldenBalloon.path}`,
+  evidence_gap: null,
+  applicability: [
+    {
+      upstream_ref: reviewedSources.goldenBalloon.tag,
+      artifact_sha256: "23369d7b0b4c2a7794917c8d6205125d32cca53227695f42f0f091517732bba1",
+    },
+  ],
+  aliases: [],
+  tombstones: [],
+});
+
 function reviewContract(portId, source, supportedVariantIds, extraEvidenceIds = []) {
   const contract = contracts.find(
     (candidate) => candidate.port_id === portId && candidate.role === "game",
@@ -865,6 +938,8 @@ const normalizedSummaries = {
   "paper-mario-recut": "Native Paper Mario recompilation.",
   "snap64-recomp": "Native Pokémon Snap static recompilation.",
   "cvlod-recomp": "Native Castlevania: Legacy of Darkness recompilation.",
+  "diddy-kong-racing-golden-balloon":
+    "Native Diddy Kong Racing recompilation with strict Rev 1 source validation.",
 };
 
 function sourceRequirement(port, role, field) {
@@ -1146,6 +1221,45 @@ const migrated = {
       portable_marker: true,
       runtime_source_filename: "rom.z64",
       runtime_source_materialization: "n64-big-endian",
+    }),
+    withPresentation({
+      id: "diddy-kong-racing-golden-balloon",
+      name: "Golden Balloon",
+      summary: "Native Diddy Kong Racing recompilation with strict Rev 1 source validation.",
+      project_url: "https://github.com/akratch/goldenballoon",
+      support_tier: "beta",
+      channels: ["stable"],
+      platforms: ["windows-x86-64"],
+      automated_tested_platforms: [],
+      manually_validated_platforms: [],
+      adapter: "n64-recomp-portable",
+      release: {
+        repository: "akratch/goldenballoon",
+        asset_hints: {
+          "windows-x86-64": ["windows-x64.zip"],
+        },
+      },
+      source_profile: "diddy-kong-racing-golden-balloon",
+      executable_hints: {
+        "windows-x86-64": ["GoldenBalloon.exe"],
+      },
+      persistent_paths: [
+        "GoldenBalloon/dkr-v80.z64",
+        "GoldenBalloon/save",
+        "GoldenBalloon/mods",
+        "GoldenBalloon/characters",
+        "GoldenBalloon/mdkr64.ini",
+        "GoldenBalloon/mdkr64_app.ini",
+      ],
+      runtime_mutable_paths: ["mdkr64.log", "mdkr64.prev.log", "mdkr64-online-failure.txt"],
+      launch_environment: {
+        MDKR_APP_PREFS_DIR: ".",
+      },
+      portable_marker: true,
+      runtime_subdirectory: "GoldenBalloon",
+      runtime_source_filename: "dkr-v80.z64",
+      runtime_source_materialization: "n64-big-endian",
+      launch_arguments: ["--rom", "dkr-v80.z64"],
     }),
   ],
 };

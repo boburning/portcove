@@ -1121,14 +1121,19 @@ mod tests {
         let source_catalog = migrated.source_catalog().expect("schema-2 authority");
         assert_eq!(
             source_catalog.identities.len(),
-            legacy.document().source_profiles.len() + 2
+            legacy.document().source_profiles.len() + 3
         );
         let projected_legacy_profiles = migrated
             .document()
             .source_profiles
             .iter()
             .filter(|profile| {
-                !["pokemon-snap", "castlevania-legacy-of-darkness"].contains(&profile.id.as_str())
+                ![
+                    "pokemon-snap",
+                    "castlevania-legacy-of-darkness",
+                    "diddy-kong-racing-golden-balloon",
+                ]
+                .contains(&profile.id.as_str())
             })
             .cloned()
             .collect::<Vec<_>>();
@@ -1207,7 +1212,14 @@ mod tests {
             .document()
             .ports
             .iter()
-            .filter(|port| !["snap64-recomp", "cvlod-recomp"].contains(&port.id.as_str()))
+            .filter(|port| {
+                ![
+                    "snap64-recomp",
+                    "cvlod-recomp",
+                    "diddy-kong-racing-golden-balloon",
+                ]
+                .contains(&port.id.as_str())
+            })
             .cloned()
             .collect::<Vec<_>>();
         // Presentation and concise summaries are additive schema-2 client
@@ -1337,7 +1349,7 @@ mod tests {
 
         assert!(document.get("source_catalog").is_some());
         assert!(document.get("source_profiles").is_none());
-        assert_eq!(document["ports"].as_array().unwrap().len(), 69);
+        assert_eq!(document["ports"].as_array().unwrap().len(), 70);
     }
 
     #[test]
@@ -1576,7 +1588,12 @@ mod tests {
             .source_profiles
             .iter()
             .filter(|profile| {
-                !["pokemon-snap", "castlevania-legacy-of-darkness"].contains(&profile.id.as_str())
+                ![
+                    "pokemon-snap",
+                    "castlevania-legacy-of-darkness",
+                    "diddy-kong-racing-golden-balloon",
+                ]
+                .contains(&profile.id.as_str())
             })
             .cloned()
             .collect::<Vec<_>>();
@@ -2773,6 +2790,98 @@ mod tests {
                 "c88af33bb3d4d676ca6cd5b3676b9fe99d1a3c39904592e30ddfc06a383cea2f",
                 "0086f1aae522d1934af20cba6d9037e27ed96cf81de93a4be352fcc11cdf1408",
             ]
+        );
+    }
+
+    #[test]
+    fn golden_balloon_is_an_independent_rev1_portable_contract() {
+        let catalog = Catalog::embedded().expect("catalog should load");
+        let profile = catalog
+            .source_profile("diddy-kong-racing-golden-balloon")
+            .unwrap();
+        assert_eq!(profile.accepted_extensions, vec!["z64", "n64", "v64"]);
+        assert_eq!(
+            profile.accepted_sha1,
+            vec!["6d96743d46f8c0cd0edb0ec5600b003c89b93755"]
+        );
+        assert_eq!(
+            profile.accepted_sha256,
+            [
+                "7de1a8fb2a9558cfc3d9ad4497df698c1e89cf7095ac1531557df2af40ba8bcf",
+                "584d59412b3a8c675f5569516a0406128028929e31544490a4dbc3ab16a038b9",
+            ]
+        );
+
+        let port = catalog.port("diddy-kong-racing-golden-balloon").unwrap();
+        assert_eq!(port.adapter, AdapterKind::N64RecompPortable);
+        assert!(port.portable_marker);
+        assert_eq!(port.runtime_source_filename.as_deref(), Some("dkr-v80.z64"));
+        assert_eq!(
+            port.runtime_source_materialization,
+            Some(RuntimeSourceMaterialization::N64BigEndian)
+        );
+        assert_eq!(port.platforms, [Platform::WindowsX86_64]);
+        assert!(port.automated_tested_platforms.is_empty());
+        assert!(port.manually_validated_platforms.is_empty());
+        assert_eq!(
+            port.launch_environment.get("MDKR_APP_PREFS_DIR"),
+            Some(&".".into())
+        );
+        assert_eq!(port.launch_arguments, ["--rom", "dkr-v80.z64"]);
+        assert_eq!(port.runtime_subdirectory.as_deref(), Some("GoldenBalloon"));
+        for path in [
+            "GoldenBalloon/dkr-v80.z64",
+            "GoldenBalloon/save",
+            "GoldenBalloon/mods",
+            "GoldenBalloon/characters",
+            "GoldenBalloon/mdkr64.ini",
+            "GoldenBalloon/mdkr64_app.ini",
+        ] {
+            assert!(
+                port.persistent_paths.iter().any(|value| value == path),
+                "Golden Balloon persistence contract is missing {path}"
+            );
+        }
+        assert_eq!(
+            port.runtime_mutable_paths,
+            ["mdkr64.log", "mdkr64.prev.log", "mdkr64-online-failure.txt",]
+        );
+        assert_eq!(
+            port.runtime_mutable_paths
+                .iter()
+                .map(|relative| format!(
+                    "{}/{relative}",
+                    port.runtime_subdirectory.as_deref().unwrap()
+                ))
+                .collect::<Vec<_>>(),
+            [
+                "GoldenBalloon/mdkr64.log",
+                "GoldenBalloon/mdkr64.prev.log",
+                "GoldenBalloon/mdkr64-online-failure.txt",
+            ]
+        );
+
+        let contract = catalog
+            .source_catalog()
+            .unwrap()
+            .contracts
+            .iter()
+            .find(|contract| contract.id == "diddy-kong-racing-golden-balloon-game-source")
+            .unwrap();
+        assert_eq!(contract.supported_variant_ids, ["usa-rev1", "europe-rev1"]);
+        assert!(
+            contract
+                .applicability
+                .iter()
+                .all(|binding| binding.upstream_ref == "v1.7.0")
+        );
+        assert_eq!(
+            contract
+                .applicability
+                .iter()
+                .map(|binding| binding.artifact_sha256.as_deref().unwrap())
+                .collect::<Vec<_>>(),
+            ["23369d7b0b4c2a7794917c8d6205125d32cca53227695f42f0f091517732bba1",]
         );
     }
 
