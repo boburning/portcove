@@ -1357,7 +1357,6 @@ const migrated = {
         "windows-x86-64": ["starfox_pc.exe"],
       },
       persistent_paths: [
-        "Star Fox (USA).sfc",
         "Starfox-Assets.BIN",
         "starfox-ex.srm",
         "pregame.cfg",
@@ -1368,8 +1367,6 @@ const migrated = {
       ],
       runtime_mutable_paths: ["Starfox-Assets.BIN.tmp"],
       source_environment: "STARFOX_RETAIL_ROM",
-      runtime_source_filename: "Star Fox (USA).sfc",
-      runtime_source_materialization: "copy",
     }),
   ],
 };

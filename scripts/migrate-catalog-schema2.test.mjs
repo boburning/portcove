@@ -120,12 +120,11 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
     "StarFoxEnhanced-",
     "windows-x64.zip",
   ]);
-  assert.equal(starFoxEnhanced.runtime_source_filename, "Star Fox (USA).sfc");
-  assert.equal(starFoxEnhanced.runtime_source_materialization, "copy");
+  assert.equal(starFoxEnhanced.runtime_source_filename, undefined);
+  assert.equal(starFoxEnhanced.runtime_source_materialization, undefined);
   assert.equal(starFoxEnhanced.source_environment, "STARFOX_RETAIL_ROM");
   assert.deepEqual(starFoxEnhanced.runtime_mutable_paths, ["Starfox-Assets.BIN.tmp"]);
   assert.deepEqual(starFoxEnhanced.persistent_paths, [
-    "Star Fox (USA).sfc",
     "Starfox-Assets.BIN",
     "starfox-ex.srm",
     "pregame.cfg",

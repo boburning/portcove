@@ -638,8 +638,8 @@ impl Catalog {
             }
             let mut runtime_mutable_paths = HashSet::new();
             for relative in &port.runtime_mutable_paths {
-                let staged_source_path = port.adapter == AdapterKind::StagedSourcePortable
-                    && port.runtime_source_filename.as_ref().is_some_and(|source| {
+                let staged_runtime_path = port.adapter == AdapterKind::StagedSourcePortable
+                    && port.runtime_source_filename.as_ref().is_none_or(|source| {
                         relative == source || !crate::runtime::overlaps(relative, source)
                     });
                 let generated_cache_source_path = port.adapter == AdapterKind::GeneratedCache
@@ -681,7 +681,7 @@ impl Catalog {
                         .components()
                         .any(|component| !matches!(component, Component::Normal(_)))
                     || !runtime_mutable_paths.insert(relative.as_str())
-                    || (!staged_source_path
+                    || (!staged_runtime_path
                         && !generated_cache_source_path
                         && !upstream_setup_path
                         && !portable_runtime_path)
@@ -2889,7 +2889,7 @@ mod tests {
     }
 
     #[test]
-    fn star_fox_enhanced_stages_one_exact_source_and_owns_portable_outputs() {
+    fn star_fox_enhanced_passes_one_exact_source_and_owns_generated_outputs() {
         let catalog = Catalog::embedded().expect("catalog should load");
         let profile = catalog
             .source_profile("star-fox-enhanced-usa-v1-0")
@@ -2918,14 +2918,8 @@ mod tests {
                 .unwrap(),
             &["StarFoxEnhanced-", "windows-x64.zip"]
         );
-        assert_eq!(
-            port.runtime_source_filename.as_deref(),
-            Some("Star Fox (USA).sfc")
-        );
-        assert_eq!(
-            port.runtime_source_materialization,
-            Some(RuntimeSourceMaterialization::Copy)
-        );
+        assert!(port.runtime_source_filename.is_none());
+        assert!(port.runtime_source_materialization.is_none());
         assert_eq!(
             port.source_environment.as_deref(),
             Some("STARFOX_RETAIL_ROM")
@@ -2933,7 +2927,6 @@ mod tests {
         assert_eq!(
             port.persistent_paths,
             [
-                "Star Fox (USA).sfc",
                 "Starfox-Assets.BIN",
                 "starfox-ex.srm",
                 "pregame.cfg",
